@@ -870,6 +870,12 @@
     transition: color $motion-fast $easing-standard,
                 background $motion-fast $easing-standard;
 
+    svg {
+      width: var(--bitfun-nav-row-action-icon-size);
+      height: var(--bitfun-nav-row-action-icon-size);
+      flex-shrink: 0;
+    }
+
     &:hover,
     &.is-open {
       color: var(--color-text-primary);
@@ -1276,6 +1282,12 @@
     cursor: pointer;
     transition: color $motion-fast $easing-standard,
                 background $motion-fast $easing-standard;
+
+    svg {
+      width: var(--bitfun-nav-row-action-icon-size);
+      height: var(--bitfun-nav-row-action-icon-size);
+      flex-shrink: 0;
+    }
 
     &:hover,
     &.is-open {

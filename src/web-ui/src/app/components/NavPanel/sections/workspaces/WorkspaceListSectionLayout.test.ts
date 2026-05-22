@@ -86,6 +86,9 @@ describe('WorkspaceListSection layout styles', () => {
     for (const block of [workspaceTrigger, assistantTrigger]) {
       expect(block).toContain('width: var(--bitfun-nav-row-action-size);');
       expect(block).toContain('height: var(--bitfun-nav-row-action-size);');
+      expect(block).toContain('svg {');
+      expect(block).toContain('width: var(--bitfun-nav-row-action-icon-size);');
+      expect(block).toContain('height: var(--bitfun-nav-row-action-icon-size);');
     }
   });
 });

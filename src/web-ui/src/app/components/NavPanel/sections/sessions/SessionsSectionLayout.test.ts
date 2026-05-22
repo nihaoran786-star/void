@@ -69,6 +69,9 @@ describe('SessionsSection layout styles', () => {
 
     expect(actionButtonBlock).toContain('width: var(--bitfun-nav-row-action-size);');
     expect(actionButtonBlock).toContain('height: var(--bitfun-nav-row-action-size);');
+    expect(actionButtonBlock).toContain('svg {');
+    expect(actionButtonBlock).toContain('width: var(--bitfun-nav-row-action-icon-size);');
+    expect(actionButtonBlock).toContain('height: var(--bitfun-nav-row-action-icon-size);');
   });
 
   it('keeps child-session badges visible while long titles are ellipsized', () => {

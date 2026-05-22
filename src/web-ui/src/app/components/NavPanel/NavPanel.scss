@@ -906,6 +906,12 @@ $_section-header-height: 24px;
     transition: color $motion-fast $easing-standard,
                 background $motion-fast $easing-standard;
 
+    svg {
+      width: var(--bitfun-nav-row-action-icon-size);
+      height: var(--bitfun-nav-row-action-icon-size);
+      flex-shrink: 0;
+    }
+
     &:hover {
       color: var(--color-text-primary);
       background: var(--element-bg-soft);
@@ -1089,7 +1095,10 @@ $_section-header-height: 24px;
   }
 
   &__collapsible-inner {
-    overflow: visible;
+    // Keep expanded rows participating in grid height and clip collapsed content.
+    // `overflow: visible` can paint session rows outside the grid track, which
+    // lets the following section header visually overlap them in WebView2.
+    overflow: hidden;
     min-height: 0;
     min-width: 0;
     max-width: 100%;

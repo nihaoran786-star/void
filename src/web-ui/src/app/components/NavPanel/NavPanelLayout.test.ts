@@ -48,6 +48,17 @@ describe('NavPanel layout styles', () => {
     expect(sectionHeaderBlock).toContain('margin: 0 $size-gap-1;');
   });
 
+  it('clips collapsible content so expanded rows cannot overlap following sections', () => {
+    const stylesheet = readNavPanelStylesheet();
+    const collapsibleBlock = extractBlock(stylesheet, '&__collapsible');
+    const collapsibleInnerBlock = extractBlock(stylesheet, '&__collapsible-inner');
+
+    expect(collapsibleBlock).toContain('display: grid;');
+    expect(collapsibleBlock).toContain('grid-template-rows: 1fr;');
+    expect(stylesheet).toContain('&.is-collapsed {\n      grid-template-rows: 0fr;');
+    expect(collapsibleInnerBlock).toContain('overflow: hidden;');
+  });
+
   it('uses one shared row-action size for root action buttons', () => {
     const stylesheet = readNavPanelStylesheet();
     const rootBlock = extractBlock(stylesheet, '.bitfun-nav-panel');
@@ -62,5 +73,8 @@ describe('NavPanel layout styles', () => {
       expect(block).toContain('width: var(--bitfun-nav-row-action-size);');
       expect(block).toContain('height: var(--bitfun-nav-row-action-size);');
     }
+    expect(sectionActionBlock).toContain('svg {');
+    expect(sectionActionBlock).toContain('width: var(--bitfun-nav-row-action-icon-size);');
+    expect(sectionActionBlock).toContain('height: var(--bitfun-nav-row-action-icon-size);');
   });
 });
