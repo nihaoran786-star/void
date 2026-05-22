@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -163,6 +163,7 @@ const MainNav: React.FC<MainNavProps> = ({
     void openWorkspaceMenu();
   }, [closeWorkspaceMenu, openWorkspaceMenu, workspaceMenuOpen]);
 
+  const selectedSessionMode = useSessionModeStore(s => s.mode);
   const setSessionMode = useSessionModeStore(s => s.setMode);
   const isAssistantWorkspaceActive = currentWorkspace?.workspaceKind === WorkspaceKind.Assistant;
 
@@ -263,6 +264,14 @@ const MainNav: React.FC<MainNavProps> = ({
     setSessionMode('cowork');
     void handleCreateProjectSession('Cowork');
   }, [handleCreateProjectSession, setSessionMode]);
+
+  const handleCreateSelectedSession = useCallback(() => {
+    if (selectedSessionMode === 'cowork') {
+      handleCreateCoworkSession();
+      return;
+    }
+    handleCreateCodeSession();
+  }, [handleCreateCodeSession, handleCreateCoworkSession, selectedSessionMode]);
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -460,8 +469,12 @@ const MainNav: React.FC<MainNavProps> = ({
     document.body
   ) : null;
 
-  const createCodeTooltip = t('nav.sessions.newCodeSession');
-  const createCoworkTooltip = t('nav.sessions.newCoworkSession');
+  const createSelectedTooltip = selectedSessionMode === 'cowork'
+    ? t('nav.sessions.newCoworkSession')
+    : t('nav.sessions.newCodeSession');
+  const createSelectedLabel = selectedSessionMode === 'cowork'
+    ? t('nav.sessions.newCoworkSessionShort')
+    : t('nav.sessions.newCodeSessionShort');
   const assistantTooltip = t('nav.items.persona');
   const addWorkspaceTooltip = t('nav.tooltips.addWorkspace');
   const isAssistantActive = activeTabId === 'assistant';
@@ -496,33 +509,57 @@ const MainNav: React.FC<MainNavProps> = ({
 
       {/* ── Top action strip ────────────────────────── */}
       <div className="bitfun-nav-panel__top-actions">
-        <Tooltip content={createCodeTooltip} placement="right" followCursor>
-          <button
-            type="button"
-            className="bitfun-nav-panel__top-action-btn"
-            onClick={handleCreateCodeSession}
-            aria-label={createCodeTooltip}
+        <div className="bitfun-nav-panel__session-create">
+          <div
+            className="bitfun-nav-panel__session-mode-switch"
+            role="radiogroup"
+            aria-label={t('nav.sessions.newSession')}
           >
-            <span className="bitfun-nav-panel__top-action-icon-circle" aria-hidden="true">
-              <Plus size={12} />
-            </span>
-            <span>{t('nav.sessions.newCodeSessionShort')}</span>
-          </button>
-        </Tooltip>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedSessionMode === 'code'}
+              className={[
+                'bitfun-nav-panel__session-mode-option',
+                selectedSessionMode === 'code' ? 'is-active' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => setSessionMode('code')}
+            >
+              <Code2 size={14} aria-hidden="true" />
+              <span>{t('nav.sessions.newCodeSessionShort')}</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedSessionMode === 'cowork'}
+              className={[
+                'bitfun-nav-panel__session-mode-option',
+                selectedSessionMode === 'cowork' ? 'is-active' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => setSessionMode('cowork')}
+            >
+              <ClipboardList size={14} aria-hidden="true" />
+              <span>{t('nav.sessions.newCoworkSessionShort')}</span>
+            </button>
+          </div>
 
-        <Tooltip content={createCoworkTooltip} placement="right" followCursor>
-          <button
-            type="button"
-            className="bitfun-nav-panel__top-action-btn"
-            onClick={handleCreateCoworkSession}
-            aria-label={createCoworkTooltip}
-          >
-            <span className="bitfun-nav-panel__top-action-icon-circle" aria-hidden="true">
-              <Plus size={12} />
-            </span>
-            <span>{t('nav.sessions.newCoworkSessionShort')}</span>
-          </button>
-        </Tooltip>
+          <Tooltip content={createSelectedTooltip} placement="right" followCursor>
+            <button
+              type="button"
+              className="bitfun-nav-panel__session-create-action"
+              onClick={handleCreateSelectedSession}
+              aria-label={createSelectedTooltip}
+            >
+              <span className="bitfun-nav-panel__session-create-action-text">
+                {t('nav.sessions.newSession')}
+              </span>
+              <span className="bitfun-nav-panel__session-create-action-mode">
+                {createSelectedLabel}
+              </span>
+              <ArrowRight size={13} aria-hidden="true" />
+            </button>
+          </Tooltip>
+        </div>
 
         <Tooltip content={assistantTooltip} placement="right" followCursor>
           <button

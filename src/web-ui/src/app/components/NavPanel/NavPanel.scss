@@ -1920,9 +1920,152 @@ $_section-header-height: 24px;
 .bitfun-nav-panel__top-actions {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: $size-gap-2 $size-gap-2 $size-gap-4 * 0.75;
+  gap: $size-gap-1;
+  padding: $size-gap-2 $size-gap-2 $size-gap-3;
   flex-shrink: 0;
+}
+
+.bitfun-nav-panel__session-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: calc(#{$size-radius-base} + 2px);
+  background: color-mix(in srgb, var(--element-bg-soft) 74%, transparent);
+  overflow: hidden;
+}
+
+.bitfun-nav-panel__session-mode-switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 2px;
+  min-width: 0;
+  height: 34px;
+  padding: 3px;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 76%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.bitfun-nav-panel__session-mode-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 $size-gap-1;
+  border: none;
+  border-radius: $size-radius-base;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: color $motion-fast $easing-standard,
+              background $motion-fast $easing-standard,
+              box-shadow $motion-fast $easing-standard;
+
+  svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &:hover {
+    color: var(--color-text-secondary);
+    background: color-mix(in srgb, var(--element-bg-medium) 70%, transparent);
+  }
+
+  &.is-active {
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--border-subtle) 70%, transparent),
+      inset 0 1px 0 color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--color-accent-500);
+    outline-offset: 1px;
+  }
+}
+
+.bitfun-nav-panel__session-create-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: $size-gap-1;
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 $size-gap-2;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: color $motion-fast $easing-standard,
+              background $motion-fast $easing-standard;
+
+  &:hover {
+    color: var(--color-text-primary);
+    background: var(--element-bg-soft);
+
+    svg {
+      opacity: 0.9;
+      transform: translateX(1px);
+    }
+  }
+
+  &:active {
+    background: var(--element-bg-medium);
+  }
+
+  &:focus-visible {
+    outline: 1px solid var(--color-accent-500);
+    outline-offset: -1px;
+  }
+
+  svg {
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
+    opacity: 0.55;
+    transition: opacity $motion-fast $easing-standard,
+                transform $motion-fast $easing-standard;
+  }
+}
+
+.bitfun-nav-panel__session-create-action-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+.bitfun-nav-panel__session-create-action-mode {
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xxs);
+  font-weight: 500;
 }
 
 .bitfun-nav-panel__top-action-expand {

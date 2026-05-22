@@ -7,6 +7,9 @@
 $_tab-v-margin: 6px;   // symmetric top/bottom gap inside SceneBar
 
 .bitfun-scene-bar {
+  --bitfun-topbar-control-size: 28px;
+  --bitfun-topbar-control-radius: #{$size-radius-sm};
+
   display: flex;
   align-items: stretch;
   height: 40px;
@@ -33,6 +36,7 @@ $_tab-v-margin: 6px;   // symmetric top/bottom gap inside SceneBar
     align-items: center;
     flex-shrink: 0;
     padding: 0 $size-gap-1;
+    min-height: var(--bitfun-topbar-control-size);
   }
 }
 
@@ -211,13 +215,13 @@ $_tab-v-margin: 6px;   // symmetric top/bottom gap inside SceneBar
     right: $size-gap-2;
     top: 50%;
     transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border: none;
     background: transparent;
     color: inherit;
     cursor: pointer;
-    border-radius: $size-radius-sm;
+    border-radius: var(--bitfun-topbar-control-radius);
     padding: 0;
     opacity: 0;
     flex-shrink: 0;

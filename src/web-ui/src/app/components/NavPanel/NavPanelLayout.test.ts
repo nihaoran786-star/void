@@ -10,6 +10,13 @@ function readNavPanelStylesheet(): string {
   return stylesheet.replace(/\r\n/g, '\n');
 }
 
+function readMainNavSource(): string {
+  return readFileSync(
+    fileURLToPath(new URL('./MainNav.tsx', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
 function extractBlock(stylesheet: string, selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = stylesheet.match(new RegExp(`${escapedSelector}\\s*\\{(?<body>[\\s\\S]*?)\\n\\s*\\}`));
@@ -76,5 +83,33 @@ describe('NavPanel layout styles', () => {
     expect(sectionActionBlock).toContain('svg {');
     expect(sectionActionBlock).toContain('width: var(--bitfun-nav-row-action-icon-size);');
     expect(sectionActionBlock).toContain('height: var(--bitfun-nav-row-action-icon-size);');
+  });
+
+  it('keeps session mode selection separate from the single create action', () => {
+    const source = readMainNavSource();
+
+    expect(source).toContain('bitfun-nav-panel__session-mode-switch');
+    expect(source).toContain('role="radiogroup"');
+    expect(source).toContain("onClick={() => setSessionMode('code')}");
+    expect(source).toContain("onClick={() => setSessionMode('cowork')}");
+    expect(source).toContain('handleCreateSelectedSession');
+    expect(source).toContain('bitfun-nav-panel__session-create-action');
+    expect(source).not.toContain('<Plus size={12} />\n              </span>\n              <span>{t(\'nav.sessions.newSession\')}</span>');
+  });
+
+  it('styles the session mode switcher as a compact segmented control', () => {
+    const stylesheet = readNavPanelStylesheet();
+    const createBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-create');
+    const switchBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-mode-switch');
+    const optionBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-mode-option');
+
+    expect(createBlock).toContain('border: 1px solid var(--border-subtle);');
+    expect(createBlock).toContain('overflow: hidden;');
+    expect(switchBlock).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);');
+    expect(switchBlock).toContain('height: 34px;');
+    expect(switchBlock).toContain('border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 76%, transparent);');
+    expect(switchBlock).toContain('background: transparent;');
+    expect(optionBlock).toContain('height: 100%;');
+    expect(optionBlock).toContain('background: transparent;');
   });
 });
