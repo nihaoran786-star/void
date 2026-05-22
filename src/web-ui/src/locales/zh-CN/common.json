@@ -1,9 +1,9 @@
 {
   "app": {
-    "name": "BitFun",
+    "name": "Void",
     "version": "版本",
     "loading": "加载中...",
-    "welcome": "欢迎使用 BitFun"
+    "welcome": "欢迎使用 Void"
   },
   "agents": {
     "general": {
@@ -392,7 +392,7 @@
   "remoteConnect": {
     "title": "远程控制",
     "tabLan": "局域网",
-    "tabBitfunServer": "BitFun服务器",
+    "tabVoidServer": "Void服务器",
     "tabNgrok": "内网穿透",
     "tabCustomServer": "自建服务器",
     "tabBot": "IM机器人",
@@ -421,7 +421,7 @@
     "stateConnected": "已连接",
     "stateDisconnected": "已断开",
     "desc_lan": "通过局域网连接，两台设备需在同一LAN/WiFi下。若连接失败，请检查路由器安全设置（如AP隔离/客户端隔离）是否限制局域网互访，并确认两台设备的代理服务设置未影响局域网流量（允许直连局域网）。",
-    "desc_bitfun_server": "通过BitFun中继服务器连接。当前该服务器由BitFun团队自建，主要用于便捷试用与功能体验。尽管业务消息采用端到端加密，中继服务及其相关基础设施仍可能感知必要元数据，且任何公网服务都可能因配置缺陷、日志暴露、运营失误或遭受攻击而带来信息安全与数据泄露风险。若用于长期使用、正式环境或更高安全要求场景，建议优先使用自建服务器，并自行控制部署与运维策略。",
+    "desc_void_server": "通过Void中继服务器连接。当前该服务器由Void团队自建，主要用于便捷试用与功能体验。尽管业务消息采用端到端加密，中继服务及其相关基础设施仍可能感知必要元数据，且任何公网服务都可能因配置缺陷、日志暴露、运营失误或遭受攻击而带来信息安全与数据泄露风险。若用于长期使用、正式环境或更高安全要求场景，建议优先使用自建服务器，并自行控制部署与运维策略。",
     "desc_ngrok": "通过ngrok隧道连接，首次使用需安装ngrok并完成授权，无需手动启动ngrok服务。",
     "desc_ngrok_prefix": "通过ngrok隧道连接，首次使用需",
     "desc_ngrok_link": "安装ngrok",
@@ -459,9 +459,9 @@
     "disclaimerItemGeneralRisk": "远程连接可能存在未发现的安全漏洞、功能缺陷或不兼容变更，请在充分了解风险后使用。",
     "disclaimerItemSecurity": "远程连接会开启与网络通信相关的能力（包括但不限于局域网、第三方中继、自建服务、机器人通道等），请仅在可信网络和可信设备上使用。",
     "disclaimerItemEncryption": "远程连接采用端到端加密（X25519 ECDH + AES-256-GCM，每次会话生成临时密钥对）传输业务消息，中继服务器无法解密消息内容；但设备名称、连接状态、服务地址等必要元数据及其他连接上下文信息不属于业务消息密文范畴，仍可能被网络路径、服务节点或其他基础设施感知。",
-    "disclaimerItemOpenSource": "BitFun 远程连接的加密实现完全开源，你可以自行审计源码以验证安全性。",
+    "disclaimerItemOpenSource": "Void 远程连接的加密实现完全开源，你可以自行审计源码以验证安全性。",
     "disclaimerItemPrivacy": "请勿在不受信任环境中传输敏感信息；机器人消息平台、第三方网络、系统日志策略等可能影响你的数据暴露面，其他外部服务策略变化亦可能带来额外风险。",
-    "disclaimerItemDataUsage": "BitFun 不会将你的远程连接业务内容用于训练或商业化使用；但你选择接入的第三方服务（如 ngrok、Telegram、飞书、自建服务器运维组件等）可能按其条款处理数据，其他关联服务亦可能产生数据处理行为。",
+    "disclaimerItemDataUsage": "Void 不会将你的远程连接业务内容用于训练或商业化使用；但你选择接入的第三方服务（如 ngrok、Telegram、飞书、自建服务器运维组件等）可能按其条款处理数据，其他关联服务亦可能产生数据处理行为。",
     "disclaimerItemCredentials": "使用 ngrok、自建中继、Telegram/飞书机器人等方式时，相关地址、Token、App Secret、密钥及其他访问凭证由你自行保管，泄露可能导致未授权访问或其他安全事件。",
     "disclaimerItemQrCode": "二维码中包含中继地址、房间标识、公钥等连接信息及其他会话标识，请避免将其截图、录屏或展示给无关人员。",
     "disclaimerItemNgrok": "使用 ngrok 或其他第三方隧道服务时，流量会经过外部服务链路。请自行评估账号安全、地域合规、配额限制、服务可用性与潜在中间链路风险等因素。",
@@ -471,7 +471,7 @@
     "disclaimerItemBotPersistence": "机器人配对信息会保存在本地磁盘以便重启后自动恢复连接；如果本机被未授权人员访问、恶意软件入侵或发生其他系统安全事件，该信息可能被利用。",
     "disclaimerItemMobileBrowser": "移动端通过浏览器加载 Web 应用进行连接，浏览器缓存、本地存储、页面截图、系统剪贴板等都可能带来额外的信息暴露风险，其他浏览器插件或系统功能亦可能扩大风险面。",
     "disclaimerItemCompliance": "部分国家或地区对加密通信、隧道服务、跨境数据传输等有法规限制，请自行评估当地法律合规性；其他监管政策变化也可能影响功能可用性与合规义务。",
-    "disclaimerItemLiability": "使用远程连接功能过程中产生的风险、损失、纠纷或其他不利后果（包括但不限于数据泄露、连接中断、账号异常、服务不可用等）由你自行承担；BitFun 不对由此造成的问题负责。",
+    "disclaimerItemLiability": "使用远程连接功能过程中产生的风险、损失、纠纷或其他不利后果（包括但不限于数据泄露、连接中断、账号异常、服务不可用等）由你自行承担；Void 不对由此造成的问题负责。",
     "disclaimerReview": "查看免责声明",
     "disclaimerStatusAgreed": "已同意",
     "disclaimerStatusPending": "未同意",
@@ -485,9 +485,9 @@
     "buildDate": "构建日期",
     "commit": "提交",
     "branch": "分支",
-    "copyright": "© 2025 BitFun. All rights reserved.",
+    "copyright": "© 2025 Void. All rights reserved.",
     "updateSectionTitle": "应用更新",
-    "updateSectionHint": "保持 BitFun 为最新版本，以获取修复与新功能。"
+    "updateSectionHint": "保持 Void 为最新版本，以获取修复与新功能。"
   },
   "update": {
     "checkForUpdates": "检查更新",
@@ -507,11 +507,11 @@
     "downloadingTitle": "正在下载更新",
     "downloadFailedTitle": "无法完成更新",
     "installedTitle": "更新已安装",
-    "installedMessage": "更新已安装。重启 BitFun 后即可使用新版本。",
+    "installedMessage": "更新已安装。重启 Void 后即可使用新版本。",
     "progressPercent": "{{percent}}%",
     "progressUnknown": "正在下载…",
     "backgroundDownloading": "正在后台下载",
-    "backgroundDownloadHint": "下载完成后会提示重启，期间可以继续使用 BitFun。",
+    "backgroundDownloadHint": "下载完成后会提示重启，期间可以继续使用 Void。",
     "restartHint": "安装完成后需要重启应用。",
     "restartNow": "立即重启",
     "restartLater": "稍后",
@@ -865,7 +865,7 @@
     "welcomeBack": "欢迎回到",
     "welcomeTabTitle": "欢迎使用",
     "quickStart": "开始",
-    "heroBadge": "BitFun Workspace",
+    "heroBadge": "Void Workspace",
     "heroTitle": "真实工作台，而不只是一个聊天框",
     "heroDescription": "有个性，有记忆，帮你做事的 AI 助理。会话流与小应用围绕同一个工作流协同展开，AI 在做事，不只是回答。",
     "newCodeSession": "新建 Code 会话",
@@ -875,7 +875,7 @@
     "newClawSession": "新建 Claw 会话",
     "newClawSessionDesc": "进入个人助理工作区，延续上下文与偏好持续协作",
     "assistantEntryLabel": "个人助理",
-    "assistantEntryTitle": "除了项目工作流，你也可以直接使用 BitFun 助理",
+    "assistantEntryTitle": "除了项目工作流，你也可以直接使用 Void 助理",
     "assistantEntryDescription": "不用先选项目。进入助理工作区后，可以直接聊天、整理思路、起草文字，或让助理持续跟进你的任务。",
     "assistantEntryAction": "进入助理模式",
     "assistantHint": "除了 Code 和 Cowork，你也可以直接进入助理模式，处理项目之外的整理、起草和日常协作。",
@@ -886,7 +886,7 @@
       "message1": "欢迎回来，继续把想法变成现实。",
       "message2": "嗨，今天也来整点好玩的。",
       "message3": "你的创作搭子已上线，随时开工。",
-      "message4": "欢迎使用 BitFun，开始做点有意思的事。"
+      "message4": "欢迎使用 Void，开始做点有意思的事。"
     },
     "features": {
       "workspace": {
@@ -910,7 +910,7 @@
     "noOtherWorkspaces": "暂无其他工作区",
     "emptyHint": "选一个场景，开始今天的创作吧",
     "firstTime": {
-      "title": "欢迎使用 BitFun",
+      "title": "欢迎使用 Void",
       "subtitle": "你的 AI 编程伙伴，让创意瞬间成为现实",
       "noWorkspaceHint": "尚未打开任何工作区",
       "openProject": "打开项目",
@@ -938,7 +938,7 @@
     "whatsHindering": "遇到的阻碍",
     "quickWins": "快速提升",
     "lookingAhead": "展望未来",
-    "interactionStyle": "你如何使用 BitFun",
+    "interactionStyle": "你如何使用 Void",
     "sessions": "会话",
     "messages": "消息",
     "analyzed": "已分析",
@@ -953,7 +953,7 @@
     "bigWins": "亮眼成果",
     "friction": "问题所在",
     "suggestions": "建议",
-    "mdAdditions": "BITFUN.md 补充",
+    "mdAdditions": "VOID.md 补充",
     "featuresToTry": "推荐功能",
     "usagePatterns": "使用模式",
     "tryThisPrompt": "试试这个提示",
@@ -1040,15 +1040,15 @@
   },
   "notify": {
     "dialogCompleted": "AI 助手已完成任务。",
-    "dialogCompletedTitle": "BitFun 任务已完成",
-    "dialogCompletedWithSession": "“{{sessionTitle}}” 已完成，可以回到 BitFun 查看结果。",
-    "dialogCompletedFallback": "有一个 BitFun 会话已完成，可以回到应用查看结果。",
-    "dialogFailedTitle": "BitFun 任务已中断",
-    "dialogFailedWithSession": "“{{sessionTitle}}” 已异常停止，可以回到 BitFun 查看原因。",
-    "dialogFailedFallback": "有一个 BitFun 会话已异常停止，可以回到应用查看原因。"
+    "dialogCompletedTitle": "Void 任务已完成",
+    "dialogCompletedWithSession": "“{{sessionTitle}}” 已完成，可以回到 Void 查看结果。",
+    "dialogCompletedFallback": "有一个 Void 会话已完成，可以回到应用查看结果。",
+    "dialogFailedTitle": "Void 任务已中断",
+    "dialogFailedWithSession": "“{{sessionTitle}}” 已异常停止，可以回到 Void 查看原因。",
+    "dialogFailedFallback": "有一个 Void 会话已异常停止，可以回到应用查看原因。"
   },
   "closeDialog": {
-    "title": "关闭 BitFun",
+    "title": "关闭 Void",
     "message": "请选择关闭操作：退出程序将完全停止运行，最小化到托盘可保持后台运行随时唤回。",
     "quit": "退出程序",
     "minimizeToTray": "最小化到托盘"

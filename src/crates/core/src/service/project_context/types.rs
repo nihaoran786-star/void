@@ -103,7 +103,7 @@ pub struct ImportedDocument {
     pub name: String,
     /// Category ID (built-in or custom)
     pub category_id: String,
-    /// File path (relative path under `.bitfun/docs/{category_id}/{id}`)
+    /// File path (relative path under `.void/docs/{category_id}/{id}`)
     pub file_path: String,
     /// Priority
     pub priority: String,

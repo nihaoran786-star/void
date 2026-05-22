@@ -1,12 +1,12 @@
 [package]
-name = "bitfun-server"
+name = "void-server"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun Server - Web-based AI Code Assistant"
+description = "Void Server - Web-based AI Code Assistant"
 
 [[bin]]
-name = "bitfun-server"
+name = "void-server"
 path = "src/main.rs"
 
 [dependencies]

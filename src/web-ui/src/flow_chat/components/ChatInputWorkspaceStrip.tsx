@@ -63,43 +63,43 @@ export const ChatInputWorkspaceStrip: React.FC<ChatInputWorkspaceStripProps> = (
   return (
     <div
       className={[
-        'bitfun-chat-input-workspace-strip',
-        split && 'bitfun-chat-input-workspace-strip--split',
-        usageOnly && 'bitfun-chat-input-workspace-strip--usage-only',
+        'void-chat-input-workspace-strip',
+        split && 'void-chat-input-workspace-strip--split',
+        usageOnly && 'void-chat-input-workspace-strip--usage-only',
       ]
         .filter(Boolean)
         .join(' ')}
       data-testid="chat-input-workspace-strip"
     >
       {label ? (
-        <div className="bitfun-chat-input-workspace-strip__main">
+        <div className="void-chat-input-workspace-strip__main">
           <Tooltip content={workspaceTooltipContent} placement="top">
-            <span className="bitfun-chat-input-workspace-strip__chip bitfun-chat-input-workspace-strip__chip--workspace">
-              <span className="bitfun-chat-input-workspace-strip__workspace">{label}</span>
+            <span className="void-chat-input-workspace-strip__chip void-chat-input-workspace-strip__chip--workspace">
+              <span className="void-chat-input-workspace-strip__workspace">{label}</span>
             </span>
           </Tooltip>
-          <span className="bitfun-chat-input-workspace-strip__sep" aria-hidden>
+          <span className="void-chat-input-workspace-strip__sep" aria-hidden>
             {' / '}
           </span>
           <Tooltip content={branchTooltipContent} placement="top">
-            <span className="bitfun-chat-input-workspace-strip__chip bitfun-chat-input-workspace-strip__chip--branch">
+            <span className="void-chat-input-workspace-strip__chip void-chat-input-workspace-strip__chip--branch">
               <GitBranch
-                className="bitfun-chat-input-workspace-strip__branch-icon"
+                className="void-chat-input-workspace-strip__branch-icon"
                 size={11}
                 strokeWidth={2}
                 aria-hidden
               />
-              <span className="bitfun-chat-input-workspace-strip__branch">{branchLabel}</span>
+              <span className="void-chat-input-workspace-strip__branch">{branchLabel}</span>
             </span>
           </Tooltip>
         </div>
       ) : null}
 
       {showUsage ? (
-        <div className="bitfun-chat-input-workspace-strip__usage">
+        <div className="void-chat-input-workspace-strip__usage">
           <Tooltip content={t('usage.runtime.tooltip')}>
             <IconButton
-              className="bitfun-chat-input-workspace-strip__usage-btn"
+              className="void-chat-input-workspace-strip__usage-btn"
               variant="ghost"
               size="xs"
               type="button"

@@ -58,7 +58,7 @@ describe('reviewTargetClassifier', () => {
       [
         'src/web-ui/src/locales/zh-TW/flow-chat.json',
         'src/crates/core/locales/zh-TW.ftl',
-        'BitFun-Installer/src/i18n/locales/zh-TW.json',
+        'Void-Installer/src/i18n/locales/zh-TW.json',
       ],
       'session_files',
     );
@@ -69,7 +69,7 @@ describe('reviewTargetClassifier', () => {
     );
     expect(target.files.every((file) => file.tags.includes('frontend_i18n'))).toBe(true);
     expect(target.files.find((file) =>
-      file.normalizedPath === 'BitFun-Installer/src/i18n/locales/zh-TW.json',
+      file.normalizedPath === 'Void-Installer/src/i18n/locales/zh-TW.json',
     )?.tags).toEqual(expect.arrayContaining(['frontend_i18n', 'installer_ui']));
   });
 

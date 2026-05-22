@@ -13,7 +13,7 @@ use crate::agentic::coordination::{
 };
 use crate::agentic::core::PromptEnvelope;
 use crate::infrastructure::PathManager;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use chrono::{Local, SecondsFormat, TimeZone, Utc};
 use log::{debug, info, warn};
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ impl CronService {
     pub async fn new(
         path_manager: Arc<PathManager>,
         scheduler: Arc<DialogScheduler>,
-    ) -> BitFunResult<Arc<Self>> {
+    ) -> VoidResult<Arc<Self>> {
         let store = Arc::new(CronJobStore::new(path_manager).await?);
         let loaded = store.load().await?;
         let current_ms = now_ms();
@@ -48,7 +48,7 @@ impl CronService {
 
         for mut job in loaded.jobs {
             if jobs.contains_key(&job.id) {
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Duplicate scheduled job id found in jobs.json: {}",
                     job.id
                 )));
@@ -117,7 +117,7 @@ impl CronService {
         self.jobs.read().await.get(job_id).cloned()
     }
 
-    pub async fn create_job(&self, request: CreateCronJobRequest) -> BitFunResult<CronJob> {
+    pub async fn create_job(&self, request: CreateCronJobRequest) -> VoidResult<CronJob> {
         let _guard = self.mutation_lock.lock().await;
         let mut jobs = self.jobs.write().await;
         let current_ms = now_ms();
@@ -160,13 +160,13 @@ impl CronService {
         &self,
         job_id: &str,
         request: UpdateCronJobRequest,
-    ) -> BitFunResult<CronJob> {
+    ) -> VoidResult<CronJob> {
         let _guard = self.mutation_lock.lock().await;
         let mut jobs = self.jobs.write().await;
         let current_ms = now_ms();
         let job = jobs
             .get_mut(job_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Scheduled job not found: {}", job_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Scheduled job not found: {}", job_id)))?;
 
         if let Some(name) = request.name {
             job.name = name.trim().to_string();
@@ -221,7 +221,7 @@ impl CronService {
         Ok(updated)
     }
 
-    pub async fn set_job_enabled(&self, job_id: &str, enabled: bool) -> BitFunResult<CronJob> {
+    pub async fn set_job_enabled(&self, job_id: &str, enabled: bool) -> VoidResult<CronJob> {
         self.update_job(
             job_id,
             UpdateCronJobRequest {
@@ -232,7 +232,7 @@ impl CronService {
         .await
     }
 
-    pub async fn delete_job(&self, job_id: &str) -> BitFunResult<bool> {
+    pub async fn delete_job(&self, job_id: &str) -> VoidResult<bool> {
         let _guard = self.mutation_lock.lock().await;
         let mut jobs = self.jobs.write().await;
         let existed = jobs.remove(job_id).is_some();
@@ -245,7 +245,7 @@ impl CronService {
     }
 
     /// Remove all scheduled jobs bound to the given session (e.g. after session delete).
-    pub async fn delete_jobs_for_session(&self, session_id: &str) -> BitFunResult<usize> {
+    pub async fn delete_jobs_for_session(&self, session_id: &str) -> VoidResult<usize> {
         let session_id = session_id.trim();
         if session_id.is_empty() {
             return Ok(0);
@@ -263,13 +263,13 @@ impl CronService {
         Ok(removed)
     }
 
-    pub async fn run_job_now(&self, job_id: &str) -> BitFunResult<CronJob> {
+    pub async fn run_job_now(&self, job_id: &str) -> VoidResult<CronJob> {
         {
             let _guard = self.mutation_lock.lock().await;
             let mut jobs = self.jobs.write().await;
             let current_ms = now_ms();
             let job = jobs.get_mut(job_id).ok_or_else(|| {
-                BitFunError::NotFound(format!("Scheduled job not found: {}", job_id))
+                VoidError::NotFound(format!("Scheduled job not found: {}", job_id))
             })?;
 
             if job.state.pending_trigger_at_ms.is_some() {
@@ -288,11 +288,11 @@ impl CronService {
 
         self.process_job(job_id).await?;
         self.get_job(job_id).await.ok_or_else(|| {
-            BitFunError::NotFound(format!("Scheduled job not found after run: {}", job_id))
+            VoidError::NotFound(format!("Scheduled job not found after run: {}", job_id))
         })
     }
 
-    pub async fn handle_turn_started(&self, turn_id: &str) -> BitFunResult<()> {
+    pub async fn handle_turn_started(&self, turn_id: &str) -> VoidResult<()> {
         self.handle_turn_state_change(turn_id, |job, now_ms| {
             job.state.last_run_status = Some(CronJobRunStatus::Running);
             job.state.last_run_started_at_ms = Some(now_ms);
@@ -301,7 +301,7 @@ impl CronService {
         .await
     }
 
-    pub async fn handle_turn_completed(&self, turn_id: &str, duration_ms: u64) -> BitFunResult<()> {
+    pub async fn handle_turn_completed(&self, turn_id: &str, duration_ms: u64) -> VoidResult<()> {
         self.handle_turn_state_change(turn_id, |job, now_ms| {
             job.state.active_turn_id = None;
             job.state.last_run_status = Some(CronJobRunStatus::Ok);
@@ -315,7 +315,7 @@ impl CronService {
         .await
     }
 
-    pub async fn handle_turn_failed(&self, turn_id: &str, error: &str) -> BitFunResult<()> {
+    pub async fn handle_turn_failed(&self, turn_id: &str, error: &str) -> VoidResult<()> {
         self.handle_turn_state_change(turn_id, |job, now_ms| {
             job.state.active_turn_id = None;
             job.state.last_run_status = Some(CronJobRunStatus::Error);
@@ -327,7 +327,7 @@ impl CronService {
         .await
     }
 
-    pub async fn handle_turn_cancelled(&self, turn_id: &str) -> BitFunResult<()> {
+    pub async fn handle_turn_cancelled(&self, turn_id: &str) -> VoidResult<()> {
         self.handle_turn_state_change(turn_id, |job, now_ms| {
             job.state.active_turn_id = None;
             job.state.last_run_status = Some(CronJobRunStatus::Cancelled);
@@ -338,7 +338,7 @@ impl CronService {
         .await
     }
 
-    async fn handle_turn_state_change<F>(&self, turn_id: &str, update: F) -> BitFunResult<()>
+    async fn handle_turn_state_change<F>(&self, turn_id: &str, update: F) -> VoidResult<()>
     where
         F: FnOnce(&mut CronJob, i64),
     {
@@ -393,7 +393,7 @@ impl CronService {
         jobs.values().filter_map(next_wakeup_for_job).min()
     }
 
-    async fn process_due_jobs(&self) -> BitFunResult<()> {
+    async fn process_due_jobs(&self) -> VoidResult<()> {
         let current_ms = now_ms();
         let due_job_ids = {
             let jobs = self.jobs.read().await;
@@ -417,7 +417,7 @@ impl CronService {
         Ok(())
     }
 
-    async fn process_job(&self, job_id: &str) -> BitFunResult<()> {
+    async fn process_job(&self, job_id: &str) -> VoidResult<()> {
         let _guard = self.mutation_lock.lock().await;
         let mut jobs = self.jobs.write().await;
         let current_ms = now_ms();
@@ -468,7 +468,7 @@ impl CronService {
 
             if job.state.active_turn_id.is_none() && pending_is_due(job, current_ms) {
                 let pending_trigger_at_ms = job.state.pending_trigger_at_ms.ok_or_else(|| {
-                    BitFunError::service(format!(
+                    VoidError::service(format!(
                         "Scheduled job {} is missing pending trigger timestamp",
                         job.id
                     ))
@@ -495,13 +495,13 @@ impl CronService {
         }
 
         let enqueue_input = enqueue_input.ok_or_else(|| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Scheduled job {} is missing enqueue input after due calculation",
                 job_id
             ))
         })?;
         let scheduled_at_ms = scheduled_at_ms.ok_or_else(|| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Scheduled job {} is missing scheduled timestamp after due calculation",
                 job_id
             ))
@@ -583,12 +583,12 @@ impl CronService {
         Ok(())
     }
 
-    async fn persist_snapshot(&self) -> BitFunResult<()> {
+    async fn persist_snapshot(&self) -> VoidResult<()> {
         let jobs = self.jobs.read().await;
         self.persist_jobs_locked(&jobs).await
     }
 
-    async fn persist_jobs_locked(&self, jobs: &HashMap<String, CronJob>) -> BitFunResult<()> {
+    async fn persist_jobs_locked(&self, jobs: &HashMap<String, CronJob>) -> VoidResult<()> {
         self.store
             .save_jobs(jobs.values().cloned().collect::<Vec<_>>())
             .await
@@ -603,7 +603,7 @@ pub fn set_global_cron_service(service: Arc<CronService>) {
     let _ = GLOBAL_CRON_SERVICE.set(service);
 }
 
-fn reconcile_loaded_job(job: &mut CronJob, now_ms: i64) -> BitFunResult<bool> {
+fn reconcile_loaded_job(job: &mut CronJob, now_ms: i64) -> VoidResult<bool> {
     let original = job.clone();
 
     validate_request_fields(
@@ -656,24 +656,24 @@ fn validate_request_fields(
     payload: &CronJobPayload,
     session_id: &str,
     workspace_path: &str,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     if name.trim().is_empty() {
-        return Err(BitFunError::validation(
+        return Err(VoidError::validation(
             "Scheduled job name must not be empty",
         ));
     }
     if payload.text.trim().is_empty() {
-        return Err(BitFunError::validation(
+        return Err(VoidError::validation(
             "Scheduled job payload.text must not be empty",
         ));
     }
     if session_id.trim().is_empty() {
-        return Err(BitFunError::validation(
+        return Err(VoidError::validation(
             "Scheduled job sessionId must not be empty",
         ));
     }
     if workspace_path.trim().is_empty() {
-        return Err(BitFunError::validation(
+        return Err(VoidError::validation(
             "Scheduled job workspacePath must not be empty",
         ));
     }

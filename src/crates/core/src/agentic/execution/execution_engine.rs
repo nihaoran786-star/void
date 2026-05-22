@@ -29,12 +29,12 @@ use crate::infrastructure::ai::get_global_ai_client_factory;
 use crate::service::config::get_global_config_service;
 use crate::service::config::types::{ModelCapability, ModelCategory, WriteToolMode};
 use crate::service::remote_ssh::workspace_state::get_remote_workspace_manager;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::token_counter::TokenCounter;
 use crate::util::types::Message as AIMessage;
 use crate::util::types::ToolDefinition;
 use crate::util::{elapsed_ms_u64, truncate_at_char_boundary};
-use bitfun_agent_tools::{GetToolSpecLoadObservation, collect_loaded_collapsed_tool_names};
+use void_agent_tools::{GetToolSpecLoadObservation, collect_loaded_collapsed_tool_names};
 use log::{debug, error, info, trace, warn};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
@@ -446,10 +446,10 @@ impl ExecutionEngine {
         missing_path && missing_data_url && has_redaction_hint
     }
 
-    fn is_recoverable_historical_image_error(err: &BitFunError) -> bool {
+    fn is_recoverable_historical_image_error(err: &VoidError) -> bool {
         match err {
-            BitFunError::Io(_) | BitFunError::Deserialization(_) => true,
-            BitFunError::Validation(msg) => {
+            VoidError::Io(_) | VoidError::Deserialization(_) => true,
+            VoidError::Validation(msg) => {
                 msg.starts_with("Failed to decode image data")
                     || msg.starts_with("Unsupported or unrecognized image format")
                     || msg.starts_with("Invalid data URL format")
@@ -461,12 +461,12 @@ impl ExecutionEngine {
 
     fn can_fallback_to_text_only(
         images: &[ImageContextData],
-        err: &BitFunError,
+        err: &VoidError,
         is_current_turn_message: bool,
     ) -> bool {
         let is_redacted_payload_error = matches!(
             err,
-            BitFunError::Validation(msg) if msg.starts_with("Image context missing image_path/data_url")
+            VoidError::Validation(msg) if msg.starts_with("Image context missing image_path/data_url")
         ) && !images.is_empty()
             && images.iter().all(Self::is_redacted_image_context);
 
@@ -614,14 +614,14 @@ impl ExecutionEngine {
         workspace: Option<&WorkspaceBinding>,
         original_user_input: &str,
         turn_index: usize,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let agent_registry = get_agent_registry();
         let fallback_model_id = agent_registry
             .get_model_id_for_agent(agent_type, workspace.map(|binding| binding.root_path()))
             .await
-            .map_err(|e| BitFunError::AIClient(format!("Failed to get model ID: {}", e)))?;
+            .map_err(|e| VoidError::AIClient(format!("Failed to get model ID: {}", e)))?;
         let config_service = get_global_config_service().await.map_err(|e| {
-            BitFunError::AIClient(format!(
+            VoidError::AIClient(format!(
                 "Failed to get config service for model resolution: {}",
                 e
             ))
@@ -731,7 +731,7 @@ impl ExecutionEngine {
         messages: &[Message],
         reminder_text: &str,
         context_window: usize,
-    ) -> BitFunResult<RoundResult> {
+    ) -> VoidResult<RoundResult> {
         let mut final_ai_messages = Self::build_ai_messages_for_send(
             messages,
             &ai_client.config.format,
@@ -786,7 +786,7 @@ impl ExecutionEngine {
         current_turn_id: &str,
         attach_images: bool,
         prepended_user_context: Option<&str>,
-    ) -> BitFunResult<Vec<AIMessage>> {
+    ) -> VoidResult<Vec<AIMessage>> {
         /// Only the last this many **messages** that contain images keep their images for the API.
         const MAX_IMAGE_BEARING_MESSAGE_ROUNDS: usize = 2;
 
@@ -871,7 +871,7 @@ impl ExecutionEngine {
                         Ok(processed) => {
                             let next_count = attached_image_count + processed.len();
                             if next_count > limits.max_images_per_request {
-                                return Err(BitFunError::validation(format!(
+                                return Err(VoidError::validation(format!(
                                     "Too many images in one request: {} > {}",
                                     next_count, limits.max_images_per_request
                                 )));
@@ -884,7 +884,7 @@ impl ExecutionEngine {
                             result.extend(multimodal);
                         }
                         Err(err) => {
-                            if matches!(&err, BitFunError::Validation(msg) if msg.starts_with("Too many images in one request"))
+                            if matches!(&err, VoidError::Validation(msg) if msg.starts_with("Too many images in one request"))
                             {
                                 return Err(err);
                             }
@@ -917,7 +917,7 @@ impl ExecutionEngine {
                             if keep_this_message_images {
                                 let next_count = attached_image_count + atts.len();
                                 if next_count > limits.max_images_per_request {
-                                    return Err(BitFunError::validation(format!(
+                                    return Err(VoidError::validation(format!(
                                         "Too many images in one request: {} > {}",
                                         next_count, limits.max_images_per_request
                                     )));
@@ -997,11 +997,11 @@ impl ExecutionEngine {
         system_prompt_message: Message,
         compression_contract_limit: usize,
         tail_policy: CompressionTailPolicy,
-    ) -> BitFunResult<Option<(usize, Vec<Message>)>> {
+    ) -> VoidResult<Option<(usize, Vec<Message>)>> {
         let mut session = self
             .session_manager
             .get_session(session_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
 
         // Record start time
         let start_time = std::time::Instant::now();
@@ -1125,7 +1125,7 @@ impl ExecutionEngine {
                 )
                 .await;
 
-                Err(BitFunError::Session(e.to_string()))
+                Err(VoidError::Session(e.to_string()))
             }
         }
     }
@@ -1142,11 +1142,11 @@ impl ExecutionEngine {
         context_window: usize,
         trigger: &str,
         tail_policy: CompressionTailPolicy,
-    ) -> BitFunResult<ContextCompactionOutcome> {
+    ) -> VoidResult<ContextCompactionOutcome> {
         let mut session = self
             .session_manager
             .get_session(session_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
         let start_time = std::time::Instant::now();
         let compression_id = format!("compression_{}", uuid::Uuid::new_v4());
 
@@ -1306,7 +1306,7 @@ impl ExecutionEngine {
                 )
                 .await;
 
-                Err(BitFunError::Session(err.to_string()))
+                Err(VoidError::Session(err.to_string()))
             }
         }
     }
@@ -1318,7 +1318,7 @@ impl ExecutionEngine {
         agent_type: String,
         initial_messages: Vec<Message>,
         context: ExecutionContext,
-    ) -> BitFunResult<ExecutionResult> {
+    ) -> VoidResult<ExecutionResult> {
         let start_time = std::time::Instant::now();
         let initial_count = initial_messages.len();
 
@@ -1357,7 +1357,7 @@ impl ExecutionEngine {
         context: ExecutionContext,
         start_time: std::time::Instant,
         initial_count: usize,
-    ) -> BitFunResult<ExecutionResult> {
+    ) -> VoidResult<ExecutionResult> {
         let dialog_turn_id = context.dialog_turn_id.clone();
 
         debug!(
@@ -1381,7 +1381,7 @@ impl ExecutionEngine {
                     .as_ref()
                     .map(|workspace| workspace.root_path()),
             )
-            .ok_or_else(|| BitFunError::NotFound(format!("Agent not found: {}", agent_type)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Agent not found: {}", agent_type)))?;
         info!(
             "Current Agent: {} ({})",
             current_agent.name(),
@@ -1392,7 +1392,7 @@ impl ExecutionEngine {
             .session_manager
             .get_session(&context.session_id)
             .ok_or_else(|| {
-                BitFunError::Session(format!("Session not found: {}", context.session_id))
+                VoidError::Session(format!("Session not found: {}", context.session_id))
             })?;
 
         // 2. Get AI client
@@ -1417,7 +1417,7 @@ impl ExecutionEngine {
         );
 
         let ai_client_factory = get_global_ai_client_factory().await.map_err(|e| {
-            BitFunError::AIClient(format!("Failed to get AI client factory: {}", e))
+            VoidError::AIClient(format!("Failed to get AI client factory: {}", e))
         })?;
 
         // Get AI client by model ID
@@ -1425,7 +1425,7 @@ impl ExecutionEngine {
             .get_client_resolved(&model_id)
             .await
             .map_err(|e| {
-                BitFunError::AIClient(format!(
+                VoidError::AIClient(format!(
                     "Failed to get AI client (model_id={}): {}",
                     model_id, e
                 ))
@@ -2249,7 +2249,7 @@ impl ExecutionEngine {
                 .await;
 
                 // Note: Token will be cleaned up when outer function exits
-                return Err(BitFunError::cancelled("Dialog cancelled"));
+                return Err(VoidError::cancelled("Dialog cancelled"));
             }
 
             // Continue to next round
@@ -2464,7 +2464,7 @@ impl ExecutionEngine {
     }
 
     /// Cancel dialog turn execution
-    pub async fn cancel_dialog_turn(&self, dialog_turn_id: &str) -> BitFunResult<()> {
+    pub async fn cancel_dialog_turn(&self, dialog_turn_id: &str) -> VoidResult<()> {
         debug!("Cancelling dialog turn: dialog_turn_id={}", dialog_turn_id);
         let result = self.round_executor.cancel_dialog_turn(dialog_turn_id).await;
         if result.is_ok() {

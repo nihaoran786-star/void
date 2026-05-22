@@ -5,7 +5,7 @@
 /// - Tauri (app.emit events)
 /// - WebSocket/SSE (web server)
 use async_trait::async_trait;
-use bitfun_events::AgenticEvent;
+use void_events::AgenticEvent;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 

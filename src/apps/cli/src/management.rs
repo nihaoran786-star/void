@@ -2,22 +2,22 @@ use anyhow::{anyhow, Context, Result};
 use std::path::Path;
 use std::time::Duration;
 
-use bitfun_core::agentic::get_agent_registry;
-use bitfun_core::agentic::persistence::PersistenceManager;
-use bitfun_core::infrastructure::try_get_path_manager_arc;
-use bitfun_core::service::config::initialize_global_config;
-use bitfun_core::service::session_usage::{
+use void_core::agentic::get_agent_registry;
+use void_core::agentic::persistence::PersistenceManager;
+use void_core::infrastructure::try_get_path_manager_arc;
+use void_core::service::config::initialize_global_config;
+use void_core::service::session_usage::{
     generate_session_usage_report, render_usage_report_markdown, SessionUsageReportRequest,
 };
 
 
 async fn ensure_global_config_service() -> Result<
-    std::sync::Arc<bitfun_core::service::config::ConfigService>,
+    std::sync::Arc<void_core::service::config::ConfigService>,
 > {
     initialize_global_config()
         .await
         .context("Failed to initialize global config service")?;
-    bitfun_core::service::config::get_global_config_service()
+    void_core::service::config::get_global_config_service()
         .await
         .context("Failed to get global config service")
 }
@@ -71,7 +71,7 @@ pub async fn print_agents(workspace: Option<&Path>) -> Result<()> {
 pub async fn print_models() -> Result<()> {
     let config_service = ensure_global_config_service().await?;
     let models = config_service.get_ai_models().await?;
-    let global_config: bitfun_core::service::config::GlobalConfig =
+    let global_config: void_core::service::config::GlobalConfig =
         config_service.get_config(None).await?;
 
     let primary_model_id = global_config.ai.default_models.primary.clone();
@@ -111,7 +111,7 @@ pub async fn print_models() -> Result<()> {
 
 pub async fn print_mcp_servers() -> Result<()> {
     let config_service = ensure_global_config_service().await?;
-    let mcp_service = bitfun_core::service::mcp::MCPService::new(config_service.clone())
+    let mcp_service = void_core::service::mcp::MCPService::new(config_service.clone())
         .map_err(|error| anyhow!(error.to_string()))?;
     let configs = mcp_service.config_service().load_all_configs().await?;
 
@@ -139,12 +139,12 @@ pub async fn print_mcp_servers() -> Result<()> {
         };
 
         let endpoint = match config.server_type {
-            bitfun_core::service::mcp::server::MCPServerType::Local => config
+            void_core::service::mcp::server::MCPServerType::Local => config
                 .command
                 .as_ref()
                 .map(|cmd| format!("{} {}", cmd, config.args.join(" ")))
                 .unwrap_or_else(|| "<missing command>".to_string()),
-            bitfun_core::service::mcp::server::MCPServerType::Remote => {
+            void_core::service::mcp::server::MCPServerType::Remote => {
                 config.url.clone().unwrap_or_else(|| "<missing url>".to_string())
             }
         };
@@ -178,7 +178,7 @@ pub async fn set_default_model(model_id: &str) -> Result<()> {
 
 pub async fn set_mcp_server_enabled(server_id: &str, enabled: bool) -> Result<()> {
     let config_service = ensure_global_config_service().await?;
-    let mcp_service = bitfun_core::service::mcp::MCPService::new(config_service.clone())
+    let mcp_service = void_core::service::mcp::MCPService::new(config_service.clone())
         .map_err(|error| anyhow!(error.to_string()))?;
     let mut config = mcp_service
         .config_service()
@@ -198,7 +198,7 @@ pub async fn set_mcp_server_enabled(server_id: &str, enabled: bool) -> Result<()
 
 pub async fn print_mcp_json_config() -> Result<()> {
     let config_service = ensure_global_config_service().await?;
-    let mcp_service = bitfun_core::service::mcp::MCPService::new(config_service.clone())
+    let mcp_service = void_core::service::mcp::MCPService::new(config_service.clone())
         .map_err(|error| anyhow!(error.to_string()))?;
     let json = mcp_service
         .config_service()
@@ -251,11 +251,11 @@ pub async fn print_doctor() -> Result<bool> {
     let agent_registry = get_agent_registry();
     let modes = agent_registry.get_modes_info().await;
     let subagents = agent_registry.get_subagents_info(Some(workspace.as_path())).await;
-    let mcp_service = bitfun_core::service::mcp::MCPService::new(config_service.clone())
+    let mcp_service = void_core::service::mcp::MCPService::new(config_service.clone())
         .map_err(|error| anyhow!(error.to_string()))?;
     let mcp_configs = mcp_service.config_service().load_all_configs().await?;
 
-    println!("BitFun CLI doctor");
+    println!("Void CLI doctor");
     println!();
     println!("[ok] Workspace: {}", workspace.display());
     println!("[ok] Config directory: {}", config_dir.display());

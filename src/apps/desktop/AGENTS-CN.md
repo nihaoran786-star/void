@@ -29,9 +29,9 @@
 ```bash
 pnpm run desktop:dev
 pnpm run desktop:preview:debug
-cargo check -p bitfun-desktop
-cargo test -p bitfun-desktop
-cargo build -p bitfun-desktop
+cargo check -p void-desktop
+cargo test -p void-desktop
+cargo build -p void-desktop
 pnpm run desktop:build:fast
 ```
 
@@ -57,11 +57,11 @@ pnpm run desktop:build:fast
 ## 验证
 
 ```bash
-cargo check -p bitfun-desktop && cargo test -p bitfun-desktop
+cargo check -p void-desktop && cargo test -p void-desktop
 ```
 
 如果改动影响启动、WebDriver、browser/computer-use 或打包行为，还需要运行：
 
 ```bash
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 ```

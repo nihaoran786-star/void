@@ -13,7 +13,7 @@
   }
 }
 
-.bitfun-settings-scene {
+.void-settings-scene {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -34,7 +34,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-settings-scene__content-wrapper {
+  .void-settings-scene__content-wrapper {
     animation: none;
   }
 }

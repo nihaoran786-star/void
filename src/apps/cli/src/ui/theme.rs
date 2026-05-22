@@ -767,45 +767,45 @@ static BUILTIN_OPENCODE_THEMES: Lazy<HashMap<&'static str, OpencodeThemeJson>> =
 
     HashMap::from([
         parse(
-            "bitfun-cyber",
+            "void-cyber",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-cyber.json"
+                "/themes/presets/void-cyber.json"
             )),
         ),
         parse(
-            "bitfun-dark",
+            "void-dark",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-dark.json"
+                "/themes/presets/void-dark.json"
             )),
         ),
         parse(
-            "bitfun-ink-night",
+            "void-ink-night",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-ink-night.json"
+                "/themes/presets/void-ink-night.json"
             )),
         ),
         parse(
-            "bitfun-light",
+            "void-light",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-light.json"
+                "/themes/presets/void-light.json"
             )),
         ),
         parse(
-            "bitfun-midnight",
+            "void-midnight",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-midnight.json"
+                "/themes/presets/void-midnight.json"
             )),
         ),
         parse(
-            "bitfun-tokyo-night",
+            "void-tokyo-night",
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/themes/presets/bitfun-tokyo-night.json"
+                "/themes/presets/void-tokyo-night.json"
             )),
         ),
     ])

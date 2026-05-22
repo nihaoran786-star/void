@@ -6,12 +6,12 @@ describe('buildMiniAppCustomizationSessionRequest', () => {
     expect(buildMiniAppCustomizationSessionRequest({
       sessionId: 'miniapp-customize:builtin-gomoku:1',
       sessionName: 'Customize Gomoku',
-      workspacePath: 'D:/workspace/BitFun',
+      workspacePath: 'D:/workspace/Void',
     })).toMatchObject({
       sessionId: 'miniapp-customize:builtin-gomoku:1',
       sessionName: 'Customize Gomoku',
       agentType: 'agentic',
-      workspacePath: 'D:/workspace/BitFun',
+      workspacePath: 'D:/workspace/Void',
       sessionKind: 'subagent',
       config: {
         enableTools: true,

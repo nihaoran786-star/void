@@ -7,7 +7,7 @@
 
 use crate::infrastructure::{get_path_manager_arc, PathManager};
 use crate::service::remote_ssh::{RemoteFileService, RemoteTerminalManager, SSHConnectionManager};
-pub use bitfun_services_integrations::remote_ssh::{
+pub use void_services_integrations::remote_ssh::{
     local_workspace_stable_storage_id, normalize_remote_workspace_path,
     remote_root_to_mirror_subpath, remote_workspace_stable_id,
     sanitize_remote_mirror_path_component, sanitize_ssh_connection_id_for_local_dir,
@@ -121,7 +121,7 @@ pub async fn resolve_workspace_session_identity(
 }
 /// Local directory where persisted sessions for this remote workspace root are stored.
 pub fn remote_workspace_runtime_root(ssh_host: &str, remote_root_norm: &str) -> PathBuf {
-    bitfun_services_integrations::remote_ssh::remote_workspace_runtime_root(
+    void_services_integrations::remote_ssh::remote_workspace_runtime_root(
         PathManager::remote_ssh_mirror_root(),
         ssh_host,
         remote_root_norm,
@@ -130,7 +130,7 @@ pub fn remote_workspace_runtime_root(ssh_host: &str, remote_root_norm: &str) -> 
 
 /// Local directory where persisted sessions for this remote workspace root are stored.
 pub fn remote_workspace_session_mirror_dir(ssh_host: &str, remote_root_norm: &str) -> PathBuf {
-    bitfun_services_integrations::remote_ssh::remote_workspace_session_mirror_dir(
+    void_services_integrations::remote_ssh::remote_workspace_session_mirror_dir(
         PathManager::remote_ssh_mirror_root(),
         ssh_host,
         remote_root_norm,
@@ -139,28 +139,28 @@ pub fn remote_workspace_session_mirror_dir(ssh_host: &str, remote_root_norm: &st
 
 /// Canonical local root [`PathBuf`] plus normalized string form (single `canonicalize` call).
 pub fn canonicalize_local_workspace_root(path: &Path) -> Result<(PathBuf, String), String> {
-    bitfun_services_integrations::remote_ssh::canonicalize_local_workspace_root(path)
+    void_services_integrations::remote_ssh::canonicalize_local_workspace_root(path)
 }
 
 /// Canonical absolute local path as a stable UTF-8 string (forward slashes, dunce-simplified).
 pub fn normalize_local_workspace_root_for_stable_id(path: &Path) -> Result<String, String> {
-    bitfun_services_integrations::remote_ssh::normalize_local_workspace_root_for_stable_id(path)
+    void_services_integrations::remote_ssh::normalize_local_workspace_root_for_stable_id(path)
 }
 
 /// Whether two local paths refer to the same workspace root (canonical comparison when possible).
 pub fn local_workspace_roots_equal(a: &Path, b: &Path) -> bool {
-    bitfun_services_integrations::remote_ssh::local_workspace_roots_equal(a, b)
+    void_services_integrations::remote_ssh::local_workspace_roots_equal(a, b)
 }
 
 /// When a remote scope has `connection_id` but no resolvable SSH host, we must not read/write the
 /// legacy per-connection tree (it is not the same layout as `remote_ssh/{host}/.../sessions`).
-/// This returns a dedicated stub under `~/.bitfun/remote_ssh/_unresolved/.../sessions` that is
+/// This returns a dedicated stub under `~/.void/remote_ssh/_unresolved/.../sessions` that is
 /// usually absent, so session listing is empty until host can be resolved.
 pub fn unresolved_remote_session_storage_dir(
     connection_id: &str,
     workspace_path_norm: &str,
 ) -> PathBuf {
-    bitfun_services_integrations::remote_ssh::unresolved_remote_session_storage_dir(
+    void_services_integrations::remote_ssh::unresolved_remote_session_storage_dir(
         PathManager::remote_ssh_mirror_root(),
         connection_id,
         workspace_path_norm,
@@ -250,7 +250,7 @@ impl RemoteWorkspaceStateManager {
         path: &str,
         preferred_connection_id: Option<&str>,
     ) -> Option<RemoteWorkspaceEntry> {
-        // Assistant sessions use client-local paths under ~/.bitfun/personal_assistant.
+        // Assistant sessions use client-local paths under ~/.void/personal_assistant.
         // A registered remote root of `/` matches every absolute path; without an explicit
         // `remote_connection_id`, those paths must not be treated as SSH workspaces.
         let is_local_assistant_path =
@@ -328,7 +328,7 @@ impl RemoteWorkspaceStateManager {
 
     // ── Session storage ────────────────────────────────────────────
 
-    /// Local mirror directory for persisted sessions (`~/.bitfun/remote_ssh/.../sessions`).
+    /// Local mirror directory for persisted sessions (`~/.void/remote_ssh/.../sessions`).
     pub fn get_remote_session_mirror_path(
         &self,
         ssh_host: &str,
@@ -571,8 +571,8 @@ mod tests {
 
     #[test]
     fn local_stable_id_is_deterministic_and_prefixed() {
-        let id1 = super::local_workspace_stable_storage_id("/Users/foo/BitFun");
-        let id2 = super::local_workspace_stable_storage_id("/Users/foo/BitFun");
+        let id1 = super::local_workspace_stable_storage_id("/Users/foo/Void");
+        let id2 = super::local_workspace_stable_storage_id("/Users/foo/Void");
         assert_eq!(id1, id2);
         assert!(id1.starts_with("local_"));
         assert_eq!(id1.len(), 6 + 32);
@@ -623,7 +623,7 @@ mod tests {
     #[test]
     fn local_workspace_session_identity_uses_workspace_root_for_storage() {
         let workspace_root = std::env::temp_dir().join(format!(
-            "bitfun-workspace-identity-{}",
+            "void-workspace-identity-{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&workspace_root).expect("workspace should exist");

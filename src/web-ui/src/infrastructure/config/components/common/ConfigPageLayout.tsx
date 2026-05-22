@@ -16,10 +16,10 @@ export const ConfigPageLayout: React.FC<ConfigPageLayoutProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bitfun-config-page-layout ${className}`}>
+    <div className={`void-config-page-layout ${className}`}>
       {children}
       {/* Real DOM spacer: keeps a guaranteed blank tail at the end of the scroll range. */}
-      <div className="bitfun-config-page-layout__scroll-end-spacer" aria-hidden="true" />
+      <div className="void-config-page-layout__scroll-end-spacer" aria-hidden="true" />
     </div>
   );
 };
@@ -37,8 +37,8 @@ export const ConfigPageContent: React.FC<ConfigPageContentProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bitfun-config-page-content ${className}`}>
-      <div className="bitfun-config-page-content__inner">
+    <div className={`void-config-page-content ${className}`}>
+      <div className="void-config-page-content__inner">
         {children}
       </div>
     </div>
@@ -64,24 +64,24 @@ export const ConfigPageSection: React.FC<ConfigPageSectionProps> = ({
   className = '',
 }) => {
   return (
-    <section className={`bitfun-config-page-section ${className}`}>
-      <div className="bitfun-config-page-section__header">
-        <div className="bitfun-config-page-section__heading">
-          <div className="bitfun-config-page-section__title-row">
-            <h3 className="bitfun-config-page-section__title">{title}</h3>
+    <section className={`void-config-page-section ${className}`}>
+      <div className="void-config-page-section__header">
+        <div className="void-config-page-section__heading">
+          <div className="void-config-page-section__title-row">
+            <h3 className="void-config-page-section__title">{title}</h3>
             {titleSuffix}
           </div>
           {description && (
-            <p className="bitfun-config-page-section__description">{description}</p>
+            <p className="void-config-page-section__description">{description}</p>
           )}
         </div>
         {extra && (
-          <div className="bitfun-config-page-section__extra">
+          <div className="void-config-page-section__extra">
             {extra}
           </div>
         )}
       </div>
-      <div className="bitfun-config-page-section__body">
+      <div className="void-config-page-section__body">
         {children}
       </div>
     </section>
@@ -116,11 +116,11 @@ export const ConfigPageRow: React.FC<ConfigPageRowProps> = ({
   balanced = false,
 }) => {
   const cls = [
-    'bitfun-config-page-row',
-    `bitfun-config-page-row--${align}`,
-    multiline && 'bitfun-config-page-row--multiline',
-    wide && 'bitfun-config-page-row--wide',
-    balanced && 'bitfun-config-page-row--balanced',
+    'void-config-page-row',
+    `void-config-page-row--${align}`,
+    multiline && 'void-config-page-row--multiline',
+    wide && 'void-config-page-row--wide',
+    balanced && 'void-config-page-row--balanced',
     className,
   ].filter(Boolean).join(' ');
 
@@ -134,13 +134,13 @@ export const ConfigPageRow: React.FC<ConfigPageRowProps> = ({
 
   return (
     <div className={cls} style={gridStyle}>
-      <div className="bitfun-config-page-row__meta">
-        <p className="bitfun-config-page-row__label">{label}</p>
+      <div className="void-config-page-row__meta">
+        <p className="void-config-page-row__label">{label}</p>
         {description && (
-          <p className="bitfun-config-page-row__description">{description}</p>
+          <p className="void-config-page-row__description">{description}</p>
         )}
       </div>
-      <div className="bitfun-config-page-row__control">
+      <div className="void-config-page-row__control">
         {children}
       </div>
     </div>

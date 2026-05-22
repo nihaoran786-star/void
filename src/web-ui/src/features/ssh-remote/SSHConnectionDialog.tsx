@@ -1,6 +1,6 @@
 /**
  * SSH Connection Dialog Component
- * Professional SSH connection dialog following BitFun design patterns
+ * Professional SSH connection dialog following Void design patterns
  */
 
 import React, { useState, useEffect, useCallback } from 'react';

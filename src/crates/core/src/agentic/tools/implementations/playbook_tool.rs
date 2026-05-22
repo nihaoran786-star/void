@@ -8,7 +8,7 @@
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use include_dir::{include_dir, Dir};
 use log::{debug, info};
@@ -234,7 +234,7 @@ impl Tool for PlaybookTool {
         "Playbook"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         let list = self.build_playbook_list_description();
         Ok(format!(
             r#"Execute a predefined operation playbook for common tasks.
@@ -375,11 +375,11 @@ Use this tool when you recognize a common task pattern — it saves planning tim
         &self,
         input: &Value,
         _context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let action = input
             .get("action")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("Missing 'action'".to_string()))?;
+            .ok_or_else(|| VoidError::tool("Missing 'action'".to_string()))?;
 
         match action {
             "list" => {
@@ -409,12 +409,12 @@ Use this tool when you recognize a common task pattern — it saves planning tim
                 let name = input
                     .get("name")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| BitFunError::tool("'run' requires 'name'".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("'run' requires 'name'".to_string()))?;
 
                 let pb = self.find_playbook(name).ok_or_else(|| {
                     let available: Vec<&str> =
                         self.playbooks.iter().map(|p| p.name.as_str()).collect();
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "Playbook '{}' not found. Available: {:?}",
                         name, available
                     ))
@@ -440,7 +440,7 @@ Use this tool when you recognize a common task pattern — it saves planning tim
                 // Validate required params
                 for param in &pb.parameters {
                     if param.required && !vars.contains_key(&param.name) {
-                        return Err(BitFunError::tool(format!(
+                        return Err(VoidError::tool(format!(
                             "Playbook '{}' requires parameter '{}'",
                             name, param.name
                         )));
@@ -484,7 +484,7 @@ Use this tool when you recognize a common task pattern — it saves planning tim
                     None, // render_result_for_assistant handles this
                 )])
             }
-            other => Err(BitFunError::tool(format!(
+            other => Err(VoidError::tool(format!(
                 "Unknown playbook action: '{}'. Use 'run' or 'list'.",
                 other
             ))),

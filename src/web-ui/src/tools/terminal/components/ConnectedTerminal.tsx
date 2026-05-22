@@ -342,10 +342,10 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
 
   if (isLoading) {
     return (
-      <div className={`bitfun-terminal ${className}`}>
-        <div className="bitfun-terminal__loading">
-          <div className="bitfun-terminal__loading-spinner" />
-          <span className="bitfun-terminal__loading-text">Connecting to terminal...</span>
+      <div className={`void-terminal ${className}`}>
+        <div className="void-terminal__loading">
+          <div className="void-terminal__loading-spinner" />
+          <span className="void-terminal__loading-text">Connecting to terminal...</span>
         </div>
       </div>
     );
@@ -353,12 +353,12 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
 
   if (error) {
     return (
-      <div className={`bitfun-terminal ${className}`}>
-        <div className="bitfun-terminal__error">
-          <AlertCircle className="bitfun-terminal__error-icon" size={32} />
-          <span className="bitfun-terminal__error-message">{error}</span>
+      <div className={`void-terminal ${className}`}>
+        <div className="void-terminal__error">
+          <AlertCircle className="void-terminal__error-icon" size={32} />
+          <span className="void-terminal__error-message">{error}</span>
           <button 
-            className="bitfun-terminal__error-retry"
+            className="void-terminal__error-retry"
             onClick={handleRetry}
           >
             <RefreshCw size={14} />
@@ -370,28 +370,28 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   }
 
   return (
-    <div className={`bitfun-terminal ${className}`}>
+    <div className={`void-terminal ${className}`}>
       {showToolbar && (
-        <div className="bitfun-terminal__toolbar">
-          <div className="bitfun-terminal__toolbar-left">
+        <div className="void-terminal__toolbar">
+          <div className="void-terminal__toolbar-left">
             <TerminalIcon size={14} />
-            <span className="bitfun-terminal__toolbar-title">
+            <span className="void-terminal__toolbar-title">
               {title}
               {session && (
                 <span className="shell-type">({session.shellType})</span>
               )}
             </span>
           </div>
-          <div className="bitfun-terminal__toolbar-right">
+          <div className="void-terminal__toolbar-right">
             <button
-              className="bitfun-terminal__toolbar-btn"
+              className="void-terminal__toolbar-btn"
               onClick={handleSendCtrlC}
               title="Send Ctrl+C"
             >
               <span style={{ fontSize: 10, fontWeight: 'bold' }}>^C</span>
             </button>
             <button
-              className="bitfun-terminal__toolbar-btn bitfun-terminal__toolbar-btn--danger"
+              className="void-terminal__toolbar-btn void-terminal__toolbar-btn--danger"
               onClick={handleClose}
               title="Close terminal"
             >
@@ -415,28 +415,28 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
       />
 
       {showStatusBar && session && (
-        <div className={`bitfun-terminal__statusbar ${
-          isExited ? 'bitfun-terminal__statusbar--exited' : ''
+        <div className={`void-terminal__statusbar ${
+          isExited ? 'void-terminal__statusbar--exited' : ''
         } ${
-          error ? 'bitfun-terminal__statusbar--error' : ''
+          error ? 'void-terminal__statusbar--error' : ''
         }`}>
-          <div className="bitfun-terminal__statusbar-left">
-            <span className="bitfun-terminal__statusbar-item">
+          <div className="void-terminal__statusbar-left">
+            <span className="void-terminal__statusbar-item">
               {session.shellType}
             </span>
-            <span className="bitfun-terminal__statusbar-item">
+            <span className="void-terminal__statusbar-item">
               PID: {session.pid || '-'}
             </span>
-            <span className="bitfun-terminal__statusbar-item">
+            <span className="void-terminal__statusbar-item">
               {session.cwd}
             </span>
           </div>
-          <div className="bitfun-terminal__statusbar-right">
-            <span className="bitfun-terminal__statusbar-item">
+          <div className="void-terminal__statusbar-right">
+            <span className="void-terminal__statusbar-item">
               {session.cols}×{session.rows}
             </span>
             {isExited && exitCode !== null && (
-              <span className="bitfun-terminal__statusbar-item">
+              <span className="void-terminal__statusbar-item">
                 Exit code: {exitCode}
               </span>
             )}

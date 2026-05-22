@@ -11,7 +11,7 @@
 
 @use '../../component-library/styles/tokens' as *;
 
-.bitfun-model-selector {
+.void-model-selector {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -38,7 +38,7 @@
     letter-spacing: 0.3px;
     
     // More visible while input is focused
-    .bitfun-chat-input__box:focus-within & {
+    .void-chat-input__box:focus-within & {
       opacity: 1;
     }
     
@@ -118,7 +118,7 @@
     &--critical {
       color: rgba(248, 113, 113, 0.95);
       opacity: 1;
-      animation: bitfun-ctx-critical-pulse 2s ease-in-out infinite;
+      animation: void-ctx-critical-pulse 2s ease-in-out infinite;
     }
   }
 
@@ -127,7 +127,7 @@
     flex-shrink: 0;
     transition: transform 0.2s ease;
     
-    .bitfun-model-selector__trigger--open & {
+    .void-model-selector__trigger--open & {
       transform: rotate(180deg);
     }
   }
@@ -151,7 +151,7 @@
       0 0 1px rgba(255, 255, 255, 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.06);
     z-index: $z-dropdown;
-    animation: bitfun-model-dropdown-fade-in 0.15s ease-out;
+    animation: void-model-dropdown-fade-in 0.15s ease-out;
   }
   
   &__dropdown-header {
@@ -223,7 +223,7 @@
     &--selected {
       background: var(--element-bg-subtle);
 
-      .bitfun-model-selector__option-name {
+      .void-model-selector__option-name {
         color: rgba(140, 180, 255, 0.95);
       }
 
@@ -233,7 +233,7 @@
     }
     
     &--primary {
-      .bitfun-model-selector__option-name {
+      .void-model-selector__option-name {
         color: rgba(160, 140, 255, 0.9);
       }
       
@@ -329,7 +329,7 @@
 }
 
 // Dropdown fade-in animation
-@keyframes bitfun-model-dropdown-fade-in {
+@keyframes void-model-dropdown-fade-in {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -340,7 +340,7 @@
   }
 }
 
-@keyframes bitfun-ctx-critical-pulse {
+@keyframes void-ctx-critical-pulse {
   0%, 100% { opacity: 0.8; }
   50%       { opacity: 1; }
 }

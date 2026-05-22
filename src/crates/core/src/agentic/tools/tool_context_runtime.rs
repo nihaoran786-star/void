@@ -3,7 +3,7 @@
 //! This module intentionally keeps service handles, workspace runtime lookup,
 //! path enforcement, cancellation/post-call hooks, and checkpoint recording in
 //! core. The portable facts projection stays in `framework.rs` and
-//! `bitfun-agent-tools`.
+//! `void-agent-tools`.
 
 use crate::agentic::WorkspaceBinding;
 use crate::agentic::coordination::get_global_coordinator;
@@ -20,15 +20,15 @@ use crate::agentic::tools::restrictions::{
     ToolPathOperation, is_local_path_within_root, is_remote_posix_path_within_root,
 };
 use crate::agentic::tools::workspace_paths::{
-    build_bitfun_runtime_uri, is_bitfun_runtime_uri, normalize_runtime_relative_path,
-    parse_bitfun_runtime_uri,
+    build_void_runtime_uri, is_void_runtime_uri, normalize_runtime_relative_path,
+    parse_void_runtime_uri,
 };
 use crate::agentic::workspace::WorkspaceServices;
 use crate::infrastructure::get_path_manager_arc;
 use crate::service::git::{GitDiffParams, GitService};
 use crate::service::remote_ssh::workspace_state::remote_workspace_runtime_root;
 use crate::service::{WorkspaceRuntimeContext, get_workspace_runtime_service_arc};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::warn;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -41,8 +41,8 @@ pub(crate) async fn call_with_tool_runtime_hooks(
     tool_name: &str,
     input: &Value,
     context: &ToolUseContext,
-    call_impl: impl Future<Output = BitFunResult<Vec<ToolResult>>>,
-) -> BitFunResult<Vec<ToolResult>> {
+    call_impl: impl Future<Output = VoidResult<Vec<ToolResult>>>,
+) -> VoidResult<Vec<ToolResult>> {
     let result = if let Some(cancellation_token) = context.cancellation_token.as_ref() {
         tokio::select! {
             result = call_impl => {
@@ -50,7 +50,7 @@ pub(crate) async fn call_with_tool_runtime_hooks(
             }
 
             _ = cancellation_token.cancelled() => {
-                Err(BitFunError::Cancelled("Tool execution cancelled".to_string()))
+                Err(VoidError::Cancelled("Tool execution cancelled".to_string()))
             }
         }
     } else {
@@ -307,7 +307,7 @@ impl ToolUseContext {
         Some(hex::encode(Sha256::digest(diff.as_bytes())))
     }
 
-    pub fn enforce_tool_runtime_restrictions(&self, tool_name: &str) -> BitFunResult<()> {
+    pub fn enforce_tool_runtime_restrictions(&self, tool_name: &str) -> VoidResult<()> {
         self.runtime_tool_restrictions
             .ensure_tool_allowed(tool_name)
             .map_err(Into::into)
@@ -317,7 +317,7 @@ impl ToolUseContext {
         &self,
         operation: ToolPathOperation,
         resolution: &ToolPathResolution,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let allowed_roots = self
             .runtime_tool_restrictions
             .path_policy
@@ -357,7 +357,7 @@ impl ToolUseContext {
             return Ok(());
         }
 
-        Err(BitFunError::validation(format!(
+        Err(VoidError::validation(format!(
             "Path '{}' is not allowed for {}. Allowed roots: {}",
             resolution.logical_path,
             operation.verb(),
@@ -367,13 +367,13 @@ impl ToolUseContext {
 
     /// Resolve a user or model-supplied path for file/shell tools. Uses POSIX semantics when the
     /// workspace is remote SSH so Windows-hosted clients still resolve `/home/...` correctly.
-    pub fn resolve_workspace_tool_path(&self, path: &str) -> BitFunResult<String> {
+    pub fn resolve_workspace_tool_path(&self, path: &str) -> VoidResult<String> {
         let workspace_root_owned = self
             .workspace
             .as_ref()
             .map(|w| w.root_path_string())
             .ok_or_else(|| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "A workspace path is required to resolve tool path: {}",
                     path
                 ))
@@ -390,7 +390,7 @@ impl ToolUseContext {
         if self.is_remote()
             && !is_remote_posix_path_within_root(&resolved_path, &workspace_root_owned)
         {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Path '{}' resolves outside current workspace '{}': {}",
                 path, workspace_root_owned, resolved_path
             )));
@@ -399,9 +399,9 @@ impl ToolUseContext {
         Ok(resolved_path)
     }
 
-    pub fn current_workspace_runtime_root(&self) -> BitFunResult<PathBuf> {
+    pub fn current_workspace_runtime_root(&self) -> VoidResult<PathBuf> {
         let workspace = self.workspace.as_ref().ok_or_else(|| {
-            BitFunError::tool("A workspace is required to resolve runtime artifacts".to_string())
+            VoidError::tool("A workspace is required to resolve runtime artifacts".to_string())
         })?;
 
         if workspace.is_remote() {
@@ -421,9 +421,9 @@ impl ToolUseContext {
             .and_then(|workspace| workspace.workspace_id.clone())
     }
 
-    pub async fn ensure_current_workspace_runtime(&self) -> BitFunResult<WorkspaceRuntimeContext> {
+    pub async fn ensure_current_workspace_runtime(&self) -> VoidResult<WorkspaceRuntimeContext> {
         let workspace = self.workspace.as_ref().ok_or_else(|| {
-            BitFunError::tool("A workspace is required to ensure runtime artifacts".to_string())
+            VoidError::tool("A workspace is required to ensure runtime artifacts".to_string())
         })?;
 
         let runtime_service = get_workspace_runtime_service_arc();
@@ -437,14 +437,14 @@ impl ToolUseContext {
         self.is_remote()
     }
 
-    pub fn build_runtime_uri(&self, relative_path: &str) -> BitFunResult<String> {
+    pub fn build_runtime_uri(&self, relative_path: &str) -> VoidResult<String> {
         let scope = self
             .current_workspace_scope()
             .unwrap_or_else(|| "current".to_string());
-        build_bitfun_runtime_uri(&scope, &normalize_runtime_relative_path(relative_path)?)
+        build_void_runtime_uri(&scope, &normalize_runtime_relative_path(relative_path)?)
     }
 
-    pub fn build_runtime_artifact_reference(&self, relative_path: &str) -> BitFunResult<String> {
+    pub fn build_runtime_artifact_reference(&self, relative_path: &str) -> VoidResult<String> {
         let normalized_relative_path = normalize_runtime_relative_path(relative_path)?;
         if self.should_emit_runtime_uri() {
             return self.build_runtime_uri(&normalized_relative_path);
@@ -462,7 +462,7 @@ impl ToolUseContext {
         &self,
         session_id: &str,
         relative_path: &str,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let normalized_relative_path = normalize_runtime_relative_path(relative_path)?;
         self.build_runtime_artifact_reference(&format!(
             "sessions/{}/{}",
@@ -470,7 +470,7 @@ impl ToolUseContext {
         ))
     }
 
-    pub fn current_workspace_session_dir(&self, session_id: &str) -> BitFunResult<PathBuf> {
+    pub fn current_workspace_session_dir(&self, session_id: &str) -> VoidResult<PathBuf> {
         Ok(self
             .current_workspace_runtime_root()?
             .join("sessions")
@@ -480,7 +480,7 @@ impl ToolUseContext {
     pub fn current_workspace_session_tool_results_dir(
         &self,
         session_id: &str,
-    ) -> BitFunResult<PathBuf> {
+    ) -> VoidResult<PathBuf> {
         Ok(self
             .current_workspace_session_dir(session_id)?
             .join("tool-results"))
@@ -490,20 +490,20 @@ impl ToolUseContext {
         &self,
         session_id: &str,
         file_name: &str,
-    ) -> BitFunResult<PathBuf> {
+    ) -> VoidResult<PathBuf> {
         Ok(self
             .current_workspace_session_tool_results_dir(session_id)?
             .join(file_name))
     }
 
-    pub fn resolve_tool_path(&self, path: &str) -> BitFunResult<ToolPathResolution> {
-        if is_bitfun_runtime_uri(path) {
-            let parsed = parse_bitfun_runtime_uri(path)?;
+    pub fn resolve_tool_path(&self, path: &str) -> VoidResult<ToolPathResolution> {
+        if is_void_runtime_uri(path) {
+            let parsed = parse_void_runtime_uri(path)?;
             let workspace_scope = self.current_workspace_scope();
             let scope_matches = parsed.workspace_scope == "current"
                 || workspace_scope.as_deref() == Some(parsed.workspace_scope.as_str());
             if !scope_matches {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "Runtime URI scope '{}' does not match the current workspace",
                     parsed.workspace_scope
                 )));
@@ -516,7 +516,7 @@ impl ToolUseContext {
             }
 
             let effective_scope = workspace_scope.unwrap_or_else(|| parsed.workspace_scope.clone());
-            let logical_path = build_bitfun_runtime_uri(&effective_scope, &parsed.relative_path)?;
+            let logical_path = build_void_runtime_uri(&effective_scope, &parsed.relative_path)?;
 
             return Ok(ToolPathResolution {
                 requested_path: path.to_string(),
@@ -545,7 +545,7 @@ impl ToolUseContext {
 
     /// Whether `path` is absolute for the active workspace (POSIX `/` for remote SSH).
     pub fn workspace_path_is_effectively_absolute(&self, path: &str) -> bool {
-        if is_bitfun_runtime_uri(path) {
+        if is_void_runtime_uri(path) {
             return true;
         }
         if self.is_remote() {
@@ -557,7 +557,7 @@ impl ToolUseContext {
 }
 
 fn git_relative_path(workspace_root: &Path, path: &str) -> Option<String> {
-    if is_bitfun_runtime_uri(path) {
+    if is_void_runtime_uri(path) {
         return None;
     }
 
@@ -703,7 +703,7 @@ mod path_resolution_tests {
 
         assert_eq!(
             reference,
-            "bitfun://runtime/workspace-123/plans/demo.plan.md"
+            "void://runtime/workspace-123/plans/demo.plan.md"
         );
     }
 
@@ -712,7 +712,7 @@ mod path_resolution_tests {
         let context = remote_context("/home/wsp/projects/test", Some("workspace-123".to_string()));
 
         let err = context
-            .resolve_tool_path("bitfun://runtime/workspace-456/plans/demo.plan.md")
+            .resolve_tool_path("void://runtime/workspace-456/plans/demo.plan.md")
             .expect_err("runtime artifact scopes must match the active workspace");
 
         assert!(
@@ -734,7 +734,7 @@ mod path_resolution_tests {
     #[test]
     fn path_policy_allows_only_configured_local_roots() {
         let temp_root = std::env::temp_dir().join(format!(
-            "bitfun-tool-context-policy-{}",
+            "void-tool-context-policy-{}",
             uuid::Uuid::new_v4()
         ));
         let allowed_root = temp_root.join("allowed");
@@ -775,7 +775,7 @@ mod call_runtime_tests {
     use super::call_with_tool_runtime_hooks;
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use crate::agentic::tools::framework::{ToolResult, ToolUseContext};
-    use crate::util::errors::{BitFunError, BitFunResult};
+    use crate::util::errors::{VoidError, VoidResult};
     use serde_json::json;
     use std::collections::HashMap;
     use tokio::time::{Duration, sleep};
@@ -810,7 +810,7 @@ mod call_runtime_tests {
         .await;
 
         assert!(
-            matches!(result, Err(BitFunError::Cancelled(message)) if message == "Tool execution cancelled")
+            matches!(result, Err(VoidError::Cancelled(message)) if message == "Tool execution cancelled")
         );
     }
 
@@ -830,7 +830,7 @@ mod call_runtime_tests {
             workspace_services: None,
         };
 
-        let result: BitFunResult<Vec<ToolResult>> =
+        let result: VoidResult<Vec<ToolResult>> =
             call_with_tool_runtime_hooks("Read", &json!({}), &context, async {
                 Ok(vec![ToolResult::ok(
                     json!({ "ok": true }),

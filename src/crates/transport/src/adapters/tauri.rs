@@ -6,7 +6,7 @@
 #[cfg(feature = "tauri-adapter")]
 use crate::traits::{TextChunk, ToolEventPayload, TransportAdapter};
 use async_trait::async_trait;
-use bitfun_events::AgenticEvent;
+use void_events::AgenticEvent;
 use log::warn;
 use serde_json::json;
 use std::fmt;

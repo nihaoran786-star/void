@@ -23,7 +23,7 @@ use crate::service::session::{
 };
 use crate::service::snapshot::ensure_snapshot_manager_for_workspace;
 use crate::service::workspace::get_global_workspace_service;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::sanitize_plain_model_output;
 use crate::util::timing::elapsed_ms_u64;
 use dashmap::DashMap;
@@ -180,10 +180,10 @@ impl SessionManager {
         Some(context_window)
     }
 
-    fn normalize_session_title_input(title: &str) -> BitFunResult<String> {
+    fn normalize_session_title_input(title: &str) -> VoidResult<String> {
         let trimmed = title.trim();
         if trimmed.is_empty() {
-            return Err(BitFunError::validation(
+            return Err(VoidError::validation(
                 "Session title must not be empty".to_string(),
             ));
         }
@@ -604,7 +604,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Vec<Message>> {
+    ) -> VoidResult<Vec<Message>> {
         let turns = self
             .persistence_manager
             .load_session_turns(workspace_path, session_id)
@@ -933,7 +933,7 @@ impl SessionManager {
         session_name: String,
         agent_type: String,
         config: SessionConfig,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.create_session_with_id_and_details(
             None,
             session_name,
@@ -952,7 +952,7 @@ impl SessionManager {
         session_name: String,
         agent_type: String,
         config: SessionConfig,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.create_session_with_id_and_details(
             session_id,
             session_name,
@@ -972,7 +972,7 @@ impl SessionManager {
         agent_type: String,
         config: SessionConfig,
         created_by: Option<String>,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.create_session_with_id_and_details(
             session_id,
             session_name,
@@ -993,20 +993,20 @@ impl SessionManager {
         config: SessionConfig,
         created_by: Option<String>,
         kind: SessionKind,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         let _workspace_path = Self::session_workspace_from_config(&config).ok_or_else(|| {
-            BitFunError::Validation("Session workspace_path is required".to_string())
+            VoidError::Validation("Session workspace_path is required".to_string())
         })?;
 
         let session_storage_path = Self::effective_workspace_path_from_config(&config)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation("Session workspace_path is required".to_string())
+                VoidError::Validation("Session workspace_path is required".to_string())
             })?;
 
         // Check session count limit
         if self.sessions.len() >= self.config.max_active_sessions {
-            return Err(BitFunError::Validation(format!(
+            return Err(VoidError::Validation(format!(
                 "Exceeded maximum session limit: {}",
                 self.config.max_active_sessions
             )));
@@ -1081,7 +1081,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         new_state: SessionState,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let effective_path = self.effective_session_workspace_path(session_id).await;
 
         // IMPORTANT: keep the DashMap guard scope short -- do NOT hold it across .await.
@@ -1094,7 +1094,7 @@ impl SessionManager {
             let persist = self.config.enable_persistence && Self::should_persist_session(&session);
             persist
         } else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1125,7 +1125,7 @@ impl SessionManager {
         session_id: &str,
         expected_turn_id: &str,
         new_state: SessionState,
-    ) -> BitFunResult<bool> {
+    ) -> VoidResult<bool> {
         let effective_path = self.effective_session_workspace_path(session_id).await;
 
         let should_persist = if let Some(mut session) = self.sessions.get_mut(session_id) {
@@ -1151,7 +1151,7 @@ impl SessionManager {
 
             self.config.enable_persistence && Self::should_persist_session(&session)
         } else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1174,13 +1174,13 @@ impl SessionManager {
     }
 
     /// Update session title (in-memory + persistence)
-    pub async fn update_session_title(&self, session_id: &str, title: &str) -> BitFunResult<()> {
+    pub async fn update_session_title(&self, session_id: &str, title: &str) -> VoidResult<()> {
         let normalized_title = Self::normalize_session_title_input(title)?;
         let workspace_path = self.effective_session_workspace_path(session_id).await;
 
         {
             let Some(mut session) = self.sessions.get_mut(session_id) else {
-                return Err(BitFunError::NotFound(format!(
+                return Err(VoidError::NotFound(format!(
                     "Session not found: {}",
                     session_id
                 )));
@@ -1192,7 +1192,7 @@ impl SessionManager {
 
         if self.should_persist_session_id(session_id) {
             let Some(workspace_path) = workspace_path.as_ref() else {
-                return Err(BitFunError::Session(format!(
+                return Err(VoidError::Session(format!(
                     "Workspace path is unavailable for session {}",
                     session_id
                 )));
@@ -1200,7 +1200,7 @@ impl SessionManager {
             // Clone the session data out of the DashMap guard before awaiting I/O.
             let session_snapshot = {
                 let Some(session) = self.sessions.get(session_id) else {
-                    return Err(BitFunError::NotFound(format!(
+                    return Err(VoidError::NotFound(format!(
                         "Session not found: {}",
                         session_id
                     )));
@@ -1226,9 +1226,9 @@ impl SessionManager {
         session_id: &str,
         expected_current_title: &str,
         title: &str,
-    ) -> BitFunResult<bool> {
+    ) -> VoidResult<bool> {
         let Some(session) = self.sessions.get(session_id) else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1254,13 +1254,13 @@ impl SessionManager {
         &self,
         session_id: &str,
         agent_type: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if let Some(mut session) = self.sessions.get_mut(session_id) {
             session.agent_type = agent_type.to_string();
             session.updated_at = SystemTime::now();
             session.last_activity_at = SystemTime::now();
         } else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1323,7 +1323,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         model_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let ai_config = Self::load_ai_config_for_model_resolution().await;
         let mut resolved_context_window = None;
 
@@ -1352,7 +1352,7 @@ impl SessionManager {
             session.updated_at = SystemTime::now();
             session.last_activity_at = SystemTime::now();
         } else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1389,7 +1389,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let delete_started_at = Instant::now();
         debug!(
             "Session deletion started: session_id={}, workspace_path={}, persistence_enabled={}",
@@ -1535,7 +1535,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.restore_session_internal(workspace_path, session_id, false)
             .await
     }
@@ -1544,7 +1544,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.restore_session_internal(workspace_path, session_id, true)
             .await
     }
@@ -1554,7 +1554,7 @@ impl SessionManager {
         workspace_path: &Path,
         session_id: &str,
         include_internal: bool,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         let (session, _) = self
             .restore_session_with_turns_internal(workspace_path, session_id, include_internal)
             .await?;
@@ -1568,7 +1568,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         self.restore_session_view_internal(workspace_path, session_id, false)
             .await
     }
@@ -1577,7 +1577,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         self.restore_session_view_internal(workspace_path, session_id, true)
             .await
     }
@@ -1587,7 +1587,7 @@ impl SessionManager {
         workspace_path: &Path,
         session_id: &str,
         include_internal: bool,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         let restore_started_at = Instant::now();
         let storage_path_started_at = Instant::now();
         let session_storage_path = {
@@ -1613,7 +1613,7 @@ impl SessionManager {
             .await?
             .is_some_and(|metadata| !include_internal && metadata.should_hide_from_user_lists())
         {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1675,7 +1675,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         self.restore_session_with_turns_internal(workspace_path, session_id, false)
             .await
     }
@@ -1684,7 +1684,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         self.restore_session_with_turns_internal(workspace_path, session_id, true)
             .await
     }
@@ -1694,7 +1694,7 @@ impl SessionManager {
         workspace_path: &Path,
         session_id: &str,
         include_internal: bool,
-    ) -> BitFunResult<(Session, Vec<DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<DialogTurnData>)> {
         let restore_started_at = Instant::now();
         // Check if session is already in memory
         let session_already_in_memory = self.sessions.contains_key(session_id);
@@ -1723,7 +1723,7 @@ impl SessionManager {
             .await?
             .is_some_and(|metadata| !include_internal && metadata.should_hide_from_user_lists())
         {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -1964,7 +1964,7 @@ impl SessionManager {
         workspace_path: &Path,
         session_id: &str,
         target_turn: usize,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         // Ensure session is in memory (restore from persistence if necessary)
         if !self.sessions.contains_key(session_id) && self.config.enable_persistence {
             let _ = self.restore_session(workspace_path, session_id).await;
@@ -1978,7 +1978,7 @@ impl SessionManager {
                 .load_turn_context_snapshot(workspace_path, session_id, target_turn - 1)
                 .await?
                 .ok_or_else(|| {
-                    BitFunError::NotFound(format!(
+                    VoidError::NotFound(format!(
                         "turn context snapshot not found: session_id={} turn={}",
                         session_id,
                         target_turn - 1
@@ -2055,7 +2055,7 @@ impl SessionManager {
     }
 
     /// List all sessions
-    pub async fn list_sessions(&self, workspace_path: &Path) -> BitFunResult<Vec<SessionSummary>> {
+    pub async fn list_sessions(&self, workspace_path: &Path) -> VoidResult<Vec<SessionSummary>> {
         if self.config.enable_persistence {
             self.persistence_manager.list_sessions(workspace_path).await
         } else {
@@ -2091,7 +2091,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Option<SessionMetadata>> {
+    ) -> VoidResult<Option<SessionMetadata>> {
         self.persistence_manager
             .load_session_metadata(workspace_path, session_id)
             .await
@@ -2101,7 +2101,7 @@ impl SessionManager {
         &self,
         workspace_path: &Path,
         metadata: &SessionMetadata,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.persistence_manager
             .save_session_metadata(workspace_path, metadata)
             .await
@@ -2111,7 +2111,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         patch: serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             return Ok(());
         }
@@ -2120,7 +2120,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2137,14 +2137,14 @@ impl SessionManager {
                     .sessions
                     .get(session_id)
                     .map(|value| value.clone())
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
                 self.persistence_manager
                     .save_session(&workspace_path, &session)
                     .await?;
                 self.persistence_manager
                     .load_session_metadata(&workspace_path, session_id)
                     .await?
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?
             }
         };
 
@@ -2167,7 +2167,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         relationship: SessionRelationship,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             return Ok(());
         }
@@ -2176,7 +2176,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2193,14 +2193,14 @@ impl SessionManager {
                     .sessions
                     .get(session_id)
                     .map(|value| value.clone())
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
                 self.persistence_manager
                     .save_session(&workspace_path, &session)
                     .await?;
                 self.persistence_manager
                     .load_session_metadata(&workspace_path, session_id)
                     .await?
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?
             }
         };
 
@@ -2214,7 +2214,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         relationship: SessionRelationship,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             return Ok(());
         }
@@ -2223,7 +2223,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2240,14 +2240,14 @@ impl SessionManager {
                     .sessions
                     .get(session_id)
                     .map(|value| value.clone())
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
                 self.persistence_manager
                     .save_session(&workspace_path, &session)
                     .await?;
                 self.persistence_manager
                     .load_session_metadata(&workspace_path, session_id)
                     .await?
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?
             }
         };
 
@@ -2279,7 +2279,7 @@ impl SessionManager {
         workspace_path: &Path,
         parent_session_id: &str,
         parent_dialog_turn_ids: &HashSet<String>,
-    ) -> BitFunResult<Vec<String>> {
+    ) -> VoidResult<Vec<String>> {
         if parent_session_id.trim().is_empty() || parent_dialog_turn_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -2358,7 +2358,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         deep_review_run_manifest: Option<serde_json::Value>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             return Ok(());
         }
@@ -2367,7 +2367,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2384,14 +2384,14 @@ impl SessionManager {
                     .sessions
                     .get(session_id)
                     .map(|value| value.clone())
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
                 self.persistence_manager
                     .save_session(&workspace_path, &session)
                     .await?;
                 self.persistence_manager
                     .load_session_metadata(&workspace_path, session_id)
                     .await?
-                    .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?
+                    .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?
             }
         };
 
@@ -2414,14 +2414,14 @@ impl SessionManager {
         context_message: Option<Message>,
         processing_phase: ProcessingPhase,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let session = self
             .get_session(session_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
         let workspace_path = Self::effective_workspace_path_from_config(&session.config)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2500,7 +2500,7 @@ impl SessionManager {
         turn_id: Option<String>,
         image_contexts: Option<Vec<ImageContextData>>,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let user_message =
             if let Some(images) = image_contexts.as_ref().filter(|v| !v.is_empty()).cloned() {
                 Message::user_multimodal(user_input.clone(), images)
@@ -2535,7 +2535,7 @@ impl SessionManager {
         display_message: String,
         turn_id: Option<String>,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let turn_id = self
             .start_persisted_turn(
                 session_id,
@@ -2563,14 +2563,14 @@ impl SessionManager {
         turn_id: Option<String>,
         timestamp_ms: Option<u64>,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<DialogTurnData> {
+    ) -> VoidResult<DialogTurnData> {
         let session = self
             .get_session(session_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
         let workspace_path = Self::effective_workspace_path_from_config(&session.config)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2657,7 +2657,7 @@ impl SessionManager {
         turn_id: &str,
         final_response: String,
         stats: TurnStats,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             debug!(
                 "Skipping dialog turn persistence for transient session completion: session_id={}, turn_id={}, response_len={}, rounds={}",
@@ -2673,7 +2673,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2682,12 +2682,12 @@ impl SessionManager {
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
             .await?
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
 
         // Update state
         let completion_timestamp = SystemTime::now()
@@ -2769,7 +2769,7 @@ impl SessionManager {
         session_id: &str,
         turn_id: &str,
         error: String,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             debug!(
                 "Skipping dialog turn persistence for transient session failure: session_id={}, turn_id={}, error={}",
@@ -2782,7 +2782,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2791,12 +2791,12 @@ impl SessionManager {
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
             .await?
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
 
         turn.status = TurnStatus::Error;
         turn.end_time = Some(
@@ -2831,7 +2831,7 @@ impl SessionManager {
     /// frontend / persistence layer can distinguish a user-cancelled turn
     /// from a fully-completed one. Any partial assistant content that was
     /// already streamed is preserved in `model_rounds`.
-    pub async fn cancel_dialog_turn(&self, session_id: &str, turn_id: &str) -> BitFunResult<()> {
+    pub async fn cancel_dialog_turn(&self, session_id: &str, turn_id: &str) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             debug!(
                 "Skipping dialog turn persistence for transient session cancellation: session_id={}, turn_id={}",
@@ -2844,7 +2844,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2853,12 +2853,12 @@ impl SessionManager {
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
             .await?
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
 
         turn.status = TurnStatus::Cancelled;
         turn.end_time = Some(
@@ -2894,7 +2894,7 @@ impl SessionManager {
         turn_id: &str,
         model_rounds: Vec<ModelRoundData>,
         duration_ms: u64,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             debug!(
                 "Skipping maintenance turn persistence for transient session completion: session_id={}, turn_id={}, rounds={}, duration_ms={}",
@@ -2910,7 +2910,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2919,12 +2919,12 @@ impl SessionManager {
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
             .await?
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
 
         let completion_timestamp = SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -2958,7 +2958,7 @@ impl SessionManager {
         turn_id: &str,
         error: String,
         model_rounds: Vec<ModelRoundData>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
             debug!(
                 "Skipping maintenance turn persistence for transient session failure: session_id={}, turn_id={}, rounds={}, error={}",
@@ -2974,7 +2974,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "Session workspace_path is missing: {}",
                     session_id
                 ))
@@ -2983,12 +2983,12 @@ impl SessionManager {
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
             .await?
-            .ok_or_else(|| BitFunError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
 
         let completion_timestamp = SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -3032,9 +3032,9 @@ impl SessionManager {
         parent_session_id: &str,
         parent_dialog_turn_id: Option<&str>,
         parent_turn_index: Option<usize>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let session = self.sessions.get(child_session_id).ok_or_else(|| {
-            BitFunError::NotFound(format!("Session not found: {}", child_session_id))
+            VoidError::NotFound(format!("Session not found: {}", child_session_id))
         })?;
         let turn_id = format!("btw-turn-{}", request_id);
         let turn_index = session
@@ -3170,7 +3170,7 @@ impl SessionManager {
     /// Get a best-effort message view for the session.
     /// When persistence is enabled, rebuild from persisted turns so callers see the
     /// canonical turn history instead of the runtime context cache.
-    pub async fn get_messages(&self, session_id: &str) -> BitFunResult<Vec<Message>> {
+    pub async fn get_messages(&self, session_id: &str) -> VoidResult<Vec<Message>> {
         if self.config.enable_persistence {
             if let Some(workspace_path) = self.effective_session_workspace_path(session_id).await {
                 let messages = self
@@ -3191,13 +3191,13 @@ impl SessionManager {
         session_id: &str,
         limit: usize,
         before_message_id: Option<&str>,
-    ) -> BitFunResult<(Vec<Message>, bool)> {
+    ) -> VoidResult<(Vec<Message>, bool)> {
         let messages = self.get_messages(session_id).await?;
         Ok(Self::paginate_messages(&messages, limit, before_message_id))
     }
 
     /// Get session's runtime context messages (may already include compressed reminders).
-    pub async fn get_context_messages(&self, session_id: &str) -> BitFunResult<Vec<Message>> {
+    pub async fn get_context_messages(&self, session_id: &str) -> VoidResult<Vec<Message>> {
         let context_messages = self.context_store.get_context_messages(session_id);
 
         Ok(context_messages)
@@ -3205,7 +3205,7 @@ impl SessionManager {
 
     /// Add a semantic message to the runtime context cache and immediately refresh the current
     /// turn snapshot so crashes do not lose the latest in-memory context change.
-    pub async fn add_message(&self, session_id: &str, message: Message) -> BitFunResult<()> {
+    pub async fn add_message(&self, session_id: &str, message: Message) -> VoidResult<()> {
         self.context_store.add_message(session_id, message);
         self.persist_current_turn_context_snapshot_best_effort(session_id, "context_message_added")
             .await;
@@ -3240,7 +3240,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         compression_state: CompressionState,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let effective_path = self.effective_session_workspace_path(session_id).await;
 
         // IMPORTANT: keep the DashMap guard scope short -- do NOT hold it across .await.
@@ -3254,7 +3254,7 @@ impl SessionManager {
                 None
             }
         } else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "Session not found: {}",
                 session_id
             )));
@@ -3276,7 +3276,7 @@ impl SessionManager {
         &self,
         user_message: &str,
         max_length: usize,
-    ) -> BitFunResult<Option<String>> {
+    ) -> VoidResult<Option<String>> {
         use crate::util::types::Message;
 
         // Match agent `LANGUAGE_PREFERENCE`: use `app.language`, not I18nService (see `app_language` module).
@@ -3330,18 +3330,18 @@ impl SessionManager {
 
         // Dynamically get Agent client to generate title
         let ai_client_factory = get_global_ai_client_factory().await.map_err(|e| {
-            BitFunError::AIClient(format!("Failed to get AI client factory: {}", e))
+            VoidError::AIClient(format!("Failed to get AI client factory: {}", e))
         })?;
 
         let ai_client = ai_client_factory
             .get_client_by_func_agent("session-title-func-agent")
             .await
-            .map_err(|e| BitFunError::AIClient(format!("Failed to get AI client: {}", e)))?;
+            .map_err(|e| VoidError::AIClient(format!("Failed to get AI client: {}", e)))?;
 
         let response = ai_client
             .send_message(messages, None)
             .await
-            .map_err(|e| BitFunError::ai(format!("AI call failed: {}", e)))?;
+            .map_err(|e| VoidError::ai(format!("AI call failed: {}", e)))?;
 
         let title = sanitize_plain_model_output(&response.text);
         if title.is_empty() {
@@ -3400,7 +3400,7 @@ impl SessionManager {
         &self,
         user_message: &str,
         max_length: Option<usize>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         Ok(self
             .resolve_session_title(user_message, max_length, true)
             .await
@@ -3590,7 +3590,7 @@ mod tests {
     impl TestWorkspace {
         fn new() -> Self {
             let path = std::env::temp_dir()
-                .join(format!("bitfun-session-restore-test-{}", Uuid::new_v4()));
+                .join(format!("void-session-restore-test-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&path).expect("test workspace should be created");
             Self { path }
         }

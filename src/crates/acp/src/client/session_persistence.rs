@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use bitfun_core::agentic::persistence::PersistenceManager;
-use bitfun_core::infrastructure::PathManager;
-use bitfun_core::service::session::SessionMetadata;
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::agentic::persistence::PersistenceManager;
+use void_core::infrastructure::PathManager;
+use void_core::service::session::SessionMetadata;
+use void_core::util::errors::{VoidError, VoidResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -28,7 +28,7 @@ pub(super) struct AcpSessionPersistence {
 }
 
 impl AcpSessionPersistence {
-    pub(super) fn new(path_manager: Arc<PathManager>) -> BitFunResult<Self> {
+    pub(super) fn new(path_manager: Arc<PathManager>) -> VoidResult<Self> {
         Ok(Self {
             manager: PersistenceManager::new(path_manager)?,
         })
@@ -40,7 +40,7 @@ impl AcpSessionPersistence {
         workspace_path: &str,
         client_id: &str,
         session_name: Option<String>,
-    ) -> BitFunResult<CreateAcpFlowSessionRecordResponse> {
+    ) -> VoidResult<CreateAcpFlowSessionRecordResponse> {
         let session_id = format!("acp_{}_{}", client_id, uuid::Uuid::new_v4());
         let agent_type = format!("acp:{}", client_id);
         let session_name = session_name
@@ -77,21 +77,21 @@ impl AcpSessionPersistence {
     pub(super) async fn delete_flow_session_record(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<()> {
+        void_session_id: &str,
+    ) -> VoidResult<()> {
         self.manager
-            .delete_session(session_storage_path, bitfun_session_id)
+            .delete_session(session_storage_path, void_session_id)
             .await
     }
 
     pub(super) async fn load_remote_session_id(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<Option<String>> {
+        void_session_id: &str,
+    ) -> VoidResult<Option<String>> {
         let Some(metadata) = self
             .manager
-            .load_session_metadata(session_storage_path, bitfun_session_id)
+            .load_session_metadata(session_storage_path, void_session_id)
             .await?
         else {
             return Ok(None);
@@ -110,12 +110,12 @@ impl AcpSessionPersistence {
     pub(super) async fn update_remote_session_state(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
+        void_session_id: &str,
         remote_session_id: &str,
         resume_strategy: &str,
         last_resume_error: Option<String>,
-    ) -> BitFunResult<()> {
-        self.update_metadata(session_storage_path, bitfun_session_id, |metadata| {
+    ) -> VoidResult<()> {
+        self.update_metadata(session_storage_path, void_session_id, |metadata| {
             let mut custom = metadata.custom_metadata.take().unwrap_or_else(|| json!({}));
             ensure_object(&mut custom)?;
             custom[CUSTOM_METADATA_PROVIDER_KEY] = json!(CUSTOM_METADATA_PROVIDER_VALUE);
@@ -133,10 +133,10 @@ impl AcpSessionPersistence {
     pub(super) async fn update_model_id(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
+        void_session_id: &str,
         model_id: &str,
-    ) -> BitFunResult<()> {
-        self.update_metadata(session_storage_path, bitfun_session_id, |metadata| {
+    ) -> VoidResult<()> {
+        self.update_metadata(session_storage_path, void_session_id, |metadata| {
             metadata.model_name = model_id.to_string();
             metadata.touch();
             Ok(())
@@ -147,12 +147,12 @@ impl AcpSessionPersistence {
     async fn update_metadata(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
-        update: impl FnOnce(&mut SessionMetadata) -> BitFunResult<()>,
-    ) -> BitFunResult<()> {
+        void_session_id: &str,
+        update: impl FnOnce(&mut SessionMetadata) -> VoidResult<()>,
+    ) -> VoidResult<()> {
         let Some(mut metadata) = self
             .manager
-            .load_session_metadata(session_storage_path, bitfun_session_id)
+            .load_session_metadata(session_storage_path, void_session_id)
             .await?
         else {
             return Ok(());
@@ -165,7 +165,7 @@ impl AcpSessionPersistence {
     }
 }
 
-fn ensure_object(value: &mut Value) -> BitFunResult<()> {
+fn ensure_object(value: &mut Value) -> VoidResult<()> {
     if value.is_object() {
         return Ok(());
     }
@@ -174,7 +174,7 @@ fn ensure_object(value: &mut Value) -> BitFunResult<()> {
     if value.is_object() {
         Ok(())
     } else {
-        Err(BitFunError::service(
+        Err(VoidError::service(
             "Failed to initialize ACP session custom metadata".to_string(),
         ))
     }

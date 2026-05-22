@@ -78,7 +78,7 @@ const createSession = (overrides: Partial<Session> = {}): Session => ({
   todos: [],
   maxContextTokens: 128128,
   mode: 'agentic',
-  workspacePath: 'D:/workspace/BitFun',
+  workspacePath: 'D:/workspace/Void',
   isTransient: false,
   ...overrides,
 });
@@ -289,7 +289,7 @@ describe('FlowChatStore historical session hydration state', () => {
       },
     ]);
 
-    await flowChatStore.initializeFromDisk('D:/workspace/BitFun');
+    await flowChatStore.initializeFromDisk('D:/workspace/Void');
 
     const session = flowChatStore.getState().sessions.get('history-1');
     expect(session).toMatchObject({
@@ -323,7 +323,7 @@ describe('FlowChatStore historical session hydration state', () => {
       },
     ]);
 
-    await flowChatStore.initializeFromDisk('D:/workspace/BitFun');
+    await flowChatStore.initializeFromDisk('D:/workspace/Void');
 
     const configPaths = configManagerMock.getConfig.mock.calls.map(([path]) => path);
     expect(configPaths.filter(path => path === 'ai.models')).toHaveLength(1);
@@ -356,7 +356,7 @@ describe('FlowChatStore historical session hydration state', () => {
       return {};
     });
 
-    await flowChatStore.initializeFromDisk('D:/workspace/BitFun');
+    await flowChatStore.initializeFromDisk('D:/workspace/Void');
 
     expect(flowChatStore.getState().sessions.has('bad-1')).toBe(false);
     expect(flowChatStore.getState().sessions.get('good-1')).toMatchObject({
@@ -370,13 +370,13 @@ describe('FlowChatStore historical session hydration state', () => {
     apiMocks.listSessions.mockReturnValueOnce(sessions.promise);
 
     const firstLoad = flowChatStore.initializeFromDisk(
-      'D:/workspace/BitFun',
+      'D:/workspace/Void',
       undefined,
       undefined,
       'first-source'
     );
     const secondLoad = flowChatStore.initializeFromDisk(
-      'D:/workspace/BitFun',
+      'D:/workspace/Void',
       undefined,
       undefined,
       'second-source'
@@ -416,8 +416,8 @@ describe('FlowChatStore historical session hydration state', () => {
       },
     ]);
 
-    await flowChatStore.initializeFromDisk('D:/workspace/BitFun', undefined, undefined, 'first-source');
-    await flowChatStore.initializeFromDisk('D:/workspace/BitFun', undefined, undefined, 'second-source');
+    await flowChatStore.initializeFromDisk('D:/workspace/Void', undefined, undefined, 'first-source');
+    await flowChatStore.initializeFromDisk('D:/workspace/Void', undefined, undefined, 'second-source');
 
     expect(apiMocks.listSessions).toHaveBeenCalledTimes(1);
     expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
@@ -451,7 +451,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    const load = flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    const load = flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
     await flushAsyncWork();
 
     expect(flowChatStore.getState().sessions.get('history-1')?.historyState).toBe('hydrating');
@@ -481,7 +481,7 @@ describe('FlowChatStore historical session hydration state', () => {
     }));
 
     await expect(
-      flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun')
+      flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void')
     ).rejects.toThrow('turn load failed');
 
     expect(apiMocks.restoreSessionWithTurns).not.toHaveBeenCalled();
@@ -520,7 +520,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-2',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(flowChatStore.getState().activeSessionId).toBe('history-2');
     expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
@@ -544,7 +544,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'acp-1',
     }));
 
-    await flowChatStore.loadSessionHistory('acp-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('acp-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSession).not.toHaveBeenCalled();
     expect(apiMocks.restoreSessionView).not.toHaveBeenCalled();
@@ -618,7 +618,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionView).toHaveBeenCalledTimes(1);
     expect(apiMocks.restoreSessionWithTurns).not.toHaveBeenCalled();
@@ -672,7 +672,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
     expect(apiMocks.loadSessionTurns).not.toHaveBeenCalled();
@@ -719,7 +719,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionView).toHaveBeenCalledTimes(1);
     expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
@@ -784,8 +784,8 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
-    await flowChatStore.loadSessionHistory('history-2', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
+    await flowChatStore.loadSessionHistory('history-2', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionView).toHaveBeenCalledTimes(1);
     expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(2);
@@ -851,7 +851,7 @@ describe('FlowChatStore historical session hydration state', () => {
       'remote-1',
       'old.example'
     );
-    await flowChatStore.loadSessionHistory('history-2', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-2', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionView).toHaveBeenCalledTimes(2);
     expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
@@ -893,7 +893,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
     expect(apiMocks.restoreSession).toHaveBeenCalledTimes(1);
@@ -942,7 +942,7 @@ describe('FlowChatStore historical session hydration state', () => {
       activeSessionId: 'history-1',
     }));
 
-    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/BitFun');
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/Void');
 
     expect(apiMocks.restoreSessionView).toHaveBeenCalledTimes(1);
     expect(apiMocks.restoreSessionWithTurns).not.toHaveBeenCalled();

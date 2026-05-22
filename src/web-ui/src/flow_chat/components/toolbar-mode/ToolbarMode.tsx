@@ -169,7 +169,7 @@ export const ToolbarMode: React.FC = () => {
       if (sessionPickerRef.current?.contains(target)) {
         return;
       }
-      if (target.closest?.('.bitfun-toolbar-mode__session-menu-trigger')) {
+      if (target.closest?.('.void-toolbar-mode__session-menu-trigger')) {
         return;
       }
       setShowSessionPicker(false);
@@ -192,7 +192,7 @@ export const ToolbarMode: React.FC = () => {
       if (headerOverflowRef.current?.contains(target)) {
         return;
       }
-      if (target.closest?.('.bitfun-toolbar-mode__overflow-trigger')) {
+      if (target.closest?.('.void-toolbar-mode__overflow-trigger')) {
         return;
       }
       setShowHeaderOverflowMenu(false);
@@ -213,7 +213,7 @@ export const ToolbarMode: React.FC = () => {
     const target = e.target as HTMLElement;
     // Avoid dragging when interacting with UI controls.
     if (target.closest?.(
-      'button, input, .bitfun-toolbar-mode__session-picker, .bitfun-toolbar-mode__session-dropdown, .bitfun-toolbar-mode__overflow-menu, .bitfun-toolbar-mode__stream-content, .bitfun-toolbar-mode__session-item, .bitfun-toolbar-mode__flowchat-container'
+      'button, input, .void-toolbar-mode__session-picker, .void-toolbar-mode__session-dropdown, .void-toolbar-mode__overflow-menu, .void-toolbar-mode__stream-content, .void-toolbar-mode__session-item, .void-toolbar-mode__flowchat-container'
     )) {
       return;
     }
@@ -306,44 +306,44 @@ export const ToolbarMode: React.FC = () => {
 
   const sessionMenuContent = useMemo(
     () => (
-      <div className="bitfun-toolbar-mode__session-menu">
-        <div className="bitfun-toolbar-mode__session-menu-actions">
+      <div className="void-toolbar-mode__session-menu">
+        <div className="void-toolbar-mode__session-menu-actions">
           <button
             type="button"
-            className="bitfun-toolbar-mode__session-item bitfun-toolbar-mode__session-item--new"
+            className="void-toolbar-mode__session-item void-toolbar-mode__session-item--new"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               dispatchToolbarCreateSession('code');
             }}
           >
-            <span className="bitfun-toolbar-mode__session-item-icon" aria-hidden>
+            <span className="void-toolbar-mode__session-item-icon" aria-hidden>
               <Plus size={13} strokeWidth={2.25} />
             </span>
-            <span className="bitfun-toolbar-mode__session-item-label">
+            <span className="void-toolbar-mode__session-item-label">
               {t('toolCards.toolbar.newCodeSessionItem')}
             </span>
           </button>
           <button
             type="button"
-            className="bitfun-toolbar-mode__session-item bitfun-toolbar-mode__session-item--new"
+            className="void-toolbar-mode__session-item void-toolbar-mode__session-item--new"
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
               dispatchToolbarCreateSession('cowork');
             }}
           >
-            <span className="bitfun-toolbar-mode__session-item-icon" aria-hidden>
+            <span className="void-toolbar-mode__session-item-icon" aria-hidden>
               <Plus size={13} strokeWidth={2.25} />
             </span>
-            <span className="bitfun-toolbar-mode__session-item-label">
+            <span className="void-toolbar-mode__session-item-label">
               {t('toolCards.toolbar.newCoworkSessionItem')}
             </span>
           </button>
-          <div className="bitfun-toolbar-mode__session-list-divider" role="separator" />
+          <div className="void-toolbar-mode__session-list-divider" role="separator" />
         </div>
         <div
-          className="bitfun-toolbar-mode__session-menu-scroll"
+          className="void-toolbar-mode__session-menu-scroll"
           role="listbox"
           aria-label={t('session.switchSession')}
         >
@@ -351,8 +351,8 @@ export const ToolbarMode: React.FC = () => {
             <button
               key={session.sessionId}
               type="button"
-              className={`bitfun-toolbar-mode__session-item ${
-                session.sessionId === flowChatState.activeSessionId ? 'bitfun-toolbar-mode__session-item--active' : ''
+              className={`void-toolbar-mode__session-item ${
+                session.sessionId === flowChatState.activeSessionId ? 'void-toolbar-mode__session-item--active' : ''
               }`}
               onMouseDown={(e) => handleSwitchSession(e, session.sessionId)}
             >
@@ -370,26 +370,26 @@ export const ToolbarMode: React.FC = () => {
   }
   
   const containerClassName = [
-    'bitfun-toolbar-mode',
-    isExpanded && 'bitfun-toolbar-mode--expanded',
-    currentStreamState.isStreaming && 'bitfun-toolbar-mode--processing',
-    toolbarState.hasError && 'bitfun-toolbar-mode--error',
-    toolbarState.hasPendingConfirmation && 'bitfun-toolbar-mode--confirm'
+    'void-toolbar-mode',
+    isExpanded && 'void-toolbar-mode--expanded',
+    currentStreamState.isStreaming && 'void-toolbar-mode--processing',
+    toolbarState.hasError && 'void-toolbar-mode--error',
+    toolbarState.hasPendingConfirmation && 'void-toolbar-mode--confirm'
   ].filter(Boolean).join(' ');
   
   return (
     <div className={containerClassName} onMouseDown={handleStartDrag}>
-      <div className="bitfun-toolbar-mode__header">
-        <div className="bitfun-toolbar-mode__header-left">
+      <div className="void-toolbar-mode__header">
+        <div className="void-toolbar-mode__header-left">
           {isExpanded ? (
-            <div className="bitfun-toolbar-mode__session-menu-root">
+            <div className="void-toolbar-mode__session-menu-root">
               <Tooltip content={t('toolCards.toolbar.openSessionMenu')}>
                 <button
                   type="button"
                   className={[
-                    'bitfun-toolbar-mode__create-btn',
-                    'bitfun-toolbar-mode__session-menu-trigger',
-                    showSessionPicker ? 'bitfun-toolbar-mode__session-menu-trigger--open' : '',
+                    'void-toolbar-mode__create-btn',
+                    'void-toolbar-mode__session-menu-trigger',
+                    showSessionPicker ? 'void-toolbar-mode__session-menu-trigger--open' : '',
                   ].filter(Boolean).join(' ')}
                   onClick={toggleSessionMenu}
                   aria-expanded={showSessionPicker}
@@ -400,7 +400,7 @@ export const ToolbarMode: React.FC = () => {
               </Tooltip>
               {showSessionPicker && (
                 <div 
-                  className="bitfun-toolbar-mode__session-dropdown" 
+                  className="void-toolbar-mode__session-dropdown"
                   ref={sessionPickerRef}
                   onMouseDown={(e) => e.stopPropagation()}
                 >
@@ -411,21 +411,21 @@ export const ToolbarMode: React.FC = () => {
           ) : null}
         </div>
 
-        <div className="bitfun-toolbar-mode__title-wrapper">
-          <div className="bitfun-toolbar-mode__title-display" title={sessionTitle}>
-            <span className="bitfun-toolbar-mode__title-text">{sessionTitle}</span>
+        <div className="void-toolbar-mode__title-wrapper">
+          <div className="void-toolbar-mode__title-display" title={sessionTitle}>
+            <span className="void-toolbar-mode__title-text">{sessionTitle}</span>
           </div>
         </div>
 
-        <div className="bitfun-toolbar-mode__header-right">
-          <div className="bitfun-toolbar-mode__header-drag-area" aria-hidden="true" />
-          <div className="bitfun-toolbar-mode__header-overflow">
+        <div className="void-toolbar-mode__header-right">
+          <div className="void-toolbar-mode__header-drag-area" aria-hidden="true" />
+          <div className="void-toolbar-mode__header-overflow">
             {isExpanded ? (
               <>
                 <Tooltip content={t('toolCards.toolbar.moreMenu')}>
                   <button
                     type="button"
-                    className="toolbar-btn toolbar-btn--overflow bitfun-toolbar-mode__overflow-trigger"
+                    className="toolbar-btn toolbar-btn--overflow void-toolbar-mode__overflow-trigger"
                     onClick={toggleHeaderOverflowMenu}
                     aria-expanded={showHeaderOverflowMenu}
                     aria-haspopup="menu"
@@ -436,13 +436,13 @@ export const ToolbarMode: React.FC = () => {
                 {showHeaderOverflowMenu && (
                   <div
                     ref={headerOverflowRef}
-                    className="bitfun-toolbar-mode__overflow-menu"
+                    className="void-toolbar-mode__overflow-menu"
                     role="menu"
                     onMouseDown={(e) => e.stopPropagation()}
                   >
                     <button
                       type="button"
-                      className="bitfun-toolbar-mode__overflow-menu-item"
+                      className="void-toolbar-mode__overflow-menu-item"
                       role="menuitem"
                       onClick={() => {
                         void toggleExpanded();
@@ -454,7 +454,7 @@ export const ToolbarMode: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      className="bitfun-toolbar-mode__overflow-menu-item"
+                      className="void-toolbar-mode__overflow-menu-item"
                       role="menuitem"
                       onClick={() => {
                         void handleExpand();
@@ -468,7 +468,7 @@ export const ToolbarMode: React.FC = () => {
                 )}
               </>
             ) : (
-              <div className="bitfun-toolbar-mode__header-collapsed-actions">
+              <div className="void-toolbar-mode__header-collapsed-actions">
                 <Tooltip content={t('toolCards.toolbar.expandChat')}>
                   <button
                     type="button"
@@ -497,13 +497,13 @@ export const ToolbarMode: React.FC = () => {
       
       {isExpanded ? (
         <>
-          <div className="bitfun-toolbar-mode__flowchat-container">
+          <div className="void-toolbar-mode__flowchat-container">
             <ModernFlowChatContainer />
           </div>
-          <div className="bitfun-toolbar-mode__expanded-input">
+          <div className="void-toolbar-mode__expanded-input">
             <input
               type="text"
-              className="bitfun-toolbar-mode__input-field bitfun-toolbar-mode__input-field--expanded"
+              className="void-toolbar-mode__input-field void-toolbar-mode__input-field--expanded"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -535,12 +535,12 @@ export const ToolbarMode: React.FC = () => {
           </div>
         </>
       ) : (
-        <div className="bitfun-toolbar-mode__content-row">
+        <div className="void-toolbar-mode__content-row">
           {showInput ? (
             <>
               <input
                 type="text"
-                className="bitfun-toolbar-mode__input-field"
+                className="void-toolbar-mode__input-field"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -569,29 +569,29 @@ export const ToolbarMode: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="bitfun-toolbar-mode__stream-content" onClick={toggleExpanded}>
+              <div className="void-toolbar-mode__stream-content" onClick={toggleExpanded}>
                 {currentStreamState.toolName ? (
-                  <div className="bitfun-toolbar-mode__tool">
-                    <span className="bitfun-toolbar-mode__tool-name">{currentStreamState.toolName}</span>
-                    <span className="bitfun-toolbar-mode__tool-summary">{currentStreamState.content || t('toolCards.toolbar.executing')}</span>
+                  <div className="void-toolbar-mode__tool">
+                    <span className="void-toolbar-mode__tool-name">{currentStreamState.toolName}</span>
+                    <span className="void-toolbar-mode__tool-summary">{currentStreamState.content || t('toolCards.toolbar.executing')}</span>
                   </div>
                 ) : toolbarState.todoProgress && toolbarState.todoProgress.total > 0 ? (
-                  <div className="bitfun-toolbar-mode__todo">
-                    <span className="bitfun-toolbar-mode__todo-progress">
+                  <div className="void-toolbar-mode__todo">
+                    <span className="void-toolbar-mode__todo-progress">
                       {toolbarState.todoProgress.completed}/{toolbarState.todoProgress.total}
                     </span>
-                    <span className="bitfun-toolbar-mode__todo-current">
+                    <span className="void-toolbar-mode__todo-current">
                       {toolbarState.todoProgress.current || currentStreamState.content}
                     </span>
                   </div>
                 ) : (
-                  <span className={`bitfun-toolbar-mode__text ${currentStreamState.isStreaming ? 'bitfun-toolbar-mode__text--streaming' : ''}`}>
+                  <span className={`void-toolbar-mode__text ${currentStreamState.isStreaming ? 'void-toolbar-mode__text--streaming' : ''}`}>
                     {currentStreamState.content || (currentStreamState.isStreaming ? t('toolCards.toolbar.processing') : (lastMessageContent || t('toolCards.toolbar.startNewChat')))}
                   </span>
                 )}
               </div>
               
-              <div className="bitfun-toolbar-mode__controls">
+              <div className="void-toolbar-mode__controls">
                 {toolbarState.hasPendingConfirmation && (
                   <>
                     <Tooltip content={t('toolCards.common.confirm')}>

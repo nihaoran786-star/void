@@ -15,7 +15,7 @@
     },
     "agentCompanion": {
       "title": "Agent 伙伴",
-      "subtitle": "控制 BitFun 伙伴的显示方式。",
+      "subtitle": "控制 Void 伙伴的显示方式。",
       "enable": "显示 Agent 伙伴",
       "displayModeLabel": "显示位置",
       "displayModeDescription": "选择伙伴显示在输入框内，还是作为软件外的悬浮桌面宠物。",
@@ -42,7 +42,7 @@
     },
     "workspaceSearch": {
       "title": "加速工作区搜索",
-      "subtitle": "为本地工作区启用基于 flashgrep 的索引搜索。关闭后 BitFun 会回退到原有搜索。",
+      "subtitle": "为本地工作区启用基于 flashgrep 的索引搜索。关闭后 Void 会回退到原有搜索。",
       "enable": "启用加速工作区搜索"
     }
   },
@@ -52,7 +52,7 @@
   },
   "computerUse": {
     "sectionTitle": "Computer use（桌面自动化）",
-    "sectionDescription": "在 BitFun 桌面端允许助理截取屏幕并控制键鼠；需多模态模型理解画面。",
+    "sectionDescription": "在 Void 桌面端允许助理截取屏幕并控制键鼠；需多模态模型理解画面。",
     "enable": "启用 Computer use",
     "enableDesc": "关闭时，任何会话模式都不会启用 ComputerUse 工具。",
     "accessibility": "辅助功能",
@@ -63,15 +63,15 @@
     "notGranted": "未授权",
     "openSettings": "系统设置",
     "refreshStatus": "刷新状态",
-    "desktopOnly": "Computer use 仅在 BitFun 桌面应用中可用。",
+    "desktopOnly": "Computer use 仅在 Void 桌面应用中可用。",
     "platformNote": "说明"
   },
   "browserControl": {
     "sectionTitle": "浏览器控制",
     "sectionDescription": "选择浏览器并启动 CDP 控制。",
-    "desktopOnly": "浏览器控制仅在 BitFun 桌面应用中可用。",
+    "desktopOnly": "浏览器控制仅在 Void 桌面应用中可用。",
     "preferredBrowser": "浏览器",
-    "preferredBrowserDesc": "选择要由 BitFun 通过 CDP 控制的浏览器；默认表示跟随系统默认浏览器。",
+    "preferredBrowserDesc": "选择要由 Void 通过 CDP 控制的浏览器；默认表示跟随系统默认浏览器。",
     "notInstalled": "未安装",
     "status": "连接状态",
     "statusDesc": "",
@@ -84,7 +84,7 @@
     "restartFailed": "重启浏览器并启用调试失败",
     "restartModal": {
       "title": "启用浏览器调试模式",
-      "description": "检测到 {{browser}} 已在运行，当前实例未启用调试端口。要让 BitFun 控制浏览器，需要先重启浏览器并以调试模式启动。",
+      "description": "检测到 {{browser}} 已在运行，当前实例未启用调试端口。要让 Void 控制浏览器，需要先重启浏览器并以调试模式启动。",
       "warning": "此操作会关闭当前浏览器窗口。",
       "cancel": "取消",
       "confirm": "重启并启用调试",

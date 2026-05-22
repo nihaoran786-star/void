@@ -1,5 +1,5 @@
 /**
- * BitFun main layout styles (SCSS).
+ * Void main layout styles (SCSS).
  * Token-driven application shell with a consistent dark background.
  * Follows BEM naming and design tokens.
  */
@@ -30,7 +30,7 @@ html, body {
 }
 
 // ==================== Main layout container ====================
-.bitfun-app-layout {
+.void-app-layout {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -77,7 +77,7 @@ html, body {
   // ==================== Transitioning ====================
   &--transitioning {
     // Styles during transition
-    .bitfun-app-main-workspace {
+    .void-app-main-workspace {
       // Content transition handled by child components
     }
   }
@@ -90,7 +90,7 @@ html, body {
 
   // ==================== Modifier - error ====================
   &--error {
-    .bitfun-app-header {
+    .void-app-header {
       border-bottom-color: var(--color-error);
       background: linear-gradient(135deg, 
         var(--color-error-bg) 0%, 
@@ -102,7 +102,7 @@ html, body {
   &--modal-open {
     overflow: hidden;
 
-    .bitfun-app-main {
+    .void-app-main {
       filter: blur(2px);
       pointer-events: none;
     }
@@ -111,7 +111,7 @@ html, body {
 }
 
 // ==================== Main content area (full height, no TitleBar) ====================
-.bitfun-app-main-workspace {
+.void-app-main-workspace {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -122,7 +122,7 @@ html, body {
   background: var(--color-bg-flowchat);
 }
 
-.bitfun-app-acp-session-loading {
+.void-app-acp-session-loading {
   position: absolute;
   left: 50%;
   bottom: $size-gap-5;
@@ -142,7 +142,7 @@ html, body {
   line-height: 1.35;
   transform: translateX(-50%);
   pointer-events: none;
-  animation: bitfun-acp-session-loading-in $motion-fast $easing-decelerate forwards;
+  animation: void-acp-session-loading-in $motion-fast $easing-decelerate forwards;
 
   span {
     min-width: 0;
@@ -154,11 +154,11 @@ html, body {
   &__spinner {
     flex-shrink: 0;
     color: var(--color-accent-500);
-    animation: bitfun-acp-session-spinner 0.9s linear infinite;
+    animation: void-acp-session-spinner 0.9s linear infinite;
   }
 }
 
-.bitfun-window-mode-hint {
+.void-window-mode-hint {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + #{$size-gap-3});
   left: 50%;
@@ -176,7 +176,7 @@ html, body {
   color: var(--color-text-primary);
   pointer-events: none;
   transform: translateX(-50%);
-  animation: bitfun-window-mode-hint-in $motion-base $easing-decelerate both;
+  animation: void-window-mode-hint-in $motion-base $easing-decelerate both;
   backdrop-filter: blur(12px);
 
   &__title {
@@ -199,7 +199,7 @@ html, body {
   }
 }
 
-@keyframes bitfun-acp-session-loading-in {
+@keyframes void-acp-session-loading-in {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(6px);
@@ -210,7 +210,7 @@ html, body {
   }
 }
 
-@keyframes bitfun-window-mode-hint-in {
+@keyframes void-window-mode-hint-in {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(-8px);
@@ -221,7 +221,7 @@ html, body {
   }
 }
 
-@keyframes bitfun-acp-session-spinner {
+@keyframes void-acp-session-spinner {
   to {
     transform: rotate(360deg);
   }
@@ -232,17 +232,17 @@ html, body {
 
 // ==================== Responsive ====================
 @media (max-width: 1024px) {
-  .bitfun-app-layout {
+  .void-app-layout {
     --header-height: 34px;
   }
 }
 
 @media (max-width: 768px) {
-  .bitfun-app-layout {
+  .void-app-layout {
     --header-height: 32px;
   }
 
-  .bitfun-window-mode-hint {
+  .void-window-mode-hint {
     align-items: flex-start;
     flex-direction: column;
     gap: 1px;
@@ -258,26 +258,26 @@ html, body {
 
 // ==================== Dark theme tweaks ====================
 @media (prefers-color-scheme: dark) {
-  .bitfun-app-layout {
+  .void-app-layout {
     background: var(--color-bg-flowchat);
   }
 }
 
 // ==================== High-contrast mode ====================
 @media (prefers-contrast: high) {
-  .bitfun-app-layout {
+  .void-app-layout {
     background: var(--color-bg-flowchat);
   }
 }
 
 // ==================== Reduced motion preference ====================
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-app-layout * {
+  .void-app-layout * {
     transition: none;
     animation: none;
   }
 
-  .bitfun-window-mode-hint {
+  .void-window-mode-hint {
     animation: none;
   }
 }

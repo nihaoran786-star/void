@@ -1,16 +1,16 @@
 //! Shared desktop resolution and access helpers for local, runtime, and remote paths.
 
 use crate::api::app_state::AppState;
-use bitfun_core::agentic::tools::workspace_paths::{
-    is_bitfun_runtime_uri, parse_bitfun_runtime_uri,
+use void_core::agentic::tools::workspace_paths::{
+    is_void_runtime_uri, parse_void_runtime_uri,
 };
-use bitfun_core::infrastructure::get_path_manager_arc;
-use bitfun_core::infrastructure::FileOperationOptions;
-use bitfun_core::service::remote_ssh::workspace_state::remote_workspace_runtime_root;
-use bitfun_core::service::remote_ssh::{
+use void_core::infrastructure::get_path_manager_arc;
+use void_core::infrastructure::FileOperationOptions;
+use void_core::service::remote_ssh::workspace_state::remote_workspace_runtime_root;
+use void_core::service::remote_ssh::{
     get_remote_workspace_manager, normalize_remote_workspace_path, RemoteWorkspaceEntry,
 };
-use bitfun_core::service::workspace::{WorkspaceInfo, WorkspaceKind};
+use void_core::service::workspace::{WorkspaceInfo, WorkspaceKind};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -81,11 +81,11 @@ async fn resolve_runtime_artifact_path(
     app_state: &AppState,
     raw_path: &str,
 ) -> Result<Option<PathBuf>, String> {
-    if !is_bitfun_runtime_uri(raw_path) {
+    if !is_void_runtime_uri(raw_path) {
         return Ok(None);
     }
 
-    let parsed = parse_bitfun_runtime_uri(raw_path).map_err(|e| e.to_string())?;
+    let parsed = parse_void_runtime_uri(raw_path).map_err(|e| e.to_string())?;
     let workspace = if parsed.workspace_scope == "current" {
         app_state.workspace_service.get_current_workspace().await
     } else {

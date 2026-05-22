@@ -20,7 +20,7 @@ use crate::infrastructure::ai::AIClient;
 use crate::service::config::GlobalConfigManager;
 use crate::service::config::types::WriteToolMode;
 use crate::util::elapsed_ms_u64;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::types::Message as AIMessage;
 use crate::util::types::ToolDefinition;
 use dashmap::DashMap;
@@ -83,7 +83,7 @@ impl RoundExecutor {
         ai_messages: Vec<AIMessage>,
         tool_definitions: Option<Vec<ToolDefinition>>,
         context_window: Option<usize>,
-    ) -> BitFunResult<RoundResult> {
+    ) -> VoidResult<RoundResult> {
         let round_started_at = Instant::now();
         let subagent_parent_info = context.subagent_parent_info.clone();
         let is_subagent = subagent_parent_info.is_some();
@@ -127,7 +127,7 @@ impl RoundExecutor {
                     "Cancel token detected before AI request, stopping execution: session_id={}",
                     context.session_id
                 );
-                return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+                return Err(VoidError::Cancelled("Execution cancelled".to_string()));
             }
 
             let request_started_at = Instant::now();
@@ -161,12 +161,12 @@ impl RoundExecutor {
                     error!("AI request failed: {}", e);
                     let err_msg = e.to_string();
                     if Self::is_transient_network_error(&err_msg) {
-                        return Err(BitFunError::AIClient(format!(
+                        return Err(VoidError::AIClient(format!(
                             "AI stream connection retry budget exhausted: {}",
                             err_msg
                         )));
                     }
-                    return Err(BitFunError::AIClient(err_msg));
+                    return Err(VoidError::AIClient(err_msg));
                 }
             };
 
@@ -180,7 +180,7 @@ impl RoundExecutor {
                     "Cancel token detected after AI stream opened, stopping execution: session_id={}",
                     context.session_id
                 );
-                return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+                return Err(VoidError::Cancelled("Execution cancelled".to_string()));
             }
 
             debug!(
@@ -273,7 +273,7 @@ impl RoundExecutor {
                             &err_msg,
                         )
                         .await;
-                        return Err(BitFunError::AIClient(format!(
+                        return Err(VoidError::AIClient(format!(
                             "Stream retry budget exhausted after {} attempts: {}",
                             max_attempts, err_msg
                         )));
@@ -331,7 +331,7 @@ impl RoundExecutor {
                             err_msg,
                         )
                         .await;
-                        return Err(BitFunError::AIClient(format!(
+                        return Err(VoidError::AIClient(format!(
                             "Stream retry budget exhausted after {} attempts: {}",
                             max_attempts, err_msg
                         )));
@@ -389,7 +389,7 @@ impl RoundExecutor {
                         continue;
                     }
                     if Self::is_transient_network_error(&err_msg) {
-                        return Err(BitFunError::AIClient(format!(
+                        return Err(VoidError::AIClient(format!(
                             "Stream retry budget exhausted after {} attempts: {}",
                             max_attempts, err_msg
                         )));
@@ -434,7 +434,7 @@ impl RoundExecutor {
                 "Cancel token detected after stream processing, stopping execution: session_id={}",
                 context.session_id
             );
-            return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+            return Err(VoidError::Cancelled("Execution cancelled".to_string()));
         }
 
         // If stream response contains usage info, update token statistics
@@ -557,13 +557,13 @@ impl RoundExecutor {
                 "Cancel token detected before tool execution, stopping execution: session_id={}",
                 context.session_id
             );
-            return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+            return Err(VoidError::Cancelled("Execution cancelled".to_string()));
         }
 
         // ---- Write tool content generation ----
         // For Write tool calls without a "content" field, spawn a separate AI
         // request with the full session history to generate the file content as
-        // plain text wrapped in <bitfun_contents> tags. This avoids having the
+        // plain text wrapped in <void_contents> tags. This avoids having the
         // model emit large file contents inside JSON tool-call arguments, which
         // is a major source of JSON parse failures.
         let tool_calls = stream_result.tool_calls.clone();
@@ -816,7 +816,7 @@ impl RoundExecutor {
     }
 
     /// Cancel dialog turn (using dialog_turn_id)
-    pub async fn cancel_dialog_turn(&self, dialog_turn_id: &str) -> BitFunResult<()> {
+    pub async fn cancel_dialog_turn(&self, dialog_turn_id: &str) -> VoidResult<()> {
         debug!("Cancelling dialog turn: dialog_turn_id={}", dialog_turn_id);
 
         if let Some(token) = self
@@ -845,7 +845,7 @@ impl RoundExecutor {
     ///
     /// When a Write tool call arrives without `content`, this method spawns a
     /// separate AI request with the full session history and a directive to
-    /// output the file content as plain text inside `<bitfun_contents>` tags.
+    /// output the file content as plain text inside `<void_contents>` tags.
     /// The extracted content is then injected into the tool call arguments so
     /// the downstream Write tool execution proceeds as normal.
     async fn generate_write_tool_contents(
@@ -856,7 +856,7 @@ impl RoundExecutor {
         ai_messages: &[AIMessage],
         mut tool_calls: Vec<ToolCall>,
         cancel_token: &CancellationToken,
-    ) -> BitFunResult<Vec<ToolCall>> {
+    ) -> VoidResult<Vec<ToolCall>> {
         // Find indices of Write tool calls that need content generation
         let write_indices: Vec<usize> = tool_calls
             .iter()
@@ -884,7 +884,7 @@ impl RoundExecutor {
 
         for idx in &write_indices {
             if cancel_token.is_cancelled() {
-                return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+                return Err(VoidError::Cancelled("Execution cancelled".to_string()));
             }
 
             let tc = &tool_calls[*idx];
@@ -937,13 +937,13 @@ impl RoundExecutor {
                  If a section is unchanged, write it out in full anyway.\n\
                  3. Literal `...` is allowed only when it is genuinely part of the file content (e.g. inside a string, \
                  inside XML/JSON/YAML data, inside docs). Never use it as a stand-in for omitted code.\n\
-                 4. Wrap the content inside <bitfun_contents> tags exactly as shown below.\n\
-                 5. Do NOT output anything outside the <bitfun_contents> tags — no explanations, no commentary, \
+                 4. Wrap the content inside <void_contents> tags exactly as shown below.\n\
+                 5. Do NOT output anything outside the <void_contents> tags — no explanations, no commentary, \
                  no thinking blocks, no markdown fences (```), no extra XML wrapper tags.\n\
                  6. The text between the tags must be EXACTLY what gets written to disk — raw file content only.\n\
                  7. Do NOT output any tool_call XML, JSON tool invocations, or agent framework syntax inside the tags. \
                  You are not calling a tool here — you are outputting raw file content.\n\
-                 <bitfun_contents>\n",
+                 <void_contents>\n",
                 file_path = file_path
             );
 
@@ -974,7 +974,7 @@ impl RoundExecutor {
             // Add an assistant prefill to prime the model to output content directly
             // inside the tags, reducing the chance of preamble text.
             content_messages.push(AIMessage::user(content_prompt));
-            content_messages.push(AIMessage::assistant("<bitfun_contents>\n".to_string()));
+            content_messages.push(AIMessage::assistant("<void_contents>\n".to_string()));
 
             // Send the content-generation request (no tools, pure text output)
             let full_text = match ai_client.send_message_stream(content_messages, None).await {
@@ -989,7 +989,7 @@ impl RoundExecutor {
                     use futures::StreamExt;
                     loop {
                         if cancel_token.is_cancelled() {
-                            return Err(BitFunError::Cancelled("Execution cancelled".to_string()));
+                            return Err(VoidError::Cancelled("Execution cancelled".to_string()));
                         }
 
                         let chunk = match tokio::time::timeout(watchdog_timeout, stream.next())
@@ -998,7 +998,7 @@ impl RoundExecutor {
                             Ok(Some(chunk)) => chunk,
                             Ok(None) => break,
                             Err(_) => {
-                                return Err(BitFunError::Timeout(format!(
+                                return Err(VoidError::Timeout(format!(
                                     "Write content generation timed out for {} after {} seconds without stream progress",
                                     file_path,
                                     watchdog_timeout.as_secs()
@@ -1044,14 +1044,14 @@ impl RoundExecutor {
                 }
                 Err(e) => {
                     error!("Write content generation request failed: {}", e);
-                    return Err(BitFunError::AIClient(format!(
+                    return Err(VoidError::AIClient(format!(
                         "Write content generation failed for {}: {}",
                         file_path, e
                     )));
                 }
             };
 
-            let content = extract_bitfun_contents(&full_text);
+            let content = extract_void_contents(&full_text);
             if content.is_empty() {
                 warn!(
                     "Write content generation returned empty content for file_path={}",
@@ -1408,14 +1408,14 @@ fn delete_covers_write_target(
         .starts_with(std::path::Path::new(&delete_target.resolved_path))
 }
 
-/// Extract content from `<bitfun_contents>...</bitfun_contents>` tags.
+/// Extract content from `<void_contents>...</void_contents>` tags.
 ///
 /// If the tags are present, returns the text between them (trimmed).
 /// If the tags are not present, returns the full text trimmed (fallback for
 /// models that ignore the tag instruction).
-fn extract_bitfun_contents(text: &str) -> String {
-    const OPEN_TAG: &str = "<bitfun_contents>";
-    const CLOSE_TAG: &str = "</bitfun_contents>";
+fn extract_void_contents(text: &str) -> String {
+    const OPEN_TAG: &str = "<void_contents>";
+    const CLOSE_TAG: &str = "</void_contents>";
 
     let raw = if let Some(start) = text.find(OPEN_TAG) {
         let content_start = start + OPEN_TAG.len();
@@ -1620,7 +1620,7 @@ fn detect_placeholder_patterns(content: &str) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{RoundExecutor, StreamProcessor, extract_bitfun_contents};
+    use super::{RoundExecutor, StreamProcessor, extract_void_contents};
     use crate::agentic::WorkspaceBinding;
     use crate::agentic::core::ToolCall;
     use crate::agentic::events::{EventQueue, EventQueueConfig};
@@ -1699,7 +1699,7 @@ mod tests {
     #[tokio::test]
     async fn write_preflight_rejects_existing_file_without_prior_delete() {
         let root =
-            std::env::temp_dir().join(format!("bitfun-write-preflight-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-write-preflight-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         std::fs::write(root.join("target.txt"), "old").expect("create target file");
         let context = test_round_context(root.clone());
@@ -1720,7 +1720,7 @@ mod tests {
     #[tokio::test]
     async fn write_preflight_allows_existing_file_when_prior_delete_targets_same_path() {
         let root =
-            std::env::temp_dir().join(format!("bitfun-write-preflight-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-write-preflight-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         std::fs::write(root.join("target.txt"), "old").expect("create target file");
         let context = test_round_context(root.clone());
@@ -1861,28 +1861,28 @@ mod tests {
     }
 
     #[test]
-    fn extract_bitfun_contents_with_tags() {
+    fn extract_void_contents_with_tags() {
         let text =
-            "Some preamble\n<bitfun_contents>\nfn main() {}\n</bitfun_contents>\nSome trailing";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+            "Some preamble\n<void_contents>\nfn main() {}\n</void_contents>\nSome trailing";
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
-    fn extract_bitfun_contents_without_tags_fallback() {
+    fn extract_void_contents_without_tags_fallback() {
         let text = "fn main() {}";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
-    fn extract_bitfun_contents_open_tag_only() {
-        let text = "<bitfun_contents>\nfn main() {}";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+    fn extract_void_contents_open_tag_only() {
+        let text = "<void_contents>\nfn main() {}";
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
-    fn extract_bitfun_contents_empty() {
-        let text = "<bitfun_contents></bitfun_contents>";
-        assert_eq!(extract_bitfun_contents(text), "");
+    fn extract_void_contents_empty() {
+        let text = "<void_contents></void_contents>";
+        assert_eq!(extract_void_contents(text), "");
     }
 
     // --- Sanitization tests ---
@@ -1890,46 +1890,46 @@ mod tests {
     #[test]
     fn sanitization_strips_leading_thinking_block() {
         let text = "<think\nLet me think about this...\n</think\nfn main() {}";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_strips_thinking_block_with_attrs() {
         let text = "<think type=\"deep\">\nReasoning here\n</think\nfn main() {}";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_strips_markdown_fences() {
-        let text = "<bitfun_contents>\n```rust\nfn main() {}\n```\n</bitfun_contents>";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        let text = "<void_contents>\n```rust\nfn main() {}\n```\n</void_contents>";
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_strips_markdown_fences_without_tags() {
         // Model ignored tag instructions but used markdown fences
         let text = "```rust\nfn main() {}\n```";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_strips_xml_thinking_tags_with_content() {
-        let text = "<bitfun_contents>\n<thinking>\nI need to write a function\n</thinking>\nfn main() {}\n</bitfun_contents>";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        let text = "<void_contents>\n<thinking>\nI need to write a function\n</thinking>\nfn main() {}\n</void_contents>";
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_strips_reasoning_block() {
-        let text = "<bitfun_contents>\n<reasoning>\nAnalyzing code...\n</reasoning>\nfn main() {}\n</bitfun_contents>";
-        assert_eq!(extract_bitfun_contents(text), "fn main() {}");
+        let text = "<void_contents>\n<reasoning>\nAnalyzing code...\n</reasoning>\nfn main() {}\n</void_contents>";
+        assert_eq!(extract_void_contents(text), "fn main() {}");
     }
 
     #[test]
     fn sanitization_preserves_xml_in_file_content() {
         // Real XML that should be part of the file
-        let text = "<bitfun_contents>\n<config><name>test</name></config>\n</bitfun_contents>";
+        let text = "<void_contents>\n<config><name>test</name></config>\n</void_contents>";
         assert_eq!(
-            extract_bitfun_contents(text),
+            extract_void_contents(text),
             "<config><name>test</name></config>"
         );
     }

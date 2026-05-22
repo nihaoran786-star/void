@@ -1,12 +1,12 @@
 [package]
-name = "bitfun-product-domains"
+name = "void-product-domains"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun product domain owner crate"
+description = "Void product domain owner crate"
 
 [lib]
-name = "bitfun_product_domains"
+name = "void_product_domains"
 crate-type = ["rlib"]
 
 [dependencies]

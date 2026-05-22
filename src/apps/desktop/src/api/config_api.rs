@@ -1,7 +1,7 @@
 //! Configuration API
 
 use crate::api::app_state::AppState;
-use bitfun_core::util::errors::BitFunError;
+use void_core::util::errors::VoidError;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -42,9 +42,9 @@ fn to_json_value<T: Serialize>(value: T, context: &str) -> Result<Value, String>
     serde_json::to_value(value).map_err(|e| format!("Failed to serialize {}: {}", context, e))
 }
 
-fn is_expected_config_path_not_found(error: &BitFunError, path: Option<&str>) -> bool {
+fn is_expected_config_path_not_found(error: &VoidError, path: Option<&str>) -> bool {
     match (error, path) {
-        (BitFunError::NotFound(message), Some(path)) => {
+        (VoidError::NotFound(message), Some(path)) => {
             message == &format!("Config path '{}' not found", path)
         }
         _ => false,
@@ -116,7 +116,7 @@ mod tests {
 
     #[test]
     fn recognizes_expected_config_path_not_found_errors() {
-        let error = BitFunError::NotFound(
+        let error = VoidError::NotFound(
             "Config path 'ai.review_team_rate_limit_status' not found".to_string(),
         );
 
@@ -130,7 +130,7 @@ mod tests {
         ));
         assert!(!is_expected_config_path_not_found(&error, None));
         assert!(!is_expected_config_path_not_found(
-            &BitFunError::config("Config path 'ai.review_team_rate_limit_status' not found"),
+            &VoidError::config("Config path 'ai.review_team_rate_limit_status' not found"),
             Some("ai.review_team_rate_limit_status"),
         ));
     }
@@ -226,7 +226,7 @@ pub async fn export_config(state: State<'_, AppState>) -> Result<Value, String> 
 pub async fn import_config(state: State<'_, AppState>, config: Value) -> Result<Value, String> {
     let config_service = &state.config_service;
 
-    let export_data: bitfun_core::service::config::ConfigExport =
+    let export_data: void_core::service::config::ConfigExport =
         serde_json::from_value(config).map_err(|e| format!("Invalid config format: {}", e))?;
 
     match config_service.import_config(export_data).await {
@@ -276,7 +276,7 @@ pub async fn reload_config(state: State<'_, AppState>) -> Result<String, String>
 
 #[tauri::command]
 pub async fn sync_config_to_global(_state: State<'_, AppState>) -> Result<String, String> {
-    match bitfun_core::service::config::reload_global_config().await {
+    match void_core::service::config::reload_global_config().await {
         Ok(_) => {
             info!("Config synced to global service");
             Ok("Configuration synced to global service".to_string())
@@ -290,7 +290,7 @@ pub async fn sync_config_to_global(_state: State<'_, AppState>) -> Result<String
 
 #[tauri::command]
 pub async fn get_global_config_health() -> Result<bool, String> {
-    Ok(bitfun_core::service::config::GlobalConfigManager::is_initialized())
+    Ok(void_core::service::config::GlobalConfigManager::is_initialized())
 }
 
 #[tauri::command]
@@ -305,7 +305,7 @@ pub async fn get_runtime_logging_info(
 #[tauri::command]
 pub async fn get_mode_configs(_state: State<'_, AppState>) -> Result<Value, String> {
     let mode_configs =
-        bitfun_core::service::config::mode_config_canonicalizer::get_mode_config_views()
+        void_core::service::config::mode_config_canonicalizer::get_mode_config_views()
             .await
             .map_err(|e| format!("Failed to get mode configs: {}", e))?;
 
@@ -318,7 +318,7 @@ pub async fn get_mode_config(
     mode_id: String,
 ) -> Result<Value, String> {
     let config =
-        bitfun_core::service::config::mode_config_canonicalizer::get_mode_config_view(&mode_id)
+        void_core::service::config::mode_config_canonicalizer::get_mode_config_view(&mode_id)
             .await
             .map_err(|e| format!("Failed to get mode config: {}", e))?;
 
@@ -333,7 +333,7 @@ pub async fn set_mode_config(
 ) -> Result<String, String> {
     let _ = state;
 
-    match bitfun_core::service::config::mode_config_canonicalizer::persist_mode_config_from_value(
+    match void_core::service::config::mode_config_canonicalizer::persist_mode_config_from_value(
         &mode_id, config,
     )
     .await
@@ -354,7 +354,7 @@ pub async fn reset_mode_config(
     _state: State<'_, AppState>,
     mode_id: String,
 ) -> Result<String, String> {
-    match bitfun_core::service::config::mode_config_canonicalizer::reset_mode_config_to_default(
+    match void_core::service::config::mode_config_canonicalizer::reset_mode_config_to_default(
         &mode_id,
     )
     .await
@@ -375,7 +375,7 @@ pub async fn reset_mode_config(
 
 #[tauri::command]
 pub async fn canonicalize_mode_configs(_state: State<'_, AppState>) -> Result<Value, String> {
-    match bitfun_core::service::config::mode_config_canonicalizer::canonicalize_mode_configs().await
+    match void_core::service::config::mode_config_canonicalizer::canonicalize_mode_configs().await
     {
         Ok(report) => {
             info!(

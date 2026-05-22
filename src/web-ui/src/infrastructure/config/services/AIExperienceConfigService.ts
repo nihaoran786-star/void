@@ -70,7 +70,7 @@ const defaultSettings: AIExperienceSettings = {
 
 function normalizeSettings(settings: AIExperienceSettings | null | undefined): AIExperienceSettings {
   const merged = { ...defaultSettings, ...settings };
-  // Legacy configs used null to mean the built-in SVG panda. Panda is now the default preset.
+  // Older configs used null to mean the built-in SVG companion. Void is now the default preset.
   if (!merged.agent_companion_pet) {
     merged.agent_companion_pet = DEFAULT_AGENT_COMPANION_PET;
   }

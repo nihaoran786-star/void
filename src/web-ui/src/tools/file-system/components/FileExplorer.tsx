@@ -27,7 +27,7 @@ const ScrollBreadcrumb: React.FC<ScrollBreadcrumbProps> = ({ containerRef, works
     if (!container) return;
     
     const detectCurrentDirectory = () => {
-      const treeContainer = container.querySelector('.bitfun-file-explorer__tree');
+      const treeContainer = container.querySelector('.void-file-explorer__tree');
       if (!treeContainer) return;
       
       const containerRect = treeContainer.getBoundingClientRect();
@@ -45,8 +45,8 @@ const ScrollBreadcrumb: React.FC<ScrollBreadcrumbProps> = ({ containerRef, works
         
         if (relativeTop >= 0) return;
         
-        const nodeElement = node.closest('.bitfun-file-explorer__node');
-        const childrenContainer = nodeElement?.querySelector(':scope > .bitfun-file-explorer__node-children');
+        const nodeElement = node.closest('.void-file-explorer__node');
+        const childrenContainer = nodeElement?.querySelector(':scope > .void-file-explorer__node-children');
         
         if (childrenContainer) {
           const childrenRect = childrenContainer.getBoundingClientRect();
@@ -68,7 +68,7 @@ const ScrollBreadcrumb: React.FC<ScrollBreadcrumbProps> = ({ containerRef, works
     
     detectCurrentDirectory();
     
-    const treeContainer = container.querySelector('.bitfun-file-explorer__tree');
+    const treeContainer = container.querySelector('.void-file-explorer__tree');
     if (treeContainer) {
       treeContainer.addEventListener('scroll', detectCurrentDirectory, { passive: true });
       return () => treeContainer.removeEventListener('scroll', detectCurrentDirectory);
@@ -98,14 +98,14 @@ const ScrollBreadcrumb: React.FC<ScrollBreadcrumbProps> = ({ containerRef, works
     : pathSegments;
   
   return (
-    <div className="bitfun-file-explorer__breadcrumb">
+    <div className="void-file-explorer__breadcrumb">
       {displaySegments.map((segment, index) => (
         <React.Fragment key={segment.fullPath || index}>
           {index > 0 && (
-            <ChevronRight size={10} className="bitfun-file-explorer__breadcrumb-separator" />
+            <ChevronRight size={10} className="void-file-explorer__breadcrumb-separator" />
           )}
           <span 
-            className={`bitfun-file-explorer__breadcrumb-item ${segment.fullPath ? 'bitfun-file-explorer__breadcrumb-item--clickable' : ''}`}
+            className={`void-file-explorer__breadcrumb-item ${segment.fullPath ? 'void-file-explorer__breadcrumb-item--clickable' : ''}`}
             onClick={() => segment.fullPath && onNavigate?.(segment.fullPath)}
             title={segment.fullPath || undefined}
           >
@@ -191,19 +191,19 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   const renderNodeContent = useCallback((node: FileSystemNode, _level: number) => {
     return (
-      <div className="bitfun-file-explorer__node-wrapper">
-        <span className={`bitfun-file-explorer__node-name ${node.isCompressed ? 'bitfun-file-explorer__compressed-path' : ''}`}>
+      <div className="void-file-explorer__node-wrapper">
+        <span className={`void-file-explorer__node-name ${node.isCompressed ? 'void-file-explorer__compressed-path' : ''}`}>
           {node.name}
         </span>
         
         {showFileSize && !node.isDirectory && node.size && (
-          <span className="bitfun-file-explorer__node-size">
+          <span className="void-file-explorer__node-size">
             {formatFileSize(node.size)}
           </span>
         )}
         
         {showLastModified && node.lastModified && (
-          <span className="bitfun-file-explorer__node-modified">
+          <span className="void-file-explorer__node-modified">
             {formatDate(node.lastModified)}
           </span>
         )}
@@ -223,7 +223,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   }, []);
   
   const handleBlur = useCallback((e: React.FocusEvent) => {
-    const toolbar = e.currentTarget.querySelector('.bitfun-file-explorer__toolbar');
+    const toolbar = e.currentTarget.querySelector('.void-file-explorer__toolbar');
     if (toolbar && toolbar.contains(e.relatedTarget as Node)) {
       return;
     }
@@ -238,7 +238,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   
   const handleContainerClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.bitfun-file-explorer__toolbar')) {
+    if (target.closest('.void-file-explorer__toolbar')) {
       return;
     }
     setIsFocused(true);
@@ -251,7 +251,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('.bitfun-file-explorer__toolbar')) {
+      if (target.closest('.void-file-explorer__toolbar')) {
         return;
       }
       setIsFocused(true);
@@ -323,14 +323,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   if (filteredFileTree.length === 0) {
     return (
       <div 
-        className={`bitfun-file-explorer bitfun-file-explorer--empty ${className}`}
+        className={`void-file-explorer void-file-explorer--empty ${className}`}
         data-area="file-explorer"
         data-workspace-root={workspacePath}
         data-shortcut-scope="filetree"
         tabIndex={0}
       >
-        <div className="bitfun-file-explorer__empty">
-          <Folder size={48} className="bitfun-file-explorer__empty-icon" />
+        <div className="void-file-explorer__empty">
+          <Folder size={48} className="void-file-explorer__empty-icon" />
           <p>{searchQuery ? t('fileTree.emptyFiltered') : t('fileTree.empty')}</p>
         </div>
       </div>
@@ -340,7 +340,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
   return (
     <div 
       ref={containerRef}
-      className={`bitfun-file-explorer ${className}`}
+      className={`void-file-explorer ${className}`}
       data-area="file-explorer"
       data-workspace-root={workspacePath}
       data-shortcut-scope="filetree"
@@ -357,7 +357,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     >
       {(onNewFile || onNewFolder || onRefresh) && !hideToolbar && (
         <div 
-          className={`bitfun-file-explorer__toolbar ${isToolbarVisible ? 'bitfun-file-explorer__toolbar--visible' : ''}`}
+          className={`void-file-explorer__toolbar ${isToolbarVisible ? 'void-file-explorer__toolbar--visible' : ''}`}
           onClick={(e) => e.stopPropagation()}
           onMouseEnter={() => setIsToolbarVisible(true)}
           onMouseLeave={() => {
@@ -417,7 +417,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           expandedFolders={expandedFolders}
           onNodeSelect={(node: FlatFileNode) => emitFileSelect(node.path, node.name)}
           onToggleExpand={toggleExpandedState}
-          className="bitfun-file-explorer__tree"
+          className="void-file-explorer__tree"
           workspacePath={workspacePath}
           renamingPath={renamingPath}
           onRename={onRename}
@@ -433,7 +433,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           onNodeSelect={(node: FileSystemNode) => emitFileSelect(node.path, node.name)}
           onNodeExpand={setExpandedState}
           renderNodeContent={renderNodeContent}
-          className="bitfun-file-explorer__tree"
+          className="void-file-explorer__tree"
           renamingPath={renamingPath}
           onRename={onRename}
           onCancelRename={onCancelRename}

@@ -105,33 +105,33 @@ export class CodeSnippetCardRenderer implements ContextCardRenderer<'code-snippe
       : context.selectedText.split('\n').slice(0, 3).join('\n');
     
     return (
-      <div className={`bitfun-context-card bitfun-context-card--code-snippet ${compact ? 'bitfun-context-card--compact' : ''}`}>
-        <div className="bitfun-context-card__icon">
+      <div className={`void-context-card void-context-card--code-snippet ${compact ? 'void-context-card--compact' : ''}`}>
+        <div className="void-context-card__icon">
           <Code size={compact ? 16 : 20} />
         </div>
         
-        <div className="bitfun-context-card__content">
-          <div className="bitfun-context-card__title">
+        <div className="void-context-card__content">
+          <div className="void-context-card__title">
             {context.fileName}
-            <span className="bitfun-context-card__badge">
+            <span className="void-context-card__badge">
               L{context.startLine}-{context.endLine}
             </span>
           </div>
           
           {!compact && (
             <>
-              <div className="bitfun-context-card__subtitle">
+              <div className="void-context-card__subtitle">
                 {lineCount} {lineCount === 1 ? 'line' : 'lines'}
                 {context.language && (
-                  <span className="bitfun-context-card__meta">
+                  <span className="void-context-card__meta">
                     {' • '}{context.language}
                   </span>
                 )}
               </div>
               
               {showPreview && (
-                <div className="bitfun-context-card__preview">
-                  <code className="bitfun-context-card__code">
+                <div className="void-context-card__preview">
+                  <code className="void-context-card__code">
                     {previewText}
                   </code>
                 </div>
@@ -141,9 +141,9 @@ export class CodeSnippetCardRenderer implements ContextCardRenderer<'code-snippe
         </div>
         
         {interactive && (
-          <div className="bitfun-context-card__actions">
+          <div className="void-context-card__actions">
             <button 
-              className="bitfun-context-card__action-btn"
+              className="void-context-card__action-btn"
               title={i18nService.t('components:contextSystem.contextCard.viewFullCode')}
             >
               <Code size={14} />

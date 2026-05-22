@@ -3,7 +3,7 @@
  */
 @use '../../styles/tokens.scss' as tokens;
 
-.bitfun-number-input {
+.void-number-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -25,7 +25,7 @@
     transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     overflow: hidden;
 
-    &:hover:not(.bitfun-number-input--disabled &) {
+    &:hover:not(.void-number-input--disabled &) {
       background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
       border-color: var(--border-strong, rgba(255, 255, 255, 0.26));
     }
@@ -173,16 +173,16 @@
   }
 
   &--small {
-    .bitfun-number-input__container {
+    .void-number-input__container {
       height: 28px;
       font-size: 12px;
     }
 
-    .bitfun-number-input__value-area {
+    .void-number-input__value-area {
       padding: 0 8px;
     }
 
-    .bitfun-number-input__btn {
+    .void-number-input__btn {
       width: 22px;
       height: 14px;
 
@@ -194,28 +194,28 @@
   }
 
   &--medium {
-    .bitfun-number-input__container {
+    .void-number-input__container {
       height: 36px;
       font-size: 14px;
     }
 
-    .bitfun-number-input__btn {
+    .void-number-input__btn {
       width: 28px;
       height: 18px;
     }
   }
 
   &--large {
-    .bitfun-number-input__container {
+    .void-number-input__container {
       height: 44px;
       font-size: 16px;
     }
 
-    .bitfun-number-input__value-area {
+    .void-number-input__value-area {
       padding: 0 16px;
     }
 
-    .bitfun-number-input__btn {
+    .void-number-input__btn {
       width: 36px;
       height: 22px;
 
@@ -228,21 +228,21 @@
 
 
   &--compact {
-    .bitfun-number-input__container {
+    .void-number-input__container {
       border-radius: var(--size-radius-sm, 6px);
     }
 
-    .bitfun-number-input__value-area {
+    .void-number-input__value-area {
       padding: 0 8px;
     }
 
-    .bitfun-number-input__progress {
+    .void-number-input__progress {
       display: none;
     }
   }
 
   &--stepper {
-    .bitfun-number-input__buttons {
+    .void-number-input__buttons {
       flex-direction: row;
       border-left: none;
       position: absolute;
@@ -254,7 +254,7 @@
       pointer-events: none;
     }
 
-    .bitfun-number-input__btn {
+    .void-number-input__btn {
       pointer-events: auto;
       width: 32px;
       height: 100%;
@@ -271,7 +271,7 @@
       }
     }
 
-    .bitfun-number-input__value-area {
+    .void-number-input__value-area {
       padding: 0 40px;
     }
   }
@@ -281,18 +281,18 @@
     opacity: var(--opacity-disabled, 0.6);
     pointer-events: none;
 
-    .bitfun-number-input__container {
+    .void-number-input__container {
       background: transparent;
     }
   }
 
   &--dragging {
-    .bitfun-number-input__container {
+    .void-number-input__container {
       border-color: var(--color-purple-500, #8b5cf6);
       background: var(--color-purple-100, rgba(139, 92, 246, 0.08));
     }
 
-    .bitfun-number-input__progress-bar {
+    .void-number-input__progress-bar {
       background: var(--color-purple-500, #8b5cf6);
     }
   }

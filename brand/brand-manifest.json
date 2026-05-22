@@ -1,0 +1,26 @@
+{
+  "brand": {
+    "displayName": "Void",
+    "formalName": "Void AI",
+    "zhName": "虚无 AI",
+    "combinedName": "Void / 虚无 AI",
+    "tagline": "Build from the void.",
+    "zhTagline": "从虚无中构建答案。"
+  },
+  "technicalNames": {
+    "desktopExecutable": "void-desktop",
+    "installerExecutable": "void-installer",
+    "installFolder": "Void",
+    "appDataFolder": ".void",
+    "bundleIdentifier": "com.voidai.app",
+    "installerIdentifier": "com.voidai.installer"
+  },
+  "assets": {
+    "logoSource": "brand/assets/void-logo-source.svg",
+    "generatedConcepts": [
+      "C:\\Users\\17949\\.codex\\generated_images\\019e5030-1eb4-7a30-b56b-98fb9538d431\\ig_00021a6068860f3b016a10782b03b081908a1e7effe29193fe.png",
+      "C:\\Users\\17949\\.codex\\generated_images\\019e5030-1eb4-7a30-b56b-98fb9538d431\\ig_00021a6068860f3b016a1079eef3848190a9ce6090d2dfd3e0.png",
+      "C:\\Users\\17949\\.codex\\generated_images\\019e5030-1eb4-7a30-b56b-98fb9538d431\\ig_029cd27752e2b615016a108b4420848190b059879539cd9cef.png"
+    ]
+  }
+}

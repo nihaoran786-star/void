@@ -1,4 +1,4 @@
-pub use bitfun_ai_adapters::types::{
+pub use void_ai_adapters::types::{
     ToolCall, ToolCallConfirmationDetails, ToolCallRequestInfo, ToolCallResponseInfo,
     ToolDefinition,
 };

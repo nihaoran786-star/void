@@ -4,7 +4,7 @@ use crate::agentic::tools::computer_use_capability::computer_use_desktop_availab
 use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
 use crate::agentic::tools::implementations::computer_use_tool::computer_use_execute_mouse_click_tool;
 use crate::service::config::global::GlobalConfigManager;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
@@ -28,7 +28,7 @@ impl Tool for ComputerUseMouseClickTool {
         "ComputerUseMouseClick"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(
             "Click or scroll the **mouse wheel** at the **current** pointer (does not move the pointer). **`action`: `click`** — optional **`button`** (`left` | `right` | `middle`, default left), optional **`num_clicks`** (1 = single click default, 2 = double click, 3 = triple click); host enforces a fresh **fine** screenshot basis before click (same as former `ComputerUse` `click`). **`action`: `wheel`** — **`delta_x`** / **`delta_y`** (non-zero) for horizontal/vertical wheel ticks at the cursor (same as former `ComputerUse` `scroll`). Position the pointer first with **`ComputerUseMousePrecise`** / **`ComputerUseMouseStep`** / **`ComputerUse`** `pointer_move_rel`, then **`screenshot`** before click when the host requires it."
                 .to_string(),
@@ -101,16 +101,16 @@ impl Tool for ComputerUseMouseClickTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         if context.is_remote() {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "ComputerUseMouseClick cannot run while the session workspace is remote (SSH)."
                     .to_string(),
             ));
         }
         let host = context.computer_use_host.as_ref().ok_or_else(|| {
-            BitFunError::tool(
-                "Computer use is only available in the BitFun desktop app.".to_string(),
+            VoidError::tool(
+                "Computer use is only available in the Void desktop app.".to_string(),
             )
         })?;
 

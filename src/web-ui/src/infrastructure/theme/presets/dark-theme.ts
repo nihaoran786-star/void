@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunDarkTheme: ThemeConfig = {
+export const voidDarkTheme: ThemeConfig = {
   
-  id: 'bitfun-dark',
+  id: 'void-dark',
   name: 'Dark',
   type: 'dark',
   description: 'Default dark theme',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '2.1.0',
   
   

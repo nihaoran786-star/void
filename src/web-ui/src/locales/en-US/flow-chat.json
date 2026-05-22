@@ -16,7 +16,7 @@
     "releaseToAdd": "Release to add to this column"
   },
   "layout": {
-    "noPanels": "BitFun",
+    "noPanels": "Void",
     "noPanelsHint": "Use the bottom bar to toggle panels or press <kbd>Ctrl+\\</kbd> <kbd>Ctrl+]</kbd> to expand panels",
     "chatHiddenTitle": "Chat is hidden",
     "chatHiddenDesc": "Use the Chat toggle in the top-right to show it again.",
@@ -175,7 +175,7 @@
       "legacyModel": "Older sessions did not store per-round model names, so this report cannot identify the exact model.",
       "inferredModel": "Inferred from the session model setting because older turns did not store per-round model names.",
       "filesUnavailable": "No file snapshot or file-edit tool record was found for this session.",
-      "filesNoRecordedChanges": "BitFun did not detect file changes in this session. This is expected when the agent did not edit files.",
+      "filesNoRecordedChanges": "Void did not detect file changes in this session. This is expected when the agent did not edit files.",
       "filesRemoteUnavailable": "No remote snapshot summary was found for this session. File rows can still appear from recognized file-edit tool records.",
       "filesNotTracked": "No local snapshot or identifiable file-edit tool record was found for this session.",
       "fileTurnIndexes": "Turn indexes are not recorded when file activity comes from a summary instead of per-turn operation records.",
@@ -676,7 +676,7 @@
     },
     "decisionGate": {
       "title": "Confirm decision items before fixing",
-      "description": "Choose how each selected decision should be handled before BitFun starts editing.",
+      "description": "Choose how each selected decision should be handled before Void starts editing.",
       "supplementLabel": "Additional requirements",
       "supplementPlaceholder": "Optional: add constraints, scope limits, or implementation preferences before starting.",
       "missingSelection": "Choose an option for each selected decision item before starting.",
@@ -739,8 +739,8 @@
     },
     "resultRecovery": {
       "title": "Deep review needs a report",
-      "missingSubmitCodeReview": "The review finished, but BitFun did not receive a structured result to confirm. Continue preserves completed reviewer work and asks the agent to submit the missing report.",
-      "invalidSubmitCodeReview": "The review returned a result BitFun could not read. Continue preserves completed reviewer work and asks the agent to repair the report.",
+      "missingSubmitCodeReview": "The review finished, but Void did not receive a structured result to confirm. Continue preserves completed reviewer work and asks the agent to submit the missing report.",
+      "invalidSubmitCodeReview": "The review returned a result Void could not read. Continue preserves completed reviewer work and asks the agent to repair the report.",
       "wrongReviewMode": "The review returned a standard Code Review result. Continue preserves completed reviewer work and asks the agent to submit the Deep Review report."
     },
     "capacityQueue": {
@@ -751,7 +751,7 @@
       "detail": "Queue wait does not count against reviewer runtime.",
       "activeReviewerDetail": "Queued reviewers start when a running reviewer frees capacity. Queue wait does not count against reviewer runtime.",
       "longLaunchBatchWaitDetail": "This reviewer has waited longer than the configured queue window because an earlier reviewer batch is still running. You can keep waiting, pause the queue, cancel queued reviewers, or open Review settings.",
-      "providerDetail": "BitFun is waiting for temporary model capacity. This wait does not count against reviewer runtime.",
+      "providerDetail": "Void is waiting for temporary model capacity. This wait does not count against reviewer runtime.",
       "reason": "Reason: {{reason}}",
       "elapsed": "Waited {{elapsed}}",
       "elapsedWithMax": "Waited {{elapsed}} of {{max}}",
@@ -765,12 +765,12 @@
         "temporaryOverload": "temporary provider overload"
       },
       "reasonDetails": {
-        "providerRateLimit": "The model provider is rate-limiting requests. BitFun will wait and continue when capacity returns.",
-        "providerConcurrencyLimit": "The model provider rejected another concurrent reviewer. BitFun will retry after capacity opens.",
-        "retryAfter": "The model provider asked BitFun to retry later. Waiting here avoids spending reviewer runtime while the provider cools down.",
+        "providerRateLimit": "The model provider is rate-limiting requests. Void will wait and continue when capacity returns.",
+        "providerConcurrencyLimit": "The model provider rejected another concurrent reviewer. Void will retry after capacity opens.",
+        "retryAfter": "The model provider asked Void to retry later. Waiting here avoids spending reviewer runtime while the provider cools down.",
         "localConcurrencyCap": "The configured Review Team reviewer limit is full. This reviewer will start after an active reviewer finishes.",
         "launchBatchBlocked": "An earlier launch batch is still running. Waiting preserves the planned review order and prevents a later batch from overtaking it.",
-        "temporaryOverload": "The model provider reported temporary overload. BitFun will wait, then continue or mark the reviewer as capacity skipped."
+        "temporaryOverload": "The model provider reported temporary overload. Void will wait, then continue or mark the reviewer as capacity skipped."
       },
       "sessionBusy": "Your active session is busy. Pause Deep Review or continue later.",
       "stopHint": "Use Stop to interrupt this review queue.",
@@ -1006,7 +1006,7 @@
     "dialogNotFound": "Dialog data not found",
     "containerNotFound": "Export container not found",
     "generateFailed": "Failed to generate image",
-    "fileNamePrefix": "BitFun-Chat",
+    "fileNamePrefix": "Void-Chat",
     "exportSuccess": "Image exported: {{filePath}}",
     "exportSuccessPrefix": "Image exported: ",
     "exportFailed": "Export failed, please try again",
@@ -1096,7 +1096,7 @@
       "openSourceFailed": "Failed to open the generated UI source editor"
     },
     "generativeWidget": {
-      "exportFileNamePrefix": "BitFun-Widget"
+      "exportFileNamePrefix": "Void-Widget"
     },
     "git": {
       "title": "Git",
@@ -1734,7 +1734,7 @@
         "saveSuccess": "Review report exported.",
         "saveFailed": "Failed to export review report.",
         "saveDialogTitle": "Export review report",
-        "fileNamePrefix": "BitFun-Code-Review",
+        "fileNamePrefix": "Void-Code-Review",
         "editorTitle": "Review Report"
       },
       "reviewModes": {

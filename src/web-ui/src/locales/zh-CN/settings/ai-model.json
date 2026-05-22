@@ -64,9 +64,9 @@
     "formatHint": "已根据提供商自动选择，通常无需修改"
   },
   "providers": {
-    "openbitfun": {
-      "name": "OpenBitFun",
-      "description": "OpenBitFun 大模型平台"
+    "openvoid": {
+      "name": "OpenVoid",
+      "description": "OpenVoid 大模型平台"
     },
     "gemini": {
       "name": "Google Gemini",

@@ -1,12 +1,12 @@
 use crate::infrastructure::{FileSearchOutcome, FileSearchResult, SearchMatchType};
-use crate::service::bootstrap::ensure_workspace_gitignore_ignores_bitfun;
+use crate::service::bootstrap::ensure_workspace_gitignore_ignores_void;
 use crate::service::config::{get_global_config_service, types::WorkspaceConfig};
 use crate::service::search::flashgrep::{
     ConsistencyMode, FlashgrepRepoSession, GlobRequest, ManagedClient, OpenRepoParams, PathScope,
     QuerySpec, RefreshPolicyConfig, RepoConfig, RepoSession, SearchRequest, SearchResults,
     FLASHGREP_LOG_TARGET,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -73,7 +73,7 @@ impl WorkspaceSearchService {
     pub async fn open_repo(
         &self,
         repo_root: impl AsRef<Path>,
-    ) -> BitFunResult<WorkspaceIndexStatus> {
+    ) -> VoidResult<WorkspaceIndexStatus> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         self.index_status_for_session(session).await
     }
@@ -81,12 +81,12 @@ impl WorkspaceSearchService {
     pub async fn get_index_status(
         &self,
         repo_root: impl AsRef<Path>,
-    ) -> BitFunResult<WorkspaceIndexStatus> {
+    ) -> VoidResult<WorkspaceIndexStatus> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         self.index_status_for_session(session).await
     }
 
-    pub async fn build_index(&self, repo_root: impl AsRef<Path>) -> BitFunResult<IndexTaskHandle> {
+    pub async fn build_index(&self, repo_root: impl AsRef<Path>) -> VoidResult<IndexTaskHandle> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         let task = FlashgrepRepoSession::build_index(session.as_ref())
             .await
@@ -111,7 +111,7 @@ impl WorkspaceSearchService {
     pub async fn rebuild_index(
         &self,
         repo_root: impl AsRef<Path>,
-    ) -> BitFunResult<IndexTaskHandle> {
+    ) -> VoidResult<IndexTaskHandle> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         let task = FlashgrepRepoSession::rebuild_index(session.as_ref())
             .await
@@ -136,7 +136,7 @@ impl WorkspaceSearchService {
     pub async fn search_content(
         &self,
         request: ContentSearchRequest,
-    ) -> BitFunResult<ContentSearchResult> {
+    ) -> VoidResult<ContentSearchResult> {
         let started_at = Instant::now();
         let pattern_for_log = abbreviate_pattern_for_log(&request.pattern);
         let repo_root = normalize_repo_root(&request.repo_root)?;
@@ -248,7 +248,7 @@ impl WorkspaceSearchService {
         Ok(result)
     }
 
-    pub async fn glob(&self, request: GlobSearchRequest) -> BitFunResult<GlobSearchResult> {
+    pub async fn glob(&self, request: GlobSearchRequest) -> VoidResult<GlobSearchResult> {
         let repo_root = normalize_repo_root(&request.repo_root)?;
         let scope = build_scope(
             &repo_root,
@@ -369,7 +369,7 @@ impl WorkspaceSearchService {
         }
     }
 
-    async fn get_or_open_session(&self, repo_root: &Path) -> BitFunResult<Arc<RepoSession>> {
+    async fn get_or_open_session(&self, repo_root: &Path) -> VoidResult<Arc<RepoSession>> {
         let repo_root = normalize_repo_root(repo_root)?;
         let repo_guard = {
             let mut guards = self.open_guards.lock().await;
@@ -402,10 +402,10 @@ impl WorkspaceSearchService {
         }
 
         let repo_config = repo_config_for_workspace_search().await;
-        if let Err(error) = ensure_workspace_gitignore_ignores_bitfun(&repo_root).await {
+        if let Err(error) = ensure_workspace_gitignore_ignores_void(&repo_root).await {
             log::warn!(
                 target: FLASHGREP_LOG_TARGET,
-                "Failed to ensure workspace .gitignore ignores .bitfun before search warmup: path={}, error={}",
+                "Failed to ensure workspace .gitignore ignores .void before search warmup: path={}, error={}",
                 repo_root.display(),
                 error
             );
@@ -447,7 +447,7 @@ impl WorkspaceSearchService {
     async fn index_status_for_session<S>(
         &self,
         session: Arc<S>,
-    ) -> BitFunResult<WorkspaceIndexStatus>
+    ) -> VoidResult<WorkspaceIndexStatus>
     where
         S: FlashgrepRepoSession + ?Sized,
     {
@@ -686,11 +686,11 @@ fn push_exe_relative_bundle_candidates(
 
     if cfg!(target_os = "linux") {
         for binary_name in binary_names {
-            push_candidate(exe_dir.join("../lib/bitfun/flashgrep").join(binary_name));
-            push_candidate(exe_dir.join("../share/bitfun/flashgrep").join(binary_name));
+            push_candidate(exe_dir.join("../lib/void/flashgrep").join(binary_name));
+            push_candidate(exe_dir.join("../share/void/flashgrep").join(binary_name));
             push_candidate(
                 exe_dir
-                    .join("../share/com.bitfun.desktop/flashgrep")
+                    .join("../share/com.void.desktop/flashgrep")
                     .join(binary_name),
             );
         }
@@ -699,7 +699,7 @@ fn push_exe_relative_bundle_candidates(
 
 fn default_storage_root(repo_root: &Path) -> PathBuf {
     repo_root
-        .join(".bitfun")
+        .join(".void")
         .join("search")
         .join("flashgrep-index")
 }
@@ -745,22 +745,22 @@ fn abbreviate_pattern_for_log(pattern: &str) -> String {
     }
 }
 
-fn normalize_repo_root(repo_root: &Path) -> BitFunResult<PathBuf> {
+fn normalize_repo_root(repo_root: &Path) -> VoidResult<PathBuf> {
     if !repo_root.exists() {
-        return Err(BitFunError::service(format!(
+        return Err(VoidError::service(format!(
             "Search root does not exist: {}",
             repo_root.display()
         )));
     }
     if !repo_root.is_dir() {
-        return Err(BitFunError::service(format!(
+        return Err(VoidError::service(format!(
             "Search root is not a directory: {}",
             repo_root.display()
         )));
     }
 
     dunce::canonicalize(repo_root).map_err(|error| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to normalize search root {}: {}",
             repo_root.display(),
             error
@@ -774,7 +774,7 @@ fn build_scope(
     globs: Vec<String>,
     file_types: Vec<String>,
     exclude_file_types: Vec<String>,
-) -> BitFunResult<PathScope> {
+) -> VoidResult<PathScope> {
     let roots = match search_path {
         Some(path) => {
             let normalized = normalize_scope_path(repo_root, path)?;
@@ -798,16 +798,16 @@ fn build_scope(
     })
 }
 
-fn normalize_scope_path(repo_root: &Path, search_path: &Path) -> BitFunResult<PathBuf> {
+fn normalize_scope_path(repo_root: &Path, search_path: &Path) -> VoidResult<PathBuf> {
     let normalized = dunce::canonicalize(search_path).map_err(|error| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to normalize search path {}: {}",
             search_path.display(),
             error
         ))
     })?;
     if !normalized.starts_with(repo_root) {
-        return Err(BitFunError::service(format!(
+        return Err(VoidError::service(format!(
             "Search path is outside workspace root: {}",
             normalized.display()
         )));
@@ -1003,7 +1003,7 @@ fn split_preview(
 
 fn map_flashgrep_error(
     prefix: &'static str,
-) -> impl Fn(crate::service::search::flashgrep::error::AppError) -> BitFunError {
+) -> impl Fn(crate::service::search::flashgrep::error::AppError) -> VoidError {
     move |error| {
         let detail = match &error {
             crate::service::search::flashgrep::error::AppError::Io(io_error)
@@ -1013,7 +1013,7 @@ fn map_flashgrep_error(
             }
             _ => error.to_string(),
         };
-        BitFunError::service(format!("{prefix}: {detail}"))
+        VoidError::service(format!("{prefix}: {detail}"))
     }
 }
 

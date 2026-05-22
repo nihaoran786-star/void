@@ -62,8 +62,8 @@ src/apps/desktop/.tauri/*.key
 # E2E test reports and screenshots
 tests/e2e/reports/
 
-# BitFun sandbox data - auto managed
-.bitfun/
+# Void sandbox data - auto managed
+.void/
 .cursor
 .cursor/rules/no-cargo.mdc
 .sisyphus/

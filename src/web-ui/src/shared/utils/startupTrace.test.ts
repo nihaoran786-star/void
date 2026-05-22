@@ -268,9 +268,9 @@ describe('startupTrace', () => {
   });
 
   it('uses the desktop injected trace id when available', () => {
-    const previousTraceId = (globalThis as { __BITFUN_STARTUP_TRACE_ID__?: string })
-      .__BITFUN_STARTUP_TRACE_ID__;
-    (globalThis as { __BITFUN_STARTUP_TRACE_ID__?: string }).__BITFUN_STARTUP_TRACE_ID__ =
+    const previousTraceId = (globalThis as { __VOID_STARTUP_TRACE_ID__?: string })
+      .__VOID_STARTUP_TRACE_ID__;
+    (globalThis as { __VOID_STARTUP_TRACE_ID__?: string }).__VOID_STARTUP_TRACE_ID__ =
       'desktop-123';
 
     try {
@@ -282,10 +282,10 @@ describe('startupTrace', () => {
       expect(trace.traceId).toBe('desktop-123');
     } finally {
       if (previousTraceId === undefined) {
-        delete (globalThis as { __BITFUN_STARTUP_TRACE_ID__?: string })
-          .__BITFUN_STARTUP_TRACE_ID__;
+        delete (globalThis as { __VOID_STARTUP_TRACE_ID__?: string })
+          .__VOID_STARTUP_TRACE_ID__;
       } else {
-        (globalThis as { __BITFUN_STARTUP_TRACE_ID__?: string }).__BITFUN_STARTUP_TRACE_ID__ =
+        (globalThis as { __VOID_STARTUP_TRACE_ID__?: string }).__VOID_STARTUP_TRACE_ID__ =
           previousTraceId;
       }
     }
@@ -310,7 +310,7 @@ describe('startupTrace payload helpers', () => {
     })).toBe(true);
     expect(isRemoteTraceRequest({
       request: {
-        workspacePath: 'D:/workspace/bitfun',
+        workspacePath: 'D:/workspace/void',
       },
     })).toBe(false);
     expect(isRemoteTraceRequest({

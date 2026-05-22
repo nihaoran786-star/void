@@ -128,7 +128,7 @@ const PATH_TAG_RULES: PathTagRule[] = [
   {
     id: 'installer-locales',
     tags: ['frontend_i18n', 'installer_ui'],
-    match: { pathPrefixes: ['BitFun-Installer/src/i18n/locales/'], extensions: ['.json'] },
+    match: { pathPrefixes: ['Void-Installer/src/i18n/locales/'], extensions: ['.json'] },
     evidence: 'Installer locale file changed',
   },
   {
@@ -188,7 +188,7 @@ const PATH_TAG_RULES: PathTagRule[] = [
   {
     id: 'installer-ui',
     tags: ['installer_ui'],
-    match: { pathPrefixes: ['BitFun-Installer/'] },
+    match: { pathPrefixes: ['Void-Installer/'] },
     evidence: 'Installer UI changed',
   },
   {

@@ -2,10 +2,10 @@
 //!
 //! Mirrors the Desktop app's init sequence without any Tauri dependency.
 
-use bitfun_core::agentic::*;
-use bitfun_core::infrastructure::ai::AIClientFactory;
-use bitfun_core::infrastructure::try_get_path_manager_arc;
-use bitfun_core::service::{config, filesystem, mcp, token_usage, workspace};
+use void_core::agentic::*;
+use void_core::infrastructure::ai::AIClientFactory;
+use void_core::infrastructure::try_get_path_manager_arc;
+use void_core::service::{config, filesystem, mcp, token_usage, workspace};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -31,7 +31,7 @@ pub struct ServerAppState {
 ///
 /// The optional `workspace` path, when provided, is opened automatically.
 pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerAppState>> {
-    log::info!("Initializing BitFun server core services");
+    log::info!("Initializing Void server core services");
 
     // 1. Global config
     config::initialize_global_config().await?;
@@ -40,7 +40,7 @@ pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerA
     // Initialize the global I18nService so server-mode bot/remote-connect
     // consumers observe the same runtime locale lifecycle as Desktop.
     if let Err(e) =
-        bitfun_core::service::i18n::initialize_global_i18n_service(Some(config_service.clone()))
+        void_core::service::i18n::initialize_global_i18n_service(Some(config_service.clone()))
             .await
     {
         log::warn!("Failed to initialize global I18nService in server mode: {}", e);
@@ -119,20 +119,20 @@ pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerA
 
     // Cron service
     let cron_service =
-        bitfun_core::service::cron::CronService::new(path_manager.clone(), scheduler.clone())
+        void_core::service::cron::CronService::new(path_manager.clone(), scheduler.clone())
             .await?;
-    bitfun_core::service::cron::set_global_cron_service(cron_service.clone());
-    let cron_subscriber = Arc::new(bitfun_core::service::cron::CronEventSubscriber::new(
+    void_core::service::cron::set_global_cron_service(cron_service.clone());
+    let cron_subscriber = Arc::new(void_core::service::cron::CronEventSubscriber::new(
         cron_service.clone(),
     ));
     event_router.subscribe_internal("cron_jobs".to_string(), cron_subscriber);
     cron_service.start();
 
     // Function agents
-    let _ = bitfun_core::function_agents::git_func_agent::GitFunctionAgent::new(
+    let _ = void_core::function_agents::git_func_agent::GitFunctionAgent::new(
         ai_client_factory.clone(),
     );
-    let _ = bitfun_core::function_agents::startchat_func_agent::StartchatFunctionAgent::new(
+    let _ = void_core::function_agents::startchat_func_agent::StartchatFunctionAgent::new(
         ai_client_factory.clone(),
     );
 
@@ -170,7 +170,7 @@ pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerA
 
                 // Initialize snapshot for workspace
                 if let Err(e) =
-                    bitfun_core::service::snapshot::initialize_snapshot_manager_for_workspace(
+                    void_core::service::snapshot::initialize_snapshot_manager_for_workspace(
                         info.root_path.clone(),
                         None,
                     )
@@ -195,7 +195,7 @@ pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerA
     };
 
     // LSP
-    if let Err(e) = bitfun_core::service::lsp::initialize_global_lsp_manager().await {
+    if let Err(e) = void_core::service::lsp::initialize_global_lsp_manager().await {
         log::error!("Failed to initialize LSP manager: {}", e);
     }
 
@@ -216,6 +216,6 @@ pub async fn initialize(workspace: Option<String>) -> anyhow::Result<Arc<ServerA
         start_time: std::time::Instant::now(),
     });
 
-    log::info!("BitFun server core services initialized");
+    log::info!("Void server core services initialized");
     Ok(state)
 }

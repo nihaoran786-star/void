@@ -377,13 +377,13 @@ impl FileTreeService {
     pub async fn build_tree_with_stats(
         &self,
         root_path: &str,
-    ) -> BitFunResult<(Vec<FileTreeNode>, FileTreeStatistics)> {
+    ) -> VoidResult<(Vec<FileTreeNode>, FileTreeStatistics)> {
         // For remote workspaces, return simple directory listing with empty stats
         if crate::service::remote_ssh::workspace_state::is_remote_path(root_path).await {
             let nodes = self
                 .get_directory_contents_with_remote_hint(root_path, None)
                 .await
-                .map_err(BitFunError::service)?;
+                .map_err(VoidError::service)?;
             let stats = FileTreeStatistics {
                 total_files: nodes.iter().filter(|n| !n.is_directory).count(),
                 total_directories: nodes.iter().filter(|n| n.is_directory).count(),
@@ -400,11 +400,11 @@ impl FileTreeService {
         let root_path_buf = PathBuf::from(root_path);
 
         if !root_path_buf.exists() {
-            return Err(BitFunError::service("Directory does not exist".to_string()));
+            return Err(VoidError::service("Directory does not exist".to_string()));
         }
 
         if !root_path_buf.is_dir() {
-            return Err(BitFunError::service("Path is not a directory".to_string()));
+            return Err(VoidError::service("Path is not a directory".to_string()));
         }
 
         let mut visited = HashSet::new();
@@ -428,7 +428,7 @@ impl FileTreeService {
                 &mut stats,
             )
             .await
-            .map_err(BitFunError::service)?;
+            .map_err(VoidError::service)?;
 
         Ok((nodes, stats))
     }
@@ -787,11 +787,11 @@ impl FileTreeService {
 
     fn should_skip_file(&self, file_name: &str) -> bool {
         // Skip hidden files and directories (unless explicitly included)
-        // But .gitignore and .bitfun are always shown
+        // But .gitignore and .void are always shown
         if !self.options.include_hidden
             && file_name.starts_with('.')
             && file_name != ".gitignore"
-            && file_name != ".bitfun"
+            && file_name != ".void"
         {
             return true;
         }
@@ -993,7 +993,7 @@ impl FileTreeService {
         root_path: &str,
         pattern: &str,
         search_content: bool,
-    ) -> BitFunResult<Vec<FileSearchResult>> {
+    ) -> VoidResult<Vec<FileSearchResult>> {
         self.search_files_with_options(root_path, pattern, search_content, false, false, false)
             .await
     }
@@ -1006,7 +1006,7 @@ impl FileTreeService {
         case_sensitive: bool,
         use_regex: bool,
         whole_word: bool,
-    ) -> BitFunResult<Vec<FileSearchResult>> {
+    ) -> VoidResult<Vec<FileSearchResult>> {
         let filename_outcome = self
             .search_file_names(
                 root_path,
@@ -1050,7 +1050,7 @@ impl FileTreeService {
         root_path: &str,
         pattern: &str,
         options: FileNameSearchOptions,
-    ) -> BitFunResult<FileSearchOutcome> {
+    ) -> VoidResult<FileSearchOutcome> {
         self.search_file_names_with_progress(root_path, pattern, options, None)
             .await
     }
@@ -1061,11 +1061,11 @@ impl FileTreeService {
         pattern: &str,
         options: FileNameSearchOptions,
         progress_sink: Option<Arc<dyn FileSearchProgressSink>>,
-    ) -> BitFunResult<FileSearchOutcome> {
+    ) -> VoidResult<FileSearchOutcome> {
         let root_path_buf = PathBuf::from(root_path);
 
         if !root_path_buf.exists() {
-            return Err(BitFunError::service("Directory does not exist".to_string()));
+            return Err(VoidError::service("Directory does not exist".to_string()));
         }
 
         let matcher = Arc::new(Self::compile_search_regex(
@@ -1202,7 +1202,7 @@ impl FileTreeService {
         root_path: &str,
         pattern: &str,
         options: FileContentSearchOptions,
-    ) -> BitFunResult<FileSearchOutcome> {
+    ) -> VoidResult<FileSearchOutcome> {
         self.search_file_contents_with_progress(root_path, pattern, options, None)
             .await
     }
@@ -1213,11 +1213,11 @@ impl FileTreeService {
         pattern: &str,
         options: FileContentSearchOptions,
         progress_sink: Option<Arc<dyn FileSearchProgressSink>>,
-    ) -> BitFunResult<FileSearchOutcome> {
+    ) -> VoidResult<FileSearchOutcome> {
         let root_path_buf = PathBuf::from(root_path);
 
         if !root_path_buf.exists() {
-            return Err(BitFunError::service("Directory does not exist".to_string()));
+            return Err(VoidError::service("Directory does not exist".to_string()));
         }
 
         let matcher = Arc::new(Self::compile_search_regex(
@@ -1351,7 +1351,7 @@ impl FileTreeService {
         case_sensitive: bool,
         use_regex: bool,
         whole_word: bool,
-    ) -> BitFunResult<Regex> {
+    ) -> VoidResult<Regex> {
         let search_pattern = if use_regex {
             pattern.to_string()
         } else if whole_word {
@@ -1363,7 +1363,7 @@ impl FileTreeService {
         RegexBuilder::new(&search_pattern)
             .case_insensitive(!case_sensitive)
             .build()
-            .map_err(|error| BitFunError::service(format!("Invalid regex pattern: {}", error)))
+            .map_err(|error| VoidError::service(format!("Invalid regex pattern: {}", error)))
     }
 
     fn take_first_chars(text: &str, max_chars: usize) -> String {
@@ -1514,14 +1514,14 @@ impl FileTreeService {
         limit_reached: &Arc<AtomicBool>,
         cancel_flag: Option<&Arc<AtomicBool>>,
         progress_sink: Option<&Arc<dyn FileSearchProgressSink>>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if should_stop.load(Ordering::Relaxed) || cancellation_requested(cancel_flag) {
             should_stop.store(true, Ordering::Relaxed);
             return Ok(());
         }
 
         let file = File::open(path)
-            .map_err(|error| BitFunError::service(format!("Failed to open file: {}", error)))?;
+            .map_err(|error| VoidError::service(format!("Failed to open file: {}", error)))?;
         let reader = BufReader::new(file);
         let mut matched_results = Vec::new();
 
@@ -1532,7 +1532,7 @@ impl FileTreeService {
             }
 
             let line_bytes = line_result
-                .map_err(|error| BitFunError::service(format!("Failed to read file: {}", error)))?;
+                .map_err(|error| VoidError::service(format!("Failed to read file: {}", error)))?;
             let line = String::from_utf8_lossy(&line_bytes)
                 .trim_end_matches('\r')
                 .to_string();

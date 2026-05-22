@@ -1,16 +1,16 @@
-use bitfun_agent_tools::{
+use void_agent_tools::{
     ContextualToolManifestItem, DynamicToolDescriptor, DynamicToolProvider,
     GetToolSpecCatalogProvider, PortResult, PortableToolContextProvider, StaticToolProvider,
     StaticToolProviderGroup, ToolCatalogRuntime, ToolCatalogSnapshotProvider, ToolDecorator,
     ToolDecoratorRef, ToolRegistry, ToolRegistryItem, ToolRuntimeAssembly,
 };
-use bitfun_agent_tools::{
+use void_agent_tools::{
     DynamicMcpToolInfo, DynamicToolInfo, GET_TOOL_SPEC_TOOL_NAME, GetToolSpecCollapsedToolSummary,
     GetToolSpecExecutionError, GetToolSpecExecutionPlan, GetToolSpecLoadObservation,
     GetToolSpecRuntime, InputValidator, PromptVisibleToolManifestItem, ToolContextFacts,
     ToolExposure, ToolImageAttachment, ToolManifestDefinition, ToolManifestPolicyTool,
     ToolPathBackend, ToolPathResolution, ToolRenderOptions, ToolResult, ToolRuntimeRestrictions,
-    ToolWorkspaceKind, ValidationResult, build_bitfun_runtime_uri,
+    ToolWorkspaceKind, ValidationResult, build_void_runtime_uri,
     build_collapsed_tool_stub_definition, build_get_tool_spec_assistant_detail,
     build_get_tool_spec_catalog_description, build_get_tool_spec_catalog_description_from_provider,
     build_get_tool_spec_collapsed_tool_entry, build_get_tool_spec_description,
@@ -18,8 +18,8 @@ use bitfun_agent_tools::{
     build_get_tool_spec_duplicate_load_result, build_prompt_visible_tool_manifest_definitions,
     collect_loaded_collapsed_tool_names, get_tool_spec_input_schema,
     get_tool_spec_is_concurrency_safe, get_tool_spec_is_readonly, get_tool_spec_needs_permissions,
-    get_tool_spec_short_description, is_bitfun_runtime_uri, is_remote_posix_path_within_root,
-    normalize_host_path, normalize_runtime_relative_path, parse_bitfun_runtime_uri,
+    get_tool_spec_short_description, is_void_runtime_uri, is_remote_posix_path_within_root,
+    normalize_host_path, normalize_runtime_relative_path, parse_void_runtime_uri,
     posix_resolve_path_with_workspace, posix_style_path_is_absolute,
     render_get_tool_spec_tool_use_message, resolve_contextual_tool_manifest,
     resolve_contextual_tool_manifest_from_provider, resolve_get_tool_spec_detail,
@@ -262,8 +262,8 @@ fn path_resolution_contract_keeps_backend_and_runtime_helpers() {
 
     let runtime_root = PathBuf::from("/runtime/workspace");
     let runtime = ToolPathResolution {
-        requested_path: "bitfun://runtime/workspace-1/logs/tool.txt".to_string(),
-        logical_path: "bitfun://runtime/workspace-1/logs/tool.txt".to_string(),
+        requested_path: "void://runtime/workspace-1/logs/tool.txt".to_string(),
+        logical_path: "void://runtime/workspace-1/logs/tool.txt".to_string(),
         resolved_path: runtime_root
             .join("logs")
             .join("tool.txt")
@@ -278,7 +278,7 @@ fn path_resolution_contract_keeps_backend_and_runtime_helpers() {
     assert!(runtime.is_runtime_artifact());
     assert_eq!(
         runtime.logical_child_path(&runtime_root.join("logs").join("tool.txt")),
-        Some("bitfun://runtime/workspace-1/logs/tool.txt".to_string())
+        Some("void://runtime/workspace-1/logs/tool.txt".to_string())
     );
     assert_eq!(
         runtime.logical_child_path(&PathBuf::from("/outside/tool.txt")),
@@ -288,13 +288,13 @@ fn path_resolution_contract_keeps_backend_and_runtime_helpers() {
 
 #[test]
 fn runtime_uri_contract_is_provider_neutral_and_normalized() {
-    let uri = build_bitfun_runtime_uri("workspace-123", r"plans\demo.plan.md")
+    let uri = build_void_runtime_uri("workspace-123", r"plans\demo.plan.md")
         .expect("runtime URI should build");
 
-    assert_eq!(uri, "bitfun://runtime/workspace-123/plans/demo.plan.md");
-    assert!(is_bitfun_runtime_uri(&uri));
+    assert_eq!(uri, "void://runtime/workspace-123/plans/demo.plan.md");
+    assert!(is_void_runtime_uri(&uri));
 
-    let parsed = parse_bitfun_runtime_uri(&uri).expect("runtime URI should parse");
+    let parsed = parse_void_runtime_uri(&uri).expect("runtime URI should parse");
     assert_eq!(parsed.workspace_scope, "workspace-123");
     assert_eq!(parsed.relative_path, "plans/demo.plan.md");
     assert_eq!(
@@ -306,7 +306,7 @@ fn runtime_uri_contract_is_provider_neutral_and_normalized() {
 
 #[test]
 fn runtime_uri_contract_rejects_escape_and_invalid_scope() {
-    let escape = build_bitfun_runtime_uri("workspace-123", "../secret.txt")
+    let escape = build_void_runtime_uri("workspace-123", "../secret.txt")
         .expect_err("runtime URI should reject parent directory escape");
     assert_eq!(
         escape.to_string(),
@@ -314,14 +314,14 @@ fn runtime_uri_contract_rejects_escape_and_invalid_scope() {
     );
 
     let empty_scope =
-        build_bitfun_runtime_uri("  ", "logs/tool.txt").expect_err("scope should be required");
+        build_void_runtime_uri("  ", "logs/tool.txt").expect_err("scope should be required");
     assert_eq!(
         empty_scope.to_string(),
         "Runtime URI workspace scope cannot be empty"
     );
 
     let unsupported =
-        parse_bitfun_runtime_uri("/tmp/result.txt").expect_err("non-runtime URI should fail");
+        parse_void_runtime_uri("/tmp/result.txt").expect_err("non-runtime URI should fail");
     assert_eq!(
         unsupported.to_string(),
         "Unsupported runtime URI: /tmp/result.txt"
@@ -858,7 +858,7 @@ fn get_tool_spec_contract_builds_duplicate_load_result() {
 
 #[test]
 fn get_tool_spec_contract_builds_detail_result() {
-    let result = build_get_tool_spec_detail_result(&bitfun_agent_tools::GetToolSpecDetail {
+    let result = build_get_tool_spec_detail_result(&void_agent_tools::GetToolSpecDetail {
         tool_name: "Git".to_string(),
         description: "Use <repo> & inspect changes.".to_string(),
         input_schema: json!({
@@ -897,7 +897,7 @@ fn get_tool_spec_contract_builds_detail_result() {
 fn get_tool_spec_contract_plans_duplicate_load_without_core_context() {
     let input = json!({ "tool_name": "WebFetch" });
     let plan =
-        bitfun_agent_tools::resolve_get_tool_spec_execution_plan(&input, &["WebFetch".to_string()])
+        void_agent_tools::resolve_get_tool_spec_execution_plan(&input, &["WebFetch".to_string()])
             .expect("duplicate load should be planned");
 
     let GetToolSpecExecutionPlan::DuplicateLoad(result) = plan else {
@@ -928,7 +928,7 @@ fn get_tool_spec_contract_plans_duplicate_load_without_core_context() {
 fn get_tool_spec_contract_plans_detail_load_without_resolving_product_detail() {
     let input = json!({ "tool_name": "Git" });
     let plan =
-        bitfun_agent_tools::resolve_get_tool_spec_execution_plan(&input, &["WebFetch".to_string()])
+        void_agent_tools::resolve_get_tool_spec_execution_plan(&input, &["WebFetch".to_string()])
             .expect("detail load should be planned");
 
     let GetToolSpecExecutionPlan::LoadDetail { tool_name } = plan else {
@@ -940,7 +940,7 @@ fn get_tool_spec_contract_plans_detail_load_without_resolving_product_detail() {
 
 #[test]
 fn get_tool_spec_contract_rejects_missing_tool_name_in_execution_plan() {
-    let err = bitfun_agent_tools::resolve_get_tool_spec_execution_plan(&json!({}), &[])
+    let err = void_agent_tools::resolve_get_tool_spec_execution_plan(&json!({}), &[])
         .expect_err("missing tool name should be rejected");
 
     assert_eq!(err, GetToolSpecExecutionError::MissingToolName);
@@ -1221,7 +1221,7 @@ impl ToolDecorator<Arc<RegistryMarkerTool>> for RegistryMarkerDecorator {
 
 struct RegistryMarkerSnapshotWrapper;
 
-impl bitfun_agent_tools::SnapshotToolWrapper<RegistryMarkerTool> for RegistryMarkerSnapshotWrapper {
+impl void_agent_tools::SnapshotToolWrapper<RegistryMarkerTool> for RegistryMarkerSnapshotWrapper {
     fn wrap_for_snapshot_tracking(&self, tool: Arc<RegistryMarkerTool>) -> Arc<RegistryMarkerTool> {
         Arc::new(RegistryMarkerTool {
             name: format!("snapshot_{}", tool.name),
@@ -1272,7 +1272,7 @@ fn generic_tool_registry_applies_decorator_to_static_provider_tools() {
 #[test]
 fn generic_snapshot_tool_decorator_delegates_to_snapshot_wrapper_port() {
     let decorator: ToolDecoratorRef<RegistryMarkerTool> = Arc::new(
-        bitfun_agent_tools::SnapshotToolDecorator::new(Arc::new(RegistryMarkerSnapshotWrapper)),
+        void_agent_tools::SnapshotToolDecorator::new(Arc::new(RegistryMarkerSnapshotWrapper)),
     );
     let providers = vec![StaticToolProviderGroup::new(
         "core-basic",
@@ -1385,7 +1385,7 @@ fn manifest_policy_tools_from_registry_snapshot_preserve_exposure_and_availabili
         .collect();
 
     let policy_tools =
-        bitfun_agent_tools::build_tool_manifest_policy_tools(&tools, &available_tool_names);
+        void_agent_tools::build_tool_manifest_policy_tools(&tools, &available_tool_names);
 
     assert_eq!(
         policy_tools,

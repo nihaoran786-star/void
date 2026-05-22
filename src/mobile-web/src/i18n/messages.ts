@@ -9,7 +9,7 @@ type MessageTree = { [key: string]: MessageLeaf | MessageTree };
 export const messages: Record<MobileLanguage, MessageTree> = {
   'en-US': {
     common: {
-      appName: 'BitFun Remote',
+      appName: 'Void Remote',
       back: 'Back',
       continue: 'Continue',
       cancel: 'Cancel',
@@ -110,8 +110,8 @@ export const messages: Record<MobileLanguage, MessageTree> = {
       hideResponse: 'Hide response',
       analyzingImage: 'Analyzing image with image understanding model...',
       inputPlaceholder: 'How can I help you...',
-      collapsedInputPlaceholder: 'Ask BitFun...',
-      workingPlaceholder: 'BitFun is working...',
+      collapsedInputPlaceholder: 'Ask Void...',
+      workingPlaceholder: 'Void is working...',
       streamingTapToQueue: 'Assistant is replying — tap to type a follow-up (queued)',
       collapsedStreamingPlaceholder: 'Replying...',
       messageQueued: 'Message queued; it will run after the current step',
@@ -163,7 +163,7 @@ export const messages: Record<MobileLanguage, MessageTree> = {
   },
   'zh-CN': {
     common: {
-      appName: 'BitFun Remote',
+      appName: 'Void Remote',
       back: '返回',
       continue: '继续',
       cancel: '取消',
@@ -266,7 +266,7 @@ export const messages: Record<MobileLanguage, MessageTree> = {
       analyzingImage: '正在使用图像理解模型分析图片...',
       inputPlaceholder: '有什么可以帮您...',
       collapsedInputPlaceholder: '发消息...',
-      workingPlaceholder: 'BitFun 正在处理中...',
+      workingPlaceholder: 'Void 正在处理中...',
       streamingTapToQueue: '助手正在回复 — 点击输入后续消息（将排队）',
       collapsedStreamingPlaceholder: '正在回复...',
       messageQueued: '已加入队列，将在当前步骤结束后处理',
@@ -318,7 +318,7 @@ export const messages: Record<MobileLanguage, MessageTree> = {
   },
   'zh-TW': {
     common: {
-      appName: 'BitFun Remote',
+      appName: 'Void Remote',
       back: '返回',
       continue: '繼續',
       cancel: '取消',
@@ -421,7 +421,7 @@ export const messages: Record<MobileLanguage, MessageTree> = {
       analyzingImage: '正在使用圖像理解模型分析圖片...',
       inputPlaceholder: '有什麼可以幫您...',
       collapsedInputPlaceholder: '發消息...',
-      workingPlaceholder: 'BitFun 正在處理中...',
+      workingPlaceholder: 'Void 正在處理中...',
       streamingTapToQueue: '助手正在回覆 — 點擊輸入後續消息（將排隊）',
       collapsedStreamingPlaceholder: '正在回覆...',
       messageQueued: '已加入隊列，將在當前步驟結束後處理',

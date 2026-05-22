@@ -205,7 +205,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     const shouldShowRestoreToast = !acpOptionsRef.current && acpRestoreToastShownRef.current !== sessionId;
     if (shouldShowRestoreToast) {
       acpRestoreToastShownRef.current = sessionId;
-      window.dispatchEvent(new CustomEvent('bitfun:acp-session-creation', {
+      window.dispatchEvent(new CustomEvent('void:acp-session-creation', {
         detail: { phase: 'start', clientId: acpClientId, action: 'restore' },
       }));
     }
@@ -225,7 +225,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       setAcpOptions(null);
     } finally {
       if (shouldShowRestoreToast) {
-        window.dispatchEvent(new CustomEvent('bitfun:acp-session-creation', {
+        window.dispatchEvent(new CustomEvent('void:acp-session-creation', {
           detail: { phase: 'finish', clientId: acpClientId, action: 'restore' },
         }));
       }
@@ -463,11 +463,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     return (
       <div
         ref={dropdownRef}
-        className={`bitfun-model-selector ${className}`}
+        className={`void-model-selector ${className}`}
       >
         <Tooltip content={acpTooltip}>
           <button
-            className={`bitfun-model-selector__trigger ${dropdownOpen ? 'bitfun-model-selector__trigger--open' : ''}`}
+            className={`void-model-selector__trigger ${dropdownOpen ? 'void-model-selector__trigger--open' : ''}`}
             onClick={() => {
               const nextOpen = !dropdownOpen;
               setDropdownOpen(nextOpen);
@@ -477,44 +477,44 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             }}
             disabled={loading}
           >
-            <span className="bitfun-model-selector__name">
+            <span className="void-model-selector__name">
               {getModelDisplayLabel(acpCurrentModel, currentAcpModelId)}
             </span>
             {tokenPercentage > 0 && (
-              <span className={`bitfun-model-selector__ctx-usage${tokenStatusClass ? ` bitfun-model-selector__ctx-usage--${tokenStatusClass}` : ''}`}>
+              <span className={`void-model-selector__ctx-usage${tokenStatusClass ? ` void-model-selector__ctx-usage--${tokenStatusClass}` : ''}`}>
                 · {tokenPercentage}%
               </span>
             )}
-            <ChevronDown size={10} className="bitfun-model-selector__chevron" />
+            <ChevronDown size={10} className="void-model-selector__chevron" />
           </button>
         </Tooltip>
 
         {dropdownOpen && (
-          <div className="bitfun-model-selector__dropdown">
-            <div className="bitfun-model-selector__dropdown-header">
+          <div className="void-model-selector__dropdown">
+            <div className="void-model-selector__dropdown-header">
               <span>ACP model</span>
-              <span className="bitfun-model-selector__dropdown-hint">
+              <span className="void-model-selector__dropdown-hint">
                 {acpClientId}
               </span>
             </div>
 
-            <div className="bitfun-model-selector__list">
+            <div className="void-model-selector__list">
               {acpAvailableModels.map(model => {
                 const isSelected = currentAcpModelId === model.id;
 
                 return (
                   <Tooltip key={model.id} content={model.id} placement="right">
                     <div
-                      className={`bitfun-model-selector__option ${isSelected ? 'bitfun-model-selector__option--selected' : ''}`}
+                      className={`void-model-selector__option ${isSelected ? 'void-model-selector__option--selected' : ''}`}
                       onClick={() => handleSelectModel(model.id)}
                     >
-                      <div className="bitfun-model-selector__option-main">
-                        <span className="bitfun-model-selector__option-name">
+                      <div className="void-model-selector__option-main">
+                        <span className="void-model-selector__option-name">
                           {model.modelName}
                         </span>
                       </div>
                       {isSelected && (
-                        <Check size={14} className="bitfun-model-selector__option-check" />
+                        <Check size={14} className="void-model-selector__option-check" />
                       )}
                     </div>
                   </Tooltip>
@@ -543,53 +543,53 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   return (
     <div
       ref={dropdownRef}
-      className={`bitfun-model-selector ${className}`}
+      className={`void-model-selector ${className}`}
     >
       <Tooltip content={tooltipContent}>
         <button
-          className={`bitfun-model-selector__trigger ${dropdownOpen ? 'bitfun-model-selector__trigger--open' : ''}`}
+          className={`void-model-selector__trigger ${dropdownOpen ? 'void-model-selector__trigger--open' : ''}`}
           onClick={() => setDropdownOpen(!dropdownOpen)}
           disabled={loading}
         >
-          <span className="bitfun-model-selector__name">
+          <span className="void-model-selector__name">
             {getModelDisplayLabel(currentModel, t('modelSelector.autoModel'))}
           </span>
           {currentModel?.enableThinking && (
-            <Brain size={9} className="bitfun-model-selector__thinking-icon" />
+            <Brain size={9} className="void-model-selector__thinking-icon" />
           )}
           {currentModel?.reasoningEffort && (
-            <span className="bitfun-model-selector__effort-badge">
+            <span className="void-model-selector__effort-badge">
               {currentModel.reasoningEffort}
             </span>
           )}
           {tokenPercentage > 0 && (
-            <span className={`bitfun-model-selector__ctx-usage${tokenStatusClass ? ` bitfun-model-selector__ctx-usage--${tokenStatusClass}` : ''}`}>
+            <span className={`void-model-selector__ctx-usage${tokenStatusClass ? ` void-model-selector__ctx-usage--${tokenStatusClass}` : ''}`}>
               · {tokenPercentage}%
             </span>
           )}
-          <ChevronDown size={10} className="bitfun-model-selector__chevron" />
+          <ChevronDown size={10} className="void-model-selector__chevron" />
         </button>
       </Tooltip>
 
       {dropdownOpen && (
-        <div className="bitfun-model-selector__dropdown">
-          <div className="bitfun-model-selector__dropdown-header">
+        <div className="void-model-selector__dropdown">
+          <div className="void-model-selector__dropdown-header">
             <span>{t('modelSelector.modelSelection')}</span>
-            <span className="bitfun-model-selector__dropdown-hint">
+            <span className="void-model-selector__dropdown-hint">
               {t('modelSelector.currentMode')}: {currentMode}
             </span>
           </div>
 
           <Tooltip content={t('modelSelector.autoModelDesc')} placement="right">
             <div
-              className={`bitfun-model-selector__option bitfun-model-selector__option--special ${currentModelId === 'auto' ? 'bitfun-model-selector__option--selected' : ''}`}
+              className={`void-model-selector__option void-model-selector__option--special ${currentModelId === 'auto' ? 'void-model-selector__option--selected' : ''}`}
               onClick={() => handleSelectModel('auto')}
             >
-              <div className="bitfun-model-selector__option-main">
-                <span className="bitfun-model-selector__option-name">{t('modelSelector.autoModel')}</span>
+              <div className="void-model-selector__option-main">
+                <span className="void-model-selector__option-name">{t('modelSelector.autoModel')}</span>
               </div>
               {currentModelId === 'auto' && (
-                <Check size={14} className="bitfun-model-selector__option-check" />
+                <Check size={14} className="void-model-selector__option-check" />
               )}
             </div>
           </Tooltip>
@@ -605,14 +605,14 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             return (
               <Tooltip content={primaryTooltip} placement="right">
                 <div
-                  className={`bitfun-model-selector__option bitfun-model-selector__option--special ${currentModelId === 'primary' ? 'bitfun-model-selector__option--selected' : ''}`}
+                  className={`void-model-selector__option void-model-selector__option--special ${currentModelId === 'primary' ? 'void-model-selector__option--selected' : ''}`}
                   onClick={() => handleSelectModel('primary')}
                 >
-                  <div className="bitfun-model-selector__option-main">
-                    <span className="bitfun-model-selector__option-name">{t('modelSelector.primaryModel')}</span>
+                  <div className="void-model-selector__option-main">
+                    <span className="void-model-selector__option-name">{t('modelSelector.primaryModel')}</span>
                   </div>
                   {currentModelId === 'primary' && (
-                    <Check size={14} className="bitfun-model-selector__option-check" />
+                    <Check size={14} className="void-model-selector__option-check" />
                   )}
                 </div>
               </Tooltip>
@@ -630,42 +630,42 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             return (
               <Tooltip content={fastTooltip} placement="right">
                 <div
-                  className={`bitfun-model-selector__option bitfun-model-selector__option--special ${currentModelId === 'fast' ? 'bitfun-model-selector__option--selected' : ''}`}
+                  className={`void-model-selector__option void-model-selector__option--special ${currentModelId === 'fast' ? 'void-model-selector__option--selected' : ''}`}
                   onClick={() => handleSelectModel('fast')}
                 >
-                  <div className="bitfun-model-selector__option-main">
-                    <span className="bitfun-model-selector__option-name">{t('modelSelector.fastModel')}</span>
+                  <div className="void-model-selector__option-main">
+                    <span className="void-model-selector__option-name">{t('modelSelector.fastModel')}</span>
                   </div>
                   {currentModelId === 'fast' && (
-                    <Check size={14} className="bitfun-model-selector__option-check" />
+                    <Check size={14} className="void-model-selector__option-check" />
                   )}
                 </div>
               </Tooltip>
             );
           })()}
 
-          <div className="bitfun-model-selector__divider" />
+          <div className="void-model-selector__divider" />
 
-          <div className="bitfun-model-selector__list">
+          <div className="void-model-selector__list">
             {availableModels.map(model => {
               const isSelected = currentModelId === model.id;
 
               return (
                 <Tooltip key={model.id} content={buildModelMetaText(model)} placement="right">
                   <div
-                    className={`bitfun-model-selector__option ${isSelected ? 'bitfun-model-selector__option--selected' : ''}`}
+                    className={`void-model-selector__option ${isSelected ? 'void-model-selector__option--selected' : ''}`}
                     onClick={() => handleSelectModel(model.id)}
                   >
-                    <div className="bitfun-model-selector__option-main">
-                      <span className="bitfun-model-selector__option-name">
+                    <div className="void-model-selector__option-main">
+                      <span className="void-model-selector__option-name">
                         {model.modelName}
                         {model.enableThinking && (
-                          <Brain size={10} className="bitfun-model-selector__option-thinking" />
+                          <Brain size={10} className="void-model-selector__option-thinking" />
                         )}
                       </span>
                     </div>
                     {isSelected && (
-                      <Check size={14} className="bitfun-model-selector__option-check" />
+                      <Check size={14} className="void-model-selector__option-check" />
                     )}
                   </div>
                 </Tooltip>

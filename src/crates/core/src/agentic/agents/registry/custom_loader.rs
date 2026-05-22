@@ -11,9 +11,9 @@ pub struct SubagentDirEntry {
     pub kind: CustomSubagentKind,
 }
 
-/// Project subagent directory names (relative to workspace root, each item is in [".bitfun", "agents"] format)
+/// Project subagent directory names (relative to workspace root, each item is in [".void", "agents"] format)
 const PROJECT_AGENT_SUBDIRS: &[(&str, &str)] = &[
-    (".bitfun", "agents"),
+    (".void", "agents"),
     (".claude", "agents"),
     (".cursor", "agents"),
     (".codex", "agents"),
@@ -30,8 +30,8 @@ struct CustomSubagentCandidate {
 
 impl CustomSubagentLoader {
     /// Returns existing possible paths (directories) and their sources (project/user).
-    /// - Project subagents: .bitfun/agents, .claude/agents, .cursor/agents, .codex/agents under workspace
-    /// - User subagents: agents under bitfun user config, ~/.claude/agents, ~/.cursor/agents, ~/.codex/agents
+    /// - Project subagents: .void/agents, .claude/agents, .cursor/agents, .codex/agents under workspace
+    /// - User subagents: agents under void user config, ~/.claude/agents, ~/.cursor/agents, ~/.codex/agents
     pub fn get_possible_paths(workspace_root: &Path) -> Vec<SubagentDirEntry> {
         let mut entries = Vec::new();
 
@@ -46,17 +46,17 @@ impl CustomSubagentLoader {
         }
 
         let pm = get_path_manager_arc();
-        let bitfun_agents = pm.user_agents_dir();
-        if bitfun_agents.exists() && bitfun_agents.is_dir() {
+        let void_agents = pm.user_agents_dir();
+        if void_agents.exists() && void_agents.is_dir() {
             entries.push(SubagentDirEntry {
-                path: bitfun_agents,
+                path: void_agents,
                 kind: CustomSubagentKind::User,
             });
         }
 
         if let Some(home) = dirs::home_dir() {
             for (parent, sub) in PROJECT_AGENT_SUBDIRS {
-                if *parent == ".bitfun" {
+                if *parent == ".void" {
                     continue;
                 }
                 let p = home.join(parent).join(sub);

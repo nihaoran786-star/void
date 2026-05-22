@@ -2,23 +2,23 @@
 
 <div align="center">
 
-![BitFun](./png/BitFun_title.png)
+![Void](./png/Void_title.png)
 
 </div>
 <div align="center">
 
-[![GitHub release](https://img.shields.io/github/v/release/GCWing/BitFun?style=flat-square&color=blue)](https://github.com/GCWing/BitFun/releases)
-[![Website](https://img.shields.io/badge/Website-openbitfun.com-6f42c1?style=flat-square)](https://openbitfun.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](https://github.com/GCWing/BitFun/blob/main/LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/GCWing/BitFun)
+[![GitHub release](https://img.shields.io/github/v/release/GCWing/Void?style=flat-square&color=blue)](https://github.com/GCWing/Void/releases)
+[![Website](https://img.shields.io/badge/Website-openvoid.com-6f42c1?style=flat-square)](https://openvoid.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](https://github.com/GCWing/Void/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/GCWing/Void)
 
 </div>
 
 ---
 
-## What BitFun Is
+## What Void Is
 
-**BitFun is a desktop-grade Agent runtime (Local Agent Runtime) and a ready-to-use suite of desktop Agent applications.**
+**Void is a desktop-grade Agent runtime (Local Agent Runtime) and a ready-to-use suite of desktop Agent applications.**
 
 - It is the **foundation**—a Rust core plus a Tauri shell, with sessions, tools, memory, MCP, LSP, and remote-control protocols built in, designed for long-running use;
 
@@ -26,7 +26,7 @@
 
 > **One install: use it as an Agent, or use it as a Runtime.**
 
-BitFun aims to pack **the coding power of Code Agents, the office productivity of Cowork, the assistant experience of OpenClaw, the control surface of Computer Use, and more**—the most popular Agent capabilities in the industry—into one desktop app, with the full protocol stack (Agentic runtime, tools, memory, MCP, Skills, context compression, remote control) ready by default. You can use it immediately, or define **your own domain Agents** on top of it.
+Void aims to pack **the coding power of Code Agents, the office productivity of Cowork, the assistant experience of OpenClaw, the control surface of Computer Use, and more**—the most popular Agent capabilities in the industry—into one desktop app, with the full protocol stack (Agentic runtime, tools, memory, MCP, Skills, context compression, remote control) ready by default. You can use it immediately, or define **your own domain Agents** on top of it.
 
 
 ![readme_hero](./png/readme_hero.png)
@@ -34,21 +34,21 @@ BitFun aims to pack **the coding power of Code Agents, the office productivity o
 
 ---
 
-## Why BitFun
+## Why Void
 
 - **One app, almost every mainstream Agent capability in the industry**: Code / Cowork / Computer Use / document collaboration / generative UI / Mini App / MCP / remote control … No juggling multiple tools or paying for separate subscriptions for each.
 - **Download and run—no DIY assembly**: MCP / LSP / filesystem / terminal / Git / remote SSH are all built in; configure your model and go, without spending time wiring the protocol stack from scratch.
-- **Your data stays on your machine**: Sessions, memory, and working directories live under `.bitfun/sessions/`, portable, exportable, and auditable; nothing is forced to the cloud—suitable for privacy and compliance scenarios.
-- **Deeply customizable, with no gap from a single Markdown file to a full-repo fork**: ~90% of domain needs are covered with one `.md`; missing a tool? a UI? want to change the product? Have the Code Agent do it inside BitFun—**the way you customize it is by using it**.
+- **Your data stays on your machine**: Sessions, memory, and working directories live under `.void/sessions/`, portable, exportable, and auditable; nothing is forced to the cloud—suitable for privacy and compliance scenarios.
+- **Deeply customizable, with no gap from a single Markdown file to a full-repo fork**: ~90% of domain needs are covered with one `.md`; missing a tool? a UI? want to change the product? Have the Code Agent do it inside Void—**the way you customize it is by using it**.
 - **Control the desktop from your phone**: Pair by QR code, or use Telegram, Feishu Bot, or WeChat Bot as remote entry points. The Agent works on the desktop; you check progress on the go.
 - **A desktop app you can actually live with**: Rust core + Tauri shell—fast cold start, low idle footprint, fine to leave running in the background for a long time.
-- **Self-improving**: 97%+ of the code was produced by BitFun’s built-in Code Agent via Vibe Coding, so it naturally fits AI-assisted development.
+- **Self-improving**: 97%+ of the code was produced by Void’s built-in Code Agent via Vibe Coding, so it naturally fits AI-assisted development.
 
 ---
 
 ## What's New
 
-BitFun combines **flashgrep** with **ripgrep** into an enhanced code-search pipeline. On very large repositories such as Chromium, search time drops by up to about **94.6%**, with an average speedup of about **36.1×**, significantly reducing the time you spend exploring a project.
+Void combines **flashgrep** with **ripgrep** into an enhanced code-search pipeline. On very large repositories such as Chromium, search time drops by up to about **94.6%**, with an average speedup of about **36.1×**, significantly reducing the time you spend exploring a project.
 
 ![flashgrep feature](./png/feat_flashgrep.png)
 
@@ -56,12 +56,12 @@ BitFun combines **flashgrep** with **ripgrep** into an enhanced code-search pipe
 
 ## Cutting Edge · Ready Out of the Box
 
-New paradigms appear almost weekly in the Agent space. BitFun’s pace is: **when we see something great, we ship it on the desktop and make it work seamlessly with what you already have.**
+New paradigms appear almost weekly in the Agent space. Void’s pace is: **when we see something great, we ship it on the desktop and make it work seamlessly with what you already have.**
 
 
 ![first_screen_screenshot](./png/first_screen_screenshot.png)
 
-Below is BitFun’s **official Agent and capability inventory**, plus how we track the industry’s latest Agent patterns. Zero extra setup—download and use:
+Below is Void’s **official Agent and capability inventory**, plus how we track the industry’s latest Agent patterns. Zero extra setup—download and use:
 
 | Capability | Description |
 | --- | --- |
@@ -78,12 +78,12 @@ Below is BitFun’s **official Agent and capability inventory**, plus how we tra
 | **Mini App** | One sentence to a standalone runnable app—generate, run, one-click package for desktop |
 | **Markdown-defined Agents** | Write a `.md` file and run it in the Runtime right away for most domain customization |
 | **Long-term memory + project context** | Accumulates across sessions; readable by any Agent |
-| **Self-iteration** | Code Agent can change BitFun’s own repository |
+| **Self-iteration** | Code Agent can change Void’s own repository |
 | **⋯⋯** | Next trends in progress—open an Issue with requests |
 
 ---
 
-## How to Customize Your BitFun
+## How to Customize Your Void
 
 Different depths of customization map to different-effort paths. Pick from light to heavy as needed:
 
@@ -91,12 +91,12 @@ Different depths of customization map to different-effort paths. Pick from light
 | --- | --- | --- | --- |
 | **L1** | **Markdown custom Agents** | Swap prompts + pick tool bundles to define a **new Agent capability**—covers most domain needs | Write one `.md` file |
 | **L2** | **Mini App** | Capabilities that need UI (panels, forms, visualization, business flows) | One sentence to generate; run immediately |
-| **L3** | **Source-level tools** | New tools, model adapters, protocols—give your custom Agent a `tool` BitFun doesn’t ship yet | Use BitFun’s Code Agent to edit BitFun’s own source |
+| **L3** | **Source-level tools** | New tools, model adapters, protocols—give your custom Agent a `tool` Void doesn’t ship yet | Use Void’s Code Agent to edit Void’s own source |
 | **L4** | **Free-form source changes** | Rebrand, rebuild UI, change session model, ship a totally different product | Fork the whole repo—naturally fits Vibe Coding |
 
 ### Example: Code Agent vs Cowork Agent is a small difference
 
-In BitFun, an Agent = **a prompt (system role + behavior constraints) + the set of tools it may call**. The official Code Agent and Cowork Agent differ only in those two dimensions:
+In Void, an Agent = **a prompt (system role + behavior constraints) + the set of tools it may call**. The official Code Agent and Cowork Agent differ only in those two dimensions:
 
 | | Code Agent | Cowork Agent |
 | --- | --- | --- |
@@ -108,11 +108,11 @@ In BitFun, an Agent = **a prompt (system role + behavior constraints) + the set 
 
 1. Write a Markdown file defining role / guardrails / workflow
 2. From the tool registry, enable what it should use (files, browser, specific MCP …)
-3. If a specific tool is missing—use **L3**: open BitFun and have the Code Agent add it in source
+3. If a specific tool is missing—use **L3**: open Void and have the Code Agent add it in source
 4. If the Agent needs a dedicated UI—use **L2**: one sentence to spin up a Mini App
 5. If you want a completely different product—use **L4**: fork the repo and have the Code Agent help you reshape it
 
-**Key point**: For L3 and L4 you never leave BitFun—**open BitFun, tell the Code Agent what to change, and it shows you the diff**. **The way you customize it is by using it.**
+**Key point**: For L3 and L4 you never leave Void—**open Void, tell the Code Agent what to change, and it shows you the diff**. **The way you customize it is by using it.**
 
 > From one Markdown file to a full fork, there is no discontinuity. That is what “a self-improving foundation” means.
 
@@ -128,7 +128,7 @@ Desktop is built on Tauri for Windows / macOS / Linux; remote control works from
 
 ### Download and use
 
-Download the latest desktop installer from [Releases](https://github.com/GCWing/BitFun/releases). After installation, configure your model and start using BitFun.
+Download the latest desktop installer from [Releases](https://github.com/GCWing/Void/releases). After installation, configure your model and start using Void.
 
 ### Build from source
 

@@ -1,4 +1,4 @@
-//! BitFun Relay Server
+//! Void Relay Server
 //!
 //! Standalone binary that runs the relay as a network service.
 //! Uses `DiskAssetStore` for filesystem-backed mobile-web file storage.
@@ -8,7 +8,7 @@ use tracing::info;
 
 mod config;
 
-use bitfun_relay_server::{build_relay_router, DiskAssetStore, RoomManager, WebAssetStore};
+use void_relay_server::{build_relay_router, DiskAssetStore, RoomManager, WebAssetStore};
 use config::RelayConfig;
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let cfg = RelayConfig::from_env();
-    info!("BitFun Relay Server v{}", env!("CARGO_PKG_VERSION"));
+    info!("Void Relay Server v{}", env!("CARGO_PKG_VERSION"));
 
     let room_manager = RoomManager::new();
     let asset_store = Arc::new(DiskAssetStore::new(&cfg.room_web_dir));

@@ -2,7 +2,7 @@
 
 Scope: this guide applies to `src/crates/ai-adapters`.
 
-`bitfun-ai-adapters` owns provider-specific request/response mapping and stream
+`void-ai-adapters` owns provider-specific request/response mapping and stream
 normalization. Keep provider quirks here instead of leaking them into core tool
 contracts or product runtime logic.
 
@@ -20,8 +20,8 @@ contracts or product runtime logic.
 ## Verification
 
 ```bash
-cargo test -p bitfun-agent-stream
-cargo test -p bitfun-ai-adapters
+cargo test -p void-agent-stream
+cargo test -p void-ai-adapters
 ```
 
 If stream behavior affects core integration, also run the relevant tests in

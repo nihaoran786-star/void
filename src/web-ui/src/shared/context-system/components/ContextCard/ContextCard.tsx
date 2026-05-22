@@ -50,12 +50,12 @@ export const ContextCard: React.FC<ContextCardProps> = ({
   const content = renderer 
     ? renderer.render(context, { compact, interactive, showPreview })
     : (
-      <div className="bitfun-context-card__fallback">
-        <div className="bitfun-context-card__icon">
+      <div className="void-context-card__fallback">
+        <div className="void-context-card__icon">
           <AlertCircle size={20} />
         </div>
-        <div className="bitfun-context-card__content">
-          <div className="bitfun-context-card__title">
+        <div className="void-context-card__content">
+          <div className="void-context-card__title">
             {t('contextSystem.contextCard.unknownType', { type: context.type })}
           </div>
         </div>
@@ -65,18 +65,18 @@ export const ContextCard: React.FC<ContextCardProps> = ({
   
   const validationClass = validationState 
     ? validationState.valid 
-      ? 'bitfun-context-card--valid' 
-      : 'bitfun-context-card--invalid'
+      ? 'void-context-card--valid'
+      : 'void-context-card--invalid'
     : '';
   
   return (
     <div 
       className={`
-        bitfun-context-card
-        bitfun-context-card--${context.type}
+        void-context-card
+        void-context-card--${context.type}
         ${validationClass}
-        ${compact ? 'bitfun-context-card--compact' : ''}
-        ${interactive ? 'bitfun-context-card--interactive' : ''}
+        ${compact ? 'void-context-card--compact' : ''}
+        ${interactive ? 'void-context-card--interactive' : ''}
         ${className}
       `.trim()}
       data-context-id={context.id}
@@ -85,31 +85,31 @@ export const ContextCard: React.FC<ContextCardProps> = ({
       
       {definition && (
         <div 
-          className="bitfun-context-card__indicator"
+          className="void-context-card__indicator"
           style={{ backgroundColor: definition.color }}
         />
       )}
       
       
-      <div className="bitfun-context-card__body">
+      <div className="void-context-card__body">
         {content}
       </div>
       
       
       {interactive && (
-        <div className="bitfun-context-card__toolbar">
+        <div className="void-context-card__toolbar">
           
-          <div className="bitfun-context-card__validation">
+          <div className="void-context-card__validation">
             {isValidating ? (
-              <Loader2 size={14} className="bitfun-context-card__spinner" />
+              <Loader2 size={14} className="void-context-card__spinner" />
             ) : validationState ? (
               validationState.valid ? (
-                <CheckCircle size={14} className="bitfun-context-card__icon--success" />
+                <CheckCircle size={14} className="void-context-card__icon--success" />
               ) : (
                 <span title={validationState.error}>
                   <AlertCircle 
                     size={14} 
-                    className="bitfun-context-card__icon--error"
+                    className="void-context-card__icon--error"
                   />
                 </span>
               )
@@ -119,7 +119,7 @@ export const ContextCard: React.FC<ContextCardProps> = ({
           
           {onRemove && (
             <button
-              className="bitfun-context-card__remove-btn"
+              className="void-context-card__remove-btn"
               onClick={handleRemove}
               title={t('contextSystem.contextCard.removeContext')}
             >
@@ -131,7 +131,7 @@ export const ContextCard: React.FC<ContextCardProps> = ({
       
       
       {validationState && !validationState.valid && validationState.error && (
-        <div className="bitfun-context-card__error">
+        <div className="void-context-card__error">
           <AlertCircle size={12} />
           <span>{validationState.error}</span>
         </div>
@@ -139,9 +139,9 @@ export const ContextCard: React.FC<ContextCardProps> = ({
       
       
       {validationState && validationState.valid && validationState.warnings && validationState.warnings.length > 0 && (
-        <div className="bitfun-context-card__warnings">
+        <div className="void-context-card__warnings">
           {validationState.warnings.map((warning, idx) => (
-            <div key={idx} className="bitfun-context-card__warning">
+            <div key={idx} className="void-context-card__warning">
               <AlertCircle size={12} />
               <span>{warning}</span>
             </div>

@@ -5,7 +5,7 @@ use crate::infrastructure::get_path_manager_arc;
 use crate::service::config::global::GlobalConfigManager;
 use crate::service::config::mode_config_canonicalizer::persist_mode_config_from_value;
 use crate::service::config::types::ModeConfig;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use serde_json::{json, Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -52,7 +52,7 @@ fn normalize_user_overrides(
     }
 }
 
-pub async fn load_user_mode_skill_overrides(mode_id: &str) -> BitFunResult<UserModeSkillOverrides> {
+pub async fn load_user_mode_skill_overrides(mode_id: &str) -> VoidResult<UserModeSkillOverrides> {
     let config_service = GlobalConfigManager::get_service().await?;
     let stored_configs: HashMap<String, ModeConfig> = config_service
         .get_config(Some("ai.mode_configs"))
@@ -75,7 +75,7 @@ pub async fn set_user_mode_skill_state(
     skill_key: &str,
     enabled: bool,
     default_enabled: bool,
-) -> BitFunResult<UserModeSkillOverrides> {
+) -> VoidResult<UserModeSkillOverrides> {
     let mut overrides = load_user_mode_skill_overrides(mode_id).await?;
     overrides.disabled_skills.retain(|value| value != skill_key);
     overrides.enabled_skills.retain(|value| value != skill_key);
@@ -106,7 +106,7 @@ pub async fn set_user_mode_skill_state(
 
 pub async fn clear_user_mode_skill_overrides(
     mode_id: &str,
-) -> BitFunResult<UserModeSkillOverrides> {
+) -> VoidResult<UserModeSkillOverrides> {
     persist_mode_config_from_value(
         mode_id,
         json!({
@@ -121,7 +121,7 @@ pub async fn clear_user_mode_skill_overrides(
 
 pub fn project_mode_skills_path_for_remote(remote_root: &str) -> String {
     format!(
-        "{}/.bitfun/config/{}",
+        "{}/.void/config/{}",
         remote_root.trim_end_matches('/'),
         PROJECT_MODE_SKILLS_FILE_NAME
     )
@@ -134,14 +134,14 @@ fn normalize_project_document_value(value: Value) -> Value {
     }
 }
 
-fn mode_skills_object_mut(document: &mut Value) -> BitFunResult<&mut Map<String, Value>> {
+fn mode_skills_object_mut(document: &mut Value) -> VoidResult<&mut Map<String, Value>> {
     if !document.is_object() {
         *document = Value::Object(Map::new());
     }
 
     document
         .as_object_mut()
-        .ok_or_else(|| BitFunError::config("Project mode skills must be a JSON object".to_string()))
+        .ok_or_else(|| VoidError::config("Project mode skills must be a JSON object".to_string()))
 }
 
 fn mode_skills_object(document: &Value) -> Option<&Map<String, Value>> {
@@ -170,7 +170,7 @@ pub fn set_mode_skill_disabled_in_document(
     mode_id: &str,
     skill_key: &str,
     disabled: bool,
-) -> BitFunResult<Vec<String>> {
+) -> VoidResult<Vec<String>> {
     let mode_skills = mode_skills_object_mut(document)?;
     let mode_entry = mode_skills
         .entry(mode_id.to_string())
@@ -181,7 +181,7 @@ pub fn set_mode_skill_disabled_in_document(
     }
 
     let mode_object = mode_entry.as_object_mut().ok_or_else(|| {
-        BitFunError::config("Mode skills entry must be a JSON object".to_string())
+        VoidError::config("Mode skills entry must be a JSON object".to_string())
     })?;
 
     let current = mode_object
@@ -218,7 +218,7 @@ pub fn set_disabled_mode_skills_in_document(
     document: &mut Value,
     mode_id: &str,
     skill_keys: Vec<String>,
-) -> BitFunResult<Vec<String>> {
+) -> VoidResult<Vec<String>> {
     let mode_skills = mode_skills_object_mut(document)?;
     let next = dedupe_skill_keys(skill_keys);
 
@@ -248,7 +248,7 @@ pub fn set_disabled_mode_skills_in_document(
     }
 
     let mode_object = mode_entry.as_object_mut().ok_or_else(|| {
-        BitFunError::config("Mode skills entry must be a JSON object".to_string())
+        VoidError::config("Mode skills entry must be a JSON object".to_string())
     })?;
 
     mode_object.insert(
@@ -259,14 +259,14 @@ pub fn set_disabled_mode_skills_in_document(
     Ok(next)
 }
 
-pub async fn load_project_mode_skills_document_local(workspace_root: &Path) -> BitFunResult<Value> {
+pub async fn load_project_mode_skills_document_local(workspace_root: &Path) -> VoidResult<Value> {
     let path = get_path_manager_arc().project_mode_skills_file(workspace_root);
     match tokio::fs::read_to_string(&path).await {
         Ok(content) => Ok(normalize_project_document_value(serde_json::from_str(
             &content,
         )?)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Value::Object(Map::new())),
-        Err(error) => Err(BitFunError::config(format!(
+        Err(error) => Err(VoidError::config(format!(
             "Failed to read project skill overrides file '{}': {}",
             path.display(),
             error
@@ -277,7 +277,7 @@ pub async fn load_project_mode_skills_document_local(workspace_root: &Path) -> B
 pub async fn save_project_mode_skills_document_local(
     workspace_root: &Path,
     document: &Value,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     let path = get_path_manager_arc().project_mode_skills_file(workspace_root);
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;
@@ -289,7 +289,7 @@ pub async fn save_project_mode_skills_document_local(
 pub async fn load_disabled_mode_skills_local(
     workspace_root: &Path,
     mode_id: &str,
-) -> BitFunResult<Vec<String>> {
+) -> VoidResult<Vec<String>> {
     let document = load_project_mode_skills_document_local(workspace_root).await?;
     Ok(get_disabled_mode_skills_from_document(&document, mode_id))
 }
@@ -298,7 +298,7 @@ pub async fn load_disabled_mode_skills_remote(
     fs: &dyn WorkspaceFileSystem,
     remote_root: &str,
     mode_id: &str,
-) -> BitFunResult<Vec<String>> {
+) -> VoidResult<Vec<String>> {
     let path = project_mode_skills_path_for_remote(remote_root);
     let exists = fs.exists(&path).await.unwrap_or(false);
     if !exists {
@@ -306,7 +306,7 @@ pub async fn load_disabled_mode_skills_remote(
     }
 
     let content = fs.read_file_text(&path).await.map_err(|error| {
-        BitFunError::config(format!(
+        VoidError::config(format!(
             "Failed to read remote project skill overrides: {}",
             error
         ))

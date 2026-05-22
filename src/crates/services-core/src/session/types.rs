@@ -1,6 +1,6 @@
 //! Types for session persistence
 
-use bitfun_core_types::SessionKind;
+use void_core_types::SessionKind;
 use serde::{Deserialize, Serialize};
 
 pub const SESSION_STORAGE_SCHEMA_VERSION: u32 = 2;
@@ -821,7 +821,7 @@ mod tests {
         DialogTurnData, DialogTurnKind, ModelRoundData, SessionMetadata, SessionRelationship,
         SessionRelationshipKind, ToolItemData, UserMessageData,
     };
-    use bitfun_core_types::SessionKind;
+    use void_core_types::SessionKind;
 
     #[test]
     fn dialog_turn_kind_defaults_to_user_dialog_for_legacy_payloads() {

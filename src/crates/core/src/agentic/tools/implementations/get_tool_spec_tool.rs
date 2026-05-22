@@ -7,9 +7,9 @@ use crate::agentic::tools::product_runtime::{
 use crate::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
-use bitfun_agent_tools::{GetToolSpecExecutionError, GET_TOOL_SPEC_TOOL_NAME};
+use void_agent_tools::{GetToolSpecExecutionError, GET_TOOL_SPEC_TOOL_NAME};
 use serde_json::Value;
 
 pub struct GetToolSpecTool;
@@ -41,7 +41,7 @@ impl Tool for GetToolSpecTool {
         GET_TOOL_SPEC_TOOL_NAME
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(self.build_collapsed_tools_description(None).await)
     }
 
@@ -52,7 +52,7 @@ impl Tool for GetToolSpecTool {
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         Ok(self.build_collapsed_tools_description(context).await)
     }
 
@@ -88,17 +88,17 @@ impl Tool for GetToolSpecTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         resolve_product_get_tool_spec_results(input, context, self.name())
             .await
             .map_err(map_get_tool_spec_execution_error)
     }
 }
 
-fn map_get_tool_spec_execution_error(error: GetToolSpecExecutionError) -> BitFunError {
+fn map_get_tool_spec_execution_error(error: GetToolSpecExecutionError) -> VoidError {
     match error {
-        GetToolSpecExecutionError::MissingToolName => BitFunError::tool(error.to_string()),
-        GetToolSpecExecutionError::Detail(message) => BitFunError::Validation(message),
+        GetToolSpecExecutionError::MissingToolName => VoidError::tool(error.to_string()),
+        GetToolSpecExecutionError::Detail(message) => VoidError::Validation(message),
     }
 }
 
@@ -110,7 +110,7 @@ mod tests {
     };
     use crate::agentic::tools::registry::get_global_tool_registry;
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use crate::util::errors::BitFunResult;
+    use crate::util::errors::VoidResult;
     use async_trait::async_trait;
     use serde_json::{json, Value};
     use std::collections::HashMap;
@@ -126,7 +126,7 @@ mod tests {
             &self.name
         }
 
-        async fn description(&self) -> BitFunResult<String> {
+        async fn description(&self) -> VoidResult<String> {
             Ok("Verbose description first line.\nSecond line.".to_string())
         }
 
@@ -154,7 +154,7 @@ mod tests {
             &self,
             _input: &Value,
             _context: &ToolUseContext,
-        ) -> BitFunResult<Vec<ToolResult>> {
+        ) -> VoidResult<Vec<ToolResult>> {
             Ok(Vec::new())
         }
     }

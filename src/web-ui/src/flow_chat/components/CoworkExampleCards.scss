@@ -2,7 +2,7 @@
  * Cowork example cards styles
  */
 
-.bitfun-cowork-example-cards {
+.void-cowork-example-cards {
   border: 1px solid var(--color-border);
   border-radius: calc(var(--flowchat-card-radius, 8px) + 2px);
   padding: var(--flowchat-card-expanded-pad-x, 0.625rem) var(--flowchat-card-expanded-pad-x, 0.625rem) var(--flowchat-card-expanded-pad-x, 0.625rem) 0;
@@ -82,7 +82,7 @@
 }
 
 @media (max-width: 720px) {
-  .bitfun-cowork-example-cards {
+  .void-cowork-example-cards {
     &__grid {
       grid-template-columns: 1fr;
     }

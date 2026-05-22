@@ -437,7 +437,7 @@ const SessionListPage: React.FC<SessionListPageProps> = ({ sessionMgr, onSelectS
     <div className="session-list">
       <div className="session-list__header">
         <div className="session-list__header-brand">
-          <img src={logoIcon} alt="BitFun" className="session-list__logo" />
+          <img src={logoIcon} alt="Void" className="session-list__logo" />
           <div className="session-list__header-copy">
             <h1>{t('common.appName')}</h1>
             {authenticatedUserId && (

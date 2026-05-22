@@ -1,6 +1,6 @@
-# BitFun Relay Server
+# Void Relay Server
 
-WebSocket relay server for BitFun Remote Connect. It bridges desktop (WebSocket) and mobile (HTTP) clients while forwarding end-to-end encrypted payloads.
+WebSocket relay server for Void Remote Connect. It bridges desktop (WebSocket) and mobile (HTTP) clients while forwarding end-to-end encrypted payloads.
 
 ## Features
 
@@ -17,8 +17,8 @@ WebSocket relay server for BitFun Remote Connect. It bridges desktop (WebSocket)
 
 ```bash
 # Clone on the target server
-git clone https://github.com/GCWing/BitFun
-cd BitFun/src/apps/relay-server
+git clone https://github.com/GCWing/Void
+cd Void/src/apps/relay-server
 
 # Deploy to the current machine
 bash deploy.sh
@@ -45,7 +45,7 @@ Notes:
 - `restart.sh` restarts the service when running, or starts it when stopped.
 - The container uses `restart: unless-stopped`.
 
-### What URL should I fill in BitFun Desktop?
+### What URL should I fill in Void Desktop?
 
 In **Remote Connect → Self-Hosted → Server URL**, use one of:
 
@@ -57,10 +57,10 @@ In **Remote Connect → Self-Hosted → Server URL**, use one of:
 
 ```bash
 # From project root
-cargo build --release -p bitfun-relay-server
+cargo build --release -p void-relay-server
 
 # Run
-RELAY_PORT=9700 ./target/release/bitfun-relay-server
+RELAY_PORT=9700 ./target/release/void-relay-server
 ```
 
 ## Deployment Checklist
@@ -72,7 +72,7 @@ RELAY_PORT=9700 ./target/release/bitfun-relay-server
    - `http://<server-ip>:9700/health`
 3. Decide the final URL strategy:
    - direct port or reverse proxy domain
-4. Fill the same URL into BitFun Desktop custom server settings
+4. Fill the same URL into Void Desktop custom server settings
 
 ## Environment Variables
 
@@ -80,7 +80,7 @@ RELAY_PORT=9700 ./target/release/bitfun-relay-server
 |----------|---------|-------------|
 | `RELAY_PORT` | `9700` | Server listen port |
 | `RELAY_STATIC_DIR` | `./static` | Path to mobile web static files (fallback SPA) |
-| `RELAY_ROOM_WEB_DIR` | `/tmp/bitfun-room-web` | Directory for per-room uploaded mobile-web files |
+| `RELAY_ROOM_WEB_DIR` | `/tmp/void-room-web` | Directory for per-room uploaded mobile-web files |
 | `RELAY_ROOM_TTL` | `3600` | Room TTL in seconds (0 = no expiry) |
 
 ## API Endpoints

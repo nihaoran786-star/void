@@ -16,7 +16,7 @@ export interface CodeEditorProps {
   /** Programming language */
   language?: string;
   /** Theme */
-  theme?: 'vs-dark' | 'vs-light' | 'hc-black' | 'bitfun-dark' | 'bitfun-light';
+  theme?: 'vs-dark' | 'vs-light' | 'hc-black' | 'void-dark' | 'void-light';
   /** Read-only */
   readOnly?: boolean;
   /** Show line numbers */
@@ -48,7 +48,7 @@ export interface CodeEditorProps {
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   value = '',
   language = 'typescript',
-  theme = 'bitfun-dark',
+  theme = 'void-dark',
   readOnly = false,
   lineNumbers = 'on',
   minimap = true,

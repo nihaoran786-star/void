@@ -230,8 +230,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
       });
     };
 
-    window.addEventListener('bitfun:session-switched', handleSessionSwitched);
-    return () => window.removeEventListener('bitfun:session-switched', handleSessionSwitched);
+    window.addEventListener('void:session-switched', handleSessionSwitched);
+    return () => window.removeEventListener('void:session-switched', handleSessionSwitched);
   }, []);
 
   const sessions = useMemo(
@@ -459,7 +459,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
   }
 
   return (
-    <div className="bitfun-nav-panel__inline-list">
+    <div className="void-nav-panel__inline-list">
       {visibleItems.map(({ session, level }) => {
           const isEditing = editingSessionId === session.sessionId;
           const relationship = resolveSessionRelationship(session);
@@ -489,15 +489,15 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           const showAssistantInTooltip = trimmedAssistant.length > 0;
           const showRichTooltip = showAssistantInTooltip || isChildSession;
           const tooltipContent = showRichTooltip ? (
-            <div className="bitfun-nav-panel__inline-item-tooltip">
-              <div className="bitfun-nav-panel__inline-item-tooltip-title">{sessionTitle}</div>
+            <div className="void-nav-panel__inline-item-tooltip">
+              <div className="void-nav-panel__inline-item-tooltip-title">{sessionTitle}</div>
               {showAssistantInTooltip ? (
-                <div className="bitfun-nav-panel__inline-item-tooltip-meta">
+                <div className="void-nav-panel__inline-item-tooltip-meta">
                   {t('nav.sessions.assistantOwner', { name: trimmedAssistant })}
                 </div>
               ) : null}
               {isChildSession ? (
-                <div className="bitfun-nav-panel__inline-item-tooltip-meta">
+                <div className="void-nav-panel__inline-item-tooltip-meta">
                   {parentTurnIndex
                     ? t('nav.sessions.childSourceWithTurn', {
                         parentTitle: parentTitle || t('nav.sessions.parentSession'),
@@ -537,7 +537,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           const row = (
             <div
               className={[
-                'bitfun-nav-panel__inline-item',
+                'void-nav-panel__inline-item',
                 level === 1 && 'is-child',
                 isChildSession && 'is-btw-child',
                 isRowActive && 'is-active',
@@ -549,12 +549,12 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
               onClick={() => handleSwitch(session.sessionId)}
             >
               {showSessionModeIcon ? (
-                <span className="bitfun-nav-panel__inline-item-icon-slot">
+                <span className="void-nav-panel__inline-item-icon-slot">
                   {isRunning ? (
                     <Loader2
                       size={14}
                       className={[
-                        'bitfun-nav-panel__inline-item-icon',
+                        'void-nav-panel__inline-item-icon',
                         'is-running',
                       ].join(' ')}
                     />
@@ -562,7 +562,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                     <SessionIcon
                       size={14}
                       className={[
-                        'bitfun-nav-panel__inline-item-icon',
+                        'void-nav-panel__inline-item-icon',
                         sessionModeKey === 'cowork'
                           ? 'is-cowork'
                           : sessionModeKey === 'claw'
@@ -574,7 +574,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                   {attentionKind ? (
                     <span
                       className={[
-                        'bitfun-nav-panel__inline-item-unread-dot',
+                        'void-nav-panel__inline-item-unread-dot',
                         attentionKind === 'error' && 'is-error',
                         attentionKind === 'interrupted' && 'is-interrupted',
                         attentionKind === 'ask_user' && 'is-ask-user',
@@ -598,10 +598,10 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
               ) : null}
 
               {isEditing ? (
-                <div className="bitfun-nav-panel__inline-item-edit" onClick={e => e.stopPropagation()}>
+                <div className="void-nav-panel__inline-item-edit" onClick={e => e.stopPropagation()}>
                   <Input
                     ref={editInputRef}
-                    className="bitfun-nav-panel__inline-item-edit-field"
+                    className="void-nav-panel__inline-item-edit-field"
                     variant="default"
                     inputSize="small"
                     value={editingTitle}
@@ -612,7 +612,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                   <IconButton
                     variant="success"
                     size="xs"
-                    className="bitfun-nav-panel__inline-item-edit-btn confirm"
+                    className="void-nav-panel__inline-item-edit-btn confirm"
                     onClick={e => { e.stopPropagation(); handleConfirmEdit(); }}
                     tooltip={t('nav.sessions.confirmEdit')}
                     tooltipPlacement="top"
@@ -622,7 +622,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                   <IconButton
                     variant="default"
                     size="xs"
-                    className="bitfun-nav-panel__inline-item-edit-btn cancel"
+                    className="void-nav-panel__inline-item-edit-btn cancel"
                     onMouseDown={e => { e.preventDefault(); e.stopPropagation(); handleCancelEdit(); }}
                     tooltip={t('nav.sessions.cancelEdit')}
                     tooltipPlacement="top"
@@ -632,47 +632,47 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                 </div>
               ) : (
                 <>
-                  <span className="bitfun-nav-panel__inline-item-main">
-                    <span className="bitfun-nav-panel__inline-item-label">{sessionTitle}</span>
+                  <span className="void-nav-panel__inline-item-main">
+                    <span className="void-nav-panel__inline-item-label">{sessionTitle}</span>
                     {isChildSession ? (
-                      <span className="bitfun-nav-panel__inline-item-btw-badge">{childSessionBadge}</span>
+                      <span className="void-nav-panel__inline-item-btw-badge">{childSessionBadge}</span>
                     ) : null}
                     {attentionKind === 'ask_user' || attentionKind === 'tool_confirm' ? (
-                      <span className="bitfun-nav-panel__inline-item-attention-badge">
+                      <span className="void-nav-panel__inline-item-attention-badge">
                         {attentionKind === 'ask_user'
                           ? t('nav.sessions.badgeNeedsInput')
                           : t('nav.sessions.badgeNeedsConfirm')}
                       </span>
                     ) : null}
                     {reviewActivityKind ? (
-                      <span className="bitfun-nav-panel__inline-item-review-badge">
+                      <span className="void-nav-panel__inline-item-review-badge">
                         <Loader2 size={9} aria-hidden />
                         {getReviewActivityBadge(reviewActivityKind)}
                       </span>
                     ) : null}
                   </span>
                   <div
-                    className={`bitfun-nav-panel__inline-item-actions${openMenuSessionId === session.sessionId ? ' is-open' : ''}`}
+                    className={`void-nav-panel__inline-item-actions${openMenuSessionId === session.sessionId ? ' is-open' : ''}`}
                   >
                     <button
                       type="button"
                       ref={openMenuSessionId === session.sessionId ? sessionMenuAnchorRef : undefined}
-                      className={`bitfun-nav-panel__inline-item-action-btn${openMenuSessionId === session.sessionId ? ' is-open' : ''}`}
+                      className={`void-nav-panel__inline-item-action-btn${openMenuSessionId === session.sessionId ? ' is-open' : ''}`}
                       onClick={e => handleMenuOpen(e, session.sessionId)}
                     >
-                      <MoreHorizontal size="var(--bitfun-nav-row-action-icon-size)" />
+                      <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
                     </button>
                   </div>
                   {openMenuSessionId === session.sessionId && sessionMenuPosition && createPortal(
                     <div
                       ref={sessionMenuPopoverRef}
-                      className="bitfun-nav-panel__inline-item-menu-popover"
+                      className="void-nav-panel__inline-item-menu-popover"
                       role="menu"
                       style={{ top: `${sessionMenuPosition.top}px`, left: `${sessionMenuPosition.left}px` }}
                     >
                       <button
                         type="button"
-                        className="bitfun-nav-panel__inline-item-menu-item"
+                        className="void-nav-panel__inline-item-menu-item"
                         onClick={e => { setOpenMenuSessionId(null); handleStartEdit(e, session); }}
                       >
                         <Pencil size={13} />
@@ -680,7 +680,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                       </button>
                       <button
                         type="button"
-                        className="bitfun-nav-panel__inline-item-menu-item is-danger"
+                        className="void-nav-panel__inline-item-menu-item is-danger"
                         onClick={e => { setOpenMenuSessionId(null); void handleDelete(e, session.sessionId); }}
                       >
                         <Trash2 size={13} />
@@ -703,7 +703,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
       {topLevelSessions.length > SESSIONS_LEVEL_0 && (
         <button
           type="button"
-          className="bitfun-nav-panel__inline-toggle"
+          className="void-nav-panel__inline-toggle"
           onClick={() => {
             const total = topLevelSessions.length;
             if (expandLevel === 0) {
@@ -719,7 +719,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
         >
           {expandLevel === 0 ? (
             <>
-              <span className="bitfun-nav-panel__inline-toggle-dots">···</span>
+              <span className="void-nav-panel__inline-toggle-dots">···</span>
               <span>
                 {t('nav.sessions.showMore', {
                   count: topLevelSessions.length - SESSIONS_LEVEL_0,
@@ -728,7 +728,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
             </>
           ) : expandLevel === 1 && topLevelSessions.length > SESSIONS_LEVEL_1 ? (
             <>
-              <span className="bitfun-nav-panel__inline-toggle-dots">···</span>
+              <span className="void-nav-panel__inline-toggle-dots">···</span>
               <span>
                 {t('nav.sessions.showAll', {
                   count: topLevelSessions.length - SESSIONS_LEVEL_1,

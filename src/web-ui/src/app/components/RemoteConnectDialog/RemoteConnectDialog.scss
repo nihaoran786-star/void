@@ -1,17 +1,17 @@
 @use '../../../component-library/styles/tokens' as *;
 
-.bitfun-remote-connect {
+.void-remote-connect {
   display: flex;
   flex-direction: column;
 }
 
-.bitfun-remote-connect__title-extra {
+.void-remote-connect__title-extra {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-.bitfun-remote-connect__disclaimer-trigger {
+.void-remote-connect__disclaimer-trigger {
   border: none;
   background: transparent;
   padding: 0;
@@ -34,7 +34,7 @@
 
 // ==================== Group tabs (top level) ====================
 
-.bitfun-remote-connect__groups {
+.void-remote-connect__groups {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,7 +42,7 @@
   gap: 0;
 }
 
-.bitfun-remote-connect__group-btn {
+.void-remote-connect__group-btn {
   background: none;
   border: none;
   padding: 6px 20px;
@@ -71,14 +71,14 @@
   }
 }
 
-.bitfun-remote-connect__group-divider {
+.void-remote-connect__group-divider {
   width: 1px;
   height: 16px;
   background: var(--border-subtle);
   flex-shrink: 0;
 }
 
-.bitfun-remote-connect__dot {
+.void-remote-connect__dot {
   display: inline-block;
   width: 7px;
   height: 7px;
@@ -89,7 +89,7 @@
 
 // ==================== Sub-tabs (second level) ====================
 
-.bitfun-remote-connect__subtabs {
+.void-remote-connect__subtabs {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -97,7 +97,7 @@
   gap: 0;
 }
 
-.bitfun-remote-connect__subtab {
+.void-remote-connect__subtab {
   background: none;
   border: none;
   padding: 4px 10px;
@@ -131,14 +131,14 @@
   }
 }
 
-.bitfun-remote-connect__subtab-divider {
+.void-remote-connect__subtab-divider {
   width: 1px;
   height: 12px;
   background: var(--border-subtle);
   flex-shrink: 0;
 }
 
-.bitfun-remote-connect__dot-sm {
+.void-remote-connect__dot-sm {
   display: inline-block;
   width: 5px;
   height: 5px;
@@ -149,7 +149,7 @@
 
 // ==================== Body ====================
 
-.bitfun-remote-connect__body {
+.void-remote-connect__body {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -159,7 +159,7 @@
 
 // ==================== QR box ====================
 
-.bitfun-remote-connect__qr-box {
+.void-remote-connect__qr-box {
   width: 200px;
   height: 200px;
   border-radius: 10px;
@@ -188,14 +188,14 @@
 
 // ==================== Pairing code (bot) ====================
 
-.bitfun-remote-connect__pairing-code-box {
+.void-remote-connect__pairing-code-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
 }
 
-.bitfun-remote-connect__pairing-code {
+.void-remote-connect__pairing-code {
   font-size: 36px;
   font-weight: 700;
   letter-spacing: 8px;
@@ -210,20 +210,20 @@
 
 // ==================== Status ====================
 
-.bitfun-remote-connect__status {
+.void-remote-connect__status {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.bitfun-remote-connect__peer-user-id {
+.void-remote-connect__peer-user-id {
   font-size: 12px;
   color: var(--color-text-secondary);
 }
 
 // ==================== Ngrok usage link ====================
 
-.bitfun-remote-connect__ngrok-usage-link {
+.void-remote-connect__ngrok-usage-link {
   text-align: center;
   padding: 10px 0 2px;
   margin: 0;
@@ -232,7 +232,7 @@
 
 // ==================== Connected ====================
 
-.bitfun-remote-connect__connected {
+.void-remote-connect__connected {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -242,8 +242,8 @@
 
 // ==================== Hint text ====================
 
-.bitfun-remote-connect__hint,
-.bitfun-remote-connect__description {
+.void-remote-connect__hint,
+.void-remote-connect__description {
   font-size: 12px;
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -252,15 +252,15 @@
   max-width: 420px;
 }
 
-.bitfun-remote-connect__hint {
+.void-remote-connect__hint {
   text-align: center;
 }
 
-.bitfun-remote-connect__description {
+.void-remote-connect__description {
   text-align: left;
 }
 
-.bitfun-remote-connect__info-card {
+.void-remote-connect__info-card {
   width: 100%;
   max-width: 360px;
   margin: 0 auto;
@@ -271,8 +271,8 @@
   box-sizing: border-box;
 }
 
-.bitfun-remote-connect__info-text,
-.bitfun-remote-connect__info-meta {
+.void-remote-connect__info-text,
+.void-remote-connect__info-meta {
   font-size: 12px;
   color: var(--color-text-muted);
   line-height: 1.7;
@@ -280,7 +280,7 @@
   text-align: left;
 }
 
-.bitfun-remote-connect__info-meta-group {
+.void-remote-connect__info-meta-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -289,8 +289,8 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.bitfun-remote-connect__description-link,
-.bitfun-remote-connect__step-link {
+.void-remote-connect__description-link,
+.void-remote-connect__step-link {
   color: var(--color-text-secondary);
   text-decoration: underline;
   cursor: pointer;
@@ -308,21 +308,21 @@
   }
 }
 
-.bitfun-remote-connect__error {
+.void-remote-connect__error {
   font-size: 12px;
   color: var(--color-danger);
   text-align: center;
   margin: 0;
 }
 
-.bitfun-remote-connect__error-group {
+.void-remote-connect__error-group {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
 }
 
-.bitfun-remote-connect__error-action {
+.void-remote-connect__error-action {
   background: transparent;
   border: none;
   padding: 0;
@@ -338,30 +338,30 @@
 
 // ==================== Input ====================
 
-.bitfun-remote-connect__field {
+.void-remote-connect__field {
   width: 100%;
   max-width: 280px;
 
-  .bitfun-input-label {
+  .void-input-label {
     font-size: 12px;
     color: var(--color-text-muted);
     margin-bottom: 0;
   }
 
-  .bitfun-input-container {
+  .void-input-container {
     min-height: 32px;
   }
 
   &--inline {
     max-width: 360px;
 
-    .bitfun-input-container {
+    .void-input-container {
       gap: 12px;
     }
   }
 }
 
-.bitfun-remote-connect__field-prefix {
+.void-remote-connect__field-prefix {
   min-width: 96px;
   color: var(--color-text-secondary);
   text-align: left;
@@ -370,7 +370,7 @@
 
 // ==================== Buttons ====================
 
-.bitfun-remote-connect__btn {
+.void-remote-connect__btn {
   padding: 8px 24px;
   font-size: 13px;
   font-weight: 500;
@@ -414,7 +414,7 @@
 
 // ==================== Bot guide ====================
 
-.bitfun-remote-connect__bot-guide {
+.void-remote-connect__bot-guide {
   width: 100%;
   max-width: 460px;
   display: flex;
@@ -422,23 +422,23 @@
   align-items: center;
   gap: 12px;
 
-  .bitfun-remote-connect__field {
+  .void-remote-connect__field {
     display: flex;
     flex-direction: column;
     align-items: center;
     margin: 0 auto;
 
-    .bitfun-input-label {
+    .void-input-label {
       text-align: center;
     }
   }
 
-  .bitfun-remote-connect__field--inline {
+  .void-remote-connect__field--inline {
     align-items: stretch;
   }
 }
 
-.bitfun-remote-connect__steps {
+.void-remote-connect__steps {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -446,7 +446,7 @@
   width: 100%;
 }
 
-.bitfun-remote-connect__step {
+.void-remote-connect__step {
   font-size: 12px;
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -457,7 +457,7 @@
 
 // ==================== Bot mode selector ====================
 
-.bitfun-remote-connect__mode-selector {
+.void-remote-connect__mode-selector {
   display: inline-flex;
   align-items: center;
   padding: 3px;
@@ -466,7 +466,7 @@
   border-radius: 20px;
 }
 
-.bitfun-remote-connect__mode-btn {
+.void-remote-connect__mode-btn {
   padding: 5px 14px;
   font-size: var(--font-size-xs);
   font-weight: $font-weight-medium;
@@ -496,12 +496,12 @@
   }
 }
 
-.bitfun-remote-connect__weixin-qr {
+.void-remote-connect__weixin-qr {
   margin-top: 12px;
   text-align: center;
 }
 
-.bitfun-remote-connect__weixin-qr-img {
+.void-remote-connect__weixin-qr-img {
   display: block;
   max-width: 220px;
   height: auto;
@@ -509,7 +509,7 @@
   border-radius: 8px;
 }
 
-.bitfun-remote-connect__weixin-qr-svg-wrap {
+.void-remote-connect__weixin-qr-svg-wrap {
   display: inline-block;
   margin: 0 auto 8px;
   padding: 10px;

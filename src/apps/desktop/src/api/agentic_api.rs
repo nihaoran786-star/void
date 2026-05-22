@@ -7,19 +7,19 @@ use tauri::{AppHandle, State};
 
 use crate::api::app_state::AppState;
 use crate::api::session_storage_path::desktop_effective_session_storage_path;
-use bitfun_core::agentic::coordination::{
+use void_core::agentic::coordination::{
     AssistantBootstrapBlockReason, AssistantBootstrapEnsureOutcome, AssistantBootstrapSkipReason,
     ConversationCoordinator, DialogScheduler, DialogSubmissionPolicy, DialogTriggerSource,
     SubagentTimeoutAction,
 };
-use bitfun_core::agentic::core::*;
-use bitfun_core::agentic::deep_review_policy::{
+use void_core::agentic::core::*;
+use void_core::agentic::deep_review_policy::{
     apply_deep_review_queue_control, default_review_team_definition, DeepReviewQueueControlAction,
     ReviewTeamDefinition,
 };
-use bitfun_core::agentic::image_analysis::ImageContextData;
-use bitfun_core::agentic::tools::image_context::get_image_context;
-use bitfun_core::service::session::{DialogTurnData, SessionRelationship};
+use void_core::agentic::image_analysis::ImageContextData;
+use void_core::agentic::tools::image_context::get_image_context;
+use void_core::service::session::{DialogTurnData, SessionRelationship};
 
 const SESSION_VIEW_TOOL_RESULT_TOTAL_CHAR_BUDGET: usize = 512 * 1024;
 const SESSION_VIEW_TOOL_RESULT_STRING_CHAR_LIMIT: usize = 16 * 1024;
@@ -907,7 +907,7 @@ pub async fn cancel_dialog_turn(
 ) -> Result<(), String> {
     if let Some(acp_client_service) = app_state.acp_client_service.as_ref() {
         match acp_client_service
-            .cancel_bitfun_session(&request.session_id)
+            .cancel_void_session(&request.session_id)
             .await
         {
             Ok(true) => return Ok(()),
@@ -961,7 +961,7 @@ pub async fn steer_dialog_turn(
         .map_err(|e| format!("Failed to steer dialog turn: {}", e))?;
 
     let steering_id = match outcome {
-        bitfun_core::agentic::coordination::DialogSteerOutcome::Buffered {
+        void_core::agentic::coordination::DialogSteerOutcome::Buffered {
             steering_id, ..
         } => steering_id,
     };
@@ -1097,7 +1097,7 @@ pub async fn delete_session(
     .await;
     if let Some(acp_client_service) = app_state.acp_client_service.as_ref() {
         acp_client_service
-            .release_bitfun_session(&request.session_id)
+            .release_void_session(&request.session_id)
             .await;
     }
     coordinator
@@ -1463,7 +1463,7 @@ fn system_time_to_unix_secs(time: std::time::SystemTime) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitfun_core::service::session::{
+    use void_core::service::session::{
         ModelRoundData, ToolCallData, ToolItemData, ToolResultData, TurnStatus, UserMessageData,
     };
     use serde_json::json;

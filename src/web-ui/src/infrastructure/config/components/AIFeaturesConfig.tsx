@@ -145,12 +145,12 @@ const AIFeaturesConfig: React.FC = () => {
 
   if (isLoading) {
     return (
-      <ConfigPageLayout className="bitfun-func-agent-config">
+      <ConfigPageLayout className="void-func-agent-config">
         <ConfigPageHeader
           title={t('title')}
           subtitle={t('subtitle')}
         />
-        <ConfigPageContent className="bitfun-func-agent-config__content">
+        <ConfigPageContent className="void-func-agent-config__content">
           <ConfigPageLoading text={t('loading.text')} />
         </ConfigPageContent>
       </ConfigPageLayout>
@@ -158,13 +158,13 @@ const AIFeaturesConfig: React.FC = () => {
   }
 
   return (
-    <ConfigPageLayout className="bitfun-func-agent-config">
+    <ConfigPageLayout className="void-func-agent-config">
       <ConfigPageHeader
         title={t('title')}
         subtitle={t('subtitle')}
       />
       
-      <ConfigPageContent className="bitfun-func-agent-config__content">
+      <ConfigPageContent className="void-func-agent-config__content">
         {FEATURE_CONFIGS.map((feature) => {
           const hasSwitch = !!feature.settingKey;
           const hasModel = !!feature.agentName;
@@ -184,7 +184,7 @@ const AIFeaturesConfig: React.FC = () => {
                   description={warning && !isEnabled ? warning : undefined}
                   align="center"
                 >
-                  <div className="bitfun-func-agent-config__row-control">
+                  <div className="void-func-agent-config__row-control">
                     <Switch
                       checked={isEnabled}
                       onChange={(e) => updateSetting(feature.settingKey!, e.target.checked)}
@@ -196,12 +196,12 @@ const AIFeaturesConfig: React.FC = () => {
 
               {hasModel && (
                 <ConfigPageRow
-                  className="bitfun-func-agent-config__model-row"
+                  className="void-func-agent-config__model-row"
                   label={t('model.label')}
                   description={enabledModels.length === 0 ? t('models.empty') : undefined}
                   align="center"
                 >
-                  <div className="bitfun-func-agent-config__row-control bitfun-func-agent-config__row-control--model">
+                  <div className="void-func-agent-config__row-control void-func-agent-config__row-control--model">
                     <ModelSelectionRadio
                       value={configuredModelId}
                       models={enabledModels}

@@ -1,11 +1,11 @@
-# BitFun 繁體中文語言包
+# Void 繁體中文語言包
 # Chinese Traditional (zh-TW) Fluent Translation File
 
 # ==================== 通用 ====================
-app-name = BitFun
+app-name = Void
 app-version = 版本 { $version }
 loading = 加載中...
-welcome = 歡迎使用 BitFun
+welcome = 歡迎使用 Void
 
 # ==================== 操作 ====================
 action-confirm = 確認

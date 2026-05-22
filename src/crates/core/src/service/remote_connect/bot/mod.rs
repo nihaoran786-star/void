@@ -124,12 +124,12 @@ pub fn resolve_workspace_path(
     raw: &str,
     workspace_root: Option<&std::path::Path>,
 ) -> Option<std::path::PathBuf> {
-    bitfun_services_integrations::remote_connect::resolve_remote_workspace_path(raw, workspace_root)
+    void_services_integrations::remote_connect::resolve_remote_workspace_path(raw, workspace_root)
 }
 
 /// Return the best-effort MIME type for a file based on its extension.
 pub fn detect_mime_type(path: &std::path::Path) -> &'static str {
-    bitfun_services_integrations::remote_connect::detect_remote_mime_type(path)
+    void_services_integrations::remote_connect::detect_remote_mime_type(path)
 }
 
 /// Read a workspace file, resolving `computer://` prefixes.
@@ -144,7 +144,7 @@ pub async fn read_workspace_file(
     max_size: u64,
     workspace_root: Option<&std::path::Path>,
 ) -> anyhow::Result<WorkspaceFileContent> {
-    let content = bitfun_services_integrations::remote_connect::read_remote_workspace_file(
+    let content = void_services_integrations::remote_connect::read_remote_workspace_file(
         raw_path,
         max_size,
         workspace_root,
@@ -485,13 +485,13 @@ const LEGACY_BOT_PERSISTENCE_FILENAME: &str = "bot_connections.json";
 
 pub fn bot_persistence_path() -> Option<std::path::PathBuf> {
     dirs::home_dir().map(|home| {
-        home.join(".bitfun")
+        home.join(".void")
             .join(REMOTE_CONNECT_PERSISTENCE_FILENAME)
     })
 }
 
 fn legacy_bot_persistence_path() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|home| home.join(".bitfun").join(LEGACY_BOT_PERSISTENCE_FILENAME))
+    dirs::home_dir().map(|home| home.join(".void").join(LEGACY_BOT_PERSISTENCE_FILENAME))
 }
 
 pub fn load_bot_persistence() -> BotPersistenceData {
@@ -532,7 +532,7 @@ mod tests {
 
     fn make_temp_workspace() -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
         let base = std::env::temp_dir().join(format!(
-            "bitfun-remote-connect-test-{}",
+            "void-remote-connect-test-{}",
             uuid::Uuid::new_v4()
         ));
         let workspace = base.join("workspace");

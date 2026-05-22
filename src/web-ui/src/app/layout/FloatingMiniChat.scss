@@ -18,7 +18,7 @@ $panel-width: 380px;
 $panel-height: 620px;
 
 // ─── Root container ────────────────────────────────────────
-.bitfun-fmc {
+.void-fmc {
   position: fixed;
   bottom: $button-offset;
   right: $button-offset;
@@ -38,14 +38,14 @@ $panel-height: 620px;
 }
 
 // ─── Fullscreen backdrop (catches outside clicks) ──────────
-.bitfun-fmc__backdrop {
+.void-fmc__backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
 }
 
 // ─── Circular trigger button ───────────────────────────────
-.bitfun-fmc__button {
+.void-fmc__button {
   width: $button-size;
   height: $button-size;
   border-radius: 50%;
@@ -81,7 +81,7 @@ $panel-height: 620px;
   }
 
   // Hide when panel is open
-  .bitfun-fmc--open & {
+  .void-fmc--open & {
     opacity: 0;
     transform: scale(0.5);
     pointer-events: none;
@@ -89,7 +89,7 @@ $panel-height: 620px;
 }
 
 // ─── Panel ─────────────────────────────────────────────────
-.bitfun-fmc__panel {
+.void-fmc__panel {
   position: absolute;
   bottom: 0;
   right: 0;
@@ -178,7 +178,7 @@ $panel-height: 620px;
 }
 
 // ─── Header ────────────────────────────────────────────────
-.bitfun-fmc__header {
+.void-fmc__header {
   flex: 0 0 auto;
   height: 36px;
   display: flex;
@@ -188,7 +188,7 @@ $panel-height: 620px;
   border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
 }
 
-.bitfun-fmc__header-btn {
+.void-fmc__header-btn {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
@@ -233,13 +233,13 @@ $panel-height: 620px;
 }
 
 // ─── Title / session picker ────────────────────────────────
-.bitfun-fmc__title-wrapper {
+.void-fmc__title-wrapper {
   flex: 1;
   min-width: 0;
   position: relative;
 }
 
-.bitfun-fmc__title-btn {
+.void-fmc__title-btn {
   width: 100%;
   display: flex;
   align-items: center;
@@ -264,7 +264,7 @@ $panel-height: 620px;
   }
 }
 
-.bitfun-fmc__title-text {
+.void-fmc__title-text {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -272,12 +272,12 @@ $panel-height: 620px;
   text-align: left;
 }
 
-.bitfun-fmc__title-chevron {
+.void-fmc__title-chevron {
   flex-shrink: 0;
   opacity: 0;
   transition: transform 0.2s ease, opacity 0.15s ease;
 
-  .bitfun-fmc__title-btn:hover & {
+  .void-fmc__title-btn:hover & {
     opacity: 1;
   }
 
@@ -287,7 +287,7 @@ $panel-height: 620px;
   }
 }
 
-.bitfun-fmc__session-dropdown {
+.void-fmc__session-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
@@ -312,7 +312,7 @@ $panel-height: 620px;
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.bitfun-fmc__session-item {
+.void-fmc__session-item {
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -340,7 +340,7 @@ $panel-height: 620px;
 }
 
 // ─── FlowChat body ─────────────────────────────────────────
-.bitfun-fmc__body {
+.void-fmc__body {
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -361,7 +361,7 @@ $panel-height: 620px;
 }
 
 // ─── Input bar ─────────────────────────────────────────────
-.bitfun-fmc__input-bar {
+.void-fmc__input-bar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -371,12 +371,12 @@ $panel-height: 620px;
   background: var(--element-bg-subtle, rgba(255, 255, 255, 0.02));
 }
 
-.bitfun-fmc__input-wrapper {
+.void-fmc__input-wrapper {
   flex: 1;
   min-width: 0;
 }
 
-.bitfun-fmc__input-btn {
+.void-fmc__input-btn {
   flex-shrink: 0;
   border: none;
   outline: none;
@@ -448,7 +448,7 @@ $panel-height: 620px;
 }
 
 @media (max-width: 900px) {
-  .bitfun-fmc--miniapp-customizing {
+  .void-fmc--miniapp-customizing {
     right: $button-offset;
     bottom: calc(#{$button-offset} + 64px);
   }

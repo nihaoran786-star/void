@@ -1,1 +1,1 @@
-pub use bitfun_services_integrations::git::GitService;
+pub use void_services_integrations::git::GitService;

@@ -1381,7 +1381,7 @@ async fn create_session(state: &mut BotChatState, agent_type: &str) -> HandleRes
     use crate::agentic::coordination::get_global_coordinator;
     use crate::service::workspace::get_global_workspace_service;
     use crate::service_agent_runtime::CoreServiceAgentRuntime;
-    use bitfun_services_integrations::remote_connect::{
+    use void_services_integrations::remote_connect::{
         build_remote_session_create_request, RemoteConnectSubmissionSource,
     };
 
@@ -2063,7 +2063,7 @@ pub async fn execute_forwarded_turn(
     use crate::service::remote_connect::remote_server::{
         get_or_init_global_dispatcher, TrackerEvent,
     };
-    use bitfun_services_integrations::remote_connect::RemoteConnectSubmissionSource;
+    use void_services_integrations::remote_connect::RemoteConnectSubmissionSource;
 
     let language = current_bot_language().await;
     let s = strings_for(language);
@@ -2490,7 +2490,7 @@ mod menu_tests {
     #[test]
     fn assistant_mode_body_uses_display_name_not_dir_name() {
         let mut state = BotChatState::new("c".into());
-        state.current_assistant = Some("/tmp/bitfun_assistants/workspace-abc123".to_string());
+        state.current_assistant = Some("/tmp/void_assistants/workspace-abc123".to_string());
         state.current_assistant_name = Some("默认助理".to_string());
         let s = strings_for(BotLanguage::ZhCN);
         let view = main_menu_view(&state, s);
@@ -2571,7 +2571,7 @@ mod handle_chat_tests {
         state.current_assistant = Some("/tmp/a".into());
         state.current_session_id = Some("s1".into());
         let s = strings_for(BotLanguage::ZhCN);
-        let result = handle_chat(&mut state, "hello bitfun", vec![], s).await;
+        let result = handle_chat(&mut state, "hello void", vec![], s).await;
 
         assert!(
             result.forward_to_session.is_some(),

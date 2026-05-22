@@ -2,14 +2,14 @@
 
 use crate::api::app_state::AppState;
 use crate::api::session_storage_path::desktop_effective_session_storage_path;
-use bitfun_core::agentic::persistence::{
+use void_core::agentic::persistence::{
     PersistenceManager, SessionBranchRequest, SessionBranchResult,
 };
-use bitfun_core::infrastructure::PathManager;
-use bitfun_core::service::session::{
+use void_core::infrastructure::PathManager;
+use void_core::service::session::{
     DialogTurnData, SessionMetadata, SessionTranscriptExport, SessionTranscriptExportOptions,
 };
-use bitfun_core::service::session_usage::{
+use void_core::service::session_usage::{
     generate_session_usage_report, SessionUsageReport, SessionUsageReportRequest,
 };
 use serde::{Deserialize, Serialize};

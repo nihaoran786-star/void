@@ -730,27 +730,27 @@
     min-height: 0;
     flex: 1;
 
-    &.bitfun-tabs,
-    .bitfun-tabs__content,
-    .bitfun-tab-pane {
+    &.void-tabs,
+    .void-tabs__content,
+    .void-tab-pane {
       min-height: 0;
       height: 100%;
     }
 
-    .bitfun-tabs__nav {
+    .void-tabs__nav {
       padding: 8px 12px 0;
       border-bottom: 1px solid var(--border-base);
       background: transparent;
     }
 
-    .bitfun-tabs__nav-list {
+    .void-tabs__nav-list {
       gap: 2px;
       padding: 0;
       border-radius: 0;
       background: transparent;
     }
 
-    .bitfun-tabs__tab {
+    .void-tabs__tab {
       position: relative;
       min-height: 30px;
       padding: 0 10px 8px;
@@ -780,7 +780,7 @@
       }
 
       &.active,
-      &.bitfun-tabs__tab--active,
+      &.void-tabs__tab--active,
       &[aria-selected='true'] {
         color: var(--color-text-primary);
         background: transparent;

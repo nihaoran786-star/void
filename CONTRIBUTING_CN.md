@@ -2,7 +2,7 @@
 
 [English](./CONTRIBUTING.md)
 
-感谢你对 BitFun 的兴趣！BitFun 是一个由 Rust 与 TypeScript 驱动的多端 AI 编程环境，桌面端/CLI/Server 共享核心逻辑。本指南说明如何高效参与贡献。
+感谢你对 Void 的兴趣！Void 是一个由 Rust 与 TypeScript 驱动的多端 AI 编程环境，桌面端/CLI/Server 共享核心逻辑。本指南说明如何高效参与贡献。
 
 ## 行为准则
 
@@ -21,10 +21,10 @@
 
 桌面端包含 SSH 远程功能，会链接 OpenSSL。Windows 上**不使用 OpenSSL 源码编译（vendored）**，需使用**预编译**库。
 
-- **默认**：Windows 下 `pnpm run desktop:dev` 会调用 `ensure-openssl-windows.mjs`；`pnpm run desktop:preview:debug` 在需要为预览执行快速本地 `cargo build -p bitfun-desktop` 时，也会做同样的 OpenSSL 引导。所有 `desktop:build*` 均通过 `scripts/desktop-tauri-build.mjs` 执行，在 `tauri build` 前做相同引导（首次下载到 `.bitfun/cache/`，之后走缓存）。
+- **默认**：Windows 下 `pnpm run desktop:dev` 会调用 `ensure-openssl-windows.mjs`；`pnpm run desktop:preview:debug` 在需要为预览执行快速本地 `cargo build -p void-desktop` 时，也会做同样的 OpenSSL 引导。所有 `desktop:build*` 均通过 `scripts/desktop-tauri-build.mjs` 执行，在 `tauri build` 前做相同引导（首次下载到 `.void/cache/`，之后走缓存）。
 - **手动 / CI**：下载 [FireDaemon ZIP](https://download.firedaemon.com/FireDaemon-OpenSSL/openssl-3.5.5.zip)，解压后将 `OPENSSL_DIR` 指向 `x64`，并设 `OPENSSL_STATIC=1`，或运行 `scripts/ci/setup-openssl-windows.ps1`。
-- **关闭自动下载**：设置 `BITFUN_SKIP_OPENSSL_BOOTSTRAP=1` 并自行配置 `OPENSSL_DIR`。
-- **`desktop:dev:raw`** 不经过 `dev.cjs`（无 OpenSSL 引导）；请自行设置 `OPENSSL_DIR`、运行 `scripts/ci/setup-openssl-windows.ps1`，或执行 `node scripts/ensure-openssl-windows.mjs`（会预热 `.bitfun/cache/` 并打印可在 PowerShell 中粘贴的 `OPENSSL_*` 命令）。
+- **关闭自动下载**：设置 `VOID_SKIP_OPENSSL_BOOTSTRAP=1` 并自行配置 `OPENSSL_DIR`。
+- **`desktop:dev:raw`** 不经过 `dev.cjs`（无 OpenSSL 引导）；请自行设置 `OPENSSL_DIR`、运行 `scripts/ci/setup-openssl-windows.ps1`，或执行 `node scripts/ensure-openssl-windows.mjs`（会预热 `.void/cache/` 并打印可在 PowerShell 中粘贴的 `OPENSSL_*` 命令）。
 
 ### 安装依赖
 
@@ -68,7 +68,7 @@ pnpm run e2e:test
 - 颜色值（文本、背景、边框）
 - 元素属性
 
-采集的数据以结构化 JSON 形式输出到 `bitfun::devtools` 日志目标下。
+采集的数据以结构化 JSON 形式输出到 `void::devtools` 日志目标下。
 
 ## 代码规范与架构约束
 
@@ -83,9 +83,9 @@ pnpm run e2e:test
 `core` 中禁止引入平台相关依赖：
 
 - ❌ `tauri::AppHandle`
-- ✅ `bitfun_events::EventEmitter`
+- ✅ `void_events::EventEmitter`
 
-进行 `bitfun-core` 拆解或构建提速重构时，请遵循
+进行 `void-core` 拆解或构建提速重构时，请遵循
 [`docs/architecture/core-decomposition.md`](docs/architecture/core-decomposition.md)，
 不要把产品 feature set 或 release 脚本变更作为顺手改动。
 

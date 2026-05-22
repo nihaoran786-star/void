@@ -1,8 +1,8 @@
 [中文](E2E-TESTING-GUIDE.zh-CN.md) | **English**
 
-# BitFun E2E Testing Guide
+# Void E2E Testing Guide
 
-Complete guide for E2E testing in BitFun project using WebDriverIO + BitFun embedded WebDriver.
+Complete guide for E2E testing in Void project using WebDriverIO + Void embedded WebDriver.
 
 ## Table of Contents
 
@@ -16,7 +16,7 @@ Complete guide for E2E testing in BitFun project using WebDriverIO + BitFun embe
 
 ## Testing Philosophy
 
-BitFun E2E tests focus on **user journeys** and **critical paths** to ensure the desktop application works correctly from the user's perspective. We use a layered testing approach to balance coverage and execution speed.
+Void E2E tests focus on **user journeys** and **critical paths** to ensure the desktop application works correctly from the user's perspective. We use a layered testing approach to balance coverage and execution speed.
 
 ### Key Principles
 
@@ -28,7 +28,7 @@ BitFun E2E tests focus on **user journeys** and **critical paths** to ensure the
 
 ## Test Levels
 
-BitFun uses a 3-tier test classification system:
+Void uses a 3-tier test classification system:
 
 ### L0 - Smoke Tests (Critical Path)
 
@@ -118,15 +118,15 @@ pnpm install
 
 # Build the application (from project root)
 cd ../..
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 ```
 
 ### 2. Verify Installation
 
 Check that the app binary exists:
 
-**Windows**: `target/debug/bitfun-desktop.exe`
-**Linux/macOS**: `target/debug/bitfun-desktop`
+**Windows**: `target/debug/void-desktop.exe`
+**Linux/macOS**: `target/debug/void-desktop`
 
 ### 3. Run Tests
 
@@ -151,7 +151,7 @@ pnpm test -- --spec ./specs/l0-smoke.spec.ts
 The test framework runs in debug/dev mode:
 
 #### Debug Mode (Default)
-- **Application Path**: `target/debug/bitfun-desktop.exe`
+- **Application Path**: `target/debug/void-desktop.exe`
 - **Characteristics**: Includes debug symbols, requires dev server (port 1422)
 - **Use Case**: Local development, rapid iteration
 
@@ -161,11 +161,11 @@ When running tests, check the first few lines of output:
 
 ```bash
 # Debug Mode Output
-application: <PROJECT_ROOT>\target\debug\bitfun-desktop.exe
+application: <PROJECT_ROOT>\target\debug\void-desktop.exe
 Debug build detected, checking dev server...
 ```
 
-**Core Principle**: E2E uses `target/debug/bitfun-desktop.exe` only. If the debug binary is missing, the run should fail instead of falling back to `release`.
+**Core Principle**: E2E uses `target/debug/void-desktop.exe` only. If the debug binary is missing, the run should fail instead of falling back to `release`.
 
 ## Test Structure
 
@@ -370,7 +370,7 @@ await waitForStreamingComplete('[data-testid="model-response"]', 2000, 30000);
 3. **Don't test internal implementation** - Focus on user-visible behavior
 4. **Don't ignore flaky tests** - Fix or mark as skipped with reason
 5. **Don't use complex selectors** - Prefer data-testid
-6. **Don't test third-party code** - Only test BitFun functionality
+6. **Don't test third-party code** - Only test Void functionality
 7. **Don't mix test levels** - Keep L0/L1/L2 separate
 
 ### Conditional Tests
@@ -400,28 +400,28 @@ it('should test feature when workspace is open', async function () {
 **Solution**:
 ```bash
 # Build the debug desktop app
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 
-# Run tests in debug mode so the embedded driver starts inside BitFun
-BITFUN_E2E_APP_MODE=debug pnpm --dir tests/e2e run test:l0:protocol
+# Run tests in debug mode so the embedded driver starts inside Void
+VOID_E2E_APP_MODE=debug pnpm --dir tests/e2e run test:l0:protocol
 
 # Verify the app process is allowed to bind 127.0.0.1:4445
 ```
 
 #### 2. App not built
 
-**Symptom**: `Application not found at target/debug/bitfun-desktop.exe`
+**Symptom**: `Application not found at target/debug/void-desktop.exe`
 
 **Solution**:
 ```bash
 # Build the app (from project root)
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 
 # Verify binary exists
 # Windows
-dir target\debug\bitfun-desktop.exe
+dir target\debug\void-desktop.exe
 # Linux/macOS
-ls -la target/debug/bitfun-desktop
+ls -la target/debug/void-desktop
 ```
 
 #### 3. Test timeouts
@@ -563,11 +563,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Build app
-        run: cargo build -p bitfun-desktop
+        run: cargo build -p void-desktop
       - name: Install test dependencies
         run: cd tests/e2e && pnpm install
       - name: Run L0 tests
-        run: cd tests/e2e && BITFUN_E2E_APP_MODE=debug pnpm run test:l0:all
+        run: cd tests/e2e && VOID_E2E_APP_MODE=debug pnpm run test:l0:all
         
   l1-tests:
     runs-on: windows-latest
@@ -576,9 +576,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build app
-        run: cargo build -p bitfun-desktop
+        run: cargo build -p void-desktop
       - name: Run L1 tests
-        run: cd tests/e2e && BITFUN_E2E_APP_MODE=debug pnpm run test:l1
+        run: cd tests/e2e && VOID_E2E_APP_MODE=debug pnpm run test:l1
 ```
 
 ### Test Execution Matrix
@@ -613,7 +613,7 @@ jobs:
 - [WebDriverIO Documentation](https://webdriver.io/)
 - [Tauri Testing Guide](https://tauri.app/v1/guides/testing/)
 - [Page Object Model Pattern](https://webdriver.io/docs/pageobjects/)
-- [BitFun Project Structure](../../AGENTS.md)
+- [Void Project Structure](../../AGENTS.md)
 
 ## Contributing
 

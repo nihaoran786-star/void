@@ -5,8 +5,8 @@ use agent_client_protocol::schema::{
     ToolCallStatus, ToolCallUpdate,
 };
 use agent_client_protocol::util::MatchDispatch;
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
-use bitfun_events::ToolEventData;
+use void_core::util::errors::{VoidError, VoidResult};
+use void_events::ToolEventData;
 
 use super::session_options::AcpSessionContextUsage;
 use super::tool_card_bridge::{acp_tool_name, normalize_tool_params};
@@ -103,7 +103,7 @@ impl AcpStreamRoundTracker {
 pub(super) async fn acp_dispatch_to_stream_events_with_tracker(
     dispatch: agent_client_protocol::Dispatch,
     tracker: &mut AcpToolCallTracker,
-) -> BitFunResult<Vec<AcpClientStreamEvent>> {
+) -> VoidResult<Vec<AcpClientStreamEvent>> {
     let mut events = Vec::new();
     MatchDispatch::new(dispatch)
         .if_notification(async |notification: SessionNotification| {
@@ -404,8 +404,8 @@ fn value_to_display_text(value: &serde_json::Value) -> String {
     }
 }
 
-fn protocol_error(error: impl std::fmt::Display) -> BitFunError {
-    BitFunError::service(format!("ACP protocol error: {}", error))
+fn protocol_error(error: impl std::fmt::Display) -> VoidError {
+    VoidError::service(format!("ACP protocol error: {}", error))
 }
 
 #[cfg(test)]

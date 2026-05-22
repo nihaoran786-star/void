@@ -19,7 +19,7 @@ import { validateUrl, checkConnectivity } from './browserUrlCheck';
 import './BrowserPanel.scss';
 
 const log = createLogger('BrowserPanel');
-const DEFAULT_URL = 'https://openbitfun.com/';
+const DEFAULT_URL = 'https://openvoid.com/';
 const PANEL_HOLDER_WINDOW_LABEL = 'embedded-browser-panel-holder';
 
 function isTauriEnvironment(): boolean {

@@ -9,8 +9,8 @@ const BUILTIN_PET_BASE = '/agent-companion-pets';
 
 export const DEFAULT_AGENT_COMPANION_PET: AgentCompanionPetSelection = {
   id: 'panda-pix',
-  displayName: 'Panda',
-  description: 'Codux bundled pet atlas.',
+  displayName: 'Void',
+  description: 'Void bundled companion atlas.',
   source: 'preset',
   packagePath: `${BUILTIN_PET_BASE}/panda-pix`,
   spritesheetPath: `${BUILTIN_PET_BASE}/panda-pix/spritesheet.png`,

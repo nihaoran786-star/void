@@ -145,7 +145,7 @@ export const CodeReviewReportExportActions: React.FC<CodeReviewReportExportActio
 
   const fileName = useMemo(() => {
     const prefix = t('toolCards.codeReview.export.fileNamePrefix', {
-      defaultValue: 'BitFun-Code-Review',
+      defaultValue: 'Void-Code-Review',
     });
     return `${prefix}_${timestampForFileName()}.md`;
   }, [t]);

@@ -157,10 +157,10 @@ export const ContextDropZone: React.FC<ContextDropZoneProps> = ({
     <div
       ref={dropZoneRef}
       className={`
-        bitfun-context-drop-zone
-        ${isDragOver ? 'bitfun-context-drop-zone--drag-over' : ''}
-        ${canAccept ? 'bitfun-context-drop-zone--can-accept' : ''}
-        ${!canAccept && isDragOver ? 'bitfun-context-drop-zone--cannot-accept' : ''}
+        void-context-drop-zone
+        ${isDragOver ? 'void-context-drop-zone--drag-over' : ''}
+        ${canAccept ? 'void-context-drop-zone--can-accept' : ''}
+        ${!canAccept && isDragOver ? 'void-context-drop-zone--cannot-accept' : ''}
         ${className}
       `.trim()}
       

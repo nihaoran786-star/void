@@ -722,8 +722,8 @@ impl ToolCall {
     }
 }
 
-impl From<bitfun_agent_stream::ToolCall> for ToolCall {
-    fn from(tool_call: bitfun_agent_stream::ToolCall) -> Self {
+impl From<void_agent_stream::ToolCall> for ToolCall {
+    fn from(tool_call: void_agent_stream::ToolCall) -> Self {
         Self {
             tool_id: tool_call.tool_id,
             tool_name: tool_call.tool_name,

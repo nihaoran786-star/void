@@ -7,17 +7,17 @@ use agent_client_protocol::schema::{
     SessionMode, SessionModeState, SessionUpdate, SetSessionModeRequest, SetSessionModeResponse,
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
-use bitfun_core::agentic::agents::get_agent_registry;
-use bitfun_core::agentic::core::SessionConfig;
+use void_core::agentic::agents::get_agent_registry;
+use void_core::agentic::core::SessionConfig;
 use chrono::{DateTime, Utc};
 
 use super::events::send_update;
 use super::model::{
     build_session_config_options, build_session_model_state, normalize_session_model_id,
 };
-use super::{AcpSessionState, BitfunAcpRuntime};
+use super::{AcpSessionState, VoidAcpRuntime};
 
-impl BitfunAcpRuntime {
+impl VoidAcpRuntime {
     pub(super) async fn create_session(
         &self,
         request: NewSessionRequest,
@@ -44,7 +44,7 @@ impl BitfunAcpRuntime {
 
         let acp_session = AcpSessionState {
             acp_session_id: session.session_id.clone(),
-            bitfun_session_id: session.session_id.clone(),
+            void_session_id: session.session_id.clone(),
             cwd,
             mode_id: session.agent_type.clone(),
             model_id: normalize_session_model_id(session.config.model_id.as_deref()),
@@ -87,7 +87,7 @@ impl BitfunAcpRuntime {
 
         let acp_session = AcpSessionState {
             acp_session_id: session.session_id.clone(),
-            bitfun_session_id: session.session_id.clone(),
+            void_session_id: session.session_id.clone(),
             cwd,
             mode_id: session.agent_type.clone(),
             model_id: normalize_session_model_id(session.config.model_id.as_deref()),
@@ -186,14 +186,14 @@ impl BitfunAcpRuntime {
             .sessions
             .get(session_id)
             .ok_or_else(|| Error::resource_not_found(Some(session_id.to_string())))?;
-        let bitfun_session_id = acp_session.bitfun_session_id.clone();
+        let void_session_id = acp_session.void_session_id.clone();
         drop(acp_session);
 
         validate_mode_id(mode_id).await?;
 
         self.agentic_system
             .coordinator
-            .update_session_agent_type(&bitfun_session_id, mode_id)
+            .update_session_agent_type(&void_session_id, mode_id)
             .await
             .map_err(Self::internal_error)?;
 

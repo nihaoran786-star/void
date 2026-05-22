@@ -1,5 +1,5 @@
 use anyhow::Result;
-/// BitFun Server
+/// Void Server
 ///
 /// Web server with support for:
 /// - RESTful API
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    tracing::info!("BitFun Server v{}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("Void Server v{}", env!("CARGO_PKG_VERSION"));
 
     let app_state = AppState {};
 

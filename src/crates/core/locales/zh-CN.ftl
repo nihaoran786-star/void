@@ -1,11 +1,11 @@
-# BitFun 简体中文语言包
+# Void 简体中文语言包
 # Chinese Simplified (zh-CN) Fluent Translation File
 
 # ==================== 通用 ====================
-app-name = BitFun
+app-name = Void
 app-version = 版本 { $version }
 loading = 加载中...
-welcome = 欢迎使用 BitFun
+welcome = 欢迎使用 Void
 
 # ==================== 操作 ====================
 action-confirm = 确认

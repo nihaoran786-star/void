@@ -2,7 +2,7 @@
 //!
 //! Triggered from `execute_dialog_turn_impl` after a DeepResearch agent's
 //! dialog turn completes successfully. Reads
-//! `<workspace>/.bitfun/sessions/<session_id>/research/report.md`, walks the
+//! `<workspace>/.void/sessions/<session_id>/research/report.md`, walks the
 //! body in order, assigns consecutive display numbers `[1]`, `[2]`, ... to
 //! each unique `cit_XXX` reference, and rewrites the report in place.
 //! Citations marked `status=REJECTED` in the sibling `citations.md` registry
@@ -22,7 +22,7 @@
 //! post-processing step under engineering control, independent of whether
 //! the model remembers to invoke it.
 
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::{debug, info, warn};
 use regex::Regex;
 use serde_json::json;
@@ -51,11 +51,11 @@ static BRACKETED_GROUP_RE: LazyLock<Regex> =
 /// fire-and-await without affecting the surrounding agent flow.
 ///
 /// Operates on the per-session WORK_DIR at
-/// `<workspace>/.bitfun/sessions/<session_id>/research/`, where both the
+/// `<workspace>/.void/sessions/<session_id>/research/`, where both the
 /// report and the audit files live.
 pub async fn run_for_session_workspace(workspace_root: &Path, session_id: &str) {
     let work_dir = workspace_root
-        .join(".bitfun")
+        .join(".void")
         .join("sessions")
         .join(session_id)
         .join("research");
@@ -102,14 +102,14 @@ pub async fn run_for_session_workspace(workspace_root: &Path, session_id: &str) 
 pub async fn try_renumber_research_report(
     report_path: &Path,
     work_dir: &Path,
-) -> BitFunResult<RenumberStats> {
+) -> VoidResult<RenumberStats> {
     if !report_path.exists() {
         return Ok(RenumberStats::default());
     }
 
     let report = fs::read_to_string(report_path)
         .await
-        .map_err(|e| BitFunError::tool(format!("read report failed: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("read report failed: {}", e)))?;
 
     let registry_path = work_dir.join("citations.md");
     let registry_status = if registry_path.exists() {
@@ -159,7 +159,7 @@ pub async fn try_renumber_research_report(
 
     fs::write(report_path, &final_report)
         .await
-        .map_err(|e| BitFunError::tool(format!("write report failed: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("write report failed: {}", e)))?;
 
     // The display_map sidecar lives next to citations.md in WORK_DIR — both
     // are audit-trail artifacts for the same logical layer (internal cit_XXX
@@ -375,7 +375,7 @@ async fn write_display_map_sidecar(
     parent: &Path,
     report_path: &Path,
     order: &[String],
-) -> BitFunResult<PathBuf> {
+) -> VoidResult<PathBuf> {
     let map_path = parent.join("display_map.json");
     let entries: Vec<_> = order
         .iter()
@@ -394,10 +394,10 @@ async fn write_display_map_sidecar(
         "entries": entries,
     });
     let serialized = serde_json::to_string_pretty(&body)
-        .map_err(|e| BitFunError::tool(format!("serialize display_map.json failed: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("serialize display_map.json failed: {}", e)))?;
     fs::write(&map_path, serialized)
         .await
-        .map_err(|e| BitFunError::tool(format!("write {} failed: {}", map_path.display(), e)))?;
+        .map_err(|e| VoidError::tool(format!("write {} failed: {}", map_path.display(), e)))?;
     Ok(map_path)
 }
 
@@ -412,7 +412,7 @@ mod tests {
     impl ScratchDir {
         fn new(label: &str) -> Self {
             let path = env::temp_dir().join(format!(
-                "bitfun-citation-renumber-{}-{}",
+                "void-citation-renumber-{}-{}",
                 label,
                 uuid::Uuid::new_v4()
             ));
@@ -675,7 +675,7 @@ cit_005 | claim c | url=u3 | authority=medium
         // And when work_dir exists but report.md does not, still a no-op.
         let work_dir = dir
             .path()
-            .join(".bitfun")
+            .join(".void")
             .join("sessions")
             .join("incomplete-session")
             .join("research");
@@ -691,7 +691,7 @@ cit_005 | claim c | url=u3 | authority=medium
 
         let work_dir = dir
             .path()
-            .join(".bitfun")
+            .join(".void")
             .join("sessions")
             .join(session_id)
             .join("research");

@@ -1,4 +1,4 @@
-use bitfun_services_core::token_usage::{TimeRange, TokenUsageQuery, TokenUsageRecord};
+use void_services_core::token_usage::{TimeRange, TokenUsageQuery, TokenUsageRecord};
 use chrono::Utc;
 
 #[test]

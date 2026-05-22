@@ -12,7 +12,7 @@ use super::resolver::{resolve_skill_default_enabled_for_mode, resolve_skill_stat
 use super::types::{ModeSkillInfo, SkillData, SkillInfo, SkillLocation};
 use crate::agentic::workspace::WorkspaceFileSystem;
 use crate::infrastructure::get_path_manager_arc;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::{debug, error};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -25,13 +25,13 @@ static SKILL_REGISTRY: OnceLock<SkillRegistry> = OnceLock::new();
 
 const USER_PREFIX: &str = "user";
 const PROJECT_PREFIX: &str = "project";
-const BITFUN_USER_SLOT: &str = "bitfun";
-const BITFUN_SYSTEM_SLOT: &str = "bitfun-system";
-const BITFUN_SYSTEM_DIR_NAME: &str = ".system";
+const VOID_USER_SLOT: &str = "void";
+const VOID_SYSTEM_SLOT: &str = "void-system";
+const VOID_SYSTEM_DIR_NAME: &str = ".system";
 
 /// Project-level skill roots under a workspace.
 const PROJECT_SKILL_SLOTS: &[(&str, &str, &str)] = &[
-    (".bitfun", "skills", "bitfun"),
+    (".void", "skills", "void"),
     (".claude", "skills", "claude"),
     (".codex", "skills", "codex"),
     (".cursor", "skills", "cursor"),
@@ -335,16 +335,16 @@ impl SkillRegistry {
             }
         }
 
-        // BitFun's own user-defined skills sit between home slots and config slots.
+        // Void's own user-defined skills sit between home slots and config slots.
         // This lets other agent directories (e.g. ~/.claude/skills) take precedence
-        // while still keeping config-level overrides after BitFun defaults.
+        // while still keeping config-level overrides after Void defaults.
         let path_manager = get_path_manager_arc();
-        let bitfun_skills = path_manager.user_skills_dir();
-        if bitfun_skills.exists() && bitfun_skills.is_dir() {
+        let void_skills = path_manager.user_skills_dir();
+        if void_skills.exists() && void_skills.is_dir() {
             entries.push(SkillRootEntry {
-                path: bitfun_skills,
+                path: void_skills,
                 level: SkillLocation::User,
-                slot: BITFUN_USER_SLOT,
+                slot: VOID_USER_SLOT,
                 priority,
                 is_builtin: false,
             });
@@ -356,7 +356,7 @@ impl SkillRegistry {
             entries.push(SkillRootEntry {
                 path: builtin_skills,
                 level: SkillLocation::User,
-                slot: BITFUN_SYSTEM_SLOT,
+                slot: VOID_SYSTEM_SLOT,
                 priority,
                 is_builtin: true,
             });
@@ -402,7 +402,7 @@ impl SkillRegistry {
                 continue;
             };
 
-            if entry.slot == BITFUN_USER_SLOT && dir_name == BITFUN_SYSTEM_DIR_NAME {
+            if entry.slot == VOID_USER_SLOT && dir_name == VOID_SYSTEM_DIR_NAME {
                 continue;
             }
 
@@ -637,9 +637,9 @@ impl SkillRegistry {
         skill_name: &str,
         candidates: Vec<SkillCandidate>,
         agent_type: Option<&str>,
-    ) -> BitFunResult<SkillInfo> {
+    ) -> VoidResult<SkillInfo> {
         let Some(mode_id) = agent_type.map(str::trim).filter(|value| !value.is_empty()) else {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Skill '{}' not found",
                 skill_name
             )));
@@ -648,7 +648,7 @@ impl SkillRegistry {
         let info = resolve_visible_skills(candidates)
             .into_iter()
             .find(|skill| skill.name == skill_name)
-            .ok_or_else(|| BitFunError::tool(format!("Skill '{}' not found", skill_name)))?;
+            .ok_or_else(|| VoidError::tool(format!("Skill '{}' not found", skill_name)))?;
 
         if info.level == SkillLocation::User
             && info.is_builtin
@@ -658,7 +658,7 @@ impl SkillRegistry {
             return Ok(info);
         }
 
-        Err(BitFunError::tool(format!(
+        Err(VoidError::tool(format!(
             "Skill '{}' is disabled for mode '{}'. Enable it in mode skill settings or switch to a mode where it is enabled.",
             skill_name, mode_id
         )))
@@ -669,7 +669,7 @@ impl SkillRegistry {
         skill_name: &str,
         workspace_root: Option<&Path>,
         agent_type: Option<&str>,
-    ) -> BitFunResult<SkillInfo> {
+    ) -> VoidResult<SkillInfo> {
         let candidates = self
             .scan_skill_candidates_for_workspace(workspace_root)
             .await;
@@ -694,7 +694,7 @@ impl SkillRegistry {
         fs: &dyn WorkspaceFileSystem,
         remote_root: &str,
         agent_type: Option<&str>,
-    ) -> BitFunResult<SkillInfo> {
+    ) -> VoidResult<SkillInfo> {
         let candidates = self
             .scan_skill_candidates_for_remote_workspace(fs, remote_root)
             .await;
@@ -888,7 +888,7 @@ impl SkillRegistry {
         skill_name: &str,
         workspace_root: Option<&Path>,
         agent_type: Option<&str>,
-    ) -> BitFunResult<SkillData> {
+    ) -> VoidResult<SkillData> {
         let info = self
             .find_skill_info_for_explicit_invocation_workspace(
                 skill_name,
@@ -900,7 +900,7 @@ impl SkillRegistry {
         let skill_md_path = PathBuf::from(&info.path).join("SKILL.md");
         let content = fs::read_to_string(&skill_md_path)
             .await
-            .map_err(|error| BitFunError::tool(format!("Failed to read skill file: {}", error)))?;
+            .map_err(|error| VoidError::tool(format!("Failed to read skill file: {}", error)))?;
 
         let mut data = SkillData::from_markdown(info.path.clone(), &content, info.level, true)?;
         data.key = info.key;
@@ -915,7 +915,7 @@ impl SkillRegistry {
         fs: &dyn WorkspaceFileSystem,
         remote_root: &str,
         agent_type: Option<&str>,
-    ) -> BitFunResult<SkillData> {
+    ) -> VoidResult<SkillData> {
         let info = self
             .find_skill_info_for_explicit_invocation_remote_workspace(
                 skill_name,
@@ -961,12 +961,12 @@ impl SkillRegistry {
     async fn read_skill_md_for_remote_merge(
         info: &SkillInfo,
         remote_fs: &dyn WorkspaceFileSystem,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         match info.level {
             SkillLocation::User => {
                 let skill_md_path = PathBuf::from(&info.path).join("SKILL.md");
                 fs::read_to_string(&skill_md_path).await.map_err(|error| {
-                    BitFunError::tool(format!("Failed to read skill file: {}", error))
+                    VoidError::tool(format!("Failed to read skill file: {}", error))
                 })
             }
             SkillLocation::Project => {
@@ -975,7 +975,7 @@ impl SkillRegistry {
                     .read_file_text(&skill_md_path)
                     .await
                     .map_err(|error| {
-                        BitFunError::tool(format!("Failed to read skill file: {}", error))
+                        VoidError::tool(format!("Failed to read skill file: {}", error))
                     })
             }
         }

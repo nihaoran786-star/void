@@ -25,12 +25,12 @@ export interface EditTarget {
 }
 
 const MENU_EVENT_ACTIONS: Array<{ eventName: string; action: EditMenuAction }> = [
-  { eventName: 'bitfun_menu_edit_undo', action: 'undo' },
-  { eventName: 'bitfun_menu_edit_redo', action: 'redo' },
-  { eventName: 'bitfun_menu_edit_cut', action: 'cut' },
-  { eventName: 'bitfun_menu_edit_copy', action: 'copy' },
-  { eventName: 'bitfun_menu_edit_paste', action: 'paste' },
-  { eventName: 'bitfun_menu_edit_select_all', action: 'selectAll' },
+  { eventName: 'void_menu_edit_undo', action: 'undo' },
+  { eventName: 'void_menu_edit_redo', action: 'redo' },
+  { eventName: 'void_menu_edit_cut', action: 'cut' },
+  { eventName: 'void_menu_edit_copy', action: 'copy' },
+  { eventName: 'void_menu_edit_paste', action: 'paste' },
+  { eventName: 'void_menu_edit_select_all', action: 'selectAll' },
 ];
 
 let monacoTargetCounter = 0;

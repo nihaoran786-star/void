@@ -2,7 +2,7 @@
 
 Scope: this guide applies to `src/crates/tool-packs`.
 
-`bitfun-tool-packs` owns tool feature-group scaffold metadata and the product
+`void-tool-packs` owns tool feature-group scaffold metadata and the product
 tool provider group plan. It does not own concrete tool implementations yet.
 
 ## Guardrails
@@ -10,7 +10,7 @@ tool provider group plan. It does not own concrete tool implementations yet.
 - Keep `default = []`; `product-full` may aggregate feature groups but must not
   silently enable new runtime behavior. Boundary checks enforce the current
   feature-group list.
-- Do not depend on `bitfun-core`, concrete service crates, app crates, Tauri,
+- Do not depend on `void-core`, concrete service crates, app crates, Tauri,
   Git, MCP, network clients, or CLI UI dependencies unless H1 explicitly moves a
   reviewed tool runtime owner here.
 - Do not own manifest/exposure contracts, concrete runtime manifest assembly,
@@ -23,7 +23,7 @@ tool provider group plan. It does not own concrete tool implementations yet.
 ## Verification
 
 ```bash
-cargo test -p bitfun-tool-packs --features basic
-cargo check -p bitfun-tool-packs --features product-full
+cargo test -p void-tool-packs --features basic
+cargo check -p void-tool-packs --features product-full
 node scripts/check-core-boundaries.mjs
 ```

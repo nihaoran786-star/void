@@ -23,7 +23,7 @@ impl Default for RelayConfig {
             heartbeat_interval_secs: 30,
             heartbeat_timeout_secs: 90,
             static_dir: None,
-            room_web_dir: "/tmp/bitfun-room-web".to_string(),
+            room_web_dir: "/tmp/void-room-web".to_string(),
             cors_allow_origins: vec!["*".to_string()],
         }
     }

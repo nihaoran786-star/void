@@ -4,7 +4,7 @@ use crate::agentic::insights::types::*;
 use crate::agentic::persistence::PersistenceManager;
 use crate::infrastructure::get_path_manager_arc;
 use crate::service::session::{DialogTurnData, TurnStatus};
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use chrono::{DateTime, Utc};
 use log::{debug, warn};
 use std::collections::{HashMap, HashSet};
@@ -22,7 +22,7 @@ pub struct InsightsCollector;
 
 impl InsightsCollector {
     /// Stage 1: Collect session data from PersistenceManager across all workspaces
-    pub async fn collect(days: u32) -> BitFunResult<(BaseStats, Vec<SessionTranscript>)> {
+    pub async fn collect(days: u32) -> VoidResult<(BaseStats, Vec<SessionTranscript>)> {
         let path_manager = get_path_manager_arc();
         let pm = PersistenceManager::new(path_manager)?;
         let cutoff = SystemTime::now() - Duration::from_secs(days as u64 * 86400);
@@ -138,7 +138,7 @@ impl InsightsCollector {
         workspace_path: &Path,
         session_id: &str,
         turns: &[DialogTurnData],
-    ) -> BitFunResult<Vec<Message>> {
+    ) -> VoidResult<Vec<Message>> {
         if let Ok(Some((_turn_index, messages))) = pm
             .load_latest_turn_context_snapshot(workspace_path, session_id)
             .await

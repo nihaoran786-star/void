@@ -138,12 +138,12 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
 
   return (
     <div
-      className="bitfun-chat-pane__content"
+      className="void-chat-pane__content"
       data-shortcut-scope="chat"
       data-fullscreen={isFullscreen}
     >
       <FlowChatContainer
-        className="bitfun-chat-pane__chat-container"
+        className="void-chat-pane__chat-container"
         onOpenVisualization={(type, data) => {
           log.info('Opening visualization', { type, data });
         }}

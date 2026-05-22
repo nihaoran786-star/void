@@ -1,1 +1,1 @@
-pub use bitfun_core_types::ToolImageAttachment;
+pub use void_core_types::ToolImageAttachment;

@@ -924,7 +924,7 @@ const McpToolsConfig: React.FC = () => {
   );
 
   const renderServerBadge = (server: MCPServerInfo) => (
-    <span className={`bitfun-mcp-tools__status-badge ${getStatusClass(server.status)}`}>
+    <span className={`void-mcp-tools__status-badge ${getStatusClass(server.status)}`}>
       {getStatusIcon(server.status)}
       {getServerStatusLabel(server.status)}
     </span>
@@ -992,57 +992,57 @@ const McpToolsConfig: React.FC = () => {
     if (!server.statusMessage && !isCommandDrivenServer(server) && !isRemoteServer(server)) return null;
 
     return (
-      <div className="bitfun-mcp-tools__server-details">
-        <div className="bitfun-mcp-tools__server-detail-item">
-          <span className="bitfun-mcp-tools__server-detail-label">
+      <div className="void-mcp-tools__server-details">
+        <div className="void-mcp-tools__server-detail-item">
+          <span className="void-mcp-tools__server-detail-label">
             {tMcp('server.transport')}:
           </span>
-          <code className="bitfun-mcp-tools__server-detail-value">{server.transport}</code>
+          <code className="void-mcp-tools__server-detail-value">{server.transport}</code>
         </div>
         {server.statusMessage && (
-          <div className="bitfun-mcp-tools__server-detail-item">
-            <span className="bitfun-mcp-tools__server-detail-label">
+          <div className="void-mcp-tools__server-detail-item">
+            <span className="void-mcp-tools__server-detail-label">
               {tMcp('server.statusDetail')}:
             </span>
-            <span className="bitfun-mcp-tools__server-detail-value">
+            <span className="void-mcp-tools__server-detail-value">
               {server.statusMessage}
             </span>
           </div>
         )}
         {server.startDisabledReason && (
-          <div className="bitfun-mcp-tools__server-detail-item">
-            <span className="bitfun-mcp-tools__server-detail-label">
+          <div className="void-mcp-tools__server-detail-item">
+            <span className="void-mcp-tools__server-detail-label">
               {tMcp('server.runtime.unsupportedReason')}:
             </span>
-            <span className="bitfun-mcp-tools__server-detail-value">
+            <span className="void-mcp-tools__server-detail-value">
               {getStartDisabledReasonLabel(server)}
             </span>
           </div>
         )}
         {isRemoteServer(server) && (
           <>
-            <div className="bitfun-mcp-tools__server-detail-item">
-              <span className="bitfun-mcp-tools__server-detail-label">
+            <div className="void-mcp-tools__server-detail-item">
+              <span className="void-mcp-tools__server-detail-label">
                 {tMcp('server.remoteUrl')}:
               </span>
-              <code className="bitfun-mcp-tools__server-detail-value">
+              <code className="void-mcp-tools__server-detail-value">
                 {server.url || '-'}
               </code>
             </div>
-            <div className="bitfun-mcp-tools__server-detail-item">
-              <span className="bitfun-mcp-tools__server-detail-label">
+            <div className="void-mcp-tools__server-detail-item">
+              <span className="void-mcp-tools__server-detail-label">
                 {tMcp('server.remoteAuth')}:
               </span>
-              <span className="bitfun-mcp-tools__server-detail-value">
+              <span className="void-mcp-tools__server-detail-value">
                 {getRemoteAuthSummary(server)}
               </span>
             </div>
             {(server.oauthEnabled || server.xaaEnabled) && (
-              <div className="bitfun-mcp-tools__server-detail-item">
-                <span className="bitfun-mcp-tools__server-detail-label">
+              <div className="void-mcp-tools__server-detail-item">
+                <span className="void-mcp-tools__server-detail-label">
                   {tMcp('server.remoteAuthMethod')}:
                 </span>
-                <span className="bitfun-mcp-tools__server-detail-value">
+                <span className="void-mcp-tools__server-detail-value">
                   {getRemoteAuthMethodLabel(server)}
                 </span>
               </div>
@@ -1051,28 +1051,28 @@ const McpToolsConfig: React.FC = () => {
         )}
         {!isCommandDrivenServer(server) ? null : (
           <>
-        <div className="bitfun-mcp-tools__server-detail-item">
-          <span className="bitfun-mcp-tools__server-detail-label">
+        <div className="void-mcp-tools__server-detail-item">
+          <span className="void-mcp-tools__server-detail-label">
             {tMcp('server.command')}:
           </span>
-          <code className="bitfun-mcp-tools__server-detail-value">
+          <code className="void-mcp-tools__server-detail-value">
             {server.command || '-'}
           </code>
         </div>
-        <div className="bitfun-mcp-tools__server-detail-item">
-          <span className="bitfun-mcp-tools__server-detail-label">
+        <div className="void-mcp-tools__server-detail-item">
+          <span className="void-mcp-tools__server-detail-label">
             {tMcp('server.runtime.source')}:
           </span>
-          <span className="bitfun-mcp-tools__server-detail-value">
+          <span className="void-mcp-tools__server-detail-value">
             {getRuntimeSourceLabel(server)}
           </span>
         </div>
         {server.commandResolvedPath && (
-          <div className="bitfun-mcp-tools__server-detail-item">
-            <span className="bitfun-mcp-tools__server-detail-label">
+          <div className="void-mcp-tools__server-detail-item">
+            <span className="void-mcp-tools__server-detail-label">
               {tMcp('server.runtime.path')}:
             </span>
-            <code className="bitfun-mcp-tools__server-detail-value">
+            <code className="void-mcp-tools__server-detail-value">
               {server.commandResolvedPath}
             </code>
           </div>
@@ -1084,7 +1084,7 @@ const McpToolsConfig: React.FC = () => {
   };
 
   return (
-    <ConfigPageLayout className="bitfun-mcp-tools">
+    <ConfigPageLayout className="void-mcp-tools">
       <ConfigPageHeader title={tPage('title')} subtitle={tPage('subtitle')} />
 
       <ConfigPageContent>
@@ -1095,11 +1095,11 @@ const McpToolsConfig: React.FC = () => {
           extra={mcpSectionExtra}
         >
           {showJsonEditor && (
-            <div className="bitfun-mcp-tools__json-editor">
-              <div className="bitfun-mcp-tools__json-editor-header">
+            <div className="void-mcp-tools__json-editor">
+              <div className="void-mcp-tools__json-editor-header">
                 <h3>{tMcp('jsonEditor.title')}</h3>
-                <p className="bitfun-mcp-tools__json-hint">{tMcp('jsonEditor.hint1')}</p>
-                <p className="bitfun-mcp-tools__json-hint">{tMcp('jsonEditor.hint2')}</p>
+                <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint1')}</p>
+                <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint2')}</p>
               </div>
               <Textarea
                 ref={jsonEditorRef}
@@ -1110,7 +1110,7 @@ const McpToolsConfig: React.FC = () => {
                 rows={18}
                 placeholder={`{\n  "mcpServers": {\n    "server-name": {\n      "command": "npx",\n      "args": ["-y", "@package/name"],\n      "env": {}\n    }\n  }\n}`}
                 variant="outlined"
-                className="bitfun-mcp-tools__json-textarea"
+                className="void-mcp-tools__json-textarea"
                 spellCheck={false}
                 error={!!jsonLintError}
                 errorMessage={
@@ -1128,7 +1128,7 @@ const McpToolsConfig: React.FC = () => {
                     : undefined
                 }
               />
-              <div className="bitfun-mcp-tools__json-actions">
+              <div className="void-mcp-tools__json-actions">
                 <Button variant="secondary" onClick={() => setShowJsonEditor(false)}>
                   {tMcp('actions.cancel')}
                 </Button>
@@ -1136,13 +1136,13 @@ const McpToolsConfig: React.FC = () => {
                   {tMcp('actions.saveConfig')}
                 </Button>
               </div>
-              <div className="bitfun-mcp-tools__json-examples">
+              <div className="void-mcp-tools__json-examples">
                 <h4>{tMcp('jsonEditor.exampleTitle')}</h4>
-                <div className="bitfun-mcp-tools__example">
+                <div className="void-mcp-tools__example">
                   <h5>{tMcp('jsonEditor.localProcess')}</h5>
                   <pre>{`{\n  "mcpServers": {\n    "zai-mcp-server": {\n      "command": "npx",\n      "args": ["-y", "@z_ai/mcp-server"],\n      "env": { "Z_AI_API_KEY": "your_api_key" }\n    }\n  }\n}`}</pre>
                 </div>
-                <div className="bitfun-mcp-tools__example">
+                <div className="void-mcp-tools__example">
                   <h5>{tMcp('jsonEditor.remoteService')}</h5>
                   <pre>{`{\n  "mcpServers": {\n    "remote-mcp": {\n      "url": "http://localhost:3000/sse"\n    }\n  }\n}`}</pre>
                 </div>
@@ -1151,13 +1151,13 @@ const McpToolsConfig: React.FC = () => {
           )}
 
           {!showJsonEditor && mcpLoading && (
-            <div className="bitfun-collection-empty">
+            <div className="void-collection-empty">
               <p>{tMcp('loading')}</p>
             </div>
           )}
 
           {!showJsonEditor && !mcpLoading && servers.length === 0 && (
-            <div className="bitfun-collection-empty">
+            <div className="void-collection-empty">
               <Button variant="dashed" size="small" onClick={() => setShowJsonEditor(true)}>
                 <FileJson size={14} />
                 {tMcp('actions.jsonConfig')}
@@ -1189,33 +1189,33 @@ const McpToolsConfig: React.FC = () => {
         showCloseButton={!authSubmitting && !oauthCancelling}
       >
         {authDialogServer && (
-          <div className="bitfun-mcp-tools__json-editor">
+          <div className="void-mcp-tools__json-editor">
             {authDialogServer.oauthEnabled && (
               <>
-                <p className="bitfun-mcp-tools__json-hint">
+                <p className="void-mcp-tools__json-hint">
                   {tMcp('modal.remoteOAuthHint')}
                 </p>
-                <p className="bitfun-mcp-tools__json-hint">
+                <p className="void-mcp-tools__json-hint">
                   {tMcp('modal.remoteOAuthCurrentStatus', {
                     status: getOAuthStatusLabel(oauthSession),
                   })}
                 </p>
                 {oauthSession?.redirectUri && (
-                  <p className="bitfun-mcp-tools__json-hint">
+                  <p className="void-mcp-tools__json-hint">
                     {tMcp('modal.remoteOAuthRedirectUri', {
                       redirectUri: oauthSession.redirectUri,
                     })}
                   </p>
                 )}
                 {oauthSession?.message && (
-                  <p className="bitfun-mcp-tools__json-hint">
+                  <p className="void-mcp-tools__json-hint">
                     {tMcp('modal.remoteOAuthStatus', {
                       status: getOAuthStatusLabel(oauthSession),
                       message: oauthSession.message,
                     })}
                   </p>
                 )}
-                <div className="bitfun-mcp-tools__json-actions">
+                <div className="void-mcp-tools__json-actions">
                   <Button
                     variant="primary"
                     onClick={handleStartRemoteOAuth}
@@ -1227,11 +1227,11 @@ const McpToolsConfig: React.FC = () => {
                 </div>
               </>
             )}
-            <p className="bitfun-mcp-tools__json-hint">
+            <p className="void-mcp-tools__json-hint">
               {tMcp('modal.remoteAuthHint')}
             </p>
             {authDialogServer.url && (
-              <p className="bitfun-mcp-tools__json-hint">
+              <p className="void-mcp-tools__json-hint">
                 {tMcp('modal.remoteAuthServerUrl', {
                   url: authDialogServer.url,
                 })}
@@ -1243,10 +1243,10 @@ const McpToolsConfig: React.FC = () => {
               rows={4}
               placeholder={tMcp('modal.remoteAuthPlaceholder')}
               variant="outlined"
-              className="bitfun-mcp-tools__json-textarea"
+              className="void-mcp-tools__json-textarea"
               spellCheck={false}
             />
-            <div className="bitfun-mcp-tools__json-actions">
+            <div className="void-mcp-tools__json-actions">
               <Button
                 variant="secondary"
                 onClick={handleCloseAuthDialog}

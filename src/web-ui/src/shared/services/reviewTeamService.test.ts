@@ -847,7 +847,7 @@ describe('reviewTeamService', () => {
       [
         'src/web-ui/src/locales/zh-TW/flow-chat.json',
         'src/crates/core/locales/zh-TW.ftl',
-        'BitFun-Installer/src/i18n/locales/zh-TW.json',
+        'Void-Installer/src/i18n/locales/zh-TW.json',
       ],
       'session_files',
     );
@@ -861,8 +861,8 @@ describe('reviewTeamService', () => {
     expect(promptBlock).toContain('Locale-only review guardrail:');
     expect(promptBlock).toContain('placeholder parity');
     expect(promptBlock).toContain('Do not broaden into React performance');
-    expect(promptBlock).toContain('BitFun-Installer/src/i18n/locales/zh-TW.json');
-    expect(promptBlock).not.toContain('BitFun-Installer/src/i18n/BitFun-Installer/src/i18n/locales/zh-TW.json');
+    expect(promptBlock).toContain('Void-Installer/src/i18n/locales/zh-TW.json');
+    expect(promptBlock).not.toContain('Void-Installer/src/i18n/Void-Installer/src/i18n/locales/zh-TW.json');
   });
 
   it('does not add the locale-only guardrail for mixed locale and component targets', () => {

@@ -1,9 +1,9 @@
 mod common;
 
-use bitfun_agent_stream::StreamResult;
-use bitfun_ai_adapters::providers::{openai::OpenAIMessageConverter, AnthropicMessageConverter};
-use bitfun_ai_adapters::{Message as AIMessage, ToolCall as AIToolCall};
-use bitfun_events::{AgenticEvent, ToolEventData};
+use void_agent_stream::StreamResult;
+use void_ai_adapters::providers::{openai::OpenAIMessageConverter, AnthropicMessageConverter};
+use void_ai_adapters::{Message as AIMessage, ToolCall as AIToolCall};
+use void_events::{AgenticEvent, ToolEventData};
 use common::sse_fixture_server::FixtureSseServerOptions;
 use common::stream_test_harness::{
     run_stream_fixture, run_stream_fixture_with_options, StreamFixtureProvider,

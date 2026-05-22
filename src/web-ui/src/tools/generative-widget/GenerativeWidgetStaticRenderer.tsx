@@ -45,17 +45,17 @@ export const GenerativeWidgetStaticRenderer: React.FC<GenerativeWidgetStaticRend
     if (!root) return;
 
     const globalWindow = window as Window & {
-      bitfunWidget?: { send: (data: unknown) => void };
+      voidWidget?: { send: (data: unknown) => void };
       glimpse?: { send: (data: unknown) => void };
       sendPrompt?: (text: string) => void;
     };
 
-    const prevBridge = globalWindow.bitfunWidget;
+    const prevBridge = globalWindow.voidWidget;
     const prevGlimpse = globalWindow.glimpse;
     const prevSendPrompt = globalWindow.sendPrompt;
 
     const noopBridge = { send: (_data: unknown) => {} };
-    globalWindow.bitfunWidget = noopBridge;
+    globalWindow.voidWidget = noopBridge;
     globalWindow.glimpse = noopBridge;
     globalWindow.sendPrompt = (_text: string) => {};
 
@@ -64,7 +64,7 @@ export const GenerativeWidgetStaticRenderer: React.FC<GenerativeWidgetStaticRend
 
     return () => {
       root.innerHTML = '';
-      globalWindow.bitfunWidget = prevBridge;
+      globalWindow.voidWidget = prevBridge;
       globalWindow.glimpse = prevGlimpse;
       globalWindow.sendPrompt = prevSendPrompt;
     };
@@ -86,13 +86,13 @@ export const GenerativeWidgetStaticRenderer: React.FC<GenerativeWidgetStaticRend
 
   return (
     <div
-      className={`bitfun-generative-widget-static-renderer ${className}`.trim()}
+      className={`void-generative-widget-static-renderer ${className}`.trim()}
       style={themeStyle}
       data-theme={themePayload?.id ?? 'unknown'}
       data-theme-type={themePayload?.type ?? 'dark'}
     >
       <style>{shellCss}</style>
-      <div ref={rootRef} className="bitfun-generative-widget-static-renderer__root" />
+      <div ref={rootRef} className="void-generative-widget-static-renderer__root" />
     </div>
   );
 };

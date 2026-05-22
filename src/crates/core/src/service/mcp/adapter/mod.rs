@@ -1,6 +1,6 @@
 //! MCP adapter module
 //!
-//! Adapts MCP resources, prompts, and tools to BitFun's agentic system.
+//! Adapts MCP resources, prompts, and tools to Void's agentic system.
 
 mod context;
 mod prompt;

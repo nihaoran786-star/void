@@ -18,16 +18,16 @@ export const RemoteConnectDisclaimerContent: React.FC<RemoteConnectDisclaimerCon
   const canAgree = !!onAgree && !agreed;
 
   return (
-    <div className="bitfun-remote-disclaimer">
-      <div className="bitfun-remote-disclaimer__meta">
+    <div className="void-remote-disclaimer">
+      <div className="void-remote-disclaimer__meta">
         <Badge variant={agreed ? 'success' : 'warning'}>
           {t(agreed ? 'remoteConnect.disclaimerStatusAgreed' : 'remoteConnect.disclaimerStatusPending')}
         </Badge>
       </div>
 
-      <p className="bitfun-remote-disclaimer__text">{t('remoteConnect.disclaimerIntro')}</p>
+      <p className="void-remote-disclaimer__text">{t('remoteConnect.disclaimerIntro')}</p>
 
-      <ol className="bitfun-remote-disclaimer__list">
+      <ol className="void-remote-disclaimer__list">
         <li>{t('remoteConnect.disclaimerItemGeneralRisk')}</li>
         <li>{t('remoteConnect.disclaimerItemSecurity')}</li>
         <li>{t('remoteConnect.disclaimerItemEncryption')}</li>
@@ -46,10 +46,10 @@ export const RemoteConnectDisclaimerContent: React.FC<RemoteConnectDisclaimerCon
         <li>{t('remoteConnect.disclaimerItemLiability')}</li>
       </ol>
 
-      <div className="bitfun-remote-disclaimer__actions">
+      <div className="void-remote-disclaimer__actions">
         <button
           type="button"
-          className="bitfun-remote-disclaimer__btn bitfun-remote-disclaimer__btn--secondary"
+          className="void-remote-disclaimer__btn void-remote-disclaimer__btn--secondary"
           onClick={onClose}
         >
           {canAgree ? t('remoteConnect.disclaimerDecline') : t('actions.close')}
@@ -57,7 +57,7 @@ export const RemoteConnectDisclaimerContent: React.FC<RemoteConnectDisclaimerCon
         {canAgree && (
           <button
             type="button"
-            className="bitfun-remote-disclaimer__btn bitfun-remote-disclaimer__btn--primary"
+            className="void-remote-disclaimer__btn void-remote-disclaimer__btn--primary"
             onClick={onAgree}
           >
             {t('remoteConnect.disclaimerAgree')}

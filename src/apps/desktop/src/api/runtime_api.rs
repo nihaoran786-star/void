@@ -1,7 +1,7 @@
 //! Runtime capability API
 
 use crate::api::app_state::AppState;
-use bitfun_core::service::runtime::{RuntimeCommandCapability, RuntimeManager};
+use void_core::service::runtime::{RuntimeCommandCapability, RuntimeManager};
 use tauri::State;
 
 #[tauri::command]

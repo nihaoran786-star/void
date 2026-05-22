@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunSlateTheme: ThemeConfig = {
+export const voidSlateTheme: ThemeConfig = {
   
-  id: 'bitfun-slate',
+  id: 'void-slate',
   name: 'Slate',
   type: 'dark',
   description: 'Slate gray geometric theme - Deep immersion, high contrast grayscale aesthetics',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '1.3.0',
 
   layout: {

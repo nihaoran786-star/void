@@ -57,14 +57,14 @@ export const Empty: React.FC<EmptyProps> = ({
   const size = getImageSize();
 
   return (
-    <div className={`bitfun-empty ${className}`} style={style}>
-      <div className="bitfun-empty__image">
+    <div className={`void-empty ${className}`} style={style}>
+      <div className="void-empty__image">
         {image || <DefaultImage size={size} />}
       </div>
       {description && (
-        <div className="bitfun-empty__description">{description}</div>
+        <div className="void-empty__description">{description}</div>
       )}
-      {children && <div className="bitfun-empty__footer">{children}</div>}
+      {children && <div className="void-empty__footer">{children}</div>}
     </div>
   );
 };

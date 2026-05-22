@@ -33,7 +33,7 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "websockets", "-q"])
     import websockets
 
-RELAY_URL = sys.argv[1] if len(sys.argv) > 1 else "https://remote.openbitfun.com/relay"
+RELAY_URL = sys.argv[1] if len(sys.argv) > 1 else "https://remote.openvoid.com/relay"
 WS_URL = RELAY_URL.replace("http://", "ws://").replace("https://", "wss://") + "/ws"
 
 PASS = 0
@@ -133,9 +133,9 @@ async def run_tests():
     room2 = f"test_incr_{ts}_2"
 
     # Test data
-    file1_content = "<html><body>Hello BitFun Test</body></html>"
+    file1_content = "<html><body>Hello Void Test</body></html>"
     file2_content = "body { margin: 0; background: #1a1a2e; }"
-    file3_content = "console.log('BitFun incremental upload test');"
+    file3_content = "console.log('Void incremental upload test');"
 
     file1_b64 = b64enc(file1_content)
     file2_b64 = b64enc(file2_content)

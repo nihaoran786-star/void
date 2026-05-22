@@ -49,25 +49,25 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
   // All tabs closed — show empty state
   if (openTabs.length === 0) {
     return (
-      <div className="bitfun-scene-viewport">
-        <div className="bitfun-scene-viewport__clip bitfun-scene-viewport__clip--empty">
-          <p className="bitfun-scene-viewport__empty-hint">{t('welcomeScene.emptyHint')}</p>
+      <div className="void-scene-viewport">
+        <div className="void-scene-viewport__clip void-scene-viewport__clip--empty">
+          <p className="void-scene-viewport__empty-hint">{t('welcomeScene.emptyHint')}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bitfun-scene-viewport">
-      <div className="bitfun-scene-viewport__clip">
+    <div className="void-scene-viewport">
+      <div className="void-scene-viewport__clip">
         {openTabs.map(tab => {
           const isActive = tab.id === activeTabId;
           return (
             <div
               key={tab.id}
               className={[
-                'bitfun-scene-viewport__scene',
-                isActive && 'bitfun-scene-viewport__scene--active',
+                'void-scene-viewport__scene',
+                isActive && 'void-scene-viewport__scene--active',
               ].filter(Boolean).join(' ')}
               aria-hidden={!isActive}
             >
@@ -75,7 +75,7 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
                 fallback={
                   isActive ? (
                     <div
-                      className="bitfun-scene-viewport__lazy-fallback"
+                      className="void-scene-viewport__lazy-fallback"
                       role="status"
                       aria-busy="true"
                       aria-label={t('loading.scenes')}

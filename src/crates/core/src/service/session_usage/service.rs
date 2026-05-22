@@ -12,7 +12,7 @@ use crate::service::snapshot::types::FileOperation;
 use crate::service::token_usage::{
     TimeRange, TokenUsageQuery, TokenUsageRecord, TokenUsageService,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -36,11 +36,11 @@ pub async fn generate_session_usage_report(
     persistence_manager: &PersistenceManager,
     token_usage_service: Option<&TokenUsageService>,
     request: SessionUsageReportRequest,
-) -> BitFunResult<SessionUsageReport> {
+) -> VoidResult<SessionUsageReport> {
     let workspace_path = request
         .workspace_path
         .clone()
-        .ok_or_else(|| BitFunError::validation("Workspace path is required for usage reports"))?;
+        .ok_or_else(|| VoidError::validation("Workspace path is required for usage reports"))?;
     let turns = persistence_manager
         .load_session_turns(Path::new(&workspace_path), &request.session_id)
         .await?;
@@ -56,7 +56,7 @@ pub async fn generate_session_usage_report(
             })
             .await
             .map_err(|error| {
-                BitFunError::service(format!("Failed to query token usage records: {}", error))
+                VoidError::service(format!("Failed to query token usage records: {}", error))
             })?
     } else {
         Vec::new()
@@ -1163,7 +1163,7 @@ mod tests {
         assert_eq!(report.workspace.kind, UsageWorkspaceKind::Local);
         assert_eq!(
             report.workspace.path_label.as_deref(),
-            Some("D:/workspace/bitfun")
+            Some("D:/workspace/void")
         );
     }
 
@@ -1312,7 +1312,7 @@ mod tests {
                 "write_file",
                 Some(true),
                 500,
-                "D:/workspace/bitfun/src/main.rs",
+                "D:/workspace/void/src/main.rs",
             )],
         );
         turn.duration_ms = Some(900);
@@ -1348,7 +1348,7 @@ mod tests {
                 "write_file",
                 Some(false),
                 120,
-                "D:/workspace/bitfun/src/main.rs",
+                "D:/workspace/void/src/main.rs",
             )],
         );
         failed_turn.model_rounds[0].model_id = Some("model-a".to_string());
@@ -1416,14 +1416,14 @@ mod tests {
                     "write_file",
                     Some(false),
                     120,
-                    "D:/workspace/bitfun/src/main.rs",
+                    "D:/workspace/void/src/main.rs",
                 ),
                 test_tool_item(
                     "tool-cancelled",
                     "edit_file",
                     None,
                     80,
-                    "D:/workspace/bitfun/src/lib.rs",
+                    "D:/workspace/void/src/lib.rs",
                 ),
             ],
         );
@@ -1461,28 +1461,28 @@ mod tests {
                     "write_file",
                     Some(true),
                     10,
-                    "D:/workspace/bitfun/src/a.rs",
+                    "D:/workspace/void/src/a.rs",
                 ),
                 test_tool_item(
                     "tool-2",
                     "write_file",
                     Some(true),
                     100,
-                    "D:/workspace/bitfun/src/b.rs",
+                    "D:/workspace/void/src/b.rs",
                 ),
                 test_tool_item(
                     "tool-3",
                     "write_file",
                     Some(true),
                     200,
-                    "D:/workspace/bitfun/src/c.rs",
+                    "D:/workspace/void/src/c.rs",
                 ),
                 test_tool_item(
                     "tool-4",
                     "edit_file",
                     Some(true),
                     60,
-                    "D:/workspace/bitfun/src/d.rs",
+                    "D:/workspace/void/src/d.rs",
                 ),
             ],
         );
@@ -1514,7 +1514,7 @@ mod tests {
             "write_file",
             Some(true),
             100,
-            "D:/workspace/bitfun/src/a.rs",
+            "D:/workspace/void/src/a.rs",
         );
         first.queue_wait_ms = Some(7);
         first.preflight_ms = Some(11);
@@ -1526,7 +1526,7 @@ mod tests {
             "write_file",
             Some(true),
             80,
-            "D:/workspace/bitfun/src/b.rs",
+            "D:/workspace/void/src/b.rs",
         );
         second.queue_wait_ms = Some(3);
         second.preflight_ms = Some(5);
@@ -1563,9 +1563,9 @@ mod tests {
     fn aggregates_operation_summary_file_stats_without_reading_file_bodies() {
         let request = test_request(None);
         let snapshot_facts = test_snapshot_facts(vec![
-            test_snapshot_operation("op-1", 0, "D:/workspace/bitfun/src/main.rs", 10, 2),
-            test_snapshot_operation("op-2", 1, "D:/workspace/bitfun/src/main.rs", 5, 1),
-            test_snapshot_operation("op-3", 1, "D:/workspace/bitfun/src/lib.rs", 4, 0),
+            test_snapshot_operation("op-1", 0, "D:/workspace/void/src/main.rs", 10, 2),
+            test_snapshot_operation("op-2", 1, "D:/workspace/void/src/main.rs", 5, 1),
+            test_snapshot_operation("op-3", 1, "D:/workspace/void/src/lib.rs", 4, 0),
         ]);
 
         let report = build_session_usage_report_from_sources(
@@ -1639,14 +1639,14 @@ mod tests {
                     "Write",
                     Some(true),
                     100,
-                    serde_json::json!({ "file_path": "D:/workspace/bitfun/src/main.rs" }),
+                    serde_json::json!({ "file_path": "D:/workspace/void/src/main.rs" }),
                 ),
                 test_tool_item_with_input(
                     "tool-2",
                     "Edit",
                     Some(true),
                     80,
-                    serde_json::json!({ "target_file": "D:/workspace/bitfun/src/lib.rs" }),
+                    serde_json::json!({ "target_file": "D:/workspace/void/src/lib.rs" }),
                 ),
             ],
         );
@@ -1686,9 +1686,9 @@ mod tests {
                     "Write",
                     Some(false),
                     100,
-                    "D:/workspace/bitfun/src/main.rs",
+                    "D:/workspace/void/src/main.rs",
                 ),
-                test_tool_item("tool-2", "Bash", Some(false), 120, "D:/workspace/bitfun"),
+                test_tool_item("tool-2", "Bash", Some(false), 120, "D:/workspace/void"),
             ],
         );
         failed_turn.status = TurnStatus::Error;
@@ -1714,8 +1714,8 @@ mod tests {
     fn file_rows_preserve_operation_turn_and_session_scopes() {
         let request = test_request(None);
         let snapshot_facts = test_snapshot_facts(vec![
-            test_snapshot_operation("op-9", 2, "D:/workspace/bitfun/src/main.rs", 1, 0),
-            test_snapshot_operation("op-1", 0, "D:/workspace/bitfun/src/main.rs", 2, 1),
+            test_snapshot_operation("op-9", 2, "D:/workspace/void/src/main.rs", 1, 0),
+            test_snapshot_operation("op-1", 0, "D:/workspace/void/src/main.rs", 2, 1),
         ]);
 
         let report = build_session_usage_report_from_sources(
@@ -1741,7 +1741,7 @@ mod tests {
     fn test_request(remote_connection_id: Option<&str>) -> SessionUsageReportRequest {
         SessionUsageReportRequest {
             session_id: "session-1".to_string(),
-            workspace_path: Some("D:/workspace/bitfun".to_string()),
+            workspace_path: Some("D:/workspace/void".to_string()),
             remote_connection_id: remote_connection_id.map(ToOwned::to_owned),
             remote_ssh_host: remote_connection_id.map(|_| "host.example".to_string()),
             include_hidden_subagents: true,
@@ -1782,7 +1782,7 @@ mod tests {
                 "write_file",
                 Some(true),
                 100,
-                "D:/workspace/bitfun/src/main.rs",
+                "D:/workspace/void/src/main.rs",
             )],
         )
     }

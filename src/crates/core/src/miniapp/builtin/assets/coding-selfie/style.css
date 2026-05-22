@@ -1,9 +1,9 @@
 /* Coding Selfie — daily coding snapshot.
  * Design system reference:
- *   palette  ─ Inherits BitFun host theme (--bitfun-* tokens). Surfaces,
+ *   palette  ─ Inherits Void host theme (--void-* tokens). Surfaces,
  *              text and borders all proxy through host vars so the dashboard
- *              reads as a native BitFun panel under both bitfun-dark and
- *              bitfun-light. Standalone fallbacks mirror the default dark
+ *              reads as a native Void panel under both void-dark and
+ *              void-light. Standalone fallbacks mirror the default dark
  *              theme (#0e0e10 / #e8e8e8 / #60a5fa).
  *   accent   ─ host primary (cool blue / slate) for hero/streak/heatmap
  *              accents. Diff stats keep semantic green/red so additions and
@@ -13,30 +13,30 @@
 :root {
   color-scheme: dark;
 
-  --cs-bg:        var(--bitfun-bg,           #0e0e10);
-  --cs-card:      var(--bitfun-bg-secondary, #1c1c1f);
-  --cs-card-2:    var(--bitfun-bg-tertiary,  #121214);
+  --cs-bg:        var(--void-bg,           #0e0e10);
+  --cs-card:      var(--void-bg-secondary, #1c1c1f);
+  --cs-card-2:    var(--void-bg-tertiary,  #121214);
 
-  --cs-border:        var(--bitfun-border-subtle, rgba(255, 255, 255, 0.10));
-  --cs-border-strong: var(--bitfun-border,        rgba(255, 255, 255, 0.18));
+  --cs-border:        var(--void-border-subtle, rgba(255, 255, 255, 0.10));
+  --cs-border-strong: var(--void-border,        rgba(255, 255, 255, 0.18));
 
-  --cs-text:       var(--bitfun-text,           #e8e8e8);
-  --cs-text-2:     var(--bitfun-text-secondary, #b0b0b0);
-  --cs-text-muted: var(--bitfun-text-muted,     #858585);
+  --cs-text:       var(--void-text,           #e8e8e8);
+  --cs-text-2:     var(--void-text-secondary, #b0b0b0);
+  --cs-text-muted: var(--void-text-muted,     #858585);
 
   /* Primary accent now follows the host (cool blue in dark, slate in light)
-   * so the dashboard stops fighting BitFun's neutral palette. The previous
+   * so the dashboard stops fighting Void's neutral palette. The previous
    * "run green" is preserved as a secondary semantic color (--cs-add). */
-  --cs-accent:      var(--bitfun-accent,       #60a5fa);
-  --cs-accent-2:    var(--bitfun-accent-hover, #3b82f6);
+  --cs-accent:      var(--void-accent,       #60a5fa);
+  --cs-accent-2:    var(--void-accent-hover, #3b82f6);
   --cs-accent-soft: rgba(96, 165, 250, 0.14);
   --cs-accent-glow: 0 0 20px rgba(96, 165, 250, 0.20);
 
   /* Diff / activity semantics — kept on green/red regardless of host accent
    * because additions and deletions must stay universally readable. */
-  --cs-add:  var(--bitfun-success, #34d399);
-  --cs-del:  var(--bitfun-error,   #f87171);
-  --cs-warn: var(--bitfun-warning, #f59e0b);
+  --cs-add:  var(--void-success, #34d399);
+  --cs-del:  var(--void-error,   #f87171);
+  --cs-warn: var(--void-warning, #f59e0b);
 
   /* RGB triplet of the host accent — used by .cs-heat-* gradients to mix
    * tinted alpha steps without hardcoding the brand color. Updated by the
@@ -49,10 +49,10 @@
     radial-gradient(ellipse at bottom right, rgba(139,92,246, 0.04),           transparent 50%),
     var(--cs-bg);
 
-  --cs-radius:    var(--bitfun-radius-lg, 12px);
-  --cs-radius-sm: var(--bitfun-radius,    8px);
-  --cs-mono: var(--bitfun-font-mono, 'JetBrains Mono', 'FiraCode', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', 'Cascadia Code', Consolas, 'Liberation Mono', 'Courier New', monospace);
-  --cs-sans: var(--bitfun-font-sans, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif);
+  --cs-radius:    var(--void-radius-lg, 12px);
+  --cs-radius-sm: var(--void-radius,    8px);
+  --cs-mono: var(--void-font-mono, 'JetBrains Mono', 'FiraCode', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', 'Cascadia Code', Consolas, 'Liberation Mono', 'Courier New', monospace);
+  --cs-sans: var(--void-font-sans, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif);
 }
 
 [data-theme-type="light"] {

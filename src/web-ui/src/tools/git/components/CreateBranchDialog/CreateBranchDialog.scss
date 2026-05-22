@@ -1,6 +1,6 @@
 @use '@/component-library/styles/tokens.scss' as *;
 
-.bitfun-create-branch-dialog-overlay {
+.void-create-branch-dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -11,10 +11,10 @@
   justify-content: center;
   background: rgba(0, 0, 0, 0.5);
   z-index: $z-modal;
-  animation: bitfun-create-branch-dialog-fade-in 0.2s ease-out;
+  animation: void-create-branch-dialog-fade-in 0.2s ease-out;
 }
 
-.bitfun-create-branch-dialog {
+.void-create-branch-dialog {
   background: $color-bg-primary;
   border: 1px solid $border-base;
   border-radius: $size-radius-base;
@@ -24,7 +24,7 @@
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-  animation: bitfun-create-branch-dialog-scale-in 0.2s ease-out;
+  animation: void-create-branch-dialog-scale-in 0.2s ease-out;
 
   &__header {
     display: flex;
@@ -175,7 +175,7 @@
     border-radius: $size-radius-sm;
     color: #ef4444;
     font-size: var(--font-size-xs);
-    animation: bitfun-create-branch-dialog-shake 0.4s ease-in-out;
+    animation: void-create-branch-dialog-shake 0.4s ease-in-out;
   }
 
   &__hint {
@@ -247,7 +247,7 @@
 
 }
 
-@keyframes bitfun-create-branch-dialog-fade-in {
+@keyframes void-create-branch-dialog-fade-in {
   from {
     opacity: 0;
   }
@@ -256,7 +256,7 @@
   }
 }
 
-@keyframes bitfun-create-branch-dialog-scale-in {
+@keyframes void-create-branch-dialog-scale-in {
   from {
     opacity: 0;
     transform: scale(0.95) translateY(-10px);
@@ -267,7 +267,7 @@
   }
 }
 
-@keyframes bitfun-create-branch-dialog-shake {
+@keyframes void-create-branch-dialog-shake {
   0%, 100% {
     transform: translateX(0);
   }
@@ -280,7 +280,7 @@
 }
 
 @media (max-width: 768px) {
-  .bitfun-create-branch-dialog {
+  .void-create-branch-dialog {
     min-width: auto;
     max-width: 90vw;
     margin: $size-gap-4;

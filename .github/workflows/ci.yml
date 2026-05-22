@@ -90,10 +90,10 @@ jobs:
           cache-bin: false
 
       - name: Check compilation
-        run: cargo check --workspace --exclude bitfun-cli
+        run: cargo check --workspace --exclude void-cli
 
       - name: Run core Rust tests
-        run: cargo test --locked -p bitfun-core
+        run: cargo test --locked -p void-core
 
   # ── Frontend: build ────────────────────────────────────────────────
   frontend-build:

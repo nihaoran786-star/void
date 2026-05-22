@@ -372,7 +372,7 @@ const ReviewTeamPage: React.FC = () => {
               </div>
               <p className="review-team-page__summary-value">
                 {t('reviewTeams.detail.localOnlyDescription', {
-                  defaultValue: 'Reviewers run as BitFun subagents and report through the same review workflow.',
+                  defaultValue: 'Reviewers run as Void subagents and report through the same review workflow.',
                 })}
               </p>
             </div>

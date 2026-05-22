@@ -4,7 +4,7 @@
 //! Supports multiple connection methods: LAN, ngrok, relay server, and bots.
 //!
 //! Bot connections (Telegram / Feishu / Weixin) run independently of relay connections
-//! (LAN / ngrok / BitFun Server / Custom Server).  Calling `stop()` only
+//! (LAN / ngrok / Void Server / Custom Server).  Calling `stop()` only
 //! tears down the relay side; bots keep running.  Use `stop_bot()` or
 //! `stop_all()` to shut everything down.
 
@@ -38,7 +38,7 @@ use tokio::sync::RwLock;
 pub enum ConnectionMethod {
     Lan,
     Ngrok,
-    BitfunServer,
+    VoidServer,
     CustomServer { url: String },
     BotFeishu,
     BotTelegram,
@@ -49,7 +49,7 @@ pub enum ConnectionMethod {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RemoteConnectConfig {
     pub lan_port: u16,
-    pub bitfun_server_url: String,
+    pub void_server_url: String,
     pub web_app_url: String,
     pub custom_server_url: Option<String>,
     pub bot_feishu: Option<bot::BotConfig>,
@@ -62,8 +62,8 @@ impl Default for RemoteConnectConfig {
     fn default() -> Self {
         Self {
             lan_port: 9700,
-            bitfun_server_url: "https://remote.openbitfun.com/relay".to_string(),
-            web_app_url: "https://remote.openbitfun.com/relay".to_string(),
+            void_server_url: "https://remote.openvoid.com/relay".to_string(),
+            web_app_url: "https://remote.openvoid.com/relay".to_string(),
             custom_server_url: None,
             bot_feishu: None,
             bot_telegram: None,
@@ -245,7 +245,7 @@ impl RemoteConnectService {
         vec![
             ConnectionMethod::Lan,
             ConnectionMethod::Ngrok,
-            ConnectionMethod::BitfunServer,
+            ConnectionMethod::VoidServer,
             ConnectionMethod::CustomServer {
                 url: self.config.custom_server_url.clone().unwrap_or_default(),
             },
@@ -257,7 +257,7 @@ impl RemoteConnectService {
 
     /// Start a remote connection with the given method.
     ///
-    /// For relay methods (LAN / ngrok / BitFun Server / Custom Server) this
+    /// For relay methods (LAN / ngrok / Void Server / Custom Server) this
     /// tears down any existing relay and starts a new one.
     /// For bot methods, this starts the bot pairing flow without affecting
     /// any running relay connection.
@@ -313,7 +313,7 @@ impl RemoteConnectService {
                 *self.ngrok_tunnel.write().await = Some(tunnel);
                 url
             }
-            ConnectionMethod::BitfunServer => self.config.bitfun_server_url.clone(),
+            ConnectionMethod::VoidServer => self.config.void_server_url.clone(),
             ConnectionMethod::CustomServer { url } => url.clone(),
             _ => unreachable!(),
         };
@@ -348,7 +348,7 @@ impl RemoteConnectService {
 
         let web_app_url: String = match &method {
             ConnectionMethod::Lan | ConnectionMethod::Ngrok => relay_url.clone(),
-            ConnectionMethod::BitfunServer => {
+            ConnectionMethod::VoidServer => {
                 if let Some(web_dir) = static_dir {
                     match upload_mobile_web(&relay_url, &qr_payload.room_id, web_dir).await {
                         Ok(()) => {
@@ -928,7 +928,7 @@ impl RemoteConnectService {
         self.pairing.read().await.state().await
     }
 
-    /// Stop relay connections (LAN / ngrok / BitFun Server / Custom Server).
+    /// Stop relay connections (LAN / ngrok / Void Server / Custom Server).
     /// Bot connections are left running.
     pub async fn stop_relay(&self) {
         if let Some(ref client) = *self.relay_client.read().await {

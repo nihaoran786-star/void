@@ -163,20 +163,20 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
   );
 
   const handleWidgetEvent = useCallback((event: WidgetMessage) => {
-    if (event.type === 'bitfun-widget:context-menu') {
+    if (event.type === 'void-widget:context-menu') {
       setMenuSelectionActive(true);
       openPromptMenu(event as WidgetContextMenuMessage, previewRef.current);
       return;
     }
-    if (event.type === 'bitfun-widget:selection-cleared') {
+    if (event.type === 'void-widget:selection-cleared') {
       setMenuSelectionActive(false);
       hideMenu();
       return;
     }
     if (
-      event.type === 'bitfun-widget:ready' ||
-      event.type === 'bitfun-widget:resize' ||
-      event.type === 'bitfun-widget:clear-selection'
+      event.type === 'void-widget:ready' ||
+      event.type === 'void-widget:resize' ||
+      event.type === 'void-widget:clear-selection'
     ) {
       return;
     }

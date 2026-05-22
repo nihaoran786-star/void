@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: bitfun-relay
+    container_name: void-relay
     restart: unless-stopped
     ports:
       - "${RELAY_HOST_BIND_IP:-0.0.0.0}:9700:9700"
@@ -20,7 +20,7 @@ services:
   # Uncomment if you need HTTPS / domain-based access.
   # caddy:
   #   image: caddy:2-alpine
-  #   container_name: bitfun-caddy
+  #   container_name: void-caddy
   #   restart: unless-stopped
   #   ports:
   #     - "80:80"

@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunMidnightTheme: ThemeConfig = {
+export const voidMidnightTheme: ThemeConfig = {
   
-  id: 'bitfun-midnight',
+  id: 'void-midnight',
   name: 'Midnight',
   type: 'dark',
   description: 'Midnight gray dark theme - Professional and elegant, inspired by JetBrains IDE',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '1.0.0',
   
   

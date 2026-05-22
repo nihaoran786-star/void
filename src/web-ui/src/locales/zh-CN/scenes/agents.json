@@ -178,7 +178,7 @@
       "lockedCount": "{{count}} 个固定角色",
       "extraCount": "{{count}} 个额外 Sub-Agent",
       "localOnly": "代码审核",
-      "localOnlyDescription": "在 BitFun 内以只读 Sub-Agent 运行，并把结果回传到当前审核线程。",
+      "localOnlyDescription": "在 Void 内以只读 Sub-Agent 运行，并把结果回传到当前审核线程。",
       "parallelLabel": "并行审核",
       "parallelDescription": "逻辑、性能、安全、架构和额外审核员会并行工作，再由质检员验证结果。",
       "warningLabel": "审核更重",

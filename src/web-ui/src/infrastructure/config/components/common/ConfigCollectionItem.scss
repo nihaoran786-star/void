@@ -2,19 +2,19 @@
 
 // ─── item wrapper ──────────────────────────────────────────────────────────────
 
-.bitfun-collection-item {
-  --bitfun-collection-details-bg: var(--element-bg-subtle);
-  --bitfun-collection-details-border: var(--border-medium);
-  --bitfun-collection-details-text: var(--color-text-secondary);
+.void-collection-item {
+  --void-collection-details-bg: var(--element-bg-subtle);
+  --void-collection-details-border: var(--border-medium);
+  --void-collection-details-text: var(--color-text-secondary);
 
-  & + .bitfun-collection-item {
+  & + .void-collection-item {
     border-top: 1px solid var(--border-subtle);
   }
 
   &.is-disabled {
     opacity: 0.55;
 
-    .bitfun-collection-item__name {
+    .void-collection-item__name {
       text-decoration: line-through;
     }
   }
@@ -22,7 +22,7 @@
 
 // ─── clickable row ─────────────────────────────────────────────────────────────
 
-.bitfun-collection-item__row {
+.void-collection-item__row {
   transition: background $motion-base $easing-standard;
 
   &.is-clickable {
@@ -37,7 +37,7 @@
 
 // ─── label + inline badge ──────────────────────────────────────────────────────
 
-.bitfun-collection-item__label {
+.void-collection-item__label {
   display: flex !important;
   align-items: center;
   gap: $size-gap-2;
@@ -46,13 +46,13 @@
   margin: 0;
 }
 
-.bitfun-collection-item__label--stacked {
+.void-collection-item__label--stacked {
   flex-direction: column;
   align-items: flex-start;
   gap: $size-gap-1;
 }
 
-.bitfun-collection-item__name {
+.void-collection-item__name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -61,24 +61,24 @@
   max-width: 100%;
 }
 
-.bitfun-collection-item__badges {
+.void-collection-item__badges {
   display: flex;
   gap: $size-gap-2;
   min-width: 0;
 }
 
-.bitfun-collection-item__badges--inline {
+.void-collection-item__badges--inline {
   align-items: center;
   flex-wrap: nowrap;
   overflow: hidden;
 }
 
-.bitfun-collection-item__badges--stacked {
+.void-collection-item__badges--stacked {
   align-items: flex-start;
   flex-wrap: wrap;
 }
 
-.bitfun-collection-item__badge {
+.void-collection-item__badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -95,7 +95,7 @@
 
 // ─── right control area ────────────────────────────────────────────────────────
 
-.bitfun-collection-item__control {
+.void-collection-item__control {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -104,20 +104,20 @@
 
 // ─── expandable details ────────────────────────────────────────────────────────
 
-.bitfun-collection-item__details {
+.void-collection-item__details {
   padding: $size-gap-4;
-  border-top: 1px dashed var(--bitfun-collection-details-border);
-  background: var(--bitfun-collection-details-bg);
-  color: var(--bitfun-collection-details-text);
+  border-top: 1px dashed var(--void-collection-details-border);
+  background: var(--void-collection-details-bg);
+  color: var(--void-collection-details-text);
   display: flex;
   flex-direction: column;
   gap: $size-gap-3;
-  animation: bitfun-collection-slide-down 0.18s $easing-standard;
+  animation: void-collection-slide-down 0.18s $easing-standard;
 }
 
 // ─── shared action button ──────────────────────────────────────────────────────
 
-.bitfun-collection-btn {
+.void-collection-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -150,7 +150,7 @@
 
 // ─── empty row ─────────────────────────────────────────────────────────────────
 
-.bitfun-collection-empty {
+.void-collection-empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -166,13 +166,13 @@
 
 // ─── inline form (shared by all collection pages) ──────────────────────────────
 
-.bitfun-collection-form {
+.void-collection-form {
   padding: $size-gap-4;
   border-bottom: 1px solid var(--border-subtle);
-  animation: bitfun-collection-slide-down 0.18s $easing-standard;
+  animation: void-collection-slide-down 0.18s $easing-standard;
 }
 
-.bitfun-collection-form__header {
+.void-collection-form__header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -186,13 +186,13 @@
   }
 }
 
-.bitfun-collection-form__body {
+.void-collection-form__body {
   display: flex;
   flex-direction: column;
   gap: $size-gap-3;
 }
 
-.bitfun-collection-form__footer {
+.void-collection-form__footer {
   display: flex;
   justify-content: flex-end;
   gap: $size-gap-2;
@@ -201,20 +201,20 @@
 
 // ─── details inner blocks ──────────────────────────────────────────────────────
 
-.bitfun-collection-details__field {
+.void-collection-details__field {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   line-height: $line-height-relaxed;
 }
 
-.bitfun-collection-details__label {
+.void-collection-details__label {
   font-size: var(--font-size-xs);
   font-weight: $font-weight-medium;
   color: var(--color-text-muted);
   margin-bottom: $size-gap-1;
 }
 
-.bitfun-collection-details__pre {
+.void-collection-details__pre {
   margin: 0;
   padding: $size-gap-3;
   background: var(--element-bg-medium);
@@ -230,14 +230,14 @@
   overflow-y: auto;
 }
 
-.bitfun-collection-details__meta {
+.void-collection-details__meta {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   padding-top: $size-gap-3;
   border-top: 1px solid var(--border-subtle);
 }
 
-.bitfun-collection-details__code {
+.void-collection-details__code {
   padding: 1px 6px;
   background: var(--element-bg-medium);
   border-radius: $size-radius-sm;
@@ -248,7 +248,7 @@
 
 // ─── animation ─────────────────────────────────────────────────────────────────
 
-@keyframes bitfun-collection-slide-down {
+@keyframes void-collection-slide-down {
   from {
     opacity: 0;
     transform: translateY(-6px);
@@ -262,33 +262,33 @@
 // ─── responsive ────────────────────────────────────────────────────────────────
 
 @container config-panel (max-width: 520px) {
-  .bitfun-collection-item__details {
+  .void-collection-item__details {
     padding: $size-gap-3;
     gap: $size-gap-2;
   }
 
-  .bitfun-collection-item__label {
+  .void-collection-item__label {
     align-items: flex-start;
   }
 
-  .bitfun-collection-item__badges--inline {
+  .void-collection-item__badges--inline {
     flex-wrap: wrap;
   }
 
-  .bitfun-collection-form {
+  .void-collection-form {
     padding: $size-gap-3;
   }
 
-  .bitfun-collection-form__body {
+  .void-collection-form__body {
     gap: $size-gap-2;
   }
 
-  .bitfun-collection-empty {
+  .void-collection-empty {
     flex-direction: column;
     padding: $size-gap-4;
   }
 
-  .bitfun-collection-btn {
+  .void-collection-btn {
     width: 24px;
     height: 24px;
   }

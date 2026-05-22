@@ -1,6 +1,6 @@
 //! Skill type definitions
 
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::front_matter_markdown::FrontMatterMarkdown;
 use serde::{Deserialize, Serialize};
 
@@ -41,7 +41,7 @@ pub struct SkillInfo {
     pub source_slot: String,
     /// Directory name under the slot's `skills/` root.
     pub dir_name: String,
-    /// Whether this skill is bundled with BitFun as a built-in skill.
+    /// Whether this skill is bundled with Void as a built-in skill.
     #[serde(default)]
     pub is_builtin: bool,
     /// Optional logical group for built-in skills.
@@ -128,16 +128,16 @@ impl SkillData {
         content: &str,
         location: SkillLocation,
         with_content: bool,
-    ) -> BitFunResult<Self> {
+    ) -> VoidResult<Self> {
         let (metadata, body) = FrontMatterMarkdown::load_str(content)
-            .map_err(|e| BitFunError::tool(format!("Invalid SKILL.md format: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Invalid SKILL.md format: {}", e)))?;
 
         let name = metadata
             .get("name")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .ok_or_else(|| {
-                BitFunError::tool("Missing required field 'name' in SKILL.md".to_string())
+                VoidError::tool("Missing required field 'name' in SKILL.md".to_string())
             })?;
 
         let description = metadata
@@ -145,14 +145,14 @@ impl SkillData {
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
             .ok_or_else(|| {
-                BitFunError::tool("Missing required field 'description' in SKILL.md".to_string())
+                VoidError::tool("Missing required field 'description' in SKILL.md".to_string())
             })?;
 
         let skill_content = if with_content { body } else { String::new() };
         let dir_name = std::path::Path::new(&path)
             .file_name()
             .and_then(|value| value.to_str())
-            .ok_or_else(|| BitFunError::tool(format!("Invalid skill path: {}", path)))?
+            .ok_or_else(|| VoidError::tool(format!("Invalid skill path: {}", path)))?
             .to_string();
 
         Ok(SkillData {

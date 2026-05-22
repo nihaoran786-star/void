@@ -22,7 +22,7 @@ use crate::agentic::tools::framework::{
 };
 use crate::agentic::tools::pipeline::SubagentParentInfo;
 use crate::agentic::tools::InputValidator;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::timing::elapsed_ms_u64;
 use async_trait::async_trait;
 use log::{debug, warn};
@@ -166,7 +166,7 @@ impl TaskTool {
     }
 
     fn deep_review_capacity_decision_for_provider_error(
-        error: &BitFunError,
+        error: &VoidError,
     ) -> crate::agentic::deep_review_policy::DeepReviewCapacityQueueDecision {
         deep_review_task_adapter::capacity_decision_for_provider_error(error)
     }
@@ -307,7 +307,7 @@ impl TaskTool {
         conc_policy: &DeepReviewConcurrencyPolicy,
         is_optional_reviewer: bool,
         launch_batch_info: Option<&DeepReviewLaunchBatchInfo>,
-    ) -> BitFunResult<DeepReviewQueueWaitOutcome> {
+    ) -> VoidResult<DeepReviewQueueWaitOutcome> {
         deep_review_task_adapter::wait_for_reviewer_admission(
             session_id,
             dialog_turn_id,
@@ -479,7 +479,7 @@ impl Tool for TaskTool {
         "Task"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(self.build_description(None).await)
     }
 
@@ -490,7 +490,7 @@ impl Tool for TaskTool {
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         Ok(self.build_description(context).await)
     }
 
@@ -657,7 +657,7 @@ impl Tool for TaskTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let start_time = std::time::Instant::now();
 
         // description is only used for frontend display
@@ -670,7 +670,7 @@ impl Tool for TaskTool {
             .get("prompt")
             .and_then(|v| v.as_str())
             .ok_or_else(|| {
-                BitFunError::tool(
+                VoidError::tool(
                     "Required parameters: subagent_type, prompt, description. Missing prompt"
                         .to_string(),
                 )
@@ -680,11 +680,11 @@ impl Tool for TaskTool {
         let subagent_type = input
             .get("subagent_type")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("Required parameters: subagent_type, prompt, description. Missing subagent_type".to_string()))?
+            .ok_or_else(|| VoidError::tool("Required parameters: subagent_type, prompt, description. Missing subagent_type".to_string()))?
             .to_string();
         let all_agent_types = self.get_agents_types(Some(context)).await;
         if !all_agent_types.contains(&subagent_type) {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "subagent_type {} is not valid, must be one of: {}",
                 subagent_type,
                 all_agent_types.join(", ")
@@ -699,7 +699,7 @@ impl Tool for TaskTool {
             Some(value) => {
                 let value = value
                     .as_str()
-                    .ok_or_else(|| BitFunError::tool("model_id must be a string".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("model_id must be a string".to_string()))?;
                 let value = value.trim();
                 (!value.is_empty()).then(|| value.to_string())
             }
@@ -708,7 +708,7 @@ impl Tool for TaskTool {
         let mut timeout_seconds = match input.get("timeout_seconds") {
             Some(value) => {
                 let parsed = value.as_u64().ok_or_else(|| {
-                    BitFunError::tool("timeout_seconds must be a non-negative integer".to_string())
+                    VoidError::tool("timeout_seconds must be a non-negative integer".to_string())
                 })?;
                 (parsed > 0).then_some(parsed)
             }
@@ -729,13 +729,13 @@ impl Tool for TaskTool {
                 .as_deref()
                 .or(current_workspace_path.as_deref())
                 .ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "workspace_path is required for Explore/FileFinder agent".to_string(),
                     )
                 })?;
 
             if workspace_path.is_empty() {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "workspace_path cannot be empty for Explore/FileFinder agent".to_string(),
                 ));
             }
@@ -745,13 +745,13 @@ impl Tool for TaskTool {
             if !context.is_remote() {
                 let path = std::path::Path::new(&workspace_path);
                 if !path.exists() {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "workspace_path '{}' does not exist",
                         workspace_path
                     )));
                 }
                 if !path.is_dir() {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "workspace_path '{}' is not a directory",
                         workspace_path
                     )));
@@ -766,7 +766,7 @@ impl Tool for TaskTool {
             .clone()
             .or(current_workspace_path)
             .ok_or_else(|| {
-                BitFunError::tool(
+                VoidError::tool(
                     "workspace_path is required when the current workspace is unavailable"
                         .to_string(),
                 )
@@ -775,7 +775,7 @@ impl Tool for TaskTool {
         let session_id = if let Some(session_id) = &context.session_id {
             session_id.clone()
         } else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "session_id is required in context".to_string(),
             ));
         };
@@ -784,7 +784,7 @@ impl Tool for TaskTool {
         let tool_call_id = if let Some(tool_id) = &context.tool_call_id {
             tool_id.clone()
         } else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "tool_call_id is required in context".to_string(),
             ));
         };
@@ -793,7 +793,7 @@ impl Tool for TaskTool {
         let dialog_turn_id = if let Some(turn_id) = &context.dialog_turn_id {
             turn_id.clone()
         } else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "dialog_turn_id is required in context".to_string(),
             ));
         };
@@ -808,7 +808,7 @@ impl Tool for TaskTool {
 
         // Get global coordinator
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::tool("coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("coordinator not initialized".to_string()))?;
 
         if context
             .agent_type
@@ -817,7 +817,7 @@ impl Tool for TaskTool {
             .is_some_and(|agent_type| agent_type == DEEP_REVIEW_AGENT_TYPE)
         {
             let base_policy = load_default_deep_review_policy().await.map_err(|error| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "Failed to load DeepReview execution policy: {}",
                     error
                 ))
@@ -859,14 +859,14 @@ impl Tool for TaskTool {
             let role = policy
                 .classify_subagent(&subagent_type)
                 .map_err(|violation| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "DeepReview Task policy violation: {}",
                         violation.to_tool_error_message()
                     ))
                 })?;
             deep_review_subagent_role = Some(role);
             if requested_auto_retry && !is_retry {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "auto_retry requires retry=true for DeepReview Task calls".to_string(),
                 ));
             }
@@ -875,7 +875,7 @@ impl Tool for TaskTool {
                 .and_then(DeepReviewRunManifestGate::from_value)
             {
                 gate.ensure_active(&subagent_type).map_err(|violation| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "DeepReview Task policy violation: {}",
                         violation.to_tool_error_message()
                     ))
@@ -899,7 +899,7 @@ impl Tool for TaskTool {
                                     Self::auto_retry_suppression_reason(violation.code),
                                 );
                             }
-                            return Err(BitFunError::tool(format!(
+                            return Err(VoidError::tool(format!(
                                 "DeepReview Task policy violation: {}",
                                 violation.to_tool_error_message()
                             )));
@@ -913,7 +913,7 @@ impl Tool for TaskTool {
                                 &dialog_turn_id,
                                 Self::auto_retry_suppression_reason(violation.code),
                             );
-                            BitFunError::tool(format!(
+                            VoidError::tool(format!(
                                 "DeepReview Task policy violation: {}",
                                 violation.to_tool_error_message()
                             ))
@@ -924,7 +924,7 @@ impl Tool for TaskTool {
                 .get_subagent_is_readonly(&subagent_type)
                 .unwrap_or(false);
             if !is_readonly {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "DeepReview Task policy violation: {}",
                     json!({
                         "code": "deep_review_subagent_not_readonly",
@@ -939,7 +939,7 @@ impl Tool for TaskTool {
                 .get_subagent_is_review(&subagent_type)
                 .unwrap_or(false);
             if !is_review {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "DeepReview Task policy violation: {}",
                     json!({
                         "code": "deep_review_subagent_not_review",
@@ -1046,7 +1046,7 @@ impl Tool for TaskTool {
                             }
                         }
                         Err(violation) => {
-                            return Err(BitFunError::tool(format!(
+                            return Err(VoidError::tool(format!(
                                 "DeepReview Task policy violation: {}",
                                 violation.to_tool_error_message()
                             )));
@@ -1059,7 +1059,7 @@ impl Tool for TaskTool {
                     conc_policy
                         .check_launch_allowed(active_reviewers, role, judge_pending)
                         .map_err(|violation| {
-                            BitFunError::tool(format!(
+                            VoidError::tool(format!(
                                 "DeepReview concurrency policy violation: {}",
                                 violation.to_tool_error_message()
                             ))
@@ -1080,7 +1080,7 @@ impl Tool for TaskTool {
                         Self::auto_retry_suppression_reason(violation.code),
                     );
                 }
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "DeepReview Task policy violation: {}",
                     violation.to_tool_error_message()
                 ))
@@ -1212,14 +1212,14 @@ impl Tool for TaskTool {
                     if matches!(
                         deep_review_subagent_role,
                         Some(DeepReviewSubagentRole::Reviewer)
-                    ) && matches!(error, BitFunError::Cancelled(_))
+                    ) && matches!(error, VoidError::Cancelled(_))
                         && !context
                             .cancellation_token
                             .as_ref()
                             .is_some_and(|token| token.is_cancelled())
                     {
                         let reason = match &error {
-                            BitFunError::Cancelled(reason) => reason.as_str(),
+                            VoidError::Cancelled(reason) => reason.as_str(),
                             _ => "",
                         };
                         return Ok(vec![Self::deep_review_cancelled_reviewer_tool_result(
@@ -1356,7 +1356,7 @@ impl Tool for TaskTool {
                                                     }
                                                 }
                                                 Err(violation) => {
-                                                    return Err(BitFunError::tool(format!(
+                                                    return Err(VoidError::tool(format!(
                                                         "DeepReview Task policy violation: {}",
                                                         violation.to_tool_error_message()
                                                     )));
@@ -1527,7 +1527,7 @@ mod tests {
     };
     use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use crate::util::BitFunError;
+    use crate::util::VoidError;
     use async_trait::async_trait;
     use serde_json::json;
     use std::collections::HashMap;
@@ -2644,7 +2644,7 @@ mod tests {
         use crate::agentic::deep_review_policy::{
             deep_review_effective_concurrency_snapshot, DeepReviewConcurrencyPolicy,
         };
-        use crate::util::BitFunError;
+        use crate::util::VoidError;
 
         let policy = DeepReviewConcurrencyPolicy {
             max_parallel_instances: 3,
@@ -2656,7 +2656,7 @@ mod tests {
         };
         let turn_id = "turn-provider-capacity-skip";
         let decision =
-            TaskTool::deep_review_capacity_decision_for_provider_error(&BitFunError::ai(
+            TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
                 "Provider error: provider=openai, code=429, message=rate limit exceeded",
             ));
         assert!(decision.queueable);
@@ -2685,10 +2685,10 @@ mod tests {
 
     #[test]
     fn deep_review_provider_quota_error_is_not_capacity_skipped() {
-        use crate::util::BitFunError;
+        use crate::util::VoidError;
 
         let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &BitFunError::ai("Provider error: provider=glm, code=1113, message=insufficient quota"),
+            &VoidError::ai("Provider error: provider=glm, code=1113, message=insufficient quota"),
         );
 
         assert!(
@@ -2710,7 +2710,7 @@ mod tests {
             auto_retry_elapsed_guard_seconds: 180,
         };
         let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &BitFunError::ai("Provider error: code=429, message=Retry-After: 45"),
+            &VoidError::ai("Provider error: code=429, message=Retry-After: 45"),
         );
 
         assert_eq!(
@@ -2734,7 +2734,7 @@ mod tests {
             auto_retry_elapsed_guard_seconds: 180,
         };
         let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &BitFunError::ai("Provider error: code=429, message=too many concurrent requests"),
+            &VoidError::ai("Provider error: code=429, message=too many concurrent requests"),
         );
 
         let waits = (0..3)
@@ -2761,7 +2761,7 @@ mod tests {
             auto_retry_elapsed_guard_seconds: 180,
         };
         let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &BitFunError::ai("Provider error: code=invalid_model, message=model does not exist"),
+            &VoidError::ai("Provider error: code=invalid_model, message=model does not exist"),
         );
 
         assert_eq!(

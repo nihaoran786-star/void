@@ -2,9 +2,9 @@
 use crate::agentic::WorkspaceBinding;
 use crate::agentic::tools::restrictions::ToolRuntimeRestrictions;
 use crate::agentic::workspace::WorkspaceServices;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use async_trait::async_trait;
-pub use bitfun_agent_tools::{
+pub use void_agent_tools::{
     DynamicMcpToolInfo, DynamicToolInfo, PortableToolContextProvider, ToolContextFacts,
     ToolExposure, ToolPathBackend, ToolPathResolution, ToolRenderOptions, ToolResult,
     ToolWorkspaceKind, ValidationResult,
@@ -25,7 +25,7 @@ pub struct ToolUseContext {
     pub unlocked_collapsed_tools: Vec<String>,
     /// Extended context data passed from execution layer to tools.
     pub custom_data: HashMap<String, Value>,
-    /// Desktop automation (Computer use); only set in BitFun desktop.
+    /// Desktop automation (Computer use); only set in Void desktop.
     pub computer_use_host: Option<crate::agentic::tools::computer_use_host::ComputerUseHostRef>,
     // Cancel tool execution more timely, especially for tools like TaskTool that need to run for a long time
     pub cancellation_token: Option<CancellationToken>,
@@ -270,13 +270,13 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
 
     /// Tool description
-    async fn description(&self) -> BitFunResult<String>;
+    async fn description(&self) -> VoidResult<String>;
 
     /// Tool description with execution context.
     async fn description_with_context(
         &self,
         _context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         self.description().await
     }
 
@@ -413,13 +413,13 @@ pub trait Tool: Send + Sync {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>>;
+    ) -> VoidResult<Vec<ToolResult>>;
 
     /// Unified tool entry point.
     /// This method owns shared framework behavior and delegates the actual
     /// execution to [`call_impl`], so most tools should override `call_impl`
     /// instead of overriding this method directly.
-    async fn call(&self, input: &Value, context: &ToolUseContext) -> BitFunResult<Vec<ToolResult>> {
+    async fn call(&self, input: &Value, context: &ToolUseContext) -> VoidResult<Vec<ToolResult>> {
         crate::agentic::tools::tool_context_runtime::call_with_tool_runtime_hooks(
             self.name(),
             input,
@@ -435,7 +435,7 @@ mod shared_context_tests {
     use super::{Tool, ToolResult, ToolUseContext};
     use crate::agentic::deep_review_policy::deep_review_shared_context_measurement_snapshot;
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use crate::util::errors::BitFunResult;
+    use crate::util::errors::VoidResult;
     use async_trait::async_trait;
     use serde_json::{Value, json};
     use std::collections::HashMap;
@@ -448,7 +448,7 @@ mod shared_context_tests {
             "Read"
         }
 
-        async fn description(&self) -> BitFunResult<String> {
+        async fn description(&self) -> VoidResult<String> {
             Ok("Read file".to_string())
         }
 
@@ -469,7 +469,7 @@ mod shared_context_tests {
             &self,
             _input: &Value,
             _context: &ToolUseContext,
-        ) -> BitFunResult<Vec<ToolResult>> {
+        ) -> VoidResult<Vec<ToolResult>> {
             Ok(vec![ToolResult::ok(
                 json!({ "ok": true }),
                 Some("ok".to_string()),

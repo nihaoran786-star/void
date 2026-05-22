@@ -7,25 +7,25 @@ use crate::miniapp::types::{
     MiniApp, MiniAppAiContext, MiniAppMeta, MiniAppPermissions, MiniAppSource,
 };
 use crate::product_domain_runtime::CoreProductDomainRuntime;
-use crate::util::errors::{BitFunError, BitFunResult};
-use bitfun_product_domains::miniapp::customization::{
+use crate::util::errors::{VoidError, VoidResult};
+use void_product_domains::miniapp::customization::{
     apply_draft_customization_metadata, decline_builtin_update_metadata,
     declined_builtin_update_needs_local_snapshot, diff_permissions,
     is_current_declined_builtin_update, mark_builtin_update_available_metadata,
     MiniAppCustomizationBaseline, MiniAppCustomizationLocalSnapshot, MiniAppCustomizationMetadata,
     MiniAppPermissionDiff,
 };
-use bitfun_product_domains::miniapp::draft::{
+use void_product_domains::miniapp::draft::{
     build_draft_manifest, build_draft_response, MiniAppDraft, MiniAppDraftManifest,
 };
-use bitfun_product_domains::miniapp::lifecycle::{
+use void_product_domains::miniapp::lifecycle::{
     apply_import_runtime_state, build_deps_revision, build_runtime_state, build_source_revision,
     build_worker_revision, ensure_runtime_state, workspace_dir_string,
 };
-use bitfun_product_domains::miniapp::ports::{
+use void_product_domains::miniapp::ports::{
     MiniAppPortError, MiniAppPortErrorKind, MiniAppRuntimeFacade,
 };
-use bitfun_product_domains::miniapp::storage::{
+use void_product_domains::miniapp::storage::{
     build_import_fallbacks, MiniAppImportLayout, COMPILED_HTML, ESM_DEPS_JSON, META_JSON,
     PACKAGE_JSON, REQUIRED_SOURCE_FILES, SOURCE_DIR, STORAGE_JSON,
 };
@@ -81,7 +81,7 @@ impl MiniAppManager {
         permissions: &MiniAppPermissions,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let app_data_dir = self.path_manager.miniapp_dir(app_id);
         let app_data_dir_str = app_data_dir.to_string_lossy().to_string();
         let workspace_dir = workspace_dir_string(workspace_root);
@@ -104,7 +104,7 @@ impl MiniAppManager {
         permissions: &MiniAppPermissions,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let app_data_dir_str = app_data_dir.to_string_lossy().to_string();
         let workspace_dir = workspace_dir_string(workspace_root);
 
@@ -119,7 +119,7 @@ impl MiniAppManager {
     }
 
     /// List all MiniApp metadata.
-    pub async fn list(&self) -> BitFunResult<Vec<MiniAppMeta>> {
+    pub async fn list(&self) -> VoidResult<Vec<MiniAppMeta>> {
         let ids = self.storage.list_app_ids().await?;
         let mut metas = Vec::with_capacity(ids.len());
         for id in ids {
@@ -132,7 +132,7 @@ impl MiniAppManager {
     }
 
     /// Get full MiniApp by id.
-    pub async fn get(&self, app_id: &str) -> BitFunResult<MiniApp> {
+    pub async fn get(&self, app_id: &str) -> VoidResult<MiniApp> {
         let mut app = self.storage.load(app_id).await?;
         if ensure_runtime_state(&mut app) {
             self.storage.save(&app).await?;
@@ -153,7 +153,7 @@ impl MiniAppManager {
         permissions: MiniAppPermissions,
         ai_context: Option<MiniAppAiContext>,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
+    ) -> VoidResult<MiniApp> {
         let id = Uuid::new_v4().to_string();
         let now = Utc::now().timestamp_millis();
 
@@ -198,7 +198,7 @@ impl MiniAppManager {
         permissions: Option<MiniAppPermissions>,
         ai_context: Option<MiniAppAiContext>,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
+    ) -> VoidResult<MiniApp> {
         let mut app = self.storage.load(app_id).await?;
         let previous_app = app.clone();
         let source_changed = source.is_some();
@@ -260,7 +260,7 @@ impl MiniAppManager {
     }
 
     /// Delete MiniApp and its directory.
-    pub async fn delete(&self, app_id: &str) -> BitFunResult<()> {
+    pub async fn delete(&self, app_id: &str) -> VoidResult<()> {
         self.granted_paths.write().await.remove(app_id);
         self.storage.delete(app_id).await
     }
@@ -316,7 +316,7 @@ impl MiniAppManager {
     }
 
     /// Get app storage (KV) value.
-    pub async fn get_storage(&self, app_id: &str, key: &str) -> BitFunResult<serde_json::Value> {
+    pub async fn get_storage(&self, app_id: &str, key: &str) -> VoidResult<serde_json::Value> {
         let storage = self.storage.load_app_storage(app_id).await?;
         Ok(storage.get(key).cloned().unwrap_or(serde_json::Value::Null))
     }
@@ -327,7 +327,7 @@ impl MiniAppManager {
         app_id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.storage.save_app_storage(app_id, key, value).await
     }
 
@@ -336,7 +336,7 @@ impl MiniAppManager {
         app_id: &str,
         draft_id: &str,
         key: &str,
-    ) -> BitFunResult<serde_json::Value> {
+    ) -> VoidResult<serde_json::Value> {
         let storage = self.storage.load_draft_storage(app_id, draft_id).await?;
         Ok(storage.get(key).cloned().unwrap_or(serde_json::Value::Null))
     }
@@ -347,7 +347,7 @@ impl MiniAppManager {
         draft_id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.storage
             .save_draft_storage(app_id, draft_id, key, value)
             .await
@@ -358,7 +358,7 @@ impl MiniAppManager {
         app_id: &str,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniAppDraft> {
+    ) -> VoidResult<MiniAppDraft> {
         let mut app = self.get(app_id).await?;
         let now = Utc::now().timestamp_millis();
         let draft_id = Uuid::new_v4().to_string();
@@ -377,7 +377,7 @@ impl MiniAppManager {
         self.save_draft_with_manifest(app_id, app, manifest).await
     }
 
-    pub async fn get_draft(&self, app_id: &str, draft_id: &str) -> BitFunResult<MiniAppDraft> {
+    pub async fn get_draft(&self, app_id: &str, draft_id: &str) -> VoidResult<MiniAppDraft> {
         let app = self.storage.load_draft_app(app_id, draft_id).await?;
         let manifest = self.load_draft_manifest(app_id, draft_id).await?;
         Ok(self.build_draft_response(app_id, app, manifest))
@@ -389,7 +389,7 @@ impl MiniAppManager {
         draft_id: &str,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniAppDraft> {
+    ) -> VoidResult<MiniAppDraft> {
         let mut app = self.storage.load_draft_app(app_id, draft_id).await?;
         let mut manifest = self.load_draft_manifest(app_id, draft_id).await?;
         app.updated_at = Utc::now().timestamp_millis();
@@ -419,7 +419,7 @@ impl MiniAppManager {
         permissions: MiniAppPermissions,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniAppDraft> {
+    ) -> VoidResult<MiniAppDraft> {
         let mut app = self.storage.load_draft_app(app_id, draft_id).await?;
         let mut manifest = self.load_draft_manifest(app_id, draft_id).await?;
         app.permissions = permissions;
@@ -447,7 +447,7 @@ impl MiniAppManager {
         &self,
         app_id: &str,
         draft_id: &str,
-    ) -> BitFunResult<MiniAppPermissionDiff> {
+    ) -> VoidResult<MiniAppPermissionDiff> {
         let active = self.get(app_id).await?;
         let draft = self.storage.load_draft_app(app_id, draft_id).await?;
         Ok(diff_permissions(&active.permissions, &draft.permissions))
@@ -459,7 +459,7 @@ impl MiniAppManager {
         draft_id: &str,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
+    ) -> VoidResult<MiniApp> {
         let current = self.get(app_id).await?;
         let draft = self.storage.load_draft_app(app_id, draft_id).await?;
         let mut app = current.clone();
@@ -494,22 +494,22 @@ impl MiniAppManager {
         Ok(app)
     }
 
-    pub async fn discard_draft(&self, app_id: &str, draft_id: &str) -> BitFunResult<()> {
+    pub async fn discard_draft(&self, app_id: &str, draft_id: &str) -> VoidResult<()> {
         self.storage.delete_draft(app_id, draft_id).await
     }
 
-    pub async fn mark_stale_drafts_for_cleanup(&self) -> BitFunResult<Vec<PathBuf>> {
+    pub async fn mark_stale_drafts_for_cleanup(&self) -> VoidResult<Vec<PathBuf>> {
         self.storage.mark_stale_drafts_for_cleanup().await
     }
 
-    pub async fn cleanup_marked_drafts(&self, targets: Vec<PathBuf>) -> BitFunResult<()> {
+    pub async fn cleanup_marked_drafts(&self, targets: Vec<PathBuf>) -> VoidResult<()> {
         self.storage.cleanup_marked_drafts(targets).await
     }
 
     pub async fn load_customization_metadata(
         &self,
         app_id: &str,
-    ) -> BitFunResult<Option<MiniAppCustomizationMetadata>> {
+    ) -> VoidResult<Option<MiniAppCustomizationMetadata>> {
         self.storage.load_customization_metadata(app_id).await
     }
 
@@ -517,7 +517,7 @@ impl MiniAppManager {
         &self,
         app_id: &str,
         metadata: &MiniAppCustomizationMetadata,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.storage
             .save_customization_metadata(app_id, metadata)
             .await
@@ -545,10 +545,10 @@ impl MiniAppManager {
         &self,
         app_id: &str,
         draft_id: &str,
-    ) -> BitFunResult<MiniAppDraftManifest> {
+    ) -> VoidResult<MiniAppDraftManifest> {
         let value = self.storage.load_draft_manifest(app_id, draft_id).await?;
         serde_json::from_value(value)
-            .map_err(|e| BitFunError::parse(format!("Invalid draft manifest: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid draft manifest: {}", e)))
     }
 
     async fn save_draft_with_manifest(
@@ -556,8 +556,8 @@ impl MiniAppManager {
         app_id: &str,
         app: MiniApp,
         manifest: MiniAppDraftManifest,
-    ) -> BitFunResult<MiniAppDraft> {
-        let manifest_value = serde_json::to_value(&manifest).map_err(BitFunError::from)?;
+    ) -> VoidResult<MiniAppDraft> {
+        let manifest_value = serde_json::to_value(&manifest).map_err(VoidError::from)?;
         self.storage
             .save_draft(app_id, &manifest.draft_id, &app, &manifest_value)
             .await?;
@@ -569,7 +569,7 @@ impl MiniAppManager {
         app_id: &str,
         draft_id: &str,
         now: i64,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let existing = self.storage.load_customization_metadata(app_id).await?;
         let baseline = if let Some(builtin) = crate::miniapp::BUILTIN_APPS
             .iter()
@@ -594,7 +594,7 @@ impl MiniAppManager {
         builtin_version: u32,
         source_hash: &str,
         detected_at: i64,
-    ) -> BitFunResult<bool> {
+    ) -> VoidResult<bool> {
         if let Some(metadata) = self.storage.load_customization_metadata(app_id).await? {
             let declined_update_current = self
                 .has_matching_declined_builtin_update(app_id, &metadata, source_hash)
@@ -621,7 +621,7 @@ impl MiniAppManager {
         app_id: &str,
         metadata: &MiniAppCustomizationMetadata,
         source_hash: &str,
-    ) -> BitFunResult<bool> {
+    ) -> VoidResult<bool> {
         let local_snapshot = if declined_builtin_update_needs_local_snapshot(metadata, source_hash)
         {
             self.storage
@@ -649,7 +649,7 @@ impl MiniAppManager {
         builtin_version: u32,
         source_hash: &str,
         declined_at: i64,
-    ) -> BitFunResult<Option<MiniAppCustomizationMetadata>> {
+    ) -> VoidResult<Option<MiniAppCustomizationMetadata>> {
         let Some(metadata) = self.storage.load_customization_metadata(app_id).await? else {
             return Ok(None);
         };
@@ -676,14 +676,14 @@ impl MiniAppManager {
         Ok(Some(metadata))
     }
 
-    pub async fn mark_deps_installed(&self, app_id: &str) -> BitFunResult<MiniApp> {
+    pub async fn mark_deps_installed(&self, app_id: &str) -> VoidResult<MiniApp> {
         self.runtime_facade()
             .mark_deps_installed(app_id.to_string())
             .await
             .map_err(map_miniapp_port_error)
     }
 
-    pub async fn clear_worker_restart_required(&self, app_id: &str) -> BitFunResult<MiniApp> {
+    pub async fn clear_worker_restart_required(&self, app_id: &str) -> VoidResult<MiniApp> {
         self.runtime_facade()
             .clear_worker_restart_required(app_id.to_string())
             .await
@@ -691,12 +691,12 @@ impl MiniAppManager {
     }
 
     /// List version numbers for an app.
-    pub async fn list_versions(&self, app_id: &str) -> BitFunResult<Vec<u32>> {
+    pub async fn list_versions(&self, app_id: &str) -> VoidResult<Vec<u32>> {
         self.storage.list_versions(app_id).await
     }
 
     /// Rollback app to a previous version (loads version snapshot, saves as current).
-    pub async fn rollback(&self, app_id: &str, version: u32) -> BitFunResult<MiniApp> {
+    pub async fn rollback(&self, app_id: &str, version: u32) -> VoidResult<MiniApp> {
         let now = Utc::now().timestamp_millis();
         self.runtime_facade()
             .rollback(app_id.to_string(), version, now)
@@ -710,7 +710,7 @@ impl MiniAppManager {
         app_id: &str,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
+    ) -> VoidResult<MiniApp> {
         let app = self.storage.load(app_id).await?;
         let compiled_html =
             self.compile_source(app_id, &app.source, &app.permissions, theme, workspace_root)?;
@@ -725,7 +725,7 @@ impl MiniAppManager {
         app_id: &str,
         theme: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
+    ) -> VoidResult<MiniApp> {
         let previous_app = self.storage.load(app_id).await?;
         let source = self.storage.load_source_only(app_id).await?;
         let compiled_html = self.compile_source(
@@ -752,12 +752,12 @@ impl MiniAppManager {
         &self,
         source_path: PathBuf,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<MiniApp> {
-        use crate::util::errors::BitFunError;
+    ) -> VoidResult<MiniApp> {
+        use crate::util::errors::VoidError;
 
         let src = source_path.as_path();
         if !src.is_dir() {
-            return Err(BitFunError::validation(format!(
+            return Err(VoidError::validation(format!(
                 "Not a directory: {}",
                 src.display()
             )));
@@ -767,20 +767,20 @@ impl MiniAppManager {
         let meta_path = import_layout.meta_path();
         let source_dir = import_layout.source_dir();
         if !meta_path.exists() {
-            return Err(BitFunError::validation(format!(
+            return Err(VoidError::validation(format!(
                 "Missing meta.json in {}",
                 src.display()
             )));
         }
         if !source_dir.is_dir() {
-            return Err(BitFunError::validation(format!(
+            return Err(VoidError::validation(format!(
                 "Missing source/ directory in {}",
                 src.display()
             )));
         }
         for (required, path) in import_layout.required_source_file_paths() {
             if !path.exists() {
-                return Err(BitFunError::validation(format!(
+                return Err(VoidError::validation(format!(
                     "Missing source/{} in {}",
                     required,
                     src.display()
@@ -790,9 +790,9 @@ impl MiniAppManager {
 
         let meta_content = tokio::fs::read_to_string(&meta_path)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read meta.json: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read meta.json: {}", e)))?;
         let mut meta: MiniAppMeta = serde_json::from_str(&meta_content)
-            .map_err(|e| BitFunError::parse(format!("Invalid meta.json: {}", e)))?;
+            .map_err(|e| VoidError::parse(format!("Invalid meta.json: {}", e)))?;
 
         let id = Uuid::new_v4().to_string();
         let now = Utc::now().timestamp_millis();
@@ -805,12 +805,12 @@ impl MiniAppManager {
         let dest_source = dest_dir.join(SOURCE_DIR);
         tokio::fs::create_dir_all(&dest_source)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to create app dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to create app dir: {}", e)))?;
 
-        let meta_json = serde_json::to_string_pretty(&meta).map_err(BitFunError::from)?;
+        let meta_json = serde_json::to_string_pretty(&meta).map_err(VoidError::from)?;
         tokio::fs::write(dest_dir.join(META_JSON), meta_json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write meta.json: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write meta.json: {}", e)))?;
 
         for name in REQUIRED_SOURCE_FILES {
             let from = source_dir.join(name);
@@ -818,7 +818,7 @@ impl MiniAppManager {
             if from.exists() {
                 tokio::fs::copy(&from, &to)
                     .await
-                    .map_err(|e| BitFunError::io(format!("Failed to copy {}: {}", name, e)))?;
+                    .map_err(|e| VoidError::io(format!("Failed to copy {}: {}", name, e)))?;
             }
         }
         let esm_path = import_layout.esm_dependencies_path();
@@ -826,7 +826,7 @@ impl MiniAppManager {
             tokio::fs::copy(&esm_path, dest_source.join(ESM_DEPS_JSON))
                 .await
                 .map_err(|e| {
-                    BitFunError::io(format!("Failed to copy esm_dependencies.json: {}", e))
+                    VoidError::io(format!("Failed to copy esm_dependencies.json: {}", e))
                 })?;
         } else {
             tokio::fs::write(
@@ -834,37 +834,37 @@ impl MiniAppManager {
                 fallbacks.esm_dependencies_json,
             )
             .await
-            .map_err(|_e| BitFunError::io("Failed to write esm_dependencies.json"))?;
+            .map_err(|_e| VoidError::io("Failed to write esm_dependencies.json"))?;
         }
 
         let pkg_src = import_layout.package_json_path();
         if pkg_src.exists() {
             tokio::fs::copy(&pkg_src, dest_dir.join(PACKAGE_JSON))
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to copy package.json: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to copy package.json: {}", e)))?;
         } else {
             tokio::fs::write(
                 dest_dir.join(PACKAGE_JSON),
-                serde_json::to_string_pretty(&fallbacks.package_json).map_err(BitFunError::from)?,
+                serde_json::to_string_pretty(&fallbacks.package_json).map_err(VoidError::from)?,
             )
             .await
-            .map_err(|_e| BitFunError::io("Failed to write package.json"))?;
+            .map_err(|_e| VoidError::io("Failed to write package.json"))?;
         }
 
         let storage_src = import_layout.storage_json_path();
         if storage_src.exists() {
             tokio::fs::copy(&storage_src, dest_dir.join(STORAGE_JSON))
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to copy storage.json: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to copy storage.json: {}", e)))?;
         } else {
             tokio::fs::write(dest_dir.join(STORAGE_JSON), fallbacks.storage_json)
                 .await
-                .map_err(|_e| BitFunError::io("Failed to write storage.json"))?;
+                .map_err(|_e| VoidError::io("Failed to write storage.json"))?;
         }
 
         tokio::fs::write(dest_dir.join(COMPILED_HTML), fallbacks.compiled_html)
             .await
-            .map_err(|_e| BitFunError::io("Failed to write placeholder compiled.html"))?;
+            .map_err(|_e| VoidError::io("Failed to write placeholder compiled.html"))?;
 
         let mut app = self.recompile(&id, "dark", workspace_root).await?;
         apply_import_runtime_state(&mut app);
@@ -873,22 +873,22 @@ impl MiniAppManager {
     }
 }
 
-fn map_miniapp_port_error(error: MiniAppPortError) -> BitFunError {
-    let message = strip_bitfun_error_prefix(error.message);
+fn map_miniapp_port_error(error: MiniAppPortError) -> VoidError {
+    let message = strip_void_error_prefix(error.message);
     match error.kind {
-        MiniAppPortErrorKind::NotFound => BitFunError::NotFound(message),
-        MiniAppPortErrorKind::InvalidInput => BitFunError::validation(message),
-        MiniAppPortErrorKind::PermissionDenied => BitFunError::Io(std::io::Error::new(
+        MiniAppPortErrorKind::NotFound => VoidError::NotFound(message),
+        MiniAppPortErrorKind::InvalidInput => VoidError::validation(message),
+        MiniAppPortErrorKind::PermissionDenied => VoidError::Io(std::io::Error::new(
             std::io::ErrorKind::PermissionDenied,
             message,
         )),
-        MiniAppPortErrorKind::RuntimeUnavailable => BitFunError::ProcessError(message),
-        MiniAppPortErrorKind::Io => BitFunError::io(message),
-        MiniAppPortErrorKind::Backend => BitFunError::service(message),
+        MiniAppPortErrorKind::RuntimeUnavailable => VoidError::ProcessError(message),
+        MiniAppPortErrorKind::Io => VoidError::io(message),
+        MiniAppPortErrorKind::Backend => VoidError::service(message),
     }
 }
 
-fn strip_bitfun_error_prefix(message: String) -> String {
+fn strip_void_error_prefix(message: String) -> String {
     const PREFIXES: &[&str] = &[
         "Not found: ",
         "Validation error: ",
@@ -912,14 +912,14 @@ mod tests {
     use crate::miniapp::types::{
         FsPermissions, MiniAppMeta, MiniAppPermissions, MiniAppSource, NpmDep,
     };
-    use bitfun_product_domains::miniapp::storage::{
+    use void_product_domains::miniapp::storage::{
         COMPILED_HTML, ESM_DEPS_JSON, INDEX_HTML, PACKAGE_JSON, SOURCE_DIR, STORAGE_JSON,
         STYLE_CSS, UI_JS, WORKER_JS,
     };
 
     fn test_manager() -> MiniAppManager {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-manager-draft-{}",
+            "void-miniapp-manager-draft-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -972,7 +972,7 @@ mod tests {
             "IO error: access denied",
         ));
         match permission_denied {
-            BitFunError::Io(error) => {
+            VoidError::Io(error) => {
                 assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
                 assert_eq!(error.to_string(), "access denied");
             }
@@ -1078,7 +1078,7 @@ mod tests {
     async fn import_from_path_preserves_fallback_files_recompile_and_runtime_state() {
         let manager = test_manager();
         let import_root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-import-source-{}",
+            "void-miniapp-import-source-{}",
             uuid::Uuid::new_v4()
         ));
         write_import_source(&import_root).await;

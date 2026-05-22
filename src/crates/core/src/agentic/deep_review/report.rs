@@ -16,7 +16,7 @@ use crate::agentic::deep_review_policy::{
     DeepReviewRuntimeDiagnostics,
 };
 use crate::agentic::tools::framework::ToolUseContext;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use log::debug;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -651,7 +651,7 @@ pub(crate) fn deep_review_cache_from_completed_reviewers(
 pub(crate) async fn persist_deep_review_cache(
     context: &ToolUseContext,
     cache_value: Value,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     let Some(session_id) = context.session_id.as_deref() else {
         return Ok(());
     };

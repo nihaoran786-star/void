@@ -35,11 +35,11 @@ use ratatui::{
 use std::sync::Arc;
 use std::time::Duration;
 
-use bitfun_core::agentic::agents::{
+use void_core::agentic::agents::{
     get_agent_registry, AgentInfo, SubAgentSource, SubagentListScope, SubagentQueryContext,
 };
-use bitfun_core::agentic::coordination::ConversationCoordinator;
-use bitfun_core::agentic::tools::implementations::skills::{
+use void_core::agentic::coordination::ConversationCoordinator;
+use void_core::agentic::tools::implementations::skills::{
     mode_overrides::{
         load_project_mode_skills_document_local, save_project_mode_skills_document_local,
         set_mode_skill_disabled_in_document, set_user_mode_skill_state,
@@ -47,7 +47,7 @@ use bitfun_core::agentic::tools::implementations::skills::{
     registry::SkillRegistry,
     ModeSkillInfo, SkillInfo,
 };
-use bitfun_core::service::config::GlobalConfigManager;
+use void_core::service::config::GlobalConfigManager;
 
 /// Types of popups that can be shown on the startup page
 #[derive(Debug, Clone, PartialEq)]
@@ -1274,9 +1274,9 @@ impl StartupPage {
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let config_service = GlobalConfigManager::get_service().await.ok()?;
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
-                let global_config: bitfun_core::service::config::GlobalConfig =
+                let global_config: void_core::service::config::GlobalConfig =
                     config_service.get_config(None).await.ok()?;
 
                 let current_model_id = global_config
@@ -1391,7 +1391,7 @@ impl StartupPage {
             Some(result.custom_request_body.clone())
         };
 
-        let model_config = bitfun_core::service::config::AIModelConfig {
+        let model_config = void_core::service::config::AIModelConfig {
             id: model_id.clone(),
             name: result.name.clone(),
             provider: result.provider_format.clone(),
@@ -1435,7 +1435,7 @@ impl StartupPage {
 
                 // Auto-set as primary model if no primary model exists
                 match config_service
-                    .get_config::<bitfun_core::service::config::GlobalConfig>(None)
+                    .get_config::<void_core::service::config::GlobalConfig>(None)
                     .await
                 {
                     Ok(global_config) => {
@@ -1483,7 +1483,7 @@ impl StartupPage {
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let config_service = GlobalConfigManager::get_service().await.ok()?;
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
                 models.into_iter().find(|m| m.id == model_id)
             })
@@ -1540,7 +1540,7 @@ impl StartupPage {
             Some(result.custom_request_body.clone())
         };
 
-        let model_config = bitfun_core::service::config::AIModelConfig {
+        let model_config = void_core::service::config::AIModelConfig {
             id: model_id.clone(),
             name: result.name.clone(),
             provider: result.provider_format.clone(),
@@ -2118,9 +2118,9 @@ impl StartupPage {
         let result: Option<String> = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 let config_service = GlobalConfigManager::get_service().await.ok()?;
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
-                let global_config: bitfun_core::service::config::GlobalConfig =
+                let global_config: void_core::service::config::GlobalConfig =
                     config_service.get_config(None).await.ok()?;
 
                 let model_id = global_config
@@ -2132,7 +2132,7 @@ impl StartupPage {
                     .unwrap_or_else(|| "primary".to_string());
 
                 fn provider_display_name(
-                    model: &bitfun_core::service::config::AIModelConfig,
+                    model: &void_core::service::config::AIModelConfig,
                 ) -> String {
                     let raw_name = model.name.trim();
                     let model_name = model.model_name.trim();
@@ -2154,7 +2154,7 @@ impl StartupPage {
                 }
 
                 fn model_display_name(
-                    model: &bitfun_core::service::config::AIModelConfig,
+                    model: &void_core::service::config::AIModelConfig,
                 ) -> String {
                     format!("{} / {}", model.model_name, provider_display_name(model))
                 }

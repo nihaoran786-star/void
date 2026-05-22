@@ -3,13 +3,13 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::api::app_state::AppState;
-use bitfun_core::service::system;
+use void_core::service::system;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Position, Size, State};
 use tauri_plugin_updater::UpdaterExt;
 
 /// Emitted during `install_update` download; matches `installUpdateWithProgress` / frontend listener.
-const UPDATE_PROGRESS_EVENT: &str = "bitfun-update-progress";
+const UPDATE_PROGRESS_EVENT: &str = "void-update-progress";
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

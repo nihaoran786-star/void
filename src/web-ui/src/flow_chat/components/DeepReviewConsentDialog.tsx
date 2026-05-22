@@ -18,7 +18,7 @@ import type { DeepReviewSessionConcurrencyGuard } from '../utils/deepReviewCapac
 import './DeepReviewConsentDialog.scss';
 
 const log = createLogger('DeepReviewConsentDialog');
-const SKIP_DEEP_REVIEW_CONFIRMATION_STORAGE_KEY = 'bitfun.deepReview.skipCostConfirmation';
+const SKIP_DEEP_REVIEW_CONFIRMATION_STORAGE_KEY = 'void.deepReview.skipCostConfirmation';
 const MAX_VISIBLE_SKIPPED_REVIEWERS = 3;
 
 interface PendingConsent {

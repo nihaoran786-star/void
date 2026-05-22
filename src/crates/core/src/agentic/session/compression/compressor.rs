@@ -11,7 +11,7 @@ use crate::agentic::core::{
     CompressionPayload, Message, MessageHelper, MessageRole, MessageSemanticKind,
 };
 use crate::infrastructure::ai::{get_global_ai_client_factory, AIClient};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::types::Message as AIMessage;
 use anyhow;
 use log::{debug, trace, warn};
@@ -97,7 +97,7 @@ impl ContextCompressor {
         &self,
         session_id: &str,
         mut messages: Vec<Message>,
-    ) -> BitFunResult<Vec<TurnWithTokens>> {
+    ) -> VoidResult<Vec<TurnWithTokens>> {
         debug!(
             "Collecting conversation turns for compression: session_id={}",
             session_id
@@ -149,7 +149,7 @@ impl ContextCompressor {
         session_id: &str,
         context_window: usize,
         messages: Vec<Message>,
-    ) -> BitFunResult<(usize, Vec<TurnWithTokens>)> {
+    ) -> VoidResult<(usize, Vec<TurnWithTokens>)> {
         debug!(
             "Starting session context compression analysis: session_id={}",
             session_id
@@ -188,7 +188,7 @@ impl ContextCompressor {
         &self,
         session_id: &str,
         messages: Vec<Message>,
-    ) -> BitFunResult<Vec<TurnWithTokens>> {
+    ) -> VoidResult<Vec<TurnWithTokens>> {
         self.collect_conversation_turns(session_id, messages)
     }
 
@@ -199,7 +199,7 @@ impl ContextCompressor {
         turn_index_to_keep: usize,
         turns: Vec<TurnWithTokens>,
         tail_policy: CompressionTailPolicy,
-    ) -> BitFunResult<CompressionResult> {
+    ) -> VoidResult<CompressionResult> {
         self.compress_turns_with_contract(
             session_id,
             context_window,
@@ -219,7 +219,7 @@ impl ContextCompressor {
         mut turns: Vec<TurnWithTokens>,
         tail_policy: CompressionTailPolicy,
         contract: Option<CompressionContract>,
-    ) -> BitFunResult<CompressionResult> {
+    ) -> VoidResult<CompressionResult> {
         if turns.is_empty() {
             debug!("No turns need compression: session_id={}", session_id);
             return Ok(CompressionResult {
@@ -362,7 +362,7 @@ impl ContextCompressor {
         turns_to_compress: Vec<TurnWithTokens>,
         context_window: usize,
         contract: Option<CompressionContract>,
-    ) -> BitFunResult<CompressionSummaryArtifact> {
+    ) -> VoidResult<CompressionSummaryArtifact> {
         let summary_result = match get_global_ai_client_factory().await {
             Ok(ai_client_factory) => match ai_client_factory
                 .get_client_by_func_agent("compression")
@@ -377,12 +377,12 @@ impl ContextCompressor {
                     )
                     .await
                 }
-                Err(err) => Err(BitFunError::AIClient(format!(
+                Err(err) => Err(VoidError::AIClient(format!(
                     "Failed to get AI client: {}",
                     err
                 ))),
             },
-            Err(err) => Err(BitFunError::AIClient(format!(
+            Err(err) => Err(VoidError::AIClient(format!(
                 "Failed to get AI client factory: {}",
                 err
             ))),
@@ -469,7 +469,7 @@ impl ContextCompressor {
         turns_to_compress: Vec<TurnWithTokens>,
         context_window: usize,
         contract: Option<&CompressionContract>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         debug!("Compressing {} turn(s)", turns_to_compress.len());
 
         fn gen_system_message_for_summary(prev_summary: &str) -> Message {
@@ -572,7 +572,7 @@ Be thorough and precise. Do not lose important technical details from either the
                         request_cnt, idx, summary
                     );
                 } else {
-                    return Err(BitFunError::Service(format!(
+                    return Err(VoidError::Service(format!(
                         "Compression Failed, turn {} cannot be split in middle",
                         idx
                     )));
@@ -601,7 +601,7 @@ Be thorough and precise. Do not lose important technical details from either the
         system_message_for_summary: Message,
         messages: Vec<Message>,
         contract: Option<&CompressionContract>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let raw_summary = self
             .generate_summary_with_retry(
                 ai_client,
@@ -612,7 +612,7 @@ Be thorough and precise. Do not lose important technical details from either the
             )
             .await?;
         Self::normalize_model_summary_output(&raw_summary).ok_or_else(|| {
-            BitFunError::AIClient(
+            VoidError::AIClient(
                 "Model-based compression returned <analysis> without a usable <summary>"
                     .to_string(),
             )
@@ -626,7 +626,7 @@ Be thorough and precise. Do not lose important technical details from either the
         messages: Vec<Message>,
         contract: Option<&CompressionContract>,
         max_tries: usize,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let mut summary_messages = vec![AIMessage::from(system_message_for_summary)];
         summary_messages.extend(messages.iter().map(|m| {
             let mut ai_msg = AIMessage::from(m);
@@ -676,7 +676,7 @@ Be thorough and precise. Do not lose important technical details from either the
             last_error.unwrap_or_else(|| anyhow::anyhow!("Unknown error"))
         );
         warn!("{}", error_msg);
-        Err(BitFunError::AIClient(error_msg))
+        Err(VoidError::AIClient(error_msg))
     }
 
     fn get_compact_prompt(&self, contract: Option<&CompressionContract>) -> String {

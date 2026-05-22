@@ -4,17 +4,17 @@ use agent_client_protocol::schema::{
     SetSessionModelRequest, SetSessionModelResponse,
 };
 use agent_client_protocol::{Error, Result};
-use bitfun_core::agentic::agents::get_agent_registry;
-use bitfun_core::service::config::types::AIConfig;
-use bitfun_core::service::config::{GlobalConfig, GlobalConfigManager};
+use void_core::agentic::agents::get_agent_registry;
+use void_core::service::config::types::AIConfig;
+use void_core::service::config::{GlobalConfig, GlobalConfigManager};
 
-use super::BitfunAcpRuntime;
+use super::VoidAcpRuntime;
 
 const AUTO_MODEL_ID: &str = "auto";
 const MODEL_CONFIG_ID: &str = "model";
 const MODE_CONFIG_ID: &str = "mode";
 
-impl BitfunAcpRuntime {
+impl VoidAcpRuntime {
     pub(super) async fn update_session_model(
         &self,
         request: SetSessionModelRequest,
@@ -68,14 +68,14 @@ impl BitfunAcpRuntime {
             .sessions
             .get(session_id)
             .ok_or_else(|| Error::resource_not_found(Some(session_id.to_string())))?;
-        let bitfun_session_id = acp_session.bitfun_session_id.clone();
+        let void_session_id = acp_session.void_session_id.clone();
         drop(acp_session);
 
         let normalized_model_id = normalize_model_selection(model_id).await?;
 
         self.agentic_system
             .coordinator
-            .update_session_model(&bitfun_session_id, &normalized_model_id)
+            .update_session_model(&void_session_id, &normalized_model_id)
             .await
             .map_err(Self::internal_error)?;
 
@@ -205,7 +205,7 @@ fn available_model_select_options(ai_config: &AIConfig) -> Vec<SessionConfigSele
     options
 }
 
-fn model_display_name(model: &bitfun_core::service::config::types::AIModelConfig) -> String {
+fn model_display_name(model: &void_core::service::config::types::AIModelConfig) -> String {
     if model.name.trim().is_empty() {
         format!("{} / {}", model.provider, model.model_name)
     } else {
@@ -216,18 +216,18 @@ fn model_display_name(model: &bitfun_core::service::config::types::AIModelConfig
 async fn load_ai_config() -> Result<AIConfig> {
     let config_service = GlobalConfigManager::get_service()
         .await
-        .map_err(BitfunAcpRuntime::internal_error)?;
+        .map_err(VoidAcpRuntime::internal_error)?;
     let global_config = config_service
         .get_config::<GlobalConfig>(None)
         .await
-        .map_err(BitfunAcpRuntime::internal_error)?;
+        .map_err(VoidAcpRuntime::internal_error)?;
     Ok(global_config.ai)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{current_model_id, normalize_session_model_id, AUTO_MODEL_ID};
-    use bitfun_core::service::config::types::{AIConfig, AIModelConfig};
+    use void_core::service::config::types::{AIConfig, AIModelConfig};
 
     #[test]
     fn normalize_session_model_defaults_to_auto() {

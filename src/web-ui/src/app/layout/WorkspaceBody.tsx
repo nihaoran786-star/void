@@ -53,12 +53,12 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
 
   const handleDividerMouseEnter = useCallback(() => {
     setIsDividerHovered(true);
-    document.body.classList.add('bitfun-divider-hovered');
+    document.body.classList.add('void-divider-hovered');
   }, []);
 
   const handleDividerMouseLeave = useCallback(() => {
     setIsDividerHovered(false);
-    document.body.classList.remove('bitfun-divider-hovered');
+    document.body.classList.remove('void-divider-hovered');
   }, []);
 
   const handleNavCollapseDragStart = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
@@ -69,8 +69,8 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
     const startWidth = navWidth;
     let hasCollapsed = false;
 
-    document.body.classList.add('bitfun-is-dragging-nav-collapse');
-    document.body.classList.add('bitfun-is-resizing-nav');
+    document.body.classList.add('void-is-dragging-nav-collapse');
+    document.body.classList.add('void-is-resizing-nav');
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (hasCollapsed) return;
@@ -91,9 +91,9 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
     const handleMouseUp = () => cleanup();
 
     function cleanup() {
-      document.body.classList.remove('bitfun-is-dragging-nav-collapse');
-      document.body.classList.remove('bitfun-is-resizing-nav');
-      document.body.classList.remove('bitfun-divider-hovered');
+      document.body.classList.remove('void-is-dragging-nav-collapse');
+      document.body.classList.remove('void-is-resizing-nav');
+      document.body.classList.remove('void-divider-hovered');
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     }
@@ -103,26 +103,26 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
   }, [isNavCollapsed, navWidth, toggleLeftPanel]);
 
   return (
-    <div className={`bitfun-workspace-body${isEntering ? ' is-entering' : ''}${isExiting ? ' is-exiting' : ''}${isDividerHovered ? ' is-divider-hovered' : ''} ${className}`}>
+    <div className={`void-workspace-body${isEntering ? ' is-entering' : ''}${isExiting ? ' is-exiting' : ''}${isDividerHovered ? ' is-divider-hovered' : ''} ${className}`}>
       {isNavCollapsed && (
-        <div className="bitfun-workspace-body__collapsed-nav">
+        <div className="void-workspace-body__collapsed-nav">
           <NavBar isCollapsed onExpandNav={toggleLeftPanel} onMaximize={onMaximize} />
         </div>
       )}
 
       {/* Left: nav history bar + navigation sidebar — always rendered for slide animation */}
       <div
-        className={`bitfun-workspace-body__nav-area${isNavCollapsed ? ' is-collapsed' : ''}`}
+        className={`void-workspace-body__nav-area${isNavCollapsed ? ' is-collapsed' : ''}`}
         style={isNavCollapsed ? undefined : { '--nav-width': `${navWidth}px` } as React.CSSProperties}
       >
         <NavBar onExpandNav={toggleLeftPanel} onMaximize={onMaximize} />
-        <NavPanel className="bitfun-workspace-body__nav-panel" />
+        <NavPanel className="void-workspace-body__nav-panel" />
       </div>
 
       {/* Resize divider — placed at workspace-body level to avoid overflow:hidden clipping */}
       {!isNavCollapsed && (
         <div
-          className="bitfun-workspace-body__nav-divider"
+          className="void-workspace-body__nav-divider"
           style={{ '--nav-width': `${navWidth}px` } as React.CSSProperties}
           onMouseDown={handleNavCollapseDragStart}
           onMouseEnter={handleDividerMouseEnter}
@@ -133,7 +133,7 @@ const WorkspaceBody: React.FC<WorkspaceBodyProps> = ({
       )}
 
       {/* Right: scene tab bar + scene content */}
-      <div className="bitfun-workspace-body__scene-area">
+      <div className="void-workspace-body__scene-area">
         <SceneBar
           onMinimize={onMinimize}
           onMaximize={onMaximize}

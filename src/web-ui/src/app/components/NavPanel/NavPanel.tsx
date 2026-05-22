@@ -52,7 +52,7 @@ const NavPanel: React.FC<NavPanelProps> = ({ className = '' }) => {
   const updateClipOrigin = useCallback(() => {
     const container = contentRef.current;
     if (!container) return;
-    const anchor = container.querySelector<HTMLElement>('.bitfun-nav-panel__item-slot.is-departing-anchor');
+    const anchor = container.querySelector<HTMLElement>('.void-nav-panel__item-slot.is-departing-anchor');
     if (anchor) {
       const containerRect = container.getBoundingClientRect();
       const anchorRect = anchor.getBoundingClientRect();
@@ -70,21 +70,21 @@ const NavPanel: React.FC<NavPanelProps> = ({ className = '' }) => {
   }, [useSplitOpen, updateClipOrigin]);
 
   const contentCls = [
-    'bitfun-nav-panel__content',
+    'void-nav-panel__content',
     showSceneNav && 'is-scene',
     useSplitOpen && 'is-split-open',
   ].filter(Boolean).join(' ');
 
   const sceneCls = [
-    'bitfun-nav-panel__layer bitfun-nav-panel__layer--scene',
+    'void-nav-panel__layer void-nav-panel__layer--scene',
     showSceneNav && 'is-active',
   ].filter(Boolean).join(' ');
 
   return (
-    <nav className={`bitfun-nav-panel ${className}`} aria-label={t('nav.aria.mainNav')}>
+    <nav className={`void-nav-panel ${className}`} aria-label={t('nav.aria.mainNav')}>
       <div ref={contentRef} className={contentCls}>
 
-        <div className="bitfun-nav-panel__layer bitfun-nav-panel__layer--main">
+        <div className="void-nav-panel__layer void-nav-panel__layer--main">
           <MainNav
             isDeparting={useSplitOpen}
             anchorNavSceneId={useSplitOpen ? mountedSceneId : null}
@@ -94,7 +94,7 @@ const NavPanel: React.FC<NavPanelProps> = ({ className = '' }) => {
         {SceneNavComponent && (
           <div className={sceneCls}>
             <Suspense fallback={null}>
-              <div key={mountedSceneId} className="bitfun-nav-panel__scene-inner">
+              <div key={mountedSceneId} className="void-nav-panel__scene-inner">
                 <SceneNavComponent />
               </div>
             </Suspense>

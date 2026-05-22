@@ -11,7 +11,7 @@ use crate::service::{
     },
     get_global_cron_service,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Local, SecondsFormat, TimeZone};
 use serde::{Deserialize, Serialize};
@@ -82,8 +82,8 @@ impl CronTool {
         &self,
         workspace: &str,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
-        Self::validate_workspace_format(workspace, context).map_err(BitFunError::tool)?;
+    ) -> VoidResult<String> {
+        Self::validate_workspace_format(workspace, context).map_err(VoidError::tool)?;
 
         if let Some(ctx) = context {
             if ctx.is_remote() {
@@ -94,13 +94,13 @@ impl CronTool {
         let resolved = normalize_path(workspace.trim());
         let path = Path::new(&resolved);
         if !path.exists() {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Workspace does not exist: {}",
                 resolved
             )));
         }
         if !path.is_dir() {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Workspace is not a directory: {}",
                 resolved
             )));
@@ -108,9 +108,9 @@ impl CronTool {
         Ok(resolved)
     }
 
-    fn resolve_workspace_from_context(&self, context: &ToolUseContext) -> BitFunResult<String> {
+    fn resolve_workspace_from_context(&self, context: &ToolUseContext) -> VoidResult<String> {
         let workspace = context.workspace_root().ok_or_else(|| {
-            BitFunError::tool(
+            VoidError::tool(
                 "workspace is required when the current workspace is unavailable".to_string(),
             )
         })?;
@@ -121,7 +121,7 @@ impl CronTool {
         &self,
         session_id: &str,
         context: &ToolUseContext,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if let Some(coordinator) = get_global_coordinator() {
             if let Some(resolved) = coordinator
                 .resolve_session_workspace_path(session_id)
@@ -136,7 +136,7 @@ impl CronTool {
             return self.resolve_workspace_from_context(context);
         }
 
-        Err(BitFunError::tool(format!(
+        Err(VoidError::tool(format!(
             "Unable to resolve workspace for session '{}'",
             session_id
         )))
@@ -146,7 +146,7 @@ impl CronTool {
         &self,
         session_id: Option<&str>,
         context: &ToolUseContext,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let resolved = match session_id {
             Some(session_id) => session_id.trim().to_string(),
             None => context
@@ -157,13 +157,13 @@ impl CronTool {
                 .to_string(),
         };
 
-        Self::validate_session_id(&resolved).map_err(BitFunError::tool)?;
+        Self::validate_session_id(&resolved).map_err(VoidError::tool)?;
         Ok(resolved)
     }
 
-    async fn ensure_session_exists(&self, workspace: &str, session_id: &str) -> BitFunResult<()> {
+    async fn ensure_session_exists(&self, workspace: &str, session_id: &str) -> VoidResult<()> {
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::tool("coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("coordinator not initialized".to_string()))?;
         let sessions = coordinator.list_sessions(Path::new(workspace)).await?;
         if sessions
             .iter()
@@ -172,7 +172,7 @@ impl CronTool {
             return Ok(());
         }
 
-        Err(BitFunError::NotFound(format!(
+        Err(VoidError::NotFound(format!(
             "Session '{}' not found in workspace '{}'",
             session_id, workspace
         )))
@@ -185,9 +185,9 @@ impl CronTool {
         }
     }
 
-    fn normalize_optional_name(name: Option<String>) -> BitFunResult<Option<String>> {
+    fn normalize_optional_name(name: Option<String>) -> VoidResult<Option<String>> {
         match name {
-            Some(name) if name.trim().is_empty() => Err(BitFunError::tool(
+            Some(name) if name.trim().is_empty() => Err(VoidError::tool(
                 "patch.name cannot be empty when provided".to_string(),
             )),
             Some(name) => Ok(Some(name.trim().to_string())),
@@ -195,9 +195,9 @@ impl CronTool {
         }
     }
 
-    fn validate_payload(payload: &str, field_name: &str) -> BitFunResult<()> {
+    fn validate_payload(payload: &str, field_name: &str) -> VoidResult<()> {
         if payload.trim().is_empty() {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "{}.payload must not be empty",
                 field_name
             )));
@@ -209,9 +209,9 @@ impl CronTool {
         CronJobPayload { text: payload }
     }
 
-    fn parse_iso_timestamp_ms(value: &str, field_name: &str) -> BitFunResult<i64> {
+    fn parse_iso_timestamp_ms(value: &str, field_name: &str) -> VoidResult<i64> {
         let parsed = DateTime::parse_from_rfc3339(value).map_err(|error| {
-            BitFunError::tool(format!(
+            VoidError::tool(format!(
                 "{} must be a valid ISO-8601 timestamp: {}",
                 field_name, error
             ))
@@ -219,12 +219,12 @@ impl CronTool {
         Ok(parsed.timestamp_millis())
     }
 
-    fn format_iso_timestamp_local(timestamp_ms: i64, field_name: &str) -> BitFunResult<String> {
+    fn format_iso_timestamp_local(timestamp_ms: i64, field_name: &str) -> VoidResult<String> {
         let datetime = Local
             .timestamp_millis_opt(timestamp_ms)
             .single()
             .ok_or_else(|| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "{} timestamp is out of range: {}",
                     field_name, timestamp_ms
                 ))
@@ -236,9 +236,9 @@ impl CronTool {
         every_ms.div_ceil(1_000)
     }
 
-    fn seconds_to_every_ms(seconds: u64, field_name: &str) -> BitFunResult<u64> {
+    fn seconds_to_every_ms(seconds: u64, field_name: &str) -> VoidResult<u64> {
         if seconds == 0 {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "{}.every must be greater than 0 seconds",
                 field_name
             )));
@@ -246,15 +246,15 @@ impl CronTool {
 
         seconds
             .checked_mul(1_000)
-            .ok_or_else(|| BitFunError::tool(format!("{}.every is too large", field_name)))
+            .ok_or_else(|| VoidError::tool(format!("{}.every is too large", field_name)))
     }
 
-    fn serialize_job(job: &CronJob) -> BitFunResult<Value> {
+    fn serialize_job(job: &CronJob) -> VoidResult<Value> {
         serde_json::to_value(CronToolJobOutput::try_from(job)?)
-            .map_err(|err| BitFunError::serialization(err.to_string()))
+            .map_err(|err| VoidError::serialization(err.to_string()))
     }
 
-    fn serialize_jobs(jobs: &[CronJob]) -> BitFunResult<Vec<Value>> {
+    fn serialize_jobs(jobs: &[CronJob]) -> VoidResult<Vec<Value>> {
         jobs.iter().map(Self::serialize_job).collect()
     }
 
@@ -385,12 +385,12 @@ enum CronToolScheduleInput {
 }
 
 impl CronToolScheduleInput {
-    fn to_service_schedule(&self, field_name: &str) -> BitFunResult<CronSchedule> {
+    fn to_service_schedule(&self, field_name: &str) -> VoidResult<CronSchedule> {
         match self {
             Self::At { at } => {
                 let at = at.trim();
                 if at.is_empty() {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "{}.at cannot be empty",
                         field_name
                     )));
@@ -401,7 +401,7 @@ impl CronToolScheduleInput {
             Self::Every { every, anchor } => {
                 let anchor_ms = match anchor.as_deref() {
                     Some(anchor) if anchor.trim().is_empty() => {
-                        return Err(BitFunError::tool(format!(
+                        return Err(VoidError::tool(format!(
                             "{}.anchor cannot be empty when provided",
                             field_name
                         )));
@@ -421,7 +421,7 @@ impl CronToolScheduleInput {
             Self::Cron { expr, tz } => {
                 let expr = expr.trim();
                 if expr.is_empty() {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "{}.expr cannot be empty",
                         field_name
                     )));
@@ -458,9 +458,9 @@ enum CronToolScheduleOutput {
 }
 
 impl TryFrom<&CronSchedule> for CronToolScheduleOutput {
-    type Error = BitFunError;
+    type Error = VoidError;
 
-    fn try_from(schedule: &CronSchedule) -> BitFunResult<Self> {
+    fn try_from(schedule: &CronSchedule) -> VoidResult<Self> {
         match schedule {
             CronSchedule::At { at } => Ok(Self::At { at: at.clone() }),
             CronSchedule::Every {
@@ -535,9 +535,9 @@ struct CronToolJobOutput {
 }
 
 impl TryFrom<&CronJob> for CronToolJobOutput {
-    type Error = BitFunError;
+    type Error = VoidError;
 
-    fn try_from(job: &CronJob) -> BitFunResult<Self> {
+    fn try_from(job: &CronJob) -> VoidResult<Self> {
         Ok(Self {
             id: job.id.clone(),
             name: job.name.clone(),
@@ -560,7 +560,7 @@ impl Tool for CronTool {
         "Cron"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(r#"Manage scheduled jobs for agent sessions.
 
 Defaults:
@@ -946,9 +946,9 @@ Patch schema for "update":
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let params: CronToolInput = serde_json::from_value(input.clone())
-            .map_err(|err| BitFunError::tool(format!("Invalid input: {}", err)))?;
+            .map_err(|err| VoidError::tool(format!("Invalid input: {}", err)))?;
 
         match params.action {
             CronAction::GetTime => {
@@ -968,7 +968,7 @@ Patch schema for "update":
             }
             CronAction::List => {
                 let cron_service = get_global_cron_service()
-                    .ok_or_else(|| BitFunError::tool("cron service not initialized".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
                 let session_id =
                     self.resolve_effective_session_id(params.session_id.as_deref(), context)?;
                 let workspace = self
@@ -1002,7 +1002,7 @@ Patch schema for "update":
             }
             CronAction::Add => {
                 let cron_service = get_global_cron_service()
-                    .ok_or_else(|| BitFunError::tool("cron service not initialized".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
                 let session_id =
                     self.resolve_effective_session_id(params.session_id.as_deref(), context)?;
                 let workspace = self
@@ -1010,7 +1010,7 @@ Patch schema for "update":
                     .await?;
                 let job = params
                     .job
-                    .ok_or_else(|| BitFunError::tool("job is required for add".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("job is required for add".to_string()))?;
 
                 Self::validate_payload(&job.payload, "job")?;
                 self.ensure_session_exists(&workspace, &session_id).await?;
@@ -1045,16 +1045,16 @@ Patch schema for "update":
             }
             CronAction::Update => {
                 let cron_service = get_global_cron_service()
-                    .ok_or_else(|| BitFunError::tool("cron service not initialized".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
                 let job_id = params.job_id.ok_or_else(|| {
-                    BitFunError::tool("job_id is required for update".to_string())
+                    VoidError::tool("job_id is required for update".to_string())
                 })?;
-                Self::validate_job_id(&job_id).map_err(BitFunError::tool)?;
+                Self::validate_job_id(&job_id).map_err(VoidError::tool)?;
                 let patch = params
                     .patch
-                    .ok_or_else(|| BitFunError::tool("patch is required for update".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("patch is required for update".to_string()))?;
                 if patch.is_empty() {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "patch must include at least one field".to_string(),
                     ));
                 }
@@ -1096,11 +1096,11 @@ Patch schema for "update":
             }
             CronAction::Remove => {
                 let cron_service = get_global_cron_service()
-                    .ok_or_else(|| BitFunError::tool("cron service not initialized".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
                 let job_id = params.job_id.ok_or_else(|| {
-                    BitFunError::tool("job_id is required for remove".to_string())
+                    VoidError::tool("job_id is required for remove".to_string())
                 })?;
-                Self::validate_job_id(&job_id).map_err(BitFunError::tool)?;
+                Self::validate_job_id(&job_id).map_err(VoidError::tool)?;
 
                 let deleted = cron_service.delete_job(&job_id).await?;
                 let result_for_assistant = if deleted {
@@ -1122,11 +1122,11 @@ Patch schema for "update":
             }
             CronAction::Run => {
                 let cron_service = get_global_cron_service()
-                    .ok_or_else(|| BitFunError::tool("cron service not initialized".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
                 let job_id = params
                     .job_id
-                    .ok_or_else(|| BitFunError::tool("job_id is required for run".to_string()))?;
-                Self::validate_job_id(&job_id).map_err(BitFunError::tool)?;
+                    .ok_or_else(|| VoidError::tool("job_id is required for run".to_string()))?;
+                Self::validate_job_id(&job_id).map_err(VoidError::tool)?;
 
                 let updated = cron_service.run_job_now(&job_id).await?;
                 let serialized_job = Self::serialize_job(&updated)?;
@@ -1223,7 +1223,7 @@ mod tests {
                 &json!({
                     "action": "list",
                     "session_id": "worker_1",
-                    "workspace": "E:/Projects/OpenBitfun/BitFun",
+                    "workspace": "E:/Projects/OpenVoid/Void",
                 }),
                 Some(&empty_context()),
             )

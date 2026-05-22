@@ -1,14 +1,14 @@
 /**
  * SessionsSection styles — inline accordion shown under the Sessions nav item.
  *
- * Uses the parent BEM block (.bitfun-nav-panel) to stay consistent with the
+ * Uses the parent BEM block (.void-nav-panel) to stay consistent with the
  * rest of the navigation styling, while being self-contained in this file.
  */
 
 @use '../../../../../component-library/styles/tokens.scss' as *;
 @use '../../../../../component-library/styles/nav-panel-font-scope.scss' as nav-font;
 
-.bitfun-nav-panel {
+.void-nav-panel {
   &__inline-list {
     display: flex;
     flex-direction: column;
@@ -17,7 +17,7 @@
     padding: 2px $size-gap-1 2px;
     gap: 0;
     // No vertical margin: spacing between assistant blocks comes from 2px top/bottom padding only
-    // (see .bitfun-nav-panel__items--session-blocks gap: 0), aligned with __workspace-item padding.
+    // (see .void-nav-panel__items--session-blocks gap: 0), aligned with __workspace-item padding.
     margin: 0 $size-gap-1 0 calc(#{$size-gap-1} + 4px);
   }
 
@@ -130,7 +130,7 @@
         transform: translateY(-50%);
       }
 
-      .bitfun-nav-panel__inline-item-icon {
+      .void-nav-panel__inline-item-icon {
         opacity: 0.72;
       }
     }
@@ -172,11 +172,11 @@
     &.is-running {
       color: var(--color-text-secondary);
       transition: opacity $motion-fast $easing-standard;
-      animation: bitfun-nav-session-spin 1s linear infinite;
+      animation: void-nav-session-spin 1s linear infinite;
     }
 
-    .bitfun-nav-panel__inline-item:hover &,
-    .bitfun-nav-panel__inline-item.is-active & {
+    .void-nav-panel__inline-item:hover &,
+    .void-nav-panel__inline-item.is-active & {
       opacity: 1;
     }
   }
@@ -200,7 +200,7 @@
   &__inline-item:hover &__inline-item-main,
   &__inline-item.is-menu-open &__inline-item-main,
   &__inline-item:focus-within &__inline-item-main {
-    padding-right: calc(var(--bitfun-nav-row-action-size) + var(--bitfun-nav-row-action-offset));
+    padding-right: calc(var(--void-nav-row-action-size) + var(--void-nav-row-action-offset));
   }
 
   &__inline-item-label {
@@ -246,7 +246,7 @@
     white-space: nowrap;
 
     svg {
-      animation: bitfun-nav-session-spin 1s linear infinite;
+      animation: void-nav-session-spin 1s linear infinite;
     }
   }
 
@@ -336,11 +336,11 @@
 
     // Pulse animation for high-priority states
     &.is-high-priority {
-      animation: bitfun-unread-dot-pulse 2s ease-in-out infinite;
+      animation: void-unread-dot-pulse 2s ease-in-out infinite;
     }
   }
 
-  @keyframes bitfun-unread-dot-pulse {
+  @keyframes void-unread-dot-pulse {
     0%, 100% {
       transform: scale(1);
       opacity: 1;
@@ -354,18 +354,18 @@
   &__inline-item-actions {
     position: absolute;
     top: 50%;
-    right: var(--bitfun-nav-row-action-offset);
+    right: var(--void-nav-row-action-offset);
     transform: translateY(-50%);
     display: flex;
     align-items: center;
-    gap: var(--bitfun-nav-row-action-gap);
+    gap: var(--void-nav-row-action-gap);
     visibility: hidden;
     opacity: 0;
     pointer-events: none;
     transition: opacity $motion-fast $easing-standard,
                 visibility $motion-fast $easing-standard;
 
-    .bitfun-nav-panel__inline-item:hover &,
+    .void-nav-panel__inline-item:hover &,
     &.is-open {
       visibility: visible;
       opacity: 1;
@@ -377,8 +377,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--bitfun-nav-row-action-size);
-    height: var(--bitfun-nav-row-action-size);
+    width: var(--void-nav-row-action-size);
+    height: var(--void-nav-row-action-size);
     padding: 0;
     border: none;
     border-radius: 4px;
@@ -389,8 +389,8 @@
                 background $motion-fast $easing-standard;
 
     svg {
-      width: var(--bitfun-nav-row-action-icon-size);
-      height: var(--bitfun-nav-row-action-icon-size);
+      width: var(--void-nav-row-action-icon-size);
+      height: var(--void-nav-row-action-icon-size);
       flex-shrink: 0;
     }
 
@@ -418,7 +418,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     z-index: 10000;
     transform-origin: top left;
-    animation: bitfun-footer-menu-in $motion-fast $easing-decelerate forwards;
+    animation: void-footer-menu-in $motion-fast $easing-decelerate forwards;
   }
 
   &__inline-item-menu-item {
@@ -470,7 +470,7 @@
     flex: 1;
     min-width: 0;
 
-    .bitfun-input-container {
+    .void-input-container {
       height: 18px;
       min-height: 18px;
       padding: 0 6px;
@@ -479,12 +479,12 @@
       background: color-mix(in srgb, var(--element-bg-soft) 55%, transparent);
     }
 
-    .bitfun-input {
+    .void-input {
       font-size: var(--font-size-xs);
       line-height: 16px;
     }
 
-    .bitfun-input-container:focus-within {
+    .void-input-container:focus-within {
       border-color: color-mix(in srgb, var(--color-text-primary) 35%, var(--border-subtle));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 12%, transparent);
     }
@@ -607,7 +607,7 @@
 
   // Unhealthy MCP server indicator
   &__inline-item.is-unhealthy {
-    .bitfun-nav-panel__inline-item-icon {
+    .void-nav-panel__inline-item-icon {
       color: var(--color-warning, #f59e0b);
       opacity: 0.9;
     }
@@ -615,7 +615,7 @@
 }
 
 // Session running spin animation
-@keyframes bitfun-nav-session-spin {
+@keyframes void-nav-session-spin {
   from {
     transform: rotate(0deg);
   }
@@ -625,27 +625,27 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-nav-panel {
+  .void-nav-panel {
     &__inline-item,
     &__inline-action {
       transition: none;
     }
   }
 
-  .bitfun-nav-panel__inline-item-icon.is-running {
+  .void-nav-panel__inline-item-icon.is-running {
     animation: none;
     opacity: 0.8;
   }
 
-  .bitfun-nav-panel__inline-item-review-badge svg {
+  .void-nav-panel__inline-item-review-badge svg {
     animation: none;
   }
 
-  .bitfun-nav-panel__items--session-blocks .bitfun-nav-panel__inline-item:hover .bitfun-nav-panel__inline-item-icon:not(.is-running) {
+  .void-nav-panel__items--session-blocks .void-nav-panel__inline-item:hover .void-nav-panel__inline-item-icon:not(.is-running) {
     transform: scale(1);
   }
 
-  .bitfun-nav-panel__items--session-blocks .bitfun-nav-panel__inline-item-icon:not(.is-running) {
+  .void-nav-panel__items--session-blocks .void-nav-panel__inline-item-icon:not(.is-running) {
     transition: opacity $motion-fast $easing-standard;
   }
 }

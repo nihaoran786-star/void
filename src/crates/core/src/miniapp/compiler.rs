@@ -1,9 +1,9 @@
 //! MiniApp compiler compatibility facade.
 
-pub use bitfun_product_domains::miniapp::compiler::{MiniAppCompileError, MiniAppCompileResult};
+pub use void_product_domains::miniapp::compiler::{MiniAppCompileError, MiniAppCompileResult};
 
 use crate::miniapp::types::{MiniAppPermissions, MiniAppSource};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 
 /// Compile MiniApp source into full HTML with Import Map, Runtime Adapter, and CSP injected.
 pub fn compile(
@@ -13,8 +13,8 @@ pub fn compile(
     app_data_dir: &str,
     workspace_dir: &str,
     theme: &str,
-) -> BitFunResult<String> {
-    bitfun_product_domains::miniapp::compiler::compile(
+) -> VoidResult<String> {
+    void_product_domains::miniapp::compiler::compile(
         source,
         permissions,
         app_id,
@@ -22,5 +22,5 @@ pub fn compile(
         workspace_dir,
         theme,
     )
-    .map_err(|e| BitFunError::validation(e.to_string()))
+    .map_err(|e| VoidError::validation(e.to_string()))
 }

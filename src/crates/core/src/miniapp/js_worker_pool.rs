@@ -3,13 +3,13 @@
 use crate::miniapp::js_worker::JsWorker;
 use crate::miniapp::runtime_detect::{detect_runtime, DetectedRuntime};
 use crate::miniapp::types::{NodePermissions, NpmDep};
-use crate::util::errors::{BitFunError, BitFunResult};
-use bitfun_product_domains::miniapp::ports::{
+use crate::util::errors::{VoidError, VoidResult};
+use void_product_domains::miniapp::ports::{
     MiniAppInstallDepsRequest, MiniAppPortError, MiniAppPortErrorKind, MiniAppPortFuture,
     MiniAppRuntimePort,
 };
-use bitfun_product_domains::miniapp::worker::install_command_for_runtime;
-pub use bitfun_product_domains::miniapp::worker::InstallResult;
+use void_product_domains::miniapp::worker::install_command_for_runtime;
+pub use void_product_domains::miniapp::worker::InstallResult;
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -34,9 +34,9 @@ impl JsWorkerPool {
     pub fn new(
         path_manager: Arc<crate::infrastructure::PathManager>,
         worker_host_path: PathBuf,
-    ) -> BitFunResult<Self> {
+    ) -> VoidResult<Self> {
         let runtime = detect_runtime().ok_or_else(|| {
-            BitFunError::validation("No JS runtime found (install Bun or Node.js)".to_string())
+            VoidError::validation("No JS runtime found (install Bun or Node.js)".to_string())
         })?;
         let workers = Arc::new(Mutex::new(
             std::collections::HashMap::<String, WorkerEntry>::new(),
@@ -93,7 +93,7 @@ impl JsWorkerPool {
         worker_revision: &str,
         policy_json: &str,
         node_perms: Option<&NodePermissions>,
-    ) -> BitFunResult<Arc<Mutex<JsWorker>>> {
+    ) -> VoidResult<Arc<Mutex<JsWorker>>> {
         let app_dir = self.path_manager.miniapp_dir(app_id);
         self.get_or_spawn_with_app_dir(
             app_id,
@@ -114,7 +114,7 @@ impl JsWorkerPool {
         worker_revision: &str,
         policy_json: &str,
         node_perms: Option<&NodePermissions>,
-    ) -> BitFunResult<Arc<Mutex<JsWorker>>> {
+    ) -> VoidResult<Arc<Mutex<JsWorker>>> {
         let mut guard = self.workers.lock().await;
         self.evict_idle(&mut guard).await;
 
@@ -133,7 +133,7 @@ impl JsWorkerPool {
         }
 
         if !app_dir.exists() {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "MiniApp worker dir not found: {}",
                 app_dir.display()
             )));
@@ -147,7 +147,7 @@ impl JsWorkerPool {
             app_id.to_string(),
         )
         .await
-        .map_err(BitFunError::validation)?;
+        .map_err(VoidError::validation)?;
 
         let _timeout_ms = node_perms.and_then(|n| n.timeout_ms).unwrap_or(30_000);
         let worker = Arc::new(Mutex::new(worker));
@@ -216,7 +216,7 @@ impl JsWorkerPool {
         permissions: Option<&NodePermissions>,
         method: &str,
         params: Value,
-    ) -> BitFunResult<Value> {
+    ) -> VoidResult<Value> {
         let worker = self
             .get_or_spawn(app_id, worker_revision, policy_json, permissions)
             .await?;
@@ -225,7 +225,7 @@ impl JsWorkerPool {
         guard
             .call(method, params, timeout_ms)
             .await
-            .map_err(BitFunError::validation)
+            .map_err(VoidError::validation)
     }
 
     pub async fn call_with_app_dir(
@@ -238,7 +238,7 @@ impl JsWorkerPool {
         permissions: Option<&NodePermissions>,
         method: &str,
         params: Value,
-    ) -> BitFunResult<Value> {
+    ) -> VoidResult<Value> {
         let worker = self
             .get_or_spawn_with_app_dir(
                 worker_key,
@@ -254,7 +254,7 @@ impl JsWorkerPool {
         guard
             .call(method, params, timeout_ms)
             .await
-            .map_err(BitFunError::validation)
+            .map_err(VoidError::validation)
     }
 
     /// Stop and remove the Worker for the app.
@@ -302,7 +302,7 @@ impl JsWorkerPool {
         &self,
         app_id: &str,
         _deps: &[NpmDep],
-    ) -> BitFunResult<InstallResult> {
+    ) -> VoidResult<InstallResult> {
         let app_dir = self.path_manager.miniapp_dir(app_id);
         self.install_deps_in_dir(&app_dir, _deps).await
     }
@@ -311,7 +311,7 @@ impl JsWorkerPool {
         &self,
         app_dir: &std::path::Path,
         _deps: &[NpmDep],
-    ) -> BitFunResult<InstallResult> {
+    ) -> VoidResult<InstallResult> {
         let package_json = app_dir.join("package.json");
         if !package_json.exists() {
             return Ok(InstallResult {
@@ -328,7 +328,7 @@ impl JsWorkerPool {
             .current_dir(&app_dir)
             .output()
             .await
-            .map_err(|e| BitFunError::io(format!("install_deps failed: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("install_deps failed: {}", e)))?;
 
         Ok(InstallResult {
             success: output.status.success(),
@@ -355,17 +355,17 @@ impl MiniAppRuntimePort for JsWorkerPool {
     }
 }
 
-fn map_miniapp_runtime_port_error(error: BitFunError) -> MiniAppPortError {
+fn map_miniapp_runtime_port_error(error: VoidError) -> MiniAppPortError {
     let kind = match &error {
-        BitFunError::NotFound(_) => MiniAppPortErrorKind::NotFound,
-        BitFunError::Validation(_) | BitFunError::Deserialization(_) => {
+        VoidError::NotFound(_) => MiniAppPortErrorKind::NotFound,
+        VoidError::Validation(_) | VoidError::Deserialization(_) => {
             MiniAppPortErrorKind::InvalidInput
         }
-        BitFunError::Io(io_error) if io_error.kind() == std::io::ErrorKind::PermissionDenied => {
+        VoidError::Io(io_error) if io_error.kind() == std::io::ErrorKind::PermissionDenied => {
             MiniAppPortErrorKind::PermissionDenied
         }
-        BitFunError::Io(_) => MiniAppPortErrorKind::Io,
-        BitFunError::ProcessError(_) | BitFunError::Timeout(_) => {
+        VoidError::Io(_) => MiniAppPortErrorKind::Io,
+        VoidError::ProcessError(_) | VoidError::Timeout(_) => {
             MiniAppPortErrorKind::RuntimeUnavailable
         }
         _ => MiniAppPortErrorKind::Backend,
@@ -376,7 +376,7 @@ fn map_miniapp_runtime_port_error(error: BitFunError) -> MiniAppPortError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitfun_product_domains::miniapp::runtime::RuntimeKind;
+    use void_product_domains::miniapp::runtime::RuntimeKind;
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -405,7 +405,7 @@ mod tests {
 
     #[tokio::test]
     async fn runtime_port_adapter_preserves_existing_runtime_and_noop_install() {
-        let root = TestTempDir::new("bitfun-miniapp-runtime-port");
+        let root = TestTempDir::new("void-miniapp-runtime-port");
         let path_manager = Arc::new(
             crate::infrastructure::PathManager::with_user_root_for_tests(root.path().to_path_buf()),
         );
@@ -447,7 +447,7 @@ mod tests {
     #[tokio::test]
     async fn install_deps_in_dir_noops_without_package_json() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-runtime-draft-port-{}",
+            "void-miniapp-runtime-draft-port-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =

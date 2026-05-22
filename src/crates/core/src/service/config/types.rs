@@ -328,7 +328,7 @@ pub struct ThemesConfig {
 impl Default for ThemesConfig {
     fn default() -> Self {
         Self {
-            current: "bitfun-light".to_string(),
+            current: "void-light".to_string(),
             custom: None,
         }
     }
@@ -460,7 +460,7 @@ pub enum ModelCategory {
     SpeechRecognition,
 }
 
-pub use bitfun_ai_adapters::types::ReasoningMode;
+pub use void_ai_adapters::types::ReasoningMode;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -809,7 +809,7 @@ impl Default for ModeConfigView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DebugModeConfig {
-    /// Custom log path (relative to the workspace; default: `.bitfun/debug.log`).
+    /// Custom log path (relative to the workspace; default: `.void/debug.log`).
     pub log_path: String,
 
     /// Ingest server port.
@@ -825,7 +825,7 @@ pub struct DebugModeConfig {
 impl Default for DebugModeConfig {
     fn default() -> Self {
         Self {
-            log_path: ".bitfun/debug.log".to_string(),
+            log_path: ".void/debug.log".to_string(),
             ingest_port: 7242,
             enabled_languages: Vec::new(),
             language_templates: Self::default_language_templates(),
@@ -1232,7 +1232,7 @@ impl AIModelConfig {
     }
 }
 
-pub use bitfun_ai_adapters::types::ProxyConfig;
+pub use void_ai_adapters::types::ProxyConfig;
 
 /// Configuration provider interface.
 #[async_trait]
@@ -1244,21 +1244,21 @@ pub trait ConfigProvider: Send + Sync {
     fn get_default_config(&self) -> serde_json::Value;
 
     /// Validates configuration.
-    async fn validate_config(&self, config: &serde_json::Value) -> BitFunResult<Vec<String>>;
+    async fn validate_config(&self, config: &serde_json::Value) -> VoidResult<Vec<String>>;
 
     /// Called when configuration changes.
     async fn on_config_changed(
         &self,
         old_config: &serde_json::Value,
         new_config: &serde_json::Value,
-    ) -> BitFunResult<()>;
+    ) -> VoidResult<()>;
 
     /// Migrates configuration (used for version upgrades).
     async fn migrate_config(
         &self,
         version: &str,
         config: serde_json::Value,
-    ) -> BitFunResult<serde_json::Value>;
+    ) -> VoidResult<serde_json::Value>;
 }
 
 /// Configuration change event.

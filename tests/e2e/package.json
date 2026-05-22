@@ -1,7 +1,7 @@
 {
-  "name": "bitfun-e2e-tests",
+  "name": "void-e2e-tests",
   "version": "1.0.0",
-  "description": "E2E tests for BitFun using WebDriverIO and the embedded BitFun WebDriver",
+  "description": "E2E tests for Void using WebDriverIO and the embedded Void WebDriver",
   "type": "module",
   "scripts": {
     "test": "wdio run ./config/wdio.conf.ts",

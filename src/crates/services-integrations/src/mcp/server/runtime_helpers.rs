@@ -39,7 +39,7 @@ pub fn merge_mcp_remote_headers(
         .iter()
         .all(|key| !merged_headers.contains_key(*key))
     {
-        // Backward compatibility: older BitFun configs store `Authorization` under `env`.
+        // Backward compatibility: older Void configs store `Authorization` under `env`.
         if let Some(value) = AUTHORIZATION_KEYS.iter().find_map(|key| env.get(*key)) {
             merged_headers.insert("Authorization".to_string(), value.clone());
         }

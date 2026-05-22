@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bitfun_core::agentic::tools::framework::{
+use void_core::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::util::errors::{VoidError, VoidResult};
 use serde_json::{json, Value};
 
 use super::config::AcpClientConfig;
@@ -46,7 +46,7 @@ impl Tool for AcpAgentTool {
         &self.full_name
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(format!(
             "Send a prompt to the external ACP agent '{}'. Use this when another local ACP-compatible agent is better suited for a delegated task.",
             self.display_name()
@@ -70,7 +70,7 @@ impl Tool for AcpAgentTool {
                 },
                 "workspace_path": {
                     "type": "string",
-                    "description": "Optional absolute workspace path. Defaults to the current BitFun workspace."
+                    "description": "Optional absolute workspace path. Defaults to the current Void workspace."
                 },
                 "timeout_seconds": {
                     "type": "integer",
@@ -164,15 +164,15 @@ impl Tool for AcpAgentTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
-        let bitfun_session_id = context.session_id.clone().ok_or_else(|| {
-            BitFunError::tool("ACP tool requires an active BitFun session".to_string())
+    ) -> VoidResult<Vec<ToolResult>> {
+        let void_session_id = context.session_id.clone().ok_or_else(|| {
+            VoidError::tool("ACP tool requires an active Void session".to_string())
         })?;
         let prompt = input
             .get("prompt")
             .and_then(|value| value.as_str())
             .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| BitFunError::tool("prompt is required".to_string()))?
+            .ok_or_else(|| VoidError::tool("prompt is required".to_string()))?
             .to_string();
 
         let workspace_path = input
@@ -195,7 +195,7 @@ impl Tool for AcpAgentTool {
                 prompt,
                 workspace_path,
                 None,
-                bitfun_session_id,
+                void_session_id,
                 None,
                 timeout_seconds,
             )

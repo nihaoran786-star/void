@@ -80,7 +80,7 @@ impl ChatView {
 
     /// Render header
     fn render_header(&self, frame: &mut Frame, area: Rect, chat_state: &ChatState) {
-        let title = format!(" BitFun CLI v{} ", env!("CARGO_PKG_VERSION"));
+        let title = format!(" Void CLI v{} ", env!("CARGO_PKG_VERSION"));
         let agent_info = format!(" Agent: {} ", chat_state.agent_type);
 
         let workspace = chat_state
@@ -140,7 +140,7 @@ impl ChatView {
             let welcome = vec![
                 Line::from(""),
                 Line::from(Span::styled(
-                    "Welcome to BitFun CLI!",
+                    "Welcome to Void CLI!",
                     self.theme.style(StyleKind::Title),
                 )),
                 Line::from(""),

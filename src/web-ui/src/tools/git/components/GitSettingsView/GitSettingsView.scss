@@ -6,7 +6,7 @@ $opacity-secondary: 0.7 !default;
 $opacity-high: 0.8 !default;
 $border-subtle: rgba(255, 255, 255, 0.06) !default;
 
-.bitfun-git-settings-view {
+.void-git-settings-view {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -289,7 +289,7 @@ $border-subtle: rgba(255, 255, 255, 0.06) !default;
   }
 
   &__loading-spinner {
-    animation: bitfun-git-settings-view-spin 1s linear infinite;
+    animation: void-git-settings-view-spin 1s linear infinite;
   }
 
   &__error-message {
@@ -324,7 +324,7 @@ $border-subtle: rgba(255, 255, 255, 0.06) !default;
   }
 }
 
-@keyframes bitfun-git-settings-view-spin {
+@keyframes void-git-settings-view-spin {
   from {
     transform: rotate(0deg);
   }
@@ -334,7 +334,7 @@ $border-subtle: rgba(255, 255, 255, 0.06) !default;
 }
 
 @media (max-width: 768px) {
-  .bitfun-git-settings-view {
+  .void-git-settings-view {
     &__header {
       flex-direction: column;
       gap: $size-gap-2;

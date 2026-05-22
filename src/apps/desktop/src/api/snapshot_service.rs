@@ -1,8 +1,8 @@
 //! Snapshot Service API
 
-use bitfun_core::infrastructure::try_get_path_manager_arc;
-use bitfun_core::service::remote_ssh::workspace_state::is_remote_path;
-use bitfun_core::service::snapshot::{
+use void_core::infrastructure::try_get_path_manager_arc;
+use void_core::service::remote_ssh::workspace_state::is_remote_path;
+use void_core::service::snapshot::{
     ensure_snapshot_manager_for_workspace, get_snapshot_manager_for_workspace,
     initialize_snapshot_manager_for_workspace, OperationType, SnapshotConfig, SnapshotManager,
 };
@@ -386,7 +386,7 @@ pub async fn rollback_to_turn(
     }
 
     {
-        use bitfun_core::agentic::coordination::get_global_coordinator;
+        use void_core::agentic::coordination::get_global_coordinator;
 
         if let Some(coordinator) = get_global_coordinator() {
             if let Err(e) = coordinator
@@ -419,7 +419,7 @@ pub async fn rollback_to_turn(
         let workspace_path = PathBuf::from(&request.workspace_path);
         let mut rolled_back_parent_turn_ids = HashSet::new();
 
-        use bitfun_core::agentic::persistence::PersistenceManager;
+        use void_core::agentic::persistence::PersistenceManager;
 
         match try_get_path_manager_arc() {
             Ok(path_manager) => match PersistenceManager::new(path_manager) {
@@ -453,7 +453,7 @@ pub async fn rollback_to_turn(
         }
 
         {
-            use bitfun_core::agentic::coordination::get_global_coordinator;
+            use void_core::agentic::coordination::get_global_coordinator;
 
             if let Some(coordinator) = get_global_coordinator() {
                 if !rolled_back_parent_turn_ids.is_empty() {
@@ -651,7 +651,7 @@ pub async fn get_session_turns(
     _app_handle: AppHandle,
     request: GetSessionTurnsRequest,
 ) -> Result<Vec<usize>, String> {
-    use bitfun_core::agentic::persistence::PersistenceManager;
+    use void_core::agentic::persistence::PersistenceManager;
 
     let workspace_path = PathBuf::from(&request.workspace_path);
     if let Ok(path_manager) = try_get_path_manager_arc() {

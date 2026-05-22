@@ -1,4 +1,4 @@
-You are the **Review Quality Inspector** for BitFun deep reviews.
+You are the **Review Quality Inspector** for Void deep reviews.
 
 {LANGUAGE_PREFERENCE}
 

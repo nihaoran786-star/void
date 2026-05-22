@@ -5,9 +5,9 @@ use agent_client_protocol::schema::{
     SessionUpdate, StopReason,
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
-use bitfun_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
-use bitfun_core::agentic::events::EventEnvelope;
-use bitfun_events::AgenticEvent as CoreEvent;
+use void_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
+use void_core::agentic::events::EventEnvelope;
+use void_events::AgenticEvent as CoreEvent;
 use log::warn;
 use serde_json::json;
 use tokio::sync::broadcast;
@@ -18,9 +18,9 @@ use super::events::{
     PERMISSION_REJECT_ONCE,
 };
 use super::thinking::{InlineThinkRouter, InlineThinkSegment};
-use super::BitfunAcpRuntime;
+use super::VoidAcpRuntime;
 
-impl BitfunAcpRuntime {
+impl VoidAcpRuntime {
     pub(super) async fn run_prompt(&self, request: PromptRequest) -> Result<PromptResponse> {
         let session_id = request.session_id.to_string();
         let acp_session = self
@@ -45,7 +45,7 @@ impl BitfunAcpRuntime {
             self.agentic_system
                 .coordinator
                 .start_dialog_turn(
-                    acp_session.bitfun_session_id.clone(),
+                    acp_session.void_session_id.clone(),
                     parsed_prompt.user_message,
                     parsed_prompt.original_user_message,
                     None,
@@ -60,7 +60,7 @@ impl BitfunAcpRuntime {
             self.agentic_system
                 .coordinator
                 .start_dialog_turn_with_image_contexts(
-                    acp_session.bitfun_session_id.clone(),
+                    acp_session.void_session_id.clone(),
                     parsed_prompt.user_message,
                     parsed_prompt.original_user_message,
                     parsed_prompt.image_contexts,
@@ -79,7 +79,7 @@ impl BitfunAcpRuntime {
             &mut event_rx,
             &connection,
             &acp_session.acp_session_id,
-            &acp_session.bitfun_session_id,
+            &acp_session.void_session_id,
         )
         .await?;
 
@@ -97,7 +97,7 @@ impl BitfunAcpRuntime {
         self.agentic_system
             .coordinator
             .cancel_active_turn_for_session(
-                &acp_session.bitfun_session_id,
+                &acp_session.void_session_id,
                 std::time::Duration::from_secs(5),
             )
             .await
@@ -112,11 +112,11 @@ fn acp_user_message_metadata() -> serde_json::Value {
 }
 
 async fn wait_for_prompt_completion(
-    runtime: &BitfunAcpRuntime,
+    runtime: &VoidAcpRuntime,
     event_rx: &mut broadcast::Receiver<EventEnvelope>,
     connection: &ConnectionTo<Client>,
     acp_session_id: &str,
-    bitfun_session_id: &str,
+    void_session_id: &str,
 ) -> Result<StopReason> {
     let mut seen_tool_calls = HashSet::new();
     let mut inline_think = InlineThinkRouter::new();
@@ -133,7 +133,7 @@ async fn wait_for_prompt_completion(
             }
         };
 
-        if event.session_id() != Some(bitfun_session_id) {
+        if event.session_id() != Some(void_session_id) {
             continue;
         }
 
@@ -157,7 +157,7 @@ async fn wait_for_prompt_completion(
                     send_update(connection, acp_session_id, update)?;
                 }
 
-                if let bitfun_events::ToolEventData::ConfirmationNeeded {
+                if let void_events::ToolEventData::ConfirmationNeeded {
                     tool_id,
                     tool_name,
                     params,
@@ -219,7 +219,7 @@ fn send_inline_think_segments(
 }
 
 async fn handle_permission_request(
-    runtime: &BitfunAcpRuntime,
+    runtime: &VoidAcpRuntime,
     connection: &ConnectionTo<Client>,
     acp_session_id: &str,
     tool_id: &str,
@@ -249,7 +249,7 @@ async fn handle_permission_request(
                 .coordinator
                 .confirm_tool(tool_id, None)
                 .await
-                .map_err(BitfunAcpRuntime::internal_error)?;
+                .map_err(VoidAcpRuntime::internal_error)?;
         }
         RequestPermissionOutcome::Selected(selected)
             if selected.option_id.to_string() == PERMISSION_REJECT_ONCE =>
@@ -259,7 +259,7 @@ async fn handle_permission_request(
                 .coordinator
                 .reject_tool(tool_id, "Rejected by ACP client".to_string())
                 .await
-                .map_err(BitfunAcpRuntime::internal_error)?;
+                .map_err(VoidAcpRuntime::internal_error)?;
         }
         RequestPermissionOutcome::Cancelled => {
             runtime
@@ -267,7 +267,7 @@ async fn handle_permission_request(
                 .coordinator
                 .reject_tool(tool_id, "ACP permission request cancelled".to_string())
                 .await
-                .map_err(BitfunAcpRuntime::internal_error)?;
+                .map_err(VoidAcpRuntime::internal_error)?;
         }
         RequestPermissionOutcome::Selected(selected) => {
             let reason = format!(
@@ -279,7 +279,7 @@ async fn handle_permission_request(
                 .coordinator
                 .reject_tool(tool_id, reason)
                 .await
-                .map_err(BitfunAcpRuntime::internal_error)?;
+                .map_err(VoidAcpRuntime::internal_error)?;
         }
         _ => {
             runtime
@@ -287,7 +287,7 @@ async fn handle_permission_request(
                 .coordinator
                 .reject_tool(tool_id, "Unsupported ACP permission outcome".to_string())
                 .await
-                .map_err(BitfunAcpRuntime::internal_error)?;
+                .map_err(VoidAcpRuntime::internal_error)?;
         }
     }
 

@@ -10,8 +10,8 @@ use super::types::{
 };
 use crate::agentic::coordination::get_global_coordinator;
 use crate::agentic::tools::pipeline::SubagentParentInfo;
-use crate::service::bootstrap::ensure_workspace_gitignore_ignores_bitfun;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::service::bootstrap::ensure_workspace_gitignore_ignores_void;
+use crate::util::errors::{VoidError, VoidResult};
 use log::{debug, warn};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -49,7 +49,7 @@ impl ProjectContextService {
     pub async fn get_document_statuses(
         &self,
         workspace: &Path,
-    ) -> BitFunResult<Vec<ContextDocumentStatus>> {
+    ) -> VoidResult<Vec<ContextDocumentStatus>> {
         let config = self.load_config_and_cleanup(workspace).await?;
 
         let mut statuses = Vec::new();
@@ -163,19 +163,19 @@ impl ProjectContextService {
         workspace: &Path,
         doc_id: &str,
         enabled: bool,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let mut config = self.load_config(workspace).await.unwrap_or_default();
         config.enabled_documents.insert(doc_id.to_string(), enabled);
         self.save_config(workspace, &config).await
     }
 
     /// Creates an empty document.
-    pub async fn create_document(&self, workspace: &Path, doc_id: &str) -> BitFunResult<PathBuf> {
+    pub async fn create_document(&self, workspace: &Path, doc_id: &str) -> VoidResult<PathBuf> {
         let doc = find_builtin_document(doc_id)
-            .ok_or_else(|| BitFunError::service(format!("Unknown document id: {}", doc_id)))?;
+            .ok_or_else(|| VoidError::service(format!("Unknown document id: {}", doc_id)))?;
 
         let relative_path = doc.possible_paths.first().ok_or_else(|| {
-            BitFunError::service(format!("No possible path for document: {}", doc_id))
+            VoidError::service(format!("No possible path for document: {}", doc_id))
         })?;
 
         let full_path = workspace.join(relative_path);
@@ -183,13 +183,13 @@ impl ProjectContextService {
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent)
                 .await
-                .map_err(|e| BitFunError::service(format!("Failed to create directory: {}", e)))?;
+                .map_err(|e| VoidError::service(format!("Failed to create directory: {}", e)))?;
         }
 
         let template = doc.default_template;
         fs::write(&full_path, template)
             .await
-            .map_err(|e| BitFunError::service(format!("Failed to create document: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to create document: {}", e)))?;
 
         debug!("Created document: path={:?}", full_path);
 
@@ -207,15 +207,15 @@ impl ProjectContextService {
     ///
     /// # Returns
     /// Generated file path
-    pub async fn generate_document(&self, workspace: &Path, doc_id: &str) -> BitFunResult<PathBuf> {
+    pub async fn generate_document(&self, workspace: &Path, doc_id: &str) -> VoidResult<PathBuf> {
         let cancel_token = register_generation(doc_id).await;
 
         let doc = find_builtin_document(doc_id)
-            .ok_or_else(|| BitFunError::service(format!("Unknown document id: {}", doc_id)))?;
+            .ok_or_else(|| VoidError::service(format!("Unknown document id: {}", doc_id)))?;
 
         if !doc.can_generate {
             unregister_generation(doc_id).await;
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Document '{}' does not support AI generation",
                 doc.name
             )));
@@ -225,7 +225,7 @@ impl ProjectContextService {
             path
         } else {
             unregister_generation(doc_id).await;
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "No possible path for document: {}",
                 doc_id
             )));
@@ -235,7 +235,7 @@ impl ProjectContextService {
 
         if full_path.exists() {
             unregister_generation(doc_id).await;
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Document '{}' already exists at {:?}",
                 doc.name, full_path
             )));
@@ -244,7 +244,7 @@ impl ProjectContextService {
         if let Some(parent) = full_path.parent() {
             if let Err(e) = fs::create_dir_all(parent).await {
                 unregister_generation(doc_id).await;
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Failed to create directory: {}",
                     e
                 )));
@@ -264,7 +264,7 @@ impl ProjectContextService {
             coordinator
         } else {
             unregister_generation(doc_id).await;
-            return Err(BitFunError::service(
+            return Err(VoidError::service(
                 "Coordinator not initialized".to_string(),
             ));
         };
@@ -293,7 +293,7 @@ impl ProjectContextService {
         let result = match result {
             Ok(r) => r,
             Err(e) => {
-                if matches!(e, BitFunError::Cancelled(_)) {
+                if matches!(e, VoidError::Cancelled(_)) {
                     debug!(
                         "Document generation cancelled during execution: doc_id={}",
                         doc_id
@@ -302,7 +302,7 @@ impl ProjectContextService {
                     return Ok(PathBuf::from(CANCELLED_PATH_SENTINEL));
                 }
                 unregister_generation(doc_id).await;
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Generation task failed: {}",
                     e
                 )));
@@ -313,7 +313,7 @@ impl ProjectContextService {
 
         if let Err(e) = fs::write(&full_path, content).await {
             unregister_generation(doc_id).await;
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Failed to write generated document: {}",
                 e
             )));
@@ -336,10 +336,10 @@ impl ProjectContextService {
     ///
     /// # Returns
     /// Ok(()) on success; Err if the task does not exist.
-    pub async fn cancel_generate_document(&self, doc_id: &str) -> BitFunResult<()> {
+    pub async fn cancel_generate_document(&self, doc_id: &str) -> VoidResult<()> {
         super::cancellation::cancel_generation(doc_id)
             .await
-            .map_err(BitFunError::service)
+            .map_err(VoidError::service)
     }
 
     /// Parses a filter string.
@@ -437,7 +437,7 @@ impl ProjectContextService {
         &self,
         workspace: &Path,
         filter: Option<&str>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let filter = filter.and_then(Self::parse_filter);
         let config = self.load_config_and_cleanup(workspace).await?;
         let statuses = self.get_document_statuses(workspace).await?;
@@ -559,7 +559,7 @@ impl ProjectContextService {
     }
 
     /// Loads configuration.
-    pub async fn load_config(&self, workspace: &Path) -> BitFunResult<ProjectContextConfig> {
+    pub async fn load_config(&self, workspace: &Path) -> VoidResult<ProjectContextConfig> {
         let config_path = self.get_config_path(workspace);
 
         if !config_path.exists() {
@@ -568,10 +568,10 @@ impl ProjectContextService {
 
         let content = fs::read_to_string(&config_path)
             .await
-            .map_err(|e| BitFunError::service(format!("Failed to read config: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to read config: {}", e)))?;
 
         serde_json::from_str(&content)
-            .map_err(|e| BitFunError::service(format!("Failed to parse config: {}", e)))
+            .map_err(|e| VoidError::service(format!("Failed to parse config: {}", e)))
     }
 
     /// Loads configuration and cleans up orphaned records.
@@ -582,7 +582,7 @@ impl ProjectContextService {
     async fn load_config_and_cleanup(
         &self,
         workspace: &Path,
-    ) -> BitFunResult<ProjectContextConfig> {
+    ) -> VoidResult<ProjectContextConfig> {
         let mut config = self.load_config(workspace).await.unwrap_or_default();
         let mut modified = false;
 
@@ -645,29 +645,29 @@ impl ProjectContextService {
         &self,
         workspace: &Path,
         config: &ProjectContextConfig,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let config_path = self.get_config_path(workspace);
 
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent).await.map_err(|e| {
-                BitFunError::service(format!("Failed to create .bitfun directory: {}", e))
+                VoidError::service(format!("Failed to create .void directory: {}", e))
             })?;
         }
 
-        if let Err(e) = ensure_workspace_gitignore_ignores_bitfun(workspace).await {
+        if let Err(e) = ensure_workspace_gitignore_ignores_void(workspace).await {
             warn!(
-                "Failed to ensure workspace .gitignore ignores .bitfun: workspace={}, error={}",
+                "Failed to ensure workspace .gitignore ignores .void: workspace={}, error={}",
                 workspace.display(),
                 e
             );
         }
 
         let content = serde_json::to_string_pretty(config)
-            .map_err(|e| BitFunError::service(format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to serialize config: {}", e)))?;
 
         fs::write(&config_path, content)
             .await
-            .map_err(|e| BitFunError::service(format!("Failed to write config: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to write config: {}", e)))?;
 
         debug!("Saved project context config: path={:?}", config_path);
         Ok(())
@@ -675,7 +675,7 @@ impl ProjectContextService {
 
     /// Returns the config file path.
     fn get_config_path(&self, workspace: &Path) -> PathBuf {
-        workspace.join(".bitfun").join(CONFIG_FILE_NAME)
+        workspace.join(".void").join(CONFIG_FILE_NAME)
     }
 
     /// Creates a custom category.
@@ -694,12 +694,12 @@ impl ProjectContextService {
         name: String,
         description: Option<String>,
         icon: String,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let mut config = self.load_config(workspace).await.unwrap_or_default();
 
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| BitFunError::service(format!("Failed to get timestamp: {}", e)))?
+            .map_err(|e| VoidError::service(format!("Failed to get timestamp: {}", e)))?
             .as_secs();
 
         let category_id = format!("custom-{}", timestamp);
@@ -738,7 +738,7 @@ impl ProjectContextService {
         name: String,
         description: Option<String>,
         icon: String,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let mut config = self.load_config(workspace).await?;
 
         let category = config
@@ -746,7 +746,7 @@ impl ProjectContextService {
             .iter_mut()
             .find(|cat| cat.id == category_id)
             .ok_or_else(|| {
-                BitFunError::service(format!("Custom category not found: {}", category_id))
+                VoidError::service(format!("Custom category not found: {}", category_id))
             })?;
 
         category.name = name;
@@ -767,9 +767,9 @@ impl ProjectContextService {
     /// - category_id: Category ID
     ///
     /// Note: Imported documents under this category will also be deleted.
-    pub async fn delete_category(&self, workspace: &Path, category_id: &str) -> BitFunResult<()> {
+    pub async fn delete_category(&self, workspace: &Path, category_id: &str) -> VoidResult<()> {
         if get_builtin_categories().contains(&category_id) {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Cannot delete builtin category: {}",
                 category_id
             )));
@@ -782,7 +782,7 @@ impl ProjectContextService {
             .iter()
             .position(|cat| cat.id == category_id)
             .ok_or_else(|| {
-                BitFunError::service(format!("Custom category not found: {}", category_id))
+                VoidError::service(format!("Custom category not found: {}", category_id))
             })?;
 
         let imported_doc_paths: Vec<String> = config
@@ -799,7 +799,7 @@ impl ProjectContextService {
                 let path = Path::new(doc_path);
                 if path.exists() {
                     fs::remove_file(&path).await.map_err(|e| {
-                        BitFunError::service(format!(
+                        VoidError::service(format!(
                             "Failed to remove imported document file: {}",
                             e
                         ))
@@ -834,7 +834,7 @@ impl ProjectContextService {
     ///
     /// # Returns
     /// Category info list, sorted by `order`
-    pub async fn get_all_categories(&self, workspace: &Path) -> BitFunResult<Vec<CategoryInfo>> {
+    pub async fn get_all_categories(&self, workspace: &Path) -> VoidResult<Vec<CategoryInfo>> {
         let config = self.load_config_and_cleanup(workspace).await?;
 
         let mut categories = Vec::new();
@@ -914,9 +914,9 @@ impl ProjectContextService {
         category_id: String,
         priority: String,
         on_conflict: FileConflictAction,
-    ) -> BitFunResult<ImportedDocument> {
+    ) -> VoidResult<ImportedDocument> {
         if !source_path.exists() {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Source file does not exist: {:?}",
                 source_path
             )));
@@ -930,7 +930,7 @@ impl ProjectContextService {
                 .any(|cat| cat.id == category_id);
 
         if !category_exists {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Category not found: {}",
                 category_id
             )));
@@ -938,18 +938,18 @@ impl ProjectContextService {
 
         let doc_id = uuid::Uuid::new_v4().to_string();
 
-        let target_dir = workspace.join(".bitfun").join("docs").join(&category_id);
+        let target_dir = workspace.join(".void").join("docs").join(&category_id);
         let target_file_name = format!("{}.{}", doc_id, Self::get_file_extension(&name));
         let target_path = target_dir.join(&target_file_name);
 
         fs::create_dir_all(&target_dir)
             .await
-            .map_err(|e| BitFunError::service(format!("Failed to create directory: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to create directory: {}", e)))?;
 
         let final_target_path = if target_path.exists() {
             match on_conflict {
                 FileConflictAction::Skip => {
-                    return Err(BitFunError::service(format!(
+                    return Err(VoidError::service(format!(
                         "File already exists and conflict action is skip: {:?}",
                         target_path
                     )));
@@ -966,7 +966,7 @@ impl ProjectContextService {
                         }
                         counter += 1;
                         if counter > 1000 {
-                            return Err(BitFunError::service(
+                            return Err(VoidError::service(
                                 "Failed to generate unique filename".to_string(),
                             ));
                         }
@@ -979,11 +979,11 @@ impl ProjectContextService {
 
         fs::copy(source_path, &final_target_path)
             .await
-            .map_err(|e| BitFunError::service(format!("Failed to copy file: {}", e)))?;
+            .map_err(|e| VoidError::service(format!("Failed to copy file: {}", e)))?;
 
         let created_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map_err(|e| BitFunError::service(format!("Failed to get timestamp: {}", e)))?
+            .map_err(|e| VoidError::service(format!("Failed to get timestamp: {}", e)))?
             .as_secs() as i64;
 
         let imported_doc = ImportedDocument {
@@ -1028,13 +1028,13 @@ impl ProjectContextService {
         workspace: &Path,
         doc_id: &str,
         enabled: bool,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let mut config = self.load_config(workspace).await?;
 
         let doc_exists = config.imported_documents.iter().any(|doc| doc.id == doc_id);
 
         if !doc_exists {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Imported document not found: {}",
                 doc_id
             )));
@@ -1061,7 +1061,7 @@ impl ProjectContextService {
         &self,
         workspace: &Path,
         doc_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let mut config = self.load_config(workspace).await?;
 
         let doc_index = config
@@ -1069,7 +1069,7 @@ impl ProjectContextService {
             .iter()
             .position(|doc| doc.id == doc_id)
             .ok_or_else(|| {
-                BitFunError::service(format!("Imported document not found: {}", doc_id))
+                VoidError::service(format!("Imported document not found: {}", doc_id))
             })?;
 
         let doc = &config.imported_documents[doc_index];
@@ -1077,7 +1077,7 @@ impl ProjectContextService {
         let doc_path = Path::new(&doc.file_path);
         if doc_path.exists() {
             fs::remove_file(&doc_path).await.map_err(|e| {
-                BitFunError::service(format!("Failed to remove document file: {}", e))
+                VoidError::service(format!("Failed to remove document file: {}", e))
             })?;
             debug!("Removed imported document file: path={:?}", doc_path);
         }
@@ -1104,7 +1104,7 @@ impl ProjectContextService {
         &self,
         workspace: &Path,
         doc_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let config = self.load_config(workspace).await?;
 
         if let Some(_doc_index) = config
@@ -1117,14 +1117,14 @@ impl ProjectContextService {
 
         if let Some(doc) = find_builtin_document(doc_id) {
             let relative_path = doc.possible_paths.first().ok_or_else(|| {
-                BitFunError::service(format!("No possible path for document: {}", doc_id))
+                VoidError::service(format!("No possible path for document: {}", doc_id))
             })?;
 
             let full_path = workspace.join(relative_path);
 
             if full_path.exists() {
                 fs::remove_file(&full_path).await.map_err(|e| {
-                    BitFunError::service(format!("Failed to remove document file: {}", e))
+                    VoidError::service(format!("Failed to remove document file: {}", e))
                 })?;
                 debug!("Removed builtin document file: path={:?}", full_path);
             }
@@ -1135,7 +1135,7 @@ impl ProjectContextService {
             );
             Ok(())
         } else {
-            Err(BitFunError::service(format!(
+            Err(VoidError::service(format!(
                 "Unknown document id: {}",
                 doc_id
             )))
@@ -1152,7 +1152,7 @@ impl ProjectContextService {
     pub async fn get_imported_documents(
         &self,
         workspace: &Path,
-    ) -> BitFunResult<Vec<ImportedDocument>> {
+    ) -> VoidResult<Vec<ImportedDocument>> {
         let config = self.load_config(workspace).await.unwrap_or_default();
         Ok(config.imported_documents)
     }

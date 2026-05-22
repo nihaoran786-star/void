@@ -1,7 +1,7 @@
 use crate::api::app_state::AppState;
-use bitfun_core::service::remote_ssh::workspace_state::is_remote_path;
-use bitfun_core::service::search::workspace_search_runtime_available;
-use bitfun_core::service::workspace::{WorkspaceInfo, WorkspaceKind};
+use void_core::service::remote_ssh::workspace_state::is_remote_path;
+use void_core::service::search::workspace_search_runtime_available;
+use void_core::service::workspace::{WorkspaceInfo, WorkspaceKind};
 use log::{debug, info, warn};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -26,8 +26,8 @@ pub fn spawn_workspace_background_warmup(state: &AppState, workspace_info: Works
 
 async fn warm_workspace_background_services(
     workspace_path: Arc<RwLock<Option<PathBuf>>>,
-    agent_registry: Arc<bitfun_core::agentic::agents::AgentRegistry>,
-    workspace_search_service: Arc<bitfun_core::service::search::WorkspaceSearchService>,
+    agent_registry: Arc<void_core::agentic::agents::AgentRegistry>,
+    workspace_search_service: Arc<void_core::service::search::WorkspaceSearchService>,
     workspace_info: WorkspaceInfo,
 ) {
     let started_at = Instant::now();
@@ -39,7 +39,7 @@ async fn warm_workspace_background_services(
     if !skip_local_snapshot && is_workspace_active(&workspace_path, &target_path).await {
         let snapshot_started_at = Instant::now();
         if let Err(error) =
-            bitfun_core::service::snapshot::initialize_snapshot_manager_for_workspace(
+            void_core::service::snapshot::initialize_snapshot_manager_for_workspace(
                 target_path.clone(),
                 None,
             )

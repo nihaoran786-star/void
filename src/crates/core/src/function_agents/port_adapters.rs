@@ -3,12 +3,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use bitfun_product_domains::function_agents::ports::{
+use void_product_domains::function_agents::ports::{
     CommitAiAnalysisRequest, FunctionAgentAiPort, FunctionAgentFuture, FunctionAgentGitPort,
     GitCommitSnapshot, StartchatGitSnapshot, StartchatTimeSnapshot, WorkStateAiAnalysisRequest,
 };
-use bitfun_product_domains::function_agents::startchat_func_agent::AheadBehind;
-use bitfun_product_domains::function_agents::{
+use void_product_domains::function_agents::startchat_func_agent::AheadBehind;
+use void_product_domains::function_agents::{
     git_func_agent::AICommitAnalysis, startchat_func_agent::AIGeneratedAnalysis,
 };
 
@@ -229,7 +229,7 @@ fn git_last_commit_timestamp(repo_path: &Path) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use bitfun_product_domains::function_agents::ports::FunctionAgentGitPort;
+    use void_product_domains::function_agents::ports::FunctionAgentGitPort;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::process::Command;
@@ -245,7 +245,7 @@ mod tests {
     impl TestTempDir {
         fn new(label: &str) -> Self {
             let path = std::env::temp_dir().join(format!(
-                "bitfun-function-agent-port-{}-{}",
+                "void-function-agent-port-{}-{}",
                 label,
                 uuid::Uuid::new_v4()
             ));
@@ -392,7 +392,7 @@ mod tests {
     fn init_git_repo(repo: &std::path::Path) {
         git(repo, &["init", "-b", "main"]);
         git(repo, &["config", "user.email", "test@example.com"]);
-        git(repo, &["config", "user.name", "BitFun Test"]);
+        git(repo, &["config", "user.name", "Void Test"]);
     }
 
     fn git(repo: &std::path::Path, args: &[&str]) {

@@ -1,16 +1,16 @@
 [package]
-name = "bitfun-transport"
+name = "void-transport"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun Transport Layer - Cross-platform communication adapters"
+description = "Void Transport Layer - Cross-platform communication adapters"
 
 [lib]
-name = "bitfun_transport"
+name = "void_transport"
 
 [dependencies]
 # Events layer
-bitfun-events = { path = "../events" }
+void-events = { path = "../events" }
 
 # Inherited from workspace
 tokio = { workspace = true }

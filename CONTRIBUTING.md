@@ -2,7 +2,7 @@
 
 [中文版](./CONTRIBUTING_CN.md)
 
-Thanks for your interest in BitFun! BitFun is a multi-platform AI programming environment powered by Rust and TypeScript, with shared core logic across Desktop/CLI/Server. This guide explains how to contribute effectively.
+Thanks for your interest in Void! Void is a multi-platform AI programming environment powered by Rust and TypeScript, with shared core logic across Desktop/CLI/Server. This guide explains how to contribute effectively.
 
 ## Code of Conduct
 
@@ -21,10 +21,10 @@ Be respectful, kind, and constructive. We welcome contributors of all background
 
 The desktop app includes SSH remote support, which pulls in OpenSSL. On Windows the workspace **does not use vendored OpenSSL**; link against **pre-built** binaries (no Perl/NASM/OpenSSL source build).
 
-- **Default**: `pnpm run desktop:dev` calls `ensure-openssl-windows.mjs` on Windows. `pnpm run desktop:preview:debug` does the same whenever it needs to fast-rebuild `bitfun-desktop` before preview. Every `desktop:build*` script runs via `scripts/desktop-tauri-build.mjs`, which does the same before invoking Cargo.
+- **Default**: `pnpm run desktop:dev` calls `ensure-openssl-windows.mjs` on Windows. `pnpm run desktop:preview:debug` does the same whenever it needs to fast-rebuild `void-desktop` before preview. Every `desktop:build*` script runs via `scripts/desktop-tauri-build.mjs`, which does the same before invoking Cargo.
 - **Manual / CI**: Download the [FireDaemon OpenSSL 3.5.5 LTS ZIP](https://download.firedaemon.com/FireDaemon-OpenSSL/openssl-3.5.5.zip), extract, set `OPENSSL_DIR` to the `x64` folder, `OPENSSL_STATIC=1`, or run `scripts/ci/setup-openssl-windows.ps1`.
-- **Opt out of auto-download**: `BITFUN_SKIP_OPENSSL_BOOTSTRAP=1` and configure `OPENSSL_DIR` yourself.
-- **`desktop:dev:raw`** skips the dev script (no OpenSSL bootstrap); set `OPENSSL_DIR` yourself, run `scripts/ci/setup-openssl-windows.ps1`, or `node scripts/ensure-openssl-windows.mjs` (warms `.bitfun/cache/` and prints PowerShell `OPENSSL_*` lines to paste).
+- **Opt out of auto-download**: `VOID_SKIP_OPENSSL_BOOTSTRAP=1` and configure `OPENSSL_DIR` yourself.
+- **`desktop:dev:raw`** skips the dev script (no OpenSSL bootstrap); set `OPENSSL_DIR` yourself, run `scripts/ci/setup-openssl-windows.ps1`, or `node scripts/ensure-openssl-windows.mjs` (warms `.void/cache/` and prints PowerShell `OPENSSL_*` lines to paste).
 
 ### Install dependencies
 
@@ -68,7 +68,7 @@ The element inspector injects a lightweight script into the main webview. When y
 - Color values (text, background, border)
 - Element attributes
 
-Captured data is logged as structured JSON under the `bitfun::devtools` target.
+Captured data is logged as structured JSON under the `void::devtools` target.
 
 ## Code Standards and Architecture Constraints
 
@@ -83,9 +83,9 @@ Captured data is logged as structured JSON under the `bitfun::devtools` target.
 Do not use platform-specific dependencies in `core`:
 
 - ❌ `tauri::AppHandle`
-- ✅ `bitfun_events::EventEmitter`
+- ✅ `void_events::EventEmitter`
 
-For `bitfun-core` decomposition or build-speed refactors, follow
+For `void-core` decomposition or build-speed refactors, follow
 [`docs/architecture/core-decomposition.md`](docs/architecture/core-decomposition.md)
 and do not change product feature sets or release scripts as a side effect.
 

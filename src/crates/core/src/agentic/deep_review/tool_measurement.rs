@@ -1,17 +1,17 @@
 //! Deep Review shared-context measurement hook for successful tool calls.
 //!
 //! The hook is intentionally narrow: only successful reviewer `Read` and
-//! `GetFileDiff` calls are measured, and BitFun runtime URIs are ignored. It
+//! `GetFileDiff` calls are measured, and Void runtime URIs are ignored. It
 //! records normalized metadata for diagnostics, not file contents.
 
 use crate::agentic::deep_review_policy::record_deep_review_shared_context_tool_use;
 use crate::agentic::tools::framework::ToolUseContext;
-use crate::agentic::tools::workspace_paths::is_bitfun_runtime_uri;
+use crate::agentic::tools::workspace_paths::is_void_runtime_uri;
 use serde_json::Value;
 use std::path::Path;
 
 fn git_relative_path(workspace_root: &Path, path: &str) -> Option<String> {
-    if is_bitfun_runtime_uri(path) {
+    if is_void_runtime_uri(path) {
         return None;
     }
 

@@ -1,26 +1,26 @@
-use crate::util::errors::{BitFunError, BitFunResult};
-pub use bitfun_agent_tools::{
+use crate::util::errors::{VoidError, VoidResult};
+pub use void_agent_tools::{
     ToolPathOperation, ToolPathPolicy, ToolRestrictionError, ToolRuntimeRestrictions,
     is_remote_posix_path_within_root,
 };
 use std::path::{Path, PathBuf};
 
-impl From<ToolRestrictionError> for BitFunError {
+impl From<ToolRestrictionError> for VoidError {
     fn from(error: ToolRestrictionError) -> Self {
-        BitFunError::validation(error.to_string())
+        VoidError::validation(error.to_string())
     }
 }
 
-pub fn is_local_path_within_root(path: &Path, root: &Path) -> BitFunResult<bool> {
+pub fn is_local_path_within_root(path: &Path, root: &Path) -> VoidResult<bool> {
     let canonical_path = canonicalize_best_effort(path)?;
     let canonical_root = canonicalize_best_effort(root)?;
     Ok(canonical_path == canonical_root || canonical_path.starts_with(&canonical_root))
 }
 
-fn canonicalize_best_effort(path: &Path) -> BitFunResult<PathBuf> {
+fn canonicalize_best_effort(path: &Path) -> VoidResult<PathBuf> {
     if path.exists() {
         return dunce::canonicalize(path).map_err(|err| {
-            BitFunError::validation(format!(
+            VoidError::validation(format!(
                 "Failed to canonicalize path '{}': {}",
                 path.display(),
                 err
@@ -34,7 +34,7 @@ fn canonicalize_best_effort(path: &Path) -> BitFunResult<PathBuf> {
     loop {
         if current.exists() {
             let mut canonical = dunce::canonicalize(current).map_err(|err| {
-                BitFunError::validation(format!(
+                VoidError::validation(format!(
                     "Failed to canonicalize path '{}': {}",
                     current.display(),
                     err
@@ -49,7 +49,7 @@ fn canonicalize_best_effort(path: &Path) -> BitFunResult<PathBuf> {
         }
 
         let file_name = current.file_name().ok_or_else(|| {
-            BitFunError::validation(format!(
+            VoidError::validation(format!(
                 "Path '{}' cannot be normalized for restriction checks",
                 path.display()
             ))
@@ -57,7 +57,7 @@ fn canonicalize_best_effort(path: &Path) -> BitFunResult<PathBuf> {
         missing_tail.push(PathBuf::from(file_name));
 
         current = current.parent().ok_or_else(|| {
-            BitFunError::validation(format!(
+            VoidError::validation(format!(
                 "Path '{}' cannot be normalized for restriction checks",
                 path.display()
             ))
@@ -104,7 +104,7 @@ mod tests {
     #[test]
     fn local_path_containment_handles_missing_children() {
         let root =
-            std::env::temp_dir().join(format!("bitfun-restrictions-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-restrictions-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("allowed")).expect("create temp root");
 
         let allowed_child = root.join("allowed").join("nested").join("file.txt");

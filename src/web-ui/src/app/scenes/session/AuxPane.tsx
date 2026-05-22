@@ -130,7 +130,7 @@ const AuxPane = forwardRef<AuxPaneRef, AuxPaneProps>(
     }, []);
 
     return (
-      <div className="bitfun-aux-pane">
+      <div className="void-aux-pane">
         <ContentCanvas
           workspacePath={workspacePath}
           mode="agent"

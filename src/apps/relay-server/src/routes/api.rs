@@ -60,7 +60,7 @@ pub struct ServerInfo {
 
 pub async fn server_info() -> Json<ServerInfo> {
     Json(ServerInfo {
-        name: "BitFun Relay Server".to_string(),
+        name: "Void Relay Server".to_string(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         protocol_version: 2,
     })

@@ -32,7 +32,7 @@ const createSession = (overrides: Partial<Session> = {}): Session => ({
   todos: [],
   maxContextTokens: 128128,
   mode: 'agentic',
-  workspacePath: 'D:/workspace/BitFun',
+  workspacePath: 'D:/workspace/Void',
   isTransient: false,
   ...overrides,
 });
@@ -44,7 +44,7 @@ const usageReport = (overrides: Partial<SessionUsageReport> = {}): SessionUsageR
   generatedAt: 100,
   workspace: {
     kind: 'local',
-    pathLabel: 'D:/workspace/BitFun',
+    pathLabel: 'D:/workspace/Void',
   },
   scope: {
     kind: 'entire_session',

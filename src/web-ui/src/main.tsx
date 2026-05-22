@@ -31,7 +31,7 @@ const log = createLogger('App');
 startupTrace.markPhase('first_script_eval');
 
 /** Dedupe only for white-screen heuristic (empty #root), not for Error Boundary logs. */
-const WHITE_SCREEN_LOGGED_FLAG = '__bitfun_white_screen_crash_logged__';
+const WHITE_SCREEN_LOGGED_FLAG = '__void_white_screen_crash_logged__';
 function hasLoggedWhiteScreenCrash(): boolean {
   return Boolean((window as any)[WHITE_SCREEN_LOGGED_FLAG]);
 }
@@ -59,7 +59,7 @@ function isRootEmpty(): boolean {
 }
 
 function registerGlobalErrorHandlers() {
-  const flag = '__bitfun_global_error_handlers_registered__';
+  const flag = '__void_global_error_handlers_registered__';
   const w = window as any;
   if (w[flag]) {
     return;
@@ -240,7 +240,7 @@ async function initializeBeforeRender(): Promise<void> {
   });
 
   log.debug('Monaco loader configured', { vs: monacoPath, isDev });
-  log.info('Initializing BitFun');
+  log.info('Initializing Void');
 
   await measureAsyncAndLog(log, 'Startup step completed', async () => {
     const { themeService } = await import('./infrastructure/theme');
@@ -322,7 +322,7 @@ async function initializeAfterRender(): Promise<void> {
     }
   });
 
-  log.info('BitFun core systems initialized successfully');
+  log.info('Void core systems initialized successfully');
   logElapsed(log, 'Startup phase completed', phaseStartedAt, {
     data: { phase: 'initializeAfterRender' },
   });
@@ -337,7 +337,7 @@ async function startApplication(): Promise<void> {
   try {
     await initializeBeforeRender();
   } catch (error) {
-    log.error('Failed to initialize BitFun (pre-render)', error);
+    log.error('Failed to initialize Void (pre-render)', error);
   }
 
   // I18n Provider.
@@ -349,7 +349,7 @@ async function startApplication(): Promise<void> {
   );
   const { I18nProvider } = i18nProviderImportResult.value;
   const isAgentCompanionWindow = new URLSearchParams(window.location.search)
-    .get('bitfunWindow') === 'agent-companion';
+    .get('voidWindow') === 'agent-companion';
 
   const renderStartedAt = nowMs();
   if (isAgentCompanionWindow) {

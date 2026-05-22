@@ -63,8 +63,8 @@ const isRightPanelCollapsed = (): boolean => {
       return false;
     }
     const layoutState = (window as unknown as {
-      __BITFUN_LAYOUT_STATE__?: { rightPanelCollapsed?: boolean };
-    }).__BITFUN_LAYOUT_STATE__;
+      __VOID_LAYOUT_STATE__?: { rightPanelCollapsed?: boolean };
+    }).__VOID_LAYOUT_STATE__;
     return layoutState?.rightPanelCollapsed ?? false;
   } catch {
     return false;

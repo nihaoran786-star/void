@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunCyberTheme: ThemeConfig = {
+export const voidCyberTheme: ThemeConfig = {
   
-  id: 'bitfun-cyber',
+  id: 'void-cyber',
   name: 'Cyber',
   type: 'dark',
   description: 'Tech-style theme - Deep black hole, neon future, ultimate tech aesthetics',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '1.0.0',
   
   

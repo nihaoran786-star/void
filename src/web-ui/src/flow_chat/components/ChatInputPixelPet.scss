@@ -18,18 +18,18 @@
 
 /* ---------- Slot ---------- */
 
-.bitfun-chat-input-pixel-pet {
+.void-chat-input-pixel-pet {
   /* FIXED panda body palette — never inverted. */
-  --bitfun-pet-color: #1f2024;
-  --bitfun-pet-cream: #fafaf9;
+  --void-pet-color: #1f2024;
+  --void-pet-cream: #fafaf9;
 
   /* Decorative palette — inverts between light/dark themes so overlays
      stay readable on either chat background. */
-  --bitfun-pet-decor: #1f2024;
-  --bitfun-pet-decor-soft: rgba(31, 32, 36, 0.55);
-  --bitfun-petdex-width: 42px;
-  --bitfun-petdex-height: 46px;
-  --bitfun-petdex-margin-top: -8px;
+  --void-pet-decor: #1f2024;
+  --void-pet-decor-soft: rgba(31, 32, 36, 0.55);
+  --void-petdex-width: 42px;
+  --void-petdex-height: 46px;
+  --void-petdex-margin-top: -8px;
 
   position: relative;
   z-index: 0;
@@ -58,43 +58,43 @@
   }
 
   &__petdex {
-    width: var(--bitfun-petdex-width);
-    height: var(--bitfun-petdex-height);
-    margin-top: var(--bitfun-petdex-margin-top);
-    background-image: var(--bitfun-petdex-src);
+    width: var(--void-petdex-width);
+    height: var(--void-petdex-height);
+    margin-top: var(--void-petdex-margin-top);
+    background-image: var(--void-petdex-src);
     background-repeat: no-repeat;
     background-size: 800% 900%;
     background-position-x: 0;
-    background-position-y: calc(var(--bitfun-petdex-row) * 12.5%);
+    background-position-y: calc(var(--void-petdex-row) * 12.5%);
     image-rendering: pixelated;
     transform-origin: 50% 80%;
     animation:
-      bitfun-petdex-walk 1.8s steps(6) infinite,
-      bitfun-petdex-breathe 6s ease-in-out infinite;
+      void-petdex-walk 1.8s steps(6) infinite,
+      void-petdex-breathe 6s ease-in-out infinite;
   }
 
   &__petdex--rest {
     animation:
-      bitfun-petdex-walk 2.4s steps(6) infinite,
-      bitfun-petdex-breathe 6.4s ease-in-out infinite;
+      void-petdex-walk 2.4s steps(6) infinite,
+      void-petdex-breathe 6.4s ease-in-out infinite;
   }
 
   &__petdex--working {
     animation:
-      bitfun-petdex-walk 1.16s steps(6) infinite,
-      bitfun-petdex-work 0.56s linear infinite;
+      void-petdex-walk 1.16s steps(6) infinite,
+      void-petdex-work 0.56s linear infinite;
   }
 
   &__petdex--hover {
     animation:
-      bitfun-petdex-walk 1.44s steps(6) infinite,
-      bitfun-petdex-hover 1.9s ease-in-out infinite;
+      void-petdex-walk 1.44s steps(6) infinite,
+      void-petdex-hover 1.9s ease-in-out infinite;
   }
 
   &__petdex--dragging {
     animation:
-      bitfun-petdex-walk 0.96s steps(6) infinite,
-      bitfun-petdex-dragging 0.48s linear infinite;
+      void-petdex-walk 0.96s steps(6) infinite,
+      void-petdex-dragging 0.48s linear infinite;
   }
 }
 
@@ -102,67 +102,67 @@
    SVG outline filter (defined inline in the markup) so the silhouette is
    surrounded by a single continuous light contour rather than per-shape
    outlines on every internal element. */
-:root[data-theme-type='dark'] .bitfun-chat-input-pixel-pet,
-[data-theme-type='dark'] .bitfun-chat-input-pixel-pet {
-  --bitfun-pet-decor: #fafaf9;
-  --bitfun-pet-decor-soft: rgba(250, 251, 249, 0.6);
+:root[data-theme-type='dark'] .void-chat-input-pixel-pet,
+[data-theme-type='dark'] .void-chat-input-pixel-pet {
+  --void-pet-decor: #fafaf9;
+  --void-pet-decor-soft: rgba(250, 251, 249, 0.6);
 
-  .bitfun-panda-head__silhouette {
-    filter: url(#bitfun-panda-outline);
+  .void-panda-head__silhouette {
+    filter: url(#void-panda-outline);
   }
 }
 
 /* ---------- Fills ---------- */
 
-.bitfun-panda__b {
-  fill: var(--bitfun-pet-color);
+.void-panda__b {
+  fill: var(--void-pet-color);
 }
 
-.bitfun-panda__face-mask {
-  fill: var(--bitfun-pet-cream);
+.void-panda__face-mask {
+  fill: var(--void-pet-cream);
 }
 
 /* ---------- Head: gentle continuous breathing ---------- */
 
-.bitfun-panda-head {
+.void-panda-head {
   transform-origin: 50% 88%;
   transform-box: fill-box;
-  animation: bitfun-head-breathe 6.8s ease-in-out infinite;
+  animation: void-head-breathe 6.8s ease-in-out infinite;
 
   &--analyzing {
     animation:
-      bitfun-head-breathe 5.2s ease-in-out infinite,
-      bitfun-head-tilt 4.8s ease-in-out infinite;
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-tilt 4.8s ease-in-out infinite;
   }
 
   &--waiting {
     animation:
-      bitfun-head-breathe 5.2s ease-in-out infinite,
-      bitfun-head-look 6s ease-in-out infinite;
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-look 6s ease-in-out infinite;
   }
 
   &--working {
     animation:
-      bitfun-head-breathe 5.2s ease-in-out infinite,
-      bitfun-head-shake 0.36s linear infinite;
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-shake 0.36s linear infinite;
   }
 
   &--hover {
     animation:
-      bitfun-head-breathe 4.2s ease-in-out infinite,
-      bitfun-head-perk 1.9s ease-in-out infinite;
+      void-head-breathe 4.2s ease-in-out infinite,
+      void-head-perk 1.9s ease-in-out infinite;
   }
 
   &--dragging {
     animation:
-      bitfun-head-breathe 4.8s ease-in-out infinite,
-      bitfun-head-carried 0.48s linear infinite;
+      void-head-breathe 4.8s ease-in-out infinite,
+      void-head-carried 0.48s linear infinite;
   }
 }
 
 /* ---------- Mood overlay layers ---------- */
 
-.bitfun-panda-head {
+.void-panda-head {
   &__face-layer {
     opacity: 0;
     transition: opacity 0.64s ease;
@@ -175,7 +175,7 @@
   /* Floating ZZZ above the sleeping panda. */
 
   &__zzz-glyph {
-    fill: var(--bitfun-pet-decor);
+    fill: var(--void-pet-decor);
     font-family:
       'Comic Sans MS', 'Marker Felt', 'Trebuchet MS', system-ui, sans-serif;
     font-weight: 700;
@@ -183,38 +183,38 @@
 
     &--a {
       font-size: 30px;
-      animation: bitfun-zzz-rise 6.8s ease-in-out infinite;
+      animation: void-zzz-rise 6.8s ease-in-out infinite;
     }
 
     &--b {
       font-size: 40px;
-      animation: bitfun-zzz-rise 6.8s ease-in-out -2.2s infinite;
+      animation: void-zzz-rise 6.8s ease-in-out -2.2s infinite;
     }
 
     &--c {
       font-size: 54px;
-      animation: bitfun-zzz-rise 6.8s ease-in-out -4.4s infinite;
+      animation: void-zzz-rise 6.8s ease-in-out -4.4s infinite;
     }
   }
 
   /* Analyzing — ears twitch + think pips climb upward in sequence. */
 
-  &--analyzing .bitfun-panda-head__ear--left {
-    animation: bitfun-ear-twitch-l 2.8s ease-in-out infinite;
+  &--analyzing .void-panda-head__ear--left {
+    animation: void-ear-twitch-l 2.8s ease-in-out infinite;
     transform-origin: 50% 100%;
     transform-box: fill-box;
   }
 
-  &--analyzing .bitfun-panda-head__ear--right {
-    animation: bitfun-ear-twitch-r 2.8s ease-in-out 0.72s infinite;
+  &--analyzing .void-panda-head__ear--right {
+    animation: void-ear-twitch-r 2.8s ease-in-out 0.72s infinite;
     transform-origin: 50% 100%;
     transform-box: fill-box;
   }
 
   &__think-pip {
-    fill: var(--bitfun-pet-decor);
+    fill: var(--void-pet-decor);
     opacity: 0;
-    animation: bitfun-think-pulse 3.2s ease-in-out infinite;
+    animation: void-think-pulse 3.2s ease-in-out infinite;
 
     &:nth-child(1) {
       animation-delay: 0s;
@@ -231,16 +231,16 @@
 
   /* Waiting — front paw taps + dots bob. */
 
-  &--waiting .bitfun-panda-head__paw--front {
-    animation: bitfun-paw-tap 1.8s ease-in-out infinite;
+  &--waiting .void-panda-head__paw--front {
+    animation: void-paw-tap 1.8s ease-in-out infinite;
     transform-origin: 70% 60%;
     transform-box: fill-box;
   }
 
   &__wait-pip {
-    fill: var(--bitfun-pet-decor);
+    fill: var(--void-pet-decor);
     opacity: 0.5;
-    animation: bitfun-wait-bounce 2.2s ease-in-out infinite;
+    animation: void-wait-bounce 2.2s ease-in-out infinite;
 
     &:nth-child(1) {
       animation-delay: 0s;
@@ -258,50 +258,50 @@
   /* Working — sweat drop + tense ear. */
 
   &__sweat-drop {
-    fill: var(--bitfun-pet-decor-soft);
+    fill: var(--void-pet-decor-soft);
     opacity: 0;
-    animation: bitfun-sweat-fall 3.2s ease-in infinite;
+    animation: void-sweat-fall 3.2s ease-in infinite;
   }
 
-  &--working .bitfun-panda-head__ear--right {
-    animation: bitfun-ear-tense 3.2s ease-in-out infinite;
+  &--working .void-panda-head__ear--right {
+    animation: void-ear-tense 3.2s ease-in-out infinite;
     transform-origin: 50% 100%;
     transform-box: fill-box;
   }
 
-  &--hover .bitfun-panda-head__ear--left,
-  &--hover .bitfun-panda-head__ear--right {
-    animation: bitfun-ear-perk 1.9s ease-in-out infinite;
+  &--hover .void-panda-head__ear--left,
+  &--hover .void-panda-head__ear--right {
+    animation: void-ear-perk 1.9s ease-in-out infinite;
     transform-origin: 50% 100%;
     transform-box: fill-box;
   }
 
   &__sparkle {
-    fill: var(--bitfun-pet-decor);
+    fill: var(--void-pet-decor);
     opacity: 0;
     transform-origin: center;
     transform-box: fill-box;
-    animation: bitfun-sparkle-pop 2.4s ease-in-out infinite;
+    animation: void-sparkle-pop 2.4s ease-in-out infinite;
 
     &--b {
       animation-delay: 0.44s;
     }
   }
 
-  &--dragging .bitfun-panda-head__paw--front,
-  &--dragging .bitfun-panda-head__paw--rear {
-    animation: bitfun-paw-hold 0.96s ease-in-out infinite;
+  &--dragging .void-panda-head__paw--front,
+  &--dragging .void-panda-head__paw--rear {
+    animation: void-paw-hold 0.96s ease-in-out infinite;
     transform-origin: 50% 60%;
     transform-box: fill-box;
   }
 
   &__drag-line {
     fill: none;
-    stroke: var(--bitfun-pet-decor-soft);
+    stroke: var(--void-pet-decor-soft);
     stroke-width: 8;
     stroke-linecap: round;
     opacity: 0;
-    animation: bitfun-drag-line-swoop 1.44s ease-in-out infinite;
+    animation: void-drag-line-swoop 1.44s ease-in-out infinite;
 
     &--b {
       animation-delay: 0.32s;
@@ -311,51 +311,51 @@
 
 /* ---------- Mood transition micro-bump ---------- */
 
-.bitfun-chat-input-pixel-pet__stage--transition {
-  animation: bitfun-stage-bump 0.64s cubic-bezier(0.2, 1.4, 0.5, 1);
+.void-chat-input-pixel-pet__stage--transition {
+  animation: void-stage-bump 0.64s cubic-bezier(0.2, 1.4, 0.5, 1);
 }
 
 /* ---------- Idle micro-actions (rest only, all in-place) ---------- */
 
-.bitfun-chat-input-pixel-pet__stage--idle-ear-twitch-left .bitfun-panda-head__ear--left {
-  animation: bitfun-ear-twitch-once 1.4s ease-in-out;
+.void-chat-input-pixel-pet__stage--idle-ear-twitch-left .void-panda-head__ear--left {
+  animation: void-ear-twitch-once 1.4s ease-in-out;
   transform-origin: 50% 100%;
   transform-box: fill-box;
 }
 
-.bitfun-chat-input-pixel-pet__stage--idle-ear-twitch-right .bitfun-panda-head__ear--right {
-  animation: bitfun-ear-twitch-once 1.4s ease-in-out;
+.void-chat-input-pixel-pet__stage--idle-ear-twitch-right .void-panda-head__ear--right {
+  animation: void-ear-twitch-once 1.4s ease-in-out;
   transform-origin: 50% 100%;
   transform-box: fill-box;
 }
 
-.bitfun-chat-input-pixel-pet__stage--idle-yawn .bitfun-panda-head__muzzle {
-  animation: bitfun-yawn 2.6s ease-in-out;
+.void-chat-input-pixel-pet__stage--idle-yawn .void-panda-head__muzzle {
+  animation: void-yawn 2.6s ease-in-out;
   transform-origin: 50% 30%;
   transform-box: fill-box;
 }
 
-.bitfun-chat-input-pixel-pet__stage--idle-deep-breath .bitfun-panda-head__body--front {
-  animation: bitfun-deep-breath 1.8s ease-in-out;
+.void-chat-input-pixel-pet__stage--idle-deep-breath .void-panda-head__body--front {
+  animation: void-deep-breath 1.8s ease-in-out;
   transform-origin: 50% 95%;
   transform-box: fill-box;
 }
 
-.bitfun-chat-input-pixel-pet__stage--idle-body-roll .bitfun-panda-head {
+.void-chat-input-pixel-pet__stage--idle-body-roll .void-panda-head {
   animation:
-    bitfun-head-breathe 6.8s ease-in-out infinite,
-    bitfun-body-roll 3.0s ease-in-out;
+    void-head-breathe 6.8s ease-in-out infinite,
+    void-body-roll 3.0s ease-in-out;
 }
 
-.bitfun-chat-input-pixel-pet__stage--idle-paw-wiggle .bitfun-panda-head__paw--front {
-  animation: bitfun-paw-wiggle 1.8s ease-in-out;
+.void-chat-input-pixel-pet__stage--idle-paw-wiggle .void-panda-head__paw--front {
+  animation: void-paw-wiggle 1.8s ease-in-out;
   transform-origin: 70% 60%;
   transform-box: fill-box;
 }
 
 /* ---------- Keyframes ---------- */
 
-@keyframes bitfun-head-breathe {
+@keyframes void-head-breathe {
   0%,
   100% {
     transform: translateY(0) scale(1, 1);
@@ -366,7 +366,7 @@
   }
 }
 
-@keyframes bitfun-head-tilt {
+@keyframes void-head-tilt {
   0%,
   100% {
     transform: rotate(-2.2deg);
@@ -377,7 +377,7 @@
   }
 }
 
-@keyframes bitfun-head-look {
+@keyframes void-head-look {
   0%,
   100% {
     transform: translateX(0);
@@ -392,7 +392,7 @@
   }
 }
 
-@keyframes bitfun-head-shake {
+@keyframes void-head-shake {
   0%,
   100% {
     transform: translate(0, 0);
@@ -411,7 +411,7 @@
   }
 }
 
-@keyframes bitfun-zzz-rise {
+@keyframes void-zzz-rise {
   0% {
     opacity: 0;
     transform: translate(0, 0) scale(0.7);
@@ -433,7 +433,7 @@
   }
 }
 
-@keyframes bitfun-think-pulse {
+@keyframes void-think-pulse {
   0%,
   60%,
   100% {
@@ -448,7 +448,7 @@
   }
 }
 
-@keyframes bitfun-wait-bounce {
+@keyframes void-wait-bounce {
   0%,
   100% {
     transform: translateY(0);
@@ -461,7 +461,7 @@
   }
 }
 
-@keyframes bitfun-paw-tap {
+@keyframes void-paw-tap {
   0%,
   100% {
     transform: rotate(0deg) translateY(0);
@@ -476,7 +476,7 @@
   }
 }
 
-@keyframes bitfun-sweat-fall {
+@keyframes void-sweat-fall {
   0% {
     opacity: 0;
     transform: translate(0, -12px) scale(0.4);
@@ -498,7 +498,7 @@
   }
 }
 
-@keyframes bitfun-ear-twitch-l {
+@keyframes void-ear-twitch-l {
   0%,
   85%,
   100% {
@@ -510,7 +510,7 @@
   }
 }
 
-@keyframes bitfun-ear-twitch-r {
+@keyframes void-ear-twitch-r {
   0%,
   85%,
   100% {
@@ -522,7 +522,7 @@
   }
 }
 
-@keyframes bitfun-ear-twitch-once {
+@keyframes void-ear-twitch-once {
   0%,
   100% {
     transform: rotate(0deg);
@@ -541,7 +541,7 @@
   }
 }
 
-@keyframes bitfun-ear-tense {
+@keyframes void-ear-tense {
   0%,
   100% {
     transform: rotate(0deg);
@@ -552,7 +552,7 @@
   }
 }
 
-@keyframes bitfun-stage-bump {
+@keyframes void-stage-bump {
   0%,
   100% {
     transform: scale(1, 1);
@@ -567,7 +567,7 @@
   }
 }
 
-@keyframes bitfun-yawn {
+@keyframes void-yawn {
   0%,
   100% {
     transform: scale(1, 1);
@@ -579,7 +579,7 @@
   }
 }
 
-@keyframes bitfun-deep-breath {
+@keyframes void-deep-breath {
   0%,
   100% {
     transform: scale(1, 1);
@@ -590,7 +590,7 @@
   }
 }
 
-@keyframes bitfun-body-roll {
+@keyframes void-body-roll {
   0%,
   100% {
     transform: rotate(0deg);
@@ -605,7 +605,7 @@
   }
 }
 
-@keyframes bitfun-paw-wiggle {
+@keyframes void-paw-wiggle {
   0%,
   100% {
     transform: rotate(0deg);
@@ -624,7 +624,7 @@
   }
 }
 
-@keyframes bitfun-head-perk {
+@keyframes void-head-perk {
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
@@ -635,7 +635,7 @@
   }
 }
 
-@keyframes bitfun-head-carried {
+@keyframes void-head-carried {
   0%,
   100% {
     transform: rotate(0deg) translateY(0);
@@ -650,7 +650,7 @@
   }
 }
 
-@keyframes bitfun-ear-perk {
+@keyframes void-ear-perk {
   0%,
   100% {
     transform: rotate(0deg) translateY(0);
@@ -661,7 +661,7 @@
   }
 }
 
-@keyframes bitfun-sparkle-pop {
+@keyframes void-sparkle-pop {
   0%,
   100% {
     opacity: 0;
@@ -675,7 +675,7 @@
   }
 }
 
-@keyframes bitfun-paw-hold {
+@keyframes void-paw-hold {
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
@@ -686,7 +686,7 @@
   }
 }
 
-@keyframes bitfun-drag-line-swoop {
+@keyframes void-drag-line-swoop {
   0% {
     opacity: 0;
     transform: translateX(10px) scaleX(0.7);
@@ -704,7 +704,7 @@
   }
 }
 
-@keyframes bitfun-petdex-walk {
+@keyframes void-petdex-walk {
   from {
     background-position-x: 0;
   }
@@ -714,7 +714,7 @@
   }
 }
 
-@keyframes bitfun-petdex-breathe {
+@keyframes void-petdex-breathe {
   0%,
   100% {
     transform: translateY(0) scale(1);
@@ -725,7 +725,7 @@
   }
 }
 
-@keyframes bitfun-petdex-work {
+@keyframes void-petdex-work {
   0%,
   100% {
     transform: translate(0, 0);
@@ -736,7 +736,7 @@
   }
 }
 
-@keyframes bitfun-petdex-hover {
+@keyframes void-petdex-hover {
   0%,
   100% {
     transform: translateY(0) scale(1);
@@ -747,7 +747,7 @@
   }
 }
 
-@keyframes bitfun-petdex-dragging {
+@keyframes void-petdex-dragging {
   0%,
   100% {
     transform: rotate(0deg) translateY(0);
@@ -765,35 +765,35 @@
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-chat-input-pixel-pet__stage,
-  .bitfun-chat-input-pixel-pet__stage--transition,
-  .bitfun-chat-input-pixel-pet__stage[class*='--idle-'],
-  .bitfun-chat-input-pixel-pet__petdex {
+  .void-chat-input-pixel-pet__stage,
+  .void-chat-input-pixel-pet__stage--transition,
+  .void-chat-input-pixel-pet__stage[class*='--idle-'],
+  .void-chat-input-pixel-pet__petdex {
     animation: none !important;
     transition: none;
   }
 
-  .bitfun-panda-head,
-  .bitfun-panda-head--rest,
-  .bitfun-panda-head--analyzing,
-  .bitfun-panda-head--waiting,
-  .bitfun-panda-head--working,
-  .bitfun-panda-head--hover,
-  .bitfun-panda-head--dragging,
-  .bitfun-panda-head__zzz-glyph,
-  .bitfun-panda-head--analyzing .bitfun-panda-head__ear--left,
-  .bitfun-panda-head--analyzing .bitfun-panda-head__ear--right,
-  .bitfun-panda-head--working .bitfun-panda-head__ear--right,
-  .bitfun-panda-head--hover .bitfun-panda-head__ear--left,
-  .bitfun-panda-head--hover .bitfun-panda-head__ear--right,
-  .bitfun-panda-head--dragging .bitfun-panda-head__paw--front,
-  .bitfun-panda-head--dragging .bitfun-panda-head__paw--rear,
-  .bitfun-panda-head--waiting .bitfun-panda-head__paw--front,
-  .bitfun-panda-head__think-pip,
-  .bitfun-panda-head__wait-pip,
-  .bitfun-panda-head__sweat-drop,
-  .bitfun-panda-head__sparkle,
-  .bitfun-panda-head__drag-line {
+  .void-panda-head,
+  .void-panda-head--rest,
+  .void-panda-head--analyzing,
+  .void-panda-head--waiting,
+  .void-panda-head--working,
+  .void-panda-head--hover,
+  .void-panda-head--dragging,
+  .void-panda-head__zzz-glyph,
+  .void-panda-head--analyzing .void-panda-head__ear--left,
+  .void-panda-head--analyzing .void-panda-head__ear--right,
+  .void-panda-head--working .void-panda-head__ear--right,
+  .void-panda-head--hover .void-panda-head__ear--left,
+  .void-panda-head--hover .void-panda-head__ear--right,
+  .void-panda-head--dragging .void-panda-head__paw--front,
+  .void-panda-head--dragging .void-panda-head__paw--rear,
+  .void-panda-head--waiting .void-panda-head__paw--front,
+  .void-panda-head__think-pip,
+  .void-panda-head__wait-pip,
+  .void-panda-head__sweat-drop,
+  .void-panda-head__sparkle,
+  .void-panda-head__drag-line {
     animation: none !important;
   }
 }

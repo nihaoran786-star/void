@@ -110,7 +110,7 @@ function highlightFirstMatch(text: string, query: string): React.ReactNode {
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="bitfun-settings-nav__search-highlight">
+      <mark className="void-settings-nav__search-highlight">
         {text.slice(idx, idx + qi.length)}
       </mark>
       {text.slice(idx + qi.length)}
@@ -273,17 +273,17 @@ const SettingsNav: React.FC = () => {
   } = useSettingsNav();
 
   return (
-    <div className="bitfun-settings-nav">
-      <div className="bitfun-settings-nav__header">
-        <span className="bitfun-settings-nav__title">
+    <div className="void-settings-nav">
+      <div className="void-settings-nav__header">
+        <span className="void-settings-nav__title">
           {t('configCenter.title', { defaultValue: t('title', { defaultValue: 'Settings' }) })}
         </span>
       </div>
 
-      <div className="bitfun-settings-nav__search">
+      <div className="void-settings-nav__search">
         <Search
           ref={searchInputRef}
-          className="bitfun-settings-nav__search-field"
+          className="void-settings-nav__search-field"
           size="small"
           value={draftQuery}
           onChange={setDraftQuery}
@@ -301,7 +301,7 @@ const SettingsNav: React.FC = () => {
       <div
         ref={resultsRef}
         id="settings-nav-results"
-        className="bitfun-settings-nav__sections"
+        className="void-settings-nav__sections"
         role={isSearchMode ? 'listbox' : undefined}
         tabIndex={isSearchMode && results.length > 0 ? 0 : undefined}
         onKeyDown={handleResultsKeyDown}
@@ -314,11 +314,11 @@ const SettingsNav: React.FC = () => {
         {isSearchMode ? (
           <>
             {results.length === 0 ? (
-              <div className="bitfun-settings-nav__search-empty" role="status">
+              <div className="void-settings-nav__search-empty" role="status">
                 {t('configCenter.searchNoResults')}
               </div>
             ) : (
-              <div className="bitfun-settings-nav__search-results">
+              <div className="void-settings-nav__search-results">
                 {results.map((row, index) => {
                   const line = `${row.categoryLabel} › ${row.tabLabel}`;
                   const active = activeTab === row.tabId;
@@ -331,7 +331,7 @@ const SettingsNav: React.FC = () => {
                       role="option"
                       aria-selected={active}
                       className={[
-                        'bitfun-settings-nav__search-result-item',
+                        'void-settings-nav__search-result-item',
                         active && 'is-active',
                         highlighted && 'is-highlighted',
                       ]
@@ -340,11 +340,11 @@ const SettingsNav: React.FC = () => {
                       onClick={() => activateTab(row.tabId)}
                       onMouseEnter={() => setHighlightedIndex(index)}
                     >
-                      <span className="bitfun-settings-nav__search-result-line">
+                      <span className="void-settings-nav__search-result-line">
                         {highlightFirstMatch(line, displayQuery)}
                       </span>
                       {row.description ? (
-                        <span className="bitfun-settings-nav__search-result-desc">
+                        <span className="void-settings-nav__search-result-desc">
                           {highlightFirstMatch(row.description, displayQuery)}
                         </span>
                       ) : null}
@@ -356,31 +356,31 @@ const SettingsNav: React.FC = () => {
           </>
         ) : (
           SETTINGS_CATEGORIES.map((category) => (
-            <div key={category.id} className="bitfun-settings-nav__category">
-              <div className="bitfun-settings-nav__category-header">
-                <span className="bitfun-settings-nav__category-label">
+            <div key={category.id} className="void-settings-nav__category">
+              <div className="void-settings-nav__category-header">
+                <span className="void-settings-nav__category-label">
                   {t(category.nameKey, { defaultValue: category.id })}
                 </span>
               </div>
 
-              <div className="bitfun-settings-nav__items">
+              <div className="void-settings-nav__items">
                 {category.tabs.map((tabDef) => (
                   <button
                     key={tabDef.id}
                     type="button"
                     className={[
-                      'bitfun-settings-nav__item',
+                      'void-settings-nav__item',
                       activeTab === tabDef.id && 'is-active',
                     ]
                       .filter(Boolean)
                       .join(' ')}
                     onClick={() => handleTabClick(tabDef.id)}
                   >
-                    <span className="bitfun-settings-nav__item-label">
+                    <span className="void-settings-nav__item-label">
                       {t(tabDef.labelKey, { defaultValue: tabDef.id })}
                     </span>
                     {tabDef.beta ? (
-                      <Badge variant="warning" className="bitfun-settings-nav__item-beta">
+                      <Badge variant="warning" className="void-settings-nav__item-beta">
                         {t('configCenter.beta')}
                       </Badge>
                     ) : null}

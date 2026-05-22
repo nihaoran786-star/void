@@ -44,7 +44,7 @@ describe('WorkspaceListSection layout styles', () => {
     expect(workspaceNameButton).toContain('flex: 0 1 auto;');
     expect(workspaceNameButton).toContain('overflow: hidden;');
     expect(workspaceNameButton).not.toContain('58px');
-    expect(stylesheet).toContain('var(--bitfun-nav-row-action-size) +\n      var(--bitfun-nav-row-action-size)');
+    expect(stylesheet).toContain('var(--void-nav-row-action-size) +\n      var(--void-nav-row-action-size)');
     expect(stylesheet).toContain('&__workspace-item:hover &__workspace-item-name-stack');
     expect(stylesheet).toContain('&__workspace-item.is-menu-open &__workspace-item-name-stack');
     expect(stylesheet).not.toContain('&__workspace-item.is-active &__workspace-item-name-btn');
@@ -54,9 +54,9 @@ describe('WorkspaceListSection layout styles', () => {
     expect(workspaceLabel).toContain('flex: 1 1 0;');
     expect(workspaceLabel).toContain('text-overflow: ellipsis;');
     expect(workspaceActions).toContain('position: absolute;');
-    expect(workspaceActions).toContain('right: var(--bitfun-nav-row-action-offset);');
-    expect(workspaceActions).toContain('gap: var(--bitfun-nav-row-action-gap);');
-    expect(workspaceMenu).toContain('gap: var(--bitfun-nav-row-action-gap);');
+    expect(workspaceActions).toContain('right: var(--void-nav-row-action-offset);');
+    expect(workspaceActions).toContain('gap: var(--void-nav-row-action-gap);');
+    expect(workspaceMenu).toContain('gap: var(--void-nav-row-action-gap);');
 
     expect(assistantItem).toContain('min-width: 0;');
     expect(assistantItem).toContain('max-width: 100%;');
@@ -71,9 +71,9 @@ describe('WorkspaceListSection layout styles', () => {
     expect(assistantLabel).toContain('flex: 1 1 0;');
     expect(assistantLabel).toContain('text-overflow: ellipsis;');
     expect(assistantMenu).toContain('position: absolute;');
-    expect(assistantMenu).toContain('right: var(--bitfun-nav-row-action-offset);');
-    expect(assistantMenu).toContain('gap: var(--bitfun-nav-row-action-gap);');
-    expect(stylesheet).toContain('.bitfun-nav-panel__inline-list {\n      margin-left: 8px;');
+    expect(assistantMenu).toContain('right: var(--void-nav-row-action-offset);');
+    expect(assistantMenu).toContain('gap: var(--void-nav-row-action-gap);');
+    expect(stylesheet).toContain('.void-nav-panel__inline-list {\n      margin-left: 8px;');
     expect(stylesheet).toContain('padding-left: 2px;');
     expect(stylesheet).toContain('padding-right: 0;');
   });
@@ -84,11 +84,11 @@ describe('WorkspaceListSection layout styles', () => {
     const assistantTrigger = extractBlock(stylesheet, '&__assistant-item-menu-trigger');
 
     for (const block of [workspaceTrigger, assistantTrigger]) {
-      expect(block).toContain('width: var(--bitfun-nav-row-action-size);');
-      expect(block).toContain('height: var(--bitfun-nav-row-action-size);');
+      expect(block).toContain('width: var(--void-nav-row-action-size);');
+      expect(block).toContain('height: var(--void-nav-row-action-size);');
       expect(block).toContain('svg {');
-      expect(block).toContain('width: var(--bitfun-nav-row-action-icon-size);');
-      expect(block).toContain('height: var(--bitfun-nav-row-action-icon-size);');
+      expect(block).toContain('width: var(--void-nav-row-action-icon-size);');
+      expect(block).toContain('height: var(--void-nav-row-action-icon-size);');
     }
   });
 });

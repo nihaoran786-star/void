@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunChinaNightTheme: ThemeConfig = {
+export const voidChinaNightTheme: ThemeConfig = {
   
-  id: 'bitfun-china-night',
+  id: 'void-china-night',
   name: 'Ink Night',
   type: 'dark',
   description: 'Chinese dark theme - Starlit ink night, moonlight like water, serene and elegant',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '1.0.0',
   
   

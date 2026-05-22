@@ -17,10 +17,10 @@ export const PanelHeader: React.FC<PanelHeaderProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`bitfun-panel-header ${className}`}>
-      <h3 className="bitfun-panel-header__title">{title}</h3>
+    <div className={`void-panel-header ${className}`}>
+      <h3 className="void-panel-header__title">{title}</h3>
       {actions && (
-        <div className="bitfun-panel-header__actions">
+        <div className="void-panel-header__actions">
           {actions}
         </div>
       )}

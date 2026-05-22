@@ -798,7 +798,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 // ── Nursery tabs (inside nursery-page__body) ───────────────────────────────
 
 .nursery-tabs {
-  .bitfun-tabs__nav {
+  .void-tabs__nav {
     padding: 0 $nursery-scene-gutter;
     position: sticky;
     top: 0;
@@ -1254,7 +1254,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
     padding-inline: $size-gap-4;
   }
 
-  .nursery-tabs .bitfun-tabs__nav {
+  .nursery-tabs .void-tabs__nav {
     padding-inline: $size-gap-4;
   }
 
@@ -1950,7 +1950,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
     white-space: nowrap;
   }
 
-  .bitfun-switch {
+  .void-switch {
     flex-shrink: 0;
     margin-right: $size-gap-2;
   }
@@ -2134,7 +2134,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
     font-weight: $font-weight-medium;
   }
 
-  .bitfun-switch {
+  .void-switch {
     flex-shrink: 0;
     margin-right: $size-gap-2;
   }
@@ -2634,7 +2634,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   }
 
   // Ensure Switch never shrinks and never pushes text off
-  .bitfun-switch {
+  .void-switch {
     flex-shrink: 0;
     margin-left: auto;
   }
@@ -2722,7 +2722,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   }
 
   // Switch stays vertically centered (card is already align-items: center)
-  .bitfun-switch {
+  .void-switch {
     flex-shrink: 0;
     align-self: center;
   }
@@ -2928,7 +2928,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
 
   // Override SessionsSection's built-in NavPanel indentation so rows
   // align flush with the chat input above; slightly roomier than nav but not loose.
-  .bitfun-nav-panel__inline-list {
+  .void-nav-panel__inline-list {
     padding-inline: 0;
     padding-block: $size-gap-1;
     margin-inline: 0;
@@ -2936,7 +2936,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
     gap: $size-gap-1;
   }
 
-  .bitfun-nav-panel__inline-item {
+  .void-nav-panel__inline-item {
     height: auto;
     min-height: 34px;
     padding: $size-gap-1 $size-gap-2;
@@ -2944,18 +2944,18 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
     font-size: var(--font-size-base);
   }
 
-  .bitfun-nav-panel__inline-item.is-child {
+  .void-nav-panel__inline-item.is-child {
     min-height: 30px;
     padding-left: calc(#{$size-gap-2} + 22px);
     font-size: var(--font-size-sm);
   }
 
-  .bitfun-nav-panel__inline-empty {
+  .void-nav-panel__inline-empty {
     padding: $size-gap-3 0;
     font-size: var(--font-size-sm);
   }
 
-  .bitfun-nav-panel__inline-action {
+  .void-nav-panel__inline-action {
     min-height: 32px;
     padding: $size-gap-2 0;
     font-size: var(--font-size-sm);

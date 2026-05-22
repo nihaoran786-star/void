@@ -1,6 +1,6 @@
-const LAST_DAILY_PROMPT_DATE_KEY = 'bitfun:update:lastDailyPromptDate';
-const LAST_PROMPTED_LATEST_KEY = 'bitfun:update:lastPromptedLatestVersion';
-const SKIPPED_VERSION_KEY = 'bitfun:update:skippedVersion';
+const LAST_DAILY_PROMPT_DATE_KEY = 'void:update:lastDailyPromptDate';
+const LAST_PROMPTED_LATEST_KEY = 'void:update:lastPromptedLatestVersion';
+const SKIPPED_VERSION_KEY = 'void:update:skippedVersion';
 
 function todayLocalDateString(): string {
   const d = new Date();

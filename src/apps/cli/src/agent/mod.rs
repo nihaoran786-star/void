@@ -1,6 +1,6 @@
 /// Agent integration module
 ///
-/// Wraps interaction with bitfun-core's Agentic system.
+/// Wraps interaction with void-core's Agentic system.
 /// The Agent trait provides a thin adapter over ConversationCoordinator.
 /// Event consumption is done externally (in the chat/exec mode main loops).
 pub mod agentic_system;

@@ -209,7 +209,7 @@ fn canonicalize_mode_config(
     raw_mode: Option<&Value>,
     default_tools: &[String],
     valid_tools: &HashSet<String>,
-) -> BitFunResult<Option<ModeConfig>> {
+) -> VoidResult<Option<ModeConfig>> {
     let Some(raw_mode) = raw_mode else {
         return Ok(None);
     };
@@ -218,7 +218,7 @@ fn canonicalize_mode_config(
     }
 
     let mut stored: ModeConfig = serde_json::from_value(raw_mode.clone()).map_err(|error| {
-        BitFunError::config(format!(
+        VoidError::config(format!(
             "Failed to deserialize mode config '{}': {}",
             mode_id, error
         ))
@@ -255,7 +255,7 @@ async fn get_mode_defaults() -> HashMap<String, Vec<String>> {
         .collect()
 }
 
-pub async fn get_mode_config_views() -> BitFunResult<HashMap<String, ModeConfigView>> {
+pub async fn get_mode_config_views() -> VoidResult<HashMap<String, ModeConfigView>> {
     let config_service = GlobalConfigManager::get_service().await?;
     let stored_configs: HashMap<String, ModeConfig> = config_service
         .get_config(Some("ai.mode_configs"))
@@ -278,15 +278,15 @@ pub async fn get_mode_config_views() -> BitFunResult<HashMap<String, ModeConfigV
     Ok(views)
 }
 
-pub async fn get_mode_config_view(mode_id: &str) -> BitFunResult<ModeConfigView> {
+pub async fn get_mode_config_view(mode_id: &str) -> VoidResult<ModeConfigView> {
     let views = get_mode_config_views().await?;
     views
         .get(mode_id)
         .cloned()
-        .ok_or_else(|| BitFunError::config(format!("Mode does not exist: {}", mode_id)))
+        .ok_or_else(|| VoidError::config(format!("Mode does not exist: {}", mode_id)))
 }
 
-pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> BitFunResult<()> {
+pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> VoidResult<()> {
     let config_service = GlobalConfigManager::get_service().await?;
     let mut stored_configs: HashMap<String, ModeConfig> = config_service
         .get_config(Some("ai.mode_configs"))
@@ -295,13 +295,13 @@ pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> Bit
     let mode_defaults = get_mode_defaults().await;
     let default_tools = mode_defaults
         .get(mode_id)
-        .ok_or_else(|| BitFunError::config(format!("Mode does not exist: {}", mode_id)))?;
+        .ok_or_else(|| VoidError::config(format!("Mode does not exist: {}", mode_id)))?;
     let valid_tools = get_valid_tool_names().await;
     let current = stored_configs.get(mode_id);
 
     let enabled_tools = if let Some(tools) = config.get("enabled_tools") {
         serde_json::from_value::<Vec<String>>(tools.clone()).map_err(|error| {
-            BitFunError::config(format!(
+            VoidError::config(format!(
                 "Invalid enabled_tools for mode '{}': {}",
                 mode_id, error
             ))
@@ -319,7 +319,7 @@ pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> Bit
             Some(Value::Null) | None => Vec::new(),
             Some(value) => {
                 serde_json::from_value::<Vec<String>>(value.clone()).map_err(|error| {
-                    BitFunError::config(format!(
+                    VoidError::config(format!(
                         "Invalid disabled_user_skills for mode '{}': {}",
                         mode_id, error
                     ))
@@ -340,7 +340,7 @@ pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> Bit
             Some(Value::Null) | None => Vec::new(),
             Some(value) => {
                 serde_json::from_value::<Vec<String>>(value.clone()).map_err(|error| {
-                    BitFunError::config(format!(
+                    VoidError::config(format!(
                         "Invalid enabled_user_skills for mode '{}': {}",
                         mode_id, error
                     ))
@@ -371,7 +371,7 @@ pub async fn persist_mode_config_from_value(mode_id: &str, config: Value) -> Bit
         .await
 }
 
-pub async fn reset_mode_config_to_default(mode_id: &str) -> BitFunResult<()> {
+pub async fn reset_mode_config_to_default(mode_id: &str) -> VoidResult<()> {
     let config_service = GlobalConfigManager::get_service().await?;
     let mut stored_configs: HashMap<String, ModeConfig> = config_service
         .get_config(Some("ai.mode_configs"))
@@ -384,7 +384,7 @@ pub async fn reset_mode_config_to_default(mode_id: &str) -> BitFunResult<()> {
 }
 
 /// Canonicalizes stored mode config overrides.
-pub async fn canonicalize_mode_configs() -> BitFunResult<ModeConfigCanonicalizationReport> {
+pub async fn canonicalize_mode_configs() -> VoidResult<ModeConfigCanonicalizationReport> {
     let config_service = GlobalConfigManager::get_service().await?;
     let valid_tools = get_valid_tool_names().await;
     let mode_defaults = get_mode_defaults().await;
@@ -392,7 +392,7 @@ pub async fn canonicalize_mode_configs() -> BitFunResult<ModeConfigCanonicalizat
     let original_ai_value = ai_value.clone();
     let ai_object = ai_value
         .as_object_mut()
-        .ok_or_else(|| BitFunError::config("AI config must be a JSON object".to_string()))?;
+        .ok_or_else(|| VoidError::config("AI config must be a JSON object".to_string()))?;
 
     let raw_mode_configs = ai_object
         .get("mode_configs")
@@ -454,18 +454,18 @@ mod tests {
     fn normalize_skill_override_lists_removes_duplicates_and_conflicts() {
         let (disabled, enabled) = normalize_skill_override_lists(
             vec![
-                "user::bitfun-system::pdf".to_string(),
-                "user::bitfun-system::pdf".to_string(),
+                "user::void-system::pdf".to_string(),
+                "user::void-system::pdf".to_string(),
             ],
             vec![
-                "user::bitfun-system::pdf".to_string(),
-                "user::bitfun-system::docx".to_string(),
-                "user::bitfun-system::docx".to_string(),
+                "user::void-system::pdf".to_string(),
+                "user::void-system::docx".to_string(),
+                "user::void-system::docx".to_string(),
             ],
         );
 
-        assert_eq!(disabled, vec!["user::bitfun-system::pdf".to_string()]);
-        assert_eq!(enabled, vec!["user::bitfun-system::docx".to_string()]);
+        assert_eq!(disabled, vec!["user::void-system::pdf".to_string()]);
+        assert_eq!(enabled, vec!["user::void-system::docx".to_string()]);
     }
 
     #[test]
@@ -476,7 +476,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Vec::new(),
-            vec!["user::bitfun-system::pdf".to_string()],
+            vec!["user::void-system::pdf".to_string()],
             &[],
             &valid_tools,
         )
@@ -484,7 +484,7 @@ mod tests {
 
         assert_eq!(
             stored.enabled_user_skills,
-            vec!["user::bitfun-system::pdf".to_string()]
+            vec!["user::void-system::pdf".to_string()]
         );
         assert!(stored.disabled_user_skills.is_empty());
     }

@@ -59,8 +59,8 @@ const SENSITIVE_KEY_PATTERN =
   /(api[-_]?key|authorization|bearer|token|secret|password|credential|payload|request|response|args|remoteconnectionid|remote[_-]?connection[_-]?id|remotesshhost|remote[_-]?ssh[_-]?host|sshhost|ssh[_-]?host|workspacepath|workspace[_-]?path)/i;
 
 function createTraceId(): string {
-  const injectedTraceId = (globalThis as { __BITFUN_STARTUP_TRACE_ID__?: unknown })
-    .__BITFUN_STARTUP_TRACE_ID__;
+  const injectedTraceId = (globalThis as { __VOID_STARTUP_TRACE_ID__?: unknown })
+    .__VOID_STARTUP_TRACE_ID__;
   if (typeof injectedTraceId === 'string' && injectedTraceId.trim().length > 0) {
     return injectedTraceId;
   }

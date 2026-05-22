@@ -33,7 +33,7 @@ use super::{
     FLASHGREP_LOG_TARGET,
 };
 
-const CLIENT_NAME: &str = "bitfun-workspace-search";
+const CLIENT_NAME: &str = "void-workspace-search";
 const REPO_CLOSE_TIMEOUT: Duration = Duration::from_secs(2);
 const SHUTDOWN_REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);

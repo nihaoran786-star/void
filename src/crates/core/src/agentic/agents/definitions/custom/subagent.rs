@@ -1,6 +1,6 @@
 use crate::agentic::agents::Agent;
 use crate::agentic::agents::{PromptBuilder, PromptBuilderContext};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::FrontMatterMarkdown;
 use async_trait::async_trait;
 use serde_yaml::Value;
@@ -49,7 +49,7 @@ impl Agent for CustomSubagent {
         ""
     }
 
-    async fn build_prompt(&self, context: &PromptBuilderContext) -> BitFunResult<String> {
+    async fn build_prompt(&self, context: &PromptBuilderContext) -> VoidResult<String> {
         let prompt_builder = PromptBuilder::new(context.clone());
 
         let prompt = prompt_builder
@@ -91,17 +91,17 @@ impl CustomSubagent {
         }
     }
 
-    pub fn from_file(path: &str, kind: CustomSubagentKind) -> BitFunResult<Self> {
+    pub fn from_file(path: &str, kind: CustomSubagentKind) -> VoidResult<Self> {
         let (metadata, content) = FrontMatterMarkdown::load(path)?;
         let name = metadata
             .get("name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::Agent("Missing name field".to_string()))?
+            .ok_or_else(|| VoidError::Agent("Missing name field".to_string()))?
             .to_string();
         let description = metadata
             .get("description")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::Agent("Missing description field".to_string()))?
+            .ok_or_else(|| VoidError::Agent("Missing description field".to_string()))?
             .to_string();
         let tools: Vec<String> = metadata
             .get("tools")
@@ -160,7 +160,7 @@ impl CustomSubagent {
     /// - `model`: Override model value, None uses self.model
     ///
     /// Fields equal to default values are not saved
-    pub fn save_to_file(&self, model: Option<&str>) -> BitFunResult<()> {
+    pub fn save_to_file(&self, model: Option<&str>) -> VoidResult<()> {
         let model = model.unwrap_or(&self.model);
 
         let mut metadata = serde_yaml::Mapping::new();
@@ -191,7 +191,7 @@ impl CustomSubagent {
             );
         }
         let metadata = Value::Mapping(metadata);
-        FrontMatterMarkdown::save(&self.path, &metadata, &self.prompt).map_err(BitFunError::Agent)
+        FrontMatterMarkdown::save(&self.path, &metadata, &self.prompt).map_err(VoidError::Agent)
     }
 }
 
@@ -226,7 +226,7 @@ mod tests {
 
     #[test]
     fn review_metadata_round_trips_through_front_matter() {
-        let dir = TestTempDir::new("bitfun-subagent-test");
+        let dir = TestTempDir::new("void-subagent-test");
         let path = dir.join("review-agent.md");
         let mut subagent = CustomSubagent::new(
             "ReviewExtra".to_string(),

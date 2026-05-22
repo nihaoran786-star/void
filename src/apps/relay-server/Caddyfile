@@ -1,4 +1,4 @@
-# Caddyfile for BitFun Relay Server
+# Caddyfile for Void Relay Server
 # Replace YOUR_DOMAIN with your actual domain, or use :443 with self-signed cert.
 #
 # Option A: With a domain (Let's Encrypt auto-HTTPS)

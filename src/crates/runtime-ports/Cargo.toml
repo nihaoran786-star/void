@@ -1,12 +1,12 @@
 [package]
-name = "bitfun-runtime-ports"
+name = "void-runtime-ports"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "Thin runtime ports for BitFun core decomposition"
+description = "Thin runtime ports for Void core decomposition"
 
 [lib]
-name = "bitfun_runtime_ports"
+name = "void_runtime_ports"
 crate-type = ["rlib"]
 
 [dependencies]

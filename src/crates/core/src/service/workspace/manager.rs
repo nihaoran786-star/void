@@ -299,7 +299,7 @@ impl WorkspaceInfo {
     }
 
     /// Creates a new workspace record.
-    pub async fn new(root_path: PathBuf, options: WorkspaceOpenOptions) -> BitFunResult<Self> {
+    pub async fn new(root_path: PathBuf, options: WorkspaceOpenOptions) -> VoidResult<Self> {
         let default_name = root_path
             .file_name()
             .and_then(|n| n.to_str())
@@ -324,7 +324,7 @@ impl WorkspaceInfo {
             (id, root_path.clone())
         } else {
             let (canonical_pb, norm_str) =
-                canonicalize_local_workspace_root(&root_path).map_err(BitFunError::service)?;
+                canonicalize_local_workspace_root(&root_path).map_err(VoidError::service)?;
             let id = local_workspace_stable_storage_id(&norm_str);
             (id, canonical_pb)
         };
@@ -533,7 +533,7 @@ impl WorkspaceInfo {
     }
 
     /// Scans the workspace.
-    async fn scan_workspace(&mut self, options: ScanOptions) -> BitFunResult<()> {
+    async fn scan_workspace(&mut self, options: ScanOptions) -> VoidResult<()> {
         let mut stats = WorkspaceStatistics {
             total_files: 0,
             total_directories: 0,
@@ -561,7 +561,7 @@ impl WorkspaceInfo {
         stats: &'a mut WorkspaceStatistics,
         options: &'a ScanOptions,
         depth: usize,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = BitFunResult<()>> + 'a + Send>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = VoidResult<()>> + 'a + Send>> {
         Box::pin(async move {
             if let Some(max_depth) = options.max_depth {
                 if depth > max_depth {
@@ -571,10 +571,10 @@ impl WorkspaceInfo {
 
             let mut read_dir = fs::read_dir(dir)
                 .await
-                .map_err(|e| BitFunError::service(format!("Failed to read directory: {}", e)))?;
+                .map_err(|e| VoidError::service(format!("Failed to read directory: {}", e)))?;
 
             while let Some(entry) = read_dir.next_entry().await.map_err(|e| {
-                BitFunError::service(format!("Failed to read directory entry: {}", e))
+                VoidError::service(format!("Failed to read directory entry: {}", e))
             })? {
                 let path = entry.path();
                 let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -594,7 +594,7 @@ impl WorkspaceInfo {
                 let metadata = entry
                     .metadata()
                     .await
-                    .map_err(|e| BitFunError::service(format!("Failed to read metadata: {}", e)))?;
+                    .map_err(|e| VoidError::service(format!("Failed to read metadata: {}", e)))?;
 
                 if metadata.is_file() {
                     stats.total_files += 1;
@@ -765,19 +765,19 @@ impl WorkspaceManager {
     }
 
     /// Reassigns a workspace id (e.g. migrating from UUID to `local_*` stable id).
-    pub fn rekey_workspace_id(&mut self, old_id: &str, new_id: String) -> BitFunResult<()> {
+    pub fn rekey_workspace_id(&mut self, old_id: &str, new_id: String) -> VoidResult<()> {
         if old_id == new_id.as_str() {
             return Ok(());
         }
         let Some(mut workspace) = self.workspaces.remove(old_id) else {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "rekey_workspace_id: workspace not found: {}",
                 old_id
             )));
         };
         if self.workspaces.contains_key(&new_id) {
             self.workspaces.insert(old_id.to_string(), workspace);
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "rekey_workspace_id: target id already exists: {}",
                 new_id
             )));
@@ -870,7 +870,7 @@ impl WorkspaceManager {
     }
 
     /// Opens a workspace.
-    pub async fn open_workspace(&mut self, path: PathBuf) -> BitFunResult<WorkspaceInfo> {
+    pub async fn open_workspace(&mut self, path: PathBuf) -> VoidResult<WorkspaceInfo> {
         self.open_workspace_with_options(path, WorkspaceOpenOptions::default())
             .await
     }
@@ -880,7 +880,7 @@ impl WorkspaceManager {
         &mut self,
         path: PathBuf,
         options: WorkspaceOpenOptions,
-    ) -> BitFunResult<WorkspaceInfo> {
+    ) -> VoidResult<WorkspaceInfo> {
         self.upsert_workspace_with_options(path, options, true)
             .await
     }
@@ -890,7 +890,7 @@ impl WorkspaceManager {
         &mut self,
         path: PathBuf,
         options: WorkspaceOpenOptions,
-    ) -> BitFunResult<WorkspaceInfo> {
+    ) -> VoidResult<WorkspaceInfo> {
         self.upsert_workspace_with_options(path, options, false)
             .await
     }
@@ -900,19 +900,19 @@ impl WorkspaceManager {
         path: PathBuf,
         options: WorkspaceOpenOptions,
         keep_opened: bool,
-    ) -> BitFunResult<WorkspaceInfo> {
+    ) -> VoidResult<WorkspaceInfo> {
         let is_remote = options.workspace_kind == WorkspaceKind::Remote;
 
         if !is_remote {
             if !path.exists() {
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Workspace path does not exist: {:?}",
                     path
                 )));
             }
 
             if !path.is_dir() {
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Workspace path is not a directory: {:?}",
                     path
                 )));
@@ -992,7 +992,7 @@ impl WorkspaceManager {
         } else {
             let canon_norm = match normalize_local_workspace_root_for_stable_id(&path) {
                 Ok(n) => n,
-                Err(e) => return Err(BitFunError::service(e)),
+                Err(e) => return Err(VoidError::service(e)),
             };
             let stable_local_id = local_workspace_stable_storage_id(&canon_norm);
 
@@ -1074,7 +1074,7 @@ impl WorkspaceManager {
                 self.touch_workspace_access(&workspace_id, options.add_to_recent);
             }
             return self.workspaces.get(&workspace_id).cloned().ok_or_else(|| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Workspace '{}' disappeared after selecting it",
                     workspace_id
                 ))
@@ -1102,7 +1102,7 @@ impl WorkspaceManager {
     }
 
     /// Closes the current workspace.
-    pub fn close_current_workspace(&mut self) -> BitFunResult<()> {
+    pub fn close_current_workspace(&mut self) -> VoidResult<()> {
         let current_workspace_id = self.current_workspace_id.clone();
         match current_workspace_id {
             Some(workspace_id) => self.close_workspace(&workspace_id),
@@ -1111,9 +1111,9 @@ impl WorkspaceManager {
     }
 
     /// Closes the specified workspace.
-    pub fn close_workspace(&mut self, workspace_id: &str) -> BitFunResult<()> {
+    pub fn close_workspace(&mut self, workspace_id: &str) -> VoidResult<()> {
         if !self.workspaces.contains_key(workspace_id) {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Workspace not found: {}",
                 workspace_id
             )));
@@ -1144,13 +1144,13 @@ impl WorkspaceManager {
     }
 
     /// Sets the active workspace among already opened workspaces.
-    pub fn set_active_workspace(&mut self, workspace_id: &str) -> BitFunResult<()> {
+    pub fn set_active_workspace(&mut self, workspace_id: &str) -> VoidResult<()> {
         if !self
             .opened_workspace_ids
             .iter()
             .any(|id| id == workspace_id)
         {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Workspace is not opened: {}",
                 workspace_id
             )));
@@ -1160,7 +1160,7 @@ impl WorkspaceManager {
     }
 
     /// Sets the current workspace.
-    pub fn set_current_workspace(&mut self, workspace_id: String) -> BitFunResult<()> {
+    pub fn set_current_workspace(&mut self, workspace_id: String) -> VoidResult<()> {
         self.set_current_workspace_with_recent_policy(workspace_id, true)
     }
 
@@ -1168,9 +1168,9 @@ impl WorkspaceManager {
         &mut self,
         workspace_id: String,
         add_to_recent: bool,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if !self.workspaces.contains_key(&workspace_id) {
-            return Err(BitFunError::service(format!(
+            return Err(VoidError::service(format!(
                 "Workspace not found: {}",
                 workspace_id
             )));
@@ -1270,7 +1270,7 @@ impl WorkspaceManager {
     }
 
     /// Removes a workspace.
-    pub fn remove_workspace(&mut self, workspace_id: &str) -> BitFunResult<()> {
+    pub fn remove_workspace(&mut self, workspace_id: &str) -> VoidResult<()> {
         if self.workspaces.remove(workspace_id).is_some() {
             if self.current_workspace_id.as_ref() == Some(&workspace_id.to_string()) {
                 self.current_workspace_id = None;
@@ -1283,7 +1283,7 @@ impl WorkspaceManager {
 
             Ok(())
         } else {
-            Err(BitFunError::service(format!(
+            Err(VoidError::service(format!(
                 "Workspace not found: {}",
                 workspace_id
             )))
@@ -1291,7 +1291,7 @@ impl WorkspaceManager {
     }
 
     /// Cleans up invalid workspaces.
-    pub async fn cleanup_invalid_workspaces(&mut self) -> BitFunResult<usize> {
+    pub async fn cleanup_invalid_workspaces(&mut self) -> VoidResult<usize> {
         let mut invalid_workspaces = Vec::new();
 
         for (workspace_id, workspace) in &self.workspaces {

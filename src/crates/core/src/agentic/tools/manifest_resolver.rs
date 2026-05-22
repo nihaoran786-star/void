@@ -4,7 +4,7 @@ use crate::agentic::tools::product_runtime::{
 };
 use crate::agentic::tools::framework::{Tool, ToolUseContext};
 use crate::util::types::ToolDefinition;
-use bitfun_agent_tools::{ContextualToolManifest, ContextualVisibleTools, ToolManifestDefinition};
+use void_agent_tools::{ContextualToolManifest, ContextualVisibleTools, ToolManifestDefinition};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -77,7 +77,7 @@ mod tests {
     use crate::agentic::agents::AgentToolPolicyOverrides;
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use crate::agentic::tools::framework::{ToolExposure, ToolUseContext};
-    use bitfun_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
+    use void_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
     use serde_json::json;
     use std::collections::HashMap;
 

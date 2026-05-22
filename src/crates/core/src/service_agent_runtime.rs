@@ -5,8 +5,8 @@
 //! session restore, terminal pre-warm, remote image conversion, and runtime-port
 //! implementations until a reviewed port/provider migration proves equivalence.
 
-use bitfun_runtime_ports::AgentSubmissionPort;
-use bitfun_services_integrations::remote_connect::{RemoteImageContext, RemoteImageContextAdapter};
+use void_runtime_ports::AgentSubmissionPort;
+use void_services_integrations::remote_connect::{RemoteImageContext, RemoteImageContextAdapter};
 
 use crate::agentic::coordination::ConversationCoordinator;
 use crate::agentic::image_analysis::ImageContextData;
@@ -48,7 +48,7 @@ impl CoreServiceAgentRuntime {
 
 #[cfg(test)]
 mod tests {
-    use bitfun_runtime_ports::{
+    use void_runtime_ports::{
         AgentTurnCancellationPort, RemoteControlStatePort, SessionTranscriptReader,
     };
 

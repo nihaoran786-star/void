@@ -13,8 +13,8 @@ import { monacoModelManager } from '../services/MonacoModelManager';
 import { activeEditTargetService, createMonacoEditTarget } from '../services/ActiveEditTargetService';
 import { 
   forceRegisterTheme,
-  BitFunDarkTheme,
-  BitFunDarkThemeMetadata 
+  VoidDarkTheme,
+  VoidDarkThemeMetadata
 } from '../themes';
 import { useMonacoLsp } from '@/tools/lsp/hooks/useMonacoLsp';
 import { lspExtensionRegistry } from '@/tools/lsp/services/LspExtensionRegistry';
@@ -224,7 +224,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     line_numbers: 'on',
     minimap: { enabled: showMinimap, side: 'right', size: 'proportional' }
   });
-  const [_currentThemeId, setCurrentThemeId] = useState<string>(BitFunDarkThemeMetadata.id);
+  const [_currentThemeId, setCurrentThemeId] = useState<string>(VoidDarkThemeMetadata.id);
   const [cursorPosition, setCursorPosition] = useState({ line: 1, column: 1 });
   const [selection, setSelection] = useState({ chars: 0, lines: 0 });
   const [statusBarPopover, setStatusBarPopover] = useState<null | 'position' | 'indent' | 'encoding' | 'language'>(null);
@@ -620,14 +620,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
           }
         }
 
-        forceRegisterTheme(BitFunDarkThemeMetadata.id, BitFunDarkTheme);
+        forceRegisterTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
 
-        let themeId = BitFunDarkThemeMetadata.id;
+        let themeId = VoidDarkThemeMetadata.id;
         try {
           const { themeService } = await import('@/infrastructure/theme');
           const currentTheme = themeService.getCurrentTheme();
           if (currentTheme) {
-            themeId = currentTheme.monaco ? currentTheme.id : (currentTheme.type === 'dark' ? BitFunDarkThemeMetadata.id : 'vs');
+            themeId = currentTheme.monaco ? currentTheme.id : (currentTheme.type === 'dark' ? VoidDarkThemeMetadata.id : 'vs');
             setCurrentThemeId(themeId);
           }
         } catch (error) {
@@ -2070,7 +2070,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         
         unsubscribeThemeService = themeService.on('theme:after-change', (event) => {
           if (event.theme) {
-            const newThemeId = event.theme.monaco ? event.theme.id : (event.theme.type === 'dark' ? BitFunDarkThemeMetadata.id : 'vs');
+            const newThemeId = event.theme.monaco ? event.theme.id : (event.theme.type === 'dark' ? VoidDarkThemeMetadata.id : 'vs');
             
             setCurrentThemeId(newThemeId);
             

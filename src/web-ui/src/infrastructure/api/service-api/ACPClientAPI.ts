@@ -150,7 +150,7 @@ export class ACPClientAPI {
   static async initializeClients(): Promise<void> {
     await api.invoke('initialize_acp_clients');
     ACPClientAPI.invalidateRequirementProbeCache();
-    window.dispatchEvent(new Event('bitfun:acp-clients-changed'));
+    window.dispatchEvent(new Event('void:acp-clients-changed'));
   }
 
   static async getClients(): Promise<AcpClientInfo[]> {
@@ -175,7 +175,7 @@ export class ACPClientAPI {
     const inFlight = api.invoke<AcpClientRequirementProbe[]>('probe_acp_client_requirements', { request })
       .then((probes) => {
         requirementProbeCache.set(cacheKey, probes);
-        window.dispatchEvent(new Event('bitfun:acp-requirements-changed'));
+        window.dispatchEvent(new Event('void:acp-requirements-changed'));
         return probes;
       })
       .finally(() => {
@@ -189,18 +189,18 @@ export class ACPClientAPI {
   static async predownloadClientAdapter(request: AcpClientIdRequest): Promise<void> {
     await api.invoke('predownload_acp_client_adapter', { request });
     ACPClientAPI.invalidateRequirementProbeCache();
-    window.dispatchEvent(new Event('bitfun:acp-requirements-changed'));
+    window.dispatchEvent(new Event('void:acp-requirements-changed'));
   }
 
   static async installClientCli(request: AcpClientIdRequest): Promise<void> {
     await api.invoke('install_acp_client_cli', { request });
     ACPClientAPI.invalidateRequirementProbeCache();
-    window.dispatchEvent(new Event('bitfun:acp-requirements-changed'));
+    window.dispatchEvent(new Event('void:acp-requirements-changed'));
   }
 
   static async stopClient(request: AcpClientIdRequest): Promise<void> {
     await api.invoke('stop_acp_client', { request });
-    window.dispatchEvent(new Event('bitfun:acp-clients-changed'));
+    window.dispatchEvent(new Event('void:acp-clients-changed'));
   }
 
   static async loadJsonConfig(): Promise<string> {
@@ -210,7 +210,7 @@ export class ACPClientAPI {
   static async saveJsonConfig(jsonConfig: string): Promise<void> {
     await api.invoke('save_acp_json_config', { jsonConfig });
     ACPClientAPI.invalidateRequirementProbeCache();
-    window.dispatchEvent(new Event('bitfun:acp-clients-changed'));
+    window.dispatchEvent(new Event('void:acp-clients-changed'));
   }
 
   static async submitPermissionResponse(
@@ -223,7 +223,7 @@ export class ACPClientAPI {
     request: CreateAcpFlowSessionRequest
   ): Promise<CreateAcpFlowSessionResponse> {
     const response = await api.invoke<CreateAcpFlowSessionResponse>('create_acp_flow_session', { request });
-    window.dispatchEvent(new Event('bitfun:acp-clients-changed'));
+    window.dispatchEvent(new Event('void:acp-clients-changed'));
     return response;
   }
 

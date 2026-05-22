@@ -16,35 +16,35 @@
     "systemTheme": "跟随系统",
     "systemThemeDescription": "根据系统浅色/深色外观自动在亮暗主题间切换，并随系统切换而更新。",
     "presets": {
-      "bitfun-dark": {
+      "void-dark": {
         "name": "暗色",
         "description": "默认暗色主题"
       },
-      "bitfun-light": {
+      "void-light": {
         "name": "亮色",
         "description": "亮色主题 - 素雅高级，淡蓝灰调"
       },
-      "bitfun-midnight": {
+      "void-midnight": {
         "name": "午夜",
         "description": "午夜灰暗色主题 - 专业优雅，灵感来自 JetBrains IDE"
       },
-      "bitfun-china-style": {
+      "void-china-style": {
         "name": "墨韵",
         "description": "中国风主题 - 宣纸墨香，青花朱砂，温润典雅"
       },
-      "bitfun-china-night": {
+      "void-china-night": {
         "name": "墨夜",
         "description": "中国风暗色主题 - 墨夜星辰，月华如水，沉静典雅"
       },
-      "bitfun-cyber": {
+      "void-cyber": {
         "name": "赛博",
         "description": "科技感主题 - 深邃黑洞，霓虹未来，极致科技美学"
       },
-      "bitfun-slate": {
+      "void-slate": {
         "name": "石板灰",
         "description": "石板灰几何主题 - 极深沉浸，高对比度灰度美学"
       },
-      "bitfun-tokyo-night": {
+      "void-tokyo-night": {
         "name": "东京夜",
         "description": "Tokyo Night 经典配色 - 靛蓝夜色，蓝紫高光"
       }
@@ -66,7 +66,7 @@
       "customPxPlaceholder": "14",
       "customPxOutOfRange": "请输入 12–20 之间的整数",
       "resetButton": "恢复默认",
-      "previewText": "BitFun 是一个由 AI 驱动的编程环境。The quick brown fox jumps over the lazy dog.",
+      "previewText": "Void 是一个由 AI 驱动的编程环境。The quick brown fox jumps over the lazy dog.",
       "flowChatLabel": "对话区域",
       "flowChatHint": "关闭时对话区域比界面大 1 px，并随界面档位变化。开启后在下方从列表中选择 12–20 px。",
       "flowChatCustomToggle": "自定义对话字号",
@@ -90,10 +90,10 @@
   "launchAtLogin": {
     "sections": {
       "title": "登录时启动",
-      "hint": "登录本用户后是否自动运行 BitFun"
+      "hint": "登录本用户后是否自动运行 Void"
     },
     "toggleLabel": "开机自动启动",
-    "toggleDescription": "登录系统后自动启动 BitFun；具体表现因操作系统而异。",
+    "toggleDescription": "登录系统后自动启动 Void；具体表现因操作系统而异。",
     "messages": {
       "loading": "加载中…",
       "loadFailed": "无法读取开机启动设置",
@@ -112,7 +112,7 @@
     },
     "sensitiveDiagnostics": {
       "label": "包含敏感调试信息",
-      "description": "开启后，本地日志可能包含用户 Prompt、模型请求和响应 payload、工具参数、文件路径以及 Webview 事件 payload，用于问题排查。BitFun 不会自动上传这些日志文件。"
+      "description": "开启后，本地日志可能包含用户 Prompt、模型请求和响应 payload、工具参数、文件路径以及 Webview 事件 payload，用于问题排查。Void 不会自动上传这些日志文件。"
     },
     "path": {
       "description": "本次启动写入日志文件所在的目录。"

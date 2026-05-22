@@ -1,16 +1,16 @@
 [package]
-name = "bitfun-desktop"
+name = "void-desktop"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun Desktop Application (Tauri)"
+description = "Void Desktop Application (Tauri)"
 
 [lib]
-name = "bitfun_desktop_lib"
+name = "void_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "bitfun-desktop"
+name = "void-desktop"
 path = "src/main.rs"
 
 [build-dependencies]
@@ -19,10 +19,10 @@ serde_json = { workspace = true }
 
 [dependencies]
 # Internal crates
-bitfun-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
-bitfun-transport = { path = "../../crates/transport", features = ["tauri-adapter"] }
-bitfun-webdriver = { path = "../../crates/webdriver" }
-bitfun-acp = { path = "../../crates/acp" }
+void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
+void-transport = { path = "../../crates/transport", features = ["tauri-adapter"] }
+void-webdriver = { path = "../../crates/webdriver" }
+void-acp = { path = "../../crates/acp" }
 
 # Tauri
 tauri = { workspace = true }

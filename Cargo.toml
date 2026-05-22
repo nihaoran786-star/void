@@ -24,7 +24,7 @@ members = [
 ]
 
 exclude = [
-    "BitFun-Installer/src-tauri",
+    "Void-Installer/src-tauri",
 ]
 
 resolver = "2"
@@ -32,7 +32,7 @@ resolver = "2"
 # Shared package metadata — single source of truth for version
 [workspace.package]
 version = "0.2.7" # x-release-please-version
-authors = ["BitFun Team"]
+authors = ["Void Team"]
 edition = "2021"
 
 # Shared dependency versions to keep all crates aligned

@@ -8,7 +8,7 @@ use crate::agentic::deep_review::report::{self as deep_review_report, DeepReview
 use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
 use crate::service::config::get_app_language_code;
 use crate::service::i18n::code_review_copy_for_language;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use async_trait::async_trait;
 use log::warn;
 use serde_json::{json, Value};
@@ -470,7 +470,7 @@ impl CodeReviewTool {
     async fn persist_deep_review_cache(
         context: &ToolUseContext,
         cache_value: Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         deep_review_report::persist_deep_review_cache(context, cache_value).await
     }
     /// Validate and fill missing fields with default values
@@ -585,7 +585,7 @@ impl Tool for CodeReviewTool {
         Self::name_str()
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         let lang = get_app_language_code().await;
         Ok(Self::description_for_language(lang.as_str()))
     }
@@ -626,7 +626,7 @@ impl Tool for CodeReviewTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let mut filled_input = input.clone();
         let deep_review = Self::is_deep_review_context(Some(context));
         let compression_contract = deep_review

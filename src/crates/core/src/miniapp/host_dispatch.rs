@@ -24,10 +24,10 @@
 
 use crate::miniapp::permission_policy::resolve_policy;
 use crate::miniapp::types::MiniAppPermissions;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
-pub use bitfun_product_domains::miniapp::host_routing::is_host_primitive;
-use bitfun_product_domains::miniapp::host_routing::{
+pub use void_product_domains::miniapp::host_routing::is_host_primitive;
+use void_product_domains::miniapp::host_routing::{
     command_basename_allowed, command_basename_for_allowlist, host_allowed_by_allowlist,
 };
 use serde_json::{json, Value};
@@ -47,25 +47,25 @@ pub async fn dispatch_host(
     granted_paths: &[PathBuf],
     method: &str,
     params: Value,
-) -> BitFunResult<Value> {
+) -> VoidResult<Value> {
     let policy = resolve_policy(perms, app_id, app_data_dir, workspace_dir, granted_paths);
     let (ns, name) = method
         .split_once('.')
-        .ok_or_else(|| BitFunError::parse(format!("invalid method: {}", method)))?;
+        .ok_or_else(|| VoidError::parse(format!("invalid method: {}", method)))?;
     match ns {
         "fs" => dispatch_fs(&policy, name, &params).await,
         "shell" => dispatch_shell(&policy, app_data_dir, workspace_dir, name, &params).await,
         "os" => dispatch_os(name).await,
         "net" => dispatch_net(&policy, name, &params).await,
-        _ => Err(BitFunError::validation(format!(
+        _ => Err(VoidError::validation(format!(
             "unsupported host namespace: {}",
             ns
         ))),
     }
 }
 
-fn deny<S: Into<String>>(msg: S) -> BitFunError {
-    BitFunError::validation(msg)
+fn deny<S: Into<String>>(msg: S) -> VoidError {
+    VoidError::validation(msg)
 }
 
 /// Resolve a path to its canonical form. If the path itself doesn't exist (e.g.
@@ -123,12 +123,12 @@ fn path_allowed(policy: &Value, target: &Path, mode: &str) -> bool {
     false
 }
 
-fn arg_path(params: &Value, key: &str) -> BitFunResult<PathBuf> {
+fn arg_path(params: &Value, key: &str) -> VoidResult<PathBuf> {
     params
         .get(key)
         .and_then(|v| v.as_str())
         .map(PathBuf::from)
-        .ok_or_else(|| BitFunError::parse(format!("missing param: {}", key)))
+        .ok_or_else(|| VoidError::parse(format!("missing param: {}", key)))
 }
 
 fn resolve_shell_program(command: &str) -> PathBuf {
@@ -140,7 +140,7 @@ fn resolve_shell_program(command: &str) -> PathBuf {
     which::which(command).unwrap_or_else(|_| PathBuf::from(command))
 }
 
-async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult<Value> {
+async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> VoidResult<Value> {
     // Common path arg ("path" or legacy "p").
     let path_param = params
         .get("path")
@@ -162,14 +162,14 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
 
     match name {
         "readFile" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let enc = params
                 .get("encoding")
                 .and_then(|v| v.as_str())
                 .unwrap_or("utf8");
             let bytes = tokio::fs::read(&p)
                 .await
-                .map_err(|e| BitFunError::io(format!("readFile {}: {}", p.display(), e)))?;
+                .map_err(|e| VoidError::io(format!("readFile {}: {}", p.display(), e)))?;
             if enc == "base64" {
                 Ok(Value::String(BASE64.encode(&bytes)))
             } else {
@@ -177,23 +177,23 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             }
         }
         "writeFile" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let data = params.get("data").and_then(|v| v.as_str()).unwrap_or("");
             tokio::fs::write(&p, data)
                 .await
-                .map_err(|e| BitFunError::io(format!("writeFile {}: {}", p.display(), e)))?;
+                .map_err(|e| VoidError::io(format!("writeFile {}: {}", p.display(), e)))?;
             Ok(Value::Null)
         }
         "readdir" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let mut rd = tokio::fs::read_dir(&p)
                 .await
-                .map_err(|e| BitFunError::io(format!("readdir {}: {}", p.display(), e)))?;
+                .map_err(|e| VoidError::io(format!("readdir {}: {}", p.display(), e)))?;
             let mut out = Vec::new();
             while let Some(entry) = rd
                 .next_entry()
                 .await
-                .map_err(|e| BitFunError::io(e.to_string()))?
+                .map_err(|e| VoidError::io(e.to_string()))?
             {
                 let ft = entry.file_type().await.ok();
                 out.push(json!({
@@ -205,10 +205,10 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             Ok(Value::Array(out))
         }
         "stat" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let meta = tokio::fs::metadata(&p)
                 .await
-                .map_err(|e| BitFunError::io(format!("stat {}: {}", p.display(), e)))?;
+                .map_err(|e| VoidError::io(format!("stat {}: {}", p.display(), e)))?;
             Ok(json!({
                 "size": meta.len(),
                 "isDirectory": meta.is_dir(),
@@ -216,7 +216,7 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             }))
         }
         "mkdir" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let recursive = params
                 .get("recursive")
                 .and_then(|v| v.as_bool())
@@ -226,11 +226,11 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             } else {
                 tokio::fs::create_dir(&p).await
             })
-            .map_err(|e| BitFunError::io(format!("mkdir {}: {}", p.display(), e)))?;
+            .map_err(|e| VoidError::io(format!("mkdir {}: {}", p.display(), e)))?;
             Ok(Value::Null)
         }
         "rm" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let recursive = params
                 .get("recursive")
                 .and_then(|v| v.as_bool())
@@ -252,10 +252,10 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
                     if force {
                         return Ok(Value::Null);
                     }
-                    return Err(BitFunError::io(format!("rm {}: {}", p.display(), e)));
+                    return Err(VoidError::io(format!("rm {}: {}", p.display(), e)));
                 }
             };
-            result.map_err(|e| BitFunError::io(format!("rm {}: {}", p.display(), e)))?;
+            result.map_err(|e| VoidError::io(format!("rm {}: {}", p.display(), e)))?;
             Ok(Value::Null)
         }
         "copyFile" => {
@@ -269,7 +269,7 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             }
             tokio::fs::copy(&src, &dst)
                 .await
-                .map_err(|e| BitFunError::io(format!("copyFile: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("copyFile: {}", e)))?;
             Ok(Value::Null)
         }
         "rename" => {
@@ -283,32 +283,32 @@ async fn dispatch_fs(policy: &Value, name: &str, params: &Value) -> BitFunResult
             }
             tokio::fs::rename(&oldp, &newp)
                 .await
-                .map_err(|e| BitFunError::io(format!("rename: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("rename: {}", e)))?;
             Ok(Value::Null)
         }
         "appendFile" => {
             use tokio::io::AsyncWriteExt;
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             let data = params.get("data").and_then(|v| v.as_str()).unwrap_or("");
             let mut f = tokio::fs::OpenOptions::new()
                 .create(true)
                 .append(true)
                 .open(&p)
                 .await
-                .map_err(|e| BitFunError::io(format!("appendFile open: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("appendFile open: {}", e)))?;
             f.write_all(data.as_bytes())
                 .await
-                .map_err(|e| BitFunError::io(format!("appendFile write: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("appendFile write: {}", e)))?;
             Ok(Value::Null)
         }
         "access" => {
-            let p = path_param.ok_or_else(|| BitFunError::parse("missing path"))?;
+            let p = path_param.ok_or_else(|| VoidError::parse("missing path"))?;
             tokio::fs::metadata(&p)
                 .await
-                .map_err(|e| BitFunError::io(format!("access {}: {}", p.display(), e)))?;
+                .map_err(|e| VoidError::io(format!("access {}: {}", p.display(), e)))?;
             Ok(Value::Null)
         }
-        other => Err(BitFunError::validation(format!(
+        other => Err(VoidError::validation(format!(
             "unknown fs method: {}",
             other
         ))),
@@ -321,9 +321,9 @@ async fn dispatch_shell(
     workspace_dir: Option<&Path>,
     name: &str,
     params: &Value,
-) -> BitFunResult<Value> {
+) -> VoidResult<Value> {
     if name != "exec" {
-        return Err(BitFunError::validation(format!(
+        return Err(VoidError::validation(format!(
             "unknown shell method: {}",
             name
         )));
@@ -346,7 +346,7 @@ async fn dispatch_shell(
         .trim()
         .to_string();
     if argv.as_ref().map(|a| a.is_empty()).unwrap_or(true) && command.is_empty() {
-        return Err(BitFunError::parse("empty command"));
+        return Err(VoidError::parse("empty command"));
     }
 
     // Allowlist check: take the program name (basename of the first token, sans
@@ -412,8 +412,8 @@ async fn dispatch_shell(
 
     let output = tokio::time::timeout(Duration::from_millis(timeout_ms), cmd.output())
         .await
-        .map_err(|_| BitFunError::service(format!("shell.exec timed out after {}ms", timeout_ms)))?
-        .map_err(|e| BitFunError::service(format!("shell.exec spawn failed: {}", e)))?;
+        .map_err(|_| VoidError::service(format!("shell.exec timed out after {}ms", timeout_ms)))?
+        .map_err(|e| VoidError::service(format!("shell.exec spawn failed: {}", e)))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
@@ -427,15 +427,15 @@ async fn dispatch_shell(
         } else {
             format!("shell.exec exit {}", code)
         };
-        return Err(BitFunError::service(msg));
+        return Err(VoidError::service(msg));
     }
 
     Ok(json!({ "stdout": stdout, "stderr": stderr, "exit_code": code }))
 }
 
-async fn dispatch_os(name: &str) -> BitFunResult<Value> {
+async fn dispatch_os(name: &str) -> VoidResult<Value> {
     if name != "info" {
-        return Err(BitFunError::validation(format!(
+        return Err(VoidError::validation(format!(
             "unknown os method: {}",
             name
         )));
@@ -462,19 +462,19 @@ async fn dispatch_os(name: &str) -> BitFunResult<Value> {
     }))
 }
 
-async fn dispatch_net(policy: &Value, name: &str, params: &Value) -> BitFunResult<Value> {
+async fn dispatch_net(policy: &Value, name: &str, params: &Value) -> VoidResult<Value> {
     if name != "fetch" {
-        return Err(BitFunError::validation(format!(
+        return Err(VoidError::validation(format!(
             "unknown net method: {}",
             name
         )));
     }
     let url = params.get("url").and_then(|v| v.as_str()).unwrap_or("");
     if url.is_empty() {
-        return Err(BitFunError::parse("missing url"));
+        return Err(VoidError::parse("missing url"));
     }
     let parsed =
-        reqwest::Url::parse(url).map_err(|e| BitFunError::parse(format!("invalid url: {}", e)))?;
+        reqwest::Url::parse(url).map_err(|e| VoidError::parse(format!("invalid url: {}", e)))?;
     let host = parsed.host_str().unwrap_or("").to_string();
 
     let allow: Vec<String> = policy
@@ -512,7 +512,7 @@ async fn dispatch_net(policy: &Value, name: &str, params: &Value) -> BitFunResul
     let res = req
         .send()
         .await
-        .map_err(|e| BitFunError::service(format!("net.fetch: {}", e)))?;
+        .map_err(|e| VoidError::service(format!("net.fetch: {}", e)))?;
     let status = res.status().as_u16();
     let mut headers_out = serde_json::Map::new();
     for (k, v) in res.headers() {
@@ -523,7 +523,7 @@ async fn dispatch_net(policy: &Value, name: &str, params: &Value) -> BitFunResul
     let body = res
         .text()
         .await
-        .map_err(|e| BitFunError::service(format!("net.fetch read: {}", e)))?;
+        .map_err(|e| VoidError::service(format!("net.fetch read: {}", e)))?;
     Ok(json!({
         "status": status,
         "headers": Value::Object(headers_out),

@@ -6,25 +6,25 @@ import './GenerativeWidgetFrame.scss';
 
 export type WidgetMessage =
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:event';
+      source: 'void-widget';
+      type: 'void-widget:event';
       widgetId?: string;
       payload?: unknown;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:prompt';
+      source: 'void-widget';
+      type: 'void-widget:prompt';
       widgetId?: string;
       text?: string;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:ready';
+      source: 'void-widget';
+      type: 'void-widget:ready';
       widgetId?: string;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:open-file';
+      source: 'void-widget';
+      type: 'void-widget:open-file';
       widgetId?: string;
       filePath?: string;
       line?: number;
@@ -33,24 +33,24 @@ export type WidgetMessage =
       nodeType?: string;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:resize';
+      source: 'void-widget';
+      type: 'void-widget:resize';
       widgetId?: string;
       height?: number;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:clear-selection';
+      source: 'void-widget';
+      type: 'void-widget:clear-selection';
       widgetId?: string;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:selection-cleared';
+      source: 'void-widget';
+      type: 'void-widget:selection-cleared';
       widgetId?: string;
     }
   | {
-      source: 'bitfun-widget';
-      type: 'bitfun-widget:context-menu';
+      source: 'void-widget';
+      type: 'void-widget:context-menu';
       widgetId?: string;
       clientX?: number;
       clientY?: number;
@@ -64,7 +64,7 @@ export type WidgetMessage =
 
 export type WidgetContextMenuMessage = Extract<
   WidgetMessage,
-  { type: 'bitfun-widget:context-menu' }
+  { type: 'void-widget:context-menu' }
 >;
 
 export interface GenerativeWidgetFrameProps {
@@ -138,7 +138,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       color: var(--color-accent-600, #3b82f6);
     }
     [data-file-path],
-    [data-bitfun-open-file] {
+    [data-void-open-file] {
       cursor: pointer;
     }
     .bf-root,
@@ -240,8 +240,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
     .bf-panel {
       background: color-mix(in srgb, var(--color-bg-secondary, #1c1c1f) 74%, var(--element-bg-subtle, rgba(255, 255, 255, 0.05)));
     }
-    [data-bitfun-prompt-selected="true"],
-    [data-bitfun-context-selected="true"] {
+    [data-void-prompt-selected="true"],
+    [data-void-context-selected="true"] {
       position: relative;
       outline: 2px solid var(--color-accent-500, #60a5fa);
       outline-offset: 2px;
@@ -408,7 +408,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       border: 1px solid transparent;
     }
     .bf-list-item[data-file-path]:hover,
-    .bf-list-item[data-bitfun-open-file]:hover,
+    .bf-list-item[data-void-open-file]:hover,
     .bf-card[data-file-path]:hover,
     .bf-panel[data-file-path]:hover {
       border-color: color-mix(in srgb, var(--color-accent-500, #60a5fa) 35%, var(--border-subtle, rgba(255, 255, 255, 0.1)));
@@ -488,7 +488,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         font-size: var(--font-size-base, 14px);
       }
     }
-    @keyframes bitfunWidgetFadeIn {
+    @keyframes voidWidgetFadeIn {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
@@ -507,7 +507,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
 
       function send(type, payload) {
         parent.postMessage({
-          source: 'bitfun-widget',
+          source: 'void-widget',
           type: type,
           widgetId: currentWidgetId,
           payload: payload
@@ -531,7 +531,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
 
       function clearPromptTargetSelection() {
         if (!selectedPromptTarget) return;
-        selectedPromptTarget.removeAttribute('data-bitfun-prompt-selected');
+        selectedPromptTarget.removeAttribute('data-void-prompt-selected');
         selectedPromptTarget = null;
       }
 
@@ -543,7 +543,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         if (selectedPromptTarget === element) return;
         clearPromptTargetSelection();
         selectedPromptTarget = element;
-        selectedPromptTarget.setAttribute('data-bitfun-prompt-selected', 'true');
+        selectedPromptTarget.setAttribute('data-void-prompt-selected', 'true');
       }
 
       function findPromptTarget(target) {
@@ -551,7 +551,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         while (node && node !== document.body) {
           if (
             node.hasAttribute('data-file-path') ||
-            node.hasAttribute('data-bitfun-open-file') ||
+            node.hasAttribute('data-void-open-file') ||
             node.hasAttribute('data-prompt-target') ||
             node.hasAttribute('data-section-title')
           ) {
@@ -648,8 +648,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         resizeFrame = window.requestAnimationFrame(function () {
           resizeFrame = null;
           sendMessage({
-            source: 'bitfun-widget',
-            type: 'bitfun-widget:resize',
+            source: 'void-widget',
+            type: 'void-widget:resize',
             widgetId: currentWidgetId,
             height: measureHeight()
           });
@@ -697,7 +697,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
                 node.tagName !== 'SCRIPT' &&
                 node.tagName !== 'STYLE'
               ) {
-                node.style.animation = 'bitfunWidgetFadeIn 0.18s ease both';
+                node.style.animation = 'voidWidgetFadeIn 0.18s ease both';
               }
               return node;
             }
@@ -734,16 +734,16 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
 
       var bridge = {
         send: function (data) {
-          send('bitfun-widget:event', data);
+          send('void-widget:event', data);
         }
       };
 
-      window.bitfunWidget = bridge;
+      window.voidWidget = bridge;
       window.glimpse = bridge;
       window.sendPrompt = function (text) {
         parent.postMessage({
-          source: 'bitfun-widget',
-          type: 'bitfun-widget:prompt',
+          source: 'void-widget',
+          type: 'void-widget:prompt',
           widgetId: currentWidgetId,
           text: String(text || '')
         }, '*');
@@ -751,9 +751,9 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
 
       document.addEventListener('click', function (event) {
         var target = event.target;
-        var fileTarget = target && target.closest ? target.closest('[data-file-path], [data-bitfun-open-file]') : null;
+        var fileTarget = target && target.closest ? target.closest('[data-file-path], [data-void-open-file]') : null;
         if (fileTarget) {
-          var filePath = fileTarget.getAttribute('data-file-path') || fileTarget.getAttribute('data-bitfun-open-file') || '';
+          var filePath = fileTarget.getAttribute('data-file-path') || fileTarget.getAttribute('data-void-open-file') || '';
           if (filePath) {
             var lineValue = Number(fileTarget.getAttribute('data-line') || '');
             var columnValue = Number(fileTarget.getAttribute('data-column') || '');
@@ -761,8 +761,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
             event.preventDefault();
             event.stopPropagation();
             sendMessage({
-              source: 'bitfun-widget',
-              type: 'bitfun-widget:open-file',
+              source: 'void-widget',
+              type: 'void-widget:open-file',
               widgetId: currentWidgetId,
               filePath: filePath,
               line: Number.isFinite(lineValue) && lineValue > 0 ? lineValue : undefined,
@@ -789,8 +789,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         if (selectedPromptTarget.contains && selectedPromptTarget.contains(target)) return;
         clearPromptTargetSelection();
         sendMessage({
-          source: 'bitfun-widget',
-          type: 'bitfun-widget:selection-cleared',
+          source: 'void-widget',
+          type: 'void-widget:selection-cleared',
           widgetId: currentWidgetId
         });
       }, true);
@@ -807,7 +807,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
 
         var filePath = normalizeSpace(
           promptTarget && promptTarget.getAttribute
-            ? promptTarget.getAttribute('data-file-path') || promptTarget.getAttribute('data-bitfun-open-file')
+            ? promptTarget.getAttribute('data-file-path') || promptTarget.getAttribute('data-void-open-file')
             : ''
         );
         var lineValue = Number(
@@ -817,8 +817,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
         event.preventDefault();
         event.stopPropagation();
         sendMessage({
-          source: 'bitfun-widget',
-          type: 'bitfun-widget:context-menu',
+          source: 'void-widget',
+          type: 'void-widget:context-menu',
           widgetId: currentWidgetId,
           clientX: Number(event.clientX) || 0,
           clientY: Number(event.clientY) || 0,
@@ -832,13 +832,13 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       window.addEventListener('message', function (event) {
         var data = event.data;
         if (!data) return;
-        if (data.type === 'bitfun-widget:clear-selection') {
+        if (data.type === 'void-widget:clear-selection') {
           if (!data.widgetId || data.widgetId === currentWidgetId) {
             clearPromptTargetSelection();
           }
           return;
         }
-        if (data.type !== 'bitfun-widget:update') return;
+        if (data.type !== 'void-widget:update') return;
         currentWidgetId = data.widgetId || currentWidgetId || '';
         applyTheme(data.theme);
         setContent(String(data.html || ''), Boolean(data.runScripts));
@@ -855,8 +855,8 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       }
 
       sendMessage({
-        source: 'bitfun-widget',
-        type: 'bitfun-widget:ready',
+        source: 'void-widget',
+        type: 'void-widget:ready',
         widgetId: currentWidgetId
       });
       scheduleResize();
@@ -889,10 +889,10 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
     const handleMessage = (event: MessageEvent<WidgetMessage>) => {
       const data = event.data;
       if (event.source !== iframeRef.current?.contentWindow) return;
-      if (!data || data.source !== 'bitfun-widget') return;
+      if (!data || data.source !== 'void-widget') return;
       if (data.widgetId && data.widgetId !== widgetId) return;
 
-      if (data.type === 'bitfun-widget:resize') {
+      if (data.type === 'void-widget:resize') {
         const nextHeight = Math.max(120, Math.ceil(Number(data.height) || 0));
         setFrameHeight((prev) => {
           if (Math.abs(prev - nextHeight) <= 1) return prev;
@@ -902,7 +902,7 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
         return;
       }
 
-      if (data.type === 'bitfun-widget:context-menu') {
+      if (data.type === 'void-widget:context-menu') {
         const iframeRect = iframeRef.current?.getBoundingClientRect();
         onWidgetEvent?.({
           ...data,
@@ -941,7 +941,7 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
 
     iframeRef.current.contentWindow.postMessage(
       {
-        type: 'bitfun-widget:update',
+        type: 'void-widget:update',
         widgetId,
         title,
         html: normalizedCode,
@@ -963,7 +963,7 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
 
     iframeRef.current.contentWindow.postMessage(
       {
-        type: 'bitfun-widget:clear-selection',
+        type: 'void-widget:clear-selection',
         widgetId,
       },
       '*',
@@ -972,13 +972,13 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
 
   return (
     <div
-      className={`bitfun-generative-widget-frame ${className}`.trim()}
+      className={`void-generative-widget-frame ${className}`.trim()}
       style={{ height: `${frameHeight}px` }}
     >
       <iframe
         ref={iframeRef}
         title={title || 'Generative widget'}
-        className="bitfun-generative-widget-frame__iframe"
+        className="void-generative-widget-frame__iframe"
         style={{ width: '100%', minWidth: '100%' }}
         sandbox="allow-scripts allow-forms allow-modals allow-popups"
         srcDoc={GENERATIVE_WIDGET_SHELL_HTML}

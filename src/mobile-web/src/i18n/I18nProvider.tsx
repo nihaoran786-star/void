@@ -17,7 +17,7 @@ interface I18nContextValue {
   t: (key: string, params?: TranslateParams) => string;
 }
 
-const STORAGE_KEY = 'bitfun-mobile-language';
+const STORAGE_KEY = 'void-mobile-language';
 
 function getByPath(source: unknown, path: string): string | null {
   const segments = path.split('.');

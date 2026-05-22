@@ -4,7 +4,7 @@
  */
 
 import * as monaco from 'monaco-editor';
-import { BitFunDarkTheme, BitFunDarkThemeMetadata } from '../themes/bitfun-dark.theme';
+import { VoidDarkTheme, VoidDarkThemeMetadata } from '../themes/void-dark.theme';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('ThemeManager');
@@ -20,7 +20,7 @@ class ThemeManager {
   private static instance: ThemeManager;
   
   private registeredThemes = new Set<string>();
-  private currentThemeId: string = BitFunDarkThemeMetadata.id;
+  private currentThemeId: string = VoidDarkThemeMetadata.id;
   private listeners: ThemeChangeListener[] = [];
   private initialized = false;
   
@@ -41,7 +41,7 @@ class ThemeManager {
       return;
     }
     
-    this.registerTheme(BitFunDarkThemeMetadata.id, BitFunDarkTheme);
+    this.registerTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
     this.syncWithThemeService();
     
     this.initialized = true;
@@ -107,7 +107,7 @@ class ThemeManager {
   }
   
   public getDefaultThemeId(): string {
-    return BitFunDarkThemeMetadata.id;
+    return VoidDarkThemeMetadata.id;
   }
   
   public isThemeRegistered(id: string): boolean {

@@ -85,38 +85,38 @@ const GitScene: React.FC<GitSceneProps> = ({
   }, [activeView, isActive, workspacePath]);
 
   if (!isActive) {
-    return <div className="bitfun-git-scene" aria-hidden="true" />;
+    return <div className="void-git-scene" aria-hidden="true" />;
   }
 
   if (!repoLoading && !isRepository) {
     return (
-      <div className="bitfun-git-scene bitfun-git-scene--not-repository">
-        <div className="bitfun-git-scene__content">
-          <div className="bitfun-git-scene__init-container">
-            <div className="bitfun-git-scene__init-decoration">
-              <div className="bitfun-git-scene__init-line bitfun-git-scene__init-line--dashed" />
-              <div className="bitfun-git-scene__init-dot" />
-              <div className="bitfun-git-scene__init-line bitfun-git-scene__init-line--solid" />
+      <div className="void-git-scene void-git-scene--not-repository">
+        <div className="void-git-scene__content">
+          <div className="void-git-scene__init-container">
+            <div className="void-git-scene__init-decoration">
+              <div className="void-git-scene__init-line void-git-scene__init-line--dashed" />
+              <div className="void-git-scene__init-dot" />
+              <div className="void-git-scene__init-line void-git-scene__init-line--solid" />
             </div>
-            <div className="bitfun-git-scene__init-card">
-              <div className="bitfun-git-scene__init-icon">
+            <div className="void-git-scene__init-card">
+              <div className="void-git-scene__init-icon">
                 <GitBranch size={24} />
               </div>
-              <div className="bitfun-git-scene__init-text">
+              <div className="void-git-scene__init-text">
                 <h3>{t('init.title')}</h3>
                 <p>{t('init.notRepository')}</p>
               </div>
-              <button type="button" className="bitfun-git-scene__init-button" onClick={handleInitGitRepository}>
+              <button type="button" className="void-git-scene__init-button" onClick={handleInitGitRepository}>
                 <Plus size={14} />
                 <span>{t('init.initButton')}</span>
               </button>
             </div>
-            <div className="bitfun-git-scene__init-decoration">
-              <div className="bitfun-git-scene__init-line bitfun-git-scene__init-line--solid" />
-              <div className="bitfun-git-scene__init-dot bitfun-git-scene__init-dot--muted" />
-              <div className="bitfun-git-scene__init-line bitfun-git-scene__init-line--dashed" />
+            <div className="void-git-scene__init-decoration">
+              <div className="void-git-scene__init-line void-git-scene__init-line--solid" />
+              <div className="void-git-scene__init-dot void-git-scene__init-dot--muted" />
+              <div className="void-git-scene__init-line void-git-scene__init-line--dashed" />
             </div>
-            <div className="bitfun-git-scene__init-hint">
+            <div className="void-git-scene__init-hint">
               <span>{t('init.hint')}</span>
             </div>
           </div>
@@ -127,23 +127,23 @@ const GitScene: React.FC<GitSceneProps> = ({
 
   if ((repoLoading || statusLoading) && !forceReset) {
     return (
-      <div className="bitfun-git-scene bitfun-git-scene--loading">
-        <div className="bitfun-git-scene__content">
-          <div className="bitfun-git-scene__loading-actions">
+      <div className="void-git-scene void-git-scene--loading">
+        <div className="void-git-scene__content">
+          <div className="void-git-scene__loading-actions">
             <IconButton size="xs" variant="ghost" onClick={() => { setForceReset(true); setTimeout(() => { setForceReset(false); handleRefresh(); }, 100); }} tooltip={t('actions.forceRefresh')}>
               <RefreshCw size={14} />
             </IconButton>
           </div>
-          <div className="bitfun-git-scene__loading-state">
+          <div className="void-git-scene__loading-state">
             <CubeLoading size="medium" text={t('loading.text')} />
-            <p className="bitfun-git-scene__loading-hint">{t('loading.hint')}</p>
+            <p className="void-git-scene__loading-hint">{t('loading.hint')}</p>
           </div>
         </div>
       </div>
     );
   }
 
-  return <div className="bitfun-git-scene" data-shortcut-scope="git">{renderView()}</div>;
+  return <div className="void-git-scene" data-shortcut-scope="git">{renderView()}</div>;
 };
 
 export default GitScene;

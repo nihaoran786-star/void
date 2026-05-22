@@ -6,8 +6,8 @@ export interface ProviderUrlCatalogItem {
 
 export const PROVIDER_URL_CATALOG: ProviderUrlCatalogItem[] = [
   {
-    id: 'openbitfun',
-    baseUrl: 'https://api.openbitfun.com',
+    id: 'openvoid',
+    baseUrl: 'https://api.openvoid.com',
   },
   {
     id: 'gemini',

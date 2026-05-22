@@ -4,9 +4,9 @@
 
 @use '../../../component-library/styles/tokens.scss' as *;
 
-.bitfun-nav-bar {
-  --bitfun-topbar-control-size: 28px;
-  --bitfun-topbar-control-radius: #{$size-radius-sm};
+.void-nav-bar {
+  --void-topbar-control-size: 28px;
+  --void-topbar-control-radius: #{$size-radius-sm};
 
   display: flex;
   align-items: center;
@@ -41,11 +41,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: var(--bitfun-topbar-control-size);
-    height: var(--bitfun-topbar-control-size);
+    width: var(--void-topbar-control-size);
+    height: var(--void-topbar-control-size);
     padding: 0;
     border: none;
-    border-radius: var(--bitfun-topbar-control-radius);
+    border-radius: var(--void-topbar-control-radius);
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
@@ -73,11 +73,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--bitfun-topbar-control-size);
-    height: var(--bitfun-topbar-control-size);
+    width: var(--void-topbar-control-size);
+    height: var(--void-topbar-control-size);
     padding: 0;
     border: none;
-    border-radius: var(--bitfun-topbar-control-radius);
+    border-radius: var(--void-topbar-control-radius);
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
@@ -103,8 +103,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-nav-bar__btn,
-  .bitfun-nav-bar__panel-toggle {
+  .void-nav-bar__btn,
+  .void-nav-bar__panel-toggle {
     transition: none;
   }
 }

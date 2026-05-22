@@ -30,9 +30,9 @@ If a change affects shared product behavior across runtimes, the implementation 
 ```bash
 pnpm run desktop:dev
 pnpm run desktop:preview:debug
-cargo check -p bitfun-desktop
-cargo test -p bitfun-desktop
-cargo build -p bitfun-desktop
+cargo check -p void-desktop
+cargo test -p void-desktop
+cargo build -p void-desktop
 pnpm run desktop:build:fast
 ```
 
@@ -58,11 +58,11 @@ The `devtools` Cargo feature exists for debugging UI/UX in the desktop app. When
 ## Verification
 
 ```bash
-cargo check -p bitfun-desktop && cargo test -p bitfun-desktop
+cargo check -p void-desktop && cargo test -p void-desktop
 ```
 
 If the change affects startup, WebDriver, browser/computer-use, or packaged behavior, also run:
 
 ```bash
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 ```

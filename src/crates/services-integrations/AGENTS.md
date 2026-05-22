@@ -2,12 +2,12 @@
 
 Scope: this guide applies to `src/crates/services-integrations`.
 
-`bitfun-services-integrations` owns reviewed integration contracts and runtime
+`void-services-integrations` owns reviewed integration contracts and runtime
 slices that are outside pure product logic but still platform-neutral.
 
 ## Guardrails
 
-- Do not depend on `bitfun-core`, app crates, desktop adapters, CLI UI, or web
+- Do not depend on `void-core`, app crates, desktop adapters, CLI UI, or web
   presentation code.
 - Keep integration families behind explicit features. The default feature set
   should not compile heavy Git, MCP, SSH, network, or file-watch runtimes.
@@ -31,7 +31,7 @@ slices that are outside pure product logic but still platform-neutral.
 ## Verification
 
 ```bash
-cargo test -p bitfun-services-integrations
+cargo test -p void-services-integrations
 node scripts/check-core-boundaries.mjs
-cargo check -p bitfun-core --features product-full
+cargo check -p void-core --features product-full
 ```

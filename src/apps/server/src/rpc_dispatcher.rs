@@ -6,13 +6,13 @@
 
 use crate::bootstrap::ServerAppState;
 use anyhow::{Result, anyhow};
-use bitfun_core::agentic::agents::SubAgentSource;
-use bitfun_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
-use bitfun_core::agentic::core::SessionConfig;
-use bitfun_core::agentic::deep_review_policy::{
+use void_core::agentic::agents::SubAgentSource;
+use void_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
+use void_core::agentic::core::SessionConfig;
+use void_core::agentic::deep_review_policy::{
     DeepReviewQueueControlAction, apply_deep_review_queue_control,
 };
-use bitfun_core::service::i18n::{LocaleId, LocaleMetadata, sync_global_i18n_service_locale};
+use void_core::service::i18n::{LocaleId, LocaleMetadata, sync_global_i18n_service_locale};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -295,7 +295,7 @@ pub async fn dispatch(
                         .map_err(|e| anyhow!("Failed to update model configuration: {}", e))?;
                 }
 
-                if let Err(e) = bitfun_core::service::config::reload_global_config().await {
+                if let Err(e) = void_core::service::config::reload_global_config().await {
                     log::warn!(
                         "Failed to reload global config after server subagent config update: subagent_id={}, error={}",
                         subagent_id,

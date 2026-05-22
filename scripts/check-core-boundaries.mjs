@@ -31,17 +31,17 @@ const lightweightBoundaryRules = [
     crateName: 'core-types',
     reason: 'core-types must stay low-level DTO-only',
     forbiddenDeps: [
-      'bitfun-core',
-      'bitfun-events',
-      'bitfun-ai-adapters',
-      'bitfun-agent-stream',
-      'bitfun-runtime-ports',
-      'bitfun-services-core',
-      'bitfun-services-integrations',
-      'bitfun-agent-tools',
-      'bitfun-tool-packs',
-      'bitfun-product-domains',
-      'bitfun-transport',
+      'void-core',
+      'void-events',
+      'void-ai-adapters',
+      'void-agent-stream',
+      'void-runtime-ports',
+      'void-services-core',
+      'void-services-integrations',
+      'void-agent-tools',
+      'void-tool-packs',
+      'void-product-domains',
+      'void-transport',
       'terminal-core',
       'tool-runtime',
       'tauri',
@@ -50,7 +50,7 @@ const lightweightBoundaryRules = [
       'rmcp',
       'image',
       'tokio-tungstenite',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -61,14 +61,14 @@ const lightweightBoundaryRules = [
     crateName: 'runtime-ports',
     reason: 'runtime-ports must stay DTO/trait-only',
     forbiddenDeps: [
-      'bitfun-core',
-      'bitfun-agent-stream',
-      'bitfun-services-core',
-      'bitfun-services-integrations',
-      'bitfun-agent-tools',
-      'bitfun-tool-packs',
-      'bitfun-product-domains',
-      'bitfun-transport',
+      'void-core',
+      'void-agent-stream',
+      'void-services-core',
+      'void-services-integrations',
+      'void-agent-tools',
+      'void-tool-packs',
+      'void-product-domains',
+      'void-transport',
       'terminal-core',
       'tool-runtime',
       'tauri',
@@ -77,7 +77,7 @@ const lightweightBoundaryRules = [
       'rmcp',
       'image',
       'tokio-tungstenite',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -88,13 +88,13 @@ const lightweightBoundaryRules = [
     crateName: 'agent-tools',
     reason: 'agent-tools must not depend on concrete service or product runtime implementations',
     forbiddenDeps: [
-      'bitfun-core',
-      'bitfun-ai-adapters',
-      'bitfun-services-core',
-      'bitfun-services-integrations',
-      'bitfun-tool-packs',
-      'bitfun-product-domains',
-      'bitfun-transport',
+      'void-core',
+      'void-ai-adapters',
+      'void-services-core',
+      'void-services-integrations',
+      'void-tool-packs',
+      'void-product-domains',
+      'void-transport',
       'terminal-core',
       'tool-runtime',
       'tauri',
@@ -102,7 +102,7 @@ const lightweightBoundaryRules = [
       'git2',
       'rmcp',
       'tokio-tungstenite',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -116,13 +116,13 @@ const dependencyProfileRules = [
     crateName: 'core',
     profileName: 'no-default runtime-surface-light profile',
     reason:
-      'bitfun-core no-default profile must not force product/runtime integration dependencies',
+      'void-core no-default profile must not force product/runtime integration dependencies',
     forbiddenNonOptionalDeps: [
       'aes',
       'aes-gcm',
-      'bitfun-product-domains',
-      'bitfun-relay-server',
-      'bitfun-tool-packs',
+      'void-product-domains',
+      'void-relay-server',
+      'void-tool-packs',
       'chrono-tz',
       'cron',
       'dashmap',
@@ -160,17 +160,17 @@ const dependencyProfileRules = [
     profileName: 'default DTO profile',
     reason: 'core-types default profile must stay DTO-only',
     forbiddenNonOptionalDeps: [
-      'bitfun-core',
-      'bitfun-events',
-      'bitfun-ai-adapters',
-      'bitfun-agent-stream',
-      'bitfun-runtime-ports',
-      'bitfun-services-core',
-      'bitfun-services-integrations',
-      'bitfun-agent-tools',
-      'bitfun-tool-packs',
-      'bitfun-product-domains',
-      'bitfun-transport',
+      'void-core',
+      'void-events',
+      'void-ai-adapters',
+      'void-agent-stream',
+      'void-runtime-ports',
+      'void-services-core',
+      'void-services-integrations',
+      'void-agent-tools',
+      'void-tool-packs',
+      'void-product-domains',
+      'void-transport',
       'terminal-core',
       'tool-runtime',
       'tauri',
@@ -179,7 +179,7 @@ const dependencyProfileRules = [
       'rmcp',
       'image',
       'tokio-tungstenite',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -191,15 +191,15 @@ const dependencyProfileRules = [
     profileName: 'default ports profile',
     reason: 'runtime-ports default profile must stay trait/DTO-only',
     forbiddenNonOptionalDeps: [
-      'bitfun-core',
-      'bitfun-ai-adapters',
-      'bitfun-agent-stream',
-      'bitfun-services-core',
-      'bitfun-services-integrations',
-      'bitfun-agent-tools',
-      'bitfun-tool-packs',
-      'bitfun-product-domains',
-      'bitfun-transport',
+      'void-core',
+      'void-ai-adapters',
+      'void-agent-stream',
+      'void-services-core',
+      'void-services-integrations',
+      'void-agent-tools',
+      'void-tool-packs',
+      'void-product-domains',
+      'void-transport',
       'terminal-core',
       'tool-runtime',
       'tauri',
@@ -208,7 +208,7 @@ const dependencyProfileRules = [
       'rmcp',
       'image',
       'tokio-tungstenite',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -220,14 +220,14 @@ const dependencyProfileRules = [
     profileName: 'tool contract-only profile',
     reason: 'agent-tools must stay a lightweight tool contract crate',
     forbiddenNonOptionalDeps: [
-      'bitfun-ai-adapters',
+      'void-ai-adapters',
       'reqwest',
       'git2',
       'rmcp',
       'image',
       'tokio-tungstenite',
       'tauri',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -246,7 +246,7 @@ const dependencyProfileRules = [
       'image',
       'tokio-tungstenite',
       'tauri',
-      'bitfun-cli',
+      'void-cli',
       'ratatui',
       'crossterm',
       'arboard',
@@ -262,8 +262,8 @@ const dependencyProfileRules = [
       'anyhow',
       'async-trait',
       'base64',
-      'bitfun-runtime-ports',
-      'bitfun-services-core',
+      'void-runtime-ports',
+      'void-services-core',
       'chrono',
       'dunce',
       'futures',
@@ -277,7 +277,7 @@ const dependencyProfileRules = [
       'thiserror',
       'tokio-util',
       'tokio-tungstenite',
-      'bitfun-relay-server',
+      'void-relay-server',
     ],
   },
 ];
@@ -286,13 +286,13 @@ const optionalDependencyFeatureOwnerRules = [
   {
     crateName: 'core',
     reason:
-      'bitfun-core product/runtime optional dependencies must stay owned by explicit feature gates',
+      'void-core product/runtime optional dependencies must stay owned by explicit feature gates',
     dependencies: [
       { depName: 'aes', ownerFeatures: ['service-integrations'] },
       { depName: 'aes-gcm', ownerFeatures: ['service-integrations', 'ssh-remote'] },
-      { depName: 'bitfun-product-domains', ownerFeatures: ['product-domains'] },
-      { depName: 'bitfun-relay-server', ownerFeatures: ['service-integrations'] },
-      { depName: 'bitfun-tool-packs', ownerFeatures: ['tool-packs'] },
+      { depName: 'void-product-domains', ownerFeatures: ['product-domains'] },
+      { depName: 'void-relay-server', ownerFeatures: ['service-integrations'] },
+      { depName: 'void-tool-packs', ownerFeatures: ['tool-packs'] },
       { depName: 'chrono-tz', ownerFeatures: ['product-full'] },
       { depName: 'cron', ownerFeatures: ['product-full'] },
       { depName: 'dashmap', ownerFeatures: ['product-full'] },
@@ -330,21 +330,21 @@ const optionalDependencyFeatureOwnerRules = [
 const productCoreFeatureAssemblyRules = [
   {
     manifestPath: 'src/apps/desktop/Cargo.toml',
-    dependencyName: 'bitfun-core',
+    dependencyName: 'void-core',
     requiredFeatures: ['product-full'],
-    reason: 'desktop must explicitly assemble the full bitfun-core product runtime',
+    reason: 'desktop must explicitly assemble the full void-core product runtime',
   },
   {
     manifestPath: 'src/apps/cli/Cargo.toml',
-    dependencyName: 'bitfun-core',
+    dependencyName: 'void-core',
     requiredFeatures: ['product-full'],
-    reason: 'CLI must explicitly assemble the full bitfun-core product runtime',
+    reason: 'CLI must explicitly assemble the full void-core product runtime',
   },
   {
     manifestPath: 'src/crates/acp/Cargo.toml',
-    dependencyName: 'bitfun-core',
+    dependencyName: 'void-core',
     requiredFeatures: ['product-full'],
-    reason: 'ACP must explicitly assemble the full bitfun-core product runtime',
+    reason: 'ACP must explicitly assemble the full void-core product runtime',
   },
 ];
 
@@ -387,77 +387,77 @@ const ownerCrateFeatureAssemblyRules = [
 const facadeOnlyFiles = [
   {
     path: 'src/crates/core/src/service/git/git_service.rs',
-    importPrefix: 'bitfun_services_integrations::git',
+    importPrefix: 'void_services_integrations::git',
     reason: 'core git service facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/git/git_types.rs',
-    importPrefix: 'bitfun_services_integrations::git',
+    importPrefix: 'void_services_integrations::git',
     reason: 'core git types facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/git/git_utils.rs',
-    importPrefix: 'bitfun_services_integrations::git',
+    importPrefix: 'void_services_integrations::git',
     reason: 'core git utils facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/git/graph.rs',
-    importPrefix: 'bitfun_services_integrations::git',
+    importPrefix: 'void_services_integrations::git',
     reason: 'core git graph facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/remote_ssh/types.rs',
-    importPrefix: 'bitfun_services_integrations::remote_ssh',
+    importPrefix: 'void_services_integrations::remote_ssh',
     reason: 'core remote SSH types facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/tool_info.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP tool info facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/tool_name.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP tool name facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/protocol/types.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP protocol types facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/protocol/transport.rs',
-    importPrefix: 'bitfun_services_integrations::mcp::protocol',
+    importPrefix: 'void_services_integrations::mcp::protocol',
     reason: 'core MCP stdio transport facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/protocol/transport_remote.rs',
-    importPrefix: 'bitfun_services_integrations::mcp::protocol',
+    importPrefix: 'void_services_integrations::mcp::protocol',
     reason: 'core MCP remote transport facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/server/connection.rs',
-    importPrefix: 'bitfun_services_integrations::mcp::server',
+    importPrefix: 'void_services_integrations::mcp::server',
     reason: 'core MCP connection facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/config/location.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP config location facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/adapter/resource.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP resource adapter facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/mcp/adapter/prompt.rs',
-    importPrefix: 'bitfun_services_integrations::mcp',
+    importPrefix: 'void_services_integrations::mcp',
     reason: 'core MCP prompt adapter facade must only re-export the integrations owner crate',
   },
   {
     path: 'src/crates/core/src/service/announcement/types.rs',
-    importPrefix: 'bitfun_services_integrations::announcement',
+    importPrefix: 'void_services_integrations::announcement',
     reason: 'core announcement types facade must only re-export the integrations owner crate',
   },
 ];
@@ -468,31 +468,31 @@ const forbiddenContentRules = [
     patterns: [
       {
         regex: /\bpub struct DynamicMcpToolInfo\b/,
-        message: 'core tool framework must not redefine DynamicMcpToolInfo; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine DynamicMcpToolInfo; use void-agent-tools',
       },
       {
         regex: /\bpub struct DynamicToolInfo\b/,
-        message: 'core tool framework must not redefine DynamicToolInfo; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine DynamicToolInfo; use void-agent-tools',
       },
       {
         regex: /\bpub struct ToolRenderOptions\b/,
-        message: 'core tool framework must not redefine ToolRenderOptions; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine ToolRenderOptions; use void-agent-tools',
       },
       {
         regex: /\bpub enum ToolPathBackend\b/,
-        message: 'core tool framework must not redefine ToolPathBackend; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine ToolPathBackend; use void-agent-tools',
       },
       {
         regex: /\bpub struct ToolPathResolution\b/,
-        message: 'core tool framework must not redefine ToolPathResolution; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine ToolPathResolution; use void-agent-tools',
       },
       {
         regex: /\bpub struct ToolContextFacts\b/,
-        message: 'core tool framework must not redefine ToolContextFacts; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine ToolContextFacts; use void-agent-tools',
       },
       {
         regex: /\bpub enum ToolWorkspaceKind\b/,
-        message: 'core tool framework must not redefine ToolWorkspaceKind; use bitfun-agent-tools',
+        message: 'core tool framework must not redefine ToolWorkspaceKind; use void-agent-tools',
       },
       {
         regex: /\bget_global_coordinator\b/,
@@ -531,21 +531,21 @@ const forbiddenContentRules = [
     patterns: [
       {
         regex: /\bpub enum ToolPathOperation\b/,
-        message: 'core tool restrictions must not redefine ToolPathOperation; use bitfun-agent-tools',
+        message: 'core tool restrictions must not redefine ToolPathOperation; use void-agent-tools',
       },
       {
         regex: /\bpub struct ToolPathPolicy\b/,
-        message: 'core tool restrictions must not redefine ToolPathPolicy; use bitfun-agent-tools',
+        message: 'core tool restrictions must not redefine ToolPathPolicy; use void-agent-tools',
       },
       {
         regex: /\bpub struct ToolRuntimeRestrictions\b/,
         message:
-          'core tool restrictions must not redefine ToolRuntimeRestrictions; use bitfun-agent-tools',
+          'core tool restrictions must not redefine ToolRuntimeRestrictions; use void-agent-tools',
       },
       {
         regex: /\bfn\s+normalize_absolute_posix_path\b/,
         message:
-          'core tool restrictions must not redefine remote POSIX path normalization; use bitfun-agent-tools',
+          'core tool restrictions must not redefine remote POSIX path normalization; use void-agent-tools',
       },
     ],
   },
@@ -553,24 +553,24 @@ const forbiddenContentRules = [
     path: 'src/crates/core/src/agentic/tools/workspace_paths.rs',
     patterns: [
       {
-        regex: /\bpub const BITFUN_RUNTIME_URI_PREFIX\b/,
+        regex: /\bpub const VOID_RUNTIME_URI_PREFIX\b/,
         message:
-          'core workspace path facade must not redefine the runtime URI prefix; use bitfun-agent-tools',
+          'core workspace path facade must not redefine the runtime URI prefix; use void-agent-tools',
       },
       {
-        regex: /\bpub struct ParsedBitFunRuntimeUri\b/,
+        regex: /\bpub struct ParsedVoidRuntimeUri\b/,
         message:
-          'core workspace path facade must not redefine ParsedBitFunRuntimeUri; use bitfun-agent-tools',
+          'core workspace path facade must not redefine ParsedVoidRuntimeUri; use void-agent-tools',
       },
       {
         regex: /\bfn\s+posix_normalize_components\b/,
         message:
-          'core workspace path facade must not redefine remote POSIX path normalization; use bitfun-agent-tools',
+          'core workspace path facade must not redefine remote POSIX path normalization; use void-agent-tools',
       },
       {
         regex: /Component::ParentDir/,
         message:
-          'core workspace path facade must not redefine host path normalization; use bitfun-agent-tools',
+          'core workspace path facade must not redefine host path normalization; use void-agent-tools',
       },
     ],
   },
@@ -580,17 +580,17 @@ const forbiddenContentRules = [
       {
         regex: /\bstruct DynamicToolMetadata\b/,
         message:
-          'core tool registry must not own dynamic tool metadata storage; use bitfun-agent-tools ToolRegistry',
+          'core tool registry must not own dynamic tool metadata storage; use void-agent-tools ToolRegistry',
       },
       {
         regex: /\btools\s*:\s*IndexMap\b/,
         message:
-          'core tool registry must not own the generic tool map; use bitfun-agent-tools ToolRegistry',
+          'core tool registry must not own the generic tool map; use void-agent-tools ToolRegistry',
       },
       {
         regex: /\bdynamic_tools\s*:\s*IndexMap\b/,
         message:
-          'core tool registry must not own the dynamic tool map; use bitfun-agent-tools ToolRegistry',
+          'core tool registry must not own the dynamic tool map; use void-agent-tools ToolRegistry',
       },
     ],
   },
@@ -1354,43 +1354,43 @@ const requiredContentRules = [
   {
     path: 'src/crates/core/Cargo.toml',
     reason:
-      'bitfun-core product-full must explicitly aggregate owner crate feature groups instead of forcing them through dependency declarations',
+      'void-core product-full must explicitly aggregate owner crate feature groups instead of forcing them through dependency declarations',
     patterns: [
       {
         regex:
-          /bitfun-tool-packs = \{ path = "\.\.\/tool-packs", default-features = false, optional = true \}/,
-        message: 'bitfun-tool-packs dependency must stay optional and not force product-full outside the core feature graph',
+          /void-tool-packs = \{ path = "\.\.\/tool-packs", default-features = false, optional = true \}/,
+        message: 'void-tool-packs dependency must stay optional and not force product-full outside the core feature graph',
       },
       {
         regex:
-          /bitfun-services-integrations = \{ path = "\.\.\/services-integrations", default-features = false, features = \["remote-ssh"\] \}/,
+          /void-services-integrations = \{ path = "\.\.\/services-integrations", default-features = false, features = \["remote-ssh"\] \}/,
         message:
-          'bitfun-services-integrations dependency may keep remote workspace identity helpers but must not force product-full outside the core feature graph',
+          'void-services-integrations dependency may keep remote workspace identity helpers but must not force product-full outside the core feature graph',
       },
       {
         regex:
-          /bitfun-product-domains = \{ path = "\.\.\/product-domains", default-features = false, optional = true \}/,
+          /void-product-domains = \{ path = "\.\.\/product-domains", default-features = false, optional = true \}/,
         message:
-          'bitfun-product-domains dependency must stay optional and not force product-full outside the core feature graph',
+          'void-product-domains dependency must stay optional and not force product-full outside the core feature graph',
       },
       {
-        regex: /"dep:bitfun-tool-packs"/,
+        regex: /"dep:void-tool-packs"/,
         message: 'core tool-packs feature must explicitly enable the optional dependency',
       },
       {
-        regex: /"bitfun-tool-packs\/product-full"/,
+        regex: /"void-tool-packs\/product-full"/,
         message: 'core product-full must explicitly enable tool pack product features',
       },
       {
-        regex: /"bitfun-services-integrations\/product-full"/,
+        regex: /"void-services-integrations\/product-full"/,
         message: 'core product-full must explicitly enable integration product features',
       },
       {
-        regex: /"dep:bitfun-product-domains"/,
+        regex: /"dep:void-product-domains"/,
         message: 'core product-domains feature must explicitly enable the optional dependency',
       },
       {
-        regex: /"bitfun-product-domains\/product-full"/,
+        regex: /"void-product-domains\/product-full"/,
         message: 'core product-full must explicitly enable product-domain features',
       },
     ],
@@ -1398,7 +1398,7 @@ const requiredContentRules = [
   {
     path: 'src/crates/core/src/lib.rs',
     reason:
-      'no-default bitfun-core must keep product runtime surfaces behind explicit features',
+      'no-default void-core must keep product runtime surfaces behind explicit features',
     patterns: [
       {
         regex: /#\[cfg\(feature = "product-full"\)\]\s*pub mod agentic\b/s,
@@ -1808,19 +1808,19 @@ const requiredContentRules = [
       'core must keep current coordinator port adapters and attachment guard until remote runtime migration is reviewed',
     patterns: [
       {
-        regex: /impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator/,
+        regex: /impl void_runtime_ports::AgentSubmissionPort for ConversationCoordinator/,
         message: 'missing agent submission port adapter',
       },
       {
-        regex: /impl bitfun_runtime_ports::SessionTranscriptReader for ConversationCoordinator/,
+        regex: /impl void_runtime_ports::SessionTranscriptReader for ConversationCoordinator/,
         message: 'missing session transcript reader adapter',
       },
       {
-        regex: /impl bitfun_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator/,
+        regex: /impl void_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator/,
         message: 'missing turn cancellation port adapter',
       },
       {
-        regex: /impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator/,
+        regex: /impl void_runtime_ports::RemoteControlStatePort for ConversationCoordinator/,
         message: 'missing remote control state port adapter',
       },
       {
@@ -4182,7 +4182,7 @@ function collectProductCoreDependencyManifestPaths(manifestEntries) {
   return manifestEntries
     .filter((entry) => {
       const deps = parseManifestDependencies(entry.text.split(/\r?\n/));
-      return deps.some((dep) => dep.name === 'bitfun-core');
+      return deps.some((dep) => dep.name === 'void-core');
     })
     .map((entry) => entry.manifestPath)
     .sort();
@@ -4263,7 +4263,7 @@ function parseManifestFeatures(lines) {
 function collectKnownDependencyNames() {
   return Array.from(
     new Set([
-      'bitfun-core',
+      'void-core',
       ...lightweightBoundaryRules.flatMap((rule) => rule.forbiddenDeps),
       ...dependencyProfileRules.flatMap((rule) => rule.forbiddenNonOptionalDeps),
       ...optionalDependencyFeatureOwnerRules.flatMap((rule) =>
@@ -4276,26 +4276,26 @@ function collectKnownDependencyNames() {
 
 function runManifestParserSelfTest() {
   const positiveCases = [
-    'bitfun-core = { path = "../core" }',
-    '[dependencies.bitfun-core]',
-    '[dev-dependencies."bitfun-core"]',
-    "[target.'cfg(windows)'.dependencies.bitfun-core]",
-    "[target.'cfg(unix)'.build-dependencies.\"bitfun-core\"]",
+    'void-core = { path = "../core" }',
+    '[dependencies.void-core]',
+    '[dev-dependencies."void-core"]',
+    "[target.'cfg(windows)'.dependencies.void-core]",
+    "[target.'cfg(unix)'.build-dependencies.\"void-core\"]",
   ];
   const negativeCases = [
-    '# bitfun-core = { path = "../core" }',
+    '# void-core = { path = "../core" }',
     '[dependencies]',
-    '[workspace.dependencies.bitfun-core]',
-    '[dependencies.bitfun-core-extra]',
+    '[workspace.dependencies.void-core]',
+    '[dependencies.void-core-extra]',
   ];
 
   for (const line of positiveCases) {
-    if (!isManifestDependencyDeclaration(line, 'bitfun-core')) {
+    if (!isManifestDependencyDeclaration(line, 'void-core')) {
       throw new Error(`manifest parser missed dependency declaration: ${line}`);
     }
   }
   for (const line of negativeCases) {
-    if (isManifestDependencyDeclaration(line, 'bitfun-core')) {
+    if (isManifestDependencyDeclaration(line, 'void-core')) {
       throw new Error(`manifest parser matched non-dependency declaration: ${line}`);
     }
   }
@@ -4307,11 +4307,11 @@ function runManifestParserSelfTest() {
     'rmcp = { version = "0.12.0", default-features = false, features = [',
     '    "auth",',
     '], optional = true }',
-    'bitfun-core = { path = "../core", default-features = false, features = ["product-full"] }',
+    'void-core = { path = "../core", default-features = false, features = ["product-full"] }',
     '[dependencies.git2]',
     'workspace = true',
     'optional = true',
-    '[target.\'cfg(windows)\'.dependencies."bitfun-cli"]',
+    '[target.\'cfg(windows)\'.dependencies."void-cli"]',
     'path = "../../apps/cli"',
     '[features]',
     'image = []',
@@ -4329,10 +4329,10 @@ function runManifestParserSelfTest() {
   if (parsedByName.get('git2')?.optional !== true) {
     throw new Error('dependency profile parser must detect optional dependency tables');
   }
-  if (parsedByName.get('bitfun-cli')?.optional !== false) {
+  if (parsedByName.get('void-cli')?.optional !== false) {
     throw new Error('dependency profile parser must detect non-optional target dependency tables');
   }
-  const parsedCoreDep = parsedByName.get('bitfun-core');
+  const parsedCoreDep = parsedByName.get('void-core');
   if (!manifestDependencyDisablesDefaultFeatures(parsedCoreDep)) {
     throw new Error('dependency profile parser must detect default-features = false');
   }
@@ -4340,7 +4340,7 @@ function runManifestParserSelfTest() {
     throw new Error('dependency profile parser must detect inline dependency features');
   }
   const parsedCoreTableDeps = parseManifestDependencies([
-    '[dependencies."bitfun-core"]',
+    '[dependencies."void-core"]',
     'path = "../core"',
     'default-features = false',
     'features = [',
@@ -4348,7 +4348,7 @@ function runManifestParserSelfTest() {
     '  "ssh-remote",',
     ']',
   ]);
-  const parsedCoreTableDep = parsedCoreTableDeps.find((dep) => dep.name === 'bitfun-core');
+  const parsedCoreTableDep = parsedCoreTableDeps.find((dep) => dep.name === 'void-core');
   if (!manifestDependencyDisablesDefaultFeatures(parsedCoreTableDep)) {
     throw new Error('dependency profile parser must detect table default-features = false');
   }
@@ -4373,14 +4373,14 @@ function runManifestParserSelfTest() {
   }
   for (const rule of productCoreFeatureAssemblyRules) {
     if (!rule.requiredFeatures.includes('product-full')) {
-      throw new Error(`${rule.manifestPath} must require bitfun-core product-full`);
+      throw new Error(`${rule.manifestPath} must require void-core product-full`);
     }
   }
   const discoveredProductCoreManifests = collectProductCoreDependencyManifestPaths([
     {
       manifestPath: 'src/apps/desktop/Cargo.toml',
       text:
-        '[dependencies]\nbitfun-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }',
+        '[dependencies]\nvoid-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }',
     },
     {
       manifestPath: 'src/apps/server/Cargo.toml',
@@ -4388,11 +4388,11 @@ function runManifestParserSelfTest() {
     },
     {
       manifestPath: 'src/crates/acp/Cargo.toml',
-      text: '[dependencies."bitfun-core"]\npath = "../core"\ndefault-features = false\nfeatures = ["product-full"]',
+      text: '[dependencies."void-core"]\npath = "../core"\ndefault-features = false\nfeatures = ["product-full"]',
     },
   ]);
   if (discoveredProductCoreManifests.join(',') !== 'src/apps/desktop/Cargo.toml,src/crates/acp/Cargo.toml') {
-    throw new Error('product core dependency scanner must discover only manifests that depend on bitfun-core');
+    throw new Error('product core dependency scanner must discover only manifests that depend on void-core');
   }
   const ownerFeatureRulePaths = new Set(
     ownerCrateFeatureAssemblyRules.map((rule) => rule.manifestPath),
@@ -4437,16 +4437,16 @@ function runManifestParserSelfTest() {
     throw new Error('feature parser must detect implicit optional dependency feature references');
   }
 
-  const acceptsGitFacadeLine = createFacadeLineChecker('bitfun_services_integrations::git');
+  const acceptsGitFacadeLine = createFacadeLineChecker('void_services_integrations::git');
   const facadePositiveCases = [
     '',
     '//! Compatibility facade.',
-    'pub use bitfun_services_integrations::git::GitService;',
-    'pub use bitfun_services_integrations::git::types::*;',
-    'pub use bitfun_services_integrations::git::{',
+    'pub use void_services_integrations::git::GitService;',
+    'pub use void_services_integrations::git::types::*;',
+    'pub use void_services_integrations::git::{',
     '    build_git_graph, build_git_graph_for_branch,',
     '};',
-    'pub use bitfun_services_integrations::git::{build_git_graph, build_git_graph_for_branch};',
+    'pub use void_services_integrations::git::{build_git_graph, build_git_graph_for_branch};',
   ];
   for (const line of facadePositiveCases) {
     if (!acceptsGitFacadeLine(line)) {
@@ -4454,10 +4454,10 @@ function runManifestParserSelfTest() {
     }
   }
 
-  const rejectsGitImplementationLine = createFacadeLineChecker('bitfun_services_integrations::git');
+  const rejectsGitImplementationLine = createFacadeLineChecker('void_services_integrations::git');
   const facadeNegativeCases = [
     'pub mod service;',
-    'use bitfun_services_integrations::git::GitService;',
+    'use void_services_integrations::git::GitService;',
     'fn parse_git_status() {}',
   ];
   for (const line of facadeNegativeCases) {
@@ -4466,7 +4466,7 @@ function runManifestParserSelfTest() {
     }
   }
 
-  const cliBoundaryDeps = ['bitfun-cli', 'ratatui', 'crossterm', 'arboard', 'syntect-tui'];
+  const cliBoundaryDeps = ['void-cli', 'ratatui', 'crossterm', 'arboard', 'syntect-tui'];
   for (const rule of lightweightBoundaryRules) {
     for (const dep of cliBoundaryDeps) {
       if (!rule.forbiddenDeps.includes(dep)) {
@@ -4478,8 +4478,8 @@ function runManifestParserSelfTest() {
   }
 
   const agentToolsRule = lightweightBoundaryRules.find((rule) => rule.crateName === 'agent-tools');
-  if (!agentToolsRule?.forbiddenDeps.includes('bitfun-ai-adapters')) {
-    throw new Error('agent-tools lightweight boundary must forbid bitfun-ai-adapters');
+  if (!agentToolsRule?.forbiddenDeps.includes('void-ai-adapters')) {
+    throw new Error('agent-tools lightweight boundary must forbid void-ai-adapters');
   }
   const coreToolFrameworkRule = forbiddenContentRules.find(
     (rule) => rule.path === 'src/crates/core/src/agentic/tools/framework.rs',
@@ -4535,8 +4535,8 @@ function runManifestParserSelfTest() {
     throw new Error('missing core workspace path boundary rule');
   }
   const coreWorkspacePathContracts = [
-    'BITFUN_RUNTIME_URI_PREFIX',
-    'ParsedBitFunRuntimeUri',
+    'VOID_RUNTIME_URI_PREFIX',
+    'ParsedVoidRuntimeUri',
     'posix_normalize_components',
     'Component::ParentDir',
   ];
@@ -4575,7 +4575,7 @@ function runManifestParserSelfTest() {
     throw new Error('product-domains default profile must forbid non-optional dirs');
   }
   const coreProfile = dependencyProfileRules.find((rule) => rule.crateName === 'core');
-  for (const dep of ['git2', 'rmcp', 'image', 'tool-runtime', 'bitfun-relay-server']) {
+  for (const dep of ['git2', 'rmcp', 'image', 'tool-runtime', 'void-relay-server']) {
     if (!coreProfile?.forbiddenNonOptionalDeps.includes(dep)) {
       throw new Error(`core no-default profile must forbid non-optional ${dep}`);
     }
@@ -4583,7 +4583,7 @@ function runManifestParserSelfTest() {
   const coreOptionalOwnerRule = optionalDependencyFeatureOwnerRules.find(
     (rule) => rule.crateName === 'core',
   );
-  for (const dep of ['git2', 'rmcp', 'image', 'tool-runtime', 'bitfun-relay-server']) {
+  for (const dep of ['git2', 'rmcp', 'image', 'tool-runtime', 'void-relay-server']) {
     if (!coreOptionalOwnerRule?.dependencies.some((dependency) => dependency.depName === dep)) {
       throw new Error(`core optional dependency owner rule must cover ${dep}`);
     }
@@ -4616,13 +4616,13 @@ function runManifestParserSelfTest() {
     }
   }
   const coreTypesProfile = dependencyProfileRules.find((rule) => rule.crateName === 'core-types');
-  if (!coreTypesProfile?.forbiddenNonOptionalDeps.includes('bitfun-ai-adapters')) {
+  if (!coreTypesProfile?.forbiddenNonOptionalDeps.includes('void-ai-adapters')) {
     throw new Error('core-types dependency profile must forbid ai-adapter dependencies');
   }
   const runtimePortsProfile = dependencyProfileRules.find(
     (rule) => rule.crateName === 'runtime-ports',
   );
-  if (!runtimePortsProfile?.forbiddenNonOptionalDeps.includes('bitfun-services-core')) {
+  if (!runtimePortsProfile?.forbiddenNonOptionalDeps.includes('void-services-core')) {
     throw new Error('runtime-ports dependency profile must forbid service implementations');
   }
   const agentToolsManifestRule = forbiddenContentUnderRules.find(
@@ -5065,14 +5065,14 @@ function runManifestParserSelfTest() {
     {
       path: 'src/crates/core/Cargo.toml',
       contracts: [
-        'bitfun-tool-packs = \\{ path = "\\.\\.\\/tool-packs", default-features = false, optional = true \\}',
-        'bitfun-services-integrations = \\{ path = "\\.\\.\\/services-integrations", default-features = false, features = \\["remote-ssh"\\] \\}',
-        'bitfun-product-domains = \\{ path = "\\.\\.\\/product-domains", default-features = false, optional = true \\}',
-        'dep:bitfun-tool-packs',
-        'bitfun-tool-packs\\/product-full',
-        'bitfun-services-integrations\\/product-full',
-        'dep:bitfun-product-domains',
-        'bitfun-product-domains\\/product-full',
+        'void-tool-packs = \\{ path = "\\.\\.\\/tool-packs", default-features = false, optional = true \\}',
+        'void-services-integrations = \\{ path = "\\.\\.\\/services-integrations", default-features = false, features = \\["remote-ssh"\\] \\}',
+        'void-product-domains = \\{ path = "\\.\\.\\/product-domains", default-features = false, optional = true \\}',
+        'dep:void-tool-packs',
+        'void-tool-packs\\/product-full',
+        'void-services-integrations\\/product-full',
+        'dep:void-product-domains',
+        'void-product-domains\\/product-full',
       ],
     },
     {
@@ -5824,8 +5824,8 @@ function runManifestParserSelfTest() {
 }
 
 function checkCargoManifest(crateDir) {
-  checkForbiddenManifestDeps(crateDir, ['bitfun-core'], () => {
-    return 'extracted crate must not depend on bitfun-core';
+  checkForbiddenManifestDeps(crateDir, ['void-core'], () => {
+    return 'extracted crate must not depend on void-core';
   });
 }
 
@@ -5955,7 +5955,7 @@ function checkProductCoreFeatureAssemblyCoverage() {
         path: join(ROOT, ...manifestPath.split('/')),
         line: 1,
         message:
-          'product entry crate depends on bitfun-core but is not covered by product-full assembly rules',
+          'product entry crate depends on void-core but is not covered by product-full assembly rules',
       });
     }
   }
@@ -5969,7 +5969,7 @@ function checkCoreDefaultProductFullFeature() {
       path: manifestPath,
       line: features.get('default')?.line ?? 1,
       message:
-        'bitfun-core default feature must remain product-full until a separate product matrix review changes it',
+        'void-core default feature must remain product-full until a separate product matrix review changes it',
     });
   }
 }
@@ -6029,11 +6029,11 @@ function checkRustImports(crateDir) {
     }
     const lines = readText(path).split(/\r?\n/);
     lines.forEach((line, index) => {
-      if (/\bbitfun_core::/.test(line)) {
+      if (/\bvoid_core::/.test(line)) {
         failures.push({
           path,
           line: index + 1,
-          message: 'extracted crate must not import bitfun_core',
+          message: 'extracted crate must not import void_core',
         });
       }
     });
@@ -6198,7 +6198,7 @@ function checkForbiddenContentUnder(repoDir, patterns, reason) {
   });
 }
 
-if (process.env.BITFUN_BOUNDARY_CHECK_SELF_TEST === '1') {
+if (process.env.VOID_BOUNDARY_CHECK_SELF_TEST === '1') {
   runManifestParserSelfTest();
   console.log('Core boundary check self-test passed.');
   process.exit(0);

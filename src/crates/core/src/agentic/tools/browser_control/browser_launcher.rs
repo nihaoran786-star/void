@@ -2,7 +2,7 @@
 
 use crate::infrastructure::app_paths::get_path_manager_arc;
 use crate::util::{
-    errors::{BitFunError, BitFunResult},
+    errors::{VoidError, VoidResult},
     process_manager,
 };
 #[allow(unused_imports)]
@@ -77,7 +77,7 @@ impl BrowserLauncher {
     }
 
     /// Detect the user's default browser on the current platform.
-    pub fn detect_default_browser() -> BitFunResult<BrowserKind> {
+    pub fn detect_default_browser() -> VoidResult<BrowserKind> {
         #[cfg(target_os = "macos")]
         {
             Self::detect_default_browser_macos()
@@ -93,7 +93,7 @@ impl BrowserLauncher {
     }
 
     #[cfg(target_os = "macos")]
-    fn detect_default_browser_macos() -> BitFunResult<BrowserKind> {
+    fn detect_default_browser_macos() -> VoidResult<BrowserKind> {
         let output = silent_command("defaults")
             .args([
                 "read",
@@ -136,7 +136,7 @@ impl BrowserLauncher {
     }
 
     #[cfg(target_os = "windows")]
-    fn detect_default_browser_windows() -> BitFunResult<BrowserKind> {
+    fn detect_default_browser_windows() -> VoidResult<BrowserKind> {
         let output = silent_command("reg")
             .args([
                 "query",
@@ -162,7 +162,7 @@ impl BrowserLauncher {
     }
 
     #[cfg(target_os = "linux")]
-    fn detect_default_browser_linux() -> BitFunResult<BrowserKind> {
+    fn detect_default_browser_linux() -> VoidResult<BrowserKind> {
         let output = silent_command("xdg-settings")
             .args(["get", "default-web-browser"])
             .output()
@@ -287,7 +287,7 @@ impl BrowserLauncher {
         }
     }
 
-    pub fn resolve_browser_kind(preferred_browser: Option<&str>) -> BitFunResult<BrowserKind> {
+    pub fn resolve_browser_kind(preferred_browser: Option<&str>) -> VoidResult<BrowserKind> {
         if let Some(kind) = preferred_browser.and_then(Self::browser_kind_from_config) {
             Ok(kind)
         } else {
@@ -324,10 +324,10 @@ impl BrowserLauncher {
             .join(Self::browser_profile_slug(kind))
     }
 
-    fn ensure_managed_user_data_dir(kind: &BrowserKind) -> BitFunResult<PathBuf> {
+    fn ensure_managed_user_data_dir(kind: &BrowserKind) -> VoidResult<PathBuf> {
         let dir = Self::managed_user_data_dir(kind);
         std::fs::create_dir_all(&dir).map_err(|e| {
-            BitFunError::tool(format!(
+            VoidError::tool(format!(
                 "Failed to create browser control profile directory: {}",
                 e
             ))
@@ -507,7 +507,7 @@ impl BrowserLauncher {
 
     /// Launch the browser with the CDP debug port flag.
     /// Returns instructions if the browser is already running without CDP.
-    pub async fn launch_with_cdp(kind: &BrowserKind, port: u16) -> BitFunResult<LaunchResult> {
+    pub async fn launch_with_cdp(kind: &BrowserKind, port: u16) -> VoidResult<LaunchResult> {
         Self::launch_with_cdp_opts(kind, port, None).await
     }
 
@@ -519,7 +519,7 @@ impl BrowserLauncher {
         kind: &BrowserKind,
         port: u16,
         user_data_dir: Option<&str>,
-    ) -> BitFunResult<LaunchResult> {
+    ) -> VoidResult<LaunchResult> {
         if Self::is_cdp_available(port).await {
             info!("CDP already available on port {} for {}", port, kind);
             return Ok(LaunchResult::AlreadyConnected);
@@ -564,19 +564,19 @@ impl BrowserLauncher {
                     })
                 }
             }
-            Err(e) => Err(BitFunError::tool(format!(
+            Err(e) => Err(VoidError::tool(format!(
                 "Failed to launch {}: {}",
                 kind, e
             ))),
         }
     }
 
-    pub async fn restart_with_cdp(kind: &BrowserKind, port: u16) -> BitFunResult<LaunchResult> {
+    pub async fn restart_with_cdp(kind: &BrowserKind, port: u16) -> VoidResult<LaunchResult> {
         Self::launch_with_cdp_opts(kind, port, None).await
     }
 
     #[allow(dead_code)]
-    fn terminate_browser(kind: &BrowserKind) -> BitFunResult<()> {
+    fn terminate_browser(kind: &BrowserKind) -> VoidResult<()> {
         #[cfg(target_os = "macos")]
         {
             let app_name = match kind {
@@ -594,12 +594,12 @@ impl BrowserLauncher {
             let output = silent_command("osascript")
                 .args(["-e", &script])
                 .output()
-                .map_err(|e| BitFunError::tool(format!("Failed to quit {}: {}", kind, e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to quit {}: {}", kind, e)))?;
             if output.status.success() {
                 return Ok(());
             }
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Failed to quit {}: {}",
                 kind,
                 stderr.trim()
@@ -615,7 +615,7 @@ impl BrowserLauncher {
                 BrowserKind::Arc => &["arc.exe"],
                 BrowserKind::Chromium => &["chromium.exe", "chrome.exe"],
                 BrowserKind::Unknown(_) => {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "Unsupported browser kind for restart on Windows".to_string(),
                     ))
                 }
@@ -625,7 +625,7 @@ impl BrowserLauncher {
                     .args(["/IM", process_name, "/F"])
                     .output()
                     .map_err(|e| {
-                        BitFunError::tool(format!("Failed to terminate {}: {}", process_name, e))
+                        VoidError::tool(format!("Failed to terminate {}: {}", process_name, e))
                     })?;
                 let stdout = String::from_utf8_lossy(&output.stdout).to_ascii_lowercase();
                 let stderr = String::from_utf8_lossy(&output.stderr).to_ascii_lowercase();
@@ -637,7 +637,7 @@ impl BrowserLauncher {
                 {
                     continue;
                 }
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "Failed to terminate {}: {}{}",
                     process_name,
                     String::from_utf8_lossy(&output.stdout).trim(),
@@ -650,18 +650,18 @@ impl BrowserLauncher {
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = kind;
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "Browser restart with CDP is not supported on this platform".to_string(),
             ))
         }
     }
 
     #[allow(dead_code)]
-    async fn wait_for_browser_exit(kind: &BrowserKind, timeout: Duration) -> BitFunResult<()> {
+    async fn wait_for_browser_exit(kind: &BrowserKind, timeout: Duration) -> VoidResult<()> {
         let started = std::time::Instant::now();
         while Self::is_browser_running(kind) {
             if started.elapsed() >= timeout {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "Timed out waiting for {} to exit before restart",
                     kind
                 )));
@@ -746,7 +746,7 @@ impl BrowserLauncher {
 
     /// Create a macOS `.app` wrapper that launches the browser with CDP enabled.
     #[cfg(target_os = "macos")]
-    pub fn create_cdp_launcher_app(kind: &BrowserKind, port: u16) -> BitFunResult<String> {
+    pub fn create_cdp_launcher_app(kind: &BrowserKind, port: u16) -> VoidResult<String> {
         let app_name = format!("{} Debug", kind);
         let app_dir = format!("/Applications/{}.app", app_name);
         let macos_dir = format!("{}/Contents/MacOS", app_dir);
@@ -754,21 +754,21 @@ impl BrowserLauncher {
         let exe = Self::browser_executable(kind);
 
         std::fs::create_dir_all(&macos_dir)
-            .map_err(|e| BitFunError::tool(format!("Failed to create app bundle: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Failed to create app bundle: {}", e)))?;
 
         let script = format!(
             "#!/bin/bash\nexec \"{}\" --remote-debugging-port={} \"$@\"\n",
             exe, port
         );
         std::fs::write(&script_path, &script)
-            .map_err(|e| BitFunError::tool(format!("Failed to write launcher script: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Failed to write launcher script: {}", e)))?;
 
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&script_path, std::fs::Permissions::from_mode(0o755))
                 .map_err(|e| {
-                    BitFunError::tool(format!("Failed to set executable permission: {}", e))
+                    VoidError::tool(format!("Failed to set executable permission: {}", e))
                 })?;
         }
 
@@ -782,14 +782,14 @@ impl BrowserLauncher {
     <key>CFBundleExecutable</key>
     <string>launch</string>
     <key>CFBundleIdentifier</key>
-    <string>com.bitfun.browser-debug-launcher</string>
+    <string>com.void.browser-debug-launcher</string>
 </dict>
 </plist>"#,
             app_name
         );
 
         std::fs::write(format!("{}/Contents/Info.plist", app_dir), &plist)
-            .map_err(|e| BitFunError::tool(format!("Failed to write Info.plist: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Failed to write Info.plist: {}", e)))?;
 
         info!("Created CDP launcher app at {}", app_dir);
         Ok(app_dir)

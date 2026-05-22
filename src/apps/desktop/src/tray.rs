@@ -1,4 +1,4 @@
-//! System tray integration for BitFun Desktop.
+//! System tray integration for Void Desktop.
 //!
 //! Creates a system tray icon with a context menu. On Windows and Linux the tray
 //! icon is always visible while the process is running; on macOS the icon appears
@@ -7,8 +7,8 @@
 //! Left-click  – toggles the main window (show / hide).
 //! Right-click – opens a context menu with:
 //!   • toggle desktop Agent companion pet (persisted via `app.ai_experience`)
-//!   • "Show BitFun"
-//!   • "Quit BitFun"
+//!   • "Show Void"
+//!   • "Quit Void"
 //!
 //! The context menu is rebuilt every time the user left-clicks (for freshness),
 //! periodically, and after locale changes.
@@ -19,9 +19,9 @@ use tauri::menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
 
-use bitfun_core::service::config::app_language::get_app_language;
-use bitfun_core::service::config::types::AIExperienceConfig;
-use bitfun_core::service::i18n::LocaleId;
+use void_core::service::config::app_language::get_app_language;
+use void_core::service::config::types::AIExperienceConfig;
+use void_core::service::i18n::LocaleId;
 
 use crate::api::app_state::AppState;
 
@@ -34,20 +34,20 @@ struct TrayStrings {
 }
 
 const STRINGS_ZH_CN: TrayStrings = TrayStrings {
-    show_app: "显示 BitFun",
-    quit_app: "退出 BitFun",
+    show_app: "显示 Void",
+    quit_app: "退出 Void",
     desktop_pet: "显示桌面宠物",
 };
 
 const STRINGS_ZH_TW: TrayStrings = TrayStrings {
-    show_app: "顯示 BitFun",
-    quit_app: "退出 BitFun",
+    show_app: "顯示 Void",
+    quit_app: "退出 Void",
     desktop_pet: "顯示桌面寵物",
 };
 
 const STRINGS_EN_US: TrayStrings = TrayStrings {
-    show_app: "Show BitFun",
-    quit_app: "Quit BitFun",
+    show_app: "Show Void",
+    quit_app: "Quit Void",
     desktop_pet: "Show desktop pet",
 };
 
@@ -187,7 +187,7 @@ pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let tray = TrayIconBuilder::new()
         .icon(icon)
         .menu(&initial_menu)
-        .tooltip("BitFun")
+        .tooltip("Void")
         .on_menu_event(|app, event| {
             let id = event.id.as_ref();
             if id == "show_window" {

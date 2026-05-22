@@ -1,5 +1,5 @@
 .review-config {
-  .bitfun-config-page-section__body {
+  .void-config-page-section__body {
     gap: 0;
   }
 }
@@ -134,7 +134,7 @@
 }
 
 /* Allow Select dropdowns to overflow the section body in the members list. */
-.review-config__members-section .bitfun-config-page-section__body {
+.review-config__members-section .void-config-page-section__body {
   overflow: visible;
 }
 

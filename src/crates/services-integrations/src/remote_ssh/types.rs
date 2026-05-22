@@ -296,7 +296,7 @@ pub struct RemoteWorkspace {
     pub remote_path: String,
     #[serde(default)]
     pub connection_name: String,
-    /// SSH config `host`; used for `~/.bitfun/remote_ssh/{host}/...` session storage.
+    /// SSH config `host`; used for `~/.void/remote_ssh/{host}/...` session storage.
     #[serde(default)]
     pub ssh_host: String,
 }

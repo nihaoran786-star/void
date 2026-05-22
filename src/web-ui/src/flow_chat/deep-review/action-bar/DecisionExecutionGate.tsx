@@ -41,7 +41,7 @@ export const DecisionExecutionGate: React.FC<DecisionExecutionGateProps> = ({
           </div>
           <div className="deep-review-action-bar__decision-gate-desc">
             {t('deepReviewActionBar.decisionGate.description', {
-              defaultValue: 'Choose how each selected decision should be handled before BitFun starts editing.',
+              defaultValue: 'Choose how each selected decision should be handled before Void starts editing.',
             })}
           </div>
         </div>

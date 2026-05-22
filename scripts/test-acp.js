@@ -1,4 +1,4 @@
-// Simple test client for BitFun ACP server.
+// Simple test client for Void ACP server.
 // Run with: node scripts/test-acp.js
 
 import { spawn } from 'node:child_process';
@@ -7,18 +7,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cliPath = path.join(__dirname, '..', 'target', 'debug', 'bitfun-cli');
-const cliReleasePath = path.join(__dirname, '..', 'target', 'release', 'bitfun-cli');
+const cliPath = path.join(__dirname, '..', 'target', 'debug', 'void-cli');
+const cliReleasePath = path.join(__dirname, '..', 'target', 'release', 'void-cli');
 const usePath = fs.existsSync(cliPath)
   ? cliPath
   : fs.existsSync(cliReleasePath)
     ? cliReleasePath
-    : 'bitfun-cli';
+    : 'void-cli';
 
 const cwd = '/tmp/test-acp-node';
 fs.mkdirSync(cwd, { recursive: true });
 
-console.log('=== BitFun ACP Server Test (Node.js) ===\n');
+console.log('=== Void ACP Server Test (Node.js) ===\n');
 
 const child = spawn(usePath, ['acp'], {
   stdio: ['pipe', 'pipe', 'inherit'],

@@ -1,4 +1,4 @@
-use bitfun_core::agentic::insights::{InsightsReport, InsightsReportMeta, InsightsService};
+use void_core::agentic::insights::{InsightsReport, InsightsReportMeta, InsightsService};
 use log::{error, info};
 use serde::Deserialize;
 

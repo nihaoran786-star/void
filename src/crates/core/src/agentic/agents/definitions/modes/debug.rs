@@ -4,7 +4,7 @@ use crate::agentic::agents::{get_embedded_prompt, Agent, PromptBuilder, PromptBu
 use crate::service::config::global::GlobalConfigManager;
 use crate::service::config::types::{DebugModeConfig, LanguageDebugTemplate};
 use crate::service::lsp::project_detector::{ProjectDetector, ProjectInfo};
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use async_trait::async_trait;
 use log::debug;
 use std::path::Path;
@@ -282,7 +282,7 @@ impl Agent for DebugMode {
         DEBUG_MODE_PROMPT_TEMPLATE
     }
 
-    async fn build_prompt(&self, context: &PromptBuilderContext) -> BitFunResult<String> {
+    async fn build_prompt(&self, context: &PromptBuilderContext) -> VoidResult<String> {
         let workspace_path = context.workspace_path.as_str();
         let prompt_components = PromptBuilder::new(context.clone());
         let env_info = prompt_components.get_env_info();
@@ -324,7 +324,7 @@ impl Agent for DebugMode {
         &self,
         _previous_agent_type: Option<&str>,
         _workspace: Option<&crate::agentic::WorkspaceBinding>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         Ok(self.build_system_reminder())
     }
 

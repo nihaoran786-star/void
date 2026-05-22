@@ -146,13 +146,13 @@ const PersistentFooterActions: React.FC = () => {
 
   return (
     <>
-      <div className="bitfun-nav-panel__footer">
-        <div className="bitfun-nav-panel__footer-left">
-          <div className="bitfun-nav-panel__footer-more-wrap">
+      <div className="void-nav-panel__footer">
+        <div className="void-nav-panel__footer-left">
+          <div className="void-nav-panel__footer-more-wrap">
             <Tooltip content={t('nav.moreOptions')} placement="right" followCursor disabled={menuOpen}>
               <button
                 type="button"
-                className={`bitfun-nav-panel__footer-btn bitfun-nav-panel__footer-btn--icon${menuOpen ? ' is-active' : ''}`}
+                className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${menuOpen ? ' is-active' : ''}`}
                 aria-label={t('nav.moreOptions')}
                 aria-expanded={menuOpen}
                 onClick={toggleMenu}
@@ -160,9 +160,9 @@ const PersistentFooterActions: React.FC = () => {
                 {menuOpen ? (
                   <MoreVertical size={15} aria-hidden="true" />
                 ) : (
-                  <span className="bitfun-nav-panel__footer-btn-icon-swap" aria-hidden="true">
-                    <MoreVertical size={15} className="bitfun-nav-panel__footer-btn-icon-swap-default" />
-                    <ChevronUp size={15} className="bitfun-nav-panel__footer-btn-icon-swap-hover" />
+                  <span className="void-nav-panel__footer-btn-icon-swap" aria-hidden="true">
+                    <MoreVertical size={15} className="void-nav-panel__footer-btn-icon-swap-default" />
+                    <ChevronUp size={15} className="void-nav-panel__footer-btn-icon-swap-hover" />
                   </span>
                 )}
               </button>
@@ -171,11 +171,11 @@ const PersistentFooterActions: React.FC = () => {
             {menuOpen && (
               <>
                 <div
-                  className="bitfun-nav-panel__footer-backdrop"
+                  className="void-nav-panel__footer-backdrop"
                   onClick={closeMenu}
                 />
                 <div
-                  className={`bitfun-nav-panel__footer-menu${menuClosing ? ' is-closing' : ''}`}
+                  className={`void-nav-panel__footer-menu${menuClosing ? ' is-closing' : ''}`}
                   role="menu"
                 >
                   <Tooltip
@@ -185,7 +185,7 @@ const PersistentFooterActions: React.FC = () => {
                   >
                     <button
                       type="button"
-                      className={`bitfun-nav-panel__footer-menu-item${!hasWorkspace ? ' is-disabled' : ''}`}
+                      className={`void-nav-panel__footer-menu-item${!hasWorkspace ? ' is-disabled' : ''}`}
                       role="menuitem"
                       aria-disabled={!hasWorkspace}
                       onClick={handleRemoteConnect}
@@ -194,20 +194,20 @@ const PersistentFooterActions: React.FC = () => {
                       <span>{t('header.remoteConnect')}</span>
                     </button>
                   </Tooltip>
-                  <div className="bitfun-nav-panel__footer-menu-divider" />
+                  <div className="void-nav-panel__footer-menu-divider" />
                   <button
                     type="button"
-                    className="bitfun-nav-panel__footer-menu-item"
+                    className="void-nav-panel__footer-menu-item"
                     role="menuitem"
                     onClick={handleFloatingMode}
                   >
                     <PictureInPicture2 size={14} />
                     <span>{t('header.switchToToolbar')}</span>
                   </button>
-                  <div className="bitfun-nav-panel__footer-menu-divider" />
+                  <div className="void-nav-panel__footer-menu-divider" />
                   <button
                     type="button"
-                    className="bitfun-nav-panel__footer-menu-item"
+                    className="void-nav-panel__footer-menu-item"
                     role="menuitem"
                     onClick={handleOpenInsights}
                   >
@@ -216,7 +216,7 @@ const PersistentFooterActions: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="bitfun-nav-panel__footer-menu-item"
+                    className="void-nav-panel__footer-menu-item"
                     role="menuitem"
                     onClick={handleOpenSettings}
                   >
@@ -225,7 +225,7 @@ const PersistentFooterActions: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    className="bitfun-nav-panel__footer-menu-item"
+                    className="void-nav-panel__footer-menu-item"
                     role="menuitem"
                     onClick={handleShowAbout}
                   >
@@ -240,14 +240,14 @@ const PersistentFooterActions: React.FC = () => {
           <Tooltip content={t('scenes.shell')} placement="right">
             <button
               type="button"
-              className={`bitfun-nav-panel__footer-btn bitfun-nav-panel__footer-btn--icon${showSceneNav && navSceneId === 'shell' ? ' is-active' : ''}`}
+              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${showSceneNav && navSceneId === 'shell' ? ' is-active' : ''}`}
               aria-label={t('scenes.shell')}
               aria-pressed={showSceneNav && navSceneId === 'shell'}
               onClick={handleOpenShell}
             >
-              <span className="bitfun-nav-panel__footer-btn-icon-swap" aria-hidden="true">
-                <SquareTerminal size={15} className="bitfun-nav-panel__footer-btn-icon-swap-default" />
-                <Terminal size={15} className="bitfun-nav-panel__footer-btn-icon-swap-hover" />
+              <span className="void-nav-panel__footer-btn-icon-swap" aria-hidden="true">
+                <SquareTerminal size={15} className="void-nav-panel__footer-btn-icon-swap-default" />
+                <Terminal size={15} className="void-nav-panel__footer-btn-icon-swap-hover" />
               </span>
             </button>
           </Tooltip>
@@ -255,21 +255,21 @@ const PersistentFooterActions: React.FC = () => {
           <Tooltip content={t('scenes.browser')} placement="right">
             <button
               type="button"
-              className={`bitfun-nav-panel__footer-btn bitfun-nav-panel__footer-btn--icon${isBrowserActive ? ' is-active' : ''}`}
+              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${isBrowserActive ? ' is-active' : ''}`}
               aria-label={t('scenes.browser')}
               aria-pressed={isBrowserActive}
               onClick={handleOpenBrowser}
             >
-              <span className="bitfun-nav-panel__footer-btn-icon-swap" aria-hidden="true">
-                <Globe size={15} className="bitfun-nav-panel__footer-btn-icon-swap-default" />
-                <ExternalLink size={15} className="bitfun-nav-panel__footer-btn-icon-swap-hover" />
+              <span className="void-nav-panel__footer-btn-icon-swap" aria-hidden="true">
+                <Globe size={15} className="void-nav-panel__footer-btn-icon-swap-default" />
+                <ExternalLink size={15} className="void-nav-panel__footer-btn-icon-swap-hover" />
               </span>
             </button>
           </Tooltip>
         </div>
 
-        <div className="bitfun-nav-panel__footer-right">
-          <NotificationButton className="bitfun-nav-panel__footer-btn" navFooterHoverIconSwap />
+        <div className="void-nav-panel__footer-right">
+          <NotificationButton className="void-nav-panel__footer-btn" navFooterHoverIconSwap />
         </div>
       </div>
       <AboutDialog isOpen={showAbout} onClose={() => setShowAbout(false)} />

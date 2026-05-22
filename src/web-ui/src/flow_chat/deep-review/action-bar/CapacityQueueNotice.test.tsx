@@ -46,7 +46,7 @@ describe('CapacityQueueNotice', () => {
     );
 
     expect(html).toContain('Waiting for model capacity');
-    expect(html).toContain('BitFun is waiting for temporary model capacity.');
+    expect(html).toContain('Void is waiting for temporary model capacity.');
     expect(html).toContain('Reason: provider concurrency limit');
     expect(html).toContain('The model provider rejected another concurrent reviewer.');
     expect(html).toContain('Waited 12s of 1m 0s');

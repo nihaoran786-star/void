@@ -1,6 +1,6 @@
 //! Logging Configuration
 
-use bitfun_core::infrastructure::get_path_manager_arc;
+use void_core::infrastructure::get_path_manager_arc;
 use chrono::Local;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -37,20 +37,20 @@ pub struct LogConfig {
 }
 
 fn is_embedded_webdriver_mode() -> bool {
-    cfg!(debug_assertions) && std::env::var_os("BITFUN_WEBDRIVER_PORT").is_some()
+    cfg!(debug_assertions) && std::env::var_os("VOID_WEBDRIVER_PORT").is_some()
 }
 
 fn resolve_logs_root() -> PathBuf {
-    if let Some(path) = std::env::var_os("BITFUN_LOG_DIR").map(PathBuf::from) {
+    if let Some(path) = std::env::var_os("VOID_LOG_DIR").map(PathBuf::from) {
         return path;
     }
 
-    if let Some(path) = std::env::var_os("BITFUN_E2E_LOG_DIR").map(PathBuf::from) {
+    if let Some(path) = std::env::var_os("VOID_E2E_LOG_DIR").map(PathBuf::from) {
         return path;
     }
 
     if is_embedded_webdriver_mode() {
-        return std::env::temp_dir().join("bitfun-e2e-logs");
+        return std::env::temp_dir().join("void-e2e-logs");
     }
 
     get_path_manager_arc().logs_dir()
@@ -313,11 +313,11 @@ pub fn build_log_plugin<R: Runtime>(log_targets: Vec<Target>) -> TauriPlugin<R> 
         // routing. Keep debug diagnostics, warnings, and errors, but avoid
         // drowning useful app traces in mechanical noise.
         .level_for(
-            "bitfun_core::agentic::events::queue",
+            "void_core::agentic::events::queue",
             log::LevelFilter::Debug,
         )
         .level_for(
-            "bitfun_core::agentic::events::router",
+            "void_core::agentic::events::router",
             log::LevelFilter::Debug,
         )
         .level_for("hyper_util", log::LevelFilter::Info)

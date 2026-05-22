@@ -800,7 +800,7 @@ export const Markdown = React.memo<MarkdownProps>(({
     }
 
     return Boolean(
-      targetElement.closest('.bitfun-session-scene') &&
+      targetElement.closest('.void-session-scene') &&
       targetElement.closest('.modern-flowchat-container, .flow-chat-container')
     );
   }, []);

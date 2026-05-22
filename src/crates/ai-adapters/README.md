@@ -1,6 +1,6 @@
-# BitFun AI Adapters
+# Void AI Adapters
 
-Shared AI protocol adapters used by both `bitfun-core` and the installer.
+Shared AI protocol adapters used by both `void-core` and the installer.
 
 This crate owns the portable AI integration layer:
 
@@ -12,14 +12,14 @@ This crate owns the portable AI integration layer:
 - provider model discovery
 - connection health checks
 
-This crate intentionally does **not** own BitFun runtime concerns such as:
+This crate intentionally does **not** own Void runtime concerns such as:
 
 - global config services
 - client factories and caches
 - application event systems
 - agent/session orchestration
 
-Those remain in `bitfun-core`, which maps app config into the shared `AIConfig`
+Those remain in `void-core`, which maps app config into the shared `AIConfig`
 and re-exports this crate where convenient.
 
 ## Module Guide
@@ -33,5 +33,5 @@ and re-exports this crate where convenient.
 ## Design Rule
 
 If a type or function must behave the same in both the main app and the
-installer, it belongs here. If it depends on BitFun runtime state or services,
+installer, it belongs here. If it depends on Void runtime state or services,
 it should stay outside this crate.

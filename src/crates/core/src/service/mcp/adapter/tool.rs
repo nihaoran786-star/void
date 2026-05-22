@@ -1,6 +1,6 @@
 //! MCP tool adapter
 //!
-//! Wraps MCP tools as implementations of BitFun's `Tool` trait.
+//! Wraps MCP tools as implementations of Void's `Tool` trait.
 
 use crate::agentic::tools::framework::{
     DynamicMcpToolInfo, DynamicToolInfo, Tool, ToolRenderOptions, ToolResult, ToolUseContext,
@@ -8,9 +8,9 @@ use crate::agentic::tools::framework::{
 };
 use crate::service::mcp::protocol::{MCPTool, MCPToolResult};
 use crate::service::mcp::server::MCPConnection;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use async_trait::async_trait;
-use bitfun_services_integrations::mcp::adapter::{
+use void_services_integrations::mcp::adapter::{
     build_mcp_tool_descriptor, render_mcp_tool_result_for_assistant, MCPDynamicToolProvider,
     McpDynamicToolDescriptor,
 };
@@ -18,7 +18,7 @@ use log::{debug, error, info, warn};
 use serde_json::Value;
 use std::sync::Arc;
 
-/// MCP tool wrapper that adapts an MCP tool to BitFun's `Tool`.
+/// MCP tool wrapper that adapts an MCP tool to Void's `Tool`.
 pub struct MCPToolWrapper {
     mcp_tool: MCPTool,
     connection: Arc<MCPConnection>,
@@ -64,7 +64,7 @@ impl Tool for MCPToolWrapper {
         &self.descriptor.full_name
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(self.descriptor.description.clone())
     }
 
@@ -205,7 +205,7 @@ impl Tool for MCPToolWrapper {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let _ = context;
 
         info!(
@@ -256,7 +256,7 @@ impl MCPToolAdapter {
         server_id: &str,
         server_name: &str,
         connection: Arc<MCPConnection>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         info!(
             "Loading tools from MCP server: {} (id={})",
             server_name, server_id
@@ -268,7 +268,7 @@ impl MCPToolAdapter {
             .await
             .map_err(|e| {
                 error!("list_tools call failed: {}", e);
-                crate::util::errors::BitFunError::from(e)
+                crate::util::errors::VoidError::from(e)
             })?;
 
         info!(

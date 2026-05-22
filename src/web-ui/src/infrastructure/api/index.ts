@@ -1,7 +1,7 @@
 /**
- * BitFun API unified exports.
+ * Void API unified exports.
  *
- * Follows the BitFun Tauri command conventions.
+ * Follows the Void Tauri command conventions.
  */
 
 export * from './service-api/types';
@@ -42,8 +42,8 @@ export * from './service-api/ReviewPlatformAPI';
 export type { GitRepoHistory };
 export type { CheckForUpdatesResponse } from './service-api/SystemAPI';
 
-// BitFun API collection: a single access point for all API modules.
-export const bitfunAPI = {
+// Void API collection: a single access point for all API modules.
+export const voidAPI = {
   workspace: workspaceAPI,
   config: configAPI,
   ai: aiApi,
@@ -69,4 +69,4 @@ export const bitfunAPI = {
 };
 
 // Default export
-export default bitfunAPI;
+export default voidAPI;

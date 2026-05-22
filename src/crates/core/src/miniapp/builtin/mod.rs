@@ -7,8 +7,8 @@
 
 use crate::miniapp::manager::MiniAppManager;
 use crate::miniapp::types::MiniAppMeta;
-use crate::util::errors::{BitFunError, BitFunResult};
-use bitfun_product_domains::miniapp::builtin::{
+use crate::util::errors::{VoidError, VoidResult};
+use void_product_domains::miniapp::builtin::{
     build_builtin_package_json, builtin_source_files, parse_builtin_install_marker,
     resolve_builtin_seed_action, resolve_builtin_seed_check, serialize_builtin_install_marker,
     BuiltinInstallMarker, BuiltinMiniAppBundle, BuiltinSeedAction, BuiltinSeedCheck,
@@ -21,7 +21,7 @@ use std::sync::Arc;
 /// A built-in MiniApp bundled with the application binary.
 pub type BuiltinApp = BuiltinMiniAppBundle;
 
-/// All built-in apps that ship with BitFun.
+/// All built-in apps that ship with Void.
 pub const BUILTIN_APPS: &[BuiltinApp] = &[
     BuiltinApp {
         id: "builtin-gomoku",
@@ -79,7 +79,7 @@ pub const BUILTIN_APPS: &[BuiltinApp] = &[
 /// whose on-disk marker hash matches the bundled content. User's `storage.json`
 /// is preserved across reseeds; source files & meta.json (without timestamps) are
 /// overwritten.
-pub async fn seed_builtin_miniapps(manager: &Arc<MiniAppManager>) -> BitFunResult<()> {
+pub async fn seed_builtin_miniapps(manager: &Arc<MiniAppManager>) -> VoidResult<()> {
     for app in BUILTIN_APPS {
         if let Err(e) = seed_one(manager, app).await {
             log::warn!("seed builtin miniapp '{}' failed: {}", app.id, e);
@@ -88,7 +88,7 @@ pub async fn seed_builtin_miniapps(manager: &Arc<MiniAppManager>) -> BitFunResul
     Ok(())
 }
 
-async fn seed_one(manager: &Arc<MiniAppManager>, app: &BuiltinApp) -> BitFunResult<()> {
+async fn seed_one(manager: &Arc<MiniAppManager>, app: &BuiltinApp) -> VoidResult<()> {
     let app_dir = manager.path_manager().miniapp_dir(app.id);
     let marker_path = app_dir.join(BUILTIN_INSTALL_MARKER);
     let installed_marker = read_builtin_install_marker(&marker_path).await?;
@@ -146,18 +146,18 @@ async fn seed_one(manager: &Arc<MiniAppManager>, app: &BuiltinApp) -> BitFunResu
 async fn seed_builtin_bundle(
     manager: &Arc<MiniAppManager>,
     app: &BuiltinApp,
-    artifacts: bitfun_product_domains::miniapp::builtin::BuiltinSeedArtifacts,
+    artifacts: void_product_domains::miniapp::builtin::BuiltinSeedArtifacts,
     now: i64,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     let app_dir = manager.path_manager().miniapp_dir(app.id);
     let source_dir = app_dir.join("source");
     tokio::fs::create_dir_all(&source_dir)
         .await
-        .map_err(|e| BitFunError::io(format!("create dir failed: {}", e)))?;
+        .map_err(|e| VoidError::io(format!("create dir failed: {}", e)))?;
 
     // meta.json — parse bundled meta, then set id/timestamps. Preserve created_at if present.
     let mut meta: MiniAppMeta = serde_json::from_str(app.meta_json)
-        .map_err(|e| BitFunError::parse(format!("invalid bundled meta.json: {}", e)))?;
+        .map_err(|e| VoidError::parse(format!("invalid bundled meta.json: {}", e)))?;
     meta.id = app.id.to_string();
 
     let meta_path = app_dir.join("meta.json");
@@ -171,10 +171,10 @@ async fn seed_builtin_bundle(
     meta.created_at = preserved_created_at;
     meta.updated_at = now;
 
-    let meta_json = serde_json::to_string_pretty(&meta).map_err(BitFunError::from)?;
+    let meta_json = serde_json::to_string_pretty(&meta).map_err(VoidError::from)?;
     tokio::fs::write(&meta_path, meta_json)
         .await
-        .map_err(|e| BitFunError::io(format!("write meta.json failed: {}", e)))?;
+        .map_err(|e| VoidError::io(format!("write meta.json failed: {}", e)))?;
 
     // Source files (always overwrite).
     for (file_name, content) in builtin_source_files(app) {
@@ -183,7 +183,7 @@ async fn seed_builtin_bundle(
 
     // package.json — overwrite with empty deps; built-in apps must not require npm install.
     let pkg = build_builtin_package_json(app.id);
-    let pkg_json = serde_json::to_string_pretty(&pkg).map_err(BitFunError::from)?;
+    let pkg_json = serde_json::to_string_pretty(&pkg).map_err(VoidError::from)?;
     write_file(app_dir.join("package.json"), &pkg_json).await?;
 
     // Preserve user's storage.json if present, otherwise initialize to "{}".
@@ -218,12 +218,12 @@ async fn seed_builtin_bundle(
     Ok(())
 }
 
-async fn read_builtin_install_marker(path: &Path) -> BitFunResult<Option<BuiltinInstallMarker>> {
+async fn read_builtin_install_marker(path: &Path) -> VoidResult<Option<BuiltinInstallMarker>> {
     let content = match tokio::fs::read_to_string(path).await {
         Ok(content) => content,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
-            return Err(BitFunError::io(format!(
+            return Err(VoidError::io(format!(
                 "read builtin marker {} failed: {}",
                 path.display(),
                 error
@@ -247,28 +247,28 @@ async fn read_builtin_install_marker(path: &Path) -> BitFunResult<Option<Builtin
 async fn write_builtin_install_marker(
     path: &Path,
     marker: &BuiltinInstallMarker,
-) -> BitFunResult<()> {
-    let content = serialize_builtin_install_marker(marker).map_err(BitFunError::from)?;
+) -> VoidResult<()> {
+    let content = serialize_builtin_install_marker(marker).map_err(VoidError::from)?;
     write_file(path, &content).await
 }
 
-async fn write_file<P: AsRef<std::path::Path>>(path: P, content: &str) -> BitFunResult<()> {
+async fn write_file<P: AsRef<std::path::Path>>(path: P, content: &str) -> VoidResult<()> {
     tokio::fs::write(path.as_ref(), content)
         .await
-        .map_err(|e| BitFunError::io(format!("write {} failed: {}", path.as_ref().display(), e)))
+        .map_err(|e| VoidError::io(format!("write {} failed: {}", path.as_ref().display(), e)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitfun_product_domains::miniapp::builtin::{builtin_content_hash, should_seed_builtin_app};
-    use bitfun_product_domains::miniapp::customization::{
+    use void_product_domains::miniapp::builtin::{builtin_content_hash, should_seed_builtin_app};
+    use void_product_domains::miniapp::customization::{
         MiniAppCustomizationMetadata, MiniAppCustomizationOrigin, MiniAppCustomizationOriginKind,
     };
 
     fn test_manager() -> Arc<MiniAppManager> {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-builtin-customization-{}",
+            "void-miniapp-builtin-customization-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -503,7 +503,7 @@ mod tests {
         assert!(app.ui_js.contains("renderWatchRepositoryCard"));
         assert!(app.css.contains("pr-command-bar"));
         assert!(app.css.contains("pr-review-workspace"));
-        assert!(app.css.contains("--bitfun-bg"));
+        assert!(app.css.contains("--void-bg"));
         assert!(app.css.contains("data-theme-type=\"light\""));
         assert!(app.css.contains("pr-url-card"));
         assert!(app.css.contains("background-size: 240% 240%"));

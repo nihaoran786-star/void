@@ -257,14 +257,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
       try {
         const { listen } = await import('@tauri-apps/api/event');
         const { open } = await import('@tauri-apps/plugin-dialog');
-        unlistenFns.push(await listen('bitfun_menu_open_project', async () => {
+        unlistenFns.push(await listen('void_menu_open_project', async () => {
           try {
             const selected = await open({ directory: true, multiple: false }) as string;
             if (selected) await openWorkspace(selected);
           } catch {}
         }));
-        unlistenFns.push(await listen('bitfun_menu_new_project', () => handleNewProject()));
-        unlistenFns.push(await listen('bitfun_menu_about', () => handleShowAbout()));
+        unlistenFns.push(await listen('void_menu_new_project', () => handleNewProject()));
+        unlistenFns.push(await listen('void_menu_about', () => handleShowAbout()));
       } catch {}
     })();
     return () => { unlistenFns.forEach(fn => fn()); unlistenFns = []; };
@@ -275,14 +275,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     const initializeFlowChat = async () => {
       if (!currentWorkspace?.rootPath) return;
 
-      // Remote session index and turns live under ~/.bitfun/remote_ssh/... (local disk).
+      // Remote session index and turns live under ~/.void/remote_ssh/... (local disk).
       // Always initialize FlowChat so historical sessions list even when SSH is not connected yet.
       try {
         const explicitPreferredMode =
-          sessionStorage.getItem('bitfun:flowchat:preferredMode') ||
+          sessionStorage.getItem('void:flowchat:preferredMode') ||
           undefined;
         if (explicitPreferredMode) {
-          sessionStorage.removeItem('bitfun:flowchat:preferredMode');
+          sessionStorage.removeItem('void:flowchat:preferredMode');
         }
 
         const initializationPreferredMode =
@@ -405,7 +405,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
           }
         };
 
-        unlistenFn = await listen('bitfun_main_window_close_requested', async () => {
+        unlistenFn = await listen('void_main_window_close_requested', async () => {
           if (handlingClose) return;
           handlingClose = true;
 
@@ -574,8 +574,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         .createAcpChatSession(clientId)
         .catch(error => log.error('Failed to create ACP FlowChat session', error));
     };
-    window.addEventListener('bitfun:create-acp-session', handler);
-    return () => window.removeEventListener('bitfun:create-acp-session', handler);
+    window.addEventListener('void:create-acp-session', handler);
+    return () => window.removeEventListener('void:create-acp-session', handler);
   }, []);
 
   React.useEffect(() => {
@@ -593,8 +593,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         });
       }
     };
-    window.addEventListener('bitfun:acp-session-creation', handler);
-    return () => window.removeEventListener('bitfun:acp-session-creation', handler);
+    window.addEventListener('void:acp-session-creation', handler);
+    return () => window.removeEventListener('void:acp-session-creation', handler);
   }, []);
 
   // Global drag-and-drop
@@ -623,11 +623,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   }, []);
 
   const containerClassName = [
-    'bitfun-app-layout',
-    isMacOS ? 'bitfun-app-layout--macos' : '',
+    'void-app-layout',
+    isMacOS ? 'void-app-layout--macos' : '',
     className,
-    isFullscreen ? 'bitfun-app-layout--window-fullscreen' : '',
-    isTransitioning ? 'bitfun-app-layout--transitioning' : '',
+    isFullscreen ? 'void-app-layout--window-fullscreen' : '',
+    isTransitioning ? 'void-app-layout--transitioning' : '',
   ].filter(Boolean).join(' ');
 
   if (isToolbarMode) {
@@ -646,17 +646,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         {windowModeHint && (
           <div
             key={windowModeHint.id}
-            className="bitfun-window-mode-hint"
+            className="void-window-mode-hint"
             role="status"
             aria-live="polite"
           >
-            <span className="bitfun-window-mode-hint__title">{windowModeHint.title}</span>
-            <span className="bitfun-window-mode-hint__detail">{windowModeHint.detail}</span>
+            <span className="void-window-mode-hint__title">{windowModeHint.title}</span>
+            <span className="void-window-mode-hint__detail">{windowModeHint.detail}</span>
           </div>
         )}
 
         {/* Main content — always render WorkspaceBody; WelcomeScene in viewport handles no-workspace state */}
-        <main className="bitfun-app-main-workspace" data-testid="app-main-content">
+        <main className="void-app-main-workspace" data-testid="app-main-content">
           <WorkspaceBody
             onMinimize={canUseNativeWindowControls && !isMacOS ? handleMinimize : undefined}
             onMaximize={canUseNativeWindowControls ? handleMaximize : undefined}
@@ -670,8 +670,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         {/* Non-agent scenes: floating mini chat button */}
         {!isWelcomeScene && !isAgentScene && <FloatingMiniChat />}
         {pendingAcpSessionClients.length > 0 && (
-          <div className="bitfun-app-acp-session-loading" role="status" aria-live="polite">
-            <LoaderCircle size={18} className="bitfun-app-acp-session-loading__spinner" />
+          <div className="void-app-acp-session-loading" role="status" aria-live="polite">
+            <LoaderCircle size={18} className="void-app-acp-session-loading__spinner" />
             <span>
               {pendingAcpSessionClients[pendingAcpSessionClients.length - 1].action === 'restore'
                 ? tCommon('nav.workspaces.restoringAcpSession', {

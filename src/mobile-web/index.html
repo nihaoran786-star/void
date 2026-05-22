@@ -7,11 +7,11 @@
   <meta name="color-scheme" content="dark light" />
   <link rel="icon" type="image/png" href="./src/assets/Logo-ICON.png" />
   <link rel="apple-touch-icon" href="./src/assets/Logo-ICON.png" />
-  <title>BitFun Remote</title>
+  <title>Void Remote</title>
   <script>
     (function() {
       var t = 'dark';
-      try { var s = localStorage.getItem('bitfun-mobile-theme'); if (s === 'dark' || s === 'light') t = s; }
+      try { var s = localStorage.getItem('void-mobile-theme'); if (s === 'dark' || s === 'light') t = s; }
       catch(e) { if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) t = 'light'; }
       document.documentElement.setAttribute('data-theme', t);
       document.documentElement.style.colorScheme = t;

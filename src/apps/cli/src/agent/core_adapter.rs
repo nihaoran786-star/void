@@ -1,6 +1,6 @@
 //! Core Agent adapter
 //!
-//! Adapts bitfun-core's Agentic system to CLI's Agent interface.
+//! Adapts void-core's Agentic system to CLI's Agent interface.
 //! Event consumption is NOT done here — it's done in the chat/exec mode main loops.
 
 use anyhow::Result;
@@ -9,11 +9,11 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::Agent;
-use bitfun_core::agentic::coordination::{
+use void_core::agentic::coordination::{
     ConversationCoordinator, DialogSubmissionPolicy, DialogTriggerSource,
 };
-use bitfun_core::agentic::core::SessionConfig;
-use bitfun_core::agentic::events::EventQueue;
+use void_core::agentic::core::SessionConfig;
+use void_core::agentic::events::EventQueue;
 
 /// Core-based Agent implementation.
 /// Stateless regarding agent_type — callers pass it per-call.
@@ -336,7 +336,7 @@ impl Agent for CoreAgentAdapter {
 
     async fn submit_user_answers(&self, tool_id: &str, answers: serde_json::Value) -> Result<()> {
         tracing::info!("Submitting user answers for tool: {}", tool_id);
-        use bitfun_core::agentic::tools::user_input_manager::get_user_input_manager;
+        use void_core::agentic::tools::user_input_manager::get_user_input_manager;
         let manager = get_user_input_manager();
         manager
             .send_answer(tool_id, answers)

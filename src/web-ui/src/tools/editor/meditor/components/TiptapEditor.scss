@@ -515,7 +515,7 @@
   }
 
   .m-editor-inline-ai__composer-input {
-    .bitfun-input-container {
+    .void-input-container {
       height: 36px;
       padding: 0 12px 0 14px;
       border-radius: 999px;
@@ -523,7 +523,7 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .bitfun-input {
+    .void-input {
       font-size: var(--font-size-sm);
       line-height: 1.35;
     }
@@ -532,7 +532,7 @@
   :root[data-theme='light'] &,
   :root[data-theme-type='light'] &,
   .light & {
-    .m-editor-inline-ai__composer-input .bitfun-input-container {
+    .m-editor-inline-ai__composer-input .void-input-container {
       background: rgba(15, 23, 42, 0.04);
       border-color: rgba(15, 23, 42, 0.1);
     }

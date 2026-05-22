@@ -52,10 +52,10 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
     <button
       ref={buttonRef}
       className={[
-        'bitfun-notification-btn',
-        activeNotification ? 'bitfun-notification-btn--has-progress' : '',
-        activeNotification?.variant === 'loading' ? 'bitfun-notification-btn--loading' : '',
-        navFooterHoverIconSwap && !activeNotification ? 'bitfun-notification-btn--nav-hover-icon' : '',
+        'void-notification-btn',
+        activeNotification ? 'void-notification-btn--has-progress' : '',
+        activeNotification?.variant === 'loading' ? 'void-notification-btn--loading' : '',
+        navFooterHoverIconSwap && !activeNotification ? 'void-notification-btn--nav-hover-icon' : '',
         className,
       ].filter(Boolean).join(' ')}
       onClick={() => notificationService.toggleCenter()}
@@ -64,17 +64,17 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
     >
       {activeNotification ? (
         <>
-          <div className="bitfun-notification-btn__progress">
+          <div className="void-notification-btn__progress">
             {activeNotification.variant === 'loading' ? (
-              <div className="bitfun-notification-btn__loading-icon">
+              <div className="void-notification-btn__loading-icon">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.5"
-                  className="bitfun-notification-btn__spinner">
+                  className="void-notification-btn__spinner">
                   <path d="M12 2 A 10 10 0 0 1 22 12" strokeLinecap="round" />
                 </svg>
               </div>
             ) : (
-              <div className="bitfun-notification-btn__progress-icon">
+              <div className="void-notification-btn__progress-icon">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" opacity="0.2" />
@@ -88,7 +88,7 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
                 </svg>
               </div>
             )}
-            <span className="bitfun-notification-btn__progress-text">
+            <span className="void-notification-btn__progress-text">
               {activeNotification.variant === 'loading'
                 ? activeNotification.message
                 : (() => {
@@ -104,11 +104,11 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
             </span>
           </div>
           <div
-            className="bitfun-notification-btn__tooltip"
+            className="void-notification-btn__tooltip"
             style={{ transform: `translateX(calc(-50% + ${tooltipOffset}px))` }}
           >
             <div
-              className="bitfun-notification-btn__tooltip-content"
+              className="void-notification-btn__tooltip-content"
               style={{ '--tooltip-offset': `${tooltipOffset}px` } as React.CSSProperties}
             >
               {activeNotification.title}
@@ -117,22 +117,22 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
         </>
       ) : navFooterHoverIconSwap ? (
         unreadCount > 0 ? (
-          <span className="bitfun-nav-panel__footer-btn-icon-swap" aria-hidden="true">
+          <span className="void-nav-panel__footer-btn-icon-swap" aria-hidden="true">
             <BellDot
               size={15}
-              className="bitfun-notification-btn__icon--has-message bitfun-nav-panel__footer-btn-icon-swap-default"
+              className="void-notification-btn__icon--has-message void-nav-panel__footer-btn-icon-swap-default"
             />
-            <BellRing size={15} className="bitfun-nav-panel__footer-btn-icon-swap-hover" />
+            <BellRing size={15} className="void-nav-panel__footer-btn-icon-swap-hover" />
           </span>
         ) : (
-          <span className="bitfun-nav-panel__footer-btn-icon-swap" aria-hidden="true">
-            <Bell size={15} className="bitfun-nav-panel__footer-btn-icon-swap-default" />
-            <BellRing size={15} className="bitfun-nav-panel__footer-btn-icon-swap-hover" />
+          <span className="void-nav-panel__footer-btn-icon-swap" aria-hidden="true">
+            <Bell size={15} className="void-nav-panel__footer-btn-icon-swap-default" />
+            <BellRing size={15} className="void-nav-panel__footer-btn-icon-swap-hover" />
           </span>
         )
       ) : (
         unreadCount > 0
-          ? <BellDot size={14} className="bitfun-notification-btn__icon--has-message" />
+          ? <BellDot size={14} className="void-notification-btn__icon--has-message" />
           : <Bell size={14} />
       )}
     </button>

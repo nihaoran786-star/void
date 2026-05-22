@@ -3,13 +3,13 @@
 import { ThemeConfig } from '../types';
 
 /** Colors aligned with the Tokyo Night palette (Enkia / VS Code Tokyo Night). */
-export const bitfunTokyoNightTheme: ThemeConfig = {
-  id: 'bitfun-tokyo-night',
+export const voidTokyoNightTheme: ThemeConfig = {
+  id: 'void-tokyo-night',
   name: 'Tokyo Night',
   type: 'dark',
   description:
     'Tokyo Night — deep indigo base, soft blue and magenta accents (palette from the Tokyo Night theme family)',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '1.0.0',
 
   colors: {

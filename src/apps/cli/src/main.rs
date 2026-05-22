@@ -1,4 +1,4 @@
-/// BitFun CLI
+/// Void CLI
 ///
 /// Command-line interface version, supports:
 /// - Interactive TUI
@@ -28,7 +28,7 @@ use modes::exec::ExecOutputFormat;
 
 // ======================== Global MCP Service ========================
 
-static MCP_SERVICE: OnceLock<std::sync::Arc<bitfun_core::service::mcp::MCPService>> =
+static MCP_SERVICE: OnceLock<std::sync::Arc<void_core::service::mcp::MCPService>> =
     OnceLock::new();
 
 /// MCP initialization status: 0=not started, 1=in progress, 2=completed, 3=failed
@@ -52,13 +52,13 @@ pub fn get_mcp_status_text() -> String {
 }
 
 /// Get the global MCP service instance (if initialized)
-pub fn get_mcp_service() -> Option<&'static std::sync::Arc<bitfun_core::service::mcp::MCPService>> {
+pub fn get_mcp_service() -> Option<&'static std::sync::Arc<void_core::service::mcp::MCPService>> {
     MCP_SERVICE.get()
 }
 
 #[derive(Parser)]
-#[command(name = "bitfun")]
-#[command(about = "BitFun CLI - AI agent-driven command-line programming assistant", long_about = None)]
+#[command(name = "void")]
+#[command(about = "Void CLI - AI agent-driven command-line programming assistant", long_about = None)]
 #[command(version)]
 struct Cli {
     #[command(subcommand)]
@@ -206,13 +206,13 @@ enum AcpAction {
     /// Show ACP server status and capabilities
     Status {
         /// Command name or path to show in generated examples
-        #[arg(long, default_value = "bitfun-cli")]
+        #[arg(long, default_value = "void-cli")]
         command: String,
     },
     /// Check local readiness for ACP clients
     Doctor {
         /// Command name or path to show in generated examples
-        #[arg(long, default_value = "bitfun-cli")]
+        #[arg(long, default_value = "void-cli")]
         command: String,
     },
     /// Print editor/client integration snippets
@@ -222,10 +222,10 @@ enum AcpAction {
         client: acp_cli::AcpConfigClient,
 
         /// Command name or path your editor should execute
-        #[arg(long, default_value = "bitfun-cli")]
+        #[arg(long, default_value = "void-cli")]
         command: String,
     },
-    /// Manage external ACP agents that BitFun can launch
+    /// Manage external ACP agents that Void can launch
     Clients {
         #[command(subcommand)]
         action: AcpClientsAction,
@@ -331,14 +331,14 @@ fn setup_workspace() -> Option<String> {
 fn terminal_scripts_dir() -> std::path::PathBuf {
     CliConfig::config_dir()
         .ok()
-        .unwrap_or_else(|| std::env::temp_dir().join("bitfun-cli"))
+        .unwrap_or_else(|| std::env::temp_dir().join("void-cli"))
         .join("temp")
         .join("scripts")
 }
 
 async fn initialize_terminal_service() {
-    use bitfun_core::service::runtime::RuntimeManager;
-    use bitfun_core::service::terminal::{TerminalApi, TerminalConfig};
+    use void_core::service::runtime::RuntimeManager;
+    use void_core::service::terminal::{TerminalApi, TerminalConfig};
 
     let mut terminal_config = TerminalConfig::default();
     terminal_config.shell_integration.scripts_dir = Some(terminal_scripts_dir());
@@ -367,19 +367,19 @@ async fn initialize_terminal_service() {
 async fn initialize_core_services(
     skip_tool_confirmation: bool,
 ) -> Result<(agent::agentic_system::AgenticSystem, bool)> {
-    use bitfun_core::infrastructure::ai::AIClientFactory;
+    use void_core::infrastructure::ai::AIClientFactory;
 
-    bitfun_core::service::config::initialize_global_config()
+    void_core::service::config::initialize_global_config()
         .await
         .expect("Failed to initialize global config service");
     tracing::info!("Global config service initialized");
 
     // Save and override tool confirmation setting
-    let config_service = bitfun_core::service::config::get_global_config_service()
+    let config_service = void_core::service::config::get_global_config_service()
         .await
         .ok();
     let original_skip_confirmation = if let Some(ref svc) = config_service {
-        let ai_config: bitfun_core::service::config::types::AIConfig =
+        let ai_config: void_core::service::config::types::AIConfig =
             svc.get_config(Some("ai")).await.unwrap_or_default();
         ai_config.skip_tool_confirmation
     } else {
@@ -405,7 +405,7 @@ async fn initialize_core_services(
 
     // Initialize MCP service in background (non-blocking)
     if let Some(ref cfg_svc) = config_service {
-        match bitfun_core::service::mcp::MCPService::new(cfg_svc.clone()) {
+        match void_core::service::mcp::MCPService::new(cfg_svc.clone()) {
             Ok(mcp_service) => {
                 let mcp_service = std::sync::Arc::new(mcp_service);
                 MCP_SERVICE.set(mcp_service.clone()).ok();
@@ -440,7 +440,7 @@ async fn initialize_core_services(
 
 /// Restore original tool confirmation setting
 async fn restore_tool_confirmation(original: bool) {
-    if let Ok(svc) = bitfun_core::service::config::get_global_config_service().await {
+    if let Ok(svc) = void_core::service::config::get_global_config_service().await {
         let _ = svc.set_config("ai.skip_tool_confirmation", original).await;
     }
 }
@@ -544,10 +544,10 @@ async fn main() -> Result<()> {
         let log_dir = CliConfig::config_dir()
             .ok()
             .map(|d| d.join("logs"))
-            .unwrap_or_else(|| std::env::temp_dir().join("bitfun-cli"));
+            .unwrap_or_else(|| std::env::temp_dir().join("void-cli"));
 
         std::fs::create_dir_all(&log_dir).ok();
-        let log_file = log_dir.join("bitfun-cli.log");
+        let log_file = log_dir.join("void-cli.log");
 
         if let Ok(file) = OpenOptions::new().create(true).append(true).open(log_file) {
             tracing_subscriber::fmt()

@@ -2,7 +2,7 @@
 
 # AGENTS.md
 
-BitFun is a Rust workspace plus a shared React frontend.
+Void is a Rust workspace plus a shared React frontend.
 
 Repository rule: **keep product logic platform-agnostic, then expose it through platform adapters**.
 
@@ -32,7 +32,7 @@ Repository rule: **keep product logic platform-agnostic, then expose it through 
 | CLI | `src/apps/cli` | (use core guide) |
 | Relay server | `src/apps/relay-server` | (use core guide) |
 | Shared frontend | `src/web-ui` | [AGENTS.md](src/web-ui/AGENTS.md) |
-| Installer | `BitFun-Installer` | [AGENTS.md](BitFun-Installer/AGENTS.md) |
+| Installer | `Void-Installer` | [AGENTS.md](Void-Installer/AGENTS.md) |
 | E2E tests | `tests/e2e` | [AGENTS.md](tests/e2e/AGENTS.md) |
 
 ## Most-used commands
@@ -57,7 +57,7 @@ pnpm --dir src/web-ui run test:run
 cargo test --workspace
 
 # Build
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 pnpm run build:web
 
 # Fast builds (for development / CI speed)
@@ -99,7 +99,7 @@ await api.invoke('your_command', { request: { ... } });
 
 - Do not call Tauri APIs directly from UI components; go through the adapter/infrastructure layer.
 - Desktop-only integrations belong in `src/apps/desktop`, then flow back through transport/API layers.
-- In shared core, avoid host-specific APIs such as `tauri::AppHandle`; use shared abstractions such as `bitfun_events::EventEmitter`.
+- In shared core, avoid host-specific APIs such as `tauri::AppHandle`; use shared abstractions such as `void_events::EventEmitter`.
 
 ### Remote compatibility
 
@@ -115,7 +115,7 @@ await api.invoke('your_command', { request: { ... } });
 
 ### Core decomposition guardrails
 
-For any `bitfun-core` decomposition, feature-boundary, dependency-boundary, or
+For any `void-core` decomposition, feature-boundary, dependency-boundary, or
 Rust build-speed refactor, read
 [`docs/architecture/core-decomposition.md`](docs/architecture/core-decomposition.md)
 before editing. Keep this file as an entry point; put module-specific ownership
@@ -146,7 +146,7 @@ Trace most features in this order:
 4. `src/crates/transport`
 5. `src/crates/core`
 
-### `bitfun-core`
+### `void-core`
 
 `src/crates/core` is the center of the codebase.
 
@@ -162,18 +162,18 @@ Agent runtime mental model:
 SessionManager → Session → DialogTurn → ModelRound
 ```
 
-Session data is stored under `.bitfun/sessions/{session_id}/`.
+Session data is stored under `.void/sessions/{session_id}/`.
 
 ## Verification
 
 | Change type | Minimum verification |
 |---|---|
 | Frontend UI, state, adapters, or locales | `pnpm run lint:web && pnpm run type-check:web && pnpm --dir src/web-ui run test:run` |
-| Deep Review / Code Review Team behavior | Web UI verification above, plus `cargo test -p bitfun-core deep_review -- --nocapture`; also run the Rust / desktop rows below when backend or Tauri APIs are touched |
+| Deep Review / Code Review Team behavior | Web UI verification above, plus `cargo test -p void-core deep_review -- --nocapture`; also run the Rust / desktop rows below when backend or Tauri APIs are touched |
 | Shared Rust logic in `core`, `transport`, `api-layer`, or services | `cargo check --workspace && cargo test --workspace` |
-| Desktop integration, Tauri APIs, browser/computer-use, or desktop-only behavior | `cargo check -p bitfun-desktop && cargo test -p bitfun-desktop` |
-| Behavior covered by desktop smoke/functional flows | `cargo build -p bitfun-desktop` then the nearest E2E spec or `pnpm run e2e:test:l0` |
-| `src/crates/ai-adapters` | Relevant Rust checks above **and** `cargo test -p bitfun-agent-stream` for stream contracts |
+| Desktop integration, Tauri APIs, browser/computer-use, or desktop-only behavior | `cargo check -p void-desktop && cargo test -p void-desktop` |
+| Behavior covered by desktop smoke/functional flows | `cargo build -p void-desktop` then the nearest E2E spec or `pnpm run e2e:test:l0` |
+| `src/crates/ai-adapters` | Relevant Rust checks above **and** `cargo test -p void-agent-stream` for stream contracts |
 | Installer app | `pnpm run installer:build` |
 
 ## Where to look first

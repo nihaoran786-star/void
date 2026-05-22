@@ -72,7 +72,7 @@ impl Default for UiConfig {
     fn default() -> Self {
         Self {
             theme: "dark".to_string(),
-            theme_id: "bitfun-dark".to_string(),
+            theme_id: "void-dark".to_string(),
             show_tips: true,
             animation: true,
             color_scheme: "default".to_string(),
@@ -131,12 +131,12 @@ impl CliConfig {
         let config_dir = if cfg!(target_os = "windows") {
             dirs::config_dir()
                 .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?
-                .join("bitfun")
+                .join("void")
         } else {
             dirs::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?
                 .join(".config")
-                .join("bitfun")
+                .join("void")
         };
 
         Ok(config_dir.join("config.toml"))
@@ -178,12 +178,12 @@ impl CliConfig {
         let config_dir = if cfg!(target_os = "windows") {
             dirs::config_dir()
                 .ok_or_else(|| anyhow::anyhow!("Cannot find config directory"))?
-                .join("bitfun")
+                .join("void")
         } else {
             dirs::home_dir()
                 .ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?
                 .join(".config")
-                .join("bitfun")
+                .join("void")
         };
 
         fs::create_dir_all(&config_dir)?;

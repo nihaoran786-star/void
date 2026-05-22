@@ -31,7 +31,7 @@ use crate::service::session::{SessionRelationship, SessionRelationshipKind};
 use crate::service::workspace::{
     get_global_workspace_service, WorkspaceCreateOptions, WorkspaceKind,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use dashmap::DashMap;
 use log::{debug, error, info, warn};
 use std::collections::{HashMap, HashSet};
@@ -108,7 +108,7 @@ pub struct BackgroundSubagentStartResult {
 fn format_background_subagent_delivery_text(
     background_task_id: &str,
     agent_type: &str,
-    outcome: Result<&SubagentResult, &BitFunError>,
+    outcome: Result<&SubagentResult, &VoidError>,
 ) -> String {
     match outcome {
         Ok(result) => {
@@ -830,10 +830,10 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: &str,
         action: SubagentTimeoutAction,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let registry = self.subagent_timeout_registry.read().await;
         let handle = registry.get(session_id).cloned().ok_or_else(|| {
-            BitFunError::tool(format!(
+            VoidError::tool(format!(
                 "No active subagent timeout handle for session {}",
                 session_id
             ))
@@ -854,9 +854,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         session_name: String,
         agent_type: String,
         config: SessionConfig,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         let workspace_path = config.workspace_path.clone().ok_or_else(|| {
-            BitFunError::Validation(
+            VoidError::Validation(
                 "workspace_path is required when creating a session".to_string(),
             )
         })?;
@@ -878,9 +878,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         session_name: String,
         agent_type: String,
         config: SessionConfig,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         let workspace_path = config.workspace_path.clone().ok_or_else(|| {
-            BitFunError::Validation(
+            VoidError::Validation(
                 "workspace_path is required when creating a session".to_string(),
             )
         })?;
@@ -905,7 +905,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         agent_type: String,
         config: SessionConfig,
         workspace_path: String,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.create_session_with_workspace_and_creator(
             session_id,
             session_name,
@@ -917,7 +917,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         .await
     }
 
-    pub async fn update_session_model(&self, session_id: &str, model_id: &str) -> BitFunResult<()> {
+    pub async fn update_session_model(&self, session_id: &str, model_id: &str) -> VoidResult<()> {
         let normalized_model_id = model_id.trim();
         let normalized_model_id = if normalized_model_id.is_empty() {
             "auto"
@@ -946,7 +946,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         mut config: SessionConfig,
         workspace_path: String,
         created_by: Option<String>,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         // Persist the workspace binding inside the session config so execution can
         // consistently restore the correct workspace regardless of the entry point.
         config.workspace_path = Some(workspace_path.clone());
@@ -991,7 +991,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         mut config: SessionConfig,
         workspace_path: String,
         created_by: Option<String>,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         config.workspace_path = Some(workspace_path);
         let agent_type = Self::normalize_agent_type(&agent_type);
         self.create_hidden_subagent_session(
@@ -1024,7 +1024,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &str,
         // Pre-resolved on-disk session storage path (mirror dir for remote workspaces).
         // When present we use it directly so we never re-resolve without remote SSH info
-        // (which would slugify a raw remote POSIX path under `~/.bitfun/projects/`).
+        // (which would slugify a raw remote POSIX path under `~/.void/projects/`).
         resolved_session_storage_path: Option<&std::path::Path>,
         status: crate::service::session::TurnStatus,
         user_message_metadata: Option<serde_json::Value>,
@@ -1142,7 +1142,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         agent_type: String,
         config: SessionConfig,
         created_by: Option<String>,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.session_manager
             .create_session_with_id_and_details(
                 session_id,
@@ -1155,7 +1155,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .await
     }
 
-    async fn load_session_context_messages(&self, session: &Session) -> BitFunResult<Vec<Message>> {
+    async fn load_session_context_messages(&self, session: &Session) -> VoidResult<Vec<Message>> {
         let session_id = &session.session_id;
         let mut context_messages = self
             .session_manager
@@ -1194,7 +1194,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         previous_agent_type: Option<&str>,
         user_input: String,
         workspace: Option<&WorkspaceBinding>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let agent_registry = get_agent_registry();
         if let Some(workspace) = workspace {
             agent_registry
@@ -1203,7 +1203,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         }
         let current_agent = agent_registry
             .get_agent(agent_type, workspace.map(|binding| binding.root_path()))
-            .ok_or_else(|| BitFunError::NotFound(format!("Agent not found: {}", agent_type)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Agent not found: {}", agent_type)))?;
         let system_reminder = current_agent
             .get_system_reminder(previous_agent_type, workspace)
             .await?;
@@ -1231,7 +1231,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: String,
         workspace_path: String,
-    ) -> BitFunResult<AssistantBootstrapEnsureOutcome> {
+    ) -> VoidResult<AssistantBootstrapEnsureOutcome> {
         let workspace_root = PathBuf::from(&workspace_path);
         // Empty or partial assistant dirs may never have run create_assistant_workspace; fill only
         // missing persona stubs (never overwrite), while preserving completed bootstrap state.
@@ -1356,7 +1356,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: Option<String>,
         submission_policy: DialogSubmissionPolicy,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.start_dialog_turn_internal(
             session_id,
             user_input,
@@ -1384,7 +1384,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: Option<String>,
         submission_policy: DialogSubmissionPolicy,
         user_message_metadata: Option<serde_json::Value>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.start_dialog_turn_internal(
             session_id,
             user_input,
@@ -1401,11 +1401,11 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     }
 
     /// Compact the active session context as a persisted maintenance turn.
-    pub async fn compact_session_manually(&self, session_id: String) -> BitFunResult<()> {
+    pub async fn compact_session_manually(&self, session_id: String) -> VoidResult<()> {
         let session = self
             .session_manager
             .get_session(&session_id)
-            .ok_or_else(|| BitFunError::NotFound(format!("Session not found: {}", session_id)))?;
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {}", session_id)))?;
 
         match &session.state {
             SessionState::Idle => {}
@@ -1413,13 +1413,13 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 current_turn_id,
                 phase,
             } => {
-                return Err(BitFunError::Validation(format!(
+                return Err(VoidError::Validation(format!(
                     "Session is still processing: current_turn_id={}, phase={:?}",
                     current_turn_id, phase
                 )));
             }
             SessionState::Error { error, .. } => {
-                return Err(BitFunError::Validation(format!(
+                return Err(VoidError::Validation(format!(
                     "Session must be idle before manual compaction: {}",
                     error
                 )));
@@ -1438,7 +1438,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
         if needs_restore {
             let workspace_path = session.config.workspace_path.as_deref().ok_or_else(|| {
-                BitFunError::Validation(format!(
+                VoidError::Validation(format!(
                     "workspace_path is required when restoring session: {}",
                     session_id
                 ))
@@ -1590,7 +1590,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         submission_policy: DialogSubmissionPolicy,
         extra_user_message_metadata: Option<serde_json::Value>,
         suppress_session_title_generation: bool,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         // Get latest session, restoring from persistence on demand so every entry
         // point can use the same start_dialog_turn flow.
         let session = match self.session_manager.get_session(&session_id) {
@@ -1601,7 +1601,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     session_id
                 );
                 let workspace_path = workspace_path.clone().ok_or_else(|| {
-                    BitFunError::Validation(format!(
+                    VoidError::Validation(format!(
                         "workspace_path is required when restoring session: {}",
                         session_id
                     ))
@@ -1694,7 +1694,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     "Session still processing, rejecting new dialog: session_id={}, current_turn_id={}, phase={:?}",
                     session_id, current_turn_id, phase
                 );
-                return Err(BitFunError::Validation(format!(
+                return Err(VoidError::Validation(format!(
                     "Session state does not allow starting new dialog: {:?}",
                     session.state
                 )));
@@ -1751,7 +1751,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                             .as_deref()
                             .or(workspace_path.as_deref())
                             .ok_or_else(|| {
-                                BitFunError::Validation(format!(
+                                VoidError::Validation(format!(
                                     "workspace_path is required when restoring session: {}",
                                     session_id
                                 ))
@@ -2218,7 +2218,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     Some(crate::service::session::TurnStatus::Completed)
                 }
                 Err(e) => {
-                    let is_cancellation = matches!(&e, BitFunError::Cancelled(_));
+                    let is_cancellation = matches!(&e, VoidError::Cancelled(_));
 
                     if is_cancellation {
                         info!(
@@ -2291,7 +2291,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         error!("Dialog turn execution failed: {}", error_text);
 
                         let recoverable =
-                            !matches!(&e, BitFunError::AIClient(_) | BitFunError::Timeout(_));
+                            !matches!(&e, VoidError::AIClient(_) | VoidError::Timeout(_));
 
                         if let Err(eq_err) = event_queue
                             .enqueue(
@@ -2416,7 +2416,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: &str,
         dialog_turn_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         info!(
             "Received cancel request: dialog_turn_id={}, session_id={}",
             dialog_turn_id, session_id
@@ -2511,7 +2511,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: &str,
         wait_timeout: Duration,
-    ) -> BitFunResult<Option<String>> {
+    ) -> VoidResult<Option<String>> {
         let Some(session) = self.session_manager.get_session(session_id) else {
             return Ok(None);
         };
@@ -2548,7 +2548,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.session_manager
             .delete_session(workspace_path, session_id)
             .await?;
@@ -2564,7 +2564,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &Path,
         parent_session_id: &str,
         parent_dialog_turn_ids: &HashSet<String>,
-    ) -> BitFunResult<Vec<String>> {
+    ) -> VoidResult<Vec<String>> {
         let session_ids = self
             .session_manager
             .collect_hidden_subagent_cascade_for_parent_turns(
@@ -2599,7 +2599,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.session_manager
             .restore_session(workspace_path, session_id)
             .await
@@ -2609,7 +2609,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         self.session_manager
             .restore_internal_session(workspace_path, session_id)
             .await
@@ -2620,7 +2620,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
         self.session_manager
             .restore_session_with_turns(workspace_path, session_id)
             .await
@@ -2630,7 +2630,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
         self.session_manager
             .restore_internal_session_with_turns(workspace_path, session_id)
             .await
@@ -2641,7 +2641,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
         self.session_manager
             .restore_session_view(workspace_path, session_id)
             .await
@@ -2651,14 +2651,14 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         workspace_path: &Path,
         session_id: &str,
-    ) -> BitFunResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
+    ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
         self.session_manager
             .restore_internal_session_view(workspace_path, session_id)
             .await
     }
 
     /// List all sessions
-    pub async fn list_sessions(&self, workspace_path: &Path) -> BitFunResult<Vec<SessionSummary>> {
+    pub async fn list_sessions(&self, workspace_path: &Path) -> VoidResult<Vec<SessionSummary>> {
         self.session_manager.list_sessions(workspace_path).await
     }
 
@@ -2672,7 +2672,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     }
 
     /// Get a best-effort message view for a session.
-    pub async fn get_messages(&self, session_id: &str) -> BitFunResult<Vec<Message>> {
+    pub async fn get_messages(&self, session_id: &str) -> VoidResult<Vec<Message>> {
         self.session_manager.get_messages(session_id).await
     }
 
@@ -2682,7 +2682,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         session_id: &str,
         limit: usize,
         before_message_id: Option<&str>,
-    ) -> BitFunResult<(Vec<Message>, bool)> {
+    ) -> VoidResult<(Vec<Message>, bool)> {
         self.session_manager
             .get_messages_paginated(session_id, limit, before_message_id)
             .await
@@ -2711,19 +2711,19 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         tool_id: &str,
         updated_input: Option<serde_json::Value>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.tool_pipeline
             .confirm_tool(tool_id, updated_input)
             .await
     }
 
     /// Reject tool execution
-    pub async fn reject_tool(&self, tool_id: &str, reason: String) -> BitFunResult<()> {
+    pub async fn reject_tool(&self, tool_id: &str, reason: String) -> VoidResult<()> {
         self.tool_pipeline.reject_tool(tool_id, reason).await
     }
 
     /// Cancel tool execution
-    pub async fn cancel_tool(&self, tool_id: &str, reason: String) -> BitFunResult<()> {
+    pub async fn cancel_tool(&self, tool_id: &str, reason: String) -> VoidResult<()> {
         self.tool_pipeline.cancel_tool(tool_id, reason).await
     }
 
@@ -2816,20 +2816,20 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         cancel_token: Option<&CancellationToken>,
         deadline: Option<Instant>,
         label: &str,
-    ) -> BitFunResult<OwnedSemaphorePermit> {
+    ) -> VoidResult<OwnedSemaphorePermit> {
         let semaphore = limiter.semaphore.clone();
         let permit = match (cancel_token, deadline) {
             (Some(token), Some(deadline)) => {
                 tokio::select! {
                     result = semaphore.acquire_owned() => result
-                        .map_err(|error| BitFunError::Semaphore(error.to_string()))?,
+                        .map_err(|error| VoidError::Semaphore(error.to_string()))?,
                     _ = token.cancelled() => {
-                        return Err(BitFunError::Cancelled(
+                        return Err(VoidError::Cancelled(
                             "Subagent task was cancelled while waiting for a concurrency slot".to_string(),
                         ));
                     }
                     _ = tokio::time::sleep_until(deadline) => {
-                        return Err(BitFunError::Timeout(format!(
+                        return Err(VoidError::Timeout(format!(
                             "Timed out while waiting for a {} concurrency slot for subagent '{}'",
                             label, agent_type
                         )));
@@ -2839,9 +2839,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             (Some(token), None) => {
                 tokio::select! {
                     result = semaphore.acquire_owned() => result
-                        .map_err(|error| BitFunError::Semaphore(error.to_string()))?,
+                        .map_err(|error| VoidError::Semaphore(error.to_string()))?,
                     _ = token.cancelled() => {
-                        return Err(BitFunError::Cancelled(
+                        return Err(VoidError::Cancelled(
                             "Subagent task was cancelled while waiting for a concurrency slot".to_string(),
                         ));
                     }
@@ -2850,9 +2850,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             (None, Some(deadline)) => {
                 tokio::select! {
                     result = semaphore.acquire_owned() => result
-                        .map_err(|error| BitFunError::Semaphore(error.to_string()))?,
+                        .map_err(|error| VoidError::Semaphore(error.to_string()))?,
                     _ = tokio::time::sleep_until(deadline) => {
-                        return Err(BitFunError::Timeout(format!(
+                        return Err(VoidError::Timeout(format!(
                             "Timed out while waiting for a {} concurrency slot for subagent '{}'",
                             label, agent_type
                         )));
@@ -2862,7 +2862,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             (None, None) => semaphore
                 .acquire_owned()
                 .await
-                .map_err(|error| BitFunError::Semaphore(error.to_string()))?,
+                .map_err(|error| VoidError::Semaphore(error.to_string()))?,
         };
 
         let active_subagents = limiter
@@ -2882,7 +2882,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         profile_concurrency_cap: usize,
         cancel_token: Option<&CancellationToken>,
         deadline: Option<Instant>,
-    ) -> BitFunResult<(
+    ) -> VoidResult<(
         Vec<(OwnedSemaphorePermit, SubagentConcurrencyLimiter)>,
         u128,
     )> {
@@ -2970,7 +2970,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         request: HiddenSubagentExecutionRequest,
         cancel_token: Option<&CancellationToken>,
         timeout_seconds: Option<u64>,
-    ) -> BitFunResult<SubagentResult> {
+    ) -> VoidResult<SubagentResult> {
         let HiddenSubagentExecutionRequest {
             session_name,
             agent_type,
@@ -3025,7 +3025,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         if let Some(token) = cancel_token {
             if token.is_cancelled() {
                 debug!("Subagent task cancelled before execution");
-                return Err(BitFunError::Cancelled(
+                return Err(VoidError::Cancelled(
                     "Subagent task has been cancelled".to_string(),
                 ));
             }
@@ -3051,7 +3051,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     "Subagent task cancelled after waiting for concurrency slot: agent_type={}",
                     agent_type
                 );
-                return Err(BitFunError::Cancelled(
+                return Err(VoidError::Cancelled(
                     "Subagent task has been cancelled".to_string(),
                 ));
             }
@@ -3061,7 +3061,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 "Subagent timed out before session creation after waiting for concurrency slot: agent_type={}, wait_ms={}",
                 agent_type, wait_ms
             );
-            return Err(BitFunError::Timeout(timeout_error_message.clone()));
+            return Err(VoidError::Timeout(timeout_error_message.clone()));
         }
 
         let session = self
@@ -3111,7 +3111,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 let _ = self.cleanup_subagent_resources(&session_id).await;
                 let mut registry = self.subagent_timeout_registry.write().await;
                 registry.remove(&session_id);
-                return Err(BitFunError::Cancelled(
+                return Err(VoidError::Cancelled(
                     "Subagent task has been cancelled".to_string(),
                 ));
             }
@@ -3124,7 +3124,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             let _ = self.cleanup_subagent_resources(&session_id).await;
             let mut registry = self.subagent_timeout_registry.write().await;
             registry.remove(&session_id);
-            return Err(BitFunError::Timeout(timeout_error_message.clone()));
+            return Err(VoidError::Timeout(timeout_error_message.clone()));
         }
 
         // Generate unique dialog_turn_id for cancel token management
@@ -3321,7 +3321,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     let mut registry = self.subagent_timeout_registry.write().await;
                     registry.remove(&session_id);
 
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "Subagent '{}' failed to join: {}",
                         agent_type, error
                     )));
@@ -3383,7 +3383,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 let mut registry = self.subagent_timeout_registry.write().await;
                 registry.remove(&session_id);
 
-                return Err(BitFunError::Cancelled(
+                return Err(VoidError::Cancelled(
                     "Subagent task has been cancelled".to_string(),
                 ));
             }
@@ -3499,7 +3499,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 let mut registry = self.subagent_timeout_registry.write().await;
                 registry.remove(&session_id);
 
-                return Err(BitFunError::Timeout(timeout_error_message.clone()));
+                return Err(VoidError::Timeout(timeout_error_message.clone()));
             }
         };
 
@@ -3601,12 +3601,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     pub async fn capture_fork_agent_context_snapshot(
         &self,
         parent_session_id: &str,
-    ) -> BitFunResult<ForkAgentContextSnapshot> {
+    ) -> VoidResult<ForkAgentContextSnapshot> {
         let parent_session = self
             .session_manager
             .get_session(parent_session_id)
             .ok_or_else(|| {
-                BitFunError::NotFound(format!("Parent session not found: {}", parent_session_id))
+                VoidError::NotFound(format!("Parent session not found: {}", parent_session_id))
             })?;
         let context_messages = self.load_session_context_messages(&parent_session).await?;
         ForkAgentContextSnapshot::from_parent_session(&parent_session, context_messages)
@@ -3617,7 +3617,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         parent_session_id: &str,
         child_session_id: &str,
         child_session_name: Option<&str>,
-    ) -> BitFunResult<Session> {
+    ) -> VoidResult<Session> {
         if let Some(session) = self.session_manager.get_session(child_session_id) {
             return Ok(session);
         }
@@ -3657,24 +3657,24 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         child_session_name: Option<&str>,
         question: &str,
         model_id: Option<&str>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if request_id.trim().is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "request_id is required".to_string(),
             ));
         }
         if parent_session_id.trim().is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "parent_session_id is required".to_string(),
             ));
         }
         if child_session_id.trim().is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "child_session_id is required".to_string(),
             ));
         }
         if question.trim().is_empty() {
-            return Err(BitFunError::Validation("question is required".to_string()));
+            return Err(VoidError::Validation("question is required".to_string()));
         }
 
         let child_session = self
@@ -3720,19 +3720,19 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         request: ForkAgentExecutionRequest,
         cancel_token: Option<&CancellationToken>,
-    ) -> BitFunResult<ForkAgentExecutionResult> {
+    ) -> VoidResult<ForkAgentExecutionResult> {
         if request.agent_type.trim().is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "ForkAgentExecutionRequest.agent_type is required".to_string(),
             ));
         }
         if request.description.trim().is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "ForkAgentExecutionRequest.description is required".to_string(),
             ));
         }
         if request.prompt_messages.is_empty() {
-            return Err(BitFunError::Validation(
+            return Err(VoidError::Validation(
                 "ForkAgentExecutionRequest.prompt_messages must not be empty".to_string(),
             ));
         }
@@ -3789,9 +3789,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         cancel_token: Option<&CancellationToken>,
         model_id: Option<String>,
         timeout_seconds: Option<u64>,
-    ) -> BitFunResult<SubagentResult> {
+    ) -> VoidResult<SubagentResult> {
         let workspace_path = workspace_path.ok_or_else(|| {
-            BitFunError::Validation(
+            VoidError::Validation(
                 "workspace_path is required when creating a subagent session".to_string(),
             )
         })?;
@@ -3826,9 +3826,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         context: Option<HashMap<String, String>>,
         model_id: Option<String>,
         timeout_seconds: Option<u64>,
-    ) -> BitFunResult<BackgroundSubagentStartResult> {
+    ) -> VoidResult<BackgroundSubagentStartResult> {
         let workspace_path = workspace_path.ok_or_else(|| {
-            BitFunError::Validation(
+            VoidError::Validation(
                 "workspace_path is required when creating a background subagent session"
                     .to_string(),
             )
@@ -3840,7 +3840,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .session_manager
             .get_session(&subagent_parent_info.session_id)
             .ok_or_else(|| {
-                BitFunError::NotFound(format!(
+                VoidError::NotFound(format!(
                     "Parent session not found: {}",
                     subagent_parent_info.session_id
                 ))
@@ -3861,7 +3861,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
         };
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::service("Coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::service("Coordinator not initialized".to_string()))?;
 
         tokio::spawn(async move {
             let delivery_text = match coordinator
@@ -3924,7 +3924,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     /// Subagent sessions are now persisted so users can reopen them from the UI.
     /// This cleanup path must only release ephemeral runtime resources such as
     /// snapshot bookkeeping; it must not delete the persisted session itself.
-    async fn cleanup_subagent_resources(&self, session_id: &str) -> BitFunResult<()> {
+    async fn cleanup_subagent_resources(&self, session_id: &str) -> VoidResult<()> {
         let cleanup_started_at = Instant::now();
         debug!(
             "Starting subagent resource cleanup: session_id={}",
@@ -3986,7 +3986,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         session_id: &str,
         user_message: &str,
         max_length: Option<usize>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let allow_ai = is_ai_session_title_generation_enabled().await;
         let resolved = self
             .session_manager
@@ -4016,10 +4016,10 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: &str,
         title: &str,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let normalized = title.trim().to_string();
         if normalized.is_empty() {
-            return Err(BitFunError::validation(
+            return Err(VoidError::validation(
                 "Session title must not be empty".to_string(),
             ));
         }
@@ -4035,7 +4035,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         &self,
         session_id: &str,
         agent_type: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let normalized = Self::normalize_agent_type(agent_type);
         self.session_manager
             .update_session_agent_type(session_id, &normalized)
@@ -4109,7 +4109,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         parent_session_id: &str,
         parent_dialog_turn_id: Option<&str>,
         parent_turn_index: Option<usize>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.session_manager
             .persist_btw_turn(
                 workspace_path,
@@ -4140,7 +4140,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 }
 
 fn resolve_agent_submission_turn_id(
-    request: &bitfun_runtime_ports::AgentSubmissionRequest,
+    request: &void_runtime_ports::AgentSubmissionRequest,
 ) -> String {
     request
         .turn_id
@@ -4159,14 +4159,14 @@ fn resolve_agent_submission_turn_id(
 }
 
 #[async_trait::async_trait]
-impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
+impl void_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
     async fn create_session(
         &self,
-        request: bitfun_runtime_ports::AgentSessionCreateRequest,
-    ) -> bitfun_runtime_ports::PortResult<bitfun_runtime_ports::AgentSessionCreateResult> {
+        request: void_runtime_ports::AgentSessionCreateRequest,
+    ) -> void_runtime_ports::PortResult<void_runtime_ports::AgentSessionCreateResult> {
         let workspace_path = request.workspace_path.clone().ok_or_else(|| {
-            bitfun_runtime_ports::PortError::new(
-                bitfun_runtime_ports::PortErrorKind::InvalidRequest,
+            void_runtime_ports::PortError::new(
+                void_runtime_ports::PortErrorKind::InvalidRequest,
                 "workspace_path is required to create an agent session",
             )
         })?;
@@ -4184,13 +4184,13 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
             )
             .await
             .map_err(|error| {
-                bitfun_runtime_ports::PortError::new(
-                    bitfun_runtime_ports::PortErrorKind::Backend,
+                void_runtime_ports::PortError::new(
+                    void_runtime_ports::PortErrorKind::Backend,
                     error.to_string(),
                 )
             })?;
 
-        Ok(bitfun_runtime_ports::AgentSessionCreateResult {
+        Ok(void_runtime_ports::AgentSessionCreateResult {
             session_id: session.session_id,
             agent_type: session.agent_type,
         })
@@ -4198,11 +4198,11 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
 
     async fn submit_message(
         &self,
-        request: bitfun_runtime_ports::AgentSubmissionRequest,
-    ) -> bitfun_runtime_ports::PortResult<bitfun_runtime_ports::AgentSubmissionResult> {
+        request: void_runtime_ports::AgentSubmissionRequest,
+    ) -> void_runtime_ports::PortResult<void_runtime_ports::AgentSubmissionResult> {
         if !request.attachments.is_empty() {
-            return Err(bitfun_runtime_ports::PortError::new(
-                bitfun_runtime_ports::PortErrorKind::InvalidRequest,
+            return Err(void_runtime_ports::PortError::new(
+                void_runtime_ports::PortErrorKind::InvalidRequest,
                 "agent submission port does not yet accept generic attachments",
             ));
         }
@@ -4211,8 +4211,8 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
             .get_session_manager()
             .get_session(&request.session_id)
             .ok_or_else(|| {
-                bitfun_runtime_ports::PortError::new(
-                    bitfun_runtime_ports::PortErrorKind::NotFound,
+                void_runtime_ports::PortError::new(
+                    void_runtime_ports::PortErrorKind::NotFound,
                     format!("session not found: {}", request.session_id),
                 )
             })?;
@@ -4221,25 +4221,25 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
 
         let trigger_source = match request
             .source
-            .unwrap_or(bitfun_runtime_ports::AgentSubmissionSource::Bot)
+            .unwrap_or(void_runtime_ports::AgentSubmissionSource::Bot)
         {
-            bitfun_runtime_ports::AgentSubmissionSource::DesktopUi => {
+            void_runtime_ports::AgentSubmissionSource::DesktopUi => {
                 DialogTriggerSource::DesktopUi
             }
-            bitfun_runtime_ports::AgentSubmissionSource::DesktopApi => {
+            void_runtime_ports::AgentSubmissionSource::DesktopApi => {
                 DialogTriggerSource::DesktopApi
             }
-            bitfun_runtime_ports::AgentSubmissionSource::AgentSession => {
+            void_runtime_ports::AgentSubmissionSource::AgentSession => {
                 DialogTriggerSource::AgentSession
             }
-            bitfun_runtime_ports::AgentSubmissionSource::ScheduledJob => {
+            void_runtime_ports::AgentSubmissionSource::ScheduledJob => {
                 DialogTriggerSource::ScheduledJob
             }
-            bitfun_runtime_ports::AgentSubmissionSource::RemoteRelay => {
+            void_runtime_ports::AgentSubmissionSource::RemoteRelay => {
                 DialogTriggerSource::RemoteRelay
             }
-            bitfun_runtime_ports::AgentSubmissionSource::Bot => DialogTriggerSource::Bot,
-            bitfun_runtime_ports::AgentSubmissionSource::Cli => DialogTriggerSource::Cli,
+            void_runtime_ports::AgentSubmissionSource::Bot => DialogTriggerSource::Bot,
+            void_runtime_ports::AgentSubmissionSource::Cli => DialogTriggerSource::Cli,
         };
         let user_message_metadata = if request.metadata.is_empty() {
             None
@@ -4259,13 +4259,13 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
         )
         .await
         .map_err(|error| {
-            bitfun_runtime_ports::PortError::new(
-                bitfun_runtime_ports::PortErrorKind::Backend,
+            void_runtime_ports::PortError::new(
+                void_runtime_ports::PortErrorKind::Backend,
                 error.to_string(),
             )
         })?;
 
-        Ok(bitfun_runtime_ports::AgentSubmissionResult {
+        Ok(void_runtime_ports::AgentSubmissionResult {
             turn_id,
             accepted: true,
         })
@@ -4274,7 +4274,7 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
     async fn resolve_session_agent_type(
         &self,
         session_id: &str,
-    ) -> bitfun_runtime_ports::PortResult<Option<String>> {
+    ) -> void_runtime_ports::PortResult<Option<String>> {
         Ok(self
             .get_session_manager()
             .get_session(session_id)
@@ -4283,23 +4283,23 @@ impl bitfun_runtime_ports::AgentSubmissionPort for ConversationCoordinator {
 }
 
 #[async_trait::async_trait]
-impl bitfun_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator {
+impl void_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator {
     async fn cancel_turn(
         &self,
-        request: bitfun_runtime_ports::AgentTurnCancellationRequest,
-    ) -> bitfun_runtime_ports::PortResult<bitfun_runtime_ports::AgentTurnCancellationResult> {
+        request: void_runtime_ports::AgentTurnCancellationRequest,
+    ) -> void_runtime_ports::PortResult<void_runtime_ports::AgentTurnCancellationResult> {
         let session_id = request.session_id;
         if let Some(turn_id) = request.turn_id {
             self.cancel_dialog_turn(&session_id, &turn_id)
                 .await
                 .map_err(|error| {
-                    bitfun_runtime_ports::PortError::new(
-                        bitfun_runtime_ports::PortErrorKind::Backend,
+                    void_runtime_ports::PortError::new(
+                        void_runtime_ports::PortErrorKind::Backend,
                         error.to_string(),
                     )
                 })?;
 
-            return Ok(bitfun_runtime_ports::AgentTurnCancellationResult {
+            return Ok(void_runtime_ports::AgentTurnCancellationResult {
                 session_id,
                 turn_id: Some(turn_id),
                 requested: true,
@@ -4311,14 +4311,14 @@ impl bitfun_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator
             .cancel_active_turn_for_session(&session_id, wait_timeout)
             .await
             .map_err(|error| {
-                bitfun_runtime_ports::PortError::new(
-                    bitfun_runtime_ports::PortErrorKind::Backend,
+                void_runtime_ports::PortError::new(
+                    void_runtime_ports::PortErrorKind::Backend,
                     error.to_string(),
                 )
             })?;
         let requested = cancelled_turn_id.is_some();
 
-        Ok(bitfun_runtime_ports::AgentTurnCancellationResult {
+        Ok(void_runtime_ports::AgentTurnCancellationResult {
             session_id,
             turn_id: cancelled_turn_id,
             requested,
@@ -4327,11 +4327,11 @@ impl bitfun_runtime_ports::AgentTurnCancellationPort for ConversationCoordinator
 }
 
 #[async_trait::async_trait]
-impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
+impl void_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
     async fn read_remote_control_state(
         &self,
-        request: bitfun_runtime_ports::RemoteControlStateRequest,
-    ) -> bitfun_runtime_ports::PortResult<Option<bitfun_runtime_ports::RemoteControlStateSnapshot>>
+        request: void_runtime_ports::RemoteControlStateRequest,
+    ) -> void_runtime_ports::PortResult<Option<void_runtime_ports::RemoteControlStateSnapshot>>
     {
         let Some(session) = self.get_session_manager().get_session(&request.session_id) else {
             return Ok(None);
@@ -4339,7 +4339,7 @@ impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
 
         let mut metadata = serde_json::Map::new();
         let (state, active_turn_id) = match session.state {
-            SessionState::Idle => (bitfun_runtime_ports::RemoteControlSessionState::Idle, None),
+            SessionState::Idle => (void_runtime_ports::RemoteControlSessionState::Idle, None),
             SessionState::Processing {
                 current_turn_id,
                 phase,
@@ -4349,7 +4349,7 @@ impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
                     serde_json::Value::String(format!("{:?}", phase)),
                 );
                 (
-                    bitfun_runtime_ports::RemoteControlSessionState::Processing,
+                    void_runtime_ports::RemoteControlSessionState::Processing,
                     Some(current_turn_id),
                 )
             }
@@ -4359,11 +4359,11 @@ impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
                     "recoverable".to_string(),
                     serde_json::Value::Bool(recoverable),
                 );
-                (bitfun_runtime_ports::RemoteControlSessionState::Error, None)
+                (void_runtime_ports::RemoteControlSessionState::Error, None)
             }
         };
 
-        Ok(Some(bitfun_runtime_ports::RemoteControlStateSnapshot {
+        Ok(Some(void_runtime_ports::RemoteControlStateSnapshot {
             session_id: request.session_id,
             state,
             active_turn_id,
@@ -4374,17 +4374,17 @@ impl bitfun_runtime_ports::RemoteControlStatePort for ConversationCoordinator {
 }
 
 #[async_trait::async_trait]
-impl bitfun_runtime_ports::SessionTranscriptReader for ConversationCoordinator {
+impl void_runtime_ports::SessionTranscriptReader for ConversationCoordinator {
     async fn read_session_transcript(
         &self,
-        request: bitfun_runtime_ports::SessionTranscriptRequest,
-    ) -> bitfun_runtime_ports::PortResult<bitfun_runtime_ports::SessionTranscript> {
+        request: void_runtime_ports::SessionTranscriptRequest,
+    ) -> void_runtime_ports::PortResult<void_runtime_ports::SessionTranscript> {
         let messages = self
             .get_messages(&request.session_id)
             .await
             .map_err(|error| {
-                bitfun_runtime_ports::PortError::new(
-                    bitfun_runtime_ports::PortErrorKind::Backend,
+                void_runtime_ports::PortError::new(
+                    void_runtime_ports::PortErrorKind::Backend,
                     error.to_string(),
                 )
             })?;
@@ -4404,7 +4404,7 @@ impl bitfun_runtime_ports::SessionTranscriptReader for ConversationCoordinator {
                 }
                 .to_string();
 
-                bitfun_runtime_ports::TranscriptMessage {
+                void_runtime_ports::TranscriptMessage {
                     role,
                     turn_id: message.metadata.turn_id,
                     content: serde_json::to_value(message.content).unwrap_or_default(),
@@ -4412,7 +4412,7 @@ impl bitfun_runtime_ports::SessionTranscriptReader for ConversationCoordinator {
             })
             .collect();
 
-        Ok(bitfun_runtime_ports::SessionTranscript {
+        Ok(void_runtime_ports::SessionTranscript {
             session_id: request.session_id,
             messages,
         })
@@ -4446,12 +4446,12 @@ mod tests {
         ConversationCoordinator,
     };
     use crate::service::remote_ssh::workspace_state::init_remote_workspace_manager;
-    use bitfun_runtime_ports::{AgentSubmissionRequest, AgentSubmissionSource};
+    use void_runtime_ports::{AgentSubmissionRequest, AgentSubmissionSource};
 
     #[test]
     fn conversation_coordinator_exposes_remote_runtime_ports() {
-        fn assert_cancellation_port<T: bitfun_runtime_ports::AgentTurnCancellationPort>() {}
-        fn assert_state_port<T: bitfun_runtime_ports::RemoteControlStatePort>() {}
+        fn assert_cancellation_port<T: void_runtime_ports::AgentTurnCancellationPort>() {}
+        fn assert_state_port<T: void_runtime_ports::RemoteControlStatePort>() {}
 
         assert_cancellation_port::<ConversationCoordinator>();
         assert_state_port::<ConversationCoordinator>();
@@ -4494,7 +4494,7 @@ mod tests {
         let failed_text = super::format_background_subagent_delivery_text(
             "bg-subagent-789",
             "GeneralPurpose",
-            Err(&crate::util::errors::BitFunError::tool("boom".to_string())),
+            Err(&crate::util::errors::VoidError::tool("boom".to_string())),
         );
         assert!(failed_text.contains(
             "Background subagent 'GeneralPurpose' (background_task_id='bg-subagent-789') failed before producing a final result."

@@ -3,8 +3,8 @@
 //! Provides priority queue and batch processing functionality
 
 use super::types::{AgenticEvent, EventEnvelope, EventPriority};
-use crate::util::errors::BitFunResult;
-use bitfun_agent_stream::StreamEventSink;
+use crate::util::errors::VoidResult;
+use void_agent_stream::StreamEventSink;
 use log::{debug, trace, warn};
 use std::collections::BinaryHeap;
 use std::sync::Arc;
@@ -77,7 +77,7 @@ impl EventQueue {
         &self,
         event: AgenticEvent,
         priority: Option<EventPriority>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let priority = priority.unwrap_or_else(|| event.default_priority());
         let envelope = EventEnvelope::new(event, priority);
         let event_id = envelope.id.clone();
@@ -185,7 +185,7 @@ impl EventQueue {
     }
 
     /// Clear all events for a session
-    pub async fn clear_session(&self, session_id: &str) -> BitFunResult<()> {
+    pub async fn clear_session(&self, session_id: &str) -> VoidResult<()> {
         // Remove all events for this session from the queue
         let queue_len = {
             let mut queue = self.queue.lock().await;

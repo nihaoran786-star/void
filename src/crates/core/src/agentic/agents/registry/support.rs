@@ -1,7 +1,7 @@
 use crate::infrastructure::get_path_manager_arc;
 use crate::service::config::global::GlobalConfigManager;
 use crate::service::config::types::{AgentSubagentOverrideConfig, ModeConfig};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::Path;
@@ -37,14 +37,14 @@ fn normalize_project_document_value(value: Value) -> Value {
 
 pub(super) async fn load_project_subagent_overrides_local(
     workspace_root: &Path,
-) -> BitFunResult<AgentSubagentOverrideConfig> {
+) -> VoidResult<AgentSubagentOverrideConfig> {
     let path = get_path_manager_arc().project_agent_subagents_file(workspace_root);
     match tokio::fs::read_to_string(&path).await {
         Ok(content) => Ok(serde_json::from_value(normalize_project_document_value(
             serde_json::from_str(&content)?,
         ))?),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
-        Err(error) => Err(BitFunError::config(format!(
+        Err(error) => Err(VoidError::config(format!(
             "Failed to read project subagent overrides file '{}': {}",
             path.display(),
             error
@@ -55,7 +55,7 @@ pub(super) async fn load_project_subagent_overrides_local(
 pub(super) async fn save_project_subagent_overrides_local(
     workspace_root: &Path,
     overrides: &AgentSubagentOverrideConfig,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     let path = get_path_manager_arc().project_agent_subagents_file(workspace_root);
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await?;

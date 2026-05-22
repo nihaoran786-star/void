@@ -70,7 +70,7 @@ describe('ApiClient startup trace classification', () => {
     await client.invoke('restore_session_view', {
       request: {
         sessionId: 'history-1',
-        workspacePath: 'D:/workspace/BitFun',
+        workspacePath: 'D:/workspace/Void',
       },
     });
 

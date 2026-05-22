@@ -1,4 +1,4 @@
-//! Mode system for BitFun
+//! Mode system for Void
 //!
 //! Provides flexible mode selection with different system prompts and tool sets
 
@@ -12,7 +12,7 @@ pub(crate) mod citation_renumber;
 
 use crate::agentic::tools::framework::ToolExposure;
 use crate::agentic::WorkspaceBinding;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 pub use definitions::custom::{CustomSubagent, CustomSubagentKind};
 pub use definitions::hidden::{CodeReviewAgent, DeepReviewAgent, GenerateDocAgent, InitAgent};
@@ -104,11 +104,11 @@ pub trait Agent: Send + Sync + 'static {
     }
 
     /// Build the system prompt for this agent
-    async fn build_prompt(&self, context: &PromptBuilderContext) -> BitFunResult<String> {
+    async fn build_prompt(&self, context: &PromptBuilderContext) -> VoidResult<String> {
         let prompt_components = PromptBuilder::new(context.clone());
         let template_name = self.prompt_template_name(context.model_name.as_deref());
         let system_prompt_template = get_embedded_prompt(template_name).ok_or_else(|| {
-            BitFunError::Agent(format!("{} not found in embedded files", template_name))
+            VoidError::Agent(format!("{} not found in embedded files", template_name))
         })?;
 
         let prompt = prompt_components
@@ -122,11 +122,11 @@ pub trait Agent: Send + Sync + 'static {
     async fn get_system_prompt(
         &self,
         context: Option<&PromptBuilderContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if let Some(context) = context {
             self.build_prompt(context).await
         } else {
-            Err(BitFunError::Agent(
+            Err(VoidError::Agent(
                 "Prompt build context is required".to_string(),
             ))
         }
@@ -140,11 +140,11 @@ pub trait Agent: Send + Sync + 'static {
         &self,
         _previous_agent_type: Option<&str>,
         _workspace: Option<&WorkspaceBinding>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if let Some(system_reminder_template_name) = self.system_reminder_template_name() {
             let system_reminder =
                 get_embedded_prompt(system_reminder_template_name).ok_or_else(|| {
-                    BitFunError::Agent(format!(
+                    VoidError::Agent(format!(
                         "{} not found in embedded files",
                         system_reminder_template_name
                     ))

@@ -1,16 +1,16 @@
 [package]
-name = "bitfun-relay-server"
+name = "void-relay-server"
 version = "0.2.7"
-authors = ["BitFun Team"]
+authors = ["Void Team"]
 edition = "2021"
-description = "BitFun Relay Server - WebSocket relay for Remote Connect"
+description = "Void Relay Server - WebSocket relay for Remote Connect"
 
 [lib]
-name = "bitfun_relay_server"
+name = "void_relay_server"
 path = "src/lib.rs"
 
 [[bin]]
-name = "bitfun-relay-server"
+name = "void-relay-server"
 path = "src/main.rs"
 
 [dependencies]

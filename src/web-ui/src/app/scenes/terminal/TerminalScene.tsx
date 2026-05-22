@@ -30,11 +30,11 @@ const TerminalScene: React.FC<TerminalSceneProps> = ({ isActive = true }) => {
   }, [setActiveSession]);
 
   if (!isActive) {
-    return <div className="bitfun-terminal-scene" aria-hidden="true" />;
+    return <div className="void-terminal-scene" aria-hidden="true" />;
   }
 
   return (
-    <div className="bitfun-terminal-scene">
+    <div className="void-terminal-scene">
       {activeSessionId ? (
         <ConnectedTerminal
           key={activeSessionId}
@@ -46,9 +46,9 @@ const TerminalScene: React.FC<TerminalSceneProps> = ({ isActive = true }) => {
           onClose={handleClose}
         />
       ) : (
-        <div className="bitfun-terminal-scene__empty">
-          <SquareTerminal size={32} className="bitfun-terminal-scene__empty-icon" />
-          <p className="bitfun-terminal-scene__empty-hint">{t('emptyState')}</p>
+        <div className="void-terminal-scene__empty">
+          <SquareTerminal size={32} className="void-terminal-scene__empty-icon" />
+          <p className="void-terminal-scene__empty-hint">{t('emptyState')}</p>
         </div>
       )}
     </div>

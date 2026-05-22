@@ -896,7 +896,7 @@ description: 'Markdown with GFM support',
 - 表格支持
 
 \`\`\`js
-console.log('Hello, BitFun!');
+console.log('Hello, Void!');
 \`\`\`
 
 > 引用块示例`}
@@ -1756,7 +1756,7 @@ console.log(user.greet());`);
               toolItem={createMockToolItem('CreatePlan',
                 {},
                 {
-                  plan_file_path: '/Users/demo/.bitfun/projects/project-slug/plans/refactor-user-module.plan.md',
+                  plan_file_path: '/Users/demo/.void/projects/project-slug/plans/refactor-user-module.plan.md',
                   name: 'Refactor Module',
                   overview: 'Plan overview',
                   todos: [
@@ -1779,7 +1779,7 @@ console.log(user.greet());`);
               toolItem={createMockToolItem('CreatePlan',
                 {},
                 {
-                  plan_file_path: '/Users/demo/.bitfun/projects/project-slug/plans/add-dark-mode.plan.md',
+                  plan_file_path: '/Users/demo/.void/projects/project-slug/plans/add-dark-mode.plan.md',
                   name: 'Dark Mode',
                   overview: 'Add dark mode support',
                   todos: [
@@ -1976,7 +1976,7 @@ Aborting`,
                 { name: 'Weather Dashboard' },
                 {
                   app_id: 'ma-preview-001',
-                  path: '.bitfun/miniapps/ma-preview-001',
+                  path: '.void/miniapps/ma-preview-001',
                 },
                 'completed'
               )}

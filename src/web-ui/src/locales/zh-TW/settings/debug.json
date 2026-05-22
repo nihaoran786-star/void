@@ -17,8 +17,8 @@
   "settings": {
     "logPath": {
       "label": "日誌文件路徑",
-      "description": "Debug日誌保存路徑（相對於工作區根目錄），默認為 .bitfun/debug.log",
-      "placeholder": ".bitfun/debug.log",
+      "description": "Debug日誌保存路徑（相對於工作區根目錄），默認為 .void/debug.log",
+      "placeholder": ".void/debug.log",
       "browse": "瀏覽"
     },
     "ingestPort": {

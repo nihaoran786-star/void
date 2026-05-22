@@ -81,8 +81,8 @@ jobs:
     needs: prepare
     env:
       NODE_OPTIONS: --max-old-space-size=6144
-      BITFUN_ENABLE_UPDATER_ARTIFACTS: ${{ needs.prepare.outputs.upload_to_release }}
-      TAURI_UPDATER_ENDPOINT: https://github.com/GCWing/BitFun/releases/latest/download/latest.json
+      VOID_ENABLE_UPDATER_ARTIFACTS: ${{ needs.prepare.outputs.upload_to_release }}
+      TAURI_UPDATER_ENDPOINT: https://github.com/GCWing/Void/releases/latest/download/latest.json
       TAURI_UPDATER_PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -114,7 +114,7 @@ jobs:
               $ErrorActionPreference = 'Stop'
               pnpm run desktop:build:nsis --target x86_64-pc-windows-msvc --verbose
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-              $desktopExe = "target/x86_64-pc-windows-msvc/release/bitfun-desktop.exe"
+              $desktopExe = "target/x86_64-pc-windows-msvc/release/void-desktop.exe"
               if (-not (Test-Path $desktopExe)) {
                 throw "Desktop executable was not found after NSIS build: $desktopExe"
               }
@@ -222,13 +222,13 @@ jobs:
       - name: Upload bundles
         uses: actions/upload-artifact@v4
         with:
-          name: bitfun-${{ needs.prepare.outputs.release_tag }}-${{ matrix.platform.name }}-bundle
+          name: void-${{ needs.prepare.outputs.release_tag }}-${{ matrix.platform.name }}-bundle
           if-no-files-found: error
           path: |
             target/*/release/bundle
             target/release/bundle
             src/apps/desktop/target/release/bundle
-            BitFun-Installer/src-tauri/target/release/bitfun-installer.exe
+            Void-Installer/src-tauri/target/release/void-installer.exe
 
   # ── Upload assets to GitHub Release ────────────────────────────────
   upload-release-assets:
@@ -246,7 +246,7 @@ jobs:
       - name: Download bundled artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: bitfun-${{ needs.prepare.outputs.release_tag }}-*-bundle
+          pattern: void-${{ needs.prepare.outputs.release_tag }}-*-bundle
           path: release-assets
           merge-multiple: true
 
@@ -269,7 +269,7 @@ jobs:
             --assets-dir release-updater-assets \
             --version "${{ needs.prepare.outputs.version }}" \
             --tag "${{ needs.prepare.outputs.release_tag }}" \
-            --repo "GCWing/BitFun" \
+            --repo "GCWing/Void" \
             --out release-updater-assets/latest.json \
             --required-platforms "${REQUIRED_UPDATER_PLATFORMS}"
 
@@ -290,13 +290,13 @@ jobs:
             release-assets/**/*.deb
             release-assets/**/*.dmg
             release-assets/**/*.rpm
-            release-assets/**/*bitfun-installer.exe
+            release-assets/**/*void-installer.exe
           fail_on_unmatched_files: true
 
       - name: Verify published updater manifest
         run: |
           curl -fsSL --retry 5 --retry-delay 3 \
-            "https://github.com/GCWing/BitFun/releases/download/${{ needs.prepare.outputs.release_tag }}/latest.json" \
+            "https://github.com/GCWing/Void/releases/download/${{ needs.prepare.outputs.release_tag }}/latest.json" \
             -o latest.published.json
           node scripts/verify-tauri-latest-json.mjs \
             --manifest latest.published.json \

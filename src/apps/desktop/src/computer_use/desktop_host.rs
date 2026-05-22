@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
-use bitfun_core::agentic::tools::computer_use_host::{
+use void_core::agentic::tools::computer_use_host::{
     clamp_point_crop_half_extent, ActionRecord, AppClickParams, AppInfo, AppSelector,
     AppStateSnapshot, AppWaitPredicate, ClickTarget, ComputerScreenshot, ComputerUseDisplayInfo,
     ComputerUseHost, ComputerUseImageContentRect, ComputerUseImageGlobalBounds,
@@ -18,11 +18,11 @@ use bitfun_core::agentic::tools::computer_use_host::{
     COMPUTER_USE_QUADRANT_EDGE_EXPAND_PX,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
-use bitfun_core::agentic::tools::computer_use_host::{
+use void_core::agentic::tools::computer_use_host::{
     ComputerUseForegroundApplication, ComputerUsePointerGlobal,
 };
-use bitfun_core::agentic::tools::computer_use_optimizer::ComputerUseOptimizer;
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::agentic::tools::computer_use_optimizer::ComputerUseOptimizer;
+use void_core::util::errors::{VoidError, VoidResult};
 use enigo::{Axis, Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
 use image::codecs::jpeg::JpegEncoder;
 use image::{DynamicImage, Rgb, RgbImage};
@@ -500,9 +500,9 @@ impl MacPointerGeo {
     }
 
     /// Map **continuous** framebuffer pixel center `(cx, cy)` (0.5 = middle of left/top pixel) to CG global.
-    fn full_pixel_center_to_global_f64(&self, cx: f64, cy: f64) -> BitFunResult<(f64, f64)> {
+    fn full_pixel_center_to_global_f64(&self, cx: f64, cy: f64) -> VoidResult<(f64, f64)> {
         if self.disp_w <= 0.0 || self.disp_h <= 0.0 || self.full_px_w == 0 || self.full_px_h == 0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Invalid macOS pointer geometry.".to_string(),
             ));
         }
@@ -568,7 +568,7 @@ struct PointerMap {
 
 impl PointerMap {
     /// Continuous mapping: **composed JPEG** pixel `(x,y)` -> global (macOS CG).
-    fn map_image_to_global_f64(&self, x: i32, y: i32) -> BitFunResult<(f64, f64)> {
+    fn map_image_to_global_f64(&self, x: i32, y: i32) -> VoidResult<(f64, f64)> {
         if self.image_w == 0
             || self.image_h == 0
             || self.content_w == 0
@@ -576,7 +576,7 @@ impl PointerMap {
             || self.native_w == 0
             || self.native_h == 0
         {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Invalid screenshot coordinate map (zero dimension).".to_string(),
             ));
         }
@@ -606,9 +606,9 @@ impl PointerMap {
     }
 
     /// Normalized 0..=1000 maps to the **capture** bitmap.
-    fn map_normalized_to_global_f64(&self, x: i32, y: i32) -> BitFunResult<(f64, f64)> {
+    fn map_normalized_to_global_f64(&self, x: i32, y: i32) -> VoidResult<(f64, f64)> {
         if self.native_w == 0 || self.native_h == 0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Invalid screenshot coordinate map (zero native dimension).".to_string(),
             ));
         }
@@ -715,7 +715,7 @@ struct ComputerUseSessionMutableState {
 struct CachedInteractiveView {
     digest: String,
     /// `i` → `node_idx` map (dense, indexed by `i`).
-    elements: Vec<bitfun_core::agentic::tools::computer_use_host::InteractiveElement>,
+    elements: Vec<void_core::agentic::tools::computer_use_host::InteractiveElement>,
 }
 
 #[derive(Debug, Clone)]
@@ -838,7 +838,7 @@ impl DesktopComputerUseHost {
     /// → Accessibility). Without this call, the OS NEVER prompts and AX tree
     /// reads against other apps return only the top-level window structure
     /// (root window + a few descendants) — which is exactly the "shallow tree
-    /// / agent goes blind" symptom we observed against the BitFun WebView.
+    /// / agent goes blind" symptom we observed against the Void WebView.
     fn run_background_input_self_check(&self) {
         #[cfg(target_os = "macos")]
         {
@@ -854,7 +854,7 @@ impl DesktopComputerUseHost {
                 // Fire-and-forget. The dialog is async and modal at the macOS
                 // level; we do not block startup waiting for the user to
                 // approve. The next CU invocation will simply succeed once
-                // permission lands. Subsequent BitFun launches skip the
+                // permission lands. Subsequent Void launches skip the
                 // prompt because `ax_trusted()` will already be true.
                 macos::request_ax_prompt();
             }
@@ -1020,7 +1020,7 @@ end tell"#])
         }
     }
 
-    fn ensure_input_automation_allowed() -> BitFunResult<()> {
+    fn ensure_input_automation_allowed() -> VoidResult<()> {
         #[cfg(target_os = "macos")]
         {
             if macos::ax_trusted() {
@@ -1029,8 +1029,8 @@ end tell"#])
             let exe = std::env::current_exe()
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|_| "(unknown path)".to_string());
-            return Err(BitFunError::tool(format!(
-                "macOS Accessibility is not enabled for this executable. System Settings > Privacy & Security > Accessibility: add and enable BitFun. Development builds use the debug binary at: {}",
+            return Err(VoidError::tool(format!(
+                "macOS Accessibility is not enabled for this executable. System Settings > Privacy & Security > Accessibility: add and enable Void. Development builds use the debug binary at: {}",
                 exe
             )));
         }
@@ -1040,14 +1040,14 @@ end tell"#])
         }
     }
 
-    fn with_enigo<F, T>(f: F) -> BitFunResult<T>
+    fn with_enigo<F, T>(f: F) -> VoidResult<T>
     where
-        F: FnOnce(&mut Enigo) -> BitFunResult<T>,
+        F: FnOnce(&mut Enigo) -> VoidResult<T>,
     {
         Self::ensure_input_automation_allowed()?;
         let settings = Settings::default();
         let mut enigo =
-            Enigo::new(&settings).map_err(|e| BitFunError::tool(format!("enigo init: {}", e)))?;
+            Enigo::new(&settings).map_err(|e| VoidError::tool(format!("enigo init: {}", e)))?;
         f(&mut enigo)
     }
 
@@ -1060,9 +1060,9 @@ end tell"#])
     /// converted into a Rust error instead of propagating across the FFI
     /// boundary as a "foreign exception" — which would otherwise cause Rust's
     /// `catch_unwind` to abort the whole process (`SIGABRT`).
-    fn run_enigo_job<F, T>(job: F) -> BitFunResult<T>
+    fn run_enigo_job<F, T>(job: F) -> VoidResult<T>
     where
-        F: FnOnce(&mut Enigo) -> BitFunResult<T> + Send,
+        F: FnOnce(&mut Enigo) -> VoidResult<T> + Send,
         T: Send,
     {
         #[cfg(target_os = "macos")]
@@ -1077,18 +1077,18 @@ end tell"#])
 
     /// Absolute pointer move in Quartz global **points** with full float precision (avoids enigo integer truncation).
     #[cfg(target_os = "macos")]
-    fn post_mouse_moved_cg_global(x: f64, y: f64) -> BitFunResult<()> {
+    fn post_mouse_moved_cg_global(x: f64, y: f64) -> VoidResult<()> {
         use core_graphics::event::{CGEvent, CGEventTapLocation, CGEventType, CGMouseButton};
         use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
         use core_graphics::geometry::CGPoint;
 
         let source =
             CGEventSource::new(CGEventSourceStateID::CombinedSessionState).map_err(|_| {
-                BitFunError::tool("CGEventSource create failed (mouse_move)".to_string())
+                VoidError::tool("CGEventSource create failed (mouse_move)".to_string())
             })?;
         let pt = CGPoint { x, y };
         let ev = CGEvent::new_mouse_event(source, CGEventType::MouseMoved, pt, CGMouseButton::Left)
-            .map_err(|_| BitFunError::tool("CGEvent MouseMoved failed".to_string()))?;
+            .map_err(|_| VoidError::tool("CGEvent MouseMoved failed".to_string()))?;
         ev.post(CGEventTapLocation::HID);
         Ok(())
     }
@@ -1101,7 +1101,7 @@ end tell"#])
 
     /// Move the pointer along a short visible path instead of warping in one event.
     #[cfg(target_os = "macos")]
-    fn smooth_mouse_move_cg_global(x1: f64, y1: f64) -> BitFunResult<()> {
+    fn smooth_mouse_move_cg_global(x1: f64, y1: f64) -> VoidResult<()> {
         const MIN_DIST: f64 = 2.5;
         const MIN_STEPS: usize = 8;
         const MAX_STEPS: usize = 85;
@@ -1133,7 +1133,7 @@ end tell"#])
 
     /// Windows/Linux: same smooth path using enigo absolute moves (single `Enigo` session).
     #[cfg(not(target_os = "macos"))]
-    fn smooth_mouse_move_enigo_abs(x1: f64, y1: f64) -> BitFunResult<()> {
+    fn smooth_mouse_move_enigo_abs(x1: f64, y1: f64) -> VoidResult<()> {
         const MIN_DIST: f64 = 2.5;
         const MIN_STEPS: usize = 8;
         const MAX_STEPS: usize = 85;
@@ -1141,7 +1141,7 @@ end tell"#])
 
         Self::run_enigo_job(|e| {
             let (cx, cy) = e.location().map_err(|err| {
-                BitFunError::tool(format!("smooth_mouse_move: pointer location: {}", err))
+                VoidError::tool(format!("smooth_mouse_move: pointer location: {}", err))
             })?;
             let x0 = cx as f64;
             let y0 = cy as f64;
@@ -1151,7 +1151,7 @@ end tell"#])
             if dist < MIN_DIST {
                 return e
                     .move_mouse(x1.round() as i32, y1.round() as i32, Coordinate::Abs)
-                    .map_err(|err| BitFunError::tool(format!("mouse_move: {}", err)));
+                    .map_err(|err| VoidError::tool(format!("mouse_move: {}", err)));
             }
             let duration_ms = (70.0 + dist * 0.28).min(MAX_DURATION_MS as f64) as u64;
             let steps = ((dist / 5.5).ceil() as usize).clamp(MIN_STEPS, MAX_STEPS);
@@ -1163,7 +1163,7 @@ end tell"#])
                 let x = x0 + dx * te;
                 let y = y0 + dy * te;
                 e.move_mouse(x.round() as i32, y.round() as i32, Coordinate::Abs)
-                    .map_err(|err| BitFunError::tool(format!("mouse_move: {}", err)))?;
+                    .map_err(|err| VoidError::tool(format!("mouse_move: {}", err)))?;
                 if i < steps {
                     std::thread::sleep(step_delay);
                 }
@@ -1172,16 +1172,16 @@ end tell"#])
         })
     }
 
-    fn map_button(s: &str) -> BitFunResult<Button> {
+    fn map_button(s: &str) -> VoidResult<Button> {
         match s.to_lowercase().as_str() {
             "left" => Ok(Button::Left),
             "right" => Ok(Button::Right),
             "middle" => Ok(Button::Middle),
-            _ => Err(BitFunError::tool(format!("Unknown mouse button: {}", s))),
+            _ => Err(VoidError::tool(format!("Unknown mouse button: {}", s))),
         }
     }
 
-    fn map_key(name: &str) -> BitFunResult<Key> {
+    fn map_key(name: &str) -> VoidResult<Key> {
         let n = name.to_lowercase();
         Ok(match n.as_str() {
             "command" | "meta" | "super" | "win" => Key::Meta,
@@ -1220,12 +1220,12 @@ end tell"#])
                 Key::Unicode(c)
             }
             _ => {
-                return Err(BitFunError::tool(format!("Unknown key name: {}", name)));
+                return Err(VoidError::tool(format!("Unknown key name: {}", name)));
             }
         })
     }
 
-    fn encode_jpeg(rgb: &RgbImage, quality: u8) -> BitFunResult<Vec<u8>> {
+    fn encode_jpeg(rgb: &RgbImage, quality: u8) -> VoidResult<Vec<u8>> {
         let mut buf = Vec::new();
         let mut enc = JpegEncoder::new_with_quality(&mut buf, quality);
         enc.encode(
@@ -1234,7 +1234,7 @@ end tell"#])
             rgb.height(),
             image::ColorType::Rgb8,
         )
-        .map_err(|e| BitFunError::tool(format!("JPEG encode: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("JPEG encode: {}", e)))?;
         Ok(buf)
     }
 
@@ -1248,7 +1248,7 @@ end tell"#])
         display_origin_y: i32,
         native_w: u32,
         native_h: u32,
-    ) -> BitFunResult<ComputerScreenshot> {
+    ) -> VoidResult<ComputerScreenshot> {
         let jpeg_bytes = Self::encode_jpeg(&rgb, Self::OCR_RAW_JPEG_QUALITY)?;
         let iw = rgb.width();
         let ih = rgb.height();
@@ -1287,9 +1287,9 @@ end tell"#])
     }
 
     /// Full primary-display region in **global logical coordinates** (same as `CGDisplayBounds` / AX).
-    fn ocr_full_primary_display_region() -> BitFunResult<OcrRegionNative> {
+    fn ocr_full_primary_display_region() -> VoidResult<OcrRegionNative> {
         let screen = Screen::from_point(0, 0)
-            .map_err(|e| BitFunError::tool(format!("Screen capture init (OCR raw): {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Screen capture init (OCR raw): {}", e)))?;
         let d = screen.display_info;
         Ok(OcrRegionNative {
             x0: d.x,
@@ -1302,7 +1302,7 @@ end tell"#])
     /// Region to OCR: explicit `ocr_region_native`, else (macOS) frontmost window from AX, else full primary display.
     fn ocr_resolve_region_for_capture(
         region_native: Option<OcrRegionNative>,
-    ) -> BitFunResult<OcrRegionNative> {
+    ) -> VoidResult<OcrRegionNative> {
         if let Some(r) = region_native {
             return Ok(r);
         }
@@ -1335,7 +1335,7 @@ end tell"#])
         cx: f64,
         cy: f64,
         half: u32,
-    ) -> BitFunResult<OcrRegionNative> {
+    ) -> VoidResult<OcrRegionNative> {
         let hh = half as f64;
         let x0 = (cx - hh).floor() as i32;
         let y0 = (cy - hh).floor() as i32;
@@ -1352,21 +1352,21 @@ end tell"#])
     ///
     /// `region` and [`DisplayInfo::width`]/[`height`] are **global logical points** (CG / AX). The framebuffer
     /// is **physical pixels** on Retina; intersect in point space, then map to pixels like [`MacPointerGeo`].
-    fn screenshot_raw_native_region(region: OcrRegionNative) -> BitFunResult<ComputerScreenshot> {
+    fn screenshot_raw_native_region(region: OcrRegionNative) -> VoidResult<ComputerScreenshot> {
         let cx = region.x0 + region.width as i32 / 2;
         let cy = region.y0 + region.height as i32 / 2;
         let screen = Screen::from_point(cx, cy)
             .or_else(|_| Screen::from_point(0, 0))
-            .map_err(|e| BitFunError::tool(format!("Screen capture init (OCR raw): {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Screen capture init (OCR raw): {}", e)))?;
         let rgba = screen
             .capture()
-            .map_err(|e| BitFunError::tool(format!("Screenshot failed (OCR raw): {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Screenshot failed (OCR raw): {}", e)))?;
         let (full_px_w, full_px_h) = rgba.dimensions();
         let d = screen.display_info;
         let disp_w = d.width as f64;
         let disp_h = d.height as f64;
         if disp_w <= 0.0 || disp_h <= 0.0 || full_px_w == 0 || full_px_h == 0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Invalid display geometry for OCR raw crop.".to_string(),
             ));
         }
@@ -1383,7 +1383,7 @@ end tell"#])
         let ix1 = (rx0 + rw).min(ox + disp_w);
         let iy1 = (ry0 + rh).min(oy + disp_h);
         if ix1 <= ix0 || iy1 <= iy0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "OCR region does not intersect the captured display. Focus the target app or set ocr_region_native."
                     .to_string(),
             ));
@@ -1397,7 +1397,7 @@ end tell"#])
         let px1 = px1_f.ceil().min(full_px_w as f64) as u32;
         let py1 = py1_f.ceil().min(full_px_h as f64) as u32;
         if px1 <= px0 || py1 <= py0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "OCR crop rectangle is empty after point-to-pixel mapping.".to_string(),
             ));
         }
@@ -1425,10 +1425,10 @@ end tell"#])
         }
     }
 
-    fn crop_rgb(src: &RgbImage, x0: u32, y0: u32, w: u32, h: u32) -> BitFunResult<RgbImage> {
+    fn crop_rgb(src: &RgbImage, x0: u32, y0: u32, w: u32, h: u32) -> VoidResult<RgbImage> {
         let (sw, sh) = src.dimensions();
         if x0.saturating_add(w) > sw || y0.saturating_add(h) > sh {
-            return Err(BitFunError::tool("Tile crop out of bounds.".to_string()));
+            return Err(VoidError::tool("Tile crop out of bounds.".to_string()));
         }
         let view = image::imageops::crop_imm(src, x0, y0, w, h);
         Ok(view.to_image())
@@ -1473,9 +1473,9 @@ end tell"#])
         screen: Screen,
         ui_tree_text: Option<String>,
         implicit_confirmation_crop_applied: bool,
-    ) -> BitFunResult<(ComputerScreenshot, PointerMap, Option<ComputerUseNavFocus>)> {
+    ) -> VoidResult<(ComputerScreenshot, PointerMap, Option<ComputerUseNavFocus>)> {
         if params.crop_center.is_some() && params.navigate_quadrant.is_some() {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Use either screenshot_crop_center_* or screenshot_navigate_quadrant, not both."
                     .to_string(),
             ));
@@ -1558,12 +1558,12 @@ end tell"#])
                 | Some(ComputerUseNavFocus::PointCrop { rect }) => rect,
             };
             let Some(base) = intersect_navigation_rect(base, full_rect) else {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "Navigation focus is outside the display.".to_string(),
                 ));
             };
             if base.width < 2 || base.height < 2 {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "Quadrant navigation: region is too small to subdivide further.".to_string(),
                 ));
             }
@@ -1575,7 +1575,7 @@ end tell"#])
                 native_h,
             );
             let Some(new_rect) = intersect_navigation_rect(expanded, full_rect) else {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "Quadrant crop out of bounds.".to_string(),
                 ));
             };
@@ -1705,7 +1705,7 @@ end tell"#])
         let (pointer_image_x, pointer_image_y) = {
             let pointer_loc = Self::run_enigo_job(|e| {
                 e.location()
-                    .map_err(|err| BitFunError::tool(format!("pointer location: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("pointer location: {}", err)))
             });
             match pointer_loc {
                 Ok((gx, gy)) => match Self::pointer_in_scaled_image(
@@ -1856,7 +1856,7 @@ end tell"#])
         {
             let platform_note = if cfg!(debug_assertions) && !macos::ax_trusted() {
                 Some(
-                    "Development build: grant Accessibility to target/debug/bitfun-desktop (path appears in errors if mouse fails)."
+                    "Development build: grant Accessibility to target/debug/void-desktop (path appears in errors if mouse fails)."
                         .to_string(),
                 )
             } else {
@@ -1961,13 +1961,13 @@ end tell"#])
     /// `computer_use_guard_click_allowed` instead, so this is currently dead
     /// code but a thinner guard variant might be useful again.
     #[allow(dead_code)]
-    fn computer_use_guard_verified_ui(&self) -> BitFunResult<()> {
+    fn computer_use_guard_verified_ui(&self) -> VoidResult<()> {
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         if s.click_needs_fresh_screenshot {
-            return Err(BitFunError::tool(STALE_CAPTURE_TOOL_MESSAGE.to_string()));
+            return Err(VoidError::tool(STALE_CAPTURE_TOOL_MESSAGE.to_string()));
         }
         Ok(())
     }
@@ -1995,7 +1995,7 @@ end tell"#])
         {
             match Self::run_enigo_job(|e| {
                 e.location()
-                    .map_err(|err| BitFunError::tool(format!("pointer location: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("pointer location: {}", err)))
             }) {
                 Ok((x, y)) => (x as f64, y as f64),
                 Err(_) => (0.0, 0.0),
@@ -2021,7 +2021,7 @@ end tell"#])
         mouse_x: f64,
         mouse_y: f64,
         preferred_display_id: Option<u32>,
-    ) -> BitFunResult<(image::RgbaImage, Screen)> {
+    ) -> VoidResult<(image::RgbaImage, Screen)> {
         let mx = mouse_x.round() as i32;
         let my = mouse_y.round() as i32;
         let target_display_id = preferred_display_id
@@ -2045,16 +2045,16 @@ end tell"#])
                 .or_else(|| Screen::from_point(mx, my).ok())
                 .or_else(|| Screen::from_point(0, 0).ok())
                 .ok_or_else(|| {
-                    BitFunError::tool("Screen capture init: no display available".to_string())
+                    VoidError::tool("Screen capture init: no display available".to_string())
                 })?
         } else {
             Screen::from_point(mx, my)
                 .or_else(|_| Screen::from_point(0, 0))
-                .map_err(|e| BitFunError::tool(format!("Screen capture init: {}", e)))?
+                .map_err(|e| VoidError::tool(format!("Screen capture init: {}", e)))?
         };
         let rgba = screen.capture().map_err(|e| {
-            BitFunError::tool(format!(
-                "Screenshot failed (on macOS grant Screen Recording for BitFun): {}",
+            VoidError::tool(format!(
+                "Screenshot failed (on macOS grant Screen Recording for Void): {}",
                 e
             ))
         })?;
@@ -2113,7 +2113,7 @@ end tell"#])
 
 #[cfg(target_os = "macos")]
 mod macos {
-    use super::{BitFunError, BitFunResult};
+    use super::{VoidError, VoidResult};
     use core_foundation::base::{CFRelease, TCFType};
     use core_foundation::boolean::CFBoolean;
     use core_foundation::dictionary::CFDictionary;
@@ -2139,12 +2139,12 @@ mod macos {
     /// Objective-C `NSException` thrown by TSM / HIToolbox / AppKit (which
     /// historically appears as `__rust_foreign_exception` and aborts the
     /// process when it crosses back into the Rust runtime) is converted into
-    /// a `BitFunError` we can return to the caller. The closure must itself
-    /// return a `BitFunResult<T>` so we can flatten the two error sources
+    /// a `VoidError` we can return to the caller. The closure must itself
+    /// return a `VoidResult<T>` so we can flatten the two error sources
     /// (ObjC exception + Rust-side error) into one.
-    pub fn run_on_main_for_enigo<F, T>(f: F) -> BitFunResult<T>
+    pub fn run_on_main_for_enigo<F, T>(f: F) -> VoidResult<T>
     where
-        F: FnOnce() -> BitFunResult<T> + Send,
+        F: FnOnce() -> VoidResult<T> + Send,
         T: Send,
     {
         let work = move || catch_only(f);
@@ -2165,7 +2165,7 @@ mod macos {
     /// Two failure modes are defended against simultaneously:
     ///
     ///   1. `NSException` thrown by the framework (caught and converted into
-    ///      `BitFunError`).
+    ///      `VoidError`).
     ///   2. AppKit's `__assert_rtn` "Must only be used from the main thread"
     ///      `SIGTRAP` which fires when AX cross-process callbacks (e.g.
     ///      `AXUIElementCopyActionNames` → `_NSThemeWidgetCell.accessibility…`
@@ -2176,9 +2176,9 @@ mod macos {
     ///
     /// If we're already on the main thread we run inline (avoids
     /// `dispatch_sync(main)` deadlock).
-    pub fn catch_objc<F, T>(f: F) -> BitFunResult<T>
+    pub fn catch_objc<F, T>(f: F) -> VoidResult<T>
     where
-        F: FnOnce() -> BitFunResult<T> + Send,
+        F: FnOnce() -> VoidResult<T> + Send,
         T: Send,
     {
         unsafe {
@@ -2196,22 +2196,22 @@ mod macos {
     /// non-`Send` data and that are guaranteed not to reach AppKit's
     /// main-thread-only AX callbacks (e.g. Vision OCR on an in-memory
     /// screenshot buffer).
-    pub fn catch_objc_local<F, T>(f: F) -> BitFunResult<T>
+    pub fn catch_objc_local<F, T>(f: F) -> VoidResult<T>
     where
-        F: FnOnce() -> BitFunResult<T>,
+        F: FnOnce() -> VoidResult<T>,
     {
         catch_only(f)
     }
 
-    fn catch_only<F, T>(f: F) -> BitFunResult<T>
+    fn catch_only<F, T>(f: F) -> VoidResult<T>
     where
-        F: FnOnce() -> BitFunResult<T>,
+        F: FnOnce() -> VoidResult<T>,
     {
         use std::panic::AssertUnwindSafe;
         match objc2::exception::catch(AssertUnwindSafe(f)) {
             Ok(inner) => inner,
-            Err(Some(exc)) => Err(BitFunError::tool(format!("Objective-C exception: {}", exc))),
-            Err(None) => Err(BitFunError::tool("Objective-C exception (nil)".to_string())),
+            Err(Some(exc)) => Err(VoidError::tool(format!("Objective-C exception: {}", exc))),
+            Err(None) => Err(VoidError::tool("Objective-C exception (nil)".to_string())),
         }
     }
 
@@ -2230,11 +2230,11 @@ mod macos {
     }
 
     /// Mouse location in Quartz global coordinates (same space as `CGEvent` / `CGWarpMouseCursorPosition`).
-    pub fn quartz_mouse_location() -> BitFunResult<(f64, f64)> {
+    pub fn quartz_mouse_location() -> VoidResult<(f64, f64)> {
         unsafe {
             let ev = CGEventCreate(std::ptr::null());
             if ev.is_null() {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "CGEventCreate returned null (pointer overlay).".to_string(),
                 ));
             }
@@ -2269,17 +2269,17 @@ mod macos {
 impl DesktopComputerUseHost {
     /// Perform a physical click at the current pointer without running [`ComputerUseHost::computer_use_guard_click_allowed`].
     /// Used after `mouse_move_global_f64` when coordinates came from AX or OCR (not from vision model image coords).
-    async fn mouse_click_at_current_pointer(&self, button: &str) -> BitFunResult<()> {
+    async fn mouse_click_at_current_pointer(&self, button: &str) -> VoidResult<()> {
         let button = button.to_string();
         tokio::task::spawn_blocking(move || {
             Self::run_enigo_job(|e| {
                 let b = Self::map_button(&button)?;
                 e.button(b, Direction::Click)
-                    .map_err(|err| BitFunError::tool(format!("click: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("click: {}", err)))
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
 
         // Flash a click highlight at current pointer (macOS only, non-blocking).
         #[cfg(target_os = "macos")]
@@ -2301,26 +2301,26 @@ impl DesktopComputerUseHost {
         x: i32,
         y: i32,
         screenshot_id: Option<&str>,
-    ) -> BitFunResult<(f64, f64)> {
+    ) -> VoidResult<(f64, f64)> {
         let map = {
             let s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             screenshot_id
                 .and_then(|id| s.screenshot_pointer_maps.get(id).copied())
                 .or_else(|| s.app_pointer_maps.get(&pid).copied())
                 .or(s.pointer_map)
         };
         let Some(map) = map else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "No screenshot coordinate map is available for this app. Call desktop.get_app_state for the target app first, then use app_click image_xy/image_grid against that returned screenshot_id.".to_string(),
             ));
         };
         map.map_image_to_global_f64(x, y)
     }
 
-    fn image_grid_target_to_xy(target: &ClickTarget) -> BitFunResult<Option<(i32, i32)>> {
+    fn image_grid_target_to_xy(target: &ClickTarget) -> VoidResult<Option<(i32, i32)>> {
         let ClickTarget::ImageGrid {
             x0,
             y0,
@@ -2338,12 +2338,12 @@ impl DesktopComputerUseHost {
         };
 
         if *width == 0 || *height == 0 || *rows == 0 || *cols == 0 {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "image_grid requires positive width, height, rows, and cols.".to_string(),
             ));
         }
         if row >= rows || col >= cols {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "image_grid row/col out of range: row={} col={} for rows={} cols={}",
                 row, col, rows, cols
             )));
@@ -2410,7 +2410,7 @@ fn flash_click_highlight_cg(gx: f64, gy: f64) {
 
 impl DesktopComputerUseHost {
     #[cfg(target_os = "macos")]
-    async fn screenshot_for_app_pid(&self, pid: i32) -> BitFunResult<ComputerScreenshot> {
+    async fn screenshot_for_app_pid(&self, pid: i32) -> VoidResult<ComputerScreenshot> {
         let window_target_rect = macos::catch_objc(|| {
             crate::computer_use::macos_ax_ui::window_bounds_global_for_pid(pid)
         })
@@ -2421,7 +2421,7 @@ impl DesktopComputerUseHost {
             let s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             (s.screenshot_cache.clone(), s.preferred_display_id)
         };
         let (mouse_x, mouse_y) = Self::current_mouse_position();
@@ -2479,7 +2479,7 @@ impl DesktopComputerUseHost {
             let mut s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             s.screenshot_cache = Some(ScreenshotCacheEntry {
                 rgba: rgba.clone(),
                 screen,
@@ -2491,13 +2491,13 @@ impl DesktopComputerUseHost {
             Self::screenshot_sync_tool_with_capture(params, None, rgba, screen, None, false)
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         let refinement = Self::refinement_from_shot(&shot);
         {
             let mut s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             s.transition_after_screenshot(map, refinement, nav_out);
             s.app_pointer_maps.insert(pid, map);
             if let Some(id) = shot.screenshot_id.clone() {
@@ -2518,7 +2518,7 @@ impl DesktopComputerUseHost {
         max_depth: u32,
         focus_window_only: bool,
         capture_screenshot: bool,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             // Pre-flight: without Accessibility trust macOS silently truncates
@@ -2532,10 +2532,10 @@ impl DesktopComputerUseHost {
                 // earlier — without this they have no way back to the dialog
                 // short of digging through System Settings manually.
                 macos::request_ax_prompt();
-                return Err(BitFunError::tool(
-                    "[PERMISSION_DENIED] macOS Accessibility permission not granted to BitFun. \
+                return Err(VoidError::tool(
+                    "[PERMISSION_DENIED] macOS Accessibility permission not granted to Void. \
                      The system has been asked to surface the permission dialog (System Settings → \
-                     Privacy & Security → Accessibility → enable BitFun). After granting, retry \
+                     Privacy & Security → Accessibility → enable Void). After granting, retry \
                      `desktop.get_app_state` and the AX tree will include all WebView subtree nodes."
                         .to_string(),
                 ));
@@ -2544,7 +2544,7 @@ impl DesktopComputerUseHost {
             let mut snap = tokio::task::spawn_blocking(move || {
                 // Wrap in @try/@catch — AX APIs can throw NSException for
                 // sandboxed / partially-loaded / dying processes, and an
-                // unwound foreign exception aborts the whole bitfun process
+                // unwound foreign exception aborts the whole void process
                 // (`Rust cannot catch foreign exceptions, aborting`).
                 macos::catch_objc(|| {
                     crate::computer_use::macos_ax_dump::dump_app_ax(
@@ -2558,7 +2558,7 @@ impl DesktopComputerUseHost {
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
 
             // Auto-attach focused-window screenshot. Failures are non-fatal —
             // worst case the model still has the AX tree.
@@ -2588,7 +2588,7 @@ impl DesktopComputerUseHost {
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, max_depth, focus_window_only, capture_screenshot);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "get_app_state is only available on macOS in this build".to_string(),
             ))
         }
@@ -2596,21 +2596,21 @@ impl DesktopComputerUseHost {
 }
 
 #[cfg(target_os = "macos")]
-fn require_macos_background_input() -> BitFunResult<()> {
+fn require_macos_background_input() -> VoidResult<()> {
     if crate::computer_use::macos_bg_input::supports_background_input() {
         return Ok(());
     }
-    Err(BitFunError::tool(
-        "[BACKGROUND_INPUT_UNAVAILABLE] macOS Accessibility permission is required for background app input. Grant BitFun in System Settings -> Privacy & Security -> Accessibility, then retry desktop.meta/capabilities or desktop.get_app_state.".to_string(),
+    Err(VoidError::tool(
+        "[BACKGROUND_INPUT_UNAVAILABLE] macOS Accessibility permission is required for background app input. Grant Void in System Settings -> Privacy & Security -> Accessibility, then retry desktop.meta/capabilities or desktop.get_app_state.".to_string(),
     ))
 }
 
 #[async_trait]
 impl ComputerUseHost for DesktopComputerUseHost {
-    async fn permission_snapshot(&self) -> BitFunResult<ComputerUsePermissionSnapshot> {
+    async fn permission_snapshot(&self) -> VoidResult<ComputerUsePermissionSnapshot> {
         Ok(tokio::task::spawn_blocking(Self::permission_sync)
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?)
+            .map_err(|e| VoidError::tool(e.to_string()))?)
     }
 
     fn computer_use_interaction_state(&self) -> ComputerUseInteractionState {
@@ -2684,24 +2684,24 @@ impl ComputerUseHost for DesktopComputerUseHost {
         }
     }
 
-    async fn request_accessibility_permission(&self) -> BitFunResult<()> {
+    async fn request_accessibility_permission(&self) -> VoidResult<()> {
         #[cfg(target_os = "macos")]
         {
             tokio::task::spawn_blocking(|| macos::request_ax_prompt())
                 .await
-                .map_err(|e| BitFunError::tool(e.to_string()))?;
+                .map_err(|e| VoidError::tool(e.to_string()))?;
         }
         Ok(())
     }
 
-    async fn request_screen_capture_permission(&self) -> BitFunResult<()> {
+    async fn request_screen_capture_permission(&self) -> VoidResult<()> {
         #[cfg(target_os = "macos")]
         {
             tokio::task::spawn_blocking(|| {
                 let _ = macos::request_screen_capture();
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?;
+            .map_err(|e| VoidError::tool(e.to_string()))?;
         }
         Ok(())
     }
@@ -2709,12 +2709,12 @@ impl ComputerUseHost for DesktopComputerUseHost {
     async fn screenshot_display(
         &self,
         params: ComputerUseScreenshotParams,
-    ) -> BitFunResult<ComputerScreenshot> {
+    ) -> VoidResult<ComputerScreenshot> {
         let (nav_snapshot, cached, click_needs, preferred_display_id) = {
             let s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             (
                 s.navigation_focus,
                 s.screenshot_cache.clone(),
@@ -2843,7 +2843,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
             let mut s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             s.screenshot_cache = Some(ScreenshotCacheEntry {
                 rgba: rgba.clone(),
                 screen,
@@ -2864,14 +2864,14 @@ impl ComputerUseHost for DesktopComputerUseHost {
             )
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
 
         let refinement = Self::refinement_from_shot(&shot);
         {
             let mut s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             s.transition_after_screenshot(map, refinement, nav_out);
             if let Some(id) = shot.screenshot_id.clone() {
                 s.screenshot_pointer_maps.insert(id, map);
@@ -2881,7 +2881,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
         Ok(shot)
     }
 
-    async fn screenshot_peek_full_display(&self) -> BitFunResult<ComputerScreenshot> {
+    async fn screenshot_peek_full_display(&self) -> VoidResult<ComputerScreenshot> {
         // Phase 1 fix: previously this captured `Screen::from_point(0, 0)`
         // (the primary display) which broke confirmation flows on multi-monitor
         // setups. We now prefer the screen that backs the most recent main
@@ -2913,13 +2913,13 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 .or_else(|| Screen::from_point(mx, my).ok())
                 .or_else(|| Screen::from_point(0, 0).ok())
                 .ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "Screen capture init (peek): no display available".to_string(),
                     )
                 })?;
             let rgba = screen
                 .capture()
-                .map_err(|e| BitFunError::tool(format!("Screenshot failed (peek): {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Screenshot failed (peek): {}", e)))?;
             Self::screenshot_sync_tool_with_capture(
                 ComputerUseScreenshotParams::default(),
                 None,
@@ -2930,22 +2930,22 @@ impl ComputerUseHost for DesktopComputerUseHost {
             )
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         Ok(shot)
     }
 
     async fn ocr_find_text_matches(
         &self,
         text_query: &str,
-        region_native: Option<bitfun_core::agentic::tools::computer_use_host::OcrRegionNative>,
-    ) -> BitFunResult<Vec<bitfun_core::agentic::tools::computer_use_host::OcrTextMatch>> {
+        region_native: Option<void_core::agentic::tools::computer_use_host::OcrRegionNative>,
+    ) -> VoidResult<Vec<void_core::agentic::tools::computer_use_host::OcrTextMatch>> {
         let region_opt = region_native.clone();
         let shot = tokio::task::spawn_blocking(move || {
             let region = Self::ocr_resolve_region_for_capture(region_opt)?;
             Self::screenshot_raw_native_region(region)
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         let query = text_query.to_string();
         let desktop_matches = tokio::task::spawn_blocking(move || {
             // Vision (`VNRecognizeTextRequest`) can throw `NSException` on
@@ -2961,11 +2961,11 @@ impl ComputerUseHost for DesktopComputerUseHost {
             }
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         Ok(desktop_matches
             .into_iter()
             .map(
-                |m| bitfun_core::agentic::tools::computer_use_host::OcrTextMatch {
+                |m| void_core::agentic::tools::computer_use_host::OcrTextMatch {
                     text: m.text,
                     confidence: m.confidence,
                     center_x: m.center_x,
@@ -2983,7 +2983,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
         &self,
         gx: f64,
         gy: f64,
-    ) -> BitFunResult<Option<bitfun_core::agentic::tools::computer_use_host::OcrAccessibilityHit>>
+    ) -> VoidResult<Option<void_core::agentic::tools::computer_use_host::OcrAccessibilityHit>>
     {
         #[cfg(target_os = "macos")]
         {
@@ -2991,7 +2991,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 crate::computer_use::macos_ax_ui::accessibility_hit_at_global_point(gx, gy)
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?;
+            .map_err(|e| VoidError::tool(e.to_string()))?;
             return Ok(hit);
         }
         #[cfg(target_os = "windows")]
@@ -3000,7 +3000,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 crate::computer_use::windows_ax_ui::accessibility_hit_at_global_point(gx, gy)
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?;
+            .map_err(|e| VoidError::tool(e.to_string()))?;
         }
         #[cfg(target_os = "linux")]
         {
@@ -3019,11 +3019,11 @@ impl ComputerUseHost for DesktopComputerUseHost {
         gx: f64,
         gy: f64,
         half_extent_native: u32,
-    ) -> BitFunResult<Vec<u8>> {
+    ) -> VoidResult<Vec<u8>> {
         let region = Self::ocr_region_square_around_point(gx, gy, half_extent_native)?;
         let shot = tokio::task::spawn_blocking(move || Self::screenshot_raw_native_region(region))
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
         Ok(shot.bytes)
     }
 
@@ -3034,7 +3034,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
     async fn locate_ui_element_screen_center(
         &self,
         query: UiElementLocateQuery,
-    ) -> BitFunResult<UiElementLocateResult> {
+    ) -> VoidResult<UiElementLocateResult> {
         Self::ensure_input_automation_allowed()?;
         #[cfg(target_os = "macos")]
         {
@@ -3042,7 +3042,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 crate::computer_use::macos_ax_ui::locate_ui_element_center(&query)
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?;
+            .map_err(|e| VoidError::tool(e.to_string()))?;
         }
         #[cfg(target_os = "windows")]
         {
@@ -3050,7 +3050,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 crate::computer_use::windows_ax_ui::locate_ui_element_center(&query)
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?;
+            .map_err(|e| VoidError::tool(e.to_string()))?;
         }
         #[cfg(target_os = "linux")]
         {
@@ -3058,7 +3058,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
         }
         #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
         {
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "Native UI element (accessibility) lookup is not available on this platform."
                     .to_string(),
             ))
@@ -3095,13 +3095,13 @@ impl ComputerUseHost for DesktopComputerUseHost {
     async fn open_app(
         &self,
         app_name: &str,
-    ) -> BitFunResult<bitfun_core::agentic::tools::computer_use_host::OpenAppResult> {
-        use bitfun_core::agentic::tools::computer_use_host::OpenAppResult;
+    ) -> VoidResult<void_core::agentic::tools::computer_use_host::OpenAppResult> {
+        use void_core::agentic::tools::computer_use_host::OpenAppResult;
         let name = app_name.to_string();
 
         #[cfg(target_os = "macos")]
         {
-            let result = tokio::task::spawn_blocking(move || -> BitFunResult<OpenAppResult> {
+            let result = tokio::task::spawn_blocking(move || -> VoidResult<OpenAppResult> {
                 let output = std::process::Command::new("/usr/bin/osascript")
                     .args([
                         "-e",
@@ -3113,7 +3113,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                         ),
                     ])
                     .output()
-                    .map_err(|e| BitFunError::tool(format!("open_app osascript: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("open_app osascript: {}", e)))?;
 
                 if output.status.success() {
                     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -3135,17 +3135,17 @@ tell application "System Events" to get unix id of first process whose frontmost
                 }
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             return Ok(result);
         }
 
         #[cfg(target_os = "windows")]
         {
-            let result = tokio::task::spawn_blocking(move || -> BitFunResult<OpenAppResult> {
-                let output = bitfun_core::util::process_manager::create_command("cmd")
+            let result = tokio::task::spawn_blocking(move || -> VoidResult<OpenAppResult> {
+                let output = void_core::util::process_manager::create_command("cmd")
                     .args(["/c", "start", "", &name])
                     .output()
-                    .map_err(|e| BitFunError::tool(format!("open_app: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("open_app: {}", e)))?;
                 Ok(OpenAppResult {
                     app_name: name,
                     success: output.status.success(),
@@ -3158,18 +3158,18 @@ tell application "System Events" to get unix id of first process whose frontmost
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             return Ok(result);
         }
 
         #[cfg(target_os = "linux")]
         {
-            let result = tokio::task::spawn_blocking(move || -> BitFunResult<OpenAppResult> {
+            let result = tokio::task::spawn_blocking(move || -> VoidResult<OpenAppResult> {
                 let output = std::process::Command::new("xdg-open")
                     .arg(&name)
                     .output()
                     .or_else(|_| std::process::Command::new(&name).output())
-                    .map_err(|e| BitFunError::tool(format!("open_app: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("open_app: {}", e)))?;
                 Ok(OpenAppResult {
                     app_name: name,
                     success: output.status.success(),
@@ -3182,53 +3182,53 @@ tell application "System Events" to get unix id of first process whose frontmost
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             return Ok(result);
         }
 
         #[allow(unreachable_code)]
-        Err(BitFunError::tool(
+        Err(VoidError::tool(
             "open_app is not supported on this platform.".to_string(),
         ))
     }
 
-    fn map_image_coords_to_pointer_f64(&self, x: i32, y: i32) -> BitFunResult<(f64, f64)> {
+    fn map_image_coords_to_pointer_f64(&self, x: i32, y: i32) -> VoidResult<(f64, f64)> {
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         let Some(map) = s.pointer_map else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "No screenshot yet in this session: run action screenshot first, then use x,y in the screenshot image pixel grid (image_width x image_height), or set use_screen_coordinates true with global screen pixels.".to_string(),
             ));
         };
         map.map_image_to_global_f64(x, y)
     }
 
-    fn map_image_coords_to_pointer(&self, x: i32, y: i32) -> BitFunResult<(i32, i32)> {
+    fn map_image_coords_to_pointer(&self, x: i32, y: i32) -> VoidResult<(i32, i32)> {
         let (gx, gy) = self.map_image_coords_to_pointer_f64(x, y)?;
         Ok((gx.round() as i32, gy.round() as i32))
     }
 
-    fn map_normalized_coords_to_pointer_f64(&self, x: i32, y: i32) -> BitFunResult<(f64, f64)> {
+    fn map_normalized_coords_to_pointer_f64(&self, x: i32, y: i32) -> VoidResult<(f64, f64)> {
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         let Some(map) = s.pointer_map else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "No screenshot yet: run screenshot first. For coordinate_mode \"normalized\", use x and y each in 0..=1000.".to_string(),
             ));
         };
         map.map_normalized_to_global_f64(x, y)
     }
 
-    fn map_normalized_coords_to_pointer(&self, x: i32, y: i32) -> BitFunResult<(i32, i32)> {
+    fn map_normalized_coords_to_pointer(&self, x: i32, y: i32) -> VoidResult<(i32, i32)> {
         let (gx, gy) = self.map_normalized_coords_to_pointer_f64(x, y)?;
         Ok((gx.round() as i32, gy.round() as i32))
     }
 
-    async fn mouse_move_global_f64(&self, gx: f64, gy: f64) -> BitFunResult<()> {
+    async fn mouse_move_global_f64(&self, gx: f64, gy: f64) -> VoidResult<()> {
         debug!(
             "computer_use: mouse_move_global_f64 smooth target ({:.2}, {:.2})",
             gx, gy
@@ -3244,17 +3244,17 @@ tell application "System Events" to get unix id of first process whose frontmost
             }
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         self.clear_vision_pixel_nudge_block();
         ComputerUseHost::computer_use_after_pointer_mutation(self);
         Ok(())
     }
 
-    async fn mouse_move(&self, x: i32, y: i32) -> BitFunResult<()> {
+    async fn mouse_move(&self, x: i32, y: i32) -> VoidResult<()> {
         self.mouse_move_global_f64(x as f64, y as f64).await
     }
 
-    async fn pointer_move_relative(&self, dx: i32, dy: i32) -> BitFunResult<()> {
+    async fn pointer_move_relative(&self, dx: i32, dy: i32) -> VoidResult<()> {
         if dx == 0 && dy == 0 {
             return Ok(());
         }
@@ -3263,9 +3263,9 @@ tell application "System Events" to get unix id of first process whose frontmost
             let s = self
                 .state
                 .lock()
-                .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
             if s.block_vision_pixel_nudge_after_screenshot {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     VISION_PIXEL_NUDGE_AFTER_SCREENSHOT_MSG.to_string(),
                 ));
             }
@@ -3280,15 +3280,15 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let s = self
                     .state
                     .lock()
-                    .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
                 let Some(map) = s.pointer_map else {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "Run action screenshot first: on macOS, pointer_move_relative / ComputerUseMouseStep convert pixel deltas using the last capture scale."
                             .to_string(),
                     ));
                 };
                 map.macos_geo.ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "Pointer map missing display geometry; take a screenshot then retry."
                             .to_string(),
                     )
@@ -3298,7 +3298,7 @@ tell application "System Events" to get unix id of first process whose frontmost
             tokio::task::spawn_blocking(move || {
                 Self::run_enigo_job(|e| {
                     let (cx, cy) = macos::quartz_mouse_location().map_err(|err| {
-                        BitFunError::tool(format!("quartz pointer (relative move): {}", err))
+                        VoidError::tool(format!("quartz pointer (relative move): {}", err))
                     })?;
                     let px_w = geo.full_px_w.max(1) as f64;
                     let px_h = geo.full_px_h.max(1) as f64;
@@ -3307,11 +3307,11 @@ tell application "System Events" to get unix id of first process whose frontmost
                     let nx = (cx + dpt_x).round() as i32;
                     let ny = (cy + dpt_y).round() as i32;
                     e.move_mouse(nx, ny, Coordinate::Abs)
-                        .map_err(|err| BitFunError::tool(format!("pointer_move_relative: {}", err)))
+                        .map_err(|err| VoidError::tool(format!("pointer_move_relative: {}", err)))
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             ComputerUseHost::computer_use_after_pointer_mutation(self);
             return Ok(());
         }
@@ -3321,60 +3321,60 @@ tell application "System Events" to get unix id of first process whose frontmost
             tokio::task::spawn_blocking(move || {
                 Self::run_enigo_job(|e| {
                     e.move_mouse(dx, dy, Coordinate::Rel)
-                        .map_err(|err| BitFunError::tool(format!("pointer_move_relative: {}", err)))
+                        .map_err(|err| VoidError::tool(format!("pointer_move_relative: {}", err)))
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             ComputerUseHost::computer_use_after_pointer_mutation(self);
             return Ok(());
         }
     }
 
-    async fn mouse_click(&self, button: &str) -> BitFunResult<()> {
+    async fn mouse_click(&self, button: &str) -> VoidResult<()> {
         debug!("computer_use: mouse_click button={}", button);
         ComputerUseHost::computer_use_guard_click_allowed(self)?;
         self.mouse_click_at_current_pointer(button).await
     }
 
-    async fn mouse_click_authoritative(&self, button: &str) -> BitFunResult<()> {
+    async fn mouse_click_authoritative(&self, button: &str) -> VoidResult<()> {
         debug!("computer_use: mouse_click_authoritative button={}", button);
         self.mouse_click_at_current_pointer(button).await
     }
 
-    async fn mouse_down(&self, button: &str) -> BitFunResult<()> {
+    async fn mouse_down(&self, button: &str) -> VoidResult<()> {
         debug!("computer_use: mouse_down button={}", button);
         let button = button.to_string();
         tokio::task::spawn_blocking(move || {
             Self::run_enigo_job(|e| {
                 let b = Self::map_button(&button)?;
                 e.button(b, Direction::Press)
-                    .map_err(|err| BitFunError::tool(format!("mouse_down: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("mouse_down: {}", err)))
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         ComputerUseHost::computer_use_after_pointer_mutation(self);
         Ok(())
     }
 
-    async fn mouse_up(&self, button: &str) -> BitFunResult<()> {
+    async fn mouse_up(&self, button: &str) -> VoidResult<()> {
         debug!("computer_use: mouse_up button={}", button);
         let button = button.to_string();
         tokio::task::spawn_blocking(move || {
             Self::run_enigo_job(|e| {
                 let b = Self::map_button(&button)?;
                 e.button(b, Direction::Release)
-                    .map_err(|err| BitFunError::tool(format!("mouse_up: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("mouse_up: {}", err)))
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         ComputerUseHost::computer_use_after_pointer_mutation(self);
         Ok(())
     }
 
-    async fn scroll(&self, delta_x: i32, delta_y: i32) -> BitFunResult<()> {
+    async fn scroll(&self, delta_x: i32, delta_y: i32) -> VoidResult<()> {
         if delta_x == 0 && delta_y == 0 {
             return Ok(());
         }
@@ -3382,24 +3382,24 @@ tell application "System Events" to get unix id of first process whose frontmost
             Self::run_enigo_job(|e| {
                 if delta_x != 0 {
                     e.scroll(delta_x, Axis::Horizontal)
-                        .map_err(|err| BitFunError::tool(format!("scroll horizontal: {}", err)))?;
+                        .map_err(|err| VoidError::tool(format!("scroll horizontal: {}", err)))?;
                 }
                 if delta_y != 0 {
                     e.scroll(delta_y, Axis::Vertical)
-                        .map_err(|err| BitFunError::tool(format!("scroll vertical: {}", err)))?;
+                        .map_err(|err| VoidError::tool(format!("scroll vertical: {}", err)))?;
                 }
                 Ok(())
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         ComputerUseHost::computer_use_after_pointer_mutation(self);
         ComputerUseHost::computer_use_after_committed_ui_action(self);
         ComputerUseHost::computer_use_record_mutation(self, ComputerUseLastMutationKind::Scroll);
         Ok(())
     }
 
-    async fn key_chord(&self, keys: Vec<String>) -> BitFunResult<()> {
+    async fn key_chord(&self, keys: Vec<String>) -> VoidResult<()> {
         if keys.is_empty() {
             return Ok(());
         }
@@ -3423,7 +3423,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let mapped: Vec<Key> = keys_for_job
                     .iter()
                     .map(|s| Self::map_key(s))
-                    .collect::<BitFunResult<_>>()?;
+                    .collect::<VoidResult<_>>()?;
                 let chord_has_modifier = keys_for_job.iter().any(|s| {
                     matches!(
                         s.to_lowercase().as_str(),
@@ -3440,13 +3440,13 @@ tell application "System Events" to get unix id of first process whose frontmost
                 });
                 if mapped.len() == 1 {
                     e.key(mapped[0], Direction::Click)
-                        .map_err(|err| BitFunError::tool(format!("key: {}", err)))?;
+                        .map_err(|err| VoidError::tool(format!("key: {}", err)))?;
                 } else {
                     let mods = &mapped[..mapped.len() - 1];
                     let last = *mapped.last().unwrap();
                     for k in mods {
                         e.key(*k, Direction::Press)
-                            .map_err(|err| BitFunError::tool(format!("key press: {}", err)))?;
+                            .map_err(|err| VoidError::tool(format!("key press: {}", err)))?;
                     }
                     if chord_has_modifier {
                         // Modifiers must be registered before the main key; otherwise macOS / IME
@@ -3457,10 +3457,10 @@ tell application "System Events" to get unix id of first process whose frontmost
                         std::thread::sleep(std::time::Duration::from_millis(55));
                     }
                     e.key(last, Direction::Click)
-                        .map_err(|err| BitFunError::tool(format!("key click: {}", err)))?;
+                        .map_err(|err| VoidError::tool(format!("key click: {}", err)))?;
                     for k in mods.iter().rev() {
                         e.key(*k, Direction::Release)
-                            .map_err(|err| BitFunError::tool(format!("key release: {}", err)))?;
+                            .map_err(|err| VoidError::tool(format!("key release: {}", err)))?;
                     }
                     if chord_has_modifier {
                         std::thread::sleep(std::time::Duration::from_millis(35));
@@ -3470,14 +3470,14 @@ tell application "System Events" to get unix id of first process whose frontmost
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         ComputerUseHost::computer_use_after_pointer_mutation(self);
         ComputerUseHost::computer_use_after_committed_ui_action(self);
         ComputerUseHost::computer_use_record_mutation(self, ComputerUseLastMutationKind::KeyChord);
         Ok(())
     }
 
-    async fn type_text(&self, text: &str) -> BitFunResult<()> {
+    async fn type_text(&self, text: &str) -> VoidResult<()> {
         if text.is_empty() {
             return Ok(());
         }
@@ -3485,11 +3485,11 @@ tell application "System Events" to get unix id of first process whose frontmost
         tokio::task::spawn_blocking(move || {
             Self::run_enigo_job(|e| {
                 e.text(&owned)
-                    .map_err(|err| BitFunError::tool(format!("type_text: {}", err)))
+                    .map_err(|err| VoidError::tool(format!("type_text: {}", err)))
             })
         })
         .await
-        .map_err(|e| BitFunError::tool(e.to_string()))??;
+        .map_err(|e| VoidError::tool(e.to_string()))??;
         // Typing does not move the pointer; do not set click_needs (would block Enter after search).
         ComputerUseHost::computer_use_after_committed_ui_action(self);
         ComputerUseHost::computer_use_trust_pointer_after_text_input(self);
@@ -3497,7 +3497,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         Ok(())
     }
 
-    async fn wait_ms(&self, ms: u64) -> BitFunResult<()> {
+    async fn wait_ms(&self, ms: u64) -> VoidResult<()> {
         tokio::time::sleep(Duration::from_millis(ms.max(1))).await;
         ComputerUseHost::computer_use_record_mutation(self, ComputerUseLastMutationKind::Wait);
         Ok(())
@@ -3556,13 +3556,13 @@ tell application "System Events" to get unix id of first process whose frontmost
         }
     }
 
-    fn computer_use_guard_click_allowed(&self) -> BitFunResult<()> {
+    fn computer_use_guard_click_allowed(&self) -> VoidResult<()> {
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         if s.click_needs_fresh_screenshot {
-            return Err(BitFunError::tool(STALE_CAPTURE_TOOL_MESSAGE.to_string()));
+            return Err(VoidError::tool(STALE_CAPTURE_TOOL_MESSAGE.to_string()));
         }
         if s.pointer_trusted_after_ocr_move {
             return Ok(());
@@ -3575,7 +3575,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         Ok(())
     }
 
-    fn computer_use_guard_click_allowed_relaxed(&self) -> BitFunResult<()> {
+    fn computer_use_guard_click_allowed_relaxed(&self) -> VoidResult<()> {
         // For AX-based click_element: we only require that no pointer mutation
         // happened since the last known state (i.e. we moved the pointer ourselves
         // inside click_element, so the flag is not set). No fine-screenshot needed.
@@ -3617,13 +3617,13 @@ tell application "System Events" to get unix id of first process whose frontmost
         }
     }
 
-    async fn list_displays(&self) -> BitFunResult<Vec<ComputerUseDisplayInfo>> {
+    async fn list_displays(&self) -> VoidResult<Vec<ComputerUseDisplayInfo>> {
         let preferred = self.state.lock().ok().and_then(|s| s.preferred_display_id);
         let (mx, my) = Self::current_mouse_position();
         Ok(Self::enumerate_displays(preferred, mx, my))
     }
 
-    async fn focus_display(&self, display_id: Option<u32>) -> BitFunResult<()> {
+    async fn focus_display(&self, display_id: Option<u32>) -> VoidResult<()> {
         if let Some(id) = display_id {
             // Validate against the actual list of attached screens; rejecting
             // unknown ids early gives the model a clean error to recover from
@@ -3632,7 +3632,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 .map(|all| all.iter().any(|s| s.display_info.id == id))
                 .unwrap_or(false);
             if !known {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "focus_display: unknown display_id {} (call desktop.list_displays first)",
                     id
                 )));
@@ -3683,14 +3683,14 @@ tell application "System Events" to get unix id of first process whose frontmost
         }
     }
 
-    async fn list_apps(&self, include_hidden: bool) -> BitFunResult<Vec<AppInfo>> {
+    async fn list_apps(&self, include_hidden: bool) -> VoidResult<Vec<AppInfo>> {
         #[cfg(target_os = "macos")]
         {
             tokio::task::spawn_blocking(move || {
                 crate::computer_use::macos_list_apps::list_running_apps(include_hidden)
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))?
+            .map_err(|e| VoidError::tool(e.to_string()))?
         }
         #[cfg(not(target_os = "macos"))]
         {
@@ -3704,7 +3704,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         app: AppSelector,
         max_depth: u32,
         focus_window_only: bool,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         // Public path: always auto-attach a focused-window screenshot so the
         // model is never blind on Canvas / WebView / WebGL surfaces that the
         // AX tree can't describe (Codex parity — its `get_app_state` is the
@@ -3713,7 +3713,7 @@ tell application "System Events" to get unix id of first process whose frontmost
             .await
     }
 
-    async fn app_click(&self, params: AppClickParams) -> BitFunResult<AppStateSnapshot> {
+    async fn app_click(&self, params: AppClickParams) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &params.app).await?;
@@ -3781,7 +3781,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                     ClickTarget::ImageGrid { screenshot_id, .. } => {
                         let (ix, iy) =
                             Self::image_grid_target_to_xy(&params.target)?.ok_or_else(|| {
-                                BitFunError::tool("invalid image_grid target".to_string())
+                                VoidError::tool("invalid image_grid target".to_string())
                             })?;
                         self.map_app_image_coords_to_pointer_f64(
                             pid,
@@ -3815,7 +3815,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                         };
                         let (ix, iy) =
                             Self::image_grid_target_to_xy(&target)?.ok_or_else(|| {
-                                BitFunError::tool("invalid detected visual_grid target".to_string())
+                                VoidError::tool("invalid detected visual_grid target".to_string())
                             })?;
                         if let Some(wait) = wait_ms_after_detection {
                             if *wait > 0 {
@@ -3838,7 +3838,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                             .get_app_state_inner(params.app.clone(), 32, false, false)
                             .await?;
                         let node = snap.nodes.iter().find(|n| n.idx == *idx).ok_or_else(|| {
-                            BitFunError::tool(format!(
+                            VoidError::tool(format!(
                                 "AX_NODE_STALE: idx={} no longer present in app state",
                                 idx
                             ))
@@ -3848,13 +3848,13 @@ tell application "System Events" to get unix id of first process whose frontmost
                         // icon. The caller must re-snapshot to acquire a
                         // node with a real on-screen frame.
                         let (fx, fy, fw, fh) = node.frame_global.ok_or_else(|| {
-                            BitFunError::tool(format!(
+                            VoidError::tool(format!(
                                 "AX_NODE_STALE: idx={} has no AXFrame (likely off-screen or window minimised)",
                                 idx
                             ))
                         })?;
                         if fw <= 0.0 || fh <= 0.0 {
-                            return Err(BitFunError::tool(format!(
+                            return Err(VoidError::tool(format!(
                                 "AX_NODE_STALE: idx={} has zero-size frame ({}x{})",
                                 idx, fw, fh
                             )));
@@ -3875,7 +3875,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                                 .unwrap_or(std::cmp::Ordering::Equal)
                         });
                         let m = best.ok_or_else(|| {
-                            BitFunError::tool(format!(
+                            VoidError::tool(format!(
                                 "NOT_FOUND: no OCR match for needle {:?}",
                                 needle
                             ))
@@ -3944,10 +3944,10 @@ tell application "System Events" to get unix id of first process whose frontmost
                     })
                 })
                 .await
-                .map_err(|e| BitFunError::tool(e.to_string()))??;
+                .map_err(|e| VoidError::tool(e.to_string()))??;
 
                 // Same-process fallback: if `bg_click` left the digest
-                // unchanged AND the target is our own process (bitfun-desktop
+                // unchanged AND the target is our own process (void-desktop
                 // hosting an embedded mini-app WebView), retry with the
                 // foreground click path. This trades a momentary cursor
                 // movement for actually landing the click in the WebView.
@@ -3992,7 +3992,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = params;
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "app_click is only available on macOS in this build".to_string(),
             ))
         }
@@ -4003,7 +4003,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         app: AppSelector,
         text: &str,
         focus: Option<ClickTarget>,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
@@ -4038,13 +4038,13 @@ tell application "System Events" to get unix id of first process whose frontmost
                 macos::catch_objc(|| crate::computer_use::macos_bg_input::bg_type_text(pid, &txt))
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, text, focus);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "app_type_text is only available on macOS in this build".to_string(),
             ))
         }
@@ -4056,7 +4056,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         focus: Option<ClickTarget>,
         dx: i32,
         dy: i32,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
@@ -4076,13 +4076,13 @@ tell application "System Events" to get unix id of first process whose frontmost
                 macos::catch_objc(|| crate::computer_use::macos_bg_input::bg_scroll(pid, dx, dy))
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, focus, dx, dy);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "app_scroll is only available on macOS in this build".to_string(),
             ))
         }
@@ -4093,7 +4093,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         app: AppSelector,
         keys: Vec<String>,
         focus_idx: Option<u32>,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
@@ -4109,7 +4109,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let _ = self.app_click(click).await?;
             }
             require_macos_background_input()?;
-            tokio::task::spawn_blocking(move || -> BitFunResult<()> {
+            tokio::task::spawn_blocking(move || -> VoidResult<()> {
                 macos::catch_objc(|| {
                     let (mods, kc) =
                         crate::computer_use::macos_bg_input::parse_key_sequence(&keys)?;
@@ -4118,13 +4118,13 @@ tell application "System Events" to get unix id of first process whose frontmost
                 })
             })
             .await
-            .map_err(|e| BitFunError::tool(e.to_string()))??;
+            .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, keys, focus_idx);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "app_key_chord is only available on macOS in this build".to_string(),
             ))
         }
@@ -4136,7 +4136,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         pred: AppWaitPredicate,
         timeout_ms: u32,
         poll_ms: u32,
-    ) -> BitFunResult<AppStateSnapshot> {
+    ) -> VoidResult<AppStateSnapshot> {
         #[cfg(target_os = "macos")]
         {
             let deadline = Instant::now() + Duration::from_millis(timeout_ms as u64);
@@ -4193,7 +4193,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, pred, timeout_ms, poll_ms);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "app_wait_for is only available on macOS in this build".to_string(),
             ))
         }
@@ -4211,7 +4211,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         opts: InteractiveViewOpts,
-    ) -> BitFunResult<InteractiveView> {
+    ) -> VoidResult<InteractiveView> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
@@ -4288,7 +4288,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let mut s = self
                     .state
                     .lock()
-                    .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
                 s.interactive_view_cache.insert(
                     pid,
                     CachedInteractiveView {
@@ -4302,7 +4302,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, opts);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "build_interactive_view is only available on macOS in this build".to_string(),
             ))
         }
@@ -4312,7 +4312,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         params: InteractiveClickParams,
-    ) -> BitFunResult<InteractiveActionResult> {
+    ) -> VoidResult<InteractiveActionResult> {
         #[cfg(target_os = "macos")]
         {
             // Resolve `i → node_idx` against the cached interactive view.
@@ -4343,7 +4343,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                         self.resolve_interactive_index(&app, params.i, Some(&rebuilt.digest))
                             .await?
                     } else {
-                        return Err(BitFunError::tool(format!(
+                        return Err(VoidError::tool(format!(
                             "INTERACTIVE_INDEX_OUT_OF_RANGE: i={} not in rebuilt view (len={}); the UI has changed under you, re-call `build_interactive_view` and pick a fresh `i`",
                             params.i,
                             rebuilt.elements.len()
@@ -4426,7 +4426,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, params);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "interactive_click is only available on macOS in this build".to_string(),
             ))
         }
@@ -4436,7 +4436,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         opts: VisualMarkViewOpts,
-    ) -> BitFunResult<VisualMarkView> {
+    ) -> VoidResult<VisualMarkView> {
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
@@ -4449,7 +4449,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 }
             }
             let shot = snap.screenshot.as_ref().ok_or_else(|| {
-                BitFunError::tool(
+                VoidError::tool(
                     "build_visual_mark_view: app screenshot unavailable; grant Screen Recording permission and retry".to_string(),
                 )
             })?;
@@ -4497,7 +4497,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let mut s = self
                     .state
                     .lock()
-                    .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
                 s.visual_mark_cache.insert(
                     pid,
                     CachedVisualMarkView {
@@ -4512,7 +4512,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, opts);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "build_visual_mark_view is only available on macOS in this build".to_string(),
             ))
         }
@@ -4522,7 +4522,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         params: VisualClickParams,
-    ) -> BitFunResult<VisualActionResult> {
+    ) -> VoidResult<VisualActionResult> {
         #[cfg(target_os = "macos")]
         {
             let mut auto_rebuilt = false;
@@ -4541,7 +4541,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                         .build_visual_mark_view(app.clone(), VisualMarkViewOpts::default())
                         .await?;
                     let Some(mark) = rebuilt.marks.iter().find(|m| m.i == params.i).cloned() else {
-                        return Err(BitFunError::tool(format!(
+                        return Err(VoidError::tool(format!(
                             "VISUAL_INDEX_OUT_OF_RANGE: i={} not in rebuilt view (len={}); re-call `build_visual_mark_view` and pick a fresh `i`",
                             params.i,
                             rebuilt.marks.len()
@@ -4558,7 +4558,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 let s = self
                     .state
                     .lock()
-                    .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
                 s.visual_mark_cache
                     .get(&pid)
                     .and_then(|cached| cached.screenshot_id.clone())
@@ -4600,7 +4600,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, params);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "visual_click is only available on macOS in this build".to_string(),
             ))
         }
@@ -4610,7 +4610,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         params: InteractiveTypeTextParams,
-    ) -> BitFunResult<InteractiveActionResult> {
+    ) -> VoidResult<InteractiveActionResult> {
         #[cfg(target_os = "macos")]
         {
             let focus = if let Some(i) = params.i {
@@ -4636,7 +4636,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                         .await?;
                 }
                 let pid = resolve_pid_macos(self, &app).await?;
-                tokio::task::spawn_blocking(move || -> BitFunResult<()> {
+                tokio::task::spawn_blocking(move || -> VoidResult<()> {
                     macos::catch_objc(|| {
                         let (m1, k1) = crate::computer_use::macos_bg_input::parse_key_sequence(&[
                             "cmd".to_string(),
@@ -4651,14 +4651,14 @@ tell application "System Events" to get unix id of first process whose frontmost
                     })
                 })
                 .await
-                .map_err(|e| BitFunError::tool(e.to_string()))??;
+                .map_err(|e| VoidError::tool(e.to_string()))??;
             }
 
             let snapshot = self.app_type_text(app.clone(), &params.text, focus).await?;
 
             if params.press_enter_after {
                 let pid = resolve_pid_macos(self, &app).await?;
-                tokio::task::spawn_blocking(move || -> BitFunResult<()> {
+                tokio::task::spawn_blocking(move || -> VoidResult<()> {
                     macos::catch_objc(|| {
                         let (m, k) = crate::computer_use::macos_bg_input::parse_key_sequence(&[
                             "return".to_string(),
@@ -4668,7 +4668,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                     })
                 })
                 .await
-                .map_err(|e| BitFunError::tool(e.to_string()))??;
+                .map_err(|e| VoidError::tool(e.to_string()))??;
             }
 
             if let Some(wait) = params.wait_ms_after {
@@ -4692,7 +4692,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, params);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "interactive_type_text is only available on macOS in this build".to_string(),
             ))
         }
@@ -4702,7 +4702,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         &self,
         app: AppSelector,
         params: InteractiveScrollParams,
-    ) -> BitFunResult<InteractiveActionResult> {
+    ) -> VoidResult<InteractiveActionResult> {
         #[cfg(target_os = "macos")]
         {
             let focus = if let Some(i) = params.i {
@@ -4736,7 +4736,7 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(not(target_os = "macos"))]
         {
             let _ = (app, params);
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "interactive_scroll is only available on macOS in this build".to_string(),
             ))
         }
@@ -4746,7 +4746,7 @@ tell application "System Events" to get unix id of first process whose frontmost
 /// Resolve an `AppSelector` to a concrete `pid` on macOS. Resolution
 /// precedence (Codex parity): `pid > bundle_id > name`.
 #[cfg(target_os = "macos")]
-async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> BitFunResult<i32> {
+async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> VoidResult<i32> {
     if let Some(pid) = app.pid {
         return Ok(pid);
     }
@@ -4769,7 +4769,7 @@ async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> 
     if let Some(name) = app.name.as_deref() {
         let needle = name.to_lowercase();
         // 1) Exact match against the localized application name (what the
-        //    Dock / Spotlight shows, e.g. "BitFun").
+        //    Dock / Spotlight shows, e.g. "Void").
         if let Some(p) = apps
             .iter()
             .find(|a| a.name.to_lowercase() == needle)
@@ -4778,8 +4778,8 @@ async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> 
             return Ok(p);
         }
         // 2) Exact match against the bundle id's last segment (e.g. user
-        //    asks for "BitFun" but `list_apps` returned name="bitfun-desktop"
-        //    with bundle_id="ai.bitfun.desktop"). This keeps us aligned with
+        //    asks for "Void" but `list_apps` returned name="void-desktop"
+        //    with bundle_id="ai.void.desktop"). This keeps us aligned with
         //    Codex, which is robust to "Cursor" vs "com.todesktop....Cursor".
         if let Some(p) = apps
             .iter()
@@ -4812,7 +4812,7 @@ async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> 
             return Ok(p);
         }
     }
-    Err(BitFunError::tool(format!("APP_NOT_FOUND: {:?}", app)))
+    Err(VoidError::tool(format!("APP_NOT_FOUND: {:?}", app)))
 }
 
 /// Stable lowercase-hex SHA1 over a *layout-only* canonical payload:
@@ -4826,7 +4826,7 @@ async fn resolve_pid_macos(host: &DesktopComputerUseHost, app: &AppSelector) -> 
 /// (elements appeared, disappeared, or moved noticeably), not cosmetic
 /// noise.
 fn compute_interactive_view_digest(
-    elements: &[bitfun_core::agentic::tools::computer_use_host::InteractiveElement],
+    elements: &[void_core::agentic::tools::computer_use_host::InteractiveElement],
 ) -> String {
     use sha1::{Digest, Sha1};
     const BUCKET: f64 = 8.0;
@@ -4876,7 +4876,7 @@ fn compute_visual_mark_view_digest(marks: &[VisualMark], screenshot_id: Option<&
 fn build_regular_visual_marks(
     shot: &ComputerScreenshot,
     opts: &VisualMarkViewOpts,
-) -> BitFunResult<Vec<VisualMark>> {
+) -> VoidResult<Vec<VisualMark>> {
     if !opts.include_grid {
         return Ok(Vec::new());
     }
@@ -4936,7 +4936,7 @@ fn build_regular_visual_marks(
     }
 
     if marks.is_empty() {
-        return Err(BitFunError::tool(
+        return Err(VoidError::tool(
             "build_visual_mark_view: no visual marks generated for the requested region"
                 .to_string(),
         ));
@@ -4946,11 +4946,11 @@ fn build_regular_visual_marks(
 
 fn visual_marks_to_overlay_elements(
     marks: &[VisualMark],
-) -> Vec<bitfun_core::agentic::tools::computer_use_host::InteractiveElement> {
+) -> Vec<void_core::agentic::tools::computer_use_host::InteractiveElement> {
     marks
         .iter()
         .map(
-            |mark| bitfun_core::agentic::tools::computer_use_host::InteractiveElement {
+            |mark| void_core::agentic::tools::computer_use_host::InteractiveElement {
                 i: mark.i,
                 node_idx: mark.i,
                 role: "VisualMark".to_string(),
@@ -4970,15 +4970,15 @@ fn detect_regular_grid_rect_from_screenshot(
     shot: &ComputerScreenshot,
     rows: u32,
     cols: u32,
-) -> BitFunResult<(i32, i32, u32, u32)> {
+) -> VoidResult<(i32, i32, u32, u32)> {
     if rows < 2 || cols < 2 {
-        return Err(BitFunError::tool(
+        return Err(VoidError::tool(
             "visual_grid requires rows and cols >= 2".to_string(),
         ));
     }
 
     let img = image::load_from_memory(&shot.bytes)
-        .map_err(|e| BitFunError::tool(format!("visual_grid: decode screenshot failed: {e}")))?
+        .map_err(|e| VoidError::tool(format!("visual_grid: decode screenshot failed: {e}")))?
         .to_rgb8();
     let (image_w, image_h) = img.dimensions();
     let (left, top, width, height) = shot
@@ -4989,7 +4989,7 @@ fn detect_regular_grid_rect_from_screenshot(
     let right = left.saturating_add(width).min(image_w);
     let bottom = top.saturating_add(height).min(image_h);
     if right <= left + 8 || bottom <= top + 8 {
-        return Err(BitFunError::tool(
+        return Err(VoidError::tool(
             "visual_grid: screenshot content rect is too small".to_string(),
         ));
     }
@@ -5007,7 +5007,7 @@ fn detect_regular_grid_rect_from_screenshot(
 
     let aspect = w as f64 / h.max(1) as f64;
     if !(0.5..=2.0).contains(&aspect) {
-        return Err(BitFunError::tool(format!(
+        return Err(VoidError::tool(format!(
             "visual_grid: detected grid is implausibly non-square (x0={}, y0={}, width={}, height={}, aspect={:.2}); pass image_grid with an explicit rectangle",
             x0, y0, w, h, aspect
         )));
@@ -5068,9 +5068,9 @@ fn detect_regular_line_sequence(
     projection: &[f64],
     count: u32,
     offset: u32,
-) -> BitFunResult<Vec<u32>> {
+) -> VoidResult<Vec<u32>> {
     if projection.len() < count as usize {
-        return Err(BitFunError::tool(
+        return Err(VoidError::tool(
             "visual_grid: projection is smaller than requested grid count".to_string(),
         ));
     }
@@ -5124,7 +5124,7 @@ fn detect_regular_line_sequence(
         if let Some(fallback) = top_regular_positions(&adjusted, count, offset, min_gap.max(2)) {
             return Ok(fallback);
         }
-        return Err(BitFunError::tool(
+        return Err(VoidError::tool(
             "visual_grid: could not find enough line peaks".to_string(),
         ));
     }
@@ -5185,7 +5185,7 @@ fn detect_regular_line_sequence(
     best.map(|(_, positions)| positions)
         .or_else(|| top_regular_positions(&adjusted, count, offset, min_gap.max(2)))
         .ok_or_else(|| {
-            BitFunError::tool(
+            VoidError::tool(
                 "visual_grid: no regular grid sequence detected; pass image_grid with an explicit rectangle or build_visual_mark_view to choose a point"
                     .to_string(),
             )
@@ -5233,13 +5233,13 @@ fn top_regular_positions(
 /// Returns `true` if the error reported by `resolve_interactive_index`
 /// is the recoverable `STALE_INTERACTIVE_VIEW` variant. We match on the
 /// error text rather than introducing a typed error enum because every
-/// `BitFunError::tool` is already string-based throughout the host
+/// `VoidError::tool` is already string-based throughout the host
 /// surface; adding a new variant would ripple through ~40 callers.
-fn is_stale_interactive_view_error(err: &BitFunError) -> bool {
+fn is_stale_interactive_view_error(err: &VoidError) -> bool {
     err.to_string().contains("STALE_INTERACTIVE_VIEW")
 }
 
-fn is_stale_visual_mark_view_error(err: &BitFunError) -> bool {
+fn is_stale_visual_mark_view_error(err: &VoidError) -> bool {
     err.to_string().contains("STALE_VISUAL_MARK_VIEW")
 }
 
@@ -5276,14 +5276,14 @@ impl DesktopComputerUseHost {
         app: &AppSelector,
         i: u32,
         before_digest: Option<&str>,
-    ) -> BitFunResult<u32> {
+    ) -> VoidResult<u32> {
         let pid = resolve_pid_macos(self, app).await?;
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         let cached = s.interactive_view_cache.get(&pid).ok_or_else(|| {
-            BitFunError::tool(
+            VoidError::tool(
                 "INTERACTIVE_VIEW_MISSING: call `build_interactive_view` before `interactive_*` actions"
                     .to_string(),
             )
@@ -5297,7 +5297,7 @@ impl DesktopComputerUseHost {
                     want == cached.digest
                 };
                 if !matches {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "STALE_INTERACTIVE_VIEW: before_view_digest={} but current cached digest={}; re-call `build_interactive_view` and reuse the new digest (full or >=8-char prefix)",
                         want, cached.digest
                     )));
@@ -5305,7 +5305,7 @@ impl DesktopComputerUseHost {
             }
         }
         let el = cached.elements.iter().find(|e| e.i == i).ok_or_else(|| {
-            BitFunError::tool(format!(
+            VoidError::tool(format!(
                 "INTERACTIVE_INDEX_OUT_OF_RANGE: i={} not in cached view (len={})",
                 i,
                 cached.elements.len()
@@ -5320,14 +5320,14 @@ impl DesktopComputerUseHost {
         app: &AppSelector,
         i: u32,
         before_digest: Option<&str>,
-    ) -> BitFunResult<VisualMark> {
+    ) -> VoidResult<VisualMark> {
         let pid = resolve_pid_macos(self, app).await?;
         let s = self
             .state
             .lock()
-            .map_err(|e| BitFunError::tool(format!("lock: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
         let cached = s.visual_mark_cache.get(&pid).ok_or_else(|| {
-            BitFunError::tool(
+            VoidError::tool(
                 "VISUAL_MARK_VIEW_MISSING: call `build_visual_mark_view` before `visual_click`"
                     .to_string(),
             )
@@ -5341,7 +5341,7 @@ impl DesktopComputerUseHost {
                     want == cached.digest
                 };
                 if !matches {
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "STALE_VISUAL_MARK_VIEW: before_view_digest={} but current cached digest={}; re-call `build_visual_mark_view` and reuse the new digest (full or >=8-char prefix)",
                         want, cached.digest
                     )));
@@ -5354,7 +5354,7 @@ impl DesktopComputerUseHost {
             .find(|mark| mark.i == i)
             .cloned()
             .ok_or_else(|| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "VISUAL_INDEX_OUT_OF_RANGE: i={} not in cached visual mark view (len={})",
                     i,
                     cached.marks.len()

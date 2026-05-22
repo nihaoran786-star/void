@@ -65,7 +65,7 @@ const NavItem: React.FC<NavItemProps> = ({
     <button
       type="button"
       className={[
-        'bitfun-nav-panel__item',
+        'void-nav-panel__item',
         isActive && 'is-active',
       ]
         .filter(Boolean)
@@ -73,15 +73,15 @@ const NavItem: React.FC<NavItemProps> = ({
       onClick={onClick}
       title={tooltipContent ?? displayLabel}
     >
-      <span className="bitfun-nav-panel__item-icon" aria-hidden="true">
+      <span className="void-nav-panel__item-icon" aria-hidden="true">
         <Icon size={15} />
       </span>
-      <span className="bitfun-nav-panel__item-label">{displayLabel}</span>
+      <span className="void-nav-panel__item-label">{displayLabel}</span>
 
       {badge && (
         <span
           ref={badgeRef}
-          className={`bitfun-nav-panel__item-badge ${onBadgeClick ? 'bitfun-nav-panel__item-badge--clickable' : ''}`}
+          className={`void-nav-panel__item-badge ${onBadgeClick ? 'void-nav-panel__item-badge--clickable' : ''}`}
           onClick={handleBadgeClick}
           title={badge}
         >
@@ -90,32 +90,32 @@ const NavItem: React.FC<NavItemProps> = ({
       )}
 
       {renderActions ? (
-        <span className="bitfun-nav-panel__item-actions-custom" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+        <span className="void-nav-panel__item-actions-custom" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
           {renderActions()}
         </span>
       ) : ActionIcon && onActionClick && (
         actionTitle ? (
           <Tooltip content={actionTitle} placement="right" followCursor>
             <span
-              className="bitfun-nav-panel__item-action"
+              className="void-nav-panel__item-action"
               onClick={handleActionClick}
               onMouseDown={e => e.stopPropagation()}
               role="button"
               tabIndex={-1}
               aria-label={actionTitle}
             >
-              <ActionIcon size="var(--bitfun-nav-row-action-icon-size)" />
+              <ActionIcon size="var(--void-nav-row-action-icon-size)" />
             </span>
           </Tooltip>
         ) : (
           <span
-            className="bitfun-nav-panel__item-action"
+            className="void-nav-panel__item-action"
             onClick={handleActionClick}
             onMouseDown={e => e.stopPropagation()}
             role="button"
             tabIndex={-1}
           >
-            <ActionIcon size="var(--bitfun-nav-row-action-icon-size)" />
+            <ActionIcon size="var(--void-nav-row-action-icon-size)" />
           </span>
         )
       )}

@@ -4,14 +4,14 @@
 
 Scope: this guide applies to `src/crates/product-domains`.
 
-`bitfun-product-domains` owns low-risk product-domain contracts that can compile
+`void-product-domains` owns low-risk product-domain contracts that can compile
 without the full core runtime. Keep this crate behavior-preserving and
-platform-agnostic; `bitfun-core` may keep compatibility facades while ownership
+platform-agnostic; `void-core` may keep compatibility facades while ownership
 moves here gradually.
 
 ## Guardrails
 
-- Do not add a dependency from `bitfun-product-domains` to `bitfun-core`.
+- Do not add a dependency from `void-product-domains` to `void-core`.
 - Keep the default feature lightweight. Default builds should not pull runtime,
   service, desktop, network, process, AI, or tool-runtime dependencies.
 - This crate may own pure DTOs, enums, serialization contracts, search plans,
@@ -60,10 +60,10 @@ moves here gradually.
 Use the smallest matching check for the changed surface:
 
 ```bash
-cargo test -p bitfun-product-domains --no-default-features
-cargo test -p bitfun-product-domains --features product-full
+cargo test -p void-product-domains --no-default-features
+cargo test -p void-product-domains --features product-full
 node scripts/check-core-boundaries.mjs
-cargo check -p bitfun-core --features product-full
+cargo check -p void-core --features product-full
 ```
 
 For documentation-only changes, also run `git diff --check`.

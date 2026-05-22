@@ -58,14 +58,14 @@ export function getModelDisplayName(config: ProviderConfigLike): string {
 }
 
 export const PROVIDER_TEMPLATES: Record<string, ProviderTemplate> = {
-  openbitfun: {
-    id: 'openbitfun',
-    name: t('settings/ai-model:providers.openbitfun.name'),
-    baseUrl: 'https://api.openbitfun.com',
+  openvoid: {
+    id: 'openvoid',
+    name: t('settings/ai-model:providers.openvoid.name'),
+    baseUrl: 'https://api.openvoid.com',
     format: 'anthropic',
     models: [],
     requiresApiKey: true,
-    description: t('settings/ai-model:providers.openbitfun.description')
+    description: t('settings/ai-model:providers.openvoid.description')
   },
 
   gemini: {

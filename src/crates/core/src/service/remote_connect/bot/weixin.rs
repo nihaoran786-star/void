@@ -235,7 +235,7 @@ fn ensure_trailing_slash(url: &str) -> String {
 
 fn sync_buf_path(bot_account_id: &str) -> PathBuf {
     let base = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
-    base.join(".bitfun")
+    base.join(".void")
         .join("weixin")
         .join(format!("{bot_account_id}_get_updates_buf.txt"))
 }
@@ -1119,7 +1119,7 @@ impl WeixinBot {
         context_token: &str,
         items: Vec<Value>,
     ) -> Result<()> {
-        let client_id = format!("bitfun-wx-{}", uuid::Uuid::new_v4());
+        let client_id = format!("void-wx-{}", uuid::Uuid::new_v4());
         let msg = json!({
             "from_user_id": "",
             "to_user_id": to_user_id,
@@ -1249,7 +1249,7 @@ impl WeixinBot {
         context_token: &str,
         text: &str,
     ) -> Result<()> {
-        let client_id = format!("bitfun-wx-{}", uuid::Uuid::new_v4());
+        let client_id = format!("void-wx-{}", uuid::Uuid::new_v4());
         let item_list = if text.is_empty() {
             None
         } else {
@@ -1769,9 +1769,9 @@ impl WeixinBot {
                         }
                     } else if !text.is_empty() {
                         let err = if language.is_chinese() {
-                            "请输入 BitFun 桌面端远程连接中显示的 6 位配对码。"
+                            "请输入 Void 桌面端远程连接中显示的 6 位配对码。"
                         } else {
-                            "Please send the 6-digit pairing code from BitFun Desktop Remote Connect."
+                            "Please send the 6-digit pairing code from Void Desktop Remote Connect."
                         };
                         self.try_send_text(&peer, err, "pairing-prompt").await;
                     } else if Self::has_inbound_image_items(msg) {

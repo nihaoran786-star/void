@@ -415,14 +415,14 @@ impl Tool for WrappedTool {
         self.original_tool.name()
     }
 
-    async fn description(&self) -> crate::util::errors::BitFunResult<String> {
+    async fn description(&self) -> crate::util::errors::VoidResult<String> {
         Ok(self.original_tool.description().await?)
     }
 
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> crate::util::errors::BitFunResult<String> {
+    ) -> crate::util::errors::VoidResult<String> {
         self.original_tool.description_with_context(context).await
     }
 
@@ -533,7 +533,7 @@ impl Tool for WrappedTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> crate::util::errors::BitFunResult<Vec<ToolResult>> {
+    ) -> crate::util::errors::VoidResult<Vec<ToolResult>> {
         if Self::is_file_modification_tool_name(self.name()) {
             debug!(
                 "Intercepting file modification tool: tool_name={}",
@@ -564,20 +564,20 @@ impl WrappedTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> crate::util::errors::BitFunResult<Vec<ToolResult>> {
+    ) -> crate::util::errors::VoidResult<Vec<ToolResult>> {
         let session_id = context.session_id.clone().ok_or_else(|| {
-            crate::util::errors::BitFunError::Tool(
+            crate::util::errors::VoidError::Tool(
                 "session_id is required in ToolUseContext".to_string(),
             )
         })?;
 
         let raw_path = match self.extract_file_path_simple(input) {
             Ok(path) => path,
-            Err(e) => return Err(crate::util::errors::BitFunError::Tool(e.to_string())),
+            Err(e) => return Err(crate::util::errors::VoidError::Tool(e.to_string())),
         };
 
         let snapshot_workspace = context.workspace_root().map(PathBuf::from).ok_or_else(|| {
-            crate::util::errors::BitFunError::Tool(
+            crate::util::errors::VoidError::Tool(
                 "workspace is required in ToolUseContext for snapshot tracking".to_string(),
             )
         })?;
@@ -593,7 +593,7 @@ impl WrappedTool {
 
         let snapshot_manager = get_or_create_snapshot_manager(snapshot_workspace.clone(), None)
             .await
-            .map_err(|e| crate::util::errors::BitFunError::Tool(e.to_string()))?;
+            .map_err(|e| crate::util::errors::VoidError::Tool(e.to_string()))?;
 
         let file_path = if raw_path.is_absolute() {
             raw_path.clone()
@@ -615,7 +615,7 @@ impl WrappedTool {
                 snapshot_workspace.display()
             );
 
-            return Err(crate::util::errors::BitFunError::Tool(format!(
+            return Err(crate::util::errors::VoidError::Tool(format!(
                 "File not found: {} (Snapshot workspace: {})",
                 file_path.display(),
                 snapshot_workspace.display()
@@ -644,7 +644,7 @@ impl WrappedTool {
                 context.tool_call_id.clone(),
             )
             .await
-            .map_err(|e| crate::util::errors::BitFunError::Tool(e.to_string()))?;
+            .map_err(|e| crate::util::errors::VoidError::Tool(e.to_string()))?;
         let intercept_ms = crate::util::elapsed_ms_u64(intercept_started_at);
 
         debug!(
@@ -660,7 +660,7 @@ impl WrappedTool {
         snapshot_service
             .complete_file_modification(&session_id, &operation_id, tool_call_ms)
             .await
-            .map_err(|e| crate::util::errors::BitFunError::Tool(e.to_string()))?;
+            .map_err(|e| crate::util::errors::VoidError::Tool(e.to_string()))?;
         let complete_ms = crate::util::elapsed_ms_u64(complete_started_at);
         let total_ms = intercept_ms
             .saturating_add(tool_call_ms)
@@ -813,7 +813,7 @@ mod tests {
     impl TestWorkspace {
         fn new() -> Self {
             let path = std::env::temp_dir()
-                .join(format!("bitfun-snapshot-manager-test-{}", Uuid::new_v4()));
+                .join(format!("void-snapshot-manager-test-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&path).expect("test workspace should be created");
             Self { path }
         }

@@ -33,11 +33,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 }, ref) => {
   const resolvedInputSize = size ?? inputSize;
   const classNames = [
-    'bitfun-input-wrapper',
-    `bitfun-input-wrapper--${variant}`,
-    `bitfun-input-wrapper--${resolvedInputSize}`,
-    error && 'bitfun-input-wrapper--error',
-    disabled && 'bitfun-input-wrapper--disabled',
+    'void-input-wrapper',
+    `void-input-wrapper--${variant}`,
+    `void-input-wrapper--${resolvedInputSize}`,
+    error && 'void-input-wrapper--error',
+    disabled && 'void-input-wrapper--disabled',
     className
   ]
     .filter(Boolean)
@@ -45,22 +45,22 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 
   return (
     <div className={classNames}>
-      {label && <label className="bitfun-input-label">{label}</label>}
-      <div className="bitfun-input-container">
-        {prefix && <span className="bitfun-input-prefix">{prefix}</span>}
+      {label && <label className="void-input-label">{label}</label>}
+      <div className="void-input-container">
+        {prefix && <span className="void-input-prefix">{prefix}</span>}
         <input
           ref={ref}
-          className="bitfun-input"
+          className="void-input"
           disabled={disabled}
           {...props}
         />
-        {suffix && <span className="bitfun-input-suffix">{suffix}</span>}
+        {suffix && <span className="void-input-suffix">{suffix}</span>}
       </div>
       {!error && hint && (
-        <span className="bitfun-input-error-message">{hint}</span>
+        <span className="void-input-error-message">{hint}</span>
       )}
       {error && errorMessage && (
-        <span className="bitfun-input-error-message">{errorMessage}</span>
+        <span className="void-input-error-message">{errorMessage}</span>
       )}
     </div>
   );

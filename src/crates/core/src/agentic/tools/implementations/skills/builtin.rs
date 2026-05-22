@@ -1,10 +1,10 @@
-//! Built-in skills shipped with BitFun.
+//! Built-in skills shipped with Void.
 //!
-//! These skills are embedded into the `bitfun-core` binary and installed into a
+//! These skills are embedded into the `void-core` binary and installed into a
 //! managed `.system` directory under the user skills root on demand.
 
 use crate::infrastructure::get_path_manager_arc;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use fs2::FileExt;
 use include_dir::{include_dir, Dir};
 use log::{debug, error, warn};
@@ -110,7 +110,7 @@ fn builtin_skills_staging_root(parent: &Path) -> PathBuf {
     ))
 }
 
-async fn read_installed_manifest(root: &Path) -> BitFunResult<Option<BuiltinSkillsManifest>> {
+async fn read_installed_manifest(root: &Path) -> VoidResult<Option<BuiltinSkillsManifest>> {
     let path = builtin_skills_manifest_path(root);
     match fs::read_to_string(&path).await {
         Ok(content) => match serde_json::from_str::<BuiltinSkillsManifest>(&content) {
@@ -129,7 +129,7 @@ async fn read_installed_manifest(root: &Path) -> BitFunResult<Option<BuiltinSkil
     }
 }
 
-async fn write_installed_manifest(root: &Path) -> BitFunResult<()> {
+async fn write_installed_manifest(root: &Path) -> VoidResult<()> {
     let path = builtin_skills_manifest_path(root);
     let manifest = BuiltinSkillsManifest {
         bundle_hash: builtin_skills_bundle_hash().to_string(),
@@ -139,7 +139,7 @@ async fn write_installed_manifest(root: &Path) -> BitFunResult<()> {
     Ok(())
 }
 
-async fn remove_existing_path(path: &Path) -> BitFunResult<()> {
+async fn remove_existing_path(path: &Path) -> VoidResult<()> {
     let Ok(metadata) = fs::symlink_metadata(path).await else {
         return Ok(());
     };
@@ -153,7 +153,7 @@ async fn remove_existing_path(path: &Path) -> BitFunResult<()> {
     Ok(())
 }
 
-async fn cleanup_legacy_builtin_dirs(legacy_root: &Path) -> BitFunResult<()> {
+async fn cleanup_legacy_builtin_dirs(legacy_root: &Path) -> VoidResult<()> {
     for dir_name in builtin_skill_dir_names() {
         let path = legacy_root.join(dir_name);
         remove_existing_path(&path).await?;
@@ -172,13 +172,13 @@ async fn cleanup_legacy_builtin_dirs(legacy_root: &Path) -> BitFunResult<()> {
     Ok(())
 }
 
-async fn acquire_install_lock(legacy_root: &Path) -> BitFunResult<BuiltinSkillsInstallLock> {
+async fn acquire_install_lock(legacy_root: &Path) -> VoidResult<BuiltinSkillsInstallLock> {
     let lock_path = builtin_skills_install_lock_path(legacy_root);
 
     // Use an OS-backed advisory file lock so parallel test processes and app
     // instances serialize built-in skill installation across the shared
     // `.system` directory.
-    let file = task::spawn_blocking(move || -> BitFunResult<std::fs::File> {
+    let file = task::spawn_blocking(move || -> VoidResult<std::fs::File> {
         let file = OpenOptions::new()
             .create(true)
             .read(true)
@@ -189,7 +189,7 @@ async fn acquire_install_lock(legacy_root: &Path) -> BitFunResult<BuiltinSkillsI
     })
     .await
     .map_err(|error| {
-        crate::util::errors::BitFunError::io(format!(
+        crate::util::errors::VoidError::io(format!(
             "Failed to join built-in skills install lock task: {}",
             error
         ))
@@ -198,7 +198,7 @@ async fn acquire_install_lock(legacy_root: &Path) -> BitFunResult<BuiltinSkillsI
     Ok(BuiltinSkillsInstallLock { file })
 }
 
-async fn install_builtin_skills_to_staging(staging_root: &Path) -> BitFunResult<(usize, usize)> {
+async fn install_builtin_skills_to_staging(staging_root: &Path) -> VoidResult<(usize, usize)> {
     let mut installed = 0usize;
     let mut updated = 0usize;
 
@@ -217,7 +217,7 @@ async fn install_builtin_skills_to_staging(staging_root: &Path) -> BitFunResult<
     Ok((installed, updated))
 }
 
-pub async fn ensure_builtin_skills_installed() -> BitFunResult<()> {
+pub async fn ensure_builtin_skills_installed() -> VoidResult<()> {
     let pm = get_path_manager_arc();
     let legacy_root = pm.user_skills_dir();
     let dest_root = pm.builtin_skills_dir();
@@ -296,7 +296,7 @@ struct SyncStats {
     updated: usize,
 }
 
-async fn sync_dir(dir: &Dir<'_>, dest_root: &Path) -> BitFunResult<SyncStats> {
+async fn sync_dir(dir: &Dir<'_>, dest_root: &Path) -> VoidResult<SyncStats> {
     let mut files: Vec<&include_dir::File<'_>> = Vec::new();
     collect_files(dir, &mut files);
 
@@ -336,9 +336,9 @@ fn collect_files<'a>(dir: &'a Dir<'a>, out: &mut Vec<&'a include_dir::File<'a>>)
     }
 }
 
-fn safe_join(root: &Path, relative: &Path) -> BitFunResult<PathBuf> {
+fn safe_join(root: &Path, relative: &Path) -> VoidResult<PathBuf> {
     if relative.is_absolute() {
-        return Err(crate::util::errors::BitFunError::validation(format!(
+        return Err(crate::util::errors::VoidError::validation(format!(
             "Unexpected absolute path in built-in skills: {}",
             relative.display()
         )));
@@ -347,7 +347,7 @@ fn safe_join(root: &Path, relative: &Path) -> BitFunResult<PathBuf> {
     // Prevent `..` traversal even though include_dir should only contain clean relative paths.
     for c in relative.components() {
         if matches!(c, std::path::Component::ParentDir) {
-            return Err(crate::util::errors::BitFunError::validation(format!(
+            return Err(crate::util::errors::VoidError::validation(format!(
                 "Unexpected parent dir component in built-in skills path: {}",
                 relative.display()
             )));
@@ -360,6 +360,6 @@ fn safe_join(root: &Path, relative: &Path) -> BitFunResult<PathBuf> {
 async fn desired_file_content(
     file: &include_dir::File<'_>,
     _dest_path: &Path,
-) -> BitFunResult<Vec<u8>> {
+) -> VoidResult<Vec<u8>> {
     Ok(file.contents().to_vec())
 }

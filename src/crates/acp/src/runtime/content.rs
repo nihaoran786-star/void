@@ -2,7 +2,7 @@ use agent_client_protocol::schema::{
     Annotations, BlobResourceContents, ContentBlock, EmbeddedResourceResource, ImageContent,
     ResourceLink, Role, TextResourceContents,
 };
-use bitfun_core::agentic::image_analysis::ImageContextData;
+use void_core::agentic::image_analysis::ImageContextData;
 
 pub(super) struct ParsedPrompt {
     pub(super) user_message: String,

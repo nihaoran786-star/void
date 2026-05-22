@@ -16,7 +16,7 @@ interface WorkspaceDragPayload {
   variant: 'assistants' | 'projects';
 }
 
-const WORKSPACE_DRAG_MIME_TYPE = 'application/x-bitfun-workspace';
+const WORKSPACE_DRAG_MIME_TYPE = 'application/x-void-workspace';
 
 
 const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) => {
@@ -78,7 +78,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
 
     // Measure only the workspace card, not the wrapper that includes the drop-line.
     const itemEl = event.currentTarget.querySelector<HTMLElement>(
-      '.bitfun-nav-panel__workspace-item'
+      '.void-nav-panel__workspace-item'
     );
     const rect = itemEl
       ? itemEl.getBoundingClientRect()
@@ -152,9 +152,9 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
   }, [reorderOpenedWorkspacesInSection, t, variant]);
 
   return (
-    <div className={`bitfun-nav-panel__workspace-list${draggedWorkspaceId ? ' is-dragging' : ''}`}>
+    <div className={`void-nav-panel__workspace-list${draggedWorkspaceId ? ' is-dragging' : ''}`}>
       {workspaces.length === 0 ? (
-        <div className="bitfun-nav-panel__workspace-list-empty">
+        <div className="void-nav-panel__workspace-list-empty">
           {emptyLabel}
         </div>
       ) : (
@@ -162,7 +162,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
           <div
             key={workspace.id}
             className={[
-              'bitfun-nav-panel__workspace-drop-target',
+              'void-nav-panel__workspace-drop-target',
               draggedWorkspaceId && draggedWorkspaceId !== workspace.id && 'is-drag-active',
               dropTarget?.workspaceId === workspace.id && 'is-drop-target',
               dropTarget?.workspaceId === workspace.id && dropTarget.position === 'before' && 'is-before',
@@ -173,7 +173,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
             onDrop={(event) => { void handleDrop(workspace.id)(event); }}
           >
             {dropTarget?.workspaceId === workspace.id && dropTarget.position === 'before' ? (
-              <div className="bitfun-nav-panel__workspace-drop-line" aria-hidden="true" />
+              <div className="void-nav-panel__workspace-drop-line" aria-hidden="true" />
             ) : null}
             <WorkspaceItem
               workspace={workspace}
@@ -185,7 +185,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
               onDragEnd={handleDragEnd}
             />
             {dropTarget?.workspaceId === workspace.id && dropTarget.position === 'after' ? (
-              <div className="bitfun-nav-panel__workspace-drop-line" aria-hidden="true" />
+              <div className="void-nav-panel__workspace-drop-line" aria-hidden="true" />
             ) : null}
           </div>
         ))

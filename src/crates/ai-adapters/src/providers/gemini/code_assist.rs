@@ -34,7 +34,7 @@ pub(crate) fn apply_headers(client: &AIClient, builder: RequestBuilder) -> Reque
         builder
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", client.config.api_key))
-            .header("User-Agent", "BitFun-CodeAssist/1.0")
+            .header("User-Agent", "Void-CodeAssist/1.0")
     })
 }
 

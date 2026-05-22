@@ -135,15 +135,15 @@ pub fn subagent_key_for(source: Option<SubAgentSource>, agent: &dyn Agent) -> Op
         SubAgentSource::Project => {
             let custom = agent.as_any().downcast_ref::<CustomSubagent>()?;
             match custom.kind {
-                CustomSubagentKind::Project => "bitfun",
-                CustomSubagentKind::User => "bitfun",
+                CustomSubagentKind::Project => "void",
+                CustomSubagentKind::User => "void",
             }
         }
         SubAgentSource::User => {
             let custom = agent.as_any().downcast_ref::<CustomSubagent>()?;
             match custom.kind {
-                CustomSubagentKind::Project => "bitfun",
-                CustomSubagentKind::User => "bitfun",
+                CustomSubagentKind::Project => "void",
+                CustomSubagentKind::User => "void",
             }
         }
     };

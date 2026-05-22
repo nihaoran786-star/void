@@ -50,7 +50,7 @@ describe('ThemeService flow chat link tokens', () => {
   it('keeps light theme Flow Chat markdown links browser-blue even with a neutral app accent', async () => {
     const service = new ThemeService();
 
-    await service.applyTheme('bitfun-light');
+    await service.applyTheme('void-light');
 
     const rootStyle = document.documentElement.style;
     expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#64748b');
@@ -61,7 +61,7 @@ describe('ThemeService flow chat link tokens', () => {
   it('keeps dark neutral-accent themes on an obvious blue link color', async () => {
     const service = new ThemeService();
 
-    await service.applyTheme('bitfun-slate');
+    await service.applyTheme('void-slate');
 
     const rootStyle = document.documentElement.style;
     expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#94a3b8');

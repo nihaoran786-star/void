@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use crate::service::config::ConfigService;
 use crate::service::mcp::server::MCPServerConfig;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 
 pub struct MCPConfigService {
     pub(super) config_service: Arc<ConfigService>,
-    inner: bitfun_services_integrations::mcp::config::MCPConfigService,
+    inner: void_services_integrations::mcp::config::MCPConfigService,
 }
 
 struct CoreMCPConfigStore {
@@ -15,11 +15,11 @@ struct CoreMCPConfigStore {
 }
 
 #[async_trait]
-impl bitfun_services_integrations::mcp::config::MCPConfigStore for CoreMCPConfigStore {
+impl void_services_integrations::mcp::config::MCPConfigStore for CoreMCPConfigStore {
     async fn get_config_value(
         &self,
         key: &str,
-    ) -> bitfun_services_integrations::mcp::MCPRuntimeResult<Option<serde_json::Value>> {
+    ) -> void_services_integrations::mcp::MCPRuntimeResult<Option<serde_json::Value>> {
         match self
             .config_service
             .get_config::<serde_json::Value>(Some(key))
@@ -34,65 +34,65 @@ impl bitfun_services_integrations::mcp::config::MCPConfigStore for CoreMCPConfig
         &self,
         key: &str,
         value: serde_json::Value,
-    ) -> bitfun_services_integrations::mcp::MCPRuntimeResult<()> {
+    ) -> void_services_integrations::mcp::MCPRuntimeResult<()> {
         self.config_service
             .set_config(key, value)
             .await
             .map_err(|e| {
-                bitfun_services_integrations::mcp::MCPRuntimeError::configuration(e.to_string())
+                void_services_integrations::mcp::MCPRuntimeError::configuration(e.to_string())
             })
     }
 }
 
 impl MCPConfigService {
     pub fn get_remote_authorization_value(config: &MCPServerConfig) -> Option<String> {
-        bitfun_services_integrations::mcp::config::MCPConfigService::get_remote_authorization_value(
+        void_services_integrations::mcp::config::MCPConfigService::get_remote_authorization_value(
             config,
         )
     }
 
     pub fn get_remote_authorization_source(config: &MCPServerConfig) -> Option<&'static str> {
-        bitfun_services_integrations::mcp::config::MCPConfigService::get_remote_authorization_source(
+        void_services_integrations::mcp::config::MCPConfigService::get_remote_authorization_source(
             config,
         )
     }
 
     pub fn has_remote_authorization(config: &MCPServerConfig) -> bool {
-        bitfun_services_integrations::mcp::config::MCPConfigService::has_remote_authorization(
+        void_services_integrations::mcp::config::MCPConfigService::has_remote_authorization(
             config,
         )
     }
 
     pub fn has_remote_oauth(config: &MCPServerConfig) -> bool {
-        bitfun_services_integrations::mcp::config::MCPConfigService::has_remote_oauth(config)
+        void_services_integrations::mcp::config::MCPConfigService::has_remote_oauth(config)
     }
 
     pub fn has_remote_xaa(config: &MCPServerConfig) -> bool {
-        bitfun_services_integrations::mcp::config::MCPConfigService::has_remote_xaa(config)
+        void_services_integrations::mcp::config::MCPConfigService::has_remote_xaa(config)
     }
 
-    pub fn new(config_service: Arc<ConfigService>) -> BitFunResult<Self> {
+    pub fn new(config_service: Arc<ConfigService>) -> VoidResult<Self> {
         let store = Arc::new(CoreMCPConfigStore {
             config_service: config_service.clone(),
         });
         Ok(Self {
             config_service,
-            inner: bitfun_services_integrations::mcp::config::MCPConfigService::new(store),
+            inner: void_services_integrations::mcp::config::MCPConfigService::new(store),
         })
     }
 
-    pub async fn load_all_configs(&self) -> BitFunResult<Vec<MCPServerConfig>> {
+    pub async fn load_all_configs(&self) -> VoidResult<Vec<MCPServerConfig>> {
         Ok(self.inner.load_all_configs().await?)
     }
 
     pub async fn get_server_config(
         &self,
         server_id: &str,
-    ) -> BitFunResult<Option<MCPServerConfig>> {
+    ) -> VoidResult<Option<MCPServerConfig>> {
         Ok(self.inner.get_server_config(server_id).await?)
     }
 
-    pub async fn save_server_config(&self, config: &MCPServerConfig) -> BitFunResult<()> {
+    pub async fn save_server_config(&self, config: &MCPServerConfig) -> VoidResult<()> {
         Ok(self.inner.save_server_config(config).await?)
     }
 
@@ -100,7 +100,7 @@ impl MCPConfigService {
         &self,
         server_id: &str,
         authorization_value: &str,
-    ) -> BitFunResult<MCPServerConfig> {
+    ) -> VoidResult<MCPServerConfig> {
         Ok(self
             .inner
             .set_remote_authorization(server_id, authorization_value)
@@ -110,11 +110,11 @@ impl MCPConfigService {
     pub async fn clear_remote_authorization(
         &self,
         server_id: &str,
-    ) -> BitFunResult<MCPServerConfig> {
+    ) -> VoidResult<MCPServerConfig> {
         Ok(self.inner.clear_remote_authorization(server_id).await?)
     }
 
-    pub async fn delete_server_config(&self, server_id: &str) -> BitFunResult<()> {
+    pub async fn delete_server_config(&self, server_id: &str) -> VoidResult<()> {
         Ok(self.inner.delete_server_config(server_id).await?)
     }
 }
@@ -179,7 +179,7 @@ mod tests {
             Some("headers")
         );
         assert_eq!(
-            bitfun_services_integrations::mcp::config::normalize_mcp_authorization_value(
+            void_services_integrations::mcp::config::normalize_mcp_authorization_value(
                 "plain-token"
             )
             .as_deref(),

@@ -5,7 +5,7 @@ use crate::agentic::tools::framework::{
 };
 use crate::infrastructure::PathManager;
 use crate::service::session::SessionTranscriptExportOptions;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -46,9 +46,9 @@ impl SessionHistoryTool {
         Ok(())
     }
 
-    fn resolve_session_id(&self, session_id: &str) -> BitFunResult<String> {
+    fn resolve_session_id(&self, session_id: &str) -> VoidResult<String> {
         let session_id = session_id.trim().to_string();
-        Self::validate_session_id(&session_id).map_err(BitFunError::tool)?;
+        Self::validate_session_id(&session_id).map_err(VoidError::tool)?;
         Ok(session_id)
     }
 }
@@ -72,7 +72,7 @@ impl Tool for SessionHistoryTool {
         "SessionHistory"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(
             r#"Use this tool when you need the history of an agent session.
 
@@ -243,19 +243,19 @@ Examples:
         &self,
         input: &Value,
         _context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let params: SessionHistoryInput = serde_json::from_value(input.clone())
-            .map_err(|e| BitFunError::tool(format!("Invalid input: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Invalid input: {}", e)))?;
 
         let session_id = self.resolve_session_id(&params.session_id)?;
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::tool("coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("coordinator not initialized".to_string()))?;
         let workspace = coordinator
             .resolve_session_workspace_path(&session_id)
             .await
             .map(|path| path.to_string_lossy().to_string())
             .ok_or_else(|| {
-                BitFunError::NotFound(format!(
+                VoidError::NotFound(format!(
                     "Workspace for session '{}' could not be resolved",
                     session_id
                 ))

@@ -64,7 +64,7 @@ pub trait AcpRuntime: Send + Sync + 'static {
     }
 }
 
-/// Typed ACP server backed by an injected BitFun runtime.
+/// Typed ACP server backed by an injected Void runtime.
 pub struct AcpServer<R> {
     runtime: Arc<R>,
 }
@@ -88,7 +88,7 @@ where
 
         Agent
             .builder()
-            .name("bitfun-acp")
+            .name("void-acp")
             .on_receive_request(
                 {
                     let runtime = runtime.clone();

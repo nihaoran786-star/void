@@ -1,0 +1,12 @@
+{
+  "allowedPathPatterns": [
+    "^\\.git/",
+    "^target/",
+    "^dist/",
+    "^node_modules/",
+    "^docs/features/void-brand-replacement-prd\\.md$",
+    "^brand/brand-manifest\\.json$",
+    "^brand/brand-audit-allowlist\\.json$"
+  ],
+  "allowedLinePatterns": []
+}

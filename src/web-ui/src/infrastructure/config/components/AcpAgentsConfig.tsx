@@ -295,7 +295,7 @@ function CapabilityBadge({
 
   return (
     <span
-      className={`bitfun-acp-agents__capability is-${tone}`}
+      className={`void-acp-agents__capability is-${tone}`}
       title={title}
     >
       {icon}
@@ -314,7 +314,7 @@ function AgentStatusBadge({
   title?: string;
 }) {
   return (
-    <span className={`bitfun-acp-agents__status is-${status}`} title={title}>
+    <span className={`void-acp-agents__status is-${status}`} title={title}>
       {status === 'checking' && <LoaderCircle size={12} />}
       <span>{label}</span>
     </span>
@@ -556,9 +556,9 @@ const AcpAgentsConfig: React.FC = () => {
     const handleAcpClientsChanged = () => {
       void loadConfig({ showLoading: false });
     };
-    window.addEventListener('bitfun:acp-clients-changed', handleAcpClientsChanged);
+    window.addEventListener('void:acp-clients-changed', handleAcpClientsChanged);
     return () => {
-      window.removeEventListener('bitfun:acp-clients-changed', handleAcpClientsChanged);
+      window.removeEventListener('void:acp-clients-changed', handleAcpClientsChanged);
     };
   }, [loadConfig]);
 
@@ -885,17 +885,17 @@ const AcpAgentsConfig: React.FC = () => {
   }, [config.acpClients]);
 
   return (
-    <ConfigPageLayout className="bitfun-acp-agents">
+    <ConfigPageLayout className="void-acp-agents">
       <ConfigPageHeader
         title={t('title')}
         subtitle={t('subtitle')}
       />
 
       <ConfigPageContent>
-        <div className="bitfun-acp-agents__manager">
-          <div className="bitfun-acp-agents__toolbar">
+        <div className="void-acp-agents__manager">
+          <div className="void-acp-agents__toolbar">
             <Input
-              className="bitfun-acp-agents__search"
+              className="void-acp-agents__search"
               value={registrySearch}
               onChange={(event) => setRegistrySearch(event.target.value)}
               placeholder={t('registry.searchPlaceholder')}
@@ -903,9 +903,9 @@ const AcpAgentsConfig: React.FC = () => {
               size="medium"
               variant="outlined"
             />
-            <div className="bitfun-acp-agents__toolbar-actions">
+            <div className="void-acp-agents__toolbar-actions">
               <Select
-                className="bitfun-acp-agents__filter-select"
+                className="void-acp-agents__filter-select"
                 options={registryFilterOptions}
                 value={registryFilter}
                 onChange={(value) => setRegistryFilter(value as RegistryFilter)}
@@ -957,7 +957,7 @@ const AcpAgentsConfig: React.FC = () => {
             >
               <Textarea
                 ref={jsonEditorRef}
-                className="bitfun-acp-agents__json-textarea"
+                className="void-acp-agents__json-textarea"
                 value={jsonConfig}
                 onChange={(event) => {
                   setJsonConfig(event.target.value);
@@ -980,7 +980,7 @@ const AcpAgentsConfig: React.FC = () => {
                 rows={16}
                 spellCheck={false}
               />
-              <div className="bitfun-acp-agents__json-actions">
+              <div className="void-acp-agents__json-actions">
                 <Button variant="secondary" size="small" onClick={() => setJsonConfig(formatConfig(config))}>
                   {t('actions.revert')}
                 </Button>
@@ -993,11 +993,11 @@ const AcpAgentsConfig: React.FC = () => {
 
           <ConfigPageSection title={t('registry.title')} description={t('registry.description')}>
           {loading ? (
-            <div className="bitfun-acp-agents__empty">{t('clients.loading')}</div>
+            <div className="void-acp-agents__empty">{t('clients.loading')}</div>
           ) : registryPresets.length === 0 && visibleCustomClientRows.length === 0 ? (
-            <div className="bitfun-acp-agents__empty">{t('registry.empty')}</div>
+            <div className="void-acp-agents__empty">{t('registry.empty')}</div>
           ) : (
-            <div className="bitfun-acp-agents__registry-list">
+            <div className="void-acp-agents__registry-list">
               {registryPresets.map(preset => {
                 const clientConfig = config.acpClients[preset.id] ?? defaultConfigForPreset(preset);
                 const requirementProbe = probesById.get(preset.id);
@@ -1041,17 +1041,17 @@ const AcpAgentsConfig: React.FC = () => {
                   || issueKind === 'version_mismatch';
 
                 return (
-                  <div key={preset.id} className="bitfun-acp-agents__registry-row">
-                    <div className="bitfun-acp-agents__registry-main">
-                      <span className="bitfun-acp-agents__registry-icon">
+                  <div key={preset.id} className="void-acp-agents__registry-row">
+                    <div className="void-acp-agents__registry-main">
+                      <span className="void-acp-agents__registry-icon">
                         <Bot size={16} />
                       </span>
-                      <div className="bitfun-acp-agents__registry-copy">
-                        <span className="bitfun-acp-agents__registry-name">{preset.name}</span>
-                        <p className="bitfun-acp-agents__registry-description">{preset.description}</p>
+                      <div className="void-acp-agents__registry-copy">
+                        <span className="void-acp-agents__registry-name">{preset.name}</span>
+                        <p className="void-acp-agents__registry-description">{preset.description}</p>
                       </div>
                     </div>
-                    <div className="bitfun-acp-agents__capabilities">
+                    <div className="void-acp-agents__capabilities">
                       <CapabilityBadge
                         icon={<Terminal size={12} />}
                         item={requirementProbe?.tool}
@@ -1062,13 +1062,13 @@ const AcpAgentsConfig: React.FC = () => {
                         checkingText={t('requirements.checking')}
                       />
                     </div>
-                    <div className="bitfun-acp-agents__status-cell">
+                    <div className="void-acp-agents__status-cell">
                       <AgentStatusBadge status={status} label={statusLabel} title={statusTitle} />
                     </div>
-                    <div className="bitfun-acp-agents__confirmation-cell">
+                    <div className="void-acp-agents__confirmation-cell">
                       {showSelect ? (
                         <Select
-                          className="bitfun-acp-agents__confirmation-select"
+                          className="void-acp-agents__confirmation-select"
                           options={permissionOptions}
                           value={clientConfig.permissionMode}
                           onChange={(value) => patchClientConfig(preset.id, {
@@ -1078,7 +1078,7 @@ const AcpAgentsConfig: React.FC = () => {
                         />
                       ) : canInstallCli ? (
                         <Button
-                          className="bitfun-acp-agents__add-button"
+                          className="void-acp-agents__add-button"
                           variant="secondary"
                           size="small"
                           onClick={() => { void installPresetClient(preset); }}
@@ -1089,7 +1089,7 @@ const AcpAgentsConfig: React.FC = () => {
                         </Button>
                       ) : canConfigureAcp ? (
                         <Button
-                          className="bitfun-acp-agents__add-button"
+                          className="void-acp-agents__add-button"
                           variant="secondary"
                           size="small"
                           onClick={() => { void configurePresetClient(preset); }}
@@ -1100,7 +1100,7 @@ const AcpAgentsConfig: React.FC = () => {
                         </Button>
                       ) : canViewError ? (
                         <Button
-                          className="bitfun-acp-agents__add-button"
+                          className="void-acp-agents__add-button"
                           variant="secondary"
                           size="small"
                           onClick={() => {
@@ -1115,7 +1115,7 @@ const AcpAgentsConfig: React.FC = () => {
                         </Button>
                       ) : (
                         <Button
-                          className="bitfun-acp-agents__add-button"
+                          className="void-acp-agents__add-button"
                           variant="secondary"
                           size="small"
                           onClick={() => addPresetClient(preset)}
@@ -1167,20 +1167,20 @@ const AcpAgentsConfig: React.FC = () => {
                 return (
                   <div
                     key={clientId}
-                    className="bitfun-acp-agents__registry-row"
+                    className="void-acp-agents__registry-row"
                   >
-                    <div className="bitfun-acp-agents__registry-main">
-                      <span className="bitfun-acp-agents__registry-icon">
+                    <div className="void-acp-agents__registry-main">
+                      <span className="void-acp-agents__registry-icon">
                         <Bot size={16} />
                       </span>
-                      <div className="bitfun-acp-agents__registry-copy">
-                        <span className="bitfun-acp-agents__registry-name">{displayName}</span>
-                        <p className="bitfun-acp-agents__registry-description bitfun-acp-agents__registry-command">
+                      <div className="void-acp-agents__registry-copy">
+                        <span className="void-acp-agents__registry-name">{displayName}</span>
+                        <p className="void-acp-agents__registry-description void-acp-agents__registry-command">
                           {[clientConfig.command, ...clientConfig.args].join(' ')}
                         </p>
                       </div>
                     </div>
-                    <div className="bitfun-acp-agents__capabilities">
+                    <div className="void-acp-agents__capabilities">
                       <CapabilityBadge
                         icon={<Terminal size={12} />}
                         item={requirementProbe?.tool}
@@ -1191,13 +1191,13 @@ const AcpAgentsConfig: React.FC = () => {
                         checkingText={t('requirements.checking')}
                       />
                     </div>
-                    <div className="bitfun-acp-agents__status-cell">
+                    <div className="void-acp-agents__status-cell">
                       <AgentStatusBadge status={status} label={statusLabel} title={statusTitle} />
                     </div>
-                    <div className="bitfun-acp-agents__confirmation-cell">
+                    <div className="void-acp-agents__confirmation-cell">
                       {status === 'enabled' || status === 'ready' ? (
                         <Select
-                          className="bitfun-acp-agents__confirmation-select"
+                          className="void-acp-agents__confirmation-select"
                           options={permissionOptions}
                           value={clientConfig.permissionMode}
                           onChange={(value) => patchClientConfig(clientId, {
@@ -1207,7 +1207,7 @@ const AcpAgentsConfig: React.FC = () => {
                         />
                       ) : canViewError ? (
                         <Button
-                          className="bitfun-acp-agents__add-button"
+                          className="void-acp-agents__add-button"
                           variant="secondary"
                           size="small"
                           onClick={() => {
@@ -1231,9 +1231,9 @@ const AcpAgentsConfig: React.FC = () => {
 
           <ConfigPageSection title={t('remote.title')} description={t('remote.description')}>
             {remoteConnectionRows.length === 0 ? (
-              <div className="bitfun-acp-agents__empty">{t('remote.empty')}</div>
+              <div className="void-acp-agents__empty">{t('remote.empty')}</div>
             ) : (
-              <div className="bitfun-acp-agents__remote-list">
+              <div className="void-acp-agents__remote-list">
                 {remoteConnectionRows.map(connection => {
                   const hostLabel = [connection.username, connection.host]
                     .filter(Boolean)
@@ -1292,32 +1292,32 @@ const AcpAgentsConfig: React.FC = () => {
                   )).length;
 
                   return (
-                    <div key={connection.id} className="bitfun-acp-agents__remote-server">
-                      <div className="bitfun-acp-agents__remote-head">
-                        <div className="bitfun-acp-agents__registry-main">
-                          <span className="bitfun-acp-agents__registry-icon">
+                    <div key={connection.id} className="void-acp-agents__remote-server">
+                      <div className="void-acp-agents__remote-head">
+                        <div className="void-acp-agents__registry-main">
+                          <span className="void-acp-agents__registry-icon">
                             <Server size={16} />
                           </span>
-                          <div className="bitfun-acp-agents__registry-copy">
-                            <span className="bitfun-acp-agents__registry-name">
+                          <div className="void-acp-agents__registry-copy">
+                            <span className="void-acp-agents__registry-name">
                               {connection.name || connection.id}
                             </span>
-                            <p className="bitfun-acp-agents__registry-description">
+                            <p className="void-acp-agents__registry-description">
                               {hostLabel || connection.id}
                             </p>
-                            <div className="bitfun-acp-agents__remote-summary">
-                              <span className="bitfun-acp-agents__summary-pill is-success">
+                            <div className="void-acp-agents__remote-summary">
+                              <span className="void-acp-agents__summary-pill is-success">
                                 {getRemoteSummary(availableCount, remoteRows.length)}
                               </span>
                               {issueCount > 0 && (
-                                <span className="bitfun-acp-agents__summary-pill is-warning">
+                                <span className="void-acp-agents__summary-pill is-warning">
                                   {t('remote.issueSummary', { count: issueCount })}
                                 </span>
                               )}
                             </div>
                           </div>
                         </div>
-                        <div className="bitfun-acp-agents__remote-actions">
+                        <div className="void-acp-agents__remote-actions">
                           <Button
                             variant="secondary"
                             size="small"
@@ -1334,7 +1334,7 @@ const AcpAgentsConfig: React.FC = () => {
                           </Button>
                         </div>
                       </div>
-                      <div className="bitfun-acp-agents__remote-agent-list">
+                      <div className="void-acp-agents__remote-agent-list">
                         {remoteRows.map(row => {
                           const statusLabel = getStatusLabel({
                             status: row.status,
@@ -1357,17 +1357,17 @@ const AcpAgentsConfig: React.FC = () => {
                             || row.issueKind === 'adapter_missing';
 
                           return (
-                            <div key={row.clientId} className="bitfun-acp-agents__registry-row bitfun-acp-agents__registry-row--remote">
-                              <div className="bitfun-acp-agents__registry-main">
-                                <span className="bitfun-acp-agents__registry-icon">
+                            <div key={row.clientId} className="void-acp-agents__registry-row void-acp-agents__registry-row--remote">
+                              <div className="void-acp-agents__registry-main">
+                                <span className="void-acp-agents__registry-icon">
                                   <Bot size={16} />
                                 </span>
-                                <div className="bitfun-acp-agents__registry-copy">
-                                  <span className="bitfun-acp-agents__registry-name">{row.displayName}</span>
-                                  <p className="bitfun-acp-agents__registry-description">{row.description}</p>
+                                <div className="void-acp-agents__registry-copy">
+                                  <span className="void-acp-agents__registry-name">{row.displayName}</span>
+                                  <p className="void-acp-agents__registry-description">{row.description}</p>
                                 </div>
                               </div>
-                              <div className="bitfun-acp-agents__capabilities">
+                              <div className="void-acp-agents__capabilities">
                                 <CapabilityBadge
                                   icon={<Terminal size={12} />}
                                   item={row.requirementProbe?.tool}
@@ -1389,13 +1389,13 @@ const AcpAgentsConfig: React.FC = () => {
                                   />
                                 )}
                               </div>
-                              <div className="bitfun-acp-agents__status-cell">
+                              <div className="void-acp-agents__status-cell">
                                 <AgentStatusBadge status={row.status} label={statusLabel} title={statusTitle} />
                               </div>
-                              <div className="bitfun-acp-agents__confirmation-cell">
+                              <div className="void-acp-agents__confirmation-cell">
                                 {canInstallCli ? (
                                   <Button
-                                    className="bitfun-acp-agents__add-button"
+                                    className="void-acp-agents__add-button"
                                     variant="secondary"
                                     size="small"
                                     onClick={() => {
@@ -1411,7 +1411,7 @@ const AcpAgentsConfig: React.FC = () => {
                                 ) : row.status === 'enabled' || row.status === 'ready' ? (
                                   row.clientConfig ? (
                                     <Select
-                                      className="bitfun-acp-agents__confirmation-select"
+                                      className="void-acp-agents__confirmation-select"
                                       options={permissionOptions}
                                       value={row.clientConfig.permissionMode}
                                       onChange={(value) => patchClientConfig(row.clientId, {
@@ -1421,7 +1421,7 @@ const AcpAgentsConfig: React.FC = () => {
                                     />
                                   ) : row.preset ? (
                                   <Button
-                                    className="bitfun-acp-agents__add-button"
+                                    className="void-acp-agents__add-button"
                                     variant="secondary"
                                     size="small"
                                     onClick={() => addPresetClient(row.preset!)}
@@ -1432,7 +1432,7 @@ const AcpAgentsConfig: React.FC = () => {
                                   ) : null
                                 ) : canViewError ? (
                                   <Button
-                                    className="bitfun-acp-agents__add-button"
+                                    className="void-acp-agents__add-button"
                                     variant="secondary"
                                     size="small"
                                     onClick={() => {

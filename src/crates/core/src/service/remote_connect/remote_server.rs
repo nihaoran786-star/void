@@ -15,7 +15,7 @@ use serde_json::Value;
 use std::sync::{Arc, OnceLock};
 
 use super::encryption;
-use bitfun_services_integrations::remote_connect::{
+use void_services_integrations::remote_connect::{
     build_remote_image_contexts, read_remote_workspace_file, read_remote_workspace_file_chunk,
     read_remote_workspace_file_info, remote_model_catalog_poll_delta,
     remote_no_change_poll_response, remote_persisted_poll_response, remote_snapshot_poll_response,
@@ -26,7 +26,7 @@ use bitfun_services_integrations::remote_connect::{
     RemoteSessionTrackerHost, RemoteSessionTrackerRegistry, RemoteTerminalPrewarmRequest,
     REMOTE_FILE_MAX_READ_BYTES,
 };
-pub use bitfun_services_integrations::remote_connect::{
+pub use void_services_integrations::remote_connect::{
     ActiveTurnSnapshot, AssistantEntry, ChatImageAttachment, ChatMessage, ChatMessageItem,
     ImageAttachment, RecentWorkspaceEntry, RemoteCommand, RemoteDefaultModelsConfig,
     RemoteModelCatalog, RemoteModelConfig, RemoteResponse, RemoteSessionStateTracker,
@@ -376,7 +376,7 @@ fn turns_to_chat_messages(turns: &[crate::service::session::DialogTurnData]) -> 
                     duration_ms: t.duration_ms,
                     start_ms: Some(t.start_time),
                     input_preview:
-                        bitfun_services_integrations::remote_connect::make_slim_tool_params(
+                        void_services_integrations::remote_connect::make_slim_tool_params(
                             &t.tool_call.input,
                         ),
                     tool_input: if t.tool_name == "AskUserQuestion"
@@ -485,7 +485,7 @@ fn strip_user_input_tags(content: &str) -> String {
 }
 
 fn resolve_agent_type(mobile_type: Option<&str>) -> &'static str {
-    bitfun_services_integrations::remote_connect::resolve_remote_agent_type(mobile_type)
+    void_services_integrations::remote_connect::resolve_remote_agent_type(mobile_type)
 }
 
 /// Convert legacy `ImageAttachment` to unified `ImageContextData`.
@@ -517,7 +517,7 @@ impl crate::agentic::events::EventSubscriber for Arc<RemoteSessionStateTracker> 
     async fn on_event(
         &self,
         event: &crate::agentic::events::AgenticEvent,
-    ) -> crate::util::errors::BitFunResult<()> {
+    ) -> crate::util::errors::VoidResult<()> {
         self.handle_agentic_event(event);
         Ok(())
     }
@@ -780,7 +780,7 @@ impl RemoteExecutionDispatcher {
 
     /// Dispatch a SendMessage command through the remote-connect runtime owner.
     ///
-    /// `bitfun-services-integrations` owns the orchestration order; core supplies
+    /// `void-services-integrations` owns the orchestration order; core supplies
     /// the concrete tracker, session restore, terminal, and scheduler adapters.
     /// When the session is already processing, the message is queued and the current turn
     /// may yield after the current model round for interactive remote sources.
@@ -1369,7 +1369,7 @@ impl RemoteServer {
 
     async fn handle_session_command(&self, cmd: &RemoteCommand) -> RemoteResponse {
         use crate::agentic::coordination::get_global_coordinator;
-        use bitfun_services_integrations::remote_connect::{
+        use void_services_integrations::remote_connect::{
             build_remote_session_create_request, RemoteConnectSubmissionSource,
         };
 
@@ -1844,7 +1844,7 @@ impl RemoteServer {
 mod tests {
     use super::*;
     use crate::service::remote_connect::encryption::KeyPair;
-    use bitfun_services_integrations::remote_connect::remote_session_restore_target;
+    use void_services_integrations::remote_connect::remote_session_restore_target;
 
     #[test]
     fn test_command_round_trip() {

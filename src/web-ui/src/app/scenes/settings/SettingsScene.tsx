@@ -40,8 +40,8 @@ const SettingsScene: React.FC = () => {
 
   if (resolvedTab === 'keyboard') {
     return (
-      <div className="bitfun-settings-scene">
-        <div key="keyboard" className="bitfun-settings-scene__content-wrapper">
+      <div className="void-settings-scene">
+        <div key="keyboard" className="void-settings-scene__content-wrapper">
           <Suspense fallback={null}>
             <KeyboardShortcutsTab />
           </Suspense>
@@ -66,9 +66,9 @@ const SettingsScene: React.FC = () => {
   }
 
   return (
-    <div className="bitfun-settings-scene">
+    <div className="void-settings-scene">
       {Content && (
-        <div key={resolvedTab} className="bitfun-settings-scene__content-wrapper">
+        <div key={resolvedTab} className="void-settings-scene__content-wrapper">
           <Content />
         </div>
       )}

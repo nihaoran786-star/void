@@ -4,8 +4,8 @@ use crate::agentic::tools::framework::{DynamicToolInfo, Tool};
 use crate::agentic::tools::product_runtime::{
     resolve_product_readonly_enabled_tools, ProductToolRuntime,
 };
-use crate::util::errors::BitFunResult;
-use bitfun_agent_tools::{
+use crate::util::errors::VoidResult;
+use void_agent_tools::{
     DynamicToolDescriptor, DynamicToolProvider, PortResult, ToolDecoratorRef,
     ToolRegistry as AgentToolRegistry,
 };
@@ -15,7 +15,7 @@ use std::sync::Arc;
 pub(in crate::agentic::tools) type ToolRef = Arc<dyn Tool>;
 pub(in crate::agentic::tools) type ProductToolDecoratorRef = ToolDecoratorRef<dyn Tool>;
 
-pub use bitfun_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
+pub use void_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
 
 /// Tool registry - manages all available tools (using IndexMap to maintain registration order)
 pub struct ToolRegistry {
@@ -38,7 +38,7 @@ impl ToolRegistry {
     ///
     /// The default production decorator preserves snapshot-aware wrapping while
     /// allowing future owner crates to replace this concrete service coupling
-    /// through the `bitfun-runtime-ports` interface.
+    /// through the `void-runtime-ports` interface.
     pub fn with_tool_decorator(tool_decorator: ProductToolDecoratorRef) -> Self {
         ProductToolRuntime::with_tool_decorator(tool_decorator).create_registry()
     }
@@ -174,7 +174,7 @@ mod tests {
     };
     use crate::agentic::tools::product_runtime::ProductToolRuntime;
     use async_trait::async_trait;
-    use bitfun_agent_tools::{DynamicToolProvider, ToolDecorator};
+    use void_agent_tools::{DynamicToolProvider, ToolDecorator};
     use serde_json::json;
     use serde_json::Value;
     use std::sync::Arc;
@@ -190,7 +190,7 @@ mod tests {
             &self.name
         }
 
-        async fn description(&self) -> crate::util::errors::BitFunResult<String> {
+        async fn description(&self) -> crate::util::errors::VoidResult<String> {
             Ok("dynamic test tool".to_string())
         }
 
@@ -229,7 +229,7 @@ mod tests {
             &self,
             _input: &Value,
             _context: &ToolUseContext,
-        ) -> crate::util::errors::BitFunResult<Vec<ToolResult>> {
+        ) -> crate::util::errors::VoidResult<Vec<ToolResult>> {
             Ok(Vec::new())
         }
     }
@@ -291,7 +291,7 @@ mod tests {
             &self.name
         }
 
-        async fn description(&self) -> crate::util::errors::BitFunResult<String> {
+        async fn description(&self) -> crate::util::errors::VoidResult<String> {
             Ok("decorated test tool".to_string())
         }
 
@@ -315,7 +315,7 @@ mod tests {
             &self,
             _input: &Value,
             _context: &ToolUseContext,
-        ) -> crate::util::errors::BitFunResult<Vec<ToolResult>> {
+        ) -> crate::util::errors::VoidResult<Vec<ToolResult>> {
             Ok(Vec::new())
         }
     }
@@ -420,7 +420,7 @@ mod tests {
     #[test]
     fn builtin_static_tool_providers_follow_tool_pack_group_plan() {
         let provider_ids = ProductToolRuntime::default().provider_group_ids();
-        let planned_provider_ids = bitfun_tool_packs::product_tool_provider_group_plan()
+        let planned_provider_ids = void_tool_packs::product_tool_provider_group_plan()
             .iter()
             .map(|group| group.provider_id())
             .collect::<Vec<_>>();
@@ -793,7 +793,7 @@ pub async fn get_all_tools() -> Vec<Arc<dyn Tool>> {
 }
 
 /// Get readonly tools
-pub async fn get_readonly_tools() -> BitFunResult<Vec<Arc<dyn Tool>>> {
+pub async fn get_readonly_tools() -> VoidResult<Vec<Arc<dyn Tool>>> {
     Ok(resolve_product_readonly_enabled_tools().await)
 }
 

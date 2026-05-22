@@ -81,7 +81,7 @@ describe('tiptap markdown compatibility', () => {
     const markdown = [
       '<div align="center">',
       '',
-      '![BitFun](./png/BitFun_title.png)',
+      '![Void](./png/Void_title.png)',
       '',
       '**AI assistant with personality and memory**',
       '',
@@ -90,7 +90,7 @@ describe('tiptap markdown compatibility', () => {
       '</div>',
       '<div align="center">',
       '',
-      '[![Website](https://img.shields.io/badge/Website-openbitfun.com-6f42c1?style=flat-square)](https://openbitfun.com/)',
+      '[![Website](https://img.shields.io/badge/Website-openvoid.com-6f42c1?style=flat-square)](https://openvoid.com/)',
       '',
       '</div>',
     ].join('\n');

@@ -1,6 +1,6 @@
 @use '../../../../component-library/styles/tokens' as *;
 
-.bitfun-push-button {
+.void-push-button {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
@@ -64,7 +64,7 @@
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.8);
     z-index: $z-dropdown;
     padding: 6px;
-    animation: bitfun-push-button-menu-slide-in 0.15s ease-out;
+    animation: void-push-button-menu-slide-in 0.15s ease-out;
   }
 
   &__menu-item {
@@ -145,7 +145,7 @@
         color: #ff6b6b;
       }
 
-      .bitfun-push-button__menu-item-title {
+      .void-push-button__menu-item-title {
         color: #ff6b6b;
       }
 
@@ -187,7 +187,7 @@
   }
 }
 
-@keyframes bitfun-push-button-menu-slide-in {
+@keyframes void-push-button-menu-slide-in {
   from {
     opacity: 0;
     transform: translateY(-4px) scale(0.98);

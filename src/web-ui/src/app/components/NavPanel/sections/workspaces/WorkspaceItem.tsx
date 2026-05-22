@@ -329,12 +329,12 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     };
 
     void loadAcpClients();
-    window.addEventListener('bitfun:acp-clients-changed', loadAcpClients);
-    window.addEventListener('bitfun:acp-requirements-changed', loadAcpClients);
+    window.addEventListener('void:acp-clients-changed', loadAcpClients);
+    window.addEventListener('void:acp-requirements-changed', loadAcpClients);
     return () => {
       cancelled = true;
-      window.removeEventListener('bitfun:acp-clients-changed', loadAcpClients);
-      window.removeEventListener('bitfun:acp-requirements-changed', loadAcpClients);
+      window.removeEventListener('void:acp-clients-changed', loadAcpClients);
+      window.removeEventListener('void:acp-requirements-changed', loadAcpClients);
     };
   }, [workspace]);
 
@@ -634,7 +634,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   if (workspace.workspaceKind === WorkspaceKind.Assistant) {
     return (
       <div className={[
-        'bitfun-nav-panel__assistant-item',
+        'void-nav-panel__assistant-item',
         isActive && 'is-active',
         isDragging && 'is-dragging',
         menuOpen && 'is-menu-open',
@@ -645,7 +645,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
       aria-grabbed={draggable ? isDragging : undefined}>
         <div
           ref={cardRef}
-          className="bitfun-nav-panel__assistant-item-card"
+          className="void-nav-panel__assistant-item-card"
           draggable={draggable}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
@@ -654,22 +654,22 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
         >
           <button
             type="button"
-            className="bitfun-nav-panel__assistant-item-collapse-btn"
+            className="void-nav-panel__assistant-item-collapse-btn"
             onClick={e => { e.stopPropagation(); handleCollapseToggle(); }}
             aria-label={sessionsCollapsed ? t('nav.workspaces.expandSessions') : t('nav.workspaces.collapseSessions')}
             aria-expanded={!sessionsCollapsed}
           >
-            <span className="bitfun-nav-panel__assistant-item-avatar" aria-hidden="true">
+            <span className="void-nav-panel__assistant-item-avatar" aria-hidden="true">
               {isActive ? (
-                <span className="bitfun-nav-panel__assistant-item-active-icon">
+                <span className="void-nav-panel__assistant-item-active-icon">
                   <DotMatrixArrowRightIcon size={14} />
                 </span>
               ) : (
-                <span className="bitfun-nav-panel__assistant-item-avatar-letter">
+                <span className="void-nav-panel__assistant-item-avatar-letter">
                   {workspaceDisplayName.charAt(0)}
                 </span>
               )}
-              <span className={`bitfun-nav-panel__assistant-item-icon-toggle${sessionsCollapsed ? ' is-collapsed' : ''}`}>
+              <span className={`void-nav-panel__assistant-item-icon-toggle${sessionsCollapsed ? ' is-collapsed' : ''}`}>
                 <ChevronDown size={12} />
               </span>
             </span>
@@ -677,13 +677,13 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
           <Tooltip content={workspace.rootPath} placement="right" followCursor>
             <button
               type="button"
-              className="bitfun-nav-panel__assistant-item-name-btn"
+              className="void-nav-panel__assistant-item-name-btn"
               onClick={e => { e.stopPropagation(); void handleCardNameClick(); }}
             >
-              <span className="bitfun-nav-panel__assistant-item-label">{workspaceDisplayName}</span>
+              <span className="void-nav-panel__assistant-item-label">{workspaceDisplayName}</span>
               {isDefaultAssistantWorkspace ? (
                 <span
-                  className="bitfun-nav-panel__assistant-item-badge"
+                  className="void-nav-panel__assistant-item-badge"
                   title={t('nav.workspaces.primaryAssistant')}
                 >
                   {t('nav.workspaces.primaryAssistant')}
@@ -692,79 +692,79 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
             </button>
           </Tooltip>
 
-          <div className="bitfun-nav-panel__assistant-item-menu" ref={menuRef} onClick={e => e.stopPropagation()}>
+          <div className="void-nav-panel__assistant-item-menu" ref={menuRef} onClick={e => e.stopPropagation()}>
             <Tooltip content={t('nav.items.project')} placement="right" followCursor>
               <button
                 type="button"
-                className="bitfun-nav-panel__assistant-item-menu-trigger"
+                className="void-nav-panel__assistant-item-menu-trigger"
                 onClick={() => { void handleOpenFiles(); }}
               >
-                <Folder size="var(--bitfun-nav-row-action-icon-size)" />
+                <Folder size="var(--void-nav-row-action-icon-size)" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
               <button
                 type="button"
-                className={`bitfun-nav-panel__assistant-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
+                className={`void-nav-panel__assistant-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
                 onClick={() => setMenuOpen(prev => !prev)}
               >
-                <MoreHorizontal size="var(--bitfun-nav-row-action-icon-size)" />
+                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
               </button>
             </div>
 
             {menuOpen && menuPosition && createPortal(
               <div
                 ref={menuPopoverRef}
-                className="bitfun-nav-panel__workspace-item-menu-popover"
+                className="void-nav-panel__workspace-item-menu-popover"
                 role="menu"
                 style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
               >
-                <button type="button" className="bitfun-nav-panel__workspace-item-menu-item" onClick={() => { void handleCreateSession(); }}>
+                <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={() => { void handleCreateSession(); }}>
                   <Plus size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.newSession')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.newSession')}</span>
                 </button>
-                <div className="bitfun-nav-panel__workspace-item-menu-divider" />
+                <div className="void-nav-panel__workspace-item-menu-divider" />
                 <button
                   type="button"
-                  className="bitfun-nav-panel__workspace-item-menu-item"
+                  className="void-nav-panel__workspace-item-menu-item"
                   onClick={() => { void handleCopyWorkspacePath(); }}
                   disabled={!workspace.rootPath}
                 >
                   <Copy size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.copyPath')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.copyPath')}</span>
                 </button>
                 <button
                   type="button"
-                  className="bitfun-nav-panel__workspace-item-menu-item"
+                  className="void-nav-panel__workspace-item-menu-item"
                   onClick={() => { void handleReveal(); }}
                   disabled={isRemoteWorkspace(workspace)}
                 >
                   <FolderSearch size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.reveal')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.reveal')}</span>
                 </button>
                 {(isDefaultAssistantWorkspace || isNamedAssistantWorkspace) ? (
                   <>
-                    <div className="bitfun-nav-panel__workspace-item-menu-divider" />
+                    <div className="void-nav-panel__workspace-item-menu-divider" />
                     {isDefaultAssistantWorkspace ? (
                       <button
                         type="button"
-                        className="bitfun-nav-panel__workspace-item-menu-item is-danger"
+                        className="void-nav-panel__workspace-item-menu-item is-danger"
                         onClick={handleRequestResetWorkspace}
                         disabled={isResettingWorkspace}
                       >
                         <RotateCcw size={13} />
-                        <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.resetWorkspace')}</span>
+                        <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.resetWorkspace')}</span>
                       </button>
                     ) : null}
                     {isNamedAssistantWorkspace ? (
                       <button
                         type="button"
-                        className="bitfun-nav-panel__workspace-item-menu-item is-danger"
+                        className="void-nav-panel__workspace-item-menu-item is-danger"
                         onClick={handleRequestDeleteAssistant}
                         disabled={isDeletingAssistant}
                       >
                         <Trash2 size={13} />
-                        <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.deleteAssistant')}</span>
+                        <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.deleteAssistant')}</span>
                       </button>
                     ) : null}
                   </>
@@ -775,7 +775,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
           </div>
         </div>
 
-        <div className={`bitfun-nav-panel__assistant-item-sessions${sessionsCollapsed ? ' is-collapsed' : ''}`}>
+        <div className={`void-nav-panel__assistant-item-sessions${sessionsCollapsed ? ' is-collapsed' : ''}`}>
           <SessionsSection
             workspaceId={workspace.id}
             workspacePath={workspace.rootPath}
@@ -813,7 +813,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
 
   return (
     <div className={[
-      'bitfun-nav-panel__workspace-item',
+      'void-nav-panel__workspace-item',
       isActive && 'is-active',
       isDragging && 'is-dragging',
       menuOpen && 'is-menu-open',
@@ -824,7 +824,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     aria-grabbed={draggable ? isDragging : undefined}>
       <div
         ref={cardRef}
-        className="bitfun-nav-panel__workspace-item-card"
+        className="void-nav-panel__workspace-item-card"
         draggable={draggable}
         onDragStart={onDragStart}
         onDragEnd={onDragEnd}
@@ -833,37 +833,37 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
       >
         <button
           type="button"
-          className="bitfun-nav-panel__workspace-item-collapse-btn"
+          className="void-nav-panel__workspace-item-collapse-btn"
           onClick={e => { e.stopPropagation(); handleCollapseToggle(); }}
           aria-label={sessionsCollapsed ? t('nav.workspaces.expandSessions') : t('nav.workspaces.collapseSessions')}
           aria-expanded={!sessionsCollapsed}
         >
-          <span className="bitfun-nav-panel__workspace-item-icon" aria-hidden="true">
-            <span className="bitfun-nav-panel__workspace-item-icon-default">
+          <span className="void-nav-panel__workspace-item-icon" aria-hidden="true">
+            <span className="void-nav-panel__workspace-item-icon-default">
               {isActive ? (
-                <span className="bitfun-nav-panel__workspace-item-active-icon">
+                <span className="void-nav-panel__workspace-item-active-icon">
                   <DotMatrixArrowRightIcon size={14} />
                 </span>
               ) : (
                 <FolderOpen size={14} />
               )}
             </span>
-            <span className={`bitfun-nav-panel__workspace-item-icon-toggle${sessionsCollapsed ? ' is-collapsed' : ''}`}>
+            <span className={`void-nav-panel__workspace-item-icon-toggle${sessionsCollapsed ? ' is-collapsed' : ''}`}>
               <ChevronDown size={14} />
             </span>
           </span>
         </button>
-        <div className="bitfun-nav-panel__workspace-item-name-cluster">
-          <div className="bitfun-nav-panel__workspace-item-name-stack">
-            <div className="bitfun-nav-panel__workspace-item-name-row">
+        <div className="void-nav-panel__workspace-item-name-cluster">
+          <div className="void-nav-panel__workspace-item-name-stack">
+            <div className="void-nav-panel__workspace-item-name-row">
               <Tooltip content={workspace.rootPath} placement="right" followCursor>
                 <button
                   type="button"
-                  className="bitfun-nav-panel__workspace-item-name-btn"
+                  className="void-nav-panel__workspace-item-name-btn"
                   onClick={e => { e.stopPropagation(); void handleCardNameClick(); }}
                 >
-                  <span className="bitfun-nav-panel__workspace-item-name-line">
-                    <span className="bitfun-nav-panel__workspace-item-label">{workspaceDisplayName}</span>
+                  <span className="void-nav-panel__workspace-item-name-line">
+                    <span className="void-nav-panel__workspace-item-label">{workspaceDisplayName}</span>
                   </span>
                 </button>
               </Tooltip>
@@ -880,7 +880,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                   >
                     <button
                       type="button"
-                      className={`bitfun-nav-panel__workspace-index-indicator is-${searchIndexIndicator.tone}`}
+                      className={`void-nav-panel__workspace-index-indicator is-${searchIndexIndicator.tone}`}
                       aria-label={searchIndexIndicator.ariaLabel}
                       aria-expanded={searchIndexModalOpen}
                       onClick={e => {
@@ -895,42 +895,42 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                     title={tFiles('search.index.indicator.label')}
                     size="small"
                     contentInset
-                    contentClassName="bitfun-nav-panel__workspace-index-modal-content"
+                    contentClassName="void-nav-panel__workspace-index-modal-content"
                   >
-                    <div className={`bitfun-nav-panel__workspace-index-tooltip is-${searchIndexIndicator.tone}`}>
-                      <div className="bitfun-nav-panel__workspace-index-tooltip-header">
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-heading">
-                          <span className={`bitfun-nav-panel__workspace-index-tooltip-dot is-${searchIndexIndicator.tone}`} aria-hidden="true" />
-                          <div className="bitfun-nav-panel__workspace-index-tooltip-title-wrap">
-                            <span className="bitfun-nav-panel__workspace-index-tooltip-title">
+                    <div className={`void-nav-panel__workspace-index-tooltip is-${searchIndexIndicator.tone}`}>
+                      <div className="void-nav-panel__workspace-index-tooltip-header">
+                        <div className="void-nav-panel__workspace-index-tooltip-heading">
+                          <span className={`void-nav-panel__workspace-index-tooltip-dot is-${searchIndexIndicator.tone}`} aria-hidden="true" />
+                          <div className="void-nav-panel__workspace-index-tooltip-title-wrap">
+                            <span className="void-nav-panel__workspace-index-tooltip-title">
                               {searchIndexIndicator.title}
                             </span>
-                            <span className="bitfun-nav-panel__workspace-index-tooltip-phase">
+                            <span className="void-nav-panel__workspace-index-tooltip-phase">
                               {searchIndexIndicator.activeTaskLabel ?? searchIndexIndicator.phaseLabel}
                             </span>
                           </div>
                         </div>
-                        <span className={`bitfun-nav-panel__workspace-index-tooltip-badge is-${searchIndexIndicator.tone}`}>
+                        <span className={`void-nav-panel__workspace-index-tooltip-badge is-${searchIndexIndicator.tone}`}>
                           {searchIndexIndicator.phaseLabel}
                         </span>
                       </div>
-                      <div className="bitfun-nav-panel__workspace-index-tooltip-summary">
+                      <div className="void-nav-panel__workspace-index-tooltip-summary">
                         {searchIndexIndicator.activeTaskMessage ?? searchIndexIndicator.summary}
                       </div>
                       {searchIndexIndicator.progressLabel ? (
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-progress">
-                          <div className="bitfun-nav-panel__workspace-index-tooltip-progress-head">
+                        <div className="void-nav-panel__workspace-index-tooltip-progress">
+                          <div className="void-nav-panel__workspace-index-tooltip-progress-head">
                             <span>{searchIndexIndicator.progressLabel}</span>
                             {searchIndexIndicator.progressPercentLabel ? (
-                              <span className="bitfun-nav-panel__workspace-index-tooltip-progress-value">
+                              <span className="void-nav-panel__workspace-index-tooltip-progress-value">
                                 {searchIndexIndicator.progressPercentLabel}
                               </span>
                             ) : null}
                           </div>
                           {typeof searchIndexIndicator.progressPercent === 'number' ? (
-                            <div className="bitfun-nav-panel__workspace-index-tooltip-progress-bar" aria-hidden="true">
+                            <div className="void-nav-panel__workspace-index-tooltip-progress-bar" aria-hidden="true">
                               <span
-                                className={`bitfun-nav-panel__workspace-index-tooltip-progress-fill is-${searchIndexIndicator.tone}`}
+                                className={`void-nav-panel__workspace-index-tooltip-progress-fill is-${searchIndexIndicator.tone}`}
                                 style={{ width: `${searchIndexIndicator.progressPercent}%` }}
                               />
                             </div>
@@ -938,26 +938,26 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                         </div>
                       ) : null}
                       {searchIndexIndicator.dirtyFilesLabel ? (
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-meta">
+                        <div className="void-nav-panel__workspace-index-tooltip-meta">
                           {searchIndexIndicator.dirtyFilesLabel}
                         </div>
                       ) : null}
                       {searchIndexIndicator.rebuildRecommended ? (
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-meta is-warning">
+                        <div className="void-nav-panel__workspace-index-tooltip-meta is-warning">
                           {tFiles('search.index.indicator.rebuildRecommended')}
                         </div>
                       ) : null}
                       {!searchIndexIndicator.probeHealthy ? (
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-meta is-warning">
+                        <div className="void-nav-panel__workspace-index-tooltip-meta is-warning">
                           {tFiles('search.index.indicator.probeDegraded')}
                         </div>
                       ) : null}
                       {searchIndexIndicator.errorText ? (
-                        <div className="bitfun-nav-panel__workspace-index-tooltip-error">
+                        <div className="void-nav-panel__workspace-index-tooltip-error">
                           {searchIndexIndicator.errorText}
                         </div>
                       ) : null}
-                      <div className="bitfun-nav-panel__workspace-index-tooltip-actions">
+                      <div className="void-nav-panel__workspace-index-tooltip-actions">
                         <Button
                           size="small"
                           variant={searchIndexActionKind === 'build' ? 'accent' : 'secondary'}
@@ -981,9 +981,9 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
               )}
             </div>
             {isRemoteWorkspace(workspace) && (
-              <span className="bitfun-nav-panel__workspace-item-subtitle">
+              <span className="void-nav-panel__workspace-item-subtitle">
                 <span
-                  className={`bitfun-nav-panel__workspace-item-status-dot is-${remoteConnStatus ?? 'unknown'}`}
+                  className={`void-nav-panel__workspace-item-status-dot is-${remoteConnStatus ?? 'unknown'}`}
                   aria-label={remoteConnStatus ?? 'unknown'}
                 />
                 <span>{workspace.connectionName}</span>
@@ -992,41 +992,41 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
           </div>
         </div>
 
-        <div className="bitfun-nav-panel__workspace-item-actions" onClick={e => e.stopPropagation()}>
-          <div className="bitfun-nav-panel__workspace-item-menu" ref={menuRef}>
+        <div className="void-nav-panel__workspace-item-actions" onClick={e => e.stopPropagation()}>
+          <div className="void-nav-panel__workspace-item-menu" ref={menuRef}>
             <Tooltip content={t('nav.items.project')} placement="right" followCursor>
               <button
                 type="button"
-                className="bitfun-nav-panel__workspace-item-menu-trigger"
+                className="void-nav-panel__workspace-item-menu-trigger"
                 onClick={() => { void handleOpenFiles(); }}
               >
-                <Folder size="var(--bitfun-nav-row-action-icon-size)" />
+                <Folder size="var(--void-nav-row-action-icon-size)" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
               <button
                 type="button"
-                className={`bitfun-nav-panel__workspace-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
+                className={`void-nav-panel__workspace-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
                 onClick={() => setMenuOpen(prev => !prev)}
               >
-                <MoreHorizontal size="var(--bitfun-nav-row-action-icon-size)" />
+                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
               </button>
             </div>
 
             {menuOpen && menuPosition && createPortal(
               <div
                 ref={menuPopoverRef}
-                className="bitfun-nav-panel__workspace-item-menu-popover"
+                className="void-nav-panel__workspace-item-menu-popover"
                 role="menu"
                 style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
               >
-                <button type="button" className="bitfun-nav-panel__workspace-item-menu-item" onClick={handleCreateCodeSession}>
+                <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={handleCreateCodeSession}>
                   <Plus size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.sessions.newCodeSessionShort')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.sessions.newCodeSessionShort')}</span>
                 </button>
-                <button type="button" className="bitfun-nav-panel__workspace-item-menu-item" onClick={handleCreateCoworkSession}>
+                <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={handleCreateCoworkSession}>
                   <Plus size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.sessions.newCoworkSessionShort')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.sessions.newCoworkSessionShort')}</span>
                 </button>
                 {acpClients.map(client => {
                   const label = client.name || client.id;
@@ -1034,35 +1034,35 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                     <button
                       key={client.id}
                       type="button"
-                      className="bitfun-nav-panel__workspace-item-menu-item"
+                      className="void-nav-panel__workspace-item-menu-item"
                       onClick={() => { void handleCreateAcpSession(client); }}
                     >
                       <Bot size={13} />
-                      <span className="bitfun-nav-panel__workspace-item-menu-label">
+                      <span className="void-nav-panel__workspace-item-menu-label">
                         {t('nav.sessions.newExternalAgentSessionShort', { agentName: label })}
                       </span>
                     </button>
                   );
                 })}
-                <button type="button" className="bitfun-nav-panel__workspace-item-menu-item" onClick={() => { void handleCreateInitSession(); }}>
+                <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={() => { void handleCreateInitSession(); }}>
                   <FileText size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.initAgents')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.initAgents')}</span>
                 </button>
-                <div className="bitfun-nav-panel__workspace-item-menu-divider" />
+                <div className="void-nav-panel__workspace-item-menu-divider" />
                 {isLinkedWorktree ? (
                   <button
                     type="button"
-                    className="bitfun-nav-panel__workspace-item-menu-item is-danger"
+                    className="void-nav-panel__workspace-item-menu-item is-danger"
                     onClick={handleRequestDeleteWorktree}
                     disabled={isDeletingWorktree}
                   >
                     <Trash2 size={13} />
-                    <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.deleteWorktree')}</span>
+                    <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.deleteWorktree')}</span>
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="bitfun-nav-panel__workspace-item-menu-item"
+                    className="void-nav-panel__workspace-item-menu-item"
                     onClick={() => {
                       setMenuOpen(false);
                       setWorktreeModalOpen(true);
@@ -1070,31 +1070,31 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                     disabled={!isRepository}
                   >
                     <GitBranch size={13} />
-                    <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.newWorktree')}</span>
+                    <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.newWorktree')}</span>
                   </button>
                 )}
                 <button
                   type="button"
-                  className="bitfun-nav-panel__workspace-item-menu-item"
+                  className="void-nav-panel__workspace-item-menu-item"
                   onClick={() => { void handleCopyWorkspacePath(); }}
                   disabled={!workspace.rootPath}
                 >
                   <Copy size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.copyPath')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.copyPath')}</span>
                 </button>
                 <button
                   type="button"
-                  className="bitfun-nav-panel__workspace-item-menu-item"
+                  className="void-nav-panel__workspace-item-menu-item"
                   onClick={() => { void handleReveal(); }}
                   disabled={isRemoteWorkspace(workspace)}
                 >
                   <FolderSearch size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.reveal')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.reveal')}</span>
                 </button>
-                <div className="bitfun-nav-panel__workspace-item-menu-divider" />
-                <button type="button" className="bitfun-nav-panel__workspace-item-menu-item is-danger" onClick={() => { void handleCloseWorkspace(); }}>
+                <div className="void-nav-panel__workspace-item-menu-divider" />
+                <button type="button" className="void-nav-panel__workspace-item-menu-item is-danger" onClick={() => { void handleCloseWorkspace(); }}>
                   <FolderOpen size={13} />
-                  <span className="bitfun-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.close')}</span>
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.workspaces.actions.close')}</span>
                 </button>
               </div>,
               document.body
@@ -1103,7 +1103,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
         </div>
       </div>
 
-      <div className={`bitfun-nav-panel__workspace-item-sessions${sessionsCollapsed ? ' is-collapsed' : ''}`}>
+      <div className={`void-nav-panel__workspace-item-sessions${sessionsCollapsed ? ' is-collapsed' : ''}`}>
         <SessionsSection
           workspaceId={workspace.id}
           workspacePath={workspace.rootPath}

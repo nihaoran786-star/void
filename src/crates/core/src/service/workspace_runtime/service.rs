@@ -10,7 +10,7 @@ use crate::service::remote_ssh::workspace_state::{
     sanitize_ssh_hostname_for_mirror,
 };
 use crate::service::session::{StoredSessionIndexFile, StoredSessionMetadataFile};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::debug;
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -105,7 +105,7 @@ impl WorkspaceRuntimeService {
     pub async fn ensure_workspace_runtime(
         &self,
         target: WorkspaceRuntimeTarget,
-    ) -> BitFunResult<WorkspaceRuntimeEnsureResult> {
+    ) -> VoidResult<WorkspaceRuntimeEnsureResult> {
         let context = self.context_for_target(target);
         let migration_specs = self.migration_specs_for_context(&context);
         self.ensure_runtime_context(context, migration_specs).await
@@ -114,7 +114,7 @@ impl WorkspaceRuntimeService {
     pub async fn ensure_local_workspace_runtime(
         &self,
         workspace_path: &Path,
-    ) -> BitFunResult<WorkspaceRuntimeEnsureResult> {
+    ) -> VoidResult<WorkspaceRuntimeEnsureResult> {
         self.ensure_workspace_runtime(WorkspaceRuntimeTarget::LocalWorkspace {
             workspace_root: workspace_path.to_path_buf(),
         })
@@ -125,7 +125,7 @@ impl WorkspaceRuntimeService {
         &self,
         ssh_host: &str,
         remote_root: &str,
-    ) -> BitFunResult<WorkspaceRuntimeEnsureResult> {
+    ) -> VoidResult<WorkspaceRuntimeEnsureResult> {
         self.ensure_workspace_runtime(WorkspaceRuntimeTarget::RemoteWorkspaceMirror {
             ssh_host: ssh_host.to_string(),
             remote_root: remote_root.to_string(),
@@ -137,7 +137,7 @@ impl WorkspaceRuntimeService {
     pub async fn ensure_runtime_for_workspace_binding(
         &self,
         workspace: &WorkspaceBinding,
-    ) -> BitFunResult<WorkspaceRuntimeEnsureResult> {
+    ) -> VoidResult<WorkspaceRuntimeEnsureResult> {
         if workspace.is_remote() {
             self.ensure_remote_workspace_runtime(
                 &workspace.session_identity.hostname,
@@ -154,7 +154,7 @@ impl WorkspaceRuntimeService {
         &self,
         context: WorkspaceRuntimeContext,
         migration_specs: Vec<RuntimeMigrationSpec>,
-    ) -> BitFunResult<WorkspaceRuntimeEnsureResult> {
+    ) -> VoidResult<WorkspaceRuntimeEnsureResult> {
         if self.is_runtime_verified(&context.runtime_root) {
             return Ok(Self::cached_ensure_result(context));
         }
@@ -229,7 +229,7 @@ impl WorkspaceRuntimeService {
         &self,
         context: &WorkspaceRuntimeContext,
         migrated_entries: &[RuntimeMigrationRecord],
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let target_descriptor = match &context.target {
             WorkspaceRuntimeTarget::LocalWorkspace { workspace_root } => {
                 workspace_root.display().to_string()
@@ -258,12 +258,12 @@ impl WorkspaceRuntimeService {
         };
 
         let bytes = serde_json::to_vec_pretty(&state).map_err(|e| {
-            BitFunError::service(format!("Failed to serialize runtime state: {}", e))
+            VoidError::service(format!("Failed to serialize runtime state: {}", e))
         })?;
         tokio::fs::write(&context.layout_state_file, bytes)
             .await
             .map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to write runtime layout state '{}': {}",
                     context.layout_state_file.display(),
                     e
@@ -274,7 +274,7 @@ impl WorkspaceRuntimeService {
 
     fn remote_workspace_runtime_root(&self, ssh_host: &str, remote_root_norm: &str) -> PathBuf {
         self.path_manager
-            .bitfun_home_dir()
+            .void_home_dir()
             .join("remote_ssh")
             .join(sanitize_ssh_hostname_for_mirror(ssh_host))
             .join(remote_root_to_mirror_subpath(remote_root_norm))
@@ -317,7 +317,7 @@ impl WorkspaceRuntimeService {
                 let runtime_root = self.remote_workspace_runtime_root(ssh_host, remote_root);
                 let legacy_sessions_root = runtime_root
                     .join("sessions")
-                    .join(".bitfun")
+                    .join(".void")
                     .join("sessions");
                 vec![RuntimeMigrationSpec {
                     source: legacy_sessions_root,
@@ -331,7 +331,7 @@ impl WorkspaceRuntimeService {
     async fn apply_migration_specs(
         &self,
         specs: &[RuntimeMigrationSpec],
-    ) -> BitFunResult<Vec<RuntimeMigrationRecord>> {
+    ) -> VoidResult<Vec<RuntimeMigrationRecord>> {
         let mut migrated_entries = Vec::new();
 
         for spec in specs {
@@ -356,14 +356,14 @@ impl WorkspaceRuntimeService {
     async fn cleanup_legacy_artifacts_for_context(
         &self,
         context: &WorkspaceRuntimeContext,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if let WorkspaceRuntimeTarget::RemoteWorkspaceMirror {
             ssh_host,
             remote_root,
         } = &context.target
         {
             let runtime_root = self.remote_workspace_runtime_root(ssh_host, remote_root);
-            self.remove_dir_if_empty(&runtime_root.join("sessions").join(".bitfun"))
+            self.remove_dir_if_empty(&runtime_root.join("sessions").join(".void"))
                 .await?;
         }
 
@@ -374,7 +374,7 @@ impl WorkspaceRuntimeService {
         &self,
         source: &Path,
         target: &Path,
-    ) -> BitFunResult<Option<RuntimeMigrationRecord>> {
+    ) -> VoidResult<Option<RuntimeMigrationRecord>> {
         if !source.exists() || target.exists() {
             return Ok(None);
         }
@@ -386,7 +386,7 @@ impl WorkspaceRuntimeService {
         &self,
         source: &Path,
         target: &Path,
-    ) -> BitFunResult<RuntimeMigrationRecord> {
+    ) -> VoidResult<RuntimeMigrationRecord> {
         if let Some(parent) = target.parent() {
             self.path_manager.ensure_dir(parent).await?;
         }
@@ -400,7 +400,7 @@ impl WorkspaceRuntimeService {
             Err(_) if source.is_dir() => {
                 copy_dir_recursive(source, target)?;
                 std::fs::remove_dir_all(source).map_err(|e| {
-                    BitFunError::service(format!(
+                    VoidError::service(format!(
                         "Failed to remove legacy directory {}: {}",
                         source.display(),
                         e
@@ -414,7 +414,7 @@ impl WorkspaceRuntimeService {
             }
             Err(_) => {
                 std::fs::copy(source, target).map_err(|e| {
-                    BitFunError::service(format!(
+                    VoidError::service(format!(
                         "Failed to copy legacy file {} to {}: {}",
                         source.display(),
                         target.display(),
@@ -422,7 +422,7 @@ impl WorkspaceRuntimeService {
                     ))
                 })?;
                 std::fs::remove_file(source).map_err(|e| {
-                    BitFunError::service(format!(
+                    VoidError::service(format!(
                         "Failed to remove legacy file {}: {}",
                         source.display(),
                         e
@@ -441,13 +441,13 @@ impl WorkspaceRuntimeService {
         &self,
         source: &Path,
         target: &Path,
-    ) -> BitFunResult<Option<RuntimeMigrationRecord>> {
+    ) -> VoidResult<Option<RuntimeMigrationRecord>> {
         if !source.exists() {
             return Ok(None);
         }
 
         std::fs::create_dir_all(target).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to create target sessions directory {}: {}",
                 target.display(),
                 e
@@ -455,14 +455,14 @@ impl WorkspaceRuntimeService {
         })?;
 
         for entry in std::fs::read_dir(source).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to read legacy sessions directory {}: {}",
                 source.display(),
                 e
             ))
         })? {
             let entry = entry.map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to inspect legacy sessions entry under {}: {}",
                     source.display(),
                     e
@@ -471,7 +471,7 @@ impl WorkspaceRuntimeService {
             let source_path = entry.path();
             let file_name = entry.file_name();
             let file_type = entry.file_type().map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to read file type for {}: {}",
                     source_path.display(),
                     e
@@ -519,21 +519,21 @@ impl WorkspaceRuntimeService {
         }))
     }
 
-    async fn rebuild_session_index(&self, sessions_dir: &Path) -> BitFunResult<()> {
+    async fn rebuild_session_index(&self, sessions_dir: &Path) -> VoidResult<()> {
         if !sessions_dir.exists() {
             return Ok(());
         }
 
         let mut sessions = Vec::new();
         for entry in std::fs::read_dir(sessions_dir).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to read merged sessions directory {}: {}",
                 sessions_dir.display(),
                 e
             ))
         })? {
             let entry = entry.map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to inspect merged sessions entry under {}: {}",
                     sessions_dir.display(),
                     e
@@ -541,7 +541,7 @@ impl WorkspaceRuntimeService {
             })?;
             let path = entry.path();
             let file_type = entry.file_type().map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to read file type for {}: {}",
                     path.display(),
                     e
@@ -568,7 +568,7 @@ impl WorkspaceRuntimeService {
         write_json_pretty_async(&sessions_dir.join("index.json"), &index).await
     }
 
-    async fn remove_dir_if_empty(&self, path: &Path) -> BitFunResult<()> {
+    async fn remove_dir_if_empty(&self, path: &Path) -> VoidResult<()> {
         if !path.is_dir() {
             return Ok(());
         }
@@ -580,7 +580,7 @@ impl WorkspaceRuntimeService {
                 .map(|entry| entry.is_none())
                 .unwrap_or(false),
             Err(e) => {
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "Failed to inspect directory {}: {}",
                     path.display(),
                     e
@@ -590,7 +590,7 @@ impl WorkspaceRuntimeService {
 
         if is_empty {
             tokio::fs::remove_dir(path).await.map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to remove empty legacy directory {}: {}",
                     path.display(),
                     e
@@ -602,9 +602,9 @@ impl WorkspaceRuntimeService {
     }
 }
 
-fn merge_session_directory(source: &Path, target: &Path) -> BitFunResult<()> {
+fn merge_session_directory(source: &Path, target: &Path) -> VoidResult<()> {
     std::fs::create_dir_all(target).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to create target session directory {}: {}",
             target.display(),
             e
@@ -612,14 +612,14 @@ fn merge_session_directory(source: &Path, target: &Path) -> BitFunResult<()> {
     })?;
 
     for entry in std::fs::read_dir(source).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to read legacy session directory {}: {}",
             source.display(),
             e
         ))
     })? {
         let entry = entry.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to inspect legacy session entry under {}: {}",
                 source.display(),
                 e
@@ -628,7 +628,7 @@ fn merge_session_directory(source: &Path, target: &Path) -> BitFunResult<()> {
         let source_path = entry.path();
         let target_path = target.join(entry.file_name());
         let file_type = entry.file_type().map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to read file type for {}: {}",
                 source_path.display(),
                 e
@@ -663,17 +663,17 @@ fn merge_session_directory(source: &Path, target: &Path) -> BitFunResult<()> {
     Ok(())
 }
 
-fn merge_session_metadata_file(source: &Path, target: &Path) -> BitFunResult<()> {
+fn merge_session_metadata_file(source: &Path, target: &Path) -> VoidResult<()> {
     let source_file =
         read_json_optional_sync::<StoredSessionMetadataFile>(source)?.ok_or_else(|| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Missing readable session metadata in {}",
                 source.display()
             ))
         })?;
     let target_file =
         read_json_optional_sync::<StoredSessionMetadataFile>(target)?.ok_or_else(|| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Missing readable session metadata in {}",
                 target.display()
             ))
@@ -689,7 +689,7 @@ fn merge_session_metadata_file(source: &Path, target: &Path) -> BitFunResult<()>
     Ok(())
 }
 
-fn replace_target_if_source_newer(source: &Path, target: &Path) -> BitFunResult<()> {
+fn replace_target_if_source_newer(source: &Path, target: &Path) -> VoidResult<()> {
     if source_is_newer(source, target)? {
         remove_path_if_exists(target)?;
         move_path_best_effort(source, target)
@@ -698,9 +698,9 @@ fn replace_target_if_source_newer(source: &Path, target: &Path) -> BitFunResult<
     }
 }
 
-fn copy_dir_recursive(source: &Path, target: &Path) -> BitFunResult<()> {
+fn copy_dir_recursive(source: &Path, target: &Path) -> VoidResult<()> {
     std::fs::create_dir_all(target).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to create target directory {}: {}",
             target.display(),
             e
@@ -708,14 +708,14 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> BitFunResult<()> {
     })?;
 
     for entry in std::fs::read_dir(source).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to read legacy directory {}: {}",
             source.display(),
             e
         ))
     })? {
         let entry = entry.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to inspect legacy directory entry under {}: {}",
                 source.display(),
                 e
@@ -724,7 +724,7 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> BitFunResult<()> {
         let source_path = entry.path();
         let target_path = target.join(entry.file_name());
         let file_type = entry.file_type().map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to read file type for {}: {}",
                 source_path.display(),
                 e
@@ -735,7 +735,7 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> BitFunResult<()> {
             copy_dir_recursive(&source_path, &target_path)?;
         } else if file_type.is_file() {
             std::fs::copy(&source_path, &target_path).map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to copy legacy file {} to {}: {}",
                     source_path.display(),
                     target_path.display(),
@@ -748,7 +748,7 @@ fn copy_dir_recursive(source: &Path, target: &Path) -> BitFunResult<()> {
     Ok(())
 }
 
-fn read_json_optional_sync<T>(path: &Path) -> BitFunResult<Option<T>>
+fn read_json_optional_sync<T>(path: &Path) -> VoidResult<Option<T>>
 where
     T: DeserializeOwned,
 {
@@ -757,14 +757,14 @@ where
     }
 
     let bytes = std::fs::read(path).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to read JSON file {}: {}",
             path.display(),
             e
         ))
     })?;
     let value = serde_json::from_slice(&bytes).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to deserialize JSON file {}: {}",
             path.display(),
             e
@@ -773,13 +773,13 @@ where
     Ok(Some(value))
 }
 
-async fn write_json_pretty_async<T>(path: &Path, value: &T) -> BitFunResult<()>
+async fn write_json_pretty_async<T>(path: &Path, value: &T) -> VoidResult<()>
 where
     T: Serialize,
 {
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to create parent directory {}: {}",
                 parent.display(),
                 e
@@ -788,14 +788,14 @@ where
     }
 
     let bytes = serde_json::to_vec_pretty(value).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to serialize JSON for {}: {}",
             path.display(),
             e
         ))
     })?;
     tokio::fs::write(path, bytes).await.map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to write JSON file {}: {}",
             path.display(),
             e
@@ -803,13 +803,13 @@ where
     })
 }
 
-fn write_json_pretty_sync<T>(path: &Path, value: &T) -> BitFunResult<()>
+fn write_json_pretty_sync<T>(path: &Path, value: &T) -> VoidResult<()>
 where
     T: Serialize,
 {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to create parent directory {}: {}",
                 parent.display(),
                 e
@@ -818,14 +818,14 @@ where
     }
 
     let bytes = serde_json::to_vec_pretty(value).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to serialize JSON for {}: {}",
             path.display(),
             e
         ))
     })?;
     std::fs::write(path, bytes).map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to write JSON file {}: {}",
             path.display(),
             e
@@ -833,10 +833,10 @@ where
     })
 }
 
-fn move_path_best_effort(source: &Path, target: &Path) -> BitFunResult<()> {
+fn move_path_best_effort(source: &Path, target: &Path) -> VoidResult<()> {
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to create target parent directory {}: {}",
                 parent.display(),
                 e
@@ -849,7 +849,7 @@ fn move_path_best_effort(source: &Path, target: &Path) -> BitFunResult<()> {
         Err(_) if source.is_dir() => {
             copy_dir_recursive(source, target)?;
             std::fs::remove_dir_all(source).map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to remove moved directory {}: {}",
                     source.display(),
                     e
@@ -858,7 +858,7 @@ fn move_path_best_effort(source: &Path, target: &Path) -> BitFunResult<()> {
         }
         Err(_) => {
             std::fs::copy(source, target).map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to copy file {} to {}: {}",
                     source.display(),
                     target.display(),
@@ -866,7 +866,7 @@ fn move_path_best_effort(source: &Path, target: &Path) -> BitFunResult<()> {
                 ))
             })?;
             std::fs::remove_file(source).map_err(|e| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to remove moved file {}: {}",
                     source.display(),
                     e
@@ -876,14 +876,14 @@ fn move_path_best_effort(source: &Path, target: &Path) -> BitFunResult<()> {
     }
 }
 
-fn remove_path_if_exists(path: &Path) -> BitFunResult<()> {
+fn remove_path_if_exists(path: &Path) -> VoidResult<()> {
     if !path.exists() {
         return Ok(());
     }
 
     if path.is_dir() {
         std::fs::remove_dir_all(path).map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to remove directory {}: {}",
                 path.display(),
                 e
@@ -891,25 +891,25 @@ fn remove_path_if_exists(path: &Path) -> BitFunResult<()> {
         })
     } else {
         std::fs::remove_file(path).map_err(|e| {
-            BitFunError::service(format!("Failed to remove file {}: {}", path.display(), e))
+            VoidError::service(format!("Failed to remove file {}: {}", path.display(), e))
         })
     }
 }
 
-fn files_are_equal(left: &Path, right: &Path) -> BitFunResult<bool> {
+fn files_are_equal(left: &Path, right: &Path) -> VoidResult<bool> {
     let left_bytes = std::fs::read(left).map_err(|e| {
-        BitFunError::service(format!("Failed to read file {}: {}", left.display(), e))
+        VoidError::service(format!("Failed to read file {}: {}", left.display(), e))
     })?;
     let right_bytes = std::fs::read(right).map_err(|e| {
-        BitFunError::service(format!("Failed to read file {}: {}", right.display(), e))
+        VoidError::service(format!("Failed to read file {}: {}", right.display(), e))
     })?;
     Ok(left_bytes == right_bytes)
 }
 
-fn source_is_newer(source: &Path, target: &Path) -> BitFunResult<bool> {
+fn source_is_newer(source: &Path, target: &Path) -> VoidResult<bool> {
     let source_modified = std::fs::metadata(source)
         .map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to stat source file {}: {}",
                 source.display(),
                 e
@@ -919,7 +919,7 @@ fn source_is_newer(source: &Path, target: &Path) -> BitFunResult<bool> {
         .ok();
     let target_modified = std::fs::metadata(target)
         .map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to stat target file {}: {}",
                 target.display(),
                 e
@@ -971,7 +971,7 @@ pub fn get_workspace_runtime_service_arc() -> Arc<WorkspaceRuntimeService> {
         .clone()
 }
 
-pub fn try_get_workspace_runtime_service_arc() -> BitFunResult<Arc<WorkspaceRuntimeService>> {
+pub fn try_get_workspace_runtime_service_arc() -> VoidResult<Arc<WorkspaceRuntimeService>> {
     Ok(get_workspace_runtime_service_arc())
 }
 
@@ -991,7 +991,7 @@ mod tests {
     #[tokio::test]
     async fn ensure_local_workspace_runtime_creates_complete_layout_without_project_dot_dir() {
         let test_root =
-            std::env::temp_dir().join(format!("bitfun-runtime-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
         fs::create_dir_all(&workspace_root).expect("workspace should exist");
 
@@ -1025,9 +1025,9 @@ mod tests {
     #[tokio::test]
     async fn ensure_local_workspace_runtime_migrates_legacy_runtime_entries() {
         let test_root =
-            std::env::temp_dir().join(format!("bitfun-runtime-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
-        let legacy_root = workspace_root.join(".bitfun");
+        let legacy_root = workspace_root.join(".void");
         fs::create_dir_all(legacy_root.join("sessions")).expect("legacy sessions should exist");
         fs::write(legacy_root.join("sessions").join("s1.json"), "{}")
             .expect("legacy session file should be written");
@@ -1052,7 +1052,7 @@ mod tests {
     #[tokio::test]
     async fn ensure_remote_workspace_runtime_merges_legacy_sessions_only() {
         let test_root =
-            std::env::temp_dir().join(format!("bitfun-runtime-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let path_manager = Arc::new(PathManager::with_user_root_for_tests(
             test_root.join("user"),
         ));
@@ -1062,7 +1062,7 @@ mod tests {
         let legacy_sessions_root = context
             .runtime_root
             .join("sessions")
-            .join(".bitfun")
+            .join(".void")
             .join("sessions");
 
         fs::create_dir_all(&legacy_sessions_root).expect("legacy remote sessions should exist");
@@ -1151,7 +1151,7 @@ mod tests {
     #[tokio::test]
     async fn ensure_local_workspace_runtime_uses_verified_cache_on_repeat_calls() {
         let test_root =
-            std::env::temp_dir().join(format!("bitfun-runtime-test-{}", Uuid::new_v4()));
+            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
         fs::create_dir_all(&workspace_root).expect("workspace should exist");
 

@@ -10,7 +10,7 @@ use agent_client_protocol::schema::{
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
 use async_trait::async_trait;
-use bitfun_core::agentic::system::AgenticSystem;
+use void_core::agentic::system::AgenticSystem;
 use dashmap::DashMap;
 
 use crate::server::{AcpRuntime, AcpServer};
@@ -23,7 +23,7 @@ mod prompt;
 mod session;
 mod thinking;
 
-pub struct BitfunAcpRuntime {
+pub struct VoidAcpRuntime {
     pub(crate) agentic_system: AgenticSystem,
     pub(crate) sessions: DashMap<String, AcpSessionState>,
     pub(crate) connections: DashMap<String, ConnectionTo<Client>>,
@@ -32,7 +32,7 @@ pub struct BitfunAcpRuntime {
 #[derive(Clone)]
 pub(crate) struct AcpSessionState {
     pub(crate) acp_session_id: String,
-    pub(crate) bitfun_session_id: String,
+    pub(crate) void_session_id: String,
     pub(crate) cwd: String,
     pub(crate) mode_id: String,
     pub(crate) model_id: String,
@@ -40,7 +40,7 @@ pub(crate) struct AcpSessionState {
     pub(crate) mcp_server_ids: Vec<String>,
 }
 
-impl BitfunAcpRuntime {
+impl VoidAcpRuntime {
     pub fn new(agentic_system: AgenticSystem) -> Self {
         Self {
             agentic_system,
@@ -61,7 +61,7 @@ impl BitfunAcpRuntime {
 }
 
 #[async_trait]
-impl AcpRuntime for BitfunAcpRuntime {
+impl AcpRuntime for VoidAcpRuntime {
     async fn initialize(&self, _request: InitializeRequest) -> Result<InitializeResponse> {
         Ok(InitializeResponse::new(ProtocolVersion::V1)
             .agent_capabilities(
@@ -76,7 +76,7 @@ impl AcpRuntime for BitfunAcpRuntime {
                     ),
             )
             .agent_info(
-                Implementation::new("bitfun-acp", env!("CARGO_PKG_VERSION")).title("BitFun"),
+                Implementation::new("void-acp", env!("CARGO_PKG_VERSION")).title("Void"),
             ))
     }
 

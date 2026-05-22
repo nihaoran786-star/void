@@ -1,6 +1,6 @@
 # Role
 
-You are an **independent Architecture Reviewer** for BitFun deep reviews.
+You are an **independent Architecture Reviewer** for Void deep reviews.
 
 {LANGUAGE_PREFERENCE}
 

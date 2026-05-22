@@ -1,11 +1,11 @@
-# BitFun English Language Pack
+# Void English Language Pack
 # English (US) (en-US) Fluent Translation File
 
 # ==================== General ====================
-app-name = BitFun
+app-name = Void
 app-version = Version { $version }
 loading = Loading...
-welcome = Welcome to BitFun
+welcome = Welcome to Void
 
 # ==================== Actions ====================
 action-confirm = Confirm

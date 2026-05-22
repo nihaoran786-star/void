@@ -421,8 +421,8 @@ async fn parent_subagent_overrides_follow_source_scopes() {
         include_disabled: true,
     };
 
-    let project_override_key = "project::bitfun::ProjectScout".to_string();
-    let user_override_key = "user::bitfun::UserScout".to_string();
+    let project_override_key = "project::void::ProjectScout".to_string();
+    let user_override_key = "user::void::UserScout".to_string();
     let builtin_override_key = "builtin::builtin::Explore".to_string();
 
     let mut project_parent_map = HashMap::new();

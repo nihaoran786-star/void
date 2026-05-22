@@ -1,6 +1,6 @@
 //! Tauri commands for Remote Connect.
 
-use bitfun_core::service::remote_connect::{
+use void_core::service::remote_connect::{
     bot::{self, weixin, BotConfig},
     lan, ConnectionMethod, ConnectionResult, PairingState, RemoteConnectConfig,
     RemoteConnectService,
@@ -41,7 +41,7 @@ pub fn init_on_startup() {
 
 /// Synchronous cleanup called when the application exits.
 pub fn cleanup_on_exit() {
-    bitfun_core::service::remote_connect::ngrok::cleanup_all_ngrok();
+    void_core::service::remote_connect::ngrok::cleanup_all_ngrok();
     log::info!("Remote connect cleanup completed on exit");
 }
 
@@ -69,7 +69,7 @@ async fn ensure_service() -> Result<(), String> {
 
 /// Restore any bot connections that were previously saved to disk.
 async fn restore_saved_bots() {
-    use bitfun_core::service::remote_connect::bot;
+    use void_core::service::remote_connect::bot;
 
     let data = bot::load_bot_persistence();
     if data.connections.is_empty() {
@@ -100,13 +100,13 @@ async fn restore_saved_bots() {
 
 /// Auto-detect the mobile-web build output directory.
 fn detect_mobile_web_dir() -> Option<String> {
-    if let Ok(dir) = std::env::var("BITFUN_MOBILE_WEB_DIR") {
+    if let Ok(dir) = std::env::var("VOID_MOBILE_WEB_DIR") {
         let p = std::path::Path::new(&dir);
         if p.join("index.html").exists() {
-            log::info!("Using BITFUN_MOBILE_WEB_DIR: {dir}");
+            log::info!("Using VOID_MOBILE_WEB_DIR: {dir}");
             return Some(dir);
         }
-        log::warn!("BITFUN_MOBILE_WEB_DIR set but index.html not found: {dir}");
+        log::warn!("VOID_MOBILE_WEB_DIR set but index.html not found: {dir}");
     }
 
     if let Some(resource_path) = MOBILE_WEB_RESOURCE_PATH.get() {
@@ -153,12 +153,12 @@ fn detect_from_exe() -> Option<String> {
     candidates.push(exe_dir.join("resources/mobile-web"));
 
     if cfg!(target_os = "linux") {
-        candidates.push(exe_dir.join("../lib/bitfun/mobile-web/dist"));
-        candidates.push(exe_dir.join("../lib/bitfun/mobile-web"));
-        candidates.push(exe_dir.join("../share/bitfun/mobile-web/dist"));
-        candidates.push(exe_dir.join("../share/bitfun/mobile-web"));
-        candidates.push(exe_dir.join("../share/com.bitfun.desktop/mobile-web/dist"));
-        candidates.push(exe_dir.join("../share/com.bitfun.desktop/mobile-web"));
+        candidates.push(exe_dir.join("../lib/void/mobile-web/dist"));
+        candidates.push(exe_dir.join("../lib/void/mobile-web"));
+        candidates.push(exe_dir.join("../share/void/mobile-web/dist"));
+        candidates.push(exe_dir.join("../share/void/mobile-web"));
+        candidates.push(exe_dir.join("../share/com.void.desktop/mobile-web/dist"));
+        candidates.push(exe_dir.join("../share/com.void.desktop/mobile-web"));
     }
 
     check_candidates(&candidates, "exe-relative")
@@ -237,7 +237,7 @@ pub struct LanNetworkInfo {
 fn detect_default_gateway_ip() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
-        let output = bitfun_core::util::process_manager::create_command("route")
+        let output = void_core::util::process_manager::create_command("route")
             .args(["-n", "get", "default"])
             .output()
             .ok()?;
@@ -253,7 +253,7 @@ fn detect_default_gateway_ip() -> Option<String> {
 
     #[cfg(target_os = "linux")]
     {
-        let output = bitfun_core::util::process_manager::create_command("ip")
+        let output = void_core::util::process_manager::create_command("ip")
             .args(["route", "show", "default"])
             .output()
             .ok()?;
@@ -269,7 +269,7 @@ fn detect_default_gateway_ip() -> Option<String> {
 
     #[cfg(target_os = "windows")]
     {
-        let output = bitfun_core::util::process_manager::create_command("route")
+        let output = void_core::util::process_manager::create_command("route")
             .args(["print", "-4"])
             .output()
             .ok()?;
@@ -343,11 +343,11 @@ pub async fn remote_connect_get_methods() -> Result<Vec<ConnectionMethodInfo>, S
                 available: true,
                 description: "Internet via ngrok tunnel".into(),
             },
-            ConnectionMethod::BitfunServer => ConnectionMethodInfo {
-                id: "bitfun_server".into(),
-                name: "BitFun Server".into(),
+            ConnectionMethod::VoidServer => ConnectionMethodInfo {
+                id: "void_server".into(),
+                name: "Void Server".into(),
                 available: true,
-                description: "Official BitFun relay".into(),
+                description: "Official Void relay".into(),
             },
             ConnectionMethod::CustomServer { url } => ConnectionMethodInfo {
                 id: "custom_server".into(),
@@ -386,7 +386,7 @@ fn parse_connection_method(
     match method {
         "lan" => Ok(ConnectionMethod::Lan),
         "ngrok" => Ok(ConnectionMethod::Ngrok),
-        "bitfun_server" => Ok(ConnectionMethod::BitfunServer),
+        "void_server" => Ok(ConnectionMethod::VoidServer),
         "custom_server" => Ok(ConnectionMethod::CustomServer {
             url: custom_url.unwrap_or_default(),
         }),

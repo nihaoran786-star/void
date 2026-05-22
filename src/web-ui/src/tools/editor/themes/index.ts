@@ -3,7 +3,7 @@
  */
 
 import * as monaco from 'monaco-editor';
-import { BitFunDarkTheme, BitFunDarkThemeMetadata } from './bitfun-dark.theme';
+import { VoidDarkTheme, VoidDarkThemeMetadata } from './void-dark.theme';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('ThemeRegistry');
@@ -56,17 +56,17 @@ export function getRegisteredThemes(): string[] {
 }
 
 export function initializeBuiltinThemes(): boolean {
-  return registerTheme(BitFunDarkThemeMetadata.id, BitFunDarkTheme);
+  return registerTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
 }
 
 export function ensureDefaultTheme(): void {
-  if (!registeredThemes.has(BitFunDarkThemeMetadata.id)) {
-    registerTheme(BitFunDarkThemeMetadata.id, BitFunDarkTheme);
+  if (!registeredThemes.has(VoidDarkThemeMetadata.id)) {
+    registerTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
   }
 }
 
 export function isThemesInitialized(): boolean {
-  return registeredThemes.has(BitFunDarkThemeMetadata.id);
+  return registeredThemes.has(VoidDarkThemeMetadata.id);
 }
 
 export function applyTheme(themeId: string): void {
@@ -78,7 +78,7 @@ export function applyTheme(themeId: string): void {
 }
 
 export function getDefaultThemeId(): string {
-  return BitFunDarkThemeMetadata.id;
+  return VoidDarkThemeMetadata.id;
 }
 
-export { BitFunDarkTheme, BitFunDarkThemeMetadata };
+export { VoidDarkTheme, VoidDarkThemeMetadata };

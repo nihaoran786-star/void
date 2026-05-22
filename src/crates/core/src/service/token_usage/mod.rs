@@ -5,8 +5,8 @@
 mod service;
 mod subscriber;
 
-pub use bitfun_services_core::token_usage::types;
-pub use bitfun_services_core::token_usage::{
+pub use void_services_core::token_usage::types;
+pub use void_services_core::token_usage::{
     ModelTokenStats, SessionTokenStats, TimeRange, TokenUsageQuery, TokenUsageRecord,
     TokenUsageSummary,
 };

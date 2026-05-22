@@ -443,9 +443,9 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
       const targetElement = document.querySelector(`[data-file-path="${escapedPath}"]`);
       if (targetElement) {
         targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        targetElement.classList.add('bitfun-file-explorer__node-content--highlighted');
+        targetElement.classList.add('void-file-explorer__node-content--highlighted');
         setTimeout(() => {
-          targetElement.classList.remove('bitfun-file-explorer__node-content--highlighted');
+          targetElement.classList.remove('void-file-explorer__node-content--highlighted');
         }, 2000);
       }
     };
@@ -825,14 +825,14 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
   return (
     <div 
       ref={panelRef}
-      className="bitfun-files-panel"
+      className="void-files-panel"
       tabIndex={-1}
       onFocus={() => {}}
     >
       {!hideHeader && (
         <PanelHeader
           title={t('title')}
-          className="bitfun-files-panel__header"
+          className="void-files-panel__header"
           actions={
             workspacePath && (
               <IconButton
@@ -848,9 +848,9 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
         />
       )}
       
-      <div className="bitfun-files-panel__content">
+      <div className="void-files-panel__content">
         {workspacePath && viewMode === 'search' && (
-          <div className="bitfun-files-panel__search">
+          <div className="void-files-panel__search">
             <Search
               placeholder={t('search.placeholder')}
               value={searchQuery}
@@ -860,28 +860,28 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
               size="small"
               loading={isSearching}
             />
-            <div className="bitfun-files-panel__search-toolbar">
-              <div className="bitfun-files-panel__search-modes">
+            <div className="void-files-panel__search-toolbar">
+              <div className="void-files-panel__search-modes">
                 <button
                   type="button"
-                  className={`bitfun-files-panel__search-mode ${searchMode === 'content' ? 'active' : ''}`}
+                  className={`void-files-panel__search-mode ${searchMode === 'content' ? 'active' : ''}`}
                   onClick={() => setSearchMode('content')}
                 >
                   {t('search.modeContent')}
                 </button>
                 <button
                   type="button"
-                  className={`bitfun-files-panel__search-mode ${searchMode === 'filenames' ? 'active' : ''}`}
+                  className={`void-files-panel__search-mode ${searchMode === 'filenames' ? 'active' : ''}`}
                   onClick={() => setSearchMode('filenames')}
                 >
                   {t('search.modeFiles')}
                 </button>
               </div>
-              <div className="bitfun-files-panel__search-options">
+              <div className="void-files-panel__search-options">
                 <Tooltip content={t('options.caseSensitive')}>
                   <button
                     type="button"
-                    className={`bitfun-files-panel__search-option ${searchOptions.caseSensitive ? 'active' : ''}`}
+                    className={`void-files-panel__search-option ${searchOptions.caseSensitive ? 'active' : ''}`}
                     onClick={() => setSearchOptions(prev => ({ ...prev, caseSensitive: !prev.caseSensitive }))}
                   >
                     <CaseSensitive size={14} />
@@ -890,7 +890,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
                 <Tooltip content={t('options.wholeWord')}>
                   <button
                     type="button"
-                    className={`bitfun-files-panel__search-option ${searchOptions.wholeWord ? 'active' : ''}`}
+                    className={`void-files-panel__search-option ${searchOptions.wholeWord ? 'active' : ''}`}
                     onClick={() => setSearchOptions(prev => ({ ...prev, wholeWord: !prev.wholeWord }))}
                   >
                     <WholeWord size={14} />
@@ -899,7 +899,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
                 <Tooltip content={t('options.useRegex')}>
                   <button
                     type="button"
-                    className={`bitfun-files-panel__search-option ${searchOptions.useRegex ? 'active' : ''}`}
+                    className={`void-files-panel__search-option ${searchOptions.useRegex ? 'active' : ''}`}
                     onClick={() => setSearchOptions(prev => ({ ...prev, useRegex: !prev.useRegex }))}
                   >
                     <Regex size={14} />
@@ -911,13 +911,13 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
         )}
 
         <div
-          className={`bitfun-files-panel__main-content${
-            fileDropHighlight ? ' bitfun-files-panel__main-content--drop-target' : ''
+          className={`void-files-panel__main-content${
+            fileDropHighlight ? ' void-files-panel__main-content--drop-target' : ''
           }`}
         >
         {!workspacePath ? (
-          <div className="bitfun-files-panel__placeholder">
-            <div className="bitfun-files-panel__placeholder-icon">
+          <div className="void-files-panel__placeholder">
+            <div className="void-files-panel__placeholder-icon">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14,2 14,8 20,8"/>
@@ -930,16 +930,16 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
           </div>
         ) : viewMode === 'search' ? (
           searchQuery ? (
-            <div className="bitfun-files-panel__search-content">
+            <div className="void-files-panel__search-content">
               {searchLimitNotice && (
-                <div className="bitfun-files-panel__search-limit-notice">
+                <div className="void-files-panel__search-limit-notice">
                   <span>{searchLimitNotice}</span>
                 </div>
               )}
 
               {showContentSearchMetadata && contentSearchMetadata && (
-                <div className="bitfun-files-panel__search-backend">
-                  <div className="bitfun-files-panel__search-backend-badges">
+                <div className="void-files-panel__search-backend">
+                  <div className="void-files-panel__search-backend-badges">
                     <Badge variant={getSearchBackendBadgeVariant(contentSearchMetadata)}>
                       {contentSearchBackendLabel}
                     </Badge>
@@ -954,7 +954,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
                       </Badge>
                     ) : null}
                   </div>
-                  <div className="bitfun-files-panel__search-backend-summary">
+                  <div className="void-files-panel__search-backend-summary">
                     {t('search.backendSummary', {
                       candidateDocs: contentSearchMetadata.candidateDocs,
                       matchedLines: contentSearchMetadata.matchedLines,
@@ -965,10 +965,10 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
               )}
 
               {searchError && (
-                <div className="bitfun-files-panel__error">
+                <div className="void-files-panel__error">
                   <p>❌ {searchError}</p>
                   <button 
-                    className="bitfun-files-panel__retry-button"
+                    className="void-files-panel__retry-button"
                     onClick={() => setSearchQuery(searchQuery)}
                   >
                     {t('actions.retry')}
@@ -983,12 +983,12 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
                   onFileSelect={handleSearchResultSelect}
                   onFolderNavigate={handleSearchFolderNavigate}
                   workspacePath={workspacePath}
-                  className="bitfun-files-panel__search-results"
+                  className="void-files-panel__search-results"
                 />
               ) : (
                 !isSearching && !searchError && (
-                  <div className="bitfun-files-panel__placeholder">
-                    <div className="bitfun-files-panel__placeholder-icon">
+                  <div className="void-files-panel__placeholder">
+                    <div className="void-files-panel__placeholder-icon">
                       <SearchIcon size={32} />
                     </div>
                     <p>{t('search.noResults')}</p>
@@ -997,8 +997,8 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
               )}
             </div>
           ) : (
-            <div className="bitfun-files-panel__placeholder">
-              <div className="bitfun-files-panel__placeholder-icon">
+            <div className="void-files-panel__placeholder">
+              <div className="void-files-panel__placeholder-icon">
                 <SearchIcon size={32} />
               </div>
               <p>{t('search.enterKeyword')}</p>
@@ -1006,14 +1006,14 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
           )
         ) : (
           loading && fileTree.length === 0 ? (
-            <div className="bitfun-files-panel__loading">
+            <div className="void-files-panel__loading">
               <CubeLoading size="medium" text={t('status.loadingFileTree')} />
             </div>
           ) : error ? (
-            <div className="bitfun-files-panel__error">
+            <div className="void-files-panel__error">
               <p>❌ {error}</p>
               <button 
-                className="bitfun-files-panel__retry-button"
+                className="void-files-panel__retry-button"
                 onClick={() => loadFileTree()}
               >
                 {t('actions.retry')}
@@ -1029,7 +1029,7 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
               onNodeExpand={handleNodeExpandLazy}
               onFileSelect={handleFileSelect}
               onFileDoubleClick={handleFileDoubleClick}
-              className="bitfun-files-panel__explorer"
+              className="void-files-panel__explorer"
               enablePathCompression={true}
               renamingPath={renamingPath}
               onRename={handleExecuteRename}
@@ -1046,20 +1046,20 @@ const FilesPanel: React.FC<FilesPanelProps> = ({
       </div>
 
       {transferProgress && (
-        <div className="bitfun-files-panel__transfer" role="status">
-          <div className="bitfun-files-panel__transfer-label">
+        <div className="void-files-panel__transfer" role="status">
+          <div className="void-files-panel__transfer-label">
             {transferProgress.phase === 'download'
               ? t('transfer.downloading')
               : t('transfer.uploading')}
             {transferProgress.label ? ` — ${transferProgress.label}` : ''}
           </div>
           <div
-            className={`bitfun-files-panel__transfer-track${
-              transferProgress.indeterminate ? ' bitfun-files-panel__transfer-track--indeterminate' : ''
+            className={`void-files-panel__transfer-track${
+              transferProgress.indeterminate ? ' void-files-panel__transfer-track--indeterminate' : ''
             }`}
           >
             <div
-              className="bitfun-files-panel__transfer-fill"
+              className="void-files-panel__transfer-fill"
               style={
                 transferProgress.indeterminate || !transferProgress.total
                   ? undefined

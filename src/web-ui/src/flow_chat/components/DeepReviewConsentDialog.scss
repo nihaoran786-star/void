@@ -407,11 +407,11 @@ li.deep-review-consent__skipped-more {
   min-width: 0;
   color: var(--color-text-secondary);
 
-  .bitfun-checkbox__label {
+  .void-checkbox__label {
     color: var(--color-text-primary);
   }
 
-  .bitfun-checkbox__box {
+  .void-checkbox__box {
     background: color-mix(in srgb, var(--color-bg-elevated) 92%, transparent);
     border-color: color-mix(in srgb, var(--border-base) 90%, var(--deep-review-accent));
   }

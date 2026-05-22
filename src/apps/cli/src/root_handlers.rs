@@ -172,10 +172,10 @@ pub async fn handle_session_action(action: SessionAction) -> Result<Option<Strin
                 for msg in recent.iter().rev() {
                     let role = format!("{:?}", msg.role);
                     let content_preview = match &msg.content {
-                        bitfun_core::agentic::core::message::MessageContent::Text(text) => {
+                        void_core::agentic::core::message::MessageContent::Text(text) => {
                             text.lines().next().unwrap_or("").to_string()
                         }
-                        bitfun_core::agentic::core::message::MessageContent::Multimodal {
+                        void_core::agentic::core::message::MessageContent::Multimodal {
                             text,
                             images,
                         } => {
@@ -185,7 +185,7 @@ pub async fn handle_session_action(action: SessionAction) -> Result<Option<Strin
                                 text.lines().next().unwrap_or("").to_string()
                             }
                         }
-                        bitfun_core::agentic::core::message::MessageContent::Mixed {
+                        void_core::agentic::core::message::MessageContent::Mixed {
                             text,
                             tool_calls,
                             ..
@@ -196,7 +196,7 @@ pub async fn handle_session_action(action: SessionAction) -> Result<Option<Strin
                                 text.lines().next().unwrap_or("").to_string()
                             }
                         }
-                        bitfun_core::agentic::core::message::MessageContent::ToolResult {
+                        void_core::agentic::core::message::MessageContent::ToolResult {
                             tool_name,
                             ..
                         } => format!("[Tool result: {}]", tool_name),
@@ -235,16 +235,16 @@ pub async fn handle_session_action(action: SessionAction) -> Result<Option<Strin
                 .last()
                 .map(|turn| turn.turn_id.clone())
                 .ok_or_else(|| anyhow::anyhow!("Session has no persisted turns to fork"))?;
-            let path_manager = bitfun_core::infrastructure::try_get_path_manager_arc()
+            let path_manager = void_core::infrastructure::try_get_path_manager_arc()
                 .map_err(|error| anyhow::anyhow!(error.to_string()))?;
-            let persistence_manager = bitfun_core::agentic::persistence::PersistenceManager::new(
+            let persistence_manager = void_core::agentic::persistence::PersistenceManager::new(
                 path_manager,
             )
             .map_err(|error| anyhow::anyhow!(error.to_string()))?;
             let result = persistence_manager
                 .branch_session(
                     &workspace_path,
-                    &bitfun_core::agentic::persistence::session_branch::SessionBranchRequest {
+                    &void_core::agentic::persistence::session_branch::SessionBranchRequest {
                         source_session_id: session_id.clone(),
                         source_turn_id,
                     },
@@ -267,7 +267,7 @@ pub async fn handle_session_action(action: SessionAction) -> Result<Option<Strin
 }
 
 async fn resolve_cli_session_id(
-    coordinator: &std::sync::Arc<bitfun_core::agentic::coordination::ConversationCoordinator>,
+    coordinator: &std::sync::Arc<void_core::agentic::coordination::ConversationCoordinator>,
     workspace_path: &Path,
     id: &str,
 ) -> Result<String> {
@@ -324,7 +324,7 @@ pub fn handle_config_action(action: ConfigAction, config: &CliConfig) -> Result<
 }
 
 pub fn handle_health_command() -> Result<()> {
-    println!("BitFun CLI is running normally");
+    println!("Void CLI is running normally");
     println!("Version: {}", env!("CARGO_PKG_VERSION"));
     println!("Config directory: {:?}", CliConfig::config_dir()?);
     Ok(())
@@ -333,12 +333,12 @@ pub fn handle_health_command() -> Result<()> {
 pub async fn serve_acp_stdio() -> Result<()> {
     crate::setup_workspace();
 
-    bitfun_core::service::config::initialize_global_config()
+    void_core::service::config::initialize_global_config()
         .await
         .context("Failed to initialize global config service")?;
     tracing::info!("Global config service initialized");
 
-    use bitfun_core::infrastructure::ai::AIClientFactory;
+    use void_core::infrastructure::ai::AIClientFactory;
     AIClientFactory::initialize_global()
         .await
         .context("Failed to initialize global AIClientFactory")?;
@@ -351,6 +351,6 @@ pub async fn serve_acp_stdio() -> Result<()> {
         .context("Failed to initialize agentic system")?;
     tracing::info!("Agentic system initialized");
 
-    bitfun_acp::BitfunAcpRuntime::serve_stdio(agentic_system).await?;
+    void_acp::VoidAcpRuntime::serve_stdio(agentic_system).await?;
     Ok(())
 }

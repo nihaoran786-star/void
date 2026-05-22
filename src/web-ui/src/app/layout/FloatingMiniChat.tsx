@@ -181,7 +181,7 @@ export const FloatingMiniChat: React.FC = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (sessionPickerRef.current?.contains(target)) return;
-      if (target.closest?.('.bitfun-fmc__title-btn')) return;
+      if (target.closest?.('.void-fmc__title-btn')) return;
       setShowSessionPicker(false);
     };
 
@@ -195,25 +195,25 @@ export const FloatingMiniChat: React.FC = () => {
   }, [isOpen, showSessionPicker]);
 
   const panelClassName = [
-    'bitfun-fmc__panel',
-    isOpen && 'bitfun-fmc__panel--open',
-    currentStreamState.isStreaming && 'bitfun-fmc__panel--processing',
-    toolbarState.hasError && 'bitfun-fmc__panel--error',
-    toolbarState.hasPendingConfirmation && 'bitfun-fmc__panel--confirm'
+    'void-fmc__panel',
+    isOpen && 'void-fmc__panel--open',
+    currentStreamState.isStreaming && 'void-fmc__panel--processing',
+    toolbarState.hasError && 'void-fmc__panel--error',
+    toolbarState.hasPendingConfirmation && 'void-fmc__panel--confirm'
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
     <div className={[
-      'bitfun-fmc',
-      isOpen && 'bitfun-fmc--open',
-      shouldAvoidMiniAppCustomizer && 'bitfun-fmc--miniapp-customizing',
+      'void-fmc',
+      isOpen && 'void-fmc--open',
+      shouldAvoidMiniAppCustomizer && 'void-fmc--miniapp-customizing',
     ].filter(Boolean).join(' ')}>
       {/* Fullscreen backdrop to catch outside clicks */}
       {isOpen && (
         <div
-          className="bitfun-fmc__backdrop"
+          className="void-fmc__backdrop"
           onMouseDown={handleClose}
         />
       )}
@@ -221,7 +221,7 @@ export const FloatingMiniChat: React.FC = () => {
       {/* Circular trigger button — hidden when panel is open */}
       <button
         type="button"
-        className="bitfun-fmc__button"
+        className="void-fmc__button"
         onClick={handleOpen}
         aria-label={t('toolCards.toolbar.startNewChat')}
       >
@@ -231,31 +231,31 @@ export const FloatingMiniChat: React.FC = () => {
       {/* Expanded panel */}
       <div ref={panelRef} className={panelClassName}>
         {/* Header */}
-        <div className="bitfun-fmc__header">
+        <div className="void-fmc__header">
           <Tooltip content={t('session.new')}>
-            <button type="button" className="bitfun-fmc__header-btn" onClick={handleCreateSession}>
+            <button type="button" className="void-fmc__header-btn" onClick={handleCreateSession}>
               <Plus size={14} />
             </button>
           </Tooltip>
 
-          <div className="bitfun-fmc__title-wrapper">
+          <div className="void-fmc__title-wrapper">
             <Tooltip content={t('session.switchSession')}>
               <button
                 type="button"
-                className="bitfun-fmc__title-btn"
+                className="void-fmc__title-btn"
                 onClick={() => setShowSessionPicker(!showSessionPicker)}
               >
-                <span className="bitfun-fmc__title-text">{sessionTitle}</span>
+                <span className="void-fmc__title-text">{sessionTitle}</span>
                 <ChevronDown
                   size={12}
-                  className={`bitfun-fmc__title-chevron ${showSessionPicker ? 'bitfun-fmc__title-chevron--open' : ''}`}
+                  className={`void-fmc__title-chevron ${showSessionPicker ? 'void-fmc__title-chevron--open' : ''}`}
                 />
               </button>
             </Tooltip>
 
             {showSessionPicker && (
               <div
-                className="bitfun-fmc__session-dropdown"
+                className="void-fmc__session-dropdown"
                 ref={sessionPickerRef}
                 onMouseDown={(e) => e.stopPropagation()}
               >
@@ -263,9 +263,9 @@ export const FloatingMiniChat: React.FC = () => {
                   <button
                     key={session.sessionId}
                     type="button"
-                    className={`bitfun-fmc__session-item ${
+                    className={`void-fmc__session-item ${
                       session.sessionId === flowChatState.activeSessionId
-                        ? 'bitfun-fmc__session-item--active'
+                        ? 'void-fmc__session-item--active'
                         : ''
                     }`}
                     onMouseDown={(e) => handleSwitchSession(e, session.sessionId)}
@@ -281,12 +281,12 @@ export const FloatingMiniChat: React.FC = () => {
           {toolbarState.hasPendingConfirmation && (
             <>
               <Tooltip content={t('toolCards.common.confirm')}>
-                <button type="button" className="bitfun-fmc__header-btn bitfun-fmc__header-btn--confirm" onClick={handleConfirm}>
+                <button type="button" className="void-fmc__header-btn void-fmc__header-btn--confirm" onClick={handleConfirm}>
                   <Check size={14} />
                 </button>
               </Tooltip>
               <Tooltip content={t('toolCards.common.cancel')}>
-                <button type="button" className="bitfun-fmc__header-btn bitfun-fmc__header-btn--reject" onClick={handleReject}>
+                <button type="button" className="void-fmc__header-btn void-fmc__header-btn--reject" onClick={handleReject}>
                   <X size={14} />
                 </button>
               </Tooltip>
@@ -295,14 +295,14 @@ export const FloatingMiniChat: React.FC = () => {
 
           {currentStreamState.isStreaming && !toolbarState.hasPendingConfirmation && (
             <Tooltip content={t('input.stop')}>
-              <button type="button" className="bitfun-fmc__header-btn bitfun-fmc__header-btn--stop" onClick={handleCancel}>
+              <button type="button" className="void-fmc__header-btn void-fmc__header-btn--stop" onClick={handleCancel}>
                 <Square size={12} />
               </button>
             </Tooltip>
           )}
 
           <Tooltip content={t('planner.cancel')}>
-            <button type="button" className="bitfun-fmc__header-btn bitfun-fmc__header-btn--close" onClick={handleClose}>
+            <button type="button" className="void-fmc__header-btn void-fmc__header-btn--close" onClick={handleClose}>
               <X size={14} />
             </button>
           </Tooltip>
@@ -311,16 +311,16 @@ export const FloatingMiniChat: React.FC = () => {
         {/* FlowChat body — only mounted while the panel is open to avoid
             running a second VirtualMessageList and store sync in the background
             while the agent is actively streaming in another scene. */}
-        <div className="bitfun-fmc__body">
+        <div className="void-fmc__body">
           {isOpen && <ModernFlowChatContainer />}
         </div>
 
         {/* Input bar */}
-        <div className="bitfun-fmc__input-bar">
+        <div className="void-fmc__input-bar">
           <Input
             variant="filled"
             inputSize="small"
-            className="bitfun-fmc__input-wrapper"
+            className="void-fmc__input-wrapper"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -337,7 +337,7 @@ export const FloatingMiniChat: React.FC = () => {
             <Tooltip content={t('input.stop')}>
               <button
                 type="button"
-                className="bitfun-fmc__input-btn bitfun-fmc__input-btn--stop"
+                className="void-fmc__input-btn void-fmc__input-btn--stop"
                 onClick={handleCancel}
               >
                 <Square size={14} />
@@ -347,7 +347,7 @@ export const FloatingMiniChat: React.FC = () => {
             <Tooltip content={t('input.send')}>
               <button
                 type="button"
-                className="bitfun-fmc__input-btn bitfun-fmc__input-btn--send"
+                className="void-fmc__input-btn void-fmc__input-btn--send"
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim()}
               >

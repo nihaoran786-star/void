@@ -1,6 +1,6 @@
 //! Startchat Agent API
 
-use bitfun_core::function_agents::{
+use void_core::function_agents::{
     startchat_func_agent::Language, StartchatFunctionAgent, WorkStateAnalysis, WorkStateOptions,
 };
 use log::error;

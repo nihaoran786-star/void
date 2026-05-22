@@ -1,19 +1,19 @@
 [package]
-name = "bitfun-cli"
+name = "void-cli"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun CLI - Terminal User Interface"
+description = "Void CLI - Terminal User Interface"
 
 [[bin]]
-name = "bitfun-cli"
+name = "void-cli"
 path = "src/main.rs"
 
 [dependencies]
 # Internal crates
-bitfun-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
-bitfun-events = { path = "../../crates/events" }
-bitfun-acp = { path = "../../crates/acp" }
+void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
+void-events = { path = "../../crates/events" }
+void-acp = { path = "../../crates/acp" }
 
 # CLI framework
 clap = { version = "4", features = ["derive"] }

@@ -29,7 +29,7 @@ import { ToolbarModeProvider } from '../flow_chat';
 
 const log = createLogger('App');
 /**
- * BitFun main application component.
+ * Void main application component.
  *
  * Unified architecture:
  * - Use a single AppLayout component

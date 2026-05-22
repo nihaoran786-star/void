@@ -13,8 +13,8 @@ const resetStore = () => {
 
 const createWorkspace = (): WorkspaceInfo => ({
   id: 'workspace-1',
-  name: 'BitFun',
-  rootPath: '/workspace/BitFun',
+  name: 'Void',
+  rootPath: '/workspace/Void',
   workspaceKind: WorkspaceKind.Normal,
 });
 
@@ -30,7 +30,7 @@ const createSession = (overrides: Partial<Session> = {}): Session => ({
   isHistorical: false,
   maxContextTokens: 128128,
   mode: 'agentic',
-  workspacePath: '/workspace/BitFun',
+  workspacePath: '/workspace/Void',
   workspaceId: 'workspace-1',
   sessionKind: 'normal',
   btwThreads: [],

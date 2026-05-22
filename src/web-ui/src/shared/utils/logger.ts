@@ -33,7 +33,7 @@ export interface LogEntry {
 const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
 const isDev = import.meta.env?.DEV ?? process.env.NODE_ENV === 'development';
 
-const CONSOLE_FORWARD_INSTALLED = '__bitfun_console_forward_installed__';
+const CONSOLE_FORWARD_INSTALLED = '__void_console_forward_installed__';
 let includeSensitiveDiagnostics = true;
 
 export function setIncludeSensitiveDiagnostics(enabled: boolean): void {

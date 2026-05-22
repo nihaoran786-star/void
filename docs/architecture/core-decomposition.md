@@ -1,11 +1,11 @@
-# BitFun Core 拆解护栏（Core Decomposition Guardrails）
+# Void Core 拆解护栏（Core Decomposition Guardrails）
 
-本文是逐步拆解 `bitfun-core` 的执行护栏（execution guardrail）。它用于补充
-[`bitfun-core-decomposition-plan.md`](../plans/core-decomposition-plan.md)
+本文是逐步拆解 `void-core` 的执行护栏（execution guardrail）。它用于补充
+[`void-core-decomposition-plan.md`](../plans/core-decomposition-plan.md)
 中的详细里程碑计划。
 
 目标是在不改变任何受支持构建形态（build shape）下产品行为的前提下，把稳定、
-边界清晰的逻辑从较重的 `bitfun-core` runtime 聚合体中移出，从而减少不必要的
+边界清晰的逻辑从较重的 `void-core` runtime 聚合体中移出，从而减少不必要的
 Rust 编译和链接面。
 
 ## 不可协商的不变量
@@ -20,7 +20,7 @@ Rust 编译和链接面。
   - `scripts/desktop-tauri-build.mjs`
   - `scripts/ensure-openssl-windows.mjs`
   - `scripts/ci/setup-openssl-windows.ps1`
-  - `BitFun-Installer/**`
+  - `Void-Installer/**`
 - 共享产品逻辑必须保持平台无关（platform-agnostic）。桌面端专属逻辑应保留在
   app adapters 中，再通过 transport/API layers 回流。
 - 不要引入仓库级、机器相关的编译器或链接器默认配置，例如 `sccache`、`lld-link`
@@ -34,9 +34,9 @@ Rust 编译和链接面。
    - 在任何默认 feature 变轻之前，先加入 `product-full` feature 安全网。
    - 把已经独立成 crate 的 nested crate 移到 workspace 顶层路径。
    - 先抽取 `core-types`，承载稳定 DTO 和 port DTO；只有在 concrete runtime /
-     network 转换依赖完成解耦后，才移动 `BitFunError`。
+     network 转换依赖完成解耦后，才移动 `VoidError`。
    - 如果 stream 测试可以不依赖完整 core 运行，则抽取 stream processing。
-   - 移动重服务之前先引入 ports。第一层轻量边界位于 `bitfun-runtime-ports`；
+   - 移动重服务之前先引入 ports。第一层轻量边界位于 `void-runtime-ports`；
      该 crate 只包含 DTO 和 trait。
    - 第一批 adapter 实现只视为边界搭建。只有相关 service migration 和回归测试
      完成后，才能声明 service/agent 的 concrete call site 已经被替换。
@@ -47,7 +47,7 @@ Rust 编译和链接面。
    - 使用 `agent-tools` 加 `tool-packs` feature group，不要为每个具体工具族
      单独建立 crate。
 3. **Facade 收敛和边界强制**
-   - `bitfun-core` 收敛为兼容门面（compatibility facade）和完整产品 runtime
+   - `void-core` 收敛为兼容门面（compatibility facade）和完整产品 runtime
      组装点（full product runtime assembly）。
    - 新 crate 抽出后，再加入轻量边界检查。
    - 更轻的默认 feature 只能作为单独且完整验证过的 PR 进行评估。
@@ -59,18 +59,18 @@ Rust 编译和链接面。
 
 | 目标 crate | 归属职责 | 当前状态 |
 |---|---|---|
-| `bitfun-core` | 兼容门面和完整产品 runtime 组装点 | active：仍是完整 runtime assembly 和旧路径 facade |
-| `bitfun-core-types` | 稳定 DTO、port DTO、纯 domain type，以及最终的纯错误类型 | partial：AI 错误 DTO / helper 已迁入；`BitFunError` 仍保留在 core |
-| `bitfun-events` | 已有的传输层无关事件 DTO 和事件抽象 | done：既有基础 crate |
-| `bitfun-ai-adapters` | 已有 AI provider adapter，以及 provider / protocol DTO 归属 | done：既有 adapter crate |
-| `bitfun-agent-stream` | Stream 聚合和 stream-focused 测试 | done：stream 聚合已独立 |
-| `bitfun-runtime-ports` | 面向 service/agent 边界的轻量跨层 DTO 和 trait | partial：DTO/trait-only 边界已建立，包含 agent submission/transcript/cancel、remote state、runtime event 与 remote image attachment 契约；不拥有 runtime 实现 |
-| `bitfun-agent-runtime` | Sessions、execution、coordination、agent system | target：crate 尚不存在，agent runtime 仍在 core |
-| `bitfun-agent-tools` | 轻量 tool DTO / contract、portable tool context facts / provider、runtime restriction、host path normalization / runtime artifact URI / remote POSIX path pure contract、allowed-list / collapsed-tool execution gate policy、pure manifest/exposure and GetToolSpec presentation/schema/static metadata/detail/result assembly / execution-plan contract、provider-backed tool catalog / GetToolSpec runtime facade、provider-backed GetToolSpec execution result helper / Tool-result vector adapter、generic contextual manifest resolver、generic catalog snapshot provider / GetToolSpec catalog provider、generic registry / static-provider / dynamic-provider / decorator-ref / snapshot-decorator adapter / runtime assembly container、generic readonly/enabled snapshot filter | partial：product registry snapshot access、`ToolUseContext` adapter、`GetToolSpec` Tool impl 和 concrete tools 仍在 core，并由 core `tools/product_runtime.rs` 作为单一 product runtime owner 组装；core 当前从 `bitfun-tool-packs` provider plan 物化内置工具列表，static-provider 安装 assembly、decorator reference、generic snapshot decorator adapter、provider-backed catalog runtime facade 与 readonly/enabled 过滤规则已委托给 `bitfun-agent-tools` |
-| `bitfun-tool-packs` | 由 feature group 隔离的工具 provider plan | partial：提供 basic / git / mcp / browser-web / computer-use / image-analysis / miniapp / agent-control feature-group 元数据和 product provider group plan；不得声明 concrete tools 已迁移 |
-| `bitfun-services-core` | Config、session、workspace、storage、filesystem、system services | partial：部分 pure helper 已迁出；config/workspace/filesystem runtime 多数仍在 core |
-| `bitfun-services-integrations` | Git、MCP、remote SSH、remote connect、file watch integrations | partial：MCP runtime 已迁入；remote SSH 仍只迁移低风险 contracts/helpers；remote-connect 已拥有 wire DTO、request builder、tracker state / registry lifecycle、tracker event reduction、dialog submission orchestration port/provider、file IO/path resolution helper 与 image-context adapter contract；concrete scheduler/session restore/terminal adapter、workspace-root source、response wrapping 与 product execution 仍在 core |
-| `bitfun-product-domains` | Miniapp 和 function-agent 产品子域 | partial：pure decision、port、storage/builtin contract 可迁入；IO、worker、built-in asset seeding、Git/AI service runtime 仍在 core |
+| `void-core` | 兼容门面和完整产品 runtime 组装点 | active：仍是完整 runtime assembly 和旧路径 facade |
+| `void-core-types` | 稳定 DTO、port DTO、纯 domain type，以及最终的纯错误类型 | partial：AI 错误 DTO / helper 已迁入；`VoidError` 仍保留在 core |
+| `void-events` | 已有的传输层无关事件 DTO 和事件抽象 | done：既有基础 crate |
+| `void-ai-adapters` | 已有 AI provider adapter，以及 provider / protocol DTO 归属 | done：既有 adapter crate |
+| `void-agent-stream` | Stream 聚合和 stream-focused 测试 | done：stream 聚合已独立 |
+| `void-runtime-ports` | 面向 service/agent 边界的轻量跨层 DTO 和 trait | partial：DTO/trait-only 边界已建立，包含 agent submission/transcript/cancel、remote state、runtime event 与 remote image attachment 契约；不拥有 runtime 实现 |
+| `void-agent-runtime` | Sessions、execution、coordination、agent system | target：crate 尚不存在，agent runtime 仍在 core |
+| `void-agent-tools` | 轻量 tool DTO / contract、portable tool context facts / provider、runtime restriction、host path normalization / runtime artifact URI / remote POSIX path pure contract、allowed-list / collapsed-tool execution gate policy、pure manifest/exposure and GetToolSpec presentation/schema/static metadata/detail/result assembly / execution-plan contract、provider-backed tool catalog / GetToolSpec runtime facade、provider-backed GetToolSpec execution result helper / Tool-result vector adapter、generic contextual manifest resolver、generic catalog snapshot provider / GetToolSpec catalog provider、generic registry / static-provider / dynamic-provider / decorator-ref / snapshot-decorator adapter / runtime assembly container、generic readonly/enabled snapshot filter | partial：product registry snapshot access、`ToolUseContext` adapter、`GetToolSpec` Tool impl 和 concrete tools 仍在 core，并由 core `tools/product_runtime.rs` 作为单一 product runtime owner 组装；core 当前从 `void-tool-packs` provider plan 物化内置工具列表，static-provider 安装 assembly、decorator reference、generic snapshot decorator adapter、provider-backed catalog runtime facade 与 readonly/enabled 过滤规则已委托给 `void-agent-tools` |
+| `void-tool-packs` | 由 feature group 隔离的工具 provider plan | partial：提供 basic / git / mcp / browser-web / computer-use / image-analysis / miniapp / agent-control feature-group 元数据和 product provider group plan；不得声明 concrete tools 已迁移 |
+| `void-services-core` | Config、session、workspace、storage、filesystem、system services | partial：部分 pure helper 已迁出；config/workspace/filesystem runtime 多数仍在 core |
+| `void-services-integrations` | Git、MCP、remote SSH、remote connect、file watch integrations | partial：MCP runtime 已迁入；remote SSH 仍只迁移低风险 contracts/helpers；remote-connect 已拥有 wire DTO、request builder、tracker state / registry lifecycle、tracker event reduction、dialog submission orchestration port/provider、file IO/path resolution helper 与 image-context adapter contract；concrete scheduler/session restore/terminal adapter、workspace-root source、response wrapping 与 product execution 仍在 core |
+| `void-product-domains` | Miniapp 和 function-agent 产品子域 | partial：pure decision、port、storage/builtin contract 可迁入；IO、worker、built-in asset seeding、Git/AI service runtime 仍在 core |
 | `terminal-core` | 已有 terminal package，移动到 workspace 顶层 `src/crates/terminal` 路径 | done：已在 workspace 顶层 |
 | `tool-runtime` | 已有 tool runtime，移动到 workspace 顶层路径 | done：已在 workspace 顶层 |
 
@@ -79,12 +79,12 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
 
 ## 依赖方向规则（Dependency Direction Rules）
 
-- 新拆出的 crate 不得反向依赖 `bitfun-core`。
-- `bitfun-core` 可以依赖新拆出的 crate，并通过 re-export 保持旧路径兼容。
+- 新拆出的 crate 不得反向依赖 `void-core`。
+- `void-core` 可以依赖新拆出的 crate，并通过 re-export 保持旧路径兼容。
 - 在声明 P3 边界收敛前，运行 `node scripts/check-core-boundaries.mjs`，确认已拆出的
-  owner crate 没有新增 `bitfun-core` 反向依赖，并确认 `core-types`、`runtime-ports`
+  owner crate 没有新增 `void-core` 反向依赖，并确认 `core-types`、`runtime-ports`
   和 `agent-tools` 没有引入重 runtime / concrete service 依赖。
-- 已迁移回 `bitfun-core` 的 legacy facade 只能 re-export owner crate 或做窄错误 / 路径注入映射；例如 Git 旧路径、
+- 已迁移回 `void-core` 的 legacy facade 只能 re-export owner crate 或做窄错误 / 路径注入映射；例如 Git 旧路径、
   remote SSH types/workspace path + unresolved-key helper facade、MCP tool contract facade、MCP protocol types / JSON-RPC
   request builder facade、MCP config location / cursor-format / JSON config / config service helper facade、
   MCP server config facade、MCP OAuth auth facade、MCP server process auth/header helper、
@@ -92,7 +92,7 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   由边界脚本检查，不得重新承载实现逻辑。
 - 对仍嵌在 core runtime 文件中的旧公开类型，必须至少保留禁止回流检查；例如 MCP server
   type/status/config 已由 owner crate 拥有，`MCPServerProcess` 只保留 lifecycle、process 和 connection runtime 逻辑。
-- `bitfun-runtime-ports` 必须保持 DTO/trait-only；不得依赖 concrete manager、
+- `void-runtime-ports` 必须保持 DTO/trait-only；不得依赖 concrete manager、
   service implementation、app crate 或 platform adapter。
 - remote runtime port baseline 当前只提供契约和 core-owned adapter：`AgentSubmissionPort`
   仍拒绝 generic attachments；remote image DTO、turn cancellation、remote state 和 event facts
@@ -103,7 +103,7 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   preference、restore target decision、cancel decision、RemoteRelay/Bot dialog submission
   orchestration port/provider、remote workspace path/MIME/full-read/chunk/info helper 与 remote file transfer
   size/chunk/name policy 可由
-  `bitfun-services-integrations` 拥有；core 只保留 tracker host adapter、
+  `void-services-integrations` 拥有；core 只保留 tracker host adapter、
   global dispatcher compatibility wrapper、session restore 执行、terminal pre-warm adapter、
   concrete scheduler submit adapter、workspace-root source、response/base64 wrapping 与
   `ImageContextData` concrete adapter implementation。
@@ -112,19 +112,19 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   shape、restore target、active-turn poll snapshot、cancel decision、image context fallback
   / preference、tracker fanout、file transfer、RemoteRelay/Bot queue policy，以及
   restore -> terminal pre-warm -> scheduler submit 的 dialog orchestration 顺序。
-- `bitfun-core-types` 不得依赖 runtime manager、service crate、agent runtime、
+- `void-core-types` 不得依赖 runtime manager、service crate、agent runtime、
   app crate、Tauri、network client、process execution，或 `git2`、`rmcp`、`image`、
   `tokio-tungstenite` 等重集成依赖。
-- 轻量 contract crate 不得吸收 CLI/TUI 依赖；`bitfun-cli`、`ratatui`、`crossterm`、
+- 轻量 contract crate 不得吸收 CLI/TUI 依赖；`void-cli`、`ratatui`、`crossterm`、
   `arboard`、`syntect-tui` 等仍属于 `src/apps/cli` app adapter / presentation layer。
 - `ErrorCategory`、`AiErrorDetail` 以及纯 AI 错误分类/detail helper 应放在
-  `bitfun-core-types` 中，并通过已有更高层路径 re-export 或委托，以保持公开行为稳定。
-- 在剩余 concrete error-wrapper 依赖完成审核前，不要把 `BitFunError` 移入
-  `bitfun-core-types`。错误边界中已经移除了 `reqwest::Error` 和
+  `void-core-types` 中，并通过已有更高层路径 re-export 或委托，以保持公开行为稳定。
+- 在剩余 concrete error-wrapper 依赖完成审核前，不要把 `VoidError` 移入
+  `void-core-types`。错误边界中已经移除了 `reqwest::Error` 和
   `tokio::sync::AcquireError` 引用；`serde_json::Error`、`anyhow::Error` 以及历史
   `From<T>` 行为仍需要单独做兼容性处理后，才能移动该类型。
 - Service crate 必须通过小型 port 调用 agent runtime，不要直接访问全局 coordinator。
-- 迁移期间，adapter implementation 可以暂时放在 `bitfun-core` 中，但新的 service
+- 迁移期间，adapter implementation 可以暂时放在 `void-core` 中，但新的 service
   代码必须面向 port contract，而不是新增对 coordinator 或 manager 的直接依赖。
 - Agent runtime 必须通过 ports/providers 依赖 service 行为，不要依赖 concrete 的重集成
   crate。
@@ -134,22 +134,22 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   registry、subagent definitions 或 agent scheduler 前，必须先保留 mode visibility、
   hidden/custom/review 分组、desktop subagent API、CLI mode-aware list/config、
   background result running-turn injection 与 idle-session follow-up turn 等价测试；在此之前它们仍属于
-  `bitfun-core` product runtime assembly 与各 app surface adapter 的组合边界。
+  `void-core` product runtime assembly 与各 app surface adapter 的组合边界。
 - DeepResearch 现在包含 citation renumber post-turn hook。迁移 agent runtime 或 prompt/report
   处理前，必须保留 `report.md` / `citations.md` / `display_map.json` 的 deterministic post-processing 行为；
-  在此之前该 hook 仍属于 `bitfun-core` agent runtime assembly。
+  在此之前该 hook 仍属于 `void-core` agent runtime assembly。
 - 最新主干新增 on-demand tool spec discovery。`ToolExposure`、`GetToolSpec` 名称、
   collapsed stub、manifest ordering、generic collapsed exposure query、generic contextual
   prompt-manifest resolver、generic catalog snapshot provider、ToolCatalogRuntime / GetToolSpec catalog provider /
-  prompt / schema / assistant-detail rendering / detail JSON 等 provider-neutral 契约可由 `bitfun-agent-tools`
+  prompt / schema / assistant-detail rendering / detail JSON 等 provider-neutral 契约可由 `void-agent-tools`
   拥有；但产品 registry snapshot、`dyn Tool`
   / `ToolUseContext` adapter、product collapsed-tool catalog、context-aware tool
-  schema/description 的实际调用、`GetToolSpecTool` Tool impl / `BitFunError` 映射和
-  `ToolUseContext.unlocked_collapsed_tools` 仍属于 `bitfun-core` product tool runtime。
+  schema/description 的实际调用、`GetToolSpecTool` Tool impl / `VoidError` 映射和
+  `ToolUseContext.unlocked_collapsed_tools` 仍属于 `void-core` product tool runtime。
   继续迁移前必须证明 prompt-visible manifest、expanded/collapsed exposure、unlock state
   与 desktop/MCP/ACP tool catalog 等价。
 - 当前 tool runtime 外移的低风险入口是 `StaticToolProvider` / `install_static_provider`
-  / `ToolRuntimeAssembly` 合约归属 `bitfun-agent-tools`，并让 core 通过
+  / `ToolRuntimeAssembly` 合约归属 `void-agent-tools`，并让 core 通过
   `tools/product_runtime.rs` 将内置工具列表收敛为
   `core.basic`、`core.agent`、`core.session`、`core.integration` provider group。
   这不代表 concrete tools、`ToolUseContext`、product registry snapshot adapter 或
@@ -161,11 +161,11 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   （remote 为 normalized remote root）。`PortableToolContextProvider` 只是只读 facts
   provider 合约，当前由 core `ToolUseContext` 实现；`ToolUseContext` 本体仍归 core 拥有。
 - host path normalization、runtime artifact URI 与 remote POSIX path containment
-  现在是 `bitfun-agent-tools` 的纯路径契约；core `workspace_paths` / `restrictions`
-  只保留 `BitFunError` 映射、workspace runtime-root lookup 与 `ToolUseContext` 集成。
+  现在是 `void-agent-tools` 的纯路径契约；core `workspace_paths` / `restrictions`
+  只保留 `VoidError` 映射、workspace runtime-root lookup 与 `ToolUseContext` 集成。
 - tool allowed-list 与 collapsed tool 的直接执行 gate policy 现在由
-  `bitfun-agent-tools` 作为纯契约持有；core pipeline 仍保存
-  `ToolUseContext.unlocked_collapsed_tools`，负责失败状态更新与 `BitFunError`
+  `void-agent-tools` 作为纯契约持有；core pipeline 仍保存
+  `ToolUseContext.unlocked_collapsed_tools`，负责失败状态更新与 `VoidError`
   映射，不改变 `GetToolSpecTool` 执行、runtime restriction 顺序或 unlock state 生命周期。
 - 最新主干的 remote workspace guard 和 search fallback/context 修复提高了 workspace/search
   迁移门槛。后续迁移 workspace 或 search runtime 时，必须保留 remote workspace metadata、
@@ -182,7 +182,7 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   DeepSeek `prompt_cache_hit_tokens` mapping 必须保留为独立语义，不能在 `agent-stream`、
   `session_usage` 或 runtime budget 迁移中重新合并为 total usage。OpenAI Responses /
   Codex ChatGPT flat tool schema 是 provider adapter serialization，不应写死进
-  `bitfun-agent-tools` 的 provider-neutral manifest contract。
+  `void-agent-tools` 的 provider-neutral manifest contract。
 - 最新 Web 启动优化把 startup trace、deferred background scheduler、narrow tool initializer
   与历史会话 hydrate 放在 web app / Flow Chat surface。后续不能为了“共享启动能力”把
   `startupTrace`、`backgroundTaskScheduler`、history hydration 或 tool warmup 下沉到 core contract
@@ -217,7 +217,7 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
     contracts, manager lifecycle state-transition helpers, runtime executable
     search-plan helpers, customization draft-apply / built-in update-decline
     metadata policy, and Git function-agent diff truncation / commit prompt
-    preparation now live in `bitfun-product-domains`. The same PR adds
+    preparation now live in `void-product-domains`. The same PR adds
     migration-before snapshots for core-owned MiniApp import / sync / recompile /
     rollback / dependency state paths and function-agent Git / AI response
     boundaries. Core still owns MiniApp filesystem IO, worker process execution,
@@ -226,19 +226,19 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
     prompt templates, response JSON extraction, and domain error-mapping policy
     may move only with focused behavior-equivalence tests. The built-in MiniApp bundle/hash/marker/source payload
     seed-decision contract plus seed plan / marker wire helper can live in
-    `bitfun-product-domains`, but bundled
+    `void-product-domains`, but bundled
     asset includes, marker IO, customized update runtime, and recompile
     orchestration remain core-owned.
   - 高风险：`ToolUseContext`、product tool registry / runtime manifest assembly / `GetToolSpec` 执行 owner 化、
     MCP concrete tool integration、remote-connect、remote SSH runtime、miniapp / function-agent runtime、
-    agent registry、`bitfun-core default = []`
+    agent registry、`void-core default = []`
     或任何产品 crate feature set 调整。
 - 高风险项不能作为 P2/P3 普通收尾任务顺带执行，必须先有等价性测试、port/provider 设计、
   旧路径兼容策略和用户确认。
 - 后续 runtime 迁移以 `docs/plans/core-decomposition-plan.md` 的里程碑表为准，不再按零散
   “剩余 PR 数量”临时拆分。LR1 已闭环为文档/边界/基线校准，不包含 runtime owner
   迁移；后续高风险队列只允许按 H1-H5 的单一 owner 主题推进：
-  - H1：tool runtime owner 迁移。当前只完成迁移前/迁移中边界收敛：`bitfun-agent-tools`
+  - H1：tool runtime owner 迁移。当前只完成迁移前/迁移中边界收敛：`void-agent-tools`
     承载 provider-neutral tool contract、generic registry/static/dynamic provider、
     contextual manifest resolver、provider-backed tool catalog runtime facade、
     GetToolSpec presentation/schema/static tool surface/detail/
@@ -255,14 +255,14 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
     `product_runtime.rs`；本阶段把 provider-neutral GetToolSpec static tool surface
     （name / description / schema / readonly / concurrency / permission / validation / tool-use message）、
     execution plan / result assembly 与 provider-backed execution result helper 收敛到
-    `bitfun-agent-tools`；本阶段继续把 provider-backed visible-tools / manifest / readonly
+    `void-agent-tools`；本阶段继续把 provider-backed visible-tools / manifest / readonly
     catalog 查询收敛到 `ToolCatalogRuntime`，core 只保留 product registry snapshot、agent
     policy、`dyn Tool` / `ToolUseContext` adapter；本阶段继续把 static-provider 安装 assembly 委托到
-    `ToolRuntimeAssembly`，并把 product provider group plan 迁入 `bitfun-tool-packs`；
+    `ToolRuntimeAssembly`，并把 product provider group plan 迁入 `void-tool-packs`；
     core 只在 `product_runtime.rs` 保留 concrete tool materialization、product snapshot wrapper adapter、product provider/context 注入、
     `GetToolSpecTool` Tool impl、unlock state source 和错误映射；本阶段也把 decorator reference contract、generic snapshot decorator adapter、
     GetToolSpec runtime facade、Tool-result vector adapter 与 readonly enabled filtering 的通用规则委托给
-    `bitfun-agent-tools`，不改变工具行为。
+    `void-agent-tools`，不改变工具行为。
   - H2：product-domain runtime owner 迁移。MiniApp / function-agent 的纯 DTO/helper/port
     facade 已外移；本阶段进一步把 function-agent prompt template、AI response JSON
     extraction 与 domain error mapping 策略迁入 `product-domains`。filesystem IO、
@@ -278,9 +278,9 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
     service/agent runtime 绑定入口集中到 `src/crates/core/src/service_agent_runtime.rs`，
     不改变 remote-connect、remote-SSH 或 scheduler 执行路径。
   - H4：facade and boundary finalization。当前以 boundary script / AGENTS / architecture
-    docs 一致性闭环为准，确认 `bitfun-core` 继续作为 legacy facade + full product
+    docs 一致性闭环为准，确认 `void-core` 继续作为 legacy facade + full product
     runtime assembly；未完成等价评审的 runtime owner 继续显式 core-owned。
-  - H5：optional feature/build-benefit evaluation。`bitfun-core default = []`、per-product
+  - H5：optional feature/build-benefit evaluation。`void-core default = []`、per-product
     feature matrix、依赖版本收敛和构建收益评估只能在 H1-H4 后独立进行。
 - H4 之后的剩余工作口径必须区分“当前闭环必需项”和“后续深度 runtime 迁移”：
   当前 H1-H4 主线闭环后，不再把 deferred/core-owned runtime 当作当前 PR 漏项；
@@ -315,8 +315,8 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
   不把行为变更混入当前结构收敛 PR。
 - 已合入的 `Services/Product Runtime Owner Closure` 只收口已经有 port/contract 保护的低风险 owner：
   remote-SSH session identity / mirror path / unresolved-session layout 归属
-  `bitfun-services-integrations`，MiniApp storage/import file layout、fallback payload
-  和纯 lifecycle state transition 归属 `bitfun-product-domains`。
+  `void-services-integrations`，MiniApp storage/import file layout、fallback payload
+  和纯 lifecycle state transition 归属 `void-product-domains`。
   core 继续持有 SSH manager、remote FS / terminal、MiniApp filesystem IO、worker runtime、
   `PathManager` 注入和兼容 facade；不声明 remote-connect、MiniApp IO、function-agent Git/AI
   runtime 或 tool runtime 已迁移。
@@ -340,7 +340,7 @@ owner 边界，否则不要把一个 feature group 继续拆成更小的 crate�
 
 ## 产品表面边界（Product Surface Boundary）
 
-BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行收敛成同一套命令或 UI。
+Void 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行收敛成同一套命令或 UI。
 这些产品表面可以保持不同交互语义，但应逐步共享稳定的运行时事实和能力契约。简短原则是：
 **surface divergence, capability convergence**。
 
@@ -360,16 +360,16 @@ BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行�
 ## Feature 安全规则
 
 - 在让任何默认 feature 变轻之前，先引入 `product-full`。
-- 当前 `bitfun-core/product-full` 是阶段性 capability guardrail，不是最终 feature matrix
+- 当前 `void-core/product-full` 是阶段性 capability guardrail，不是最终 feature matrix
   或 capability source of truth。评估默认 feature 缩减前，必须先生成当前 feature graph baseline。
 - 评估默认 feature 缩减之前，产品 crate 必须显式启用完整产品 runtime。
 - `product-full` 是产品能力保护开关（product capability guardrail），不是新的万能聚合点
   （dumping ground）。每个新的 owner crate 都应暴露具体 feature group；只有为了保持既有
   产品形态时，`product-full` 才可以包含它们。
-- 最终要么让 `bitfun-core/product-full` 显式聚合已经验证过的 owner crate capability feature，
+- 最终要么让 `void-core/product-full` 显式聚合已经验证过的 owner crate capability feature，
   要么持续声明它不是完整能力矩阵；不得用它证明未迁移 runtime 已经完成 owner 化。
 - H5 已启动的第一步只允许补齐现有 optional feature 的编译边界。当前先让
-  `cargo check -p bitfun-core --no-default-features` 通过，并在 `ssh-remote` 关闭时保留
+  `cargo check -p void-core --no-default-features` 通过，并在 `ssh-remote` 关闭时保留
   remote workspace identity/helper、让实际 SSH/SFTP/terminal/search runtime 返回明确
   unsupported；这不是 remote-SSH runtime owner 迁移，也不改变 `product-full` 或产品发布形态。
 - H5 后续推进只允许把 owner crate feature 传播显式化，保持
@@ -392,11 +392,11 @@ BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行�
   后续新增 optional dependency 时，必须同步更新 owner feature 规则，避免出现隐式或孤儿
   feature 引用。
 - Boundary check 也必须保护产品入口的完整能力装配：Desktop、CLI、ACP 对
-  `bitfun-core` 的依赖必须保持 `default-features = false` 且显式启用 `product-full`，
+  `void-core` 的依赖必须保持 `default-features = false` 且显式启用 `product-full`，
   避免产品完整 runtime 退回到隐式默认 feature；脚本会扫描产品入口范围内新增的
-  `bitfun-core` 依赖，防止遗漏显式装配规则。
+  `void-core` 依赖，防止遗漏显式装配规则。
 - 在单独完成产品矩阵评审前，Boundary check 必须继续锁定
-  `bitfun-core default = ["product-full"]`，不得把默认 feature 变轻作为依赖裁剪的副作用。
+  `void-core default = ["product-full"]`，不得把默认 feature 变轻作为依赖裁剪的副作用。
 - Boundary check 还必须锁定 owner crate 的 feature graph：`tool-packs`、
   `services-integrations`、`product-domains` 的 `default` 保持空，`product-full`
   只显式聚合当前 owner crate 已声明的 feature group。
@@ -408,9 +408,9 @@ BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行�
   feature set 替代它，必须作为 P3 之后的独立评估，并且先通过完整产品矩阵。
 - 不要把 feature 默认值变更和模块移动放在同一个变更中。
 - 不要把改变产品构建产物能力集合作为减少本地测试编译面的副作用。
-- 在任何 feature optionalization 之前，先提交只读保护网：记录 `bitfun-core`、desktop、CLI、
+- 在任何 feature optionalization 之前，先提交只读保护网：记录 `void-core`、desktop、CLI、
   ACP 和相关 owner crate 的 feature graph，明确哪些目标允许出现 `rmcp`、`git2`、`image`、
-  `tokio-tungstenite`、`bitfun-relay-server`、Tauri / CLI presentation 依赖。
+  `tokio-tungstenite`、`void-relay-server`、Tauri / CLI presentation 依赖。
 - owner crate 的 `product-full` 只聚合已经迁入且可独立验证的能力；不能为了让产品构建通过，
   让空 scaffold 或未迁移 runtime 假装已经拥有对应能力。
 
@@ -421,7 +421,7 @@ BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行�
 对于保持行为不变的重构：
 
 - 如果被移动的行为尚未被测试覆盖，先补测试，再移动逻辑。
-- 当模块已经移出 `bitfun-core` 后，优先使用小 crate 测试。
+- 当模块已经移出 `void-core` 后，优先使用小 crate 测试。
 - 如果变更影响 feature assembly、产品 crate manifest、desktop integration、CLI、
   server 或 transport path，则必须保留完整产品检查。
 - 对功能逻辑偏移风险较高的迁移，必须先补“迁移前快照”测试或脚本输出，例如 tool registry
@@ -434,12 +434,12 @@ BitFun 的重构目标不是把 Desktop、CLI、Remote、Server 和 ACP 强行�
 - boundary check 只能证明依赖方向，不能替代产品等价性验证。任何会移动 runtime owner 的 PR
   都必须同时说明旧路径兼容方式、产品能力不变证据和失败时的回滚边界。
 - 编译收益必须和边界收敛分开陈述。若 PR 声明 build/check 收益，需记录
-  `cargo check -p bitfun-core`、workspace check 和目标 crate check 的前后数据。
+  `cargo check -p void-core`、workspace check 和目标 crate check 的前后数据。
 
 对于仅调整文档护栏的变更：
 
 ```powershell
-git diff -- package.json scripts/dev.cjs scripts/desktop-tauri-build.mjs scripts/ensure-openssl-windows.mjs scripts/ci/setup-openssl-windows.ps1 BitFun-Installer
+git diff -- package.json scripts/dev.cjs scripts/desktop-tauri-build.mjs scripts/ensure-openssl-windows.mjs scripts/ci/setup-openssl-windows.ps1 Void-Installer
 ```
 
 期望结果：无 diff。

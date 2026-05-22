@@ -70,7 +70,7 @@
     }
   },
   "fileDialog": {
-    "pluginPackage": "BitFun Plugin Package"
+    "pluginPackage": "Void Plugin Package"
   },
   "editor": {
     "goToDefinition": "Go to Definition",

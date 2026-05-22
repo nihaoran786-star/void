@@ -9,12 +9,12 @@ pub mod js_worker_pool;
 pub mod manager;
 pub mod runtime_detect;
 pub mod storage;
-pub use bitfun_product_domains::miniapp::customization::{
+pub use void_product_domains::miniapp::customization::{
     MiniAppAvailableBuiltinUpdate, MiniAppCustomizationMetadata, MiniAppCustomizationOrigin,
     MiniAppCustomizationOriginKind, MiniAppDeclinedBuiltinUpdate, MiniAppPermissionDiff,
 };
-pub use bitfun_product_domains::miniapp::draft::{MiniAppDraft, MiniAppDraftManifest};
-pub use bitfun_product_domains::miniapp::{bridge_builder, permission_policy, types};
+pub use void_product_domains::miniapp::draft::{MiniAppDraft, MiniAppDraftManifest};
+pub use void_product_domains::miniapp::{bridge_builder, permission_policy, types};
 
 pub use builtin::{BUILTIN_APPS, BuiltinApp, seed_builtin_miniapps};
 pub use exporter::{ExportCheckResult, ExportOptions, ExportResult, ExportTarget, MiniAppExporter};

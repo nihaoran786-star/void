@@ -1,5 +1,5 @@
 //! Agentic Events Definition
-pub use bitfun_core_types::errors::{AiErrorDetail, ErrorCategory};
+pub use void_core_types::errors::{AiErrorDetail, ErrorCategory};
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 

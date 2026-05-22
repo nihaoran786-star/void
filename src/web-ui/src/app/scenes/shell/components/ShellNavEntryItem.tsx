@@ -42,7 +42,7 @@ const ShellNavEntryItem: React.FC<ShellNavEntryItemProps> = ({
       role="button"
       tabIndex={0}
       className={[
-        'bitfun-shell-nav__terminal-item',
+        'void-shell-nav__terminal-item',
         isActive && 'is-active',
       ].filter(Boolean).join(' ')}
       onClick={() => { void onOpen(entry); }}
@@ -61,31 +61,31 @@ const ShellNavEntryItem: React.FC<ShellNavEntryItemProps> = ({
       }}
     >
       <Tooltip content={entry.name} placement="right">
-        <span className="bitfun-shell-nav__terminal-item-main">
+        <span className="void-shell-nav__terminal-item-main">
           {showSavedBadge ? (
-            <Bookmark size={14} className="bitfun-shell-nav__terminal-icon bitfun-shell-nav__terminal-icon--saved" />
+            <Bookmark size={14} className="void-shell-nav__terminal-icon void-shell-nav__terminal-icon--saved" />
           ) : (
-            <SquareTerminal size={14} className="bitfun-shell-nav__terminal-icon" />
+            <SquareTerminal size={14} className="void-shell-nav__terminal-icon" />
           )}
 
-          <span className="bitfun-shell-nav__terminal-label">{entry.name}</span>
+          <span className="void-shell-nav__terminal-label">{entry.name}</span>
 
           {showSavedBadge ? (
-            <span className="bitfun-shell-nav__saved-indicator">{savedBadgeLabel}</span>
+            <span className="void-shell-nav__saved-indicator">{savedBadgeLabel}</span>
           ) : null}
 
           {entry.startupCommand ? (
-            <span className="bitfun-shell-nav__cmd-indicator">{startupCommandBadgeLabel}</span>
+            <span className="void-shell-nav__cmd-indicator">{startupCommandBadgeLabel}</span>
           ) : null}
 
-          <span className={`bitfun-shell-nav__terminal-dot${entry.isRunning ? ' is-running' : ' is-stopped'}`} />
+          <span className={`void-shell-nav__terminal-dot${entry.isRunning ? ' is-running' : ' is-stopped'}`} />
         </span>
       </Tooltip>
 
       <Tooltip content={quickAction.title} placement="right">
         <button
           type="button"
-          className="bitfun-shell-nav__terminal-close"
+          className="void-shell-nav__terminal-close"
           onClick={(event) => {
             event.stopPropagation();
             quickAction.onClick();

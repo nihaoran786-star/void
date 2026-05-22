@@ -1,14 +1,14 @@
 //! MiniApp API — Tauri commands for MiniApp CRUD, JS Worker, and dialog.
 
 use crate::api::app_state::AppState;
-use bitfun_core::infrastructure::events::{emit_global_event, BackendEvent};
-use bitfun_core::miniapp::{
+use void_core::infrastructure::events::{emit_global_event, BackendEvent};
+use void_core::miniapp::{
     dispatch_host, is_host_primitive, InstallResult as CoreInstallResult, MiniApp,
     MiniAppAiContext, MiniAppCustomizationMetadata, MiniAppDraft, MiniAppMeta,
     MiniAppPermissionDiff, MiniAppPermissions, MiniAppSource,
 };
-use bitfun_core::service::config::types::GlobalConfig;
-use bitfun_core::util::types::Message;
+use void_core::service::config::types::GlobalConfig;
+use void_core::util::types::Message;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -75,7 +75,7 @@ impl From<MiniAppSourceDto> for MiniAppSource {
             esm_dependencies: d
                 .esm_dependencies
                 .into_iter()
-                .map(|x| bitfun_core::miniapp::EsmDep {
+                .map(|x| void_core::miniapp::EsmDep {
                     name: x.name,
                     version: x.version,
                     url: x.url,
@@ -85,7 +85,7 @@ impl From<MiniAppSourceDto> for MiniAppSource {
             npm_dependencies: d
                 .npm_dependencies
                 .into_iter()
-                .map(|x| bitfun_core::miniapp::NpmDep {
+                .map(|x| void_core::miniapp::NpmDep {
                     name: x.name,
                     version: x.version,
                 })
@@ -552,8 +552,8 @@ pub async fn miniapp_runtime_status(state: State<'_, AppState>) -> Result<Runtim
     Ok(RuntimeStatus {
         available: true,
         kind: Some(match info.kind {
-            bitfun_core::miniapp::RuntimeKind::Bun => "bun".to_string(),
-            bitfun_core::miniapp::RuntimeKind::Node => "node".to_string(),
+            void_core::miniapp::RuntimeKind::Bun => "bun".to_string(),
+            void_core::miniapp::RuntimeKind::Node => "node".to_string(),
         }),
         version: Some(info.version.clone()),
         path: Some(info.path.to_string_lossy().to_string()),
@@ -622,7 +622,7 @@ pub async fn miniapp_worker_call(
 /// Host-side framework primitive RPC.
 ///
 /// Routes `fs.*` / `shell.*` / `os.*` / `net.*` calls directly to the Rust
-/// implementation in `bitfun_core::miniapp::host_dispatch`, no Bun/Node Worker
+/// implementation in `void_core::miniapp::host_dispatch`, no Bun/Node Worker
 /// required. Used for MiniApps with `permissions.node.enabled = false` (and as
 /// the future migration target for everyone, since these calls don't actually
 /// need a JS sandbox).
@@ -1157,7 +1157,7 @@ fn check_rate_limit(app_id: &str, rate_limit_per_minute: u32) -> Result<(), Stri
 /// Returns the resolved model id (may be "primary" / "fast") to pass to AIClientFactory.
 fn validate_model(
     model: Option<&str>,
-    ai_perms: &bitfun_core::miniapp::AiPermissions,
+    ai_perms: &void_core::miniapp::AiPermissions,
 ) -> Result<String, String> {
     let requested = model.unwrap_or("primary");
     if let Some(ref allowed) = ai_perms.allowed_models {

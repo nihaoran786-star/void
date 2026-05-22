@@ -1,8 +1,8 @@
 #![cfg(feature = "remote-connect")]
 
-use bitfun_events::{AgenticEvent, ToolEventData};
-use bitfun_runtime_ports::AgentSubmissionSource;
-use bitfun_services_integrations::remote_connect::{
+use void_events::{AgenticEvent, ToolEventData};
+use void_runtime_ports::AgentSubmissionSource;
+use void_services_integrations::remote_connect::{
     build_remote_image_attachment, build_remote_image_contexts,
     build_remote_image_submission_request, build_remote_session_create_request,
     build_remote_submission_request, make_slim_tool_params, read_remote_workspace_file,
@@ -518,7 +518,7 @@ fn remote_connect_file_transfer_policy_preserves_name_fallback() {
 
 fn make_temp_remote_workspace() -> (PathBuf, PathBuf, PathBuf) {
     let base = std::env::temp_dir().join(format!(
-        "bitfun-remote-connect-contract-{}",
+        "void-remote-connect-contract-{}",
         uuid::Uuid::new_v4()
     ));
     let workspace = base.join("workspace");

@@ -1,12 +1,12 @@
 //! Managed runtime service
 //!
 //! Provides:
-//! - command capability snapshot (system vs BitFun-managed runtime)
+//! - command capability snapshot (system vs Void-managed runtime)
 //! - command resolution used by higher-level services (e.g. MCP local servers)
 
 use crate::infrastructure::get_path_manager_arc;
 use crate::service::system;
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -51,7 +51,7 @@ struct ManagedCommandSpec {
 }
 
 impl RuntimeManager {
-    pub fn new() -> BitFunResult<Self> {
+    pub fn new() -> VoidResult<Self> {
         let pm = get_path_manager_arc();
         Ok(Self {
             runtime_root: pm.managed_runtimes_dir(),
@@ -74,7 +74,7 @@ impl RuntimeManager {
     /// Resolve a command from:
     /// 1) explicit path command
     /// 2) system PATH
-    /// 3) BitFun managed runtimes
+    /// 3) Void managed runtimes
     pub fn resolve_command(&self, command: &str) -> Option<ResolvedCommand> {
         if is_path_like_command(command) {
             return self.resolve_explicit_path_command(command);
@@ -358,7 +358,7 @@ mod tests {
     fn temp_runtime_root() -> PathBuf {
         let mut p = std::env::temp_dir();
         let id = format!(
-            "bitfun-runtime-test-{}-{}",
+            "void-runtime-test-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)

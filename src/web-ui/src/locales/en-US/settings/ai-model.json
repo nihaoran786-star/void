@@ -64,9 +64,9 @@
     "formatHint": "Automatically selected based on provider, usually no need to change"
   },
   "providers": {
-    "openbitfun": {
-      "name": "OpenBitFun",
-      "description": "OpenBitFun Model Platform"
+    "openvoid": {
+      "name": "OpenVoid",
+      "description": "OpenVoid Model Platform"
     },
     "gemini": {
       "name": "Google Gemini",

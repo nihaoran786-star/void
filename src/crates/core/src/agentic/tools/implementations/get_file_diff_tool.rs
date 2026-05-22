@@ -1,12 +1,12 @@
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::agentic::tools::workspace_paths::is_bitfun_runtime_uri;
+use crate::agentic::tools::workspace_paths::is_void_runtime_uri;
 use crate::service::git::git_service::GitService;
 use crate::service::git::git_types::GitDiffParams;
 use crate::service::git::git_utils::get_repository_root;
 use crate::service::snapshot::manager::get_snapshot_manager_for_workspace;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use log::{debug, warn};
 use serde_json::{json, Value};
@@ -62,7 +62,7 @@ impl GetFileDiffTool {
         &self,
         file_path: &Path,
         workspace_root: Option<&Path>,
-    ) -> Option<BitFunResult<Value>> {
+    ) -> Option<VoidResult<Value>> {
         let snapshot_manager = workspace_root.and_then(get_snapshot_manager_for_workspace)?;
 
         // Get snapshot service
@@ -113,7 +113,7 @@ impl GetFileDiffTool {
     }
 
     /// Try to get diff from git
-    async fn try_git_diff(&self, file_path: &Path) -> Option<BitFunResult<Value>> {
+    async fn try_git_diff(&self, file_path: &Path) -> Option<VoidResult<Value>> {
         // Get directory containing the file
         let file_dir = file_path.parent()?;
 
@@ -256,9 +256,9 @@ impl GetFileDiffTool {
     }
 
     /// Return full file content
-    fn return_full_content(&self, file_path: &Path) -> BitFunResult<Value> {
+    fn return_full_content(&self, file_path: &Path) -> VoidResult<Value> {
         let content = fs::read_to_string(file_path)
-            .map_err(|e| BitFunError::tool(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Failed to read file: {}", e)))?;
 
         let total_lines = content.lines().count();
 
@@ -285,7 +285,7 @@ impl Tool for GetFileDiffTool {
         "GetFileDiff"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(
             r#"Gets the diff for a file, showing changes from its baseline or Git HEAD.
 
@@ -295,7 +295,7 @@ This tool compares the current file content against:
 3. Full file content (if neither baseline nor git is available)
 
 Usage:
-- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool.
+- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool.
 - The diff is returned in unified diff format, showing additions (+) and deletions (-).
 - The response includes diff_type indicating the source: "baseline", "git", or "full".
 - The response includes stats for additions and deletions.
@@ -319,7 +319,7 @@ Usage:
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The file to get diff for. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "The file to get diff for. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 }
             },
             "required": ["file_path"],
@@ -365,11 +365,11 @@ Usage:
                     };
                 }
                 None => {
-                    if is_bitfun_runtime_uri(file_path) {
+                    if is_void_runtime_uri(file_path) {
                         return ValidationResult {
                             result: false,
                             message: Some(
-                                "Tool context is required to resolve bitfun runtime URIs"
+                                "Tool context is required to resolve void runtime URIs"
                                     .to_string(),
                             ),
                             error_code: Some(400),
@@ -475,11 +475,11 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let file_path = input
             .get("file_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("file_path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("file_path is required".to_string()))?;
 
         let resolved = context.resolve_tool_path(file_path)?;
 
@@ -490,12 +490,12 @@ Usage:
 
         if resolved.uses_remote_workspace_backend() {
             let ws_fs = context.ws_fs().ok_or_else(|| {
-                BitFunError::tool("Workspace file system not available for remote diff".to_string())
+                VoidError::tool("Workspace file system not available for remote diff".to_string())
             })?;
             let content = ws_fs
                 .read_file_text(&resolved.resolved_path)
                 .await
-                .map_err(|e| BitFunError::tool(format!("Failed to read file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to read file: {}", e)))?;
             let total_lines = content.lines().count();
             let data = json!({
                 "file_path": resolved.logical_path,
@@ -523,7 +523,7 @@ Usage:
         let path = Path::new(&resolved.resolved_path);
         if resolved.is_runtime_artifact() {
             let content = fs::read_to_string(path)
-                .map_err(|e| BitFunError::tool(format!("Failed to read file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to read file: {}", e)))?;
             let total_lines = content.lines().count();
             let data = json!({
                 "file_path": resolved.logical_path,

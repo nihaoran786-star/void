@@ -16,7 +16,7 @@
     "releaseToAdd": "釋放以添加到此欄"
   },
   "layout": {
-    "noPanels": "BitFun",
+    "noPanels": "Void",
     "noPanelsHint": "使用底部欄切換面板或按 <kbd>Ctrl+\\</kbd> <kbd>Ctrl+]</kbd> 展開面板",
     "chatHiddenTitle": "聊天已隱藏",
     "chatHiddenDesc": "你可以在右上角點擊“聊天”重新打開。",
@@ -245,7 +245,7 @@
       "legacyModel": "這個工作階段建立時尚未記錄逐回合模型名稱，因此報告無法確認精確模型。",
       "inferredModel": "舊工作階段缺少逐回合模型名稱，已根據工作階段的模型設定推測。",
       "filesUnavailable": "目前工作階段沒有找到本機快照或可識別的檔案編輯工具記錄。",
-      "filesNoRecordedChanges": "BitFun 沒有偵測到目前工作階段中的檔案變更。如果本次工作階段沒有編輯檔案，這是正常狀態。",
+      "filesNoRecordedChanges": "Void 沒有偵測到目前工作階段中的檔案變更。如果本次工作階段沒有編輯檔案，這是正常狀態。",
       "filesRemoteUnavailable": "沒有找到這個遠端工作階段的快照彙總；如果工具記錄能識別到寫入、編輯或刪除檔案，仍會顯示檔案列。",
       "filesNotTracked": "目前工作階段沒有找到本機快照或可識別的檔案編輯工具記錄。",
       "fileTurnIndexes": "當檔案活動來自彙總而不是逐回合操作記錄時，不會記錄回合。",
@@ -676,7 +676,7 @@
     },
     "decisionGate": {
       "title": "修復前確認待決策項",
-      "description": "請先選擇每個待決策項的處理方案，BitFun 會依你的選擇開始修改。",
+      "description": "請先選擇每個待決策項的處理方案，Void 會依你的選擇開始修改。",
       "supplementLabel": "補充要求",
       "supplementPlaceholder": "可選：補充限制、範圍邊界或實作偏好。",
       "missingSelection": "開始前需要先為每個待決策項選擇一個方案。",
@@ -739,8 +739,8 @@
     },
     "resultRecovery": {
       "title": "深度審核需要補全結果",
-      "missingSubmitCodeReview": "審核已結束，但 BitFun 沒有收到可確認的結構化結果。繼續會保留已完成的審核員結果，並要求 agent 補交缺失的審核報告。",
-      "invalidSubmitCodeReview": "審核回傳了 BitFun 無法讀取的結果。繼續會保留已完成的審核員結果，並要求 agent 修復報告。",
+      "missingSubmitCodeReview": "審核已結束，但 Void 沒有收到可確認的結構化結果。繼續會保留已完成的審核員結果，並要求 agent 補交缺失的審核報告。",
+      "invalidSubmitCodeReview": "審核回傳了 Void 無法讀取的結果。繼續會保留已完成的審核員結果，並要求 agent 修復報告。",
       "wrongReviewMode": "審核回傳了標準程式碼審核結果。繼續會保留已完成的審核員結果，並要求 agent 提交深度審核報告。"
     },
     "capacityQueue": {
@@ -751,7 +751,7 @@
       "detail": "排隊等待時間不會計入審核員執行時長。",
       "activeReviewerDetail": "排隊審核員會在執行中的審核員釋放容量後繼續啟動。排隊等待時間不會計入審核員執行時長。",
       "longLaunchBatchWaitDetail": "該審核員等待時間已超過設定的佇列窗口，因為前一批審核員仍在執行。你可以繼續等待、暫停佇列、取消排隊審核員，或開啟審核設定。",
-      "providerDetail": "BitFun 正在等待暫時模型容量恢復。這裡的等待不會計入審核員執行時長。",
+      "providerDetail": "Void 正在等待暫時模型容量恢復。這裡的等待不會計入審核員執行時長。",
       "reason": "原因：{{reason}}",
       "elapsed": "已等待 {{elapsed}}",
       "elapsedWithMax": "已等待 {{elapsed}} / {{max}}",
@@ -765,12 +765,12 @@
         "temporaryOverload": "模型服務暫時過載"
       },
       "reasonDetails": {
-        "providerRateLimit": "模型服務正在限速。BitFun 會排隊等待，並在容量恢復後繼續。",
-        "providerConcurrencyLimit": "模型服務拒絕了新的並發審核員。BitFun 會在容量恢復後重試。",
+        "providerRateLimit": "模型服務正在限速。Void 會排隊等待，並在容量恢復後繼續。",
+        "providerConcurrencyLimit": "模型服務拒絕了新的並發審核員。Void 會在容量恢復後重試。",
         "retryAfter": "模型服務要求稍後重試。這裡的等待不會消耗審核員執行時間。",
         "localConcurrencyCap": "目前 Review Team 審核員並行上限已滿。已有審核員完成後，該審核員會繼續啟動。",
         "launchBatchBlocked": "前一啟動批次仍在執行。等待可以保持計畫中的審核順序，避免後續批次提前執行。",
-        "temporaryOverload": "模型服務回報暫時過載。BitFun 會排隊等待，然後繼續或將該審核員標記為容量略過。"
+        "temporaryOverload": "模型服務回報暫時過載。Void 會排隊等待，然後繼續或將該審核員標記為容量略過。"
       },
       "sessionBusy": "目前會話較忙，可暫停 Deep Review 或稍後繼續。",
       "stopHint": "可使用停止按鈕中斷目前審核佇列。",
@@ -1006,7 +1006,7 @@
     "dialogNotFound": "未找到對話數據",
     "containerNotFound": "導出容器未找到",
     "generateFailed": "生成圖片失敗",
-    "fileNamePrefix": "BitFun對話",
+    "fileNamePrefix": "Void對話",
     "exportSuccess": "圖片已導出：{{filePath}}",
     "exportSuccessPrefix": "圖片已導出：",
     "exportFailed": "導出圖片失敗，請重試",
@@ -1096,7 +1096,7 @@
       "openSourceFailed": "打開生成式 UI 源碼編輯器失敗"
     },
     "generativeWidget": {
-      "exportFileNamePrefix": "BitFun組件"
+      "exportFileNamePrefix": "Void組件"
     },
     "git": {
       "title": "Git",
@@ -1734,7 +1734,7 @@
         "saveSuccess": "審核報告已匯出。",
         "saveFailed": "匯出審核報告失敗。",
         "saveDialogTitle": "匯出審核報告",
-        "fileNamePrefix": "BitFun-程式碼審核",
+        "fileNamePrefix": "Void-程式碼審核",
         "editorTitle": "審核報告"
       },
       "reviewModes": {

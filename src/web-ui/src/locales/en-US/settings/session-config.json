@@ -15,7 +15,7 @@
     },
     "agentCompanion": {
       "title": "Agent companion",
-      "subtitle": "Control where the BitFun companion appears.",
+      "subtitle": "Control where the Void companion appears.",
       "enable": "Show Agent companion",
       "displayModeLabel": "Display location",
       "displayModeDescription": "Show the companion inside the input, or as a floating desktop pet outside the app.",
@@ -42,7 +42,7 @@
     },
     "workspaceSearch": {
       "title": "Accelerated workspace search",
-      "subtitle": "Use flashgrep-backed indexed search for local workspaces. When off, BitFun falls back to legacy search.",
+      "subtitle": "Use flashgrep-backed indexed search for local workspaces. When off, Void falls back to legacy search.",
       "enable": "Enable accelerated workspace search"
     }
   },
@@ -52,7 +52,7 @@
   },
   "computerUse": {
     "sectionTitle": "Computer use (desktop)",
-    "sectionDescription": "In the BitFun desktop app, the assistant can capture the screen and control the mouse and keyboard; requires a multimodal model for vision.",
+    "sectionDescription": "In the Void desktop app, the assistant can capture the screen and control the mouse and keyboard; requires a multimodal model for vision.",
     "enable": "Enable Computer use",
     "enableDesc": "When off, the ComputerUse tool stays disabled in every session mode.",
     "accessibility": "Accessibility",
@@ -63,15 +63,15 @@
     "notGranted": "Not granted",
     "openSettings": "Setting",
     "refreshStatus": "Refresh status",
-    "desktopOnly": "Computer use settings are only available in the BitFun desktop app.",
+    "desktopOnly": "Computer use settings are only available in the Void desktop app.",
     "platformNote": "Note"
   },
   "browserControl": {
     "sectionTitle": "Browser control",
     "sectionDescription": "Choose a browser and start CDP control.",
-    "desktopOnly": "Browser control is only available in the BitFun desktop app.",
+    "desktopOnly": "Browser control is only available in the Void desktop app.",
     "preferredBrowser": "Browser",
-    "preferredBrowserDesc": "Choose which browser BitFun controls through CDP. Default follows the system default browser.",
+    "preferredBrowserDesc": "Choose which browser Void controls through CDP. Default follows the system default browser.",
     "notInstalled": "not installed",
     "status": "Connection",
     "statusDesc": "",
@@ -84,7 +84,7 @@
     "restartFailed": "Failed to restart browser with debug mode enabled",
     "restartModal": {
       "title": "Enable browser debug mode",
-      "description": "{{browser}} is already running and the current instance was not started with the debug port enabled. BitFun needs to restart the browser in debug mode before it can control it.",
+      "description": "{{browser}} is already running and the current instance was not started with the debug port enabled. Void needs to restart the browser in debug mode before it can control it.",
       "warning": "This will close the current browser windows.",
       "cancel": "Cancel",
       "confirm": "Restart and enable debug",

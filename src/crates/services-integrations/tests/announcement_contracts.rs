@@ -1,6 +1,6 @@
 #![cfg(feature = "announcement")]
 
-use bitfun_services_integrations::announcement::{
+use void_services_integrations::announcement::{
     AnnouncementCard, AnnouncementState, AnnouncementStateStore, CardSource, CardType,
     CompletionAction, ModalConfig, ModalPage, ModalSize, PageLayout, ToastConfig, TriggerCondition,
     TriggerRule,
@@ -106,7 +106,7 @@ fn announcement_state_and_trigger_defaults_preserve_runtime_assumptions() {
 #[tokio::test]
 async fn announcement_state_store_round_trips_state_and_defaults_missing_file() {
     let root = std::env::temp_dir().join(format!(
-        "bitfun-announcement-state-{}-{}",
+        "void-announcement-state-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

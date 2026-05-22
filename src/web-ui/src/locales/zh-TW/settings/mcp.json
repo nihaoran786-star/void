@@ -127,7 +127,7 @@
   },
   "modal": {
     "remoteAuthTitle": "遠程認證：{{serverName}}",
-    "remoteOAuthHint": "使用 OAuth 連接這個遠程 MCP 服務器。BitFun 會監聽一個本地回調地址，並在授權完成後重新連接該服務器。",
+    "remoteOAuthHint": "使用 OAuth 連接這個遠程 MCP 服務器。Void 會監聽一個本地回調地址，並在授權完成後重新連接該服務器。",
     "remoteOAuthCurrentStatus": "OAuth 狀態：{{status}}",
     "remoteOAuthRedirectUri": "回調地址：{{redirectUri}}",
     "remoteOAuthStatus": "OAuth 詳情：{{status}} - {{message}}",

@@ -8,7 +8,7 @@ pub mod messages_helper;
 pub mod prompt_markup;
 pub mod session;
 pub mod state;
-pub use bitfun_core_types::SessionKind;
+pub use void_core_types::SessionKind;
 pub use dialog_turn::{new_turn_id, TurnStats};
 pub use message::{
     CompressedMessage, CompressedMessageRole, CompressedTodoItem, CompressedTodoSnapshot,

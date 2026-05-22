@@ -11,16 +11,16 @@ use crate::agentic::tools::implementations::*;
 use crate::agentic::tools::registry::{
     get_global_tool_registry, ProductToolDecoratorRef, ToolRef, ToolRegistry,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 #[cfg(test)]
-use bitfun_agent_tools::StaticToolProvider;
-use bitfun_agent_tools::{
+use void_agent_tools::StaticToolProvider;
+use void_agent_tools::{
     ContextualToolManifest, ContextualVisibleTools, GetToolSpecCatalogProvider,
     GetToolSpecExecutionError, GetToolSpecRuntime, SnapshotToolDecorator, SnapshotToolWrapper,
     StaticToolProviderGroup, ToolCatalogRuntime, ToolCatalogSnapshotProvider, ToolRuntimeAssembly,
     GET_TOOL_SPEC_TOOL_NAME,
 };
-use bitfun_tool_packs::product_tool_provider_group_plan;
+use void_tool_packs::product_tool_provider_group_plan;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -185,9 +185,9 @@ impl ProductToolCatalogProvider {
     async fn contextual_collapsed_tools(
         &self,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<Arc<dyn Tool>>> {
+    ) -> VoidResult<Vec<Arc<dyn Tool>>> {
         let agent_type = context.agent_type.as_deref().ok_or_else(|| {
-            BitFunError::Validation("GetToolSpec requires agent type context".to_string())
+            VoidError::Validation("GetToolSpec requires agent type context".to_string())
         })?;
         let workspace_root = context.workspace_root();
         let agent_registry = get_agent_registry();
@@ -272,7 +272,7 @@ mod tests {
     use crate::agentic::tools::framework::ToolUseContext;
     use crate::agentic::tools::registry::create_tool_registry;
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use bitfun_agent_tools::{GetToolSpecCatalogProvider, ToolCatalogSnapshotProvider, ToolResult};
+    use void_agent_tools::{GetToolSpecCatalogProvider, ToolCatalogSnapshotProvider, ToolResult};
     use serde_json::json;
     use std::collections::HashMap;
 

@@ -287,9 +287,9 @@ impl FeishuBot {
 
     fn enter_pairing_code_message(language: BotLanguage) -> &'static str {
         if language.is_chinese() {
-            "请输入 BitFun Desktop 中显示的 6 位配对码。"
+            "请输入 Void Desktop 中显示的 6 位配对码。"
         } else {
-            "Please enter the 6-digit pairing code from BitFun Desktop."
+            "Please enter the 6-digit pairing code from Void Desktop."
         }
     }
 
@@ -413,7 +413,7 @@ impl FeishuBot {
                         "text_align": "left",
                         "text_size": "normal",
                         "margin": "0px 0px 0px 0px",
-                        "element_id": "bitfun_remote_reply_markdown",
+                        "element_id": "void_remote_reply_markdown",
                     }
                 ],
             },
@@ -736,7 +736,7 @@ impl FeishuBot {
             "header": {
                 "title": {
                     "tag": "plain_text",
-                    "content": "BitFun Remote Connect",
+                    "content": "Void Remote Connect",
                 }
             },
             "elements": elements,

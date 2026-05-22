@@ -39,15 +39,15 @@ pub mod workspace; // Workspace management // Diff calculation and merge service
 pub mod workspace_runtime; // Workspace runtime layout / migration / initialization
 
 // Terminal is implemented in the workspace-level `terminal-core` crate.
-// This re-export preserves the legacy `bitfun_core::service::terminal` path.
+// This re-export preserves the legacy `void_core::service::terminal` path.
 pub use terminal_core as terminal;
 
 // Re-export main components.
 #[cfg(feature = "service-integrations")]
 pub use announcement::{AnnouncementCard, AnnouncementScheduler, AnnouncementSchedulerRef};
-pub use bitfun_services_core::{diagnostics, diff, system};
+pub use void_services_core::{diagnostics, diff, system};
 #[cfg(feature = "service-integrations")]
-pub use bitfun_services_integrations::file_watch;
+pub use void_services_integrations::file_watch;
 pub use bootstrap::reset_workspace_persona_files_to_default;
 pub use config::{ConfigManager, ConfigProvider, ConfigService};
 #[cfg(feature = "product-full")]

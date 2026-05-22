@@ -1,12 +1,12 @@
 //! MiniApp storage — persist and load MiniApp data under user data dir (V2: ui.js, worker.js, package.json).
 
 use crate::miniapp::types::{MiniApp, MiniAppMeta, MiniAppSource, NpmDep};
-use crate::util::errors::{BitFunError, BitFunResult};
-use bitfun_product_domains::miniapp::customization::MiniAppCustomizationMetadata;
-use bitfun_product_domains::miniapp::ports::{
+use crate::util::errors::{VoidError, VoidResult};
+use void_product_domains::miniapp::customization::MiniAppCustomizationMetadata;
+use void_product_domains::miniapp::ports::{
     MiniAppPortError, MiniAppPortErrorKind, MiniAppPortFuture, MiniAppStoragePort,
 };
-use bitfun_product_domains::miniapp::storage::{
+use void_product_domains::miniapp::storage::{
     COMPILED_HTML, DRAFT_JSON, DRAFTS_CLEANUP_MARKER, DRAFTS_CLEANUP_PREFIX, DRAFTS_DIR,
     ESM_DEPS_JSON, INDEX_HTML, META_JSON, MiniAppStorageLayout, PACKAGE_JSON, STORAGE_JSON,
     STYLE_CSS, UI_JS, WORKER_JS, build_package_json, parse_npm_dependencies,
@@ -77,11 +77,11 @@ impl MiniAppStorage {
         drafts_root.join(DRAFTS_CLEANUP_MARKER)
     }
 
-    fn draft_not_found(app_id: &str, draft_id: &str) -> BitFunError {
-        BitFunError::NotFound(format!("MiniApp draft not found: {}/{}", app_id, draft_id))
+    fn draft_not_found(app_id: &str, draft_id: &str) -> VoidError {
+        VoidError::NotFound(format!("MiniApp draft not found: {}/{}", app_id, draft_id))
     }
 
-    fn ensure_active_drafts_root_readable(&self, app_id: &str, draft_id: &str) -> BitFunResult<()> {
+    fn ensure_active_drafts_root_readable(&self, app_id: &str, draft_id: &str) -> VoidResult<()> {
         if self.cleanup_marker_path(&self.drafts_root()).exists() {
             return Err(Self::draft_not_found(app_id, draft_id));
         }
@@ -97,18 +97,18 @@ impl MiniAppStorage {
     }
 
     /// Ensure app directory and source subdir exist.
-    pub async fn ensure_app_dir(&self, app_id: &str) -> BitFunResult<()> {
+    pub async fn ensure_app_dir(&self, app_id: &str) -> VoidResult<()> {
         let dir = self.app_dir(app_id);
         let source = self.source_dir(app_id);
         tokio::fs::create_dir_all(&dir).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to create miniapp dir {}: {}",
                 dir.display(),
                 e
             ))
         })?;
         tokio::fs::create_dir_all(&source).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to create source dir {}: {}",
                 source.display(),
                 e
@@ -118,7 +118,7 @@ impl MiniAppStorage {
     }
 
     /// List all app IDs (directories under miniapps_dir).
-    pub async fn list_app_ids(&self) -> BitFunResult<Vec<String>> {
+    pub async fn list_app_ids(&self) -> VoidResult<Vec<String>> {
         let root = self.path_manager.miniapps_dir();
         if !root.exists() {
             return Ok(Vec::new());
@@ -126,11 +126,11 @@ impl MiniAppStorage {
         let mut ids = Vec::new();
         let mut read_dir = tokio::fs::read_dir(&root)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read miniapps dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read miniapps dir: {}", e)))?;
         while let Some(entry) = read_dir
             .next_entry()
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read miniapps entry: {}", e)))?
+            .map_err(|e| VoidError::io(format!("Failed to read miniapps entry: {}", e)))?
         {
             let path = entry.path();
             if path.is_dir() {
@@ -145,17 +145,17 @@ impl MiniAppStorage {
     }
 
     /// Load full MiniApp by id (meta + source + compiled_html).
-    pub async fn load(&self, app_id: &str) -> BitFunResult<MiniApp> {
+    pub async fn load(&self, app_id: &str) -> VoidResult<MiniApp> {
         let meta_path = self.meta_path(app_id);
         let meta_content = tokio::fs::read_to_string(&meta_path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BitFunError::NotFound(format!("MiniApp not found: {}", app_id))
+                VoidError::NotFound(format!("MiniApp not found: {}", app_id))
             } else {
-                BitFunError::io(format!("Failed to read meta: {}", e))
+                VoidError::io(format!("Failed to read meta: {}", e))
             }
         })?;
         let meta: MiniAppMeta = serde_json::from_str(&meta_content)
-            .map_err(|e| BitFunError::parse(format!("Invalid meta.json: {}", e)))?;
+            .map_err(|e| VoidError::parse(format!("Invalid meta.json: {}", e)))?;
 
         let source = self.load_source(app_id).await?;
         let compiled_html = self.load_compiled_html(app_id).await?;
@@ -180,20 +180,20 @@ impl MiniAppStorage {
     }
 
     /// Load only metadata (for list views).
-    pub async fn load_meta(&self, app_id: &str) -> BitFunResult<MiniAppMeta> {
+    pub async fn load_meta(&self, app_id: &str) -> VoidResult<MiniAppMeta> {
         let meta_path = self.meta_path(app_id);
         let content = tokio::fs::read_to_string(&meta_path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BitFunError::NotFound(format!("MiniApp not found: {}", app_id))
+                VoidError::NotFound(format!("MiniApp not found: {}", app_id))
             } else {
-                BitFunError::io(format!("Failed to read meta: {}", e))
+                VoidError::io(format!("Failed to read meta: {}", e))
             }
         })?;
         serde_json::from_str(&content)
-            .map_err(|e| BitFunError::parse(format!("Invalid meta.json: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid meta.json: {}", e)))
     }
 
-    async fn load_source(&self, app_id: &str) -> BitFunResult<MiniAppSource> {
+    async fn load_source(&self, app_id: &str) -> VoidResult<MiniAppSource> {
         self.load_source_from_dirs(self.source_dir(app_id), self.app_dir(app_id))
             .await
     }
@@ -202,7 +202,7 @@ impl MiniAppStorage {
         &self,
         source_dir: PathBuf,
         package_dir: PathBuf,
-    ) -> BitFunResult<MiniAppSource> {
+    ) -> VoidResult<MiniAppSource> {
         let sd = source_dir;
         let html = tokio::fs::read_to_string(sd.join(INDEX_HTML))
             .await
@@ -241,34 +241,34 @@ impl MiniAppStorage {
     }
 
     /// Load only source files and package dependencies from disk.
-    pub async fn load_source_only(&self, app_id: &str) -> BitFunResult<MiniAppSource> {
+    pub async fn load_source_only(&self, app_id: &str) -> VoidResult<MiniAppSource> {
         self.load_source(app_id).await
     }
 
-    async fn load_npm_dependencies_from_package(&self, p: PathBuf) -> BitFunResult<Vec<NpmDep>> {
+    async fn load_npm_dependencies_from_package(&self, p: PathBuf) -> VoidResult<Vec<NpmDep>> {
         if !p.exists() {
             return Ok(Vec::new());
         }
         let c = tokio::fs::read_to_string(&p)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read package.json: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read package.json: {}", e)))?;
         parse_npm_dependencies(&c)
-            .map_err(|e| BitFunError::parse(format!("Invalid package.json: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid package.json: {}", e)))
     }
 
-    async fn load_compiled_html(&self, app_id: &str) -> BitFunResult<String> {
+    async fn load_compiled_html(&self, app_id: &str) -> VoidResult<String> {
         let p = self.compiled_path(app_id);
         tokio::fs::read_to_string(&p).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BitFunError::NotFound(format!("Compiled HTML not found: {}", app_id))
+                VoidError::NotFound(format!("Compiled HTML not found: {}", app_id))
             } else {
-                BitFunError::io(format!("Failed to read compiled.html: {}", e))
+                VoidError::io(format!("Failed to read compiled.html: {}", e))
             }
         })
     }
 
     /// Save full MiniApp (meta, source files, compiled.html).
-    pub async fn save(&self, app: &MiniApp) -> BitFunResult<()> {
+    pub async fn save(&self, app: &MiniApp) -> VoidResult<()> {
         self.save_app_files(&self.app_dir(&app.id), &self.source_dir(&app.id), app)
             .await
     }
@@ -278,16 +278,16 @@ impl MiniAppStorage {
         app_dir: &std::path::Path,
         source_dir: &std::path::Path,
         app: &MiniApp,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         tokio::fs::create_dir_all(app_dir).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to create miniapp dir {}: {}",
                 app_dir.display(),
                 e
             ))
         })?;
         tokio::fs::create_dir_all(source_dir).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to create source dir {}: {}",
                 source_dir.display(),
                 e
@@ -295,31 +295,31 @@ impl MiniAppStorage {
         })?;
         let meta = MiniAppMeta::from(app);
         let meta_path = app_dir.join(META_JSON);
-        let meta_json = serde_json::to_string_pretty(&meta).map_err(BitFunError::from)?;
+        let meta_json = serde_json::to_string_pretty(&meta).map_err(VoidError::from)?;
         tokio::fs::write(&meta_path, meta_json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write meta: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write meta: {}", e)))?;
 
         let sd = source_dir;
         tokio::fs::write(sd.join(INDEX_HTML), &app.source.html)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write index.html: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write index.html: {}", e)))?;
         tokio::fs::write(sd.join(STYLE_CSS), &app.source.css)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write style.css: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write style.css: {}", e)))?;
         tokio::fs::write(sd.join(UI_JS), &app.source.ui_js)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write ui.js: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write ui.js: {}", e)))?;
         tokio::fs::write(sd.join(WORKER_JS), &app.source.worker_js)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write worker.js: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write worker.js: {}", e)))?;
 
         let esm_json = serde_json::to_string_pretty(&app.source.esm_dependencies)
-            .map_err(BitFunError::from)?;
+            .map_err(VoidError::from)?;
         tokio::fs::write(sd.join(ESM_DEPS_JSON), esm_json)
             .await
             .map_err(|e| {
-                BitFunError::io(format!("Failed to write esm_dependencies.json: {}", e))
+                VoidError::io(format!("Failed to write esm_dependencies.json: {}", e))
             })?;
 
         self.write_package_json_to_dir(app_dir, &app.id, &app.source.npm_dependencies)
@@ -329,12 +329,12 @@ impl MiniAppStorage {
         if !storage_path.exists() {
             tokio::fs::write(&storage_path, "{}")
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to write storage.json: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to write storage.json: {}", e)))?;
         }
 
         tokio::fs::write(app_dir.join(COMPILED_HTML), &app.compiled_html)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write compiled.html: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write compiled.html: {}", e)))?;
 
         Ok(())
     }
@@ -344,12 +344,12 @@ impl MiniAppStorage {
         app_dir: &std::path::Path,
         app_id: &str,
         deps: &[NpmDep],
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let pkg = build_package_json(app_id, deps);
-        let json = serde_json::to_string_pretty(&pkg).map_err(BitFunError::from)?;
+        let json = serde_json::to_string_pretty(&pkg).map_err(VoidError::from)?;
         tokio::fs::write(app_dir.join(PACKAGE_JSON), json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write package.json: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write package.json: {}", e)))?;
         Ok(())
     }
 
@@ -359,25 +359,25 @@ impl MiniAppStorage {
         draft_id: &str,
         app: &MiniApp,
         manifest: &serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.ensure_active_drafts_root_writable().await?;
         let draft_dir = self.draft_dir(app_id, draft_id);
         let source_dir = self.draft_source_dir(app_id, draft_id);
         self.save_app_files(&draft_dir, &source_dir, app).await?;
-        let manifest_json = serde_json::to_string_pretty(manifest).map_err(BitFunError::from)?;
+        let manifest_json = serde_json::to_string_pretty(manifest).map_err(VoidError::from)?;
         tokio::fs::write(draft_dir.join(DRAFT_JSON), manifest_json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write draft.json: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write draft.json: {}", e)))?;
         let storage_path = draft_dir.join(STORAGE_JSON);
         if !storage_path.exists() {
             tokio::fs::write(storage_path, "{}")
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to write draft storage: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to write draft storage: {}", e)))?;
         }
         Ok(())
     }
 
-    pub async fn load_draft_app(&self, app_id: &str, draft_id: &str) -> BitFunResult<MiniApp> {
+    pub async fn load_draft_app(&self, app_id: &str, draft_id: &str) -> VoidResult<MiniApp> {
         self.ensure_active_drafts_root_readable(app_id, draft_id)?;
         let draft_dir = self.draft_dir(app_id, draft_id);
         let meta_content = tokio::fs::read_to_string(draft_dir.join(META_JSON))
@@ -386,11 +386,11 @@ impl MiniAppStorage {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     Self::draft_not_found(app_id, draft_id)
                 } else {
-                    BitFunError::io(format!("Failed to read draft meta: {}", e))
+                    VoidError::io(format!("Failed to read draft meta: {}", e))
                 }
             })?;
         let meta: MiniAppMeta = serde_json::from_str(&meta_content)
-            .map_err(|e| BitFunError::parse(format!("Invalid draft meta.json: {}", e)))?;
+            .map_err(|e| VoidError::parse(format!("Invalid draft meta.json: {}", e)))?;
         let source = self
             .load_source_from_dirs(self.draft_source_dir(app_id, draft_id), draft_dir.clone())
             .await?;
@@ -398,12 +398,12 @@ impl MiniAppStorage {
             .await
             .map_err(|e| {
                 if e.kind() == std::io::ErrorKind::NotFound {
-                    BitFunError::NotFound(format!(
+                    VoidError::NotFound(format!(
                         "MiniApp draft compiled HTML not found: {}/{}",
                         app_id, draft_id
                     ))
                 } else {
-                    BitFunError::io(format!("Failed to read draft compiled.html: {}", e))
+                    VoidError::io(format!("Failed to read draft compiled.html: {}", e))
                 }
             })?;
         Ok(MiniApp {
@@ -429,31 +429,31 @@ impl MiniAppStorage {
         &self,
         app_id: &str,
         draft_id: &str,
-    ) -> BitFunResult<serde_json::Value> {
+    ) -> VoidResult<serde_json::Value> {
         self.ensure_active_drafts_root_readable(app_id, draft_id)?;
         let path = self.draft_dir(app_id, draft_id).join(DRAFT_JSON);
         let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
                 Self::draft_not_found(app_id, draft_id)
             } else {
-                BitFunError::io(format!("Failed to read draft.json: {}", e))
+                VoidError::io(format!("Failed to read draft.json: {}", e))
             }
         })?;
         serde_json::from_str(&content)
-            .map_err(|e| BitFunError::parse(format!("Invalid draft.json: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid draft.json: {}", e)))
     }
 
-    pub async fn delete_draft(&self, app_id: &str, draft_id: &str) -> BitFunResult<()> {
+    pub async fn delete_draft(&self, app_id: &str, draft_id: &str) -> VoidResult<()> {
         let dir = self.draft_dir(app_id, draft_id);
         if dir.exists() {
             tokio::fs::remove_dir_all(&dir)
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to delete miniapp draft: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to delete miniapp draft: {}", e)))?;
         }
         Ok(())
     }
 
-    pub async fn mark_stale_drafts_for_cleanup(&self) -> BitFunResult<Vec<PathBuf>> {
+    pub async fn mark_stale_drafts_for_cleanup(&self) -> VoidResult<Vec<PathBuf>> {
         let mut targets = self.collect_marked_drafts_roots().await?;
         if let Some(target) = self.isolate_active_drafts_root().await? {
             targets.push(target);
@@ -463,7 +463,7 @@ impl MiniAppStorage {
         Ok(targets)
     }
 
-    pub async fn cleanup_marked_drafts(&self, targets: Vec<PathBuf>) -> BitFunResult<()> {
+    pub async fn cleanup_marked_drafts(&self, targets: Vec<PathBuf>) -> VoidResult<()> {
         for target in targets {
             if !self.is_cleanup_safe_drafts_root(&target) {
                 continue;
@@ -473,7 +473,7 @@ impl MiniAppStorage {
             }
             if target.exists() {
                 tokio::fs::remove_dir_all(&target).await.map_err(|e| {
-                    BitFunError::io(format!(
+                    VoidError::io(format!(
                         "Failed to clean marked miniapp drafts {}: {}",
                         target.display(),
                         e
@@ -485,14 +485,14 @@ impl MiniAppStorage {
         Ok(())
     }
 
-    async fn ensure_active_drafts_root_writable(&self) -> BitFunResult<()> {
+    async fn ensure_active_drafts_root_writable(&self) -> VoidResult<()> {
         if self.cleanup_marker_path(&self.drafts_root()).exists() {
             let _ = self.isolate_active_drafts_root().await?;
         }
         Ok(())
     }
 
-    async fn collect_marked_drafts_roots(&self) -> BitFunResult<Vec<PathBuf>> {
+    async fn collect_marked_drafts_roots(&self) -> VoidResult<Vec<PathBuf>> {
         let root = self.path_manager.miniapps_dir();
         if !root.exists() {
             return Ok(Vec::new());
@@ -500,11 +500,11 @@ impl MiniAppStorage {
         let mut targets = Vec::new();
         let mut read_dir = tokio::fs::read_dir(&root)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read miniapps dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read miniapps dir: {}", e)))?;
         while let Some(entry) = read_dir
             .next_entry()
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read miniapps entry: {}", e)))?
+            .map_err(|e| VoidError::io(format!("Failed to read miniapps entry: {}", e)))?
         {
             let path = entry.path();
             let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
@@ -520,7 +520,7 @@ impl MiniAppStorage {
         Ok(targets)
     }
 
-    async fn isolate_active_drafts_root(&self) -> BitFunResult<Option<PathBuf>> {
+    async fn isolate_active_drafts_root(&self) -> VoidResult<Option<PathBuf>> {
         let active = self.drafts_root();
         if !active.exists() {
             return Ok(None);
@@ -528,7 +528,7 @@ impl MiniAppStorage {
         self.write_cleanup_marker(&active).await?;
         let target = self.cleanup_drafts_root();
         tokio::fs::rename(&active, &target).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to mark miniapp drafts for cleanup {} -> {}: {}",
                 active.display(),
                 target.display(),
@@ -538,9 +538,9 @@ impl MiniAppStorage {
         Ok(Some(target))
     }
 
-    async fn write_cleanup_marker(&self, drafts_root: &Path) -> BitFunResult<()> {
+    async fn write_cleanup_marker(&self, drafts_root: &Path) -> VoidResult<()> {
         tokio::fs::create_dir_all(drafts_root).await.map_err(|e| {
-            BitFunError::io(format!(
+            VoidError::io(format!(
                 "Failed to create miniapp drafts dir {}: {}",
                 drafts_root.display(),
                 e
@@ -551,7 +551,7 @@ impl MiniAppStorage {
             "pending miniapp draft cleanup\n",
         )
         .await
-        .map_err(|e| BitFunError::io(format!("Failed to mark miniapp drafts: {}", e)))?;
+        .map_err(|e| VoidError::io(format!("Failed to mark miniapp drafts: {}", e)))?;
         Ok(())
     }
 
@@ -572,28 +572,28 @@ impl MiniAppStorage {
         app_id: &str,
         version: u32,
         app: &MiniApp,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let versions_dir = self.layout(app_id).versions_dir();
         tokio::fs::create_dir_all(&versions_dir)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to create versions dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to create versions dir: {}", e)))?;
         let path = self.version_path(app_id, version);
-        let json = serde_json::to_string_pretty(app).map_err(BitFunError::from)?;
+        let json = serde_json::to_string_pretty(app).map_err(VoidError::from)?;
         tokio::fs::write(&path, json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write version file: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write version file: {}", e)))?;
         Ok(())
     }
 
     /// Load app storage (KV JSON). Returns empty object if missing.
-    pub async fn load_app_storage(&self, app_id: &str) -> BitFunResult<serde_json::Value> {
+    pub async fn load_app_storage(&self, app_id: &str) -> VoidResult<serde_json::Value> {
         let p = self.storage_path(app_id);
         if !p.exists() {
             return Ok(serde_json::json!({}));
         }
         let c = tokio::fs::read_to_string(&p)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read storage: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read storage: {}", e)))?;
         Ok(serde_json::from_str(&c).unwrap_or_else(|_| serde_json::json!({})))
     }
 
@@ -601,7 +601,7 @@ impl MiniAppStorage {
         &self,
         app_id: &str,
         draft_id: &str,
-    ) -> BitFunResult<serde_json::Value> {
+    ) -> VoidResult<serde_json::Value> {
         self.ensure_active_drafts_root_readable(app_id, draft_id)?;
         let p = self.draft_dir(app_id, draft_id).join(STORAGE_JSON);
         if !p.exists() {
@@ -609,7 +609,7 @@ impl MiniAppStorage {
         }
         let c = tokio::fs::read_to_string(&p)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read draft storage: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read draft storage: {}", e)))?;
         Ok(serde_json::from_str(&c).unwrap_or_else(|_| serde_json::json!({})))
     }
 
@@ -619,18 +619,18 @@ impl MiniAppStorage {
         app_id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.ensure_app_dir(app_id).await?;
         let mut current = self.load_app_storage(app_id).await?;
         let obj = current
             .as_object_mut()
-            .ok_or_else(|| BitFunError::validation("App storage is not an object".to_string()))?;
+            .ok_or_else(|| VoidError::validation("App storage is not an object".to_string()))?;
         obj.insert(key.to_string(), value);
         let p = self.storage_path(app_id);
-        let json = serde_json::to_string_pretty(&current).map_err(BitFunError::from)?;
+        let json = serde_json::to_string_pretty(&current).map_err(VoidError::from)?;
         tokio::fs::write(&p, json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write storage: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write storage: {}", e)))?;
         Ok(())
     }
 
@@ -640,74 +640,74 @@ impl MiniAppStorage {
         draft_id: &str,
         key: &str,
         value: serde_json::Value,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.ensure_active_drafts_root_writable().await?;
         let dir = self.draft_dir(app_id, draft_id);
         tokio::fs::create_dir_all(&dir)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to create draft dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to create draft dir: {}", e)))?;
         let mut current = self.load_draft_storage(app_id, draft_id).await?;
         let obj = current
             .as_object_mut()
-            .ok_or_else(|| BitFunError::validation("Draft storage is not an object".to_string()))?;
+            .ok_or_else(|| VoidError::validation("Draft storage is not an object".to_string()))?;
         obj.insert(key.to_string(), value);
-        let json = serde_json::to_string_pretty(&current).map_err(BitFunError::from)?;
+        let json = serde_json::to_string_pretty(&current).map_err(VoidError::from)?;
         tokio::fs::write(dir.join(STORAGE_JSON), json)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to write draft storage: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to write draft storage: {}", e)))?;
         Ok(())
     }
 
     pub async fn load_customization_metadata(
         &self,
         app_id: &str,
-    ) -> BitFunResult<Option<MiniAppCustomizationMetadata>> {
+    ) -> VoidResult<Option<MiniAppCustomizationMetadata>> {
         let path = self.customization_path(app_id);
         if !path.exists() {
             return Ok(None);
         }
         let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
-            BitFunError::io(format!("Failed to read customization metadata: {}", e))
+            VoidError::io(format!("Failed to read customization metadata: {}", e))
         })?;
         serde_json::from_str(&content)
             .map(Some)
-            .map_err(|e| BitFunError::parse(format!("Invalid customization metadata: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid customization metadata: {}", e)))
     }
 
     pub async fn save_customization_metadata(
         &self,
         app_id: &str,
         metadata: &MiniAppCustomizationMetadata,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.ensure_app_dir(app_id).await?;
-        let json = serde_json::to_string_pretty(metadata).map_err(BitFunError::from)?;
+        let json = serde_json::to_string_pretty(metadata).map_err(VoidError::from)?;
         tokio::fs::write(self.customization_path(app_id), json)
             .await
             .map_err(|e| {
-                BitFunError::io(format!("Failed to write customization metadata: {}", e))
+                VoidError::io(format!("Failed to write customization metadata: {}", e))
             })?;
         Ok(())
     }
 
     /// Delete MiniApp directory entirely.
-    pub async fn delete(&self, app_id: &str) -> BitFunResult<()> {
+    pub async fn delete(&self, app_id: &str) -> VoidResult<()> {
         let dir = self.app_dir(app_id);
         if dir.exists() {
             tokio::fs::remove_dir_all(&dir)
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to delete miniapp dir: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to delete miniapp dir: {}", e)))?;
         }
         let drafts_dir = self.app_drafts_dir(app_id);
         if drafts_dir.exists() {
             tokio::fs::remove_dir_all(&drafts_dir)
                 .await
-                .map_err(|e| BitFunError::io(format!("Failed to delete miniapp drafts: {}", e)))?;
+                .map_err(|e| VoidError::io(format!("Failed to delete miniapp drafts: {}", e)))?;
         }
         Ok(())
     }
 
     /// List version numbers that have snapshots.
-    pub async fn list_versions(&self, app_id: &str) -> BitFunResult<Vec<u32>> {
+    pub async fn list_versions(&self, app_id: &str) -> VoidResult<Vec<u32>> {
         let vdir = self.layout(app_id).versions_dir();
         if !vdir.exists() {
             return Ok(Vec::new());
@@ -715,11 +715,11 @@ impl MiniAppStorage {
         let mut versions = Vec::new();
         let mut read_dir = tokio::fs::read_dir(&vdir)
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read versions dir: {}", e)))?;
+            .map_err(|e| VoidError::io(format!("Failed to read versions dir: {}", e)))?;
         while let Some(entry) = read_dir
             .next_entry()
             .await
-            .map_err(|e| BitFunError::io(format!("Failed to read versions entry: {}", e)))?
+            .map_err(|e| VoidError::io(format!("Failed to read versions entry: {}", e)))?
         {
             let name = entry.file_name();
             let name = name.to_string_lossy();
@@ -734,17 +734,17 @@ impl MiniAppStorage {
     }
 
     /// Load a specific version snapshot.
-    pub async fn load_version(&self, app_id: &str, version: u32) -> BitFunResult<MiniApp> {
+    pub async fn load_version(&self, app_id: &str, version: u32) -> VoidResult<MiniApp> {
         let p = self.version_path(app_id, version);
         let c = tokio::fs::read_to_string(&p).await.map_err(|e| {
             if e.kind() == std::io::ErrorKind::NotFound {
-                BitFunError::NotFound(format!("Version v{} not found", version))
+                VoidError::NotFound(format!("Version v{} not found", version))
             } else {
-                BitFunError::io(format!("Failed to read version: {}", e))
+                VoidError::io(format!("Failed to read version: {}", e))
             }
         })?;
         serde_json::from_str(&c)
-            .map_err(|e| BitFunError::parse(format!("Invalid version file: {}", e)))
+            .map_err(|e| VoidError::parse(format!("Invalid version file: {}", e)))
     }
 }
 
@@ -832,16 +832,16 @@ impl MiniAppStoragePort for MiniAppStorage {
     }
 }
 
-fn map_miniapp_port_error(error: BitFunError) -> MiniAppPortError {
+fn map_miniapp_port_error(error: VoidError) -> MiniAppPortError {
     let kind = match &error {
-        BitFunError::NotFound(_) => MiniAppPortErrorKind::NotFound,
-        BitFunError::Validation(_) | BitFunError::Deserialization(_) => {
+        VoidError::NotFound(_) => MiniAppPortErrorKind::NotFound,
+        VoidError::Validation(_) | VoidError::Deserialization(_) => {
             MiniAppPortErrorKind::InvalidInput
         }
-        BitFunError::Io(io_error) if io_error.kind() == std::io::ErrorKind::PermissionDenied => {
+        VoidError::Io(io_error) if io_error.kind() == std::io::ErrorKind::PermissionDenied => {
             MiniAppPortErrorKind::PermissionDenied
         }
-        BitFunError::Io(_) => MiniAppPortErrorKind::Io,
+        VoidError::Io(_) => MiniAppPortErrorKind::Io,
         _ => MiniAppPortErrorKind::Backend,
     };
     MiniAppPortError::new(kind, error.to_string())
@@ -850,7 +850,7 @@ fn map_miniapp_port_error(error: BitFunError) -> MiniAppPortError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitfun_product_domains::miniapp::customization::{
+    use void_product_domains::miniapp::customization::{
         MiniAppCustomizationMetadata, MiniAppCustomizationOrigin, MiniAppCustomizationOriginKind,
     };
     use std::fs;
@@ -881,7 +881,7 @@ mod tests {
 
     #[tokio::test]
     async fn storage_port_adapter_preserves_existing_file_lifecycle() {
-        let root = TestTempDir::new("bitfun-miniapp-storage-port");
+        let root = TestTempDir::new("void-miniapp-storage-port");
         let path_manager = Arc::new(
             crate::infrastructure::PathManager::with_user_root_for_tests(root.path().to_path_buf()),
         );
@@ -935,7 +935,7 @@ mod tests {
     #[tokio::test]
     async fn storage_adapter_uses_product_domain_layout_contract() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-layout-port-{}",
+            "void-miniapp-layout-port-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -971,7 +971,7 @@ mod tests {
     #[tokio::test]
     async fn saving_app_files_preserves_existing_storage_json() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-storage-preserve-{}",
+            "void-miniapp-storage-preserve-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -999,7 +999,7 @@ mod tests {
     #[tokio::test]
     async fn draft_storage_is_hidden_and_isolated_from_active_storage() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-draft-storage-{}",
+            "void-miniapp-draft-storage-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -1044,7 +1044,7 @@ mod tests {
     #[tokio::test]
     async fn mark_stale_drafts_moves_sandboxes_off_the_active_read_path() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-stale-drafts-{}",
+            "void-miniapp-stale-drafts-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -1078,7 +1078,7 @@ mod tests {
     #[tokio::test]
     async fn draft_reads_skip_marked_active_root() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-marked-draft-read-{}",
+            "void-miniapp-marked-draft-read-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -1098,13 +1098,13 @@ mod tests {
             .load_draft_storage("demo_app", "stale_draft")
             .await
             .unwrap_err();
-        assert!(matches!(error, BitFunError::NotFound(_)));
+        assert!(matches!(error, VoidError::NotFound(_)));
     }
 
     #[tokio::test]
     async fn cleanup_marked_drafts_removes_quarantined_sandboxes_later() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-clean-marked-drafts-{}",
+            "void-miniapp-clean-marked-drafts-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -1130,7 +1130,7 @@ mod tests {
     #[tokio::test]
     async fn saving_new_draft_isolates_marked_active_root_first() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-marked-draft-write-{}",
+            "void-miniapp-marked-draft-write-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =
@@ -1165,7 +1165,7 @@ mod tests {
     #[tokio::test]
     async fn customization_metadata_roundtrips() {
         let root = std::env::temp_dir().join(format!(
-            "bitfun-miniapp-customization-meta-{}",
+            "void-miniapp-customization-meta-{}",
             uuid::Uuid::new_v4()
         ));
         let path_manager =

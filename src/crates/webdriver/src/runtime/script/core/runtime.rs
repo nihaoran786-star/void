@@ -2,10 +2,10 @@ pub(super) fn script() -> &'static str {
     r####"
     const ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf";
     const SHADOW_KEY = "shadow-6066-11e4-a52e-4f735466cecf";
-    const EVENT_NAME = "bitfun_webdriver_result";
-    const STORE_KEY = "__bitfunWdElements";
-    const LOG_KEY = "__bitfunWdLogs";
-    const consolePatchedKey = "__bitfunWdConsolePatched";
+    const EVENT_NAME = "void_webdriver_result";
+    const STORE_KEY = "__voidWdElements";
+    const LOG_KEY = "__voidWdLogs";
+    const consolePatchedKey = "__voidWdConsolePatched";
     let currentFrameContext = [];
 
     const ensureLogs = () => {
@@ -37,8 +37,8 @@ pub(super) fn script() -> &'static str {
     const getFrameContext = () => currentFrameContext;
 
     const ensureRuntimeState = () => {
-      if (!window.__bitfunWdRuntimeState) {
-        window.__bitfunWdRuntimeState = {
+      if (!window.__voidWdRuntimeState) {
+        window.__voidWdRuntimeState = {
           pointer: {
             x: 0,
             y: 0,
@@ -56,7 +56,7 @@ pub(super) fn script() -> &'static str {
           }
         };
       }
-      return window.__bitfunWdRuntimeState;
+      return window.__voidWdRuntimeState;
     };
 
     const patchConsole = () => {
@@ -86,8 +86,8 @@ pub(super) fn script() -> &'static str {
     };
 
     const ensureAlertState = (targetWindow = window) => {
-      if (!targetWindow.__bitfunWdAlertState) {
-        targetWindow.__bitfunWdAlertState = {
+      if (!targetWindow.__voidWdAlertState) {
+        targetWindow.__voidWdAlertState = {
           open: false,
           type: null,
           text: "",
@@ -95,11 +95,11 @@ pub(super) fn script() -> &'static str {
           promptText: null
         };
       }
-      return targetWindow.__bitfunWdAlertState;
+      return targetWindow.__voidWdAlertState;
     };
 
     const patchDialogs = (targetWindow = window) => {
-      const patchedKey = "__bitfunWdDialogsPatched";
+      const patchedKey = "__voidWdDialogsPatched";
       if (targetWindow[patchedKey]) {
         return;
       }

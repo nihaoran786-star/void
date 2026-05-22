@@ -70,7 +70,7 @@
     }
   },
   "fileDialog": {
-    "pluginPackage": "BitFun 插件包"
+    "pluginPackage": "Void 插件包"
   },
   "editor": {
     "goToDefinition": "转到定义",

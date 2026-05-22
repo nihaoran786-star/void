@@ -34,11 +34,11 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::{sleep, timeout};
 
-const REMOTE_FLASHGREP_INSTALL_DIR: &str = ".bitfun/bin";
+const REMOTE_FLASHGREP_INSTALL_DIR: &str = ".void/bin";
 const REMOTE_STDIO_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const REMOTE_STDIO_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 const REMOTE_STDIO_SESSION_IDLE_GRACE: Duration = Duration::from_secs(45);
-const CLIENT_NAME: &str = "bitfun-remote-workspace-search";
+const CLIENT_NAME: &str = "void-remote-workspace-search";
 const REMOTE_OS_PROBES: &[&str] = &["uname -s", "sh -c 'uname -s 2>/dev/null'"];
 const REMOTE_ARCHITECTURE_PROBES: &[&str] = &[
     "uname -m",
@@ -921,7 +921,7 @@ impl RemoteWorkspaceSearchService {
         let binary_path = self
             .ensure_remote_flashgrep_binary(&connection.connection_id, &repo_root, &local_bundle)
             .await?;
-        let storage_root = join_remote_path(&repo_root, ".bitfun/search/flashgrep-index");
+        let storage_root = join_remote_path(&repo_root, ".void/search/flashgrep-index");
 
         let context = RemoteSearchContext {
             connection,
@@ -1329,10 +1329,10 @@ fn resolve_local_flashgrep_bundle(binary_name: &str) -> Option<PathBuf> {
             candidates.push(parent.join("resources/flashgrep").join(binary_name));
             candidates.push(parent.join("flashgrep").join(binary_name));
             candidates.push(parent.join("../Resources/flashgrep").join(binary_name));
-            candidates.push(parent.join("../share/bitfun/flashgrep").join(binary_name));
+            candidates.push(parent.join("../share/void/flashgrep").join(binary_name));
             candidates.push(
                 parent
-                    .join("../share/com.bitfun.desktop/flashgrep")
+                    .join("../share/com.void.desktop/flashgrep")
                     .join(binary_name),
             );
         }
@@ -1671,7 +1671,7 @@ mod tests {
     fn installs_remote_flashgrep_under_workspace_root() {
         assert_eq!(
             remote_flashgrep_install_dir("/home/wgq/workspace/bot_detection"),
-            "/home/wgq/workspace/bot_detection/.bitfun/bin"
+            "/home/wgq/workspace/bot_detection/.void/bin"
         );
     }
 

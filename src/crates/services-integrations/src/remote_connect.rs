@@ -2,10 +2,10 @@
 //!
 //! This module owns stable remote-facing DTOs, runtime-port request
 //! construction, and remote session tracker state. Network lifecycle and
-//! product assembly stay in `bitfun-core` until their ports are explicit.
+//! product assembly stay in `void-core` until their ports are explicit.
 
-use bitfun_events::AgenticEvent;
-use bitfun_runtime_ports::{
+use void_events::AgenticEvent;
+use void_runtime_ports::{
     AgentInputAttachment, AgentSessionCreateRequest, AgentSubmissionRequest, AgentSubmissionSource,
 };
 use serde::{Deserialize, Serialize};
@@ -1218,7 +1218,7 @@ impl RemoteSessionStateTracker {
     }
 
     pub fn handle_agentic_event(&self, event: &AgenticEvent) {
-        use bitfun_events::AgenticEvent as AE;
+        use void_events::AgenticEvent as AE;
 
         if let AE::SubagentSessionLinked {
             session_id,

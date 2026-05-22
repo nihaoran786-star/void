@@ -1,4 +1,4 @@
-/// BitFun API Layer
+/// Void API Layer
 ///
 /// Platform-agnostic business logic layer, used by:
 /// - CLI (apps/cli)

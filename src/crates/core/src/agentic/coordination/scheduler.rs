@@ -474,7 +474,7 @@ impl DialogScheduler {
         target_session_id: &str,
         requester_session_id: &str,
         wait_timeout: Duration,
-    ) -> crate::util::errors::BitFunResult<Option<String>> {
+    ) -> crate::util::errors::VoidResult<Option<String>> {
         let suppression_key = self
             .active_turns
             .get(target_session_id)

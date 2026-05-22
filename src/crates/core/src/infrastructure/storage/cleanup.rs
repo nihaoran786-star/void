@@ -59,7 +59,7 @@ impl CleanupService {
         }
     }
 
-    pub async fn cleanup_all(&self) -> BitFunResult<CleanupResult> {
+    pub async fn cleanup_all(&self) -> VoidResult<CleanupResult> {
         let mut result = CleanupResult::default();
 
         if !self.policy.auto_cleanup_enabled {
@@ -90,21 +90,21 @@ impl CleanupService {
         Ok(result)
     }
 
-    async fn cleanup_temp_files(&self) -> BitFunResult<CleanupResult> {
+    async fn cleanup_temp_files(&self) -> VoidResult<CleanupResult> {
         let temp_dir = self.path_manager.temp_dir();
         let retention = Duration::from_secs(self.policy.temp_retention_days * 24 * 3600);
 
         self.cleanup_old_files(&temp_dir, retention).await
     }
 
-    async fn cleanup_old_logs(&self) -> BitFunResult<CleanupResult> {
+    async fn cleanup_old_logs(&self) -> VoidResult<CleanupResult> {
         let logs_dir = self.path_manager.logs_dir();
         let retention = Duration::from_secs(self.policy.log_retention_days * 24 * 3600);
 
         self.cleanup_old_files(&logs_dir, retention).await
     }
 
-    async fn cleanup_oversized_cache(&self) -> BitFunResult<CleanupResult> {
+    async fn cleanup_oversized_cache(&self) -> VoidResult<CleanupResult> {
         let cache_dir = self.path_manager.cache_root();
         let max_size = self.policy.max_cache_size_mb * 1_048_576;
 
@@ -127,7 +127,7 @@ impl CleanupService {
         &self,
         dir: &Path,
         retention: Duration,
-    ) -> BitFunResult<CleanupResult> {
+    ) -> VoidResult<CleanupResult> {
         let mut result = CleanupResult::default();
 
         if !dir.exists() {
@@ -153,7 +153,7 @@ impl CleanupService {
         Ok(result)
     }
 
-    async fn cleanup_by_size(&self, dir: &Path, max_size: u64) -> BitFunResult<CleanupResult> {
+    async fn cleanup_by_size(&self, dir: &Path, max_size: u64) -> VoidResult<CleanupResult> {
         let mut result = CleanupResult::default();
 
         let mut files = Vec::new();
@@ -187,7 +187,7 @@ impl CleanupService {
         dir: &'a Path,
         should_delete: F,
         result: &'a mut CleanupResult,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = BitFunResult<()>> + Send + 'a>>
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = VoidResult<()>> + Send + 'a>>
     where
         F: Fn(&std::fs::Metadata) -> bool + Copy + Send + 'a,
     {
@@ -200,7 +200,7 @@ impl CleanupService {
             while let Some(entry) = read_dir
                 .next_entry()
                 .await
-                .map_err(|e| BitFunError::service(format!("Failed to read entry: {}", e)))?
+                .map_err(|e| VoidError::service(format!("Failed to read entry: {}", e)))?
             {
                 let path = entry.path();
                 let metadata = match entry.metadata().await {
@@ -244,7 +244,7 @@ impl CleanupService {
         &'a self,
         dir: &'a Path,
         files: &'a mut Vec<(PathBuf, SystemTime, u64)>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = BitFunResult<()>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = VoidResult<()>> + Send + 'a>> {
         Box::pin(async move {
             let mut read_dir = match fs::read_dir(dir).await {
                 Ok(d) => d,
@@ -254,7 +254,7 @@ impl CleanupService {
             while let Some(entry) = read_dir
                 .next_entry()
                 .await
-                .map_err(|e| BitFunError::service(format!("Failed to read entry: {}", e)))?
+                .map_err(|e| VoidError::service(format!("Failed to read entry: {}", e)))?
             {
                 let path = entry.path();
                 let metadata = match entry.metadata().await {
@@ -275,7 +275,7 @@ impl CleanupService {
 
     fn calculate_dir_size(
         dir: &Path,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = BitFunResult<u64>> + Send + '_>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = VoidResult<u64>> + Send + '_>> {
         Box::pin(async move {
             let mut total = 0u64;
 
@@ -287,7 +287,7 @@ impl CleanupService {
             while let Some(entry) = read_dir
                 .next_entry()
                 .await
-                .map_err(|e| BitFunError::service(format!("Failed to read entry: {}", e)))?
+                .map_err(|e| VoidError::service(format!("Failed to read entry: {}", e)))?
             {
                 let metadata = match entry.metadata().await {
                     Ok(m) => m,

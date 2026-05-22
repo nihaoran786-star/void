@@ -9,7 +9,7 @@ use crate::service::config::get_app_language_code;
 use crate::service::config::global::GlobalConfigManager;
 use crate::service::filesystem::get_formatted_directory_listing;
 use crate::service::i18n::LocaleId;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::{debug, warn};
 use std::path::Path;
 
@@ -114,10 +114,10 @@ impl PromptBuilder {
         let current_date = now.format("%Y-%m-%d").to_string();
 
         let computer_use_keys = match host_os {
-            "macos" => "Computer use / `key_chord`: the **local BitFun desktop** is **macOS** — use `command`, `option`, `control`, `shift` (not Win/Linux modifier names). **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for `osascript`, AppleScript, shell scripts) 2) Keyboard shortcuts: command+a/c/x/v (clipboard), command+space (Spotlight), command+tab (switch app) 3) UI control (AX/OCR/mouse) only when above fail.",
-            "windows" => "Computer use / `key_chord`: the **local BitFun desktop** is **Windows** — use `meta`/`super` for Windows key, `alt`, `control`, `shift`. **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for PowerShell, cmd, scripts) 2) Keyboard shortcuts: control+a/c/x/v (clipboard), meta (Start menu), Alt+Tab (switch) 3) UI control only when above fail.",
-            "linux" => "Computer use / `key_chord`: the **local BitFun desktop** is **Linux** — typically `control`, `alt`, `shift`, and sometimes `meta`/`super`. **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for shell scripts, system commands) 2) Keyboard shortcuts: control+a/c/x/v (clipboard) 3) UI control (AX/OCR/mouse) only when above fail.",
-            _ => "Computer use / `key_chord`: match modifier names to the **local BitFun desktop** OS below. **ACTION PRIORITY:** 1) Terminal/CLI/system commands first 2) Keyboard shortcuts second 3) UI control (mouse/OCR) last resort.",
+            "macos" => "Computer use / `key_chord`: the **local Void desktop** is **macOS** — use `command`, `option`, `control`, `shift` (not Win/Linux modifier names). **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for `osascript`, AppleScript, shell scripts) 2) Keyboard shortcuts: command+a/c/x/v (clipboard), command+space (Spotlight), command+tab (switch app) 3) UI control (AX/OCR/mouse) only when above fail.",
+            "windows" => "Computer use / `key_chord`: the **local Void desktop** is **Windows** — use `meta`/`super` for Windows key, `alt`, `control`, `shift`. **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for PowerShell, cmd, scripts) 2) Keyboard shortcuts: control+a/c/x/v (clipboard), meta (Start menu), Alt+Tab (switch) 3) UI control only when above fail.",
+            "linux" => "Computer use / `key_chord`: the **local Void desktop** is **Linux** — typically `control`, `alt`, `shift`, and sometimes `meta`/`super`. **ACTION PRIORITY:** 1) Terminal/CLI/system commands (use Bash tool for shell scripts, system commands) 2) Keyboard shortcuts: control+a/c/x/v (clipboard) 3) UI control (AX/OCR/mouse) only when above fail.",
+            _ => "Computer use / `key_chord`: match modifier names to the **local Void desktop** OS below. **ACTION PRIORITY:** 1) Terminal/CLI/system commands first 2) Keyboard shortcuts second 3) UI control (mouse/OCR) last resort.",
         };
 
         if let Some(remote) = &self.context.remote_execution {
@@ -128,7 +128,7 @@ impl PromptBuilder {
 - Execution environment: **Remote SSH** — connection "{}".
 - Remote host: {} (uname/kernel: {})
 - **Paths and shell:** POSIX on the remote server — use forward slashes and Unix shell syntax (bash/sh). Do **not** use PowerShell, `cmd.exe`, or Windows-style paths for workspace operations.
-- Local BitFun client OS: {} ({}) — applies to Computer use / UI automation on this machine only, not to workspace file or terminal tools.
+- Local Void client OS: {} ({}) — applies to Computer use / UI automation on this machine only, not to workspace file or terminal tools.
 - Local client architecture: {}
 - Current Date: {}
 - {}
@@ -285,15 +285,15 @@ Output Mermaid in fenced code blocks (```mermaid) so the UI can render them.
     /// Read app.language from global config, generate simple language instruction
     /// Returns empty string if config cannot be read
     /// Returns error if language code is unsupported
-    async fn get_language_preference(&self) -> BitFunResult<String> {
+    async fn get_language_preference(&self) -> VoidResult<String> {
         let language_code = get_app_language_code().await;
         Self::format_language_instruction(&language_code)
     }
 
     /// Format language instruction based on language code
-    fn format_language_instruction(lang_code: &str) -> BitFunResult<String> {
+    fn format_language_instruction(lang_code: &str) -> VoidResult<String> {
         let Some(locale) = LocaleId::from_str(lang_code) else {
-            return Err(BitFunError::config(format!(
+            return Err(VoidError::config(format!(
                 "Unknown language code: {}",
                 lang_code
             )));
@@ -325,7 +325,7 @@ Do not read from, modify, create, move, or delete files outside this workspace u
     /// - `{VISUAL_MODE}` - Visual mode instruction (Mermaid diagrams, read from global config)
     ///
     /// If a placeholder is not in the template, corresponding content will not be added
-    pub async fn build_prompt_from_template(&self, template: &str) -> BitFunResult<String> {
+    pub async fn build_prompt_from_template(&self, template: &str) -> VoidResult<String> {
         let mut result = template.to_string();
 
         // Replace {PERSONA}
@@ -371,7 +371,7 @@ Do not read from, modify, create, move, or delete files outside this workspace u
         // Replace {AGENT_MEMORY}
         if result.contains(PLACEHOLDER_AGENT_MEMORY) {
             let agent_memory = if self.context.remote_execution.is_some() {
-                "# Agent memory\nSession memory under `.bitfun/` is stored on the **remote** host for this workspace. Use file tools with POSIX paths under the workspace root if you need to read it.\n\n"
+                "# Agent memory\nSession memory under `.void/` is stored on the **remote** host for this workspace. Use file tools with POSIX paths under the workspace root if you need to read it.\n\n"
                     .to_string()
             } else {
                 let workspace = Path::new(&self.context.workspace_path);
@@ -397,7 +397,7 @@ Do not read from, modify, create, move, or delete files outside this workspace u
         }
 
         // Replace {SESSION_ID} — used by deep-research Pro mode to anchor a per-session
-        // work_dir under .bitfun/sessions/{SESSION_ID}/research/. Falls back to a
+        // work_dir under .void/sessions/{SESSION_ID}/research/. Falls back to a
         // timestamp slug when no session is bound (e.g. one-shot prompt builds in tests).
         if result.contains(PLACEHOLDER_SESSION_ID) {
             let session_id = self.context.session_id.clone().unwrap_or_else(|| {

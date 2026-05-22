@@ -2,7 +2,7 @@ use super::types::{AICommitAnalysis, CommitMessageOptions, ProjectContext};
 use crate::function_agents::common::{AgentError, AgentResult};
 use crate::infrastructure::ai::AIClient;
 use crate::util::types::Message;
-use bitfun_product_domains::function_agents::git_func_agent::{
+use void_product_domains::function_agents::git_func_agent::{
     parse_commit_ai_response, prepare_commit_ai_prompt,
 };
 /**
@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use crate::function_agents::common::AgentErrorType;
     use crate::util::types::AIConfig;
-    use bitfun_ai_adapters::types::ReasoningMode;
+    use void_ai_adapters::types::ReasoningMode;
 
     fn test_service() -> AIAnalysisService {
         AIAnalysisService {

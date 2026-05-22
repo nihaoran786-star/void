@@ -16,22 +16,22 @@ use tokio::task::JoinSet;
 use tokio::time::{timeout, Duration};
 
 use crate::api::app_state::AppState;
-use bitfun_core::agentic::tools::implementations::skills::mode_overrides::{
+use void_core::agentic::tools::implementations::skills::mode_overrides::{
     clear_user_mode_skill_overrides, load_project_mode_skills_document_local,
     project_mode_skills_path_for_remote, save_project_mode_skills_document_local,
     set_disabled_mode_skills_in_document, set_mode_skill_disabled_in_document,
     set_user_mode_skill_state,
 };
-use bitfun_core::agentic::tools::implementations::skills::{
+use void_core::agentic::tools::implementations::skills::{
     resolver::resolve_skill_default_enabled_for_mode, ModeSkillInfo, SkillData, SkillInfo,
     SkillLocation, SkillRegistry,
 };
-use bitfun_core::agentic::workspace::RemoteWorkspaceFs;
-use bitfun_core::infrastructure::get_path_manager_arc;
-use bitfun_core::service::remote_ssh::workspace_state::is_remote_path;
-use bitfun_core::service::remote_ssh::{get_remote_workspace_manager, RemoteWorkspaceEntry};
-use bitfun_core::service::runtime::RuntimeManager;
-use bitfun_core::util::process_manager;
+use void_core::agentic::workspace::RemoteWorkspaceFs;
+use void_core::infrastructure::get_path_manager_arc;
+use void_core::service::remote_ssh::workspace_state::is_remote_path;
+use void_core::service::remote_ssh::{get_remote_workspace_manager, RemoteWorkspaceEntry};
+use void_core::service::runtime::RuntimeManager;
+use void_core::util::process_manager;
 
 const SKILLS_SEARCH_API_BASE: &str = "https://skills.sh";
 const DEFAULT_MARKET_QUERY: &str = "skill";
@@ -263,7 +263,7 @@ async fn persist_user_mode_skill_selection(
         }
     }
 
-    bitfun_core::service::config::mode_config_canonicalizer::persist_mode_config_from_value(
+    void_core::service::config::mode_config_canonicalizer::persist_mode_config_from_value(
         mode_id,
         serde_json::json!({
             "disabled_user_skills": normalize_skill_key_list(disabled_user_skills),
@@ -542,7 +542,7 @@ pub async fn set_mode_skill_disabled(
         set_user_mode_skill_state(&mode_id, &skill_key, !disabled, default_enabled)
             .await
             .map_err(|e| format!("Failed to update user skill override: {}", e))?;
-        if let Err(e) = bitfun_core::service::config::reload_global_config().await {
+        if let Err(e) = void_core::service::config::reload_global_config().await {
             log::warn!(
                 "Failed to reload global config after user skill override change: mode_id={}, skill_key={}, error={}",
                 mode_id,
@@ -689,7 +689,7 @@ pub async fn replace_mode_skill_selection(
         .await?;
     }
 
-    if let Err(e) = bitfun_core::service::config::reload_global_config().await {
+    if let Err(e) = void_core::service::config::reload_global_config().await {
         log::warn!(
             "Failed to reload global config after batch skill update: mode_id={}, error={}",
             request.mode_id,
@@ -723,7 +723,7 @@ pub async fn reset_mode_skill_selection(
         clear_project_mode_skill_selection_local(&request.mode_id, &workspace_root).await?;
     }
 
-    if let Err(e) = bitfun_core::service::config::reload_global_config().await {
+    if let Err(e) = void_core::service::config::reload_global_config().await {
         log::warn!(
             "Failed to reload global config after resetting skill selection: mode_id={}, error={}",
             request.mode_id,
@@ -823,7 +823,7 @@ pub async fn add_skill(
                         .to_string(),
                 );
             }
-            workspace_root.join(".bitfun").join("skills")
+            workspace_root.join(".void").join("skills")
         } else {
             return Err("No workspace open, cannot add project-level Skill".to_string());
         }
@@ -1015,7 +1015,7 @@ pub async fn download_skill_market(
     let runtime_manager = RuntimeManager::new()
         .map_err(|e| format!("Failed to initialize runtime manager: {}", e))?;
     let resolved_npx = runtime_manager.resolve_command("npx").ok_or_else(|| {
-        "Command 'npx' is not available. Install Node.js or configure BitFun runtimes.".to_string()
+        "Command 'npx' is not available. Install Node.js or configure Void runtimes.".to_string()
     })?;
 
     let mut command = process_manager::create_tokio_command(&resolved_npx.command);

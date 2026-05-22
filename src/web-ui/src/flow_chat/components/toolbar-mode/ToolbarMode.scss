@@ -7,7 +7,7 @@ $transition-duration: 0.25s;
 $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 
 // Full-window container; draggable.
-.bitfun-toolbar-mode {
+.void-toolbar-mode {
   position: fixed;
   top: 0;
   left: 0;
@@ -61,7 +61,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__header {
+.void-toolbar-mode__header {
   flex: 0 0 auto;
   height: 32px;
   position: relative;
@@ -75,7 +75,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   animation: title-fade-in 0.2s $transition-timing;
 }
 
-.bitfun-toolbar-mode__header-left {
+.void-toolbar-mode__header-left {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -83,17 +83,17 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-.bitfun-toolbar-mode__session-menu-root {
+.void-toolbar-mode__session-menu-root {
   position: relative;
   pointer-events: auto;
 }
 
-.bitfun-toolbar-mode__session-menu-trigger--open {
+.void-toolbar-mode__session-menu-trigger--open {
   background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
   color: var(--color-accent-500, #60a5fa);
 }
 
-.bitfun-toolbar-mode__header-right {
+.void-toolbar-mode__header-right {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
@@ -104,7 +104,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-.bitfun-toolbar-mode__header-overflow {
+.void-toolbar-mode__header-overflow {
   position: relative;
   flex-shrink: 0;
   display: flex;
@@ -112,14 +112,14 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: auto;
 }
 
-.bitfun-toolbar-mode__header-collapsed-actions {
+.void-toolbar-mode__header-collapsed-actions {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
 
-.bitfun-toolbar-mode__create-btn {
+.void-toolbar-mode__create-btn {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
@@ -150,7 +150,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__title-wrapper {
+.void-toolbar-mode__title-wrapper {
   // Horizontally centered in the header bar; width follows title up to max-width.
   position: absolute;
   left: 50%;
@@ -163,7 +163,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: auto;
 }
 
-.bitfun-toolbar-mode__header-drag-area {
+.void-toolbar-mode__header-drag-area {
   flex: 1 1 auto;
   min-width: 12px;
   min-height: 100%;
@@ -171,7 +171,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
-.bitfun-toolbar-mode__title-display {
+.void-toolbar-mode__title-display {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -186,7 +186,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: var(--radius-sm, 6px);
 }
 
-.bitfun-toolbar-mode__title-text {
+.void-toolbar-mode__title-text {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
@@ -195,18 +195,18 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
 }
 
-.bitfun-toolbar-mode__session-menu {
+.void-toolbar-mode__session-menu {
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-height: inherit;
 }
 
-.bitfun-toolbar-mode__session-menu-actions {
+.void-toolbar-mode__session-menu-actions {
   flex: 0 0 auto;
 }
 
-.bitfun-toolbar-mode__session-menu-scroll {
+.void-toolbar-mode__session-menu-scroll {
   flex: 1 1 auto;
   min-height: 0;
   /* 仅列表区域限高，滚轮 / 触控板滚动 */
@@ -234,7 +234,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__session-dropdown {
+.void-toolbar-mode__session-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
@@ -253,20 +253,20 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   animation: dropdown-appear 0.2s $transition-timing;
   transform-origin: top left;
 
-  .bitfun-toolbar-mode__session-menu {
+  .void-toolbar-mode__session-menu {
     max-height: inherit;
   }
 
-  .bitfun-toolbar-mode__session-menu-actions .bitfun-toolbar-mode__session-item--new:first-of-type {
+  .void-toolbar-mode__session-menu-actions .void-toolbar-mode__session-item--new:first-of-type {
     border-radius: 7px 7px 0 0;
   }
 
-  .bitfun-toolbar-mode__session-menu-scroll .bitfun-toolbar-mode__session-item:last-child {
+  .void-toolbar-mode__session-menu-scroll .void-toolbar-mode__session-item:last-child {
     border-radius: 0 0 7px 7px;
   }
 }
 
-.bitfun-toolbar-mode__session-picker {
+.void-toolbar-mode__session-picker {
   flex: 1;
   width: 100%;
   min-height: 0;
@@ -277,20 +277,20 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   animation: session-picker-expand 0.25s $transition-timing;
 
-  .bitfun-toolbar-mode__session-menu {
+  .void-toolbar-mode__session-menu {
     flex: 1;
     min-height: 0;
   }
 
   /* 紧凑窗体：列表占剩余高度，内部滚动 */
-  .bitfun-toolbar-mode__session-menu-scroll {
+  .void-toolbar-mode__session-menu-scroll {
     flex: 1 1 auto;
     min-height: 0;
     max-height: none;
   }
 }
 
-.bitfun-toolbar-mode__session-item {
+.void-toolbar-mode__session-item {
   display: block;
   width: 100%;
   box-sizing: border-box;
@@ -324,7 +324,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: var(--font-weight-medium, 500);
     color: var(--color-text-primary, #e8e8e8);
 
-    &:hover .bitfun-toolbar-mode__session-item-icon {
+    &:hover .void-toolbar-mode__session-item-icon {
       background: var(--color-accent-300, rgba(96, 165, 250, 0.25));
       color: var(--color-accent-500, #60a5fa);
     }
@@ -332,7 +332,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* “+ 编程会话”：圆底加号，对齐侧栏顶栏 */
-.bitfun-toolbar-mode__session-item-icon {
+.void-toolbar-mode__session-item-icon {
   flex-shrink: 0;
   width: 20px;
   height: 20px;
@@ -345,7 +345,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   transition: background 0.1s ease, color 0.1s ease;
 }
 
-.bitfun-toolbar-mode__session-item-label {
+.void-toolbar-mode__session-item-label {
   min-width: 0;
   flex: 1;
   overflow: hidden;
@@ -353,14 +353,14 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
 }
 
-.bitfun-toolbar-mode__session-list-divider {
+.void-toolbar-mode__session-list-divider {
   height: 1px;
   margin: 4px 8px;
   background: var(--border-subtle, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
 }
 
-.bitfun-toolbar-mode__overflow-menu {
+.void-toolbar-mode__overflow-menu {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
@@ -374,7 +374,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   animation: dropdown-appear 0.2s $transition-timing;
 }
 
-.bitfun-toolbar-mode__overflow-menu-item {
+.void-toolbar-mode__overflow-menu-item {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -405,7 +405,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 
-.bitfun-toolbar-mode__content-row {
+.void-toolbar-mode__content-row {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -416,7 +416,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   animation: content-row-enter 0.2s $transition-timing;
 }
 
-.bitfun-toolbar-mode__stream-content {
+.void-toolbar-mode__stream-content {
   flex: 1;
   min-width: 0;
   align-self: stretch;
@@ -427,15 +427,15 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   
   &:hover {
-    .bitfun-toolbar-mode__text,
-    .bitfun-toolbar-mode__tool-summary,
-    .bitfun-toolbar-mode__todo-current {
+    .void-toolbar-mode__text,
+    .void-toolbar-mode__tool-summary,
+    .void-toolbar-mode__todo-current {
       color: var(--color-text-primary, #e8e8e8);
     }
   }
 }
 
-.bitfun-toolbar-mode__text {
+.void-toolbar-mode__text {
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -455,7 +455,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__tool {
+.void-toolbar-mode__tool {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -481,7 +481,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__todo {
+.void-toolbar-mode__todo {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -507,7 +507,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode__controls {
+.void-toolbar-mode__controls {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -515,7 +515,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   gap: 6px;
 }
 
-.bitfun-toolbar-mode__input-field {
+.void-toolbar-mode__input-field {
   flex: 1;
   align-self: center;
   height: 32px;
@@ -743,7 +743,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   50% { opacity: 0.6; }
 }
 
-.bitfun-toolbar-mode__flowchat-container {
+.void-toolbar-mode__flowchat-container {
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -763,20 +763,20 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
-.bitfun-toolbar-mode--expanded {
+.void-toolbar-mode--expanded {
   cursor: default;
   
-  .bitfun-toolbar-mode__header {
+  .void-toolbar-mode__header {
     border-bottom-color: var(--border-base, rgba(255, 255, 255, 0.08));
   }
   
-  .bitfun-toolbar-mode__content-row {
+  .void-toolbar-mode__content-row {
     animation: content-row-exit $transition-duration $transition-timing forwards;
   }
 }
 
 
-.bitfun-toolbar-mode__expanded-input {
+.void-toolbar-mode__expanded-input {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -787,7 +787,7 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   background: var(--element-bg-subtle, rgba(255, 255, 255, 0.04));
   
-  .bitfun-toolbar-mode__input-field--expanded {
+  .void-toolbar-mode__input-field--expanded {
     flex: 1;
     height: 36px;
     padding: 0 12px;

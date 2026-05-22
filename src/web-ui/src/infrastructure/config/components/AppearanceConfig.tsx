@@ -170,7 +170,7 @@ function ThemePreviewThumbnail({ theme }: ThemePreviewThumbnailProps) {
         </div>
 
         <div className="theme-preview-thumbnail__title" style={{ color: colors.text.muted }}>
-          BitFun
+          Void
         </div>
 
         <div className="theme-preview-thumbnail__window-controls">
@@ -382,9 +382,9 @@ const AppearanceConfig: React.FC = () => {
   const { t } = useTranslation('settings/appearance');
 
   return (
-    <ConfigPageLayout className="bitfun-appearance-config">
+    <ConfigPageLayout className="void-appearance-config">
       <ConfigPageHeader title={t('title')} subtitle={t('subtitle')} />
-      <ConfigPageContent className="bitfun-appearance-config__content">
+      <ConfigPageContent className="void-appearance-config__content">
         <AppearanceThemeSection />
         <FontPreferencePanel />
       </ConfigPageContent>

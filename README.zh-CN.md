@@ -2,51 +2,51 @@
 
 <div align="center">
 
-![BitFun](./png/BitFun_title.png)
+![Void](./png/Void_title.png)
 
 </div>
 <div align="center">
 
-[![GitHub release](https://img.shields.io/github/v/release/GCWing/BitFun?style=flat-square&color=blue)](https://github.com/GCWing/BitFun/releases)
-[![Website](https://img.shields.io/badge/Website-openbitfun.com-6f42c1?style=flat-square)](https://openbitfun.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](https://github.com/GCWing/BitFun/blob/main/LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/GCWing/BitFun)
+[![GitHub release](https://img.shields.io/github/v/release/GCWing/Void?style=flat-square&color=blue)](https://github.com/GCWing/Void/releases)
+[![Website](https://img.shields.io/badge/Website-openvoid.com-6f42c1?style=flat-square)](https://openvoid.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](https://github.com/GCWing/Void/blob/main/LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/GCWing/Void)
 
 </div>
 
 ---
 
-## BitFun 是什么
+## Void 是什么
 
-**BitFun 是一个桌面级 Agent 运行时（Local Agent Runtime），同时也是一套开箱即用的桌面 Agent 应用。**
+**Void 是一个桌面级 Agent 运行时（Local Agent Runtime），同时也是一套开箱即用的桌面 Agent 应用。**
 
 - 它是**基座**——Rust 内核 + Tauri 外壳，内置会话、工具、记忆、MCP、LSP、远程控制协议，为长期运行而生；
 - 它是**产品**——下载安装就拥有 Code / Cowork / Computer Use / 个人助理四大官方 Agent，几乎覆盖了当前业界所有主流 Agent 能力形态。
 
 > **一次安装，既能当 Agent 用，也能当 Runtime 做。**
 
-BitFun 的野心是把 **Code Agent 的编码力、Cowork 的办公力、OpenClaw 的助理体验、Computer Use 的操控力等等** 这些业界最受欢迎的 Agent 能力，装进同一个桌面端，并把底层协议栈（Agentic RunTime、工具、记忆、MCP、Skill、上下文压缩、远程控制）全部默认就绪——你拿来就能用，也可以基于它定义**你自己的领域 Agent**。
+Void 的野心是把 **Code Agent 的编码力、Cowork 的办公力、OpenClaw 的助理体验、Computer Use 的操控力等等** 这些业界最受欢迎的 Agent 能力，装进同一个桌面端，并把底层协议栈（Agentic RunTime、工具、记忆、MCP、Skill、上下文压缩、远程控制）全部默认就绪——你拿来就能用，也可以基于它定义**你自己的领域 Agent**。
 
 
 ![readme_hero_CN](./png/readme_hero_CN.png)
 
 ---
 
-## 为什么选 BitFun
+## 为什么选 Void
 
 - **一个应用，几乎覆盖全部业界主流 Agent 能力**：Code / Cowork / Computer Use / 文档协作 / 生成式 UI / Mini App / MCP / 远程控制 …… 不用在多个工具之间切换，也不用各配一个订阅。
 - **下载即用，不做拼装工**：MCP / LSP / 文件系统 / 终端 / Git / 远程 SSH 全部内置，模型配好就能开跑，省掉自己从零搭建协议栈的时间。
-- **数据在你自己机器上**：会话、记忆、工作目录都存在 `.bitfun/sessions/` 下，可迁移、可导出、可审计；没有强制上云，隐私与合规场景都能用。
-- **极致可定制，从一个 Markdown 到整仓 fork 没有断点**：90% 的领域化需求一个 `.md` 就能搞定；缺工具？缺界面？要改产品？在 BitFun 里直接让 Code Agent 动手——**你定制它的方式，就是用它本身**。
+- **数据在你自己机器上**：会话、记忆、工作目录都存在 `.void/sessions/` 下，可迁移、可导出、可审计；没有强制上云，隐私与合规场景都能用。
+- **极致可定制，从一个 Markdown 到整仓 fork 没有断点**：90% 的领域化需求一个 `.md` 就能搞定；缺工具？缺界面？要改产品？在 Void 里直接让 Code Agent 动手——**你定制它的方式，就是用它本身**。
 - **手机也能指挥桌面**：扫码、Telegram、飞书 Bot、微信 Bot 都是远控入口。Agent 在桌面上干活，你在路上看进度。
 - **真正能装机长用的桌面应用**：Rust 内核 + Tauri 外壳，冷启动快、常驻资源低，长时间后台运行也不心疼电脑。
-- **会自我迭代**：97%+ 代码由 BitFun 内置 Code Agent 通过 Vibe Coding 完成，天然亲和AI开发。
+- **会自我迭代**：97%+ 代码由 Void 内置 Code Agent 通过 Vibe Coding 完成，天然亲和AI开发。
 
 ---
 
 ## 最新特性
 
-BitFun 通过引入 flashgrep 与 ripgrep 联动形成增强版本的检索链路，在 Chromium 这类超大代码仓库中将代码搜索耗时最高降低约 94.6%、平均加速约 36.1×，显著缩短项目探索时间。
+Void 通过引入 flashgrep 与 ripgrep 联动形成增强版本的检索链路，在 Chromium 这类超大代码仓库中将代码搜索耗时最高降低约 94.6%、平均加速约 36.1×，显著缩短项目探索时间。
 
 ![flashgrep 检索增强](./png/feat_flashgrep.png)
 
@@ -54,12 +54,12 @@ BitFun 通过引入 flashgrep 与 ripgrep 联动形成增强版本的检索链�
 
 ## 紧追前沿 · 开箱即用
 
-Agent 领域几乎每周都有新范式出现。BitFun 的节奏是——**看到好东西，就把它装进桌面，并让它和已有能力无缝协同**。
+Agent 领域几乎每周都有新范式出现。Void 的节奏是——**看到好东西，就把它装进桌面，并让它和已有能力无缝协同**。
 
 
 ![first_screen_screenshot](./png/first_screen_screenshot_CN.png)
 
-以下是 BitFun 已装箱的**官方 Agent 和能力清单**和对业界最前沿 Agent 范式的复现进度。零配置，下载即用：
+以下是 Void 已装箱的**官方 Agent 和能力清单**和对业界最前沿 Agent 范式的复现进度。零配置，下载即用：
 
 
 | 能力                    | 说明                                                                        |
@@ -77,13 +77,13 @@ Agent 领域几乎每周都有新范式出现。BitFun 的节奏是——**看�
 | **Mini App**          | 一句话生成独立可运行的应用，即生即跑，一键打包成桌面端                                               |
 | **Markdown 定义 Agent** | 写一个 `.md` 文件，立即在 Runtime 里跑起来，满足大多数领域化需求                                  |
 | **长期记忆 + 项目上下文**      | 跨会话积累，任意 Agent 可读                                                         |
-| **自我迭代**              | Code Agent 直接改 BitFun 自己的仓库                                               |
+| **自我迭代**              | Code Agent 直接改 Void 自己的仓库                                               |
 | **⋯⋯**                | 下一个热点持续跟进中，欢迎 Issue 提需求                                                   |
 
 
 ---
 
-## 怎么定制自己的 BitFun
+## 怎么定制自己的 Void
 
 不同深度的定制需求，对应不同成本的扩展路径。按"从轻到重"依次选择即可：
 
@@ -92,13 +92,13 @@ Agent 领域几乎每周都有新范式出现。BitFun 的节奏是——**看�
 | ------ | ---------------------- | ----------------------------------------------------- | ------------------------------------ |
 | **L1** | **Markdown 自定义 Agent** | 换提示词 + 挑选工具组合，即可定义一个**新的 Agent 能力**，满足大多数领域化需求        | 写一个 `.md` 文件                         |
 | **L2** | **Mini App**           | 需要用界面交互的能力（面板、表单、可视化、业务流程）                            | 一句话生成，即生即跑                           |
-| **L3** | **源码级添加工具**            | 新工具、新模型适配、新协议接入——给自定义 Agent 补齐它需要但 BitFun 还没有的 `tool` | 用 BitFun 的 Code Agent 改 BitFun 自己的源码 |
+| **L3** | **源码级添加工具**            | 新工具、新模型适配、新协议接入——给自定义 Agent 补齐它需要但 Void 还没有的 `tool` | 用 Void 的 Code Agent 改 Void 自己的源码 |
 | **L4** | **自由改源码**              | 换品牌、重做 UI、改会话模型、做完全不一样的产品                             | 整仓 fork，天然亲和 Vibe Coding 开发模式        |
 
 
 ### 一个例子：Code Agent 和 Cowork Agent 的差别其实很小
 
-在 BitFun 里，一个 Agent = **一段提示词（系统角色 + 行为约束）+ 一组它能调用的工具**。官方的 Code Agent 和 Cowork Agent 区别就仅在于此：
+在 Void 里，一个 Agent = **一段提示词（系统角色 + 行为约束）+ 一组它能调用的工具**。官方的 Code Agent 和 Cowork Agent 区别就仅在于此：
 
 
 |          | Code Agent                  | Cowork Agent                        |
@@ -112,11 +112,11 @@ Agent 领域几乎每周都有新范式出现。BitFun 的节奏是——**看�
 
 1. 写一个 Markdown，定好它的角色 / 禁区 / 工作流程
 2. 从工具注册表里勾上它该用的工具（文件、浏览器、特定 MCP……）
-3. 如果缺了一个特定工具 —— 走 **L3**，打开 BitFun 让 Code Agent 帮你加进源码
+3. 如果缺了一个特定工具 —— 走 **L3**，打开 Void 让 Code Agent 帮你加进源码
 4. 如果这个 Agent 需要一个专属界面 —— 走 **L2**，一句话生成一个 Mini App
 5. 如果你要做一个完全不一样的产品 —— 走 **L4**，fork 整个仓库，让 Code Agent 陪你改
 
-**关键点**：L3 和 L4 都不用你离开 BitFun——**打开 BitFun，对 Code Agent 说你要改什么，它就改给你看**。**你定制它的方式，就是用它本身**
+**关键点**：L3 和 L4 都不用你离开 Void——**打开 Void，对 Code Agent 说你要改什么，它就改给你看**。**你定制它的方式，就是用它本身**
 
 > 从一个 Markdown 文件到完整 fork，中间没有断点。这正是"会自我迭代的基座"的含义。
 
@@ -132,7 +132,7 @@ Agent 领域几乎每周都有新范式出现。BitFun 的节奏是——**看�
 
 ### 直接下载使用
 
-在 [Releases](https://github.com/GCWing/BitFun/releases) 页面下载最新桌面端安装包，安装后配置模型即可开始使用。
+在 [Releases](https://github.com/GCWing/Void/releases) 页面下载最新桌面端安装包，安装后配置模型即可开始使用。
 
 ### 从源码构建
 

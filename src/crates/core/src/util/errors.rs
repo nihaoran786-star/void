@@ -2,15 +2,15 @@
 //!
 //! Provide unified error types and handling for the whole application
 
-use bitfun_core_types::errors::{
+use void_core_types::errors::{
     ai_error_detail_from_message, classify_ai_error_message, AiErrorDetail, ErrorCategory,
 };
 use serde::Serialize;
 use thiserror::Error;
 
-/// Unified error type for the BitFun application
+/// Unified error type for the Void application
 #[derive(Debug, Error, Serialize)]
-pub enum BitFunError {
+pub enum VoidError {
     #[error("Service error: {0}")]
     Service(String),
 
@@ -75,7 +75,7 @@ pub enum BitFunError {
     Cancelled(String),
 }
 
-pub type BitFunResult<T> = Result<T, BitFunError>;
+pub type VoidResult<T> = Result<T, VoidError>;
 
 // Custom serialization functions for non-serializable error types
 fn serialize_io_error<S>(err: &std::io::Error, serializer: S) -> Result<S::Ok, S::Error>
@@ -99,7 +99,7 @@ where
     serializer.serialize_str(&err.to_string())
 }
 
-impl BitFunError {
+impl VoidError {
     pub fn service<T: Into<String>>(msg: T) -> Self {
         Self::Service(msg.into())
     }
@@ -155,9 +155,9 @@ impl BitFunError {
     /// Infer an error category from this error for frontend-friendly classification.
     pub fn error_category(&self) -> ErrorCategory {
         match self {
-            BitFunError::AIClient(msg) => classify_ai_error_message(msg),
-            BitFunError::Timeout(_) => ErrorCategory::Timeout,
-            BitFunError::Cancelled(_) => ErrorCategory::Unknown,
+            VoidError::AIClient(msg) => classify_ai_error_message(msg),
+            VoidError::Timeout(_) => ErrorCategory::Timeout,
+            VoidError::Cancelled(_) => ErrorCategory::Unknown,
             _ => ErrorCategory::Unknown,
         }
     }
@@ -170,19 +170,19 @@ impl BitFunError {
     }
 }
 
-impl From<bitfun_agent_stream::StreamProcessorError> for BitFunError {
-    fn from(error: bitfun_agent_stream::StreamProcessorError) -> Self {
+impl From<void_agent_stream::StreamProcessorError> for VoidError {
+    fn from(error: void_agent_stream::StreamProcessorError) -> Self {
         match error {
-            bitfun_agent_stream::StreamProcessorError::AiClient(msg) => Self::AIClient(msg),
-            bitfun_agent_stream::StreamProcessorError::Cancelled(msg) => Self::Cancelled(msg),
+            void_agent_stream::StreamProcessorError::AiClient(msg) => Self::AIClient(msg),
+            void_agent_stream::StreamProcessorError::Cancelled(msg) => Self::Cancelled(msg),
         }
     }
 }
 
 #[cfg(feature = "service-integrations")]
-impl From<bitfun_services_integrations::mcp::MCPRuntimeError> for BitFunError {
-    fn from(error: bitfun_services_integrations::mcp::MCPRuntimeError) -> Self {
-        use bitfun_services_integrations::mcp::MCPRuntimeErrorKind;
+impl From<void_services_integrations::mcp::MCPRuntimeError> for VoidError {
+    fn from(error: void_services_integrations::mcp::MCPRuntimeError) -> Self {
+        use void_services_integrations::mcp::MCPRuntimeErrorKind;
 
         let message = error.message().to_string();
         match error.kind() {
@@ -201,20 +201,20 @@ impl From<bitfun_services_integrations::mcp::MCPRuntimeError> for BitFunError {
     }
 }
 
-impl From<BitFunError> for String {
-    fn from(err: BitFunError) -> String {
+impl From<VoidError> for String {
+    fn from(err: VoidError) -> String {
         err.to_string()
     }
 }
 
-impl From<String> for BitFunError {
+impl From<String> for VoidError {
     fn from(error: String) -> Self {
-        BitFunError::Service(error)
+        VoidError::Service(error)
     }
 }
 
-impl From<&str> for BitFunError {
+impl From<&str> for VoidError {
     fn from(error: &str) -> Self {
-        BitFunError::Service(error.to_string())
+        VoidError::Service(error.to_string())
     }
 }

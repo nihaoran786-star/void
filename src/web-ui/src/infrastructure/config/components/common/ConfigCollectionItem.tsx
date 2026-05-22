@@ -40,25 +40,25 @@ export const ConfigCollectionItem: React.FC<ConfigCollectionItemProps> = ({
 
   return (
     <div
-      className={`bitfun-collection-item ${isExpanded ? 'is-expanded' : ''} ${disabled ? 'is-disabled' : ''} ${className}`}
+      className={`void-collection-item ${isExpanded ? 'is-expanded' : ''} ${disabled ? 'is-disabled' : ''} ${className}`}
     >
       <div
-        className={`bitfun-config-page-row bitfun-config-page-row--center bitfun-collection-item__row ${hasDetails ? 'is-clickable' : ''}`}
+        className={`void-config-page-row void-config-page-row--center void-collection-item__row ${hasDetails ? 'is-clickable' : ''}`}
         onClick={handleRowClick}
       >
-        <div className="bitfun-config-page-row__meta">
+        <div className="void-config-page-row__meta">
           <div
-            className={`bitfun-config-page-row__label bitfun-collection-item__label ${
-              badgePlacement === 'below' ? 'bitfun-collection-item__label--stacked' : ''
+            className={`void-config-page-row__label void-collection-item__label ${
+              badgePlacement === 'below' ? 'void-collection-item__label--stacked' : ''
             }`}
           >
-            <span className="bitfun-collection-item__name">{label}</span>
+            <span className="void-collection-item__name">{label}</span>
             {badge && (
               <span
-                className={`bitfun-collection-item__badges ${
+                className={`void-collection-item__badges ${
                   badgePlacement === 'below'
-                    ? 'bitfun-collection-item__badges--stacked'
-                    : 'bitfun-collection-item__badges--inline'
+                    ? 'void-collection-item__badges--stacked'
+                    : 'void-collection-item__badges--inline'
                 }`}
               >
                 {badge}
@@ -67,15 +67,15 @@ export const ConfigCollectionItem: React.FC<ConfigCollectionItemProps> = ({
           </div>
         </div>
         <div
-          className="bitfun-config-page-row__control"
+          className="void-config-page-row__control"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="bitfun-collection-item__control">{control}</div>
+          <div className="void-collection-item__control">{control}</div>
         </div>
       </div>
 
       {isExpanded && details && (
-        <div className="bitfun-collection-item__details">{details}</div>
+        <div className="void-collection-item__details">{details}</div>
       )}
     </div>
   );

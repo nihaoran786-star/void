@@ -1,6 +1,6 @@
 use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext, ValidationResult};
 use crate::agentic::tools::ToolPathOperation;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use tool_runtime::fs::edit_file::{apply_edit_to_content, edit_file};
@@ -41,13 +41,13 @@ impl Tool for FileEditTool {
         "Edit"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(r#"Performs exact string replacements in files.
 
 Usage:
 - Use the Read tool before editing so `old_string` is based on current file content.
 - Treat Read output as stale after any successful edit to the same file. For multiple edits in one file, either apply them sequentially from fresh content or replace a stable enclosing block once.
-- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool.
+- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool.
 - Build `old_string` from current file contents rather than from memory, an intended final version, or a guessed retry.
 - When editing text from Read output, copy only the text after the line-number prefix and preserve indentation exactly.
 - Prefer editing existing files in the codebase; create new files only when the task genuinely calls for a new artifact.
@@ -69,7 +69,7 @@ Usage:
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The file to modify. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "The file to modify. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 },
                 "old_string": {
                     "type": "string",
@@ -215,21 +215,21 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let file_path = input
             .get("file_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("file_path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("file_path is required".to_string()))?;
 
         let new_string = input
             .get("new_string")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("new_string is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("new_string is required".to_string()))?;
 
         let old_string = input
             .get("old_string")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("old_string is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("old_string is required".to_string()))?;
 
         let replace_all = input
             .get("replace_all")
@@ -249,19 +249,19 @@ Usage:
         // For remote workspace paths, use the abstract FS to read → edit in memory → write back.
         if resolved.uses_remote_workspace_backend() {
             let ws_fs = context.ws_fs().ok_or_else(|| {
-                BitFunError::tool("Remote workspace file system is unavailable".to_string())
+                VoidError::tool("Remote workspace file system is unavailable".to_string())
             })?;
             let content = ws_fs
                 .read_file_text(&resolved.resolved_path)
                 .await
-                .map_err(|e| BitFunError::tool(format!("Failed to read file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to read file: {}", e)))?;
             let edit_result = apply_edit_to_content(&content, old_string, new_string, replace_all)
-                .map_err(|e| BitFunError::tool(Self::enhance_edit_error(file_path, e)))?;
+                .map_err(|e| VoidError::tool(Self::enhance_edit_error(file_path, e)))?;
 
             ws_fs
                 .write_file(&resolved.resolved_path, edit_result.new_content.as_bytes())
                 .await
-                .map_err(|e| BitFunError::tool(format!("Failed to write file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to write file: {}", e)))?;
 
             let result = ToolResult::Result {
                 data: json!({
@@ -285,7 +285,7 @@ Usage:
 
         // Local: direct local edit via tool-runtime
         let edit_result = edit_file(&resolved.resolved_path, old_string, new_string, replace_all)
-            .map_err(|e| BitFunError::tool(Self::enhance_edit_error(file_path, e)))?;
+            .map_err(|e| VoidError::tool(Self::enhance_edit_error(file_path, e)))?;
 
         let result = ToolResult::Result {
             data: json!({

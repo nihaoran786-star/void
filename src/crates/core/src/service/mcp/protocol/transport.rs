@@ -1,1 +1,1 @@
-pub use bitfun_services_integrations::mcp::protocol::MCPTransport;
+pub use void_services_integrations::mcp::protocol::MCPTransport;

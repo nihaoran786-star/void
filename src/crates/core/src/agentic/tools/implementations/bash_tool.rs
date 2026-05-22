@@ -9,7 +9,7 @@ use crate::infrastructure::events::event_system::BackendEvent::{
 };
 use crate::service::config::global::get_global_config_service;
 use crate::util::elapsed_ms_u64;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::types::event::{ToolExecutionProgressInfo, ToolTerminalReadyInfo};
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -177,7 +177,7 @@ impl BashTool {
     fn resolve_working_directory(
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Option<String>> {
+    ) -> VoidResult<Option<String>> {
         let Some(raw_dir) = input.get("working_directory").and_then(|v| v.as_str()) else {
             return Ok(None);
         };
@@ -191,16 +191,16 @@ impl BashTool {
     async fn is_existing_workspace_directory(
         context: &ToolUseContext,
         resolved_dir: &str,
-    ) -> BitFunResult<bool> {
+    ) -> VoidResult<bool> {
         if context.is_remote() {
             let fs = context.ws_fs().ok_or_else(|| {
-                BitFunError::tool(
+                VoidError::tool(
                     "Remote workspace filesystem is unavailable; cannot validate working_directory"
                         .to_string(),
                 )
             })?;
             fs.is_dir(resolved_dir).await.map_err(|e| {
-                BitFunError::tool(format!("Failed to validate working_directory: {e}"))
+                VoidError::tool(format!("Failed to validate working_directory: {e}"))
             })
         } else {
             Ok(Path::new(resolved_dir).is_dir())
@@ -211,7 +211,7 @@ impl BashTool {
     /// (pagers, editors, prompts) so agent-driven commands never block.
     pub fn noninteractive_env() -> std::collections::HashMap<String, String> {
         let mut env = std::collections::HashMap::new();
-        env.insert("BITFUN_NONINTERACTIVE".to_string(), "1".to_string());
+        env.insert("VOID_NONINTERACTIVE".to_string(), "1".to_string());
         // Disable git pager globally (prevents `less`/`more` from blocking)
         env.insert("GIT_PAGER".to_string(), "cat".to_string());
         // Disable generic pager for other tools (man, etc.)
@@ -352,8 +352,8 @@ impl BashTool {
             .is_some_and(|token| token.is_cancelled())
     }
 
-    fn cancellation_error(stage: &str) -> BitFunError {
-        BitFunError::cancelled(format!("Bash tool execution cancelled {}", stage))
+    fn cancellation_error(stage: &str) -> VoidError {
+        VoidError::cancelled(format!("Bash tool execution cancelled {}", stage))
     }
 
     fn background_output_file_reference(
@@ -448,7 +448,7 @@ impl Tool for BashTool {
         "Bash"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         let shell_info = Self::resolve_shell().await.display_name;
 
         Ok(format!(
@@ -508,11 +508,11 @@ Usage notes:
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let mut base = self.description().await?;
         if context.map(|c| c.is_remote()).unwrap_or(false) {
             base = format!(
-                r#"**Remote workspace:** Commands run on the **SSH server** in a shell whose initial working directory is the **remote workspace root** (same as running a terminal on that machine). The shell name shown below may reflect your **local** BitFun settings; the actual interpreter on the server is typically `sh`/`bash`. Use **Unix** syntax and POSIX paths — not PowerShell or Windows paths.
+                r#"**Remote workspace:** Commands run on the **SSH server** in a shell whose initial working directory is the **remote workspace root** (same as running a terminal on that machine). The shell name shown below may reflect your **local** Void settings; the actual interpreter on the server is typically `sh`/`bash`. Use **Unix** syntax and POSIX paths — not PowerShell or Windows paths.
 
 {base}"#,
                 base = base
@@ -764,20 +764,20 @@ Usage notes:
         &self,
         _input: &Value,
         _context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
-        Err(BitFunError::tool(
+    ) -> VoidResult<Vec<ToolResult>> {
+        Err(VoidError::tool(
             "Bash tool call_impl should not be called".to_string(),
         ))
     }
 
-    async fn call(&self, input: &Value, context: &ToolUseContext) -> BitFunResult<Vec<ToolResult>> {
+    async fn call(&self, input: &Value, context: &ToolUseContext) -> VoidResult<Vec<ToolResult>> {
         let start_time = Instant::now();
 
         // Get command parameter
         let command_str = input
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("command is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("command is required".to_string()))?;
         let requested_working_directory = Self::resolve_working_directory(input, context)?;
 
         if command_needs_light_checkpoint(command_str) {
@@ -789,7 +789,7 @@ Usage notes:
         // Remote workspace: execute via injected workspace shell
         if context.is_remote() {
             let Some(ws_shell) = context.ws_shell() else {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "Remote workspace shell is unavailable; refusing to run Bash locally for a remote session.".to_string(),
                 ));
             };
@@ -818,7 +818,7 @@ Usage notes:
                 )
                 .await
                 .map_err(|e| {
-                    BitFunError::tool(format!("Remote command execution failed: {}", e))
+                    VoidError::tool(format!("Remote command execution failed: {}", e))
                 })?;
 
             let output = exec_result.combined_output();
@@ -875,7 +875,7 @@ Usage notes:
         let chat_session_id = context
             .session_id
             .as_ref()
-            .ok_or_else(|| BitFunError::tool("session_id is required for Bash tool".to_string()))?;
+            .ok_or_else(|| VoidError::tool("session_id is required for Bash tool".to_string()))?;
 
         // Get tool call ID (for sending progress events)
         let tool_use_id = context
@@ -885,7 +885,7 @@ Usage notes:
 
         // 1. Get Terminal API
         let terminal_api = TerminalApi::from_singleton()
-            .map_err(|e| BitFunError::tool(format!("Terminal not initialized: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Terminal not initialized: {}", e)))?;
 
         // 2. Resolve shell type
         let shell_type = Self::resolve_shell().await.shell_type;
@@ -894,7 +894,7 @@ Usage notes:
         let workspace_path = context
             .workspace_root()
             .ok_or_else(|| {
-                BitFunError::tool("workspace_path is required for Bash tool".to_string())
+                VoidError::tool("workspace_path is required for Bash tool".to_string())
             })?
             .to_string_lossy()
             .to_string();
@@ -953,7 +953,7 @@ Usage notes:
                 },
             )
             .await
-            .map_err(|e| BitFunError::tool(format!("Failed to create Terminal session: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Failed to create Terminal session: {}", e)))?;
         let terminal_ready_ms = elapsed_ms_u64(terminal_ready_started_at);
 
         Self::emit_terminal_ready_event(&tool_use_id, &primary_session_id);
@@ -1119,7 +1119,7 @@ Usage notes:
                         "Bash command execution error: {}, tool_id: {}",
                         message, tool_use_id
                     );
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "Command execution error: {}",
                         message
                     )));
@@ -1234,7 +1234,7 @@ impl BashTool {
         shell_type: Option<ShellType>,
         binding: &TerminalSessionBinding,
         start_time: Instant,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         debug!(
             "Bash tool starting background command: {}, owner: {}",
             command_str, chat_session_id
@@ -1262,7 +1262,7 @@ impl BashTool {
             )
             .await
             .map_err(|e| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "Failed to create background terminal session: {}",
                     e
                 ))
@@ -1276,7 +1276,7 @@ impl BashTool {
 
         if Self::cancellation_requested(context) {
             let terminal_api = TerminalApi::from_singleton()
-                .map_err(|e| BitFunError::tool(format!("Terminal not initialized: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Terminal not initialized: {}", e)))?;
             let _ = terminal_api
                 .close_session(terminal_core::CloseSessionRequest {
                     session_id: bg_session_id.clone(),
@@ -1289,19 +1289,19 @@ impl BashTool {
         }
 
         // Store background output under the session-scoped runtime tool-results tree:
-        // local:  ~/.bitfun/projects/<project-slug>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
-        // remote: ~/.bitfun/remote_ssh/<host>/<remote-path>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
+        // local:  ~/.void/projects/<project-slug>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
+        // remote: ~/.void/remote_ssh/<host>/<remote-path>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
         let output_file_path =
             Self::background_output_file_path(context, chat_session_id, &tool_use_id).ok_or_else(
                 || {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "Failed to prepare a background output file for Bash tool".to_string(),
                     )
                 },
             )?;
         if let Some(parent) = output_file_path.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|e| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "Failed to create background output directory: {}",
                     e
                 ))
@@ -1314,7 +1314,7 @@ impl BashTool {
             .open(&output_file_path)
             .await
             .map_err(|e| {
-                BitFunError::tool(format!("Failed to open background output file: {}", e))
+                VoidError::tool(format!("Failed to open background output file: {}", e))
             })?;
         let output_file_reference = Self::background_output_file_reference(
             context,

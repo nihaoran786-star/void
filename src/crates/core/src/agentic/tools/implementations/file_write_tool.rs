@@ -3,7 +3,7 @@ use crate::agentic::tools::framework::{
 };
 use crate::agentic::tools::ToolPathOperation;
 use crate::service::config::types::WriteToolMode;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::path::Path;
@@ -115,7 +115,7 @@ impl FileWriteTool {
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The file to write. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "The file to write. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 },
                 "content": {
                     "type": "string",
@@ -133,7 +133,7 @@ impl FileWriteTool {
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The file to write. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "The file to write. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 }
             },
             "required": ["file_path"],
@@ -147,7 +147,7 @@ impl FileWriteTool {
 Usage:
 - This tool will overwrite the existing file if there is one at the provided path.
 - If this is an existing file, you MUST use the Read tool first to read the file's contents. This tool will fail if you did not read the file first.
-- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool.
+- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool.
 - ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
 - Keep writes focused. The 200-line / 20KB guideline is a soft reliability threshold, not a hard cap. If a task genuinely needs more content, preserve correctness and use a staged plan instead of truncating.
 - For existing files, prefer Read + targeted Edit calls. For large new files or rewrites, write the stable scaffold first, then fill or revise sections with focused Edit calls. Do not replace an entire existing file just to change a few sections.
@@ -165,7 +165,7 @@ Usage:
 - To MODIFY an existing file, use the Edit tool — it is the correct choice in almost every case.
 - To FULLY REWRITE an existing file (e.g. regenerate a generated file, replace a template), first call the Delete tool on that path, then call Write to create the new version. Do not try to "overwrite" via Write directly.
 - After Write succeeds for a path, do not call Write for that path again in later rounds. Use Edit for any additional changes.
-- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool.
+- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool.
 - ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required.
 - NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
 - Only use emojis if the user explicitly requests it. Avoid writing emojis to files unless asked.
@@ -177,11 +177,11 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let file_path = input
             .get("file_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("file_path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("file_path is required".to_string()))?;
 
         let resolved = context.resolve_tool_path(file_path)?;
         context.enforce_path_operation(ToolPathOperation::Write, &resolved)?;
@@ -196,26 +196,26 @@ Usage:
         let content = input
             .get("content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("content is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("content is required".to_string()))?;
 
         if resolved.uses_remote_workspace_backend() {
             let ws_fs = context.ws_fs().ok_or_else(|| {
-                BitFunError::tool("Remote workspace file system is unavailable".to_string())
+                VoidError::tool("Remote workspace file system is unavailable".to_string())
             })?;
             ws_fs
                 .write_file(&resolved.resolved_path, content.as_bytes())
                 .await
-                .map_err(|e| BitFunError::tool(format!("Failed to write file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to write file: {}", e)))?;
         } else {
             if let Some(parent) = Path::new(&resolved.resolved_path).parent() {
                 fs::create_dir_all(parent)
                     .await
-                    .map_err(|e| BitFunError::tool(format!("Failed to create directory: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("Failed to create directory: {}", e)))?;
             }
             fs::write(&resolved.resolved_path, content)
                 .await
                 .map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "Failed to write file {}: {}",
                         resolved.logical_path, e
                     ))
@@ -239,11 +239,11 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let file_path = input
             .get("file_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("file_path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("file_path is required".to_string()))?;
 
         let resolved = context.resolve_tool_path(file_path)?;
         context.enforce_path_operation(ToolPathOperation::Write, &resolved)?;
@@ -258,7 +258,7 @@ Usage:
         let content = input
             .get("content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("content is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("content is required".to_string()))?;
 
         if let Some(error) = Self::existing_file_error(context, &resolved).await {
             if Self::existing_file_matches_content(context, &resolved, content).await == Some(true)
@@ -275,27 +275,27 @@ Usage:
                 return Ok(vec![result]);
             }
 
-            return Err(BitFunError::tool(error));
+            return Err(VoidError::tool(error));
         }
 
         if resolved.uses_remote_workspace_backend() {
             let ws_fs = context.ws_fs().ok_or_else(|| {
-                BitFunError::tool("Remote workspace file system is unavailable".to_string())
+                VoidError::tool("Remote workspace file system is unavailable".to_string())
             })?;
             ws_fs
                 .write_file(&resolved.resolved_path, content.as_bytes())
                 .await
-                .map_err(|e| BitFunError::tool(format!("Failed to write file: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Failed to write file: {}", e)))?;
         } else {
             if let Some(parent) = Path::new(&resolved.resolved_path).parent() {
                 fs::create_dir_all(parent)
                     .await
-                    .map_err(|e| BitFunError::tool(format!("Failed to create directory: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("Failed to create directory: {}", e)))?;
             }
             fs::write(&resolved.resolved_path, content)
                 .await
                 .map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "Failed to write file {}: {}",
                         resolved.logical_path, e
                     ))
@@ -380,7 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_input_rejects_existing_file_before_content_generation() {
-        let root = std::env::temp_dir().join(format!("bitfun-write-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("void-write-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         let existing_file = root.join("existing.md");
         std::fs::write(&existing_file, "already here").expect("create existing file");
@@ -403,7 +403,7 @@ mod tests {
 
     #[tokio::test]
     async fn call_impl_treats_identical_existing_content_as_success() {
-        let root = std::env::temp_dir().join(format!("bitfun-write-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("void-write-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         std::fs::write(root.join("existing.md"), "same content").expect("create existing file");
 
@@ -437,7 +437,7 @@ mod tests {
 
     #[tokio::test]
     async fn call_impl_rejects_different_existing_content() {
-        let root = std::env::temp_dir().join(format!("bitfun-write-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("void-write-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         std::fs::write(root.join("existing.md"), "old content").expect("create existing file");
 
@@ -530,7 +530,7 @@ mod tests {
 
     #[tokio::test]
     async fn inline_mode_overwrites_existing_file() {
-        let root = std::env::temp_dir().join(format!("bitfun-write-test-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("void-write-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("create temp workspace");
         std::fs::write(root.join("existing.md"), "old content").expect("create existing file");
 
@@ -561,7 +561,7 @@ impl Tool for FileWriteTool {
         "Write"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(Self::plaintext_followup_description())
     }
 
@@ -572,7 +572,7 @@ impl Tool for FileWriteTool {
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         match Self::write_tool_mode(context) {
             WriteToolMode::InlineContent => Ok(Self::inline_description()),
             WriteToolMode::PlaintextFollowup => Ok(Self::plaintext_followup_description()),
@@ -732,7 +732,7 @@ impl Tool for FileWriteTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         match Self::write_tool_mode(Some(context)) {
             WriteToolMode::InlineContent => self.call_inline_content_impl(input, context).await,
             WriteToolMode::PlaintextFollowup => {

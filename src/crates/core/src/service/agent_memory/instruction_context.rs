@@ -12,7 +12,7 @@ struct WorkspaceInstructionFile {
 
 async fn load_workspace_instruction_files(
     workspace_root: &Path,
-) -> BitFunResult<Vec<WorkspaceInstructionFile>> {
+) -> VoidResult<Vec<WorkspaceInstructionFile>> {
     let mut files = Vec::new();
 
     for file_name in WORKSPACE_INSTRUCTION_FILE_NAMES {
@@ -22,7 +22,7 @@ async fn load_workspace_instruction_files(
         }
 
         let content = fs::read_to_string(&path).await.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to read workspace instruction file {}: {}",
                 path.display(),
                 e
@@ -65,7 +65,7 @@ fn render_workspace_instruction_files_section(
 
 pub(crate) async fn build_workspace_instruction_files_context(
     workspace_root: &Path,
-) -> BitFunResult<Option<String>> {
+) -> VoidResult<Option<String>> {
     let instruction_files = load_workspace_instruction_files(workspace_root).await?;
     Ok(render_workspace_instruction_files_section(
         &instruction_files,

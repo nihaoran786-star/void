@@ -4,7 +4,7 @@
 
 适用范围：`src/crates/acp`。
 
-`bitfun-acp` 负责 Agent Client Protocol 集成和 ACP client 行为。ACP protocol /
+`void-acp` 负责 Agent Client Protocol 集成和 ACP client 行为。ACP protocol /
 client 细节应留在这里或 app surface adapter；contract crate 只共享稳定 capability facts。
 
 ## 护栏
@@ -19,6 +19,6 @@ client 细节应留在这里或 app surface adapter；contract crate 只共享�
 ## 验证
 
 ```bash
-cargo check -p bitfun-acp
-cargo test -p bitfun-acp
+cargo check -p void-acp
+cargo test -p void-acp
 ```

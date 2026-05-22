@@ -559,7 +559,7 @@ mod tests {
         let mut pending = PendingToolCall::default();
         pending.start_new("call_1".to_string(), Some("Task".to_string()));
         pending.append_arguments(
-            "{\"description\":\"Explore BitFun project structure\",\"prompt\":\"read README\\n\\nthoroughness: very",
+            "{\"description\":\"Explore Void project structure\",\"prompt\":\"read README\\n\\nthoroughness: very",
         );
 
         let finalized = pending

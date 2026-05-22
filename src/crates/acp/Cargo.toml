@@ -1,16 +1,16 @@
 [package]
-name = "bitfun-acp"
+name = "void-acp"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun Agent Client Protocol integration"
+description = "Void Agent Client Protocol integration"
 
 [lib]
-name = "bitfun_acp"
+name = "void_acp"
 
 [dependencies]
-bitfun-core = { path = "../core", default-features = false, features = ["product-full"] }
-bitfun-events = { path = "../events" }
+void-core = { path = "../core", default-features = false, features = ["product-full"] }
+void-events = { path = "../events" }
 
 agent-client-protocol = { version = "=0.11.1", features = ["unstable"] }
 tokio = { workspace = true }

@@ -26,22 +26,22 @@ fn format_path_for_prompt(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-async fn ensure_markdown_placeholder(path: &Path, content: &str) -> BitFunResult<bool> {
+async fn ensure_markdown_placeholder(path: &Path, content: &str) -> VoidResult<bool> {
     if path.exists() {
         return Ok(false);
     }
 
     fs::write(path, content)
         .await
-        .map_err(|e| BitFunError::service(format!("Failed to create {}: {}", path.display(), e)))?;
+        .map_err(|e| VoidError::service(format!("Failed to create {}: {}", path.display(), e)))?;
 
     Ok(true)
 }
 
-async fn list_memory_files(memory_dir: &Path) -> BitFunResult<Vec<String>> {
+async fn list_memory_files(memory_dir: &Path) -> VoidResult<Vec<String>> {
     let mut memory_files = Vec::new();
     let mut entries = fs::read_dir(memory_dir).await.map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to read memory directory {}: {}",
             memory_dir.display(),
             e
@@ -49,14 +49,14 @@ async fn list_memory_files(memory_dir: &Path) -> BitFunResult<Vec<String>> {
     })?;
 
     while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        BitFunError::service(format!(
+        VoidError::service(format!(
             "Failed to iterate memory directory {}: {}",
             memory_dir.display(),
             e
         ))
     })? {
         let file_type = entry.file_type().await.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to inspect memory entry {}: {}",
                 entry.path().display(),
                 e
@@ -79,11 +79,11 @@ async fn list_memory_files(memory_dir: &Path) -> BitFunResult<Vec<String>> {
 
 pub(crate) async fn ensure_workspace_memory_files_for_prompt(
     workspace_root: &Path,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     let memory_dir = memory_dir_path(workspace_root);
     if !memory_dir.exists() {
         fs::create_dir_all(&memory_dir).await.map_err(|e| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to create memory directory {}: {}",
                 memory_dir.display(),
                 e
@@ -105,7 +105,7 @@ pub(crate) async fn ensure_workspace_memory_files_for_prompt(
 
 pub(crate) async fn build_workspace_agent_memory_prompt(
     workspace_root: &Path,
-) -> BitFunResult<String> {
+) -> VoidResult<String> {
     ensure_workspace_memory_files_for_prompt(workspace_root).await?;
 
     let memory_dir = memory_dir_path(workspace_root);
@@ -246,7 +246,7 @@ Memory is one of several persistence mechanisms available to you as you assist t
 
 pub(crate) async fn build_workspace_memory_files_context(
     workspace_root: &Path,
-) -> BitFunResult<Option<String>> {
+) -> VoidResult<Option<String>> {
     let memory_dir = memory_dir_path(workspace_root);
     let memory_files_section = build_memory_space_files_section(&memory_dir).await?;
     if memory_files_section.trim().is_empty() {
@@ -256,7 +256,7 @@ pub(crate) async fn build_workspace_memory_files_context(
     }
 }
 
-async fn build_memory_space_files_section(memory_dir: &Path) -> BitFunResult<String> {
+async fn build_memory_space_files_section(memory_dir: &Path) -> VoidResult<String> {
     let index_path = memory_dir.join(MEMORY_INDEX_FILE);
     let memory_dir_display = format_path_for_prompt(memory_dir);
     let (index_content, index_description_suffix) = match fs::read_to_string(&index_path).await {

@@ -2,13 +2,13 @@
 
 import { ThemeConfig } from '../types';
 
-export const bitfunLightTheme: ThemeConfig = {
+export const voidLightTheme: ThemeConfig = {
   
-  id: 'bitfun-light',
+  id: 'void-light',
   name: 'Light',
   type: 'light',
   description: 'Light theme - Neutral gray surfaces, black primary actions',
-  author: 'BitFun Team',
+  author: 'Void Team',
   version: '2.3.0',
 
   layout: {

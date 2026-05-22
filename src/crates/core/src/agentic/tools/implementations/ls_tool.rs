@@ -5,9 +5,9 @@
 use crate::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::agentic::tools::workspace_paths::is_bitfun_runtime_uri;
+use crate::agentic::tools::workspace_paths::is_void_runtime_uri;
 use crate::service::filesystem::{format_directory_listing, list_directory_entries};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Local};
 use serde_json::{json, Value};
@@ -48,11 +48,11 @@ impl Tool for LSTool {
         "LS"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(r#"Recursively lists files and directories in a given path.
 
 Usage:
-- The path parameter must be relative to the current workspace, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool
+- The path parameter must be relative to the current workspace, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool
 - Do not list host roots such as `/`, `/Users`, `/home`, or placeholder paths such as `/workspace`
 - Hidden files (files starting with '.') are automatically excluded
 - Results are sorted by modification time (newest first)"#
@@ -69,7 +69,7 @@ Usage:
             "properties": {
                 "path": {
                     "type": "string",
-                    "description": "Directory to list. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "Directory to list. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 },
                 "limit": {
                     "type": "number",
@@ -119,11 +119,11 @@ Usage:
                     };
                 }
                 None => {
-                    if is_bitfun_runtime_uri(path) {
+                    if is_void_runtime_uri(path) {
                         return ValidationResult {
                             result: false,
                             message: Some(
-                                "Tool context is required to resolve bitfun runtime URIs"
+                                "Tool context is required to resolve void runtime URIs"
                                     .to_string(),
                             ),
                             error_code: Some(400),
@@ -227,11 +227,11 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let path = input
             .get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("path is required".to_string()))?;
 
         let limit = input
             .get("limit")
@@ -244,7 +244,7 @@ Usage:
         // Remote workspace path: execute ls via SSH shell
         if resolved.uses_remote_workspace_backend() {
             let ws_shell = context.ws_shell().ok_or_else(|| {
-                BitFunError::tool("Workspace shell not available for remote LS".to_string())
+                VoidError::tool("Workspace shell not available for remote LS".to_string())
             })?;
 
             let ls_cmd = format!(
@@ -256,7 +256,7 @@ Usage:
 
             let (stdout, _stderr, _exit_code) =
                 ws_shell.exec(&ls_cmd, Some(15_000)).await.map_err(|e| {
-                    BitFunError::tool(format!("Failed to list remote directory: {}", e))
+                    VoidError::tool(format!("Failed to list remote directory: {}", e))
                 })?;
 
             let mut file_lines = Vec::new();
@@ -282,7 +282,7 @@ Usage:
                 shell_escape(&resolved.resolved_path)
             );
             let (ls_output, _, _) = ws_shell.exec(&stat_cmd, Some(15_000)).await.map_err(|e| {
-                BitFunError::tool(format!("Failed to list remote directory: {}", e))
+                VoidError::tool(format!("Failed to list remote directory: {}", e))
             })?;
 
             let result_text = format!(
@@ -324,7 +324,7 @@ Usage:
 
         // Local: original implementation
         let entries =
-            list_directory_entries(&resolved.resolved_path, limit).map_err(BitFunError::tool)?;
+            list_directory_entries(&resolved.resolved_path, limit).map_err(VoidError::tool)?;
 
         let entries_json = entries
             .iter()

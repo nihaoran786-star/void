@@ -69,23 +69,23 @@ function prepareTauriConfig(baseConfigPath, { desktopDir, flashgrepBinary }) {
   injectTargetFlashgrepResource(config, desktopDir, flashgrepBinary);
 
   const enabled = ['1', 'true', 'yes'].includes(
-    String(process.env.BITFUN_ENABLE_UPDATER_ARTIFACTS || '').toLowerCase()
+    String(process.env.VOID_ENABLE_UPDATER_ARTIFACTS || '').toLowerCase()
   );
 
   if (enabled) {
     const pubkey = process.env.TAURI_UPDATER_PUBKEY;
     if (!pubkey) {
-      console.error('BITFUN_ENABLE_UPDATER_ARTIFACTS is set, but TAURI_UPDATER_PUBKEY is missing.');
+      console.error('VOID_ENABLE_UPDATER_ARTIFACTS is set, but TAURI_UPDATER_PUBKEY is missing.');
       process.exit(1);
     }
     if (!process.env.TAURI_SIGNING_PRIVATE_KEY) {
-      console.error('BITFUN_ENABLE_UPDATER_ARTIFACTS is set, but TAURI_SIGNING_PRIVATE_KEY is missing.');
+      console.error('VOID_ENABLE_UPDATER_ARTIFACTS is set, but TAURI_SIGNING_PRIVATE_KEY is missing.');
       process.exit(1);
     }
 
     const endpoint =
       process.env.TAURI_UPDATER_ENDPOINT ||
-      'https://github.com/GCWing/BitFun/releases/latest/download/latest.json';
+      'https://github.com/GCWing/Void/releases/latest/download/latest.json';
 
     config.bundle = {
       ...(config.bundle || {}),

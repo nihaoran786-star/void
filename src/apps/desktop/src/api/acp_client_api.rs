@@ -2,7 +2,7 @@
 
 use crate::api::app_state::AppState;
 use crate::api::session_storage_path::desktop_effective_session_storage_path;
-use bitfun_acp::client::{
+use void_acp::client::{
     AcpClientInfo, AcpClientPermissionResponse, AcpClientRequirementProbe, AcpClientStreamEvent,
     AcpSessionOptions, CreateAcpFlowSessionRecordResponse, SetAcpSessionModelRequest,
     SubmitAcpPermissionResponseRequest,
@@ -297,12 +297,12 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::AgentText(text) => {
                             let round_id = current_round_id.clone().ok_or_else(|| {
-                                bitfun_core::util::errors::BitFunError::service(
+                                void_core::util::errors::VoidError::service(
                                     "ACP text arrived before model round start".to_string(),
                                 )
                             })?;
@@ -318,12 +318,12 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::AgentThought(text) => {
                             let round_id = current_round_id.clone().ok_or_else(|| {
-                                bitfun_core::util::errors::BitFunError::service(
+                                void_core::util::errors::VoidError::service(
                                     "ACP thought arrived before model round start".to_string(),
                                 )
                             })?;
@@ -341,7 +341,7 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::ToolEvent(tool_event) => {
@@ -356,7 +356,7 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::ContextUsageUpdated(usage) => {
@@ -374,7 +374,7 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::Completed => {
@@ -389,7 +389,7 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                         AcpClientStreamEvent::Cancelled => {
@@ -403,7 +403,7 @@ pub async fn start_acp_dialog_turn(
                                     }),
                                 )
                                 .map_err(|e| {
-                                    bitfun_core::util::errors::BitFunError::service(e.to_string())
+                                    void_core::util::errors::VoidError::service(e.to_string())
                                 })?;
                         }
                     }

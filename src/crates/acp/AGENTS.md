@@ -4,7 +4,7 @@
 
 Scope: this guide applies to `src/crates/acp`.
 
-`bitfun-acp` owns Agent Client Protocol integration and ACP client behavior.
+`void-acp` owns Agent Client Protocol integration and ACP client behavior.
 Keep ACP protocol/client details here or in app-surface adapters; share only
 stable capability facts through contract crates.
 
@@ -22,6 +22,6 @@ stable capability facts through contract crates.
 ## Verification
 
 ```bash
-cargo check -p bitfun-acp
-cargo test -p bitfun-acp
+cargo check -p void-acp
+cargo test -p void-acp
 ```

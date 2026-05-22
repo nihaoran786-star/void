@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 use agent_client_protocol::schema::{McpServer, McpServerSse, McpServerStdio};
 use agent_client_protocol::{Error, Result};
-use bitfun_core::service::config::get_global_config_service;
-use bitfun_core::service::mcp::{
+use void_core::service::config::get_global_config_service;
+use void_core::service::mcp::{
     get_global_mcp_service, set_global_mcp_service, ConfigLocation, MCPServerConfig,
     MCPServerManager, MCPServerTransport, MCPServerType, MCPService,
 };
 
-use super::BitfunAcpRuntime;
+use super::VoidAcpRuntime;
 
-impl BitfunAcpRuntime {
+impl VoidAcpRuntime {
     pub(super) async fn provision_mcp_servers(
         &self,
         acp_session_id: &str,
@@ -49,9 +49,9 @@ async fn mcp_server_manager() -> Result<Arc<MCPServerManager>> {
 
     let config_service = get_global_config_service()
         .await
-        .map_err(BitfunAcpRuntime::internal_error)?;
+        .map_err(VoidAcpRuntime::internal_error)?;
     let service =
-        Arc::new(MCPService::new(config_service).map_err(BitfunAcpRuntime::internal_error)?);
+        Arc::new(MCPService::new(config_service).map_err(VoidAcpRuntime::internal_error)?);
     set_global_mcp_service(service.clone());
     Ok(service.server_manager())
 }

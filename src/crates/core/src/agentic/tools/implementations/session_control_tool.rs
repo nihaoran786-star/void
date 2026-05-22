@@ -10,7 +10,7 @@ use crate::agentic::core::SessionConfig;
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -87,9 +87,9 @@ impl SessionControlTool {
         datetime.format("%Y-%m-%dT%H:%M:%S").to_string()
     }
 
-    fn creator_session_marker(&self, context: &ToolUseContext) -> BitFunResult<String> {
+    fn creator_session_marker(&self, context: &ToolUseContext) -> VoidResult<String> {
         let creator_session_id = context.session_id.as_ref().ok_or_else(|| {
-            BitFunError::tool("create requires a creator session in tool context".to_string())
+            VoidError::tool("create requires a creator session in tool context".to_string())
         })?;
         Ok(format!("session-{}", creator_session_id))
     }
@@ -122,11 +122,11 @@ impl SessionControlTool {
         session_id: Option<&str>,
         context: &ToolUseContext,
         coordinator: &crate::agentic::coordination::ConversationCoordinator,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         match action {
             SessionControlAction::Cancel | SessionControlAction::Delete => {
                 let session_id = session_id.ok_or_else(|| {
-                    BitFunError::tool(format!("session_id is required for {}", action.as_str()))
+                    VoidError::tool(format!("session_id is required for {}", action.as_str()))
                 })?;
                 if let Some(resolved) = coordinator
                     .resolve_session_workspace_path(session_id)
@@ -135,7 +135,7 @@ impl SessionControlTool {
                 {
                     return Ok(resolved);
                 }
-                Err(BitFunError::NotFound(format!(
+                Err(VoidError::NotFound(format!(
                     "Workspace for session '{}' could not be resolved",
                     session_id
                 )))
@@ -144,7 +144,7 @@ impl SessionControlTool {
                 .workspace_root()
                 .map(|path| normalize_path(path.to_string_lossy().as_ref()))
                 .ok_or_else(|| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "workspace is required for {} when the current workspace is unavailable",
                         action.as_str()
                     ))
@@ -219,7 +219,7 @@ impl SessionControlTool {
         workspace_path: &Path,
         workspace: &str,
         session_id: &str,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let existing_sessions = coordinator.list_sessions(workspace_path).await?;
         if existing_sessions
             .iter()
@@ -227,7 +227,7 @@ impl SessionControlTool {
         {
             Ok(())
         } else {
-            Err(BitFunError::NotFound(format!(
+            Err(VoidError::NotFound(format!(
                 "Session '{}' not found in workspace '{}'",
                 session_id, workspace
             )))
@@ -327,7 +327,7 @@ impl Tool for SessionControlTool {
         "SessionControl"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(
             r#"Manage persisted workspace-scoped agent sessions.
 
@@ -554,11 +554,11 @@ Arguments:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let params: SessionControlInput = serde_json::from_value(input.clone())
-            .map_err(|e| BitFunError::tool(format!("Invalid input: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Invalid input: {}", e)))?;
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::tool("coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("coordinator not initialized".to_string()))?;
 
         match params.action {
             SessionControlAction::Create => {
@@ -620,9 +620,9 @@ Arguments:
             }
             SessionControlAction::Cancel => {
                 let session_id = params.session_id.as_deref().ok_or_else(|| {
-                    BitFunError::tool("session_id is required for cancel".to_string())
+                    VoidError::tool("session_id is required for cancel".to_string())
                 })?;
-                Self::validate_session_id(session_id).map_err(BitFunError::tool)?;
+                Self::validate_session_id(session_id).map_err(VoidError::tool)?;
                 let workspace = self
                     .resolve_effective_workspace(
                         SessionControlAction::Cancel,
@@ -633,7 +633,7 @@ Arguments:
                     .await?;
                 let workspace_path = Path::new(&workspace);
                 if self.current_workspace_session(context, &workspace) == Some(session_id) {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "cannot cancel the current session from SessionControl".to_string(),
                     ));
                 }
@@ -702,9 +702,9 @@ Arguments:
             }
             SessionControlAction::Delete => {
                 let session_id = params.session_id.as_deref().ok_or_else(|| {
-                    BitFunError::tool("session_id is required for delete".to_string())
+                    VoidError::tool("session_id is required for delete".to_string())
                 })?;
-                Self::validate_session_id(session_id).map_err(BitFunError::tool)?;
+                Self::validate_session_id(session_id).map_err(VoidError::tool)?;
                 let workspace = self
                     .resolve_effective_workspace(
                         SessionControlAction::Delete,
@@ -715,7 +715,7 @@ Arguments:
                     .await?;
                 let workspace_path = Path::new(&workspace);
                 if self.current_workspace_session(context, &workspace) == Some(session_id) {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "cannot delete the current session from SessionControl".to_string(),
                     ));
                 }
@@ -901,7 +901,7 @@ mod tests {
     #[tokio::test]
     async fn validate_list_rejects_session_id() {
         let tool = SessionControlTool::new();
-        let workspace = TestTempDir::new("bitfun-session-control-tool-test");
+        let workspace = TestTempDir::new("void-session-control-tool-test");
 
         let validation = tool
             .validate_input(

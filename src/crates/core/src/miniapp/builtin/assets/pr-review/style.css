@@ -1,20 +1,20 @@
 :root {
   color-scheme: light dark;
-  --pr-bg: var(--bitfun-bg, #111214);
-  --pr-surface: var(--bitfun-bg-elevated, #17191c);
-  --pr-surface-2: var(--bitfun-element-bg, #1f2327);
-  --pr-surface-3: var(--bitfun-element-hover, #252a2f);
-  --pr-line: var(--bitfun-border, #30363d);
-  --pr-line-soft: var(--bitfun-border-subtle, #242a30);
-  --pr-text: var(--bitfun-text, #f0f2f4);
-  --pr-text-2: var(--bitfun-text-secondary, #b8c0c8);
-  --pr-muted: var(--bitfun-text-muted, #87909b);
-  --pr-accent: var(--bitfun-accent, #60a5fa);
-  --pr-info: var(--bitfun-info, #e1ab80);
-  --pr-red: var(--bitfun-error, #ff7a90);
-  --pr-green: var(--bitfun-success, #70d78f);
-  --pr-amber: var(--bitfun-warning, #f6c177);
-  --pr-radius: var(--bitfun-radius, 6px);
+  --pr-bg: var(--void-bg, #111214);
+  --pr-surface: var(--void-bg-elevated, #17191c);
+  --pr-surface-2: var(--void-element-bg, #1f2327);
+  --pr-surface-3: var(--void-element-hover, #252a2f);
+  --pr-line: var(--void-border, #30363d);
+  --pr-line-soft: var(--void-border-subtle, #242a30);
+  --pr-text: var(--void-text, #f0f2f4);
+  --pr-text-2: var(--void-text-secondary, #b8c0c8);
+  --pr-muted: var(--void-text-muted, #87909b);
+  --pr-accent: var(--void-accent, #60a5fa);
+  --pr-info: var(--void-info, #e1ab80);
+  --pr-red: var(--void-error, #ff7a90);
+  --pr-green: var(--void-success, #70d78f);
+  --pr-amber: var(--void-warning, #f6c177);
+  --pr-radius: var(--void-radius, 6px);
   --pr-control-bg: color-mix(in srgb, var(--pr-surface) 88%, var(--pr-bg));
   --pr-card-bg: color-mix(in srgb, var(--pr-surface) 94%, transparent);
   --pr-diff-bg: color-mix(in srgb, var(--pr-bg) 86%, var(--pr-surface));
@@ -25,30 +25,30 @@
   --pr-remove-text: color-mix(in srgb, var(--pr-red) 74%, var(--pr-text));
   --pr-hunk-bg: color-mix(in srgb, var(--pr-accent) 14%, transparent);
   --pr-hunk-text: color-mix(in srgb, var(--pr-accent) 72%, var(--pr-text));
-  font-family: var(--bitfun-font-sans, "Segoe UI", "Microsoft YaHei UI", -apple-system, BlinkMacSystemFont, sans-serif);
+  font-family: var(--void-font-sans, "Segoe UI", "Microsoft YaHei UI", -apple-system, BlinkMacSystemFont, sans-serif);
   background: var(--pr-bg);
   color: var(--pr-text);
 }
 
 :root[data-theme-type="light"] {
-  --bitfun-bg: #f6f7f9;
-  --bitfun-bg-elevated: #ffffff;
-  --bitfun-element-bg: #f1f3f6;
-  --bitfun-element-hover: #e8edf3;
-  --bitfun-border: #d7dde5;
-  --bitfun-border-subtle: #e7ebf0;
-  --bitfun-text: #1d2430;
-  --bitfun-text-secondary: #4c5868;
-  --bitfun-text-muted: #717d8e;
-  --pr-bg: var(--bitfun-bg, #f6f7f9);
-  --pr-surface: var(--bitfun-bg-elevated, #ffffff);
-  --pr-surface-2: var(--bitfun-element-bg, #f1f3f6);
-  --pr-surface-3: var(--bitfun-element-hover, #e8edf3);
-  --pr-line: var(--bitfun-border, #d7dde5);
-  --pr-line-soft: var(--bitfun-border-subtle, #e7ebf0);
-  --pr-text: var(--bitfun-text, #1d2430);
-  --pr-text-2: var(--bitfun-text-secondary, #4c5868);
-  --pr-muted: var(--bitfun-text-muted, #717d8e);
+  --void-bg: #f6f7f9;
+  --void-bg-elevated: #ffffff;
+  --void-element-bg: #f1f3f6;
+  --void-element-hover: #e8edf3;
+  --void-border: #d7dde5;
+  --void-border-subtle: #e7ebf0;
+  --void-text: #1d2430;
+  --void-text-secondary: #4c5868;
+  --void-text-muted: #717d8e;
+  --pr-bg: var(--void-bg, #f6f7f9);
+  --pr-surface: var(--void-bg-elevated, #ffffff);
+  --pr-surface-2: var(--void-element-bg, #f1f3f6);
+  --pr-surface-3: var(--void-element-hover, #e8edf3);
+  --pr-line: var(--void-border, #d7dde5);
+  --pr-line-soft: var(--void-border-subtle, #e7ebf0);
+  --pr-text: var(--void-text, #1d2430);
+  --pr-text-2: var(--void-text-secondary, #4c5868);
+  --pr-muted: var(--void-text-muted, #717d8e);
   --pr-control-bg: color-mix(in srgb, var(--pr-surface) 92%, var(--pr-bg));
   --pr-card-bg: color-mix(in srgb, var(--pr-surface) 94%, transparent);
   --pr-diff-bg: #fbfcfe;
@@ -1206,7 +1206,7 @@ button:disabled,
 
 .pr-file-list span {
   overflow-wrap: anywhere;
-  font-family: var(--bitfun-font-mono, ui-monospace, monospace);
+  font-family: var(--void-font-mono, ui-monospace, monospace);
   font-size: 11px;
 }
 
@@ -1248,7 +1248,7 @@ button:disabled,
   overflow: visible;
   padding: 8px 0;
   color: var(--pr-text-2);
-  font-family: var(--bitfun-font-mono, ui-monospace, monospace);
+  font-family: var(--void-font-mono, ui-monospace, monospace);
   font-size: 11px;
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1695,7 +1695,7 @@ button:disabled,
   color: var(--pr-text-2);
   padding: 4px 8px;
   text-decoration: none;
-  font-family: var(--bitfun-font-mono, ui-monospace, monospace);
+  font-family: var(--void-font-mono, ui-monospace, monospace);
   font-size: 11px;
   line-height: 1;
 }

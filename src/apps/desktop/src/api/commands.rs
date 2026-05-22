@@ -14,15 +14,15 @@ use crate::api::search_api::{
     should_use_workspace_search, SearchMetadataResponse,
 };
 use crate::api::workspace_activation::spawn_workspace_background_warmup;
-use bitfun_core::infrastructure::{
+use void_core::infrastructure::{
     BatchedFileSearchProgressSink, FileSearchOutcome, FileSearchProgressSink, FileSearchResult,
     FileSearchResultGroup, FileTreeNode, SearchMatchType,
 };
-use bitfun_core::service::file_watch;
-use bitfun_core::service::remote_ssh::get_remote_workspace_manager;
-use bitfun_core::service::remote_ssh::workspace_state::is_remote_path;
-use bitfun_core::service::remote_ssh::{RemoteDirEntry, RemoteFileService, RemoteWorkspaceEntry};
-use bitfun_core::service::workspace::{
+use void_core::service::file_watch;
+use void_core::service::remote_ssh::get_remote_workspace_manager;
+use void_core::service::remote_ssh::workspace_state::is_remote_path;
+use void_core::service::remote_ssh::{RemoteDirEntry, RemoteFileService, RemoteWorkspaceEntry};
+use void_core::service::workspace::{
     ScanOptions, WorkspaceInfo, WorkspaceKind, WorkspaceOpenOptions,
 };
 use log::{debug, error, info, warn};
@@ -45,7 +45,7 @@ fn remote_workspace_from_info(info: &WorkspaceInfo) -> Option<crate::api::Remote
         .and_then(|v| v.as_str())
         .unwrap_or(&cid)
         .to_string();
-    let rp = bitfun_core::service::remote_ssh::normalize_remote_workspace_path(
+    let rp = void_core::service::remote_ssh::normalize_remote_workspace_path(
         &info.root_path.to_string_lossy(),
     );
     let ssh_host = info
@@ -328,7 +328,7 @@ struct SearchCommandResponse {
 }
 
 fn serialize_search_response(
-    outcome: bitfun_core::infrastructure::FileSearchOutcome,
+    outcome: void_core::infrastructure::FileSearchOutcome,
     limit: usize,
     search_metadata: Option<SearchMetadataResponse>,
 ) -> serde_json::Value {
@@ -406,12 +406,12 @@ pub struct ReorderOpenedWorkspacesRequest {
 
 #[derive(Debug, Deserialize)]
 pub struct TestAIConfigConnectionRequest {
-    pub config: bitfun_core::service::config::types::AIModelConfig,
+    pub config: void_core::service::config::types::AIModelConfig,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ListAIModelsByConfigRequest {
-    pub config: bitfun_core::service::config::types::AIModelConfig,
+    pub config: void_core::service::config::types::AIModelConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -858,7 +858,7 @@ async fn clear_active_workspace_context(state: &State<'_, AppState>, app: &AppHa
 async fn apply_active_workspace_context(
     state: &State<'_, AppState>,
     app: &AppHandle,
-    workspace_info: &bitfun_core::service::workspace::manager::WorkspaceInfo,
+    workspace_info: &void_core::service::workspace::manager::WorkspaceInfo,
 ) {
     #[cfg(not(target_os = "macos"))]
     let _ = app;
@@ -953,11 +953,11 @@ pub async fn test_ai_connection(state: State<'_, AppState>) -> Result<bool, Stri
 #[tauri::command]
 pub async fn initialize_ai(state: State<'_, AppState>) -> Result<String, String> {
     let config_service = &state.config_service;
-    let global_config: bitfun_core::service::config::GlobalConfig = config_service
+    let global_config: void_core::service::config::GlobalConfig = config_service
         .get_config(None)
         .await
         .map_err(|e| format!("Failed to get configuration: {}", e))?;
-    let stream_options = bitfun_core::infrastructure::ai::build_stream_options(&global_config.ai);
+    let stream_options = void_core::infrastructure::ai::build_stream_options(&global_config.ai);
 
     let primary_model_id = global_config.ai.default_models.primary.ok_or_else(|| {
         "Primary model not configured, please configure it in settings".to_string()
@@ -969,9 +969,9 @@ pub async fn initialize_ai(state: State<'_, AppState>) -> Result<String, String>
         .find(|m| m.id == primary_model_id)
         .ok_or_else(|| format!("Primary model '{}' does not exist", primary_model_id))?;
 
-    let ai_config = bitfun_core::util::types::AIConfig::try_from(model_config.clone())
+    let ai_config = void_core::util::types::AIConfig::try_from(model_config.clone())
         .map_err(|e| format!("Failed to convert AI configuration: {}", e))?;
-    let ai_client = bitfun_core::infrastructure::ai::AIClient::new_with_runtime_options(
+    let ai_client = void_core::infrastructure::ai::AIClient::new_with_runtime_options(
         ai_config,
         None,
         stream_options,
@@ -991,18 +991,18 @@ pub async fn initialize_ai(state: State<'_, AppState>) -> Result<String, String>
 
 async fn create_transient_ai_client_for_config(
     state: &State<'_, AppState>,
-    model_config: bitfun_core::service::config::types::AIModelConfig,
-) -> Result<bitfun_core::infrastructure::ai::AIClient, String> {
+    model_config: void_core::service::config::types::AIModelConfig,
+) -> Result<void_core::infrastructure::ai::AIClient, String> {
     let auth = model_config.auth.clone();
-    let mut ai_config: bitfun_core::util::types::AIConfig = model_config
+    let mut ai_config: void_core::util::types::AIConfig = model_config
         .try_into()
         .map_err(|e| format!("Failed to convert configuration: {}", e))?;
 
-    bitfun_core::infrastructure::ai::client_factory::apply_cli_credential(&auth, &mut ai_config)
+    void_core::infrastructure::ai::client_factory::apply_cli_credential(&auth, &mut ai_config)
         .await
         .map_err(|e| format!("Failed to resolve CLI credential: {}", e))?;
 
-    let global_config: bitfun_core::service::config::GlobalConfig = state
+    let global_config: void_core::service::config::GlobalConfig = state
         .config_service
         .get_config(None)
         .await
@@ -1012,10 +1012,10 @@ async fn create_transient_ai_client_for_config(
     } else {
         None
     };
-    let stream_options = bitfun_core::infrastructure::ai::build_stream_options(&global_config.ai);
+    let stream_options = void_core::infrastructure::ai::build_stream_options(&global_config.ai);
 
     Ok(
-        bitfun_core::infrastructure::ai::AIClient::new_with_runtime_options(
+        void_core::infrastructure::ai::AIClient::new_with_runtime_options(
             ai_config,
             proxy_config,
             stream_options,
@@ -1027,16 +1027,16 @@ async fn create_transient_ai_client_for_config(
 pub async fn test_ai_config_connection(
     state: State<'_, AppState>,
     request: TestAIConfigConnectionRequest,
-) -> Result<bitfun_core::util::types::ConnectionTestResult, String> {
+) -> Result<void_core::util::types::ConnectionTestResult, String> {
     let model_name = request.config.name.clone();
     let supports_image_input = request.config.capabilities.iter().any(|cap| {
         matches!(
             cap,
-            bitfun_core::service::config::types::ModelCapability::ImageUnderstanding
+            void_core::service::config::types::ModelCapability::ImageUnderstanding
         )
     }) || matches!(
         request.config.category,
-        bitfun_core::service::config::types::ModelCategory::Multimodal
+        void_core::service::config::types::ModelCategory::Multimodal
     );
 
     let ai_client = create_transient_ai_client_for_config(&state, request.config)
@@ -1063,7 +1063,7 @@ pub async fn test_ai_config_connection(
                             result.response_time_ms + image_result.response_time_ms;
 
                         if !image_result.success {
-                            let merged = bitfun_core::util::types::ConnectionTestResult {
+                            let merged = void_core::util::types::ConnectionTestResult {
                                 success: false,
                                 response_time_ms,
                                 model_response: image_result
@@ -1079,7 +1079,7 @@ pub async fn test_ai_config_connection(
                             return Ok(merged);
                         }
 
-                        let merged = bitfun_core::util::types::ConnectionTestResult {
+                        let merged = void_core::util::types::ConnectionTestResult {
                             success: true,
                             response_time_ms,
                             model_response: image_result.model_response.or(result.model_response),
@@ -1122,7 +1122,7 @@ pub async fn test_ai_config_connection(
 pub async fn list_ai_models_by_config(
     state: State<'_, AppState>,
     request: ListAIModelsByConfigRequest,
-) -> Result<Vec<bitfun_core::util::types::RemoteModelInfo>, String> {
+) -> Result<Vec<void_core::util::types::RemoteModelInfo>, String> {
     let config_name = request.config.name.clone();
     let ai_client = create_transient_ai_client_for_config(&state, request.config).await?;
 
@@ -1142,7 +1142,7 @@ pub async fn set_agent_model(
     model_id: String,
 ) -> Result<String, String> {
     let config_service = &state.config_service;
-    let global_config: bitfun_core::service::config::GlobalConfig = config_service
+    let global_config: void_core::service::config::GlobalConfig = config_service
         .get_config(None)
         .await
         .map_err(|e| e.to_string())?;
@@ -1171,7 +1171,7 @@ pub async fn get_agent_models(
     state: State<'_, AppState>,
 ) -> Result<std::collections::HashMap<String, String>, String> {
     let config_service = &state.config_service;
-    let global_config: bitfun_core::service::config::GlobalConfig = config_service
+    let global_config: void_core::service::config::GlobalConfig = config_service
         .get_config(None)
         .await
         .map_err(|e| e.to_string())?;
@@ -1261,9 +1261,9 @@ pub async fn open_remote_workspace(
     app: tauri::AppHandle,
     request: OpenRemoteWorkspaceRequest,
 ) -> Result<WorkspaceInfoDto, String> {
-    use bitfun_core::service::remote_ssh::normalize_remote_workspace_path;
-    use bitfun_core::service::remote_ssh::workspace_state::remote_workspace_stable_id;
-    use bitfun_core::service::workspace::WorkspaceCreateOptions;
+    use void_core::service::remote_ssh::normalize_remote_workspace_path;
+    use void_core::service::remote_ssh::workspace_state::remote_workspace_stable_id;
+    use void_core::service::workspace::WorkspaceCreateOptions;
 
     let remote_path = normalize_remote_workspace_path(&request.remote_path);
 
@@ -1601,7 +1601,7 @@ pub async fn reset_assistant_workspace(
 
     clear_directory_contents(&workspace_info.root_path).await?;
 
-    bitfun_core::service::reset_workspace_persona_files_to_default(&workspace_info.root_path)
+    void_core::service::reset_workspace_persona_files_to_default(&workspace_info.root_path)
         .await
         .map_err(|e| format!("Failed to restore assistant workspace persona files: {}", e))?;
 
@@ -1937,7 +1937,7 @@ pub async fn scan_workspace_info(
 }
 
 async fn ensure_directory_request_path(path: &str) -> Result<(), String> {
-    use bitfun_core::service::remote_ssh::workspace_state::is_remote_path;
+    use void_core::service::remote_ssh::workspace_state::is_remote_path;
     use std::path::Path;
 
     if is_remote_path(path).await {
@@ -2496,7 +2496,7 @@ pub async fn reset_workspace_persona_files(
         ));
     }
 
-    bitfun_core::service::reset_workspace_persona_files_to_default(&workspace_path)
+    void_core::service::reset_workspace_persona_files_to_default(&workspace_path)
         .await
         .map_err(|e| {
             error!(
@@ -2743,13 +2743,13 @@ pub async fn reveal_in_explorer(
     {
         if is_directory {
             let normalized_path = path_str.replace("/", "\\");
-            bitfun_core::util::process_manager::create_command("explorer")
+            void_core::util::process_manager::create_command("explorer")
                 .arg(&normalized_path)
                 .spawn()
                 .map_err(|e| format!("Failed to open explorer: {}", e))?;
         } else {
             let normalized_path = path_str.replace("/", "\\");
-            bitfun_core::util::process_manager::create_command("explorer")
+            void_core::util::process_manager::create_command("explorer")
                 .args(["/select,", &normalized_path])
                 .spawn()
                 .map_err(|e| format!("Failed to open explorer: {}", e))?;
@@ -2759,12 +2759,12 @@ pub async fn reveal_in_explorer(
     #[cfg(target_os = "macos")]
     {
         if is_directory {
-            bitfun_core::util::process_manager::create_command("open")
+            void_core::util::process_manager::create_command("open")
                 .arg(&path_str)
                 .spawn()
                 .map_err(|e| format!("Failed to open finder: {}", e))?;
         } else {
-            bitfun_core::util::process_manager::create_command("open")
+            void_core::util::process_manager::create_command("open")
                 .args(["-R", &path_str])
                 .spawn()
                 .map_err(|e| format!("Failed to open finder: {}", e))?;
@@ -2780,7 +2780,7 @@ pub async fn reveal_in_explorer(
                 .ok_or_else(|| "Failed to get parent directory".to_string())?
                 .to_path_buf()
         };
-        bitfun_core::util::process_manager::create_command("xdg-open")
+        void_core::util::process_manager::create_command("xdg-open")
             .arg(target)
             .spawn()
             .map_err(|e| format!("Failed to open file manager: {}", e))?;
@@ -2794,7 +2794,7 @@ pub async fn search_files(
     state: State<'_, AppState>,
     request: SearchFilesRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::filesystem::FileSearchOptions;
+    use void_core::service::filesystem::FileSearchOptions;
 
     let search_id = request.search_id.clone();
     let cancel_flag = register_search(&state, search_id.as_deref());
@@ -2932,7 +2932,7 @@ pub async fn search_filenames(
     state: State<'_, AppState>,
     request: SearchFilenamesRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::filesystem::FileSearchOptions;
+    use void_core::service::filesystem::FileSearchOptions;
 
     let search_id = request.search_id.clone();
     let cancel_flag = register_search(&state, search_id.as_deref());
@@ -2966,8 +2966,8 @@ pub async fn search_filenames(
                 None,
             )
             .await
-            .map_err(bitfun_core::util::errors::BitFunError::service),
-            Err(error) => Err(bitfun_core::util::errors::BitFunError::service(format!(
+            .map_err(void_core::util::errors::VoidError::service),
+            Err(error) => Err(void_core::util::errors::VoidError::service(format!(
                 "Remote file service not available: {}",
                 error
             ))),
@@ -2978,7 +2978,7 @@ pub async fn search_filenames(
                 .search_file_names(&request.root_path, &request.pattern, options, cancel_flag)
                 .await
         }
-        Err(error) => Err(bitfun_core::util::errors::BitFunError::service(error)),
+        Err(error) => Err(void_core::util::errors::VoidError::service(error)),
     };
     unregister_search(&state, search_id.as_deref());
 
@@ -3009,7 +3009,7 @@ pub async fn search_file_contents(
     state: State<'_, AppState>,
     request: SearchFileContentsRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::filesystem::FileSearchOptions;
+    use void_core::service::filesystem::FileSearchOptions;
 
     let search_id = request.search_id.clone();
     let cancel_flag = register_search(&state, search_id.as_deref());
@@ -3077,7 +3077,7 @@ pub async fn start_search_filenames_stream(
     state: State<'_, AppState>,
     request: SearchFilenamesRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::filesystem::FileSearchOptions;
+    use void_core::service::filesystem::FileSearchOptions;
 
     let search_id = ensure_search_id(request.search_id.clone(), "filenames-stream");
     let cancel_flag = register_search(&state, Some(&search_id));
@@ -3154,7 +3154,7 @@ pub async fn start_search_filenames_stream(
                 Some(progress_sink),
             )
             .await
-            .map_err(bitfun_core::util::errors::BitFunError::service)
+            .map_err(void_core::util::errors::VoidError::service)
         } else {
             filesystem_service
                 .search_file_names_with_progress(
@@ -3218,7 +3218,7 @@ pub async fn start_search_file_contents_stream(
     state: State<'_, AppState>,
     request: SearchFileContentsRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::filesystem::FileSearchOptions;
+    use void_core::service::filesystem::FileSearchOptions;
 
     let search_id = ensure_search_id(request.search_id.clone(), "content-stream");
     let cancel_flag = register_search(&state, Some(&search_id));
@@ -3291,18 +3291,18 @@ pub async fn start_search_file_contents_stream(
                     .is_some_and(|flag| flag.load(Ordering::Relaxed))
                 {
                     for group in group_search_results(outcome.results.clone()) {
-                        bitfun_core::infrastructure::FileSearchProgressSink::report(
+                        void_core::infrastructure::FileSearchProgressSink::report(
                             progress_sink.as_ref(),
                             group,
                         );
                     }
-                    bitfun_core::infrastructure::FileSearchProgressSink::flush(
+                    void_core::infrastructure::FileSearchProgressSink::flush(
                         progress_sink.as_ref(),
                     );
                 }
             }
             result.map_err(|error| {
-                bitfun_core::util::errors::BitFunError::service(format!(
+                void_core::util::errors::VoidError::service(format!(
                     "Failed to search file contents via workspace search: {}",
                     error
                 ))
@@ -3382,7 +3382,7 @@ pub async fn cancel_search(
 
 #[tauri::command]
 pub async fn reload_global_config() -> Result<String, String> {
-    match bitfun_core::service::config::reload_global_config().await {
+    match void_core::service::config::reload_global_config().await {
         Ok(_) => {
             info!("Global config reloaded");
             Ok("Configuration reloaded successfully".to_string())
@@ -3396,12 +3396,12 @@ pub async fn reload_global_config() -> Result<String, String> {
 
 #[tauri::command]
 pub async fn get_global_config_status() -> Result<bool, String> {
-    Ok(bitfun_core::service::config::GlobalConfigManager::is_initialized())
+    Ok(void_core::service::config::GlobalConfigManager::is_initialized())
 }
 
 #[tauri::command]
 pub async fn subscribe_config_updates() -> Result<(), String> {
-    if let Some(mut receiver) = bitfun_core::service::config::subscribe_config_updates() {
+    if let Some(mut receiver) = void_core::service::config::subscribe_config_updates() {
         tokio::spawn(async move {
             while let Ok(event) = receiver.recv().await {
                 debug!("Config update event: {:?}", event);
@@ -3475,21 +3475,21 @@ pub async fn get_watched_paths() -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub async fn discover_cli_credentials(
-) -> Result<Vec<bitfun_core::infrastructure::cli_credentials::DiscoveredCredential>, String> {
-    Ok(bitfun_core::infrastructure::cli_credentials::discover_all().await)
+) -> Result<Vec<void_core::infrastructure::cli_credentials::DiscoveredCredential>, String> {
+    Ok(void_core::infrastructure::cli_credentials::discover_all().await)
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefreshCliCredentialRequest {
-    pub kind: bitfun_core::infrastructure::cli_credentials::CliCredentialKind,
+    pub kind: void_core::infrastructure::cli_credentials::CliCredentialKind,
 }
 
 #[tauri::command]
 pub async fn refresh_cli_credential(
     request: RefreshCliCredentialRequest,
-) -> Result<bitfun_core::infrastructure::cli_credentials::DiscoveredCredential, String> {
-    use bitfun_core::infrastructure::cli_credentials::{
+) -> Result<void_core::infrastructure::cli_credentials::DiscoveredCredential, String> {
+    use void_core::infrastructure::cli_credentials::{
         codex::CodexResolver, gemini::GeminiResolver, CliCredentialKind, CredentialResolver,
     };
     // Force a refresh by calling resolve(), then re-discover for the latest metadata.
@@ -3500,7 +3500,7 @@ pub async fn refresh_cli_credential(
     if let Err(e) = resolved {
         return Err(format!("Refresh failed: {}", e));
     }
-    let discovered = bitfun_core::infrastructure::cli_credentials::discover_all().await;
+    let discovered = void_core::infrastructure::cli_credentials::discover_all().await;
     discovered
         .into_iter()
         .find(|c| c.kind == request.kind)

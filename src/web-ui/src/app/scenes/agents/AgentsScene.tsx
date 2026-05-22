@@ -541,7 +541,7 @@ const AgentsHomeView: React.FC = () => {
   );
 
   return (
-    <GalleryLayout className="bitfun-agents-scene">
+    <GalleryLayout className="void-agents-scene">
       <GalleryPageHeader
         title={t('page.title')}
         subtitle={t('page.subtitle')}
@@ -695,9 +695,9 @@ const AgentsHomeView: React.FC = () => {
           subtitle={t('agentsZone.subtitle')}
           tools={(
             <>
-              <div className="bitfun-agents-scene__agent-filters">
-                <div className="bitfun-agents-scene__agent-filter-group">
-                  <span className="bitfun-agents-scene__agent-filter-label">
+              <div className="void-agents-scene__agent-filters">
+                <div className="void-agents-scene__agent-filter-group">
+                  <span className="void-agents-scene__agent-filter-label">
                     {t('filters.source')}
                   </span>
                   {levelFilters.map(({ key, label, count }) => (
@@ -715,8 +715,8 @@ const AgentsHomeView: React.FC = () => {
                     </button>
                   ))}
                 </div>
-                <div className="bitfun-agents-scene__agent-filter-group">
-                  <span className="bitfun-agents-scene__agent-filter-label">
+                <div className="void-agents-scene__agent-filter-group">
+                  <span className="void-agents-scene__agent-filter-label">
                     {t('filters.kind')}
                   </span>
                   {typeFilters.map(({ key, label, count }) => (
@@ -1295,7 +1295,7 @@ const AgentsScene: React.FC = () => {
 
   if (page === 'createAgent') {
     return (
-      <div className="bitfun-agents-scene bitfun-agents-scene--page">
+      <div className="void-agents-scene void-agents-scene--page">
         <CreateAgentPage />
       </div>
     );
@@ -1303,7 +1303,7 @@ const AgentsScene: React.FC = () => {
 
   if (page === 'reviewTeam') {
     return (
-      <div className="bitfun-agents-scene bitfun-agents-scene--page">
+      <div className="void-agents-scene void-agents-scene--page">
         <ReviewTeamErrorBoundary>
           <ReviewTeamPage />
         </ReviewTeamErrorBoundary>

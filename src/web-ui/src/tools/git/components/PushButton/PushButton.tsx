@@ -81,14 +81,14 @@ export const PushButton: React.FC<PushButtonProps> = ({
   };
 
   return (
-    <div className={`bitfun-push-button ${className}`} ref={dropdownRef}>
-      <div className="bitfun-push-button__wrapper" ref={wrapperRef}>
+    <div className={`void-push-button ${className}`} ref={dropdownRef}>
+      <div className="void-push-button__wrapper" ref={wrapperRef}>
         {iconOnly ? (
           <IconButton
             size={size}
             onClick={() => handlePush(false)}
             disabled={disabled || loading}
-            className="bitfun-push-button__main"
+            className="void-push-button__main"
           >
             <ArrowUp size={14} />
           </IconButton>
@@ -98,7 +98,7 @@ export const PushButton: React.FC<PushButtonProps> = ({
             size={size}
             onClick={() => handlePush(false)}
             disabled={disabled || loading}
-            className="bitfun-push-button__main"
+            className="void-push-button__main"
           >
             <ArrowUp size={14} />
             <span>{t('actions.push')}</span>
@@ -110,11 +110,11 @@ export const PushButton: React.FC<PushButtonProps> = ({
             size={size}
             onClick={handleToggleDropdown}
             disabled={disabled || loading}
-            className="bitfun-push-button__dropdown-trigger"
+            className="void-push-button__dropdown-trigger"
           >
             <ChevronDown 
               size={14} 
-              className={`bitfun-push-button__arrow ${showDropdown ? 'bitfun-push-button__arrow--open' : ''}`}
+              className={`void-push-button__arrow ${showDropdown ? 'void-push-button__arrow--open' : ''}`}
             />
           </IconButton>
         ) : (
@@ -123,11 +123,11 @@ export const PushButton: React.FC<PushButtonProps> = ({
             size={size}
             onClick={handleToggleDropdown}
             disabled={disabled || loading}
-            className="bitfun-push-button__dropdown-trigger"
+            className="void-push-button__dropdown-trigger"
           >
             <ChevronDown 
               size={14} 
-              className={`bitfun-push-button__arrow ${showDropdown ? 'bitfun-push-button__arrow--open' : ''}`}
+              className={`void-push-button__arrow ${showDropdown ? 'void-push-button__arrow--open' : ''}`}
             />
           </Button>
         )}
@@ -135,28 +135,28 @@ export const PushButton: React.FC<PushButtonProps> = ({
 
       {showDropdown && (
         <div 
-          className="bitfun-push-button__menu"
+          className="void-push-button__menu"
           style={{
             top: `${menuPosition.top}px`,
             left: `${menuPosition.left}px`
           }}
         >
           <button
-            className="bitfun-push-button__menu-item"
+            className="void-push-button__menu-item"
             onClick={() => handlePush(false)}
           >
             <ArrowUp size={14} />
-            <span className="bitfun-push-button__menu-item-title">{t('actions.push')}</span>
+            <span className="void-push-button__menu-item-title">{t('actions.push')}</span>
           </button>
 
-          <div className="bitfun-push-button__menu-divider" />
+          <div className="void-push-button__menu-divider" />
 
           <button
-            className="bitfun-push-button__menu-item bitfun-push-button__menu-item--danger"
+            className="void-push-button__menu-item void-push-button__menu-item--danger"
             onClick={() => handlePush(true)}
           >
             <AlertTriangle size={14} />
-            <span className="bitfun-push-button__menu-item-title">{t('actions.forcePush')}</span>
+            <span className="void-push-button__menu-item-title">{t('actions.forcePush')}</span>
           </button>
         </div>
       )}

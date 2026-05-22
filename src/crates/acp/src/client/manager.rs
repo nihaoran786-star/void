@@ -18,12 +18,12 @@ use agent_client_protocol::schema::{
 use agent_client_protocol::{
     ActiveSession, Agent, ByteStreams, Client, ConnectionTo, Error, SessionMessage,
 };
-use bitfun_core::agentic::tools::registry::get_global_tool_registry;
-use bitfun_core::infrastructure::events::{emit_global_event, BackendEvent};
-use bitfun_core::infrastructure::PathManager;
-use bitfun_core::service::config::ConfigService;
-use bitfun_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::agentic::tools::registry::get_global_tool_registry;
+use void_core::infrastructure::events::{emit_global_event, BackendEvent};
+use void_core::infrastructure::PathManager;
+use void_core::service::config::ConfigService;
+use void_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
+use void_core::util::errors::{VoidError, VoidResult};
 use dashmap::DashMap;
 use futures::io::{AsyncRead as FuturesAsyncRead, AsyncWrite as FuturesAsyncWrite};
 use log::{debug, info, warn};
@@ -167,7 +167,7 @@ impl AcpClientService {
     pub fn new(
         config_service: Arc<ConfigService>,
         path_manager: Arc<PathManager>,
-    ) -> BitFunResult<Arc<Self>> {
+    ) -> VoidResult<Arc<Self>> {
         Ok(Arc::new(Self {
             config_service,
             session_persistence: AcpSessionPersistence::new(path_manager.clone())?,
@@ -188,7 +188,7 @@ impl AcpClientService {
         workspace_path: &str,
         client_id: &str,
         session_name: Option<String>,
-    ) -> BitFunResult<CreateAcpFlowSessionRecordResponse> {
+    ) -> VoidResult<CreateAcpFlowSessionRecordResponse> {
         self.session_persistence
             .create_flow_session_record(
                 session_storage_path,
@@ -199,7 +199,7 @@ impl AcpClientService {
             .await
     }
 
-    pub async fn initialize_all(self: &Arc<Self>) -> BitFunResult<()> {
+    pub async fn initialize_all(self: &Arc<Self>) -> VoidResult<()> {
         let configs = self.load_configs().await?;
         self.register_configured_tools(&configs).await;
 
@@ -226,7 +226,7 @@ impl AcpClientService {
         Ok(())
     }
 
-    pub async fn list_clients(self: &Arc<Self>) -> BitFunResult<Vec<AcpClientInfo>> {
+    pub async fn list_clients(self: &Arc<Self>) -> VoidResult<Vec<AcpClientInfo>> {
         let configs = self.load_configs().await?;
         let mut infos = Vec::with_capacity(configs.len());
         for (id, config) in configs {
@@ -264,7 +264,7 @@ impl AcpClientService {
         self: &Arc<Self>,
         remote_connection_id: Option<&str>,
         force_refresh: bool,
-    ) -> BitFunResult<Vec<AcpClientRequirementProbe>> {
+    ) -> VoidResult<Vec<AcpClientRequirementProbe>> {
         if let Some(remote_connection_id) = remote_connection_id
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -341,7 +341,7 @@ impl AcpClientService {
     pub async fn refresh_remote_client_requirements(
         &self,
         remote_connection_id: &str,
-    ) -> BitFunResult<Vec<AcpClientRequirementProbe>> {
+    ) -> VoidResult<Vec<AcpClientRequirementProbe>> {
         let probes = self
             .probe_remote_client_requirements(remote_connection_id)
             .await?;
@@ -358,12 +358,12 @@ impl AcpClientService {
     async fn probe_remote_client_requirements(
         &self,
         remote_connection_id: &str,
-    ) -> BitFunResult<Vec<AcpClientRequirementProbe>> {
+    ) -> VoidResult<Vec<AcpClientRequirementProbe>> {
         let remote_manager = get_remote_workspace_manager().ok_or_else(|| {
-            BitFunError::service("Remote workspace manager is not initialized".to_string())
+            VoidError::service("Remote workspace manager is not initialized".to_string())
         })?;
         let ssh_manager = remote_manager.get_ssh_manager().await.ok_or_else(|| {
-            BitFunError::service("SSH manager is not available for remote ACP".to_string())
+            VoidError::service("SSH manager is not available for remote ACP".to_string())
         })?;
 
         let config_file = self.load_config_file().await?;
@@ -437,11 +437,11 @@ impl AcpClientService {
         Ok(probes)
     }
 
-    pub async fn predownload_client_adapter(self: &Arc<Self>, client_id: &str) -> BitFunResult<()> {
+    pub async fn predownload_client_adapter(self: &Arc<Self>, client_id: &str) -> VoidResult<()> {
         let configs = self.load_configs().await?;
         let spec = acp_requirement_spec(client_id, configs.get(client_id));
         let adapter = spec.adapter.ok_or_else(|| {
-            BitFunError::config(format!(
+            VoidError::config(format!(
                 "ACP client '{}' does not use a downloadable adapter",
                 client_id
             ))
@@ -454,7 +454,7 @@ impl AcpClientService {
         self: &Arc<Self>,
         client_id: &str,
         remote_connection_id: Option<&str>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let remote_connection_id = remote_connection_id
             .map(str::trim)
             .filter(|value| !value.is_empty());
@@ -462,7 +462,7 @@ impl AcpClientService {
         let config = resolve_config_for_client(&config_file, client_id, remote_connection_id);
         let spec = acp_requirement_spec(client_id, config.as_ref());
         let package = spec.install_package.ok_or_else(|| {
-            BitFunError::config(format!(
+            VoidError::config(format!(
                 "ACP client '{}' does not have a known CLI installer",
                 client_id
             ))
@@ -470,10 +470,10 @@ impl AcpClientService {
 
         if let Some(remote_connection_id) = remote_connection_id {
             let remote_manager = get_remote_workspace_manager().ok_or_else(|| {
-                BitFunError::service("Remote workspace manager is not initialized".to_string())
+                VoidError::service("Remote workspace manager is not initialized".to_string())
             })?;
             let ssh_manager = remote_manager.get_ssh_manager().await.ok_or_else(|| {
-                BitFunError::service("SSH manager is not available for remote ACP".to_string())
+                VoidError::service("SSH manager is not available for remote ACP".to_string())
             })?;
             install_remote_npm_cli_package(&ssh_manager, remote_connection_id, package).await
         } else {
@@ -484,11 +484,11 @@ impl AcpClientService {
     pub async fn start_client_for_session(
         self: &Arc<Self>,
         client_id: &str,
-        bitfun_session_id: &str,
+        void_session_id: &str,
         workspace_path: Option<&str>,
         remote_connection_id: Option<&str>,
-    ) -> BitFunResult<()> {
-        let connection_id = session_client_connection_id(client_id, bitfun_session_id);
+    ) -> VoidResult<()> {
+        let connection_id = session_client_connection_id(client_id, void_session_id);
         self.start_client_connection(
             &connection_id,
             client_id,
@@ -504,7 +504,7 @@ impl AcpClientService {
         client_id: &str,
         workspace_path: Option<&str>,
         remote_connection_id: Option<&str>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if let Some(existing) = self.clients.get(connection_id) {
             let status = *existing.status.read().await;
             if matches!(status, AcpClientStatus::Running | AcpClientStatus::Starting) {
@@ -564,7 +564,7 @@ impl AcpClientService {
         let connect_task = tokio::spawn(async move {
             let result = Client
                 .builder()
-                .name("bitfun-acp-client")
+                .name("void-acp-client")
                 .on_receive_request(
                     {
                         let service = service.clone();
@@ -584,7 +584,7 @@ impl AcpClientService {
                     let init = InitializeRequest::new(ProtocolVersion::V1)
                         .client_capabilities(ClientCapabilities::new())
                         .client_info(Implementation::new(
-                            "bitfun-desktop",
+                            "void-desktop",
                             env!("CARGO_PKG_VERSION"),
                         ));
                     let initialize_response = cx.send_request(init).block_task().await?;
@@ -615,7 +615,7 @@ impl AcpClientService {
             Ok(Err(_)) => {
                 connect_task.abort();
                 self.cleanup_failed_startup(connection_id).await;
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "ACP client '{}' exited before initialization completed",
                     client_id
                 )));
@@ -652,7 +652,7 @@ impl AcpClientService {
         }
     }
 
-    pub async fn stop_client(self: &Arc<Self>, client_id: &str) -> BitFunResult<()> {
+    pub async fn stop_client(self: &Arc<Self>, client_id: &str) -> VoidResult<()> {
         let connection_ids = self
             .clients
             .iter()
@@ -665,7 +665,7 @@ impl AcpClientService {
         Ok(())
     }
 
-    async fn stop_connection(self: &Arc<Self>, connection_id: &str) -> BitFunResult<()> {
+    async fn stop_connection(self: &Arc<Self>, connection_id: &str) -> VoidResult<()> {
         let Some(client) = self.clients.get(connection_id).map(|entry| entry.clone()) else {
             return Ok(());
         };
@@ -689,8 +689,8 @@ impl AcpClientService {
         Ok(())
     }
 
-    pub async fn release_bitfun_session(self: &Arc<Self>, bitfun_session_id: &str) -> bool {
-        let session_key_prefix = format!("{}:", bitfun_session_id);
+    pub async fn release_void_session(self: &Arc<Self>, void_session_id: &str) -> bool {
+        let session_key_prefix = format!("{}:", void_session_id);
         let clients = self
             .clients
             .iter()
@@ -781,26 +781,26 @@ impl AcpClientService {
     pub async fn delete_flow_session_record(
         &self,
         session_storage_path: &Path,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<()> {
+        void_session_id: &str,
+    ) -> VoidResult<()> {
         self.session_persistence
-            .delete_flow_session_record(session_storage_path, bitfun_session_id)
+            .delete_flow_session_record(session_storage_path, void_session_id)
             .await
     }
 
-    pub async fn load_json_config(&self) -> BitFunResult<String> {
+    pub async fn load_json_config(&self) -> VoidResult<String> {
         let config = parse_config_value(self.load_config_value().await?)?;
         serde_json::to_string_pretty(&config)
-            .map_err(|error| BitFunError::config(format!("Failed to render ACP config: {}", error)))
+            .map_err(|error| VoidError::config(format!("Failed to render ACP config: {}", error)))
     }
 
-    pub async fn save_json_config(self: &Arc<Self>, json_config: &str) -> BitFunResult<()> {
+    pub async fn save_json_config(self: &Arc<Self>, json_config: &str) -> VoidResult<()> {
         let value: serde_json::Value = serde_json::from_str(json_config).map_err(|error| {
-            BitFunError::config(format!("Invalid ACP client JSON config: {}", error))
+            VoidError::config(format!("Invalid ACP client JSON config: {}", error))
         })?;
         let config = parse_config_value(value)?;
         let canonical_value = serde_json::to_value(config).map_err(|error| {
-            BitFunError::config(format!("Failed to render ACP config: {}", error))
+            VoidError::config(format!("Failed to render ACP config: {}", error))
         })?;
         self.config_service
             .set_config(CONFIG_PATH, canonical_value)
@@ -812,9 +812,9 @@ impl AcpClientService {
     pub async fn submit_permission_response(
         &self,
         request: SubmitAcpPermissionResponseRequest,
-    ) -> BitFunResult<AcpClientPermissionResponse> {
+    ) -> VoidResult<AcpClientPermissionResponse> {
         let Some((_, pending)) = self.pending_permissions.remove(&request.permission_id) else {
-            return Err(BitFunError::NotFound(format!(
+            return Err(VoidError::NotFound(format!(
                 "ACP permission request not found: {}",
                 request.permission_id
             )));
@@ -839,14 +839,14 @@ impl AcpClientService {
         workspace_path: Option<String>,
         remote_connection_id: Option<String>,
         session_storage_path: Option<PathBuf>,
-        bitfun_session_id: String,
-    ) -> BitFunResult<AcpSessionOptions> {
+        void_session_id: String,
+    ) -> VoidResult<AcpSessionOptions> {
         let resolved = self
             .resolve_or_create_client_session(
                 client_id,
                 workspace_path,
                 remote_connection_id.as_deref(),
-                &bitfun_session_id,
+                &void_session_id,
             )
             .await?;
 
@@ -855,7 +855,7 @@ impl AcpClientService {
             &resolved.client,
             &resolved.session_key,
             &resolved.cwd,
-            &bitfun_session_id,
+            &void_session_id,
             session_storage_path.as_deref(),
             &mut session,
         )
@@ -871,7 +871,7 @@ impl AcpClientService {
         self: &Arc<Self>,
         request: SetAcpSessionModelRequest,
         session_storage_path: Option<PathBuf>,
-    ) -> BitFunResult<AcpSessionOptions> {
+    ) -> VoidResult<AcpSessionOptions> {
         let resolved = self
             .resolve_or_create_client_session(
                 &request.client_id,
@@ -894,7 +894,7 @@ impl AcpClientService {
         let active = session
             .active
             .as_ref()
-            .ok_or_else(|| BitFunError::service("ACP session was not initialized"))?;
+            .ok_or_else(|| VoidError::service("ACP session was not initialized"))?;
         let remote_session_id = active.session_id().to_string();
         let connection = active.connection();
 
@@ -960,7 +960,7 @@ impl AcpClientService {
         if let Some(error) = set_model_error {
             return Err(error);
         }
-        Err(BitFunError::NotFound(
+        Err(VoidError::NotFound(
             "ACP session does not expose selectable models".to_string(),
         ))
     }
@@ -971,16 +971,16 @@ impl AcpClientService {
         prompt: String,
         workspace_path: Option<String>,
         remote_connection_id: Option<String>,
-        bitfun_session_id: String,
+        void_session_id: String,
         session_storage_path: Option<PathBuf>,
         timeout_seconds: Option<u64>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let resolved = self
             .resolve_or_create_client_session(
                 client_id,
                 workspace_path,
                 remote_connection_id.as_deref(),
-                &bitfun_session_id,
+                &void_session_id,
             )
             .await?;
 
@@ -990,7 +990,7 @@ impl AcpClientService {
                 &resolved.client,
                 &resolved.session_key,
                 &resolved.cwd,
-                &bitfun_session_id,
+                &void_session_id,
                 session_storage_path.as_deref(),
                 &mut session,
             )
@@ -1000,7 +1000,7 @@ impl AcpClientService {
             let active = session
                 .active
                 .as_mut()
-                .ok_or_else(|| BitFunError::service("ACP session was not initialized"))?;
+                .ok_or_else(|| VoidError::service("ACP session was not initialized"))?;
             active.send_prompt(prompt).map_err(protocol_error)?;
             active.read_to_string().await.map_err(protocol_error)
         };
@@ -1009,7 +1009,7 @@ impl AcpClientService {
             tokio::time::timeout(Duration::from_secs(seconds), run)
                 .await
                 .map_err(|_| {
-                    BitFunError::tool(format!("ACP client timed out after {}s", seconds))
+                    VoidError::tool(format!("ACP client timed out after {}s", seconds))
                 })?
         } else {
             run.await
@@ -1022,20 +1022,20 @@ impl AcpClientService {
         prompt: String,
         workspace_path: Option<String>,
         remote_connection_id: Option<String>,
-        bitfun_session_id: String,
+        void_session_id: String,
         session_storage_path: Option<PathBuf>,
         timeout_seconds: Option<u64>,
         mut on_event: F,
-    ) -> BitFunResult<()>
+    ) -> VoidResult<()>
     where
-        F: FnMut(AcpClientStreamEvent) -> BitFunResult<()> + Send,
+        F: FnMut(AcpClientStreamEvent) -> VoidResult<()> + Send,
     {
         let resolved = self
             .resolve_or_create_client_session(
                 client_id,
                 workspace_path,
                 remote_connection_id.as_deref(),
-                &bitfun_session_id,
+                &void_session_id,
             )
             .await?;
 
@@ -1045,7 +1045,7 @@ impl AcpClientService {
                 &resolved.client,
                 &resolved.session_key,
                 &resolved.cwd,
-                &bitfun_session_id,
+                &void_session_id,
                 session_storage_path.as_deref(),
                 &mut session,
             )
@@ -1056,7 +1056,7 @@ impl AcpClientService {
                 let active = session
                     .active
                     .as_mut()
-                    .ok_or_else(|| BitFunError::service("ACP session was not initialized"))?;
+                    .ok_or_else(|| VoidError::service("ACP session was not initialized"))?;
                 active.send_prompt(prompt).map_err(protocol_error)?;
             }
             let mut round_tracker = AcpStreamRoundTracker::new();
@@ -1067,7 +1067,7 @@ impl AcpClientService {
                     let active = session
                         .active
                         .as_mut()
-                        .ok_or_else(|| BitFunError::service("ACP session was not initialized"))?;
+                        .ok_or_else(|| VoidError::service("ACP session was not initialized"))?;
                     active.read_update().await.map_err(protocol_error)?
                 };
 
@@ -1104,7 +1104,7 @@ impl AcpClientService {
             tokio::time::timeout(Duration::from_secs(seconds), run)
                 .await
                 .map_err(|_| {
-                    BitFunError::tool(format!("ACP client timed out after {}s", seconds))
+                    VoidError::tool(format!("ACP client timed out after {}s", seconds))
                 })?
         } else {
             run.await
@@ -1115,24 +1115,24 @@ impl AcpClientService {
         self: &Arc<Self>,
         client_id: &str,
         workspace_path: Option<String>,
-        bitfun_session_id: String,
-    ) -> BitFunResult<()> {
-        let connection_id = session_client_connection_id(client_id, &bitfun_session_id);
+        void_session_id: String,
+    ) -> VoidResult<()> {
+        let connection_id = session_client_connection_id(client_id, &void_session_id);
         let client = self
             .clients
             .get(&connection_id)
             .map(|entry| entry.clone())
             .ok_or_else(|| {
-                BitFunError::service(format!("ACP client is not running: {}", client_id))
+                VoidError::service(format!("ACP client is not running: {}", client_id))
             })?;
 
         let cwd = workspace_path
             .map(PathBuf::from)
             .or_else(|| std::env::current_dir().ok())
-            .ok_or_else(|| BitFunError::validation("Workspace path is required".to_string()))?;
-        let session_key = build_session_key(&bitfun_session_id, client_id, &cwd);
+            .ok_or_else(|| VoidError::validation("Workspace path is required".to_string()))?;
+        let session_key = build_session_key(&void_session_id, client_id, &cwd);
         let handle = client.cancel_handles.get(&session_key).ok_or_else(|| {
-            BitFunError::NotFound(format!(
+            VoidError::NotFound(format!(
                 "ACP session is not active for client '{}' in workspace '{}'",
                 client_id,
                 cwd.display()
@@ -1146,11 +1146,11 @@ impl AcpClientService {
         Ok(())
     }
 
-    pub async fn cancel_bitfun_session(
+    pub async fn cancel_void_session(
         self: &Arc<Self>,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<bool> {
-        let session_key_prefix = format!("{}:", bitfun_session_id);
+        void_session_id: &str,
+    ) -> VoidResult<bool> {
+        let session_key_prefix = format!("{}:", void_session_id);
         for client in self.clients.iter().map(|entry| entry.value().clone()) {
             let handle = client
                 .cancel_handles
@@ -1175,9 +1175,9 @@ impl AcpClientService {
         client_id: &str,
         workspace_path: Option<String>,
         remote_connection_id: Option<&str>,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<(Arc<AcpClientConnection>, PathBuf, String)> {
-        let connection_id = session_client_connection_id(client_id, bitfun_session_id);
+        void_session_id: &str,
+    ) -> VoidResult<(Arc<AcpClientConnection>, PathBuf, String)> {
+        let connection_id = session_client_connection_id(client_id, void_session_id);
         self.start_client_connection(
             &connection_id,
             client_id,
@@ -1190,14 +1190,14 @@ impl AcpClientService {
             .get(&connection_id)
             .map(|entry| entry.clone())
             .ok_or_else(|| {
-                BitFunError::service(format!("ACP client is not running: {}", client_id))
+                VoidError::service(format!("ACP client is not running: {}", client_id))
             })?;
 
         let cwd = workspace_path
             .map(PathBuf::from)
             .or_else(|| std::env::current_dir().ok())
-            .ok_or_else(|| BitFunError::validation("Workspace path is required".to_string()))?;
-        let session_key = build_session_key(bitfun_session_id, client_id, &cwd);
+            .ok_or_else(|| VoidError::validation("Workspace path is required".to_string()))?;
+        let session_key = build_session_key(void_session_id, client_id, &cwd);
         Ok((client, cwd, session_key))
     }
 
@@ -1206,14 +1206,14 @@ impl AcpClientService {
         client_id: &str,
         workspace_path: Option<String>,
         remote_connection_id: Option<&str>,
-        bitfun_session_id: &str,
-    ) -> BitFunResult<ResolvedClientSession> {
+        void_session_id: &str,
+    ) -> VoidResult<ResolvedClientSession> {
         let (client, cwd, session_key) = self
             .resolve_client_session(
                 client_id,
                 workspace_path,
                 remote_connection_id,
-                bitfun_session_id,
+                void_session_id,
             )
             .await?;
         let session = client
@@ -1234,10 +1234,10 @@ impl AcpClientService {
         client: &Arc<AcpClientConnection>,
         session_key: &str,
         cwd: &Path,
-        bitfun_session_id: &str,
+        void_session_id: &str,
         session_storage_path: Option<&Path>,
         session: &mut AcpRemoteSession,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         if session.active.is_some() {
             return Ok(());
         }
@@ -1245,7 +1245,7 @@ impl AcpClientService {
         let cx = client.connection().await?;
         let persisted_remote_session_id = if let Some(session_storage_path) = session_storage_path {
             self.session_persistence
-                .load_remote_session_id(session_storage_path, bitfun_session_id)
+                .load_remote_session_id(session_storage_path, void_session_id)
                 .await?
         } else {
             None
@@ -1335,7 +1335,7 @@ impl AcpClientService {
             self.attach_remote_session(
                 client,
                 session_key,
-                bitfun_session_id,
+                void_session_id,
                 session_storage_path,
                 session,
                 response,
@@ -1346,7 +1346,7 @@ impl AcpClientService {
             return Ok(());
         }
 
-        Err(BitFunError::service(
+        Err(VoidError::service(
             "Failed to initialize ACP remote session".to_string(),
         ))
     }
@@ -1379,13 +1379,13 @@ impl AcpClientService {
         &self,
         client: &Arc<AcpClientConnection>,
         session_key: &str,
-        bitfun_session_id: &str,
+        void_session_id: &str,
         session_storage_path: Option<&Path>,
         session: &mut AcpRemoteSession,
         response: NewSessionResponse,
         strategy: AcpRemoteSessionStrategy,
         last_resume_error: Option<String>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         let cx = client.connection().await?;
         let models = response.models.clone();
         let config_options = response.config_options.clone().unwrap_or_default();
@@ -1406,7 +1406,7 @@ impl AcpClientService {
             self.session_persistence
                 .update_remote_session_state(
                     session_storage_path,
-                    bitfun_session_id,
+                    void_session_id,
                     &remote_session_id,
                     strategy.as_str(),
                     last_resume_error,
@@ -1421,15 +1421,15 @@ impl AcpClientService {
         Ok(())
     }
 
-    async fn load_configs(&self) -> BitFunResult<HashMap<String, AcpClientConfig>> {
+    async fn load_configs(&self) -> VoidResult<HashMap<String, AcpClientConfig>> {
         Ok(self.load_config_file().await?.acp_clients)
     }
 
-    async fn load_config_file(&self) -> BitFunResult<AcpClientConfigFile> {
+    async fn load_config_file(&self) -> VoidResult<AcpClientConfigFile> {
         parse_config_value(self.load_config_value().await?)
     }
 
-    async fn load_config_value(&self) -> BitFunResult<serde_json::Value> {
+    async fn load_config_value(&self) -> VoidResult<serde_json::Value> {
         Ok(self
             .config_service
             .get_config::<serde_json::Value>(Some(CONFIG_PATH))
@@ -1450,7 +1450,7 @@ impl AcpClientService {
             .filter(|(_, config)| config.enabled)
             .map(|(id, config)| {
                 Arc::new(AcpAgentTool::new(id.clone(), config.clone(), self.clone()))
-                    as Arc<dyn bitfun_core::agentic::tools::framework::Tool>
+                    as Arc<dyn void_core::agentic::tools::framework::Tool>
             })
             .collect::<Vec<_>>();
 
@@ -1536,9 +1536,9 @@ impl AcpClientService {
         client_id: &str,
         connection_id: &str,
         config: &AcpClientConfig,
-    ) -> BitFunResult<(ByteStreams<AcpOutgoingStream, AcpIncomingStream>, Child)> {
+    ) -> VoidResult<(ByteStreams<AcpOutgoingStream, AcpIncomingStream>, Child)> {
         let program = resolve_configured_command(&config.command, &config.env);
-        let mut command = bitfun_core::util::process_manager::create_tokio_command(&program);
+        let mut command = void_core::util::process_manager::create_tokio_command(&program);
         command
             .args(&config.args)
             .stdin(Stdio::piped())
@@ -1548,7 +1548,7 @@ impl AcpClientService {
         configure_process_group(&mut command);
 
         let mut child = command.spawn().map_err(|error| {
-            BitFunError::service(format!(
+            VoidError::service(format!(
                 "Failed to spawn ACP client '{}': {}",
                 client_id, error
             ))
@@ -1558,7 +1558,7 @@ impl AcpClientService {
             Some(stdout) => stdout,
             None => {
                 terminate_child_process_tree(connection_id, child).await;
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "ACP client '{}' stdout is unavailable",
                     client_id
                 )));
@@ -1568,7 +1568,7 @@ impl AcpClientService {
             Some(stdin) => stdin,
             None => {
                 terminate_child_process_tree(connection_id, child).await;
-                return Err(BitFunError::service(format!(
+                return Err(VoidError::service(format!(
                     "ACP client '{}' stdin is unavailable",
                     client_id
                 )));
@@ -1588,7 +1588,7 @@ impl AcpClientService {
         config: &AcpClientConfig,
         workspace_path: Option<&str>,
         remote_connection_id: Option<&str>,
-    ) -> BitFunResult<(
+    ) -> VoidResult<(
         ByteStreams<AcpOutgoingStream, AcpIncomingStream>,
         Option<Child>,
     )> {
@@ -1610,19 +1610,19 @@ impl AcpClientService {
         config: &AcpClientConfig,
         workspace_path: Option<&str>,
         remote_connection_id: &str,
-    ) -> BitFunResult<ByteStreams<AcpOutgoingStream, AcpIncomingStream>> {
+    ) -> VoidResult<ByteStreams<AcpOutgoingStream, AcpIncomingStream>> {
         let command = render_remote_client_command(config, workspace_path)?;
         let remote_manager = get_remote_workspace_manager().ok_or_else(|| {
-            BitFunError::service("Remote workspace manager is not initialized".to_string())
+            VoidError::service("Remote workspace manager is not initialized".to_string())
         })?;
         let ssh_manager = remote_manager.get_ssh_manager().await.ok_or_else(|| {
-            BitFunError::service("SSH manager is not available for remote ACP".to_string())
+            VoidError::service("SSH manager is not available for remote ACP".to_string())
         })?;
         let channel = ssh_manager
             .open_exec_channel(remote_connection_id, &command)
             .await
             .map_err(|error| {
-                BitFunError::service(format!(
+                VoidError::service(format!(
                     "Failed to start remote ACP client '{}': {}",
                     client_id, error
                 ))
@@ -1640,7 +1640,7 @@ impl AcpClientService {
         client_id: &str,
         workspace_path: Option<&str>,
         remote_connection_id: Option<&str>,
-    ) -> BitFunResult<StartClientConfig> {
+    ) -> VoidResult<StartClientConfig> {
         let remote_connection_id = remote_connection_id
             .map(str::trim)
             .filter(|value| !value.is_empty())
@@ -1650,17 +1650,17 @@ impl AcpClientService {
         let config =
             resolve_config_for_client(&config_file, client_id, remote_connection_id.as_deref())
                 .ok_or_else(|| {
-                    BitFunError::NotFound(format!("ACP client not found: {}", client_id))
+                    VoidError::NotFound(format!("ACP client not found: {}", client_id))
                 })?;
 
         if config.command.trim().is_empty() {
-            return Err(BitFunError::config(format!(
+            return Err(VoidError::config(format!(
                 "ACP client command is empty: {}",
                 client_id
             )));
         }
         if !config.enabled {
-            return Err(BitFunError::config(format!(
+            return Err(VoidError::config(format!(
                 "ACP client is disabled: {}",
                 client_id
             )));
@@ -1692,12 +1692,12 @@ fn resolve_config_for_client(
 fn ensure_remote_client_supported(
     _client_id: &str,
     workspace_path: Option<&str>,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     if workspace_path
         .map(str::trim)
         .is_none_or(|workspace_path| workspace_path.is_empty())
     {
-        return Err(BitFunError::validation(
+        return Err(VoidError::validation(
             "Workspace path is required for remote ACP sessions".to_string(),
         ));
     }
@@ -1708,10 +1708,10 @@ fn ensure_remote_client_supported(
 fn render_remote_client_command(
     config: &AcpClientConfig,
     workspace_path: Option<&str>,
-) -> BitFunResult<String> {
+) -> VoidResult<String> {
     let command = config.command.trim();
     if command.is_empty() {
-        return Err(BitFunError::config(
+        return Err(VoidError::config(
             "ACP client command is empty".to_string(),
         ));
     }
@@ -1762,39 +1762,39 @@ impl AcpClientConnection {
         }
     }
 
-    async fn connection(&self) -> BitFunResult<ConnectionTo<Agent>> {
+    async fn connection(&self) -> VoidResult<ConnectionTo<Agent>> {
         self.connection.read().await.clone().ok_or_else(|| {
-            BitFunError::service(format!("ACP client is not connected: {}", self.id))
+            VoidError::service(format!("ACP client is not connected: {}", self.id))
         })
     }
 }
 
-fn parse_config_value(value: serde_json::Value) -> BitFunResult<AcpClientConfigFile> {
+fn parse_config_value(value: serde_json::Value) -> VoidResult<AcpClientConfigFile> {
     if value.get("acpClients").is_some() {
         serde_json::from_value(value)
-            .map_err(|error| BitFunError::config(format!("Invalid ACP client config: {}", error)))
+            .map_err(|error| VoidError::config(format!("Invalid ACP client config: {}", error)))
     } else if value.is_object() {
         serde_json::from_value(json!({ "acpClients": value })).map_err(|error| {
-            BitFunError::config(format!("Invalid ACP client config map: {}", error))
+            VoidError::config(format!("Invalid ACP client config map: {}", error))
         })
     } else {
-        Err(BitFunError::config(
+        Err(VoidError::config(
             "ACP client config must be an object".to_string(),
         ))
     }
 }
 
-fn build_session_key(bitfun_session_id: &str, client_id: &str, cwd: &Path) -> String {
+fn build_session_key(void_session_id: &str, client_id: &str, cwd: &Path) -> String {
     format!(
         "{}:{}:{}",
-        bitfun_session_id,
+        void_session_id,
         client_id,
         cwd.to_string_lossy()
     )
 }
 
-fn session_client_connection_id(client_id: &str, bitfun_session_id: &str) -> String {
-    format!("{}::session::{}", client_id, bitfun_session_id)
+fn session_client_connection_id(client_id: &str, void_session_id: &str) -> String {
+    format!("{}::session::{}", client_id, void_session_id)
 }
 
 fn aggregate_client_status(statuses: &[AcpClientStatus]) -> AcpClientStatus {
@@ -1839,7 +1839,7 @@ async fn terminate_child_process_tree(client_id: &str, mut child: Child) {
     #[cfg(unix)]
     if let Some(pid) = pid {
         let process_group = format!("-{}", pid);
-        match bitfun_core::util::process_manager::create_tokio_command("kill")
+        match void_core::util::process_manager::create_tokio_command("kill")
             .arg("-TERM")
             .arg(&process_group)
             .status()
@@ -1871,7 +1871,7 @@ async fn terminate_child_process_tree(client_id: &str, mut child: Child) {
             Err(_) => {}
         }
 
-        if let Err(error) = bitfun_core::util::process_manager::create_tokio_command("kill")
+        if let Err(error) = void_core::util::process_manager::create_tokio_command("kill")
             .arg("-KILL")
             .arg(&process_group)
             .status()
@@ -1888,7 +1888,7 @@ async fn terminate_child_process_tree(client_id: &str, mut child: Child) {
 
     #[cfg(windows)]
     if let Some(pid) = pid {
-        match bitfun_core::util::process_manager::create_tokio_command("taskkill")
+        match void_core::util::process_manager::create_tokio_command("taskkill")
             .arg("/PID")
             .arg(pid.to_string())
             .arg("/T")
@@ -2065,14 +2065,14 @@ fn update_session_context_usage(session: &mut AcpRemoteSession, events: &[AcpCli
     session.context_usage = Some(usage);
 }
 
-fn protocol_error(error: impl std::fmt::Display) -> BitFunError {
-    BitFunError::service(format!("ACP protocol error: {}", error))
+fn protocol_error(error: impl std::fmt::Display) -> VoidError {
+    VoidError::service(format!("ACP protocol error: {}", error))
 }
 
 const STARTUP_TIMEOUT_ERROR_PREFIX: &str = "ACP startup timed out:";
 
-fn startup_timeout_error(client_id: &str, phase: &str) -> BitFunError {
-    BitFunError::service(startup_timeout_error_message(client_id, phase))
+fn startup_timeout_error(client_id: &str, phase: &str) -> VoidError {
+    VoidError::service(startup_timeout_error_message(client_id, phase))
 }
 
 fn startup_timeout_error_message(client_id: &str, phase: &str) -> String {
@@ -2085,7 +2085,7 @@ fn startup_timeout_error_message(client_id: &str, phase: &str) -> String {
     )
 }
 
-fn is_startup_timeout_error(error: &BitFunError) -> bool {
+fn is_startup_timeout_error(error: &VoidError) -> bool {
     error.to_string().contains(STARTUP_TIMEOUT_ERROR_PREFIX)
 }
 

@@ -2,7 +2,7 @@
 //! concrete implementations.
 //!
 //! This crate intentionally contains only DTOs and traits. It must not depend
-//! on concrete managers, platform adapters, `bitfun-core`, or app crates.
+//! on concrete managers, platform adapters, `void-core`, or app crates.
 
 use serde::{Deserialize, Serialize};
 

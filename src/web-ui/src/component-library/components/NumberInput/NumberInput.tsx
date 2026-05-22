@@ -176,12 +176,12 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     );
 
     const containerClassName = [
-      'bitfun-number-input',
-      `bitfun-number-input--${size}`,
-      `bitfun-number-input--${variant}`,
-      disabled && 'bitfun-number-input--disabled',
-      isDragging && 'bitfun-number-input--dragging',
-      isEditing && 'bitfun-number-input--editing',
+      'void-number-input',
+      `void-number-input--${size}`,
+      `void-number-input--${variant}`,
+      disabled && 'void-number-input--disabled',
+      isDragging && 'void-number-input--dragging',
+      isEditing && 'void-number-input--editing',
       className,
     ]
       .filter(Boolean)
@@ -189,18 +189,18 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
 
     return (
       <div className={containerClassName}>
-        {label && <label className="bitfun-number-input__label">{label}</label>}
+        {label && <label className="void-number-input__label">{label}</label>}
         <div
           ref={containerRef}
-          className="bitfun-number-input__container"
+          className="void-number-input__container"
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           onWheel={handleWheel}
         >
-          <div className="bitfun-number-input__glow" />
+          <div className="void-number-input__glow" />
 
           <div
-            className="bitfun-number-input__value-area"
+            className="void-number-input__value-area"
             onMouseDown={draggable ? handleDragStart : undefined}
             style={{ cursor: draggable && !disabled ? 'ns-resize' : 'text' }}
           >
@@ -215,7 +215,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               }}
               type="text"
               inputMode="decimal"
-              className="bitfun-number-input__input"
+              className="void-number-input__input"
               value={inputValue}
               onChange={handleInputChange}
               onFocus={() => setIsEditing(true)}
@@ -223,16 +223,16 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               onKeyDown={handleKeyDown}
               disabled={disabled}
             />
-            {unit && <span className="bitfun-number-input__unit">{unit}</span>}
+            {unit && <span className="void-number-input__unit">{unit}</span>}
           </div>
 
           {showButtons && variant !== 'compact' && (
-            <div className="bitfun-number-input__buttons">
+            <div className="void-number-input__buttons">
               {variant === 'stepper' ? (
                 <>
                   <button
                     type="button"
-                    className="bitfun-number-input__btn bitfun-number-input__btn--minus"
+                    className="void-number-input__btn void-number-input__btn--minus"
                     onClick={decrement}
                     disabled={disabled || value <= min}
                     tabIndex={-1}
@@ -242,7 +242,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
                   </button>
                   <button
                     type="button"
-                    className="bitfun-number-input__btn bitfun-number-input__btn--plus"
+                    className="void-number-input__btn void-number-input__btn--plus"
                     onClick={increment}
                     disabled={disabled || value >= max}
                     tabIndex={-1}
@@ -255,7 +255,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
                 <>
                   <button
                     type="button"
-                    className="bitfun-number-input__btn bitfun-number-input__btn--up"
+                    className="void-number-input__btn void-number-input__btn--up"
                     onClick={increment}
                     disabled={disabled || value >= max}
                     tabIndex={-1}
@@ -265,7 +265,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
                   </button>
                   <button
                     type="button"
-                    className="bitfun-number-input__btn bitfun-number-input__btn--down"
+                    className="void-number-input__btn void-number-input__btn--down"
                     onClick={decrement}
                     disabled={disabled || value <= min}
                     tabIndex={-1}
@@ -279,9 +279,9 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           )}
 
           {min !== -Infinity && max !== Infinity && (
-            <div className="bitfun-number-input__progress">
+            <div className="void-number-input__progress">
               <div
-                className="bitfun-number-input__progress-bar"
+                className="void-number-input__progress-bar"
                 style={{ width: `${((value - min) / (max - min)) * 100}%` }}
               />
             </div>

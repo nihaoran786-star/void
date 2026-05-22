@@ -1,3 +1,3 @@
-pub use bitfun_services_integrations::mcp::server::{
+pub use void_services_integrations::mcp::server::{
     MCPConnection, MCPConnectionEvent, MCPConnectionPool,
 };

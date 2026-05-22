@@ -88,10 +88,10 @@ const ExportContent: React.FC<ExportContentProps> = ({ dialogTurn }) => {
             embedding <img>/data URLs inside an SVG foreignObject. */}
         <div
           className={`export-content__logo ${LOGO_PLACEHOLDER_CLASS}`}
-          aria-label="BitFun"
+          aria-label="Void"
         />
         <div className="export-content__title-group">
-          <div className="export-content__title">BitFun</div>
+          <div className="export-content__title">Void</div>
           <div className="export-content__subtitle">{i18nService.t('flow-chat:exportImage.subtitle').replace(/ /g, '\u00A0')}</div>
         </div>
         <div className="export-content__timestamp">
@@ -157,7 +157,7 @@ const ExportContent: React.FC<ExportContentProps> = ({ dialogTurn }) => {
 
       <div className="export-content__footer">
         <span>{i18nService.t('flow-chat:exportImage.poweredBy').replace(/ /g, '\u00A0')}</span>
-        <span className="export-content__footer-brand">BitFun</span>
+        <span className="export-content__footer-brand">Void</span>
         <span>•</span>
         <span>{i18nService.t('flow-chat:exportImage.aiAssistant').replace(/ /g, '\u00A0')}</span>
       </div>
@@ -250,7 +250,7 @@ export const ExportImageButton: React.FC<ExportImageButtonProps> = ({
 
       // Measure the actual chat pane width so the exported image uses the
       // exact same text-wrap width as the live chat. Fallback to 1200px.
-      const chatPane = document.querySelector('.bitfun-chat-pane__content');
+      const chatPane = document.querySelector('.void-chat-pane__content');
       const chatWidth = chatPane?.getBoundingClientRect().width || 1200;
 
       wrapper.style.cssText = `

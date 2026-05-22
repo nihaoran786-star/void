@@ -15,8 +15,8 @@
 
 #![allow(dead_code)]
 
-use bitfun_core::agentic::tools::computer_use_host::AppInfo;
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::agentic::tools::computer_use_host::AppInfo;
+use void_core::util::errors::{VoidError, VoidResult};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -62,7 +62,7 @@ end tell
 return out
 "#;
 
-pub fn list_running_apps(include_hidden: bool) -> BitFunResult<Vec<AppInfo>> {
+pub fn list_running_apps(include_hidden: bool) -> VoidResult<Vec<AppInfo>> {
     if let Ok(guard) = CACHE.lock() {
         if let Some((ts, cached_hidden, ref apps)) = *guard {
             if cached_hidden == include_hidden && ts.elapsed() < CACHE_TTL {
@@ -74,9 +74,9 @@ pub fn list_running_apps(include_hidden: bool) -> BitFunResult<Vec<AppInfo>> {
         .arg("-e")
         .arg(ASCRIPT)
         .output()
-        .map_err(|e| BitFunError::tool(format!("osascript spawn: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("osascript spawn: {}", e)))?;
     if !out.status.success() {
-        return Err(BitFunError::tool(format!(
+        return Err(VoidError::tool(format!(
             "osascript list_apps failed: {}",
             String::from_utf8_lossy(&out.stderr)
         )));

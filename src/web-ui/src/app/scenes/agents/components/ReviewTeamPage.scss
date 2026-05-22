@@ -6,7 +6,7 @@
   /* Aligns overview + member rows with `AgentTeamCard` / gallery team cards */
   --review-team-accent: var(--color-accent-400, #0ea5e9);
 
-  .bitfun-config-page-content__inner {
+  .void-config-page-content__inner {
     max-width: 1480px;
   }
 
@@ -161,7 +161,7 @@
   }
 
   /* Sections that render their own cards should not show the default body frame. */
-  &__section--no-body-frame .bitfun-config-page-section__body {
+  &__section--no-body-frame .void-config-page-section__body {
     background: transparent;
     border: 0;
     border-radius: 0;

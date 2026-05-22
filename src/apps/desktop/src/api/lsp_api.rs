@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use bitfun_core::service::lsp::types::{CompletionItem, LspPlugin};
-use bitfun_core::service::lsp::{get_global_lsp_manager, initialize_global_lsp_manager};
+use void_core::service::lsp::types::{CompletionItem, LspPlugin};
+use void_core::service::lsp::{get_global_lsp_manager, initialize_global_lsp_manager};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

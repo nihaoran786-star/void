@@ -1,7 +1,7 @@
 #![cfg(feature = "miniapp")]
 
-use bitfun_product_domains::miniapp::bridge_builder::{build_bridge_script, build_csp_content};
-use bitfun_product_domains::miniapp::builtin::{
+use void_product_domains::miniapp::bridge_builder::{build_bridge_script, build_csp_content};
+use void_product_domains::miniapp::builtin::{
     build_builtin_install_marker, build_builtin_package_json, builtin_content_hash,
     builtin_source_files, legacy_builtin_version_marker_content, parse_builtin_install_marker,
     resolve_builtin_seed_action, resolve_builtin_seed_check, serialize_builtin_install_marker,
@@ -9,50 +9,50 @@ use bitfun_product_domains::miniapp::builtin::{
     BuiltinSeedCheck, BUILTIN_INSTALL_MARKER, BUILTIN_PLACEHOLDER_COMPILED_HTML,
     LEGACY_BUILTIN_VERSION_MARKER,
 };
-use bitfun_product_domains::miniapp::compiler::compile;
-use bitfun_product_domains::miniapp::customization::{
+use void_product_domains::miniapp::compiler::compile;
+use void_product_domains::miniapp::customization::{
     apply_draft_customization_metadata, decline_builtin_update_metadata,
     declined_builtin_update_needs_local_snapshot, is_current_declined_builtin_update,
     mark_builtin_update_available_metadata, MiniAppCustomizationBaseline,
     MiniAppCustomizationLocalSnapshot, MiniAppCustomizationMetadata, MiniAppCustomizationOrigin,
     MiniAppCustomizationOriginKind, MAX_DECLINED_BUILTIN_UPDATES,
 };
-use bitfun_product_domains::miniapp::draft::{
+use void_product_domains::miniapp::draft::{
     build_draft_manifest, build_draft_response, MINIAPP_DRAFT_STATUS_APPLIED,
     MINIAPP_DRAFT_STATUS_DRAFT,
 };
-use bitfun_product_domains::miniapp::exporter::{ExportCheckResult, ExportTarget};
-use bitfun_product_domains::miniapp::host_routing::{
+use void_product_domains::miniapp::exporter::{ExportCheckResult, ExportTarget};
+use void_product_domains::miniapp::host_routing::{
     command_basename_allowed, command_basename_for_allowlist, host_allowed_by_allowlist,
     is_host_primitive,
 };
-use bitfun_product_domains::miniapp::lifecycle::{
+use void_product_domains::miniapp::lifecycle::{
     apply_import_runtime_state, apply_recompile_result, apply_sync_from_fs_result,
     build_deps_revision, build_runtime_state, build_source_revision, build_worker_revision,
     clear_worker_restart_required_state, ensure_runtime_state, mark_deps_installed_state,
     prepare_rollback_app, workspace_dir_string,
 };
-use bitfun_product_domains::miniapp::permission_policy::resolve_policy;
-use bitfun_product_domains::miniapp::ports::{
+use void_product_domains::miniapp::permission_policy::resolve_policy;
+use void_product_domains::miniapp::ports::{
     MiniAppInstallDepsRequest, MiniAppPortError, MiniAppPortErrorKind, MiniAppPortFuture,
     MiniAppRuntimeFacade, MiniAppRuntimePort, MiniAppStoragePort,
 };
-use bitfun_product_domains::miniapp::runtime::{
+use void_product_domains::miniapp::runtime::{
     candidate_dirs, candidate_executable_path, runtime_lookup_order, version_manager_roots,
     versioned_executable_candidate, RuntimeKind,
 };
-use bitfun_product_domains::miniapp::storage::{
+use void_product_domains::miniapp::storage::{
     build_import_fallbacks, build_package_json, parse_npm_dependencies, MiniAppImportLayout,
     MiniAppStorageLayout, COMPILED_HTML, CUSTOMIZATION_JSON, DRAFTS_CLEANUP_MARKER,
     DRAFTS_CLEANUP_PREFIX, DRAFTS_DIR, DRAFT_JSON, EMPTY_ESM_DEPENDENCIES_JSON, EMPTY_STORAGE_JSON,
     ESM_DEPS_JSON, INDEX_HTML, META_JSON, PACKAGE_JSON, PLACEHOLDER_COMPILED_HTML,
     REQUIRED_SOURCE_FILES, SOURCE_DIR, STORAGE_JSON, STYLE_CSS, UI_JS, VERSIONS_DIR, WORKER_JS,
 };
-use bitfun_product_domains::miniapp::types::{
+use void_product_domains::miniapp::types::{
     FsPermissions, MiniApp, MiniAppPermissions, MiniAppRuntimeState, MiniAppSource, NetPermissions,
     NotificationPermissions, NpmDep,
 };
-use bitfun_product_domains::miniapp::worker::{install_command_for_runtime, InstallResult};
+use void_product_domains::miniapp::worker::{install_command_for_runtime, InstallResult};
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -65,7 +65,7 @@ struct RuntimePortStub;
 impl MiniAppRuntimePort for RuntimePortStub {
     fn detect_runtime(
         &self,
-    ) -> MiniAppPortFuture<'_, Option<bitfun_product_domains::miniapp::runtime::DetectedRuntime>>
+    ) -> MiniAppPortFuture<'_, Option<void_product_domains::miniapp::runtime::DetectedRuntime>>
     {
         Box::pin(async { Ok(None) })
     }
@@ -145,7 +145,7 @@ impl MiniAppStoragePort for StoragePortStub {
     fn load_meta(
         &self,
         app_id: String,
-    ) -> MiniAppPortFuture<'_, bitfun_product_domains::miniapp::types::MiniAppMeta> {
+    ) -> MiniAppPortFuture<'_, void_product_domains::miniapp::types::MiniAppMeta> {
         let result = {
             let state = self.state.lock().unwrap();
             if state.current.id == app_id {
@@ -391,7 +391,7 @@ fn miniapp_export_and_runtime_dtos_remain_stable() {
 
 #[test]
 fn miniapp_storage_layout_preserves_file_shape_contract() {
-    let root = PathBuf::from("/bitfun/miniapps");
+    let root = PathBuf::from("/void/miniapps");
     let layout = MiniAppStorageLayout::new(&root, "app-1");
 
     assert_eq!(META_JSON, "meta.json");
@@ -456,7 +456,7 @@ fn miniapp_storage_layout_preserves_file_shape_contract() {
 
 #[test]
 fn miniapp_runtime_search_plan_preserves_common_install_locations() {
-    let home = PathBuf::from("/home/bitfun");
+    let home = PathBuf::from("/home/void");
     let candidates = candidate_dirs(Some(&home));
 
     assert_eq!(candidates[0], PathBuf::from("/opt/homebrew/bin"));
@@ -473,8 +473,8 @@ fn miniapp_runtime_search_plan_preserves_common_install_locations() {
         PathBuf::from("/usr/local/bin").join("node")
     );
     assert_eq!(
-        versioned_executable_candidate(Path::new("/home/bitfun/.nvm/versions/node/v20"), "node"),
-        PathBuf::from("/home/bitfun/.nvm/versions/node/v20")
+        versioned_executable_candidate(Path::new("/home/void/.nvm/versions/node/v20"), "node"),
+        PathBuf::from("/home/void/.nvm/versions/node/v20")
             .join("bin")
             .join("node")
     );
@@ -799,7 +799,7 @@ fn miniapp_builtin_contract_owns_seed_plan_and_marker_wire_shape() {
         worker_js: r#"console.log("worker");"#,
         esm_dependencies_json: "[]",
     };
-    let artifacts = bitfun_product_domains::miniapp::builtin::build_builtin_seed_artifacts(&app);
+    let artifacts = void_product_domains::miniapp::builtin::build_builtin_seed_artifacts(&app);
     let marker = build_builtin_install_marker(&app, &artifacts.content_hash);
 
     assert_eq!(artifacts.marker, marker);

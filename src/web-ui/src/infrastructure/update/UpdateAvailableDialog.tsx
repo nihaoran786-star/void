@@ -43,33 +43,33 @@ export const UpdateAvailableDialog: React.FC<UpdateAvailableDialogProps> = ({
       size="medium"
       contentInset
     >
-      <div className="bitfun-update-available">
-        <div className="bitfun-update-available__lead">
-          <div className="bitfun-update-available__lead-icon" aria-hidden>
+      <div className="void-update-available">
+        <div className="void-update-available__lead">
+          <div className="void-update-available__lead-icon" aria-hidden>
             <Download size={18} strokeWidth={2} />
           </div>
-          <p className="bitfun-update-available__subtitle">{t('update.availableSubtitle')}</p>
+          <p className="void-update-available__subtitle">{t('update.availableSubtitle')}</p>
         </div>
 
-        <div className="bitfun-update-available__versions bitfun-update-available__versions--card">
-          <div className="bitfun-update-available__row">
-            <span className="bitfun-update-available__label">{t('update.currentVersion')}</span>
-            <span className="bitfun-update-available__value">{data.currentVersion}</span>
+        <div className="void-update-available__versions void-update-available__versions--card">
+          <div className="void-update-available__row">
+            <span className="void-update-available__label">{t('update.currentVersion')}</span>
+            <span className="void-update-available__value">{data.currentVersion}</span>
           </div>
-          <div className="bitfun-update-available__row bitfun-update-available__row--highlight">
-            <span className="bitfun-update-available__label">{t('update.latestVersion')}</span>
-            <span className="bitfun-update-available__value">{latest}</span>
+          <div className="void-update-available__row void-update-available__row--highlight">
+            <span className="void-update-available__label">{t('update.latestVersion')}</span>
+            <span className="void-update-available__value">{latest}</span>
           </div>
         </div>
 
         {notes ? (
-          <div className="bitfun-update-available__notes">
-            <div className="bitfun-update-available__notes-label">{t('update.releaseNotes')}</div>
-            <pre className="bitfun-update-available__notes-body">{notes}</pre>
+          <div className="void-update-available__notes">
+            <div className="void-update-available__notes-label">{t('update.releaseNotes')}</div>
+            <pre className="void-update-available__notes-body">{notes}</pre>
           </div>
         ) : null}
 
-        <div className="bitfun-update-available__actions">
+        <div className="void-update-available__actions">
           {variant === 'daily' ? (
             <>
               <Button variant="secondary" size="medium" onClick={onLater}>

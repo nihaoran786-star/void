@@ -1,19 +1,19 @@
 [package]
-name = "bitfun-agent-stream"
+name = "void-agent-stream"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "Lightweight agent stream processing for BitFun"
+description = "Lightweight agent stream processing for Void"
 
 [lib]
-name = "bitfun_agent_stream"
+name = "void_agent_stream"
 crate-type = ["rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-bitfun-ai-adapters = { path = "../ai-adapters" }
-bitfun-events = { path = "../events" }
+void-ai-adapters = { path = "../ai-adapters" }
+void-events = { path = "../events" }
 futures = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true }

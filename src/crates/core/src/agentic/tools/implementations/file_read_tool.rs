@@ -1,8 +1,8 @@
 use crate::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::agentic::tools::workspace_paths::is_bitfun_runtime_uri;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::agentic::tools::workspace_paths::is_void_runtime_uri;
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::timing::elapsed_ms_u64;
 use async_trait::async_trait;
 use log::{debug, warn};
@@ -50,16 +50,16 @@ impl FileReadTool {
         start_line: usize,
         limit: usize,
         context: &ToolUseContext,
-    ) -> BitFunResult<tool_runtime::fs::read_file::ReadFileResult> {
-        const TOTAL_LINES_MARKER: &str = "__BITFUN_TOTAL_LINES__=";
-        const HIT_TOTAL_CHAR_LIMIT_MARKER: &str = "__BITFUN_HIT_TOTAL_CHAR_LIMIT__=";
+    ) -> VoidResult<tool_runtime::fs::read_file::ReadFileResult> {
+        const TOTAL_LINES_MARKER: &str = "__VOID_TOTAL_LINES__=";
+        const HIT_TOTAL_CHAR_LIMIT_MARKER: &str = "__VOID_HIT_TOTAL_CHAR_LIMIT__=";
 
         let end_line = start_line
             .checked_add(limit.saturating_sub(1))
-            .ok_or_else(|| BitFunError::tool("Requested line range is too large".to_string()))?;
+            .ok_or_else(|| VoidError::tool("Requested line range is too large".to_string()))?;
 
         let ws_shell = context.ws_shell().ok_or_else(|| {
-            BitFunError::tool("Remote workspace shell is unavailable".to_string())
+            VoidError::tool("Remote workspace shell is unavailable".to_string())
         })?;
 
         let escaped_path = shell_escape(resolved_path);
@@ -96,7 +96,7 @@ impl FileReadTool {
                     elapsed_ms_u64(remote_read_started_at),
                     e
                 );
-                BitFunError::tool(format!("Failed to read file: {}", e))
+                VoidError::tool(format!("Failed to read file: {}", e))
             })?;
         debug!(
             "Remote file read command completed: path={}, start_line={}, limit={}, status={}, stdout_len={}, stderr_len={}, duration_ms={}",
@@ -133,11 +133,11 @@ impl FileReadTool {
                     status
                 )
             };
-            return Err(BitFunError::tool(message));
+            return Err(VoidError::tool(message));
         }
 
         let total_lines = total_lines.ok_or_else(|| {
-            BitFunError::tool(
+            VoidError::tool(
                 "Failed to read file: remote command did not return line-count markers".to_string(),
             )
         })?;
@@ -153,7 +153,7 @@ impl FileReadTool {
         }
 
         if start_line > total_lines {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "`start_line` {} is larger than the number of lines in the file: {}",
                 start_line, total_lines
             )));
@@ -201,12 +201,12 @@ impl Tool for FileReadTool {
         "Read"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(format!(
             r#"Reads a file from the current workspace filesystem. If the User provides a path to a file assume that path is valid. It is okay to read a file that does not exist; an error will be returned.
 
 Usage:
-- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `bitfun://runtime/...` URI returned by another tool.
+- The file_path parameter must be workspace-relative, an absolute path inside the current workspace, or an exact `void://runtime/...` URI returned by another tool.
 - Do not read host roots or placeholder paths such as `/workspace`.
 - By default, it reads up to {} lines starting from the beginning of the file.
 - You can optionally specify a start_line and limit. For large files, prefer reading targeted ranges instead of starting over from the beginning every time.
@@ -231,7 +231,7 @@ Usage:
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "The file to read. Use a workspace-relative path, an absolute path inside the current workspace, or an exact bitfun://runtime URI returned by another tool."
+                    "description": "The file to read. Use a workspace-relative path, an absolute path inside the current workspace, or an exact void://runtime URI returned by another tool."
                 },
                 "start_line": {
                     "type": "number",
@@ -295,11 +295,11 @@ Usage:
                 }
             }
             None => {
-                if is_bitfun_runtime_uri(file_path) {
+                if is_void_runtime_uri(file_path) {
                     return ValidationResult {
                         result: false,
                         message: Some(
-                            "Tool context is required to resolve bitfun runtime URIs".to_string(),
+                            "Tool context is required to resolve void runtime URIs".to_string(),
                         ),
                         error_code: Some(400),
                         meta: None,
@@ -377,11 +377,11 @@ Usage:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let file_path = input
             .get("file_path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("file_path is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("file_path is required".to_string()))?;
 
         let start_line = input
             .get("start_line")
@@ -406,7 +406,7 @@ Usage:
                 self.max_line_chars,
                 self.max_total_chars,
             )
-            .map_err(BitFunError::tool)?
+            .map_err(VoidError::tool)?
         };
 
         let mut result_for_assistant = format!(

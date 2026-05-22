@@ -3,8 +3,8 @@
 use std::sync::{OnceLock, RwLock};
 use std::time::Instant;
 
-use bitfun_core::infrastructure::try_get_path_manager_arc;
-use bitfun_core::service::config::types::GlobalConfig;
+use void_core::infrastructure::try_get_path_manager_arc;
+use void_core::service::config::types::GlobalConfig;
 use dark_light::Mode;
 use log::{debug, error, warn};
 use tauri::webview::PageLoadEvent;
@@ -111,8 +111,8 @@ pub struct ThemeConfig {
 
 impl Default for ThemeConfig {
     fn default() -> Self {
-        Self::get_builtin_theme("bitfun-light").unwrap_or_else(|| Self {
-            id: "bitfun-light".to_string(),
+        Self::get_builtin_theme("void-light").unwrap_or_else(|| Self {
+            id: "void-light".to_string(),
             bg_primary: "#f3f3f5".to_string(),
             bg_secondary: "#ffffff".to_string(),
             bg_scene: "#ffffff".to_string(),
@@ -127,7 +127,7 @@ impl Default for ThemeConfig {
 impl ThemeConfig {
     pub fn get_builtin_theme(theme_id: &str) -> Option<Self> {
         match theme_id {
-            "bitfun-slate" => Some(Self {
+            "void-slate" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#1a1c1e".to_string(),
                 bg_secondary: "#1a1c1e".to_string(),
@@ -137,7 +137,7 @@ impl ThemeConfig {
                 text_muted: "#8a8d92".to_string(),
                 accent_color: "#6b9bd5".to_string(),
             }),
-            "bitfun-dark" => Some(Self {
+            "void-dark" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#121214".to_string(),
                 bg_secondary: "#18181a".to_string(),
@@ -147,7 +147,7 @@ impl ThemeConfig {
                 text_muted: "rgba(255, 255, 255, 0.4)".to_string(),
                 accent_color: "#60a5fa".to_string(),
             }),
-            "bitfun-midnight" => Some(Self {
+            "void-midnight" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#2b2d30".to_string(),
                 bg_secondary: "#1e1f22".to_string(),
@@ -157,7 +157,7 @@ impl ThemeConfig {
                 text_muted: "rgba(255, 255, 255, 0.4)".to_string(),
                 accent_color: "#6c9eff".to_string(),
             }),
-            "bitfun-cyber" => Some(Self {
+            "void-cyber" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#101010".to_string(),
                 bg_secondary: "#151515".to_string(),
@@ -167,7 +167,7 @@ impl ThemeConfig {
                 text_muted: "rgba(255, 255, 255, 0.4)".to_string(),
                 accent_color: "#00e6ff".to_string(),
             }),
-            "bitfun-tokyo-night" => Some(Self {
+            "void-tokyo-night" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#1a1b26".to_string(),
                 bg_secondary: "#16161e".to_string(),
@@ -177,7 +177,7 @@ impl ThemeConfig {
                 text_muted: "rgba(255, 255, 255, 0.4)".to_string(),
                 accent_color: "#7aa2f7".to_string(),
             }),
-            "bitfun-china-night" => Some(Self {
+            "void-china-night" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#1a1814".to_string(),
                 bg_secondary: "#141210".to_string(),
@@ -187,7 +187,7 @@ impl ThemeConfig {
                 text_muted: "rgba(255, 255, 255, 0.4)".to_string(),
                 accent_color: "#c4a35a".to_string(),
             }),
-            "bitfun-light" => Some(Self {
+            "void-light" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#f3f3f5".to_string(),
                 bg_secondary: "#ffffff".to_string(),
@@ -197,7 +197,7 @@ impl ThemeConfig {
                 text_muted: "#64748b".to_string(),
                 accent_color: "#64748b".to_string(),
             }),
-            "bitfun-china-style" => Some(Self {
+            "void-china-style" => Some(Self {
                 id: theme_id.to_string(),
                 bg_primary: "#faf8f0".to_string(),
                 bg_secondary: "#f5f3e8".to_string(),
@@ -247,7 +247,7 @@ impl ThemeConfig {
             .themes
             .as_ref()
             .map(|t| t.current.as_str())
-            .unwrap_or("bitfun-light");
+            .unwrap_or("void-light");
 
         let resolved_id = Self::resolve_builtin_theme_id(theme_id);
 
@@ -265,8 +265,8 @@ impl ThemeConfig {
     fn resolve_builtin_theme_id(theme_id: &str) -> &str {
         if theme_id == "system" {
             return match dark_light::detect() {
-                Mode::Dark => "bitfun-dark",
-                Mode::Light | Mode::Default => "bitfun-light",
+                Mode::Dark => "void-dark",
+                Mode::Light | Mode::Default => "void-light",
             };
         }
         theme_id
@@ -280,7 +280,7 @@ impl ThemeConfig {
         format!(
             r#"
             (function() {{
-                window.__BITFUN_STARTUP_TRACE_ID__ = {startup_trace_id_json};
+                window.__VOID_STARTUP_TRACE_ID__ = {startup_trace_id_json};
                 function applyTheme() {{
                     var root = document.documentElement;
                     if (!root) return false;
@@ -364,7 +364,7 @@ pub fn create_main_window(app_handle: &tauri::AppHandle, startup_trace_id: &str)
 
     #[allow(unused_mut)]
     let mut builder = tauri::WebviewWindowBuilder::new(app_handle, "main", main_url)
-        .title("BitFun")
+        .title("Void")
         .inner_size(1200.0, 800.0)
         .resizable(true)
         .fullscreen(false)
@@ -418,7 +418,7 @@ pub fn create_main_window(app_handle: &tauri::AppHandle, startup_trace_id: &str)
             );
             #[cfg(any(debug_assertions, feature = "devtools"))]
             {
-                if std::env::var("BITFUN_OPEN_DEVTOOLS")
+                if std::env::var("VOID_OPEN_DEVTOOLS")
                     .map(|v| v == "1")
                     .unwrap_or(false)
                 {
@@ -626,9 +626,9 @@ pub async fn show_agent_companion_desktop_pet(app: tauri::AppHandle) -> Result<(
         return Ok(());
     }
 
-    let url = app_url("?bitfunWindow=agent-companion");
+    let url = app_url("?voidWindow=agent-companion");
     let mut builder = tauri::WebviewWindowBuilder::new(&app, AGENT_COMPANION_WINDOW_LABEL, url)
-        .title("BitFun Agent Companion")
+        .title("Void Agent Companion")
         .inner_size(
             AGENT_COMPANION_WINDOW_MIN_SIZE,
             AGENT_COMPANION_WINDOW_MIN_SIZE,

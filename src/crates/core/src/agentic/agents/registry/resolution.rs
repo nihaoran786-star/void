@@ -2,7 +2,7 @@ use super::builtin::default_model_id_for_builtin_agent;
 use super::AgentRegistry;
 use crate::service::config::global::GlobalConfigManager;
 use crate::service::config::GlobalConfig;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::{debug, error, warn};
 use std::path::Path;
 
@@ -14,10 +14,10 @@ impl AgentRegistry {
         &self,
         agent_type: &str,
         workspace_root: Option<&Path>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if self.find_agent_entry(agent_type, workspace_root).is_none() {
             error!("[AgentRegistry] Agent not found: {}", agent_type);
-            return Err(BitFunError::agent(format!(
+            return Err(VoidError::agent(format!(
                 "[AgentRegistry] Agent not found: {}",
                 agent_type
             )));

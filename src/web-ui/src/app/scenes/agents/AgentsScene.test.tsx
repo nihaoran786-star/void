@@ -172,7 +172,7 @@ describeWithJsdom('AgentsScene', () => {
     });
 
     expect(container.querySelector('[data-testid="review-team-page"]')).toBeTruthy();
-    expect(container.querySelector('.bitfun-agents-scene--page')).toBeTruthy();
+    expect(container.querySelector('.void-agents-scene--page')).toBeTruthy();
   });
 
   it('keeps agent subpages stretched across the active scene viewport', () => {

@@ -1,1 +1,1 @@
-pub use bitfun_services_integrations::announcement::*;
+pub use void_services_integrations::announcement::*;

@@ -1,6 +1,6 @@
 @use '../../../component-library/styles/tokens' as *;
 
-.bitfun-remote-disclaimer {
+.void-remote-disclaimer {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -8,19 +8,19 @@
   padding: 12px 0 14px;
 }
 
-.bitfun-remote-disclaimer__meta {
+.void-remote-disclaimer__meta {
   display: flex;
   justify-content: flex-start;
 }
 
-.bitfun-remote-disclaimer__text {
+.void-remote-disclaimer__text {
   margin: 0;
   font-size: 12px;
   line-height: 1.4;
   color: var(--color-text-muted);
 }
 
-.bitfun-remote-disclaimer__list {
+.void-remote-disclaimer__list {
   margin: 0;
   padding-left: 20px;
   display: flex;
@@ -34,7 +34,7 @@
   }
 }
 
-.bitfun-remote-disclaimer__actions {
+.void-remote-disclaimer__actions {
   display: flex;
   justify-content: center;
   gap: 12px;
@@ -43,7 +43,7 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-.bitfun-remote-disclaimer__btn {
+.void-remote-disclaimer__btn {
   border-radius: 6px;
   border: 1px solid transparent;
   min-width: 112px;
@@ -53,7 +53,7 @@
   transition: all $motion-fast $easing-standard;
 }
 
-.bitfun-remote-disclaimer__btn--secondary {
+.void-remote-disclaimer__btn--secondary {
   background: var(--element-bg-subtle);
   color: var(--color-text-secondary);
   border-color: var(--border-subtle);
@@ -64,7 +64,7 @@
   }
 }
 
-.bitfun-remote-disclaimer__btn--primary {
+.void-remote-disclaimer__btn--primary {
   background: var(--color-accent-600, #2563eb);
   color: #fff;
   border-color: color-mix(in srgb, var(--color-accent-700, #1d4ed8) 35%, transparent);

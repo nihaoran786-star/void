@@ -83,8 +83,8 @@ export const AgentCompanionDesktopPet: React.FC = () => {
       : { width: DEFAULT_PET_SIZE, height: DEFAULT_PET_SIZE };
 
   useEffect(() => {
-    document.documentElement.classList.add('bitfun-agent-companion-window-root');
-    document.body.classList.add('bitfun-agent-companion-window-body');
+    document.documentElement.classList.add('void-agent-companion-window-root');
+    document.body.classList.add('void-agent-companion-window-body');
 
     const applySettings = (settings: AIExperienceSettings) => {
       setPet(settings.agent_companion_pet ?? null);
@@ -127,8 +127,8 @@ export const AgentCompanionDesktopPet: React.FC = () => {
     return () => {
       removeTauriListener?.();
       removeActivityListener?.();
-      document.documentElement.classList.remove('bitfun-agent-companion-window-root');
-      document.body.classList.remove('bitfun-agent-companion-window-body');
+      document.documentElement.classList.remove('void-agent-companion-window-root');
+      document.body.classList.remove('void-agent-companion-window-body');
     };
   }, []);
 
@@ -300,7 +300,7 @@ export const AgentCompanionDesktopPet: React.FC = () => {
           return;
         }
 
-        const hitbox = dockRef.current?.querySelector<HTMLElement>('.bitfun-agent-companion-window__pet-hitbox');
+        const hitbox = dockRef.current?.querySelector<HTMLElement>('.void-agent-companion-window__pet-hitbox');
         if (!hitbox) {
           setIsHoveringPet(false);
           return;
@@ -446,26 +446,26 @@ export const AgentCompanionDesktopPet: React.FC = () => {
   }, []);
 
   const dockVars = {
-    '--bitfun-agent-companion-pet-width': `${activePetSize.width}px`,
-    '--bitfun-agent-companion-pet-height': `${activePetSize.height}px`,
-    '--bitfun-agent-companion-gap': `${WINDOW_HORIZONTAL_GAP}px`,
+    '--void-agent-companion-pet-width': `${activePetSize.width}px`,
+    '--void-agent-companion-pet-height': `${activePetSize.height}px`,
+    '--void-agent-companion-gap': `${WINDOW_HORIZONTAL_GAP}px`,
   } as React.CSSProperties;
   const isSingleTask = tasks.length === 1;
 
   return (
     <main
-      className="bitfun-agent-companion-window"
+      className="void-agent-companion-window"
       onContextMenu={onContextMenu}
     >
       <div
         ref={dockRef}
-        className="bitfun-agent-companion-window__dock"
+        className="void-agent-companion-window__dock"
         style={dockVars}
       >
         {tasks.length > 0 && (
           <div
             ref={bubblesRef}
-            className={`bitfun-agent-companion-window__bubbles${isSingleTask ? ' bitfun-agent-companion-window__bubbles--single' : ''}`}
+            className={`void-agent-companion-window__bubbles${isSingleTask ? ' void-agent-companion-window__bubbles--single' : ''}`}
             aria-live="polite"
             onDoubleClick={event => event.stopPropagation()}
           >
@@ -473,13 +473,13 @@ export const AgentCompanionDesktopPet: React.FC = () => {
               <button
                 type="button"
                 key={task.sessionId}
-                className={`bitfun-agent-companion-window__bubble bitfun-agent-companion-window__bubble--${task.state}${isSingleTask ? ' bitfun-agent-companion-window__bubble--single' : ''}`}
+                className={`void-agent-companion-window__bubble void-agent-companion-window__bubble--${task.state}${isSingleTask ? ' void-agent-companion-window__bubble--single' : ''}`}
                 onClick={() => void openTaskSession(task)}
               >
-                <span className="bitfun-agent-companion-window__bubble-title">
+                <span className="void-agent-companion-window__bubble-title">
                   {task.title}
                 </span>
-                <span className="bitfun-agent-companion-window__bubble-status">
+                <span className="void-agent-companion-window__bubble-status">
                   {t(task.labelKey, { defaultValue: task.defaultLabel })}
                 </span>
                 {isSingleTask && task.latestOutput && (() => {
@@ -498,7 +498,7 @@ export const AgentCompanionDesktopPet: React.FC = () => {
                           outputRefs.current.delete(sessionId);
                         }
                       }}
-                      className={`bitfun-agent-companion-window__bubble-output${isTyping ? ' bitfun-agent-companion-window__bubble-output--typing' : ''}`}
+                      className={`void-agent-companion-window__bubble-output${isTyping ? ' void-agent-companion-window__bubble-output--typing' : ''}`}
                     >
                       {visibleOutput}
                     </span>
@@ -509,7 +509,7 @@ export const AgentCompanionDesktopPet: React.FC = () => {
           </div>
         )}
         <div
-          className="bitfun-agent-companion-window__pet-hitbox"
+          className="void-agent-companion-window__pet-hitbox"
           onPointerEnter={() => setIsHoveringPet(true)}
           onPointerLeave={() => setIsHoveringPet(false)}
           onPointerDown={onPetPointerDown}
@@ -523,7 +523,7 @@ export const AgentCompanionDesktopPet: React.FC = () => {
             nativePetdexSize
             petdexScale={PETDEX_DESKTOP_SCALE}
             onPetFrameSizeChange={handlePetFrameSizeChange}
-            className="bitfun-agent-companion-window__pet"
+            className="void-agent-companion-window__pet"
           />
         </div>
       </div>

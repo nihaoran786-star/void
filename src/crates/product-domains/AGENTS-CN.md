@@ -4,13 +4,13 @@
 
 适用范围：`src/crates/product-domains`。
 
-`bitfun-product-domains` 负责可以脱离完整 core runtime 编译的低风险产品领域契约。
+`void-product-domains` 负责可以脱离完整 core runtime 编译的低风险产品领域契约。
 这里的抽取必须保持行为等价与平台无关；在所有下游调用点被有意迁移前，
-`bitfun-core` 可以继续保留兼容 re-export 或 wrapper facade。
+`void-core` 可以继续保留兼容 re-export 或 wrapper facade。
 
 ## 护栏
 
-- 不要让 `bitfun-product-domains` 依赖 `bitfun-core`。
+- 不要让 `void-product-domains` 依赖 `void-core`。
 - 保持 default feature 轻量。默认构建不应引入 runtime、service、desktop、
   network、process、AI 或 tool-runtime 依赖。
 - 本 crate 可以承载纯 DTO、枚举、序列化契约、搜索计划、命令选择决策、
@@ -52,10 +52,10 @@
 按改动范围选择最小验证：
 
 ```bash
-cargo test -p bitfun-product-domains --no-default-features
-cargo test -p bitfun-product-domains --features product-full
+cargo test -p void-product-domains --no-default-features
+cargo test -p void-product-domains --features product-full
 node scripts/check-core-boundaries.mjs
-cargo check -p bitfun-core --features product-full
+cargo check -p void-core --features product-full
 ```
 
 仅改文档时，也运行 `git diff --check`。

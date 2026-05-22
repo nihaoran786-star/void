@@ -13,17 +13,17 @@ describe('top bar layout styles', () => {
   it('uses one local control size token for NavBar buttons', () => {
     const stylesheet = readStylesheet('./NavBar.scss');
 
-    expect(stylesheet).toContain('--bitfun-topbar-control-size: 28px;');
-    expect(stylesheet).toContain('width: var(--bitfun-topbar-control-size);');
-    expect(stylesheet).toContain('height: var(--bitfun-topbar-control-size);');
-    expect(stylesheet).toContain('border-radius: var(--bitfun-topbar-control-radius);');
+    expect(stylesheet).toContain('--void-topbar-control-size: 28px;');
+    expect(stylesheet).toContain('width: var(--void-topbar-control-size);');
+    expect(stylesheet).toContain('height: var(--void-topbar-control-size);');
+    expect(stylesheet).toContain('border-radius: var(--void-topbar-control-radius);');
   });
 
   it('uses the same top-bar sizing vocabulary in SceneBar controls', () => {
     const stylesheet = readStylesheet('../SceneBar/SceneBar.scss');
 
-    expect(stylesheet).toContain('--bitfun-topbar-control-size: 28px;');
-    expect(stylesheet).toContain('min-height: var(--bitfun-topbar-control-size);');
-    expect(stylesheet).toContain('border-radius: var(--bitfun-topbar-control-radius);');
+    expect(stylesheet).toContain('--void-topbar-control-size: 28px;');
+    expect(stylesheet).toContain('min-height: var(--void-topbar-control-size);');
+    expect(stylesheet).toContain('border-radius: var(--void-topbar-control-radius);');
   });
 });

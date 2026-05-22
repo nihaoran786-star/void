@@ -38,15 +38,15 @@ const CAPACITY_QUEUE_REASON_DETAIL_KEYS: Record<DeepReviewCapacityQueueReason, {
 }> = {
   provider_rate_limit: {
     key: 'deepReviewActionBar.capacityQueue.reasonDetails.providerRateLimit',
-    defaultValue: 'The model provider is rate-limiting requests. BitFun will wait briefly and continue when capacity returns.',
+    defaultValue: 'The model provider is rate-limiting requests. Void will wait briefly and continue when capacity returns.',
   },
   provider_concurrency_limit: {
     key: 'deepReviewActionBar.capacityQueue.reasonDetails.providerConcurrencyLimit',
-    defaultValue: 'The model provider rejected another concurrent reviewer. BitFun will retry after capacity opens.',
+    defaultValue: 'The model provider rejected another concurrent reviewer. Void will retry after capacity opens.',
   },
   retry_after: {
     key: 'deepReviewActionBar.capacityQueue.reasonDetails.retryAfter',
-    defaultValue: 'The model provider asked BitFun to retry later. Waiting here avoids spending reviewer runtime while the provider cools down.',
+    defaultValue: 'The model provider asked Void to retry later. Waiting here avoids spending reviewer runtime while the provider cools down.',
   },
   local_concurrency_cap: {
     key: 'deepReviewActionBar.capacityQueue.reasonDetails.localConcurrencyCap',
@@ -58,7 +58,7 @@ const CAPACITY_QUEUE_REASON_DETAIL_KEYS: Record<DeepReviewCapacityQueueReason, {
   },
   temporary_overload: {
     key: 'deepReviewActionBar.capacityQueue.reasonDetails.temporaryOverload',
-    defaultValue: 'The model provider reported temporary overload. BitFun will wait briefly and then continue or mark the reviewer as capacity skipped.',
+    defaultValue: 'The model provider reported temporary overload. Void will wait briefly and then continue or mark the reviewer as capacity skipped.',
   },
 };
 
@@ -147,7 +147,7 @@ export const CapacityQueueNotice: React.FC<CapacityQueueNoticeProps> = ({
     })
     : capacityQueueWaitMode === 'provider_capacity'
       ? t('deepReviewActionBar.capacityQueue.providerDetail', {
-        defaultValue: 'BitFun is waiting for temporary model capacity. This wait does not count against reviewer runtime.',
+        defaultValue: 'Void is waiting for temporary model capacity. This wait does not count against reviewer runtime.',
       })
       : t('deepReviewActionBar.capacityQueue.detail', {
         defaultValue: 'Queue wait does not count against reviewer runtime.',

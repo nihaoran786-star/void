@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# BitFun Relay Server — restart script.
+# Void Relay Server — restart script.
 # Run this script on the target server itself after SSH login.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="bitfun-relay"
+CONTAINER_NAME="void-relay"
 RELAY_HOST_BIND_IP="127.0.0.1"
 
 usage() {
   cat <<'EOF'
-BitFun Relay Server restart script
+Void Relay Server restart script
 
 Usage:
   bash restart.sh
@@ -58,7 +58,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "=== BitFun Relay Server Restart ==="
+echo "=== Void Relay Server Restart ==="
 check_command docker
 check_docker_compose
 

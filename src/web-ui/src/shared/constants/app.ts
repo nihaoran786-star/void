@@ -2,26 +2,26 @@
 
 
 export const APP_INFO = {
-  name: 'BitFun',
+  name: 'Void',
   version: '1.0.0',
   description: 'AI code analysis and visualization tool',
-  author: 'BitFun Team',
-  homepage: 'https://bitfun.dev'
+  author: 'Void Team',
+  homepage: 'https://void.dev'
 } as const;
 
 
 export const STORAGE_KEYS = {
-  THEME: 'bitfun-theme',
-  LANGUAGE: 'bitfun-language',
-  LEFT_PANEL_WIDTH: 'bitfun-left-panel-width',
-  LEFT_PANEL_COLLAPSED: 'bitfun-left-panel-collapsed',
-  RIGHT_PANEL_COLLAPSED: 'bitfun-right-panel-collapsed',
-  RECENT_WORKSPACES: 'bitfun-recent-workspaces',
-  USER_PREFERENCES: 'bitfun-user-preferences',
-  MODEL_CONFIGS: 'bitfun-model-configs',
-  CHAT_HISTORY: 'bitfun-chat-history',
-  DIFF_CLOSE_WARNING_DISABLED: 'bitfun-diff-close-warning-disabled',
-  MANUAL_TERMINAL_PROFILES: 'bitfun-manual-terminal-profiles'
+  THEME: 'void-theme',
+  LANGUAGE: 'void-language',
+  LEFT_PANEL_WIDTH: 'void-left-panel-width',
+  LEFT_PANEL_COLLAPSED: 'void-left-panel-collapsed',
+  RIGHT_PANEL_COLLAPSED: 'void-right-panel-collapsed',
+  RECENT_WORKSPACES: 'void-recent-workspaces',
+  USER_PREFERENCES: 'void-user-preferences',
+  MODEL_CONFIGS: 'void-model-configs',
+  CHAT_HISTORY: 'void-chat-history',
+  DIFF_CLOSE_WARNING_DISABLED: 'void-diff-close-warning-disabled',
+  MANUAL_TERMINAL_PROFILES: 'void-manual-terminal-profiles'
 } as const;
 
 

@@ -1,4 +1,4 @@
-//! BitFun Relay Server Library
+//! Void Relay Server Library
 //!
 //! Shared relay logic used by both the standalone relay-server binary and
 //! the embedded relay running inside the desktop process.

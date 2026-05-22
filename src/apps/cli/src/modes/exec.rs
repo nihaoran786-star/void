@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bitfun_events::AgenticEvent;
+use void_events::AgenticEvent;
 
 use crate::agent::{agentic_system::AgenticSystem, core_adapter::CoreAgentAdapter, Agent};
 use crate::config::CliConfig;
@@ -80,7 +80,7 @@ impl ExecMode {
             return None;
         }
 
-        let output = bitfun_core::util::process_manager::create_command("git")
+        let output = void_core::util::process_manager::create_command("git")
             .args(["diff", "--no-color"])
             .current_dir(workspace)
             .output()
@@ -152,7 +152,7 @@ impl ExecMode {
                             subagent_parent_sessions.get(event_session_id)
                         });
                         if parent_session_id.map(String::as_str) == Some(session_id.as_str()) {
-                            use bitfun_events::ToolEventData;
+                            use void_events::ToolEventData;
                             match tool_event {
                                 ToolEventData::Started { tool_name, tool_id, .. } => {
                                     self.emit(json!({
@@ -234,7 +234,7 @@ impl ExecMode {
                     }
 
                     AgenticEvent::ToolEvent { tool_event, .. } => {
-                        use bitfun_events::ToolEventData;
+                        use void_events::ToolEventData;
                         match tool_event {
                             ToolEventData::Started {
                                 tool_name,
@@ -405,16 +405,16 @@ impl ExecMode {
                 .last()
                 .map(|turn| turn.turn_id.clone())
                 .ok_or_else(|| anyhow::anyhow!("Session has no persisted turns to fork"))?;
-            let path_manager = bitfun_core::infrastructure::try_get_path_manager_arc()
+            let path_manager = void_core::infrastructure::try_get_path_manager_arc()
                 .map_err(|error| anyhow::anyhow!(error.to_string()))?;
-            let persistence_manager = bitfun_core::agentic::persistence::PersistenceManager::new(
+            let persistence_manager = void_core::agentic::persistence::PersistenceManager::new(
                 path_manager,
             )
             .map_err(|error| anyhow::anyhow!(error.to_string()))?;
             let result = persistence_manager
                 .branch_session(
                     &workspace,
-                    &bitfun_core::agentic::persistence::session_branch::SessionBranchRequest {
+                    &void_core::agentic::persistence::session_branch::SessionBranchRequest {
                         source_session_id: source_session_id.clone(),
                         source_turn_id,
                     },

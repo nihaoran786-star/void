@@ -3,7 +3,7 @@
 //! Uses the official `rmcp` Rust SDK to implement the MCP Streamable HTTP client transport.
 
 use super::types::{
-    InitializeResult as BitFunInitializeResult, MCPToolResult, PromptsGetResult, PromptsListResult,
+    InitializeResult as VoidInitializeResult, MCPToolResult, PromptsGetResult, PromptsListResult,
     ResourcesListResult, ResourcesReadResult, ToolsListResult,
 };
 use crate::mcp::auth::build_authorization_manager;
@@ -49,11 +49,11 @@ use tokio::sync::Mutex;
 use sse_stream::{Sse, SseStream};
 
 #[derive(Clone)]
-struct BitFunRmcpClientHandler {
+struct VoidRmcpClientHandler {
     info: ClientInfo,
 }
 
-impl ClientHandler for BitFunRmcpClientHandler {
+impl ClientHandler for VoidRmcpClientHandler {
     fn get_info(&self) -> ClientInfo {
         self.info.clone()
     }
@@ -107,20 +107,20 @@ impl ClientHandler for BitFunRmcpClientHandler {
 
 enum ClientState {
     Connecting {
-        transport: Option<StreamableHttpClientTransport<BitFunStreamableHttpClient>>,
+        transport: Option<StreamableHttpClientTransport<VoidStreamableHttpClient>>,
     },
     Ready {
-        service: Arc<RunningService<RoleClient, BitFunRmcpClientHandler>>,
+        service: Arc<RunningService<RoleClient, VoidRmcpClientHandler>>,
     },
 }
 
 #[derive(Clone)]
-struct BitFunStreamableHttpClient {
+struct VoidStreamableHttpClient {
     client: reqwest::Client,
     oauth_manager: Option<Arc<Mutex<AuthorizationManager>>>,
 }
 
-impl BitFunStreamableHttpClient {
+impl VoidStreamableHttpClient {
     async fn resolve_auth_token(
         &self,
         auth_token: Option<String>,
@@ -138,7 +138,7 @@ impl BitFunStreamableHttpClient {
     }
 }
 
-impl StreamableHttpClient for BitFunStreamableHttpClient {
+impl StreamableHttpClient for VoidStreamableHttpClient {
     type Error = reqwest::Error;
 
     async fn get_stream(
@@ -351,7 +351,7 @@ impl RemoteMCPTransport {
         if !header_map.contains_key(USER_AGENT) {
             header_map.insert(
                 USER_AGENT,
-                HeaderValue::from_static("BitFun-MCP-Client/1.0"),
+                HeaderValue::from_static("Void-MCP-Client/1.0"),
             );
         }
 
@@ -398,7 +398,7 @@ impl RemoteMCPTransport {
             });
 
         let transport = StreamableHttpClientTransport::with_client(
-            BitFunStreamableHttpClient {
+            VoidStreamableHttpClient {
                 client: http_client,
                 oauth_manager: oauth_manager.clone(),
             },
@@ -456,7 +456,7 @@ impl RemoteMCPTransport {
 
     async fn service(
         &self,
-    ) -> MCPRuntimeResult<Arc<RunningService<RoleClient, BitFunRmcpClientHandler>>> {
+    ) -> MCPRuntimeResult<Arc<RunningService<RoleClient, VoidRmcpClientHandler>>> {
         let guard = self.state.lock().await;
         match &*guard {
             ClientState::Ready { service } => Ok(Arc::clone(service)),
@@ -471,7 +471,7 @@ impl RemoteMCPTransport {
         &self,
         client_name: &str,
         client_version: &str,
-    ) -> MCPRuntimeResult<BitFunInitializeResult> {
+    ) -> MCPRuntimeResult<VoidInitializeResult> {
         let mut guard = self.state.lock().await;
         match &mut *guard {
             ClientState::Ready { service } => {
@@ -487,7 +487,7 @@ impl RemoteMCPTransport {
                     ));
                 };
 
-                let handler = BitFunRmcpClientHandler {
+                let handler = VoidRmcpClientHandler {
                     info: create_mcp_client_info(client_name, client_version),
                 };
 

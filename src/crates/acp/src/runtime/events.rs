@@ -7,7 +7,7 @@ use agent_client_protocol::schema::{
     ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };
 use agent_client_protocol::{Client, ConnectionTo, Result};
-use bitfun_events::ToolEventData;
+use void_events::ToolEventData;
 
 pub(super) const PERMISSION_ALLOW_ONCE: &str = "allow_once";
 pub(super) const PERMISSION_REJECT_ONCE: &str = "reject_once";

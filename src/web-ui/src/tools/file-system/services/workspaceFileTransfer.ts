@@ -46,7 +46,7 @@ export function resolveExplorerDropTargetDirectory(
   if (!el) {
     return workspacePath;
   }
-  const explorer = el.closest('.bitfun-file-explorer');
+  const explorer = el.closest('.void-file-explorer');
   if (!explorer) {
     return workspacePath;
   }
@@ -85,7 +85,7 @@ export function resolveDropTargetDirectoryFromDragPosition(
       continue;
     }
     const hit = document.elementFromPoint(x, y);
-    if (!hit?.closest('.bitfun-file-explorer')) {
+    if (!hit?.closest('.void-file-explorer')) {
       continue;
     }
     return resolveExplorerDropTargetDirectory(x, y, workspacePath);

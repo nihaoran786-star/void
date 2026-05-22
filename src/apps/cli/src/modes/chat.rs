@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use bitfun_events::AgenticEvent;
+use void_events::AgenticEvent;
 
 use crate::agent::{agentic_system::AgenticSystem, core_adapter::CoreAgentAdapter, Agent};
 use crate::chat_state::ChatState;
@@ -39,11 +39,11 @@ use crate::ui::theme::{
 };
 use crate::ui::theme_selector::ThemeItem;
 use crate::ui::{init_terminal, restore_terminal};
-use bitfun_core::agentic::agents::{
+use void_core::agentic::agents::{
     get_agent_registry, AgentInfo, SubAgentSource, SubagentListScope, SubagentQueryContext,
 };
-use bitfun_core::agentic::persistence::PersistenceManager;
-use bitfun_core::agentic::tools::implementations::skills::{
+use void_core::agentic::persistence::PersistenceManager;
+use void_core::agentic::tools::implementations::skills::{
     mode_overrides::{
         load_project_mode_skills_document_local, save_project_mode_skills_document_local,
         set_mode_skill_disabled_in_document, set_user_mode_skill_state,
@@ -51,11 +51,11 @@ use bitfun_core::agentic::tools::implementations::skills::{
     registry::SkillRegistry,
     ModeSkillInfo, SkillInfo,
 };
-use bitfun_core::service::config::GlobalConfigManager;
-use bitfun_core::service::session_usage::{
+use void_core::service::config::GlobalConfigManager;
+use void_core::service::session_usage::{
     generate_session_usage_report, render_usage_report_markdown, SessionUsageReportRequest,
 };
-use bitfun_core::service::token_usage::TokenUsageService;
+use void_core::service::token_usage::TokenUsageService;
 
 /// Keyboard shortcuts help text
 const KEYBOARD_SHORTCUTS_HELP: &str = "\
@@ -100,15 +100,15 @@ enum PendingMcpOp {
 enum PendingMcpTask {
     Toggle {
         server_id: String,
-        handle: tokio::task::JoinHandle<bitfun_core::util::errors::BitFunResult<()>>,
+        handle: tokio::task::JoinHandle<void_core::util::errors::VoidResult<()>>,
     },
     Add {
         name: String,
-        handle: tokio::task::JoinHandle<bitfun_core::util::errors::BitFunResult<()>>,
+        handle: tokio::task::JoinHandle<void_core::util::errors::VoidResult<()>>,
     },
     Delete {
         server_id: String,
-        handle: tokio::task::JoinHandle<bitfun_core::util::errors::BitFunResult<()>>,
+        handle: tokio::task::JoinHandle<void_core::util::errors::VoidResult<()>>,
     },
 }
 
@@ -851,7 +851,7 @@ impl ChatMode {
                             }
                             // Skip all future tool confirmations
                             if let Ok(svc) =
-                                bitfun_core::service::config::get_global_config_service().await
+                                void_core::service::config::get_global_config_service().await
                             {
                                 if let Err(e) =
                                     svc.set_config("ai.skip_tool_confirmation", true).await
@@ -1704,7 +1704,7 @@ impl ChatMode {
                 self.show_mcp_selector(chat_view, chat_state, rt_handle);
             }
             "/acp" => {
-                chat_state.add_system_message(crate::acp_cli::acp_help_text("bitfun-cli"));
+                chat_state.add_system_message(crate::acp_cli::acp_help_text("void-cli"));
                 chat_view.set_status(Some(
                     "ACP setup added to the conversation. You can keep typing.".to_string(),
                 ));
@@ -1792,7 +1792,7 @@ impl ChatMode {
         let token_usage_service = self.token_usage_service.clone();
         let session_manager = self.agent.coordinator().get_session_manager();
 
-        let report_result: Result<bitfun_core::service::session_usage::SessionUsageReport> =
+        let report_result: Result<void_core::service::session_usage::SessionUsageReport> =
             tokio::task::block_in_place(|| {
                 let session_id = session_id.clone();
                 let workspace_path = workspace_path.clone();
@@ -1803,7 +1803,7 @@ impl ChatMode {
                         .filter(|path| !path.trim().is_empty())
                         .ok_or_else(|| anyhow!("Workspace path is required for usage reports"))?;
 
-                    let path_manager = bitfun_core::infrastructure::try_get_path_manager_arc()
+                    let path_manager = void_core::infrastructure::try_get_path_manager_arc()
                         .map_err(|error| anyhow!(error.to_string()))?;
                     let persistence_manager = PersistenceManager::new(path_manager)
                         .map_err(|error| anyhow!(error.to_string()))?;
@@ -2010,9 +2010,9 @@ impl ChatMode {
         let result: Option<String> = tokio::task::block_in_place(|| {
             rt_handle.block_on(async {
                 let config_service = GlobalConfigManager::get_service().await.ok()?;
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
-                let global_config: bitfun_core::service::config::GlobalConfig =
+                let global_config: void_core::service::config::GlobalConfig =
                     config_service.get_config(None).await.ok()?;
 
                 // Resolve model ID for the current agent
@@ -2025,7 +2025,7 @@ impl ChatMode {
                     .unwrap_or_else(|| "primary".to_string());
 
                 fn provider_display_name(
-                    model: &bitfun_core::service::config::AIModelConfig,
+                    model: &void_core::service::config::AIModelConfig,
                 ) -> String {
                     let raw_name = model.name.trim();
                     let model_name = model.model_name.trim();
@@ -2047,7 +2047,7 @@ impl ChatMode {
                 }
 
                 fn model_display_name(
-                    model: &bitfun_core::service::config::AIModelConfig,
+                    model: &void_core::service::config::AIModelConfig,
                 ) -> String {
                     format!("{} / {}", model.model_name, provider_display_name(model))
                 }
@@ -2094,9 +2094,9 @@ impl ChatMode {
                     }
                 };
 
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
-                let global_config: bitfun_core::service::config::GlobalConfig =
+                let global_config: void_core::service::config::GlobalConfig =
                     config_service.get_config(None).await.ok()?;
 
                 // Get current model ID
@@ -2277,7 +2277,7 @@ impl ChatMode {
                 };
 
                 let tool_registry =
-                    bitfun_core::agentic::tools::registry::get_global_tool_registry();
+                    void_core::agentic::tools::registry::get_global_tool_registry();
                 let registry_lock = tool_registry.read().await;
                 let all_tools = registry_lock.get_all_tools();
 
@@ -2357,8 +2357,8 @@ impl ChatMode {
         let handle = rt_handle.spawn(async move {
             let status = server_manager.get_server_status(&task_server_id).await;
             match status {
-                Ok(bitfun_core::service::mcp::MCPServerStatus::Connected)
-                | Ok(bitfun_core::service::mcp::MCPServerStatus::Healthy) => {
+                Ok(void_core::service::mcp::MCPServerStatus::Connected)
+                | Ok(void_core::service::mcp::MCPServerStatus::Healthy) => {
                     server_manager.stop_server(&task_server_id).await
                 }
                 _ => server_manager.start_server(&task_server_id).await,
@@ -2538,25 +2538,25 @@ impl ChatMode {
         let task_name = name_owned.clone();
         let handle = rt_handle.spawn(async move {
             let config_obj = config_value.as_object().ok_or_else(|| {
-                bitfun_core::util::errors::BitFunError::Validation(
+                void_core::util::errors::VoidError::Validation(
                     "MCP server config must be a JSON object".to_string(),
                 )
             })?;
 
             let server_type = match config_obj.get("type").and_then(|v| v.as_str()) {
-                Some("sse") => bitfun_core::service::mcp::MCPServerType::Remote,
+                Some("sse") => void_core::service::mcp::MCPServerType::Remote,
                 Some("streamable-http") | Some("streamable_http") | Some("http") => {
-                    bitfun_core::service::mcp::MCPServerType::Remote
+                    void_core::service::mcp::MCPServerType::Remote
                 }
-                _ => bitfun_core::service::mcp::MCPServerType::Local,
+                _ => void_core::service::mcp::MCPServerType::Local,
             };
 
             let transport = match config_obj.get("type").and_then(|v| v.as_str()) {
-                Some("sse") => bitfun_core::service::mcp::MCPServerTransport::Sse,
+                Some("sse") => void_core::service::mcp::MCPServerTransport::Sse,
                 Some("streamable-http") | Some("streamable_http") | Some("http") => {
-                    bitfun_core::service::mcp::MCPServerTransport::StreamableHttp
+                    void_core::service::mcp::MCPServerTransport::StreamableHttp
                 }
-                _ => bitfun_core::service::mcp::MCPServerTransport::Stdio,
+                _ => void_core::service::mcp::MCPServerTransport::Stdio,
             };
 
             let command = config_obj
@@ -2605,7 +2605,7 @@ impl ChatMode {
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
 
-            let config = bitfun_core::service::mcp::MCPServerConfig {
+            let config = void_core::service::mcp::MCPServerConfig {
                 id: name_owned.clone(),
                 name: name_owned.clone(),
                 server_type,
@@ -2617,7 +2617,7 @@ impl ChatMode {
                 url,
                 auto_start,
                 enabled,
-                location: bitfun_core::service::mcp::ConfigLocation::User,
+                location: void_core::service::mcp::ConfigLocation::User,
                 capabilities: Vec::new(),
                 settings: Default::default(),
                 oauth: config_obj
@@ -2632,7 +2632,7 @@ impl ChatMode {
 
             mcp_service.server_manager().add_server(config).await?;
 
-            Ok::<(), bitfun_core::util::errors::BitFunError>(())
+            Ok::<(), void_core::util::errors::VoidError>(())
         });
         self.pending_mcp_tasks.push(PendingMcpTask::Add {
             name: task_name,
@@ -2693,7 +2693,7 @@ impl ChatMode {
 
                     match stop_result {
                         Ok(Ok(())) => return,
-                        Ok(Err(bitfun_core::util::errors::BitFunError::NotFound(_))) => return,
+                        Ok(Err(void_core::util::errors::VoidError::NotFound(_))) => return,
                         Ok(Err(e)) => {
                             tracing::debug!(
                                 "Best-effort MCP stop failed: id={} attempt={} error={}",
@@ -2720,7 +2720,7 @@ impl ChatMode {
                 );
             });
 
-            Ok::<(), bitfun_core::util::errors::BitFunError>(())
+            Ok::<(), void_core::util::errors::VoidError>(())
         });
 
         self.pending_mcp_tasks.push(PendingMcpTask::Delete {
@@ -2731,7 +2731,7 @@ impl ChatMode {
 
     /// Open MCP config file in system editor or show its path
     fn open_mcp_config(&self, chat_state: &mut ChatState) {
-        match bitfun_core::infrastructure::try_get_path_manager_arc() {
+        match void_core::infrastructure::try_get_path_manager_arc() {
             Ok(path_manager) => {
                 let config_file = path_manager.app_config_file();
                 chat_state.add_system_message(format!(
@@ -2746,7 +2746,7 @@ impl ChatMode {
             }
             Err(_) => {
                 chat_state.add_system_message(
-                    "Could not determine config file path. Check ~/.config/bitfun/config/app.json"
+                    "Could not determine config file path. Check ~/.config/void/config/app.json"
                         .to_string(),
                 );
             }
@@ -2902,7 +2902,7 @@ impl ChatMode {
 
         if skills.is_empty() {
             chat_state.add_system_message(format!(
-                "No enabled skills found for agent mode '{}'. Add skills in .bitfun/skills/, .cursor/skills/, or ~/.cursor/skills/, or enable built-in skills for this mode.",
+                "No enabled skills found for agent mode '{}'. Add skills in .void/skills/, .cursor/skills/, or ~/.cursor/skills/, or enable built-in skills for this mode.",
                 self.agent_type
             ));
             return;
@@ -3411,7 +3411,7 @@ impl ChatMode {
             Some(result.custom_request_body.clone())
         };
 
-        let model_config = bitfun_core::service::config::AIModelConfig {
+        let model_config = void_core::service::config::AIModelConfig {
             id: model_id.clone(),
             name: result.name.clone(),
             provider: result.provider_format.clone(),
@@ -3452,7 +3452,7 @@ impl ChatMode {
 
                 // Auto-set as primary model if no primary model exists
                 match config_service
-                    .get_config::<bitfun_core::service::config::GlobalConfig>(None)
+                    .get_config::<void_core::service::config::GlobalConfig>(None)
                     .await
                 {
                     Ok(global_config) => {
@@ -3503,7 +3503,7 @@ impl ChatMode {
         let result = tokio::task::block_in_place(|| {
             rt_handle.block_on(async {
                 let config_service = GlobalConfigManager::get_service().await.ok()?;
-                let models: Vec<bitfun_core::service::config::AIModelConfig> =
+                let models: Vec<void_core::service::config::AIModelConfig> =
                     config_service.get_ai_models().await.ok()?;
                 models.into_iter().find(|m| m.id == model_id)
             })
@@ -3566,7 +3566,7 @@ impl ChatMode {
             Some(result.custom_request_body.clone())
         };
 
-        let model_config = bitfun_core::service::config::AIModelConfig {
+        let model_config = void_core::service::config::AIModelConfig {
             id: model_id.clone(),
             name: result.name.clone(),
             provider: result.provider_format.clone(),

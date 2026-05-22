@@ -6,7 +6,7 @@ impl MCPServerManager {
         &self,
         server_id: &str,
         connection: Arc<MCPConnection>,
-    ) -> BitFunResult<usize> {
+    ) -> VoidResult<usize> {
         let mut resources = Vec::new();
         let mut cursor = None::<String>;
         let mut visited = HashSet::new();
@@ -37,7 +37,7 @@ impl MCPServerManager {
         &self,
         server_id: &str,
         connection: Arc<MCPConnection>,
-    ) -> BitFunResult<usize> {
+    ) -> VoidResult<usize> {
         let mut prompts = Vec::new();
         let mut cursor = None::<String>;
         let mut visited = HashSet::new();
@@ -96,17 +96,17 @@ impl MCPServerManager {
     }
 
     /// Refreshes resources catalog cache for one server.
-    pub async fn refresh_server_resource_catalog(&self, server_id: &str) -> BitFunResult<usize> {
+    pub async fn refresh_server_resource_catalog(&self, server_id: &str) -> VoidResult<usize> {
         let connection = self.get_connection(server_id).await.ok_or_else(|| {
-            BitFunError::NotFound(format!("MCP server connection not found: {}", server_id))
+            VoidError::NotFound(format!("MCP server connection not found: {}", server_id))
         })?;
         self.refresh_resources_catalog(server_id, connection).await
     }
 
     /// Refreshes prompts catalog cache for one server.
-    pub async fn refresh_server_prompt_catalog(&self, server_id: &str) -> BitFunResult<usize> {
+    pub async fn refresh_server_prompt_catalog(&self, server_id: &str) -> VoidResult<usize> {
         let connection = self.get_connection(server_id).await.ok_or_else(|| {
-            BitFunError::NotFound(format!("MCP server connection not found: {}", server_id))
+            VoidError::NotFound(format!("MCP server connection not found: {}", server_id))
         })?;
         self.refresh_prompts_catalog(server_id, connection).await
     }

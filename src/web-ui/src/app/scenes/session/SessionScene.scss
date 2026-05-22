@@ -6,7 +6,7 @@
 @use '../../../component-library/styles/tokens.scss' as *;
 
 
-.bitfun-session-scene {
+.void-session-scene {
   display: flex;
   flex-direction: row;
   flex: 1;
@@ -24,26 +24,26 @@
 
     * { pointer-events: none; }
 
-    .bitfun-pane-resizer { pointer-events: auto; }
+    .void-pane-resizer { pointer-events: auto; }
 
-    .bitfun-session-scene__chat-pane,
-    .bitfun-session-scene__aux-pane { transition: none; }
+    .void-session-scene__chat-pane,
+    .void-session-scene__aux-pane { transition: none; }
 
-    .bitfun-dual-column__header,
-    .bitfun-dual-column__header-two-row,
-    .bitfun-dual-column__drop-indicator-content,
-    .bitfun-dual-column__dropdown {
+    .void-dual-column__header,
+    .void-dual-column__header-two-row,
+    .void-dual-column__drop-indicator-content,
+    .void-dual-column__dropdown {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
 
-    .bitfun-dual-column__header::after,
-    .bitfun-dual-column__header-two-row::after { display: none !important; }
+    .void-dual-column__header::after,
+    .void-dual-column__header-two-row::after { display: none !important; }
   }
 }
 
 
-.bitfun-session-scene__chat-pane {
+.void-session-scene__chat-pane {
   flex: 1 1 auto;
   min-width: 400px;
   height: 100%;
@@ -58,7 +58,7 @@
 }
 
 
-.bitfun-session-scene__aux-pane {
+.void-session-scene__aux-pane {
   display: flex;
   flex-shrink: 0;
   height: 100%;
@@ -86,15 +86,15 @@
     transition: none;
     * { transition: none !important; animation: none !important; }
 
-    .bitfun-dual-column__header,
-    .bitfun-dual-column__header-two-row,
-    .bitfun-dual-column__drop-indicator-content,
-    .bitfun-dual-column__dropdown {
+    .void-dual-column__header,
+    .void-dual-column__header-two-row,
+    .void-dual-column__drop-indicator-content,
+    .void-dual-column__dropdown {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
-    .bitfun-dual-column__header::after,
-    .bitfun-dual-column__header-two-row::after { display: none !important; }
+    .void-dual-column__header::after,
+    .void-dual-column__header-two-row::after { display: none !important; }
   }
 
   &--editor-mode {
@@ -141,7 +141,7 @@
 }
 
 
-.bitfun-pane-resizer {
+.void-pane-resizer {
   width: 1px;
   flex-shrink: 0;
   position: relative;
@@ -205,7 +205,7 @@
 
   &:hover,
   &--hovering {
-    .bitfun-pane-resizer__line {
+    .void-pane-resizer__line {
       background: linear-gradient(180deg,
         transparent 0%,
         rgba(88, 166, 255, 0.4) 20%,
@@ -217,12 +217,12 @@
       height: 50px;
       opacity: 1;
     }
-    .bitfun-pane-resizer__handle { opacity: 1; }
-    .bitfun-pane-resizer__icon { color: rgba(88, 166, 255, 0.9); }
+    .void-pane-resizer__handle { opacity: 1; }
+    .void-pane-resizer__icon { color: rgba(88, 166, 255, 0.9); }
   }
 
   &--dragging {
-    .bitfun-pane-resizer__line {
+    .void-pane-resizer__line {
       background: linear-gradient(180deg,
         transparent 0%,
         rgba(88, 166, 255, 0.6) 20%,
@@ -235,13 +235,13 @@
       height: 60px;
       opacity: 1;
     }
-    .bitfun-pane-resizer__handle { opacity: 1; }
-    .bitfun-pane-resizer__icon { color: rgba(88, 166, 255, 1); }
+    .void-pane-resizer__handle { opacity: 1; }
+    .void-pane-resizer__icon { color: rgba(88, 166, 255, 1); }
   }
 
   &:focus {
     outline: none;
-    .bitfun-pane-resizer__line {
+    .void-pane-resizer__line {
       background: linear-gradient(180deg,
         transparent 0%,
         rgba(88, 166, 255, 0.5) 20%,
@@ -254,11 +254,11 @@
       height: 55px;
       opacity: 1;
     }
-    .bitfun-pane-resizer__handle { opacity: 1; }
+    .void-pane-resizer__handle { opacity: 1; }
   }
 
   &:focus-visible {
-    .bitfun-pane-resizer__line {
+    .void-pane-resizer__line {
       outline: 2px solid rgba(88, 166, 255, 0.8);
       outline-offset: 2px;
     }
@@ -278,24 +278,24 @@
 
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-session-scene,
-  .bitfun-session-scene__chat-pane,
-  .bitfun-session-scene__aux-pane,
-  .bitfun-pane-resizer,
-  .bitfun-pane-resizer__line,
-  .bitfun-pane-resizer__handle,
-  .bitfun-pane-resizer__icon {
+  .void-session-scene,
+  .void-session-scene__chat-pane,
+  .void-session-scene__aux-pane,
+  .void-pane-resizer,
+  .void-pane-resizer__line,
+  .void-pane-resizer__handle,
+  .void-pane-resizer__icon {
     transition: none;
   }
 
-  .bitfun-session-scene__aux-pane--near-collapse {
+  .void-session-scene__aux-pane--near-collapse {
     &::before, &::after { animation: none; }
   }
 }
 
 
 @media (hover: none) and (pointer: coarse) {
-  .bitfun-pane-resizer {
+  .void-pane-resizer {
     width: 8px;
 
     &::before { left: -10px; right: -10px; }
@@ -306,7 +306,7 @@
 
 
 @media (prefers-contrast: high) {
-  .bitfun-pane-resizer {
+  .void-pane-resizer {
     &__line { background: currentColor; opacity: 1; }
     &:hover &__line,
     &--hovering &__line,

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# BitFun Relay Server — start script.
+# Void Relay Server — start script.
 # Run this script on the target server itself after SSH login.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="bitfun-relay"
+CONTAINER_NAME="void-relay"
 RELAY_HOST_BIND_IP="127.0.0.1"
 
 usage() {
   cat <<'EOF'
-BitFun Relay Server start script
+Void Relay Server start script
 
 Usage:
   bash start.sh
@@ -61,7 +61,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "=== BitFun Relay Server Start ==="
+echo "=== Void Relay Server Start ==="
 check_command docker
 check_docker_compose
 

@@ -1,12 +1,12 @@
 [package]
-name = "bitfun-core"
+name = "void-core"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
-description = "BitFun Core Library - Platform-agnostic business logic"
+description = "Void Core Library - Platform-agnostic business logic"
 
 [lib]
-name = "bitfun_core"
+name = "void_core"
 crate-type = ["rlib"]
 
 [dependencies]
@@ -82,25 +82,25 @@ rmcp = { version = "0.12.0", default-features = false, features = [
 sse-stream = { version = "0.2.1", optional = true }
 
 # Shared AI protocol adapters
-bitfun-ai-adapters = { path = "../ai-adapters" }
+void-ai-adapters = { path = "../ai-adapters" }
 
 # Lightweight agent stream processing
-bitfun-agent-stream = { path = "../agent-stream" }
+void-agent-stream = { path = "../agent-stream" }
 
 # Agent tool contracts
-bitfun-agent-tools = { path = "../agent-tools" }
+void-agent-tools = { path = "../agent-tools" }
 
 # Tool pack provider plan
-bitfun-tool-packs = { path = "../tool-packs", default-features = false, optional = true }
+void-tool-packs = { path = "../tool-packs", default-features = false, optional = true }
 
 # Core service owner crate
-bitfun-services-core = { path = "../services-core" }
+void-services-core = { path = "../services-core" }
 
 # Integration service owner crate
-bitfun-services-integrations = { path = "../services-integrations", default-features = false, features = ["remote-ssh"] }
+void-services-integrations = { path = "../services-integrations", default-features = false, features = ["remote-ssh"] }
 
 # Product domain owner crate
-bitfun-product-domains = { path = "../product-domains", default-features = false, optional = true }
+void-product-domains = { path = "../product-domains", default-features = false, optional = true }
 
 # Tool runtime
 tool-runtime = { path = "../tool-runtime", optional = true }
@@ -137,15 +137,15 @@ shellexpand = { version = "3", optional = true }
 ssh_config = { version = "0.1", optional = true }
 
 # Relay server shared library (embedded relay reuses standalone relay logic)
-bitfun-relay-server = { path = "../../apps/relay-server", optional = true }
+void-relay-server = { path = "../../apps/relay-server", optional = true }
 
 # Event layer dependency (lowest layer)
-bitfun-core-types = { path = "../core-types" }
-bitfun-events = { path = "../events" }
-bitfun-runtime-ports = { path = "../runtime-ports" }
+void-core-types = { path = "../core-types" }
+void-events = { path = "../events" }
+void-runtime-ports = { path = "../runtime-ports" }
 
 # Transport layer dependency
-bitfun-transport = { path = "../transport" }
+void-transport = { path = "../transport" }
 
 # Tauri dependency (optional, enabled only when needed)
 tauri = { workspace = true, optional = true }
@@ -162,7 +162,7 @@ schannel = "0.1"
 
 [features]
 # Full product runtime feature set. Product crates should depend on this
-# explicitly before `bitfun-core` default features are made lighter.
+# explicitly before `void-core` default features are made lighter.
 default = ["product-full"]
 product-full = [
     "dep:chrono-tz",
@@ -184,11 +184,11 @@ product-full = [
     "service-integrations",
     "tool-packs",
 ]
-product-domains = ["dep:bitfun-product-domains", "bitfun-product-domains/product-full"]
+product-domains = ["dep:void-product-domains", "void-product-domains/product-full"]
 service-integrations = [
     "dep:aes",
     "dep:aes-gcm",
-    "dep:bitfun-relay-server",
+    "dep:void-relay-server",
     "dep:git2",
     "dep:hostname",
     "dep:image",
@@ -201,9 +201,9 @@ service-integrations = [
     "dep:sse-stream",
     "dep:tokio-tungstenite",
     "dep:x25519-dalek",
-    "bitfun-services-integrations/product-full",
+    "void-services-integrations/product-full",
 ]
-tool-packs = ["dep:bitfun-tool-packs", "bitfun-tool-packs/product-full"]
+tool-packs = ["dep:void-tool-packs", "void-tool-packs/product-full"]
 tauri-support = ["tauri"]  # Optional tauri support
 ssh-remote = [
     "dep:aes-gcm",

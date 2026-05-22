@@ -1,18 +1,18 @@
 #![cfg(feature = "mcp")]
 
 use async_trait::async_trait;
-use bitfun_services_integrations::mcp::auth::{
+use void_services_integrations::mcp::auth::{
     MCPRemoteOAuthCredentialVault, MCPRemoteOAuthSessionSnapshot, MCPRemoteOAuthStatus,
 };
-use bitfun_services_integrations::mcp::config::ConfigLocation;
-use bitfun_services_integrations::mcp::config::{
+use void_services_integrations::mcp::config::ConfigLocation;
+use void_services_integrations::mcp::config::{
     config_to_cursor_format, format_mcp_json_config_value, get_mcp_remote_authorization_source,
     get_mcp_remote_authorization_value, has_mcp_remote_authorization, has_mcp_remote_oauth,
     has_mcp_remote_xaa, merge_mcp_server_config_sources, normalize_mcp_authorization_value,
     parse_cursor_format, remove_mcp_authorization_keys, validate_mcp_json_config, MCPConfigService,
     MCPConfigStore,
 };
-use bitfun_services_integrations::mcp::protocol::{
+use void_services_integrations::mcp::protocol::{
     create_initialize_request, create_mcp_client_info, create_ping_request,
     create_tools_call_request, create_tools_list_request, default_protocol_version,
     map_rmcp_initialize_result, map_rmcp_prompt, map_rmcp_prompt_message, map_rmcp_resource,
@@ -21,13 +21,13 @@ use bitfun_services_integrations::mcp::protocol::{
     MCPRequest, MCPResource, MCPResourceContent, MCPTool, MCPToolAnnotations, MCPToolResult,
     MCPToolResultContent,
 };
-use bitfun_services_integrations::mcp::server::{
+use void_services_integrations::mcp::server::{
     compute_mcp_backoff_delay, detect_mcp_list_changed_kind, is_mcp_auth_error_message,
     merge_mcp_remote_headers, MCPCatalogCache, MCPConnectionPool, MCPListChangedKind,
     MCPRuntimeErrorKind, MCPRuntimeResult, MCPServerConfig, MCPServerProcess, MCPServerStatus,
     MCPServerTransport, MCPServerType,
 };
-use bitfun_services_integrations::mcp::{
+use void_services_integrations::mcp::{
     build_mcp_tool_descriptor, build_mcp_tool_name, normalize_name_for_mcp,
     render_mcp_tool_result_for_assistant, MCPContextEnhancer, MCPContextEnhancerConfig,
     MCPDynamicToolProvider, MCPToolCatalogClient, McpDynamicToolDescriptor, McpToolInfo,
@@ -103,7 +103,7 @@ struct FailingMCPConfigStore;
 impl MCPConfigStore for FailingMCPConfigStore {
     async fn get_config_value(&self, key: &str) -> MCPRuntimeResult<Option<serde_json::Value>> {
         Err(
-            bitfun_services_integrations::mcp::MCPRuntimeError::configuration(format!(
+            void_services_integrations::mcp::MCPRuntimeError::configuration(format!(
                 "backend unavailable for {key}"
             )),
         )
@@ -111,7 +111,7 @@ impl MCPConfigStore for FailingMCPConfigStore {
 
     async fn set_config_value(&self, key: &str, _value: serde_json::Value) -> MCPRuntimeResult<()> {
         Err(
-            bitfun_services_integrations::mcp::MCPRuntimeError::configuration(format!(
+            void_services_integrations::mcp::MCPRuntimeError::configuration(format!(
                 "backend unavailable for {key}"
             )),
         )
@@ -183,9 +183,9 @@ fn mcp_protocol_capability_contract_matches_existing_default() {
 
 #[test]
 fn mcp_remote_client_info_declares_supported_client_capabilities() {
-    let info = create_mcp_client_info("BitFun", "1.0.0");
+    let info = create_mcp_client_info("Void", "1.0.0");
 
-    assert_eq!(info.client_info.name, "BitFun");
+    assert_eq!(info.client_info.name, "Void");
     assert_eq!(info.client_info.version, "1.0.0");
     assert!(info.capabilities.roots.is_some());
     assert!(info.capabilities.sampling.is_some());
@@ -526,7 +526,7 @@ fn mcp_protocol_jsonrpc_helpers_preserve_wire_shape() {
 #[test]
 fn mcp_protocol_request_builders_preserve_wire_shape() {
     assert_eq!(
-        serde_json::to_value(create_initialize_request(9, "BitFun", "0.2.6")).unwrap(),
+        serde_json::to_value(create_initialize_request(9, "Void", "0.2.6")).unwrap(),
         serde_json::json!({
             "jsonrpc": "2.0",
             "id": 9,
@@ -546,10 +546,10 @@ fn mcp_protocol_request_builders_preserve_wire_shape() {
                     }
                 },
                 "clientInfo": {
-                    "name": "BitFun",
+                    "name": "Void",
                     "version": "0.2.6",
-                    "description": "BitFun MCP Client",
-                    "vendor": "BitFun"
+                    "description": "Void MCP Client",
+                    "vendor": "Void"
                 }
             }
         })
@@ -1549,7 +1549,7 @@ async fn mcp_oauth_credential_vault_uses_injected_data_dir_and_roundtrips_creden
         .unwrap()
         .as_nanos();
     let data_dir = std::env::temp_dir().join(format!(
-        "bitfun-mcp-oauth-vault-contract-{}-{}",
+        "void-mcp-oauth-vault-contract-{}-{}",
         std::process::id(),
         unique
     ));

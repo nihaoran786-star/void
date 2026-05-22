@@ -222,9 +222,9 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
           !line.startsWith('--- ') && !line.startsWith('+++ ')) {
         lineNumber++;
         diffLines.push(
-          <div key={index} className={`bitfun-git-diff-view__diff-line bitfun-git-diff-view__diff-line--${lineType}`}>
-            <span className="bitfun-git-diff-view__line-number">{lineNumber}</span>
-            <span className="bitfun-git-diff-view__line-content">{content}</span>
+          <div key={index} className={`void-git-diff-view__diff-line void-git-diff-view__diff-line--${lineType}`}>
+            <span className="void-git-diff-view__line-number">{lineNumber}</span>
+            <span className="void-git-diff-view__line-content">{content}</span>
           </div>
         );
       }
@@ -242,9 +242,9 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
 
   if (loading) {
     return (
-      <div className={`bitfun-git-diff-view ${className}`}>
-        <div className="bitfun-git-diff-view__loading-state">
-          <div className="bitfun-git-diff-view__loading-spinner" />
+      <div className={`void-git-diff-view ${className}`}>
+        <div className="void-git-diff-view__loading-state">
+          <div className="void-git-diff-view__loading-spinner" />
           <p>{t('diffView.loading')}</p>
         </div>
       </div>
@@ -253,8 +253,8 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
 
   if (error) {
     return (
-      <div className={`bitfun-git-diff-view ${className}`}>
-        <div className="bitfun-git-diff-view__error-state">
+      <div className={`void-git-diff-view ${className}`}>
+        <div className="void-git-diff-view__error-state">
           <FileText size={48} />
           <h3>{t('diffView.loadFailedTitle')}</h3>
           <p>{error}</p>
@@ -267,24 +267,24 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
   }
 
   return (
-    <div className={`bitfun-git-diff-view ${className}`}>
-      <div className="bitfun-git-diff-view__header">
-        <div className="bitfun-git-diff-view__header-left">
+    <div className={`void-git-diff-view ${className}`}>
+      <div className="void-git-diff-view__header">
+        <div className="void-git-diff-view__header-left">
           {sourceCommit && targetCommit && (
-            <span className="bitfun-git-diff-view__commit-range">
+            <span className="void-git-diff-view__commit-range">
               {sourceCommit.substring(0, 7)}...{targetCommit.substring(0, 7)}
             </span>
           )}
           {!sourceCommit && !targetCommit && (
-            <div className="bitfun-git-diff-view__diff-type-switcher">
+            <div className="void-git-diff-view__diff-type-switcher">
               <button 
-                className={`bitfun-git-diff-view__type-btn ${!currentShowStaged ? 'bitfun-git-diff-view__type-btn--active' : ''}`}
+                className={`void-git-diff-view__type-btn ${!currentShowStaged ? 'void-git-diff-view__type-btn--active' : ''}`}
                 onClick={() => setCurrentShowStaged(false)}
               >
                 {t('diffView.workingTree')}
               </button>
               <button 
-                className={`bitfun-git-diff-view__type-btn ${currentShowStaged ? 'bitfun-git-diff-view__type-btn--active' : ''}`}
+                className={`void-git-diff-view__type-btn ${currentShowStaged ? 'void-git-diff-view__type-btn--active' : ''}`}
                 onClick={() => setCurrentShowStaged(true)}
               >
                 {t('diffView.staged')}
@@ -292,15 +292,15 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
             </div>
           )}
           {loading && (
-            <span className="bitfun-git-diff-view__loading-indicator">
+            <span className="void-git-diff-view__loading-indicator">
               <RefreshCw size={14} className="spinning" />
               {t('common.loading')}
             </span>
           )}
         </div>
         
-        <div className="bitfun-git-diff-view__header-right">
-          <div className="bitfun-git-diff-view__view-options">
+        <div className="void-git-diff-view__header-right">
+          <div className="void-git-diff-view__view-options">
             <IconButton
               onClick={toggleAllExpansion}
               size="small"
@@ -322,9 +322,9 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
         </div>
       </div>
 
-      <div className="bitfun-git-diff-view__content">
+      <div className="void-git-diff-view__content">
         {error ? (
-          <div className="bitfun-git-diff-view__error-state">
+          <div className="void-git-diff-view__error-state">
             <div className="error-icon">
               <AlertCircle size={20} />
             </div>
@@ -336,45 +336,45 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
             </Button>
           </div>
         ) : loading ? (
-          <div className="bitfun-git-diff-view__loading-state">
-            <div className="bitfun-git-diff-view__loading-spinner" />
+          <div className="void-git-diff-view__loading-state">
+            <div className="void-git-diff-view__loading-spinner" />
             <p>{t('diffView.loadingData')}</p>
           </div>
         ) : diffFiles.length > 0 ? (
-          <div className="bitfun-git-diff-view__file-list">
+          <div className="void-git-diff-view__file-list">
             {diffFiles.map((file, index) => (
-              <div key={file.path} className="bitfun-git-diff-view__file-item">
+              <div key={file.path} className="void-git-diff-view__file-item">
                 <div 
-                  className="bitfun-git-diff-view__file-header"
+                  className="void-git-diff-view__file-header"
                   onClick={() => toggleFileExpansion(index)}
                 >
-                  <div className="bitfun-git-diff-view__file-info">
-                    <span className={`bitfun-git-diff-view__expand-icon ${file.expanded ? 'bitfun-git-diff-view__expand-icon--expanded' : ''}`}>
+                  <div className="void-git-diff-view__file-info">
+                    <span className={`void-git-diff-view__expand-icon ${file.expanded ? 'void-git-diff-view__expand-icon--expanded' : ''}`}>
                       {file.expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </span>
                     
-                    <span className="bitfun-git-diff-view__file-status-icon">
+                    <span className="void-git-diff-view__file-status-icon">
                       {getFileStatusIcon(file.status)}
                     </span>
                     
-                    <span className="bitfun-git-diff-view__file-path">{file.path}</span>
+                    <span className="void-git-diff-view__file-path">{file.path}</span>
                     
                     {file.oldPath && file.oldPath !== file.path && (
-                      <span className={`bitfun-git-diff-view__file-status bitfun-git-diff-view__file-status--${file.status}`}>
+                      <span className={`void-git-diff-view__file-status void-git-diff-view__file-status--${file.status}`}>
                         ← {file.oldPath}
                       </span>
                     )}
                   </div>
                   
-                  <div className="bitfun-git-diff-view__file-stats">
+                  <div className="void-git-diff-view__file-stats">
                     {file.additions > 0 && (
-                      <span className="bitfun-git-diff-view__additions">
+                      <span className="void-git-diff-view__additions">
                         <Plus size={12} />
                         {file.additions}
                       </span>
                     )}
                     {file.deletions > 0 && (
-                      <span className="bitfun-git-diff-view__deletions">
+                      <span className="void-git-diff-view__deletions">
                         <Minus size={12} />
                         {file.deletions}
                       </span>
@@ -383,7 +383,7 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
                 </div>
                 
                 {file.expanded && (
-                  <div className="bitfun-git-diff-view__diff-content">
+                  <div className="void-git-diff-view__diff-content">
                     {renderDiffContent(file.diff)}
                   </div>
                 )}
@@ -391,7 +391,7 @@ const GitDiffView: React.FC<GitDiffViewProps> = ({
             ))}
           </div>
         ) : (
-          <div className="bitfun-git-diff-view__empty-state">
+          <div className="void-git-diff-view__empty-state">
             <FileText size={48} />
             <h3>{t('diffView.empty.title')}</h3>
             <p>

@@ -312,7 +312,7 @@ function mapWorkspaceInfo(workspace: APIWorkspaceInfo): WorkspaceInfo {
 function mapApplicationState(state: APIApplicationState): ApplicationState {
   const now = new Date().toISOString();
   return {
-    appId: 'bitfun',
+    appId: 'void',
     startupTime: new Date(Date.now() - state.uptime).toISOString(),
     version: state.version,
     userSettings: createDefaultUserSettings(),

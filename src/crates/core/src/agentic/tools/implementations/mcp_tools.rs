@@ -7,7 +7,7 @@ use crate::service::mcp::adapter::PromptAdapter;
 use crate::service::mcp::get_global_mcp_service;
 use crate::service::mcp::protocol::{MCPPrompt, MCPResource, MCPResourceContent};
 use crate::service::mcp::MCPServerManager;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
@@ -15,8 +15,8 @@ use std::sync::Arc;
 
 const DEFAULT_RENDER_CHAR_LIMIT: usize = 32_000;
 
-fn tool_error(message: impl Into<String>) -> BitFunError {
-    BitFunError::tool(message.into())
+fn tool_error(message: impl Into<String>) -> VoidError {
+    VoidError::tool(message.into())
 }
 
 fn truncate_text(text: &str, max_chars: usize) -> (String, bool) {
@@ -29,7 +29,7 @@ fn truncate_text(text: &str, max_chars: usize) -> (String, bool) {
     (rendered, truncated)
 }
 
-async fn get_mcp_server_manager() -> BitFunResult<Arc<MCPServerManager>> {
+async fn get_mcp_server_manager() -> VoidResult<Arc<MCPServerManager>> {
     get_global_mcp_service()
         .map(|service| service.server_manager())
         .ok_or_else(|| tool_error("MCP service is not initialized"))
@@ -39,7 +39,7 @@ async fn list_resources_for_server(
     manager: &Arc<MCPServerManager>,
     server_id: &str,
     refresh: bool,
-) -> BitFunResult<Vec<MCPResource>> {
+) -> VoidResult<Vec<MCPResource>> {
     let mut resources = manager.get_cached_resources(server_id).await;
     if refresh || resources.is_empty() {
         manager.refresh_server_resource_catalog(server_id).await?;
@@ -52,7 +52,7 @@ async fn list_prompts_for_server(
     manager: &Arc<MCPServerManager>,
     server_id: &str,
     refresh: bool,
-) -> BitFunResult<Vec<MCPPrompt>> {
+) -> VoidResult<Vec<MCPPrompt>> {
     let mut prompts = manager.get_cached_prompts(server_id).await;
     if refresh || prompts.is_empty() {
         manager.refresh_server_prompt_catalog(server_id).await?;
@@ -65,7 +65,7 @@ async fn ensure_mcp_server_available_for_context(
     manager: &Arc<MCPServerManager>,
     server_id: &str,
     _context: &ToolUseContext,
-) -> BitFunResult<()> {
+) -> VoidResult<()> {
     manager
         .get_connection(server_id)
         .await
@@ -231,7 +231,7 @@ impl Tool for ListMCPResourcesTool {
         "ListMCPResources"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok("Lists MCP resources exposed by a connected MCP server. Use this before ReadMCPResource when you need to inspect available MCP-hosted files, docs, or structured context.".to_string())
     }
 
@@ -298,7 +298,7 @@ impl Tool for ListMCPResourcesTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let server_id = input
             .get("server_id")
             .and_then(|value| value.as_str())
@@ -349,7 +349,7 @@ impl Tool for ReadMCPResourceTool {
         "ReadMCPResource"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok("Reads a specific MCP resource by URI from a connected MCP server. Use ListMCPResources first if you do not already know the resource URI.".to_string())
     }
 
@@ -419,7 +419,7 @@ impl Tool for ReadMCPResourceTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let server_id = input
             .get("server_id")
             .and_then(|value| value.as_str())
@@ -471,7 +471,7 @@ impl Tool for ListMCPPromptsTool {
         "ListMCPPrompts"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok("Lists MCP prompts exposed by a connected MCP server. Use this before GetMCPPrompt when you need reusable server-provided prompt templates.".to_string())
     }
 
@@ -538,7 +538,7 @@ impl Tool for ListMCPPromptsTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let server_id = input
             .get("server_id")
             .and_then(|value| value.as_str())
@@ -589,7 +589,7 @@ impl Tool for GetMCPPromptTool {
         "GetMCPPrompt"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok("Fetches a named MCP prompt template from a connected MCP server and renders it into plain text for the model. Pass prompt arguments when the server requires them.".to_string())
     }
 
@@ -699,7 +699,7 @@ impl Tool for GetMCPPromptTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let server_id = input
             .get("server_id")
             .and_then(|value| value.as_str())

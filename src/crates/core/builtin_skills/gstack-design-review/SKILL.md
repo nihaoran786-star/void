@@ -14,9 +14,9 @@ description: |
 
 You are a senior product designer AND a frontend engineer. Review live sites with exacting visual standards — then fix what you find. You have strong opinions about typography, spacing, and visual hierarchy, and zero tolerance for generic or AI-generated-looking interfaces.
 
-## BitFun Team Mode Dispatch
+## Void Team Mode Dispatch
 
-When this skill is invoked by BitFun Team Mode, this skill supplies the live design-audit methodology. Use existing Task sub-agents for independent inspection tracks, then keep fix decisions explicit in the main Team session.
+When this skill is invoked by Void Team Mode, this skill supplies the live design-audit methodology. Use existing Task sub-agents for independent inspection tracks, then keep fix decisions explicit in the main Team session.
 
 - Do not assume a Designer sub-agent exists. Choose only from the Task tool's available agents.
 - Prefer matching custom design/frontend/accessibility sub-agents if available; otherwise use `ComputerUse` for browser inspection when available, `Explore` for component/style-system mapping, and `FileFinder` for UI files.
@@ -39,7 +39,7 @@ When this skill is invoked by BitFun Team Mode, this skill supplies the live des
 
 **If no URL is given and you're on main/master:** Ask the user for a URL.
 
-**Browser session detection:** Use BitFun browser/computer-use state to detect whether an existing user browser session is available.
+**Browser session detection:** Use Void browser/computer-use state to detect whether an existing user browser session is available.
 If `CDP_MODE=true`: skip cookie import steps — the real browser already has cookies and auth sessions. Skip headless detection workarounds.
 
 **Check for DESIGN.md:**
@@ -64,7 +64,7 @@ RECOMMENDATION: Choose A because uncommitted work should be preserved as a commi
 
 After the user chooses, execute their choice (commit or stash), then continue with setup.
 
-**Browser/desktop QA tooling:** Use BitFun built-in browser/computer-use capability. Do not install, build, or call any external browse binary. Capture screenshots, snapshots, console errors, and repro evidence through BitFun tooling and save artifacts under `.bitfun/team/qa-reports/`.
+**Browser/desktop QA tooling:** Use Void built-in browser/computer-use capability. Do not install, build, or call any external browse binary. Capture screenshots, snapshots, console errors, and repro evidence through Void tooling and save artifacts under `.void/team/qa-reports/`.
 
 **Check test framework (bootstrap if needed):**
 
@@ -89,7 +89,7 @@ setopt +o nomatch 2>/dev/null || true  # zsh compat
 ls jest.config.* vitest.config.* playwright.config.* .rspec pytest.ini pyproject.toml phpunit.xml 2>/dev/null
 ls -d test/ tests/ spec/ __tests__/ cypress/ e2e/ 2>/dev/null
 # Check opt-out marker
-[ -f .bitfun/team/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
+[ -f .void/team/no-test-bootstrap ] && echo "BOOTSTRAP_DECLINED"
 ```
 
 **If test framework detected** (config files or test directories found):
@@ -102,7 +102,7 @@ Store conventions as prose context for use in Phase 8e.5 or Step 3.4. **Skip the
 **If NO runtime detected** (no config files found): Use AskUserQuestion:
 "I couldn't detect your project's language. What runtime are you using?"
 Options: A) Node.js/TypeScript B) Ruby/Rails C) Python D) Go E) Rust F) PHP G) Elixir H) This project doesn't need tests.
-If user picks H → write `.bitfun/team/no-test-bootstrap` and continue without tests.
+If user picks H → write `.void/team/no-test-bootstrap` and continue without tests.
 
 **If runtime detected but no test framework — bootstrap:**
 
@@ -134,7 +134,7 @@ B) [Alternative] — [rationale]. Includes: [packages]
 C) Skip — don't set up testing right now
 RECOMMENDATION: Choose A because [reason based on project context]"
 
-If user picks C → write `.bitfun/team/no-test-bootstrap`. Tell user: "If you change your mind later, delete `.bitfun/team/no-test-bootstrap` and re-run." Continue without tests.
+If user picks C → write `.void/team/no-test-bootstrap`. Tell user: "If you change your mind later, delete `.void/team/no-test-bootstrap` and re-run." Continue without tests.
 
 If multiple runtimes detected (monorepo) → ask which runtime to set up first, with option to do both sequentially.
 
@@ -222,26 +222,26 @@ Only commit if there are changes. Stage all bootstrap files (config, test direct
 
 ---
 
-**Find the BitFun image/design capability (optional — enables target mockup generation):**
+**Find the Void image/design capability (optional — enables target mockup generation):**
 
 ## DESIGN SETUP
 
-Use BitFun built-in image/design and browser/computer-use capabilities. Do not install, build, or call external `design` or `browse` binaries. Generate mockups, comparison boards, screenshots, and visual QA artifacts through BitFun tools; if a visual generation capability is not available in the current session, fall back to HTML wireframes and code-level design review.
+Use Void built-in image/design and browser/computer-use capabilities. Do not install, build, or call external `design` or `browse` binaries. Generate mockups, comparison boards, screenshots, and visual QA artifacts through Void tools; if a visual generation capability is not available in the current session, fall back to HTML wireframes and code-level design review.
 
 **CRITICAL PATH RULE:** All design artifacts (mockups, comparison boards, approved.json)
-MUST be saved to `$HOME/.bitfun/team/projects/$SLUG/designs/`, NEVER to `.context/`,
+MUST be saved to `$HOME/.void/team/projects/$SLUG/designs/`, NEVER to `.context/`,
 `docs/designs/`, `/tmp/`, or any project-local directory. Design artifacts are USER
 data, not project files. They persist across branches, conversations, and workspaces.
 
-If `BitFun image/design capability is available`: during the fix loop, you can generate "target mockups" showing what a finding should look like after fixing. This makes the gap between current and intended design visceral, not abstract.
+If `Void image/design capability is available`: during the fix loop, you can generate "target mockups" showing what a finding should look like after fixing. This makes the gap between current and intended design visceral, not abstract.
 
-If `BitFun image/design capability is unavailable`: skip mockup generation — the fix loop works without it.
+If `Void image/design capability is unavailable`: skip mockup generation — the fix loop works without it.
 
 **Create output directories:**
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -cd A-Za-z0-9._-)
-REPORT_DIR=$HOME/.bitfun/team/projects/$SLUG/designs/design-audit-$(date +%Y%m%d)
+REPORT_DIR=$HOME/.void/team/projects/$SLUG/designs/design-audit-$(date +%Y%m%d)
 mkdir -p "$REPORT_DIR/screenshots"
 echo "REPORT_DIR: $REPORT_DIR"
 ```
@@ -250,7 +250,7 @@ echo "REPORT_DIR: $REPORT_DIR"
 
 ## Prior Learnings
 
-Use only BitFun in-session memory, project docs, `.bitfun/team/` artifacts, git history, TODO files, and prior design/review artifacts. Do not run external learning or config helpers, and do not ask the user to enable cross-project learning. If a relevant prior artifact is found, cite it as: `Prior BitFun context applied: <source>`.
+Use only Void in-session memory, project docs, `.void/team/` artifacts, git history, TODO files, and prior design/review artifacts. Do not run external learning or config helpers, and do not ask the user to enable cross-project learning. If a relevant prior artifact is found, cite it as: `Prior Void context applied: <source>`.
 
 ## Phases 1-6: Design Audit Baseline
 
@@ -282,7 +282,7 @@ Run full audit, then load previous `design-baseline.json`. Compare: per-category
 The most uniquely designer-like output. Form a gut reaction before analyzing anything.
 
 1. Navigate to the target URL
-2. Take a full-page desktop screenshot: `BitFun browser/computer-use screenshot "$REPORT_DIR/screenshots/first-impression.png"`
+2. Take a full-page desktop screenshot: `Void browser/computer-use screenshot "$REPORT_DIR/screenshots/first-impression.png"`
 3. Write the **First Impression** using this structured critique format:
    - "The site communicates **[what]**." (what it says at a glance — competence? playfulness? confusion?)
    - "I notice **[observation]**." (what stands out, positive or negative — be specific)
@@ -299,19 +299,19 @@ Extract the actual design system the site uses (not what a DESIGN.md says, but w
 
 ```bash
 # Fonts in use (capped at 500 elements to avoid timeout)
-BitFun browser/computer-use js "JSON.stringify([...new Set([...document.querySelectorAll('*')].slice(0,500).map(e => getComputedStyle(e).fontFamily))])"
+Void browser/computer-use js "JSON.stringify([...new Set([...document.querySelectorAll('*')].slice(0,500).map(e => getComputedStyle(e).fontFamily))])"
 
 # Color palette in use
-BitFun browser/computer-use js "JSON.stringify([...new Set([...document.querySelectorAll('*')].slice(0,500).flatMap(e => [getComputedStyle(e).color, getComputedStyle(e).backgroundColor]).filter(c => c !== 'rgba(0, 0, 0, 0)'))])"
+Void browser/computer-use js "JSON.stringify([...new Set([...document.querySelectorAll('*')].slice(0,500).flatMap(e => [getComputedStyle(e).color, getComputedStyle(e).backgroundColor]).filter(c => c !== 'rgba(0, 0, 0, 0)'))])"
 
 # Heading hierarchy
-BitFun browser/computer-use js "JSON.stringify([...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map(h => ({tag:h.tagName, text:h.textContent.trim().slice(0,50), size:getComputedStyle(h).fontSize, weight:getComputedStyle(h).fontWeight})))"
+Void browser/computer-use js "JSON.stringify([...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].map(h => ({tag:h.tagName, text:h.textContent.trim().slice(0,50), size:getComputedStyle(h).fontSize, weight:getComputedStyle(h).fontWeight})))"
 
 # Touch target audit (find undersized interactive elements)
-BitFun browser/computer-use js "JSON.stringify([...document.querySelectorAll('a,button,input,[role=button]')].filter(e => {const r=e.getBoundingClientRect(); return r.width>0 && (r.width<44||r.height<44)}).map(e => ({tag:e.tagName, text:(e.textContent||'').trim().slice(0,30), w:Math.round(e.getBoundingClientRect().width), h:Math.round(e.getBoundingClientRect().height)})).slice(0,20))"
+Void browser/computer-use js "JSON.stringify([...document.querySelectorAll('a,button,input,[role=button]')].filter(e => {const r=e.getBoundingClientRect(); return r.width>0 && (r.width<44||r.height<44)}).map(e => ({tag:e.tagName, text:(e.textContent||'').trim().slice(0,30), w:Math.round(e.getBoundingClientRect().width), h:Math.round(e.getBoundingClientRect().height)})).slice(0,20))"
 
 # Performance baseline
-BitFun browser/computer-use perf
+Void browser/computer-use perf
 ```
 
 Structure findings as an **Inferred Design System**:
@@ -329,18 +329,18 @@ After extraction, offer: *"Want me to save this as your DESIGN.md? I can lock in
 For each page in scope:
 
 ```bash
-BitFun browser/computer-use goto <url>
-BitFun browser/computer-use snapshot -i -a -o "$REPORT_DIR/screenshots/{page}-annotated.png"
-BitFun browser/computer-use responsive "$REPORT_DIR/screenshots/{page}"
-BitFun browser/computer-use console --errors
-BitFun browser/computer-use perf
+Void browser/computer-use goto <url>
+Void browser/computer-use snapshot -i -a -o "$REPORT_DIR/screenshots/{page}-annotated.png"
+Void browser/computer-use responsive "$REPORT_DIR/screenshots/{page}"
+Void browser/computer-use console --errors
+Void browser/computer-use perf
 ```
 
 ### Auth Detection
 
 After the first navigation, check if the URL changed to a login-like path:
 ```bash
-BitFun browser/computer-use url
+Void browser/computer-use url
 ```
 If URL contains `/login`, `/signin`, `/auth`, or `/sso`: the site requires authentication. AskUserQuestion: "This site requires authentication. Want to import cookies from your browser? Run `/setup-browser-cookies` first if needed."
 
@@ -367,7 +367,7 @@ Apply these at each page. Each finding gets an impact rating (high/medium/polish
 - Weight contrast: >=2 weights used for hierarchy
 - No blacklisted fonts (Papyrus, Comic Sans, Lobster, Impact, Jokerman)
 - If primary font is Inter/Roboto/Open Sans/Poppins → flag as potentially generic
-- `text-wrap: balance` or `text-pretty` on headings (check via `BitFun browser/computer-use css <heading> text-wrap`)
+- `text-wrap: balance` or `text-pretty` on headings (check via `Void browser/computer-use css <heading> text-wrap`)
 - Curly quotes used, not straight quotes
 - Ellipsis character (`…`) not three dots (`...`)
 - `font-variant-numeric: tabular-nums` on number columns
@@ -427,7 +427,7 @@ Apply these at each page. Each finding gets an impact rating (high/medium/polish
 - Easing: ease-out for entering, ease-in for exiting, ease-in-out for moving
 - Duration: 50-700ms range (nothing slower unless page transition)
 - Purpose: every animation communicates something (state change, attention, spatial relationship)
-- `prefers-reduced-motion` respected (check: `BitFun browser/computer-use js "matchMedia('(prefers-reduced-motion: reduce)').matches"`)
+- `prefers-reduced-motion` respected (check: `Void browser/computer-use js "matchMedia('(prefers-reduced-motion: reduce)').matches"`)
 - No `transition: all` — properties listed explicitly
 - Only `transform` and `opacity` animated (not layout properties like width, height, top, left)
 
@@ -471,9 +471,9 @@ The test: would a human designer at a respected studio ever ship this?
 Walk 2-3 key user flows and evaluate the *feel*, not just the function:
 
 ```bash
-BitFun browser/computer-use snapshot -i
-BitFun browser/computer-use click @e3           # perform action
-BitFun browser/computer-use snapshot -D          # diff to see what changed
+Void browser/computer-use snapshot -i
+Void browser/computer-use click @e3           # perform action
+Void browser/computer-use snapshot -D          # diff to see what changed
 ```
 
 Evaluate:
@@ -499,13 +499,13 @@ Compare screenshots and observations across pages for:
 
 ### Output Locations
 
-**Local:** `.bitfun/team/design-reports/design-audit-{domain}-{YYYY-MM-DD}.md`
+**Local:** `.void/team/design-reports/design-audit-{domain}-{YYYY-MM-DD}.md`
 
 **Project-scoped:**
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -cd A-Za-z0-9._-) && mkdir -p $HOME/.bitfun/team/projects/$SLUG
+SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -cd A-Za-z0-9._-) && mkdir -p $HOME/.void/team/projects/$SLUG
 ```
-Write to: `$HOME/.bitfun/team/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md`
+Write to: `$HOME/.void/team/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md`
 
 **Baseline:** Write `design-baseline.json` for regression mode:
 ```json
@@ -583,7 +583,7 @@ Tie everything to user goals and product objectives. Always suggest specific imp
 8. **Responsive is design, not just "not broken."** A stacked desktop layout on mobile is not responsive design — it's lazy. Evaluate whether the mobile layout makes *design* sense.
 9. **Document incrementally.** Write each finding to the report as you find it. Don't batch.
 10. **Depth over breadth.** 5-10 well-documented findings with screenshots and specific suggestions > 20 vague observations.
-11. **Show screenshots to the user.** After every `BitFun browser/computer-use screenshot`, `BitFun browser/computer-use snapshot -a -o`, or `BitFun browser/computer-use responsive` command, use the Read tool on the output file(s) so the user can see them inline. For `responsive` (3 files), Read all three. This is critical — without it, screenshots are invisible to the user.
+11. **Show screenshots to the user.** After every `Void browser/computer-use screenshot`, `Void browser/computer-use snapshot -a -o`, or `Void browser/computer-use responsive` command, use the Read tool on the output file(s) so the user can see them inline. For `responsive` (3 files), Read all three. This is critical — without it, screenshots are invisible to the user.
 
 ### Design Hard Rules
 
@@ -661,7 +661,7 @@ Record baseline design score and AI slop score at end of Phase 6.
 ## Output Structure
 
 ```
-$HOME/.bitfun/team/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
+$HOME/.void/team/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
 ├── design-audit-{domain}.md                  # Structured report
 ├── screenshots/
 │   ├── first-impression.png                  # Phase 1
@@ -687,13 +687,13 @@ $HOME/.bitfun/team/projects/$SLUG/designs/design-audit-{YYYYMMDD}/
 which codex 2>/dev/null && echo "CODEX_AVAILABLE" || echo "CODEX_NOT_AVAILABLE"
 ```
 
-**If a suitable BitFun outside-voice or review sub-agent is available**, launch both voices simultaneously:
+**If a suitable Void outside-voice or review sub-agent is available**, launch both voices simultaneously:
 
 1. **outside-voice sub-agent design voice** (via Bash):
 ```bash
 TMPERR_DESIGN=$(mktemp /tmp/codex-design-XXXXXXXX)
 _REPO_ROOT=$(git rev-parse --show-toplevel) || { echo "ERROR: not in a git repo" >&2; exit 1; }
-Use the BitFun Task tool to dispatch this prompt to a suitable independent read-only outside-voice sub-agent.
+Use the Void Task tool to dispatch this prompt to a suitable independent read-only outside-voice sub-agent.
 - Spacing: systematic (design tokens / CSS variables) or magic numbers?
 - Typography: expressive purposeful fonts or default stacks?
 - Color: CSS variables with defined system, or hardcoded hex scattered?
@@ -729,7 +729,7 @@ Use a 5-minute timeout (`timeout: 300000`). After the command completes, read st
 cat "$TMPERR_DESIGN" && rm -f "$TMPERR_DESIGN"
 ```
 
-2. **Independent design subagent** (via BitFun Task tool):
+2. **Independent design subagent** (via Void Task tool):
 Dispatch a subagent with this prompt:
 "Review the frontend source code in this repo. You are an independent senior product designer doing a source-code design audit. Focus on CONSISTENCY PATTERNS across files rather than individual violations:
 - Are spacing values systematic across the codebase?
@@ -756,7 +756,7 @@ Merge findings into the triage with `[codex]` / `[subagent]` / `[cross-model]` t
 
 **Log the result:**
 ```bash
-true # BitFun Team Mode has no external review-log helper
+true # Void Team Mode has no external review-log helper
 ```
 Replace STATUS with "clean" or "issues_found", SOURCE with "codex+subagent", "codex-only", "subagent-only", or "unavailable".
 
@@ -787,12 +787,12 @@ For each fixable finding, in impact order:
 - ONLY modify files directly related to the finding
 - Prefer CSS/styling changes over structural component changes
 
-### 8a.5. Target Mockup (if BitFun image/design capability is available)
+### 8a.5. Target Mockup (if Void image/design capability is available)
 
-If the BitFun image/design capability is available and the finding involves visual layout, hierarchy, or spacing (not just a CSS value fix like wrong color or font-size), generate a target mockup showing what the corrected version should look like:
+If the Void image/design capability is available and the finding involves visual layout, hierarchy, or spacing (not just a CSS value fix like wrong color or font-size), generate a target mockup showing what the corrected version should look like:
 
 ```bash
-BitFun image/design capability generate --brief "<description of the page/component with the finding fixed, referencing DESIGN.md constraints>" --output "$REPORT_DIR/screenshots/finding-NNN-target.png"
+Void image/design capability generate --brief "<description of the page/component with the finding fixed, referencing DESIGN.md constraints>" --output "$REPORT_DIR/screenshots/finding-NNN-target.png"
 ```
 
 Show the user: "Here's the current state (screenshot) and here's what it should look like (mockup). Now I'll fix the source to match."
@@ -822,10 +822,10 @@ git commit -m "style(design): FINDING-NNN — short description"
 Navigate back to the affected page and verify the fix:
 
 ```bash
-BitFun browser/computer-use goto <affected-url>
-BitFun browser/computer-use screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"
-BitFun browser/computer-use console --errors
-BitFun browser/computer-use snapshot -D
+Void browser/computer-use goto <affected-url>
+Void browser/computer-use screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"
+Void browser/computer-use console --errors
+Void browser/computer-use snapshot -D
 ```
 
 Take **before/after screenshot pair** for every fix.
@@ -873,7 +873,7 @@ DESIGN-FIX RISK:
 After all fixes are applied:
 
 1. Re-run the design audit on all affected pages
-2. If target mockups were generated during the fix loop AND `BitFun image/design capability is available`: run `BitFun image/design capability verify --mockup "$REPORT_DIR/screenshots/finding-NNN-target.png" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` to compare the fix result against the target. Include pass/fail in the report.
+2. If target mockups were generated during the fix loop AND `Void image/design capability is available`: run `Void image/design capability verify --mockup "$REPORT_DIR/screenshots/finding-NNN-target.png" --screenshot "$REPORT_DIR/screenshots/finding-NNN-after.png"` to compare the fix result against the target. Include pass/fail in the report.
 3. Compute final design score and AI slop score
 4. **If final scores are WORSE than baseline:** WARN prominently — something regressed
 
@@ -887,9 +887,9 @@ Write the report to `$REPORT_DIR` (already set up in the setup phase):
 
 **Also write a summary to the project index:**
 ```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -cd A-Za-z0-9._-) && mkdir -p $HOME/.bitfun/team/projects/$SLUG
+SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr -cd A-Za-z0-9._-) && mkdir -p $HOME/.void/team/projects/$SLUG
 ```
-Write a one-line summary to `$HOME/.bitfun/team/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md` with a pointer to the full report in `$REPORT_DIR`.
+Write a one-line summary to `$HOME/.void/team/projects/{slug}/{user}-{branch}-design-audit-{datetime}.md` with a pointer to the full report in `$REPORT_DIR`.
 
 **Per-finding additions** (beyond standard design audit report):
 - Fix Status: verified / best-effort / reverted / deferred
@@ -924,7 +924,7 @@ If you discovered a non-obvious pattern, pitfall, or architectural insight durin
 this session, log it for future sessions:
 
 ```bash
-true # BitFun Team Mode has no external telemetry helper
+true # Void Team Mode has no external telemetry helper
 ```
 
 **Types:** `pattern` (reusable approach), `pitfall` (what NOT to do), `preference`
@@ -932,7 +932,7 @@ true # BitFun Team Mode has no external telemetry helper
 `operational` (project environment/CLI/workflow knowledge).
 
 **Sources:** `observed` (you found this in the code), `user-stated` (user told you),
-`inferred` (AI deduction), `cross-model` (both BitFun and outside-voice sub-agent agree).
+`inferred` (AI deduction), `cross-model` (both Void and outside-voice sub-agent agree).
 
 **Confidence:** 1-10. Be honest. An observed pattern you verified in the code is 8-9.
 An inference you're not sure about is 4-5. A user preference they explicitly stated is 10.

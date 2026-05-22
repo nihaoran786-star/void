@@ -1,5 +1,5 @@
-.bitfun-agent-companion-window-root,
-.bitfun-agent-companion-window-body {
+.void-agent-companion-window-root,
+.void-agent-companion-window-body {
   width: 100%;
   height: 100%;
   margin: 0;
@@ -7,13 +7,13 @@
   background: transparent !important;
 }
 
-.bitfun-agent-companion-window-body #root {
+.void-agent-companion-window-body #root {
   width: 100vw;
   height: 100vh;
   background: transparent;
 }
 
-.bitfun-agent-companion-window {
+.void-agent-companion-window {
   width: 100vw;
   height: 100vh;
   position: relative;
@@ -28,25 +28,25 @@
     flex-direction: row;
     align-items: center;
     justify-content: flex-end;
-    gap: var(--bitfun-agent-companion-gap, 8px);
+    gap: var(--void-agent-companion-gap, 8px);
     width: max-content;
     max-height: 100vh;
     pointer-events: none;
   }
 
   &__pet {
-    width: min(var(--bitfun-agent-companion-pet-width, 96px), 100vw);
-    height: min(var(--bitfun-agent-companion-pet-height, 96px), 100vh);
-    max-width: var(--bitfun-agent-companion-pet-width, 96px);
-    max-height: var(--bitfun-agent-companion-pet-height, 96px);
+    width: min(var(--void-agent-companion-pet-width, 96px), 100vw);
+    height: min(var(--void-agent-companion-pet-height, 96px), 100vh);
+    max-width: var(--void-agent-companion-pet-width, 96px);
+    max-height: var(--void-agent-companion-pet-height, 96px);
     transform-origin: center bottom;
   }
 
   &__pet-hitbox {
     position: relative;
     flex-shrink: 0;
-    width: min(var(--bitfun-agent-companion-pet-width, 96px), 100vw);
-    height: min(var(--bitfun-agent-companion-pet-height, 96px), 100vh);
+    width: min(var(--void-agent-companion-pet-width, 96px), 100vw);
+    height: min(var(--void-agent-companion-pet-height, 96px), 100vh);
     display: grid;
     place-items: center;
     cursor: grab;
@@ -74,7 +74,7 @@
     scrollbar-width: thin;
 
     &--single {
-      height: min(var(--bitfun-agent-companion-pet-height, 96px), 100vh);
+      height: min(var(--void-agent-companion-pet-height, 96px), 100vh);
       overflow-y: hidden;
     }
 
@@ -113,7 +113,7 @@
     }
 
     &--single {
-      height: min(var(--bitfun-agent-companion-pet-height, 96px), 100vh);
+      height: min(var(--void-agent-companion-pet-height, 96px), 100vh);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -173,7 +173,7 @@
       margin-left: 2px;
       vertical-align: -0.12em;
       background: rgba(31, 41, 55, 0.55);
-      animation: bitfun-agent-companion-caret 920ms steps(2, start) infinite;
+      animation: void-agent-companion-caret 920ms steps(2, start) infinite;
     }
   }
 
@@ -194,16 +194,16 @@
     background: rgba(254, 242, 242, 0.94);
   }
 
-  .bitfun-chat-input-pixel-pet {
-    --bitfun-petdex-width: min(var(--bitfun-agent-companion-pet-width, 96px), 100vw);
-    --bitfun-petdex-height: min(var(--bitfun-agent-companion-pet-height, 96px), 100vh);
-    --bitfun-petdex-margin-top: 0;
+  .void-chat-input-pixel-pet {
+    --void-petdex-width: min(var(--void-agent-companion-pet-width, 96px), 100vw);
+    --void-petdex-height: min(var(--void-agent-companion-pet-height, 96px), 100vh);
+    --void-petdex-margin-top: 0;
 
     pointer-events: none;
   }
 }
 
-@keyframes bitfun-agent-companion-caret {
+@keyframes void-agent-companion-caret {
   0%,
   45% {
     opacity: 1;

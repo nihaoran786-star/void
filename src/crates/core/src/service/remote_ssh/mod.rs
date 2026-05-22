@@ -1,7 +1,7 @@
 //! Remote SSH Service Module
 //!
 //! Provides SSH connection management and SFTP-based remote file operations.
-//! This allows BitFun to work with files on remote servers via SSH,
+//! This allows Void to work with files on remote servers via SSH,
 //! similar to VSCode's Remote SSH extension.
 
 #[cfg(not(feature = "ssh-remote"))]

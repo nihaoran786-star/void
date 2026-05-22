@@ -29,7 +29,7 @@ export async function getWorkspaceState(): Promise<WorkspaceState> {
     const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
     const currentWorkspace = await globalStateAPI.getCurrentWorkspace();
     const openedWorkspaces = await globalStateAPI.getOpenedWorkspaces();
-    const workspaceLabels = Array.from(document.querySelectorAll('.bitfun-nav-panel__workspace-item-label'))
+    const workspaceLabels = Array.from(document.querySelectorAll('.void-nav-panel__workspace-item-label'))
       .map(element => element.textContent?.trim() || '')
       .filter(Boolean);
 
@@ -89,7 +89,7 @@ export async function ensureCodeSessionOpen(): Promise<void> {
   }
 
   const selectors = [
-    '.bitfun-nav-panel__workspace-create-main--split-left',
+    '.void-nav-panel__workspace-create-main--split-left',
     '[data-testid="chat-input-send-btn"]',
   ];
 

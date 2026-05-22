@@ -2,11 +2,11 @@
 //!
 //! Processes AI streaming responses, supports tool pre-detection and parameter streaming
 
-use bitfun_ai_adapters::tool_call_accumulator::{
+use void_ai_adapters::tool_call_accumulator::{
     FinalizedToolCall, PendingToolCalls, ToolCallBoundary, ToolCallStreamKey,
 };
-use bitfun_ai_adapters::{GeminiUsage, UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
-use bitfun_events::{AgenticEvent, AgenticEventPriority as EventPriority, ToolEventData};
+use void_ai_adapters::{GeminiUsage, UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
+use void_events::{AgenticEvent, AgenticEventPriority as EventPriority, ToolEventData};
 use futures::{Stream, StreamExt};
 use log::{debug, error, trace};
 use serde::{Deserialize, Serialize};
@@ -995,8 +995,8 @@ impl StreamProcessor {
 #[cfg(test)]
 mod tests {
     use super::{StreamEventSink, StreamProcessOptions, StreamProcessor};
-    use bitfun_ai_adapters::{UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
-    use bitfun_events::{AgenticEvent, AgenticEventPriority as EventPriority};
+    use void_ai_adapters::{UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
+    use void_events::{AgenticEvent, AgenticEventPriority as EventPriority};
     use futures::StreamExt;
     use serde_json::json;
     use std::sync::Arc;

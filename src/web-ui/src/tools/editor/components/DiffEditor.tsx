@@ -5,8 +5,8 @@ import * as monaco from 'monaco-editor';
 import { monacoInitManager } from '../services/MonacoInitManager';
 import { 
   forceRegisterTheme,
-  BitFunDarkTheme,
-  BitFunDarkThemeMetadata 
+  VoidDarkTheme,
+  VoidDarkThemeMetadata
 } from '../themes';
 import { configManager } from '@/infrastructure/config/services/ConfigManager';
 import { EditorConfig as EditorConfigType } from '@/infrastructure/config/types';
@@ -101,7 +101,7 @@ export const DiffEditor: React.FC<DiffEditorProps> = ({
     line_numbers: 'on',
     minimap: { enabled: showMinimap, side: 'right', size: 'proportional' }
   });
-  const [_currentThemeId, setCurrentThemeId] = useState<string>(BitFunDarkThemeMetadata.id);
+  const [_currentThemeId, setCurrentThemeId] = useState<string>(VoidDarkThemeMetadata.id);
   const containerRef = useRef<HTMLDivElement>(null);
   const originalModelRef = useRef<monaco.editor.ITextModel | null>(null);
   const modifiedModelRef = useRef<monaco.editor.ITextModel | null>(null);
@@ -214,19 +214,19 @@ export const DiffEditor: React.FC<DiffEditorProps> = ({
         originalModelRef.current = originalModel;
         modifiedModelRef.current = modifiedModel;
 
-        let themeId = BitFunDarkThemeMetadata.id;
+        let themeId = VoidDarkThemeMetadata.id;
         try {
           const { themeService } = await import('@/infrastructure/theme');
           const currentTheme = themeService.getCurrentTheme();
           if (currentTheme) {
-            themeId = currentTheme.monaco ? currentTheme.id : (currentTheme.type === 'dark' ? BitFunDarkThemeMetadata.id : 'vs');
+            themeId = currentTheme.monaco ? currentTheme.id : (currentTheme.type === 'dark' ? VoidDarkThemeMetadata.id : 'vs');
             setCurrentThemeId(themeId);
           }
         } catch (error) {
           log.warn('Failed to get current theme, using default', error);
         }
         
-        forceRegisterTheme(BitFunDarkThemeMetadata.id, BitFunDarkTheme);
+        forceRegisterTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
         
         const editorOptions: monaco.editor.IStandaloneDiffEditorConstructionOptions = {
           renderSideBySide: renderSideBySide,
@@ -453,7 +453,7 @@ export const DiffEditor: React.FC<DiffEditorProps> = ({
         
         unsubscribeThemeService = themeService.on('theme:after-change', (event) => {
           if (event.theme) {
-            const newThemeId = event.theme.monaco ? event.theme.id : (event.theme.type === 'dark' ? BitFunDarkThemeMetadata.id : 'vs');
+            const newThemeId = event.theme.monaco ? event.theme.id : (event.theme.type === 'dark' ? VoidDarkThemeMetadata.id : 'vs');
             
             setCurrentThemeId(newThemeId);
             

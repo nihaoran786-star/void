@@ -6,12 +6,12 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use bitfun_core::infrastructure::events::TransportEmitter;
-use bitfun_core::service::lsp::types::CompletionItem;
-use bitfun_core::service::lsp::{
+use void_core::infrastructure::events::TransportEmitter;
+use void_core::service::lsp::types::CompletionItem;
+use void_core::service::lsp::{
     close_workspace, get_workspace_manager, open_workspace_with_emitter, ServerState,
 };
-use bitfun_transport::TauriTransportAdapter;
+use void_transport::TauriTransportAdapter;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -186,7 +186,7 @@ pub async fn lsp_open_workspace(
     let workspace_path = PathBuf::from(&request.workspace_path);
 
     let transport = Arc::new(TauriTransportAdapter::new(app_handle));
-    let emitter: Arc<dyn bitfun_core::infrastructure::events::EventEmitter> =
+    let emitter: Arc<dyn void_core::infrastructure::events::EventEmitter> =
         Arc::new(TransportEmitter::new(transport));
 
     open_workspace_with_emitter(workspace_path, Some(emitter))
@@ -408,7 +408,7 @@ pub async fn lsp_format_document_workspace(
 #[tauri::command]
 pub async fn lsp_get_inlay_hints_workspace(
     request: GetInlayHintsRequest,
-) -> Result<Vec<bitfun_core::service::lsp::types::InlayHint>, String> {
+) -> Result<Vec<void_core::service::lsp::types::InlayHint>, String> {
     let workspace_path = PathBuf::from(&request.workspace_path);
     let manager = get_workspace_manager(workspace_path)
         .await
@@ -507,7 +507,7 @@ pub async fn lsp_stop_server_workspace(request: GetServerStateRequest) -> Result
 
 #[tauri::command]
 pub async fn lsp_list_workspaces() -> Result<Vec<String>, String> {
-    use bitfun_core::service::lsp::get_all_workspace_paths;
+    use void_core::service::lsp::get_all_workspace_paths;
 
     let workspaces = get_all_workspace_paths()
         .await
@@ -533,7 +533,7 @@ pub struct PrestartServerRequest {
 pub async fn lsp_detect_project(
     request: DetectProjectRequest,
 ) -> Result<serde_json::Value, String> {
-    use bitfun_core::service::lsp::project_detector::ProjectDetector;
+    use void_core::service::lsp::project_detector::ProjectDetector;
 
     let workspace_path = PathBuf::from(&request.workspace_path);
     let project_info = ProjectDetector::detect(&workspace_path)

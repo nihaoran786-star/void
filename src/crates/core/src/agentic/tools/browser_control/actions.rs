@@ -1,7 +1,7 @@
 //! Atomic browser actions implemented via CDP commands.
 
 use super::cdp_client::{CdpClient, CdpEvent};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use serde_json::{json, Value};
 use tokio::sync::broadcast;
 
@@ -78,7 +78,7 @@ impl<'a> BrowserActions<'a> {
 
     // ── Navigation ─────────────────────────────────────────────────────
 
-    pub async fn navigate(&self, url: &str) -> BitFunResult<Value> {
+    pub async fn navigate(&self, url: &str) -> VoidResult<Value> {
         // Subscribe **before** issuing the navigate so we can never miss the
         // `Page.lifecycleEvent` ("load") that fires while we are awaiting the
         // command response. Page lifecycle events must be enabled explicitly.
@@ -129,7 +129,7 @@ impl<'a> BrowserActions<'a> {
                 }
             }
             LifecycleOutcome::Closed => {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "Browser closed the CDP connection before page finished loading.".to_string(),
                 ));
             }
@@ -137,7 +137,7 @@ impl<'a> BrowserActions<'a> {
         Ok(body)
     }
 
-    pub async fn get_url(&self) -> BitFunResult<String> {
+    pub async fn get_url(&self) -> VoidResult<String> {
         let result = self.evaluate("window.location.href").await?;
         Ok(result
             .get("result")
@@ -147,7 +147,7 @@ impl<'a> BrowserActions<'a> {
             .to_string())
     }
 
-    pub async fn get_title(&self) -> BitFunResult<String> {
+    pub async fn get_title(&self) -> VoidResult<String> {
         let result = self.evaluate("document.title").await?;
         Ok(result
             .get("result")
@@ -169,7 +169,7 @@ impl<'a> BrowserActions<'a> {
     /// `"document" | "shadow" | "iframe"`. The synthetic `data-cdp-ref`
     /// attribute is set in the host scope so subsequent `click` / `fill`
     /// can locate it via the same recursive walk.
-    pub async fn snapshot(&self) -> BitFunResult<Value> {
+    pub async fn snapshot(&self) -> VoidResult<Value> {
         self.snapshot_with_options(false).await
     }
 
@@ -184,7 +184,7 @@ impl<'a> BrowserActions<'a> {
     /// `with_backend_node_ids` is `true`, every snapshot element gets a
     /// `backend_node_id` field; pages where `DOM.getDocument` errors out
     /// (very rare — e.g. about:blank) silently fall back to no ids.
-    pub async fn snapshot_with_options(&self, with_backend_node_ids: bool) -> BitFunResult<Value> {
+    pub async fn snapshot_with_options(&self, with_backend_node_ids: bool) -> VoidResult<Value> {
         let script = r#"
         (function() {
             const SEL = 'a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="combobox"], [role="option"], [tabindex="0"], [contenteditable="true"]';
@@ -288,13 +288,13 @@ impl<'a> BrowserActions<'a> {
     /// Resolve `backend_node_id` for every snapshot element by walking the
     /// DOM through CDP. Mutates `parsed["elements"][i]["backend_node_id"]`
     /// in place. Returns `Err` if the document tree could not be fetched.
-    async fn attach_backend_node_ids(&self, parsed: &mut Value) -> BitFunResult<()> {
+    async fn attach_backend_node_ids(&self, parsed: &mut Value) -> VoidResult<()> {
         let doc = self.client.send("DOM.getDocument", None).await?;
         let root_id = doc
             .get("root")
             .and_then(|r| r.get("nodeId"))
             .and_then(|v| v.as_i64())
-            .ok_or_else(|| BitFunError::tool("DOM.getDocument: missing root nodeId".to_string()))?;
+            .ok_or_else(|| VoidError::tool("DOM.getDocument: missing root nodeId".to_string()))?;
         let qsa = self
             .client
             .send(
@@ -360,7 +360,7 @@ impl<'a> BrowserActions<'a> {
     /// empty string), and `Ok(Some(""))` when the element was found but
     /// genuinely empty. The lookup walks shadow roots / same-origin
     /// iframes, matching the rest of the browser action surface.
-    pub async fn get_text(&self, selector: &str) -> BitFunResult<Option<String>> {
+    pub async fn get_text(&self, selector: &str) -> VoidResult<Option<String>> {
         let resolve = Self::resolve_element_js(selector);
         let js = format!(
             r#"(function(){{
@@ -400,7 +400,7 @@ impl<'a> BrowserActions<'a> {
     // ── Interaction ────────────────────────────────────────────────────
 
     /// Click an element by CSS selector or by `@eN` ref.
-    pub async fn click(&self, selector: &str) -> BitFunResult<Value> {
+    pub async fn click(&self, selector: &str) -> VoidResult<Value> {
         let js = Self::resolve_element_js(selector);
         let center_js = format!(
             r#"(function(){{ {} const rect = el.getBoundingClientRect(); return JSON.stringify({{ x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }}); }})()"#,
@@ -446,7 +446,7 @@ impl<'a> BrowserActions<'a> {
     }
 
     /// Fill (clear + type) a text input identified by selector or `@eN` ref.
-    pub async fn fill(&self, selector: &str, value: &str) -> BitFunResult<Value> {
+    pub async fn fill(&self, selector: &str, value: &str) -> VoidResult<Value> {
         let js = Self::resolve_element_js(selector);
         let focus_js = format!(
             r#"(function(){{ {} el.focus(); el.value = ''; el.dispatchEvent(new Event('input', {{ bubbles: true }})); return true; }})()"#,
@@ -466,7 +466,7 @@ impl<'a> BrowserActions<'a> {
     }
 
     /// Type text at the currently focused element (appends, does not clear).
-    pub async fn type_text(&self, text: &str) -> BitFunResult<Value> {
+    pub async fn type_text(&self, text: &str) -> VoidResult<Value> {
         self.client
             .send("Input.insertText", Some(json!({ "text": text })))
             .await?;
@@ -474,7 +474,7 @@ impl<'a> BrowserActions<'a> {
     }
 
     /// Select a dropdown option by visible text.
-    pub async fn select(&self, selector: &str, option_text: &str) -> BitFunResult<Value> {
+    pub async fn select(&self, selector: &str, option_text: &str) -> VoidResult<Value> {
         let js = format!(
             r#"(function(){{
                 const sel = document.querySelector('{}');
@@ -500,7 +500,7 @@ impl<'a> BrowserActions<'a> {
     }
 
     /// Press a key (Enter, Escape, Tab, etc.).
-    pub async fn press_key(&self, key: &str) -> BitFunResult<Value> {
+    pub async fn press_key(&self, key: &str) -> VoidResult<Value> {
         self.client
             .send(
                 "Input.dispatchKeyEvent",
@@ -523,7 +523,7 @@ impl<'a> BrowserActions<'a> {
     }
 
     /// Scroll the page.
-    pub async fn scroll(&self, direction: &str, amount: Option<i64>) -> BitFunResult<Value> {
+    pub async fn scroll(&self, direction: &str, amount: Option<i64>) -> VoidResult<Value> {
         let px = amount.unwrap_or(500);
         let delta_y = match direction {
             "up" => -px,
@@ -557,7 +557,7 @@ impl<'a> BrowserActions<'a> {
         &self,
         duration_ms: Option<u64>,
         condition: Option<&str>,
-    ) -> BitFunResult<Value> {
+    ) -> VoidResult<Value> {
         if let Some(ms) = duration_ms {
             let clamped = ms.min(30_000);
             tokio::time::sleep(std::time::Duration::from_millis(clamped)).await;
@@ -617,7 +617,7 @@ impl<'a> BrowserActions<'a> {
                         }
                         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     }
-                    return Err(BitFunError::tool(format!(
+                    return Err(VoidError::tool(format!(
                         "Timeout waiting for element: {}",
                         cond
                     )));
@@ -630,7 +630,7 @@ impl<'a> BrowserActions<'a> {
     // ── Capture ────────────────────────────────────────────────────────
 
     /// Take a screenshot of the current page, returns base64 JPEG data.
-    pub async fn screenshot(&self) -> BitFunResult<Value> {
+    pub async fn screenshot(&self) -> VoidResult<Value> {
         let result = self
             .client
             .send(
@@ -651,7 +651,7 @@ impl<'a> BrowserActions<'a> {
     // ── JavaScript ─────────────────────────────────────────────────────
 
     /// Evaluate a JavaScript expression in the page context.
-    pub async fn evaluate(&self, expression: &str) -> BitFunResult<Value> {
+    pub async fn evaluate(&self, expression: &str) -> VoidResult<Value> {
         self.client
             .send(
                 "Runtime.evaluate",
@@ -665,7 +665,7 @@ impl<'a> BrowserActions<'a> {
 
     // ── Close ──────────────────────────────────────────────────────────
 
-    pub async fn close_page(&self) -> BitFunResult<Value> {
+    pub async fn close_page(&self) -> VoidResult<Value> {
         let _ = self.client.send("Page.close", None).await;
         Ok(json!({ "success": true, "action": "close" }))
     }

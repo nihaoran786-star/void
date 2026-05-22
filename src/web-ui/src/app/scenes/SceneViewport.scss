@@ -4,7 +4,7 @@
 
 @use '../../component-library/styles/tokens.scss' as *;
 
-.bitfun-scene-viewport {
+.void-scene-viewport {
   flex: 1;
   position: relative;
   overflow: hidden;
@@ -48,12 +48,12 @@
     box-shadow: inset 0 0 72px -18px rgba(96, 165, 250, 0.14);
   }
 
-  body.bitfun-divider-hovered &__clip::after,
-  body.bitfun-is-resizing-nav &__clip::after {
+  body.void-divider-hovered &__clip::after,
+  body.void-is-resizing-nav &__clip::after {
     opacity: 1;
   }
 
-  body.bitfun-is-resizing-nav &__clip::after {
+  body.void-is-resizing-nav &__clip::after {
     box-shadow: inset 0 0 64px -16px rgba(96, 165, 250, 0.16);
   }
 
@@ -114,7 +114,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bitfun-scene-viewport__clip::after {
+  .void-scene-viewport__clip::after {
     transition: none;
   }
 }

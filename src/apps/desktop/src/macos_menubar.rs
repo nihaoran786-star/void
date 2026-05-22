@@ -16,24 +16,24 @@ pub enum EditMenuMode {
     Renderer,
 }
 
-pub const MENU_ID_EDIT_UNDO: &str = "bitfun.edit.undo";
-pub const MENU_ID_EDIT_REDO: &str = "bitfun.edit.redo";
-pub const MENU_ID_EDIT_CUT: &str = "bitfun.edit.cut";
-pub const MENU_ID_EDIT_COPY: &str = "bitfun.edit.copy";
-pub const MENU_ID_EDIT_PASTE: &str = "bitfun.edit.paste";
-pub const MENU_ID_EDIT_SELECT_ALL: &str = "bitfun.edit.select_all";
+pub const MENU_ID_EDIT_UNDO: &str = "void.edit.undo";
+pub const MENU_ID_EDIT_REDO: &str = "void.edit.redo";
+pub const MENU_ID_EDIT_CUT: &str = "void.edit.cut";
+pub const MENU_ID_EDIT_COPY: &str = "void.edit.copy";
+pub const MENU_ID_EDIT_PASTE: &str = "void.edit.paste";
+pub const MENU_ID_EDIT_SELECT_ALL: &str = "void.edit.select_all";
 
 pub fn menu_event_name_for_id(id: &str) -> Option<&'static str> {
     match id {
-        "bitfun.open_project" => Some("bitfun_menu_open_project"),
-        "bitfun.new_project" => Some("bitfun_menu_new_project"),
-        "bitfun.about" => Some("bitfun_menu_about"),
-        MENU_ID_EDIT_UNDO => Some("bitfun_menu_edit_undo"),
-        MENU_ID_EDIT_REDO => Some("bitfun_menu_edit_redo"),
-        MENU_ID_EDIT_CUT => Some("bitfun_menu_edit_cut"),
-        MENU_ID_EDIT_COPY => Some("bitfun_menu_edit_copy"),
-        MENU_ID_EDIT_PASTE => Some("bitfun_menu_edit_paste"),
-        MENU_ID_EDIT_SELECT_ALL => Some("bitfun_menu_edit_select_all"),
+        "void.open_project" => Some("void_menu_open_project"),
+        "void.new_project" => Some("void_menu_new_project"),
+        "void.about" => Some("void_menu_about"),
+        MENU_ID_EDIT_UNDO => Some("void_menu_edit_undo"),
+        MENU_ID_EDIT_REDO => Some("void_menu_edit_redo"),
+        MENU_ID_EDIT_CUT => Some("void_menu_edit_cut"),
+        MENU_ID_EDIT_COPY => Some("void_menu_edit_copy"),
+        MENU_ID_EDIT_PASTE => Some("void_menu_edit_paste"),
+        MENU_ID_EDIT_SELECT_ALL => Some("void_menu_edit_select_all"),
         _ => None,
     }
 }
@@ -45,7 +45,7 @@ struct MenubarLabels {
     edit_menu: &'static str,
     open_project: &'static str,
     new_project: &'static str,
-    about_bitfun: &'static str,
+    about_void: &'static str,
     undo: &'static str,
     redo: &'static str,
     cut: &'static str,
@@ -62,7 +62,7 @@ fn labels_for_language(language: &str) -> MenubarLabels {
             edit_menu: "Edit",
             open_project: "Open Project…",
             new_project: "New Project…",
-            about_bitfun: "About BitFun",
+            about_void: "About Void",
             undo: "Undo",
             redo: "Redo",
             cut: "Cut",
@@ -75,7 +75,7 @@ fn labels_for_language(language: &str) -> MenubarLabels {
             edit_menu: "編輯",
             open_project: "開啟工程…",
             new_project: "新建工程…",
-            about_bitfun: "關於 BitFun",
+            about_void: "關於 Void",
             undo: "復原",
             redo: "重做",
             cut: "剪下",
@@ -88,7 +88,7 @@ fn labels_for_language(language: &str) -> MenubarLabels {
             edit_menu: "编辑",
             open_project: "打开工程…",
             new_project: "新建工程…",
-            about_bitfun: "关于 BitFun",
+            about_void: "关于 Void",
             undo: "撤销",
             redo: "重做",
             cut: "剪切",
@@ -109,8 +109,8 @@ pub fn set_macos_menubar_with_mode(
     let labels = labels_for_language(language);
     let _ = mode;
 
-    let app_menu = SubmenuBuilder::new(app, "BitFun")
-        .text("bitfun.about", labels.about_bitfun)
+    let app_menu = SubmenuBuilder::new(app, "Void")
+        .text("void.about", labels.about_void)
         .separator()
         .quit()
         .build()?;
@@ -158,8 +158,8 @@ pub fn set_macos_menubar_with_mode(
     };
 
     let project_menu = SubmenuBuilder::new(app, labels.project_menu)
-        .text("bitfun.open_project", labels.open_project)
-        .text("bitfun.new_project", labels.new_project)
+        .text("void.open_project", labels.open_project)
+        .text("void.new_project", labels.new_project)
         .build()?;
 
     let menu = MenuBuilder::new(app)

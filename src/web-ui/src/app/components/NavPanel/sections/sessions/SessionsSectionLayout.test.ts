@@ -50,15 +50,15 @@ describe('SessionsSection layout styles', () => {
     expect(mainBlock).not.toContain('padding-right');
     expect(stylesheet).toContain('&__inline-item:hover &__inline-item-main');
     expect(stylesheet).toContain('&__inline-item:focus-within &__inline-item-main');
-    expect(stylesheet).toContain('padding-right: calc(var(--bitfun-nav-row-action-size) + var(--bitfun-nav-row-action-offset));');
+    expect(stylesheet).toContain('padding-right: calc(var(--void-nav-row-action-size) + var(--void-nav-row-action-offset));');
     expect(actionsBlock).not.toContain('display: none;');
     expect(actionsBlock).toContain('position: absolute;');
-    expect(actionsBlock).toContain('right: var(--bitfun-nav-row-action-offset);');
-    expect(actionsBlock).toContain('gap: var(--bitfun-nav-row-action-gap);');
+    expect(actionsBlock).toContain('right: var(--void-nav-row-action-offset);');
+    expect(actionsBlock).toContain('gap: var(--void-nav-row-action-gap);');
     expect(actionsBlock).toContain('visibility: hidden;');
     expect(actionsBlock).toContain('opacity: 0;');
     expect(actionsBlock).toContain('pointer-events: none;');
-    expect(actionsBlock).toContain('.bitfun-nav-panel__inline-item:hover &');
+    expect(actionsBlock).toContain('.void-nav-panel__inline-item:hover &');
     expect(actionsBlock).toContain('&.is-open');
     expect(actionsBlock).toContain('visibility: visible;');
   });
@@ -67,11 +67,11 @@ describe('SessionsSection layout styles', () => {
     const stylesheet = readSessionsSectionStylesheet();
     const actionButtonBlock = extractBlock(stylesheet, '&__inline-item-action-btn');
 
-    expect(actionButtonBlock).toContain('width: var(--bitfun-nav-row-action-size);');
-    expect(actionButtonBlock).toContain('height: var(--bitfun-nav-row-action-size);');
+    expect(actionButtonBlock).toContain('width: var(--void-nav-row-action-size);');
+    expect(actionButtonBlock).toContain('height: var(--void-nav-row-action-size);');
     expect(actionButtonBlock).toContain('svg {');
-    expect(actionButtonBlock).toContain('width: var(--bitfun-nav-row-action-icon-size);');
-    expect(actionButtonBlock).toContain('height: var(--bitfun-nav-row-action-icon-size);');
+    expect(actionButtonBlock).toContain('width: var(--void-nav-row-action-icon-size);');
+    expect(actionButtonBlock).toContain('height: var(--void-nav-row-action-icon-size);');
   });
 
   it('keeps child-session badges visible while long titles are ellipsized', () => {

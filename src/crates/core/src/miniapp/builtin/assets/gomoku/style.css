@@ -1,12 +1,12 @@
 /* === Design System ===
- * Theme: 与 BitFun 主题一致的扁平工具风，去掉所有写实木纹/羊皮/印章/拟物高光。
+ * Theme: 与 Void 主题一致的扁平工具风，去掉所有写实木纹/羊皮/印章/拟物高光。
  * Palette:
- *   - dominant:   var(--bitfun-bg) / var(--bitfun-text)
- *   - supporting: var(--bitfun-bg-secondary), var(--bitfun-bg-elevated), var(--bitfun-border)
- *   - accent:     var(--bitfun-accent)            // 选中/主 CTA/最后一手
+ *   - dominant:   var(--void-bg) / var(--void-text)
+ *   - supporting: var(--void-bg-secondary), var(--void-bg-elevated), var(--void-border)
+ *   - accent:     var(--void-accent)            // 选中/主 CTA/最后一手
  *   - stones:     纯色填充 + 1px 描边（无径向渐变）
  * Typography:
- *   - 全 sans：var(--bitfun-font-sans)
+ *   - 全 sans：var(--void-font-sans)
  *   - heading 14-16px / 600  · body 13px / 400  · caption 11-12px / 400
  *   - 不使用大字距、不使用衬线
  * Radius:  card 8px · control 6px · pill 999px
@@ -18,23 +18,23 @@ body, html { margin: 0; padding: 0; height: 100%; }
 [hidden] { display: none !important; }
 
 :root {
-  --g-bg:           var(--bitfun-bg, #121214);
-  --g-bg-secondary: var(--bitfun-bg-secondary, #18181a);
-  --g-bg-elevated:  var(--bitfun-bg-elevated, #1f1f22);
+  --g-bg:           var(--void-bg, #121214);
+  --g-bg-secondary: var(--void-bg-secondary, #18181a);
+  --g-bg-elevated:  var(--void-bg-elevated, #1f1f22);
 
-  --g-text:         var(--bitfun-text, #e8e8e8);
-  --g-text-soft:    var(--bitfun-text-secondary, #b0b0b0);
-  --g-text-mute:    var(--bitfun-text-muted, #858585);
+  --g-text:         var(--void-text, #e8e8e8);
+  --g-text-soft:    var(--void-text-secondary, #b0b0b0);
+  --g-text-mute:    var(--void-text-muted, #858585);
 
-  --g-border:        var(--bitfun-border, #2e2e32);
-  --g-border-subtle: var(--bitfun-border-subtle, #27272a);
+  --g-border:        var(--void-border, #2e2e32);
+  --g-border-subtle: var(--void-border-subtle, #27272a);
 
-  --g-element:       var(--bitfun-element-bg, #27272a);
-  --g-element-hover: var(--bitfun-element-hover, #3f3f46);
+  --g-element:       var(--void-element-bg, #27272a);
+  --g-element-hover: var(--void-element-hover, #3f3f46);
 
-  --g-accent:        var(--bitfun-accent, #60a5fa);
-  --g-accent-hover:  var(--bitfun-accent-hover, #3b82f6);
-  --g-accent-soft:   color-mix(in srgb, var(--bitfun-accent, #60a5fa) 16%, transparent);
+  --g-accent:        var(--void-accent, #60a5fa);
+  --g-accent-hover:  var(--void-accent-hover, #3b82f6);
+  --g-accent-soft:   color-mix(in srgb, var(--void-accent, #60a5fa) 16%, transparent);
 
   /* Stones — dark theme defaults.
    * Black stones use a lighter rim so they read against the dark board surface;
@@ -44,10 +44,10 @@ body, html { margin: 0; padding: 0; height: 100%; }
   --g-stone-white:        #f1f1f3;
   --g-stone-white-stroke: rgba(0, 0, 0, 0.35);
 
-  --g-radius:    var(--bitfun-radius-lg, 8px);
-  --g-radius-sm: var(--bitfun-radius, 6px);
+  --g-radius:    var(--void-radius-lg, 8px);
+  --g-radius-sm: var(--void-radius, 6px);
 
-  --g-sans: var(--bitfun-font-sans, -apple-system, BlinkMacSystemFont, "PingFang SC",
+  --g-sans: var(--void-font-sans, -apple-system, BlinkMacSystemFont, "PingFang SC",
             "Hiragino Sans GB", "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei",
             "Helvetica Neue", Helvetica, Arial, sans-serif);
 
@@ -503,7 +503,7 @@ button { font-family: inherit; cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--bitfun-scrollbar-thumb, rgba(255, 255, 255, 0.12));
+  background: var(--void-scrollbar-thumb, rgba(255, 255, 255, 0.12));
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {

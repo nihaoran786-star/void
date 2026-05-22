@@ -6,7 +6,7 @@
 use crate::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use log::debug;
 use serde_json::{json, Value};
@@ -103,7 +103,7 @@ impl Tool for SkillTool {
         "Skill"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(self.build_description_for_context(None).await)
     }
 
@@ -114,13 +114,13 @@ impl Tool for SkillTool {
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let mut s = self.build_description_for_context(context).await;
         if context.map(|c| c.is_remote()).unwrap_or(false)
             && context.and_then(|c| c.ws_fs()).is_none()
         {
             s.push_str(
-                "\n\n**Remote workspace:** Project-level skills on the server could not be indexed because workspace I/O is unavailable. Only user-level skills are shown; BitFun will not fall back to scanning the remote path on the local filesystem.",
+                "\n\n**Remote workspace:** Project-level skills on the server could not be indexed because workspace I/O is unavailable. Only user-level skills are shown; Void will not fall back to scanning the remote path on the local filesystem.",
             );
         }
         Ok(s)
@@ -190,11 +190,11 @@ impl Tool for SkillTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let skill_name = input
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("command is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("command is required".to_string()))?;
 
         debug!("Skill tool executing skill: {}", skill_name);
 
@@ -291,7 +291,7 @@ mod tests {
         }
 
         async fn read_file_text(&self, path: &str) -> anyhow::Result<String> {
-            if path == "/remote/project/.bitfun/skills/remote-only/SKILL.md" {
+            if path == "/remote/project/.void/skills/remote-only/SKILL.md" {
                 return Ok(r#"---
 name: remote-only-skill-for-test
 description: Remote project skill visible only through workspace services.
@@ -311,28 +311,28 @@ Use the remote project skill.
         async fn exists(&self, path: &str) -> anyhow::Result<bool> {
             Ok(matches!(
                 path,
-                "/remote/project/.bitfun/skills"
-                    | "/remote/project/.bitfun/skills/remote-only"
-                    | "/remote/project/.bitfun/skills/remote-only/SKILL.md"
+                "/remote/project/.void/skills"
+                    | "/remote/project/.void/skills/remote-only"
+                    | "/remote/project/.void/skills/remote-only/SKILL.md"
             ))
         }
 
         async fn is_file(&self, path: &str) -> anyhow::Result<bool> {
-            Ok(path == "/remote/project/.bitfun/skills/remote-only/SKILL.md")
+            Ok(path == "/remote/project/.void/skills/remote-only/SKILL.md")
         }
 
         async fn is_dir(&self, path: &str) -> anyhow::Result<bool> {
             Ok(matches!(
                 path,
-                "/remote/project/.bitfun/skills" | "/remote/project/.bitfun/skills/remote-only"
+                "/remote/project/.void/skills" | "/remote/project/.void/skills/remote-only"
             ))
         }
 
         async fn read_dir(&self, path: &str) -> anyhow::Result<Vec<WorkspaceDirEntry>> {
-            if path == "/remote/project/.bitfun/skills" {
+            if path == "/remote/project/.void/skills" {
                 return Ok(vec![WorkspaceDirEntry {
                     name: "remote-only".to_string(),
-                    path: "/remote/project/.bitfun/skills/remote-only".to_string(),
+                    path: "/remote/project/.void/skills/remote-only".to_string(),
                     is_dir: true,
                     is_symlink: false,
                 }]);
@@ -455,16 +455,16 @@ Use the remote project skill.
 
         async fn read_file_text(&self, path: &str) -> anyhow::Result<String> {
             match path {
-                "/remote/project/.bitfun/skills/z-last/SKILL.md" => {
+                "/remote/project/.void/skills/z-last/SKILL.md" => {
                     Ok("---\nname: z-last\ndescription: last\n---\n\nz\n".to_string())
                 }
-                "/remote/project/.bitfun/skills/a-first/SKILL.md" => {
+                "/remote/project/.void/skills/a-first/SKILL.md" => {
                     Ok("---\nname: A-First\ndescription: first\n---\n\na\n".to_string())
                 }
-                "/remote/project/.bitfun/skills/dup-one/SKILL.md" => {
+                "/remote/project/.void/skills/dup-one/SKILL.md" => {
                     Ok("---\nname: dup\ndescription: dup one\n---\n\none\n".to_string())
                 }
-                "/remote/project/.bitfun/skills/dup-two/SKILL.md" => {
+                "/remote/project/.void/skills/dup-two/SKILL.md" => {
                     Ok("---\nname: dup\ndescription: dup two\n---\n\ntwo\n".to_string())
                 }
                 _ => anyhow::bail!("not found: {}", path),
@@ -482,48 +482,48 @@ Use the remote project skill.
         async fn is_file(&self, path: &str) -> anyhow::Result<bool> {
             Ok(matches!(
                 path,
-                "/remote/project/.bitfun/skills/z-last/SKILL.md"
-                    | "/remote/project/.bitfun/skills/a-first/SKILL.md"
-                    | "/remote/project/.bitfun/skills/dup-one/SKILL.md"
-                    | "/remote/project/.bitfun/skills/dup-two/SKILL.md"
+                "/remote/project/.void/skills/z-last/SKILL.md"
+                    | "/remote/project/.void/skills/a-first/SKILL.md"
+                    | "/remote/project/.void/skills/dup-one/SKILL.md"
+                    | "/remote/project/.void/skills/dup-two/SKILL.md"
             ))
         }
 
         async fn is_dir(&self, path: &str) -> anyhow::Result<bool> {
             Ok(matches!(
                 path,
-                "/remote/project/.bitfun/skills"
-                    | "/remote/project/.bitfun/skills/z-last"
-                    | "/remote/project/.bitfun/skills/a-first"
-                    | "/remote/project/.bitfun/skills/dup-one"
-                    | "/remote/project/.bitfun/skills/dup-two"
+                "/remote/project/.void/skills"
+                    | "/remote/project/.void/skills/z-last"
+                    | "/remote/project/.void/skills/a-first"
+                    | "/remote/project/.void/skills/dup-one"
+                    | "/remote/project/.void/skills/dup-two"
             ))
         }
 
         async fn read_dir(&self, path: &str) -> anyhow::Result<Vec<WorkspaceDirEntry>> {
             match path {
-                "/remote/project/.bitfun/skills" => Ok(vec![
+                "/remote/project/.void/skills" => Ok(vec![
                     WorkspaceDirEntry {
                         name: "z-last".to_string(),
-                        path: "/remote/project/.bitfun/skills/z-last".to_string(),
+                        path: "/remote/project/.void/skills/z-last".to_string(),
                         is_dir: true,
                         is_symlink: false,
                     },
                     WorkspaceDirEntry {
                         name: "a-first".to_string(),
-                        path: "/remote/project/.bitfun/skills/a-first".to_string(),
+                        path: "/remote/project/.void/skills/a-first".to_string(),
                         is_dir: true,
                         is_symlink: false,
                     },
                     WorkspaceDirEntry {
                         name: "dup-two".to_string(),
-                        path: "/remote/project/.bitfun/skills/dup-two".to_string(),
+                        path: "/remote/project/.void/skills/dup-two".to_string(),
                         is_dir: true,
                         is_symlink: false,
                     },
                     WorkspaceDirEntry {
                         name: "dup-one".to_string(),
-                        path: "/remote/project/.bitfun/skills/dup-one".to_string(),
+                        path: "/remote/project/.void/skills/dup-one".to_string(),
                         is_dir: true,
                         is_symlink: false,
                     },

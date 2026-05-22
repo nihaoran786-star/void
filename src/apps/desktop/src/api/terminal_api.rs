@@ -7,10 +7,10 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
 
-use bitfun_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
-use bitfun_core::service::runtime::RuntimeManager;
-use bitfun_core::service::terminal::TerminalEvent;
-use bitfun_core::service::terminal::{
+use void_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
+use void_core::service::runtime::RuntimeManager;
+use void_core::service::terminal::TerminalEvent;
+use void_core::service::terminal::{
     AcknowledgeRequest as CoreAcknowledgeRequest, CloseSessionRequest as CoreCloseSessionRequest,
     CommandCompletionReason as CoreCommandCompletionReason,
     CreateSessionRequest as CoreCreateSessionRequest,
@@ -43,11 +43,11 @@ impl TerminalState {
         if !*initialized {
             let mut config = TerminalConfig::default();
 
-            // Set scripts directory to app data dir: {config_dir}/bitfun/temp/scripts
+            // Set scripts directory to app data dir: {config_dir}/void/temp/scripts
             let scripts_dir = Self::get_scripts_dir();
             config.shell_integration.scripts_dir = Some(scripts_dir);
 
-            // Prepend BitFun-managed runtime dirs to PATH so Bash/Skill commands can
+            // Prepend Void-managed runtime dirs to PATH so Bash/Skill commands can
             // run on machines without preinstalled dev tools.
             if let Ok(runtime_manager) = RuntimeManager::new() {
                 let current_path = std::env::var("PATH").ok();
@@ -74,7 +74,7 @@ impl TerminalState {
     fn get_scripts_dir() -> PathBuf {
         dirs::config_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("bitfun")
+            .join("void")
             .join("temp")
             .join("scripts")
     }

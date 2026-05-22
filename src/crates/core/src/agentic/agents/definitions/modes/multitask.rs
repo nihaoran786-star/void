@@ -29,11 +29,11 @@ impl MultitaskMode {
     fn load_reminder_template(
         &self,
         template_name: &str,
-    ) -> crate::util::errors::BitFunResult<String> {
+    ) -> crate::util::errors::VoidResult<String> {
         get_embedded_prompt(template_name)
             .map(str::to_string)
             .ok_or_else(|| {
-                crate::util::errors::BitFunError::Agent(format!(
+                crate::util::errors::VoidError::Agent(format!(
                     "{} not found in embedded files",
                     template_name
                 ))
@@ -67,7 +67,7 @@ impl Agent for MultitaskMode {
         &self,
         previous_agent_type: Option<&str>,
         _workspace: Option<&crate::agentic::WorkspaceBinding>,
-    ) -> crate::util::errors::BitFunResult<String> {
+    ) -> crate::util::errors::VoidResult<String> {
         if previous_agent_type == Some(self.id()) {
             self.load_reminder_template(MULTITASK_MODE_ONGOING_REMINDER_TEMPLATE)
         } else {

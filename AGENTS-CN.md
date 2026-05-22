@@ -2,7 +2,7 @@
 
 # AGENTS-CN.md
 
-BitFun 是一个由 Rust workspace 与共享 React 前端组成的项目。
+Void 是一个由 Rust workspace 与共享 React 前端组成的项目。
 
 仓库核心原则：**先保持产品逻辑平台无关，再通过平台适配层对外暴露能力**。
 
@@ -29,7 +29,7 @@ BitFun 是一个由 Rust workspace 与共享 React 前端组成的项目。
 | CLI | `src/apps/cli` | （使用 core 指南） |
 | 中继服务器 | `src/apps/relay-server` | （使用 core 指南） |
 | 共享前端 | `src/web-ui` | [AGENTS.md](src/web-ui/AGENTS.md) |
-| 安装器 | `BitFun-Installer` | [AGENTS.md](BitFun-Installer/AGENTS.md) |
+| 安装器 | `Void-Installer` | [AGENTS.md](Void-Installer/AGENTS.md) |
 | E2E 测试 | `tests/e2e` | [AGENTS.md](tests/e2e/AGENTS.md) |
 
 ## 最常用命令
@@ -54,7 +54,7 @@ pnpm --dir src/web-ui run test:run
 cargo test --workspace
 
 # 构建
-cargo build -p bitfun-desktop
+cargo build -p void-desktop
 pnpm run build:web
 
 # 快速构建（开发 / CI 提速）
@@ -96,7 +96,7 @@ await api.invoke('your_command', { request: { ... } });
 
 - 不要在 UI 组件里直接调用 Tauri API；应通过 adapter / infrastructure 层访问。
 - 桌面端专属集成应放在 `src/apps/desktop`，再通过 transport / API layer 回流到共享逻辑。
-- 在共享 core 中避免使用 `tauri::AppHandle` 等宿主 API；优先使用 `bitfun_events::EventEmitter` 等共享抽象。
+- 在共享 core 中避免使用 `tauri::AppHandle` 等宿主 API；优先使用 `void_events::EventEmitter` 等共享抽象。
 
 ### 远程兼容
 
@@ -112,7 +112,7 @@ await api.invoke('your_command', { request: { ... } });
 
 ### Core 拆解护栏
 
-任何 `bitfun-core` 拆解、feature 边界、依赖边界或 Rust 构建提速重构，
+任何 `void-core` 拆解、feature 边界、依赖边界或 Rust 构建提速重构，
 都必须先阅读
 [`docs/architecture/core-decomposition.md`](docs/architecture/core-decomposition.md)。
 顶层文档只作为入口；模块级 ownership 细节应放到离代码最近的模块 `AGENTS.md`。
@@ -139,7 +139,7 @@ report enrichment 保持在 shared core。
 4. `src/crates/transport`
 5. `src/crates/core`
 
-### `bitfun-core`
+### `void-core`
 
 `src/crates/core` 是代码库中心。
 
@@ -155,18 +155,18 @@ Agent 运行时心智模型：
 SessionManager → Session → DialogTurn → ModelRound
 ```
 
-会话数据保存在 `.bitfun/sessions/{session_id}/`。
+会话数据保存在 `.void/sessions/{session_id}/`。
 
 ## 验证
 
 | 改动类型 | 最低验证要求 |
 |---|---|
 | 前端 UI、状态、适配层或多语言文案 | `pnpm run lint:web && pnpm run type-check:web && pnpm --dir src/web-ui run test:run` |
-| Deep Review / 代码审核团队行为 | 运行上面的前端验证，再运行 `cargo test -p bitfun-core deep_review -- --nocapture`；如果触及后端或 Tauri API，还需要运行下方 Rust / 桌面端验证 |
+| Deep Review / 代码审核团队行为 | 运行上面的前端验证，再运行 `cargo test -p void-core deep_review -- --nocapture`；如果触及后端或 Tauri API，还需要运行下方 Rust / 桌面端验证 |
 | `core`、`transport`、`api-layer` 或共享服务中的 Rust 逻辑 | `cargo check --workspace && cargo test --workspace` |
-| 桌面端集成、Tauri API、browser/computer-use 或桌面专属行为 | `cargo check -p bitfun-desktop && cargo test -p bitfun-desktop` |
-| 被桌面端 smoke/functional 流覆盖的行为 | `cargo build -p bitfun-desktop` 后运行最接近的 E2E spec，或 `pnpm run e2e:test:l0` |
-| `src/crates/ai-adapters` | 运行上面相关 Rust 检查，**并且**运行 `cargo test -p bitfun-agent-stream` 验证 stream contract |
+| 桌面端集成、Tauri API、browser/computer-use 或桌面专属行为 | `cargo check -p void-desktop && cargo test -p void-desktop` |
+| 被桌面端 smoke/functional 流覆盖的行为 | `cargo build -p void-desktop` 后运行最接近的 E2E spec，或 `pnpm run e2e:test:l0` |
+| `src/crates/ai-adapters` | 运行上面相关 Rust 检查，**并且**运行 `cargo test -p void-agent-stream` 验证 stream contract |
 | 安装器应用 | `pnpm run installer:build` |
 
 ## 先看哪里

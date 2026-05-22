@@ -6,16 +6,16 @@ use std::time::Duration;
 use crate::infrastructure::try_get_path_manager_arc;
 use crate::service::mcp::protocol::MCPServerInfo;
 use crate::service::mcp::server::{MCPConnection, MCPServerConfig, MCPServerStatus, MCPServerType};
-use crate::util::errors::BitFunResult;
+use crate::util::errors::VoidResult;
 
 pub struct MCPServerProcess {
-    inner: bitfun_services_integrations::mcp::server::MCPServerProcess,
+    inner: void_services_integrations::mcp::server::MCPServerProcess,
 }
 
 impl MCPServerProcess {
     pub fn new(id: String, name: String, server_type: MCPServerType) -> Self {
         Self {
-            inner: bitfun_services_integrations::mcp::server::MCPServerProcess::new(
+            inner: void_services_integrations::mcp::server::MCPServerProcess::new(
                 id,
                 name,
                 server_type,
@@ -28,18 +28,18 @@ impl MCPServerProcess {
         command: &str,
         args: &[String],
         env: &std::collections::HashMap<String, String>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.inner.start(command, args, env).await?;
         Ok(())
     }
 
-    pub async fn start_remote(&mut self, config: &MCPServerConfig) -> BitFunResult<()> {
+    pub async fn start_remote(&mut self, config: &MCPServerConfig) -> VoidResult<()> {
         let data_dir = try_get_path_manager_arc()?.user_data_dir();
         self.inner.start_remote(data_dir, config).await?;
         Ok(())
     }
 
-    pub async fn stop(&mut self) -> BitFunResult<()> {
+    pub async fn stop(&mut self) -> VoidResult<()> {
         self.inner.stop().await?;
         Ok(())
     }
@@ -49,7 +49,7 @@ impl MCPServerProcess {
         command: &str,
         args: &[String],
         env: &std::collections::HashMap<String, String>,
-    ) -> BitFunResult<()> {
+    ) -> VoidResult<()> {
         self.inner.restart(command, args, env).await?;
         Ok(())
     }

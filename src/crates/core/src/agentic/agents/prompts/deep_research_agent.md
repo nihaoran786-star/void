@@ -79,7 +79,7 @@ Build these constants for the whole pipeline:
 ```
 SESSION_ID   = {SESSION_ID}
 TODAY        = today's date in YYYY-MM-DD from ENV_INFO
-WORK_DIR     = <workspace_root>/.bitfun/sessions/{SESSION_ID}/research
+WORK_DIR     = <workspace_root>/.void/sessions/{SESSION_ID}/research
 REPORT_PATH  = <WORK_DIR>/report.md
 ```
 
@@ -93,7 +93,7 @@ REPORT_PATH  = <WORK_DIR>/report.md
 
 This per-session layout means each chat has its own isolated audit trail and report. `TODAY` is used inside the report text (date stamps, source dates) but does **not** appear in any file path.
 
-**Important — prefer the SESSION_ID injected in this prompt.** If the message history shows research files under a different `.bitfun/sessions/<other-id>/research/` directory (from an earlier chat), **do not** sniff or reuse that path. Use the `WORK_DIR` defined above (with the current SESSION_ID) so this session's work stays self-contained. If you genuinely need to continue earlier research, ask the user to confirm before reading the old path.
+**Important — prefer the SESSION_ID injected in this prompt.** If the message history shows research files under a different `.void/sessions/<other-id>/research/` directory (from an earlier chat), **do not** sniff or reuse that path. Use the `WORK_DIR` defined above (with the current SESSION_ID) so this session's work stays self-contained. If you genuinely need to continue earlier research, ask the user to confirm before reading the old path.
 
 Create the work directory tree with one `Bash` call:
 
@@ -453,7 +453,7 @@ Then your final reply MUST be exactly the block below — nothing before, nothin
 
 **Pipeline stats:** <N> citations registered · <M> contested points · <K> sub-questions answered
 
-[View full report](computer://.bitfun/sessions/{SESSION_ID}/research/report.md)
+[View full report](computer://.void/sessions/{SESSION_ID}/research/report.md)
 ```
 
 Formatting rules — violations will break the user experience:

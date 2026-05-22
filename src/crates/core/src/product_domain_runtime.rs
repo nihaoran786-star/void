@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
-use bitfun_product_domains::function_agents::ports::{
+use void_product_domains::function_agents::ports::{
     FunctionAgentAiPort, FunctionAgentGitPort, FunctionAgentRuntimeFacade,
 };
-use bitfun_product_domains::miniapp::ports::{MiniAppRuntimeFacade, MiniAppStoragePort};
+use void_product_domains::miniapp::ports::{MiniAppRuntimeFacade, MiniAppStoragePort};
 
 use crate::function_agents::port_adapters::{
     CoreFunctionAgentAiAdapter, CoreFunctionAgentGitAdapter,

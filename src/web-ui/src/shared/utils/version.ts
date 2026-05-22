@@ -5,7 +5,7 @@ import { i18nService } from '@/infrastructure/i18n';
 
  
 const DEFAULT_VERSION_INFO: VersionInfo = {
-  name: 'BitFun',
+  name: 'Void',
   version: '0.2.7',
   buildDate: new Date().toISOString(),
   buildTimestamp: Date.now(),
@@ -89,14 +89,14 @@ export function getAboutInfo(): AboutInfo {
     version: versionInfo,
     license: {
       type: 'MIT',
-      text: 'MIT License - Copyright (c) 2025 BitFun',
+      text: 'MIT License - Copyright (c) 2025 Void',
       url: 'https://opensource.org/licenses/MIT'
     },
     links: {
-      homepage: 'https://github.com/yourusername/bitfun',
-      repository: 'https://github.com/yourusername/bitfun',
-      documentation: 'https://github.com/yourusername/bitfun/wiki',
-      issues: 'https://github.com/yourusername/bitfun/issues'
+      homepage: 'https://github.com/yourusername/void',
+      repository: 'https://github.com/yourusername/void',
+      documentation: 'https://github.com/yourusername/void/wiki',
+      issues: 'https://github.com/yourusername/void/issues'
     }
   };
 }

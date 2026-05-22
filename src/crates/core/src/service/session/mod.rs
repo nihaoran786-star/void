@@ -1,4 +1,4 @@
 //! Session persistence service
 
-pub use bitfun_services_core::session::types;
-pub use bitfun_services_core::session::*;
+pub use void_services_core::session::types;
+pub use void_services_core::session::*;

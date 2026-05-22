@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# BitFun Relay Server — one-click deploy script.
+# Void Relay Server — one-click deploy script.
 # Usage:  bash deploy.sh [--skip-build] [--skip-health-check]
 #
 # Run this script on the target server itself after SSH login.
@@ -16,7 +16,7 @@ SKIP_HEALTH_CHECK=false
 
 usage() {
   cat <<'EOF'
-BitFun Relay Server deploy script
+Void Relay Server deploy script
 
 Usage:
   bash deploy.sh [options]
@@ -64,7 +64,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "=== BitFun Relay Server Deploy ==="
+echo "=== Void Relay Server Deploy ==="
 echo "Target: current machine"
 echo "Note: run this script on the target server after SSH login."
 check_command docker
@@ -120,7 +120,7 @@ echo "=== Deploy complete ==="
 echo "Relay server running on port 9700"
 echo "Caddy proxy on ports 80/443"
 echo ""
-echo "Custom Server URL examples for BitFun Desktop:"
+echo "Custom Server URL examples for Void Desktop:"
 echo "  - Direct relay:        http://<YOUR_SERVER_IP>:9700"
 echo ""
 echo "Check status:  docker compose ps"

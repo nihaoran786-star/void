@@ -2,7 +2,7 @@
  * useMiniAppBridge — handles postMessage JSON-RPC from the MiniApp iframe:
  * worker.call → JS Worker, dialog.open/save/message → Tauri dialog,
  * ai.* → Host AI client, clipboard.* → Host navigator.clipboard.
- * Also handles bitfun/request-theme and pushes theme changes to the iframe.
+ * Also handles void/request-theme and pushes theme changes to the iframe.
  */
 import { useLayoutEffect, useRef, useEffect, RefObject } from 'react';
 import { miniAppAPI } from '@/infrastructure/api/service-api/MiniAppAPI';
@@ -77,24 +77,24 @@ export function useMiniAppBridge(
           '*',
         );
 
-      if (method === 'bitfun/request-theme') {
+      if (method === 'void/request-theme') {
         const payload = buildMiniAppThemeVars(themeRef.current);
         if (payload && iframeRef.current?.contentWindow) {
           iframeRef.current.contentWindow.postMessage(
-            { type: 'bitfun:event', event: 'themeChange', payload },
+            { type: 'void:event', event: 'themeChange', payload },
             '*',
           );
         }
         return;
       }
 
-      if (method === 'bitfun/request-locale') {
+      if (method === 'void/request-locale') {
         // Reply with the current locale id (e.g. "zh-CN" / "en-US"). The MiniApp
         // can use this both as the initial value and to look up its own i18n bundle.
         reply({ locale: localeRef.current });
         if (iframeRef.current?.contentWindow) {
           iframeRef.current.contentWindow.postMessage(
-            { type: 'bitfun:event', event: 'localeChange', payload: { locale: localeRef.current } },
+            { type: 'void:event', event: 'localeChange', payload: { locale: localeRef.current } },
             '*',
           );
         }
@@ -292,7 +292,7 @@ export function useMiniAppBridge(
     const payload = buildMiniAppThemeVars(currentTheme);
     if (!payload || !iframeRef.current?.contentWindow) return;
     iframeRef.current.contentWindow.postMessage(
-      { type: 'bitfun:event', event: 'themeChange', payload },
+      { type: 'void:event', event: 'themeChange', payload },
       '*',
     );
   }, [currentTheme, iframeRef]);
@@ -302,7 +302,7 @@ export function useMiniAppBridge(
   useEffect(() => {
     if (!iframeRef.current?.contentWindow) return;
     iframeRef.current.contentWindow.postMessage(
-      { type: 'bitfun:event', event: 'localeChange', payload: { locale: currentLanguage } },
+      { type: 'void:event', event: 'localeChange', payload: { locale: currentLanguage } },
       '*',
     );
   }, [currentLanguage, iframeRef]);
@@ -315,7 +315,7 @@ export function useMiniAppBridge(
       if (payload.appId !== currentAppId) return;
       iframeRef.current.contentWindow.postMessage(
         {
-          type: 'bitfun:event',
+          type: 'void:event',
           event: 'ai:stream',
           payload: {
             streamId: payload.streamId,
@@ -342,7 +342,7 @@ export function useMiniAppBridge(
         if (!iframeRef.current?.contentWindow) return;
         iframeRef.current.contentWindow.postMessage(
           {
-            type: 'bitfun:event',
+            type: 'void:event',
             event: 'worker:event',
             payload: {
               event: payload.event,

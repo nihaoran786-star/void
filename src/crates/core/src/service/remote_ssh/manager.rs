@@ -2601,7 +2601,7 @@ mod tests {
             .unwrap()
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "bitfun-remote-ssh-manager-{}-{}-{}",
+            "void-remote-ssh-manager-{}-{}-{}",
             name,
             std::process::id(),
             nanos
@@ -2733,14 +2733,14 @@ mod tests {
     #[test]
     fn mkdir_all_prefixes_expand_absolute_posix_path() {
         assert_eq!(
-            sftp_mkdir_all_prefixes("/home/wgq/workspace/bot_detection/.bitfun/bin"),
+            sftp_mkdir_all_prefixes("/home/wgq/workspace/bot_detection/.void/bin"),
             vec![
                 "/home".to_string(),
                 "/home/wgq".to_string(),
                 "/home/wgq/workspace".to_string(),
                 "/home/wgq/workspace/bot_detection".to_string(),
-                "/home/wgq/workspace/bot_detection/.bitfun".to_string(),
-                "/home/wgq/workspace/bot_detection/.bitfun/bin".to_string(),
+                "/home/wgq/workspace/bot_detection/.void".to_string(),
+                "/home/wgq/workspace/bot_detection/.void/bin".to_string(),
             ]
         );
     }

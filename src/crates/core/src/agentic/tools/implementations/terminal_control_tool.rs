@@ -1,7 +1,7 @@
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use log::debug;
 use serde_json::{json, Value};
@@ -28,7 +28,7 @@ impl Tool for TerminalControlTool {
         "TerminalControl"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(r#"Control a terminal session by performing a kill or interrupt action.
 
 Actions:
@@ -140,19 +140,19 @@ The terminal_session_id is returned inside <terminal_session_id>...</terminal_se
         &self,
         input: &Value,
         _context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let terminal_session_id = input
             .get("terminal_session_id")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("terminal_session_id is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("terminal_session_id is required".to_string()))?;
 
         let action = input
             .get("action")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("action is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("action is required".to_string()))?;
 
         let terminal_api = TerminalApi::from_singleton()
-            .map_err(|e| BitFunError::tool(format!("Terminal not initialized: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Terminal not initialized: {}", e)))?;
 
         match action {
             "interrupt" => {
@@ -168,7 +168,7 @@ The terminal_session_id is returned inside <terminal_session_id>...</terminal_se
                     })
                     .await
                     .map_err(|e| {
-                        BitFunError::tool(format!("Failed to interrupt terminal session: {}", e))
+                        VoidError::tool(format!("Failed to interrupt terminal session: {}", e))
                     })?;
 
                 Ok(vec![ToolResult::Result {
@@ -203,7 +203,7 @@ The terminal_session_id is returned inside <terminal_session_id>...</terminal_se
 
                 if is_primary {
                     binding.remove(terminal_session_id).await.map_err(|e| {
-                        BitFunError::tool(format!("Failed to close terminal session: {}", e))
+                        VoidError::tool(format!("Failed to close terminal session: {}", e))
                     })?;
                 } else {
                     terminal_api
@@ -213,7 +213,7 @@ The terminal_session_id is returned inside <terminal_session_id>...</terminal_se
                         })
                         .await
                         .map_err(|e| {
-                            BitFunError::tool(format!("Failed to close terminal session: {}", e))
+                            VoidError::tool(format!("Failed to close terminal session: {}", e))
                         })?;
                 }
 
@@ -240,7 +240,7 @@ The terminal_session_id is returned inside <terminal_session_id>...</terminal_se
                 }])
             }
 
-            _ => Err(BitFunError::tool(format!(
+            _ => Err(VoidError::tool(format!(
                 "Unknown action: '{}'. Must be 'kill' or 'interrupt'.",
                 action
             ))),

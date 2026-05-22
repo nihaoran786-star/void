@@ -10,7 +10,7 @@ use crate::service::git::{
     GitLogParams, GitPullParams, GitPushParams, GitService,
 };
 use crate::util::elapsed_ms_u64;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use log::debug;
 use serde_json::{json, Value};
@@ -115,7 +115,7 @@ impl GitTool {
     fn get_repo_path(
         working_directory: Option<&str>,
         context: &ToolUseContext,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         if let Some(dir) = working_directory {
             let trimmed = dir.trim();
             if trimmed.is_empty() {
@@ -123,7 +123,7 @@ impl GitTool {
                     .workspace
                     .as_ref()
                     .map(|w| w.root_path_string())
-                    .ok_or_else(|| BitFunError::tool("No workspace path available".to_string()));
+                    .ok_or_else(|| VoidError::tool("No workspace path available".to_string()));
             }
             context.resolve_workspace_tool_path(trimmed)
         } else {
@@ -131,7 +131,7 @@ impl GitTool {
                 .workspace
                 .as_ref()
                 .map(|w| w.root_path_string())
-                .ok_or_else(|| BitFunError::tool("No workspace path available".to_string()))
+                .ok_or_else(|| VoidError::tool("No workspace path available".to_string()))
         }
     }
 
@@ -141,9 +141,9 @@ impl GitTool {
         operation: &str,
         args: Option<&str>,
         context: &ToolUseContext,
-    ) -> BitFunResult<Value> {
+    ) -> VoidResult<Value> {
         let shell = context.ws_shell().ok_or_else(|| {
-            BitFunError::tool("Remote Git requires workspace shell (SSH)".to_string())
+            VoidError::tool("Remote Git requires workspace shell (SSH)".to_string())
         })?;
 
         let args_str = args.unwrap_or("").trim();
@@ -165,7 +165,7 @@ impl GitTool {
         let (stdout, stderr, exit_code) = shell
             .exec(&cmd, Some(180_000))
             .await
-            .map_err(|e| BitFunError::tool(format!("Remote git failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Remote git failed: {}", e)))?;
 
         Ok(json!({
             "success": exit_code == 0,
@@ -178,10 +178,10 @@ impl GitTool {
     }
 
     /// Execute status operation using GitService
-    async fn execute_status(repo_path: &str) -> BitFunResult<Value> {
+    async fn execute_status(repo_path: &str) -> VoidResult<Value> {
         let status = GitService::get_status(repo_path)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git status failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git status failed: {}", e)))?;
 
         // Build output text
         let mut output_lines = vec![];
@@ -312,7 +312,7 @@ impl GitTool {
     }
 
     /// Execute diff operation using GitService
-    async fn execute_diff(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_diff(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let parsed = Self::parse_diff_args(args.unwrap_or(""));
 
         let params = GitDiffParams {
@@ -325,7 +325,7 @@ impl GitTool {
 
         let diff_output = GitService::get_diff(repo_path, &params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git diff failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git diff failed: {}", e)))?;
 
         // When there are no differences, git diff returns exit code 0 with an
         // empty stdout. Return a friendly message so the model (and user) see
@@ -345,7 +345,7 @@ impl GitTool {
     }
 
     /// Execute log operation using GitService
-    async fn execute_log(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_log(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
 
         // Parse parameters
@@ -382,7 +382,7 @@ impl GitTool {
 
         let commits = GitService::get_commits(repo_path, params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git log failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git log failed: {}", e)))?;
 
         // Build output
         let output_lines: Vec<String> = commits
@@ -413,7 +413,7 @@ impl GitTool {
     }
 
     /// Execute add operation using GitService
-    async fn execute_add(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_add(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or(".");
         let all = args_str.contains("-A") || args_str.contains("--all");
         let update = args_str.contains("-u") || args_str.contains("--update");
@@ -436,7 +436,7 @@ impl GitTool {
 
         let result = GitService::add_files(repo_path, params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git add failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git add failed: {}", e)))?;
 
         Ok(json!({
             "success": result.success,
@@ -448,7 +448,7 @@ impl GitTool {
     }
 
     /// Execute commit operation using GitService
-    async fn execute_commit(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_commit(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
 
         // Parse commit message
@@ -471,7 +471,7 @@ impl GitTool {
                 rest.split_whitespace().next().unwrap_or("").to_string()
             }
         } else {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "Commit message is required (-m \"message\")".to_string(),
             ));
         };
@@ -486,7 +486,7 @@ impl GitTool {
 
         let result = GitService::commit(repo_path, params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git commit failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git commit failed: {}", e)))?;
 
         Ok(json!({
             "success": result.success,
@@ -498,7 +498,7 @@ impl GitTool {
     }
 
     /// Execute push operation using GitService
-    async fn execute_push(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_push(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
         let parts: Vec<&str> = args_str
             .split_whitespace()
@@ -514,7 +514,7 @@ impl GitTool {
 
         let result = GitService::push(repo_path, params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git push failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git push failed: {}", e)))?;
 
         Ok(json!({
             "success": result.success,
@@ -526,7 +526,7 @@ impl GitTool {
     }
 
     /// Execute pull operation using GitService
-    async fn execute_pull(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_pull(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
         let parts: Vec<&str> = args_str
             .split_whitespace()
@@ -541,7 +541,7 @@ impl GitTool {
 
         let result = GitService::pull(repo_path, params)
             .await
-            .map_err(|e| BitFunError::tool(format!("Git pull failed: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Git pull failed: {}", e)))?;
 
         Ok(json!({
             "success": result.success,
@@ -553,7 +553,7 @@ impl GitTool {
     }
 
     /// Execute checkout/switch operation using GitService
-    async fn execute_checkout(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_checkout(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
         let create_branch = args_str.contains("-b");
 
@@ -561,7 +561,7 @@ impl GitTool {
         let branch_name = args_str
             .split_whitespace()
             .rfind(|s| !s.starts_with('-'))
-            .ok_or_else(|| BitFunError::tool("Branch name is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("Branch name is required".to_string()))?;
 
         let result = if create_branch {
             // Create and switch to new branch
@@ -573,7 +573,7 @@ impl GitTool {
             // Switch to existing branch
             GitService::checkout_branch(repo_path, branch_name).await
         }
-        .map_err(|e| BitFunError::tool(format!("Git checkout failed: {}", e)))?;
+        .map_err(|e| VoidError::tool(format!("Git checkout failed: {}", e)))?;
 
         Ok(json!({
             "success": result.success,
@@ -585,7 +585,7 @@ impl GitTool {
     }
 
     /// Execute branch operation using GitService
-    async fn execute_branch(repo_path: &str, args: Option<&str>) -> BitFunResult<Value> {
+    async fn execute_branch(repo_path: &str, args: Option<&str>) -> VoidResult<Value> {
         let args_str = args.unwrap_or("");
 
         // Check if it's a list branches operation
@@ -599,7 +599,7 @@ impl GitTool {
             let include_remote = args_str.contains("-a") || args_str.contains("-r");
             let branches = GitService::get_branches(repo_path, include_remote)
                 .await
-                .map_err(|e| BitFunError::tool(format!("Git branch failed: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Git branch failed: {}", e)))?;
 
             let output: Vec<String> = branches
                 .iter()
@@ -626,12 +626,12 @@ impl GitTool {
                 .split_whitespace()
                 .find(|s| !s.starts_with('-'))
                 .ok_or_else(|| {
-                    BitFunError::tool("Branch name is required for deletion".to_string())
+                    VoidError::tool("Branch name is required for deletion".to_string())
                 })?;
 
             let result = GitService::delete_branch(repo_path, branch_name, force)
                 .await
-                .map_err(|e| BitFunError::tool(format!("Git branch delete failed: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Git branch delete failed: {}", e)))?;
 
             Ok(json!({
                 "success": result.success,
@@ -648,7 +648,7 @@ impl GitTool {
 
             let output = execute_git_command(repo_path, &cmd_args)
                 .await
-                .map_err(|e| BitFunError::tool(format!("Git branch failed: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("Git branch failed: {}", e)))?;
 
             Ok(json!({
                 "success": true,
@@ -664,7 +664,7 @@ impl GitTool {
         repo_path: &str,
         operation: &str,
         args: Option<&str>,
-    ) -> BitFunResult<Value> {
+    ) -> VoidResult<Value> {
         let mut cmd_args: Vec<&str> = vec![operation];
 
         if let Some(args_str) = args {
@@ -722,7 +722,7 @@ impl Tool for GitTool {
         "Git"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(r#"Executes Git commands for version control operations.
 
 This tool provides a safe and convenient way to execute Git commands. It supports common Git operations like status, diff, log, add, commit, branch, checkout, pull, push, and more.
@@ -823,7 +823,7 @@ When creating commits, use this format for the commit message:
     async fn description_with_context(
         &self,
         context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         let mut base = self.description().await?;
         if context.map(|c| c.is_remote()).unwrap_or(false) {
             base.push_str(
@@ -1043,11 +1043,11 @@ When creating commits, use this format for the commit message:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let operation = input
             .get("operation")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| BitFunError::tool("operation is required".to_string()))?;
+            .ok_or_else(|| VoidError::tool("operation is required".to_string()))?;
 
         let args = input.get("args").and_then(|v| v.as_str());
 

@@ -6,7 +6,7 @@
 
 @use '../../component-library/styles/tokens' as *;
 
-.bitfun-chat-input-workspace-strip {
+.void-chat-input-workspace-strip {
   position: absolute;
   bottom: 0;
   z-index: 4;
@@ -25,7 +25,7 @@
     justify-content: flex-end;
   }
   /* Room for descenders (g, y, p) */
-  /* Collapsed capsule uses 18px horizontal padding on `.bitfun-chat-input__box`; match so strip text lines up with pill content */
+  /* Collapsed capsule uses 18px horizontal padding on `.void-chat-input__box`; match so strip text lines up with pill content */
   padding: 3px 18px 4px;
   font-family: var(--font-sans, var(--font-family-sans, inherit));
   font-size: var(--flowchat-font-size-xxs);
@@ -36,15 +36,15 @@
   user-select: text;
   pointer-events: auto;
 
-  /* Default (collapsed / idle capsule): same width as `.bitfun-chat-input--collapsed`, centered */
+  /* Default (collapsed / idle capsule): same width as `.void-chat-input--collapsed`, centered */
   left: 50%;
   right: auto;
   transform: translateX(-50%);
   width: min(380px, 80%);
   max-width: calc(100% - #{$size-gap-2 * 2});
 
-  /* Expanded: indent past the rounded card edge — align with `.bitfun-chat-input__box` inner padding (8px) on top of drop-zone horizontal padding */
-  .bitfun-chat-input-drop-zone:has(.bitfun-chat-input--active) & {
+  /* Expanded: indent past the rounded card edge — align with `.void-chat-input__box` inner padding (8px) on top of drop-zone horizontal padding */
+  .void-chat-input-drop-zone:has(.void-chat-input--active) & {
     left: 0;
     right: 0;
     transform: none;

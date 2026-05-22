@@ -27,7 +27,7 @@ use crate::agentic::events::{
     DeepReviewQueueReason, DeepReviewQueueState, DeepReviewQueueStatus, ErrorCategory,
 };
 use crate::agentic::subagent_runtime::queue_timing::QueueWaitTimer;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
@@ -458,7 +458,7 @@ pub(crate) fn queue_reason_to_snake_case(reason: DeepReviewCapacityQueueReason) 
 }
 
 pub(crate) fn capacity_decision_for_provider_error(
-    error: &BitFunError,
+    error: &VoidError,
 ) -> DeepReviewCapacityQueueDecision {
     let detail = error.error_detail();
     let error_message = error.to_string();
@@ -926,7 +926,7 @@ pub(crate) async fn wait_for_reviewer_admission(
     conc_policy: &DeepReviewConcurrencyPolicy,
     is_optional_reviewer: bool,
     launch_batch_info: Option<&DeepReviewLaunchBatchInfo>,
-) -> BitFunResult<DeepReviewQueueWaitOutcome> {
+) -> VoidResult<DeepReviewQueueWaitOutcome> {
     let decision = classify_deep_review_capacity_error(
         "deep_review_concurrency_cap_reached",
         "Maximum parallel reviewer instances reached",
@@ -1039,7 +1039,7 @@ pub(crate) async fn wait_for_reviewer_admission(
                 current_reason = DeepReviewCapacityQueueReason::LaunchBatchBlocked;
             }
             Err(violation) => {
-                return Err(BitFunError::tool(format!(
+                return Err(VoidError::tool(format!(
                     "DeepReview Task policy violation: {}",
                     violation.to_tool_error_message()
                 )));

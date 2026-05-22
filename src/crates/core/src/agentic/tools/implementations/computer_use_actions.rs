@@ -11,7 +11,7 @@ use crate::agentic::tools::computer_use_host::{
 };
 use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
 use crate::util::elapsed_ms_u64;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use crate::util::process_manager;
 use serde_json::{json, Value};
 
@@ -169,10 +169,10 @@ impl ComputerUseActions {
         action: &str,
         params: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let host = context.computer_use_host.as_ref().ok_or_else(|| {
-            BitFunError::tool(
-                "Desktop control is only available in the BitFun desktop app".to_string(),
+            VoidError::tool(
+                "Desktop control is only available in the Void desktop app".to_string(),
             )
         })?;
 
@@ -222,7 +222,7 @@ impl ComputerUseActions {
                     .get("text")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "[INVALID_PARAMS] desktop.paste requires 'text'\nHints: example { \"action\":\"paste\", \"text\":\"hello\", \"submit\":true }"
                                 .to_string(),
                         )
@@ -324,7 +324,7 @@ impl ComputerUseActions {
                 let display_id = match params.get("display_id") {
                     Some(Value::Null) | None => None,
                     Some(v) => Some(v.as_u64().ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "focus_display: 'display_id' must be a non-negative integer or null"
                                 .to_string(),
                         )
@@ -361,7 +361,7 @@ impl ComputerUseActions {
             let target = match v {
                 Value::Null => None,
                 v => Some(v.as_u64().ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "display_id must be a non-negative integer or null".to_string(),
                     )
                 })? as u32),
@@ -395,22 +395,22 @@ impl ComputerUseActions {
         host: &ComputerUseHostRef,
         action: &str,
         params: &Value,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         // ── Helpers ─────────────────────────────────────────────────
-        fn parse_selector(v: &Value) -> BitFunResult<AppSelector> {
+        fn parse_selector(v: &Value) -> VoidResult<AppSelector> {
             let obj = v.get("app").ok_or_else(|| {
-                BitFunError::tool(
+                VoidError::tool(
                     "[INVALID_PARAMS] missing 'app' selector (pid|bundle_id|name)".to_string(),
                 )
             })?;
             let sel: AppSelector = serde_json::from_value(obj.clone()).map_err(|e| {
-                BitFunError::tool(format!(
+                VoidError::tool(format!(
                     "[INVALID_PARAMS] bad 'app' selector: {} (expect {{pid|bundle_id|name}})",
                     e
                 ))
             })?;
             if sel.pid.is_none() && sel.bundle_id.is_none() && sel.name.is_none() {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "[INVALID_PARAMS] 'app' must include at least one of pid|bundle_id|name"
                         .to_string(),
                 ));
@@ -418,10 +418,10 @@ impl ComputerUseActions {
             Ok(sel)
         }
 
-        fn parse_click_target(v: &Value) -> BitFunResult<ClickTarget> {
+        fn parse_click_target(v: &Value) -> VoidResult<ClickTarget> {
             if v.get("kind").is_some() {
                 return serde_json::from_value(v.clone()).map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "[INVALID_PARAMS] bad ClickTarget: {} (expected {{\"kind\":\"node_idx\",\"idx\":N}}, {{\"kind\":\"image_xy\",\"x\":0,\"y\":0}}, {{\"kind\":\"image_grid\",\"x0\":0,\"y0\":0,\"width\":300,\"height\":300,\"rows\":15,\"cols\":15,\"row\":7,\"col\":7,\"intersections\":true}}, {{\"kind\":\"visual_grid\",\"rows\":15,\"cols\":15,\"row\":7,\"col\":7,\"intersections\":true}}, {{\"kind\":\"screen_xy\",\"x\":0,\"y\":0}}, or {{\"kind\":\"ocr_text\",\"needle\":\"...\"}})",
                         e
                     ))
@@ -432,12 +432,12 @@ impl ComputerUseActions {
             }
             if let Some(obj) = v.get("screen_xy") {
                 let x = obj.get("x").and_then(|x| x.as_f64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] screen_xy target requires numeric x".to_string(),
                     )
                 })?;
                 let y = obj.get("y").and_then(|y| y.as_f64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] screen_xy target requires numeric y".to_string(),
                     )
                 })?;
@@ -445,12 +445,12 @@ impl ComputerUseActions {
             }
             if let Some(obj) = v.get("image_xy") {
                 let x = obj.get("x").and_then(|x| x.as_i64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] image_xy target requires integer x".to_string(),
                     )
                 })?;
                 let y = obj.get("y").and_then(|y| y.as_i64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] image_xy target requires integer y".to_string(),
                     )
                 })?;
@@ -478,7 +478,7 @@ impl ComputerUseActions {
                     "screenshot_id": obj.get("screenshot_id").cloned().unwrap_or(Value::Null),
                 });
                 return serde_json::from_value(target).map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "[INVALID_PARAMS] bad image_grid target: {} (need x0,y0,width,height,rows,cols,row,col; optional intersections)",
                         e
                     ))
@@ -495,7 +495,7 @@ impl ComputerUseActions {
                     "wait_ms_after_detection": obj.get("wait_ms_after_detection").cloned().unwrap_or(Value::Null),
                 });
                 return serde_json::from_value(target).map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "[INVALID_PARAMS] bad visual_grid target: {} (need rows,cols,row,col; optional intersections)",
                         e
                     ))
@@ -503,12 +503,12 @@ impl ComputerUseActions {
             }
             if v.get("x").is_some() || v.get("y").is_some() {
                 let x = v.get("x").and_then(|x| x.as_f64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] screen target requires numeric x".to_string(),
                     )
                 })?;
                 let y = v.get("y").and_then(|y| y.as_f64()).ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] screen target requires numeric y".to_string(),
                     )
                 })?;
@@ -520,7 +520,7 @@ impl ComputerUseActions {
                     .or_else(|| ocr.get("text"))
                     .and_then(|x| x.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "[INVALID_PARAMS] ocr_text target requires needle".to_string(),
                         )
                     })?;
@@ -528,15 +528,15 @@ impl ComputerUseActions {
                     needle: needle.to_string(),
                 });
             }
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "[INVALID_PARAMS] unsupported ClickTarget. Use {\"kind\":\"node_idx\",\"idx\":N}, {\"node_idx\":N}, {\"kind\":\"image_xy\",\"x\":0,\"y\":0}, {\"image_xy\":{\"x\":0,\"y\":0}}, {\"kind\":\"image_grid\",\"x0\":0,\"y0\":0,\"width\":300,\"height\":300,\"rows\":15,\"cols\":15,\"row\":7,\"col\":7,\"intersections\":true}, {\"kind\":\"visual_grid\",\"rows\":15,\"cols\":15,\"row\":7,\"col\":7,\"intersections\":true}, {\"kind\":\"screen_xy\",\"x\":0,\"y\":0}, or {\"ocr_text\":{\"needle\":\"...\"}}.".to_string(),
             ))
         }
 
-        fn parse_wait_predicate(v: &Value) -> BitFunResult<AppWaitPredicate> {
+        fn parse_wait_predicate(v: &Value) -> VoidResult<AppWaitPredicate> {
             if v.get("kind").is_some() {
                 return serde_json::from_value(v.clone()).map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "[INVALID_PARAMS] bad app_wait_for predicate: {}",
                         e
                     ))
@@ -548,7 +548,7 @@ impl ComputerUseActions {
                     .or_else(|| obj.get("from"))
                     .and_then(|x| x.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "[INVALID_PARAMS] digest_changed requires prev_digest".to_string(),
                         )
                     })?;
@@ -563,7 +563,7 @@ impl ComputerUseActions {
                     .and_then(|x| x.as_str())
                     .or_else(|| obj.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "[INVALID_PARAMS] title_contains requires needle".to_string(),
                         )
                     })?;
@@ -573,7 +573,7 @@ impl ComputerUseActions {
             }
             if let Some(obj) = v.get("role_enabled") {
                 let role = obj.get("role").and_then(|x| x.as_str()).ok_or_else(|| {
-                    BitFunError::tool("[INVALID_PARAMS] role_enabled requires role".to_string())
+                    VoidError::tool("[INVALID_PARAMS] role_enabled requires role".to_string())
                 })?;
                 return Ok(AppWaitPredicate::RoleEnabled {
                     role: role.to_string(),
@@ -585,11 +585,11 @@ impl ComputerUseActions {
                     .and_then(|x| x.as_u64())
                     .or_else(|| obj.as_u64())
                     .ok_or_else(|| {
-                        BitFunError::tool("[INVALID_PARAMS] node_enabled requires idx".to_string())
+                        VoidError::tool("[INVALID_PARAMS] node_enabled requires idx".to_string())
                     })?;
                 return Ok(AppWaitPredicate::NodeEnabled { idx: idx as u32 });
             }
-            Err(BitFunError::tool(
+            Err(VoidError::tool(
                 "[INVALID_PARAMS] unsupported app_wait_for predicate. Use {\"kind\":\"digest_changed\",\"prev_digest\":\"...\"} or shorthand {\"digest_changed\":{\"prev_digest\":\"...\"}}.".to_string(),
             ))
         }
@@ -918,7 +918,7 @@ impl ComputerUseActions {
             "app_click" => {
                 let app = parse_selector(params)?;
                 let target_v = params.get("target").cloned().ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] app_click requires 'target' ({node_idx|image_xy|screen_xy|ocr_text})"
                             .to_string(),
                     )
@@ -993,7 +993,7 @@ impl ComputerUseActions {
                     .get("text")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "[INVALID_PARAMS] app_type_text requires 'text'".to_string(),
                         )
                     })?
@@ -1069,7 +1069,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let keys = parse_keys(params);
                 if keys.is_empty() {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "[INVALID_PARAMS] app_key_chord requires non-empty 'keys'".to_string(),
                     ));
                 }
@@ -1098,7 +1098,7 @@ impl ComputerUseActions {
             "app_wait_for" => {
                 let app = parse_selector(params)?;
                 let predicate_v = params.get("predicate").cloned().ok_or_else(|| {
-                    BitFunError::tool(
+                    VoidError::tool(
                         "[INVALID_PARAMS] app_wait_for requires 'predicate'".to_string(),
                     )
                 })?;
@@ -1132,7 +1132,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let opts: InteractiveViewOpts = match params.get("opts") {
                     Some(v) if !v.is_null() => serde_json::from_value(v.clone()).map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "[INVALID_PARAMS] build_interactive_view 'opts' invalid: {}",
                             e
                         ))
@@ -1157,7 +1157,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let p: InteractiveClickParams =
                     serde_json::from_value(params.clone()).map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "[INVALID_PARAMS] interactive_click params invalid: {}",
                             e
                         ))
@@ -1176,7 +1176,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let opts: VisualMarkViewOpts = match params.get("opts") {
                     Some(v) if !v.is_null() => serde_json::from_value(v.clone()).map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "[INVALID_PARAMS] build_visual_mark_view 'opts' invalid: {}",
                             e
                         ))
@@ -1200,7 +1200,7 @@ impl ComputerUseActions {
             "visual_click" => {
                 let app = parse_selector(params)?;
                 let p: VisualClickParams = serde_json::from_value(params.clone()).map_err(|e| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "[INVALID_PARAMS] visual_click params invalid: {}",
                         e
                     ))
@@ -1219,7 +1219,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let p: InteractiveTypeTextParams =
                     serde_json::from_value(params.clone()).map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "[INVALID_PARAMS] interactive_type_text params invalid: {}",
                             e
                         ))
@@ -1246,7 +1246,7 @@ impl ComputerUseActions {
                 let app = parse_selector(params)?;
                 let p: InteractiveScrollParams =
                     serde_json::from_value(params.clone()).map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "[INVALID_PARAMS] interactive_scroll params invalid: {}",
                             e
                         ))
@@ -1266,7 +1266,7 @@ impl ComputerUseActions {
                 let summary = format!("interactive_scroll i={:?} dx={} dy={}", i, dx, dy);
                 Ok(vec![interactive_action_result(data, Some(summary), &res)])
             }
-            other => Err(BitFunError::tool(format!(
+            other => Err(VoidError::tool(format!(
                 "[INTERNAL] handle_desktop_ax called with unknown action: {}",
                 other
             ))),
@@ -1324,13 +1324,13 @@ impl ComputerUseActions {
         action: &str,
         params: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         match action {
             "open_app" => {
                 let app_name = params
                     .get("app_name")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| BitFunError::tool("open_app requires 'app_name'".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("open_app requires 'app_name'".to_string()))?;
 
                 // Phase 4 (p4_open_app_unify): consolidate the two historical
                 // launch paths (ComputerUse host vs. raw shell `open`/`start`)
@@ -1434,7 +1434,7 @@ impl ComputerUseActions {
                 }
                 let _ = chosen_args;
                 let output = output_opt.ok_or_else(|| {
-                    BitFunError::tool(format!(
+                    VoidError::tool(format!(
                         "open_app failed for '{}' across {} strategies: {} (host_error: {:?})",
                         app_name,
                         attempts.len(),
@@ -1460,7 +1460,7 @@ impl ComputerUseActions {
                     )])
                 } else {
                     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                    Err(BitFunError::tool(format!(
+                    Err(VoidError::tool(format!(
                         "open_app failed for '{}'. host_attempted={}, host_error={:?}, last_command='{}', stderr='{}'",
                         app_name, host_attempted, host_error, chosen_cmd, stderr
                     )))
@@ -1470,7 +1470,7 @@ impl ComputerUseActions {
                 let script = params
                     .get("script")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| BitFunError::tool("run_script requires 'script'".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("run_script requires 'script'".to_string()))?;
                 let script_type = params
                     .get("script_type")
                     .and_then(|v| v.as_str())
@@ -1612,7 +1612,7 @@ impl ComputerUseActions {
                         }
                     }
                     other => {
-                        return Err(BitFunError::tool(format!(
+                        return Err(VoidError::tool(format!(
                             "Unknown script_type: '{}'. Valid: applescript (macOS), shell (OS default), bash, powershell, cmd (Windows)",
                             other
                         )))
@@ -1634,7 +1634,7 @@ impl ComputerUseActions {
                     .kill_on_drop(true)
                     .spawn()
                     .map_err(|e| {
-                        BitFunError::tool(format!(
+                        VoidError::tool(format!(
                             "Failed to spawn run_script ({}): {}",
                             script_type, e
                         ))
@@ -1670,7 +1670,7 @@ impl ComputerUseActions {
                             ));
                         }
                         Ok(Err(e)) => {
-                            return Err(BitFunError::tool(format!(
+                            return Err(VoidError::tool(format!(
                                 "Failed to wait for run_script ({}): {}",
                                 script_type, e
                             )));
@@ -1681,7 +1681,7 @@ impl ComputerUseActions {
                     match wait.await {
                         Ok(o) => o,
                         Err(e) => {
-                            return Err(BitFunError::tool(format!(
+                            return Err(VoidError::tool(format!(
                                 "Failed to wait for run_script ({}): {}",
                                 script_type, e
                             )));
@@ -1832,7 +1832,7 @@ impl ComputerUseActions {
             // dramatically simpler than driving each target GUI by hand.
             "clipboard_set" => {
                 let text = params.get("text").and_then(|v| v.as_str()).ok_or_else(|| {
-                    BitFunError::tool("clipboard_set requires 'text'".to_string())
+                    VoidError::tool("clipboard_set requires 'text'".to_string())
                 })?;
                 match clipboard_write(text).await {
                     Ok(()) => Ok(vec![ToolResult::ok(
@@ -1863,7 +1863,7 @@ impl ComputerUseActions {
                 let url = params
                     .get("url")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| BitFunError::tool("open_url requires 'url'".to_string()))?;
+                    .ok_or_else(|| VoidError::tool("open_url requires 'url'".to_string()))?;
                 if !(url.starts_with("http://")
                     || url.starts_with("https://")
                     || url.starts_with("file://")
@@ -1907,7 +1907,7 @@ impl ComputerUseActions {
                     .args(&args)
                     .status()
                     .map_err(|e| {
-                        BitFunError::tool(format!("Failed to spawn '{}': {}", program, e))
+                        VoidError::tool(format!("Failed to spawn '{}': {}", program, e))
                     })?;
                 if status.success() {
                     Ok(vec![ToolResult::ok(
@@ -1931,7 +1931,7 @@ impl ComputerUseActions {
             // for "open this PDF / picture / spreadsheet for me".
             "open_file" => {
                 let path_str = params.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
-                    BitFunError::tool("open_file requires 'path'".to_string())
+                    VoidError::tool("open_file requires 'path'".to_string())
                 })?;
                 let app_name = params.get("app").and_then(|v| v.as_str());
 
@@ -1970,7 +1970,7 @@ impl ComputerUseActions {
                     .args(&args)
                     .status()
                     .map_err(|e| {
-                        BitFunError::tool(format!("Failed to spawn '{}': {}", program, e))
+                        VoidError::tool(format!("Failed to spawn '{}': {}", program, e))
                     })?;
                 if status.success() {
                     Ok(vec![ToolResult::ok(
@@ -1997,7 +1997,7 @@ impl ComputerUseActions {
                 }
             }
 
-            other => Err(BitFunError::tool(format!(
+            other => Err(VoidError::tool(format!(
                 "Unknown system action: '{}'. Valid: open_app, run_script, get_os_info, open_url, open_file, clipboard_get, clipboard_set",
                 other
             ))),

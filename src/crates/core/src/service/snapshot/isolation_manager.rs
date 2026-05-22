@@ -72,7 +72,7 @@ impl IsolationManager {
                 .any(|&forbidden| file_name_str.starts_with(forbidden))
             {
                 return Err(SnapshotError::GitIsolationFailure(format!(
-                    "Found Git-related file in .bitfun directory: {}",
+                    "Found Git-related file in .void directory: {}",
                     file_name_str
                 )));
             }
@@ -126,7 +126,7 @@ impl IsolationManager {
     }
 
     /// Returns the snapshot runtime directory path.
-    pub fn get_bitfun_dir(&self) -> &Path {
+    pub fn get_void_dir(&self) -> &Path {
         &self.runtime_context.runtime_root
     }
 

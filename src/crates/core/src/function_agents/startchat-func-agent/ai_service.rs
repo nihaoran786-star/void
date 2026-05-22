@@ -2,7 +2,7 @@ use super::types::*;
 use crate::function_agents::common::{AgentError, AgentResult, Language};
 use crate::infrastructure::ai::AIClient;
 use crate::util::types::Message;
-use bitfun_product_domains::function_agents::startchat_func_agent::{
+use void_product_domains::function_agents::startchat_func_agent::{
     build_work_state_analysis_prompt, parse_work_state_analysis_response,
 };
 /**
@@ -137,7 +137,7 @@ mod tests {
     use super::*;
     use crate::function_agents::common::AgentErrorType;
     use crate::util::types::AIConfig;
-    use bitfun_ai_adapters::types::ReasoningMode;
+    use void_ai_adapters::types::ReasoningMode;
 
     fn test_service() -> AIWorkStateService {
         AIWorkStateService {

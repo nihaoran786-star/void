@@ -51,9 +51,9 @@ const RESUME_BLOCKING_CATEGORIES = new Set([
 
 const RESULT_RECOVERY_MESSAGES: Record<DeepReviewResultRecoveryReason, string> = {
   missing_submit_code_review:
-    'Deep Review completed, but BitFun did not receive a structured submit_code_review result.',
+    'Deep Review completed, but Void did not receive a structured submit_code_review result.',
   invalid_submit_code_review:
-    'Deep Review submitted a structured result that BitFun could not read.',
+    'Deep Review submitted a structured result that Void could not read.',
   wrong_review_mode:
     'Deep Review submitted a standard Code Review result instead of a Deep Review result.',
 };

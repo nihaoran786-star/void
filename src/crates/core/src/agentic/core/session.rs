@@ -1,5 +1,5 @@
 use super::state::SessionState;
-pub use bitfun_core_types::SessionKind;
+pub use void_core_types::SessionKind;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 use uuid::Uuid;
@@ -140,7 +140,7 @@ pub struct SessionConfig {
     /// `workspace_path` on different hosts (e.g. two `/` roots).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_connection_id: Option<String>,
-    /// SSH config `host` for locating `~/.bitfun/remote_ssh/{host}/.../sessions` when disconnected.
+    /// SSH config `host` for locating `~/.void/remote_ssh/{host}/.../sessions` when disconnected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_ssh_host: Option<String>,
     /// Model config ID used by this session (for token usage tracking)

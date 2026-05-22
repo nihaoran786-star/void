@@ -1,6 +1,6 @@
 /**
  * Build MiniApp theme payload from main app ThemeConfig.
- * Maps to --bitfun-* CSS variables for iframe theme sync.
+ * Maps to --void-* CSS variables for iframe theme sync.
  */
 import type { ThemeConfig, ThemeType } from '@/infrastructure/theme/types';
 
@@ -16,46 +16,46 @@ export function buildMiniAppThemeVars(theme: ThemeConfig | null): MiniAppThemePa
   const { colors, effects, typography } = theme;
   const vars: Record<string, string> = {};
 
-  vars['--bitfun-bg'] = colors.background.primary;
-  vars['--bitfun-bg-secondary'] = colors.background.secondary;
-  vars['--bitfun-bg-tertiary'] = colors.background.tertiary;
-  vars['--bitfun-bg-elevated'] = colors.background.elevated;
+  vars['--void-bg'] = colors.background.primary;
+  vars['--void-bg-secondary'] = colors.background.secondary;
+  vars['--void-bg-tertiary'] = colors.background.tertiary;
+  vars['--void-bg-elevated'] = colors.background.elevated;
 
-  vars['--bitfun-text'] = colors.text.primary;
-  vars['--bitfun-text-secondary'] = colors.text.secondary;
-  vars['--bitfun-text-muted'] = colors.text.muted;
+  vars['--void-text'] = colors.text.primary;
+  vars['--void-text-secondary'] = colors.text.secondary;
+  vars['--void-text-muted'] = colors.text.muted;
 
-  vars['--bitfun-accent'] = colors.accent[500];
-  vars['--bitfun-accent-hover'] = colors.accent[600];
+  vars['--void-accent'] = colors.accent[500];
+  vars['--void-accent-hover'] = colors.accent[600];
 
-  vars['--bitfun-success'] = colors.semantic.success;
-  vars['--bitfun-warning'] = colors.semantic.warning;
-  vars['--bitfun-error'] = colors.semantic.error;
-  vars['--bitfun-info'] = colors.semantic.info;
+  vars['--void-success'] = colors.semantic.success;
+  vars['--void-warning'] = colors.semantic.warning;
+  vars['--void-error'] = colors.semantic.error;
+  vars['--void-info'] = colors.semantic.info;
 
-  vars['--bitfun-border'] = colors.border.base;
-  vars['--bitfun-border-subtle'] = colors.border.subtle;
+  vars['--void-border'] = colors.border.base;
+  vars['--void-border-subtle'] = colors.border.subtle;
 
-  vars['--bitfun-element-bg'] = colors.element.base;
-  vars['--bitfun-element-hover'] = colors.element.medium;
+  vars['--void-element-bg'] = colors.element.base;
+  vars['--void-element-hover'] = colors.element.medium;
 
   if (effects?.radius) {
-    vars['--bitfun-radius'] = effects.radius.base;
-    vars['--bitfun-radius-lg'] = effects.radius.lg;
+    vars['--void-radius'] = effects.radius.base;
+    vars['--void-radius-lg'] = effects.radius.lg;
   }
 
   if (typography?.font) {
-    vars['--bitfun-font-sans'] = typography.font.sans;
-    vars['--bitfun-font-mono'] = typography.font.mono;
+    vars['--void-font-sans'] = typography.font.sans;
+    vars['--void-font-mono'] = typography.font.mono;
   }
 
   if (colors.scrollbar) {
-    vars['--bitfun-scrollbar-thumb'] = colors.scrollbar.thumb;
-    vars['--bitfun-scrollbar-thumb-hover'] = colors.scrollbar.thumbHover;
+    vars['--void-scrollbar-thumb'] = colors.scrollbar.thumb;
+    vars['--void-scrollbar-thumb-hover'] = colors.scrollbar.thumbHover;
   } else {
-    vars['--bitfun-scrollbar-thumb'] =
+    vars['--void-scrollbar-thumb'] =
       theme.type === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.15)';
-    vars['--bitfun-scrollbar-thumb-hover'] =
+    vars['--void-scrollbar-thumb-hover'] =
       theme.type === 'dark' ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.28)';
   }
 

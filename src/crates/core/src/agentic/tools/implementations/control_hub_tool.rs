@@ -20,7 +20,7 @@ use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
 use crate::service::config::{get_global_config_service, GlobalConfig};
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -131,7 +131,7 @@ Branch on `ok` and `error.code`, not on English messages.
         action: &str,
         params: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         match domain {
             "desktop" => {
                 Ok(err_response(
@@ -160,7 +160,7 @@ Branch on `ok` and `error.code`, not on English messages.
                 ),
             )),
             "meta" => self.handle_meta(action, params, context).await,
-            other => Err(BitFunError::tool(format!(
+            other => Err(VoidError::tool(format!(
                 "Unknown domain: '{}'. Valid ControlHub domains: browser, terminal, meta. Use ComputerUse for desktop/system actions.",
                 other
             ))),
@@ -180,14 +180,14 @@ Branch on `ok` and `error.code`, not on English messages.
         action: &str,
         params: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         match action {
             "capabilities" => {
                 // `terminal` (TerminalApi) is delivered through a global
                 // registry rather than a field on the context, so we can't be
                 // 100% sure here without round-tripping. We report "likely
                 // available iff a desktop host is present" because that bridge
-                // only exists in BitFun's desktop runtime; the actual call will
+                // only exists in Void's desktop runtime; the actual call will
                 // surface a clean error if the bridge is offline.
                 let likely_terminal_available = context.computer_use_host.is_some();
                 let browser_default = browser_sessions().default_id().await;
@@ -269,7 +269,7 @@ Branch on `ok` and `error.code`, not on English messages.
                     .get("intent")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool("route_hint requires 'intent' (string)".to_string())
+                        VoidError::tool("route_hint requires 'intent' (string)".to_string())
                     })?;
                 let lower = intent.to_lowercase();
 
@@ -377,14 +377,14 @@ Branch on `ok` and `error.code`, not on English messages.
                     }),
                 )])
             }
-            other => Err(BitFunError::tool(format!(
+            other => Err(VoidError::tool(format!(
                 "Unknown meta action: '{}'. Valid actions: capabilities, route_hint",
                 other
             ))),
         }
     }
 
-    async fn handle_browser(&self, action: &str, params: &Value) -> BitFunResult<Vec<ToolResult>> {
+    async fn handle_browser(&self, action: &str, params: &Value) -> VoidResult<Vec<ToolResult>> {
         let port = params
             .get("port")
             .and_then(|v| v.as_u64())
@@ -521,10 +521,10 @@ Branch on `ok` and `error.code`, not on English messages.
                             })
                             .or_else(|| pages.first())
                             .ok_or_else(|| {
-                                BitFunError::tool("No browser pages found via CDP".to_string())
+                                VoidError::tool("No browser pages found via CDP".to_string())
                             })?;
                         let ws_url = page.web_socket_debugger_url.as_ref().ok_or_else(|| {
-                            BitFunError::tool("Page has no WebSocket debugger URL".to_string())
+                            VoidError::tool("Page has no WebSocket debugger URL".to_string())
                         })?;
                         let client = CdpClient::connect(ws_url).await?;
                         let version = CdpClient::get_version(port).await?;
@@ -705,7 +705,7 @@ Branch on `ok` and `error.code`, not on English messages.
                     .get("page_id")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        BitFunError::tool("switch_page requires 'page_id'".to_string())
+                        VoidError::tool("switch_page requires 'page_id'".to_string())
                     })?;
                 // Phase 2: by default ALSO surface the chosen tab in the
                 // user's actual browser window via `Page.bringToFront`. The
@@ -726,10 +726,10 @@ Branch on `ok` and `error.code`, not on English messages.
                 } else {
                     let pages = CdpClient::list_pages(port).await?;
                     let page = pages.iter().find(|p| p.id == page_id).ok_or_else(|| {
-                        BitFunError::tool(format!("Page '{}' not found", page_id))
+                        VoidError::tool(format!("Page '{}' not found", page_id))
                     })?;
                     let ws_url = page.web_socket_debugger_url.as_ref().ok_or_else(|| {
-                        BitFunError::tool("Page has no WebSocket URL".to_string())
+                        VoidError::tool("Page has no WebSocket URL".to_string())
                     })?;
                     let client = CdpClient::connect(ws_url).await?;
                     let session = BrowserSession {
@@ -808,7 +808,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("url")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("navigate requires 'url'".to_string())
+                                VoidError::tool("navigate requires 'url'".to_string())
                             })?;
                         let result = actions.navigate(url).await?;
                         Ok(vec![ToolResult::ok(result, Some(format!("Navigated to {}", url)))])
@@ -834,7 +834,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("selector")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("click requires 'selector'".to_string())
+                                VoidError::tool("click requires 'selector'".to_string())
                             })?;
                         let result = actions.click(selector).await?;
                         Ok(vec![ToolResult::ok(
@@ -847,13 +847,13 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("selector")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("fill requires 'selector'".to_string())
+                                VoidError::tool("fill requires 'selector'".to_string())
                             })?;
                         let value = params
                             .get("value")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("fill requires 'value'".to_string())
+                                VoidError::tool("fill requires 'value'".to_string())
                             })?;
                         let result = actions.fill(selector, value).await?;
                         Ok(vec![ToolResult::ok(
@@ -866,7 +866,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("text")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("type requires 'text'".to_string())
+                                VoidError::tool("type requires 'text'".to_string())
                             })?;
                         let result = actions.type_text(text).await?;
                         Ok(vec![ToolResult::ok(result, Some("Typed text".to_string()))])
@@ -876,13 +876,13 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("selector")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("select requires 'selector'".to_string())
+                                VoidError::tool("select requires 'selector'".to_string())
                             })?;
                         let option_text = params
                             .get("option_text")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("select requires 'option_text'".to_string())
+                                VoidError::tool("select requires 'option_text'".to_string())
                             })?;
                         let result = actions.select(selector, option_text).await?;
                         // Phase 3: the underlying JS returns `{ error, available }`
@@ -929,7 +929,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("key")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("press_key requires 'key'".to_string())
+                                VoidError::tool("press_key requires 'key'".to_string())
                             })?;
                         let result = actions.press_key(key).await?;
                         Ok(vec![ToolResult::ok(
@@ -960,7 +960,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("selector")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("get_text requires 'selector'".to_string())
+                                VoidError::tool("get_text requires 'selector'".to_string())
                             })?;
                         match actions.get_text(selector).await? {
                             Some(text) => Ok(vec![ToolResult::ok(
@@ -1010,7 +1010,7 @@ Branch on `ok` and `error.code`, not on English messages.
                             .get("expression")
                             .and_then(|v| v.as_str())
                             .ok_or_else(|| {
-                                BitFunError::tool("evaluate requires 'expression'".to_string())
+                                VoidError::tool("evaluate requires 'expression'".to_string())
                             })?;
                         // Bound the size of the returned value so a runaway
                         // `JSON.stringify(document)` can't blow up the model
@@ -1048,7 +1048,7 @@ Branch on `ok` and `error.code`, not on English messages.
                         browser_sessions().remove(&session.session_id).await;
                         Ok(vec![ToolResult::ok(result, Some("Page closed".to_string()))])
                     }
-                    other => Err(BitFunError::tool(format!(
+                    other => Err(VoidError::tool(format!(
                         "Unknown browser action: '{}'. Valid: connect, navigate, snapshot, click, fill, type, select, press_key, scroll, wait, get_text, get_url, get_title, screenshot, evaluate, close, list_pages, switch_page, list_sessions",
                         other
                     ))),
@@ -1064,17 +1064,17 @@ Branch on `ok` and `error.code`, not on English messages.
         action: &str,
         params: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         // Phase 4: enumerate live terminal sessions so the model can resolve
         // a `terminal_session_id` *before* attempting `kill` / `interrupt`.
         // Previously this required digging through earlier `Bash` results.
         if action == "list_sessions" {
             let api = crate::service::terminal::api::TerminalApi::from_singleton()
-                .map_err(|e| BitFunError::tool(format!("TerminalApi unavailable: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("TerminalApi unavailable: {}", e)))?;
             let sessions = api
                 .list_sessions()
                 .await
-                .map_err(|e| BitFunError::tool(format!("list_sessions failed: {}", e)))?;
+                .map_err(|e| VoidError::tool(format!("list_sessions failed: {}", e)))?;
             let summary: Vec<Value> = sessions
                 .iter()
                 .map(|s| {
@@ -1103,11 +1103,11 @@ Branch on `ok` and `error.code`, not on English messages.
             Some(s) => s.to_string(),
             None => {
                 let api = crate::service::terminal::api::TerminalApi::from_singleton()
-                    .map_err(|e| BitFunError::tool(format!("TerminalApi unavailable: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("TerminalApi unavailable: {}", e)))?;
                 let sessions = api
                     .list_sessions()
                     .await
-                    .map_err(|e| BitFunError::tool(format!("list_sessions failed: {}", e)))?;
+                    .map_err(|e| VoidError::tool(format!("list_sessions failed: {}", e)))?;
                 let live: Vec<_> = sessions
                     .iter()
                     .filter(|s| {
@@ -1160,7 +1160,7 @@ Branch on `ok` and `error.code`, not on English messages.
     }
 }
 
-fn parse_browser_kind(browser: &str) -> BitFunResult<BrowserKind> {
+fn parse_browser_kind(browser: &str) -> VoidResult<BrowserKind> {
     match BrowserLauncher::browser_kind_from_config(browser) {
         Some(kind) => Ok(kind),
         None => BrowserLauncher::detect_default_browser(),
@@ -1217,7 +1217,7 @@ impl Tool for ControlHubTool {
         "ControlHub"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(Self::description_text())
     }
 
@@ -1232,7 +1232,7 @@ impl Tool for ControlHubTool {
     async fn description_with_context(
         &self,
         _context: Option<&ToolUseContext>,
-    ) -> BitFunResult<String> {
+    ) -> VoidResult<String> {
         Ok(Self::description_text())
     }
 
@@ -1329,7 +1329,7 @@ impl Tool for ControlHubTool {
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let domain = input.get("domain").and_then(|v| v.as_str()).unwrap_or("");
         let action = input.get("action").and_then(|v| v.as_str()).unwrap_or("");
 
@@ -1400,16 +1400,16 @@ fn envelope_wrap_results(domain: &str, action: &str, results: Vec<ToolResult>) -
         .collect()
 }
 
-/// Best-effort classification of a legacy `BitFunError` into a structured
+/// Best-effort classification of a legacy `VoidError` into a structured
 /// ControlHub error. Domain handlers should be migrated to return structured
 /// envelopes directly; this is the safety net for the transition.
-fn map_dispatch_error(domain: &str, _action: &str, err: BitFunError) -> ControlHubError {
+fn map_dispatch_error(domain: &str, _action: &str, err: VoidError) -> ControlHubError {
     let msg = err.to_string();
 
     // Frontend bridges may send back `[CODE] message\nHints: a | b` strings —
     // parse that prefix back into a structured ControlHubError so the model
     // sees the *actual* error code and hints instead of an INTERNAL fallback.
-    // `BitFunError::Tool` wraps the message with `"Tool error: "`, so we try
+    // `VoidError::Tool` wraps the message with `"Tool error: "`, so we try
     // both the raw form and the form after stripping that wrapper.
     let strip_candidate = msg
         .strip_prefix("Tool error: ")
@@ -1571,7 +1571,7 @@ mod control_hub_tests {
             .block_on(tool.dispatch(
                 "meta",
                 "route_hint",
-                &json!({ "intent": "切换 BitFun 默认模型" }),
+                &json!({ "intent": "切换 Void 默认模型" }),
                 &ctx,
             ))
             .unwrap();
@@ -1627,7 +1627,7 @@ mod control_hub_tests {
         let err = map_dispatch_error(
             "desktop",
             "click",
-            BitFunError::tool(
+            VoidError::tool(
                 "[AMBIGUOUS] 3 matches for text 'Save'\nHints: pass index | use selector"
                     .to_string(),
             ),
@@ -1641,7 +1641,7 @@ mod control_hub_tests {
         let err = map_dispatch_error(
             "desktop",
             "x",
-            BitFunError::tool("[WAT_IS_THIS] ouch".to_string()),
+            VoidError::tool("[WAT_IS_THIS] ouch".to_string()),
         );
         assert!(matches!(err.code, ErrorCode::FrontendError));
     }
@@ -1651,7 +1651,7 @@ mod control_hub_tests {
         let err = map_dispatch_error(
             "browser",
             "click",
-            BitFunError::tool(
+            VoidError::tool(
                 "Browser session 'AB' is no longer connected (the tab was likely closed)."
                     .to_string(),
             ),
@@ -1661,7 +1661,7 @@ mod control_hub_tests {
 
     #[test]
     fn map_dispatch_error_classifies_known_phrases() {
-        let mk = |s: &str| BitFunError::tool(s.to_string());
+        let mk = |s: &str| VoidError::tool(s.to_string());
         assert!(matches!(
             map_dispatch_error("browser", "select", mk("element not found")).code,
             ErrorCode::NotFound
@@ -1793,7 +1793,7 @@ mod control_hub_tests {
         let results = tool
             .handle_system(
                 "open_file",
-                &json!({ "path": "/definitely/does/not/exist/bitfun-test.xyz" }),
+                &json!({ "path": "/definitely/does/not/exist/void-test.xyz" }),
                 &ctx,
             )
             .await
@@ -1910,7 +1910,7 @@ mod control_hub_tests {
         #[cfg(windows)]
         assert!(which_exists("cmd"), "cmd must be on PATH on Windows hosts");
         // A clearly bogus name must NOT resolve.
-        assert!(!which_exists("definitely-not-a-real-binary-bitfun-xyz"));
+        assert!(!which_exists("definitely-not-a-real-binary-void-xyz"));
     }
 
     #[test]
@@ -1931,9 +1931,9 @@ mod control_hub_tests {
         let ctx = empty_context();
         let probe = if cfg!(target_os = "windows") {
             // PowerShell prints with the Unicode code page configured above.
-            "Write-Output 'hello-bitfun'"
+            "Write-Output 'hello-void'"
         } else {
-            "echo hello-bitfun"
+            "echo hello-void"
         };
         let results = tool
             .handle_system(
@@ -1951,15 +1951,15 @@ mod control_hub_tests {
         );
         let out = payload.get("output").and_then(|v| v.as_str()).unwrap_or("");
         assert!(
-            out.contains("hello-bitfun"),
-            "expected stdout to contain 'hello-bitfun', got '{out}'"
+            out.contains("hello-void"),
+            "expected stdout to contain 'hello-void', got '{out}'"
         );
     }
 
     #[tokio::test]
     async fn terminal_list_sessions_without_singleton_returns_clean_error() {
         // The TerminalApi singleton is initialized only inside the desktop /
-        // server runtimes, so in `cargo test -p bitfun-core` it must surface
+        // server runtimes, so in `cargo test -p void-core` it must surface
         // a structured error rather than panicking.
         let tool = ControlHubTool::new();
         let ctx = empty_context();

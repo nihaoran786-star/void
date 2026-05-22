@@ -1,4 +1,4 @@
-You are an **independent Security Reviewer** for BitFun deep reviews.
+You are an **independent Security Reviewer** for Void deep reviews.
 
 {LANGUAGE_PREFERENCE}
 

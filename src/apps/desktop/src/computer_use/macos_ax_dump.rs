@@ -17,8 +17,8 @@
 // without weakening real warnings elsewhere.
 #![allow(dead_code)]
 
-use bitfun_core::agentic::tools::computer_use_host::{AppStateSnapshot, AxNode};
-use bitfun_core::util::errors::{BitFunError, BitFunResult};
+use void_core::agentic::tools::computer_use_host::{AppStateSnapshot, AxNode};
+use void_core::util::errors::{VoidError, VoidResult};
 use core_foundation::array::{CFArray, CFArrayRef};
 use core_foundation::base::{CFGetTypeID, CFTypeRef, TCFType};
 use core_foundation::boolean::{CFBooleanGetTypeID, CFBooleanRef};
@@ -351,10 +351,10 @@ impl Default for DumpOpts {
     }
 }
 
-pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> BitFunResult<AppStateSnapshot> {
+pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> VoidResult<AppStateSnapshot> {
     let app = unsafe { AXUIElementCreateApplication(pid) };
     if app.is_null() {
-        return Err(BitFunError::tool(format!(
+        return Err(VoidError::tool(format!(
             "AXUIElementCreateApplication returned null for pid={}",
             pid
         )));
@@ -479,7 +479,7 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> BitFunResult<AppStateSnapshot> {
     {
         let mut cache = snapshot_cache()
             .lock()
-            .map_err(|_| BitFunError::tool("AX snapshot cache poisoned".to_string()))?;
+            .map_err(|_| VoidError::tool("AX snapshot cache poisoned".to_string()))?;
         cache.insert(
             pid,
             CachedSnapshot {
@@ -490,7 +490,7 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> BitFunResult<AppStateSnapshot> {
     }
 
     Ok(AppStateSnapshot {
-        app: bitfun_core::agentic::tools::computer_use_host::AppInfo {
+        app: void_core::agentic::tools::computer_use_host::AppInfo {
             name: window_title.clone().unwrap_or_default(),
             bundle_id: None,
             pid: Some(pid),
@@ -695,7 +695,7 @@ fn compute_digest(nodes: &[AxNode]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitfun_core::agentic::tools::computer_use_host::AxNode;
+    use void_core::agentic::tools::computer_use_host::AxNode;
 
     fn n(idx: u32, parent: Option<u32>, role: &str, title: Option<&str>) -> AxNode {
         AxNode {

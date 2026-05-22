@@ -2,15 +2,15 @@ use std::collections::HashMap;
 /// Chat state module
 ///
 /// Pure UI rendering state for the chat interface.
-/// All session lifecycle and persistence is handled by bitfun-core.
+/// All session lifecycle and persistence is handled by void-core.
 /// This module only maintains transient state needed for TUI rendering.
 use std::time::SystemTime;
 
-use bitfun_core::agentic::core::message::{
+use void_core::agentic::core::message::{
     Message as CoreMessage, MessageContent, MessageRole as CoreMessageRole,
 };
-use bitfun_core::agentic::core::strip_prompt_markup;
-use bitfun_events::ToolEventData;
+use void_core::agentic::core::strip_prompt_markup;
+use void_events::ToolEventData;
 
 use crate::ui::permission::PermissionPrompt;
 use crate::ui::question::QuestionPrompt;
@@ -251,7 +251,7 @@ pub struct ChatMetadata {
 
 /// Complete UI state for the chat interface.
 /// This is the single source of truth for rendering — but NOT for persistence.
-/// All persistence is handled by bitfun-core's SessionManager.
+/// All persistence is handled by void-core's SessionManager.
 pub struct ChatState {
     /// Core session ID (the real session managed by core)
     pub core_session_id: String,
@@ -702,9 +702,9 @@ impl ChatState {
     pub fn handle_subagent_event(
         &mut self,
         parent_tool_id: &str,
-        event: &bitfun_events::AgenticEvent,
+        event: &void_events::AgenticEvent,
     ) {
-        use bitfun_events::AgenticEvent;
+        use void_events::AgenticEvent;
 
         match event {
             AgenticEvent::ToolEvent { tool_event, .. } => match tool_event {

@@ -197,8 +197,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     <div
       ref={containerRef}
       className={[
-        'bitfun-session-scene',
-        isDragging && 'bitfun-session-scene--dragging',
+        'void-session-scene',
+        isDragging && 'void-session-scene--dragging',
         isEntering && 'layout-entering',
       ].filter(Boolean).join(' ')}
       style={panelCollapseHintStyles}
@@ -206,7 +206,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       {/* ChatPane — FlowChat conversation */}
       {!isChatHidden && (
         <div
-          className={`bitfun-session-scene__chat-pane ${isDragging ? 'bitfun-session-scene__chat-pane--dragging' : ''}`}
+          className={`void-session-scene__chat-pane ${isDragging ? 'void-session-scene__chat-pane--dragging' : ''}`}
         >
           <ChatPane
             width={0}
@@ -223,10 +223,10 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         <div
           ref={resizerRef}
           className={[
-            'bitfun-pane-resizer',
-            state.layout.rightPanelCollapsed && 'bitfun-pane-resizer--collapsed',
-            isDragging && 'bitfun-pane-resizer--dragging',
-            isHovering && 'bitfun-pane-resizer--hovering',
+            'void-pane-resizer',
+            state.layout.rightPanelCollapsed && 'void-pane-resizer--collapsed',
+            isDragging && 'void-pane-resizer--dragging',
+            isHovering && 'void-pane-resizer--hovering',
           ].filter(Boolean).join(' ')}
           onMouseDown={handleMouseDownResizer}
           onDoubleClick={handleDoubleClick}
@@ -241,9 +241,9 @@ const SessionScene: React.FC<SessionSceneProps> = ({
           aria-valuemax={RIGHT_PANEL_CONFIG.MAX_WIDTH}
           title={t('layout.resizer.title', { mode: panelModeLabels[rightPanelMode] })}
         >
-          <div className="bitfun-pane-resizer__line" />
-          <div className="bitfun-pane-resizer__handle">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="bitfun-pane-resizer__icon">
+          <div className="void-pane-resizer__line" />
+          <div className="void-pane-resizer__handle">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="void-pane-resizer__icon">
               <circle cx="6" cy="4" r="1" fill="currentColor" />
               <circle cx="6" cy="8" r="1" fill="currentColor" />
               <circle cx="6" cy="12" r="1" fill="currentColor" />
@@ -259,11 +259,11 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       <div
         ref={auxPaneElementRef}
         className={[
-          'bitfun-session-scene__aux-pane',
-          state.layout.rightPanelCollapsed         && 'bitfun-session-scene__aux-pane--collapsed',
-          isDragging                               && 'bitfun-session-scene__aux-pane--dragging',
-          isRightAsMain                            && 'bitfun-session-scene__aux-pane--editor-mode',
-          isAuxPaneExpandingImmediate              && 'bitfun-session-scene__aux-pane--no-animation',
+          'void-session-scene__aux-pane',
+          state.layout.rightPanelCollapsed         && 'void-session-scene__aux-pane--collapsed',
+          isDragging                               && 'void-session-scene__aux-pane--dragging',
+          isRightAsMain                            && 'void-session-scene__aux-pane--editor-mode',
+          isAuxPaneExpandingImmediate              && 'void-session-scene__aux-pane--no-animation',
         ].filter(Boolean).join(' ')}
         style={{
           width: state.layout.rightPanelCollapsed

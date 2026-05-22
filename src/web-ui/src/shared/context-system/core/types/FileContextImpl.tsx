@@ -100,21 +100,21 @@ export class FileCardRenderer implements ContextCardRenderer<'file'> {
     const { compact = false, interactive = true } = options || {};
     
     return (
-      <div className={`bitfun-context-card bitfun-context-card--file ${compact ? 'bitfun-context-card--compact' : ''}`}>
-        <div className="bitfun-context-card__icon">
+      <div className={`void-context-card void-context-card--file ${compact ? 'void-context-card--compact' : ''}`}>
+        <div className="void-context-card__icon">
           <FileIcon size={compact ? 16 : 20} />
         </div>
         
-        <div className="bitfun-context-card__content">
-          <div className="bitfun-context-card__title">
+        <div className="void-context-card__content">
+          <div className="void-context-card__title">
             {context.fileName}
           </div>
           
           {!compact && (
-            <div className="bitfun-context-card__subtitle">
+            <div className="void-context-card__subtitle">
               {context.relativePath || context.filePath}
               {context.fileSize && (
-                <span className="bitfun-context-card__meta">
+                <span className="void-context-card__meta">
                   {' • '}{this.formatFileSize(context.fileSize)}
                 </span>
               )}
@@ -123,7 +123,7 @@ export class FileCardRenderer implements ContextCardRenderer<'file'> {
         </div>
         
         {interactive && (
-          <div className="bitfun-context-card__actions">
+          <div className="void-context-card__actions">
             {this.renderValidationIndicator(context)}
           </div>
         )}
@@ -141,8 +141,8 @@ export class FileCardRenderer implements ContextCardRenderer<'file'> {
     
     
     return (
-      <div className="bitfun-context-card__status">
-        <CheckCircle size={16} className="bitfun-context-card__status-icon--success" />
+      <div className="void-context-card__status">
+        <CheckCircle size={16} className="void-context-card__status-icon--success" />
       </div>
     );
   }

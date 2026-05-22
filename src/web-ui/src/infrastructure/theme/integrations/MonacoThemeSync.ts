@@ -2,15 +2,15 @@
 
 import * as monaco from 'monaco-editor';
 import { ThemeConfig } from '../types';
-import { BitFunDarkTheme } from '@/tools/editor/themes/bitfun-dark.theme';
+import { VoidDarkTheme } from '@/tools/editor/themes/void-dark.theme';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('MonacoThemeSync');
 
 
-const SEMANTIC_HIGHLIGHTING_RULES = BitFunDarkTheme.rules;
+const SEMANTIC_HIGHLIGHTING_RULES = VoidDarkTheme.rules;
 
-function getBitfunLightMonacoTheme(): monaco.editor.IStandaloneThemeData {
+function getVoidLightMonacoTheme(): monaco.editor.IStandaloneThemeData {
   return {
     base: 'vs',
     inherit: true,
@@ -82,8 +82,8 @@ export class MonacoThemeSync {
     
     
     try {
-      monaco.editor.defineTheme('bitfun-dark', BitFunDarkTheme);
-      log.debug('BitFun Dark theme registered');
+      monaco.editor.defineTheme('void-dark', VoidDarkTheme);
+      log.debug('Void Dark theme registered');
       this.initialized = true;
     } catch (error) {
       log.warn('Monaco Editor not loaded yet, will retry later', error);
@@ -99,9 +99,9 @@ export class MonacoThemeSync {
         targetThemeId = theme.id;
       } else {
         if (theme.type === 'dark') {
-          targetThemeId = 'bitfun-dark';
+          targetThemeId = 'void-dark';
         } else {
-          targetThemeId = 'bitfun-light';
+          targetThemeId = 'void-light';
         }
       }
 
@@ -115,7 +115,7 @@ export class MonacoThemeSync {
         log.debug('Custom theme registered', { themeId: theme.id, themeName: theme.name });
       } else {
         if (theme.type === 'light') {
-          monaco.editor.defineTheme('bitfun-light', getBitfunLightMonacoTheme());
+          monaco.editor.defineTheme('void-light', getVoidLightMonacoTheme());
         }
         log.debug('Using builtin theme', { themeId: targetThemeId });
       }
@@ -158,18 +158,18 @@ export class MonacoThemeSync {
     if (theme.monaco) {
       return theme.id;
     }
-    return theme.type === 'dark' ? 'bitfun-dark' : 'bitfun-light';
+    return theme.type === 'dark' ? 'void-dark' : 'void-light';
   }
 
   /**
-   * Registers BitFun built-in and optional custom Monaco themes on the given Monaco instance.
+   * Registers Void built-in and optional custom Monaco themes on the given Monaco instance.
    * Use from the Monaco React wrapper `beforeMount` hook so themes exist on the loader's Monaco
    * before the editor is created (avoids falling back to the default light theme).
    */
   registerThemesForEditorInstance(monacoInstance: typeof monaco, theme: ThemeConfig): string {
     try {
-      monacoInstance.editor.defineTheme('bitfun-dark', BitFunDarkTheme);
-      monacoInstance.editor.defineTheme('bitfun-light', getBitfunLightMonacoTheme());
+      monacoInstance.editor.defineTheme('void-dark', VoidDarkTheme);
+      monacoInstance.editor.defineTheme('void-light', getVoidLightMonacoTheme());
 
       if (theme.monaco) {
         monacoInstance.editor.defineTheme(theme.id, this.convertToMonacoTheme(theme));
@@ -178,7 +178,7 @@ export class MonacoThemeSync {
       return this.getTargetMonacoThemeId(theme);
     } catch (error) {
       log.error('registerThemesForEditorInstance failed', error);
-      return 'bitfun-dark';
+      return 'void-dark';
     }
   }
   

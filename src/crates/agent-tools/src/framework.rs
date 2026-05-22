@@ -2,7 +2,7 @@ use crate::{
     DynamicToolDescriptor, DynamicToolProvider, PortError, PortErrorKind, PortResult, ToolDecorator,
 };
 use async_trait::async_trait;
-use bitfun_core_types::ToolImageAttachment;
+use void_core_types::ToolImageAttachment;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1422,14 +1422,14 @@ impl ToolPathResolution {
         let root = self.runtime_root.as_ref()?;
         let relative = absolute_child_path.strip_prefix(root).ok()?;
         let relative_str = relative.to_string_lossy().replace('\\', "/");
-        build_bitfun_runtime_uri(scope, &relative_str).ok()
+        build_void_runtime_uri(scope, &relative_str).ok()
     }
 }
 
-pub const BITFUN_RUNTIME_URI_PREFIX: &str = "bitfun://runtime/";
+pub const VOID_RUNTIME_URI_PREFIX: &str = "void://runtime/";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParsedBitFunRuntimeUri {
+pub struct ParsedVoidRuntimeUri {
     pub workspace_scope: String,
     pub relative_path: String,
 }
@@ -1480,8 +1480,8 @@ impl fmt::Display for ToolPathContractError {
 
 impl std::error::Error for ToolPathContractError {}
 
-pub fn is_bitfun_runtime_uri(path: &str) -> bool {
-    path.trim().starts_with(BITFUN_RUNTIME_URI_PREFIX)
+pub fn is_void_runtime_uri(path: &str) -> bool {
+    path.trim().starts_with(VOID_RUNTIME_URI_PREFIX)
 }
 
 pub fn normalize_host_path(path: &str) -> String {
@@ -1562,12 +1562,12 @@ pub fn normalize_runtime_relative_path(path: &str) -> Result<String, ToolPathCon
     Ok(segments.join("/"))
 }
 
-pub fn parse_bitfun_runtime_uri(
+pub fn parse_void_runtime_uri(
     path: &str,
-) -> Result<ParsedBitFunRuntimeUri, ToolPathContractError> {
+) -> Result<ParsedVoidRuntimeUri, ToolPathContractError> {
     let trimmed = path.trim();
     let suffix = trimmed
-        .strip_prefix(BITFUN_RUNTIME_URI_PREFIX)
+        .strip_prefix(VOID_RUNTIME_URI_PREFIX)
         .ok_or_else(|| ToolPathContractError::UnsupportedRuntimeUri {
             uri: path.to_string(),
         })?;
@@ -1583,13 +1583,13 @@ pub fn parse_bitfun_runtime_uri(
         .next()
         .ok_or(ToolPathContractError::MissingRuntimeUriArtifactPath)?;
 
-    Ok(ParsedBitFunRuntimeUri {
+    Ok(ParsedVoidRuntimeUri {
         workspace_scope,
         relative_path: normalize_runtime_relative_path(relative_path)?,
     })
 }
 
-pub fn build_bitfun_runtime_uri(
+pub fn build_void_runtime_uri(
     workspace_scope: &str,
     relative_path: &str,
 ) -> Result<String, ToolPathContractError> {
@@ -1600,7 +1600,7 @@ pub fn build_bitfun_runtime_uri(
 
     Ok(format!(
         "{}{}/{}",
-        BITFUN_RUNTIME_URI_PREFIX,
+        VOID_RUNTIME_URI_PREFIX,
         scope,
         normalize_runtime_relative_path(relative_path)?
     ))

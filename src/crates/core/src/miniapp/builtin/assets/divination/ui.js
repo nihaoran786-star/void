@@ -1019,7 +1019,7 @@ function pickIndices(rand, len, n) {
 // `generateFortune` returns INDICES + raw stars. Localization happens at render
 // time so changing language re-renders the same reading in another tongue.
 function generateFortuneIndices(date) {
-  const seed = hashSeed('bitfun-divination-' + date);
+  const seed = hashSeed('void-divination-' + date);
   const rand = mulberry32(seed);
 
   const cardIdx = Math.floor(rand() * CARD_VISUALS.length);

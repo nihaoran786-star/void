@@ -1,5 +1,5 @@
 use crate::service::config::global::GlobalConfigManager;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use log::warn;
 use serde_json::Value;
 use std::sync::LazyLock;
@@ -47,9 +47,9 @@ static GLOBAL_DEEP_REVIEW_BUDGET_TRACKER: LazyLock<DeepReviewBudgetTracker> =
 static GLOBAL_DEEP_REVIEW_QUEUE_CONTROL_TRACKER: LazyLock<DeepReviewQueueControlTracker> =
     LazyLock::new(DeepReviewQueueControlTracker::default);
 
-pub async fn load_default_deep_review_policy() -> BitFunResult<DeepReviewExecutionPolicy> {
+pub async fn load_default_deep_review_policy() -> VoidResult<DeepReviewExecutionPolicy> {
     let config_service = GlobalConfigManager::get_service().await.map_err(|error| {
-        BitFunError::config(format!(
+        VoidError::config(format!(
             "Failed to load DeepReview execution policy because config service is unavailable: {}",
             error
         ))
@@ -68,7 +68,7 @@ pub async fn load_default_deep_review_policy() -> BitFunResult<DeepReviewExecuti
             None
         }
         Err(error) => {
-            return Err(BitFunError::config(format!(
+            return Err(VoidError::config(format!(
                 "Failed to load DeepReview execution policy from {}: {}",
                 DEFAULT_REVIEW_TEAM_CONFIG_PATH, error
             )));
@@ -80,8 +80,8 @@ pub async fn load_default_deep_review_policy() -> BitFunResult<DeepReviewExecuti
     ))
 }
 
-pub fn is_missing_default_review_team_config_error(error: &BitFunError) -> bool {
-    matches!(error, BitFunError::NotFound(message)
+pub fn is_missing_default_review_team_config_error(error: &VoidError) -> bool {
+    matches!(error, VoidError::NotFound(message)
         if message == &format!("Config path '{}' not found", DEFAULT_REVIEW_TEAM_CONFIG_PATH))
 }
 
@@ -329,7 +329,7 @@ mod tests {
         REVIEWER_PERFORMANCE_AGENT_TYPE, REVIEWER_SECURITY_AGENT_TYPE, REVIEW_FIXER_AGENT_TYPE,
         REVIEW_JUDGE_AGENT_TYPE,
     };
-    use crate::util::errors::BitFunError;
+    use crate::util::errors::VoidError;
     use serde_json::json;
     use serde_json::Value;
     use std::time::Duration;
@@ -337,13 +337,13 @@ mod tests {
     #[test]
     fn only_missing_default_review_team_path_can_fallback_to_defaults() {
         assert!(is_missing_default_review_team_config_error(
-            &BitFunError::NotFound("Config path 'ai.review_teams.default' not found".to_string())
+            &VoidError::NotFound("Config path 'ai.review_teams.default' not found".to_string())
         ));
         assert!(!is_missing_default_review_team_config_error(
-            &BitFunError::config("Config service unavailable")
+            &VoidError::config("Config service unavailable")
         ));
         assert!(!is_missing_default_review_team_config_error(
-            &BitFunError::config("Config path 'ai.review_teams.default.extra' not found")
+            &VoidError::config("Config path 'ai.review_teams.default.extra' not found")
         ));
     }
 

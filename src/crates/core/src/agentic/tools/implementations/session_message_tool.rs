@@ -8,7 +8,7 @@ use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
 use crate::agentic::tools::workspace_paths::posix_style_path_is_absolute;
-use crate::util::errors::{BitFunError, BitFunResult};
+use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -49,17 +49,17 @@ impl SessionMessageTool {
         Ok(())
     }
 
-    fn resolve_workspace(&self, workspace: &str, context: &ToolUseContext) -> BitFunResult<String> {
+    fn resolve_workspace(&self, workspace: &str, context: &ToolUseContext) -> VoidResult<String> {
         let workspace = workspace.trim();
         if workspace.is_empty() {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "workspace is required and cannot be empty".to_string(),
             ));
         }
 
         if context.is_remote() {
             if !posix_style_path_is_absolute(workspace) {
-                return Err(BitFunError::tool(
+                return Err(VoidError::tool(
                     "workspace must be an absolute POSIX path on the remote host".to_string(),
                 ));
             }
@@ -68,7 +68,7 @@ impl SessionMessageTool {
 
         let path = Path::new(workspace);
         if !path.is_absolute() {
-            return Err(BitFunError::tool(
+            return Err(VoidError::tool(
                 "workspace must be an absolute path".to_string(),
             ));
         }
@@ -76,13 +76,13 @@ impl SessionMessageTool {
         let resolved = normalize_path(workspace);
         let path = Path::new(&resolved);
         if !path.exists() {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Workspace does not exist: {}",
                 resolved
             )));
         }
         if !path.is_dir() {
-            return Err(BitFunError::tool(format!(
+            return Err(VoidError::tool(format!(
                 "Workspace is not a directory: {}",
                 resolved
             )));
@@ -136,24 +136,24 @@ impl SessionMessageTool {
         ValidationResult::default()
     }
 
-    fn sender_session_id<'a>(&self, context: &'a ToolUseContext) -> BitFunResult<&'a str> {
+    fn sender_session_id<'a>(&self, context: &'a ToolUseContext) -> VoidResult<&'a str> {
         context.session_id.as_deref().ok_or_else(|| {
-            BitFunError::tool("SessionMessage requires a source session".to_string())
+            VoidError::tool("SessionMessage requires a source session".to_string())
         })
     }
 
-    fn sender_workspace(&self, context: &ToolUseContext) -> BitFunResult<String> {
+    fn sender_workspace(&self, context: &ToolUseContext) -> VoidResult<String> {
         context
             .workspace_root()
             .map(|path| path.to_string_lossy().to_string())
             .ok_or_else(|| {
-                BitFunError::tool("SessionMessage requires a source workspace".to_string())
+                VoidError::tool("SessionMessage requires a source workspace".to_string())
             })
     }
 
-    fn creator_session_marker(&self, context: &ToolUseContext) -> BitFunResult<String> {
+    fn creator_session_marker(&self, context: &ToolUseContext) -> VoidResult<String> {
         let creator_session_id = context.session_id.as_ref().ok_or_else(|| {
-            BitFunError::tool("SessionMessage requires a source session".to_string())
+            VoidError::tool("SessionMessage requires a source session".to_string())
         })?;
         Ok(format!("session-{}", creator_session_id))
     }
@@ -204,7 +204,7 @@ impl Tool for SessionMessageTool {
         "SessionMessage"
     }
 
-    async fn description(&self) -> BitFunResult<String> {
+    async fn description(&self) -> VoidResult<String> {
         Ok(
             r#"Asynchronously send a message to another agent session. When the target session finishes, its result is automatically sent back to you as a follow-up message.
 
@@ -433,21 +433,21 @@ Allowed agent types when creating a session:
         &self,
         input: &Value,
         context: &ToolUseContext,
-    ) -> BitFunResult<Vec<ToolResult>> {
+    ) -> VoidResult<Vec<ToolResult>> {
         let params: SessionMessageInput = serde_json::from_value(input.clone())
-            .map_err(|e| BitFunError::tool(format!("Invalid input: {}", e)))?;
+            .map_err(|e| VoidError::tool(format!("Invalid input: {}", e)))?;
         let source_session_id = self.sender_session_id(context)?.to_string();
         let source_workspace = self.sender_workspace(context)?;
 
         let coordinator = get_global_coordinator()
-            .ok_or_else(|| BitFunError::tool("coordinator not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("coordinator not initialized".to_string()))?;
         let scheduler = get_global_scheduler()
-            .ok_or_else(|| BitFunError::tool("scheduler not initialized".to_string()))?;
+            .ok_or_else(|| VoidError::tool("scheduler not initialized".to_string()))?;
 
         let (target_session_id, target_agent_type, created_session_id, workspace) =
             if let Some(target_session_id) = params.session_id.clone() {
                 if source_session_id == target_session_id {
-                    return Err(BitFunError::tool(
+                    return Err(VoidError::tool(
                         "SessionMessage cannot send a message to the same session".to_string(),
                     ));
                 }
@@ -460,7 +460,7 @@ Allowed agent types when creating a session:
                         .await
                         .map(|path| path.to_string_lossy().to_string())
                         .ok_or_else(|| {
-                            BitFunError::NotFound(format!(
+                            VoidError::NotFound(format!(
                                 "Workspace for session '{}' could not be resolved",
                                 target_session_id
                             ))
@@ -472,7 +472,7 @@ Allowed agent types when creating a session:
                     .iter()
                     .find(|session| session.session_id == target_session_id.as_str())
                     .ok_or_else(|| {
-                        BitFunError::NotFound(format!(
+                        VoidError::NotFound(format!(
                             "Session '{}' not found in workspace '{}'",
                             target_session_id, workspace
                         ))
@@ -489,7 +489,7 @@ Allowed agent types when creating a session:
             } else {
                 let workspace = self.resolve_workspace(
                     params.workspace.as_deref().ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "workspace is required when session_id is omitted".to_string(),
                         )
                     })?,
@@ -500,7 +500,7 @@ Allowed agent types when creating a session:
                     .clone()
                     .filter(|value| !value.trim().is_empty())
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "session_name is required when session_id is omitted".to_string(),
                         )
                     })?;
@@ -508,7 +508,7 @@ Allowed agent types when creating a session:
                     .agent_type
                     .as_ref()
                     .ok_or_else(|| {
-                        BitFunError::tool(
+                        VoidError::tool(
                             "agent_type is required when session_id is omitted".to_string(),
                         )
                     })?
@@ -556,7 +556,7 @@ Allowed agent types when creating a session:
                 None,
             )
             .await
-            .map_err(BitFunError::tool)?;
+            .map_err(VoidError::tool)?;
 
         Ok(vec![ToolResult::Result {
             data: json!({
@@ -640,7 +640,7 @@ mod tests {
     #[tokio::test]
     async fn validate_existing_session_rejects_agent_type_override() {
         let tool = SessionMessageTool::new();
-        let workspace = TestTempDir::new("bitfun-session-message-tool-test");
+        let workspace = TestTempDir::new("void-session-message-tool-test");
 
         let validation = tool
             .validate_input(
@@ -664,7 +664,7 @@ mod tests {
     #[tokio::test]
     async fn validate_new_session_requires_session_name() {
         let tool = SessionMessageTool::new();
-        let workspace = TestTempDir::new("bitfun-session-message-tool-test");
+        let workspace = TestTempDir::new("void-session-message-tool-test");
 
         let validation = tool
             .validate_input(
@@ -687,7 +687,7 @@ mod tests {
     #[tokio::test]
     async fn validate_new_session_requires_agent_type() {
         let tool = SessionMessageTool::new();
-        let workspace = TestTempDir::new("bitfun-session-message-tool-test");
+        let workspace = TestTempDir::new("void-session-message-tool-test");
 
         let validation = tool
             .validate_input(
@@ -710,7 +710,7 @@ mod tests {
     #[tokio::test]
     async fn validate_new_session_accepts_create_and_send_shape() {
         let tool = SessionMessageTool::new();
-        let workspace = TestTempDir::new("bitfun-session-message-tool-test");
+        let workspace = TestTempDir::new("void-session-message-tool-test");
 
         let validation = tool
             .validate_input(

@@ -1,6 +1,6 @@
 //! Project Context API
 
-use bitfun_core::service::project_context::{
+use void_core::service::project_context::{
     CategoryInfo, ContextDocumentStatus, FileConflictAction, ImportedDocument,
     ProjectContextConfig, ProjectContextService,
 };

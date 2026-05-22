@@ -14,8 +14,8 @@
 
 use std::path::{Path, PathBuf};
 
-pub use bitfun_product_domains::miniapp::runtime::{DetectedRuntime, RuntimeKind};
-use bitfun_product_domains::miniapp::runtime::{
+pub use void_product_domains::miniapp::runtime::{DetectedRuntime, RuntimeKind};
+use void_product_domains::miniapp::runtime::{
     candidate_dirs, candidate_executable_path, runtime_kind_for_executable, runtime_lookup_order,
     version_manager_roots, versioned_executable_candidate,
 };

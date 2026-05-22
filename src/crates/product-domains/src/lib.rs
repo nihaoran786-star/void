@@ -1,7 +1,7 @@
 //! Product domain owner crate.
 //!
 //! Product subdomains live here when they can be compiled without depending on
-//! the full BitFun core runtime assembly.
+//! the full Void core runtime assembly.
 
 #[cfg(feature = "miniapp")]
 pub mod miniapp;

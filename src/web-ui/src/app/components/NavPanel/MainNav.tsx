@@ -392,13 +392,13 @@ const MainNav: React.FC<MainNavProps> = ({
   const workspaceMenuPortal = workspaceMenuOpen ? createPortal(
     <div
       ref={workspaceMenuRef}
-      className={`bitfun-nav-panel__workspace-menu${workspaceMenuClosing ? ' is-closing' : ''}`}
+      className={`void-nav-panel__workspace-menu${workspaceMenuClosing ? ' is-closing' : ''}`}
       role="menu"
       style={{ top: workspaceMenuPos.top, left: workspaceMenuPos.left }}
     >
       <button
         type="button"
-        className="bitfun-nav-panel__workspace-menu-item"
+        className="void-nav-panel__workspace-menu-item"
         role="menuitem"
         onClick={() => { closeWorkspaceMenu(); void handleOpenProject(); }}
       >
@@ -407,7 +407,7 @@ const MainNav: React.FC<MainNavProps> = ({
       </button>
       <button
         type="button"
-        className="bitfun-nav-panel__workspace-menu-item"
+        className="void-nav-panel__workspace-menu-item"
         role="menuitem"
         onClick={() => { closeWorkspaceMenu(); handleNewProject(); }}
       >
@@ -416,7 +416,7 @@ const MainNav: React.FC<MainNavProps> = ({
       </button>
       <button
         type="button"
-        className="bitfun-nav-panel__workspace-menu-item"
+        className="void-nav-panel__workspace-menu-item"
         role="menuitem"
         onClick={handleOpenRemoteSSH}
       >
@@ -425,39 +425,39 @@ const MainNav: React.FC<MainNavProps> = ({
         </svg>
         <span>{t('ssh.remote.connect')}</span>
       </button>
-      <div className="bitfun-nav-panel__workspace-menu-divider" role="separator" />
-      <div className="bitfun-nav-panel__workspace-menu-section-title">
+      <div className="void-nav-panel__workspace-menu-divider" role="separator" />
+      <div className="void-nav-panel__workspace-menu-section-title">
         <History size={12} aria-hidden="true" />
         <span>{t('header.recentWorkspaces')}</span>
       </div>
       {recentWorkspaces.length === 0 ? (
-        <div className="bitfun-nav-panel__workspace-menu-empty">
+        <div className="void-nav-panel__workspace-menu-empty">
           <span>{t('header.noRecentWorkspaces')}</span>
         </div>
       ) : (
-        <div className="bitfun-nav-panel__workspace-menu-workspaces">
+        <div className="void-nav-panel__workspace-menu-workspaces">
           {recentWorkspaces.map((workspace) => {
             const { hostPrefix, folderLabel, tooltip } = getRecentWorkspaceLineParts(workspace);
             return (
             <button
               key={workspace.id}
               type="button"
-              className="bitfun-nav-panel__workspace-menu-item bitfun-nav-panel__workspace-menu-item--workspace"
+              className="void-nav-panel__workspace-menu-item void-nav-panel__workspace-menu-item--workspace"
               role="menuitem"
               title={tooltip}
               onClick={() => { void handleSwitchWorkspace(workspace.id); }}
             >
               <FolderOpen size={13} aria-hidden="true" />
-              <span className="bitfun-nav-panel__workspace-menu-item-main">
+              <span className="void-nav-panel__workspace-menu-item-main">
                 {hostPrefix ? (
                   <>
-                    <span className="bitfun-nav-panel__workspace-menu-item-host">{hostPrefix}</span>
-                    <span className="bitfun-nav-panel__workspace-menu-item-host-sep" aria-hidden>
+                    <span className="void-nav-panel__workspace-menu-item-host">{hostPrefix}</span>
+                    <span className="void-nav-panel__workspace-menu-item-host-sep" aria-hidden>
                       ·
                     </span>
                   </>
                 ) : null}
-                <span className="bitfun-nav-panel__workspace-menu-item-name">{folderLabel}</span>
+                <span className="void-nav-panel__workspace-menu-item-name">{folderLabel}</span>
               </span>
               {workspace.id === currentWorkspace?.id ? <Check size={12} aria-hidden="true" /> : null}
             </button>
@@ -484,21 +484,21 @@ const MainNav: React.FC<MainNavProps> = ({
   return (
     <>
       {/* ── Workspace search ───────────────────────── */}
-      <div className="bitfun-nav-panel__brand-header">
-        <div className="bitfun-nav-panel__brand-search">
+      <div className="void-nav-panel__brand-header">
+        <div className="void-nav-panel__brand-search">
           <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
             <button
               type="button"
-              className="bitfun-nav-panel__search-trigger"
+              className="void-nav-panel__search-trigger"
               onClick={() => setSearchOpen(true)}
               aria-label={t('nav.search.triggerTooltip')}
             >
-              <span className="bitfun-nav-panel__search-trigger__icon" aria-hidden="true">
-                <span className="bitfun-nav-panel__search-trigger__icon-inner">
+              <span className="void-nav-panel__search-trigger__icon" aria-hidden="true">
+                <span className="void-nav-panel__search-trigger__icon-inner">
                   <Search size={13} />
                 </span>
               </span>
-              <span className="bitfun-nav-panel__search-trigger__label">
+              <span className="void-nav-panel__search-trigger__label">
                 {t('nav.search.triggerPlaceholder')}
               </span>
             </button>
@@ -508,10 +508,10 @@ const MainNav: React.FC<MainNavProps> = ({
       </div>
 
       {/* ── Top action strip ────────────────────────── */}
-      <div className="bitfun-nav-panel__top-actions">
-        <div className="bitfun-nav-panel__session-create">
+      <div className="void-nav-panel__top-actions">
+        <div className="void-nav-panel__session-create">
           <div
-            className="bitfun-nav-panel__session-mode-switch"
+            className="void-nav-panel__session-mode-switch"
             role="radiogroup"
             aria-label={t('nav.sessions.newSession')}
           >
@@ -520,7 +520,7 @@ const MainNav: React.FC<MainNavProps> = ({
               role="radio"
               aria-checked={selectedSessionMode === 'code'}
               className={[
-                'bitfun-nav-panel__session-mode-option',
+                'void-nav-panel__session-mode-option',
                 selectedSessionMode === 'code' ? 'is-active' : '',
               ].filter(Boolean).join(' ')}
               onClick={() => setSessionMode('code')}
@@ -533,7 +533,7 @@ const MainNav: React.FC<MainNavProps> = ({
               role="radio"
               aria-checked={selectedSessionMode === 'cowork'}
               className={[
-                'bitfun-nav-panel__session-mode-option',
+                'void-nav-panel__session-mode-option',
                 selectedSessionMode === 'cowork' ? 'is-active' : '',
               ].filter(Boolean).join(' ')}
               onClick={() => setSessionMode('cowork')}
@@ -546,14 +546,14 @@ const MainNav: React.FC<MainNavProps> = ({
           <Tooltip content={createSelectedTooltip} placement="right" followCursor>
             <button
               type="button"
-              className="bitfun-nav-panel__session-create-action"
+              className="void-nav-panel__session-create-action"
               onClick={handleCreateSelectedSession}
               aria-label={createSelectedTooltip}
             >
-              <span className="bitfun-nav-panel__session-create-action-text">
+              <span className="void-nav-panel__session-create-action-text">
                 {t('nav.sessions.newSession')}
               </span>
-              <span className="bitfun-nav-panel__session-create-action-mode">
+              <span className="void-nav-panel__session-create-action-mode">
                 {createSelectedLabel}
               </span>
               <ArrowRight size={13} aria-hidden="true" />
@@ -564,36 +564,36 @@ const MainNav: React.FC<MainNavProps> = ({
         <Tooltip content={assistantTooltip} placement="right" followCursor>
           <button
             type="button"
-            className={`bitfun-nav-panel__top-action-btn${isAssistantActive ? ' is-active' : ''}`}
+            className={`void-nav-panel__top-action-btn${isAssistantActive ? ' is-active' : ''}`}
             onClick={handleOpenAssistant}
             aria-label={assistantTooltip}
           >
-            <span className="bitfun-nav-panel__top-action-icon-slot" aria-hidden="true">
+            <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
               <User size={15} />
             </span>
             <span>{t('nav.items.persona')}</span>
           </button>
         </Tooltip>
 
-        <div className="bitfun-nav-panel__top-action-expand">
+        <div className="void-nav-panel__top-action-expand">
           <Tooltip content={extensionsLabel} placement="right" followCursor>
             <button
               type="button"
               className={[
-                'bitfun-nav-panel__top-action-btn',
-                'bitfun-nav-panel__top-action-btn--expand',
+                'void-nav-panel__top-action-btn',
+                'void-nav-panel__top-action-btn--expand',
                 isExtensionsOpen ? 'is-open' : '',
               ].filter(Boolean).join(' ')}
               onClick={() => setIsExtensionsOpen(v => !v)}
               aria-expanded={isExtensionsOpen}
               aria-label={extensionsLabel}
             >
-              <span className="bitfun-nav-panel__top-action-expand-icons" aria-hidden="true">
-                <Blocks size={15} className="bitfun-nav-panel__top-action-expand-icon-default" />
+              <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
+                <Blocks size={15} className="void-nav-panel__top-action-expand-icon-default" />
                 <ChevronDown
                   size={15}
                   className={[
-                    'bitfun-nav-panel__top-action-expand-icon-chevron',
+                    'void-nav-panel__top-action-expand-icon-chevron',
                     isExtensionsOpen ? 'is-open' : '',
                   ].filter(Boolean).join(' ')}
                 />
@@ -602,19 +602,19 @@ const MainNav: React.FC<MainNavProps> = ({
             </button>
           </Tooltip>
 
-          <div className={`bitfun-nav-panel__top-action-sublist${isExtensionsOpen ? ' is-open' : ''}`}>
+          <div className={`void-nav-panel__top-action-sublist${isExtensionsOpen ? ' is-open' : ''}`}>
             <Tooltip content={agentsTooltip} placement="right" followCursor>
               <button
                 type="button"
                 className={[
-                  'bitfun-nav-panel__top-action-btn',
-                  'bitfun-nav-panel__top-action-btn--sub',
+                  'void-nav-panel__top-action-btn',
+                  'void-nav-panel__top-action-btn--sub',
                   isAgentsActive ? 'is-active' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenAgents}
                 aria-label={agentsTooltip}
               >
-                <span className="bitfun-nav-panel__top-action-icon-slot" aria-hidden="true">
+                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
                   <Users size={15} />
                 </span>
                 <span>{t('nav.items.agents')}</span>
@@ -625,14 +625,14 @@ const MainNav: React.FC<MainNavProps> = ({
               <button
                 type="button"
                 className={[
-                  'bitfun-nav-panel__top-action-btn',
-                  'bitfun-nav-panel__top-action-btn--sub',
+                  'void-nav-panel__top-action-btn',
+                  'void-nav-panel__top-action-btn--sub',
                   isSkillsActive ? 'is-active' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenSkills}
                 aria-label={skillsTooltip}
               >
-                <span className="bitfun-nav-panel__top-action-icon-slot" aria-hidden="true">
+                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
                   <Puzzle size={15} />
                 </span>
                 <span>{t('nav.items.skills')}</span>
@@ -643,19 +643,19 @@ const MainNav: React.FC<MainNavProps> = ({
       </div>
 
       {/* ── Sections ────────────────────────────────── */}
-      <div className="bitfun-nav-panel__sections">
+      <div className="void-nav-panel__sections">
 
         {/* Assistant sessions */}
-        <div className="bitfun-nav-panel__section">
+        <div className="void-nav-panel__section">
           <SectionHeader
             label={t('nav.sections.assistantSessions')}
             collapsible
             isOpen={expandedSections.has('assistant-sessions')}
             onToggle={() => toggleSection('assistant-sessions')}
           />
-          <div className={`bitfun-nav-panel__collapsible${expandedSections.has('assistant-sessions') ? '' : ' is-collapsed'}`}>
-            <div className="bitfun-nav-panel__collapsible-inner">
-              <div className="bitfun-nav-panel__items bitfun-nav-panel__items--session-blocks">
+          <div className={`void-nav-panel__collapsible${expandedSections.has('assistant-sessions') ? '' : ' is-collapsed'}`}>
+            <div className="void-nav-panel__collapsible-inner">
+              <div className="void-nav-panel__items void-nav-panel__items--session-blocks">
                 {assistantWorkspacesList.map(workspace => {
                   const assistantDisplayName =
                     workspace.workspaceKind === WorkspaceKind.Assistant
@@ -678,32 +678,32 @@ const MainNav: React.FC<MainNavProps> = ({
         </div>
 
         {/* Workspace */}
-        <div className="bitfun-nav-panel__section">
+        <div className="void-nav-panel__section">
           <SectionHeader
             label={t('nav.sections.workspace')}
             collapsible
             isOpen={expandedSections.has('workspace')}
             onToggle={() => toggleSection('workspace')}
             actions={
-              <div className="bitfun-nav-panel__workspace-action-wrap">
+              <div className="void-nav-panel__workspace-action-wrap">
                 <Tooltip content={addWorkspaceTooltip} placement="right" followCursor disabled={workspaceMenuOpen}>
                   <button
                     ref={workspaceMenuButtonRef}
                     type="button"
-                    className={`bitfun-nav-panel__section-action${workspaceMenuOpen ? ' is-active' : ''}`}
+                    className={`void-nav-panel__section-action${workspaceMenuOpen ? ' is-active' : ''}`}
                     aria-label={addWorkspaceTooltip}
                     aria-expanded={workspaceMenuOpen}
                     onClick={toggleWorkspaceMenu}
                   >
-                    <Plus size="var(--bitfun-nav-row-action-icon-size)" />
+                    <Plus size="var(--void-nav-row-action-icon-size)" />
                   </button>
                 </Tooltip>
               </div>
             }
           />
-          <div className={`bitfun-nav-panel__collapsible${expandedSections.has('workspace') ? '' : ' is-collapsed'}`}>
-            <div className="bitfun-nav-panel__collapsible-inner">
-              <div className="bitfun-nav-panel__items">
+          <div className={`void-nav-panel__collapsible${expandedSections.has('workspace') ? '' : ' is-collapsed'}`}>
+            <div className="void-nav-panel__collapsible-inner">
+              <div className="void-nav-panel__items">
                 <WorkspaceListSection variant="projects" />
               </div>
             </div>
@@ -713,8 +713,8 @@ const MainNav: React.FC<MainNavProps> = ({
       </div>
 
       {/* ── Bottom: MiniApp ───────────────────────── */}
-      <div className="bitfun-nav-panel__bottom-bar">
-        <div className="bitfun-nav-panel__miniapp-footer">
+      <div className="void-nav-panel__bottom-bar">
+        <div className="void-nav-panel__miniapp-footer">
           <MiniAppEntry
             isActive={activeTabId === 'miniapps' || !!activeMiniAppId}
             activeMiniAppId={activeMiniAppId}

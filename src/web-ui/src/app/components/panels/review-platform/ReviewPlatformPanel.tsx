@@ -54,7 +54,7 @@ const CI_PAGE_SIZE = 20;
 const CHANGE_PAGE_SIZE = 15;
 const COMMIT_PAGE_SIZE = 30;
 const REVIEW_PAGE_SIZE = 20;
-const REMOTE_STORAGE_PREFIX = 'bitfun:review-platform:last-remote:';
+const REMOTE_STORAGE_PREFIX = 'void:review-platform:last-remote:';
 const MAX_LINKED_REVIEW_SESSIONS = 6;
 
 interface SnapshotCacheEntry {

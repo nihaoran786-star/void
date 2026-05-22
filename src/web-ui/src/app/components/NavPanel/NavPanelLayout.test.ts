@@ -26,7 +26,7 @@ function extractBlock(stylesheet: string, selector: string): string {
 describe('NavPanel layout styles', () => {
   it('allows navigation list wrappers to shrink instead of inheriting long item widths', () => {
     const stylesheet = readNavPanelStylesheet();
-    const rootBlock = extractBlock(stylesheet, '.bitfun-nav-panel');
+    const rootBlock = extractBlock(stylesheet, '.void-nav-panel');
     const contentBlock = extractBlock(stylesheet, '&__content');
     const mainLayerBlock = extractBlock(stylesheet, '&--main');
     const collapsibleBlock = extractBlock(stylesheet, '&__collapsible');
@@ -68,40 +68,40 @@ describe('NavPanel layout styles', () => {
 
   it('uses one shared row-action size for root action buttons', () => {
     const stylesheet = readNavPanelStylesheet();
-    const rootBlock = extractBlock(stylesheet, '.bitfun-nav-panel');
+    const rootBlock = extractBlock(stylesheet, '.void-nav-panel');
     const sectionActionBlock = extractBlock(stylesheet, '&__section-action');
     const itemActionBlock = extractBlock(stylesheet, '&__item-action');
 
-    expect(rootBlock).toContain('--bitfun-nav-row-action-size: 20px;');
-    expect(rootBlock).toContain('--bitfun-nav-row-action-icon-size: 13px;');
-    expect(rootBlock).toContain('--bitfun-nav-row-action-offset: 4px;');
-    expect(rootBlock).toContain('--bitfun-nav-row-action-gap: 4px;');
+    expect(rootBlock).toContain('--void-nav-row-action-size: 20px;');
+    expect(rootBlock).toContain('--void-nav-row-action-icon-size: 13px;');
+    expect(rootBlock).toContain('--void-nav-row-action-offset: 4px;');
+    expect(rootBlock).toContain('--void-nav-row-action-gap: 4px;');
     for (const block of [sectionActionBlock, itemActionBlock]) {
-      expect(block).toContain('width: var(--bitfun-nav-row-action-size);');
-      expect(block).toContain('height: var(--bitfun-nav-row-action-size);');
+      expect(block).toContain('width: var(--void-nav-row-action-size);');
+      expect(block).toContain('height: var(--void-nav-row-action-size);');
     }
     expect(sectionActionBlock).toContain('svg {');
-    expect(sectionActionBlock).toContain('width: var(--bitfun-nav-row-action-icon-size);');
-    expect(sectionActionBlock).toContain('height: var(--bitfun-nav-row-action-icon-size);');
+    expect(sectionActionBlock).toContain('width: var(--void-nav-row-action-icon-size);');
+    expect(sectionActionBlock).toContain('height: var(--void-nav-row-action-icon-size);');
   });
 
   it('keeps session mode selection separate from the single create action', () => {
     const source = readMainNavSource();
 
-    expect(source).toContain('bitfun-nav-panel__session-mode-switch');
+    expect(source).toContain('void-nav-panel__session-mode-switch');
     expect(source).toContain('role="radiogroup"');
     expect(source).toContain("onClick={() => setSessionMode('code')}");
     expect(source).toContain("onClick={() => setSessionMode('cowork')}");
     expect(source).toContain('handleCreateSelectedSession');
-    expect(source).toContain('bitfun-nav-panel__session-create-action');
+    expect(source).toContain('void-nav-panel__session-create-action');
     expect(source).not.toContain('<Plus size={12} />\n              </span>\n              <span>{t(\'nav.sessions.newSession\')}</span>');
   });
 
   it('styles the session mode switcher as a compact segmented control', () => {
     const stylesheet = readNavPanelStylesheet();
-    const createBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-create');
-    const switchBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-mode-switch');
-    const optionBlock = extractBlock(stylesheet, '.bitfun-nav-panel__session-mode-option');
+    const createBlock = extractBlock(stylesheet, '.void-nav-panel__session-create');
+    const switchBlock = extractBlock(stylesheet, '.void-nav-panel__session-mode-switch');
+    const optionBlock = extractBlock(stylesheet, '.void-nav-panel__session-mode-option');
 
     expect(createBlock).toContain('border: 1px solid var(--border-subtle);');
     expect(createBlock).toContain('overflow: hidden;');

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# BitFun Relay Server — stop script.
+# Void Relay Server — stop script.
 # Run this script on the target server itself after SSH login.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="bitfun-relay"
+CONTAINER_NAME="void-relay"
 
 usage() {
   cat <<'EOF'
-BitFun Relay Server stop script
+Void Relay Server stop script
 
 Usage:
   bash stop.sh
@@ -53,7 +53,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "=== BitFun Relay Server Stop ==="
+echo "=== Void Relay Server Stop ==="
 check_command docker
 check_docker_compose
 

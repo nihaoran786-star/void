@@ -2,7 +2,7 @@ pub mod adapters;
 pub mod emitter;
 pub mod event_bus;
 pub mod events;
-/// BitFun Transport Layer
+/// Void Transport Layer
 ///
 /// Cross-platform communication abstraction layer, supports:
 /// - CLI (tokio mpsc)
