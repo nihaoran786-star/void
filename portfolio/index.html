@@ -249,6 +249,49 @@
         font-size: 19px;
       }
 
+      .visual-strip {
+        padding: clamp(54px, 8vw, 112px) clamp(20px, 5vw, 84px);
+        border-bottom: 1px solid var(--line);
+        background: #f9f6ef;
+      }
+
+      .visual-strip header {
+        max-width: 840px;
+        margin-bottom: 28px;
+      }
+
+      .visual-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .visual-card {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: white;
+      }
+
+      .visual-card img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .visual-card strong {
+        display: block;
+        padding: 16px 18px 4px;
+        font-size: 17px;
+      }
+
+      .visual-card p {
+        margin: 0;
+        padding: 0 18px 18px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
       footer {
         padding: 42px clamp(20px, 5vw, 84px);
         color: var(--muted);
@@ -266,6 +309,10 @@
 
         .grid {
           grid-template-columns: 1fr 1fr;
+        }
+
+        .visual-grid {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -372,6 +419,35 @@
               <strong>Teach the workflow through the product.</strong>
               <p>The interface should show good engineering practice: plan, execute, verify, review, and preserve context.</p>
             </div>
+          </div>
+        </section>
+
+        <section class="visual-strip" aria-label="Architecture visuals">
+          <header>
+            <span class="eyebrow">Architecture</span>
+            <h2>Runtime, workflow, and memory designed as visible systems.</h2>
+            <p>
+              The project separates UI surfaces from runtime decisions, tool execution, provider adapters, and durable
+              knowledge so each layer can be inspected and improved independently.
+            </p>
+          </header>
+
+          <div class="visual-grid">
+            <article class="visual-card">
+              <img src="../docs/assets/architecture-runtime.png" alt="Void runtime architecture diagram" />
+              <strong>Runtime architecture</strong>
+              <p>Desktop shell, React workbench, session orchestration, tools, memory, providers, and integrations.</p>
+            </article>
+            <article class="visual-card">
+              <img src="../docs/assets/architecture-workflow.png" alt="Void agent workflow lifecycle diagram" />
+              <strong>Agent lifecycle</strong>
+              <p>Intent, context, planning, tool calls, verification, review, and persistence as one loop.</p>
+            </article>
+            <article class="visual-card">
+              <img src="../docs/assets/architecture-memory.png" alt="Void knowledge and memory architecture diagram" />
+              <strong>Knowledge memory</strong>
+              <p>Conversations, decisions, codebase facts, docs, tests, and issues flow into retrieval.</p>
+            </article>
           </div>
         </section>
       </main>
