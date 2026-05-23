@@ -1,196 +1,186 @@
-**English**  [中文](README.zh-CN.md)
+# Void
 
-<div align="center">
+**A desktop AI agent platform for coding, knowledge work, remote operation, and custom agent workflows.**
 
-![Void](./png/Void_title.png)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](#platform-support)
+[![Tech](https://img.shields.io/badge/Rust%20%2B%20Tauri%20%2B%20React-202020?style=flat-square)](#technology-stack)
 
-</div>
-<div align="center">
+Void is a production-style desktop application that combines a Rust agent runtime, a Tauri desktop shell, and a React workbench UI. It is designed as both a usable AI app and a portfolio-grade reference project for building agentic desktop software.
 
-[![GitHub release](https://img.shields.io/github/v/release/GCWing/Void?style=flat-square&color=blue)](https://github.com/GCWing/Void/releases)
-[![Website](https://img.shields.io/badge/Website-openvoid.com-6f42c1?style=flat-square)](https://openvoid.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](https://github.com/GCWing/Void/blob/main/LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](https://github.com/GCWing/Void)
+The product brings together code agents, document workflows, terminal and file tools, MCP integrations, long-running sessions, remote control, usage reporting, and custom Markdown-defined agents in one local-first desktop experience.
 
-</div>
+## Product Snapshot
 
----
+![Void product showcase](./docs/assets/void-product-showcase.svg)
 
-## What Void Is
+## Core Features
 
-**Void is a desktop-grade Agent runtime (Local Agent Runtime) and a ready-to-use suite of desktop Agent applications.**
-
-- It is the **foundation**—a Rust core plus a Tauri shell, with sessions, tools, memory, MCP, LSP, and remote-control protocols built in, designed for long-running use;
-
-- It is the **product**—install once and you get four official Agents out of the box: Code, Cowork, Computer Use, and Personal Assistant, covering almost every mainstream Agent capability shape in the industry today.
-
-> **One install: use it as an Agent, or use it as a Runtime.**
-
-Void aims to pack **the coding power of Code Agents, the office productivity of Cowork, the assistant experience of OpenClaw, the control surface of Computer Use, and more**—the most popular Agent capabilities in the industry—into one desktop app, with the full protocol stack (Agentic runtime, tools, memory, MCP, Skills, context compression, remote control) ready by default. You can use it immediately, or define **your own domain Agents** on top of it.
-
-
-![readme_hero](./png/readme_hero.png)
-
-
----
-
-## Why Void
-
-- **One app, almost every mainstream Agent capability in the industry**: Code / Cowork / Computer Use / document collaboration / generative UI / Mini App / MCP / remote control … No juggling multiple tools or paying for separate subscriptions for each.
-- **Download and run—no DIY assembly**: MCP / LSP / filesystem / terminal / Git / remote SSH are all built in; configure your model and go, without spending time wiring the protocol stack from scratch.
-- **Your data stays on your machine**: Sessions, memory, and working directories live under `.void/sessions/`, portable, exportable, and auditable; nothing is forced to the cloud—suitable for privacy and compliance scenarios.
-- **Deeply customizable, with no gap from a single Markdown file to a full-repo fork**: ~90% of domain needs are covered with one `.md`; missing a tool? a UI? want to change the product? Have the Code Agent do it inside Void—**the way you customize it is by using it**.
-- **Control the desktop from your phone**: Pair by QR code, or use Telegram, Feishu Bot, or WeChat Bot as remote entry points. The Agent works on the desktop; you check progress on the go.
-- **A desktop app you can actually live with**: Rust core + Tauri shell—fast cold start, low idle footprint, fine to leave running in the background for a long time.
-- **Self-improving**: 97%+ of the code was produced by Void’s built-in Code Agent via Vibe Coding, so it naturally fits AI-assisted development.
-
----
-
-## What's New
-
-Void combines **flashgrep** with **ripgrep** into an enhanced code-search pipeline. On very large repositories such as Chromium, search time drops by up to about **94.6%**, with an average speedup of about **36.1×**, significantly reducing the time you spend exploring a project.
-
-![flashgrep feature](./png/feat_flashgrep.png)
-
----
-
-## Cutting Edge · Ready Out of the Box
-
-New paradigms appear almost weekly in the Agent space. Void’s pace is: **when we see something great, we ship it on the desktop and make it work seamlessly with what you already have.**
-
-
-![first_screen_screenshot](./png/first_screen_screenshot.png)
-
-Below is Void’s **official Agent and capability inventory**, plus how we track the industry’s latest Agent patterns. Zero extra setup—download and use:
-
-| Capability | Description |
+| Area | What it demonstrates |
 | --- | --- |
-| **Code Agent** | Four modes: Agentic (autonomous read / edit / run / verify) / Plan (plan first, then execute) / Debug (instrument → gather evidence → root cause) / Review (repo-standard review) |
-| **Deep Review** | A parallel Code Review Team for higher-risk code changes, with reviewer roles, a quality gate, and user-approved remediation |
-| **Session usage report** | Type `/usage` in chat to view recorded runtime, token usage, and model/tool/file summaries for the current session. |
-| **Cowork Agent** | Native PDF / DOCX / XLSX / PPTX workflows; extend on demand from the Skill marketplace |
-| **Document collaboration** | Write and ask in the document; the AI rewrites, continues, summarizes, and lays out text directly in paragraphs |
-| **Computer Use** | Sees the screen and drives mouse and keyboard to operate browsers and any desktop app—hand repetitive clicking to the Agent |
-| **Personal Assistant** | Long-term memory and personality; schedules Code / Cowork / Computer Use / custom Agents as needed |
-| **Remote control / IM** | Phone QR pairing, Telegram, Feishu Bot, WeChat Bot for remote commands with live progress |
-| **MCP / MCP App** | One-click hookup for external tools; MCP can also be packaged as installable Apps |
-| **Generative UI** | On-demand interactive UI components during chat, embedded in the message stream for immediate use |
-| **Mini App** | One sentence to a standalone runnable app—generate, run, one-click package for desktop |
-| **Markdown-defined Agents** | Write a `.md` file and run it in the Runtime right away for most domain customization |
-| **Long-term memory + project context** | Accumulates across sessions; readable by any Agent |
-| **Self-iteration** | Code Agent can change Void’s own repository |
-| **⋯⋯** | Next trends in progress—open an Issue with requests |
+| **AI Apps** | Built-in agent surfaces for coding, coworking, personal assistant workflows, computer-use style actions, mini apps, and generated UI. |
+| **Agent Runtime** | Session orchestration, model adapters, streaming events, tool execution, context handling, and cancellable long-running turns. |
+| **Developer Workflow** | File editing, terminal integration, Git-aware work, LSP support, code review workflows, debug flows, and project search. |
+| **Knowledge Work** | DOCX, XLSX, PPTX, PDF-oriented workflows through skills and document tooling. |
+| **Remote Operation** | Mobile-web companion, QR pairing, and remote command surfaces for monitoring work away from the desktop. |
+| **Extensibility** | MCP, custom agents, skills, mini apps, and source-level customization. |
+| **Observability** | Usage reports, token/runtime summaries, debug logs, and session-level execution records. |
 
----
+## Screenshots
 
-## How to Customize Your Void
+![Void desktop workbench screenshot mock](./docs/assets/void-product-showcase.svg)
 
-Different depths of customization map to different-effort paths. Pick from light to heavy as needed:
+The current README uses a clean, repository-owned SVG showcase so the interview presentation does not depend on stale screenshots. Replace it with fresh captures from the latest desktop build under `docs/assets/` when preparing a release or live demo.
 
-| Tier | Approach | Best for | Effort |
-| --- | --- | --- | --- |
-| **L1** | **Markdown custom Agents** | Swap prompts + pick tool bundles to define a **new Agent capability**—covers most domain needs | Write one `.md` file |
-| **L2** | **Mini App** | Capabilities that need UI (panels, forms, visualization, business flows) | One sentence to generate; run immediately |
-| **L3** | **Source-level tools** | New tools, model adapters, protocols—give your custom Agent a `tool` Void doesn’t ship yet | Use Void’s Code Agent to edit Void’s own source |
-| **L4** | **Free-form source changes** | Rebrand, rebuild UI, change session model, ship a totally different product | Fork the whole repo—naturally fits Vibe Coding |
+Recommended captures:
 
-### Example: Code Agent vs Cowork Agent is a small difference
+- Main agent workspace with chat, file tree, and terminal visible.
+- Custom agent or personal assistant configuration screen.
+- Session usage report or tool execution summary.
+- Mobile/remote control pairing screen.
 
-In Void, an Agent = **a prompt (system role + behavior constraints) + the set of tools it may call**. The official Code Agent and Cowork Agent differ only in those two dimensions:
+## Architecture
 
-| | Code Agent | Cowork Agent |
-| --- | --- | --- |
-| **Prompt** | Role and norms for repo work; four operating modes | Role and document workflows for knowledge work |
-| **Tooling** | Files / terminal / Git / LSP / build & test | PDF / DOCX / XLSX / PPTX / Skill marketplace |
-| **Shared foundation** | Same sessions, memory, MCP, remote control, UI, model adapters | Same sessions, memory, MCP, remote control, UI, model adapters |
+```mermaid
+flowchart LR
+  subgraph UI["User Interfaces"]
+    Desktop["Tauri Desktop"]
+    WebUI["React Web UI"]
+    Mobile["Mobile Web / Remote Control"]
+    CLI["CLI"]
+  end
 
-**So if you want a “legal review Agent,” a “research literature Agent,” or an “ops incident Agent”—L1 is enough**:
+  subgraph Runtime["Agent Runtime"]
+    Sessions["Session Manager"]
+    Orchestrator["Agent Orchestrator"]
+    Tools["Tool Runtime"]
+    Context["Context + Memory"]
+    Events["Streaming Event Bus"]
+  end
 
-1. Write a Markdown file defining role / guardrails / workflow
-2. From the tool registry, enable what it should use (files, browser, specific MCP …)
-3. If a specific tool is missing—use **L3**: open Void and have the Code Agent add it in source
-4. If the Agent needs a dedicated UI—use **L2**: one sentence to spin up a Mini App
-5. If you want a completely different product—use **L4**: fork the repo and have the Code Agent help you reshape it
+  subgraph Integrations["Adapters and Integrations"]
+    Models["Model Providers"]
+    MCP["MCP Servers"]
+    LSP["LSP"]
+    FS["Filesystem / Git / Terminal"]
+    Skills["Skills and Mini Apps"]
+  end
 
-**Key point**: For L3 and L4 you never leave Void—**open Void, tell the Code Agent what to change, and it shows you the diff**. **The way you customize it is by using it.**
+  Desktop --> WebUI
+  WebUI --> Sessions
+  Mobile --> Sessions
+  CLI --> Sessions
+  Sessions --> Orchestrator
+  Orchestrator --> Tools
+  Orchestrator --> Context
+  Orchestrator --> Events
+  Tools --> FS
+  Tools --> LSP
+  Tools --> MCP
+  Tools --> Skills
+  Orchestrator --> Models
+```
 
-> From one Markdown file to a full fork, there is no discontinuity. That is what “a self-improving foundation” means.
+### Design Principles
 
----
+- Keep product logic platform-agnostic; expose it through desktop, web, CLI, and remote adapters.
+- Treat AI sessions as durable workflows, not short chat messages.
+- Keep tools explicit and observable so users can inspect what the agent did.
+- Prefer local-first storage and auditable project files.
+- Make customization scale from a Markdown-defined agent to source-level product changes.
 
-## Platform Support
+## Technology Stack
 
-Desktop is built on Tauri for Windows / macOS / Linux; remote control works from mobile browsers, Telegram, Feishu, and WeChat.
+| Layer | Stack |
+| --- | --- |
+| Desktop shell | Tauri 2, Rust |
+| Core runtime | Rust workspace crates |
+| Frontend | React 18, TypeScript, Vite, SCSS |
+| Editor and terminal | Monaco Editor, xterm.js |
+| AI integrations | Provider adapters, streaming response pipeline, MCP support |
+| Documents and media | Built-in skills for document/spreadsheet/presentation workflows |
+| Testing | Vitest, TypeScript checks, WebDriverIO-based desktop E2E tests |
+| Build tooling | pnpm, Cargo, Tauri CLI |
 
----
+## Repository Map
 
-## Quick Start
+```text
+src/apps/desktop        Tauri desktop host
+src/apps/cli            CLI entrypoint
+src/apps/server         Server runtime
+src/mobile-web          Mobile companion build
+src/web-ui              Shared React frontend
+src/crates/core         Agent runtime assembly
+src/crates/ai-adapters  Model provider adapters
+src/crates/agent-tools  Tool contracts and execution support
+src/crates/transport    Desktop, server, and protocol transport layers
+docs                    Project docs and presentation assets
+tests/e2e               Desktop E2E test suite
+portfolio               English portfolio page for interview review
+```
 
-### Download and use
+## Running Locally
 
-Download the latest desktop installer from [Releases](https://github.com/GCWing/Void/releases). After installation, configure your model and start using Void.
+### Prerequisites
 
-### Build from source
+- Node.js 18+
+- pnpm
+- Rust toolchain
+- Tauri prerequisites for your OS
 
-**Prerequisites:**
-
-- [Node.js](https://nodejs.org/) (LTS recommended)
-- [pnpm](https://pnpm.io/)
-- [Rust toolchain](https://rustup.rs/)
-- [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) (required for desktop development)
-
-**Commands:**
+### Install
 
 ```bash
-# Install dependencies
 pnpm install
+```
 
-# Run desktop in development mode
+### Start the desktop app
+
+```bash
 pnpm run desktop:dev
+```
 
-# Build desktop
+### Start only the web UI
+
+```bash
+pnpm run dev:web
+```
+
+### Build
+
+```bash
+pnpm run build:web
 pnpm run desktop:build
 ```
 
-For more details, see the [Contributing guide](./CONTRIBUTING.md).
+### Checks
 
----
-
-## Project structure at a glance
-
-```
-src/crates/core         # Compatibility facade and product runtime assembly
-src/crates/{core-types,agent-stream,runtime-ports} # Extracted core support boundaries
-src/crates/{terminal,tool-runtime} # Workspace-level terminal/tool helper crates
-src/crates/transport    # Tauri / WebSocket / CLI transport adapters
-src/crates/api-layer    # Shared handlers and DTOs
-src/apps/desktop        # Tauri desktop host
-src/apps/server         # Web server runtime
-src/apps/cli            # CLI runtime
-src/web-ui              # Shared desktop / Web frontend
+```bash
+pnpm run type-check:web
+pnpm --dir src/web-ui run test:run
 ```
 
-Design principle: **keep product logic platform-agnostic and expose it through adapters**. See [AGENTS.md](./AGENTS.md).
+## Portfolio Page
 
----
+An English interview portfolio page is included at:
 
-## Contributing
+```text
+portfolio/index.html
+```
 
-We welcome great ideas and code; we are maximally open to AI-generated code. Please submit PRs directly to the `main` branch; we review and merge there.
+Open it directly in a browser, or publish the `portfolio/` directory through GitHub Pages.
 
-**Contribution directions we care about most:**
+The page highlights:
 
-1. **Runtime core**: session model, tool registry, memory system, protocol adapters
-2. **Reference Agents**: capabilities and experience for Code / Cowork / Personal Assistant
-3. **Ecosystem**: Skills, MCP, LSP plugins, Mini App templates, and new vertical Agents
-4. Ideas / creativity (features, interaction, visuals)—Issues welcome
+- AI Apps
+- Developer Education
+- Community Impact
+- Talks & Content
 
----
+## Platform Support
 
-## Disclaimer
+Void is designed for Windows, macOS, and Linux desktop environments through Tauri. Mobile-web and remote-control surfaces are companion experiences rather than a replacement for the desktop runtime.
 
-1. This project is spare-time exploration and research into next-generation human–machine collaboration, not a commercial profit-making project.
-2. More than 97% was built with Vibe Coding. Code feedback is welcome; refactoring and optimization via AI is encouraged.
-3. This project depends on and references many open-source projects. Thanks to all open-source authors. **If your rights are affected, please contact us for remediation.**
+## License
 
----
+MIT. See [LICENSE](./LICENSE).
