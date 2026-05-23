@@ -51,7 +51,7 @@ vi.mock('@/shared/notification-system', () => ({
   },
 }));
 
-import { createBtwChildSession } from './BtwThreadService';
+import { createBtwChildSession, sendMessageToTransientBtwSession } from './BtwThreadService';
 
 describe('BtwThreadService', () => {
   beforeEach(() => {
@@ -106,6 +106,44 @@ describe('BtwThreadService', () => {
           parentTurnIndex: 1,
         },
         deepReviewRunManifest,
+      }),
+    );
+  });
+
+  it('records the active request id before starting a transient BTW follow-up', async () => {
+    sessions.set('btw-child-1', {
+      sessionId: 'btw-child-1',
+      title: 'Side question',
+      sessionKind: 'btw',
+      parentSessionId: 'parent-1',
+      isTransient: true,
+      agentBackedTransient: false,
+      config: {
+        modelName: 'fast',
+      },
+    });
+    mockAskStream.mockResolvedValue({ ok: true });
+
+    const { requestId } = await sendMessageToTransientBtwSession({
+      parentSessionId: 'parent-1',
+      childSessionId: 'btw-child-1',
+      question: 'Follow up?',
+    });
+
+    expect(mockUpdateSessionBtwOrigin).toHaveBeenCalledWith(
+      'btw-child-1',
+      {
+        requestId,
+        parentSessionId: 'parent-1',
+      },
+      'btw',
+    );
+    expect(mockAskStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId,
+        sessionId: 'parent-1',
+        childSessionId: 'btw-child-1',
+        question: 'Follow up?',
       }),
     );
   });

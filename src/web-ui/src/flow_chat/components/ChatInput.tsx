@@ -47,8 +47,7 @@ import {
 import { createLogger } from '@/shared/utils/logger';
 import { Tooltip, IconButton } from '@/component-library';
 import { PendingQueuePanel } from './PendingQueuePanel';
-import { useAgentCanvasStore } from '@/app/components/panels/content-canvas/stores';
-import { openBtwSessionInAuxPane, selectActiveBtwSessionTab } from '../services/openBtwSession';
+import { openBtwSessionInAuxPane } from '../services/openBtwSession';
 import { resolveSessionRelationship } from '../utils/sessionMetadata';
 import { resolveWorkspaceChatInputMode } from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
@@ -105,7 +104,6 @@ type SlashMcpPromptItem = {
 };
 
 type SlashPickerItem = SlashActionItem | SlashModeItem | SlashMcpPromptItem;
-type ChatInputTarget = 'main' | 'btw';
 type PendingLargePasteMap = Record<string, string>;
 
 function getCharacterCount(text: string): number {
@@ -238,7 +236,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // History navigation state
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [savedDraft, setSavedDraft] = useState('');
-  const [inputTarget, setInputTarget] = useState<ChatInputTarget>('main');
   const { addMessage: addToHistory, getSessionHistory } = useInputHistoryStore();
   
   const contexts = useContextStore(state => state.contexts);
@@ -253,41 +250,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const currentImageCount = imageContexts.length;
   
   const activeSessionState = useActiveSessionState();
-  const activeBtwSessionTab = useAgentCanvasStore(state => selectActiveBtwSessionTab(state as any));
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
-  const currentSession = currentSessionId ? flowChatState.sessions.get(currentSessionId) : undefined;
-  const activeBtwSessionData = activeBtwSessionTab?.content.data as
-    | { childSessionId: string; parentSessionId: string; workspacePath?: string }
-    | undefined;
-  const activeBtwSessionId = activeBtwSessionData?.parentSessionId === currentSessionId
-    ? activeBtwSessionData.childSessionId
-    : undefined;
-  const effectiveTargetSessionId =
-    inputTarget === 'btw' && activeBtwSessionId ? activeBtwSessionId : currentSessionId;
+  const effectiveTargetSessionId = currentSessionId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
     : undefined;
   const effectiveTargetRelationship = resolveSessionRelationship(effectiveTargetSession);
   const isBtwSession = effectiveTargetRelationship.displayAsChild;
-  const currentSessionTitle = currentSession?.title?.trim() || t('session.untitled');
-  const activeBtwSession = activeBtwSessionId
-    ? flowChatState.sessions.get(activeBtwSessionId)
-    : undefined;
-  const activeBtwRelationship = resolveSessionRelationship(activeBtwSession);
-  const canInteractWithActiveChildSession = activeBtwRelationship.kind !== 'subagent';
-  const showTargetSwitcher = !!activeBtwSessionId && canInteractWithActiveChildSession;
-  const activeBtwKind = activeBtwRelationship.kind === 'review' || activeBtwRelationship.kind === 'deep_review'
-    ? activeBtwRelationship.kind
-    : 'btw';
-  const activeBtwTargetLabel = t(`childSession.kinds.${activeBtwKind}.short`, {
-    defaultValue: t('chatInput.targetBtw'),
-  });
-  const activeBtwSessionTitle = activeBtwSession
-    ? activeBtwSession.title?.trim() || t(`childSession.kinds.${activeBtwKind}.title`, {
-        defaultValue: t('btw.threadLabel'),
-      })
-    : '';
   
   // Memoize history so keyboard handlers don't see a fresh [] on every render.
   const inputHistory = useMemo(
@@ -433,12 +403,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const unsubscribe = FlowChatStore.getInstance().subscribe(setFlowChatState);
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    if (!showTargetSwitcher || !activeBtwSessionId) {
-      setInputTarget('main');
-    }
-  }, [activeBtwSessionId, showTargetSwitcher]);
 
   useEffect(() => {
     setChatInputActive(inputState.isActive);
@@ -1321,7 +1285,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         workspacePath,
         expand: true,
       });
-      setInputTarget('btw');
       dispatchInput({ type: 'DEACTIVATE' });
     } catch (e) {
       log.error('Failed to start /btw thread', { e });
@@ -2172,13 +2135,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
     
-    // Tab key: toggle send target when the btw session switcher is visible
-    if (showTargetSwitcher && e.key === 'Tab' && !e.shiftKey && !slashCommandState.isActive) {
-      e.preventDefault();
-      setInputTarget(prev => prev === 'main' ? 'btw' : 'main');
-      return;
-    }
-
     // History navigation with up/down arrows
     // Only handle when not in slash command mode and not composing
     if (!slashCommandState.isActive && inputHistory.length > 0) {
@@ -2284,7 +2240,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       e.preventDefault();
       void handleCancelCurrentTask();
     }
-  }, [handleSendOrCancel, submitBtwFromInput, derivedState, handleCancelCurrentTask, slashCommandState, getFilteredIncrementalModes, getFilteredActions, getSlashPickerItems, selectSlashCommandMode, selectSlashCommandAction, selectSlashPromptCommand, canSwitchModes, historyIndex, inputHistory, savedDraft, inputState.value, currentSessionId, isBtwSession, showTargetSwitcher, setInputTarget, t]);
+  }, [handleSendOrCancel, submitBtwFromInput, derivedState, handleCancelCurrentTask, slashCommandState, getFilteredIncrementalModes, getFilteredActions, getSlashPickerItems, selectSlashCommandMode, selectSlashCommandAction, selectSlashPromptCommand, canSwitchModes, historyIndex, inputHistory, savedDraft, inputState.value, currentSessionId, isBtwSession, t]);
 
   const handleImeCompositionStart = useCallback(() => {
     isImeComposingRef.current = true;
@@ -2659,33 +2615,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     />
                   )}
                 </div>
-              </div>
-            )}
-            {showTargetSwitcher && (
-              <div className="void-chat-input__target-switcher" data-testid="chat-input-target-switcher">
-                <span className="void-chat-input__target-switcher-label">{t('chatInput.conversationTarget')}</span>
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className={`void-chat-input__target-tab ${inputTarget === 'main' ? 'void-chat-input__target-tab--active' : ''}`}
-                  onClick={() => setInputTarget('main')}
-                >
-                  {t('chatInput.targetMain')}
-                  {inputTarget === 'main' && currentSessionTitle && (
-                    <span className="void-chat-input__target-tab-name">{currentSessionTitle}</span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  className={`void-chat-input__target-tab ${inputTarget === 'btw' ? 'void-chat-input__target-tab--active' : ''}`}
-                  onClick={() => setInputTarget('btw')}
-                >
-                  {activeBtwTargetLabel}
-                  {inputTarget === 'btw' && activeBtwSessionTitle && (
-                    <span className="void-chat-input__target-tab-name">{activeBtwSessionTitle}</span>
-                  )}
-                </button>
               </div>
             )}
             <div className="void-chat-input__input-area">

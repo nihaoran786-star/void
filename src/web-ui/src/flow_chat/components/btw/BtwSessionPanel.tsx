@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import path from 'path-browserify';
-import {CornerUpLeft, Link2, Square, Sparkles} from 'lucide-react';
+import {CornerUpLeft, Link2, Send, Square, Sparkles} from 'lucide-react';
 import {FlowChatContext} from '../modern/FlowChatContext';
 import {VirtualItemRenderer} from '../modern/VirtualItemRenderer';
 import {ProcessingIndicator} from '../modern/ProcessingIndicator';
@@ -19,10 +19,12 @@ import {fileTabManager} from '@/shared/services/FileTabManager';
 import {createTab} from '@/shared/utils/tabUtils';
 import {IconButton, type LineRange} from '@/component-library';
 import {resolveSessionRelationship} from '../../utils/sessionMetadata';
-import {agentAPI} from '@/infrastructure/api';
+import {agentAPI, btwAPI} from '@/infrastructure/api';
 import {globalEventBus} from '@/infrastructure/event-bus';
 import {notificationService} from '@/shared/notification-system';
 import {createLogger} from '@/shared/utils/logger';
+import {FlowChatManager} from '../../services/FlowChatManager';
+import {stateMachineManager, SessionExecutionState} from '../../state-machine';
 import {settleStoppedReviewSessionState} from '../../utils/reviewSessionStop';
 import {findLatestCodeReviewResult, findLatestCodeReviewResultState} from '../../utils/reviewSessionSummary';
 import {
@@ -70,6 +72,31 @@ const isActiveReviewTurnStatus = (status?: DialogTurn['status']) =>
   status === 'processing' ||
   status === 'finishing';
 
+const isProcessingState = (state: SessionExecutionState | null | undefined) =>
+  state === SessionExecutionState.PROCESSING ||
+  state === SessionExecutionState.FINISHING;
+
+const resolveActiveBtwRequestId = (session?: Session | null): string | undefined => {
+  const turns = session?.dialogTurns ?? [];
+  for (let index = turns.length - 1; index >= 0; index -= 1) {
+    const turn = turns[index];
+    if (!isActiveReviewTurnStatus(turn.status)) {
+      continue;
+    }
+    const match = turn.id.match(/^btw-turn-(.+)$/);
+    if (match?.[1]?.trim()) {
+      return match[1].trim();
+    }
+  }
+
+  const requestId = session?.btwOrigin?.requestId?.trim();
+  if (requestId) {
+    return requestId;
+  }
+
+  return undefined;
+};
+
 type DeepReviewActionData = CodeReviewRemediationData & {
   review_mode?: 'standard' | 'deep';
 };
@@ -93,15 +120,38 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const { t } = useTranslation('flow-chat');
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => flowChatStore.getState());
   const [stoppingReview, setStoppingReview] = useState(false);
+  const [composerValue, setComposerValue] = useState('');
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [stoppingChildSession, setStoppingChildSession] = useState(false);
+  const [childExecutionState, setChildExecutionState] = useState<SessionExecutionState>(() =>
+    childSessionId
+      ? stateMachineManager.getCurrentState(childSessionId)
+      : SessionExecutionState.IDLE
+  );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRef<HTMLDivElement>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement>(null);
   const [actionBarHeight, setActionBarHeight] = useState(0);
   const shouldAutoScrollRef = useRef(true);
 
   useEffect(() => {
     return flowChatStore.subscribe(setFlowChatState);
   }, []);
+
+  useEffect(() => {
+    if (!childSessionId) {
+      setChildExecutionState(SessionExecutionState.IDLE);
+      return;
+    }
+
+    setChildExecutionState(stateMachineManager.getCurrentState(childSessionId));
+    return stateMachineManager.subscribeGlobal((sessionId, machine) => {
+      if (sessionId === childSessionId) {
+        setChildExecutionState(machine.currentState);
+      }
+    });
+  }, [childSessionId]);
 
   const childSession = childSessionId ? flowChatState.sessions.get(childSessionId) : undefined;
   const parentSession = parentSessionId ? flowChatState.sessions.get(parentSessionId) : undefined;
@@ -248,12 +298,20 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     });
   }, []);
 
+  const handleFillUserMessageInput = useCallback((content: string) => {
+    setComposerValue(content);
+    window.requestAnimationFrame(() => {
+      composerInputRef.current?.focus();
+    });
+  }, []);
+
   const contextValue = useMemo(() => ({
     onFileViewRequest: handleFileViewRequest,
     onTabOpen: handleTabOpen,
     sessionId: childSessionId,
     activeSessionOverride: childSession ?? null,
     allowUserMessageEdit: false,
+    onFillUserMessageInput: handleFillUserMessageInput,
     config: PANEL_CONFIG,
     exploreGroupStates,
     onExploreGroupToggle,
@@ -264,6 +322,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     childSession,
     childSessionId,
     handleFileViewRequest,
+    handleFillUserMessageInput,
     handleTabOpen,
     exploreGroupStates,
     onExploreGroupToggle,
@@ -277,6 +336,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const lastItem = lastModelRound?.items[lastModelRound.items.length - 1];
   const lastItemContent = lastItem && 'content' in lastItem ? String((lastItem as any).content || '') : '';
   const isTurnProcessing = isActiveReviewTurnStatus(lastDialogTurn?.status);
+  const isChildSessionProcessing = isTurnProcessing || isProcessingState(childExecutionState);
   const [isContentGrowing, setIsContentGrowing] = useState(true);
   const lastContentRef = useRef(lastItemContent);
   const contentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -324,6 +384,14 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     (childKind === 'review' || childKind === 'deep_review') &&
     isTurnProcessing &&
     !stoppingReview;
+  const canUseComposer = childKind === 'btw' || childKind === 'subagent';
+  const trimmedComposerValue = composerValue.trim();
+  const canSubmitComposer =
+    canUseComposer &&
+    Boolean(childSessionId) &&
+    Boolean(trimmedComposerValue) &&
+    !isSubmittingMessage &&
+    !isChildSessionProcessing;
 
   // ---- Review action bar integration ----
   const actionBarState = useReviewActionBarStore((s) =>
@@ -773,6 +841,93 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     }
   }, [childSessionId, stoppingReview, isTurnProcessing, t]);
 
+  const handleSubmitComposer = useCallback(async () => {
+    if (!canSubmitComposer || !childSessionId || !childSession) {
+      return;
+    }
+
+    const message = trimmedComposerValue;
+    setComposerValue('');
+    setIsSubmittingMessage(true);
+    try {
+      await FlowChatManager.getInstance().sendMessage(
+        message,
+        childSessionId,
+        undefined,
+        childSession.mode || childSession.config?.agentType || 'agentic',
+      );
+    } catch (error) {
+      setComposerValue(message);
+      log.error('Failed to send child session message', {
+        childSessionId,
+        childKind,
+        error,
+      });
+      notificationService.error(
+        t('childSession.sendFailed', {
+          defaultValue: 'Failed to send the message.',
+        }),
+      );
+    } finally {
+      setIsSubmittingMessage(false);
+    }
+  }, [
+    canSubmitComposer,
+    childKind,
+    childSession,
+    childSessionId,
+    t,
+    trimmedComposerValue,
+  ]);
+
+  const handleComposerKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) {
+      return;
+    }
+
+    event.preventDefault();
+    void handleSubmitComposer();
+  }, [handleSubmitComposer]);
+
+  const handleStopChildSession = useCallback(async () => {
+    if (!childSessionId || stoppingChildSession || !isChildSessionProcessing) {
+      return;
+    }
+
+    setStoppingChildSession(true);
+    try {
+      if (childKind === 'btw') {
+        const requestId = resolveActiveBtwRequestId(childSession);
+        if (!requestId) {
+          throw new Error(`Active /btw request not found for session: ${childSessionId}`);
+        }
+        await btwAPI.cancel({ requestId });
+      } else {
+        await agentAPI.cancelSession(childSessionId);
+      }
+    } catch (error) {
+      log.error('Failed to stop child session', {
+        childSessionId,
+        childKind,
+        error,
+      });
+      notificationService.error(
+        t('childSession.stopFailed', {
+          defaultValue: 'Failed to stop this session.',
+        }),
+      );
+    } finally {
+      setStoppingChildSession(false);
+    }
+  }, [
+    childKind,
+    childSession,
+    childSessionId,
+    isChildSessionProcessing,
+    stoppingChildSession,
+    t,
+  ]);
+
   const handleReturnToParentSession = useCallback(() => {
     const resolvedParentSessionId = btwOrigin?.parentSessionId || parentSessionId;
     if (!resolvedParentSessionId) {
@@ -806,7 +961,9 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   return (
     <FlowChatContext.Provider value={contextValue}>
-      <div className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}`}>
+      <div
+        className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}${canUseComposer ? ' btw-session-panel--has-composer' : ''}`}
+      >
         <div className="btw-session-panel__header">
           <div className="btw-session-panel__header-left">
             <span className="btw-session-panel__badge">{childBadgeLabel}</span>
@@ -911,6 +1068,55 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         {showReviewActionBar && (
           <div ref={actionBarRef} className="btw-session-panel__action-bar-wrapper">
             <ReviewActionBar childSessionId={childSessionId} />
+          </div>
+        )}
+
+        {canUseComposer && (
+          <div className="btw-session-panel__composer" data-testid="btw-session-panel-composer">
+            <textarea
+              ref={composerInputRef}
+              className="btw-session-panel__composer-input"
+              value={composerValue}
+              onChange={(event) => setComposerValue(event.target.value)}
+              onKeyDown={handleComposerKeyDown}
+              disabled={isSubmittingMessage || isChildSessionProcessing}
+              rows={1}
+              placeholder={t('childSession.composerPlaceholder', {
+                defaultValue: childKind === 'subagent'
+                  ? 'Message this agent...'
+                  : 'Ask a follow-up...',
+              })}
+              aria-label={t('childSession.composerAriaLabel', {
+                defaultValue: 'Message child session',
+              })}
+            />
+            {isChildSessionProcessing ? (
+              <button
+                type="button"
+                className="btw-session-panel__composer-button btw-session-panel__composer-button--stop"
+                onClick={() => void handleStopChildSession()}
+                disabled={stoppingChildSession}
+                aria-label={stoppingChildSession
+                  ? t('childSession.stopping', { defaultValue: 'Stopping...' })
+                  : t('childSession.stop', { defaultValue: 'Stop' })}
+                title={stoppingChildSession
+                  ? t('childSession.stopping', { defaultValue: 'Stopping...' })
+                  : t('childSession.stop', { defaultValue: 'Stop' })}
+              >
+                <Square size={14} />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btw-session-panel__composer-button"
+                onClick={() => void handleSubmitComposer()}
+                disabled={!canSubmitComposer}
+                aria-label={t('childSession.send', { defaultValue: 'Send' })}
+                title={t('childSession.send', { defaultValue: 'Send' })}
+              >
+                <Send size={14} />
+              </button>
+            )}
           </div>
         )}
       </div>

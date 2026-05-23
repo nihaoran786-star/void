@@ -9,6 +9,10 @@ import { loadPersistedReviewState } from '../../services/ReviewActionBarPersiste
 import type { FlowChatState, Session } from '../../types/flow-chat';
 
 let flowChatState: FlowChatState;
+const mockSendMessage = vi.fn();
+const mockCancelSession = vi.fn();
+const mockBtwCancel = vi.fn();
+let mockExecutionState = 'idle';
 const translate = (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => (
   options?.defaultValue ?? _key
 );
@@ -80,7 +84,31 @@ vi.mock('@/shared/utils/tabUtils', () => ({
 
 vi.mock('@/infrastructure/api', () => ({
   agentAPI: {
-    cancelSession: vi.fn(),
+    cancelSession: (...args: unknown[]) => mockCancelSession(...args),
+  },
+  btwAPI: {
+    cancel: (...args: unknown[]) => mockBtwCancel(...args),
+  },
+}));
+
+vi.mock('../../services/FlowChatManager', () => ({
+  FlowChatManager: {
+    getInstance: () => ({
+      sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+    }),
+  },
+}));
+
+vi.mock('../../state-machine', () => ({
+  SessionExecutionState: {
+    IDLE: 'idle',
+    PROCESSING: 'processing',
+    FINISHING: 'finishing',
+    ERROR: 'error',
+  },
+  stateMachineManager: {
+    getCurrentState: () => mockExecutionState,
+    subscribeGlobal: () => () => {},
   },
 }));
 
@@ -272,6 +300,43 @@ function createParentSessionWithId(sessionId: string): Session {
   } as Session;
 }
 
+function createBtwSessionWithId(sessionId: string, parentSessionId: string): Session {
+  return {
+    sessionId,
+    title: 'Side question',
+    dialogTurns: [],
+    status: 'idle',
+    config: { modelName: 'fast' },
+    mode: 'agentic',
+    createdAt: 1,
+    lastActiveAt: 1,
+    error: null,
+    sessionKind: 'btw',
+    parentSessionId,
+    workspacePath: 'D:/workspace/project',
+    isTransient: true,
+  } as Session;
+}
+
+function createSubagentSessionWithId(sessionId: string, parentSessionId: string): Session {
+  return {
+    sessionId,
+    title: 'Researcher',
+    dialogTurns: [],
+    status: 'idle',
+    config: { agentType: 'Researcher' },
+    mode: 'Researcher',
+    createdAt: 1,
+    lastActiveAt: 1,
+    error: null,
+    sessionKind: 'subagent',
+    parentSessionId,
+    parentToolCallId: 'task-call-1',
+    subagentType: 'Researcher',
+    workspacePath: 'D:/workspace/project',
+  } as Session;
+}
+
 function cloneReviewSessionWithId(
   session: Session,
   sessionId: string,
@@ -375,11 +440,22 @@ function createCancelledFixDeepReview(): Session {
   } as Session;
 }
 
+function setTextareaValue(input: HTMLTextAreaElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLTextAreaElement.prototype,
+    'value',
+  )?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 describe('BtwSessionPanel review action bar integration', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    mockExecutionState = 'idle';
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     useReviewActionBarStore.getState().reset();
     container = document.createElement('div');
@@ -433,6 +509,148 @@ describe('BtwSessionPanel review action bar integration', () => {
       phase: 'review_completed',
     });
     expect(useReviewActionBarStore.getState().remediationItems).toEqual([]);
+  });
+
+  it('sends follow-up messages to the active BTW child session only', async () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    const parentSession = createParentSessionWithId('parent-session');
+    const btwSession = createBtwSessionWithId('btw-child', parentSession.sessionId);
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        [parentSession.sessionId, parentSession],
+        [btwSession.sessionId, btwSession],
+      ]),
+      activeSessionId: parentSession.sessionId,
+    } as FlowChatState;
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={btwSession.sessionId}
+          parentSessionId={parentSession.sessionId}
+          workspacePath="D:/workspace/project"
+        />,
+      );
+    });
+
+    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
+    expect(input).toBeTruthy();
+
+    await act(async () => {
+      setTextareaValue(input!, 'Can you explain the current result?');
+    });
+
+    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
+    expect(sendButton?.disabled).toBe(false);
+
+    await act(async () => {
+      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      'Can you explain the current result?',
+      'btw-child',
+      undefined,
+      'agentic',
+    );
+    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
+  });
+
+  it('sends follow-up messages to the active subagent child session only', async () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    const parentSession = createParentSessionWithId('parent-session');
+    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        [parentSession.sessionId, parentSession],
+        [subagentSession.sessionId, subagentSession],
+      ]),
+      activeSessionId: parentSession.sessionId,
+    } as FlowChatState;
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={subagentSession.sessionId}
+          parentSessionId={parentSession.sessionId}
+          workspacePath="D:/workspace/project"
+        />,
+      );
+    });
+
+    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
+    expect(input).toBeTruthy();
+
+    await act(async () => {
+      setTextareaValue(input!, 'Continue from your last finding.');
+    });
+
+    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
+
+    await act(async () => {
+      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      'Continue from your last finding.',
+      'subagent-child',
+      undefined,
+      'Researcher',
+    );
+    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
+  });
+
+  it('stops the active BTW turn instead of a stale origin request', async () => {
+    mockBtwCancel.mockResolvedValue(undefined);
+    const parentSession = createParentSessionWithId('parent-session');
+    const btwSession = {
+      ...createBtwSessionWithId('btw-child', parentSession.sessionId),
+      btwOrigin: {
+        requestId: 'old-request',
+        parentSessionId: parentSession.sessionId,
+      },
+      dialogTurns: [{
+        id: 'btw-turn-new-request',
+        sessionId: 'btw-child',
+        userMessage: { id: 'user-1', content: 'follow up', timestamp: 1 },
+        modelRounds: [],
+        status: 'processing',
+        startTime: 1,
+      }],
+    } as Session;
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        [parentSession.sessionId, parentSession],
+        [btwSession.sessionId, btwSession],
+      ]),
+      activeSessionId: parentSession.sessionId,
+    } as FlowChatState;
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={btwSession.sessionId}
+          parentSessionId={parentSession.sessionId}
+          workspacePath="D:/workspace/project"
+        />,
+      );
+    });
+
+    const stopButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
+    expect(stopButton?.disabled).toBe(false);
+
+    await act(async () => {
+      stopButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(mockBtwCancel).toHaveBeenCalledWith({ requestId: 'new-request' });
+    expect(mockCancelSession).not.toHaveBeenCalled();
   });
 
   it('shows the running review action as minimized while Deep Review is still processing', async () => {

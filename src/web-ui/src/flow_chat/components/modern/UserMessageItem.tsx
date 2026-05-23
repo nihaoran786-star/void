@@ -47,6 +47,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       activeSessionOverride,
       allowUserMessageRollback = true,
       allowUserMessageEdit = true,
+      onFillUserMessageInput,
     } = useFlowChatContext();
     const activeSessionFromStore = useActiveSession();
     const activeSession = activeSessionOverride ?? activeSessionFromStore;
@@ -206,9 +207,13 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
         //    Rollback is an explicit user action — always fill to avoid the
         //    content silently disappearing when the input already has text.
         if (messageContent.trim().length > 0) {
-          globalEventBus.emit('fill-chat-input', {
-            content: messageContent,
-          });
+          if (onFillUserMessageInput) {
+            onFillUserMessageInput(messageContent);
+          } else {
+            globalEventBus.emit('fill-chat-input', {
+              content: messageContent,
+            });
+          }
         }
 
         notificationService.success(t('message.rollbackSuccess'));
@@ -218,7 +223,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       } finally {
         setIsRollingBack(false);
       }
-    }, [canRollback, resolvedSessionId, t, turnIndex, messageContent]);
+    }, [canRollback, onFillUserMessageInput, resolvedSessionId, t, turnIndex, messageContent]);
 
     const handleBeginEdit = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();

@@ -235,6 +235,10 @@ export async function sendMessageToTransientBtwSession(params: {
   }
 
   const requestId = safeUuid('btw');
+  flowChatStore.updateSessionBtwOrigin(params.childSessionId, {
+    requestId,
+    parentSessionId: params.parentSessionId,
+  }, 'btw');
   await btwAPI.askStream({
     requestId,
     sessionId: params.parentSessionId,

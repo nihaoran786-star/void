@@ -5,6 +5,9 @@ import { JSDOM } from 'jsdom';
 
 import { FlowChatContext } from './FlowChatContext';
 import { UserMessageItem } from './UserMessageItem';
+import { snapshotAPI } from '@/infrastructure/api';
+import { globalEventBus } from '@/infrastructure/event-bus';
+import { confirmDanger } from '@/component-library';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -80,6 +83,7 @@ describe('UserMessageItem steering tag', () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>', {
       pretendToBeVisual: true,
     });
@@ -205,6 +209,57 @@ describe('UserMessageItem steering tag', () => {
     });
 
     expect(container.querySelector('.user-message-item__rollback-btn')).not.toBeNull();
+  });
+
+  it('fills the panel composer instead of the global chat input when rollback has a scoped handler', async () => {
+    vi.mocked(confirmDanger).mockResolvedValue(true);
+    vi.mocked(snapshotAPI.rollbackToTurn).mockResolvedValue([]);
+    const fillPanelInput = vi.fn();
+    activeSessionRef.current = {
+      sessionId: 'btw-session',
+      sessionKind: 'btw',
+      dialogTurns: [
+        {
+          id: 'turn-1',
+          status: 'completed',
+        },
+      ],
+    };
+
+    await act(async () => {
+      root.render(
+        <FlowChatContext.Provider
+          value={{
+            sessionId: 'btw-session',
+            allowUserMessageRollback: true,
+            onFillUserMessageInput: fillPanelInput,
+          }}
+        >
+          <UserMessageItem
+            message={{
+              id: 'user-btw-1',
+              content: 'btw rollback question',
+              timestamp: 1000,
+            }}
+            turnId="turn-1"
+          />
+        </FlowChatContext.Provider>,
+      );
+    });
+
+    const rollbackButton = container.querySelector<HTMLButtonElement>('.user-message-item__rollback-btn');
+    expect(rollbackButton).not.toBeNull();
+
+    await act(async () => {
+      rollbackButton!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(fillPanelInput).toHaveBeenCalledWith('btw rollback question');
+    expect(globalEventBus.emit).not.toHaveBeenCalledWith(
+      'fill-chat-input',
+      expect.anything(),
+    );
   });
 
   it('hides the edit button when the panel context disables user message editing', () => {
