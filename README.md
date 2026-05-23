@@ -12,7 +12,7 @@ The product brings together code agents, document workflows, terminal and file t
 
 ## Product Snapshot
 
-![Void product showcase](./docs/assets/void-product-showcase.svg)
+![Void desktop application screenshot](./docs/assets/void-app-screenshot.png)
 
 ## Core Features
 
@@ -28,9 +28,9 @@ The product brings together code agents, document workflows, terminal and file t
 
 ## Screenshots
 
-![Void desktop workbench screenshot mock](./docs/assets/void-product-showcase.svg)
+![Void desktop workbench screenshot](./docs/assets/void-app-screenshot.png)
 
-The current README uses a clean, repository-owned SVG showcase so the interview presentation does not depend on stale screenshots. Replace it with fresh captures from the latest desktop build under `docs/assets/` when preparing a release or live demo.
+The current README uses a real desktop application screenshot captured from the running Tauri app. Replace it with fresh captures from the latest desktop build under `docs/assets/` when preparing a release or live demo.
 
 Recommended captures:
 

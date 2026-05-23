@@ -167,83 +167,18 @@
 
       .product-frame {
         position: relative;
-        min-height: 520px;
+        min-height: 0;
         border-radius: 28px;
-        background: var(--charcoal);
+        background: #f8f9fb;
         border: 1px solid #101318;
         box-shadow: 0 34px 70px rgba(24, 22, 19, 0.22);
         overflow: hidden;
       }
 
-      .windowbar {
-        height: 54px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 22px;
-        background: #2c3139;
-      }
-
-      .dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #f46b5f;
-      }
-
-      .dot:nth-child(2) {
-        background: #f1bf4a;
-      }
-
-      .dot:nth-child(3) {
-        background: #5fc97b;
-      }
-
-      .screen {
-        display: grid;
-        grid-template-columns: 138px 1fr;
-        min-height: 466px;
-      }
-
-      .sidebar {
-        background: #1d2128;
-        padding: 24px 18px;
-      }
-
-      .side-pill {
-        height: 32px;
-        margin-bottom: 12px;
-        border-radius: 10px;
-        background: #2b313a;
-      }
-
-      .side-pill.active {
-        background: var(--blue);
-      }
-
-      .chat {
-        padding: 26px;
-        background: #f9f4eb;
-      }
-
-      .bubble {
-        margin-bottom: 16px;
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 16px;
-        background: white;
-      }
-
-      .bubble.dark {
-        background: #1c2027;
-        color: #eef3f8;
-        border-color: #353b46;
-      }
-
-      .small {
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.45;
+      .product-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
       }
 
       .grid {
@@ -344,13 +279,6 @@
           border-bottom: 1px solid var(--line);
         }
 
-        .screen {
-          grid-template-columns: 1fr;
-        }
-
-        .sidebar {
-          display: none;
-        }
       }
     </style>
   </head>
@@ -386,30 +314,8 @@
             </div>
           </div>
 
-          <div class="product-frame" aria-label="Stylized screenshot of the Void desktop product">
-            <div class="windowbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
-            <div class="screen">
-              <aside class="sidebar">
-                <div class="side-pill active"></div>
-                <div class="side-pill"></div>
-                <div class="side-pill"></div>
-                <div class="side-pill"></div>
-              </aside>
-              <div class="chat">
-                <div class="bubble">
-                  <strong>Code Agent</strong>
-                  <p class="small">Plan, edit, test, and explain changes inside a desktop workbench.</p>
-                </div>
-                <div class="bubble dark">
-                  <strong>Runtime trace</strong>
-                  <p class="small">Streaming model events, tool calls, terminal output, and usage telemetry.</p>
-                </div>
-                <div class="bubble">
-                  <strong>Custom agents</strong>
-                  <p class="small">Markdown-defined roles, MCP tools, skills, mini apps, and source-level extension.</p>
-                </div>
-              </div>
-            </div>
+          <div class="product-frame" aria-label="Screenshot of the running Void desktop product">
+            <img src="../docs/assets/void-app-screenshot.png" alt="Void desktop app running a knowledge-base evaluation session" />
           </div>
         </section>
 
