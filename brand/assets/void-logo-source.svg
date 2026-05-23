@@ -1,30 +1,20 @@
-<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Void AI logo">
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Void logo">
   <defs>
-    <radialGradient id="halo" cx="50%" cy="52%" r="48%">
-      <stop offset="0%" stop-color="#7fffe1" stop-opacity="0.36"/>
-      <stop offset="44%" stop-color="#49d6c8" stop-opacity="0.16"/>
-      <stop offset="100%" stop-color="#050607" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="mark" x1="256" y1="200" x2="768" y2="824" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="54%" stop-color="#cfd7d5"/>
-      <stop offset="100%" stop-color="#7fffe1"/>
-    </linearGradient>
-    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="28" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.32 0 0 0 0 1 0 0 0 0 0.86 0 0 0 0.42 0"/>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <mask id="cutouts" maskUnits="userSpaceOnUse">
+      <rect width="1024" height="1024" fill="#ffffff"/>
+      <path d="M214 570C300 408 410 330 520 274C388 302 276 398 210 538L214 570Z" fill="#000000"/>
+      <path d="M534 824C672 764 774 648 826 500C816 660 714 786 564 824H534Z" fill="#000000"/>
+    </mask>
   </defs>
-  <rect width="1024" height="1024" rx="220" fill="#050607"/>
-  <circle cx="512" cy="536" r="420" fill="url(#halo)"/>
-  <g filter="url(#softGlow)">
-    <path d="M233 232L512 824L791 232H664L512 594L360 232H233Z" fill="url(#mark)"/>
-    <path d="M389 314L512 586L635 314H584L512 474L440 314H389Z" fill="#050607" opacity="0.88"/>
+  <g mask="url(#cutouts)" fill="#111111" stroke="#111111">
+    <g fill="none" stroke-width="84" stroke-linecap="butt" stroke-linejoin="round">
+      <path d="M500 202H326C258 202 202 258 202 326V574"/>
+      <path d="M526 202H678C758 202 822 266 822 346V548"/>
+      <path d="M822 576V698C822 768 766 824 696 824H530"/>
+      <path d="M500 824H328C258 824 202 768 202 698V604"/>
+    </g>
+    <path d="M196 588C252 424 372 304 520 274C398 326 322 430 320 554C318 672 384 748 486 790C360 788 260 718 196 588Z"/>
+    <path d="M304 678C408 798 594 792 714 690C774 638 810 572 826 500C808 666 690 802 526 832C432 850 354 802 304 678Z"/>
+    <circle cx="660" cy="408" r="34"/>
   </g>
-  <circle cx="512" cy="512" r="318" fill="none" stroke="#ffffff" stroke-opacity="0.11" stroke-width="2"/>
-  <circle cx="512" cy="512" r="255" fill="none" stroke="#7fffe1" stroke-opacity="0.16" stroke-width="3"/>
 </svg>
