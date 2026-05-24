@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -380,8 +380,13 @@ const MainNav: React.FC<MainNavProps> = ({
     openScene('skills');
   }, [openScene]);
 
+  const handleOpenAutomation = useCallback(() => {
+    openScene('automation');
+  }, [openScene]);
+
   const isAgentsActive = activeTabId === 'agents';
   const isSkillsActive = activeTabId === 'skills';
+  const isAutomationActive = activeTabId === 'automation';
 
   useEffect(() => {
     if (isAgentsActive || isSkillsActive) {
@@ -476,6 +481,7 @@ const MainNav: React.FC<MainNavProps> = ({
     ? t('nav.sessions.newCoworkSessionShort')
     : t('nav.sessions.newCodeSessionShort');
   const assistantTooltip = t('nav.items.persona');
+  const automationTooltip = t('nav.items.automation');
   const addWorkspaceTooltip = t('nav.tooltips.addWorkspace');
   const isAssistantActive = activeTabId === 'assistant';
   const agentsTooltip = t('nav.tooltips.agents');
@@ -572,6 +578,20 @@ const MainNav: React.FC<MainNavProps> = ({
               <User size={15} />
             </span>
             <span>{t('nav.items.persona')}</span>
+          </button>
+        </Tooltip>
+
+        <Tooltip content={automationTooltip} placement="right" followCursor>
+          <button
+            type="button"
+            className={`void-nav-panel__top-action-btn${isAutomationActive ? ' is-active' : ''}`}
+            onClick={handleOpenAutomation}
+            aria-label={automationTooltip}
+          >
+            <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
+              <CalendarClock size={15} />
+            </span>
+            <span>{t('nav.items.automation')}</span>
           </button>
         </Tooltip>
 

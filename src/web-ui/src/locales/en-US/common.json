@@ -84,7 +84,8 @@
       "terminal": "Shell",
       "git": "Git",
       "miniApps": "Mini App",
-      "insights": "Insights"
+      "insights": "Insights",
+      "automation": "Automation"
     },
     "tooltips": {
       "persona": "Assistant — create and manage all assistant instances",
@@ -388,6 +389,49 @@
     "errorSelectParent": "Please select a parent directory",
     "errorEnterName": "Please enter a project name",
     "errorCreateFailed": "Failed to create project"
+  },
+  "automation": {
+    "eyebrow": "Automation",
+    "title": "Automation",
+    "description": "Manage AI automation tasks executed by main sessions, inspect the next run, and adjust schedules in one place.",
+    "target": "Target session",
+    "actions": {
+      "create": "Create task",
+      "openCenter": "Open Automation"
+    },
+    "fields": {
+      "target": "Target",
+      "dailyTime": "Daily time"
+    },
+    "presets": {
+      "once": "One-time",
+      "future": "Future date",
+      "hourly": "Hourly",
+      "daily": "Daily",
+      "interval": "Interval",
+      "cron": "Advanced cron"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "count": "{{count}} jobs",
+      "emptyGroup": "No jobs",
+      "groups": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "upcoming": "Upcoming",
+        "unscheduled": "Unscheduled"
+      }
+    },
+    "empty": {
+      "noWorkspaceTitle": "Open a workspace first",
+      "noWorkspaceDescription": "Automation tasks must be bound to a workspace and a main session.",
+      "noJobsDescription": "Create your first automation task from the top-right action."
+    },
+    "assistantEntry": {
+      "title": "Automation moved",
+      "description": "Scheduled jobs are now managed as a first-level feature instead of being hidden in assistant configuration.",
+      "button": "Open Automation"
+    }
   },
   "remoteConnect": {
     "title": "Remote Control",
@@ -853,6 +897,7 @@
     "miniApps": "Mini App",
     "browser": "Browser",
     "insights": "Insights",
+    "automation": "Automation",
     "assistant": "Assistant",
     "shell": "Shell",
     "panelView": "Panel View"

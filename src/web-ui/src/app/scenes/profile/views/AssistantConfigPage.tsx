@@ -1,7 +1,5 @@
 import React, {
   useCallback, useEffect, useMemo, useRef, useState,
-  lazy,
-  Suspense,
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -27,10 +25,8 @@ import { MEditor } from '@/tools/editor/meditor';
 import SessionsSection from '@/app/components/NavPanel/sections/sessions/SessionsSection';
 import AssistantQuickInput from './AssistantQuickInput';
 import { useNurseryStore } from '../nurseryStore';
-
+import { useSceneManager } from '@/app/hooks/useSceneManager';
 const log = createLogger('AssistantConfigPage');
-
-const AssistantScheduleView = lazy(() => import('@/app/scenes/my-agent/AssistantScheduleView'));
 
 const PERSONA_DOC_FILES = ['IDENTITY.md', 'SOUL.md', 'USER.md'] as const;
 type PersonaDocFile = typeof PERSONA_DOC_FILES[number];
@@ -58,6 +54,7 @@ interface PersonaDocState {
 
 const AssistantConfigPage: React.FC = () => {
   const { t } = useTranslation('scenes/profile');
+  const { openScene } = useSceneManager();
   const { isLight } = useTheme();
   const { openGallery, activeWorkspaceId } = useNurseryStore();
   const selectedAssistantWorkspaceId = useMyAgentStore((s) => s.selectedAssistantWorkspaceId);
@@ -275,25 +272,23 @@ const AssistantConfigPage: React.FC = () => {
 
         <div className="acp-right-shell__divider" role="separator" aria-hidden="true" />
 
-        {/* Scheduled tasks — title/toolbar live inside AssistantScheduleView */}
+        {/* Scheduled tasks are managed from the first-level Automation scene. */}
         <div className="acp-section acp-section--nested acp-section--schedule">
           <div className="acp-section__schedule-body">
-            {!workspacePath ? (
-              <p className="acp-empty">{t('nursery.assistant.scheduledSessionsNoWorkspace')}</p>
-            ) : (
-              <Suspense
-                fallback={(
-                  <div className="acp-loading">
-                    <RefreshCw size={14} className="nursery-spinning" />
-                  </div>
-                )}
+            <div className="acp-automation-entry">
+              <div>
+                <span className="acp-automation-entry__title">{t('common:automation.assistantEntry.title')}</span>
+                <p>{t('common:automation.assistantEntry.description')}</p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={() => openScene('automation')}
               >
-                <AssistantScheduleView
-                  workspacePath={workspacePath}
-                  assistantName={identityName}
-                />
-              </Suspense>
-            )}
+                {t('common:automation.assistantEntry.button')}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

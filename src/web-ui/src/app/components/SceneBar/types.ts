@@ -19,6 +19,7 @@ export type SceneTabId =
   | 'browser'
   | 'assistant'
   | 'insights'
+  | 'automation'
   | 'shell'
   | 'panel-view'
   | `miniapp:${string}`;

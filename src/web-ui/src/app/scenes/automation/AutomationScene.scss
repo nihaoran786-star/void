@@ -1,0 +1,317 @@
+.automation-scene {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.automation-scene__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px 18px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.12));
+}
+
+.automation-scene__eyebrow {
+  margin-bottom: 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.automation-scene__header h1 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.automation-scene__header p {
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.automation-scene__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.automation-scene__content {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.automation-scene__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.12));
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+}
+
+.automation-scene__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.12));
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.automation-scene__panel-head span:first-child {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.automation-scene__schedule-groups,
+.automation-scene__job-list {
+  min-height: 0;
+  overflow: auto;
+}
+
+.automation-scene__schedule-group {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.12));
+}
+
+.automation-scene__schedule-group:last-child {
+  border-bottom: 0;
+}
+
+.automation-scene__schedule-group-title {
+  margin-bottom: 8px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.automation-scene__schedule-empty {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.automation-scene__schedule-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  width: 100%;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.automation-scene__schedule-row:hover {
+  background: var(--color-bg-quaternary);
+}
+
+.automation-scene__schedule-row span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.automation-scene__schedule-row strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-scene__job-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid var(--color-border, rgba(255,255,255,0.12));
+}
+
+.automation-scene__job-card:last-child {
+  border-bottom: 0;
+}
+
+.automation-scene__job-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.automation-scene__job-title {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-scene__job-meta {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-scene__job-error {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--color-danger, #c77070);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automation-scene__job-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.automation-scene__status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.12));
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.automation-scene__status--running,
+.automation-scene__status--queued {
+  color: var(--color-accent-primary, #60a5fa);
+}
+
+.automation-scene__status--error {
+  color: var(--color-danger, #c77070);
+}
+
+.automation-scene__empty,
+.automation-scene__loading {
+  display: flex;
+  flex: 1;
+  min-height: 240px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.automation-scene__empty--inline {
+  min-height: 360px;
+}
+
+.automation-scene__empty h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.automation-scene__empty p {
+  max-width: 420px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.automation-scene__spin {
+  animation: automation-spin 0.9s linear infinite;
+}
+
+.automation-scene__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.automation-scene__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.automation-scene__switch-field {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 20px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.automation-scene__warning {
+  margin: 0;
+  color: var(--color-danger, #c77070);
+  font-size: 13px;
+}
+
+.automation-scene__form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+@keyframes automation-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 920px) {
+  .automation-scene__content {
+    grid-template-columns: 1fr;
+    overflow: auto;
+  }
+
+  .automation-scene__panel {
+    min-height: 260px;
+  }
+
+  .automation-scene__form-grid {
+    grid-template-columns: 1fr;
+  }
+}

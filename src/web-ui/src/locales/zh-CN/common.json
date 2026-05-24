@@ -84,7 +84,8 @@
       "terminal": "Shell",
       "git": "Git",
       "miniApps": "小应用",
-      "insights": "洞察"
+      "insights": "洞察",
+      "automation": "自动化"
     },
     "tooltips": {
       "persona": "助理 — 创建与管理所有助理实例",
@@ -388,6 +389,49 @@
     "errorSelectParent": "请选择父目录",
     "errorEnterName": "请输入工作区名称",
     "errorCreateFailed": "创建工作区失败"
+  },
+  "automation": {
+    "eyebrow": "Automation",
+    "title": "自动化",
+    "description": "集中管理由主会话执行的 AI 自动化任务，查看下一次执行时间并快速调整计划。",
+    "target": "执行会话",
+    "actions": {
+      "create": "创建任务",
+      "openCenter": "打开自动化中心"
+    },
+    "fields": {
+      "target": "执行目标",
+      "dailyTime": "每天时间"
+    },
+    "presets": {
+      "once": "单次执行",
+      "future": "未来某时",
+      "hourly": "每小时",
+      "daily": "每天",
+      "interval": "固定间隔",
+      "cron": "高级 Cron"
+    },
+    "schedule": {
+      "title": "未来日程",
+      "count": "{{count}} 个任务",
+      "emptyGroup": "暂无任务",
+      "groups": {
+        "today": "今天",
+        "tomorrow": "明天",
+        "upcoming": "未来",
+        "unscheduled": "未安排"
+      }
+    },
+    "empty": {
+      "noWorkspaceTitle": "请先打开工作区",
+      "noWorkspaceDescription": "自动化任务需要绑定到一个工作区和主会话。",
+      "noJobsDescription": "点击右上角创建第一个自动化任务。"
+    },
+    "assistantEntry": {
+      "title": "自动化任务已移动",
+      "description": "定时任务现在作为一级功能集中管理，避免隐藏在助理配置里。",
+      "button": "打开自动化"
+    }
   },
   "remoteConnect": {
     "title": "远程控制",
@@ -853,6 +897,7 @@
     "miniApps": "小应用",
     "browser": "浏览器",
     "insights": "洞察",
+    "automation": "自动化",
     "assistant": "助理",
     "shell": "Shell",
     "panelView": "面板视图"

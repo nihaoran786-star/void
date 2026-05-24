@@ -84,7 +84,8 @@
       "terminal": "Shell",
       "git": "Git",
       "miniApps": "小應用",
-      "insights": "洞察"
+      "insights": "洞察",
+      "automation": "自動化"
     },
     "tooltips": {
       "persona": "助理 — 創建與管理所有助理實例",
@@ -388,6 +389,49 @@
     "errorSelectParent": "請選擇父目錄",
     "errorEnterName": "請輸入工作區名稱",
     "errorCreateFailed": "創建工作區失敗"
+  },
+  "automation": {
+    "eyebrow": "Automation",
+    "title": "自動化",
+    "description": "集中管理由主會話執行的 AI 自動化任務，查看下一次執行時間並快速調整計劃。",
+    "target": "執行會話",
+    "actions": {
+      "create": "創建任務",
+      "openCenter": "打開自動化中心"
+    },
+    "fields": {
+      "target": "執行目標",
+      "dailyTime": "每天時間"
+    },
+    "presets": {
+      "once": "單次執行",
+      "future": "未來某時",
+      "hourly": "每小時",
+      "daily": "每天",
+      "interval": "固定間隔",
+      "cron": "高級 Cron"
+    },
+    "schedule": {
+      "title": "未來日程",
+      "count": "{{count}} 個任務",
+      "emptyGroup": "暫無任務",
+      "groups": {
+        "today": "今天",
+        "tomorrow": "明天",
+        "upcoming": "未來",
+        "unscheduled": "未安排"
+      }
+    },
+    "empty": {
+      "noWorkspaceTitle": "請先打開工作區",
+      "noWorkspaceDescription": "自動化任務需要綁定到一個工作區和主會話。",
+      "noJobsDescription": "點擊右上角創建第一個自動化任務。"
+    },
+    "assistantEntry": {
+      "title": "自動化任務已移動",
+      "description": "定時任務現在作為一級功能集中管理，避免隱藏在助理配置裏。",
+      "button": "打開自動化"
+    }
   },
   "remoteConnect": {
     "title": "遠程控制",
@@ -853,6 +897,7 @@
     "miniApps": "小應用",
     "browser": "瀏覽器",
     "insights": "洞察",
+    "automation": "自動化",
     "assistant": "助理",
     "shell": "Shell",
     "panelView": "面板視圖"
