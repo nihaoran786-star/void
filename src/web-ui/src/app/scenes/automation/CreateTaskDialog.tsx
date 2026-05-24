@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Repeat, Zap, X, type LucideIcon } from 'lucide-react';
 import { useAutomation } from './automation-context';
 import {
@@ -22,9 +22,15 @@ const SCHEDULE_OPTIONS: ScheduleOption[] = [
 export function CreateTaskDialog() {
   const { createDialogOpen, setCreateDialogOpen, agents, addTask } =
     useAutomation();
+  const mainAgents = useMemo(
+    () => agents.filter((a) => !a.isSubAgent),
+    [agents],
+  );
+  const hasNoMainAgent = mainAgents.length === 0;
 
   const [name, setName] = useState('');
-  const [agentId, setAgentId] = useState<string>(agents[0]?.id ?? '');
+  const [prompt, setPrompt] = useState('');
+  const [agentId, setAgentId] = useState<string>(mainAgents[0]?.id ?? '');
   const [scheduleType, setScheduleType] = useState<ScheduleType>('once');
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -35,10 +41,14 @@ export function CreateTaskDialog() {
 
   // Reset agent default when agents change.
   useEffect(() => {
-    if (!agentId && agents.length > 0) {
-      setAgentId(agents[0].id);
+    if (!agentId && mainAgents.length > 0) {
+      setAgentId(mainAgents[0].id);
+      return;
     }
-  }, [agents, agentId]);
+    if (agentId && !mainAgents.some((agent) => agent.id === agentId)) {
+      setAgentId(mainAgents[0]?.id ?? '');
+    }
+  }, [agentId, mainAgents]);
 
   // Close on Escape.
   useEffect(() => {
@@ -52,6 +62,7 @@ export function CreateTaskDialog() {
 
   const reset = () => {
     setName('');
+    setPrompt('');
     setScheduleType('once');
   };
 
@@ -61,7 +72,7 @@ export function CreateTaskDialog() {
   };
 
   const handleSubmit = () => {
-    if (!name.trim() || !agentId) return;
+    if (!name.trim() || !prompt.trim() || !agentId || hasNoMainAgent) return;
     const [hour, minute] = time.split(':').map(Number);
     const scheduledAt = new Date(date);
     scheduledAt.setHours(hour, minute, 0, 0);
@@ -69,8 +80,8 @@ export function CreateTaskDialog() {
     const newTask: AutomationTask = {
       id: `t-${Date.now()}`,
       name: name.trim(),
-      description: name.trim(),
-      prompt: name.trim(),
+      description: prompt.trim(),
+      prompt: prompt.trim(),
       agentId,
       scheduleType,
       scheduledAt: scheduledAt.toISOString(),
@@ -86,9 +97,6 @@ export function CreateTaskDialog() {
   };
 
   if (!createDialogOpen) return null;
-
-  // v1 only allows main agents.
-  const mainAgents = agents.filter((a) => !a.isSubAgent);
 
   return (
     <div
@@ -137,13 +145,43 @@ export function CreateTaskDialog() {
               className="create-task-dialog__select"
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
+              disabled={hasNoMainAgent}
             >
-              {mainAgents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
+              {hasNoMainAgent ? (
+                <option value="">
+                  暂无可用主会话
                 </option>
-              ))}
+              ) : (
+                mainAgents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))
+              )}
             </select>
+            {hasNoMainAgent && (
+              <p className="create-task-dialog__hint">
+                请先创建或打开一个主会话，然后再添加自动化任务。
+              </p>
+            )}
+          </div>
+
+          <div className="create-task-dialog__field">
+            <label
+              htmlFor="task-prompt"
+              className="create-task-dialog__label"
+            >
+              任务 Prompt
+            </label>
+            <textarea
+              id="task-prompt"
+              className="create-task-dialog__textarea"
+              placeholder="例如：每天汇总当前工作区昨天的代码变更、风险点和下一步建议。"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+              maxLength={4000}
+            />
           </div>
 
           <div className="create-task-dialog__field">
@@ -243,7 +281,7 @@ export function CreateTaskDialog() {
             type="button"
             className="create-task-dialog__btn create-task-dialog__btn--primary"
             onClick={handleSubmit}
-            disabled={!name.trim()}
+            disabled={!name.trim() || !prompt.trim() || hasNoMainAgent}
           >
             创建
           </button>

@@ -13,3 +13,27 @@ describe('automation detail panel safety', () => {
     expect(source).not.toContain('继续与 Agent 对话');
   });
 });
+
+describe('automation calendar shell safety', () => {
+  it('does not replace the calendar workspace when no agents are available', () => {
+    const source = readFileSync(join(currentDir, 'AutomationScene.tsx'), 'utf8');
+
+    expect(source).not.toContain('agents.length === 0 ?');
+    expect(source).toContain('<AutomationSceneBody />');
+  });
+
+  it('keeps create task visible but blocked when no main agent is available', () => {
+    const source = readFileSync(join(currentDir, 'CreateTaskDialog.tsx'), 'utf8');
+
+    expect(source).toContain('mainAgents.length === 0');
+    expect(source).toContain('请先创建或打开一个主会话');
+  });
+
+  it('keeps task name separate from the prompt sent to the agent', () => {
+    const source = readFileSync(join(currentDir, 'CreateTaskDialog.tsx'), 'utf8');
+
+    expect(source).toContain('id="task-prompt"');
+    expect(source).toContain('prompt.trim()');
+    expect(source).not.toContain('prompt: name.trim()');
+  });
+});

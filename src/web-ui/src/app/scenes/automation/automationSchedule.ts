@@ -13,6 +13,9 @@ export interface AutomationSessionLike {
   sessionId: string;
   workspacePath?: string | null;
   parentSessionId?: string | null;
+  mode?: string | null;
+  sessionKind?: string | null;
+  isTransient?: boolean;
 }
 
 export type AutomationScheduleDraft =
@@ -81,6 +84,13 @@ export function filterMainSessionsForAutomation<T extends AutomationSessionLike>
   const workspace = workspacePath?.trim();
   return sessions.filter(session => {
     if (session.parentSessionId) return false;
+    if (session.sessionKind === 'subagent') return false;
+    if (session.isTransient) return false;
+    const normalizedMode = session.mode?.trim().toLowerCase();
+    if (normalizedMode === 'claw') return false;
+    if (normalizedMode && normalizedMode !== 'agentic' && normalizedMode !== 'code' && normalizedMode !== 'cowork') {
+      return false;
+    }
     if (!workspace) return true;
     return (session.workspacePath || workspace) === workspace;
   });

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Button } from '@/component-library';
 import {
   cronAPI,
   type CreateCronJobRequest,
@@ -219,14 +218,6 @@ const AutomationScene: React.FC = () => {
           <div className="automation-scene__host-loading" role="status" aria-busy="true">
             <RefreshCw size={16} className="automation-scene__spin" />
             <span>{t('nav.scheduledJobs.loading')}</span>
-          </div>
-        ) : agents.length === 0 ? (
-          <div className="automation-scene__host-empty">
-            <h1>{t('automation.empty.noWorkspaceTitle')}</h1>
-            <p>{t('nav.scheduledJobs.messages.sessionRequired')}</p>
-            <Button variant="secondary" size="small" onClick={() => void loadJobs()}>
-              {t('nav.scheduledJobs.actions.refresh')}
-            </Button>
           </div>
         ) : (
           <main className="automation-scene__body">

@@ -75,6 +75,20 @@ describe('automationSchedule', () => {
       .toEqual(['main-a']);
   });
 
+  it('limits automation targets to code and cowork main sessions', () => {
+    const sessions = [
+      { sessionId: 'code-default', workspacePath: 'C:/repo' },
+      { sessionId: 'code-agentic', workspacePath: 'C:/repo', mode: 'agentic' },
+      { sessionId: 'cowork', workspacePath: 'C:/repo', mode: 'cowork' },
+      { sessionId: 'assistant', workspacePath: 'C:/repo', mode: 'claw' },
+      { sessionId: 'subagent-kind', workspacePath: 'C:/repo', sessionKind: 'subagent' },
+      { sessionId: 'transient', workspacePath: 'C:/repo', isTransient: true },
+    ];
+
+    expect(filterMainSessionsForAutomation(sessions, 'C:/repo').map(s => s.sessionId))
+      .toEqual(['code-default', 'code-agentic', 'cowork']);
+  });
+
   it('converts friendly schedule presets to existing cron schedules', () => {
     expect(buildCronScheduleFromAutomationDraft({
       kind: 'hourly',

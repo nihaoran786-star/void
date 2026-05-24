@@ -1635,7 +1635,8 @@
   }
 
   &__input,
-  &__select {
+  &__select,
+  &__textarea {
     height: 34px;
     padding: 0 10px;
     background: var(--as-bg);
@@ -1650,6 +1651,21 @@
       border-color: var(--as-fg);
       box-shadow: 0 0 0 3px var(--as-ring);
     }
+  }
+
+  &__textarea {
+    min-height: 96px;
+    height: auto;
+    padding: 9px 10px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--as-fg-muted);
+    font-size: 12px;
+    line-height: 1.5;
   }
 
   &__select {

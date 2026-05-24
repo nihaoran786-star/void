@@ -3319,7 +3319,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
   gap: $size-gap-3;
   padding: $size-gap-3;
   border: 1px solid var(--border-subtle);
-  border-radius: $radius-lg;
+  border-radius: $size-radius-lg;
   background: var(--element-bg-subtle);
 
   &__title {
