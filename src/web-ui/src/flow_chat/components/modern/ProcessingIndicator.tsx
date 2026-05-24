@@ -1,14 +1,14 @@
 /**
  * Processing indicator.
- * After 1s of continuous processing, shows a 3×3 Rubik-style dot matrix and
+ * After 1s of continuous processing, shows a 3×3 ripple cell matrix and
  * rotating fun hint text together (matrix on the left).
  * reserveSpace keeps layout height even when hidden.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DotMatrixLoader } from '@/component-library';
 import { processingHintsZh, processingHintsEn } from '../../constants/processingHints';
+import { RippleCellLoader } from '../RippleCellLoader';
 import './ProcessingIndicator.scss';
 
 interface ProcessingIndicatorProps {
@@ -67,7 +67,7 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
       >
         {showHint && hints.length > 0 && (
           <>
-            <DotMatrixLoader size="medium" />
+            <RippleCellLoader />
             <span key={hintIndex} className="processing-indicator__hint">
               {hints[hintIndex]}
             </span>

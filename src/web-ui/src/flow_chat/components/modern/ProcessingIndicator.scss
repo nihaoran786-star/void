@@ -1,5 +1,5 @@
 /**
- * Processing indicator layout + fun hint text (dot matrix lives in DotMatrixLoader).
+ * Processing indicator layout + fun hint text.
  */
 
 .processing-indicator {
@@ -71,5 +71,11 @@
   }
   50% {
     opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .processing-indicator__hint {
+    animation: hint-fade-in 0.01ms ease forwards;
   }
 }

@@ -8,9 +8,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MarkdownRenderer } from '@/component-library';
-import { DotMatrixLoader } from '@/component-library';
 import type { FlowTextItem } from '../types/flow-chat';
 import { useFlowChatContext } from './modern/FlowChatContext';
+import { RippleCellLoader } from './RippleCellLoader';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { processingHintsZh, processingHintsEn } from '../constants/processingHints';
 import './FlowTextBlock.scss';
@@ -90,7 +90,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
 
     return (
       <div className={`flow-text-block flow-text-block--runtime-status ${className}`}>
-        <DotMatrixLoader size="medium" className="flow-text-block__runtime-status-icon" />
+        <RippleCellLoader className="flow-text-block__runtime-status-icon" />
         <span className="flow-text-block__runtime-status-text">{hint}</span>
       </div>
     );
