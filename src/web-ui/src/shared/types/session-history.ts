@@ -38,6 +38,10 @@ export interface SessionCustomMetadata extends Record<string, unknown> {
   titleSource?: SessionTitleSource | null;
   titleKey?: string | null;
   titleParams?: Record<string, unknown> | null;
+  isAutomationSession?: boolean | null;
+  automation?: {
+    kind?: 'cron_job' | string;
+  } | null;
 }
 
 export interface SessionMetadata {

@@ -17,6 +17,7 @@ import {
   X,
   Trash2,
   Power,
+  Play,
   type LucideIcon,
 } from 'lucide-react';
 import { useAutomation } from './automation-context';
@@ -51,7 +52,7 @@ const ROLE_META = {
 type DetailTab = 'prompt' | 'artifacts' | 'conversation';
 
 export function TaskDetailPanel() {
-  const { selectedTask, setSelectedTaskId, getAgent, deleteTask, toggleTaskEnabled } = useAutomation();
+  const { selectedTask, setSelectedTaskId, getAgent, deleteTask, toggleTaskEnabled, runTaskNow } = useAutomation();
   const open = !!selectedTask;
 
   // Close on Escape.
@@ -87,6 +88,7 @@ export function TaskDetailPanel() {
           onClose={() => setSelectedTaskId(null)}
           onDelete={() => deleteTask(selectedTask)}
           onToggleEnabled={(enabled) => toggleTaskEnabled(selectedTask, enabled)}
+          onRunNow={() => runTaskNow(selectedTask)}
         />
       </div>
     </div>
@@ -99,14 +101,16 @@ interface TaskDetailContentProps {
   onClose: () => void;
   onDelete: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  onRunNow: () => void;
 }
 
 function TaskDetailContent(props: TaskDetailContentProps) {
-  const { task, agentName, onClose, onDelete, onToggleEnabled } = props;
+  const { task, agentName, onClose, onDelete, onToggleEnabled, onRunNow } = props;
   const [tab, setTab] = useState<DetailTab>('prompt');
 
   const priority = PRIORITY_META[task.priority];
   const status = STATUS_META[task.status];
+  const statusLabel = task.runStatus === 'queued' ? '排队中' : status.label;
   const StatusIcon = STATUS_ICON[task.status];
   const scheduledDate = new Date(task.scheduledAt);
 
@@ -153,7 +157,7 @@ function TaskDetailContent(props: TaskDetailContentProps) {
                       : ''
                   }
                 />
-                {status.label}
+                {statusLabel}
               </span>
               {task.scheduleType !== 'once' && (
                 <span className="task-detail-panel__badge task-detail-panel__badge--schedule">
@@ -189,6 +193,14 @@ function TaskDetailContent(props: TaskDetailContentProps) {
         </div>
 
         <div className="task-detail-panel__actions">
+          <button
+            type="button"
+            className="task-detail-panel__btn task-detail-panel__btn--primary"
+            onClick={onRunNow}
+          >
+            <Play size={14} />
+            立即执行
+          </button>
           <button
             type="button"
             className="task-detail-panel__btn task-detail-panel__btn--outline"

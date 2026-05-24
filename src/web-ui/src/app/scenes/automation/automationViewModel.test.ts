@@ -31,7 +31,14 @@ function makeJob(overrides: Partial<CronJob> = {}): CronJob {
 
 describe('automationViewModel', () => {
   it('maps CronJob status into the automation task status vocabulary', () => {
-    expect(cronJobToAutomationTask(makeJob({ enabled: false })).status).toBe('pending');
+    expect(cronJobToAutomationTask(makeJob({
+      enabled: false,
+      state: { ...makeJob().state, lastRunStatus: undefined },
+    })).status).toBe('pending');
+    expect(cronJobToAutomationTask(makeJob({
+      enabled: false,
+      state: { ...makeJob().state, lastRunStatus: 'queued' },
+    })).status).toBe('running');
     expect(cronJobToAutomationTask(makeJob({
       state: { ...makeJob().state, lastRunStatus: 'running' },
     })).status).toBe('running');

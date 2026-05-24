@@ -10,11 +10,11 @@ export interface AutomationSessionSource {
 }
 
 function cronStatusToAutomationStatus(job: CronJob): AutomationTaskStatus {
-  if (!job.enabled) return 'pending';
   const status = job.state.lastRunStatus;
   if (status === 'running' || status === 'queued') return 'running';
   if (status === 'ok') return 'completed';
   if (status === 'error' || status === 'cancelled') return 'failed';
+  if (!job.enabled) return 'pending';
   return 'pending';
 }
 
@@ -62,6 +62,7 @@ export function cronJobToAutomationTask(
     duration: Math.max(1, Math.round((job.state.lastDurationMs ?? 30 * 60_000) / 60_000)),
     priority: 'P2',
     status: cronStatusToAutomationStatus(job),
+    runStatus: job.state.lastRunStatus ?? undefined,
     enabled: job.enabled,
     createdAt: new Date(job.createdAtMs).toISOString(),
     completedAt,

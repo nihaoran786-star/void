@@ -40,6 +40,7 @@ export interface AutomationContextValue {
   addTask: (task: AutomationTask) => void;
   deleteTask: (task: AutomationTask) => void;
   toggleTaskEnabled: (task: AutomationTask, enabled: boolean) => void;
+  runTaskNow: (task: AutomationTask) => void;
   getAgent: (id: string) => Agent | undefined;
 }
 
@@ -57,6 +58,7 @@ export interface AutomationProviderProps {
   onCreateTask?: (task: AutomationTask) => void;
   onDeleteTask?: (task: AutomationTask) => void;
   onToggleTaskEnabled?: (task: AutomationTask, enabled: boolean) => void;
+  onRunTaskNow?: (task: AutomationTask) => void;
 }
 
 export function AutomationProvider(props: AutomationProviderProps) {
@@ -69,6 +71,7 @@ export function AutomationProvider(props: AutomationProviderProps) {
     onCreateTask,
     onDeleteTask,
     onToggleTaskEnabled,
+    onRunTaskNow,
   } = props;
 
   const [localTasks, setLocalTasks] = useState<AutomationTask[]>(tasksProp);
@@ -149,6 +152,13 @@ export function AutomationProvider(props: AutomationProviderProps) {
     [onToggleTaskEnabled],
   );
 
+  const runTaskNow = useCallback(
+    (task: AutomationTask) => {
+      onRunTaskNow?.(task);
+    },
+    [onRunTaskNow],
+  );
+
   const getAgent = useCallback(
     (id: string) => agents.find((a) => a.id === id),
     [agents],
@@ -179,6 +189,7 @@ export function AutomationProvider(props: AutomationProviderProps) {
     addTask,
     deleteTask,
     toggleTaskEnabled,
+    runTaskNow,
     getAgent,
   };
 

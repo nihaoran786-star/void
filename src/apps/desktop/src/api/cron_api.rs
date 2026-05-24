@@ -27,6 +27,12 @@ pub struct DeleteCronJobRequest {
     pub job_id: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunCronJobNowRequest {
+    pub job_id: String,
+}
+
 fn cron_service() -> Result<std::sync::Arc<void_core::service::cron::CronService>, String> {
     get_global_cron_service().ok_or_else(|| "Cron service is not initialized".to_string())
 }
@@ -89,5 +95,19 @@ pub async fn delete_cron_job(request: DeleteCronJobRequest) -> Result<bool, Stri
             request.job_id, error
         );
         format!("Failed to delete scheduled job: {}", error)
+    })
+}
+
+#[tauri::command]
+pub async fn run_cron_job_now(request: RunCronJobNowRequest) -> Result<CronJob, String> {
+    debug!("Running scheduled job now: job_id={}", request.job_id);
+
+    let service = cron_service()?;
+    service.run_job_now(&request.job_id).await.map_err(|error| {
+        error!(
+            "Failed to run scheduled job {} immediately: {}",
+            request.job_id, error
+        );
+        format!("Failed to run scheduled job now: {}", error)
     })
 }

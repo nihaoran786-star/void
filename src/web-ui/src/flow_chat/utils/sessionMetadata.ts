@@ -23,6 +23,10 @@ const TITLE_METADATA_KEYS = new Set([
   'titleKey',
   'titleParams',
 ]);
+const AUTOMATION_METADATA_KEYS = new Set([
+  'isAutomationSession',
+  'automation',
+]);
 
 type SessionRelationshipInput = Pick<
   Session,
@@ -205,6 +209,22 @@ export function deriveLastFinishedAtFromMetadata(
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+export function deriveIsAutomationSessionFromMetadata(
+  metadata?: Pick<SessionMetadata, 'customMetadata'> | null
+): boolean {
+  const customMetadata = metadata?.customMetadata;
+  if (customMetadata?.isAutomationSession === true) {
+    return true;
+  }
+
+  const automation = customMetadata?.automation;
+  return (
+    typeof automation === 'object' &&
+    automation !== null &&
+    (automation as { kind?: unknown }).kind === 'cron_job'
+  );
+}
+
 export function calculateSessionStats(
   session: Pick<Session, 'dialogTurns'>
 ): Pick<SessionMetadata, 'turnCount' | 'messageCount' | 'toolCallCount'> {
@@ -234,13 +254,18 @@ function buildSessionCustomMetadata(
     | 'titleSource'
     | 'titleI18nKey'
     | 'titleI18nParams'
+    | 'isAutomationSession'
   >,
   existingCustomMetadata?: SessionCustomMetadata
 ): SessionCustomMetadata {
   const nextCustomMetadata: SessionCustomMetadata = {};
 
   for (const [key, value] of Object.entries(existingCustomMetadata || {})) {
-    if (!RELATIONSHIP_METADATA_KEYS.has(key) && !TITLE_METADATA_KEYS.has(key)) {
+    if (
+      !RELATIONSHIP_METADATA_KEYS.has(key) &&
+      !TITLE_METADATA_KEYS.has(key) &&
+      !AUTOMATION_METADATA_KEYS.has(key)
+    ) {
       nextCustomMetadata[key] = value;
     }
   }
@@ -253,6 +278,11 @@ function buildSessionCustomMetadata(
     nextCustomMetadata.titleSource = 'i18n';
     nextCustomMetadata.titleKey = session.titleI18nKey;
     nextCustomMetadata.titleParams = session.titleI18nParams ?? null;
+  }
+
+  if (session.isAutomationSession) {
+    nextCustomMetadata.isAutomationSession = true;
+    nextCustomMetadata.automation = { kind: 'cron_job' };
   }
 
   return nextCustomMetadata;
@@ -359,6 +389,7 @@ export function buildSessionMetadata(
     | 'hasUnreadCompletion'
     | 'needsUserAttention'
     | 'deepReviewRunManifest'
+    | 'isAutomationSession'
   >,
   existingMetadata?: SessionMetadata | null
 ): SessionMetadata {
@@ -398,6 +429,7 @@ export function buildSessionMetadata(
         titleSource: session.titleSource,
         titleI18nKey: session.titleI18nKey,
         titleI18nParams: session.titleI18nParams,
+        isAutomationSession: session.isAutomationSession,
       },
       existingMetadata?.customMetadata
     ),

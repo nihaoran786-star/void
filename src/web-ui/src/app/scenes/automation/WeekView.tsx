@@ -7,6 +7,7 @@ import {
   isSameDay,
   tasksOnDay,
 } from './automation-date-utils';
+import { layoutTimedTasks } from './automationCalendarLayout';
 import { TaskCard } from './TaskCard';
 
 const HOUR_HEIGHT = 56;
@@ -86,22 +87,19 @@ export function WeekView() {
                   <div key={h} className="week-view__cell" />
                 ))}
                 {isToday && <CurrentTimeLine />}
-                {dayTasks.map((task) => {
-                  const start = new Date(task.scheduledAt);
-                  const top =
-                    start.getHours() * HOUR_HEIGHT +
-                    (start.getMinutes() / 60) * HOUR_HEIGHT;
-                  const height = Math.max(
-                    28,
-                    (task.duration / 60) * HOUR_HEIGHT - 2,
-                  );
+                {layoutTimedTasks(dayTasks, { hourHeight: HOUR_HEIGHT, minHeight: 28 }).map((slot) => {
                   return (
                     <div
-                      key={task.id}
+                      key={slot.taskId}
                       className="week-view__task-slot"
-                      style={{ top: `${top}px`, height: `${height}px` }}
+                      style={{
+                        top: `${slot.top}px`,
+                        height: `${slot.height}px`,
+                        left: `calc(4px + ${slot.leftPercent}%)`,
+                        width: `calc(${slot.widthPercent}% - 8px)`,
+                      }}
                     >
-                      <TaskCard task={task} />
+                      <TaskCard task={slot.task} />
                     </div>
                   );
                 })}

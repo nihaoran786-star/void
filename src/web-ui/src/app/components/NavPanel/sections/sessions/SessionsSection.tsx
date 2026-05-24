@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Trash2, Check, X, Bot, Code2, ClipboardList, Panda, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Bot, Code2, ClipboardList, Panda, MoreHorizontal, Loader2, CalendarClock } from 'lucide-react';
 import { IconButton, Input, Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
 import { flowChatStore } from '../../../../../flow_chat/store/FlowChatStore';
@@ -58,6 +58,9 @@ const resolveSessionModeType = (session: Session): SessionMode => {
 
 const getTitle = (session: Session): string =>
   resolveSessionTitle(session, (key, options) => i18nService.t(key, options));
+
+const isAutomationSessionTitle = (title: string): boolean =>
+  title.trim().startsWith('自动化 ·');
 
 const getChildSessionBadge = (kind: Session['sessionKind']): string => {
   const normalizedKind =
@@ -481,6 +484,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                 : null;
           const sessionModeKey = resolveSessionModeType(session);
           const sessionTitle = resolveSessionTitle(session);
+          const isAutomationSession =
+            session.isAutomationSession === true || isAutomationSessionTitle(sessionTitle);
           const parentSessionId = relationship.parentSessionId;
           const parentSession = parentSessionId ? flowChatState.sessions.get(parentSessionId) : undefined;
           const parentTitle = parentSession ? resolveSessionTitle(parentSession) : '';
@@ -593,6 +598,14 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                                 : t('nav.sessions.unreadCompleted')
                       }
                     />
+                   ) : null}
+                  {isAutomationSession && !isRunning ? (
+                    <span
+                      className="void-nav-panel__inline-item-automation-badge"
+                      aria-label="自动化任务会话"
+                    >
+                      <CalendarClock size={9} aria-hidden />
+                    </span>
                   ) : null}
                 </span>
               ) : null}

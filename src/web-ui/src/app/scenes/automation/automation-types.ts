@@ -50,11 +50,15 @@ export interface AutomationTask {
   prompt: string;
   agentId: string;
   agentName?: string;
+  workspaceId?: string;
+  workspacePath?: string;
+  executionMode?: 'code' | 'cowork';
   scheduleType: AutomationScheduleType;
   scheduledAt: string;
   duration: number;
   priority: AutomationPriority;
   status: AutomationTaskStatus;
+  runStatus?: 'queued' | 'running' | 'ok' | 'error' | 'cancelled';
   enabled: boolean;
   createdAt: string;
   completedAt?: string;

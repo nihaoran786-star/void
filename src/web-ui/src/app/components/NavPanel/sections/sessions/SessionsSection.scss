@@ -181,6 +181,27 @@
     }
   }
 
+  &__inline-item-automation-badge {
+    position: absolute;
+    right: -4px;
+    bottom: -3px;
+    display: inline-flex;
+    width: 10px;
+    height: 10px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--element-bg-soft);
+    color: var(--color-text-secondary);
+    box-shadow: 0 0 0 1px var(--border-subtle);
+    pointer-events: none;
+
+    svg {
+      display: block;
+      stroke-width: 2;
+    }
+  }
+
   // 「助理会话」区块：行前导图标悬停微微放大（与顶部 __top-action-icon-slot 的 1.07 一致；运行中 Loader 仅用旋转动画）
   &__items--session-blocks &__inline-item:hover &__inline-item-icon:not(.is-running) {
     transform: scale(1.07);

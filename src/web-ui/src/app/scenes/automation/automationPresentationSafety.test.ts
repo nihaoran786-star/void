@@ -22,11 +22,31 @@ describe('automation calendar shell safety', () => {
     expect(source).toContain('<AutomationSceneBody />');
   });
 
-  it('keeps create task visible but blocked when no main agent is available', () => {
+  it('keeps create task visible but blocked when no workspace is available', () => {
     const source = readFileSync(join(currentDir, 'CreateTaskDialog.tsx'), 'utf8');
 
-    expect(source).toContain('mainAgents.length === 0');
-    expect(source).toContain('请先创建或打开一个主会话');
+    expect(source).toContain('workspaces.length === 0');
+    expect(source).toContain('请先打开一个项目工作区');
+    expect(source).not.toContain('目标会话');
+    expect(source).not.toContain('availableSessions');
+  });
+
+  it('uses a segmented slider for code and cowork automation modes', () => {
+    const source = readFileSync(join(currentDir, 'CreateTaskDialog.tsx'), 'utf8');
+
+    expect(source).toContain('create-task-dialog__mode-slider');
+    expect(source).toContain('role="tablist"');
+    expect(source).toContain('编码会话');
+    expect(source).toContain('办公会话');
+  });
+
+  it('lets users set task priority from the create dialog', () => {
+    const source = readFileSync(join(currentDir, 'CreateTaskDialog.tsx'), 'utf8');
+
+    expect(source).toContain('紧急程度');
+    expect(source).toContain('AUTOMATION_PRIORITY_META');
+    expect(source).toContain('setPriority');
+    expect(source).toContain('priority,');
   });
 
   it('keeps task name separate from the prompt sent to the agent', () => {
@@ -35,5 +55,39 @@ describe('automation calendar shell safety', () => {
     expect(source).toContain('id="task-prompt"');
     expect(source).toContain('prompt.trim()');
     expect(source).not.toContain('prompt: name.trim()');
+  });
+
+  it('creates a dedicated session before creating the cron job', () => {
+    const source = readFileSync(join(currentDir, 'AutomationScene.tsx'), 'utf8');
+    const createSessionIndex = source.indexOf('flowChatManager.createChatSession');
+    const createJobIndex = source.indexOf('cronAPI.createJob(buildCreateCronJobRequest');
+
+    expect(createSessionIndex).toBeGreaterThan(-1);
+    expect(createJobIndex).toBeGreaterThan(createSessionIndex);
+    expect(source).toContain('buildAutomationSessionTitle(task.name)');
+  });
+
+  it('marks dedicated automation sessions before creating the cron job', () => {
+    const source = readFileSync(join(currentDir, 'AutomationScene.tsx'), 'utf8');
+    const markSessionIndex = source.indexOf('flowChatManager.markChatSessionAutomation(sessionId)');
+    const createJobIndex = source.indexOf('cronAPI.createJob(buildCreateCronJobRequest');
+
+    expect(markSessionIndex).toBeGreaterThan(-1);
+    expect(createJobIndex).toBeGreaterThan(markSessionIndex);
+  });
+
+  it('backfills automation markers from existing cron jobs outside the sidebar', () => {
+    const source = readFileSync(join(currentDir, 'AutomationScene.tsx'), 'utf8');
+
+    expect(source).toContain('backfillAutomationSessionMarkers(result)');
+    expect(source).toContain('job.sessionId');
+    expect(source).toContain('markChatSessionAutomation(sessionId)');
+  });
+
+  it('shows queued run state distinctly in task detail', () => {
+    const source = readFileSync(join(currentDir, 'TaskDetailPanel.tsx'), 'utf8');
+
+    expect(source).toContain("task.runStatus === 'queued'");
+    expect(source).toContain('排队中');
   });
 });

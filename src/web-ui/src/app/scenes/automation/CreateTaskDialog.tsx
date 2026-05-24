@@ -2,9 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, Repeat, Zap, X, type LucideIcon } from 'lucide-react';
 import { useAutomation } from './automation-context';
 import {
+  AUTOMATION_PRIORITY_META,
+  type AutomationPriority,
   type ScheduleType,
   type AutomationTask,
 } from './automation-types';
+import type {
+  AutomationExecutionMode,
+  AutomationWorkspaceOption,
+} from './automationTargeting';
+import { buildAutomationTaskDraftTarget as buildDraftTarget } from './automationTargeting';
 
 interface ScheduleOption {
   value: ScheduleType;
@@ -19,18 +26,31 @@ const SCHEDULE_OPTIONS: ScheduleOption[] = [
   { value: 'daily', label: '每天', hint: '每天定时执行', icon: CalendarClock },
 ];
 
-export function CreateTaskDialog() {
-  const { createDialogOpen, setCreateDialogOpen, agents, addTask } =
-    useAutomation();
-  const mainAgents = useMemo(
-    () => agents.filter((a) => !a.isSubAgent),
-    [agents],
-  );
-  const hasNoMainAgent = mainAgents.length === 0;
+interface CreateTaskDialogProps {
+  workspaces: AutomationWorkspaceOption[];
+  currentWorkspaceId?: string;
+  onOpenWorkspace?: () => Promise<void>;
+}
+
+const EXECUTION_MODE_OPTIONS: Array<{ value: AutomationExecutionMode; label: string; hint: string }> = [
+  { value: 'code', label: '编码会话', hint: '适合代码、仓库、终端类任务' },
+  { value: 'cowork', label: '办公会话', hint: '适合写作、整理、日常协作任务' },
+];
+
+export function CreateTaskDialog(props: CreateTaskDialogProps) {
+  const { workspaces, currentWorkspaceId, onOpenWorkspace } = props;
+  const { createDialogOpen, setCreateDialogOpen, addTask } = useAutomation();
+  const hasNoWorkspace = workspaces.length === 0;
 
   const [name, setName] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [agentId, setAgentId] = useState<string>(mainAgents[0]?.id ?? '');
+  const [workspaceId, setWorkspaceId] = useState<string>(currentWorkspaceId || workspaces[0]?.id || '');
+  const [executionMode, setExecutionMode] = useState<AutomationExecutionMode>('code');
+  const [priority, setPriority] = useState<AutomationPriority>('P2');
+  const workspace = useMemo(
+    () => workspaces.find(item => item.id === workspaceId) ?? workspaces[0] ?? null,
+    [workspaceId, workspaces],
+  );
   const [scheduleType, setScheduleType] = useState<ScheduleType>('once');
   const [date, setDate] = useState(() => {
     const d = new Date();
@@ -39,16 +59,15 @@ export function CreateTaskDialog() {
   });
   const [time, setTime] = useState('09:00');
 
-  // Reset agent default when agents change.
   useEffect(() => {
-    if (!agentId && mainAgents.length > 0) {
-      setAgentId(mainAgents[0].id);
+    if (!workspaceId && workspaces.length > 0) {
+      setWorkspaceId(currentWorkspaceId || workspaces[0].id);
       return;
     }
-    if (agentId && !mainAgents.some((agent) => agent.id === agentId)) {
-      setAgentId(mainAgents[0]?.id ?? '');
+    if (workspaceId && !workspaces.some(item => item.id === workspaceId)) {
+      setWorkspaceId(currentWorkspaceId || workspaces[0]?.id || '');
     }
-  }, [agentId, mainAgents]);
+  }, [currentWorkspaceId, workspaceId, workspaces]);
 
   // Close on Escape.
   useEffect(() => {
@@ -64,6 +83,7 @@ export function CreateTaskDialog() {
     setName('');
     setPrompt('');
     setScheduleType('once');
+    setPriority('P2');
   };
 
   const handleClose = () => {
@@ -72,21 +92,31 @@ export function CreateTaskDialog() {
   };
 
   const handleSubmit = () => {
-    if (!name.trim() || !prompt.trim() || !agentId || hasNoMainAgent) return;
+    if (!name.trim() || !prompt.trim() || !workspace || hasNoWorkspace) return;
     const [hour, minute] = time.split(':').map(Number);
     const scheduledAt = new Date(date);
     scheduledAt.setHours(hour, minute, 0, 0);
+    const target = buildDraftTarget({
+      workspace,
+      executionMode,
+      prompt,
+      scheduleType,
+      scheduledAt: scheduledAt.toISOString(),
+    });
 
     const newTask: AutomationTask = {
       id: `t-${Date.now()}`,
       name: name.trim(),
-      description: prompt.trim(),
-      prompt: prompt.trim(),
-      agentId,
+      description: target.prompt,
+      prompt: target.prompt,
+      agentId: '',
+      workspaceId: target.workspaceId,
+      workspacePath: target.workspacePath,
+      executionMode,
       scheduleType,
-      scheduledAt: scheduledAt.toISOString(),
+      scheduledAt: target.scheduledAt,
       duration: 30,
-      priority: 'P2',
+      priority,
       status: 'pending',
       enabled: true,
       createdAt: new Date().toISOString(),
@@ -140,30 +170,68 @@ export function CreateTaskDialog() {
           </div>
 
           <div className="create-task-dialog__field">
-            <label className="create-task-dialog__label">执行 Agent</label>
+            <label className="create-task-dialog__label">工作区</label>
             <select
               className="create-task-dialog__select"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              disabled={hasNoMainAgent}
+              value={workspaceId}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              disabled={hasNoWorkspace}
             >
-              {hasNoMainAgent ? (
+              {hasNoWorkspace ? (
                 <option value="">
-                  暂无可用主会话
+                  暂无可用工作区
                 </option>
               ) : (
-                mainAgents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
+                workspaces.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
                   </option>
                 ))
               )}
             </select>
-            {hasNoMainAgent && (
+            {hasNoWorkspace && (
               <p className="create-task-dialog__hint">
-                请先创建或打开一个主会话，然后再添加自动化任务。
+                请先打开一个项目工作区，再创建自动化任务。
               </p>
             )}
+            {hasNoWorkspace && onOpenWorkspace && (
+              <button
+                type="button"
+                className="create-task-dialog__inline-action"
+                onClick={() => void onOpenWorkspace()}
+              >
+                打开工作区
+              </button>
+            )}
+          </div>
+
+          <div className="create-task-dialog__field">
+            <label className="create-task-dialog__label">执行模式</label>
+            <div
+              className="create-task-dialog__mode-slider"
+              role="tablist"
+              aria-label="自动化执行模式"
+            >
+              {EXECUTION_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={
+                    'create-task-dialog__mode-option' +
+                    (executionMode === option.value ? ' create-task-dialog__mode-option--active' : '')
+                  }
+                  role="tab"
+                  aria-selected={executionMode === option.value}
+                  onClick={() => setExecutionMode(option.value)}
+                  disabled={hasNoWorkspace}
+                >
+                  <span>{option.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="create-task-dialog__hint">
+              {EXECUTION_MODE_OPTIONS.find(option => option.value === executionMode)?.hint}
+            </p>
           </div>
 
           <div className="create-task-dialog__field">
@@ -209,6 +277,31 @@ export function CreateTaskDialog() {
                     <span className="create-task-dialog__schedule-hint">
                       {opt.hint}
                     </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="create-task-dialog__field">
+            <label className="create-task-dialog__label">紧急程度</label>
+            <div className="create-task-dialog__priority-grid">
+              {(Object.keys(AUTOMATION_PRIORITY_META) as AutomationPriority[]).map((value) => {
+                const meta = AUTOMATION_PRIORITY_META[value];
+                const active = priority === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    className={
+                      'create-task-dialog__priority-option' +
+                      ` create-task-dialog__priority-option--${meta.modifier}` +
+                      (active ? ' create-task-dialog__priority-option--active' : '')
+                    }
+                    onClick={() => setPriority(value)}
+                  >
+                    <span>{value}</span>
+                    <small>{meta.label}</small>
                   </button>
                 );
               })}
@@ -281,7 +374,7 @@ export function CreateTaskDialog() {
             type="button"
             className="create-task-dialog__btn create-task-dialog__btn--primary"
             onClick={handleSubmit}
-            disabled={!name.trim() || !prompt.trim() || hasNoMainAgent}
+            disabled={!name.trim() || !prompt.trim() || hasNoWorkspace}
           >
             创建
           </button>

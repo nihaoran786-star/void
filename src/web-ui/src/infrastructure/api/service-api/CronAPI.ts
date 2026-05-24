@@ -115,6 +115,16 @@ export class CronAPI {
       throw createTauriCommandError('delete_cron_job', error, { jobId });
     }
   }
+
+  async runJobNow(jobId: string): Promise<CronJob> {
+    try {
+      return await api.invoke<CronJob>('run_cron_job_now', {
+        request: { jobId },
+      });
+    } catch (error) {
+      throw createTauriCommandError('run_cron_job_now', error, { jobId });
+    }
+  }
 }
 
 export const cronAPI = new CronAPI();

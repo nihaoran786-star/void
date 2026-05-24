@@ -278,6 +278,11 @@ export class FlowChatManager {
     return renameChatSessionTitleModule(this.context, sessionId, title);
   }
 
+  async markChatSessionAutomation(sessionId: string): Promise<void> {
+    this.context.flowChatStore.updateSessionAutomationMarker(sessionId, true);
+    await updateSessionMetadata(this.context, sessionId);
+  }
+
   async forkChatSession(sourceSessionId: string, sourceTurnId: string): Promise<string> {
     return forkChatSessionModule(this.context, sourceSessionId, sourceTurnId);
   }

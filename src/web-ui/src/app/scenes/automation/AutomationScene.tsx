@@ -2,26 +2,28 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import {
   cronAPI,
-  type CreateCronJobRequest,
   type CronJob,
-  type CronSchedule,
 } from '@/infrastructure/api';
 import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import { i18nService } from '@/infrastructure/i18n';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
+import { flowChatManager } from '@/flow_chat/services/FlowChatManager';
 import type { FlowChatState, Session } from '@/flow_chat/types/flow-chat';
 import { compareSessionsForDisplay } from '@/flow_chat/utils/sessionOrdering';
 import { resolveSessionTitle } from '@/flow_chat/utils/sessionTitle';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
 import { createLogger } from '@/shared/utils/logger';
 import {
-  filterMainSessionsForAutomation,
-} from './automationSchedule';
-import {
   cronJobToAutomationTask,
-  mainSessionToAutomationAgent,
 } from './automationViewModel';
+import {
+  buildAutomationSessionTitle,
+  buildAutomationWorkspaces,
+  getDefaultAutomationWorkspaceId,
+  toFlowChatSessionMode,
+} from './automationTargeting';
+import { buildCreateCronJobRequest } from './automationTaskCreation';
 import { AutomationProvider, useAutomation } from './automation-context';
 import type { AutomationTask } from './automation-types';
 import { AutomationHeader } from './AutomationHeader';
@@ -39,36 +41,31 @@ function resolveSessionLabel(session: Session): string {
   return resolveSessionTitle(session, (key, options) => i18nService.t(key, options));
 }
 
-function taskToCronSchedule(task: AutomationTask): CronSchedule {
-  const scheduledDate = new Date(task.scheduledAt);
-  switch (task.scheduleType) {
-    case 'hourly':
-      return { kind: 'every', everyMs: 60 * 60 * 1000 };
-    case 'daily':
-      return {
-        kind: 'cron',
-        expr: `${scheduledDate.getMinutes()} ${scheduledDate.getHours()} * * *`,
-      };
-    case 'weekly':
-      return {
-        kind: 'cron',
-        expr: `${scheduledDate.getMinutes()} ${scheduledDate.getHours()} * * ${scheduledDate.getDay()}`,
-      };
-    case 'monthly':
-      return {
-        kind: 'cron',
-        expr: `${scheduledDate.getMinutes()} ${scheduledDate.getHours()} ${scheduledDate.getDate()} * *`,
-      };
-    case 'once':
-    default:
-      return { kind: 'at', at: scheduledDate.toISOString() };
-  }
+function backfillAutomationSessionMarkers(jobs: CronJob[]): void {
+  const state = flowChatStore.getState();
+  const sessionIds = new Set(
+    jobs
+      .map(job => job.sessionId)
+      .filter((sessionId): sessionId is string => Boolean(sessionId)),
+  );
+
+  sessionIds.forEach(sessionId => {
+    const session = state.sessions.get(sessionId);
+    if (!session || session.isAutomationSession) return;
+
+    void flowChatManager.markChatSessionAutomation(sessionId).catch(error => {
+      log.warn('Failed to backfill automation session marker', { sessionId, error });
+    });
+  });
 }
 
 const AutomationScene: React.FC = () => {
   const { t } = useI18n('common');
-  const { currentWorkspace } = useWorkspaceContext();
-  const workspacePath = currentWorkspace?.rootPath ?? '';
+  const {
+    currentWorkspace,
+    openedWorkspacesList,
+    openWorkspace,
+  } = useWorkspaceContext();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => flowChatStore.getState());
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,36 +75,63 @@ const AutomationScene: React.FC = () => {
     return unsubscribe;
   }, []);
 
-  const mainSessions = useMemo(() => (
-    filterMainSessionsForAutomation(Array.from(flowChatState.sessions.values()), workspacePath)
-      .sort(compareSessionsForDisplay)
-  ), [flowChatState.sessions, workspacePath]);
+  const workspaceOptions = useMemo(
+    () => buildAutomationWorkspaces(openedWorkspacesList),
+    [openedWorkspacesList],
+  );
+
+  const currentAutomationWorkspaceId = useMemo(
+    () => getDefaultAutomationWorkspaceId(workspaceOptions, currentWorkspace?.id),
+    [currentWorkspace?.id, workspaceOptions],
+  );
+
+  const sortedSessions = useMemo(
+    () => Array.from(flowChatState.sessions.values()).sort(compareSessionsForDisplay),
+    [flowChatState.sessions],
+  );
 
   const agentNameById = useMemo(() => {
     const labels = new Map<string, string>();
-    mainSessions.forEach(session => labels.set(session.sessionId, resolveSessionLabel(session)));
+    sortedSessions.forEach(session => {
+      if (!labels.has(session.sessionId)) {
+        labels.set(session.sessionId, resolveSessionLabel(session));
+      }
+    });
     return labels;
-  }, [mainSessions]);
+  }, [sortedSessions]);
 
   const tasks = useMemo(
     () => jobs.map(job => cronJobToAutomationTask(job, agentNameById)),
     [agentNameById, jobs],
   );
 
-  const agents = useMemo(
-    () => mainSessions.map(session => mainSessionToAutomationAgent({
-      sessionId: session.sessionId,
-      title: resolveSessionLabel(session),
-      workspacePath: session.workspacePath,
-    })),
-    [mainSessions],
-  );
+  const agents = useMemo(() => {
+    const byId = new Map<string, {
+      id: string;
+      name: string;
+      type: 'developer' | 'ops';
+      description?: string;
+      isSubAgent: false;
+    }>();
+    tasks.forEach(task => {
+      if (!task.agentId || byId.has(task.agentId)) return;
+      byId.set(task.agentId, {
+        id: task.agentId,
+        name: task.agentName ?? task.agentId,
+        type: task.executionMode === 'cowork' ? 'ops' : 'developer',
+        description: task.workspacePath,
+        isSubAgent: false,
+      });
+    });
+    return Array.from(byId.values());
+  }, [tasks]);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await cronAPI.listJobs({ workspacePath: workspacePath || undefined });
+      const result = await cronAPI.listJobs();
       setJobs(result);
+      backfillAutomationSessionMarkers(result);
     } catch (error) {
       log.error('Failed to load automation jobs', { error });
       notificationService.error(
@@ -118,32 +142,49 @@ const AutomationScene: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [t, workspacePath]);
+  }, [t]);
 
   useEffect(() => {
     void loadJobs();
   }, [loadJobs]);
 
   const handleCreateTask = useCallback((task: AutomationTask) => {
-    if (!workspacePath) {
+    const targetWorkspacePath = task.workspacePath?.trim();
+    if (!targetWorkspacePath) {
       notificationService.error(t('nav.scheduledJobs.validation.workspaceRequired'));
       return;
     }
-    if (!task.agentId) {
-      notificationService.error(t('nav.scheduledJobs.validation.sessionRequired'));
+
+    const workspace = workspaceOptions.find(item => item.id === task.workspaceId)
+      ?? workspaceOptions.find(item => item.rootPath === targetWorkspacePath);
+    if (!workspace) {
+      notificationService.error(t('nav.scheduledJobs.validation.workspaceRequired'));
       return;
     }
 
-    const request: CreateCronJobRequest = {
-      name: task.name.trim(),
-      payload: { text: task.prompt.trim() || task.name.trim() },
-      enabled: true,
-      schedule: taskToCronSchedule(task),
-      workspacePath,
-      sessionId: task.agentId,
-    };
-
-    void cronAPI.createJob(request)
+    void flowChatManager.createChatSession(
+      {
+        workspacePath: workspace.rootPath,
+        workspaceId: workspace.id,
+        remoteConnectionId: workspace.remoteConnectionId,
+        remoteSshHost: workspace.remoteSshHost,
+      },
+      toFlowChatSessionMode(task.executionMode ?? 'code'),
+    )
+      .then(async (sessionId) => {
+        const sessionTitle = buildAutomationSessionTitle(task.name);
+        try {
+          await flowChatManager.renameChatSessionTitle(sessionId, sessionTitle);
+        } catch (error) {
+          log.warn('Failed to rename automation session', { sessionId, error });
+        }
+        try {
+          await flowChatManager.markChatSessionAutomation(sessionId);
+        } catch (error) {
+          log.warn('Failed to persist automation session marker', { sessionId, error });
+        }
+        return cronAPI.createJob(buildCreateCronJobRequest(task, sessionId));
+      })
       .then(async () => {
         notificationService.success(t('nav.scheduledJobs.messages.createSuccess'));
         await loadJobs();
@@ -157,7 +198,7 @@ const AutomationScene: React.FC = () => {
         );
         void loadJobs();
       });
-  }, [loadJobs, t, workspacePath]);
+  }, [loadJobs, t, workspaceOptions]);
 
   const handleDeleteTask = useCallback((task: AutomationTask) => {
     void cronAPI.deleteJob(task.id)
@@ -192,16 +233,38 @@ const AutomationScene: React.FC = () => {
       });
   }, [loadJobs, t]);
 
-  if (!workspacePath) {
-    return (
-      <div className="automation-scene automation-scene--empty-host">
-        <div className="automation-scene__host-empty">
-          <h1>{t('automation.empty.noWorkspaceTitle')}</h1>
-          <p>{t('automation.empty.noWorkspaceDescription')}</p>
-        </div>
-      </div>
-    );
-  }
+  const handleRunTaskNow = useCallback((task: AutomationTask) => {
+    void cronAPI.runJobNow(task.id)
+      .then(async (job) => {
+        const status = job.state.lastRunStatus;
+        notificationService.success(
+          status === 'running'
+            ? '已开始执行'
+            : status === 'queued'
+              ? '已加入执行队列'
+              : '已触发立即执行',
+        );
+        await loadJobs();
+      })
+      .catch(error => {
+        log.error('Failed to run automation job now', { jobId: task.id, error });
+        notificationService.error(
+          `立即执行失败：${error instanceof Error ? error.message : String(error)}`,
+        );
+        void loadJobs();
+      });
+  }, [loadJobs]);
+
+  const handleOpenWorkspace = useCallback(async () => {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    const selected = await open({
+      directory: true,
+      multiple: false,
+      title: t('header.selectProjectDirectory'),
+    });
+    if (typeof selected !== 'string') return;
+    await openWorkspace(selected);
+  }, [openWorkspace, t]);
 
   return (
     <AutomationProvider
@@ -211,6 +274,7 @@ const AutomationScene: React.FC = () => {
       onCreateTask={handleCreateTask}
       onDeleteTask={handleDeleteTask}
       onToggleTaskEnabled={handleToggleTaskEnabled}
+      onRunTaskNow={handleRunTaskNow}
     >
       <div className="automation-scene">
         <AutomationHeader />
@@ -225,7 +289,11 @@ const AutomationScene: React.FC = () => {
           </main>
         )}
         <TaskDetailPanel />
-        <CreateTaskDialog />
+        <CreateTaskDialog
+          workspaces={workspaceOptions}
+          currentWorkspaceId={currentAutomationWorkspaceId}
+          onOpenWorkspace={handleOpenWorkspace}
+        />
       </div>
     </AutomationProvider>
   );

@@ -10,6 +10,7 @@ vi.mock('@/infrastructure/i18n/core/I18nService', () => ({
 
 import {
   buildSessionMetadata,
+  deriveIsAutomationSessionFromMetadata,
   deriveLastFinishedAtFromMetadata,
   deriveSessionRelationshipFromMetadata,
   normalizeSessionRelationship,
@@ -200,6 +201,40 @@ describe('sessionMetadata', () => {
       lastFinishedAt: 4321,
     });
     expect(deriveLastFinishedAtFromMetadata(metadata)).toBe(4321);
+  });
+
+  it('persists automation session identity without relying on the title text', () => {
+    const session = createSession({
+      title: '今日AI新闻',
+      isAutomationSession: true,
+    });
+
+    const metadata = buildSessionMetadata(session, {
+      sessionId: 'session-1',
+      sessionName: '自动化 · 今日AI新闻',
+      agentType: 'agentic',
+      modelName: 'gpt-test',
+      createdAt: 1000,
+      lastActiveAt: 1000,
+      turnCount: 0,
+      messageCount: 0,
+      toolCallCount: 0,
+      status: 'active',
+      tags: [],
+      customMetadata: {
+        unrelated: 'preserved',
+      },
+      todos: [],
+      workspacePath: '/workspace',
+    });
+
+    expect(metadata.sessionName).toBe('今日AI新闻');
+    expect(metadata.customMetadata).toMatchObject({
+      unrelated: 'preserved',
+      isAutomationSession: true,
+      automation: { kind: 'cron_job' },
+    });
+    expect(deriveIsAutomationSessionFromMetadata(metadata)).toBe(true);
   });
 
   it('persists locale-aware default title metadata before the first message', () => {

@@ -28,6 +28,7 @@ import { elapsedMs, nowMs } from '@/shared/utils/timing';
 import { i18nService } from '@/infrastructure/i18n/core/I18nService';
 import type { DialogTurnData, LocalCommandMetadata, SessionKind } from '@/shared/types/session-history';
 import {
+  deriveIsAutomationSessionFromMetadata,
   deriveLastFinishedAtFromMetadata,
   deriveSessionRelationshipFromMetadata,
   isLegacyPersistedBtwSession,
@@ -552,6 +553,28 @@ export class FlowChatStore {
         parentToolCallId: relationship.parentToolCallId,
         subagentType: relationship.subagentType,
         btwOrigin: relationship.btwOrigin,
+      };
+
+      const newSessions = new Map(prev.sessions);
+      newSessions.set(sessionId, next);
+
+      return { ...prev, sessions: newSessions };
+    });
+  }
+
+  public updateSessionAutomationMarker(
+    sessionId: string,
+    isAutomationSession = true
+  ): void {
+    this.setState(prev => {
+      const session = prev.sessions.get(sessionId);
+      if (!session || session.isAutomationSession === isAutomationSession) {
+        return prev;
+      }
+
+      const next: Session = {
+        ...session,
+        isAutomationSession,
       };
 
       const newSessions = new Map(prev.sessions);
@@ -1957,6 +1980,7 @@ export class FlowChatStore {
 
           const relationship = deriveSessionRelationshipFromMetadata(metadata);
           const lastFinishedAt = deriveLastFinishedAtFromMetadata(metadata);
+          const isAutomationSession = deriveIsAutomationSessionFromMetadata(metadata);
           const titleState = deriveSessionTitleStateFromMetadata(metadata);
           const hasDynamicDefaultTitle = titleState.titleSource === 'i18n';
 
@@ -2007,6 +2031,7 @@ export class FlowChatStore {
               hasUnreadCompletion: metadata.unreadCompletion,
               needsUserAttention: metadata.needsUserAttention,
               deepReviewRunManifest: metadata.deepReviewRunManifest,
+              isAutomationSession,
               isTransient: false,
             };
 

@@ -390,6 +390,9 @@ export interface Session {
   /** Per-run reviewer manifest for Deep Review child sessions. */
   deepReviewRunManifest?: ReviewTeamRunManifest;
 
+  /** Stable UI marker for sessions created as automation task runs. */
+  isAutomationSession?: boolean;
+
   /**
    * Runtime-only session that should stay in memory but never be persisted or
    * shown in the main session navigation.
