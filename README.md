@@ -2,7 +2,7 @@
 
 **A local-first desktop AI agent platform for coding, knowledge work, automation, and extensible agent workflows.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](./LICENSE)
+[![License: Commercial](https://img.shields.io/badge/License-Commercial-red?style=flat-square)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue?style=flat-square)](#platform-support)
 [![Tech](https://img.shields.io/badge/Rust%20%2B%20Tauri%20%2B%20React-202020?style=flat-square)](#technology-stack)
 [![Portfolio](https://img.shields.io/badge/portfolio-static%20showcase-177e5a?style=flat-square)](./portfolio/)
@@ -273,4 +273,4 @@ Void is designed for Windows, macOS, and Linux desktop environments through Taur
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+Commercial License. See [LICENSE](./LICENSE).
