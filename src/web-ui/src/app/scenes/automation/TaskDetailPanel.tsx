@@ -3,7 +3,6 @@ import {
   Bot,
   Calendar,
   Clock,
-  Download,
   FileText,
   Image as ImageIcon,
   Code as CodeIcon,
@@ -282,13 +281,6 @@ function TaskDetailContent(props: TaskDetailContentProps) {
                           {art.size}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="task-detail-panel__artifact-download"
-                        aria-label="下载产物"
-                      >
-                        <Download size={14} />
-                      </button>
                     </div>
                   );
                 })}
@@ -345,15 +337,6 @@ function TaskDetailContent(props: TaskDetailContentProps) {
                     </div>
                   );
                 })}
-                {task.status === 'completed' && (
-                  <button
-                    type="button"
-                    className="task-detail-panel__btn task-detail-panel__btn--outline task-detail-panel__continue"
-                  >
-                    <Sparkles size={14} />
-                    继续与 Agent 对话
-                  </button>
-                )}
               </div>
             )}
           </>
