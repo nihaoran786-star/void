@@ -274,3 +274,7 @@ Void is designed for Windows, macOS, and Linux desktop environments through Taur
 ## License
 
 Commercial License. See [LICENSE](./LICENSE).
+
+Third-party dependencies remain licensed under their respective open-source
+licenses. See [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) for the
+generated dependency license summary.
