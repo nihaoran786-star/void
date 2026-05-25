@@ -326,13 +326,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionMode = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)?.mode
     : undefined;
-  const canSwitchModes = !isAssistantWorkspace && currentMode !== 'Cowork';
+  const canSwitchModes = !isAssistantWorkspace && currentMode !== 'Cowork' && currentMode !== 'Media';
 
-  // Session-level mode policy: Cowork sessions are fixed; code sessions should not switch into Cowork.
+  // Session-level mode policy: Cowork/Media sessions are fixed; code sessions should not switch into those top-level modes.
   const switchableModes = useMemo(
     () =>
       modeState.available.filter(mode =>
         mode.id !== 'Cowork' &&
+        mode.id !== 'Media' &&
         (isAssistantWorkspace || mode.id !== 'Claw')
       ),
     [isAssistantWorkspace, modeState.available]

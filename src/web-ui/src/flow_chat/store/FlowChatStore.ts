@@ -61,6 +61,7 @@ const VALID_AGENT_TYPES = new Set([
   'Plan',
   'Cowork',
   'Claw',
+  'Media',
   'Team',
   'DeepResearch',
 ]);

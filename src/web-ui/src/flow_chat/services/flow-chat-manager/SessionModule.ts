@@ -173,7 +173,7 @@ async function hydrateHistoricalSession(
   }
 }
 
-type SessionDisplayMode = 'code' | 'cowork' | 'claw';
+type SessionDisplayMode = 'code' | 'cowork' | 'claw' | 'media';
 
 const isAssistantWorkspace = (workspace?: WorkspaceInfo | null): boolean => {
   return workspace?.workspaceKind === WorkspaceKind.Assistant;
@@ -188,6 +188,7 @@ const normalizeSessionDisplayMode = (
   const normalizedMode = mode.toLowerCase();
   if (normalizedMode === 'cowork') return 'cowork';
   if (normalizedMode === 'claw') return 'claw';
+  if (normalizedMode === 'media') return 'media';
   return 'code';
 };
 

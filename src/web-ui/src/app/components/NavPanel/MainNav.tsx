@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight, CalendarClock } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight, CalendarClock, Images } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -223,7 +223,7 @@ const MainNav: React.FC<MainNavProps> = ({
   }, [toggleNavSearch]);
 
   const handleCreateProjectSession = useCallback(
-    async (mode: 'agentic' | 'Cowork') => {
+    async (mode: 'agentic' | 'Cowork' | 'Media') => {
       const target = pickWorkspaceForProjectChatSession(currentWorkspace, normalWorkspacesList);
       if (!target) {
         notificationService.warning(t('nav.sessions.needProjectWorkspaceForSession'), { duration: 4500 });
@@ -265,13 +265,22 @@ const MainNav: React.FC<MainNavProps> = ({
     void handleCreateProjectSession('Cowork');
   }, [handleCreateProjectSession, setSessionMode]);
 
+  const handleCreateMediaSession = useCallback(() => {
+    setSessionMode('media');
+    void handleCreateProjectSession('Media');
+  }, [handleCreateProjectSession, setSessionMode]);
+
   const handleCreateSelectedSession = useCallback(() => {
     if (selectedSessionMode === 'cowork') {
       handleCreateCoworkSession();
       return;
     }
+    if (selectedSessionMode === 'media') {
+      handleCreateMediaSession();
+      return;
+    }
     handleCreateCodeSession();
-  }, [handleCreateCodeSession, handleCreateCoworkSession, selectedSessionMode]);
+  }, [handleCreateCodeSession, handleCreateCoworkSession, handleCreateMediaSession, selectedSessionMode]);
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -476,9 +485,13 @@ const MainNav: React.FC<MainNavProps> = ({
 
   const createSelectedTooltip = selectedSessionMode === 'cowork'
     ? t('nav.sessions.newCoworkSession')
+    : selectedSessionMode === 'media'
+      ? t('nav.sessions.newMediaSession')
     : t('nav.sessions.newCodeSession');
   const createSelectedLabel = selectedSessionMode === 'cowork'
     ? t('nav.sessions.newCoworkSessionShort')
+    : selectedSessionMode === 'media'
+      ? t('nav.sessions.newMediaSessionShort')
     : t('nav.sessions.newCodeSessionShort');
   const assistantTooltip = t('nav.items.persona');
   const automationTooltip = t('nav.items.automation');
@@ -517,14 +530,20 @@ const MainNav: React.FC<MainNavProps> = ({
       <div className="void-nav-panel__top-actions">
         <div className="void-nav-panel__session-create">
           <div
-            className="void-nav-panel__session-mode-switch"
+            className={[
+              'void-nav-panel__session-mode-switch',
+              `is-mode-${selectedSessionMode}`,
+            ].join(' ')}
             role="radiogroup"
             aria-label={t('nav.sessions.newSession')}
           >
+            <span className="void-nav-panel__session-mode-indicator" aria-hidden="true" />
             <button
               type="button"
               role="radio"
               aria-checked={selectedSessionMode === 'code'}
+              aria-label={t('nav.sessions.newCodeSession')}
+              title={t('nav.sessions.newCodeSession')}
               className={[
                 'void-nav-panel__session-mode-option',
                 selectedSessionMode === 'code' ? 'is-active' : '',
@@ -532,12 +551,14 @@ const MainNav: React.FC<MainNavProps> = ({
               onClick={() => setSessionMode('code')}
             >
               <Code2 size={14} aria-hidden="true" />
-              <span>{t('nav.sessions.newCodeSessionShort')}</span>
+              <span>{t('nav.sessions.modeCode')}</span>
             </button>
             <button
               type="button"
               role="radio"
               aria-checked={selectedSessionMode === 'cowork'}
+              aria-label={t('nav.sessions.newCoworkSession')}
+              title={t('nav.sessions.newCoworkSession')}
               className={[
                 'void-nav-panel__session-mode-option',
                 selectedSessionMode === 'cowork' ? 'is-active' : '',
@@ -545,7 +566,22 @@ const MainNav: React.FC<MainNavProps> = ({
               onClick={() => setSessionMode('cowork')}
             >
               <ClipboardList size={14} aria-hidden="true" />
-              <span>{t('nav.sessions.newCoworkSessionShort')}</span>
+              <span>{t('nav.sessions.modeCowork')}</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selectedSessionMode === 'media'}
+              aria-label={t('nav.sessions.newMediaSession')}
+              title={t('nav.sessions.newMediaSession')}
+              className={[
+                'void-nav-panel__session-mode-option',
+                selectedSessionMode === 'media' ? 'is-active' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => setSessionMode('media')}
+            >
+              <Images size={14} aria-hidden="true" />
+              <span>{t('nav.sessions.modeMedia')}</span>
             </button>
           </div>
 

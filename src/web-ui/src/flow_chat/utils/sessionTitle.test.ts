@@ -15,6 +15,9 @@ function createTranslator(locale: 'en' | 'zh') {
     if (key === 'flow-chat:session.newCodeWithIndex') {
       return locale === 'zh' ? `新建代码会话 ${count}` : `New Code Session ${count}`;
     }
+    if (key === 'flow-chat:session.newMediaWithIndex') {
+      return locale === 'zh' ? `新建媒体会话 ${count}` : `New Media Session ${count}`;
+    }
     if (key === 'flow-chat:session.new') {
       return locale === 'zh' ? '新建会话' : 'New Session';
     }
@@ -153,6 +156,38 @@ describe('sessionTitle', () => {
         workspacePath: 'D:/workspace/a',
       }),
     ).toBe(5);
+  });
+
+  it('keeps Media session default titles separate from code sessions', () => {
+    const sessions = [
+      counterSession({
+        sessionId: 'code-1',
+        workspacePath: 'D:/workspace/a',
+        mode: 'agentic',
+        titleI18nParams: { count: 1 },
+      }),
+      counterSession({
+        sessionId: 'media-2',
+        workspacePath: 'D:/workspace/a',
+        mode: 'Media',
+        title: 'New Media Session 2',
+        titleI18nKey: 'flow-chat:session.newMediaWithIndex',
+        titleI18nParams: { count: 2 },
+      }),
+    ];
+
+    expect(
+      getNextDefaultSessionTitleCount(sessions, {
+        mode: 'media',
+        workspacePath: 'D:/workspace/a',
+      }),
+    ).toBe(3);
+    expect(
+      getNextDefaultSessionTitleCount(sessions, {
+        mode: 'code',
+        workspacePath: 'D:/workspace/a',
+      }),
+    ).toBe(2);
   });
 
   it('continues from the highest title count in the same workspace scope', () => {

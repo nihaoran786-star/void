@@ -18,7 +18,7 @@ pub use definitions::custom::{CustomSubagent, CustomSubagentKind};
 pub use definitions::hidden::{CodeReviewAgent, DeepReviewAgent, GenerateDocAgent, InitAgent};
 pub use definitions::modes::{
     AgenticMode, ClawMode, CoworkMode, DebugMode, DeepResearchMode, MultitaskMode, PlanMode,
-    TeamMode,
+    MediaMode, TeamMode,
 };
 pub use definitions::review::{
     ArchitectureReviewerAgent, BusinessLogicReviewerAgent, FrontendReviewerAgent,

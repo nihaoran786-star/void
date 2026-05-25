@@ -9,7 +9,7 @@ use crate::agentic::agents::registry::types::{
 use crate::agentic::agents::registry::visibility::{
     BuiltinSubagentExposure, SubagentVisibilityPolicy,
 };
-use crate::agentic::agents::Agent;
+use crate::agentic::agents::{Agent, PromptBuilderContext};
 use crate::service::config::types::AgentSubagentOverrideState;
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -78,9 +78,54 @@ fn top_level_modes_default_to_auto() {
         "Claw",
         "DeepResearch",
         "Team",
+        "Media",
     ] {
         assert_eq!(default_model_id_for_builtin_agent(agent_type), "auto");
     }
+}
+
+#[tokio::test]
+async fn media_is_registered_as_conservative_top_level_mode() {
+    let registry = AgentRegistry::new();
+    let modes = registry.get_modes_info().await;
+    let media = modes
+        .iter()
+        .find(|agent| agent.id == "Media")
+        .expect("Media should be registered as a top-level mode");
+
+    assert_eq!(media.name, "Media");
+    assert!(!media.is_readonly);
+    assert!(media
+        .description
+        .contains("media creation"));
+    assert_eq!(
+        media.default_tools,
+        vec![
+            "Task".to_string(),
+            "Read".to_string(),
+            "Grep".to_string(),
+            "Glob".to_string(),
+            "WebSearch".to_string(),
+            "WebFetch".to_string(),
+            "TodoWrite".to_string(),
+            "Skill".to_string(),
+            "AskUserQuestion".to_string(),
+            "ControlHub".to_string(),
+        ]
+    );
+    assert!(!media.default_tools.contains(&"Bash".to_string()));
+    assert!(!media.default_tools.contains(&"Delete".to_string()));
+    assert!(!media.default_tools.contains(&"Git".to_string()));
+    assert!(!media.default_tools.contains(&"InitMiniApp".to_string()));
+
+    let prompt = registry
+        .get_mode_agent("Media")
+        .expect("Media mode agent")
+        .build_prompt(&PromptBuilderContext::new("D:/workspace/media", None, None))
+        .await
+        .expect("Media prompt should build");
+    assert!(prompt.contains("Media Session"));
+    assert!(prompt.contains("do not claim that you generated images or videos"));
 }
 
 #[tokio::test]

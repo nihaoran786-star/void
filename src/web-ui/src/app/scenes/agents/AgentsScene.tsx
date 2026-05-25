@@ -265,6 +265,11 @@ const AgentsHomeView: React.FC = () => {
       accentColor: '#14b8a6',
       accentBg: 'rgba(20,184,166,0.10)',
     },
+    Media: {
+      role: t('coreAgentsZone.modes.media.role'),
+      accentColor: '#ec4899',
+      accentBg: 'rgba(236,72,153,0.10)',
+    },
     ComputerUse: {
       role: t('coreAgentsZone.modes.computerUse.role'),
       accentColor: '#f59e0b',

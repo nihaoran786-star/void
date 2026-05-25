@@ -10,7 +10,7 @@ export interface SessionTitleDescriptor {
 }
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
-export type DefaultSessionTitleMode = 'code' | 'cowork' | 'claw';
+export type DefaultSessionTitleMode = 'code' | 'cowork' | 'claw' | 'media';
 
 export interface DefaultSessionTitleCounterScope {
   mode: DefaultSessionTitleMode;
@@ -38,6 +38,7 @@ const DEFAULT_SESSION_TITLE_KEYS_BY_MODE: Record<DefaultSessionTitleMode, string
   code: 'flow-chat:session.newCodeWithIndex',
   cowork: 'flow-chat:session.newCoworkWithIndex',
   claw: 'flow-chat:session.newClawWithIndex',
+  media: 'flow-chat:session.newMediaWithIndex',
 };
 
 function normalizeTitleText(value: unknown): string | undefined {
@@ -72,6 +73,7 @@ export function normalizeDefaultSessionTitleMode(mode?: string): DefaultSessionT
   const normalizedMode = mode.toLowerCase();
   if (normalizedMode === 'cowork') return 'cowork';
   if (normalizedMode === 'claw') return 'claw';
+  if (normalizedMode === 'media') return 'media';
   return 'code';
 }
 

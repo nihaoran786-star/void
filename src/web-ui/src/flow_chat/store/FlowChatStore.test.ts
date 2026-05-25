@@ -300,6 +300,29 @@ describe('FlowChatStore historical session hydration state', () => {
     });
   });
 
+  it('preserves Media as a valid persisted agent type', async () => {
+    apiMocks.listSessions.mockResolvedValueOnce([
+      {
+        sessionId: 'media-history-1',
+        title: 'New Media Session 1',
+        agentType: 'Media',
+        modelName: 'auto',
+        createdAt: 10,
+        lastActiveAt: 20,
+      },
+    ]);
+
+    await flowChatStore.initializeFromDisk('D:/workspace/Void');
+
+    const session = flowChatStore.getState().sessions.get('media-history-1');
+    expect(session).toMatchObject({
+      sessionId: 'media-history-1',
+      mode: 'Media',
+      config: expect.objectContaining({ agentType: 'Media' }),
+      historyState: 'metadata-only',
+    });
+  });
+
   it('loads model config once while processing multiple persisted sessions', async () => {
     configManagerMock.getConfig.mockImplementation(async (path: string) => {
       if (path === 'ai.models') return [{ id: 'primary-model', context_window: 256000 }];

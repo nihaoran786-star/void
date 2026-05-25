@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  createChatSession,
   ensureBackendSession,
   retryCreateBackendSession,
   switchChatSession,
@@ -34,7 +35,19 @@ vi.mock('../../../shared/notification-system', () => ({
 
 vi.mock('@/infrastructure/i18n', () => ({
   i18nService: {
-    t: (key: string) => key,
+    t: (key: string, options?: Record<string, unknown>) =>
+      options?.count ? `${key}:${options.count}` : key,
+  },
+}));
+
+vi.mock('@/infrastructure/config/services/ConfigManager', () => ({
+  configManager: {
+    getConfig: vi.fn(async (key: string) => {
+      if (key === 'ai.models') return [];
+      if (key === 'ai.default_models') return {};
+      if (key === 'ai.agent_models') return {};
+      return undefined;
+    }),
   },
 }));
 
@@ -314,5 +327,54 @@ describe('SessionModule historical session coordination', () => {
         },
       })
     );
+  });
+});
+
+describe('SessionModule Media session creation', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('creates Media sessions without normalizing their display title to code', async () => {
+    let createdSession: any;
+    const flowChatStore = {
+      getState: () => ({ sessions: new Map(), activeSessionId: null }),
+      createSession: vi.fn((...args: any[]) => {
+        createdSession = args;
+      }),
+    };
+    const context = {
+      flowChatStore,
+      currentWorkspacePath: 'D:/workspace/Void',
+    } as any;
+    agentApiMocks.createSession.mockResolvedValueOnce({ sessionId: 'media-1' });
+
+    const sessionId = await createChatSession(context, {}, 'Media');
+
+    expect(sessionId).toBe('media-1');
+    expect(agentApiMocks.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionName: 'flow-chat:session.newMediaWithIndex:1',
+        agentType: 'Media',
+        workspacePath: 'D:/workspace/Void',
+      })
+    );
+    expect(flowChatStore.createSession).toHaveBeenCalledWith(
+      'media-1',
+      expect.any(Object),
+      undefined,
+      'flow-chat:session.newMediaWithIndex:1',
+      expect.any(Number),
+      'Media',
+      'D:/workspace/Void',
+      undefined,
+      undefined,
+      expect.objectContaining({
+        source: 'i18n',
+        key: 'flow-chat:session.newMediaWithIndex',
+        params: { count: 1 },
+      })
+    );
+    expect(createdSession?.[5]).toBe('Media');
   });
 });

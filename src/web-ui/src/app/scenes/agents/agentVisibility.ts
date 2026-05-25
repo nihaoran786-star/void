@@ -19,7 +19,7 @@ export const HIDDEN_AGENT_IDS = new Set<string>([
 ]);
 
 /** Core mode agents shown in the top zone only; excluded from overview zone list and counts. */
-export const CORE_AGENT_IDS = new Set<string>(['agentic', 'Cowork', 'ComputerUse']);
+export const CORE_AGENT_IDS = new Set<string>(['agentic', 'Cowork', 'Media', 'ComputerUse']);
 
 /** Agents that appear in the bottom overview grid (same pool as filter chip counts). */
 export function isAgentInOverviewZone(

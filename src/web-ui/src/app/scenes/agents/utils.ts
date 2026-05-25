@@ -7,6 +7,7 @@ const MODE_DESCRIPTION_KEY_BY_ID: Record<string, string> = {
   plan: 'Plan',
   debug: 'Debug',
   cowork: 'Cowork',
+  media: 'Media',
   computeruse: 'ComputerUse',
   deepresearch: 'DeepResearch',
 };
@@ -95,6 +96,7 @@ function enrichCapabilities(agent: AgentWithCapabilities): AgentWithCapabilities
     if (id === 'plan') return { ...agent, capabilities: [{ category: 'analysis', level: 5 }, { category: 'docs', level: 3 }] };
     if (id === 'debug') return { ...agent, capabilities: [{ category: 'coding', level: 5 }, { category: 'analysis', level: 3 }] };
     if (id === 'cowork') return { ...agent, capabilities: [{ category: 'analysis', level: 4 }, { category: 'creative', level: 3 }] };
+    if (id === 'media') return { ...agent, capabilities: [{ category: 'creative', level: 5 }, { category: 'analysis', level: 3 }] };
     if (id === 'computeruse') return { ...agent, capabilities: [{ category: 'ops', level: 5 }, { category: 'analysis', level: 3 }] };
     if (id === 'deepresearch') return { ...agent, capabilities: [{ category: 'analysis', level: 5 }, { category: 'docs', level: 4 }] };
   }

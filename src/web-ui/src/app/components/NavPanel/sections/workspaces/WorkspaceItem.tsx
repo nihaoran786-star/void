@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Folder, FolderOpen, MoreHorizontal, FolderSearch, Plus, ChevronDown, Trash2, RotateCcw, Copy, FileText, GitBranch, Bot } from 'lucide-react';
+import { Folder, FolderOpen, MoreHorizontal, FolderSearch, Plus, ChevronDown, Trash2, RotateCcw, Copy, FileText, GitBranch, Bot, Images } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DotMatrixArrowRightIcon } from './DotMatrixArrowRightIcon';
 import { Button, ConfirmDialog, Modal, Tooltip } from '@/component-library';
@@ -451,7 +451,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     }
   }, [t, workspace.rootPath]);
 
-  const handleCreateSession = useCallback(async (mode?: 'agentic' | 'Cowork' | 'Claw') => {
+  const handleCreateSession = useCallback(async (mode?: 'agentic' | 'Cowork' | 'Claw' | 'Media') => {
     setMenuOpen(false);
     const resolvedMode = mode ?? (workspace.workspaceKind === WorkspaceKind.Assistant ? 'Claw' : undefined);
     try {
@@ -497,6 +497,10 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
 
   const handleCreateCoworkSession = useCallback(() => {
     void handleCreateSession('Cowork');
+  }, [handleCreateSession]);
+
+  const handleCreateMediaSession = useCallback(() => {
+    void handleCreateSession('Media');
   }, [handleCreateSession]);
 
   const handleCreateAcpSession = useCallback(async (client: AcpClientInfo) => {
@@ -1027,6 +1031,10 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={handleCreateCoworkSession}>
                   <Plus size={13} />
                   <span className="void-nav-panel__workspace-item-menu-label">{t('nav.sessions.newCoworkSessionShort')}</span>
+                </button>
+                <button type="button" className="void-nav-panel__workspace-item-menu-item" onClick={handleCreateMediaSession}>
+                  <Images size={13} />
+                  <span className="void-nav-panel__workspace-item-menu-label">{t('nav.sessions.newMediaSessionShort')}</span>
                 </button>
                 {acpClients.map(client => {
                   const label = client.name || client.id;

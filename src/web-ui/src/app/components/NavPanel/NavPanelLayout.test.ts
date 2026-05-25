@@ -90,26 +90,48 @@ describe('NavPanel layout styles', () => {
 
     expect(source).toContain('void-nav-panel__session-mode-switch');
     expect(source).toContain('role="radiogroup"');
+    expect(source).toContain('`is-mode-${selectedSessionMode}`');
+    expect(source).toContain('void-nav-panel__session-mode-indicator');
     expect(source).toContain("onClick={() => setSessionMode('code')}");
     expect(source).toContain("onClick={() => setSessionMode('cowork')}");
+    expect(source).toContain("onClick={() => setSessionMode('media')}");
+    expect(source).toContain("title={t('nav.sessions.newCodeSession')}");
+    expect(source).toContain("title={t('nav.sessions.newCoworkSession')}");
+    expect(source).toContain("title={t('nav.sessions.newMediaSession')}");
     expect(source).toContain('handleCreateSelectedSession');
     expect(source).toContain('void-nav-panel__session-create-action');
     expect(source).not.toContain('<Plus size={12} />\n              </span>\n              <span>{t(\'nav.sessions.newSession\')}</span>');
   });
 
-  it('styles the session mode switcher as a compact segmented control', () => {
+  it('styles the session mode switcher as a compact three-option segmented control', () => {
     const stylesheet = readNavPanelStylesheet();
     const createBlock = extractBlock(stylesheet, '.void-nav-panel__session-create');
     const switchBlock = extractBlock(stylesheet, '.void-nav-panel__session-mode-switch');
+    const indicatorBlock = extractBlock(stylesheet, '.void-nav-panel__session-mode-indicator');
     const optionBlock = extractBlock(stylesheet, '.void-nav-panel__session-mode-option');
 
     expect(createBlock).toContain('border: 1px solid var(--border-subtle);');
     expect(createBlock).toContain('overflow: hidden;');
-    expect(switchBlock).toContain('grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);');
+    expect(switchBlock).toContain('position: relative;');
+    expect(switchBlock).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
     expect(switchBlock).toContain('height: 34px;');
     expect(switchBlock).toContain('border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 76%, transparent);');
     expect(switchBlock).toContain('background: transparent;');
+    expect(indicatorBlock).toContain('position: absolute;');
+    expect(stylesheet).toContain('.void-nav-panel__session-mode-switch.is-mode-code .void-nav-panel__session-mode-indicator');
+    expect(stylesheet).toContain('transform: translateX(0);');
+    expect(stylesheet).toContain('.void-nav-panel__session-mode-switch.is-mode-cowork .void-nav-panel__session-mode-indicator');
+    expect(stylesheet).toContain('transform: translateX(calc(100% + var(--session-mode-gap)));');
+    expect(stylesheet).toContain('.void-nav-panel__session-mode-switch.is-mode-media .void-nav-panel__session-mode-indicator');
+    expect(stylesheet).toContain('transform: translateX(calc(200% + var(--session-mode-gap) + var(--session-mode-gap)));');
+    expect(indicatorBlock).toContain('transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),');
     expect(optionBlock).toContain('height: 100%;');
+    expect(optionBlock).toContain('white-space: nowrap;');
     expect(optionBlock).toContain('background: transparent;');
+    expect(stylesheet).toContain('.void-nav-panel__session-mode-option span');
+    expect(stylesheet).toContain('max-width: 0;');
+    expect(stylesheet).toContain('&.is-active {\n    color: var(--color-text-primary);');
+    expect(stylesheet).toContain('max-width: 48px;');
+    expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
   });
 });

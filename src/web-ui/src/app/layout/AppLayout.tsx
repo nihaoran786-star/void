@@ -540,14 +540,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     return () => window.removeEventListener('toolbar-cancel-task', handleToolbarCancelTask);
   }, []);
 
-  // Create FlowChat session (toolbar / floating UI). detail.mode: 'cowork' → Cowork, else code (agentic).
-  const handleCreateFlowChatSession = React.useCallback(async (mode?: 'code' | 'cowork') => {
+  // Create FlowChat session (toolbar / floating UI).
+  const handleCreateFlowChatSession = React.useCallback(async (mode?: 'code' | 'cowork' | 'media') => {
     try {
       const flowChatManager = FlowChatManager.getInstance();
       const setMode = useSessionModeStore.getState().setMode;
       if (mode === 'cowork') {
         setMode('cowork');
         await flowChatManager.createChatSession({}, 'Cowork');
+      } else if (mode === 'media') {
+        setMode('media');
+        await flowChatManager.createChatSession({}, 'Media');
       } else {
         setMode('code');
         await flowChatManager.createChatSession({}, 'agentic');
@@ -559,8 +562,8 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
 
   React.useEffect(() => {
     const handler = (e: Event) => {
-      const mode = (e as CustomEvent<{ mode?: 'code' | 'cowork' }>).detail?.mode;
-      void handleCreateFlowChatSession(mode === 'cowork' ? 'cowork' : 'code');
+      const mode = (e as CustomEvent<{ mode?: 'code' | 'cowork' | 'media' }>).detail?.mode;
+      void handleCreateFlowChatSession(mode === 'cowork' || mode === 'media' ? mode : 'code');
     };
     window.addEventListener('toolbar-create-session', handler);
     return () => window.removeEventListener('toolbar-create-session', handler);

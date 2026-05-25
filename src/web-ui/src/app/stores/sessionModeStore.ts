@@ -1,14 +1,15 @@
 /**
  * sessionModeStore — tracks the active session creation mode.
  *
- * Two modes:
+ * Three modes:
  *   - 'code'   → standard AI coding session (default)
  *   - 'cowork' → collaborative Cowork session
+ *   - 'media'  → Media creation session
  */
 
 import { create } from 'zustand';
 
-export type SessionMode = 'code' | 'cowork';
+export type SessionMode = 'code' | 'cowork' | 'media';
 
 interface SessionModeState {
   mode: SessionMode;

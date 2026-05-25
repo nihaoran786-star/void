@@ -48,8 +48,9 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
   const sessionModeLower = (sessionMode || '').toLowerCase();
   const isCoworkSession = sessionModeLower === 'cowork';
   const isClawSession = sessionModeLower === 'claw';
-  // code sessions use mode='agentic'; cowork sessions use mode='cowork'
-  const showPanda = sessionModeLower !== 'code' && sessionModeLower !== 'agentic' && sessionModeLower !== 'cowork';
+  const isMediaSession = sessionModeLower === 'media';
+  // code sessions use mode='agentic'; cowork/media sessions use explicit mode ids.
+  const showPanda = sessionModeLower !== 'code' && sessionModeLower !== 'agentic' && sessionModeLower !== 'cowork' && sessionModeLower !== 'media';
 
   const { document: identityDoc } = useAgentIdentityDocument(isClawSession ? workspacePath : '');
   const assistantName = isClawSession ? (identityDoc.name || '') : '';
@@ -127,9 +128,9 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isCoworkSession || isClawSession || !currentWorkspace?.rootPath) { setGitState(null); return; }
+    if (isCoworkSession || isClawSession || isMediaSession || !currentWorkspace?.rootPath) { setGitState(null); return; }
     void loadGitState(currentWorkspace.rootPath);
-  }, [currentWorkspace?.rootPath, isCoworkSession, isClawSession, loadGitState]);
+  }, [currentWorkspace?.rootPath, isCoworkSession, isClawSession, isMediaSession, loadGitState]);
 
   useEffect(() => {
     if (!workspaceDropdownOpen) return;

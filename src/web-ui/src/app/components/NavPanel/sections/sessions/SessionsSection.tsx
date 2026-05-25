@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Pencil, Trash2, Check, X, Bot, Code2, ClipboardList, Panda, MoreHorizontal, Loader2, CalendarClock } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Bot, Code2, ClipboardList, Panda, MoreHorizontal, Loader2, CalendarClock, Images } from 'lucide-react';
 import { IconButton, Input, Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
 import { flowChatStore } from '../../../../../flow_chat/store/FlowChatStore';
@@ -44,7 +44,7 @@ const SESSIONS_LEVEL_0 = 5;
 const SESSIONS_LEVEL_1 = 10;
 const log = createLogger('SessionsSection');
 
-type SessionMode = 'code' | 'cowork' | 'claw';
+type SessionMode = 'code' | 'cowork' | 'claw' | 'media';
 
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -53,6 +53,7 @@ const resolveSessionModeType = (session: Session): SessionMode => {
   const normalizedMode = session.mode?.toLowerCase();
   if (normalizedMode === 'cowork') return 'cowork';
   if (normalizedMode === 'claw') return 'claw';
+  if (normalizedMode === 'media') return 'media';
   return 'code';
 };
 
@@ -379,6 +380,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
       const label =
         mode === 'cowork'
           ? t('nav.sessions.newCoworkSession')
+          : mode === 'media'
+            ? t('nav.sessions.newMediaSession')
           : mode === 'claw'
             ? t('nav.sessions.newClawSession')
             : t('nav.sessions.newCodeSession');
@@ -520,6 +523,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           const SessionIcon =
             sessionModeKey === 'cowork'
               ? ClipboardList
+              : sessionModeKey === 'media'
+                ? Images
               : sessionModeKey === 'claw'
                 ? showAssistantInTooltip
                   ? Panda
