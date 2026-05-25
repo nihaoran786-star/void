@@ -13,6 +13,10 @@ import { useFlowChatContext } from './modern/FlowChatContext';
 import { RippleCellLoader } from './RippleCellLoader';
 import { useTypewriter } from '../hooks/useTypewriter';
 import { processingHintsZh, processingHintsEn } from '../constants/processingHints';
+import {
+  autoPreviewOrchestrator,
+  detectAutoPreviewCandidates,
+} from '@/shared/services/preview/AutoPreviewService';
 import './FlowTextBlock.scss';
 
 // Idle timeout (ms) after content stops growing.
@@ -33,7 +37,14 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
   className = '',
   replayStreamingOnMount = true
 }) => {
-  const { onFileViewRequest, onTabOpen, onHttpLinkClick, onOpenVisualization } = useFlowChatContext();
+  const {
+    activeSessionOverride,
+    onFileViewRequest,
+    onTabOpen,
+    onHttpLinkClick,
+    onOpenVisualization,
+    sessionId,
+  } = useFlowChatContext();
   const { i18n } = useTranslation();
 
   // Normalize content to a string.
@@ -46,6 +57,8 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
   const displayContent = useTypewriter(content, isStreaming, {
     replayOnMount: replayStreamingOnMount,
   });
+  const hasMountedRef = useRef(false);
+  const wasStreamingRef = useRef(isStreaming);
   
   // Heuristic: if content does not change for a while, streaming is done.
   const [isContentGrowing, setIsContentGrowing] = useState(true);
@@ -78,6 +91,40 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
       setIsContentGrowing(false);
     }
   }, [textItem.status, textItem.isStreaming]);
+
+  useEffect(() => {
+    const wasStreaming = wasStreamingRef.current;
+    wasStreamingRef.current = isStreaming;
+
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    if (!sessionId || !wasStreaming || isStreaming || textItem.status !== 'completed' || textItem.runtimeStatus) {
+      return;
+    }
+
+    const [candidate] = detectAutoPreviewCandidates({
+      text: content,
+      source: 'assistant-message',
+      sessionId,
+      turnId: textItem.id,
+      workspaceKey: activeSessionOverride?.workspacePath,
+    });
+
+    if (candidate) {
+      autoPreviewOrchestrator.maybeOpen(candidate);
+    }
+  }, [
+    activeSessionOverride?.workspacePath,
+    content,
+    isStreaming,
+    sessionId,
+    textItem.id,
+    textItem.runtimeStatus,
+    textItem.status,
+  ]);
   
   const isActivelyStreaming = textItem.isStreaming &&
     (textItem.status === 'streaming' || textItem.status === 'running') &&
