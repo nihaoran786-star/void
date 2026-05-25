@@ -23,6 +23,8 @@ import { useTheme } from '@/infrastructure/theme';
 import { contextMenuController } from '@/shared/context-menu-system';
 import { ContextType, type CustomContext, type MenuItem } from '@/shared/context-menu-system/types';
 import { createLogger } from '@/shared/utils/logger';
+import { openRightPanelPreview } from '@/shared/services/preview/PreviewService';
+import { ExternalLink } from 'lucide-react';
 import path from 'path-browserify';
 import 'katex/dist/katex.min.css';
 import './Markdown.scss';
@@ -48,6 +50,20 @@ async function getWorkspacePathCached(): Promise<string | undefined> {
   _cachedWorkspacePathResult = result;
   _cachedWorkspacePathAt = Date.now();
   return result;
+}
+
+function getSingleHttpUrlFromText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed || /\s/.test(trimmed)) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? trimmed : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Catches render errors from react-markdown/remark-gfm (e.g. RegExp in transformGfmAutolinkLiterals) and shows plain text fallback. */
@@ -638,6 +654,7 @@ export interface MarkdownProps {
   onFileViewRequest?: (filePath: string, fileName: string, lineRange?: LineRange) => void;
   onTabOpen?: (tabInfo: any) => void;
   onHttpLinkClick?: (url: string, event: React.MouseEvent<HTMLAnchorElement>) => boolean | void;
+  showRightPanelPreviewLinks?: boolean;
   onReproductionProceed?: () => void;
 }
 
@@ -651,6 +668,7 @@ export const Markdown = React.memo<MarkdownProps>(({
   onFileViewRequest,
   onTabOpen,
   onHttpLinkClick,
+  showRightPanelPreviewLinks = false,
   onReproductionProceed
 }) => {
   const { isLight } = useTheme();
@@ -822,24 +840,22 @@ export const Markdown = React.memo<MarkdownProps>(({
   }, []);
 
   const handleOpenBuiltInBrowserLink = useCallback((url: string) => {
-    if (typeof window === 'undefined') {
-      return;
-    }
+    openRightPanelPreview({
+      url,
+      source: 'manual',
+      workspaceKey: currentWorkspacePath || basePath,
+      title: t('markdown.openInBuiltInBrowser'),
+    });
+  }, [basePath, currentWorkspacePath, t]);
 
-    window.dispatchEvent(new CustomEvent('agent-create-tab', {
-      detail: {
-        type: 'browser',
-        title: t('markdown.openInBuiltInBrowser'),
-        data: { url },
-        metadata: {
-          duplicateCheckKey: `browser-panel:${url}`,
-        },
-        checkDuplicate: true,
-        duplicateCheckKey: `browser-panel:${url}`,
-        replaceExisting: false,
-      },
-    }));
-  }, [t]);
+  const handleOpenRightPanelPreviewLink = useCallback((
+    url: string,
+    event: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleOpenBuiltInBrowserLink(url);
+  }, [handleOpenBuiltInBrowserLink]);
 
   const handleLocalFileContextMenu = useCallback((
     event: React.MouseEvent<HTMLElement>,
@@ -939,12 +955,26 @@ export const Markdown = React.memo<MarkdownProps>(({
       const codeTagStyle: React.CSSProperties = {
         fontFamily: 'var(--markdown-font-mono, "Fira Code", "JetBrains Mono", Consolas, "Courier New", monospace)',
       };
+      const previewUrl = showRightPanelPreviewLinks ? getSingleHttpUrlFromText(code) : null;
 
       return (
         <div className={`code-block-wrapper${hasMultipleLines ? '' : ' code-block-wrapper--single-line'}`}>
           <div className="code-block-toolbar">
             <span className="code-block-lang">{formatCodeLanguageLabel(normalizedLang)}</span>
-            <CopyButton code={code} />
+            <div className="code-block-toolbar-actions">
+              {previewUrl && (
+                <button
+                  type="button"
+                  className="markdown-link-preview-button markdown-link-preview-button--code-block"
+                  aria-label="Open preview in right panel"
+                  title="Open preview in right panel"
+                  onClick={(event) => handleOpenRightPanelPreviewLink(previewUrl, event)}
+                >
+                  <ExternalLink size={13} aria-hidden="true" />
+                </button>
+              )}
+              <CopyButton code={code} />
+            </div>
           </div>
           <div className="code-block-body">
           {isStreaming ? (
@@ -1133,7 +1163,7 @@ export const Markdown = React.memo<MarkdownProps>(({
       }
       
       if (isHttpLink && typeof hrefValue === 'string') {
-        return (
+        const link = (
           <a 
             href={hrefValue} 
             {...props}
@@ -1154,6 +1184,25 @@ export const Markdown = React.memo<MarkdownProps>(({
           >
             {children}
           </a>
+        );
+
+        if (!showRightPanelPreviewLinks) {
+          return link;
+        }
+
+        return (
+          <span className="markdown-link-with-preview">
+            {link}
+            <button
+              type="button"
+              className="markdown-link-preview-button"
+              aria-label="Open preview in right panel"
+              title="Open preview in right panel"
+              onClick={(event) => handleOpenRightPanelPreviewLink(hrefValue, event)}
+            >
+              <ExternalLink size={13} aria-hidden="true" />
+            </button>
+          </span>
         );
       }
 
@@ -1236,8 +1285,10 @@ export const Markdown = React.memo<MarkdownProps>(({
     handleWebLinkContextMenu,
     handleOpenVisualization,
     handleTabOpen,
+    handleOpenRightPanelPreviewLink,
     onHttpLinkClick,
     parseLineRange,
+    showRightPanelPreviewLinks,
     syntaxTheme,
     isLight,
     currentWorkspacePath

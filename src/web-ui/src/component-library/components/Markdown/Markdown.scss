@@ -298,6 +298,13 @@
   user-select: none;
 }
 
+.markdown-renderer .code-block-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
 .markdown-renderer .code-block-body {
   min-width: 0;
   overflow-x: auto;
@@ -555,6 +562,44 @@
 .markdown-renderer .visualization-link .inline-code,
 .markdown-renderer .tab-link .inline-code {
   color: inherit;
+}
+
+.markdown-link-with-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18em;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+
+.markdown-link-preview-button {
+  appearance: none;
+  width: 1.35em;
+  height: 1.35em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0.08em;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  line-height: 1;
+  vertical-align: text-bottom;
+  transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.markdown-link-preview-button:hover {
+  color: var(--markdown-link-hover-color);
+  background: var(--color-bg-hover);
+  border-color: var(--border-subtle);
+}
+
+.markdown-link-preview-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .markdown-link-path-tooltip {

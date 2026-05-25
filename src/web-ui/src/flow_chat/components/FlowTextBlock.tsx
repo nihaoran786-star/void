@@ -112,6 +112,7 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
           onFileViewRequest={onFileViewRequest}
           onTabOpen={onTabOpen}
           onHttpLinkClick={onHttpLinkClick}
+          showRightPanelPreviewLinks
           onOpenVisualization={(visualization) => {
             onOpenVisualization?.(visualization?.type, visualization?.data);
           }}

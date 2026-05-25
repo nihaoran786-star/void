@@ -12,7 +12,30 @@ export function validateUrl(url: string): void {
   }
 }
 
-export async function checkConnectivity(url: string): Promise<void> {
+export function shouldSkipConnectivityCheck(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    const normalizedHostname = hostname.toLowerCase();
+    return (
+      normalizedHostname === 'localhost' ||
+      normalizedHostname === '::1' ||
+      normalizedHostname === '[::1]' ||
+      normalizedHostname.startsWith('127.')
+    );
+  } catch {
+    return false;
+  }
+}
+
+interface CheckConnectivityOptions {
+  skipLoopbackCheck?: boolean;
+}
+
+export async function checkConnectivity(url: string, options: CheckConnectivityOptions = {}): Promise<void> {
+  if (options.skipLoopbackCheck && shouldSkipConnectivityCheck(url)) {
+    return;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {

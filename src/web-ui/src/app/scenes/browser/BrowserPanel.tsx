@@ -246,7 +246,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
 
     try {
       validateUrl(nextUrl);
-      await checkConnectivity(nextUrl);
+      await checkConnectivity(nextUrl, { skipLoopbackCheck: true });
 
       if (urlPollTimerRef.current) {
         clearInterval(urlPollTimerRef.current);
