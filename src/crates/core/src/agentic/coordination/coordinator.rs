@@ -20,6 +20,9 @@ use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::round_preempt::{DialogRoundInjectionSource, DialogRoundPreemptSource};
 use crate::agentic::session::SessionManager;
 use crate::agentic::side_question::build_btw_user_input;
+use crate::agentic::tools::image_context::{
+    store_image_contexts as store_media_image_contexts, ImageContextData as MediaToolImageContext,
+};
 use crate::agentic::tools::pipeline::{SubagentParentInfo, ToolPipeline};
 use crate::agentic::tools::ToolRuntimeRestrictions;
 use crate::agentic::WorkspaceBinding;
@@ -1790,6 +1793,47 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         // Also stores original_text so the UI can display the user's actual input
         // instead of the vision-enhanced text.
         if let Some(imgs) = image_contexts.as_ref().filter(|imgs| !imgs.is_empty()) {
+            let media_tool_images: Vec<MediaToolImageContext> = imgs
+                .iter()
+                .map(|img| {
+                    let metadata = img.metadata.as_ref();
+                    let name = metadata
+                        .and_then(|m| m.get("name"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("image.png");
+                    let file_size = metadata
+                        .and_then(|m| m.get("file_size"))
+                        .and_then(|v| v.as_u64())
+                        .and_then(|value| usize::try_from(value).ok())
+                        .unwrap_or(0);
+                    let width = metadata
+                        .and_then(|m| m.get("width"))
+                        .and_then(|v| v.as_u64())
+                        .and_then(|value| u32::try_from(value).ok());
+                    let height = metadata
+                        .and_then(|m| m.get("height"))
+                        .and_then(|v| v.as_u64())
+                        .and_then(|value| u32::try_from(value).ok());
+                    let source = metadata
+                        .and_then(|m| m.get("source"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("chat");
+
+                    MediaToolImageContext {
+                        id: img.id.clone(),
+                        image_path: img.image_path.clone(),
+                        data_url: img.data_url.clone(),
+                        mime_type: img.mime_type.clone(),
+                        image_name: name.to_string(),
+                        file_size,
+                        width,
+                        height,
+                        source: source.to_string(),
+                    }
+                })
+                .collect();
+            store_media_image_contexts(media_tool_images);
+
             let image_meta: Vec<serde_json::Value> = imgs
                 .iter()
                 .map(|img| {

@@ -1,11 +1,17 @@
-import React from 'react';
-import { ImageIcon, Video, Clock3, CheckCircle2, AlertTriangle, Upload, AudioLines, ListChecks } from 'lucide-react';
+import React, { useState } from 'react';
+import { ImageIcon, Video, Clock3, CheckCircle2, AlertTriangle, Upload, AudioLines, ListChecks, CornerUpLeft, Eye } from 'lucide-react';
 import type { ToolCardProps } from '../types/flow-chat';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
 import { getMediaToolViewModel } from './mediaResult';
+import {
+  canUseMediaAssetAsImageReference,
+  dispatchMediaReference,
+  openMediaPreview,
+} from './mediaAssetInteractions';
 import './MediaGenerationToolCard.scss';
 
 export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, config }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
   const model = getMediaToolViewModel(toolItem);
   const kind = model?.kind ?? (toolItem.toolName === 'GenerateVideo' ? 'video' : toolItem.toolName === 'UploadMediaImage' ? 'upload' : toolItem.toolName === 'GenerateSpeech' || toolItem.toolName === 'TranscribeAudio' ? 'audio' : 'image');
   const Icon = kind === 'video'
@@ -31,11 +37,15 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
   return (
     <CompactToolCard
       status={status}
-      isExpanded
+      isExpanded={isExpanded}
+      clickable
+      onClick={() => setIsExpanded(value => !value)}
       className="media-generation-card"
       header={(
         <CompactToolCardHeader
           icon={<Icon size={15} />}
+          expandable
+          isExpanded={isExpanded}
           action={config.displayName}
           content={summary}
           rightStatusIcon={isWorking ? <Clock3 size={14} /> : isFailed ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
@@ -44,8 +54,10 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
       expandedContent={(
         <div className="media-generation-card__body">
           {isWorking && (
-            <div className="media-generation-card__status">
-              后台正在每 {model?.pollIntervalSeconds ?? 5} 秒查询一次，完成后会更新这里，并写入下一轮 AI 上下文。
+            <div className="media-generation-card__generating" aria-label="Media generation in progress">
+              <div className="media-generation-card__loader" aria-hidden="true" />
+              <span>G</span><span>e</span><span>n</span><span>e</span><span>r</span><span>a</span><span>t</span><span>i</span><span>n</span><span>g</span>
+              <small>每 {model?.pollIntervalSeconds ?? 5} 秒查询一次</small>
             </div>
           )}
 
@@ -56,20 +68,60 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
           {model?.assets.length ? (
             <div className={`media-generation-card__grid media-generation-card__grid--${kind}`}>
               {model.assets.map((asset, index) => (
-                <a
+                <div
                   key={`${asset.taskId ?? asset.url}-${index}`}
                   className="media-generation-card__asset"
-                  href={asset.url}
-                  target="_blank"
-                  rel="noreferrer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openMediaPreview(asset);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      openMediaPreview(asset);
+                    }
+                  }}
+                  title="在应用内预览"
                 >
                   <span className="media-generation-card__badge">#{asset.itemIndex ?? index + 1}</span>
+                  <span className="media-generation-card__asset-preview-hint">
+                    <Eye size={13} />
+                    预览
+                  </span>
                   {asset.kind === 'video' ? (
-                    <video src={asset.url} controls preload="metadata" />
+                    <video src={asset.url} muted preload="metadata" />
+                  ) : asset.kind === 'audio' ? (
+                    <div className="media-generation-card__audio-asset">
+                      <AudioLines size={22} />
+                      <span>Audio</span>
+                    </div>
                   ) : (
                     <img src={asset.url} alt={`Generated media ${asset.itemIndex ?? index + 1}`} loading="lazy" />
                   )}
-                </a>
+                  <span className="media-generation-card__asset-actions">
+                    <span className="media-generation-card__asset-action" aria-hidden="true">
+                      <Eye size={12} />
+                      打开
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canUseMediaAssetAsImageReference(asset)}
+                      className={`media-generation-card__asset-action ${canUseMediaAssetAsImageReference(asset) ? '' : 'is-disabled'}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (canUseMediaAssetAsImageReference(asset)) {
+                          dispatchMediaReference(asset);
+                        }
+                      }}
+                    >
+                      <CornerUpLeft size={12} />
+                      引用
+                    </button>
+                  </span>
+                </div>
               ))}
             </div>
           ) : model?.items.some(item => item.resultPath || item.errorMessage) ? (

@@ -18,8 +18,8 @@ export function buildImageContextsForBackend(
   return {
     imageContexts: imageContexts.map(ctx => ({
       id: ctx.id,
-      image_path: ctx.isLocal ? ctx.imagePath : undefined,
-      data_url: !ctx.isLocal ? ctx.dataUrl : undefined,
+      image_path: ctx.isLocal || ctx.source === 'url' ? ctx.imagePath : undefined,
+      data_url: !ctx.isLocal && ctx.source !== 'url' ? ctx.dataUrl : undefined,
       mime_type: ctx.mimeType,
       metadata: {
         name: ctx.imageName,
@@ -33,7 +33,7 @@ export function buildImageContextsForBackend(
       id: ctx.id,
       name: ctx.imageName || 'Image',
       dataUrl: ctx.dataUrl,
-      imagePath: ctx.isLocal ? ctx.imagePath : undefined,
+      imagePath: ctx.isLocal || ctx.source === 'url' ? ctx.imagePath : undefined,
       mimeType: ctx.mimeType,
     })),
   };

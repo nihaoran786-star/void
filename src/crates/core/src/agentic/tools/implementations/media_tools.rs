@@ -102,9 +102,7 @@ fn strip_nulls(mut payload: Map<String, Value>) -> Value {
 
 fn is_apimart_image_reference(value: &str) -> bool {
     let value = value.trim();
-    value.starts_with("http://")
-        || value.starts_with("https://")
-        || value.starts_with("data:image")
+    value.starts_with("http://") || value.starts_with("https://") || value.starts_with("data:image")
 }
 
 fn resolve_media_image_urls(image_urls: Vec<String>) -> Vec<String> {
@@ -116,16 +114,81 @@ fn resolve_media_image_urls(image_urls: Vec<String>) -> Vec<String> {
             }
 
             find_image_context_by_reference(&url)
-                .and_then(|image| image.data_url)
+                .and_then(|image| {
+                    image.data_url.or_else(|| {
+                        image
+                            .image_path
+                            .filter(|path| is_apimart_image_reference(path))
+                    })
+                })
                 .unwrap_or(url)
         })
         .collect()
 }
 
+fn resolve_media_upload_path_reference(path: &str) -> String {
+    find_image_context_by_reference(path)
+        .and_then(|image| image.image_path)
+        .filter(|image_path| !image_path.trim().is_empty())
+        .unwrap_or_else(|| path.to_string())
+}
+
+fn collect_http_urls(value: &Value, urls: &mut Vec<String>) {
+    match value {
+        Value::String(text) => {
+            if (text.starts_with("http://") || text.starts_with("https://"))
+                && !urls.contains(text)
+            {
+                urls.push(text.clone());
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_http_urls(item, urls);
+            }
+        }
+        Value::Object(map) => {
+            for child in map.values() {
+                collect_http_urls(child, urls);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn upload_image_result(response: Value) -> Value {
+    let mut urls = Vec::new();
+    collect_http_urls(&response, &mut urls);
+    let url = urls.first().cloned();
+    let assets: Vec<Value> = urls
+        .iter()
+        .enumerate()
+        .map(|(index, url)| {
+            json!({
+                "kind": "image",
+                "item_index": index + 1,
+                "url": url
+            })
+        })
+        .collect();
+
+    json!({
+        "status": "completed",
+        "source": "apimart",
+        "kind": "upload_image",
+        "url": url,
+        "assets": assets,
+        "response": response
+    })
+}
+
 #[cfg(test)]
 mod media_image_reference_tests {
-    use super::resolve_media_image_urls;
+    use super::{
+        resolve_media_image_urls, resolve_media_upload_path_reference, upload_image_result,
+    };
     use crate::agentic::tools::image_context::{store_image_context, ImageContextData};
+    use serde_json::json;
 
     #[test]
     fn resolves_uploaded_image_name_to_data_url() {
@@ -153,6 +216,61 @@ mod media_image_reference_tests {
                 "https://example.com/keep.png".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn resolves_url_backed_image_name_to_provider_url() {
+        store_image_context(ImageContextData {
+            id: "img-url-1".to_string(),
+            image_path: Some("https://cdn.example.com/generated.png".to_string()),
+            data_url: None,
+            mime_type: "image/png".to_string(),
+            image_name: "Generated media 1".to_string(),
+            file_size: 0,
+            width: Some(512),
+            height: Some(512),
+            source: "url".to_string(),
+        });
+
+        let resolved = resolve_media_image_urls(vec!["Generated media 1".to_string()]);
+
+        assert_eq!(resolved, vec!["https://cdn.example.com/generated.png"]);
+    }
+
+    #[test]
+    fn resolves_upload_path_from_named_local_image_context() {
+        store_image_context(ImageContextData {
+            id: "img-local-1".to_string(),
+            image_path: Some("C:/tmp/thor-reference.jpg".to_string()),
+            data_url: None,
+            mime_type: "image/jpeg".to_string(),
+            image_name: "local-upload-source.jpg".to_string(),
+            file_size: 123,
+            width: None,
+            height: None,
+            source: "file".to_string(),
+        });
+
+        assert_eq!(
+            resolve_media_upload_path_reference("local-upload-source.jpg"),
+            "C:/tmp/thor-reference.jpg"
+        );
+    }
+
+    #[test]
+    fn exposes_uploaded_image_url_as_normalized_asset() {
+        let result = upload_image_result(json!({
+            "data": {
+                "url": "https://cdn.example.com/uploaded.png"
+            }
+        }));
+
+        assert_eq!(result["url"], "https://cdn.example.com/uploaded.png");
+        assert_eq!(
+            result["assets"][0]["url"],
+            "https://cdn.example.com/uploaded.png"
+        );
+        assert_eq!(result["assets"][0]["item_index"], 1);
     }
 }
 
@@ -664,11 +782,18 @@ impl Tool for UploadMediaImageTool {
         };
         let input_path =
             optional_string(input, "path").ok_or_else(|| VoidError::tool("path is required"))?;
+        if is_apimart_image_reference(&input_path) {
+            return Ok(ok_result(
+                upload_image_result(json!({ "url": input_path })),
+                "Image is already a public provider-compatible URL.",
+            ));
+        }
+        let input_path = resolve_media_upload_path_reference(&input_path);
         let path = resolve_workspace_path(context.workspace_root(), &input_path)?;
         let response = client.upload_image(&path).await?;
         Ok(ok_result(
-            json!({ "status": "completed", "source": "apimart", "kind": "upload_image", "response": response }),
-            "Image uploaded through APIMart. Use the returned URL only where a model needs a public image reference.",
+            upload_image_result(response),
+            "Image uploaded through APIMart. Use the returned url only where a model needs a public image reference.",
         ))
     }
 }

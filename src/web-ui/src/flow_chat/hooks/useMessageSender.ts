@@ -3,14 +3,13 @@
  * Encapsulates session creation, image uploads, and message assembly.
  *
  * Image handling is fully delegated to the backend coordinator which
- * decides whether to pre-analyse via a vision model or attach images
- * directly.  The frontend only uploads clipboard images and passes
+ * decides whether to pre-analyse via a vision model, attach images
+ * directly, or expose them to media tools. The frontend only passes
  * ImageContextData[] through to the backend.
  */
 
 import { useCallback } from 'react';
 import { FlowChatManager } from '../services/FlowChatManager';
-import { notificationService } from '@/shared/notification-system';
 import type { ContextItem, ImageContext } from '@/shared/types/context';
 import type { AIModelConfig, DefaultModelsConfig } from '@/infrastructure/config/types';
 import { createLogger } from '@/shared/utils/logger';
@@ -130,41 +129,6 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       }
 
       const imageContexts = contexts.filter(ctx => ctx.type === 'image') as ImageContext[];
-      const clipboardImages = imageContexts.filter(ctx => !ctx.isLocal && ctx.dataUrl);
-
-      if (clipboardImages.length > 0) {
-        try {
-          const { api } = await import('@/infrastructure/api/service-api/ApiClient');
-          const uploadData = {
-            request: {
-              images: clipboardImages.map(ctx => ({
-                id: ctx.id,
-                image_path: ctx.imagePath || null,
-                data_url: ctx.dataUrl || null,
-                mime_type: ctx.mimeType,
-                image_name: ctx.imageName,
-                file_size: ctx.fileSize,
-                width: ctx.width || null,
-                height: ctx.height || null,
-                source: ctx.source,
-              }))
-            }
-          };
-
-          await api.invoke('upload_image_contexts', uploadData);
-          log.debug('Clipboard images uploaded', {
-            imageCount: clipboardImages.length,
-            ids: clipboardImages.map(img => img.id),
-          });
-        } catch (error) {
-          log.error('Failed to upload clipboard images', {
-            imageCount: clipboardImages.length,
-            error: (error as Error)?.message ?? 'unknown',
-          });
-          notificationService.error('Image upload failed. Please try again.', { duration: 3000 });
-          throw error;
-        }
-      }
 
       let fullMessage = aiTrimmedMessage;
       const displayMessage = options?.displayMessage?.trim() || trimmedMessage;

@@ -35,4 +35,34 @@ describe('buildImageContextsForBackend', () => {
       },
     ]);
   });
+
+  it('keeps URL image references as image_path for provider image_urls', () => {
+    const image: ImageContext = {
+      id: 'img-url-1',
+      type: 'image',
+      imagePath: 'https://cdn.example.com/generated-1.png',
+      imageName: 'Generated media #1',
+      fileSize: 0,
+      mimeType: 'image/png',
+      source: 'url',
+      isLocal: false,
+    };
+
+    const result = buildImageContextsForBackend([image]);
+
+    expect(result.imageContexts[0]).toMatchObject({
+      id: 'img-url-1',
+      image_path: 'https://cdn.example.com/generated-1.png',
+      data_url: undefined,
+      mime_type: 'image/png',
+      metadata: {
+        name: 'Generated media #1',
+        source: 'url',
+      },
+    });
+    expect(result.imageDisplayData[0]).toMatchObject({
+      id: 'img-url-1',
+      imagePath: 'https://cdn.example.com/generated-1.png',
+    });
+  });
 });

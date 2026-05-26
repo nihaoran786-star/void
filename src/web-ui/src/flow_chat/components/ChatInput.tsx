@@ -65,6 +65,10 @@ import { useAgentCompanionActivity } from '../hooks/useAgentCompanionActivity';
 import { useSessionReviewActivity } from '../hooks/useSessionReviewActivity';
 import { shouldBlockDeepReviewCommand } from '../utils/deepReviewCommandGuard';
 import { deriveDeepReviewSessionConcurrencyGuard } from '../utils/deepReviewCapacityGuard';
+import {
+  MEDIA_REFERENCE_EVENT,
+  type MediaReferenceEventDetail,
+} from '../tool-cards/mediaAssetInteractions';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
@@ -961,6 +965,47 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     },
     [clearSkillsTimer]
   );
+
+  useEffect(() => {
+    const handleMediaReference = (event: Event) => {
+      const detail = (event as CustomEvent<MediaReferenceEventDetail>).detail;
+      if (!detail) {
+        return;
+      }
+
+      if (detail.context && !contexts.some(context => context.id === detail.context?.id)) {
+        addContext(detail.context);
+      }
+
+      const promptText = detail.promptText.trim();
+      const currentValue = inputValueRef.current;
+      const nextValue = promptText
+        ? currentValue.trim()
+          ? `${currentValue.trimEnd()}\n${promptText}`
+          : promptText
+        : currentValue;
+
+      dispatchInput({ type: 'ACTIVATE' });
+      if (nextValue !== currentValue) {
+        dispatchInput({ type: 'SET_VALUE', payload: nextValue });
+        inputValueRef.current = nextValue;
+        prunePendingLargePastes(nextValue);
+      }
+
+      if (derivedState?.isProcessing && nextValue.trim()) {
+        setQueuedInput(nextValue);
+      }
+
+      requestAnimationFrame(() => {
+        richTextInputRef.current?.focus();
+      });
+    };
+
+    window.addEventListener(MEDIA_REFERENCE_EVENT, handleMediaReference);
+    return () => {
+      window.removeEventListener(MEDIA_REFERENCE_EVENT, handleMediaReference);
+    };
+  }, [addContext, contexts, derivedState?.isProcessing, prunePendingLargePastes, setQueuedInput]);
 
   useEffect(() => {
     const handleImagePaste = async (event: Event) => {
