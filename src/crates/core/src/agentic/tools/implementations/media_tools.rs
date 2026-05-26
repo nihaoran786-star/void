@@ -219,6 +219,51 @@ mod media_image_reference_tests {
     }
 
     #[test]
+    fn resolves_uploaded_image_id_to_data_url() {
+        store_image_context(ImageContextData {
+            id: "img-upload-by-id".to_string(),
+            image_path: None,
+            data_url: Some("data:image/png;base64,by-id".to_string()),
+            mime_type: "image/png".to_string(),
+            image_name: "reference-by-id.png".to_string(),
+            file_size: 12,
+            width: Some(64),
+            height: Some(64),
+            source: "file".to_string(),
+        });
+
+        let resolved = resolve_media_image_urls(vec!["img-upload-by-id".to_string()]);
+
+        assert_eq!(resolved, vec!["data:image/png;base64,by-id".to_string()]);
+    }
+
+    #[test]
+    fn prefers_data_url_over_provider_url_for_registered_image_contexts() {
+        store_image_context(ImageContextData {
+            id: "img-data-wins".to_string(),
+            image_path: Some("https://cdn.example.com/fallback.png".to_string()),
+            data_url: Some("data:image/png;base64,data-wins".to_string()),
+            mime_type: "image/png".to_string(),
+            image_name: "data-wins.png".to_string(),
+            file_size: 12,
+            width: Some(64),
+            height: Some(64),
+            source: "file".to_string(),
+        });
+
+        let resolved = resolve_media_image_urls(vec!["data-wins.png".to_string()]);
+
+        assert_eq!(resolved, vec!["data:image/png;base64,data-wins".to_string()]);
+    }
+
+    #[test]
+    fn preserves_unmatched_image_reference_as_raw_string() {
+        let resolved = resolve_media_image_urls(vec!["missing-reference.png".to_string()]);
+
+        assert_eq!(resolved, vec!["missing-reference.png".to_string()]);
+    }
+
+    #[test]
     fn resolves_url_backed_image_name_to_provider_url() {
         store_image_context(ImageContextData {
             id: "img-url-1".to_string(),

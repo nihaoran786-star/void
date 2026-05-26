@@ -19,7 +19,7 @@ export function buildImageContextsForBackend(
     imageContexts: imageContexts.map(ctx => ({
       id: ctx.id,
       image_path: ctx.isLocal || ctx.source === 'url' ? ctx.imagePath : undefined,
-      data_url: !ctx.isLocal && ctx.source !== 'url' ? ctx.dataUrl : undefined,
+      data_url: ctx.dataUrl,
       mime_type: ctx.mimeType,
       metadata: {
         name: ctx.imageName,

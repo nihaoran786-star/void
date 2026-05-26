@@ -188,6 +188,32 @@ describe('PersistenceModule', () => {
     });
   });
 
+  it('redacts image data URLs from persisted user message metadata', () => {
+    const turn = createDialogTurn('completed');
+    turn.userMessage.images = [
+      {
+        id: 'img-1',
+        name: 'thor-reference.png',
+        dataUrl: 'data:image/png;base64,abc123',
+        imagePath: 'C:/Users/example/Pictures/thor-reference.png',
+        mimeType: 'image/png',
+      },
+    ];
+
+    const persisted = convertDialogTurnToBackendFormat(turn, 0);
+
+    expect(persisted.userMessage.metadata.images).toEqual([
+      {
+        id: 'img-1',
+        name: 'thor-reference.png',
+        has_data_url: true,
+        image_path: 'C:/Users/example/Pictures/thor-reference.png',
+        mime_type: 'image/png',
+      },
+    ]);
+    expect(JSON.stringify(persisted)).not.toContain('data:image/png;base64,abc123');
+  });
+
   it('coalesces non-terminal immediate saves into a short latest-state window', async () => {
     const turn = createDialogTurn('processing');
     const context = createContext(turn);

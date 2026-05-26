@@ -19,8 +19,14 @@ export function formatContextForPrompt(context: ContextItem): string {
         '',
         context.content,
       ].filter(line => line !== '').join('\n');
-    case 'image':
-      return '';
+    case 'image': {
+      const lines = [
+        `[Image: ${context.imageName || context.id}]`,
+        context.imagePath ? `Path: ${context.imagePath}` : '',
+        context.id ? `Image ID: ${context.id}` : '',
+      ];
+      return lines.filter(Boolean).join('\n');
+    }
     case 'terminal-command':
       return `[Command: ${context.command}]`;
     case 'mermaid-node':

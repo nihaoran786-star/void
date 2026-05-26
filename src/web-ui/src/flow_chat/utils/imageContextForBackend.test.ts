@@ -36,6 +36,33 @@ describe('buildImageContextsForBackend', () => {
     ]);
   });
 
+  it('keeps data URLs even when uploaded images also have local paths', () => {
+    const image: ImageContext = {
+      id: 'img-local-with-data',
+      type: 'image',
+      imagePath: 'C:/Users/example/Pictures/thor-reference.png',
+      imageName: 'thor-reference.png',
+      fileSize: 1234,
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,abc123',
+      source: 'file',
+      isLocal: true,
+    };
+
+    const result = buildImageContextsForBackend([image]);
+
+    expect(result.imageContexts[0]).toMatchObject({
+      id: 'img-local-with-data',
+      image_path: 'C:/Users/example/Pictures/thor-reference.png',
+      data_url: 'data:image/png;base64,abc123',
+      mime_type: 'image/png',
+      metadata: {
+        name: 'thor-reference.png',
+        source: 'file',
+      },
+    });
+  });
+
   it('keeps URL image references as image_path for provider image_urls', () => {
     const image: ImageContext = {
       id: 'img-url-1',

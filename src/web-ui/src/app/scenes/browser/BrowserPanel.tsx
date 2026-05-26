@@ -16,6 +16,7 @@ import { useContextStore } from '@/shared/context-system';
 import type { WebElementContext } from '@/shared/types/context';
 import { createInspectorScript, CANCEL_INSPECTOR_SCRIPT, BLANK_TARGET_INTERCEPT_SCRIPT } from './browserInspectorScript';
 import { validateUrl, checkConnectivity } from './browserUrlCheck';
+import { createBrowserPanelWebviewLabel } from './browserWebviewLabels';
 import './BrowserPanel.scss';
 
 const log = createLogger('BrowserPanel');
@@ -123,7 +124,6 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const viewportRef = useRef<HTMLDivElement>(null);
   const webviewRef = useRef<BrowserWebviewHandle | null>(null);
   const holderWindowRef = useRef<BrowserHolderWindowHandle | null>(null);
-  const webviewSequenceRef = useRef(0);
   const currentUrlRef = useRef<string>(startUrl);
   const resizeFrameRef = useRef<number | null>(null);
   const webviewLabelRef = useRef<string>('');
@@ -210,7 +210,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       import('@tauri-apps/api/webview'),
       import('@tauri-apps/api/window'),
     ]);
-    const label = `embedded-browser-panel-view-${webviewSequenceRef.current++}`;
+    const label = createBrowserPanelWebviewLabel();
     webviewLabelRef.current = label;
     const handle = new Webview(getCurrentWindow(), label, {
       url,

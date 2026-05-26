@@ -199,7 +199,7 @@ export function getMimeTypeFromFilename(filename: string): string {
  * @returns ImageContext
  */
 export async function createImageContextFromFile(
-  file: File
+  file: File,
 ): Promise<ImageContext> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
@@ -220,6 +220,8 @@ export async function createImageContextFromFile(
     log.warn('Failed to generate thumbnail', { fileName: file.name, error });
   }
   
+  const dataUrl = await readFileAsDataUrl(file);
+
   const imageContext: ImageContext = {
     id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     type: 'image',
@@ -229,18 +231,13 @@ export async function createImageContextFromFile(
     height: dimensions.height,
     fileSize: file.size,
     mimeType: file.type,
+    dataUrl,
     source: 'file',
     isLocal: Boolean((file as any).path),
     timestamp: Date.now(),
     thumbnailUrl,
     metadata: {}
   };
-  
-  // If there is no path (web environment), read as data URL.
-  if (!imageContext.imagePath) {
-    imageContext.dataUrl = await readFileAsDataUrl(file);
-    imageContext.isLocal = false;
-  }
   
   return imageContext;
 }
@@ -267,7 +264,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
  * @returns ImageContext
  */
 export async function createImageContextFromClipboard(
-  file: File
+  file: File,
 ): Promise<ImageContext> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
@@ -315,7 +312,7 @@ export async function createImageContextFromClipboard(
       fromClipboard: true
     }
   };
-  
+
   return imageContext;
 }
 

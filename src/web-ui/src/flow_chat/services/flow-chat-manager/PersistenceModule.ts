@@ -372,7 +372,7 @@ export function convertDialogTurnToBackendFormat(dialogTurn: DialogTurn, turnInd
           images: dialogTurn.userMessage.images.map(img => ({
             id: img.id,
             name: img.name,
-            data_url: img.dataUrl,
+            ...(img.dataUrl ? { has_data_url: true } : {}),
             image_path: img.imagePath,
             mime_type: img.mimeType,
           })),

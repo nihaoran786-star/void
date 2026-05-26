@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PullRequestContext } from '@/shared/types/context';
+import type { ImageContext, PullRequestContext } from '@/shared/types/context';
 import { formatContextForPrompt } from './contextPrompt';
 
 describe('formatContextForPrompt', () => {
@@ -45,5 +45,46 @@ describe('formatContextForPrompt', () => {
     expect(rendered).toContain('[Pull Request Context: PR #42 CI]');
     expect(rendered).toContain('Section: ci');
     expect(rendered).toContain('Checks: 2/3 passed, 1 failed, 0 pending');
+  });
+
+  it('formats image contexts with tool-readable paths', () => {
+    const context: ImageContext = {
+      id: 'img-1',
+      type: 'image',
+      imagePath: 'C:/repo/.void/media/uploads/reference.jpg',
+      imageName: 'reference.jpg',
+      fileSize: 123,
+      mimeType: 'image/jpeg',
+      source: 'file',
+      isLocal: true,
+      timestamp: 123,
+    };
+
+    const rendered = formatContextForPrompt(context);
+
+    expect(rendered).toContain('[Image: reference.jpg]');
+    expect(rendered).toContain('Path: C:/repo/.void/media/uploads/reference.jpg');
+    expect(rendered).toContain('Image ID: img-1');
+  });
+
+  it('formats data-url image contexts with image names and ids', () => {
+    const context: ImageContext = {
+      id: 'img-data-1',
+      type: 'image',
+      imagePath: '',
+      imageName: 'thor-reference.png',
+      fileSize: 123,
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,abc123',
+      source: 'file',
+      isLocal: false,
+      timestamp: 123,
+    };
+
+    const rendered = formatContextForPrompt(context);
+
+    expect(rendered).toContain('[Image: thor-reference.png]');
+    expect(rendered).toContain('Image ID: img-data-1');
+    expect(rendered).not.toContain('Path:');
   });
 });
