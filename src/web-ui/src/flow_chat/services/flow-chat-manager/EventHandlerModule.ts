@@ -93,6 +93,9 @@ const RECOVERABLE_IDLE_TURN_STATUSES = new Set<DialogTurn['status']>([
   'finishing',
 ]);
 
+const ASYNC_MEDIA_TOOL_NAMES = new Set(['GenerateImage', 'GenerateVideo']);
+const TERMINAL_TOOL_EVENT_TYPES = new Set(['Completed', 'Failed', 'Cancelled']);
+
 export function isAppWindowFocused(): boolean {
   if (typeof document === 'undefined') {
     return true;
@@ -116,6 +119,7 @@ function resolveDialogTurnDisplayContent(
 
 export const __test_only__ = {
   resolveDialogTurnDisplayContent,
+  shouldAllowLateMediaToolEvent,
 };
 
 function shouldMarkUnreadCompletion(sessionId: string): boolean {
@@ -188,6 +192,56 @@ function recoverIdleLatestTurnDataEvent(
     eventName,
   });
   return true;
+}
+
+function isLatestCompletedTurn(
+  sessionId: string,
+  turnId: string | null,
+  currentState: SessionExecutionState,
+  currentDialogTurnId: string | null
+): boolean {
+  if (
+    currentState !== SessionExecutionState.IDLE ||
+    !turnId ||
+    currentDialogTurnId
+  ) {
+    return false;
+  }
+
+  const session = FlowChatStore.getInstance().getState().sessions.get(sessionId);
+  const latestTurn = session?.dialogTurns[session.dialogTurns.length - 1];
+  return latestTurn?.id === turnId && latestTurn.status === 'completed';
+}
+
+function shouldAllowLateMediaToolEvent(
+  sessionId: string,
+  turnId: string | null,
+  toolEvent: FlowToolEvent
+): boolean {
+  if (
+    !turnId ||
+    !ASYNC_MEDIA_TOOL_NAMES.has(toolEvent.tool_name) ||
+    !TERMINAL_TOOL_EVENT_TYPES.has(toolEvent.event_type)
+  ) {
+    return false;
+  }
+
+  const existingItem = FlowChatStore.getInstance().findToolItem(
+    sessionId,
+    turnId,
+    toolEvent.tool_id,
+  );
+  if (!existingItem || existingItem.type !== 'tool') {
+    return false;
+  }
+
+  const existingTool = existingItem as FlowToolItem;
+  return (
+    existingTool.toolName === toolEvent.tool_name &&
+    existingTool.status === 'completed' &&
+    existingTool.toolResult?.success === true &&
+    existingTool.toolResult?.result?.status === 'polling'
+  );
 }
 
 function handleDeepReviewQueueStateChanged(event: DeepReviewQueueStateChangedEvent): void {
@@ -453,11 +507,16 @@ function getLinkedSubagentParentInfo(sessionId: string): SubagentParentInfo | un
 /**
  * Event filtering mechanism: determines if an event should be processed
  */
+interface ShouldProcessEventOptions {
+  allowIdleCompletedTurn?: boolean;
+}
+
 export function shouldProcessEvent(
   sessionId: string,
   turnId: string | null,
   eventType: 'data' | 'control' | 'state_sync',
-  eventName = 'unknown'
+  eventName = 'unknown',
+  options: ShouldProcessEventOptions = {}
 ): boolean {
   if (eventType === 'state_sync') {
     return true;
@@ -465,6 +524,13 @@ export function shouldProcessEvent(
 
   const machine = stateMachineManager.get(sessionId);
   if (!machine) {
+    if (
+      options.allowIdleCompletedTurn &&
+      isLatestCompletedTurn(sessionId, turnId, SessionExecutionState.IDLE, null)
+    ) {
+      return true;
+    }
+
     if (eventType === 'data') {
       logDroppedDataEvent(eventName, sessionId, turnId, { reason: 'missing_state_machine' });
     }
@@ -482,6 +548,13 @@ export function shouldProcessEvent(
   }
 
   if (!isStreamingExecutionState(currentState)) {
+    if (
+      options.allowIdleCompletedTurn &&
+      isLatestCompletedTurn(sessionId, turnId, currentState, context.currentDialogTurnId)
+    ) {
+      return true;
+    }
+
     if (recoverIdleLatestTurnDataEvent(
       eventName,
       sessionId,
@@ -1566,7 +1639,10 @@ function handleToolEvent(
     return;
   }
 
-  if (!shouldProcessEvent(sessionId, turnId, 'data', 'ToolEvent')) {
+  const allowLateMediaToolEvent = shouldAllowLateMediaToolEvent(sessionId, turnId, toolEvent);
+  if (!shouldProcessEvent(sessionId, turnId, 'data', 'ToolEvent', {
+    allowIdleCompletedTurn: allowLateMediaToolEvent,
+  })) {
     return;
   }
 

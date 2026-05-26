@@ -174,8 +174,13 @@ export interface DefaultModelsConfig {
   fast?: string | null;
 }
 
+export interface MediaProviderConfig {
+  apimart_token: string;
+}
+
 export interface AIConfig {
   models: AIModelConfig[];
+  media: MediaProviderConfig;
   default_models: DefaultModelsConfig;
   agent_models: Record<string, string>;
   func_agent_models: Record<string, string>;
@@ -542,6 +547,7 @@ export type ConfigPath =
   | 'ai'
   | 'ai.default_model'
   | 'ai.models'
+  | 'ai.media'
   | 'agents'
   | string;
 

@@ -29,6 +29,12 @@ impl MediaMode {
                 "Skill".to_string(),
                 "AskUserQuestion".to_string(),
                 "ControlHub".to_string(),
+                "GenerateImage".to_string(),
+                "GenerateVideo".to_string(),
+                "GetMediaTaskStatus".to_string(),
+                "UploadMediaImage".to_string(),
+                "GenerateSpeech".to_string(),
+                "TranscribeAudio".to_string(),
             ],
         }
     }

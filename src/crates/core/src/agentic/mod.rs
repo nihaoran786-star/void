@@ -32,6 +32,7 @@ pub mod round_preempt;
 
 // Image analysis module
 pub mod image_analysis;
+pub mod media;
 
 // Ephemeral side-question module (used by desktop /btw overlay)
 pub mod side_question;

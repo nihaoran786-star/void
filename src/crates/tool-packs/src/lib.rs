@@ -158,6 +158,12 @@ const PRODUCT_TOOL_PROVIDER_GROUP_PLAN: &[ToolProviderGroupPlan] = &[
             "ControlHub",
             "ComputerUse",
             "Playbook",
+            "GenerateImage",
+            "GenerateVideo",
+            "GetMediaTaskStatus",
+            "UploadMediaImage",
+            "GenerateSpeech",
+            "TranscribeAudio",
         ],
     },
 ];
@@ -308,6 +314,12 @@ mod tests {
                 "ControlHub",
                 "ComputerUse",
                 "Playbook",
+                "GenerateImage",
+                "GenerateVideo",
+                "GetMediaTaskStatus",
+                "UploadMediaImage",
+                "GenerateSpeech",
+                "TranscribeAudio",
             ]
         );
     }

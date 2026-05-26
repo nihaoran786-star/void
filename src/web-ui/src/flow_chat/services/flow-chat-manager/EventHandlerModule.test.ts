@@ -247,6 +247,156 @@ describe('shouldProcessEvent', () => {
     expect(stateMachineManager.getCurrentState(mockSessionId)).toBe(SessionExecutionState.IDLE);
   });
 
+  it('allows a late media terminal event to update a completed polling tool item', () => {
+    const mediaTool: FlowToolItem = {
+      id: 'media-tool-1',
+      type: 'tool',
+      toolName: 'GenerateImage',
+      timestamp: 1100,
+      status: 'completed',
+      toolCall: {
+        id: 'media-tool-1',
+        input: { prompt: 'test image' },
+      },
+      toolResult: {
+        success: true,
+        result: {
+          kind: 'image',
+          status: 'polling',
+          task_ids: ['task_1'],
+        },
+      },
+    };
+
+    FlowChatStore.getInstance().setState(() => ({
+      sessions: new Map([[
+        mockSessionId,
+        {
+          sessionId: mockSessionId,
+          title: 'Test Session',
+          dialogTurns: [{
+            id: mockTurnId,
+            sessionId: mockSessionId,
+            userMessage: {
+              id: 'user-1',
+              content: 'Generate image',
+              timestamp: 1000,
+            },
+            modelRounds: [{
+              id: 'round-1',
+              index: 0,
+              items: [mediaTool],
+              isStreaming: false,
+              isComplete: true,
+              status: 'completed',
+              startTime: 1000,
+              endTime: 1200,
+            }],
+            status: 'completed',
+            startTime: 1000,
+            endTime: 1200,
+          }],
+          status: 'idle',
+          config: { agentType: 'media' },
+          createdAt: 1000,
+          lastActiveAt: 1200,
+          error: null,
+          sessionKind: 'normal',
+        } as Session,
+      ]]),
+      activeSessionId: mockSessionId,
+    }));
+
+    expect(__test_only__.shouldAllowLateMediaToolEvent(mockSessionId, mockTurnId, {
+      event_type: 'Completed',
+      tool_id: 'media-tool-1',
+      tool_name: 'GenerateImage',
+      result: { status: 'completed' },
+      duration_ms: 0,
+    })).toBe(true);
+    expect(
+      shouldProcessEvent(mockSessionId, mockTurnId, 'data', 'ToolEvent', {
+        allowIdleCompletedTurn: true,
+      }),
+    ).toBe(true);
+
+    stateMachineManager.getOrCreate(mockSessionId);
+    expect(
+      shouldProcessEvent(mockSessionId, mockTurnId, 'data', 'ToolEvent', {
+        allowIdleCompletedTurn: true,
+      }),
+    ).toBe(true);
+    expect(stateMachineManager.getCurrentState(mockSessionId)).toBe(SessionExecutionState.IDLE);
+  });
+
+  it('does not allow a late media terminal event for a non-polling completed tool item', () => {
+    const mediaTool: FlowToolItem = {
+      id: 'media-tool-1',
+      type: 'tool',
+      toolName: 'GenerateImage',
+      timestamp: 1100,
+      status: 'completed',
+      toolCall: {
+        id: 'media-tool-1',
+        input: { prompt: 'test image' },
+      },
+      toolResult: {
+        success: true,
+        result: {
+          kind: 'image',
+          status: 'completed',
+        },
+      },
+    };
+
+    FlowChatStore.getInstance().setState(() => ({
+      sessions: new Map([[
+        mockSessionId,
+        {
+          sessionId: mockSessionId,
+          title: 'Test Session',
+          dialogTurns: [{
+            id: mockTurnId,
+            sessionId: mockSessionId,
+            userMessage: {
+              id: 'user-1',
+              content: 'Generate image',
+              timestamp: 1000,
+            },
+            modelRounds: [{
+              id: 'round-1',
+              index: 0,
+              items: [mediaTool],
+              isStreaming: false,
+              isComplete: true,
+              status: 'completed',
+              startTime: 1000,
+              endTime: 1200,
+            }],
+            status: 'completed',
+            startTime: 1000,
+            endTime: 1200,
+          }],
+          status: 'idle',
+          config: { agentType: 'media' },
+          createdAt: 1000,
+          lastActiveAt: 1200,
+          error: null,
+          sessionKind: 'normal',
+        } as Session,
+      ]]),
+      activeSessionId: mockSessionId,
+    }));
+
+    expect(__test_only__.shouldAllowLateMediaToolEvent(mockSessionId, mockTurnId, {
+      event_type: 'Completed',
+      tool_id: 'media-tool-1',
+      tool_name: 'GenerateImage',
+      result: { status: 'completed' },
+      duration_ms: 0,
+    })).toBe(false);
+  });
+
   it('returns false for data event when turn ID mismatches', () => {
     vi.spyOn(stateMachineManager, 'get').mockReturnValue({
       getCurrentState: () => SessionExecutionState.PROCESSING,

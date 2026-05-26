@@ -4,6 +4,7 @@ import { Plus, SquarePen, Trash2, Wifi, Loader, RefreshCw, AlertTriangle, X, Set
 import { Button, Switch, Select, IconButton, NumberInput, Card, Modal, Input, Textarea, Tooltip, type SelectOption } from '@/component-library';
 import { 
   AIModelConfig as AIModelConfigType, 
+  MediaProviderConfig,
   ProxyConfig, 
   ModelCategory,
   ModelCapability,
@@ -316,6 +317,9 @@ const AIModelConfig: React.FC = () => {
     username: '',
     password: ''
   });
+  const [mediaConfig, setMediaConfig] = useState<MediaProviderConfig>({ apimart_token: '' });
+  const [showMediaToken, setShowMediaToken] = useState(false);
+  const [isMediaSaving, setIsMediaSaving] = useState(false);
   const [streamIdleTimeoutInput, setStreamIdleTimeoutInput] = useState('');
   const [isStreamIdleTimeoutSaving, setIsStreamIdleTimeoutSaving] = useState(false);
   const [isProxySaving, setIsProxySaving] = useState(false);
@@ -448,15 +452,17 @@ const AIModelConfig: React.FC = () => {
   
   const loadConfig = useCallback(async () => {
     try {
-      const [models, proxy, streamIdleTimeoutSecs] = await Promise.all([
+      const [models, proxy, media, streamIdleTimeoutSecs] = await Promise.all([
         configManager.getConfig<AIModelConfigType[]>('ai.models'),
         configManager.getConfig<ProxyConfig>('ai.proxy'),
+        configManager.getConfig<MediaProviderConfig>('ai.media'),
         configManager.getConfig<number | null>('ai.stream_idle_timeout_secs'),
       ]);
       setAiModels(models);
       if (proxy) {
         setProxyConfig(proxy);
       }
+      setMediaConfig(media ?? { apimart_token: '' });
       setStreamIdleTimeoutInput(
         streamIdleTimeoutSecs != null ? String(streamIdleTimeoutSecs) : ''
       );
@@ -1290,6 +1296,23 @@ const AIModelConfig: React.FC = () => {
       notification.error(t('messages.saveFailed'));
     } finally {
       setIsProxySaving(false);
+    }
+  };
+
+  const handleSaveMediaProvider = async () => {
+    setIsMediaSaving(true);
+    const nextConfig: MediaProviderConfig = {
+      apimart_token: mediaConfig.apimart_token.trim(),
+    };
+    try {
+      await configManager.setConfig('ai.media', nextConfig);
+      setMediaConfig(nextConfig);
+      notification.success(t('media.saveSuccess'));
+    } catch (error) {
+      log.error('Failed to save media provider config', error);
+      notification.error(t('messages.saveFailed'));
+    } finally {
+      setIsMediaSaving(false);
     }
   };
 
@@ -2516,6 +2539,59 @@ const AIModelConfig: React.FC = () => {
               ))}
             </div>
           )}
+        </ConfigPageSection>
+
+        <ConfigPageSection
+          title={t('media.title')}
+          description={t('media.description')}
+          extra={(
+            <Button
+              variant="primary"
+              size="small"
+              onClick={handleSaveMediaProvider}
+              disabled={isMediaSaving}
+            >
+              {isMediaSaving ? <Loader size={16} className="spinning" /> : t('media.save')}
+            </Button>
+          )}
+        >
+          <ConfigPageRow
+            label={t('media.tokenLabel')}
+            description={t('media.tokenHint')}
+            align="center"
+          >
+            <div className="void-ai-model-config__media-token-control">
+              <Input
+                type={showMediaToken ? 'text' : 'password'}
+                value={mediaConfig.apimart_token}
+                onChange={(e) => setMediaConfig(prev => ({
+                  ...prev,
+                  apimart_token: e.target.value,
+                }))}
+                placeholder={t('media.tokenPlaceholder')}
+                inputSize="small"
+              />
+              <IconButton
+                variant="ghost"
+                size="small"
+                onClick={() => setShowMediaToken(prev => !prev)}
+                tooltip={showMediaToken ? tComponents('hide') : tComponents('show')}
+              >
+                {showMediaToken ? <EyeOff size={16} /> : <Eye size={16} />}
+              </IconButton>
+            </div>
+          </ConfigPageRow>
+          <ConfigPageRow
+            label={t('media.baseUrlLabel')}
+            description={t('media.baseUrlHint')}
+            align="center"
+          >
+            <Input
+              value="https://api.apimart.ai"
+              disabled
+              inputSize="small"
+            />
+          </ConfigPageRow>
         </ConfigPageSection>
 
         <ConfigPageSection

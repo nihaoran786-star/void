@@ -129,6 +129,9 @@ class ConfigManagerImpl implements IConfigManager {
       if (path === 'ai.models') {
         return [] as T;
       }
+      if (path === 'ai.media') {
+        return { apimart_token: '' } as T;
+      }
       if (path === 'ai.agent_models') {
         return {} as T;
       }

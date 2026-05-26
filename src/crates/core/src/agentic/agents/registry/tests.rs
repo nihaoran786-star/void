@@ -95,9 +95,7 @@ async fn media_is_registered_as_conservative_top_level_mode() {
 
     assert_eq!(media.name, "Media");
     assert!(!media.is_readonly);
-    assert!(media
-        .description
-        .contains("media creation"));
+    assert!(media.description.contains("media creation"));
     assert_eq!(
         media.default_tools,
         vec![
@@ -111,6 +109,12 @@ async fn media_is_registered_as_conservative_top_level_mode() {
             "Skill".to_string(),
             "AskUserQuestion".to_string(),
             "ControlHub".to_string(),
+            "GenerateImage".to_string(),
+            "GenerateVideo".to_string(),
+            "GetMediaTaskStatus".to_string(),
+            "UploadMediaImage".to_string(),
+            "GenerateSpeech".to_string(),
+            "TranscribeAudio".to_string(),
         ]
     );
     assert!(!media.default_tools.contains(&"Bash".to_string()));
@@ -125,7 +129,8 @@ async fn media_is_registered_as_conservative_top_level_mode() {
         .await
         .expect("Media prompt should build");
     assert!(prompt.contains("Media Session"));
-    assert!(prompt.contains("do not claim that you generated images or videos"));
+    assert!(prompt.contains("When the user asks to actually generate images"));
+    assert!(prompt.contains("Use UploadMediaImage only when"));
 }
 
 #[tokio::test]

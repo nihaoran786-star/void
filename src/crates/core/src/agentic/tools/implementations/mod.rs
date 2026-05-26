@@ -28,6 +28,7 @@ pub mod grep_tool;
 pub mod log_tool;
 pub mod ls_tool;
 pub mod mcp_tools;
+pub mod media_tools;
 pub mod miniapp_init_tool;
 pub mod playbook_tool;
 pub mod review_platform_tool;
@@ -66,6 +67,10 @@ pub use log_tool::LogTool;
 pub use ls_tool::LSTool;
 pub use mcp_tools::{
     GetMCPPromptTool, ListMCPPromptsTool, ListMCPResourcesTool, ReadMCPResourceTool,
+};
+pub use media_tools::{
+    GenerateImageTool, GenerateSpeechTool, GenerateVideoTool, GetMediaTaskStatusTool,
+    TranscribeAudioTool, UploadMediaImageTool,
 };
 pub use miniapp_init_tool::InitMiniAppTool;
 pub use playbook_tool::PlaybookTool;

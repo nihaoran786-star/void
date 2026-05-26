@@ -33,6 +33,7 @@ import { GenerativeWidgetToolCard } from './GenerativeWidgetToolCard';
 import { ReviewSessionSummaryCard } from './ReviewSessionSummaryCard';
 import { SessionControlToolCard } from './SessionControlToolCard';
 import { SessionMessageToolCard } from './SessionMessageToolCard';
+import { MediaGenerationToolCard } from './MediaGenerationToolCard';
 
 // Tool card config map - uses backend tool names
 export const TOOL_CARD_CONFIGS: Record<string, ToolCardConfig> = {
@@ -312,6 +313,26 @@ export const TOOL_CARD_CONFIGS: Record<string, ToolCardConfig> = {
     displayMode: 'detailed',
     primaryColor: '#38bdf8'
   },
+  'GenerateImage': {
+    toolName: 'GenerateImage',
+    displayName: 'Generate Image',
+    icon: 'IMG',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Generate images through the media provider',
+    displayMode: 'detailed',
+    primaryColor: '#2563eb'
+  },
+  'GenerateVideo': {
+    toolName: 'GenerateVideo',
+    displayName: 'Generate Video',
+    icon: 'VID',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Generate videos through the media provider',
+    displayMode: 'detailed',
+    primaryColor: '#7c3aed'
+  },
 };
 
 // Tool card component map - uses backend tool names
@@ -371,6 +392,10 @@ export const TOOL_CARD_COMPONENTS = {
 
   // Generative widget tool
   'GenerativeUI': GenerativeWidgetToolCard,
+
+  // Media tools
+  'GenerateImage': MediaGenerationToolCard,
+  'GenerateVideo': MediaGenerationToolCard,
 };
 
 /**

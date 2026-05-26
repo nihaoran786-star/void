@@ -226,6 +226,17 @@
     "save": "保存流式超時",
     "saveSuccess": "流式超時已保存"
   },
+  "media": {
+    "title": "媒體生成服務",
+    "description": "用於圖片、影片、上傳、TTS 和轉錄工具。目前代理站固定為 APIMart。",
+    "tokenLabel": "APIMart 媒體 Token",
+    "tokenHint": "同一個 Token 會用於所有媒體模型請求；基礎 URL 不在此提供可編輯入口。",
+    "tokenPlaceholder": "輸入 APIMart Token",
+    "baseUrlLabel": "代理站地址",
+    "baseUrlHint": "固定值，避免誤填導致所有媒體工具不可用。",
+    "save": "保存媒體配置",
+    "saveSuccess": "媒體配置已保存"
+  },
   "capabilities": {
     "text_chat": "對話",
     "image_understanding": "多模態",

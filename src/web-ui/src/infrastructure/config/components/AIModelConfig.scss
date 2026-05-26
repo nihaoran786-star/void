@@ -2047,6 +2047,18 @@
       flex-shrink: 0;
     }
   }
+
+  &__media-token-control {
+    display: flex;
+    align-items: center;
+    gap: $size-gap-2;
+    width: 100%;
+
+    .input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
 }
 
 

@@ -559,6 +559,10 @@ pub struct AIConfig {
     /// All configured models.
     pub models: Vec<AIModelConfig>,
 
+    /// Shared media provider configuration.
+    #[serde(default)]
+    pub media: MediaProviderConfig,
+
     /// Model mapping for primary agents (e.g. Explore, FileFinder).
     /// agent_type -> model_id
     pub agent_models: HashMap<String, String>,
@@ -637,6 +641,14 @@ pub struct AIConfig {
     /// Maximum number of rounds per dialog turn before soft-pausing.
     #[serde(default = "default_max_rounds")]
     pub max_rounds: usize,
+}
+
+/// Shared APIMart media provider configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+#[serde(default)]
+pub struct MediaProviderConfig {
+    /// Bearer token for image, video, upload and audio requests.
+    pub apimart_token: String,
 }
 
 impl AIConfig {
@@ -1569,6 +1581,7 @@ impl Default for AIConfig {
     fn default() -> Self {
         Self {
             models: vec![],
+            media: MediaProviderConfig::default(),
             agent_models: std::collections::HashMap::new(),
             func_agent_models: std::collections::HashMap::new(),
             default_models: DefaultModelsConfig::default(),
@@ -1812,6 +1825,28 @@ mod tests {
 
         assert_eq!(config.reasoning_mode, Some(ReasoningMode::Enabled));
         assert!(config.enable_thinking_process);
+    }
+
+    #[test]
+    fn ai_config_defaults_media_token_to_empty() {
+        let config = AIConfig::default();
+
+        assert_eq!(config.media.apimart_token, "");
+    }
+
+    #[test]
+    fn ai_config_round_trips_media_provider_config() {
+        let config: AIConfig = serde_json::from_value(serde_json::json!({
+            "media": {
+                "apimart_token": "secret-token"
+            }
+        }))
+        .expect("AI config with media token should deserialize");
+
+        assert_eq!(config.media.apimart_token, "secret-token");
+
+        let serialized = serde_json::to_value(&config).expect("AI config should serialize");
+        assert_eq!(serialized["media"]["apimart_token"], "secret-token");
     }
 
     #[test]

@@ -141,6 +141,10 @@ pub(crate) fn build_write_preflight_context(
 
 fn build_tool_context_custom_data(context: &ToolExecutionContext) -> HashMap<String, Value> {
     let mut map = HashMap::new();
+    map.insert(
+        "round_id".to_string(),
+        serde_json::json!(context.round_id.clone()),
+    );
 
     if let Some(turn_index) = context.context_vars.get("turn_index") {
         if let Ok(n) = turn_index.parse::<u64>() {

@@ -12,6 +12,8 @@ use crate::agentic::tools::registry::{
     get_global_tool_registry, ProductToolDecoratorRef, ToolRef, ToolRegistry,
 };
 use crate::util::errors::{VoidError, VoidResult};
+use serde_json::Value;
+use std::sync::Arc;
 #[cfg(test)]
 use void_agent_tools::StaticToolProvider;
 use void_agent_tools::{
@@ -21,8 +23,6 @@ use void_agent_tools::{
     GET_TOOL_SPEC_TOOL_NAME,
 };
 use void_tool_packs::product_tool_provider_group_plan;
-use serde_json::Value;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) struct ProductToolRuntime {
@@ -133,6 +133,12 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "ControlHub" => Arc::new(ControlHubTool::new()),
         "ComputerUse" => Arc::new(ComputerUseTool::new()),
         "Playbook" => Arc::new(PlaybookTool::new()),
+        "GenerateImage" => Arc::new(GenerateImageTool::new()),
+        "GenerateVideo" => Arc::new(GenerateVideoTool::new()),
+        "GetMediaTaskStatus" => Arc::new(GetMediaTaskStatusTool::new()),
+        "UploadMediaImage" => Arc::new(UploadMediaImageTool::new()),
+        "GenerateSpeech" => Arc::new(GenerateSpeechTool::new()),
+        "TranscribeAudio" => Arc::new(TranscribeAudioTool::new()),
         _ => panic!("unknown product tool provider plan entry: {tool_name}"),
     }
 }
@@ -272,9 +278,9 @@ mod tests {
     use crate::agentic::tools::framework::ToolUseContext;
     use crate::agentic::tools::registry::create_tool_registry;
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use void_agent_tools::{GetToolSpecCatalogProvider, ToolCatalogSnapshotProvider, ToolResult};
     use serde_json::json;
     use std::collections::HashMap;
+    use void_agent_tools::{GetToolSpecCatalogProvider, ToolCatalogSnapshotProvider, ToolResult};
 
     fn tool_context(agent_type: Option<&str>) -> ToolUseContext {
         ToolUseContext {

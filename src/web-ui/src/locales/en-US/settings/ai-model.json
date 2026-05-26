@@ -226,6 +226,17 @@
     "save": "Save Streaming Timeout",
     "saveSuccess": "Streaming timeout saved"
   },
+  "media": {
+    "title": "Media Generation Service",
+    "description": "Used by image, video, upload, TTS, and transcription tools. The proxy service is fixed to APIMart.",
+    "tokenLabel": "APIMart Media Token",
+    "tokenHint": "The same token is used for all media model requests; the base URL is intentionally not editable here.",
+    "tokenPlaceholder": "Enter APIMart token",
+    "baseUrlLabel": "Proxy Service URL",
+    "baseUrlHint": "Fixed value to avoid breaking every media tool with an invalid endpoint.",
+    "save": "Save Media Configuration",
+    "saveSuccess": "Media configuration saved"
+  },
   "capabilities": {
     "text_chat": "Chat",
     "image_understanding": "Vision",
