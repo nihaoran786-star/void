@@ -6,12 +6,14 @@ use crate::agentic::media::capabilities::{
     VideoGenerationRequest, DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL,
 };
 use crate::agentic::media::jobs::{
-    classify_apimart_error_message, extract_media_task_ids, start_media_job_polling, MediaJobHandle,
+    build_media_polling_result, classify_apimart_error_message, extract_media_task_ids,
+    media_job_store_path, new_media_batch_id, start_media_job_polling, MediaJobHandle,
     MediaToolEventContext,
 };
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolResult, ToolUseContext, ValidationResult,
 };
+use crate::agentic::tools::image_context::find_image_context_by_reference;
 use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use serde_json::{json, Map, Value};
@@ -98,6 +100,62 @@ fn strip_nulls(mut payload: Map<String, Value>) -> Value {
     Value::Object(payload)
 }
 
+fn is_apimart_image_reference(value: &str) -> bool {
+    let value = value.trim();
+    value.starts_with("http://")
+        || value.starts_with("https://")
+        || value.starts_with("data:image")
+}
+
+fn resolve_media_image_urls(image_urls: Vec<String>) -> Vec<String> {
+    image_urls
+        .into_iter()
+        .map(|url| {
+            if is_apimart_image_reference(&url) {
+                return url;
+            }
+
+            find_image_context_by_reference(&url)
+                .and_then(|image| image.data_url)
+                .unwrap_or(url)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod media_image_reference_tests {
+    use super::resolve_media_image_urls;
+    use crate::agentic::tools::image_context::{store_image_context, ImageContextData};
+
+    #[test]
+    fn resolves_uploaded_image_name_to_data_url() {
+        store_image_context(ImageContextData {
+            id: "img-upload-1".to_string(),
+            image_path: None,
+            data_url: Some("data:image/jpeg;base64,abc123".to_string()),
+            mime_type: "image/jpeg".to_string(),
+            image_name: "微信图片_20250307192517.jpg".to_string(),
+            file_size: 12,
+            width: Some(64),
+            height: Some(64),
+            source: "file".to_string(),
+        });
+
+        let resolved = resolve_media_image_urls(vec![
+            "微信图片_20250307192517.jpg".to_string(),
+            "https://example.com/keep.png".to_string(),
+        ]);
+
+        assert_eq!(
+            resolved,
+            vec![
+                "data:image/jpeg;base64,abc123".to_string(),
+                "https://example.com/keep.png".to_string(),
+            ]
+        );
+    }
+}
+
 pub struct GenerateImageTool;
 
 impl GenerateImageTool {
@@ -154,7 +212,7 @@ impl Tool for GenerateImageTool {
             model: optional_string(input, "model"),
             size: optional_string(input, "size"),
             resolution: optional_string(input, "resolution"),
-            image_urls: string_array(input, "image_urls"),
+            image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
             n: optional_u8(input, "n"),
             official_fallback: input
                 .get("official_fallback")
@@ -184,7 +242,7 @@ impl Tool for GenerateImageTool {
             model: optional_string(input, "model"),
             size: optional_string(input, "size"),
             resolution: optional_string(input, "resolution"),
-            image_urls: string_array(input, "image_urls"),
+            image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
             n: optional_u8(input, "n"),
             official_fallback: input
                 .get("official_fallback")
@@ -245,12 +303,14 @@ impl Tool for GenerateImageTool {
             Err(error) => return Err(error),
         };
         let task_ids = extract_media_task_ids(&response);
+        let batch_id = new_media_batch_id();
         if task_ids.is_empty() {
             return Ok(ok_result(
                 json!({
                     "status": "submitted_but_task_id_missing",
                     "source": "apimart",
                     "kind": "image",
+                    "batch_id": batch_id,
                     "response": response
                 }),
                 "Image generation was submitted, but APIMart did not return a task id for background polling.",
@@ -260,19 +320,24 @@ impl Tool for GenerateImageTool {
             client,
             "image",
             MediaJobHandle {
+                batch_id: batch_id.clone(),
                 task_ids: task_ids.clone(),
+                prompt: Some(prompt.clone()),
+                model: Some(resolved.model.clone()),
             },
+            media_job_store_path(context.workspace_root(), &batch_id),
             MediaToolEventContext::from_tool_context(context, self.name()),
         );
+        let mut result = build_media_polling_result(
+            "image",
+            &batch_id,
+            &task_ids,
+            Some(&prompt),
+            Some(&resolved.model),
+        );
+        result["response"] = response;
         Ok(ok_result(
-            json!({
-                "status": "polling",
-                "source": "apimart",
-                "kind": "image",
-                "task_ids": task_ids,
-                "poll_interval_seconds": 5,
-                "response": response
-            }),
+            result,
             "Image generation job submitted through APIMart. Background polling has started; results will be posted back when ready.",
         ))
     }
@@ -411,12 +476,14 @@ impl Tool for GenerateVideoTool {
             Err(error) => return Err(error),
         };
         let task_ids = extract_media_task_ids(&response);
+        let batch_id = new_media_batch_id();
         if task_ids.is_empty() {
             return Ok(ok_result(
                 json!({
                     "status": "submitted_but_task_id_missing",
                     "source": "apimart",
                     "kind": "video",
+                    "batch_id": batch_id,
                     "response": response
                 }),
                 "Video generation was submitted, but APIMart did not return a task id for background polling.",
@@ -426,19 +493,24 @@ impl Tool for GenerateVideoTool {
             client,
             "video",
             MediaJobHandle {
+                batch_id: batch_id.clone(),
                 task_ids: task_ids.clone(),
+                prompt: Some(prompt.clone()),
+                model: Some(resolved.model.clone()),
             },
+            media_job_store_path(context.workspace_root(), &batch_id),
             MediaToolEventContext::from_tool_context(context, self.name()),
         );
+        let mut result = build_media_polling_result(
+            "video",
+            &batch_id,
+            &task_ids,
+            Some(&prompt),
+            Some(&resolved.model),
+        );
+        result["response"] = response;
         Ok(ok_result(
-            json!({
-                "status": "polling",
-                "source": "apimart",
-                "kind": "video",
-                "task_ids": task_ids,
-                "poll_interval_seconds": 5,
-                "response": response
-            }),
+            result,
             "Video generation job submitted through APIMart. Background polling has started; results will be posted back when ready.",
         ))
     }
@@ -451,7 +523,7 @@ fn video_request_from_input(input: &Value) -> VideoGenerationRequest {
         resolution: optional_string(input, "resolution"),
         aspect_ratio: optional_string(input, "aspect_ratio"),
         size: optional_string(input, "size"),
-        image_urls: string_array(input, "image_urls"),
+        image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
         image_with_roles: input
             .get("image_with_roles")
             .and_then(|value| value.as_array())

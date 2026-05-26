@@ -62,6 +62,31 @@ pub fn get_image_context(image_id: &str) -> Option<ImageContextData> {
         .map(|entry| entry.value().0.clone())
 }
 
+pub fn find_image_context_by_reference(reference: &str) -> Option<ImageContextData> {
+    let trimmed = reference.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    if let Some(image) = get_image_context(trimmed) {
+        return Some(image);
+    }
+
+    let file_name = std::path::Path::new(trimmed)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(trimmed);
+
+    IMAGE_STORAGE.iter().find_map(|entry| {
+        let image = &entry.value().0;
+        if image.image_name == trimmed || image.image_name == file_name {
+            Some(image.clone())
+        } else {
+            None
+        }
+    })
+}
+
 pub fn remove_image_context(image_id: &str) {
     IMAGE_STORAGE.remove(image_id);
 }

@@ -333,6 +333,46 @@ export const TOOL_CARD_CONFIGS: Record<string, ToolCardConfig> = {
     displayMode: 'detailed',
     primaryColor: '#7c3aed'
   },
+  'UploadMediaImage': {
+    toolName: 'UploadMediaImage',
+    displayName: 'Upload Media',
+    icon: 'UP',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Upload a local image for media generation',
+    displayMode: 'detailed',
+    primaryColor: '#0f766e'
+  },
+  'GenerateSpeech': {
+    toolName: 'GenerateSpeech',
+    displayName: 'Generate Speech',
+    icon: 'AUD',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Generate speech audio through the media provider',
+    displayMode: 'detailed',
+    primaryColor: '#0891b2'
+  },
+  'TranscribeAudio': {
+    toolName: 'TranscribeAudio',
+    displayName: 'Transcribe Audio',
+    icon: 'TXT',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Transcribe audio through the media provider',
+    displayMode: 'detailed',
+    primaryColor: '#0891b2'
+  },
+  'GetMediaTaskStatus': {
+    toolName: 'GetMediaTaskStatus',
+    displayName: 'Media Task Status',
+    icon: 'STS',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Query a media provider task status',
+    displayMode: 'detailed',
+    primaryColor: '#64748b'
+  },
 };
 
 // Tool card component map - uses backend tool names
@@ -396,6 +436,10 @@ export const TOOL_CARD_COMPONENTS = {
   // Media tools
   'GenerateImage': MediaGenerationToolCard,
   'GenerateVideo': MediaGenerationToolCard,
+  'UploadMediaImage': MediaGenerationToolCard,
+  'GenerateSpeech': MediaGenerationToolCard,
+  'TranscribeAudio': MediaGenerationToolCard,
+  'GetMediaTaskStatus': MediaGenerationToolCard,
 };
 
 /**

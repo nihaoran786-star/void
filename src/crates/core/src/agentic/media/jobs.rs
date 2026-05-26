@@ -3,16 +3,21 @@ use crate::agentic::core::{Message, MessageSemanticKind};
 use crate::agentic::events::{AgenticEvent, ToolEventData};
 use crate::agentic::media::apimart::ApimartClient;
 use crate::agentic::tools::framework::ToolUseContext;
+use chrono::Utc;
 use serde_json::{json, Value};
-use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use uuid::Uuid;
 
 pub const MEDIA_JOB_POLL_INTERVAL: Duration = Duration::from_secs(5);
 const MEDIA_JOB_MAX_ATTEMPTS: usize = 120;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MediaJobHandle {
+    pub batch_id: String,
     pub task_ids: Vec<String>,
+    pub prompt: Option<String>,
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -41,27 +46,30 @@ impl MediaToolEventContext {
 }
 
 pub fn extract_media_task_ids(response: &Value) -> Vec<String> {
-    let mut ids = BTreeSet::new();
+    let mut ids = Vec::new();
     collect_task_ids(response, &mut ids, false);
-    ids.into_iter().collect()
+    ids
 }
 
-fn collect_task_ids(value: &Value, ids: &mut BTreeSet<String>, id_allowed_here: bool) {
+fn push_task_id(ids: &mut Vec<String>, id: &str) {
+    let id = id.trim();
+    if !id.is_empty() && !ids.iter().any(|existing| existing == id) {
+        ids.push(id.to_string());
+    }
+}
+
+fn collect_task_ids(value: &Value, ids: &mut Vec<String>, id_allowed_here: bool) {
     match value {
         Value::Object(map) => {
             for key in ["task_id", "taskId"] {
                 if let Some(id) = map.get(key).and_then(Value::as_str) {
-                    if !id.trim().is_empty() {
-                        ids.insert(id.trim().to_string());
-                    }
+                    push_task_id(ids, id);
                 }
             }
 
             if id_allowed_here {
                 if let Some(id) = map.get("id").and_then(Value::as_str) {
-                    if !id.trim().is_empty() {
-                        ids.insert(id.trim().to_string());
-                    }
+                    push_task_id(ids, id);
                 }
             }
 
@@ -129,24 +137,48 @@ pub fn start_media_job_polling(
     client: ApimartClient,
     kind: &'static str,
     handle: MediaJobHandle,
+    store_path: Option<PathBuf>,
     event_context: Option<MediaToolEventContext>,
 ) {
     let Some(event_context) = event_context else {
         return;
     };
     tokio::spawn(async move {
-        let result = poll_media_jobs(client, kind, &handle.task_ids).await;
+        if let Some(path) = store_path.as_deref() {
+            let _ = persist_media_batch(
+                path,
+                &build_media_polling_result(
+                    kind,
+                    &handle.batch_id,
+                    &handle.task_ids,
+                    handle.prompt.as_deref(),
+                    handle.model.as_deref(),
+                ),
+            )
+            .await;
+        }
+        let result = poll_media_jobs(client, kind, &handle).await;
+        if let Some(path) = store_path.as_deref() {
+            let _ = persist_media_batch(path, &result).await;
+        }
         emit_media_job_completed(event_context, result).await;
     });
 }
 
-async fn poll_media_jobs(client: ApimartClient, kind: &str, task_ids: &[String]) -> Value {
+async fn poll_media_jobs(client: ApimartClient, kind: &str, handle: &MediaJobHandle) -> Value {
     let mut final_results = Vec::new();
-    let mut pending = task_ids.to_vec();
+    let mut pending = handle.task_ids.clone();
 
     for _ in 0..MEDIA_JOB_MAX_ATTEMPTS {
         if pending.is_empty() {
-            return build_media_batch_result(kind, Value::Array(final_results), vec![]);
+            return build_media_batch_result_with_id_and_metadata(
+                kind,
+                &handle.batch_id,
+                Value::Array(final_results),
+                vec![],
+                handle.prompt.as_deref(),
+                handle.model.as_deref(),
+            );
         }
 
         let mut still_pending = Vec::new();
@@ -183,7 +215,14 @@ async fn poll_media_jobs(client: ApimartClient, kind: &str, task_ids: &[String])
         }
     }
 
-    build_media_batch_result(kind, Value::Array(final_results), pending)
+    build_media_batch_result_with_id_and_metadata(
+        kind,
+        &handle.batch_id,
+        Value::Array(final_results),
+        pending,
+        handle.prompt.as_deref(),
+        handle.model.as_deref(),
+    )
 }
 
 fn media_task_status(response: &Value) -> Option<&str> {
@@ -216,28 +255,53 @@ async fn emit_media_job_completed(event_context: MediaToolEventContext, result: 
         }
     }
     coordinator
-        .emit_tool_event(
-            AgenticEvent::ToolEvent {
-                session_id: event_context.session_id,
-                turn_id: event_context.turn_id,
-                round_id: event_context.round_id,
-                tool_event: ToolEventData::Completed {
-                    tool_id: event_context.tool_id,
-                    tool_name: event_context.tool_name,
-                    result,
-                    result_for_assistant: Some(assistant_text),
-                    duration_ms: 0,
-                    queue_wait_ms: None,
-                    preflight_ms: None,
-                    confirmation_wait_ms: None,
-                    execution_ms: None,
-                },
+        .emit_tool_event(AgenticEvent::ToolEvent {
+            session_id: event_context.session_id,
+            turn_id: event_context.turn_id,
+            round_id: event_context.round_id,
+            tool_event: ToolEventData::Completed {
+                tool_id: event_context.tool_id,
+                tool_name: event_context.tool_name,
+                result,
+                result_for_assistant: Some(assistant_text),
+                duration_ms: 0,
+                queue_wait_ms: None,
+                preflight_ms: None,
+                confirmation_wait_ms: None,
+                execution_ms: None,
             },
-        )
+        })
         .await;
 }
 
 pub fn build_media_batch_result(kind: &str, tasks: Value, pending_task_ids: Vec<String>) -> Value {
+    build_media_batch_result_with_id(kind, &new_media_batch_id(), tasks, pending_task_ids)
+}
+
+pub fn build_media_batch_result_with_id(
+    kind: &str,
+    batch_id: &str,
+    tasks: Value,
+    pending_task_ids: Vec<String>,
+) -> Value {
+    build_media_batch_result_with_id_and_metadata(
+        kind,
+        batch_id,
+        tasks,
+        pending_task_ids,
+        None,
+        None,
+    )
+}
+
+fn build_media_batch_result_with_id_and_metadata(
+    kind: &str,
+    batch_id: &str,
+    tasks: Value,
+    pending_task_ids: Vec<String>,
+    prompt: Option<&str>,
+    model: Option<&str>,
+) -> Value {
     let task_items = tasks.as_array().cloned().unwrap_or_default();
     let total_count = task_items.len() + pending_task_ids.len();
     let completed_count = task_items
@@ -263,28 +327,178 @@ pub fn build_media_batch_result(kind: &str, tasks: Value, pending_task_ids: Vec<
         "failed"
     };
     let assets = extract_media_assets(kind, &task_items);
+    let items = build_media_items(kind, &task_items, &pending_task_ids, prompt, model);
+    let now = Utc::now().to_rfc3339();
 
     json!({
         "status": status,
         "source": "apimart",
         "kind": kind,
         "batch": {
+            "batch_id": batch_id,
             "kind": kind,
             "status": status,
+            "source": "apimart",
             "total_count": total_count,
             "completed_count": completed_count,
             "failed_count": failed_count,
             "pending_count": pending_task_ids.len(),
             "pending_task_ids": pending_task_ids,
+            "updated_at": now,
+            "items": items,
             "assets": assets,
         },
         "tasks": task_items,
     })
 }
 
+pub fn build_media_polling_result(
+    kind: &str,
+    batch_id: &str,
+    task_ids: &[String],
+    prompt: Option<&str>,
+    model: Option<&str>,
+) -> Value {
+    let now = Utc::now().to_rfc3339();
+    let items = task_ids
+        .iter()
+        .enumerate()
+        .map(|(index, task_id)| {
+            json!({
+                "item_index": index + 1,
+                "kind": kind,
+                "role": default_media_role(kind),
+                "prompt": prompt.unwrap_or_default(),
+                "model": model.unwrap_or_default(),
+                "task_id": task_id,
+                "status": "polling",
+                "started_at": now,
+            })
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "status": "polling",
+        "source": "apimart",
+        "kind": kind,
+        "batch_id": batch_id,
+        "task_ids": task_ids,
+        "poll_interval_seconds": MEDIA_JOB_POLL_INTERVAL.as_secs(),
+        "batch": {
+            "batch_id": batch_id,
+            "kind": kind,
+            "status": "polling",
+            "source": "apimart",
+            "total_count": task_ids.len(),
+            "completed_count": 0,
+            "failed_count": 0,
+            "pending_count": task_ids.len(),
+            "pending_task_ids": task_ids,
+            "created_at": now,
+            "updated_at": now,
+            "items": items,
+            "assets": [],
+        }
+    })
+}
+
+pub fn new_media_batch_id() -> String {
+    format!("media_batch_{}", Uuid::new_v4().simple())
+}
+
+pub fn media_job_store_path(workspace_root: Option<&Path>, batch_id: &str) -> Option<PathBuf> {
+    let workspace_root = workspace_root?;
+    Some(
+        workspace_root
+            .join(".void")
+            .join("media-jobs")
+            .join(format!("{batch_id}.json")),
+    )
+}
+
+pub async fn persist_media_batch(path: &Path, result: &Value) -> Result<(), std::io::Error> {
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let bytes = serde_json::to_vec_pretty(result).map_err(std::io::Error::other)?;
+    tokio::fs::write(path, bytes).await
+}
+
+pub async fn load_media_batch(path: &Path) -> Result<Value, std::io::Error> {
+    let bytes = tokio::fs::read(path).await?;
+    serde_json::from_slice(&bytes).map_err(std::io::Error::other)
+}
+
+fn build_media_items(
+    kind: &str,
+    task_items: &[Value],
+    pending_task_ids: &[String],
+    prompt: Option<&str>,
+    model: Option<&str>,
+) -> Vec<Value> {
+    let mut items = Vec::new();
+    for (index, task) in task_items.iter().enumerate() {
+        let status = task
+            .get("status")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
+        let task_id = task
+            .get("task_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let result_url = first_url(task);
+        let error = task.get("error").cloned();
+        let mut item = json!({
+            "item_index": index + 1,
+            "kind": kind,
+            "role": default_media_role(kind),
+            "prompt": prompt.unwrap_or_default(),
+            "model": model.unwrap_or_default(),
+            "task_id": task_id,
+            "status": status,
+            "completed_at": Utc::now().to_rfc3339(),
+        });
+        if let Some(url) = result_url {
+            item["result_url"] = json!(url);
+        }
+        if let Some(error) = error {
+            item["error"] = error;
+        }
+        items.push(item);
+    }
+    let offset = items.len();
+    for (index, task_id) in pending_task_ids.iter().enumerate() {
+        items.push(json!({
+            "item_index": offset + index + 1,
+            "kind": kind,
+            "role": default_media_role(kind),
+            "prompt": prompt.unwrap_or_default(),
+            "model": model.unwrap_or_default(),
+            "task_id": task_id,
+            "status": "timeout",
+        }));
+    }
+    items
+}
+
+fn first_url(value: &Value) -> Option<String> {
+    let mut urls = Vec::new();
+    collect_urls(value, &mut urls);
+    urls.into_iter().next()
+}
+
+fn default_media_role(kind: &str) -> &'static str {
+    match kind {
+        "image" => "asset",
+        "video" => "clip",
+        "audio" => "speech",
+        "upload_image" | "upload" => "upload",
+        _ => "unknown",
+    }
+}
+
 fn extract_media_assets(kind: &str, task_items: &[Value]) -> Vec<Value> {
     let mut assets = Vec::new();
-    for task in task_items {
+    for (index, task) in task_items.iter().enumerate() {
         if task.get("status").and_then(Value::as_str) != Some("completed") {
             continue;
         }
@@ -297,6 +511,7 @@ fn extract_media_assets(kind: &str, task_items: &[Value]) -> Vec<Value> {
         collect_urls(task, &mut urls);
         for url in urls {
             assets.push(json!({
+                "item_index": index + 1,
                 "kind": kind,
                 "task_id": task_id,
                 "url": url,
@@ -308,10 +523,7 @@ fn extract_media_assets(kind: &str, task_items: &[Value]) -> Vec<Value> {
 
 pub fn media_batch_context_text(result: &Value) -> String {
     let batch = result.get("batch").unwrap_or(result);
-    let kind = batch
-        .get("kind")
-        .and_then(Value::as_str)
-        .unwrap_or("media");
+    let kind = batch.get("kind").and_then(Value::as_str).unwrap_or("media");
     let status = batch
         .get("status")
         .and_then(Value::as_str)
@@ -345,12 +557,20 @@ pub fn media_batch_context_text(result: &Value) -> String {
     let mut lines = vec![
         "Media batch completed.".to_string(),
         format!(
-            "Kind: {kind}; status: {status}; completed: {completed_count}/{total_count}; failed: {failed_count}."
+            "Batch: {}; Kind: {kind}; status: {status}; completed: {completed_count}/{total_count}; failed: {failed_count}.",
+            batch
+                .get("batch_id")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
         ),
     ];
     if !urls.is_empty() {
         lines.push("Assets:".to_string());
-        lines.extend(urls.into_iter().map(|url| format!("- {url}")));
+        lines.extend(
+            urls.into_iter()
+                .enumerate()
+                .map(|(index, url)| format!("- Item {}: {url}", index + 1)),
+        );
     }
     lines.push(
         "Use these assets in the next reply when the user asks to inspect, select, refine, or continue media work."
@@ -424,9 +644,11 @@ fn collect_urls(value: &Value, urls: &mut Vec<String>) {
 mod tests {
     use super::{
         build_media_batch_result, classify_apimart_error, classify_apimart_error_message,
-        extract_media_task_ids, media_batch_context_text, media_task_status,
+        extract_media_task_ids, load_media_batch, media_batch_context_text, media_job_store_path,
+        media_task_status, persist_media_batch,
     };
     use serde_json::json;
+    use std::path::PathBuf;
 
     #[test]
     fn extracts_task_ids_from_single_and_batched_submit_responses() {
@@ -444,9 +666,9 @@ mod tests {
         assert_eq!(
             extract_media_task_ids(&response),
             vec![
+                "task_root".to_string(),
                 "task_a".to_string(),
                 "task_b".to_string(),
-                "task_root".to_string()
             ]
         );
     }
@@ -459,7 +681,10 @@ mod tests {
             "data": { "id": "task_data" }
         });
 
-        assert_eq!(extract_media_task_ids(&response), vec!["task_data".to_string()]);
+        assert_eq!(
+            extract_media_task_ids(&response),
+            vec!["task_data".to_string()]
+        );
     }
 
     #[test]
@@ -506,10 +731,51 @@ mod tests {
 
         assert_eq!(result["status"], "partial");
         assert_eq!(result["batch"]["kind"], "image");
+        assert!(result["batch"]["batch_id"].as_str().is_some());
         assert_eq!(result["batch"]["total_count"], 2);
         assert_eq!(result["batch"]["completed_count"], 1);
         assert_eq!(result["batch"]["failed_count"], 1);
-        assert_eq!(result["batch"]["assets"][0]["url"], "https://cdn.example/a.png");
+        assert_eq!(result["batch"]["items"][0]["item_index"], 1);
+        assert_eq!(result["batch"]["items"][0]["task_id"], "task-a");
+        assert_eq!(
+            result["batch"]["items"][0]["result_url"],
+            "https://cdn.example/a.png"
+        );
+        assert_eq!(result["batch"]["items"][1]["item_index"], 2);
+        assert_eq!(result["batch"]["items"][1]["status"], "failed");
+        assert_eq!(
+            result["batch"]["assets"][0]["url"],
+            "https://cdn.example/a.png"
+        );
+    }
+
+    #[test]
+    fn batch_result_keeps_item_order_independent_from_task_id_sorting() {
+        let result = build_media_batch_result(
+            "image",
+            json!([
+                {
+                    "task_id": "task-z",
+                    "status": "completed",
+                    "response": {
+                        "data": [{ "url": "https://cdn.example/z.png" }]
+                    }
+                },
+                {
+                    "task_id": "task-a",
+                    "status": "completed",
+                    "response": {
+                        "data": [{ "url": "https://cdn.example/a.png" }]
+                    }
+                }
+            ]),
+            vec![],
+        );
+
+        assert_eq!(result["batch"]["items"][0]["item_index"], 1);
+        assert_eq!(result["batch"]["items"][0]["task_id"], "task-z");
+        assert_eq!(result["batch"]["items"][1]["item_index"], 2);
+        assert_eq!(result["batch"]["items"][1]["task_id"], "task-a");
     }
 
     #[test]
@@ -571,6 +837,49 @@ mod tests {
         let text = media_batch_context_text(&result);
 
         assert!(text.contains("Media batch completed"));
+        assert!(text.contains("Batch: media_batch_"));
+        assert!(text.contains("Item 1: https://cdn.example/clip.mp4"));
         assert!(text.contains("https://cdn.example/clip.mp4"));
+    }
+
+    #[tokio::test]
+    async fn persists_and_loads_media_batch_state_under_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-job-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
+        let result = build_media_batch_result(
+            "image",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/a.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        persist_media_batch(&path, &result)
+            .await
+            .expect("persist batch");
+        let loaded = load_media_batch(&path).await.expect("load batch");
+
+        assert_eq!(loaded["batch"]["items"][0]["item_index"], 1);
+        assert_eq!(
+            loaded["batch"]["items"][0]["result_url"],
+            "https://cdn.example/a.png"
+        );
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[test]
+    fn media_job_store_path_is_workspace_scoped() {
+        let path = media_job_store_path(Some(PathBuf::from("C:/repo").as_path()), "batch-1")
+            .expect("store path");
+
+        assert!(path.ends_with(".void/media-jobs/batch-1.json"));
     }
 }

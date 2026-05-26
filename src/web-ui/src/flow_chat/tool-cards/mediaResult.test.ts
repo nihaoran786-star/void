@@ -20,6 +20,13 @@ function toolWithResult(result: unknown): FlowToolItem {
   };
 }
 
+function toolNamedWithResult(toolName: string, result: unknown): FlowToolItem {
+  return {
+    ...toolWithResult(result),
+    toolName,
+  };
+}
+
 describe('getMediaToolViewModel', () => {
   it('tracks polling image batches from submitted tool results', () => {
     const model = getMediaToolViewModel(toolWithResult({
@@ -43,6 +50,7 @@ describe('getMediaToolViewModel', () => {
       source: 'apimart',
       kind: 'image',
       batch: {
+        batch_id: 'media-batch-completed',
         kind: 'image',
         total_count: 2,
         completed_count: 2,
@@ -55,9 +63,83 @@ describe('getMediaToolViewModel', () => {
     }));
 
     expect(model?.status).toBe('completed');
+    expect(model?.batchId).toBeDefined();
     expect(model?.assets.map(asset => asset.url)).toEqual([
       'https://cdn.example/a.png',
       'https://cdn.example/b.png',
     ]);
+  });
+
+  it('keeps stable item numbers from batch-shaped media results', () => {
+    const model = getMediaToolViewModel(toolWithResult({
+      status: 'partial',
+      source: 'apimart',
+      kind: 'image',
+      batch: {
+        batch_id: 'media-batch-1',
+        kind: 'image',
+        status: 'partial',
+        total_count: 2,
+        completed_count: 1,
+        failed_count: 1,
+        items: [
+          {
+            item_index: 1,
+            kind: 'image',
+            prompt: 'first frame',
+            model: 'gpt-image-2',
+            task_id: 'task-z',
+            status: 'completed',
+            result_url: 'https://cdn.example/z.png',
+          },
+          {
+            item_index: 2,
+            kind: 'image',
+            prompt: 'second frame',
+            model: 'gpt-image-2',
+            task_id: 'task-a',
+            status: 'failed',
+            error: { code: 'provider_error', message: 'blocked' },
+          },
+        ],
+      },
+    }));
+
+    expect(model?.batchId).toBe('media-batch-1');
+    expect(model?.items.map(item => item.itemIndex)).toEqual([1, 2]);
+    expect(model?.items[0].resultUrl).toBe('https://cdn.example/z.png');
+    expect(model?.items[1].errorMessage).toBe('blocked');
+    expect(model?.assets[0].itemIndex).toBe(1);
+  });
+
+  it('summarizes upload media results without APIMart-specific UI parsing', () => {
+    const model = getMediaToolViewModel(toolNamedWithResult('UploadMediaImage', {
+      status: 'completed',
+      source: 'apimart',
+      kind: 'upload_image',
+      response: {
+        data: {
+          url: 'https://cdn.example/upload.png',
+        },
+      },
+    }));
+
+    expect(model?.kind).toBe('upload');
+    expect(model?.status).toBe('completed');
+    expect(model?.assets[0].url).toBe('https://cdn.example/upload.png');
+    expect(model?.items[0].itemIndex).toBe(1);
+  });
+
+  it('summarizes generated speech output paths', () => {
+    const model = getMediaToolViewModel(toolNamedWithResult('GenerateSpeech', {
+      status: 'completed',
+      source: 'apimart',
+      kind: 'speech',
+      path: 'C:/repo/media-speech.wav',
+      bytes: 1024,
+    }));
+
+    expect(model?.kind).toBe('audio');
+    expect(model?.items[0].resultPath).toBe('C:/repo/media-speech.wav');
   });
 });

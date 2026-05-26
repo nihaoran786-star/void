@@ -15,6 +15,7 @@ import type { ContextItem, ImageContext } from '@/shared/types/context';
 import type { AIModelConfig, DefaultModelsConfig } from '@/infrastructure/config/types';
 import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
+import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
 
 const log = createLogger('FlowChat');
 
@@ -177,28 +178,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       // Always pass imageContexts to the backend; the coordinator decides
       // whether to pre-analyse via a vision model or attach directly.
       const imageContextsForBackend = imageContexts.length > 0
-        ? {
-            imageContexts: imageContexts.map(ctx => ({
-              id: ctx.id,
-              image_path: ctx.isLocal ? ctx.imagePath : undefined,
-              data_url: undefined,
-              mime_type: ctx.mimeType,
-              metadata: {
-                name: ctx.imageName,
-                width: ctx.width,
-                height: ctx.height,
-                file_size: ctx.fileSize,
-                source: ctx.source,
-              },
-            })),
-            imageDisplayData: imageContexts.map(ctx => ({
-              id: ctx.id,
-              name: ctx.imageName || 'Image',
-              dataUrl: ctx.dataUrl,
-              imagePath: ctx.isLocal ? ctx.imagePath : undefined,
-              mimeType: ctx.mimeType,
-            })),
-          }
+        ? buildImageContextsForBackend(imageContexts)
         : undefined;
 
       await flowChatManager.sendMessage(

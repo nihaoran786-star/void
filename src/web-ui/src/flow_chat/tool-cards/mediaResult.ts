@@ -1,15 +1,31 @@
 import type { FlowToolItem } from '../types/flow-chat';
 
-export type MediaToolKind = 'image' | 'video' | 'audio' | 'media';
+export type MediaToolKind = 'image' | 'video' | 'audio' | 'upload' | 'media';
 export type MediaToolStatus = 'polling' | 'partial' | 'completed' | 'failed' | 'timeout' | 'error';
 
 export interface MediaAssetViewModel {
   kind: MediaToolKind;
   url: string;
+  itemIndex?: number;
   taskId?: string;
 }
 
+export interface MediaItemViewModel {
+  itemIndex: number;
+  kind: MediaToolKind;
+  status: MediaItemStatus;
+  prompt?: string;
+  model?: string;
+  taskId?: string;
+  resultUrl?: string;
+  resultPath?: string;
+  errorMessage?: string;
+}
+
+type MediaItemStatus = MediaToolStatus | 'queued' | 'submitted' | 'cancelled' | 'provider_mapping_missing';
+
 export interface MediaToolViewModel {
+  batchId?: string;
   kind: MediaToolKind;
   status: MediaToolStatus;
   source?: string;
@@ -19,11 +35,19 @@ export interface MediaToolViewModel {
   failedCount: number;
   pendingCount: number;
   pollIntervalSeconds?: number;
+  items: MediaItemViewModel[];
   assets: MediaAssetViewModel[];
   errorMessage?: string;
 }
 
-const MEDIA_TOOL_NAMES = new Set(['GenerateImage', 'GenerateVideo']);
+const MEDIA_TOOL_NAMES = new Set([
+  'GenerateImage',
+  'GenerateVideo',
+  'UploadMediaImage',
+  'GenerateSpeech',
+  'TranscribeAudio',
+  'GetMediaTaskStatus',
+]);
 
 function asRecord(value: unknown): Record<string, any> | null {
   return typeof value === 'object' && value !== null ? value as Record<string, any> : null;
@@ -36,7 +60,7 @@ function asStringArray(value: unknown): string[] {
 }
 
 function normalizeKind(value: unknown, fallback: MediaToolKind): MediaToolKind {
-  return value === 'image' || value === 'video' || value === 'audio' ? value : fallback;
+  return value === 'image' || value === 'video' || value === 'audio' || value === 'upload' || value === 'upload_image' ? (value === 'upload_image' ? 'upload' : value) : fallback;
 }
 
 function normalizeStatus(value: unknown): MediaToolStatus {
@@ -51,6 +75,18 @@ function normalizeStatus(value: unknown): MediaToolStatus {
     return value;
   }
   return 'completed';
+}
+
+function normalizeItemStatus(value: unknown): MediaItemStatus {
+  if (
+    value === 'queued' ||
+    value === 'submitted' ||
+    value === 'cancelled' ||
+    value === 'provider_mapping_missing'
+  ) {
+    return value;
+  }
+  return normalizeStatus(value);
 }
 
 function countNumber(value: unknown): number | undefined {
@@ -72,12 +108,68 @@ function collectAssets(value: unknown, fallbackKind: MediaToolKind): MediaAssetV
       kind: normalizeKind(assetRecord?.kind, fallbackKind),
       url,
     };
+    if (typeof assetRecord?.item_index === 'number') {
+      viewModel.itemIndex = assetRecord.item_index;
+    }
     if (typeof assetRecord?.task_id === 'string') {
       viewModel.taskId = assetRecord.task_id;
     }
     assets.push(viewModel);
   }
   return assets;
+}
+
+function collectHttpUrls(value: unknown, urls: string[] = []): string[] {
+  if (typeof value === 'string') {
+    if (/^https?:\/\//.test(value) && !urls.includes(value)) {
+      urls.push(value);
+    }
+    return urls;
+  }
+  if (Array.isArray(value)) {
+    value.forEach(item => collectHttpUrls(item, urls));
+    return urls;
+  }
+  const record = asRecord(value);
+  if (record) {
+    Object.values(record).forEach(child => collectHttpUrls(child, urls));
+  }
+  return urls;
+}
+
+function fallbackKindForTool(toolName: string): MediaToolKind {
+  if (toolName === 'GenerateVideo') return 'video';
+  if (toolName === 'GenerateSpeech' || toolName === 'TranscribeAudio') return 'audio';
+  if (toolName === 'UploadMediaImage') return 'upload';
+  return 'image';
+}
+
+function errorMessageFrom(value: unknown): string | undefined {
+  const record = asRecord(value);
+  return typeof record?.message === 'string' ? record.message : undefined;
+}
+
+function collectItems(value: unknown, fallbackKind: MediaToolKind): MediaItemViewModel[] {
+  const record = asRecord(value);
+  const rawItems = Array.isArray(record?.items) ? record.items : [];
+  return rawItems
+    .map((item, index): MediaItemViewModel | null => {
+      const itemRecord = asRecord(item);
+      if (!itemRecord) return null;
+      const itemIndex = typeof itemRecord.item_index === 'number' ? itemRecord.item_index : index + 1;
+      return {
+        itemIndex,
+        kind: normalizeKind(itemRecord.kind, fallbackKind),
+        status: normalizeItemStatus(itemRecord.status),
+        prompt: typeof itemRecord.prompt === 'string' && itemRecord.prompt ? itemRecord.prompt : undefined,
+        model: typeof itemRecord.model === 'string' && itemRecord.model ? itemRecord.model : undefined,
+        taskId: typeof itemRecord.task_id === 'string' ? itemRecord.task_id : undefined,
+        resultUrl: typeof itemRecord.result_url === 'string' ? itemRecord.result_url : undefined,
+        resultPath: typeof itemRecord.result_path === 'string' ? itemRecord.result_path : undefined,
+        errorMessage: errorMessageFrom(itemRecord.error),
+      };
+    })
+    .filter((item): item is MediaItemViewModel => item !== null);
 }
 
 function collectTaskIdsFromTasks(tasks: unknown): string[] {
@@ -94,7 +186,7 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
 
   const result = asRecord(toolItem.toolResult?.result);
   if (!result) {
-    const fallbackKind = toolItem.toolName === 'GenerateVideo' ? 'video' : 'image';
+    const fallbackKind = fallbackKindForTool(toolItem.toolName);
     return {
       kind: fallbackKind,
       status: toolItem.status === 'error' ? 'error' : 'polling',
@@ -103,12 +195,13 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
       completedCount: 0,
       failedCount: 0,
       pendingCount: 0,
+      items: [],
       assets: [],
       errorMessage: toolItem.toolResult?.error,
     };
   }
 
-  const fallbackKind = toolItem.toolName === 'GenerateVideo' ? 'video' : 'image';
+  const fallbackKind = fallbackKindForTool(toolItem.toolName);
   const batch = asRecord(result.batch);
   const kind = normalizeKind(batch?.kind ?? result.kind, fallbackKind);
   const status = normalizeStatus(batch?.status ?? result.status);
@@ -120,8 +213,52 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
   const totalCount = countNumber(batch?.total_count) ?? allTaskIds.length;
   const pendingCount = countNumber(batch?.pending_count) ?? Math.max(totalCount - (completedCount ?? 0) - failedCount, 0);
   const error = asRecord(result.error);
+  const batchItems = collectItems(batch, kind);
+  const explicitAssets = collectAssets(batch, kind);
+  const genericUrls = explicitAssets.length > 0 || batchItems.length > 0 ? [] : collectHttpUrls(result);
+  const genericPath = typeof result.path === 'string' ? result.path : undefined;
+  const fallbackItems: MediaItemViewModel[] = batchItems.length > 0
+    ? batchItems
+    : explicitAssets.length > 0
+      ? explicitAssets.map((asset, index) => ({
+          itemIndex: asset.itemIndex ?? index + 1,
+          kind: asset.kind,
+          status: 'completed' as const,
+          taskId: asset.taskId,
+          resultUrl: asset.url,
+        }))
+      : genericUrls.length > 0
+        ? genericUrls.map((url, index) => ({
+            itemIndex: index + 1,
+            kind,
+            status: 'completed' as const,
+            resultUrl: url,
+          }))
+        : genericPath
+          ? [{
+              itemIndex: 1,
+              kind,
+              status: 'completed' as const,
+              resultPath: genericPath,
+            }]
+          : [];
+  const assets = explicitAssets.length > 0
+    ? explicitAssets
+    : fallbackItems
+        .filter(item => typeof item.resultUrl === 'string' && /^https?:\/\//.test(item.resultUrl))
+        .map(item => ({
+          itemIndex: item.itemIndex,
+          kind: item.kind,
+          taskId: item.taskId,
+          url: item.resultUrl as string,
+        }));
 
   return {
+    batchId: typeof batch?.batch_id === 'string'
+      ? batch.batch_id
+      : typeof result.batch_id === 'string'
+        ? result.batch_id
+        : undefined,
     kind,
     status,
     source: typeof result.source === 'string' ? result.source : undefined,
@@ -131,7 +268,8 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
     failedCount,
     pendingCount,
     pollIntervalSeconds: countNumber(result.poll_interval_seconds),
-    assets: collectAssets(batch, kind),
+    items: fallbackItems,
+    assets,
     errorMessage: typeof error?.message === 'string' ? error.message : toolItem.toolResult?.error,
   };
 }
