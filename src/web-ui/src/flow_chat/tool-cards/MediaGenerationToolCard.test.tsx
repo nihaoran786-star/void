@@ -54,6 +54,73 @@ function createToolItem(): FlowToolItem {
   };
 }
 
+function createPollingToolItem(): FlowToolItem {
+  return {
+    ...createToolItem(),
+    status: 'running',
+    toolResult: {
+      success: true,
+      result: {
+        status: 'polling',
+        kind: 'image',
+        batch_id: 'batch-1',
+        task_ids: ['task-1'],
+        poll_interval_seconds: 5,
+        batch: {
+          batch_id: 'batch-1',
+          kind: 'image',
+          status: 'polling',
+          total_count: 1,
+          completed_count: 0,
+          failed_count: 0,
+          pending_count: 1,
+          pending_task_ids: ['task-1'],
+          items: [
+            {
+              item_index: 1,
+              kind: 'image',
+              task_id: 'task-1',
+              status: 'polling',
+            },
+          ],
+          assets: [],
+        },
+      },
+    },
+  };
+}
+
+function createVideoToolItem(): FlowToolItem {
+  return {
+    ...createToolItem(),
+    toolName: 'GenerateVideo',
+    toolResult: {
+      success: true,
+      result: {
+        status: 'completed',
+        kind: 'video',
+        batch: {
+          batch_id: 'batch-video',
+          kind: 'video',
+          status: 'completed',
+          total_count: 1,
+          completed_count: 1,
+          failed_count: 0,
+          pending_count: 0,
+          assets: [
+            {
+              kind: 'video',
+              url: 'https://cdn.example.com/generated-1.mp4',
+              item_index: 1,
+              task_id: 'task-video-1',
+            },
+          ],
+        },
+      },
+    },
+  };
+}
+
 describe('MediaGenerationToolCard', () => {
   let dom: JSDOM;
   let container: HTMLDivElement;
@@ -88,8 +155,7 @@ describe('MediaGenerationToolCard', () => {
     vi.unstubAllGlobals();
   });
 
-  it('opens generated assets in the app browser panel', () => {
-    vi.useFakeTimers();
+  it('opens generated assets in the lightweight media preview', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
     });
@@ -102,20 +168,35 @@ describe('MediaGenerationToolCard', () => {
     });
 
     expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'expand-right-panel',
-    }));
-
-    act(() => {
-      vi.advanceTimersByTime(300);
-    });
-
-    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'agent-create-tab',
+      type: 'void-media-preview-open',
       detail: expect.objectContaining({
-        type: 'browser',
-        data: { url: 'https://cdn.example.com/generated-1.png' },
+        kind: 'image',
+        url: 'https://cdn.example.com/generated-1.png',
       }),
     }));
+  });
+
+  it('renders polling media jobs as a compact collapsed row by default', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
+    });
+
+    expect(container.textContent).toContain('生成中 0/1');
+    expect(container.querySelector('.media-generation-card__generating')).toBeNull();
+    expect(container.textContent).not.toContain('task-1');
+  });
+
+  it('expands when a polling media job completes with assets', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
+    });
+    expect(container.querySelector('.media-generation-card__asset')).toBeNull();
+
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
+    });
+
+    expect(container.querySelector('.media-generation-card__asset')).toBeTruthy();
   });
 
   it('dispatches a media reference event from the reference action', () => {
@@ -140,5 +221,15 @@ describe('MediaGenerationToolCard', () => {
         }),
       }),
     }));
+  });
+
+  it('does not show image reference actions for video assets', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createVideoToolItem()} config={{ ...config, toolName: 'GenerateVideo' }} />);
+    });
+
+    const referenceButton = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('引用'));
+    expect(referenceButton).toBeUndefined();
   });
 });

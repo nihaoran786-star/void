@@ -6,6 +6,10 @@ export type MediaToolStatus = 'polling' | 'partial' | 'completed' | 'failed' | '
 export interface MediaAssetViewModel {
   kind: MediaToolKind;
   url: string;
+  localPath?: string;
+  previewUrl?: string;
+  saveStatus?: string;
+  saveError?: string;
   itemIndex?: number;
   taskId?: string;
 }
@@ -19,6 +23,9 @@ export interface MediaItemViewModel {
   taskId?: string;
   resultUrl?: string;
   resultPath?: string;
+  localPath?: string;
+  saveStatus?: string;
+  saveError?: string;
   errorMessage?: string;
 }
 
@@ -93,6 +100,10 @@ function countNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
+function localAssetPreviewUrl(localPath: string | undefined): string | undefined {
+  return localPath ? `https://asset.localhost/${encodeURIComponent(localPath)}` : undefined;
+}
+
 function collectAssets(value: unknown, fallbackKind: MediaToolKind): MediaAssetViewModel[] {
   const record = asRecord(value);
   const rawAssets = Array.isArray(record?.assets) ? record.assets : [];
@@ -108,6 +119,16 @@ function collectAssets(value: unknown, fallbackKind: MediaToolKind): MediaAssetV
       kind: normalizeKind(assetRecord?.kind, fallbackKind),
       url,
     };
+    if (typeof assetRecord?.local_path === 'string' && assetRecord.local_path.trim()) {
+      viewModel.localPath = assetRecord.local_path;
+      viewModel.previewUrl = localAssetPreviewUrl(assetRecord.local_path);
+    }
+    if (typeof assetRecord?.save_status === 'string') {
+      viewModel.saveStatus = assetRecord.save_status;
+    }
+    if (typeof assetRecord?.save_error === 'string') {
+      viewModel.saveError = assetRecord.save_error;
+    }
     if (typeof assetRecord?.item_index === 'number') {
       viewModel.itemIndex = assetRecord.item_index;
     }
@@ -166,6 +187,9 @@ function collectItems(value: unknown, fallbackKind: MediaToolKind): MediaItemVie
         taskId: typeof itemRecord.task_id === 'string' ? itemRecord.task_id : undefined,
         resultUrl: typeof itemRecord.result_url === 'string' ? itemRecord.result_url : undefined,
         resultPath: typeof itemRecord.result_path === 'string' ? itemRecord.result_path : undefined,
+        localPath: typeof itemRecord.local_path === 'string' ? itemRecord.local_path : undefined,
+        saveStatus: typeof itemRecord.save_status === 'string' ? itemRecord.save_status : undefined,
+        saveError: typeof itemRecord.save_error === 'string' ? itemRecord.save_error : undefined,
         errorMessage: errorMessageFrom(itemRecord.error),
       };
     })
@@ -226,6 +250,9 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
           status: 'completed' as const,
           taskId: asset.taskId,
           resultUrl: asset.url,
+          localPath: asset.localPath,
+          saveStatus: asset.saveStatus,
+          saveError: asset.saveError,
         }))
       : genericUrls.length > 0
         ? genericUrls.map((url, index) => ({
@@ -251,6 +278,10 @@ export function getMediaToolViewModel(toolItem: FlowToolItem): MediaToolViewMode
           kind: item.kind,
           taskId: item.taskId,
           url: item.resultUrl as string,
+          localPath: item.localPath,
+          previewUrl: localAssetPreviewUrl(item.localPath),
+          saveStatus: item.saveStatus,
+          saveError: item.saveError,
         }));
 
   return {

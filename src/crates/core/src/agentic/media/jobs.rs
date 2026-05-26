@@ -157,8 +157,11 @@ pub fn start_media_job_polling(
             )
             .await;
         }
-        let result = poll_media_jobs(client, kind, &handle).await;
+        let mut result = poll_media_jobs(client, kind, &handle).await;
         if let Some(path) = store_path.as_deref() {
+            result = save_generated_media_assets(&result, path)
+                .await
+                .unwrap_or(result);
             let _ = persist_media_batch(path, &result).await;
         }
         emit_media_job_completed(event_context, result).await;
@@ -428,6 +431,185 @@ pub async fn load_media_batch(path: &Path) -> Result<Value, std::io::Error> {
     serde_json::from_slice(&bytes).map_err(std::io::Error::other)
 }
 
+pub async fn save_generated_media_assets(
+    result: &Value,
+    media_job_path: &Path,
+) -> Result<Value, std::io::Error> {
+    let client = reqwest::Client::new();
+    save_generated_media_assets_with_downloader(result, media_job_path, |url| {
+        let client = client.clone();
+        async move {
+            let response = client.get(url).send().await.map_err(std::io::Error::other)?;
+            if !response.status().is_success() {
+                return Err(std::io::Error::other(format!(
+                    "download failed with HTTP {}",
+                    response.status()
+                )));
+            }
+            response.bytes().await.map(|bytes| bytes.to_vec()).map_err(std::io::Error::other)
+        }
+    })
+    .await
+}
+
+async fn save_generated_media_assets_with_downloader<F, Fut>(
+    result: &Value,
+    media_job_path: &Path,
+    downloader: F,
+) -> Result<Value, std::io::Error>
+where
+    F: Fn(String) -> Fut,
+    Fut: std::future::Future<Output = Result<Vec<u8>, std::io::Error>>,
+{
+    let mut next = result.clone();
+    let Some(batch) = next.get_mut("batch").and_then(Value::as_object_mut) else {
+        return Ok(next);
+    };
+    let batch_id = batch
+        .get("batch_id")
+        .and_then(Value::as_str)
+        .unwrap_or("media_batch_unknown")
+        .to_string();
+    let kind = batch
+        .get("kind")
+        .and_then(Value::as_str)
+        .unwrap_or("media")
+        .to_string();
+    let Some(dot_void_dir) = media_job_path.parent().and_then(|path| path.parent()) else {
+        return Ok(next);
+    };
+    let batch_dir = dot_void_dir
+        .join("media")
+        .join("generated")
+        .join(sanitize_path_component(&batch_id));
+    tokio::fs::create_dir_all(&batch_dir).await?;
+
+    let mut item_updates = Vec::new();
+    if let Some(assets) = batch.get_mut("assets").and_then(Value::as_array_mut) {
+        for asset in assets.iter_mut() {
+            let Some(asset_object) = asset.as_object_mut() else {
+                continue;
+            };
+            let Some(url) = asset_object.get("url").and_then(Value::as_str).map(str::to_string) else {
+                continue;
+            };
+            let item_index = asset_object
+                .get("item_index")
+                .and_then(Value::as_u64)
+                .unwrap_or(1);
+            let asset_kind = asset_object
+                .get("kind")
+                .and_then(Value::as_str)
+                .unwrap_or(&kind)
+                .to_string();
+            let file_name = format!(
+                "{}-{:03}.{}",
+                asset_kind,
+                item_index,
+                extension_for_media_url(&asset_kind, &url)
+            );
+            let local_path = batch_dir.join(file_name);
+            match downloader(url.clone()).await {
+                Ok(bytes) => {
+                    tokio::fs::write(&local_path, bytes).await?;
+                    let local_path_string = local_path.to_string_lossy().to_string();
+                    asset_object.insert("local_path".to_string(), json!(local_path_string));
+                    asset_object.insert("save_status".to_string(), json!("saved"));
+                    item_updates.push((item_index, local_path.to_string_lossy().to_string(), "saved".to_string(), None));
+                }
+                Err(error) => {
+                    let message = error.to_string();
+                    asset_object.insert("save_status".to_string(), json!("failed"));
+                    asset_object.insert("save_error".to_string(), json!(message.clone()));
+                    item_updates.push((item_index, String::new(), "failed".to_string(), Some(message)));
+                }
+            }
+        }
+    }
+
+    if let Some(items) = batch.get_mut("items").and_then(Value::as_array_mut) {
+        for item in items {
+            let Some(item_object) = item.as_object_mut() else {
+                continue;
+            };
+            let item_index = item_object
+                .get("item_index")
+                .and_then(Value::as_u64)
+                .unwrap_or(0);
+            if let Some((_, local_path, save_status, save_error)) =
+                item_updates.iter().find(|(index, _, _, _)| *index == item_index)
+            {
+                item_object.insert("save_status".to_string(), json!(save_status));
+                if !local_path.is_empty() {
+                    item_object.insert("local_path".to_string(), json!(local_path));
+                }
+                if let Some(error) = save_error {
+                    item_object.insert("save_error".to_string(), json!(error));
+                }
+            }
+        }
+    }
+
+    batch.insert("asset_root".to_string(), json!(batch_dir.to_string_lossy().to_string()));
+    let manifest_path = batch_dir.join("manifest.json");
+    tokio::fs::write(
+        manifest_path,
+        serde_json::to_vec_pretty(&next).map_err(std::io::Error::other)?,
+    )
+    .await?;
+    Ok(next)
+}
+
+fn sanitize_path_component(value: &str) -> String {
+    let sanitized: String = value
+        .chars()
+        .map(|ch| match ch {
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*' => '-',
+            ch if ch.is_control() => '-',
+            ch => ch,
+        })
+        .collect();
+    let trimmed = sanitized.trim_matches(['.', ' ', '-']);
+    if trimmed.is_empty() {
+        "media-batch".to_string()
+    } else {
+        trimmed.chars().take(96).collect()
+    }
+}
+
+fn extension_for_media_url(kind: &str, url: &str) -> &'static str {
+    if let Ok(parsed) = reqwest::Url::parse(url) {
+        if let Some(ext) = Path::new(parsed.path())
+            .extension()
+            .and_then(|value| value.to_str())
+            .map(str::to_ascii_lowercase)
+        {
+            return match ext.as_str() {
+                "png" => "png",
+                "jpg" | "jpeg" => "jpg",
+                "webp" => "webp",
+                "gif" => "gif",
+                "mp4" => "mp4",
+                "webm" => "webm",
+                "mp3" => "mp3",
+                "wav" => "wav",
+                "m4a" => "m4a",
+                _ => default_extension_for_kind(kind),
+            };
+        }
+    }
+    default_extension_for_kind(kind)
+}
+
+fn default_extension_for_kind(kind: &str) -> &'static str {
+    match kind {
+        "video" => "mp4",
+        "audio" => "mp3",
+        "image" | "upload" | "upload_image" => "png",
+        _ => "bin",
+    }
+}
+
 fn build_media_items(
     kind: &str,
     task_items: &[Value],
@@ -644,8 +826,9 @@ fn collect_urls(value: &Value, urls: &mut Vec<String>) {
 mod tests {
     use super::{
         build_media_batch_result, classify_apimart_error, classify_apimart_error_message,
-        extract_media_task_ids, load_media_batch, media_batch_context_text, media_job_store_path,
-        media_task_status, persist_media_batch,
+        build_media_batch_result_with_id, extract_media_task_ids, load_media_batch,
+        media_batch_context_text, media_job_store_path, media_task_status, persist_media_batch,
+        sanitize_path_component, save_generated_media_assets_with_downloader,
     };
     use serde_json::json;
     use std::path::PathBuf;
@@ -850,8 +1033,9 @@ mod tests {
         ));
         let path =
             media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
-        let result = build_media_batch_result(
+        let result = build_media_batch_result_with_id(
             "image",
+            "media_batch_test",
             json!([{
                 "task_id": "task-a",
                 "status": "completed",
@@ -872,6 +1056,107 @@ mod tests {
             loaded["batch"]["items"][0]["result_url"],
             "https://cdn.example/a.png"
         );
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn saves_generated_assets_and_writes_manifest_under_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-generated-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_test",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/a.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let saved = save_generated_media_assets_with_downloader(&result, &path, |url| async move {
+            assert_eq!(url, "https://cdn.example/a.png");
+            Ok(vec![1, 2, 3])
+        })
+        .await
+        .expect("save generated asset");
+
+        let local_path = saved["batch"]["assets"][0]["local_path"]
+            .as_str()
+            .expect("local path");
+        assert!(PathBuf::from(local_path).ends_with(
+            PathBuf::from(".void")
+                .join("media")
+                .join("generated")
+                .join("media_batch_test")
+                .join("image-001.png")
+        ));
+        assert_eq!(saved["batch"]["assets"][0]["save_status"], "saved");
+        assert_eq!(saved["batch"]["items"][0]["local_path"], local_path);
+        assert_eq!(saved["batch"]["items"][0]["save_status"], "saved");
+
+        let bytes = tokio::fs::read(local_path).await.expect("saved bytes");
+        assert_eq!(bytes, vec![1, 2, 3]);
+        let manifest = root
+            .join(".void")
+            .join("media")
+            .join("generated")
+            .join("media_batch_test")
+            .join("manifest.json");
+        assert!(manifest.exists());
+        let manifest_value: serde_json::Value = serde_json::from_slice(
+            &tokio::fs::read(manifest).await.expect("manifest bytes"),
+        )
+        .expect("manifest json");
+        assert_eq!(manifest_value["batch"]["batch_id"], "media_batch_test");
+        assert_eq!(manifest_value["batch"]["assets"][0]["url"], "https://cdn.example/a.png");
+        assert_eq!(manifest_value["batch"]["assets"][0]["local_path"], local_path);
+        assert_eq!(manifest_value["batch"]["assets"][0]["save_status"], "saved");
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[test]
+    fn generated_asset_batch_paths_are_sanitized() {
+        assert_eq!(sanitize_path_component("media:batch/test?"), "media-batch-test");
+        assert_eq!(sanitize_path_component("..."), "media-batch");
+    }
+
+    #[tokio::test]
+    async fn keeps_remote_url_and_records_error_when_generated_asset_save_fails() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-generated-failed-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
+        let result = build_media_batch_result(
+            "image",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/a.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let saved = save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+            Err(std::io::Error::other("network down"))
+        })
+        .await
+        .expect("save failure is captured in result");
+
+        assert_eq!(saved["batch"]["assets"][0]["url"], "https://cdn.example/a.png");
+        assert_eq!(saved["batch"]["assets"][0]["save_status"], "failed");
+        assert_eq!(saved["batch"]["assets"][0]["save_error"], "network down");
+        assert!(saved["batch"]["assets"][0]["local_path"].is_null());
         let _ = tokio::fs::remove_dir_all(root).await;
     }
 

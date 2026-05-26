@@ -1,5 +1,5 @@
 import type { ImageContext } from '@/shared/types/context';
-import { openRightPanelPreview } from '@/shared/services/preview/PreviewService';
+import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
 import type { MediaAssetViewModel, MediaToolKind } from './mediaResult';
 
 export const MEDIA_REFERENCE_EVENT = 'void-media-reference-selected';
@@ -17,6 +17,14 @@ function stableIdFromUrl(url: string): string {
     hash |= 0;
   }
   return `media-ref-${Math.abs(hash).toString(36)}`;
+}
+
+function referencePath(asset: MediaAssetViewModel): string {
+  return asset.localPath || asset.url;
+}
+
+function previewUrl(asset: MediaAssetViewModel): string {
+  return asset.previewUrl || asset.url;
 }
 
 function extensionForKind(kind: MediaToolKind): string {
@@ -41,22 +49,25 @@ export function createMediaReferenceContext(asset: MediaAssetViewModel): ImageCo
   }
 
   const itemLabel = asset.itemIndex ? `#${asset.itemIndex}` : 'media';
+  const path = referencePath(asset);
+  const isLocal = Boolean(asset.localPath);
   return {
-    id: stableIdFromUrl(asset.url),
+    id: stableIdFromUrl(path),
     type: 'image',
-    imagePath: asset.url,
+    imagePath: path,
     imageName: `Generated ${itemLabel}.${extensionForKind(asset.kind)}`,
     fileSize: 0,
     mimeType: mimeTypeForKind(asset.kind),
-    source: 'url',
-    isLocal: false,
+    source: isLocal ? 'file' : 'url',
+    isLocal,
     timestamp: Date.now(),
-    thumbnailUrl: asset.url,
+    thumbnailUrl: previewUrl(asset),
     metadata: {
       mediaReference: true,
       itemIndex: asset.itemIndex,
       taskId: asset.taskId,
       url: asset.url,
+      localPath: asset.localPath,
     },
   };
 }
@@ -67,12 +78,12 @@ export function buildMediaReferencePromptText(asset: MediaAssetViewModel): strin
     return `以参考图${index}为基础继续生成。`;
   }
   if (asset.kind === 'video') {
-    return `参考视频${index}: ${asset.url}`;
+    return `参考视频${index}: ${referencePath(asset)}`;
   }
   if (asset.kind === 'audio') {
-    return `参考音频${index}: ${asset.url}`;
+    return `参考音频${index}: ${referencePath(asset)}`;
   }
-  return `参考媒体${index}: ${asset.url}`;
+  return `参考媒体${index}: ${referencePath(asset)}`;
 }
 
 export function dispatchMediaReference(asset: MediaAssetViewModel): void {
@@ -87,9 +98,11 @@ export function dispatchMediaReference(asset: MediaAssetViewModel): void {
 
 export function openMediaPreview(asset: MediaAssetViewModel): void {
   const index = asset.itemIndex ? ` #${asset.itemIndex}` : '';
-  openRightPanelPreview({
-    url: asset.url,
-    source: 'manual',
+  openMediaPreviewPanel({
+    kind: asset.kind === 'image' || asset.kind === 'video' || asset.kind === 'audio' ? asset.kind : 'media',
+    url: previewUrl(asset),
+    remoteUrl: asset.url,
+    localPath: asset.localPath,
     title: `${asset.kind === 'image' ? 'Image' : asset.kind === 'video' ? 'Video' : asset.kind === 'audio' ? 'Audio' : 'Media'}${index}`,
   });
 }

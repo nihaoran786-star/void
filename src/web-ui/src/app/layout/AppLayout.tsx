@@ -41,6 +41,7 @@ import { SSHContext } from '@/features/ssh-remote/SSHRemoteContext';
 import { shortcutManager, parseStoredKeybindings } from '@/infrastructure/services/ShortcutManager';
 import { useSessionModeStore } from '../stores/sessionModeStore';
 import { isMacOSDesktopRuntime } from '@/infrastructure/runtime';
+import { MediaPreviewOverlay } from '@/shared/services/preview/MediaPreviewOverlay';
 import './AppLayout.scss';
 
 const log = createLogger('AppLayout');
@@ -705,6 +706,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         onWorkspaceSelect={() => {}}
       />
       <MCPInteractionDialog />
+      <MediaPreviewOverlay />
     </>
   );
 };

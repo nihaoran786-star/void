@@ -6,6 +6,7 @@ import {
   dispatchMediaReference,
   openMediaPreview,
 } from './mediaAssetInteractions';
+import { MEDIA_PREVIEW_EVENT } from '@/shared/services/preview/MediaPreviewService';
 import type { MediaAssetViewModel } from './mediaResult';
 
 describe('mediaAssetInteractions', () => {
@@ -49,27 +50,47 @@ describe('mediaAssetInteractions', () => {
     expect(buildMediaReferencePromptText(videoAsset)).toBe('参考视频 #2: https://cdn.example.com/video-1.mp4');
   });
 
-  it('dispatches right-panel browser preview events', () => {
-    vi.useFakeTimers();
+  it('dispatches lightweight media preview events instead of browser preview tabs', () => {
     const dispatchEvent = vi.fn();
     vi.stubGlobal('window', { dispatchEvent });
 
     openMediaPreview(imageAsset);
 
     expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'expand-right-panel',
-    }));
-
-    vi.advanceTimersByTime(300);
-
-    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'agent-create-tab',
+      type: MEDIA_PREVIEW_EVENT,
       detail: expect.objectContaining({
-        type: 'browser',
-        data: { url: 'https://cdn.example.com/image-1.png' },
-        duplicateCheckKey: 'preview:global:https://cdn.example.com/image-1.png',
+        kind: 'image',
+        url: 'https://cdn.example.com/image-1.png',
+        title: 'Image #1',
       }),
     }));
+  });
+
+  it('prefers local paths for generated image references when available', () => {
+    const context = createMediaReferenceContext({
+      ...imageAsset,
+      localPath: 'C:/repo/.void/media/generated/batch/image-001.png',
+      previewUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
+    });
+
+    expect(context).toMatchObject({
+      imagePath: 'C:/repo/.void/media/generated/batch/image-001.png',
+      source: 'file',
+      isLocal: true,
+      thumbnailUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
+    });
+  });
+
+  it('creates stable reference ids so duplicate generated assets do not create duplicate chips', () => {
+    const asset = {
+      ...imageAsset,
+      localPath: 'C:/repo/.void/media/generated/batch/image-001.png',
+    };
+
+    const first = createMediaReferenceContext(asset);
+    const second = createMediaReferenceContext({ ...asset, taskId: 'task-2' });
+
+    expect(first?.id).toBe(second?.id);
   });
 
   it('dispatches media reference events with optional context', () => {

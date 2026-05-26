@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ImageIcon, Video, Clock3, CheckCircle2, AlertTriangle, Upload, AudioLines, ListChecks, CornerUpLeft, Eye } from 'lucide-react';
 import type { ToolCardProps } from '../types/flow-chat';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
@@ -11,8 +11,18 @@ import {
 import './MediaGenerationToolCard.scss';
 
 export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, config }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
   const model = getMediaToolViewModel(toolItem);
+  const hasAssets = Boolean(model?.assets.length);
+  const isInitiallyExpanded = hasAssets && model?.status !== 'polling';
+  const [isExpanded, setIsExpanded] = useState(isInitiallyExpanded);
+  const previousStatusRef = useRef(model?.status);
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = model?.status;
+    if (previousStatus === 'polling' && model?.status !== 'polling' && hasAssets) {
+      setIsExpanded(true);
+    }
+  }, [hasAssets, model?.status]);
   const kind = model?.kind ?? (toolItem.toolName === 'GenerateVideo' ? 'video' : toolItem.toolName === 'UploadMediaImage' ? 'upload' : toolItem.toolName === 'GenerateSpeech' || toolItem.toolName === 'TranscribeAudio' ? 'audio' : 'image');
   const Icon = kind === 'video'
     ? Video
@@ -92,34 +102,33 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
                     预览
                   </span>
                   {asset.kind === 'video' ? (
-                    <video src={asset.url} muted preload="metadata" />
+                    <video src={asset.previewUrl || asset.url} muted preload="metadata" />
                   ) : asset.kind === 'audio' ? (
                     <div className="media-generation-card__audio-asset">
                       <AudioLines size={22} />
                       <span>Audio</span>
                     </div>
                   ) : (
-                    <img src={asset.url} alt={`Generated media ${asset.itemIndex ?? index + 1}`} loading="lazy" />
+                    <img src={asset.previewUrl || asset.url} alt={`Generated media ${asset.itemIndex ?? index + 1}`} loading="lazy" />
                   )}
                   <span className="media-generation-card__asset-actions">
                     <span className="media-generation-card__asset-action" aria-hidden="true">
                       <Eye size={12} />
                       打开
                     </span>
-                    <button
-                      type="button"
-                      disabled={!canUseMediaAssetAsImageReference(asset)}
-                      className={`media-generation-card__asset-action ${canUseMediaAssetAsImageReference(asset) ? '' : 'is-disabled'}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (canUseMediaAssetAsImageReference(asset)) {
+                    {canUseMediaAssetAsImageReference(asset) && (
+                      <button
+                        type="button"
+                        className="media-generation-card__asset-action"
+                        onClick={(event) => {
+                          event.stopPropagation();
                           dispatchMediaReference(asset);
-                        }
-                      }}
-                    >
-                      <CornerUpLeft size={12} />
-                      引用
-                    </button>
+                        }}
+                      >
+                        <CornerUpLeft size={12} />
+                        引用
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

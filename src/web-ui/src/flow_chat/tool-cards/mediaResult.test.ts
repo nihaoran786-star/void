@@ -70,6 +70,37 @@ describe('getMediaToolViewModel', () => {
     ]);
   });
 
+  it('exposes local generated asset paths and local-first preview URLs', () => {
+    const model = getMediaToolViewModel(toolWithResult({
+      status: 'completed',
+      source: 'apimart',
+      kind: 'image',
+      batch: {
+        batch_id: 'media-batch-completed',
+        kind: 'image',
+        total_count: 1,
+        completed_count: 1,
+        failed_count: 0,
+        assets: [
+          {
+            task_id: 'task-a',
+            kind: 'image',
+            url: 'https://cdn.example/a.png',
+            local_path: 'C:/repo/.void/media/generated/media-batch-completed/image-001.png',
+            save_status: 'saved',
+          },
+        ],
+      },
+    }));
+
+    expect(model?.assets[0]).toMatchObject({
+      url: 'https://cdn.example/a.png',
+      localPath: 'C:/repo/.void/media/generated/media-batch-completed/image-001.png',
+      saveStatus: 'saved',
+      previewUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fmedia-batch-completed%2Fimage-001.png',
+    });
+  });
+
   it('keeps stable item numbers from batch-shaped media results', () => {
     const model = getMediaToolViewModel(toolWithResult({
       status: 'partial',
