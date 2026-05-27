@@ -15,6 +15,13 @@ import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
 import { isCollapsibleTool } from '../../tool-cards';
+import { MediaGenerationToolGroupCard } from '../../tool-cards/MediaGenerationToolGroupCard';
+import {
+  groupMediaToolsInModelRoundGroups,
+  isMediaToolGroupRenderableItem,
+  type MediaRenderableItem,
+  type MediaToolGroup,
+} from '../../tool-cards/mediaToolGrouping';
 import { useFlowChatContext } from './FlowChatContext';
 import { FlowChatStore } from '../../store/FlowChatStore';
 import { taskCollapseStateManager } from '../../store/TaskCollapseStateManager';
@@ -169,6 +176,10 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       });
     }, [round.isStreaming, round.renderHints?.disableExploreGrouping, sortedItems, transientNowMs]);
 
+    const mediaGroupedItems = useMemo(() => (
+      groupMediaToolsInModelRoundGroups(groupedItems)
+    ), [groupedItems]);
+
     const extractDialogTurnContent = useCallback(() => {
       const flowChatStore = FlowChatStore.getInstance();
       const state = flowChatStore.getState();
@@ -260,13 +271,13 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       <div 
         className={`model-round-item model-round-item--${round.isStreaming ? 'streaming' : 'complete'}`}
       >
-        {groupedItems.map((group, groupIndex) => {
-          const isLastGroup = groupIndex === groupedItems.length - 1;
+        {mediaGroupedItems.map((group, groupIndex) => {
+          const isLastGroup = groupIndex === mediaGroupedItems.length - 1;
           const isLast = isLastRound && isLastGroup;
           switch (group.type) {
             case 'explore':
               return group.items.map((item, itemIdx) => (
-                <FlowItemRenderer
+                <RenderableItemRenderer
                   key={item.id}
                   item={item}
                   turnId={turnId}
@@ -275,6 +286,15 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
               ));
 
             case 'critical': {
+              if (isMediaToolGroupRenderableItem(group.item)) {
+                return (
+                  <FlowMediaToolGroupRenderer
+                    key={group.item.id}
+                    group={group.item.group}
+                  />
+                );
+              }
+
               const projectedSubagent = group.item.type === 'tool' && (group.item as FlowToolItem).toolName === 'Task'
                 ? group.item as FlowToolItem
                 : undefined;
@@ -291,7 +311,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
                 );
               }
               return (
-                <FlowItemRenderer 
+                <FlowItemRenderer
                   key={group.item.id}
                   item={group.item}
                   turnId={turnId}
@@ -342,6 +362,38 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
 );
 
 ModelRoundItem.displayName = 'ModelRoundItem';
+
+interface RenderableItemRendererProps {
+  item: MediaRenderableItem;
+  turnId: string;
+  isLastItem?: boolean;
+}
+
+const RenderableItemRenderer: React.FC<RenderableItemRendererProps> = ({ item, turnId, isLastItem }) => {
+  if (isMediaToolGroupRenderableItem(item)) {
+    return (
+      <FlowMediaToolGroupRenderer
+        group={item.group}
+      />
+    );
+  }
+
+  return (
+    <FlowItemRenderer
+      item={item}
+      turnId={turnId}
+      isLastItem={isLastItem}
+    />
+  );
+};
+
+const FlowMediaToolGroupRenderer: React.FC<{ group: MediaToolGroup }> = ({ group }) => {
+  return (
+    <div className="flowchat-flow-item" data-flow-item-id={group.id} data-flow-item-type="tool">
+      <MediaGenerationToolGroupCard group={group} />
+    </div>
+  );
+};
 
 /**
  * FlowItem renderer (text or tool).

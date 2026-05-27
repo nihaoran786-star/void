@@ -4,6 +4,8 @@ import { createRoot, type Root } from 'react-dom/client';
 import { JSDOM } from 'jsdom';
 
 import { MediaGenerationToolCard } from './MediaGenerationToolCard';
+import { MediaGenerationToolGroupCard } from './MediaGenerationToolGroupCard';
+import { createMediaToolGroup } from './mediaToolGrouping';
 import type { FlowToolItem, ToolCardConfig } from '../types/flow-chat';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -90,6 +92,19 @@ function createPollingToolItem(): FlowToolItem {
   };
 }
 
+function createPollingToolItemWithId(id: string, toolName = 'GenerateImage'): FlowToolItem {
+  return {
+    ...createPollingToolItem(),
+    id,
+    toolName,
+    toolCall: {
+      id: `call-${id}`,
+      input: { prompt: 'make media' },
+    },
+    toolResult: undefined,
+  };
+}
+
 function createVideoToolItem(): FlowToolItem {
   return {
     ...createToolItem(),
@@ -117,6 +132,17 @@ function createVideoToolItem(): FlowToolItem {
           ],
         },
       },
+    },
+  };
+}
+
+function createVideoToolItemWithId(id: string): FlowToolItem {
+  return {
+    ...createVideoToolItem(),
+    id,
+    toolCall: {
+      id: `call-${id}`,
+      input: { prompt: 'make a video' },
     },
   };
 }
@@ -358,6 +384,82 @@ describe('MediaGenerationToolCard', () => {
       root.render(<MediaGenerationToolCard toolItem={createVideoToolItem()} config={{ ...config, toolName: 'GenerateVideo' }} />);
     });
 
+    const referenceButton = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('引用'));
+    expect(referenceButton).toBeUndefined();
+  });
+
+  it('renders grouped running image tools as one aggregate card', () => {
+    const group = createMediaToolGroup(
+      Array.from({ length: 5 }, (_, index) => createPollingToolItemWithId(`image-${index + 1}`))
+    );
+
+    act(() => {
+      root.render(<MediaGenerationToolGroupCard group={group} />);
+    });
+
+    expect(container.textContent).toContain('Generate Image');
+    expect(container.textContent).toContain('生成中 0/5');
+    expect(container.querySelectorAll('.compact-tool-card')).toHaveLength(1);
+  });
+
+  it('renders grouped completed images with aggregate thumbnails', () => {
+    const group = createMediaToolGroup([
+      createToolItem(),
+      {
+        ...createToolItem(),
+        id: 'tool-2',
+        toolCall: {
+          id: 'call-2',
+          input: { prompt: 'make another image' },
+        },
+        toolResult: {
+          success: true,
+          result: {
+            status: 'completed',
+            kind: 'image',
+            batch: {
+              batch_id: 'batch-2',
+              kind: 'image',
+              status: 'completed',
+              total_count: 1,
+              completed_count: 1,
+              failed_count: 0,
+              pending_count: 0,
+              assets: [
+                {
+                  kind: 'image',
+                  url: 'https://cdn.example.com/generated-2.png',
+                  item_index: 1,
+                  task_id: 'task-2',
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    act(() => {
+      root.render(<MediaGenerationToolGroupCard group={group} />);
+    });
+
+    expect(container.textContent).toContain('生成完成 2/2');
+    expect(container.querySelectorAll('.media-generation-card__preview-asset')).toHaveLength(2);
+  });
+
+  it('renders grouped video tools without image reference actions', () => {
+    const group = createMediaToolGroup([
+      createVideoToolItem(),
+      createVideoToolItemWithId('video-2'),
+    ]);
+
+    act(() => {
+      root.render(<MediaGenerationToolGroupCard group={group} />);
+    });
+
+    expect(container.textContent).toContain('Generate Video');
+    expect(container.textContent).toContain('生成完成 2/2');
     const referenceButton = Array.from(container.querySelectorAll('button'))
       .find(button => button.textContent?.includes('引用'));
     expect(referenceButton).toBeUndefined();
