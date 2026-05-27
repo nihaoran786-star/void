@@ -19,6 +19,8 @@ use async_trait::async_trait;
 use serde_json::{json, Map, Value};
 use std::path::PathBuf;
 
+const MEDIA_IMAGE_URLS_DESCRIPTION: &str = "Reference images. Accepts public URLs, data:image data_url values, or uploaded image references shown in chat context such as image_id or file name. Use the attached image_id or file name directly; Do not ask the user for a URL or local path when an attached image is available.";
+
 fn ok_result(data: Value, assistant: impl Into<String>) -> Vec<ToolResult> {
     vec![ToolResult::Result {
         data,
@@ -186,7 +188,9 @@ fn upload_image_result(response: Value) -> Value {
 mod media_image_reference_tests {
     use super::{
         resolve_media_image_urls, resolve_media_upload_path_reference, upload_image_result,
+        GenerateImageTool,
     };
+    use crate::agentic::tools::framework::Tool;
     use crate::agentic::tools::image_context::{store_image_context, ImageContextData};
     use serde_json::json;
 
@@ -317,6 +321,32 @@ mod media_image_reference_tests {
         );
         assert_eq!(result["assets"][0]["item_index"], 1);
     }
+
+    #[test]
+    fn generate_image_schema_accepts_uploaded_image_references() {
+        let schema = GenerateImageTool::new().input_schema();
+        let image_urls_description = schema
+            .pointer("/properties/image_urls/description")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+
+        assert!(image_urls_description.contains("image_id"));
+        assert!(image_urls_description.contains("file name"));
+        assert!(image_urls_description.contains("data_url"));
+        assert!(image_urls_description.contains("Do not ask"));
+    }
+
+    #[tokio::test]
+    async fn generate_image_description_prevents_path_prompt_for_attached_images() {
+        let description = GenerateImageTool::new()
+            .description()
+            .await
+            .expect("description should be available");
+
+        assert!(description.contains("image_id"));
+        assert!(description.contains("image_urls"));
+        assert!(description.contains("Do not ask the user for a URL or local path"));
+    }
 }
 
 pub struct GenerateImageTool;
@@ -334,11 +364,12 @@ impl Tool for GenerateImageTool {
     }
 
     async fn description(&self) -> VoidResult<String> {
-        Ok("Submit an APIMart image generation job. Supports text-to-image and image-to-image; upload local images separately only when a provider requires public URLs.".to_string())
+        Ok("Submit an APIMart image generation job. Supports text-to-image and image-to-image. For image-to-image/reference generation, set image_urls to an attached image_id or file name from the chat image context; the tool resolves it to data_url or provider URL when available. Do not ask the user for a URL or local path when an attached image is available.".to_string())
     }
 
     fn short_description(&self) -> String {
-        "Submit an APIMart image generation job.".to_string()
+        "Submit APIMart image generation; uploaded image_id/name references are valid image_urls."
+            .to_string()
     }
 
     fn default_exposure(&self) -> ToolExposure {
@@ -351,7 +382,11 @@ impl Tool for GenerateImageTool {
             "properties": {
                 "prompt": { "type": "string" },
                 "model": { "type": "string", "default": DEFAULT_IMAGE_MODEL },
-                "image_urls": { "type": "array", "items": { "type": "string" } },
+                "image_urls": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": MEDIA_IMAGE_URLS_DESCRIPTION
+                },
                 "size": { "type": "string" },
                 "resolution": { "type": "string" },
                 "n": { "type": "integer", "minimum": 1, "maximum": 4 },
@@ -521,11 +556,12 @@ impl Tool for GenerateVideoTool {
     }
 
     async fn description(&self) -> VoidResult<String> {
-        Ok("Submit an APIMart video generation job. Supports text-to-video, image-to-video, video extension, and selected audio/reference inputs by model capability.".to_string())
+        Ok("Submit an APIMart video generation job. Supports text-to-video, image-to-video, video extension, and selected audio/reference inputs by model capability. For image-to-video/reference generation, set image_urls to an attached image_id or file name from the chat image context; the tool resolves it to data_url or provider URL when available. Do not ask the user for a URL or local path when an attached image is available.".to_string())
     }
 
     fn short_description(&self) -> String {
-        "Submit an APIMart video generation job.".to_string()
+        "Submit APIMart video generation; uploaded image_id/name references are valid image_urls."
+            .to_string()
     }
 
     fn default_exposure(&self) -> ToolExposure {
@@ -542,7 +578,11 @@ impl Tool for GenerateVideoTool {
                 "resolution": { "type": "string" },
                 "aspect_ratio": { "type": "string" },
                 "size": { "type": "string" },
-                "image_urls": { "type": "array", "items": { "type": "string" } },
+                "image_urls": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": MEDIA_IMAGE_URLS_DESCRIPTION
+                },
                 "image_with_roles": { "type": "array", "items": { "type": "object" } },
                 "video_urls": { "type": "array", "items": { "type": "string" } },
                 "audio_urls": { "type": "array", "items": { "type": "string" } },

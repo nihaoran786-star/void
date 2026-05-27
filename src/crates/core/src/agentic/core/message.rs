@@ -1,5 +1,5 @@
 use super::prompt_markup::is_system_reminder_only;
-use crate::agentic::image_analysis::ImageContextData;
+use crate::agentic::image_analysis::{render_attached_image_references, ImageContextData};
 use crate::util::types::{Message as AIMessage, ToolCall as AIToolCall, ToolImageAttachment};
 use crate::util::TokenCounter;
 use log::warn;
@@ -272,23 +272,8 @@ impl From<Message> for AIMessage {
             MessageContent::Multimodal { text, images } => {
                 let mut content = text;
                 if !images.is_empty() {
-                    content.push_str("\n\n[Attached image(s):\n");
-                    for image in images {
-                        let name = image
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("name"))
-                            .and_then(|v| v.as_str())
-                            .filter(|s| !s.is_empty())
-                            .map(str::to_string)
-                            .or_else(|| {
-                                image.image_path.as_ref().filter(|s| !s.is_empty()).cloned()
-                            })
-                            .unwrap_or_else(|| image.id.clone());
-
-                        content.push_str(&format!("- {} ({})\n", name, image.mime_type));
-                    }
-                    content.push(']');
+                    content.push_str("\n\n");
+                    content.push_str(&render_attached_image_references(&images, false));
                 }
 
                 Self {

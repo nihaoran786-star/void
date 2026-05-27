@@ -16,7 +16,7 @@ use crate::agentic::events::{AgenticEvent, EventPriority, EventQueue};
 use crate::agentic::execution::types::FinishReason;
 use crate::agentic::image_analysis::{
     ImageContextData, ImageLimits, build_multimodal_message_with_images,
-    process_image_contexts_for_provider,
+    process_image_contexts_for_provider, render_attached_image_references,
 };
 use crate::agentic::round_preempt::RoundInjectionKind;
 use crate::agentic::session::{CompressionTailPolicy, ContextCompressor, SessionManager};
@@ -959,26 +959,8 @@ impl ExecutionEngine {
             return content;
         }
 
-        content.push_str("\n\n[Attached image(s):\n");
-        for image in images {
-            let name = image
-                .metadata
-                .as_ref()
-                .and_then(|m| m.get("name"))
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .map(str::to_string)
-                .or_else(|| image.image_path.as_ref().filter(|s| !s.is_empty()).cloned())
-                .unwrap_or_else(|| image.id.clone());
-
-            content.push_str(&format!(
-                "- {} ({}, image_id={})\n",
-                name, image.mime_type, image.id
-            ));
-        }
-        content.push_str("]\n");
-
-        content.push_str("Note: image inspection is not available for this session.\n");
+        content.push_str("\n\n");
+        content.push_str(&render_attached_image_references(images, true));
 
         content
     }
@@ -2530,6 +2512,7 @@ impl ExecutionEngine {
 mod tests {
     use super::{ContextHealthSnapshot, ExecutionEngine};
     use crate::agentic::core::{Message, ToolCall, ToolResult};
+    use crate::agentic::image_analysis::ImageContextData;
     use crate::service::config::types::AIConfig;
     use crate::service::config::types::AIModelConfig;
     use serde_json::json;
@@ -2611,6 +2594,29 @@ mod tests {
         assert_eq!(first.len(), second.len());
         assert_ne!(first, second);
         assert_ne!(first_summary, second_summary);
+    }
+
+    #[test]
+    fn text_only_multimodal_reference_tells_agent_to_use_media_tool_image_ids() {
+        let rendered = ExecutionEngine::render_multimodal_as_text(
+            "参考图片生成书店",
+            &[ImageContextData {
+                id: "img-upload-1".to_string(),
+                image_path: None,
+                data_url: Some("data:image/jpeg;base64,abc123".to_string()),
+                mime_type: "image/jpeg".to_string(),
+                metadata: Some(json!({
+                    "name": "0f3bd4298337a9d8958b2688b1d69d5b.jpeg"
+                })),
+            }],
+        );
+
+        assert!(rendered.contains("image_id=img-upload-1"));
+        assert!(rendered.contains("0f3bd4298337a9d8958b2688b1d69d5b.jpeg"));
+        assert!(rendered.contains("GenerateImage"));
+        assert!(rendered.contains("image_urls"));
+        assert!(rendered.contains("Do not ask the user for a local file path or public URL"));
+        assert!(!rendered.contains("image inspection is not available"));
     }
 
     #[test]

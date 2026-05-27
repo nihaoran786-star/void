@@ -18,6 +18,48 @@ pub struct ImageContextData {
     pub metadata: Option<serde_json::Value>,
 }
 
+pub fn image_context_reference_name(image: &ImageContextData) -> String {
+    image
+        .metadata
+        .as_ref()
+        .and_then(|m| m.get("name"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| image.image_path.as_ref().filter(|s| !s.is_empty()).cloned())
+        .unwrap_or_else(|| image.id.clone())
+}
+
+pub fn render_attached_image_references(
+    images: &[ImageContextData],
+    include_text_only_note: bool,
+) -> String {
+    if images.is_empty() {
+        return String::new();
+    }
+
+    let mut content = String::new();
+    content.push_str("[Attached image(s):\n");
+    for image in images {
+        let name = image_context_reference_name(image);
+        content.push_str(&format!(
+            "- {} ({}, image_id={})\n",
+            name, image.mime_type, image.id
+        ));
+    }
+    content.push_str("]\n");
+    content.push_str(
+        "Media tool reference: for GenerateImage/GenerateVideo image-to-image or reference generation, pass an attached image_id or file name in image_urls; the tool resolves it internally to data_url or provider URL when available. Do not ask the user for a local file path or public URL when an attached image is listed.\n",
+    );
+    if include_text_only_note {
+        content.push_str(
+            "Vision note: this primary model may not inspect pixels directly, but the listed attached image references remain usable by media tools.\n",
+        );
+    }
+
+    content
+}
+
 /// Image analysis result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageAnalysisResult {
