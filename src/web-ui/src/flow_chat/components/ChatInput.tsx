@@ -65,6 +65,7 @@ import { useAgentCompanionActivity } from '../hooks/useAgentCompanionActivity';
 import { useSessionReviewActivity } from '../hooks/useSessionReviewActivity';
 import { shouldBlockDeepReviewCommand } from '../utils/deepReviewCommandGuard';
 import { deriveDeepReviewSessionConcurrencyGuard } from '../utils/deepReviewCapacityGuard';
+import { shouldShowChatInputImageStrip } from '../utils/chatInputImageStrip';
 import {
   getMediaReferencePromptText,
   MEDIA_REFERENCE_EVENT,
@@ -253,6 +254,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     [contexts],
   );
   const currentImageCount = imageContexts.length;
+  const showImageStrip = shouldShowChatInputImageStrip({
+    imageCount: currentImageCount,
+    isInputActive: inputState.isActive,
+  });
   
   const activeSessionState = useActiveSessionState();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
@@ -2665,7 +2670,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               </div>
             )}
             <div className="void-chat-input__input-area">
-              {imageContexts.length > 0 && (
+              {showImageStrip && (
                 <div
                   className="void-chat-input__image-strip"
                   data-testid="chat-input-image-strip"
