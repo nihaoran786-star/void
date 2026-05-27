@@ -39,7 +39,7 @@ describe('mediaAssetInteractions', () => {
     });
   });
 
-  it('uses text references for video assets instead of fake image contexts', () => {
+  it('does not create image contexts or prompt text for video assets', () => {
     const videoAsset: MediaAssetViewModel = {
       kind: 'video',
       url: 'https://cdn.example.com/video-1.mp4',
@@ -47,7 +47,7 @@ describe('mediaAssetInteractions', () => {
     };
 
     expect(createMediaReferenceContext(videoAsset)).toBeUndefined();
-    expect(buildMediaReferencePromptText(videoAsset)).toBe('参考视频 #2: https://cdn.example.com/video-1.mp4');
+    expect(buildMediaReferencePromptText(videoAsset)).toBe('');
   });
 
   it('dispatches lightweight media preview events instead of browser preview tabs', () => {
@@ -70,14 +70,14 @@ describe('mediaAssetInteractions', () => {
     const context = createMediaReferenceContext({
       ...imageAsset,
       localPath: 'C:/repo/.void/media/generated/batch/image-001.png',
-      previewUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
+      previewUrl: 'asset://localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
     });
 
     expect(context).toMatchObject({
       imagePath: 'C:/repo/.void/media/generated/batch/image-001.png',
       source: 'file',
       isLocal: true,
-      thumbnailUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
+      thumbnailUrl: 'https://cdn.example.com/image-1.png',
     });
   });
 
@@ -93,7 +93,7 @@ describe('mediaAssetInteractions', () => {
     expect(first?.id).toBe(second?.id);
   });
 
-  it('dispatches media reference events with optional context', () => {
+  it('dispatches media reference events without auto-inserting prompt text', () => {
     const dispatchEvent = vi.fn();
     vi.stubGlobal('window', { dispatchEvent });
 
@@ -105,7 +105,7 @@ describe('mediaAssetInteractions', () => {
         context: expect.objectContaining({
           imagePath: 'https://cdn.example.com/image-1.png',
         }),
-        promptText: '以参考图 #1为基础继续生成。',
+        promptText: '',
       }),
     }));
   });

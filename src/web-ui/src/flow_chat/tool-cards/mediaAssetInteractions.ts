@@ -27,6 +27,10 @@ function previewUrl(asset: MediaAssetViewModel): string {
   return asset.previewUrl || asset.url;
 }
 
+function referenceThumbnailUrl(asset: MediaAssetViewModel): string {
+  return asset.url || asset.previewUrl || referencePath(asset);
+}
+
 function extensionForKind(kind: MediaToolKind): string {
   if (kind === 'video') return 'mp4';
   if (kind === 'audio') return 'mp3';
@@ -61,7 +65,7 @@ export function createMediaReferenceContext(asset: MediaAssetViewModel): ImageCo
     source: isLocal ? 'file' : 'url',
     isLocal,
     timestamp: Date.now(),
-    thumbnailUrl: previewUrl(asset),
+    thumbnailUrl: referenceThumbnailUrl(asset),
     metadata: {
       mediaReference: true,
       itemIndex: asset.itemIndex,
@@ -72,18 +76,8 @@ export function createMediaReferenceContext(asset: MediaAssetViewModel): ImageCo
   };
 }
 
-export function buildMediaReferencePromptText(asset: MediaAssetViewModel): string {
-  const index = asset.itemIndex ? ` #${asset.itemIndex}` : '';
-  if (canUseMediaAssetAsImageReference(asset)) {
-    return `以参考图${index}为基础继续生成。`;
-  }
-  if (asset.kind === 'video') {
-    return `参考视频${index}: ${referencePath(asset)}`;
-  }
-  if (asset.kind === 'audio') {
-    return `参考音频${index}: ${referencePath(asset)}`;
-  }
-  return `参考媒体${index}: ${referencePath(asset)}`;
+export function buildMediaReferencePromptText(_asset: MediaAssetViewModel): string {
+  return '';
 }
 
 export function dispatchMediaReference(asset: MediaAssetViewModel): void {
