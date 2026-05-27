@@ -69,11 +69,22 @@ export const MediaPreviewOverlay: React.FC = () => {
         </header>
         <div className="media-preview-overlay__body">
           {preview.kind === 'video' ? (
-            <video src={activeUrl} controls autoPlay onError={handleMediaError} />
+            <video
+              className="media-preview-overlay__media"
+              src={activeUrl}
+              controls
+              autoPlay
+              onError={handleMediaError}
+            />
           ) : preview.kind === 'audio' ? (
             <audio src={activeUrl} controls autoPlay onError={handleMediaError} />
           ) : (
-            <img src={activeUrl} alt={title} onError={handleMediaError} />
+            <img
+              className="media-preview-overlay__media"
+              src={activeUrl}
+              alt={title}
+              onError={handleMediaError}
+            />
           )}
         </div>
       </section>

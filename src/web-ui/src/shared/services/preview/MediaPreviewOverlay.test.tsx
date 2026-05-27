@@ -56,6 +56,7 @@ describe('MediaPreviewOverlay', () => {
     const image = container.querySelector('img') as HTMLImageElement | null;
     expect(dialog).toBeTruthy();
     expect(image?.src).toBe('https://cdn.example.com/generated-1.png');
+    expect(image?.className).toBe('media-preview-overlay__media');
 
     const closeButton = Array.from(container.querySelectorAll('button'))
       .find(button => button.getAttribute('aria-label') === '关闭') as HTMLButtonElement | undefined;
@@ -66,6 +67,44 @@ describe('MediaPreviewOverlay', () => {
     });
 
     expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('renders video previews with the contain media class', () => {
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'video',
+        url: 'https://cdn.example.com/generated-1.mp4',
+        title: 'Video #1',
+      });
+    });
+
+    const video = container.querySelector('video') as HTMLVideoElement | null;
+    expect(video?.src).toBe('https://cdn.example.com/generated-1.mp4');
+    expect(video?.className).toBe('media-preview-overlay__media');
+    expect(video?.hasAttribute('controls')).toBe(true);
+  });
+
+  it('does not apply the contain media class to audio previews', () => {
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'audio',
+        url: 'https://cdn.example.com/generated-1.mp3',
+        title: 'Audio #1',
+      });
+    });
+
+    const audio = container.querySelector('audio') as HTMLAudioElement | null;
+    expect(audio?.src).toBe('https://cdn.example.com/generated-1.mp3');
+    expect(audio?.className).toBe('');
+    expect(audio?.hasAttribute('controls')).toBe(true);
   });
 
   it('falls back to the remote URL when the local preview URL cannot load', () => {

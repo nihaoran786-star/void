@@ -121,6 +121,67 @@ function createVideoToolItem(): FlowToolItem {
   };
 }
 
+function createManyImageToolItem(count: number): FlowToolItem {
+  const item = createToolItem();
+  return {
+    ...item,
+    toolResult: {
+      success: true,
+      result: {
+        status: 'completed',
+        kind: 'image',
+        batch: {
+          batch_id: 'batch-many',
+          kind: 'image',
+          status: 'completed',
+          total_count: count,
+          completed_count: count,
+          failed_count: 0,
+          pending_count: 0,
+          assets: Array.from({ length: count }, (_, index) => ({
+            kind: 'image',
+            url: `https://cdn.example.com/generated-${index + 1}.png`,
+            item_index: index + 1,
+            task_id: `task-${index + 1}`,
+          })),
+        },
+      },
+    },
+  };
+}
+
+function createLocalImageToolItem(): FlowToolItem {
+  const item = createToolItem();
+  return {
+    ...item,
+    toolResult: {
+      success: true,
+      result: {
+        status: 'completed',
+        kind: 'image',
+        batch: {
+          batch_id: 'batch-local',
+          kind: 'image',
+          status: 'completed',
+          total_count: 1,
+          completed_count: 1,
+          failed_count: 0,
+          pending_count: 0,
+          assets: [
+            {
+              kind: 'image',
+              url: 'https://cdn.example.com/generated-local.png',
+              local_path: 'C:/repo/.void/media/generated/image-001.png',
+              item_index: 1,
+              task_id: 'task-local',
+            },
+          ],
+        },
+      },
+    },
+  };
+}
+
 describe('MediaGenerationToolCard', () => {
   let dom: JSDOM;
   let container: HTMLDivElement;
@@ -160,6 +221,11 @@ describe('MediaGenerationToolCard', () => {
       root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
     });
 
+    const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    act(() => {
+      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
     const asset = container.querySelector('.media-generation-card__asset') as HTMLElement;
     expect(asset).toBeTruthy();
 
@@ -186,7 +252,7 @@ describe('MediaGenerationToolCard', () => {
     expect(container.textContent).not.toContain('task-1');
   });
 
-  it('expands when a polling media job completes with assets', () => {
+  it('keeps completed polling results collapsed while showing a preview strip', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
     });
@@ -196,12 +262,76 @@ describe('MediaGenerationToolCard', () => {
       root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
     });
 
-    expect(container.querySelector('.media-generation-card__asset')).toBeTruthy();
+    expect(container.querySelector('.media-generation-card__asset')).toBeNull();
+    expect(container.querySelector('.media-generation-card__preview-asset')).toBeTruthy();
+  });
+
+  it('keeps completed batches collapsed with a bounded preview strip', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createManyImageToolItem(100)} config={config} />);
+    });
+
+    expect(container.textContent).toContain('生成完成 100/100');
+    expect(container.querySelector('.media-generation-card__grid')).toBeNull();
+    expect(container.querySelectorAll('.media-generation-card__preview-asset')).toHaveLength(6);
+    expect(container.textContent).toContain('+94');
+  });
+
+  it('renders expanded media grids in fixed-size pages', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createManyImageToolItem(100)} config={config} />);
+    });
+
+    const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    act(() => {
+      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.querySelectorAll('.media-generation-card__asset')).toHaveLength(24);
+    expect(container.textContent).toContain('显示更多');
+
+    const loadMore = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('显示更多')) as HTMLButtonElement | undefined;
+    expect(loadMore).toBeTruthy();
+
+    act(() => {
+      loadMore?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.querySelectorAll('.media-generation-card__asset')).toHaveLength(48);
+  });
+
+  it('falls back to the remote thumbnail URL when the local thumbnail cannot load', () => {
+    Object.defineProperty(dom.window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {
+        convertFileSrc: vi.fn((path: string, protocol = 'asset') => `${protocol}://local/${encodeURIComponent(path)}`),
+      },
+    });
+
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createLocalImageToolItem()} config={config} />);
+    });
+
+    const image = container.querySelector('.media-generation-card__preview-asset img') as HTMLImageElement;
+    expect(image.src).toBe('asset://local/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fimage-001.png');
+
+    act(() => {
+      image.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
+    });
+
+    expect((container.querySelector('.media-generation-card__preview-asset img') as HTMLImageElement).src)
+      .toBe('https://cdn.example.com/generated-local.png');
   });
 
   it('dispatches a media reference event from the reference action', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
+    });
+
+    const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    act(() => {
+      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
 
     const referenceButton = Array.from(container.querySelectorAll('button'))
