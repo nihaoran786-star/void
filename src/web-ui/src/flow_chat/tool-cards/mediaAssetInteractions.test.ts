@@ -4,6 +4,7 @@ import {
   buildMediaReferencePromptText,
   createMediaReferenceContext,
   dispatchMediaReference,
+  getMediaReferencePromptText,
   openMediaPreview,
 } from './mediaAssetInteractions';
 import { MEDIA_PREVIEW_EVENT } from '@/shared/services/preview/MediaPreviewService';
@@ -108,5 +109,15 @@ describe('mediaAssetInteractions', () => {
         promptText: '',
       }),
     }));
+  });
+
+  it('drops legacy prompt text for media reference contexts', () => {
+    const context = createMediaReferenceContext(imageAsset);
+
+    expect(getMediaReferencePromptText({
+      asset: imageAsset,
+      context,
+      promptText: '以参考图 #1为基础继续生成。',
+    })).toBe('');
   });
 });

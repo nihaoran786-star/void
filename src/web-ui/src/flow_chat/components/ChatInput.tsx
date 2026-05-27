@@ -66,6 +66,7 @@ import { useSessionReviewActivity } from '../hooks/useSessionReviewActivity';
 import { shouldBlockDeepReviewCommand } from '../utils/deepReviewCommandGuard';
 import { deriveDeepReviewSessionConcurrencyGuard } from '../utils/deepReviewCapacityGuard';
 import {
+  getMediaReferencePromptText,
   MEDIA_REFERENCE_EVENT,
   type MediaReferenceEventDetail,
 } from '../tool-cards/mediaAssetInteractions';
@@ -977,7 +978,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         addContext(detail.context);
       }
 
-      const promptText = detail.promptText.trim();
+      const promptText = getMediaReferencePromptText(detail).trim();
       const currentValue = inputValueRef.current;
       const nextValue = promptText
         ? currentValue.trim()

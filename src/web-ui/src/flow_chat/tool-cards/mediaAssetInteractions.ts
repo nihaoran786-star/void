@@ -80,6 +80,13 @@ export function buildMediaReferencePromptText(_asset: MediaAssetViewModel): stri
   return '';
 }
 
+export function getMediaReferencePromptText(detail: MediaReferenceEventDetail): string {
+  if (detail.context?.metadata?.mediaReference) {
+    return '';
+  }
+  return detail.promptText;
+}
+
 export function dispatchMediaReference(asset: MediaAssetViewModel): void {
   window.dispatchEvent(new CustomEvent<MediaReferenceEventDetail>(MEDIA_REFERENCE_EVENT, {
     detail: {
