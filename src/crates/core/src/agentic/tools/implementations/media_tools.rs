@@ -93,6 +93,55 @@ fn optional_u8(input: &Value, key: &str) -> Option<u8> {
         .and_then(|value| u8::try_from(value).ok())
 }
 
+fn normalize_image_size(value: Option<String>) -> Option<String> {
+    let size = value?;
+    let trimmed = size.trim();
+    let Some((width, height)) = parse_pixel_size(trimmed) else {
+        return Some(size);
+    };
+
+    let divisor = gcd(width, height);
+    let ratio = (width / divisor, height / divisor);
+    let normalized = match ratio {
+        (1, 1) => "1:1",
+        (3, 2) => "3:2",
+        (2, 3) => "2:3",
+        (4, 3) => "4:3",
+        (3, 4) => "3:4",
+        (5, 4) => "5:4",
+        (4, 5) => "4:5",
+        (16, 9) => "16:9",
+        (9, 16) => "9:16",
+        (2, 1) => "2:1",
+        (1, 2) => "1:2",
+        (3, 1) => "3:1",
+        (1, 3) => "1:3",
+        (21, 9) => "21:9",
+        (9, 21) => "9:21",
+        _ => return Some(size),
+    };
+    Some(normalized.to_string())
+}
+
+fn parse_pixel_size(value: &str) -> Option<(u32, u32)> {
+    let (width, height) = value.split_once(['x', 'X'])?;
+    let width = width.trim().parse::<u32>().ok()?;
+    let height = height.trim().parse::<u32>().ok()?;
+    if width == 0 || height == 0 {
+        return None;
+    }
+    Some((width, height))
+}
+
+fn gcd(mut a: u32, mut b: u32) -> u32 {
+    while b != 0 {
+        let remainder = a % b;
+        a = b;
+        b = remainder;
+    }
+    a
+}
+
 fn prompt_required(input: &Value) -> Result<String, VoidError> {
     optional_string(input, "prompt").ok_or_else(|| VoidError::tool("prompt is required"))
 }
@@ -135,11 +184,27 @@ fn resolve_media_upload_path_reference(path: &str) -> String {
         .unwrap_or_else(|| path.to_string())
 }
 
+fn image_generation_request_from_input(input: &Value) -> ImageGenerationRequest {
+    ImageGenerationRequest {
+        model: optional_string(input, "model"),
+        size: normalize_image_size(optional_string(input, "size")),
+        resolution: optional_string(input, "resolution"),
+        image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
+        n: optional_u8(input, "n"),
+        official_fallback: input
+            .get("official_fallback")
+            .and_then(|value| value.as_bool()),
+        google_search: input.get("google_search").and_then(|value| value.as_bool()),
+        google_image_search: input
+            .get("google_image_search")
+            .and_then(|value| value.as_bool()),
+    }
+}
+
 fn collect_http_urls(value: &Value, urls: &mut Vec<String>) {
     match value {
         Value::String(text) => {
-            if (text.starts_with("http://") || text.starts_with("https://"))
-                && !urls.contains(text)
+            if (text.starts_with("http://") || text.starts_with("https://")) && !urls.contains(text)
             {
                 urls.push(text.clone());
             }
@@ -187,8 +252,8 @@ fn upload_image_result(response: Value) -> Value {
 #[cfg(test)]
 mod media_image_reference_tests {
     use super::{
-        resolve_media_image_urls, resolve_media_upload_path_reference, upload_image_result,
-        GenerateImageTool,
+        image_generation_request_from_input, resolve_media_image_urls,
+        resolve_media_upload_path_reference, upload_image_result, GenerateImageTool,
     };
     use crate::agentic::tools::framework::Tool;
     use crate::agentic::tools::image_context::{store_image_context, ImageContextData};
@@ -257,7 +322,10 @@ mod media_image_reference_tests {
 
         let resolved = resolve_media_image_urls(vec!["data-wins.png".to_string()]);
 
-        assert_eq!(resolved, vec!["data:image/png;base64,data-wins".to_string()]);
+        assert_eq!(
+            resolved,
+            vec!["data:image/png;base64,data-wins".to_string()]
+        );
     }
 
     #[test]
@@ -337,6 +405,42 @@ mod media_image_reference_tests {
     }
 
     #[tokio::test]
+    async fn generate_image_accepts_common_pixel_size_as_aspect_ratio() {
+        let result = GenerateImageTool::new()
+            .validate_input(
+                &json!({
+                    "prompt": "make an image",
+                    "model": "gpt-image-2",
+                    "size": "1024x1024"
+                }),
+                None,
+            )
+            .await;
+
+        assert!(
+            result.result,
+            "expected valid input, got {:?}",
+            result.message
+        );
+    }
+
+    #[test]
+    fn normalizes_common_pixel_image_sizes_before_provider_validation() {
+        assert_eq!(
+            image_generation_request_from_input(&json!({ "size": "1024x1024" })).size,
+            Some("1:1".to_string())
+        );
+        assert_eq!(
+            image_generation_request_from_input(&json!({ "size": "1536x1024" })).size,
+            Some("3:2".to_string())
+        );
+        assert_eq!(
+            image_generation_request_from_input(&json!({ "size": "1024x1536" })).size,
+            Some("2:3".to_string())
+        );
+    }
+
+    #[tokio::test]
     async fn generate_image_description_prevents_path_prompt_for_attached_images() {
         let description = GenerateImageTool::new()
             .description()
@@ -387,7 +491,11 @@ impl Tool for GenerateImageTool {
                     "items": { "type": "string" },
                     "description": MEDIA_IMAGE_URLS_DESCRIPTION
                 },
-                "size": { "type": "string" },
+                "size": {
+                    "type": "string",
+                    "enum": ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "2:1", "1:2", "3:1", "1:3", "21:9", "9:21"],
+                    "description": "Image aspect ratio. Use auto unless the user asks for a specific aspect ratio; do not use pixel sizes such as 1024x1024."
+                },
                 "resolution": { "type": "string" },
                 "n": { "type": "integer", "minimum": 1, "maximum": 4 },
                 "official_fallback": { "type": "boolean" },
@@ -406,20 +514,7 @@ impl Tool for GenerateImageTool {
         if prompt_required(input).is_err() {
             return validation_error("prompt is required");
         }
-        let request = ImageGenerationRequest {
-            model: optional_string(input, "model"),
-            size: optional_string(input, "size"),
-            resolution: optional_string(input, "resolution"),
-            image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
-            n: optional_u8(input, "n"),
-            official_fallback: input
-                .get("official_fallback")
-                .and_then(|value| value.as_bool()),
-            google_search: input.get("google_search").and_then(|value| value.as_bool()),
-            google_image_search: input
-                .get("google_image_search")
-                .and_then(|value| value.as_bool()),
-        };
+        let request = image_generation_request_from_input(input);
         match validate_image_generation(&request) {
             Ok(_) => valid(),
             Err(error) => validation_error(format!("{error:?}")),
@@ -436,20 +531,7 @@ impl Tool for GenerateImageTool {
             Err(result) => return Ok(result),
         };
         let prompt = prompt_required(input)?;
-        let request = ImageGenerationRequest {
-            model: optional_string(input, "model"),
-            size: optional_string(input, "size"),
-            resolution: optional_string(input, "resolution"),
-            image_urls: resolve_media_image_urls(string_array(input, "image_urls")),
-            n: optional_u8(input, "n"),
-            official_fallback: input
-                .get("official_fallback")
-                .and_then(|value| value.as_bool()),
-            google_search: input.get("google_search").and_then(|value| value.as_bool()),
-            google_image_search: input
-                .get("google_image_search")
-                .and_then(|value| value.as_bool()),
-        };
+        let request = image_generation_request_from_input(input);
         let resolved = validate_image_generation(&request)
             .map_err(|error| VoidError::validation(format!("{error:?}")))?;
         let payload = strip_nulls(Map::from_iter([

@@ -1,4 +1,5 @@
 import type { FlowToolItem } from '../types/flow-chat';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 export type MediaToolKind = 'image' | 'video' | 'audio' | 'upload' | 'media';
 export type MediaToolStatus = 'polling' | 'partial' | 'completed' | 'failed' | 'timeout' | 'error';
@@ -101,7 +102,13 @@ function countNumber(value: unknown): number | undefined {
 }
 
 function localAssetPreviewUrl(localPath: string | undefined): string | undefined {
-  return localPath ? `https://asset.localhost/${encodeURIComponent(localPath)}` : undefined;
+  if (!localPath) return undefined;
+
+  try {
+    return convertFileSrc(localPath);
+  } catch {
+    return undefined;
+  }
 }
 
 function collectAssets(value: unknown, fallbackKind: MediaToolKind): MediaAssetViewModel[] {

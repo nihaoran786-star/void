@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getMediaToolViewModel } from './mediaResult';
 import type { FlowToolItem } from '../types/flow-chat';
 
@@ -28,6 +28,10 @@ function toolNamedWithResult(toolName: string, result: unknown): FlowToolItem {
 }
 
 describe('getMediaToolViewModel', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('tracks polling image batches from submitted tool results', () => {
     const model = getMediaToolViewModel(toolWithResult({
       status: 'polling',
@@ -71,6 +75,12 @@ describe('getMediaToolViewModel', () => {
   });
 
   it('exposes local generated asset paths and local-first preview URLs', () => {
+    vi.stubGlobal('window', {
+      __TAURI_INTERNALS__: {
+        convertFileSrc: vi.fn((path: string, protocol = 'asset') => `${protocol}://local/${encodeURIComponent(path)}`),
+      },
+    });
+
     const model = getMediaToolViewModel(toolWithResult({
       status: 'completed',
       source: 'apimart',
@@ -97,7 +107,7 @@ describe('getMediaToolViewModel', () => {
       url: 'https://cdn.example/a.png',
       localPath: 'C:/repo/.void/media/generated/media-batch-completed/image-001.png',
       saveStatus: 'saved',
-      previewUrl: 'https://asset.localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fmedia-batch-completed%2Fimage-001.png',
+      previewUrl: 'asset://local/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fmedia-batch-completed%2Fimage-001.png',
     });
   });
 

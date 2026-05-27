@@ -5,12 +5,14 @@ import './MediaPreviewOverlay.scss';
 
 export const MediaPreviewOverlay: React.FC = () => {
   const [preview, setPreview] = React.useState<MediaPreviewOpenRequest | null>(null);
+  const [activeUrl, setActiveUrl] = React.useState('');
 
   React.useEffect(() => {
     const handleOpen = (event: Event) => {
       const detail = (event as CustomEvent<MediaPreviewOpenRequest>).detail;
       if (detail?.url) {
         setPreview(detail);
+        setActiveUrl(detail.url);
       }
     };
     window.addEventListener(MEDIA_PREVIEW_EVENT, handleOpen);
@@ -34,6 +36,11 @@ export const MediaPreviewOverlay: React.FC = () => {
 
   const copyValue = preview.localPath || preview.remoteUrl || preview.url;
   const title = preview.title || 'Media Preview';
+  const handleMediaError = () => {
+    if (preview.remoteUrl && preview.remoteUrl !== activeUrl) {
+      setActiveUrl(preview.remoteUrl);
+    }
+  };
 
   return (
     <div className="media-preview-overlay" role="dialog" aria-modal="true" aria-label={title}>
@@ -62,11 +69,11 @@ export const MediaPreviewOverlay: React.FC = () => {
         </header>
         <div className="media-preview-overlay__body">
           {preview.kind === 'video' ? (
-            <video src={preview.url} controls autoPlay />
+            <video src={activeUrl} controls autoPlay onError={handleMediaError} />
           ) : preview.kind === 'audio' ? (
-            <audio src={preview.url} controls autoPlay />
+            <audio src={activeUrl} controls autoPlay onError={handleMediaError} />
           ) : (
-            <img src={preview.url} alt={title} />
+            <img src={activeUrl} alt={title} onError={handleMediaError} />
           )}
         </div>
       </section>

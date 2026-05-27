@@ -67,4 +67,28 @@ describe('MediaPreviewOverlay', () => {
 
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
+
+  it('falls back to the remote URL when the local preview URL cannot load', () => {
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'asset://local/generated.png',
+        remoteUrl: 'https://cdn.example.com/generated-1.png',
+        title: 'Image #1',
+      });
+    });
+
+    const image = container.querySelector('img') as HTMLImageElement;
+    expect(image.src).toBe('asset://local/generated.png');
+
+    act(() => {
+      image.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
+    });
+
+    expect((container.querySelector('img') as HTMLImageElement).src).toBe('https://cdn.example.com/generated-1.png');
+  });
 });
