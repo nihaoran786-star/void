@@ -20,6 +20,7 @@ import { buildAgentCompanionActivity, subscribeAgentCompanionActivity } from '@/
 import { emitAgentCompanionActivity } from '@/flow_chat/services/AgentCompanionActivityBridge';
 import { useWorkspaceContext } from '../infrastructure/contexts/WorkspaceContext';
 import SplashScreen from './components/SplashScreen/SplashScreen';
+import { CompactChatDesktopBridge } from './components/CompactChatDesktopWindow/CompactChatDesktopBridge';
 import { useGlobalSceneShortcuts } from './hooks/useGlobalSceneShortcuts';
 import { useDebugInspector } from '@/infrastructure/debug/useDebugInspector';
 import { openAgentCompanionSession } from './services/openAgentCompanionSession';
@@ -352,6 +353,8 @@ function App() {
       <ViewModeProvider defaultMode="coder">
         <SSHRemoteProvider>
           <ToolbarModeProvider>
+            <CompactChatDesktopBridge />
+
             {/* Unified app layout with startup/workspace modes */}
             <AppLayout />
 

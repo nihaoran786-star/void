@@ -34,6 +34,22 @@
       "centerAriaLabel": "Resize panel",
       "rightAriaLabel": "Resize right panel",
       "title": "Drag to resize | Double-click to switch mode | Current: {{mode}}"
+    },
+    "previewFirst": {
+      "toggle": "Preview-first chat window"
+    }
+  },
+  "compactChat": {
+    "title": "Compact Chat",
+    "dragHandle": "Drag compact chat window",
+    "close": "Close compact chat",
+    "unavailable": {
+      "title": "No active chat",
+      "description": "Choose a session in the main window to show it here."
+    },
+    "empty": {
+      "title": "Chat is ready",
+      "description": "Send a message to start using this session."
     }
   },
   "runtimeStatus": {

@@ -19,8 +19,7 @@ import { useApp } from '../hooks/useApp';
 import { useSceneStore } from '../stores/sceneStore';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { configManager } from '@/infrastructure/config';
-
-type TransitionDirection = 'entering' | 'returning' | null;
+import { appManager } from '../services/AppManager';
 import { FlowChatManager } from '../../flow_chat/services/FlowChatManager';
 import WorkspaceBody from './WorkspaceBody';
 import { ToolbarMode, useToolbarModeContext } from '../../flow_chat';
@@ -40,9 +39,17 @@ import { WorkspaceKind } from '@/shared/types';
 import { SSHContext } from '@/features/ssh-remote/SSHRemoteContext';
 import { shortcutManager, parseStoredKeybindings } from '@/infrastructure/services/ShortcutManager';
 import { useSessionModeStore } from '../stores/sessionModeStore';
-import { isMacOSDesktopRuntime } from '@/infrastructure/runtime';
+import { isMacOSDesktopRuntime, isTauriRuntime } from '@/infrastructure/runtime';
+import {
+  openCompactChatFloatingWindow,
+  closeCompactChatFloatingWindow,
+} from '@/infrastructure/config/services/CompactChatWindowService';
+import { emitCompactChatPresentation } from '@/flow_chat/services/CompactChatPresentationBridge';
 import { MediaPreviewOverlay } from '@/shared/services/preview/MediaPreviewOverlay';
+import { setPreviewFirstLayout } from './previewFirstController';
 import './AppLayout.scss';
+
+type TransitionDirection = 'entering' | 'returning' | null;
 
 const log = createLogger('AppLayout');
 
@@ -526,6 +533,39 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     },
     { priority: 5, description: 'keyboard.shortcuts.panel.toggleBoth' }
   );
+
+  const applyPreviewFirst = useCallback((enabled: boolean) => {
+    void setPreviewFirstLayout(enabled, {
+      isSupported: isTauriRuntime,
+      updateLayout: (layout) => appManager.updateLayout(layout),
+      openFloatingChat: async () => {
+        await openCompactChatFloatingWindow();
+        await emitCompactChatPresentation();
+      },
+      closeFloatingChat: closeCompactChatFloatingWindow,
+    });
+  }, []);
+
+  useShortcut(
+    'layout.previewFirst',
+    { key: 'P', ctrl: true, alt: true, scope: 'app' },
+    () => {
+      applyPreviewFirst(!state.layout.chatCollapsed);
+    },
+    {
+      priority: 6,
+      description: 'keyboard.shortcuts.layout.previewFirst',
+      enabled: isAgentScene,
+    }
+  );
+
+  React.useEffect(() => {
+    const handler = () => {
+      applyPreviewFirst(!appManager.getState().layout.chatCollapsed);
+    };
+    window.addEventListener('void:toggle-preview-first', handler);
+    return () => window.removeEventListener('void:toggle-preview-first', handler);
+  }, [applyPreviewFirst]);
 
   // Toolbar cancel task
   React.useEffect(() => {

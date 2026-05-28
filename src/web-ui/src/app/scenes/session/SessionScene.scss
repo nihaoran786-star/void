@@ -42,6 +42,42 @@
   }
 }
 
+.void-session-scene__preview-first-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: $z-sticky + 1;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 78%, transparent);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0.5;
+  backdrop-filter: blur(10px);
+  transition:
+    opacity $motion-fast $easing-standard,
+    color $motion-fast $easing-standard,
+    background $motion-fast $easing-standard,
+    border-color $motion-fast $easing-standard;
+
+  &:hover,
+  &--active {
+    opacity: 1;
+    color: var(--color-text-primary);
+    border-color: var(--border-medium);
+    background: color-mix(in srgb, var(--color-bg-elevated) 94%, transparent);
+  }
+
+  &--active {
+    color: var(--color-accent-500);
+  }
+}
+
 
 .void-session-scene__chat-pane {
   flex: 1 1 auto;

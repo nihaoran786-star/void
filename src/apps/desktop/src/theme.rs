@@ -16,9 +16,21 @@ const AGENT_COMPANION_WINDOW_MAX_WIDTH: f64 = 360.0;
 const AGENT_COMPANION_WINDOW_MAX_HEIGHT: f64 = 240.0;
 const AGENT_COMPANION_WINDOW_MARGIN: i32 = 64;
 const AGENT_COMPANION_WINDOW_EDGE_MARGIN: f64 = 8.0;
+const COMPACT_CHAT_WINDOW_LABEL: &str = "compact-chat-floating";
+const COMPACT_CHAT_WINDOW_DEFAULT_WIDTH: f64 = 420.0;
+const COMPACT_CHAT_WINDOW_DEFAULT_HEIGHT: f64 = 680.0;
+const COMPACT_CHAT_WINDOW_MIN_WIDTH: f64 = 320.0;
+const COMPACT_CHAT_WINDOW_MIN_HEIGHT: f64 = 420.0;
+const COMPACT_CHAT_WINDOW_MAX_WIDTH: f64 = 560.0;
+const COMPACT_CHAT_WINDOW_MAX_HEIGHT: f64 = 760.0;
+const COMPACT_CHAT_WINDOW_MARGIN: i32 = 64;
+const COMPACT_CHAT_WINDOW_EDGE_MARGIN: f64 = 8.0;
 
 static AGENT_COMPANION_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 static AGENT_COMPANION_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
+    OnceLock::new();
+static COMPACT_CHAT_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+static COMPACT_CHAT_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
     OnceLock::new();
 
 fn agent_companion_window_ops() -> &'static tokio::sync::Mutex<()> {
@@ -27,6 +39,14 @@ fn agent_companion_window_ops() -> &'static tokio::sync::Mutex<()> {
 
 fn agent_companion_window_last_position() -> &'static RwLock<Option<tauri::LogicalPosition<f64>>> {
     AGENT_COMPANION_WINDOW_LAST_POSITION.get_or_init(|| RwLock::new(None))
+}
+
+fn compact_chat_window_ops() -> &'static tokio::sync::Mutex<()> {
+    COMPACT_CHAT_WINDOW_OPS.get_or_init(|| tokio::sync::Mutex::new(()))
+}
+
+fn compact_chat_window_last_position() -> &'static RwLock<Option<tauri::LogicalPosition<f64>>> {
+    COMPACT_CHAT_WINDOW_LAST_POSITION.get_or_init(|| RwLock::new(None))
 }
 
 fn remember_agent_companion_window_position(position: tauri::LogicalPosition<f64>) {
@@ -45,6 +65,24 @@ fn remember_agent_companion_window_position(position: tauri::LogicalPosition<f64
 
 fn remembered_agent_companion_window_position() -> Option<tauri::LogicalPosition<f64>> {
     agent_companion_window_last_position()
+        .read()
+        .ok()
+        .and_then(|position| *position)
+}
+
+fn remember_compact_chat_window_position(position: tauri::LogicalPosition<f64>) {
+    match compact_chat_window_last_position().write() {
+        Ok(mut last_position) => {
+            *last_position = Some(position);
+        }
+        Err(error) => {
+            warn!("Failed to remember compact chat window position: {}", error);
+        }
+    }
+}
+
+fn remembered_compact_chat_window_position() -> Option<tauri::LogicalPosition<f64>> {
+    compact_chat_window_last_position()
         .read()
         .ok()
         .and_then(|position| *position)
@@ -83,6 +121,34 @@ fn clamp_agent_companion_window_position(
     let max_x = area_position.x + area_size.width - size.width - AGENT_COMPANION_WINDOW_EDGE_MARGIN;
     let max_y =
         area_position.y + area_size.height - size.height - AGENT_COMPANION_WINDOW_EDGE_MARGIN;
+    tauri::LogicalPosition::new(
+        if max_x >= min_x {
+            position.x.clamp(min_x, max_x)
+        } else {
+            area_position.x
+        },
+        if max_y >= min_y {
+            position.y.clamp(min_y, max_y)
+        } else {
+            area_position.y
+        },
+    )
+}
+
+fn clamp_compact_chat_window_position(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    position: tauri::LogicalPosition<f64>,
+    size: tauri::LogicalSize<f64>,
+) -> tauri::LogicalPosition<f64> {
+    let Some((area_position, area_size)) = work_area_for_agent_companion_window(app, window) else {
+        return position;
+    };
+
+    let min_x = area_position.x + COMPACT_CHAT_WINDOW_EDGE_MARGIN;
+    let min_y = area_position.y + COMPACT_CHAT_WINDOW_EDGE_MARGIN;
+    let max_x = area_position.x + area_size.width - size.width - COMPACT_CHAT_WINDOW_EDGE_MARGIN;
+    let max_y = area_position.y + area_size.height - size.height - COMPACT_CHAT_WINDOW_EDGE_MARGIN;
     tauri::LogicalPosition::new(
         if max_x >= min_x {
             position.x.clamp(min_x, max_x)
@@ -600,6 +666,117 @@ fn resize_agent_companion_window(
     }
 }
 
+fn compact_chat_default_position(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+) -> Option<tauri::LogicalPosition<f64>> {
+    let (area_position, area_size) = work_area_for_agent_companion_window(app, window)?;
+    let x = area_position.x + area_size.width
+        - COMPACT_CHAT_WINDOW_DEFAULT_WIDTH
+        - f64::from(COMPACT_CHAT_WINDOW_MARGIN);
+    let y = area_position.y + area_size.height
+        - COMPACT_CHAT_WINDOW_DEFAULT_HEIGHT
+        - f64::from(COMPACT_CHAT_WINDOW_MARGIN);
+
+    Some(clamp_compact_chat_window_position(
+        app,
+        window,
+        tauri::LogicalPosition::new(x, y),
+        tauri::LogicalSize::new(
+            COMPACT_CHAT_WINDOW_DEFAULT_WIDTH,
+            COMPACT_CHAT_WINDOW_DEFAULT_HEIGHT,
+        ),
+    ))
+}
+
+fn compact_chat_window_effective_size(window: &tauri::WebviewWindow) -> tauri::LogicalSize<f64> {
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+    let size = window
+        .outer_size()
+        .ok()
+        .map(|size| size.to_logical::<f64>(scale_factor))
+        .unwrap_or_else(|| {
+            tauri::LogicalSize::new(
+                COMPACT_CHAT_WINDOW_DEFAULT_WIDTH,
+                COMPACT_CHAT_WINDOW_DEFAULT_HEIGHT,
+            )
+        });
+
+    tauri::LogicalSize::new(
+        size.width
+            .clamp(COMPACT_CHAT_WINDOW_MIN_WIDTH, COMPACT_CHAT_WINDOW_MAX_WIDTH),
+        size.height
+            .clamp(COMPACT_CHAT_WINDOW_MIN_HEIGHT, COMPACT_CHAT_WINDOW_MAX_HEIGHT),
+    )
+}
+
+fn position_compact_chat_window(app: &tauri::AppHandle, window: &tauri::WebviewWindow) {
+    let Some(position) = remembered_compact_chat_window_position()
+        .or_else(|| compact_chat_default_position(app, window))
+    else {
+        return;
+    };
+
+    let size = compact_chat_window_effective_size(window);
+    let position = clamp_compact_chat_window_position(app, window, position, size);
+
+    if let Err(e) = window.set_position(position) {
+        warn!("Failed to position compact chat window: {}", e);
+    } else {
+        remember_compact_chat_window_position(position);
+    }
+}
+
+fn resize_compact_chat_window(
+    app: &tauri::AppHandle,
+    window: &tauri::WebviewWindow,
+    width: f64,
+    height: f64,
+) {
+    if !width.is_finite() || !height.is_finite() {
+        warn!(
+            "Ignored invalid compact chat window size: width={}, height={}",
+            width, height
+        );
+        return;
+    }
+
+    let width = width.clamp(COMPACT_CHAT_WINDOW_MIN_WIDTH, COMPACT_CHAT_WINDOW_MAX_WIDTH);
+    let height = height.clamp(COMPACT_CHAT_WINDOW_MIN_HEIGHT, COMPACT_CHAT_WINDOW_MAX_HEIGHT);
+    let scale_factor = window.scale_factor().unwrap_or(1.0);
+    let old_size = compact_chat_window_effective_size(window);
+    if (old_size.width - width).abs() < 0.5 && (old_size.height - height).abs() < 0.5 {
+        return;
+    }
+
+    let old_position = window
+        .outer_position()
+        .ok()
+        .map(|position| position.to_logical::<f64>(scale_factor));
+
+    if let Err(e) = window.set_size(tauri::LogicalSize::new(width, height)) {
+        warn!("Failed to resize compact chat window: {}", e);
+        return;
+    }
+
+    if let Some(position) = old_position {
+        let next_position = clamp_compact_chat_window_position(
+            app,
+            window,
+            tauri::LogicalPosition::new(
+                position.x + old_size.width - width,
+                position.y + old_size.height - height,
+            ),
+            tauri::LogicalSize::new(width, height),
+        );
+        if let Err(e) = window.set_position(next_position) {
+            warn!("Failed to position compact chat window: {}", e);
+        } else {
+            remember_compact_chat_window_position(next_position);
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn show_agent_companion_desktop_pet(app: tauri::AppHandle) -> Result<(), String> {
     let started_at = Instant::now();
@@ -730,6 +907,138 @@ pub async fn hide_agent_companion_desktop_pet(app: tauri::AppHandle) -> Result<(
         window.destroy().map_err(|e| {
             error!("Failed to destroy Agent companion window: {}", e);
             format!("Failed to destroy Agent companion window: {}", e)
+        })?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn show_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let started_at = Instant::now();
+    let _guard = compact_chat_window_ops().lock().await;
+    debug!("Compact chat window show requested");
+
+    if let Some(window) = app.get_webview_window(COMPACT_CHAT_WINDOW_LABEL) {
+        if let Err(e) = window.unminimize() {
+            warn!("Failed to unminimize compact chat window: {}", e);
+        }
+        position_compact_chat_window(&app, &window);
+        window.show().map_err(|e| {
+            error!("Failed to show compact chat window: {}", e);
+            format!("Failed to show compact chat window: {}", e)
+        })?;
+        if let Err(e) = window.set_focus() {
+            warn!("Failed to focus compact chat window: {}", e);
+        }
+        debug!(
+            "Compact chat window reused: total_duration_ms={}",
+            started_at.elapsed().as_millis()
+        );
+        return Ok(());
+    }
+
+    let url = app_url("?voidWindow=compact-chat");
+    let mut builder = tauri::WebviewWindowBuilder::new(&app, COMPACT_CHAT_WINDOW_LABEL, url)
+        .title("Void Compact Chat")
+        .inner_size(
+            COMPACT_CHAT_WINDOW_DEFAULT_WIDTH,
+            COMPACT_CHAT_WINDOW_DEFAULT_HEIGHT,
+        )
+        .min_inner_size(COMPACT_CHAT_WINDOW_MIN_WIDTH, COMPACT_CHAT_WINDOW_MIN_HEIGHT)
+        .max_inner_size(COMPACT_CHAT_WINDOW_MAX_WIDTH, COMPACT_CHAT_WINDOW_MAX_HEIGHT)
+        .resizable(true)
+        .decorations(false)
+        .transparent(true)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .shadow(false)
+        .visible(false)
+        .accept_first_mouse(true)
+        .background_color(tauri::window::Color(0, 0, 0, 0))
+        .on_page_load({
+            let started_at = started_at;
+            move |_window, payload| {
+                let event = match payload.event() {
+                    PageLoadEvent::Started => "started",
+                    PageLoadEvent::Finished => "finished",
+                };
+                debug!(
+                    "Compact chat window page load event: event={}, url={}, since_show_request_ms={}",
+                    event,
+                    payload.url(),
+                    started_at.elapsed().as_millis()
+                );
+            }
+        });
+
+    builder = builder.disable_drag_drop_handler();
+
+    let build_started_at = Instant::now();
+    let window = builder.build().map_err(|e| {
+        error!(
+            "Failed to create compact chat window: error={} duration_ms={}",
+            e,
+            build_started_at.elapsed().as_millis()
+        );
+        format!("Failed to create compact chat window: {}", e)
+    })?;
+    debug!(
+        "Compact chat window creation step completed: step=build duration_ms={} total_duration_ms={}",
+        build_started_at.elapsed().as_millis(),
+        started_at.elapsed().as_millis()
+    );
+
+    position_compact_chat_window(&app, &window);
+
+    window.show().map_err(|e| {
+        error!("Failed to show compact chat window: {}", e);
+        format!("Failed to show compact chat window: {}", e)
+    })?;
+    if let Err(e) = window.set_focus() {
+        warn!("Failed to focus compact chat window: {}", e);
+    }
+    debug!(
+        "Compact chat window shown: total_duration_ms={}",
+        started_at.elapsed().as_millis()
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn resize_compact_chat_desktop_window(
+    app: tauri::AppHandle,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    let _guard = compact_chat_window_ops().lock().await;
+    if let Some(window) = app.get_webview_window(COMPACT_CHAT_WINDOW_LABEL) {
+        let app_for_resize = app.clone();
+        let window_for_resize = window.clone();
+        window
+            .run_on_main_thread(move || {
+                resize_compact_chat_window(&app_for_resize, &window_for_resize, width, height);
+            })
+            .map_err(|e| {
+                warn!("Failed to schedule compact chat window resize: {}", e);
+                format!("Failed to schedule compact chat window resize: {}", e)
+            })?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn hide_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let _guard = compact_chat_window_ops().lock().await;
+    if let Some(window) = app.get_webview_window(COMPACT_CHAT_WINDOW_LABEL) {
+        if let Ok(scale_factor) = window.scale_factor() {
+            if let Ok(position) = window.outer_position() {
+                remember_compact_chat_window_position(position.to_logical::<f64>(scale_factor));
+            }
+        }
+        window.destroy().map_err(|e| {
+            error!("Failed to destroy compact chat window: {}", e);
+            format!("Failed to destroy compact chat window: {}", e)
         })?;
     }
     Ok(())

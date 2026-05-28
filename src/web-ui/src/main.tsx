@@ -1,6 +1,7 @@
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import AgentCompanionDesktopPet from "./app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet";
+import CompactChatDesktopWindow from "./app/components/CompactChatDesktopWindow/CompactChatDesktopWindow";
 import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
 import "./app/styles/index.scss";
@@ -350,6 +351,8 @@ async function startApplication(): Promise<void> {
   const { I18nProvider } = i18nProviderImportResult.value;
   const isAgentCompanionWindow = new URLSearchParams(window.location.search)
     .get('voidWindow') === 'agent-companion';
+  const isCompactChatWindow = new URLSearchParams(window.location.search)
+    .get('voidWindow') === 'compact-chat';
 
   const renderStartedAt = nowMs();
   if (isAgentCompanionWindow) {
@@ -370,6 +373,27 @@ async function startApplication(): Promise<void> {
       sinceStartupMs: elapsedMs(appStartedAt),
     });
     startupTrace.flushSummary('agent_companion_render_scheduled');
+    return;
+  }
+
+  if (isCompactChatWindow) {
+    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+      <AppErrorBoundary>
+        <I18nProvider>
+          <CompactChatDesktopWindow />
+        </I18nProvider>
+      </AppErrorBoundary>
+    );
+    logElapsed(log, 'Startup step completed', renderStartedAt, {
+      data: {
+        step: 'scheduleCompactChatRender',
+        sinceStartupMs: elapsedMs(appStartedAt),
+      },
+    });
+    startupTrace.markPhase('compact_chat_render_scheduled', {
+      sinceStartupMs: elapsedMs(appStartedAt),
+    });
+    startupTrace.flushSummary('compact_chat_render_scheduled');
     return;
   }
 

@@ -34,6 +34,22 @@
       "centerAriaLabel": "調整面板大小",
       "rightAriaLabel": "調整右側面板大小",
       "title": "拖拽調整面板大小 | 雙擊切換模式 | 當前: {{mode}}"
+    },
+    "previewFirst": {
+      "toggle": "預覽優先聊天窗"
+    }
+  },
+  "compactChat": {
+    "title": "緊湊聊天",
+    "dragHandle": "拖拽緊湊聊天窗",
+    "close": "關閉緊湊聊天",
+    "unavailable": {
+      "title": "沒有活動會話",
+      "description": "請在主視窗選擇一個會話，它會顯示在這裡。"
+    },
+    "empty": {
+      "title": "聊天已就緒",
+      "description": "傳送訊息即可繼續目前會話。"
     }
   },
   "runtimeStatus": {
