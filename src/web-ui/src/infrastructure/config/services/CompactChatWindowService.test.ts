@@ -2,9 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeCompactChatFloatingWindow,
   getCompactChatFloatingWindowStatus,
+  minimizeCompactChatFloatingWindow,
   openCompactChatFloatingWindow,
+  revealCompactChatFloatingWindow,
   resizeCompactChatFloatingWindow,
   startCompactChatFloatingWindowDrag,
+  startCompactChatFloatingWindowResize,
 } from './CompactChatWindowService';
 
 const runtimeMock = vi.hoisted(() => ({
@@ -18,7 +21,9 @@ const tauriCore = vi.hoisted(() => ({
 
 const tauriWindow = vi.hoisted(() => ({
   getCurrentWindow: vi.fn(() => ({
+    minimize: vi.fn(),
     startDragging: vi.fn(),
+    startResizeDragging: vi.fn(),
   })),
 }));
 
@@ -62,6 +67,12 @@ describe('CompactChatWindowService', () => {
     expect(tauriCore.invoke).toHaveBeenCalledWith('hide_compact_chat_desktop_window');
   });
 
+  it('reveals the prepared desktop window only after the compact chat surface is ready', async () => {
+    await revealCompactChatFloatingWindow();
+
+    expect(tauriCore.invoke).toHaveBeenCalledWith('reveal_compact_chat_desktop_window');
+  });
+
   it('resizes with bounded dimensions and no session identity', async () => {
     await resizeCompactChatFloatingWindow({ width: 420, height: 680 });
 
@@ -83,5 +94,24 @@ describe('CompactChatWindowService', () => {
     await startCompactChatFloatingWindowDrag();
 
     expect(startDragging).toHaveBeenCalledTimes(2);
+  });
+
+  it('minimizes the compact chat presentation through the current desktop window', async () => {
+    const minimize = vi.fn();
+    tauriWindow.getCurrentWindow.mockReturnValue({ minimize });
+
+    await minimizeCompactChatFloatingWindow();
+
+    expect(minimize).toHaveBeenCalledTimes(1);
+    expect(tauriCore.invoke).not.toHaveBeenCalled();
+  });
+
+  it('starts native resize dragging for a specific borderless window edge', async () => {
+    const startResizeDragging = vi.fn();
+    tauriWindow.getCurrentWindow.mockReturnValue({ startResizeDragging });
+
+    await startCompactChatFloatingWindowResize('SouthEast');
+
+    expect(startResizeDragging).toHaveBeenCalledWith('SouthEast');
   });
 });

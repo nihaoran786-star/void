@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, GripHorizontal, Square, X } from 'lucide-react';
+import { ArrowUp, GripHorizontal, Minus, Square, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FlowTextBlock } from '@/flow_chat/components/FlowTextBlock';
 import { FlowToolCard } from '@/flow_chat/components/FlowToolCard';
@@ -7,6 +7,7 @@ import { useImeEnterGuard } from '@/flow_chat/hooks/useImeEnterGuard';
 import {
   listenCompactChatPresentation,
   requestCompactChatCancelTask,
+  requestCompactChatClose,
   requestCompactChatPresentation,
   sendCompactChatMessage,
   type CompactChatPresentation,
@@ -14,14 +15,27 @@ import {
 import { ModelThinkingDisplay } from '@/flow_chat/tool-cards/ModelThinkingDisplay';
 import type { AnyFlowItem, FlowTextItem, FlowThinkingItem, FlowToolItem } from '@/flow_chat/types/flow-chat';
 import {
-  closeCompactChatFloatingWindow,
+  minimizeCompactChatFloatingWindow,
+  revealCompactChatFloatingWindow,
   resizeCompactChatFloatingWindow,
   startCompactChatFloatingWindowDrag,
+  startCompactChatFloatingWindowResize,
+  type CompactChatResizeDirection,
 } from '@/infrastructure/config/services/CompactChatWindowService';
 import './CompactChatDesktopWindow.scss';
 
 const DEFAULT_WINDOW_SIZE = { width: 420, height: 680 };
 const MAX_RENDERED_TURNS = 12;
+const RESIZE_DIRECTIONS: CompactChatResizeDirection[] = [
+  'North',
+  'NorthEast',
+  'East',
+  'SouthEast',
+  'South',
+  'SouthWest',
+  'West',
+  'NorthWest',
+];
 
 interface CompactChatFlowItemProps {
   item: AnyFlowItem;
@@ -72,6 +86,7 @@ export const CompactChatDesktopWindow: React.FC = () => {
     status: 'unavailable',
     reason: 'no-active-session',
   });
+  const [hasReceivedPresentation, setHasReceivedPresentation] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const shellRef = useRef<HTMLDivElement>(null);
   const lastPresentationSequenceRef = useRef(0);
@@ -93,6 +108,7 @@ export const CompactChatDesktopWindow: React.FC = () => {
         }
         lastPresentationSequenceRef.current = sequence;
       }
+      setHasReceivedPresentation(true);
       setPresentation(nextPresentation);
     }).then(unlisten => {
       if (disposed) {
@@ -110,6 +126,11 @@ export const CompactChatDesktopWindow: React.FC = () => {
       document.body.classList.remove('void-compact-chat-window-body');
     };
   }, []);
+
+  useEffect(() => {
+    if (!hasReceivedPresentation) return;
+    void revealCompactChatFloatingWindow();
+  }, [hasReceivedPresentation]);
 
   const activeSessionId = presentation.status === 'ready'
     ? presentation.activeSession.sessionId
@@ -150,13 +171,46 @@ export const CompactChatDesktopWindow: React.FC = () => {
     void startCompactChatFloatingWindowDrag();
   }, []);
 
+  const handleResizePointerDown = useCallback((
+    event: React.PointerEvent<HTMLSpanElement>,
+    direction: CompactChatResizeDirection,
+  ) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void startCompactChatFloatingWindowResize(direction);
+  }, []);
+
   const visibleTurns = presentation.status === 'ready'
     ? presentation.activeSession.dialogTurns.slice(-MAX_RENDERED_TURNS)
     : [];
 
+  if (!hasReceivedPresentation) {
+    return (
+      <main
+        className="void-compact-chat-window void-compact-chat-window--booting"
+        ref={shellRef}
+        aria-hidden="true"
+      />
+    );
+  }
+
   return (
     <main className="void-compact-chat-window" ref={shellRef}>
-      <section className="void-compact-chat-window__shell" aria-label={t('compactChat.title')}>
+      {RESIZE_DIRECTIONS.map(direction => (
+        <span
+          key={direction}
+          className={`void-compact-chat-window__resize-handle void-compact-chat-window__resize-handle--${direction.toLowerCase()}`}
+          data-resize-direction={direction}
+          onPointerDown={(event) => handleResizePointerDown(event, direction)}
+          aria-hidden="true"
+        />
+      ))}
+      <section
+        className="void-compact-chat-window__shell"
+        data-testid="compact-chat-surface"
+        aria-label={t('compactChat.title')}
+      >
         <div
           className="void-compact-chat-window__drag-bar"
           onPointerDown={handlePointerDown}
@@ -172,8 +226,20 @@ export const CompactChatDesktopWindow: React.FC = () => {
           <button
             type="button"
             className="void-compact-chat-window__icon-button"
+            data-testid="compact-chat-minimize"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => void closeCompactChatFloatingWindow()}
+            onClick={() => void minimizeCompactChatFloatingWindow()}
+            aria-label={t('compactChat.minimize')}
+            title={t('compactChat.minimize')}
+          >
+            <Minus size={14} />
+          </button>
+          <button
+            type="button"
+            className="void-compact-chat-window__icon-button"
+            data-testid="compact-chat-close"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={() => void requestCompactChatClose()}
             aria-label={t('compactChat.close')}
             title={t('compactChat.close')}
           >

@@ -27,6 +27,9 @@ interface ChatPaneProps {
   workspacePath?: string;
   isDragging?: boolean;
   showChatInput?: boolean;
+  showPreviewFirstToggle?: boolean;
+  isPreviewFirstActive?: boolean;
+  onPreviewFirstToggle?: () => void;
 }
 
 const ChatPaneInner: React.FC<ChatPaneProps> = ({
@@ -35,6 +38,9 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
   workspacePath,
   isDragging: _isDragging = false,
   showChatInput = false,
+  showPreviewFirstToggle = false,
+  isPreviewFirstActive = false,
+  onPreviewFirstToggle,
 }) => {
   const addTab = useCanvasStore(state => state.addTab);
   const deferredTaskDetailTimersRef = useRef<number[]>([]);
@@ -156,6 +162,9 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
           showTimestamps: false,
           theme: 'auto'
         }}
+        showPreviewFirstToggle={showPreviewFirstToggle}
+        isPreviewFirstActive={isPreviewFirstActive}
+        onPreviewFirstToggle={onPreviewFirstToggle}
       />
       {showChatInput && <ChatInput onSendMessage={(_message: string) => {}} />}
     </div>

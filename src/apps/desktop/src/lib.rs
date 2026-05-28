@@ -636,6 +636,7 @@ pub async fn run() {
             theme::resize_agent_companion_desktop_pet,
             theme::show_compact_chat_desktop_window,
             theme::hide_compact_chat_desktop_window,
+            theme::reveal_compact_chat_desktop_window,
             theme::resize_compact_chat_desktop_window,
             list_agent_companion_pets,
             import_agent_companion_pet_package,

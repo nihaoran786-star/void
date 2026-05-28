@@ -5,8 +5,10 @@ import {
   buildCompactChatPresentationFromSession,
   emitCompactChatPresentation,
   listenCompactChatCancelTaskRequests,
+  listenCompactChatCloseRequests,
   listenCompactChatPresentationRequests,
   requestCompactChatCancelTask,
+  requestCompactChatClose,
   requestCompactChatPresentation,
   sendCompactChatMessage,
   subscribeCompactChatPresentationSources,
@@ -172,6 +174,13 @@ describe('CompactChatPresentationBridge', () => {
     expect(tauriEvent.emitTo).not.toHaveBeenCalled();
   });
 
+  it('asks the main window to close compact chat so layout state can be restored', async () => {
+    await requestCompactChatClose();
+
+    expect(tauriEvent.emit).toHaveBeenCalledWith('compact-chat://close-request', {});
+    expect(tauriEvent.emitTo).not.toHaveBeenCalled();
+  });
+
   it('listens for presentation requests at the main window boundary', async () => {
     const unlisten = vi.fn();
     tauriEvent.listen.mockImplementation((_eventName: string, handler: () => void) => {
@@ -200,6 +209,22 @@ describe('CompactChatPresentationBridge', () => {
 
     expect(tauriEvent.listen).toHaveBeenCalledWith('compact-chat://cancel-task', expect.any(Function));
     expect(handler).toHaveBeenCalledWith({ sessionId: 'session-1' });
+    remove();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it('listens for close requests at the main window boundary', async () => {
+    const unlisten = vi.fn();
+    tauriEvent.listen.mockImplementation((_eventName: string, handler: () => void) => {
+      handler();
+      return Promise.resolve(unlisten);
+    });
+    const handler = vi.fn();
+
+    const remove = await listenCompactChatCloseRequests(handler);
+
+    expect(tauriEvent.listen).toHaveBeenCalledWith('compact-chat://close-request', expect.any(Function));
+    expect(handler).toHaveBeenCalledTimes(1);
     remove();
     expect(unlisten).toHaveBeenCalledTimes(1);
   });

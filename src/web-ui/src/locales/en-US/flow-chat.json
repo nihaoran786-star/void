@@ -42,6 +42,7 @@
   "compactChat": {
     "title": "Compact Chat",
     "dragHandle": "Drag compact chat window",
+    "minimize": "Minimize compact chat",
     "close": "Close compact chat",
     "unavailable": {
       "title": "No active chat",

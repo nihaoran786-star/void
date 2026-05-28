@@ -919,6 +919,9 @@ pub async fn show_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(
     debug!("Compact chat window show requested");
 
     if let Some(window) = app.get_webview_window(COMPACT_CHAT_WINDOW_LABEL) {
+        if let Err(e) = window.set_skip_taskbar(false) {
+            warn!("Failed to keep compact chat window in taskbar: {}", e);
+        }
         if let Err(e) = window.unminimize() {
             warn!("Failed to unminimize compact chat window: {}", e);
         }
@@ -950,7 +953,7 @@ pub async fn show_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(
         .decorations(false)
         .transparent(true)
         .always_on_top(true)
-        .skip_taskbar(true)
+        .skip_taskbar(false)
         .shadow(false)
         .visible(false)
         .accept_first_mouse(true)
@@ -989,16 +992,40 @@ pub async fn show_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(
     );
 
     position_compact_chat_window(&app, &window);
+    debug!(
+        "Compact chat window prepared hidden: total_duration_ms={}",
+        started_at.elapsed().as_millis()
+    );
 
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reveal_compact_chat_desktop_window(app: tauri::AppHandle) -> Result<(), String> {
+    let started_at = Instant::now();
+    let _guard = compact_chat_window_ops().lock().await;
+
+    let Some(window) = app.get_webview_window(COMPACT_CHAT_WINDOW_LABEL) else {
+        warn!("Compact chat window reveal requested before window exists");
+        return Ok(());
+    };
+
+    if let Err(e) = window.set_skip_taskbar(false) {
+        warn!("Failed to keep compact chat window in taskbar: {}", e);
+    }
+    if let Err(e) = window.unminimize() {
+        warn!("Failed to unminimize compact chat window: {}", e);
+    }
+    position_compact_chat_window(&app, &window);
     window.show().map_err(|e| {
-        error!("Failed to show compact chat window: {}", e);
-        format!("Failed to show compact chat window: {}", e)
+        error!("Failed to reveal compact chat window: {}", e);
+        format!("Failed to reveal compact chat window: {}", e)
     })?;
     if let Err(e) = window.set_focus() {
         warn!("Failed to focus compact chat window: {}", e);
     }
     debug!(
-        "Compact chat window shown: total_duration_ms={}",
+        "Compact chat window revealed: total_duration_ms={}",
         started_at.elapsed().as_millis()
     );
 

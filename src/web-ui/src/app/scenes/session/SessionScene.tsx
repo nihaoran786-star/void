@@ -11,10 +11,10 @@
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PictureInPicture2 } from 'lucide-react';
 import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
 import AuxPane, { type AuxPaneRef } from './AuxPane';
+import { isTauriRuntime } from '@/infrastructure/runtime';
 
 import {
   RIGHT_PANEL_CONFIG,
@@ -179,6 +179,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   const isRightAsMain = state.layout.chatCollapsed;
   const isChatHidden = state.layout.centerPanelCollapsed || isRightAsMain;
+  const canUsePreviewFirstFloatingChat = isTauriRuntime();
 
   const panelModeLabels = useMemo(() => ({
     collapsed:    t('layout.panelMode.collapsed'),
@@ -208,19 +209,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       ].filter(Boolean).join(' ')}
       style={panelCollapseHintStyles}
     >
-      <button
-        type="button"
-        className={[
-          'void-session-scene__preview-first-button',
-          isRightAsMain && 'void-session-scene__preview-first-button--active',
-        ].filter(Boolean).join(' ')}
-        onClick={handlePreviewFirstToggle}
-        aria-label={t('layout.previewFirst.toggle')}
-        title={t('layout.previewFirst.toggle')}
-      >
-        <PictureInPicture2 size={13} />
-      </button>
-
       {/* ChatPane — FlowChat conversation */}
       {!isChatHidden && (
         <div
@@ -232,6 +220,9 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             isDragging={false}
             workspacePath={workspacePath}
             showChatInput
+            showPreviewFirstToggle={canUsePreviewFirstFloatingChat}
+            isPreviewFirstActive={isRightAsMain}
+            onPreviewFirstToggle={handlePreviewFirstToggle}
           />
         </div>
       )}

@@ -5,6 +5,7 @@ import { FlowChatManager } from '@/flow_chat/services/FlowChatManager';
 import {
   emitCompactChatPresentation,
   listenCompactChatCancelTaskRequests,
+  listenCompactChatCloseRequests,
   listenCompactChatMessageRequests,
   listenCompactChatPresentationRequests,
   subscribeCompactChatPresentationSource,
@@ -86,6 +87,28 @@ export const CompactChatDesktopBridge = () => {
           error,
         });
       }
+    }).then(removeListener => {
+      if (disposed) {
+        removeListener();
+      } else {
+        unlisten = removeListener;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+
+    let disposed = false;
+    let unlisten: (() => void) | null = null;
+    void listenCompactChatCloseRequests(() => {
+      if (disposed) return;
+      window.dispatchEvent(new CustomEvent('void:compact-chat-close-requested'));
     }).then(removeListener => {
       if (disposed) {
         removeListener();

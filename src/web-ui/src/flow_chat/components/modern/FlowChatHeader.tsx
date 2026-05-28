@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Bot, ChevronDown, ChevronUp, GitPullRequest, List, Search, X } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, GitPullRequest, List, PictureInPicture2, Search, X } from 'lucide-react';
 import { Tooltip, IconButton, Input } from '@/component-library';
 import { useTranslation } from 'react-i18next';
 import { SessionFilesBadge } from './SessionFilesBadge';
@@ -67,6 +67,12 @@ export interface FlowChatHeaderProps {
   backgroundSubagents?: FlowChatHeaderSubagentSummary[];
   /** Open a background subagent in the right-side panel. */
   onOpenBackgroundSubagent?: (sessionId: string) => void;
+  /** Show the compact floating-chat / preview-first action in the chat header. */
+  showPreviewFirstToggle?: boolean;
+  /** Whether preview-first is currently active. */
+  isPreviewFirstActive?: boolean;
+  /** Toggle preview-first / compact floating chat presentation. */
+  onPreviewFirstToggle?: () => void;
 }
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
@@ -89,6 +95,9 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   searchOpenRequest = 0,
   backgroundSubagents = [],
   onOpenBackgroundSubagent,
+  showPreviewFirstToggle = false,
+  isPreviewFirstActive = false,
+  onPreviewFirstToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
   const { currentWorkspace } = useWorkspaceContext();
@@ -537,6 +546,19 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
             </div>
           )}
         </div>
+        {showPreviewFirstToggle && (
+          <IconButton
+            className={`flowchat-header__preview-first-btn${isPreviewFirstActive ? ' flowchat-header__preview-first-btn--active' : ''}`}
+            variant="ghost"
+            size="xs"
+            onClick={onPreviewFirstToggle}
+            tooltip={t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}
+            aria-label={t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}
+            data-testid="flowchat-header-preview-first-toggle"
+          >
+            <PictureInPicture2 size={14} />
+          </IconButton>
+        )}
       </div>
     </div>
   );

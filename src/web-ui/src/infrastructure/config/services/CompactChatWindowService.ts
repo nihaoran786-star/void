@@ -13,6 +13,16 @@ export interface CompactChatWindowSize {
   height: number;
 }
 
+export type CompactChatResizeDirection =
+  | 'East'
+  | 'North'
+  | 'NorthEast'
+  | 'NorthWest'
+  | 'South'
+  | 'SouthEast'
+  | 'SouthWest'
+  | 'West';
+
 let compactChatWindowChain: Promise<void> = Promise.resolve();
 
 export async function getCompactChatFloatingWindowStatus(): Promise<CompactChatFloatingWindowStatus> {
@@ -24,7 +34,10 @@ export async function getCompactChatFloatingWindowStatus(): Promise<CompactChatF
 }
 
 async function invokeCompactChatWindowCommand(
-  command: 'show_compact_chat_desktop_window' | 'hide_compact_chat_desktop_window',
+  command:
+    | 'show_compact_chat_desktop_window'
+    | 'hide_compact_chat_desktop_window'
+    | 'reveal_compact_chat_desktop_window',
 ): Promise<void> {
   if (!isTauriRuntime()) return;
 
@@ -49,6 +62,20 @@ export async function closeCompactChatFloatingWindow(): Promise<void> {
   await invokeCompactChatWindowCommand('hide_compact_chat_desktop_window');
 }
 
+export async function revealCompactChatFloatingWindow(): Promise<void> {
+  await invokeCompactChatWindowCommand('reveal_compact_chat_desktop_window');
+}
+
+export async function minimizeCompactChatFloatingWindow(): Promise<void> {
+  if (!isTauriRuntime()) return;
+
+  try {
+    await getCurrentWindow().minimize();
+  } catch (error) {
+    log.warn('Failed to minimize compact chat floating window', error);
+  }
+}
+
 export async function resizeCompactChatFloatingWindow(size: CompactChatWindowSize): Promise<void> {
   if (!isTauriRuntime()) return;
 
@@ -70,5 +97,15 @@ export async function startCompactChatFloatingWindowDrag(): Promise<void> {
     await getCurrentWindow().startDragging();
   } catch (error) {
     log.warn('Failed to start compact chat floating window drag', error);
+  }
+}
+
+export async function startCompactChatFloatingWindowResize(direction: CompactChatResizeDirection): Promise<void> {
+  if (!isTauriRuntime()) return;
+
+  try {
+    await getCurrentWindow().startResizeDragging(direction);
+  } catch (error) {
+    log.warn('Failed to start compact chat floating window resize', { direction, error });
   }
 }

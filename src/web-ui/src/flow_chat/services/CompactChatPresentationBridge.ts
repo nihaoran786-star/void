@@ -9,6 +9,7 @@ const PRESENTATION_UPDATED_EVENT = 'compact-chat://presentation-updated';
 const REQUEST_PRESENTATION_EVENT = 'compact-chat://request-presentation';
 const SEND_MESSAGE_EVENT = 'compact-chat://send-message';
 const CANCEL_TASK_EVENT = 'compact-chat://cancel-task';
+const CLOSE_REQUEST_EVENT = 'compact-chat://close-request';
 
 export type CompactChatUnavailableReason =
   | 'no-active-session'
@@ -209,6 +210,16 @@ export async function requestCompactChatCancelTask(sessionId: string): Promise<v
   }
 }
 
+export async function requestCompactChatClose(): Promise<void> {
+  if (!isTauriRuntime()) return;
+
+  try {
+    await emitCompactChatEvent(CLOSE_REQUEST_EVENT, {});
+  } catch (error) {
+    log.warn('Failed to emit compact chat close request', error);
+  }
+}
+
 export async function listenCompactChatMessageRequests(
   handler: (payload: { message: string; sessionId: string }) => void | Promise<void>,
 ): Promise<() => void> {
@@ -246,6 +257,24 @@ export async function listenCompactChatCancelTaskRequests(
     });
   } catch (error) {
     log.warn('Failed to listen for compact chat cancel requests', error);
+    return () => undefined;
+  }
+}
+
+export async function listenCompactChatCloseRequests(
+  handler: () => void | Promise<void>,
+): Promise<() => void> {
+  if (!isTauriRuntime()) {
+    return () => undefined;
+  }
+
+  try {
+    const { listen } = await import('@tauri-apps/api/event');
+    return await listen(CLOSE_REQUEST_EVENT, () => {
+      void handler();
+    });
+  } catch (error) {
+    log.warn('Failed to listen for compact chat close requests', error);
     return () => undefined;
   }
 }

@@ -40,6 +40,9 @@ interface ModernFlowChatContainerProps {
   onTabOpen?: (tabInfo: any, sessionId?: string, panelType?: string) => void;
   onOpenVisualization?: (type: string, data: any) => void;
   onSwitchToChatPanel?: () => void;
+  showPreviewFirstToggle?: boolean;
+  isPreviewFirstActive?: boolean;
+  onPreviewFirstToggle?: () => void;
 }
 
 type BackgroundSubagentSummary = {
@@ -159,6 +162,9 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   onTabOpen,
   onOpenVisualization,
   onSwitchToChatPanel,
+  showPreviewFirstToggle = false,
+  isPreviewFirstActive = false,
+  onPreviewFirstToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
   const virtualItems = useVirtualItems();
@@ -516,6 +522,9 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
           searchOpenRequest={searchOpenRequest}
           backgroundSubagents={backgroundSubagents}
           onOpenBackgroundSubagent={handleOpenBackgroundSubagent}
+          showPreviewFirstToggle={showPreviewFirstToggle}
+          isPreviewFirstActive={isPreviewFirstActive}
+          onPreviewFirstToggle={onPreviewFirstToggle}
         />
 
         <div className="modern-flowchat-container__messages">

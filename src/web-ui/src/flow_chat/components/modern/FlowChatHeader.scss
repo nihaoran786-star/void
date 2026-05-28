@@ -134,12 +134,18 @@
 
   &__search-btn,
   &__review-platform-btn,
+  &__preview-first-btn,
   &__search-close {
     flex: 0 0 auto;
 
     &:not(:disabled):hover {
       background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
     }
+  }
+
+  &__preview-first-btn--active {
+    color: var(--color-accent-500);
+    background: color-mix(in srgb, var(--color-accent-500) 12%, transparent);
   }
 
   &__search {

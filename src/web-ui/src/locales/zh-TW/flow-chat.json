@@ -42,6 +42,7 @@
   "compactChat": {
     "title": "緊湊聊天",
     "dragHandle": "拖拽緊湊聊天窗",
+    "minimize": "最小化緊湊聊天",
     "close": "關閉緊湊聊天",
     "unavailable": {
       "title": "沒有活動會話",

@@ -11,14 +11,18 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const bridgeMock = vi.hoisted(() => ({
   listenCompactChatPresentation: vi.fn(),
   requestCompactChatCancelTask: vi.fn(),
+  requestCompactChatClose: vi.fn(),
   requestCompactChatPresentation: vi.fn(),
   sendCompactChatMessage: vi.fn(),
 }));
 
 const windowServiceMock = vi.hoisted(() => ({
   closeCompactChatFloatingWindow: vi.fn(),
+  minimizeCompactChatFloatingWindow: vi.fn(),
+  revealCompactChatFloatingWindow: vi.fn(),
   resizeCompactChatFloatingWindow: vi.fn(),
   startCompactChatFloatingWindowDrag: vi.fn(),
+  startCompactChatFloatingWindowResize: vi.fn(),
 }));
 
 vi.mock('@/component-library', () => ({
@@ -126,11 +130,15 @@ describe('CompactChatDesktopWindow', () => {
     container.remove();
     bridgeMock.listenCompactChatPresentation.mockReset();
     bridgeMock.requestCompactChatCancelTask.mockReset();
+    bridgeMock.requestCompactChatClose.mockReset();
     bridgeMock.requestCompactChatPresentation.mockReset();
     bridgeMock.sendCompactChatMessage.mockReset();
     windowServiceMock.closeCompactChatFloatingWindow.mockReset();
+    windowServiceMock.minimizeCompactChatFloatingWindow.mockReset();
+    windowServiceMock.revealCompactChatFloatingWindow.mockReset();
     windowServiceMock.resizeCompactChatFloatingWindow.mockReset();
     windowServiceMock.startCompactChatFloatingWindowDrag.mockReset();
+    windowServiceMock.startCompactChatFloatingWindowResize.mockReset();
   });
 
   it('renders the active session presentation without mounting the full modern chat container', () => {
@@ -138,11 +146,60 @@ describe('CompactChatDesktopWindow', () => {
       root.render(<CompactChatDesktopWindow />);
     });
 
+    expect(container.querySelector('[data-testid="compact-chat-surface"]')).toBeTruthy();
     expect(container.textContent).toContain('Current session question');
     expect(container.textContent).toContain('Current session answer');
     expect(container.querySelector('[data-testid="modern-flow-chat"]')).toBeNull();
     expect(container.querySelector('[data-testid="app-layout"]')).toBeNull();
     expect(container.textContent).not.toContain('BrowserPanel');
+  });
+
+  it('keeps the desktop window transparent until the first presentation arrives', async () => {
+    let presentationHandler: ((presentation: CompactChatPresentation) => void) | null = null;
+    bridgeMock.listenCompactChatPresentation.mockImplementation((handler: (presentation: CompactChatPresentation) => void) => {
+      presentationHandler = handler;
+      return Promise.resolve(() => undefined);
+    });
+
+    await act(async () => {
+      root.render(<CompactChatDesktopWindow />);
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="compact-chat-surface"]')).toBeNull();
+    expect(container.textContent).not.toContain('compactChat.unavailable.title');
+    expect(presentationHandler).toBeTypeOf('function');
+
+    await act(async () => {
+      presentationHandler?.(createReadyPresentation());
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="compact-chat-surface"]')).toBeTruthy();
+    expect(container.textContent).toContain('Current session question');
+  });
+
+  it('reveals the native desktop window only after the first presentation has rendered', async () => {
+    let presentationHandler: ((presentation: CompactChatPresentation) => void) | null = null;
+    bridgeMock.listenCompactChatPresentation.mockImplementation((handler: (presentation: CompactChatPresentation) => void) => {
+      presentationHandler = handler;
+      return Promise.resolve(() => undefined);
+    });
+
+    await act(async () => {
+      root.render(<CompactChatDesktopWindow />);
+      await Promise.resolve();
+    });
+
+    expect(windowServiceMock.revealCompactChatFloatingWindow).not.toHaveBeenCalled();
+
+    await act(async () => {
+      presentationHandler?.(createReadyPresentation());
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="compact-chat-surface"]')).toBeTruthy();
+    expect(windowServiceMock.revealCompactChatFloatingWindow).toHaveBeenCalledTimes(1);
   });
 
   it('renders assistant text, thinking, and tool items through shared flow components', () => {
@@ -289,12 +346,12 @@ describe('CompactChatDesktopWindow', () => {
     expect(windowServiceMock.startCompactChatFloatingWindowDrag).toHaveBeenCalledTimes(1);
   });
 
-  it('closes from the header button without starting window drag', () => {
+  it('requests preview-first close from the main window instead of directly closing itself', () => {
     act(() => {
       root.render(<CompactChatDesktopWindow />);
     });
 
-    const closeButton = container.querySelector('.void-compact-chat-window__icon-button') as HTMLElement;
+    const closeButton = container.querySelector('[data-testid="compact-chat-close"]') as HTMLElement;
     act(() => {
       closeButton.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,
@@ -307,7 +364,49 @@ describe('CompactChatDesktopWindow', () => {
     });
 
     expect(windowServiceMock.startCompactChatFloatingWindowDrag).not.toHaveBeenCalled();
-    expect(windowServiceMock.closeCompactChatFloatingWindow).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.requestCompactChatClose).toHaveBeenCalledTimes(1);
+    expect(windowServiceMock.closeCompactChatFloatingWindow).not.toHaveBeenCalled();
+  });
+
+  it('minimizes from the header button without starting window drag', () => {
+    act(() => {
+      root.render(<CompactChatDesktopWindow />);
+    });
+
+    const minimizeButton = container.querySelector('[data-testid="compact-chat-minimize"]') as HTMLElement;
+    act(() => {
+      minimizeButton.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 1,
+        clientX: 10,
+        clientY: 10,
+      }));
+      minimizeButton.click();
+    });
+
+    expect(windowServiceMock.startCompactChatFloatingWindowDrag).not.toHaveBeenCalled();
+    expect(windowServiceMock.minimizeCompactChatFloatingWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts native resize dragging from borderless edge handles', () => {
+    act(() => {
+      root.render(<CompactChatDesktopWindow />);
+    });
+
+    const southEastHandle = container.querySelector('[data-resize-direction="SouthEast"]') as HTMLElement;
+    act(() => {
+      southEastHandle.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 1,
+        clientX: 410,
+        clientY: 670,
+      }));
+    });
+
+    expect(windowServiceMock.startCompactChatFloatingWindowResize).toHaveBeenCalledWith('SouthEast');
+    expect(windowServiceMock.startCompactChatFloatingWindowDrag).not.toHaveBeenCalled();
   });
 
   it('sends stop requests through the compact chat bridge instead of a local DOM event', () => {
@@ -354,7 +453,7 @@ describe('CompactChatDesktopWindow', () => {
       root.render(<CompactChatDesktopWindow />);
     });
 
-    const closeButton = container.querySelector('.void-compact-chat-window__icon-button') as HTMLElement;
+    const closeButton = container.querySelector('[data-testid="compact-chat-close"]') as HTMLElement;
     act(() => {
       closeButton.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,

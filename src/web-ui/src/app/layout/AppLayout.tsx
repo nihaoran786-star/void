@@ -567,6 +567,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     return () => window.removeEventListener('void:toggle-preview-first', handler);
   }, [applyPreviewFirst]);
 
+  React.useEffect(() => {
+    const handler = () => {
+      applyPreviewFirst(false);
+    };
+    window.addEventListener('void:compact-chat-close-requested', handler);
+    return () => window.removeEventListener('void:compact-chat-close-requested', handler);
+  }, [applyPreviewFirst]);
+
   // Toolbar cancel task
   React.useEffect(() => {
     const handleToolbarCancelTask = async () => {
