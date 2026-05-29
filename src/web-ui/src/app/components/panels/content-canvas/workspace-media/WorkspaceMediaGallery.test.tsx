@@ -145,9 +145,16 @@ describe('WorkspaceMediaGallery', () => {
 
   it('renders scanned media and filters by media kind', async () => {
     const service = readyService();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
 
     await act(async () => {
-      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} />);
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
     });
 
     expect(container.textContent).toContain('poster.png');
@@ -155,7 +162,7 @@ describe('WorkspaceMediaGallery', () => {
     expect(container.textContent).toContain('voice.mp3');
     expect(container.querySelector('.workspace-media-gallery__masonry')).toBeTruthy();
     expect((container.querySelector('[data-testid="workspace-media-card-image"]') as HTMLElement).style.aspectRatio).toBe('900 / 1600');
-    expect(container.querySelector('[data-testid="workspace-media-unpreviewable"]')?.textContent).toContain('broken.png');
+    expect(container.querySelector('[data-testid="workspace-media-card-unpreviewable"]')?.textContent).toContain('broken.png');
 
     const imageFilter = Array.from(container.querySelectorAll('button'))
       .find(button => button.textContent?.includes('Images')) as HTMLButtonElement;
@@ -171,9 +178,16 @@ describe('WorkspaceMediaGallery', () => {
 
   it('searches by path and sorts by name', async () => {
     const service = readyService();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
 
     await act(async () => {
-      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} />);
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
     });
 
     const search = container.querySelector('input[placeholder="Search"]') as HTMLInputElement;
@@ -196,16 +210,23 @@ describe('WorkspaceMediaGallery', () => {
 
     const tileNames = Array.from(container.querySelectorAll('[data-testid^="workspace-media-card-"] strong'))
       .map(element => element.textContent);
-    expect(tileNames.slice(0, 3)).toEqual(['clip.mp4', 'poster.png', 'voice.mp3']);
+    expect(tileNames.slice(0, 4)).toEqual(['broken.png', 'clip.mp4', 'poster.png', 'voice.mp3']);
   });
 
   it('dispatches lightweight media preview events from card clicks', async () => {
     const service = readyService();
     const previewListener = vi.fn();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
     window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
 
     await act(async () => {
-      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} />);
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
     });
 
     const card = container.querySelector('[data-testid="workspace-media-card-image"]') as HTMLButtonElement;
@@ -217,7 +238,45 @@ describe('WorkspaceMediaGallery', () => {
     expect(previewListener).toHaveBeenCalledTimes(1);
     expect(previewListener.mock.calls[0][0].detail).toMatchObject({
       kind: 'image',
-      url: 'asset://local/poster.png',
+      url: 'data:image/png;base64,preview-image',
+      localPath: 'C:/work/assets/poster.png',
+      title: 'poster.png',
+    });
+  });
+
+  it('uses resolved image data URLs for thumbnails and overlay preview', async () => {
+    const service = readyService();
+    const previewListener = vi.fn();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,base64-image');
+    window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
+    });
+
+    const image = container.querySelector('[data-testid="workspace-media-card-image"] img') as HTMLImageElement;
+    expect(imagePreviewResolver).toHaveBeenCalledWith({
+      filePath: 'C:/work/assets/poster.png',
+      extension: 'png',
+      modifiedAt: 3000,
+    });
+    expect(image.src).toBe('data:image/png;base64,base64-image');
+
+    const card = container.querySelector('[data-testid="workspace-media-card-image"]') as HTMLButtonElement;
+    act(() => {
+      card.click();
+    });
+
+    expect(previewListener).toHaveBeenCalledTimes(1);
+    expect(previewListener.mock.calls[0][0].detail).toMatchObject({
+      kind: 'image',
+      url: 'data:image/png;base64,base64-image',
       localPath: 'C:/work/assets/poster.png',
       title: 'poster.png',
     });
@@ -225,9 +284,16 @@ describe('WorkspaceMediaGallery', () => {
 
   it('updates image tile aspect ratio from loaded media dimensions', async () => {
     const service = noDimensionsService();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
 
     await act(async () => {
-      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} />);
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
     });
 
     const card = container.querySelector('[data-testid="workspace-media-card-landscape-without-dimensions"]') as HTMLButtonElement;
@@ -246,10 +312,17 @@ describe('WorkspaceMediaGallery', () => {
   it('keeps image cards clickable when thumbnail loading fails', async () => {
     const service = readyService();
     const previewListener = vi.fn();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
     window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
 
     await act(async () => {
-      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} />);
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
     });
 
     const image = container.querySelector('[data-testid="workspace-media-card-image"] img') as HTMLImageElement;
@@ -268,7 +341,7 @@ describe('WorkspaceMediaGallery', () => {
     expect(previewListener).toHaveBeenCalledTimes(1);
     expect(previewListener.mock.calls[0][0].detail).toMatchObject({
       kind: 'image',
-      url: 'asset://local/poster.png',
+      url: 'data:image/png;base64,preview-image',
       localPath: 'C:/work/assets/poster.png',
       title: 'poster.png',
     });

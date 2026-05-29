@@ -3,7 +3,9 @@ import { AlertTriangle, FileAudio, Image as ImageIcon, Play, RefreshCw, Search, 
 import { useTranslation } from 'react-i18next';
 import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
 import {
+  resolveWorkspaceMediaImagePreviewUrl,
   workspaceMediaLibraryService,
+  type WorkspaceMediaImagePreviewResolver,
   type WorkspaceMediaKind,
   type WorkspaceMediaLibraryService,
   type WorkspaceMediaLibraryState,
@@ -23,6 +25,7 @@ type WorkspaceMediaFilter = 'all' | WorkspaceMediaKind;
 export interface WorkspaceMediaGalleryProps {
   workspacePath?: string;
   service?: WorkspaceMediaLibraryService;
+  imagePreviewResolver?: WorkspaceMediaImagePreviewResolver;
 }
 
 const FILTERS: Array<{ id: WorkspaceMediaFilter; labelKey: string }> = [
@@ -62,17 +65,21 @@ function formatRelativeTime(value: number | undefined): string {
   return `${Math.floor(hours / 24)}d`;
 }
 
-function openWorkspaceMediaPreview(item: WorkspaceMediaTileViewModel): void {
-  if (!item.previewUrl) {
+function openWorkspaceMediaPreview(item: WorkspaceMediaTileViewModel, previewUrl?: string): void {
+  if (!previewUrl) {
     return;
   }
 
   openMediaPreviewPanel({
     kind: item.kind,
-    url: item.previewUrl,
+    url: previewUrl,
     localPath: item.filePath,
     title: item.displayName,
   });
+}
+
+function imagePreviewCacheKey(item: WorkspaceMediaTileViewModel): string {
+  return `${item.filePath}:${item.modifiedAt || 0}`;
 }
 
 function waveformBars(seed: string, count = 34): number[] {
@@ -90,13 +97,24 @@ interface MediaTileProps {
   tile: WorkspaceMediaTileViewModel;
   renderStatus: WorkspaceMediaTileRenderStatus;
   aspectRatio: string;
-  onOpen: (tile: WorkspaceMediaTileViewModel) => void;
+  previewUrl?: string;
+  thumbnailUrl?: string;
+  onOpen: (tile: WorkspaceMediaTileViewModel, previewUrl?: string) => void;
   onImageError: (tileId: string) => void;
   onImageLoad: (tileId: string, width: number, height: number) => void;
 }
 
-const MediaTile: React.FC<MediaTileProps> = ({ tile, renderStatus, aspectRatio, onOpen, onImageError, onImageLoad }) => {
-  const canOpen = Boolean(tile.previewUrl);
+const MediaTile: React.FC<MediaTileProps> = ({
+  tile,
+  renderStatus,
+  aspectRatio,
+  previewUrl,
+  thumbnailUrl,
+  onOpen,
+  onImageError,
+  onImageLoad,
+}) => {
+  const canOpen = Boolean(previewUrl);
   const isThumbnailFailed = renderStatus === 'failed';
   const isUnavailable = renderStatus === 'unpreviewable' || !canOpen;
   const bars = tile.kind === 'audio' ? waveformBars(tile.id) : [];
@@ -109,15 +127,15 @@ const MediaTile: React.FC<MediaTileProps> = ({ tile, renderStatus, aspectRatio, 
       style={{ aspectRatio }}
       onClick={() => {
         if (canOpen) {
-          onOpen(tile);
+          onOpen(tile, previewUrl);
         }
       }}
       aria-label={isUnavailable ? `${tile.displayName} preview unavailable` : `Open ${tile.displayName}`}
     >
       <span className="workspace-media-card__stage">
-        {tile.kind === 'image' && tile.thumbnailUrl && renderStatus === 'ready' ? (
+        {tile.kind === 'image' && thumbnailUrl && renderStatus === 'ready' ? (
           <img
-            src={tile.thumbnailUrl}
+            src={thumbnailUrl}
             alt=""
             loading="lazy"
             onLoad={(event) => {
@@ -169,6 +187,7 @@ const MediaTile: React.FC<MediaTileProps> = ({ tile, renderStatus, aspectRatio, 
 export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   workspacePath,
   service = workspaceMediaLibraryService,
+  imagePreviewResolver = resolveWorkspaceMediaImagePreviewUrl,
 }) => {
   const { t } = useTranslation('components');
   const [state, setState] = React.useState<WorkspaceMediaLibraryState>({ status: 'idle' });
@@ -177,6 +196,8 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const [query, setQuery] = React.useState('');
   const [failedTileIds, setFailedTileIds] = React.useState<Set<string>>(() => new Set());
   const [loadedImageAspectRatios, setLoadedImageAspectRatios] = React.useState<Record<string, string>>({});
+  const [resolvedImageUrls, setResolvedImageUrls] = React.useState<Record<string, string>>({});
+  const resolvingImageIdsRef = React.useRef<Set<string>>(new Set());
   const isMountedRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -211,6 +232,45 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const primaryTiles = filteredTiles.filter(tile => tile.isPrimaryWallRenderable);
   const unpreviewableTiles = filteredTiles.filter(tile => !tile.isPrimaryWallRenderable);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    for (const tile of tileModels) {
+      const cacheKey = imagePreviewCacheKey(tile);
+      if (
+        tile.kind !== 'image' ||
+        resolvedImageUrls[cacheKey] ||
+        resolvingImageIdsRef.current.has(cacheKey)
+      ) {
+        continue;
+      }
+
+      resolvingImageIdsRef.current.add(cacheKey);
+      void imagePreviewResolver({
+        filePath: tile.filePath,
+        extension: tile.extension,
+        modifiedAt: tile.modifiedAt,
+      })
+        .then((resolvedUrl) => {
+          if (!resolvedUrl || cancelled || !isMountedRef.current) {
+            return;
+          }
+          setResolvedImageUrls((current) => (
+            current[cacheKey] === resolvedUrl ? current : { ...current, [cacheKey]: resolvedUrl }
+          ));
+        })
+        .catch(() => {
+          // Fall back to the scanned preview URL or the existing failed-tile UI.
+        })
+        .finally(() => {
+          resolvingImageIdsRef.current.delete(cacheKey);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imagePreviewResolver, resolvedImageUrls, tileModels]);
+
   const counts = React.useMemo(() => {
     const nextCounts: Record<WorkspaceMediaFilter, number> = {
       all: tileModels.length,
@@ -223,6 +283,13 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     }
     return nextCounts;
   }, [tileModels]);
+
+  const imageUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
+    if (tile.kind !== 'image') {
+      return tile.previewUrl;
+    }
+    return resolvedImageUrls[imagePreviewCacheKey(tile)];
+  }, [resolvedImageUrls]);
 
   const resetFilters = () => {
     setQuery('');
@@ -344,6 +411,8 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                         tile={tile}
                         renderStatus={failedTileIds.has(tile.id) ? 'failed' : tile.renderStatus}
                         aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
+                        previewUrl={imageUrlForTile(tile)}
+                        thumbnailUrl={imageUrlForTile(tile)}
                         onOpen={openWorkspaceMediaPreview}
                         onImageError={markTileFailed}
                         onImageLoad={updateLoadedImageAspectRatio}
@@ -362,6 +431,8 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                       tile={tile}
                       renderStatus="unpreviewable"
                       aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
+                      previewUrl={imageUrlForTile(tile)}
+                      thumbnailUrl={imageUrlForTile(tile)}
                       onOpen={openWorkspaceMediaPreview}
                       onImageError={markTileFailed}
                       onImageLoad={updateLoadedImageAspectRatio}

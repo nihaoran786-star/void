@@ -17,17 +17,17 @@ const item = (overrides: Partial<WorkspaceMediaItem>): WorkspaceMediaItem => ({
 });
 
 describe('WorkspaceMediaTileViewModel', () => {
-  it('marks images without a usable thumbnail or preview URL as unpreviewable', () => {
+  it('keeps local images renderable without a thumbnail or asset preview URL', () => {
     const [tile] = mapWorkspaceMediaTiles([
       item({
-        id: 'broken-image',
+        id: 'local-image',
         thumbnailUrl: undefined,
         previewUrl: undefined,
       }),
     ]);
 
-    expect(tile.renderStatus).toBe('unpreviewable');
-    expect(tile.isPrimaryWallRenderable).toBe(false);
+    expect(tile.renderStatus).toBe('ready');
+    expect(tile.isPrimaryWallRenderable).toBe(true);
     expect(tile.previewUrl).toBeUndefined();
   });
 

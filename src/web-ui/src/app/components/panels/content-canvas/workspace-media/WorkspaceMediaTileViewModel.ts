@@ -11,6 +11,7 @@ export interface WorkspaceMediaTileViewModel {
   displayName: string;
   pathLabel: string;
   filePath: string;
+  extension: string;
   previewUrl?: string;
   thumbnailUrl?: string;
   aspectRatio: string;
@@ -45,7 +46,7 @@ function aspectRatioForItem(item: WorkspaceMediaItem): string {
 }
 
 function renderStatusForItem(item: WorkspaceMediaItem): WorkspaceMediaTileRenderStatus {
-  if (item.kind === 'image' && !item.thumbnailUrl && !item.previewUrl) {
+  if (item.kind === 'image' && !item.filePath) {
     return 'unpreviewable';
   }
   return 'ready';
@@ -62,6 +63,7 @@ export function mapWorkspaceMediaTiles(items: WorkspaceMediaItem[]): WorkspaceMe
       displayName: item.fileName || item.relativePath,
       pathLabel: item.relativePath,
       filePath: item.filePath,
+      extension: item.extension,
       previewUrl: item.previewUrl,
       thumbnailUrl: item.thumbnailUrl || item.previewUrl,
       aspectRatio: aspectRatioForItem(item),
