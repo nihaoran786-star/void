@@ -21,6 +21,10 @@ import {
 import './WorkspaceMediaGallery.scss';
 
 type WorkspaceMediaFilter = 'all' | WorkspaceMediaKind;
+type ImagePreviewState =
+  | { status: 'loading' }
+  | { status: 'ready'; url: string }
+  | { status: 'failed' };
 
 export interface WorkspaceMediaGalleryProps {
   workspacePath?: string;
@@ -40,6 +44,8 @@ const SORTS: Array<{ id: WorkspaceMediaSortKey; labelKey: string }> = [
   { id: 'name', labelKey: 'workspaceMedia.sort.name' },
   { id: 'size', labelKey: 'workspaceMedia.sort.size' },
 ];
+
+const MAX_IMAGE_PREVIEW_LOADS = 2;
 
 function formatBytes(value: number | undefined): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '';
@@ -99,6 +105,7 @@ interface MediaTileProps {
   aspectRatio: string;
   previewUrl?: string;
   thumbnailUrl?: string;
+  previewStatus?: ImagePreviewState['status'];
   onOpen: (tile: WorkspaceMediaTileViewModel, previewUrl?: string) => void;
   onImageError: (tileId: string) => void;
   onImageLoad: (tileId: string, width: number, height: number) => void;
@@ -110,13 +117,16 @@ const MediaTile: React.FC<MediaTileProps> = ({
   aspectRatio,
   previewUrl,
   thumbnailUrl,
+  previewStatus,
   onOpen,
   onImageError,
   onImageLoad,
 }) => {
   const canOpen = Boolean(previewUrl);
-  const isThumbnailFailed = renderStatus === 'failed';
-  const isUnavailable = renderStatus === 'unpreviewable' || !canOpen;
+  const isPreviewLoading = tile.kind === 'image' && previewStatus === 'loading';
+  const isPreviewFailed = tile.kind === 'image' && previewStatus === 'failed';
+  const isThumbnailFailed = renderStatus === 'failed' || isPreviewFailed;
+  const isUnavailable = renderStatus === 'unpreviewable' || (!canOpen && !isPreviewLoading && tile.kind !== 'image') || isPreviewFailed;
   const bars = tile.kind === 'audio' ? waveformBars(tile.id) : [];
 
   return (
@@ -176,7 +186,7 @@ const MediaTile: React.FC<MediaTileProps> = ({
           {formatBytes(tile.sizeBytes) && <span>{formatBytes(tile.sizeBytes)}</span>}
           {formatRelativeTime(tile.modifiedAt) && <span>{formatRelativeTime(tile.modifiedAt)}</span>}
         </span>
-        {(isUnavailable || isThumbnailFailed) && (
+        {(isUnavailable || isThumbnailFailed) && !isPreviewLoading && (
           <span className="workspace-media-card__unavailable">Preview unavailable</span>
         )}
       </span>
@@ -196,8 +206,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const [query, setQuery] = React.useState('');
   const [failedTileIds, setFailedTileIds] = React.useState<Set<string>>(() => new Set());
   const [loadedImageAspectRatios, setLoadedImageAspectRatios] = React.useState<Record<string, string>>({});
-  const [resolvedImageUrls, setResolvedImageUrls] = React.useState<Record<string, string>>({});
-  const resolvingImageIdsRef = React.useRef<Set<string>>(new Set());
+  const [imagePreviewStates, setImagePreviewStates] = React.useState<Record<string, ImagePreviewState>>({});
   const isMountedRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -233,43 +242,66 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const unpreviewableTiles = filteredTiles.filter(tile => !tile.isPrimaryWallRenderable);
 
   React.useEffect(() => {
-    let cancelled = false;
-    for (const tile of tileModels) {
-      const cacheKey = imagePreviewCacheKey(tile);
-      if (
-        tile.kind !== 'image' ||
-        resolvedImageUrls[cacheKey] ||
-        resolvingImageIdsRef.current.has(cacheKey)
-      ) {
-        continue;
-      }
+    const loadingCount = Object.values(imagePreviewStates)
+      .filter(state => state.status === 'loading')
+      .length;
+    const availableSlots = Math.max(0, MAX_IMAGE_PREVIEW_LOADS - loadingCount);
+    if (availableSlots === 0) {
+      return;
+    }
 
-      resolvingImageIdsRef.current.add(cacheKey);
+    const tilesToLoad = tileModels
+      .filter(tile => tile.kind === 'image' && !imagePreviewStates[imagePreviewCacheKey(tile)])
+      .slice(0, availableSlots);
+    if (tilesToLoad.length === 0) {
+      return;
+    }
+
+    setImagePreviewStates((current) => {
+      const next = { ...current };
+      for (const tile of tilesToLoad) {
+        next[imagePreviewCacheKey(tile)] = { status: 'loading' };
+      }
+      return next;
+    });
+
+    for (const tile of tilesToLoad) {
+      const cacheKey = imagePreviewCacheKey(tile);
       void imagePreviewResolver({
         filePath: tile.filePath,
         extension: tile.extension,
         modifiedAt: tile.modifiedAt,
       })
         .then((resolvedUrl) => {
-          if (!resolvedUrl || cancelled || !isMountedRef.current) {
+          if (!isMountedRef.current) {
             return;
           }
-          setResolvedImageUrls((current) => (
-            current[cacheKey] === resolvedUrl ? current : { ...current, [cacheKey]: resolvedUrl }
-          ));
+          setImagePreviewStates((current) => ({
+            ...current,
+            [cacheKey]: resolvedUrl ? { status: 'ready', url: resolvedUrl } : { status: 'failed' },
+          }));
+          if (resolvedUrl) {
+            setFailedTileIds((current) => {
+              if (!current.has(tile.id)) {
+                return current;
+              }
+              const next = new Set(current);
+              next.delete(tile.id);
+              return next;
+            });
+          }
         })
         .catch(() => {
-          // Fall back to the scanned preview URL or the existing failed-tile UI.
-        })
-        .finally(() => {
-          resolvingImageIdsRef.current.delete(cacheKey);
+          if (!isMountedRef.current) {
+            return;
+          }
+          setImagePreviewStates((current) => ({
+            ...current,
+            [cacheKey]: { status: 'failed' },
+          }));
         });
     }
-
-    return () => {
-      cancelled = true;
-    };
-  }, [imagePreviewResolver, resolvedImageUrls, tileModels]);
+  }, [imagePreviewResolver, imagePreviewStates, tileModels]);
 
   const counts = React.useMemo(() => {
     const nextCounts: Record<WorkspaceMediaFilter, number> = {
@@ -288,8 +320,16 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     if (tile.kind !== 'image') {
       return tile.previewUrl;
     }
-    return resolvedImageUrls[imagePreviewCacheKey(tile)];
-  }, [resolvedImageUrls]);
+    const state = imagePreviewStates[imagePreviewCacheKey(tile)];
+    return state?.status === 'ready' ? state.url : undefined;
+  }, [imagePreviewStates]);
+
+  const previewStatusForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): ImagePreviewState['status'] | undefined => {
+    if (tile.kind !== 'image') {
+      return undefined;
+    }
+    return imagePreviewStates[imagePreviewCacheKey(tile)]?.status;
+  }, [imagePreviewStates]);
 
   const resetFilters = () => {
     setQuery('');
@@ -312,6 +352,14 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     setLoadedImageAspectRatios((current) => (
       current[tileId] === aspectRatio ? current : { ...current, [tileId]: aspectRatio }
     ));
+    setFailedTileIds((current) => {
+      if (!current.has(tileId)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.delete(tileId);
+      return next;
+    });
   }, []);
 
   return (
@@ -413,6 +461,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                         aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
                         previewUrl={imageUrlForTile(tile)}
                         thumbnailUrl={imageUrlForTile(tile)}
+                        previewStatus={previewStatusForTile(tile)}
                         onOpen={openWorkspaceMediaPreview}
                         onImageError={markTileFailed}
                         onImageLoad={updateLoadedImageAspectRatio}
@@ -433,6 +482,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                       aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
                       previewUrl={imageUrlForTile(tile)}
                       thumbnailUrl={imageUrlForTile(tile)}
+                      previewStatus={previewStatusForTile(tile)}
                       onOpen={openWorkspaceMediaPreview}
                       onImageError={markTileFailed}
                       onImageLoad={updateLoadedImageAspectRatio}

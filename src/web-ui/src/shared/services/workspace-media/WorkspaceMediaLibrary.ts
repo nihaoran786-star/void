@@ -79,64 +79,6 @@ function getFileName(filePath: string): string {
   return filePath.split(/[\\/]/).pop() || filePath;
 }
 
-function decodeBase64Prefix(value: string, maxBytes = 16): number[] | null {
-  const trimmed = value.trim();
-  if (!trimmed || /[^A-Za-z0-9+/=\r\n]/.test(trimmed)) {
-    return null;
-  }
-
-  try {
-    const compact = trimmed.replace(/\s+/g, '');
-    if (typeof atob !== 'function') {
-      return null;
-    }
-    const decoded = atob(compact);
-    if (!decoded) {
-      return null;
-    }
-    return Array.from(decoded.slice(0, maxBytes)).map(char => char.charCodeAt(0));
-  } catch {
-    return null;
-  }
-}
-
-function hasPrefix(bytes: number[], prefix: number[]): boolean {
-  return prefix.every((byte, index) => bytes[index] === byte);
-}
-
-export function isValidWorkspaceMediaContent(kind: WorkspaceMediaKind, extension: string, content: string): boolean {
-  const normalizedExtension = extension.toLowerCase();
-  if (normalizedExtension === 'svg') {
-    return /<svg[\s>]/i.test(content);
-  }
-
-  const bytes = decodeBase64Prefix(content, 32);
-  if (!bytes) {
-    return false;
-  }
-
-  if (kind === 'image') {
-    if (normalizedExtension === 'png') return hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    if (normalizedExtension === 'jpg' || normalizedExtension === 'jpeg') return hasPrefix(bytes, [0xff, 0xd8, 0xff]);
-    if (normalizedExtension === 'gif') return hasPrefix(bytes, [0x47, 0x49, 0x46, 0x38]);
-    if (normalizedExtension === 'webp') return hasPrefix(bytes, [0x52, 0x49, 0x46, 0x46]) && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
-  }
-
-  if (kind === 'video') {
-    if (normalizedExtension === 'webm') return hasPrefix(bytes, [0x1a, 0x45, 0xdf, 0xa3]);
-    if (normalizedExtension === 'mp4' || normalizedExtension === 'mov') return bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
-  }
-
-  if (kind === 'audio') {
-    if (normalizedExtension === 'mp3') return hasPrefix(bytes, [0x49, 0x44, 0x33]) || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
-    if (normalizedExtension === 'wav') return hasPrefix(bytes, [0x52, 0x49, 0x46, 0x46]) && bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45;
-    if (normalizedExtension === 'ogg') return hasPrefix(bytes, [0x4f, 0x67, 0x67, 0x53]);
-    if (normalizedExtension === 'm4a') return bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
-  }
-
-  return false;
-}
-
 function normalizeSlashes(value: string): string {
   return value.replace(/\\/g, '/');
 }
@@ -273,19 +215,6 @@ export function createWorkspaceMediaLibraryService(
           continue;
         }
 
-        if (adapter.readFileContent) {
-          const extension = getExtension(child.name || child.path);
-          try {
-            const content = await adapter.readFileContent(child.path);
-            if (!isValidWorkspaceMediaContent(kind, extension, content)) {
-              await adapter.deleteFile?.(child.path);
-              continue;
-            }
-          } catch {
-            continue;
-          }
-        }
-
         items.push(toMediaItem(workspacePath, child, kind, currentDirectory.source));
 
         if (mode === 'availability') {
@@ -384,14 +313,6 @@ export const workspaceMediaNodeAdapter: WorkspaceMediaNodeAdapter = {
       sizeBytes: typeof child.size === 'number' ? child.size : undefined,
       modifiedAt: typeof child.lastModified === 'number' ? child.lastModified : undefined,
     }));
-  },
-
-  async readFileContent(path: string) {
-    return workspaceAPI.readFileContent(path);
-  },
-
-  async deleteFile(path: string) {
-    await workspaceAPI.deleteFile(path);
   },
 };
 

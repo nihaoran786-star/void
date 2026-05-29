@@ -518,24 +518,19 @@ where
                 .and_then(Value::as_str)
                 .unwrap_or(&kind)
                 .to_string();
-            let file_name = format!(
-                "{}-{:03}.{}",
-                asset_kind,
-                item_index,
-                extension_for_media_url(&asset_kind, &url)
-            );
-            let local_path = batch_dir.join(file_name);
             match downloader(url.clone()).await.and_then(|bytes| {
-                if is_valid_downloaded_media_bytes(&asset_kind, &url, &bytes) {
-                    Ok(bytes)
-                } else {
-                    Err(std::io::Error::other(format!(
-                        "downloaded content is not valid {} media",
-                        asset_kind
-                    )))
-                }
+                downloaded_media_extension(&asset_kind, &url, &bytes)
+                    .map(|extension| (bytes, extension))
+                    .ok_or_else(|| {
+                        std::io::Error::other(format!(
+                            "downloaded content is not valid {} media",
+                            asset_kind
+                        ))
+                    })
             }) {
-                Ok(bytes) => {
+                Ok((bytes, extension)) => {
+                    let file_name = format!("{}-{:03}.{}", asset_kind, item_index, extension);
+                    let local_path = batch_dir.join(file_name);
                     tokio::fs::write(&local_path, bytes).await?;
                     let local_path_string = local_path.to_string_lossy().to_string();
                     asset_object.insert("local_path".to_string(), json!(local_path_string));
@@ -649,8 +644,7 @@ fn default_extension_for_kind(kind: &str) -> &'static str {
     }
 }
 
-fn is_valid_downloaded_media_bytes(kind: &str, url: &str, bytes: &[u8]) -> bool {
-    let extension = extension_for_media_url(kind, url);
+fn media_bytes_match_extension(extension: &str, bytes: &[u8]) -> bool {
     match extension {
         "png" => bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]),
         "jpg" => bytes.starts_with(&[0xff, 0xd8, 0xff]),
@@ -665,6 +659,31 @@ fn is_valid_downloaded_media_bytes(kind: &str, url: &str, bytes: &[u8]) -> bool 
         "wav" => bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WAVE",
         _ => false,
     }
+}
+
+fn sniff_downloaded_media_extension(kind: &str, bytes: &[u8]) -> Option<&'static str> {
+    let candidates: &[&str] = match kind {
+        "image" | "upload" | "upload_image" => &["png", "jpg", "webp", "gif"],
+        "video" => &["mp4", "webm"],
+        "audio" => &["mp3", "wav", "m4a"],
+        _ => &[],
+    };
+    candidates
+        .iter()
+        .copied()
+        .find(|extension| media_bytes_match_extension(extension, bytes))
+}
+
+fn downloaded_media_extension(kind: &str, url: &str, bytes: &[u8]) -> Option<&'static str> {
+    let extension = extension_for_media_url(kind, url);
+    if media_bytes_match_extension(extension, bytes) {
+        return Some(extension);
+    }
+    sniff_downloaded_media_extension(kind, bytes)
+}
+
+fn is_valid_downloaded_media_bytes(kind: &str, url: &str, bytes: &[u8]) -> bool {
+    downloaded_media_extension(kind, url, bytes).is_some()
 }
 
 fn build_media_items(
@@ -1286,6 +1305,47 @@ mod tests {
             .join("media_batch_test")
             .join("image-001.png")
             .exists());
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn saves_valid_image_bytes_when_provider_url_has_no_extension() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-generated-sniff-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_test",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/download?id=asset" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(vec![0xff, 0xd8, 0xff, 0xe0, 0x00])
+            })
+            .await
+            .expect("save sniffed image asset");
+
+        let local_path = saved["batch"]["assets"][0]["local_path"]
+            .as_str()
+            .expect("local path");
+        assert!(PathBuf::from(local_path).ends_with(
+            PathBuf::from("media")
+                .join("generated")
+                .join("media_batch_test")
+                .join("image-001.jpg")
+        ));
+        assert_eq!(saved["batch"]["assets"][0]["save_status"], "saved");
         let _ = tokio::fs::remove_dir_all(root).await;
     }
 

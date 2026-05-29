@@ -119,6 +119,25 @@ const noDimensionsService = (): WorkspaceMediaLibraryService => ({
   })),
 });
 
+const threeImagesService = (): WorkspaceMediaLibraryService => ({
+  checkAvailability: vi.fn(),
+  scanLibrary: vi.fn(async () => ({
+    status: 'ready',
+    scannedAt: 100,
+    items: [1, 2, 3].map(index => ({
+      id: `image-${index}`,
+      kind: 'image' as const,
+      source: 'generated' as const,
+      filePath: `C:/work/media/generated/image-${index}.png`,
+      relativePath: `media/generated/image-${index}.png`,
+      fileName: `image-${index}.png`,
+      extension: 'png',
+      sizeBytes: 1200 + index,
+      modifiedAt: 3000 - index,
+    })),
+  })),
+});
+
 describe('WorkspaceMediaGallery', () => {
   let dom: JSDOM;
   let container: HTMLDivElement;
@@ -280,6 +299,37 @@ describe('WorkspaceMediaGallery', () => {
       localPath: 'C:/work/assets/poster.png',
       title: 'poster.png',
     });
+  });
+
+  it('limits image preview reads and continues queued previews as earlier reads finish', async () => {
+    const service = threeImagesService();
+    const pendingResolvers: Array<(value: string) => void> = [];
+    const imagePreviewResolver = vi.fn(() => new Promise<string>((resolve) => {
+      pendingResolvers.push(resolve);
+    }));
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />
+      );
+    });
+
+    expect(imagePreviewResolver).toHaveBeenCalledTimes(2);
+    expect(imagePreviewResolver.mock.calls.map(call => call[0].filePath)).toEqual([
+      'C:/work/media/generated/image-1.png',
+      'C:/work/media/generated/image-2.png',
+    ]);
+
+    await act(async () => {
+      pendingResolvers[0]('data:image/png;base64,first');
+    });
+
+    expect(imagePreviewResolver).toHaveBeenCalledTimes(3);
+    expect(imagePreviewResolver.mock.calls[2][0].filePath).toBe('C:/work/media/generated/image-3.png');
   });
 
   it('updates image tile aspect ratio from loaded media dimensions', async () => {
