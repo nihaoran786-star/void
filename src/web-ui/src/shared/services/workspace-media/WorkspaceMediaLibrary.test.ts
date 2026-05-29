@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createWorkspaceMediaLibraryService,
   getMediaKindForPath,
+  isValidWorkspaceMediaContent,
   shouldIgnoreWorkspaceMediaDirectory,
 } from './WorkspaceMediaLibrary';
 import type { WorkspaceMediaNodeAdapter } from './WorkspaceMediaTypes';
@@ -26,12 +27,25 @@ function createAdapter(tree: Record<string, Awaited<ReturnType<WorkspaceMediaNod
   };
 }
 
+function base64(bytes: number[]): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
 describe('WorkspaceMediaLibrary', () => {
   it('classifies supported image, video, and audio files by extension', () => {
     expect(getMediaKindForPath('poster.PNG')).toBe('image');
     expect(getMediaKindForPath('clip.webm')).toBe('video');
     expect(getMediaKindForPath('voice.M4A')).toBe('audio');
     expect(getMediaKindForPath('notes.md')).toBeNull();
+  });
+
+  it('validates media files by content signature instead of extension only', () => {
+    expect(isValidWorkspaceMediaContent('image', 'png', base64([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))).toBe(true);
+    expect(isValidWorkspaceMediaContent('image', 'jpg', base64([0xff, 0xd8, 0xff, 0xe0]))).toBe(true);
+    expect(isValidWorkspaceMediaContent('image', 'svg', '<svg xmlns="http://www.w3.org/2000/svg"></svg>')).toBe(true);
+    expect(isValidWorkspaceMediaContent('video', 'mp4', base64([0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70]))).toBe(true);
+    expect(isValidWorkspaceMediaContent('audio', 'mp3', base64([0x49, 0x44, 0x33, 0x04]))).toBe(true);
+    expect(isValidWorkspaceMediaContent('image', 'png', '<html>not an image</html>')).toBe(false);
   });
 
   it('ignores high-cost workspace directories', () => {
@@ -124,6 +138,35 @@ describe('WorkspaceMediaLibrary', () => {
     expect(result.items.map(item => item.kind)).toEqual(['video', 'audio']);
     expect(result.items.map(item => item.source)).toEqual(['generated', 'generated']);
     expect(adapter.listChildren).not.toHaveBeenCalledWith('C:/work/assets');
+  });
+
+  it('cleans invalid managed media files and excludes them from the library', async () => {
+    const adapter: WorkspaceMediaNodeAdapter = {
+      ensureDirectory: vi.fn(async () => undefined),
+      listChildren: vi.fn(async (path: string) => {
+        if (path === 'C:/work/media/generated') {
+          return [
+            node('C:/work/media/generated/valid.png', { modifiedAt: 3000 }),
+            node('C:/work/media/generated/001.png', { modifiedAt: 4000 }),
+          ];
+        }
+        return [];
+      }),
+      readFileContent: vi.fn(async (path: string) => (
+        path.endsWith('valid.png')
+          ? base64([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+          : '<html>not an image</html>'
+      )),
+      deleteFile: vi.fn(async () => undefined),
+    };
+    const service = createWorkspaceMediaLibraryService(adapter);
+
+    const result = await service.scanLibrary('C:/work');
+
+    expect(result.status).toBe('ready');
+    if (result.status !== 'ready') return;
+    expect(result.items.map(item => item.relativePath)).toEqual(['media/generated/valid.png']);
+    expect(adapter.deleteFile).toHaveBeenCalledWith('C:/work/media/generated/001.png');
   });
 
   it('treats missing managed media folders as empty instead of scan errors', async () => {

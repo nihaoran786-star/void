@@ -525,7 +525,16 @@ where
                 extension_for_media_url(&asset_kind, &url)
             );
             let local_path = batch_dir.join(file_name);
-            match downloader(url.clone()).await {
+            match downloader(url.clone()).await.and_then(|bytes| {
+                if is_valid_downloaded_media_bytes(&asset_kind, &url, &bytes) {
+                    Ok(bytes)
+                } else {
+                    Err(std::io::Error::other(format!(
+                        "downloaded content is not valid {} media",
+                        asset_kind
+                    )))
+                }
+            }) {
                 Ok(bytes) => {
                     tokio::fs::write(&local_path, bytes).await?;
                     let local_path_string = local_path.to_string_lossy().to_string();
@@ -637,6 +646,24 @@ fn default_extension_for_kind(kind: &str) -> &'static str {
         "audio" => "mp3",
         "image" | "upload" | "upload_image" => "png",
         _ => "bin",
+    }
+}
+
+fn is_valid_downloaded_media_bytes(kind: &str, url: &str, bytes: &[u8]) -> bool {
+    let extension = extension_for_media_url(kind, url);
+    match extension {
+        "png" => bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]),
+        "jpg" => bytes.starts_with(&[0xff, 0xd8, 0xff]),
+        "webp" => bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WEBP",
+        "gif" => bytes.starts_with(b"GIF8"),
+        "mp4" | "m4a" => bytes.len() >= 8 && &bytes[4..8] == b"ftyp",
+        "webm" => bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]),
+        "mp3" => {
+            bytes.starts_with(b"ID3")
+                || (bytes.len() >= 2 && bytes[0] == 0xff && (bytes[1] & 0xe0) == 0xe0)
+        }
+        "wav" => bytes.len() >= 12 && bytes.starts_with(b"RIFF") && &bytes[8..12] == b"WAVE",
+        _ => false,
     }
 }
 
@@ -856,9 +883,9 @@ fn collect_urls(value: &Value, urls: &mut Vec<String>) {
 mod tests {
     use super::{
         build_media_batch_result, build_media_batch_result_with_id, classify_apimart_error,
-        classify_apimart_error_message, extract_media_task_ids, load_media_batch,
-        media_batch_context_text, media_job_store_path, media_task_status, persist_media_batch,
-        sanitize_path_component, save_generated_media_assets_with_downloader,
+        classify_apimart_error_message, extract_media_task_ids, is_valid_downloaded_media_bytes,
+        load_media_batch, media_batch_context_text, media_job_store_path, media_task_status,
+        persist_media_batch, sanitize_path_component, save_generated_media_assets_with_downloader,
     };
     use serde_json::json;
     use std::path::PathBuf;
@@ -1112,7 +1139,7 @@ mod tests {
 
         let saved = save_generated_media_assets_with_downloader(&result, &path, |url| async move {
             assert_eq!(url, "https://cdn.example/a.png");
-            Ok(vec![1, 2, 3])
+            Ok(vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a])
         })
         .await
         .expect("save generated asset");
@@ -1131,7 +1158,7 @@ mod tests {
         assert_eq!(saved["batch"]["items"][0]["save_status"], "saved");
 
         let bytes = tokio::fs::read(local_path).await.expect("saved bytes");
-        assert_eq!(bytes, vec![1, 2, 3]);
+        assert_eq!(bytes, vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a]);
         let manifest = root
             .join("media")
             .join("generated")
@@ -1161,6 +1188,25 @@ mod tests {
             "media-batch-test"
         );
         assert_eq!(sanitize_path_component("..."), "media-batch");
+    }
+
+    #[test]
+    fn validates_downloaded_media_bytes_by_signature() {
+        assert!(is_valid_downloaded_media_bytes(
+            "image",
+            "https://cdn.example/a.png",
+            &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a],
+        ));
+        assert!(is_valid_downloaded_media_bytes(
+            "video",
+            "https://cdn.example/a.mp4",
+            &[0, 0, 0, 24, b'f', b't', b'y', b'p'],
+        ));
+        assert!(!is_valid_downloaded_media_bytes(
+            "image",
+            "https://cdn.example/a.png",
+            b"<html>not an image</html>",
+        ));
     }
 
     #[tokio::test]
@@ -1197,6 +1243,49 @@ mod tests {
         assert_eq!(saved["batch"]["assets"][0]["save_status"], "failed");
         assert_eq!(saved["batch"]["assets"][0]["save_error"], "network down");
         assert!(saved["batch"]["assets"][0]["local_path"].is_null());
+        let _ = tokio::fs::remove_dir_all(root).await;
+    }
+
+    #[tokio::test]
+    async fn rejects_invalid_downloaded_asset_bytes_without_writing_fake_media() {
+        let root = std::env::temp_dir().join(format!(
+            "void-media-generated-invalid-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        let path =
+            media_job_store_path(Some(root.as_path()), "media_batch_test").expect("store path");
+        let result = build_media_batch_result_with_id(
+            "image",
+            "media_batch_test",
+            json!([{
+                "task_id": "task-a",
+                "status": "completed",
+                "response": {
+                    "data": [{ "url": "https://cdn.example/a.png" }]
+                }
+            }]),
+            vec![],
+        );
+
+        let saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Ok(b"<html>not an image</html>".to_vec())
+            })
+            .await
+            .expect("invalid asset is captured");
+
+        assert_eq!(saved["batch"]["assets"][0]["save_status"], "failed");
+        assert_eq!(
+            saved["batch"]["assets"][0]["save_error"],
+            "downloaded content is not valid image media"
+        );
+        assert!(saved["batch"]["assets"][0]["local_path"].is_null());
+        assert!(!root
+            .join("media")
+            .join("generated")
+            .join("media_batch_test")
+            .join("image-001.png")
+            .exists());
         let _ = tokio::fs::remove_dir_all(root).await;
     }
 

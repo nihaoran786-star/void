@@ -51,6 +51,8 @@ export interface WorkspaceMediaNode {
 export interface WorkspaceMediaNodeAdapter {
   ensureDirectory?(path: string): Promise<void>;
   listChildren(path: string): Promise<WorkspaceMediaNode[]>;
+  readFileContent?(path: string): Promise<string>;
+  deleteFile?(path: string): Promise<void>;
 }
 
 export interface WorkspaceMediaLibraryService {
