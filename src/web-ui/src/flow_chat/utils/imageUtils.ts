@@ -5,8 +5,44 @@
 import type { ImageContext } from '@/shared/types/context';
 import { isImageFile as checkIsImageFile } from '@/infrastructure/language-detection';
 import { createLogger } from '@/shared/utils/logger';
+import { workspaceAPI } from '@/infrastructure/api';
+import { workspaceMediaInputDirectory } from '@/shared/services/workspace-media/WorkspaceMediaPaths';
+import { writeFile as writeBinaryFile } from '@tauri-apps/plugin-fs';
 
 const log = createLogger('imageUtils');
+
+export interface WorkspaceImageStorageAdapter {
+  ensureDirectory(path: string): Promise<void>;
+  copyFile(sourcePath: string, destinationPath: string): Promise<void>;
+  writeFile(path: string, content: Uint8Array): Promise<void>;
+}
+
+interface CreateImageContextOptions {
+  workspacePath?: string;
+  storageAdapter?: WorkspaceImageStorageAdapter;
+}
+
+const defaultWorkspaceImageStorageAdapter: WorkspaceImageStorageAdapter = {
+  async ensureDirectory(path: string) {
+    try {
+      const metadata = await workspaceAPI.getFileMetadata(path);
+      if (metadata.isDir) {
+        return;
+      }
+    } catch {
+      // Missing paths are created below. Other errors will surface from createDirectory.
+    }
+    await workspaceAPI.createDirectory(path);
+  },
+
+  async copyFile(sourcePath: string, destinationPath: string) {
+    await workspaceAPI.exportLocalFileToPath(sourcePath, destinationPath);
+  },
+
+  async writeFile(path: string, content: Uint8Array) {
+    await writeBinaryFile(path, content);
+  },
+};
 
 /**
  * Build a human-readable, unique-ish filename for an image that came from the
@@ -23,6 +59,58 @@ function generateClipboardImageName(mimeType: string): string {
     `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}` +
     `-${pad(now.getMilliseconds(), 3)}`;
   return `clipboard-${stamp}.${ext}`;
+}
+
+function sanitizeWorkspaceMediaFileName(fileName: string): string {
+  const parts = fileName.split('.');
+  const extension = parts.length > 1 ? `.${parts.pop()}` : '.png';
+  const name = (parts.join('.') || 'image')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'image';
+  const safeExtension = extension.toLowerCase().replace(/[^a-z0-9.]+/g, '');
+  return `${name}${safeExtension || '.png'}`;
+}
+
+function joinMediaInputPath(workspacePath: string, fileName: string): string {
+  const directory = workspaceMediaInputDirectory(workspacePath);
+  const separator = directory.includes('\\') && !directory.includes('/') ? '\\' : '/';
+  const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${directory}${separator}${uniquePrefix}-${sanitizeWorkspaceMediaFileName(fileName)}`;
+}
+
+async function persistImageToWorkspaceInput(
+  file: File,
+  imageName: string,
+  options?: CreateImageContextOptions
+): Promise<string | undefined> {
+  const workspacePath = options?.workspacePath?.trim();
+  if (!workspacePath) {
+    return undefined;
+  }
+
+  const storageAdapter = options?.storageAdapter || defaultWorkspaceImageStorageAdapter;
+  const directory = workspaceMediaInputDirectory(workspacePath);
+  const destinationPath = joinMediaInputPath(workspacePath, imageName);
+
+  try {
+    await storageAdapter.ensureDirectory(directory);
+    const sourcePath = (file as File & { path?: string }).path;
+    if (sourcePath) {
+      await storageAdapter.copyFile(sourcePath, destinationPath);
+    } else {
+      await storageAdapter.writeFile(destinationPath, new Uint8Array(await file.arrayBuffer()));
+    }
+    return destinationPath;
+  } catch (error) {
+    log.warn('Failed to persist image in workspace media input folder', {
+      fileName: imageName,
+      workspacePath,
+      error,
+    });
+    return undefined;
+  }
 }
 
 /**
@@ -200,6 +288,7 @@ export function getMimeTypeFromFilename(filename: string): string {
  */
 export async function createImageContextFromFile(
   file: File,
+  options?: CreateImageContextOptions,
 ): Promise<ImageContext> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
@@ -221,11 +310,13 @@ export async function createImageContextFromFile(
   }
   
   const dataUrl = await readFileAsDataUrl(file);
+  const originalPath = (file as File & { path?: string }).path || '';
+  const persistedPath = await persistImageToWorkspaceInput(file, file.name, options);
 
   const imageContext: ImageContext = {
     id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     type: 'image',
-    imagePath: (file as any).path || '', // Electron/Tauri environments may have a path property.
+    imagePath: persistedPath || originalPath, // Electron/Tauri environments may have a path property.
     imageName: file.name,
     width: dimensions.width,
     height: dimensions.height,
@@ -233,10 +324,10 @@ export async function createImageContextFromFile(
     mimeType: file.type,
     dataUrl,
     source: 'file',
-    isLocal: Boolean((file as any).path),
+    isLocal: Boolean(persistedPath || originalPath),
     timestamp: Date.now(),
     thumbnailUrl,
-    metadata: {}
+    metadata: persistedPath ? { mediaInputPath: persistedPath } : {}
   };
   
   return imageContext;
@@ -265,6 +356,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
  */
 export async function createImageContextFromClipboard(
   file: File,
+  options?: CreateImageContextOptions,
 ): Promise<ImageContext> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
@@ -286,30 +378,33 @@ export async function createImageContextFromClipboard(
   }
   
   const dataUrl = await readFileAsDataUrl(file);
+  const imageName = (() => {
+    const raw = file.name || '';
+    const genericPattern = /^image\.\w+$/i;
+    if (!raw || genericPattern.test(raw)) {
+      return generateClipboardImageName(file.type || 'image/png');
+    }
+    return raw;
+  })();
+  const persistedPath = await persistImageToWorkspaceInput(file, imageName, options);
   
   const imageContext: ImageContext = {
     id: `img-clipboard-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     type: 'image',
-    imagePath: '', // Clipboard images do not have a path.
-    imageName: (() => {
-      const raw = file.name || '';
-      const genericPattern = /^image\.\w+$/i;
-      if (!raw || genericPattern.test(raw)) {
-        return generateClipboardImageName(file.type || 'image/png');
-      }
-      return raw;
-    })(),
+    imagePath: persistedPath || '', // Clipboard images do not have a source path.
+    imageName,
     width: dimensions.width,
     height: dimensions.height,
     fileSize: file.size,
     mimeType: file.type,
     dataUrl,
     source: 'clipboard',
-    isLocal: false,
+    isLocal: Boolean(persistedPath),
     timestamp: Date.now(),
     thumbnailUrl,
     metadata: {
-      fromClipboard: true
+      fromClipboard: true,
+      ...(persistedPath ? { mediaInputPath: persistedPath } : {}),
     }
   };
 

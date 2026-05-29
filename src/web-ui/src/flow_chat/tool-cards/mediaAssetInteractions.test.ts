@@ -70,12 +70,12 @@ describe('mediaAssetInteractions', () => {
   it('prefers local paths for generated image references when available', () => {
     const context = createMediaReferenceContext({
       ...imageAsset,
-      localPath: 'C:/repo/.void/media/generated/batch/image-001.png',
-      previewUrl: 'asset://localhost/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
+      localPath: 'C:/repo/media/generated/batch/image-001.png',
+      previewUrl: 'asset://localhost/C%3A%2Frepo%2Fmedia%2Fgenerated%2Fbatch%2Fimage-001.png',
     });
 
     expect(context).toMatchObject({
-      imagePath: 'C:/repo/.void/media/generated/batch/image-001.png',
+      imagePath: 'C:/repo/media/generated/batch/image-001.png',
       source: 'file',
       isLocal: true,
       thumbnailUrl: 'https://cdn.example.com/image-1.png',
@@ -85,7 +85,7 @@ describe('mediaAssetInteractions', () => {
   it('creates stable reference ids so duplicate generated assets do not create duplicate chips', () => {
     const asset = {
       ...imageAsset,
-      localPath: 'C:/repo/.void/media/generated/batch/image-001.png',
+      localPath: 'C:/repo/media/generated/batch/image-001.png',
     };
 
     const first = createMediaReferenceContext(asset);

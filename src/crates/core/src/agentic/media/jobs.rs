@@ -439,14 +439,22 @@ pub async fn save_generated_media_assets(
     save_generated_media_assets_with_downloader(result, media_job_path, |url| {
         let client = client.clone();
         async move {
-            let response = client.get(url).send().await.map_err(std::io::Error::other)?;
+            let response = client
+                .get(url)
+                .send()
+                .await
+                .map_err(std::io::Error::other)?;
             if !response.status().is_success() {
                 return Err(std::io::Error::other(format!(
                     "download failed with HTTP {}",
                     response.status()
                 )));
             }
-            response.bytes().await.map(|bytes| bytes.to_vec()).map_err(std::io::Error::other)
+            response
+                .bytes()
+                .await
+                .map(|bytes| bytes.to_vec())
+                .map_err(std::io::Error::other)
         }
     })
     .await
@@ -475,10 +483,14 @@ where
         .and_then(Value::as_str)
         .unwrap_or("media")
         .to_string();
-    let Some(dot_void_dir) = media_job_path.parent().and_then(|path| path.parent()) else {
+    let Some(workspace_root) = media_job_path
+        .parent()
+        .and_then(|path| path.parent())
+        .and_then(|path| path.parent())
+    else {
         return Ok(next);
     };
-    let batch_dir = dot_void_dir
+    let batch_dir = workspace_root
         .join("media")
         .join("generated")
         .join(sanitize_path_component(&batch_id));
@@ -490,7 +502,11 @@ where
             let Some(asset_object) = asset.as_object_mut() else {
                 continue;
             };
-            let Some(url) = asset_object.get("url").and_then(Value::as_str).map(str::to_string) else {
+            let Some(url) = asset_object
+                .get("url")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+            else {
                 continue;
             };
             let item_index = asset_object
@@ -515,13 +531,23 @@ where
                     let local_path_string = local_path.to_string_lossy().to_string();
                     asset_object.insert("local_path".to_string(), json!(local_path_string));
                     asset_object.insert("save_status".to_string(), json!("saved"));
-                    item_updates.push((item_index, local_path.to_string_lossy().to_string(), "saved".to_string(), None));
+                    item_updates.push((
+                        item_index,
+                        local_path.to_string_lossy().to_string(),
+                        "saved".to_string(),
+                        None,
+                    ));
                 }
                 Err(error) => {
                     let message = error.to_string();
                     asset_object.insert("save_status".to_string(), json!("failed"));
                     asset_object.insert("save_error".to_string(), json!(message.clone()));
-                    item_updates.push((item_index, String::new(), "failed".to_string(), Some(message)));
+                    item_updates.push((
+                        item_index,
+                        String::new(),
+                        "failed".to_string(),
+                        Some(message),
+                    ));
                 }
             }
         }
@@ -536,8 +562,9 @@ where
                 .get("item_index")
                 .and_then(Value::as_u64)
                 .unwrap_or(0);
-            if let Some((_, local_path, save_status, save_error)) =
-                item_updates.iter().find(|(index, _, _, _)| *index == item_index)
+            if let Some((_, local_path, save_status, save_error)) = item_updates
+                .iter()
+                .find(|(index, _, _, _)| *index == item_index)
             {
                 item_object.insert("save_status".to_string(), json!(save_status));
                 if !local_path.is_empty() {
@@ -550,7 +577,10 @@ where
         }
     }
 
-    batch.insert("asset_root".to_string(), json!(batch_dir.to_string_lossy().to_string()));
+    batch.insert(
+        "asset_root".to_string(),
+        json!(batch_dir.to_string_lossy().to_string()),
+    );
     let manifest_path = batch_dir.join("manifest.json");
     tokio::fs::write(
         manifest_path,
@@ -825,8 +855,8 @@ fn collect_urls(value: &Value, urls: &mut Vec<String>) {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_media_batch_result, classify_apimart_error, classify_apimart_error_message,
-        build_media_batch_result_with_id, extract_media_task_ids, load_media_batch,
+        build_media_batch_result, build_media_batch_result_with_id, classify_apimart_error,
+        classify_apimart_error_message, extract_media_task_ids, load_media_batch,
         media_batch_context_text, media_job_store_path, media_task_status, persist_media_batch,
         sanitize_path_component, save_generated_media_assets_with_downloader,
     };
@@ -1091,8 +1121,7 @@ mod tests {
             .as_str()
             .expect("local path");
         assert!(PathBuf::from(local_path).ends_with(
-            PathBuf::from(".void")
-                .join("media")
+            PathBuf::from("media")
                 .join("generated")
                 .join("media_batch_test")
                 .join("image-001.png")
@@ -1104,26 +1133,33 @@ mod tests {
         let bytes = tokio::fs::read(local_path).await.expect("saved bytes");
         assert_eq!(bytes, vec![1, 2, 3]);
         let manifest = root
-            .join(".void")
             .join("media")
             .join("generated")
             .join("media_batch_test")
             .join("manifest.json");
         assert!(manifest.exists());
-        let manifest_value: serde_json::Value = serde_json::from_slice(
-            &tokio::fs::read(manifest).await.expect("manifest bytes"),
-        )
-        .expect("manifest json");
+        let manifest_value: serde_json::Value =
+            serde_json::from_slice(&tokio::fs::read(manifest).await.expect("manifest bytes"))
+                .expect("manifest json");
         assert_eq!(manifest_value["batch"]["batch_id"], "media_batch_test");
-        assert_eq!(manifest_value["batch"]["assets"][0]["url"], "https://cdn.example/a.png");
-        assert_eq!(manifest_value["batch"]["assets"][0]["local_path"], local_path);
+        assert_eq!(
+            manifest_value["batch"]["assets"][0]["url"],
+            "https://cdn.example/a.png"
+        );
+        assert_eq!(
+            manifest_value["batch"]["assets"][0]["local_path"],
+            local_path
+        );
         assert_eq!(manifest_value["batch"]["assets"][0]["save_status"], "saved");
         let _ = tokio::fs::remove_dir_all(root).await;
     }
 
     #[test]
     fn generated_asset_batch_paths_are_sanitized() {
-        assert_eq!(sanitize_path_component("media:batch/test?"), "media-batch-test");
+        assert_eq!(
+            sanitize_path_component("media:batch/test?"),
+            "media-batch-test"
+        );
         assert_eq!(sanitize_path_component("..."), "media-batch");
     }
 
@@ -1147,13 +1183,17 @@ mod tests {
             vec![],
         );
 
-        let saved = save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
-            Err(std::io::Error::other("network down"))
-        })
-        .await
-        .expect("save failure is captured in result");
+        let saved =
+            save_generated_media_assets_with_downloader(&result, &path, |_url| async move {
+                Err(std::io::Error::other("network down"))
+            })
+            .await
+            .expect("save failure is captured in result");
 
-        assert_eq!(saved["batch"]["assets"][0]["url"], "https://cdn.example/a.png");
+        assert_eq!(
+            saved["batch"]["assets"][0]["url"],
+            "https://cdn.example/a.png"
+        );
         assert_eq!(saved["batch"]["assets"][0]["save_status"], "failed");
         assert_eq!(saved["batch"]["assets"][0]["save_error"], "network down");
         assert!(saved["batch"]["assets"][0]["local_path"].is_null());

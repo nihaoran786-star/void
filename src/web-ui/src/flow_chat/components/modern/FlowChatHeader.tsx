@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Bot, ChevronDown, ChevronUp, GitPullRequest, List, PictureInPicture2, Search, X } from 'lucide-react';
+import { Bot, ChevronDown, ChevronUp, GitPullRequest, Image, List, PictureInPicture2, Search, X } from 'lucide-react';
 import { Tooltip, IconButton, Input } from '@/component-library';
 import { useTranslation } from 'react-i18next';
 import { SessionFilesBadge } from './SessionFilesBadge';
@@ -73,6 +73,8 @@ export interface FlowChatHeaderProps {
   isPreviewFirstActive?: boolean;
   /** Toggle preview-first / compact floating chat presentation. */
   onPreviewFirstToggle?: () => void;
+  /** Open the workspace media gallery in the right-side panel. */
+  onOpenWorkspaceMedia?: () => void;
 }
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
@@ -98,8 +100,10 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   showPreviewFirstToggle = false,
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
+  onOpenWorkspaceMedia,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const { t: tComponents } = useTranslation('components');
   const { currentWorkspace } = useWorkspaceContext();
   const [isTurnListOpen, setIsTurnListOpen] = useState(false);
   const [isSubagentListOpen, setIsSubagentListOpen] = useState(false);
@@ -122,6 +126,9 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const turnBadgeLabel = t('flowChatHeader.turnBadge', {
     current: currentTurn,
     defaultValue: `Turn ${currentTurn}`,
+  });
+  const workspaceMediaLabel = tComponents('workspaceMedia.entry', {
+    defaultValue: 'Open media gallery',
   });
   const previousTurnDisabled = currentTurn <= 1;
   const nextTurnDisabled = currentTurn <= 0 || currentTurn >= totalTurns;
@@ -546,6 +553,19 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
             </div>
           )}
         </div>
+        {showPreviewFirstToggle && onOpenWorkspaceMedia && (
+          <IconButton
+            className="flowchat-header__workspace-media-btn"
+            variant="ghost"
+            size="xs"
+            onClick={onOpenWorkspaceMedia}
+            tooltip={workspaceMediaLabel}
+            aria-label={workspaceMediaLabel}
+            data-testid="flowchat-header-workspace-media"
+          >
+            <Image size={14} />
+          </IconButton>
+        )}
         {showPreviewFirstToggle && (
           <IconButton
             className={`flowchat-header__preview-first-btn${isPreviewFirstActive ? ' flowchat-header__preview-first-btn--active' : ''}`}

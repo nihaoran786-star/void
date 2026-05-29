@@ -19,6 +19,7 @@ import {
   Globe,
   Activity,
   GitPullRequest,
+  Images,
 } from 'lucide-react';
 import { PanelContentType, PanelContentConfig } from './types';
 
@@ -236,6 +237,14 @@ export const PANEL_CONTENT_CONFIGS: Record<PanelContentType, PanelContentConfig>
     type: 'generative-widget',
     displayName: 'Widget Preview',
     icon: Network,
+    supportsCopy: false,
+    supportsDownload: false,
+    showHeader: false
+  },
+  'workspace-media-gallery': {
+    type: 'workspace-media-gallery',
+    displayName: 'Media',
+    icon: Images,
     supportsCopy: false,
     supportsDownload: false,
     showHeader: false

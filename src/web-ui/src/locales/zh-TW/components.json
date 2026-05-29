@@ -579,6 +579,35 @@
     "dropBottom": "下",
     "dropCenter": "放置"
   },
+  "workspaceMedia": {
+    "entry": "媒體",
+    "ariaLabel": "工作區媒體",
+    "title": "媒體",
+    "description": "目前工作區中的圖片、影片和音訊檔案。",
+    "refresh": "重新整理",
+    "searchPlaceholder": "搜尋",
+    "clearFilters": "清除篩選",
+    "filters": {
+      "ariaLabel": "媒體篩選",
+      "all": "全部",
+      "images": "圖片",
+      "videos": "影片",
+      "audio": "音訊"
+    },
+    "sort": {
+      "label": "排序",
+      "recent": "最近",
+      "name": "名稱",
+      "size": "大小"
+    },
+    "states": {
+      "scanning": "正在掃描媒體檔案...",
+      "empty": "未找到媒體檔案。",
+      "truncated": "目前僅顯示受限數量內的媒體檔案。",
+      "noFilterMatches": "沒有符合此篩選條件的媒體檔案。",
+      "unpreviewable": "無法預覽"
+    }
+  },
   "flexiblePanel": {
     "empty": {
       "title": "暫無內容",

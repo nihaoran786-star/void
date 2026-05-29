@@ -83,6 +83,12 @@ const GenerativeWidgetPanel = React.lazy(() =>
   import('@/tools/generative-widget/GenerativeWidgetPanel')
 );
 
+const WorkspaceMediaGallery = React.lazy(() =>
+  import('@/app/components/panels/content-canvas/workspace-media').then(module => ({
+    default: module.WorkspaceMediaGallery,
+  }))
+);
+
 const TaskDetailPanel = React.lazy(() => 
   import('@/flow_chat/components/TaskDetailPanel').then(module => ({ 
     default: module.TaskDetailPanel 
@@ -855,6 +861,13 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
                 }
               }}
             />
+          </React.Suspense>
+        );
+
+      case 'workspace-media-gallery':
+        return (
+          <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading media...</div>}>
+            <WorkspaceMediaGallery workspacePath={content.data?.workspacePath || workspacePath} />
           </React.Suspense>
         );
 

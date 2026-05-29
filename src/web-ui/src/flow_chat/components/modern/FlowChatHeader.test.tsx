@@ -98,4 +98,34 @@ describe('FlowChatHeader', () => {
 
     expect(onPreviewFirstToggle).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a workspace media action next to the preview-first action', () => {
+    const onOpenWorkspaceMedia = vi.fn();
+
+    act(() => {
+      root.render(
+        <FlowChatHeader
+          currentTurn={1}
+          totalTurns={1}
+          currentUserMessage="Can you generate an image?"
+          visible
+          showPreviewFirstToggle
+          onPreviewFirstToggle={vi.fn()}
+          onOpenWorkspaceMedia={onOpenWorkspaceMedia}
+        />,
+      );
+    });
+
+    const previewButton = container.querySelector('[data-testid="flowchat-header-preview-first-toggle"]') as HTMLButtonElement;
+    const mediaButton = container.querySelector('[data-testid="flowchat-header-workspace-media"]') as HTMLButtonElement;
+    expect(previewButton).toBeTruthy();
+    expect(mediaButton).toBeTruthy();
+    expect(mediaButton.compareDocumentPosition(previewButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    act(() => {
+      mediaButton.click();
+    });
+
+    expect(onOpenWorkspaceMedia).toHaveBeenCalledTimes(1);
+  });
 });

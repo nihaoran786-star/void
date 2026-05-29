@@ -31,6 +31,7 @@ export type PanelContentType =
   | 'review-platform-pr-detail'
   | 'terminal'
   | 'generative-widget'
+  | 'workspace-media-gallery'
   | 'browser';
 
 export interface PanelContent {

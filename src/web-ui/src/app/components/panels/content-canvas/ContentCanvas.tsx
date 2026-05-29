@@ -13,7 +13,15 @@ import { useTabLifecycle, useKeyboardShortcuts, usePanelTabCoordinator } from '.
 import type { AnchorPosition } from './types';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
 import { isSamePath } from '@/shared/utils/pathUtils';
+import {
+  workspaceMediaLibraryService,
+  type WorkspaceMediaLibraryService,
+} from '@/shared/services/workspace-media';
 import './ContentCanvas.scss';
+
+const WORKSPACE_MEDIA_OPEN_EVENT = 'void:open-workspace-media';
+const MEDIA_AUTO_OPEN_CHECK_INTERVAL_MS = 5000;
+
 export interface ContentCanvasProps {
   /** Workspace path */
   workspacePath?: string;
@@ -27,6 +35,8 @@ export interface ContentCanvasProps {
   onBeforeClose?: (content: any) => Promise<boolean>;
   /** Disable pop-out and panel-close controls (used in panel-view scene) */
   disablePopOut?: boolean;
+  /** Workspace media service override for tests. */
+  workspaceMediaService?: WorkspaceMediaLibraryService;
 }
 
 export const ContentCanvas: React.FC<ContentCanvasProps> = ({
@@ -35,12 +45,16 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   isSceneActive = true,
   onInteraction,
   disablePopOut = false,
+  workspaceMediaService = workspaceMediaLibraryService,
 }) => {
   // Store state
   const {
     primaryGroup,
     layout,
     isMissionControlOpen,
+    addTab,
+    findTabByMetadata,
+    switchToTab,
     setAnchorPosition,
     setAnchorSize,
     closeMissionControl,
@@ -51,6 +65,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     | { childSessionId: string; parentSessionId: string; workspacePath?: string }
     | undefined;
   const lastSyncedBtwTabIdRef = useRef<string | null>(null);
+  const autoOpenedMediaWorkspacePathsRef = useRef<Set<string>>(new Set());
   // Initialize hooks
   const { handleCloseWithDirtyCheck, handleCloseAllWithDirtyCheck } = useTabLifecycle({ mode });
   useKeyboardShortcuts({ enabled: true, handleCloseWithDirtyCheck });
@@ -113,11 +128,91 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     closeMissionControl();
   }, [closeMissionControl]);
 
+  const handleOpenWorkspaceMedia = useCallback(() => {
+    if (!workspacePath) {
+      return;
+    }
+
+    const duplicateCheckKey = `workspace-media:${workspacePath}`;
+    const existing = findTabByMetadata({ duplicateCheckKey });
+    if (existing) {
+      switchToTab(existing.tab.id, existing.groupId);
+      return;
+    }
+
+    addTab({
+      type: 'workspace-media-gallery',
+      title: 'Media',
+      data: { workspacePath },
+      metadata: {
+        duplicateCheckKey,
+      },
+    }, 'active', 'primary');
+  }, [addTab, findTabByMetadata, switchToTab, workspacePath]);
+
+  useEffect(() => {
+    const handler = () => {
+      handleOpenWorkspaceMedia();
+    };
+
+    window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handler);
+    return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handler);
+  }, [handleOpenWorkspaceMedia]);
+
+  useEffect(() => {
+    if (!workspacePath || hasPrimaryVisibleTabs) {
+      return;
+    }
+
+    let cancelled = false;
+    let intervalId: number | undefined;
+    const workspaceKey = workspacePath.trim();
+    if (!workspaceKey || autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)) {
+      return;
+    }
+
+    const checkAndOpen = async () => {
+      let availability;
+      try {
+        availability = await workspaceMediaService.checkAvailability(workspaceKey);
+      } catch {
+        return;
+      }
+      if (
+        cancelled ||
+        availability.status !== 'available' ||
+        autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)
+      ) {
+        return;
+      }
+      autoOpenedMediaWorkspacePathsRef.current.add(workspaceKey);
+      handleOpenWorkspaceMedia();
+    };
+
+    void checkAndOpen();
+    intervalId = window.setInterval(() => {
+      void checkAndOpen();
+    }, MEDIA_AUTO_OPEN_CHECK_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== undefined) {
+        window.clearInterval(intervalId);
+      }
+    };
+  }, [handleOpenWorkspaceMedia, hasPrimaryVisibleTabs, workspaceMediaService, workspacePath]);
+
   // Render content
   const renderContent = () => {
     // Show empty state when primary group has no visible tabs
     if (!hasPrimaryVisibleTabs) {
-      return <EmptyState onClose={disablePopOut ? undefined : collapsePanel} />;
+      return (
+        <EmptyState
+          onClose={disablePopOut ? undefined : collapsePanel}
+          workspacePath={workspacePath}
+          onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
+        />
+      );
     }
 
     return (
@@ -132,6 +227,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
             onTabCloseWithDirtyCheck={handleCloseWithDirtyCheck}
             onTabCloseAllWithDirtyCheck={handleCloseAllWithDirtyCheck}
             disablePopOut={disablePopOut}
+            onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
           />
         </div>
 

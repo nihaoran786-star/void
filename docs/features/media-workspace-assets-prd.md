@@ -34,7 +34,7 @@ The revised staged approach is:
 1. Keep uploaded images as immediate `dataUrl` references for current-turn image-to-image workflows.
 2. Lightweight media cards: compact generating state, low visual weight, completed asset grid, details only when needed.
 3. Lightweight media preview: image/video/audio open in a media-specific in-app viewer, not BrowserPanel.
-4. Generated asset persistence: when media jobs complete, save remote output URLs to `.void/media/generated/` with a manifest.
+4. Generated asset persistence: when media jobs complete, save remote output URLs to `media/generated/` with a manifest.
 5. Asset reuse: image assets can be referenced again from local saved paths or remote URLs; video/audio expose copyable paths/URLs without pretending to be image references.
 
 ## User Stories
@@ -55,8 +55,8 @@ The revised staged approach is:
 
 ## Implementation Decisions
 
-- Uploaded user images stay on the current immediate `dataUrl` path. They are not staged to `.void/media/uploads/` in this PRD.
-- Generated media persistence is a later backend-owned asset flow under `.void/media/generated/`.
+- Uploaded user images keep `dataUrl` for current-turn prompting and are also copied/written into `media/input/` when a workspace path is available.
+- Generated media persistence is a backend-owned asset flow under `media/generated/`.
 - Media cards must not inspect provider details. They render a normalized media asset view model.
 - Pure media preview should use image/video/audio elements in an app-owned preview surface. BrowserPanel remains for webpages, localhost previews, and HTML artifacts.
 - The first lightweight preview is implemented as a focused app overlay. It does not instantiate BrowserPanel for pure media, and avoids broad right-panel shell refactoring.
@@ -95,7 +95,8 @@ Implemented in the current development branch:
 - Immediate uploaded-image `dataUrl` reference path remains the source of truth for current-turn reference images.
 - Media generation cards default to a compact generating row and show completed assets in a grid.
 - Pure image/video/audio preview dispatches to a lightweight media overlay instead of BrowserPanel.
-- Completed generated media assets are saved by the backend under `.void/media/generated/<batch_id>/`.
+- Completed generated media assets are saved by the backend under `media/generated/<batch_id>/`.
+- Uploaded and pasted chat images are stored under `media/input/` when the active workspace is local and writable.
 - Each generated batch writes `manifest.json` and records `local_path`, `save_status`, and `save_error` where applicable.
 - Media card view models expose remote URL, local path, preview URL, and save status.
 - Image references prefer saved local paths, fall back to remote URLs, and use stable ids so repeated references do not duplicate chips.

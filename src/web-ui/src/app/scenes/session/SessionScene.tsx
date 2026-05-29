@@ -199,6 +199,10 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent('void:toggle-preview-first'));
   }, []);
 
+  const handleOpenWorkspaceMedia = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -223,6 +227,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             showPreviewFirstToggle={canUsePreviewFirstFloatingChat}
             isPreviewFirstActive={isRightAsMain}
             onPreviewFirstToggle={handlePreviewFirstToggle}
+            onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
           />
         </div>
       )}

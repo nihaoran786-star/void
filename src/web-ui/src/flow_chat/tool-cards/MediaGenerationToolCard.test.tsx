@@ -197,7 +197,7 @@ function createLocalImageToolItem(): FlowToolItem {
             {
               kind: 'image',
               url: 'https://cdn.example.com/generated-local.png',
-              local_path: 'C:/repo/.void/media/generated/image-001.png',
+              local_path: 'C:/repo/media/generated/image-001.png',
               item_index: 1,
               task_id: 'task-local',
             },
@@ -340,7 +340,7 @@ describe('MediaGenerationToolCard', () => {
     });
 
     const image = container.querySelector('.media-generation-card__preview-asset img') as HTMLImageElement;
-    expect(image.src).toBe('asset://local/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fimage-001.png');
+    expect(image.src).toBe('asset://local/C%3A%2Frepo%2Fmedia%2Fgenerated%2Fimage-001.png');
 
     act(() => {
       image.dispatchEvent(new dom.window.Event('error', { bubbles: false }));

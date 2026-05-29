@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
+import { WorkspaceMediaEntry } from '../workspace-media';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
 import './TabBar.scss';
@@ -46,6 +47,9 @@ export interface TabBarProps {
   onCloseAllTabs?: () => Promise<void> | void;
   /** Pop out tab as independent scene */
   onTabPopOut?: (tabId: string) => void;
+  workspacePath?: string;
+  /** Open workspace media gallery tab */
+  onOpenWorkspaceMedia?: () => void;
 }
 
 /**
@@ -97,6 +101,8 @@ export const TabBar: React.FC<TabBarProps> = ({
   onOpenMissionControl,
   onCloseAllTabs,
   onTabPopOut,
+  workspacePath,
+  onOpenWorkspaceMedia,
 }) => {
   const { t } = useTranslation('components');
   const [visibleTabsCount, setVisibleTabsCount] = useState(tabs.length);
@@ -160,7 +166,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     
     // Base actions width (excluding overflow button)
     // Close-all button: 28px + gap
-    const baseActionsWidth = (onCloseAllTabs ? 28 : 0) + 4;
+    const baseActionsWidth = (onCloseAllTabs ? 28 : 0) + (onOpenWorkspaceMedia ? 30 : 0) + 4;
     // Overflow button width (~50px with badge, 28px with only mission control)
     const overflowBtnWidth = onOpenMissionControl ? 50 : 28;
     // Gap before actions area
@@ -194,7 +200,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     const finalCount = Math.max(1, Math.min(count, visibleTabs.length));
     setVisibleTabsCount(finalCount);
     setLayoutReady(true);
-  }, [visibleTabs, getTabWidth, getTabCacheKey, onCloseAllTabs, onOpenMissionControl]);
+  }, [visibleTabs, getTabWidth, getTabCacheKey, onCloseAllTabs, onOpenMissionControl, onOpenWorkspaceMedia]);
 
   // Reset to render all tabs when list changes (re-measure)
   useEffect(() => {
@@ -328,6 +334,10 @@ export const TabBar: React.FC<TabBarProps> = ({
 
       {/* Actions area */}
       <div ref={actionsRef} className="canvas-tab-bar__actions">
+        {onOpenWorkspaceMedia && (
+          <WorkspaceMediaEntry workspacePath={workspacePath} onOpen={onOpenWorkspaceMedia} />
+        )}
+
         {/* Overflow menu (all groups; mission control only in primary) */}
         {visibleTabs.length > 0 && layoutReady && (
           <TabOverflowMenu

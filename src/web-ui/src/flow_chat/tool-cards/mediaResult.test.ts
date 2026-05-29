@@ -96,7 +96,7 @@ describe('getMediaToolViewModel', () => {
             task_id: 'task-a',
             kind: 'image',
             url: 'https://cdn.example/a.png',
-            local_path: 'C:/repo/.void/media/generated/media-batch-completed/image-001.png',
+            local_path: 'C:/repo/media/generated/media-batch-completed/image-001.png',
             save_status: 'saved',
           },
         ],
@@ -105,9 +105,9 @@ describe('getMediaToolViewModel', () => {
 
     expect(model?.assets[0]).toMatchObject({
       url: 'https://cdn.example/a.png',
-      localPath: 'C:/repo/.void/media/generated/media-batch-completed/image-001.png',
+      localPath: 'C:/repo/media/generated/media-batch-completed/image-001.png',
       saveStatus: 'saved',
-      previewUrl: 'asset://local/C%3A%2Frepo%2F.void%2Fmedia%2Fgenerated%2Fmedia-batch-completed%2Fimage-001.png',
+      previewUrl: 'asset://local/C%3A%2Frepo%2Fmedia%2Fgenerated%2Fmedia-batch-completed%2Fimage-001.png',
     });
   });
 

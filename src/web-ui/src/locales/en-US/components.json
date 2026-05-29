@@ -579,6 +579,35 @@
     "dropBottom": "Bottom",
     "dropCenter": "Drop"
   },
+  "workspaceMedia": {
+    "entry": "Media",
+    "ariaLabel": "Workspace media",
+    "title": "Media",
+    "description": "Workspace images, videos, and audio files.",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Search",
+    "clearFilters": "Clear filters",
+    "filters": {
+      "ariaLabel": "Media filters",
+      "all": "All",
+      "images": "Images",
+      "videos": "Videos",
+      "audio": "Audio"
+    },
+    "sort": {
+      "label": "Sort",
+      "recent": "Recent",
+      "name": "Name",
+      "size": "Size"
+    },
+    "states": {
+      "scanning": "Scanning media files...",
+      "empty": "No media files found.",
+      "truncated": "Showing the first limited set of media files.",
+      "noFilterMatches": "No media files match this filter.",
+      "unpreviewable": "Unavailable previews"
+    }
+  },
   "flexiblePanel": {
     "empty": {
       "title": "No Content",

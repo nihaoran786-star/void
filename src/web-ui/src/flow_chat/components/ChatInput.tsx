@@ -740,7 +740,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               }
               const blob = new Blob([bytes], { type: mimeType });
               const file = new File([blob], `image.${mimeType.split('/')[1] || 'png'}`, { type: mimeType });
-              const imageContext = await createImageContextFromClipboard(file);
+              const imageContext = await createImageContextFromClipboard(file, { workspacePath });
               addContext(imageContext);
               imgCount++;
             } catch (err) {
@@ -1026,7 +1026,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
       
       try {
-        const imageContext = await createImageContextFromClipboard(file);
+        const imageContext = await createImageContextFromClipboard(file, { workspacePath });
 
         addContext(imageContext);
 
@@ -2325,7 +2325,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       
       for (const file of fileArray) {
         try {
-          const imageContext = await createImageContextFromFile(file);
+          const imageContext = await createImageContextFromFile(file, { workspacePath });
           addContext(imageContext);
         } catch (error) {
           log.error('Failed to process image', { fileName: file.name, error });

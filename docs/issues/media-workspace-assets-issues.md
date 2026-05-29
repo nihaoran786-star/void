@@ -92,7 +92,7 @@ When media jobs complete, save generated remote image/video/audio outputs to a d
 
 ### Acceptance criteria
 
-- [x] Generated assets are saved under `.void/media/generated/`.
+- [x] Generated assets are saved under `media/generated/`.
 - [x] Each batch has a unique directory.
 - [x] Each batch writes `manifest.json`.
 - [x] Manifest records batch id, prompt, model, task ids, remote URL, local path, kind, status, and error.
@@ -155,6 +155,6 @@ Verify the full flow from immediate uploaded-image reference through generated o
 - [x] Type-check passes.
 - [ ] Desktop smoke verifies uploaded image prompts do not ask for paths.
 - [x] Desktop e2e smoke verifies pure media preview opens the lightweight overlay, not BrowserPanel.
-- [ ] Desktop smoke verifies generated asset exists under `.void/media/generated/`.
+- [ ] Desktop smoke verifies generated asset exists under `media/generated/`.
 - [ ] Desktop smoke verifies saved generated image can be referenced again.
 - [x] `git diff --check` passes.
