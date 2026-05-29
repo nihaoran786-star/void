@@ -1,5 +1,6 @@
 import React from 'react';
 import { Copy, X } from 'lucide-react';
+import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-media';
 import { MEDIA_PREVIEW_EVENT, type MediaPreviewOpenRequest } from './MediaPreviewService';
 import './MediaPreviewOverlay.scss';
 
@@ -39,7 +40,28 @@ export const MediaPreviewOverlay: React.FC = () => {
   const handleMediaError = () => {
     if (preview.remoteUrl && preview.remoteUrl !== activeUrl) {
       setActiveUrl(preview.remoteUrl);
+      return;
     }
+
+    if (!preview.localPath) {
+      return;
+    }
+
+    const extension = preview.localPath.split(/[\\/]/).pop()?.split('.').pop() || '';
+    const fallbackSourceUrl = activeUrl;
+    void resolveWorkspaceMediaPreviewUrl({
+      filePath: preview.localPath,
+      extension,
+      kind: preview.kind,
+    }).then((localDataUrl) => {
+      if (localDataUrl && localDataUrl !== fallbackSourceUrl) {
+        setActiveUrl((currentUrl) => (
+          currentUrl === fallbackSourceUrl ? localDataUrl : currentUrl
+        ));
+      }
+    }).catch(() => {
+      // The overlay already shows the browser's native failed-media state.
+    });
   };
 
   return (

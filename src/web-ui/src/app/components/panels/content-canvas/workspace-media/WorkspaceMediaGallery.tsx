@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
 import {
   resolveWorkspaceMediaImagePreviewUrl,
+  resolveWorkspaceMediaPreviewUrl,
   workspaceMediaLibraryService,
   type WorkspaceMediaImagePreviewResolver,
   type WorkspaceMediaKind,
   type WorkspaceMediaLibraryService,
   type WorkspaceMediaLibraryState,
+  type WorkspaceMediaPreviewResolver,
 } from '@/shared/services/workspace-media';
 import {
   filterWorkspaceMediaTiles,
@@ -21,7 +23,7 @@ import {
 import './WorkspaceMediaGallery.scss';
 
 type WorkspaceMediaFilter = 'all' | WorkspaceMediaKind;
-type ImagePreviewState =
+type MediaPreviewState =
   | { status: 'loading' }
   | { status: 'ready'; url: string }
   | { status: 'failed' };
@@ -30,6 +32,7 @@ export interface WorkspaceMediaGalleryProps {
   workspacePath?: string;
   service?: WorkspaceMediaLibraryService;
   imagePreviewResolver?: WorkspaceMediaImagePreviewResolver;
+  mediaPreviewResolver?: WorkspaceMediaPreviewResolver;
 }
 
 const FILTERS: Array<{ id: WorkspaceMediaFilter; labelKey: string }> = [
@@ -45,7 +48,8 @@ const SORTS: Array<{ id: WorkspaceMediaSortKey; labelKey: string }> = [
   { id: 'size', labelKey: 'workspaceMedia.sort.size' },
 ];
 
-const MAX_IMAGE_PREVIEW_LOADS = 2;
+const MAX_MEDIA_PREVIEW_LOADS = 2;
+const MAX_VIDEO_THUMBNAIL_BYTES = 25 * 1024 * 1024;
 
 function formatBytes(value: number | undefined): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '';
@@ -84,8 +88,18 @@ function openWorkspaceMediaPreview(item: WorkspaceMediaTileViewModel, previewUrl
   });
 }
 
-function imagePreviewCacheKey(item: WorkspaceMediaTileViewModel): string {
+function mediaPreviewCacheKey(item: WorkspaceMediaTileViewModel): string {
   return `${item.filePath}:${item.modifiedAt || 0}`;
+}
+
+function shouldResolveTilePreview(item: WorkspaceMediaTileViewModel): boolean {
+  if (item.kind === 'image') {
+    return true;
+  }
+  if (item.kind === 'video') {
+    return typeof item.sizeBytes !== 'number' || item.sizeBytes <= MAX_VIDEO_THUMBNAIL_BYTES;
+  }
+  return false;
 }
 
 function waveformBars(seed: string, count = 34): number[] {
@@ -105,10 +119,10 @@ interface MediaTileProps {
   aspectRatio: string;
   previewUrl?: string;
   thumbnailUrl?: string;
-  previewStatus?: ImagePreviewState['status'];
+  previewStatus?: MediaPreviewState['status'];
   onOpen: (tile: WorkspaceMediaTileViewModel, previewUrl?: string) => void;
-  onImageError: (tileId: string) => void;
-  onImageLoad: (tileId: string, width: number, height: number) => void;
+  onPreviewError: (tileId: string) => void;
+  onPreviewLoad: (tileId: string, width: number, height: number) => void;
 }
 
 const MediaTile: React.FC<MediaTileProps> = ({
@@ -119,12 +133,13 @@ const MediaTile: React.FC<MediaTileProps> = ({
   thumbnailUrl,
   previewStatus,
   onOpen,
-  onImageError,
-  onImageLoad,
+  onPreviewError,
+  onPreviewLoad,
 }) => {
   const canOpen = Boolean(previewUrl);
-  const isPreviewLoading = tile.kind === 'image' && previewStatus === 'loading';
-  const isPreviewFailed = tile.kind === 'image' && previewStatus === 'failed';
+  const canRenderPreviewMedia = tile.kind === 'image' || tile.kind === 'video';
+  const isPreviewLoading = canRenderPreviewMedia && previewStatus === 'loading';
+  const isPreviewFailed = canRenderPreviewMedia && previewStatus === 'failed';
   const isThumbnailFailed = renderStatus === 'failed' || isPreviewFailed;
   const isUnavailable = renderStatus === 'unpreviewable' || (!canOpen && !isPreviewLoading && tile.kind !== 'image') || isPreviewFailed;
   const bars = tile.kind === 'audio' ? waveformBars(tile.id) : [];
@@ -150,9 +165,21 @@ const MediaTile: React.FC<MediaTileProps> = ({
             loading="lazy"
             onLoad={(event) => {
               const image = event.currentTarget;
-              onImageLoad(tile.id, image.naturalWidth, image.naturalHeight);
+              onPreviewLoad(tile.id, image.naturalWidth, image.naturalHeight);
             }}
-            onError={() => onImageError(tile.id)}
+            onError={() => onPreviewError(tile.id)}
+          />
+        ) : tile.kind === 'video' && thumbnailUrl && renderStatus === 'ready' ? (
+          <video
+            src={thumbnailUrl}
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+              onPreviewLoad(tile.id, video.videoWidth, video.videoHeight);
+            }}
+            onError={() => onPreviewError(tile.id)}
           />
         ) : tile.kind === 'audio' && renderStatus === 'ready' ? (
           <span className="workspace-media-card__waveform" aria-hidden>
@@ -198,6 +225,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   workspacePath,
   service = workspaceMediaLibraryService,
   imagePreviewResolver = resolveWorkspaceMediaImagePreviewUrl,
+  mediaPreviewResolver,
 }) => {
   const { t } = useTranslation('components');
   const [state, setState] = React.useState<WorkspaceMediaLibraryState>({ status: 'idle' });
@@ -206,7 +234,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const [query, setQuery] = React.useState('');
   const [failedTileIds, setFailedTileIds] = React.useState<Set<string>>(() => new Set());
   const [loadedImageAspectRatios, setLoadedImageAspectRatios] = React.useState<Record<string, string>>({});
-  const [imagePreviewStates, setImagePreviewStates] = React.useState<Record<string, ImagePreviewState>>({});
+  const [mediaPreviewStates, setMediaPreviewStates] = React.useState<Record<string, MediaPreviewState>>({});
   const isMountedRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -240,43 +268,51 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
 
   const primaryTiles = filteredTiles.filter(tile => tile.isPrimaryWallRenderable);
   const unpreviewableTiles = filteredTiles.filter(tile => !tile.isPrimaryWallRenderable);
+  const effectiveMediaPreviewResolver = React.useMemo<WorkspaceMediaPreviewResolver>(() => {
+    if (mediaPreviewResolver) {
+      return mediaPreviewResolver;
+    }
+    return resolveWorkspaceMediaPreviewUrl;
+  }, [mediaPreviewResolver]);
 
   React.useEffect(() => {
-    const loadingCount = Object.values(imagePreviewStates)
+    const loadingCount = Object.values(mediaPreviewStates)
       .filter(state => state.status === 'loading')
       .length;
-    const availableSlots = Math.max(0, MAX_IMAGE_PREVIEW_LOADS - loadingCount);
+    const availableSlots = Math.max(0, MAX_MEDIA_PREVIEW_LOADS - loadingCount);
     if (availableSlots === 0) {
       return;
     }
 
     const tilesToLoad = tileModels
-      .filter(tile => tile.kind === 'image' && !imagePreviewStates[imagePreviewCacheKey(tile)])
+      .filter(tile => shouldResolveTilePreview(tile) && !mediaPreviewStates[mediaPreviewCacheKey(tile)])
       .slice(0, availableSlots);
     if (tilesToLoad.length === 0) {
       return;
     }
 
-    setImagePreviewStates((current) => {
+    setMediaPreviewStates((current) => {
       const next = { ...current };
       for (const tile of tilesToLoad) {
-        next[imagePreviewCacheKey(tile)] = { status: 'loading' };
+        next[mediaPreviewCacheKey(tile)] = { status: 'loading' };
       }
       return next;
     });
 
     for (const tile of tilesToLoad) {
-      const cacheKey = imagePreviewCacheKey(tile);
-      void imagePreviewResolver({
+      const cacheKey = mediaPreviewCacheKey(tile);
+      const resolver = tile.kind === 'image' ? imagePreviewResolver : effectiveMediaPreviewResolver;
+      void resolver({
         filePath: tile.filePath,
         extension: tile.extension,
+        kind: tile.kind,
         modifiedAt: tile.modifiedAt,
       })
         .then((resolvedUrl) => {
           if (!isMountedRef.current) {
             return;
           }
-          setImagePreviewStates((current) => ({
+          setMediaPreviewStates((current) => ({
             ...current,
             [cacheKey]: resolvedUrl ? { status: 'ready', url: resolvedUrl } : { status: 'failed' },
           }));
@@ -295,13 +331,13 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
           if (!isMountedRef.current) {
             return;
           }
-          setImagePreviewStates((current) => ({
+          setMediaPreviewStates((current) => ({
             ...current,
             [cacheKey]: { status: 'failed' },
           }));
         });
     }
-  }, [imagePreviewResolver, imagePreviewStates, tileModels]);
+  }, [effectiveMediaPreviewResolver, imagePreviewResolver, mediaPreviewStates, tileModels]);
 
   const counts = React.useMemo(() => {
     const nextCounts: Record<WorkspaceMediaFilter, number> = {
@@ -316,20 +352,28 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     return nextCounts;
   }, [tileModels]);
 
-  const imageUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
-    if (tile.kind !== 'image') {
+  const previewUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
       return tile.previewUrl;
     }
-    const state = imagePreviewStates[imagePreviewCacheKey(tile)];
-    return state?.status === 'ready' ? state.url : undefined;
-  }, [imagePreviewStates]);
+    const state = mediaPreviewStates[mediaPreviewCacheKey(tile)];
+    return state?.status === 'ready' ? state.url : tile.previewUrl;
+  }, [mediaPreviewStates]);
 
-  const previewStatusForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): ImagePreviewState['status'] | undefined => {
-    if (tile.kind !== 'image') {
+  const thumbnailUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
+      return tile.thumbnailUrl;
+    }
+    const state = mediaPreviewStates[mediaPreviewCacheKey(tile)];
+    return state?.status === 'ready' ? state.url : undefined;
+  }, [mediaPreviewStates]);
+
+  const previewStatusForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): MediaPreviewState['status'] | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
       return undefined;
     }
-    return imagePreviewStates[imagePreviewCacheKey(tile)]?.status;
-  }, [imagePreviewStates]);
+    return mediaPreviewStates[mediaPreviewCacheKey(tile)]?.status;
+  }, [mediaPreviewStates]);
 
   const resetFilters = () => {
     setQuery('');
@@ -364,66 +408,64 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
 
   return (
     <section className="workspace-media-gallery" aria-label={t('workspaceMedia.ariaLabel')}>
-      <header className="workspace-media-gallery__header">
-        <div className="workspace-media-gallery__title">
-          <h2>{t('workspaceMedia.title')}</h2>
-          <p>{t('workspaceMedia.description')}</p>
-        </div>
-        <button
-          type="button"
-          className="workspace-media-gallery__refresh"
-          onClick={() => void scan()}
-        >
-          <RefreshCw size={15} />
-          <span>{t('workspaceMedia.refresh')}</span>
-        </button>
-      </header>
-
       <div className="workspace-media-gallery__toolbar">
-        <label className="workspace-media-gallery__search">
-          <Search size={14} />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('workspaceMedia.searchPlaceholder')}
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery('')}
-            >
-              <X size={13} />
-            </button>
-          )}
-        </label>
-
-        <div className="workspace-media-gallery__filters" role="tablist" aria-label={t('workspaceMedia.filters.ariaLabel')}>
-          {FILTERS.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={filter === item.id ? 'is-active' : ''}
-              onClick={() => setFilter(item.id)}
-            >
-              <span>{t(item.labelKey)}</span>
-              <small>{counts[item.id]}</small>
-            </button>
-          ))}
+        <div className="workspace-media-gallery__search-row">
+          <label className="workspace-media-gallery__search">
+            <Search size={16} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('workspaceMedia.searchPlaceholder')}
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery('')}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+          <button
+            type="button"
+            className="workspace-media-gallery__refresh"
+            onClick={() => void scan()}
+            aria-label={t('workspaceMedia.refresh')}
+            title={t('workspaceMedia.refresh')}
+          >
+            <RefreshCw size={14} />
+          </button>
         </div>
 
-        <div className="workspace-media-gallery__sort" aria-label={t('workspaceMedia.sort.label')}>
-          <span>{t('workspaceMedia.sort.label')}</span>
-          {SORTS.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              className={sort === item.id ? 'is-active' : ''}
-              onClick={() => setSort(item.id)}
-            >
-              {t(item.labelKey)}
-            </button>
-          ))}
+        <div className="workspace-media-gallery__controls-row">
+          <div className="workspace-media-gallery__filters" role="tablist" aria-label={t('workspaceMedia.filters.ariaLabel')}>
+            {FILTERS.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={filter === item.id ? 'is-active' : ''}
+                onClick={() => setFilter(item.id)}
+              >
+                <span>{t(item.labelKey)}</span>
+                <small>{counts[item.id]}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="workspace-media-gallery__sort" aria-label={t('workspaceMedia.sort.label')}>
+            <span>{t('workspaceMedia.sort.label')}</span>
+            {SORTS.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={sort === item.id ? 'is-active' : ''}
+                onClick={() => setSort(item.id)}
+              >
+                {t(item.labelKey)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -459,12 +501,12 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                         tile={tile}
                         renderStatus={failedTileIds.has(tile.id) ? 'failed' : tile.renderStatus}
                         aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
-                        previewUrl={imageUrlForTile(tile)}
-                        thumbnailUrl={imageUrlForTile(tile)}
+                        previewUrl={previewUrlForTile(tile)}
+                        thumbnailUrl={thumbnailUrlForTile(tile)}
                         previewStatus={previewStatusForTile(tile)}
                         onOpen={openWorkspaceMediaPreview}
-                        onImageError={markTileFailed}
-                        onImageLoad={updateLoadedImageAspectRatio}
+                        onPreviewError={markTileFailed}
+                        onPreviewLoad={updateLoadedImageAspectRatio}
                       />
                     </span>
                   ))}
@@ -480,12 +522,12 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
                       tile={tile}
                       renderStatus="unpreviewable"
                       aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
-                      previewUrl={imageUrlForTile(tile)}
-                      thumbnailUrl={imageUrlForTile(tile)}
+                      previewUrl={previewUrlForTile(tile)}
+                      thumbnailUrl={thumbnailUrlForTile(tile)}
                       previewStatus={previewStatusForTile(tile)}
                       onOpen={openWorkspaceMediaPreview}
-                      onImageError={markTileFailed}
-                      onImageLoad={updateLoadedImageAspectRatio}
+                      onPreviewError={markTileFailed}
+                      onPreviewLoad={updateLoadedImageAspectRatio}
                     />
                   ))}
                 </section>

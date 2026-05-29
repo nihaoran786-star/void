@@ -138,6 +138,28 @@ const threeImagesService = (): WorkspaceMediaLibraryService => ({
   })),
 });
 
+const largeVideoService = (): WorkspaceMediaLibraryService => ({
+  checkAvailability: vi.fn(),
+  scanLibrary: vi.fn(async () => ({
+    status: 'ready',
+    scannedAt: 100,
+    items: [
+      {
+        id: 'large-video',
+        kind: 'video',
+        source: 'generated',
+        filePath: 'C:/work/media/generated/large.mp4',
+        relativePath: 'media/generated/large.mp4',
+        fileName: 'large.mp4',
+        extension: 'mp4',
+        sizeBytes: 80 * 1024 * 1024,
+        modifiedAt: 3000,
+        previewUrl: 'asset://local/large.mp4',
+      },
+    ],
+  })),
+});
+
 describe('WorkspaceMediaGallery', () => {
   let dom: JSDOM;
   let container: HTMLDivElement;
@@ -165,6 +187,7 @@ describe('WorkspaceMediaGallery', () => {
   it('renders scanned media and filters by media kind', async () => {
     const service = readyService();
     const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
 
     await act(async () => {
       root.render(
@@ -172,6 +195,7 @@ describe('WorkspaceMediaGallery', () => {
           workspacePath="C:/work"
           service={service}
           imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
         />
       );
     });
@@ -198,6 +222,7 @@ describe('WorkspaceMediaGallery', () => {
   it('searches by path and sorts by name', async () => {
     const service = readyService();
     const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
 
     await act(async () => {
       root.render(
@@ -205,6 +230,7 @@ describe('WorkspaceMediaGallery', () => {
           workspacePath="C:/work"
           service={service}
           imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
         />
       );
     });
@@ -236,6 +262,7 @@ describe('WorkspaceMediaGallery', () => {
     const service = readyService();
     const previewListener = vi.fn();
     const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
     window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
 
     await act(async () => {
@@ -244,6 +271,7 @@ describe('WorkspaceMediaGallery', () => {
           workspacePath="C:/work"
           service={service}
           imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
         />
       );
     });
@@ -267,6 +295,7 @@ describe('WorkspaceMediaGallery', () => {
     const service = readyService();
     const previewListener = vi.fn();
     const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,base64-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
     window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
 
     await act(async () => {
@@ -275,6 +304,7 @@ describe('WorkspaceMediaGallery', () => {
           workspacePath="C:/work"
           service={service}
           imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
         />
       );
     });
@@ -283,6 +313,7 @@ describe('WorkspaceMediaGallery', () => {
     expect(imagePreviewResolver).toHaveBeenCalledWith({
       filePath: 'C:/work/assets/poster.png',
       extension: 'png',
+      kind: 'image',
       modifiedAt: 3000,
     });
     expect(image.src).toBe('data:image/png;base64,base64-image');
@@ -298,6 +329,80 @@ describe('WorkspaceMediaGallery', () => {
       url: 'data:image/png;base64,base64-image',
       localPath: 'C:/work/assets/poster.png',
       title: 'poster.png',
+    });
+  });
+
+  it('uses resolved video data URLs for video thumbnails and overlay preview', async () => {
+    const service = readyService();
+    const previewListener = vi.fn();
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,video-preview');
+    window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+        />
+      );
+    });
+
+    const video = container.querySelector('[data-testid="workspace-media-card-video"] video') as HTMLVideoElement;
+    expect(mediaPreviewResolver).toHaveBeenCalledWith({
+      filePath: 'C:/work/assets/clip.mp4',
+      extension: 'mp4',
+      kind: 'video',
+      modifiedAt: 2000,
+    });
+    expect(video.src).toBe('data:video/mp4;base64,video-preview');
+    expect(video.muted).toBe(true);
+    expect(video.hasAttribute('controls')).toBe(false);
+
+    const card = container.querySelector('[data-testid="workspace-media-card-video"]') as HTMLButtonElement;
+    act(() => {
+      card.click();
+    });
+
+    expect(previewListener).toHaveBeenCalledTimes(1);
+    expect(previewListener.mock.calls[0][0].detail).toMatchObject({
+      kind: 'video',
+      url: 'data:video/mp4;base64,video-preview',
+      localPath: 'C:/work/assets/clip.mp4',
+      title: 'clip.mp4',
+    });
+  });
+
+  it('keeps large videos clickable without resolving an in-memory thumbnail', async () => {
+    const service = largeVideoService();
+    const previewListener = vi.fn();
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,large-video');
+    window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+        />
+      );
+    });
+
+    expect(mediaPreviewResolver).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="workspace-media-card-large-video"] video')).toBeNull();
+
+    const card = container.querySelector('[data-testid="workspace-media-card-large-video"]') as HTMLButtonElement;
+    act(() => {
+      card.click();
+    });
+
+    expect(previewListener).toHaveBeenCalledTimes(1);
+    expect(previewListener.mock.calls[0][0].detail).toMatchObject({
+      kind: 'video',
+      url: 'asset://local/large.mp4',
+      localPath: 'C:/work/media/generated/large.mp4',
+      title: 'large.mp4',
     });
   });
 
@@ -363,6 +468,7 @@ describe('WorkspaceMediaGallery', () => {
     const service = readyService();
     const previewListener = vi.fn();
     const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
     window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
 
     await act(async () => {
@@ -371,6 +477,7 @@ describe('WorkspaceMediaGallery', () => {
           workspacePath="C:/work"
           service={service}
           imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
         />
       );
     });

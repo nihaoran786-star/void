@@ -5,6 +5,11 @@ import { JSDOM } from 'jsdom';
 
 import { MediaPreviewOverlay } from './MediaPreviewOverlay';
 import { openMediaPreviewPanel } from './MediaPreviewService';
+import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-media';
+
+vi.mock('@/shared/services/workspace-media', () => ({
+  resolveWorkspaceMediaPreviewUrl: vi.fn(),
+}));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -129,5 +134,76 @@ describe('MediaPreviewOverlay', () => {
     });
 
     expect((container.querySelector('img') as HTMLImageElement).src).toBe('https://cdn.example.com/generated-1.png');
+  });
+
+  it('falls back to a local file data URL when a video preview URL cannot load', async () => {
+    vi.mocked(resolveWorkspaceMediaPreviewUrl).mockResolvedValue('data:video/mp4;base64,local-video');
+
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'video',
+        url: 'asset://local/clip.mp4',
+        localPath: 'C:/work/media/generated/clip.mp4',
+        title: 'Video #1',
+      });
+    });
+
+    const video = container.querySelector('video') as HTMLVideoElement;
+    expect(video.src).toBe('asset://local/clip.mp4');
+
+    await act(async () => {
+      video.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
+    });
+
+    expect(resolveWorkspaceMediaPreviewUrl).toHaveBeenCalledWith({
+      filePath: 'C:/work/media/generated/clip.mp4',
+      extension: 'mp4',
+      kind: 'video',
+    });
+    expect((container.querySelector('video') as HTMLVideoElement).src).toBe('data:video/mp4;base64,local-video');
+  });
+
+  it('does not let stale local fallback reads overwrite a newer preview', async () => {
+    let resolveFallback: (value: string) => void = () => {};
+    vi.mocked(resolveWorkspaceMediaPreviewUrl).mockReturnValue(new Promise<string>((resolve) => {
+      resolveFallback = resolve;
+    }));
+
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'video',
+        url: 'asset://local/old.mp4',
+        localPath: 'C:/work/media/generated/old.mp4',
+        title: 'Old Video',
+      });
+    });
+
+    const oldVideo = container.querySelector('video') as HTMLVideoElement;
+    await act(async () => {
+      oldVideo.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'video',
+        url: 'asset://local/new.mp4',
+        localPath: 'C:/work/media/generated/new.mp4',
+        title: 'New Video',
+      });
+    });
+
+    await act(async () => {
+      resolveFallback('data:video/mp4;base64,old-video');
+    });
+
+    expect((container.querySelector('video') as HTMLVideoElement).src).toBe('asset://local/new.mp4');
   });
 });
