@@ -1,0 +1,1240 @@
+import React from 'react';
+import { AlertTriangle, FileAudio, Image as ImageIcon, Play, RefreshCw, RotateCcw, Search, Trash2, Video, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
+import { dispatchMediaReference } from '@/shared/services/media-reference';
+import {
+  resolveWorkspaceMediaImagePreviewUrl,
+  resolveWorkspaceMediaPreviewUrl,
+  workspaceMediaLibraryService,
+  type WorkspaceMediaImagePreviewResolver,
+  type WorkspaceMediaKind,
+  type WorkspaceMediaLibraryService,
+  type WorkspaceMediaLibraryState,
+  type WorkspaceMediaPreviewResolver,
+  type WorkspaceMediaSelection,
+  type WorkspaceMediaTrashRecord,
+  type WorkspaceMediaTrashStateResult,
+} from '@/shared/services/workspace-media';
+import {
+  getWorkspaceMediaPathMismatch,
+  mergeWorkspaceMediaPendingGenerationsForWorkspace,
+  useWorkspaceMediaRefreshStore,
+} from '@/shared/services/workspace-media/WorkspaceMediaEvents';
+import {
+  filterWorkspaceMediaTiles,
+  mapWorkspaceMediaTiles,
+  sortWorkspaceMediaTiles,
+  type WorkspaceMediaSortKey,
+  type WorkspaceMediaTileRenderStatus,
+  type WorkspaceMediaTileViewModel,
+} from './WorkspaceMediaTileViewModel';
+import './WorkspaceMediaGallery.scss';
+
+type WorkspaceMediaFilter = 'all' | WorkspaceMediaKind;
+type WorkspaceMediaView = 'active' | 'deleted';
+type MediaPreviewState =
+  | { status: 'loading' }
+  | { status: 'ready'; url: string }
+  | { status: 'failed' };
+
+export interface WorkspaceMediaGalleryProps {
+  workspacePath?: string;
+  service?: WorkspaceMediaLibraryService;
+  imagePreviewResolver?: WorkspaceMediaImagePreviewResolver;
+  mediaPreviewResolver?: WorkspaceMediaPreviewResolver;
+}
+
+const FILTERS: Array<{ id: WorkspaceMediaFilter; labelKey: string }> = [
+  { id: 'all', labelKey: 'workspaceMedia.filters.all' },
+  { id: 'image', labelKey: 'workspaceMedia.filters.images' },
+  { id: 'video', labelKey: 'workspaceMedia.filters.videos' },
+  { id: 'audio', labelKey: 'workspaceMedia.filters.audio' },
+];
+
+const SORTS: Array<{ id: WorkspaceMediaSortKey; labelKey: string }> = [
+  { id: 'recent', labelKey: 'workspaceMedia.sort.recent' },
+  { id: 'name', labelKey: 'workspaceMedia.sort.name' },
+  { id: 'size', labelKey: 'workspaceMedia.sort.size' },
+];
+
+const MAX_MEDIA_PREVIEW_LOADS = 2;
+const MAX_VIDEO_THUMBNAIL_BYTES = 25 * 1024 * 1024;
+const WORKSPACE_MEDIA_GALLERY_REFRESH_INTERVAL_MS = 5000;
+const WORKSPACE_MEDIA_EVENT_REFRESH_RETRY_DELAYS_MS = [250, 1000, 2500];
+
+function formatBytes(value: number | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function mediaIcon(kind: WorkspaceMediaKind): React.ReactElement {
+  if (kind === 'video') return <Video size={18} />;
+  if (kind === 'audio') return <FileAudio size={18} />;
+  return <ImageIcon size={18} />;
+}
+
+function formatRelativeTime(value: number | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return '';
+  const diff = Math.max(0, Date.now() - value);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function openWorkspaceMediaPreview(item: WorkspaceMediaTileViewModel, previewUrl?: string): void {
+  if (!previewUrl) {
+    return;
+  }
+
+  openMediaPreviewPanel({
+    kind: item.kind,
+    url: previewUrl,
+    localPath: item.filePath,
+    title: item.displayName,
+  });
+}
+
+function mediaPreviewCacheKey(item: WorkspaceMediaTileViewModel): string {
+  return `${item.filePath}:${item.modifiedAt || 0}`;
+}
+
+function trashPreviewCacheKey(item: WorkspaceMediaTrashRecord): string {
+  return `trash:${item.trashPath}:${item.deletedAt || 0}`;
+}
+
+function extensionFromFileName(fileName: string): string {
+  const index = fileName.lastIndexOf('.');
+  return index >= 0 ? fileName.slice(index + 1).toLowerCase() : '';
+}
+
+function shouldResolveTilePreview(item: WorkspaceMediaTileViewModel): boolean {
+  if (item.renderStatus === 'pending') {
+    return false;
+  }
+  if (item.kind === 'image') {
+    return true;
+  }
+  if (item.kind === 'video') {
+    return typeof item.sizeBytes !== 'number' || item.sizeBytes <= MAX_VIDEO_THUMBNAIL_BYTES;
+  }
+  return false;
+}
+
+function shouldResolveTrashPreview(item: WorkspaceMediaTrashRecord): boolean {
+  return item.kind === 'image' || item.kind === 'video';
+}
+
+function waveformBars(seed: string, count = 34): number[] {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+  return Array.from({ length: count }, () => {
+    hash = (hash * 1103515245 + 12345) >>> 0;
+    return 26 + (hash % 56);
+  });
+}
+
+interface MediaTileProps {
+  tile: WorkspaceMediaTileViewModel;
+  renderStatus: WorkspaceMediaTileRenderStatus;
+  aspectRatio: string;
+  previewUrl?: string;
+  thumbnailUrl?: string;
+  previewStatus?: MediaPreviewState['status'];
+  onOpen: (tile: WorkspaceMediaTileViewModel, previewUrl?: string) => void;
+  onPreviewError: (tileId: string) => void;
+  onPreviewLoad: (tileId: string, width: number, height: number) => void;
+  onDelete?: (tile: WorkspaceMediaTileViewModel) => void;
+  onReference?: (tile: WorkspaceMediaTileViewModel, previewUrl?: string) => void;
+  onSelect?: (tile: WorkspaceMediaTileViewModel) => void;
+  isSelected?: boolean;
+}
+
+function selectionFromTile(tile: WorkspaceMediaTileViewModel): WorkspaceMediaSelection {
+  return {
+    id: tile.id,
+    stableSlotId: tile.stableSlotId,
+    filePath: tile.filePath,
+    kind: tile.kind,
+    source: tile.source,
+  };
+}
+
+const MediaTile: React.FC<MediaTileProps> = ({
+  tile,
+  renderStatus,
+  aspectRatio,
+  previewUrl,
+  thumbnailUrl,
+  previewStatus,
+  onOpen,
+  onPreviewError,
+  onPreviewLoad,
+  onDelete,
+  onReference,
+  onSelect,
+  isSelected = false,
+}) => {
+  const isPending = renderStatus === 'pending';
+  const canOpen = Boolean(previewUrl);
+  const canRenderPreviewMedia = tile.kind === 'image' || tile.kind === 'video';
+  const isPreviewLoading = canRenderPreviewMedia && previewStatus === 'loading';
+  const isPreviewFailed = canRenderPreviewMedia && previewStatus === 'failed';
+  const isThumbnailFailed = renderStatus === 'failed' || isPreviewFailed;
+  const isUnavailable = renderStatus === 'unpreviewable' || (!canOpen && !isPreviewLoading && tile.kind !== 'image') || isPreviewFailed;
+  const bars = tile.kind === 'audio' ? waveformBars(tile.id) : [];
+
+  return (
+    <span className={`workspace-media-card-shell ${isSelected ? 'is-selected' : ''}`}>
+      <button
+        type="button"
+        className={`workspace-media-card workspace-media-card--${tile.kind} ${isPending ? 'is-pending' : ''} ${(isUnavailable || isThumbnailFailed) ? 'is-failed' : ''}`}
+        data-testid={`workspace-media-card-${tile.id}`}
+        style={{ aspectRatio }}
+        disabled={isPending}
+        onClick={() => {
+          if (canOpen && !isPending) {
+            onOpen(tile, previewUrl);
+          }
+        }}
+        aria-label={isPending ? `${tile.displayName} generating` : isUnavailable ? `${tile.displayName} preview unavailable` : `Open ${tile.displayName}`}
+      >
+        <span className="workspace-media-card__stage">
+        {isPending ? (
+          <span className="workspace-media-card__generator" aria-hidden>
+            <span className="workspace-media-card__generator-grid" />
+            <span className="workspace-media-card__generator-beam" />
+            <span className="workspace-media-card__generator-core" />
+          </span>
+        ) : tile.kind === 'image' && thumbnailUrl && renderStatus === 'ready' ? (
+          <img
+            src={thumbnailUrl}
+            alt=""
+            loading="lazy"
+            onLoad={(event) => {
+              const image = event.currentTarget;
+              if (!tile.preserveSlotAspectRatio) {
+                onPreviewLoad(tile.id, image.naturalWidth, image.naturalHeight);
+              }
+            }}
+            onError={() => onPreviewError(tile.id)}
+          />
+        ) : tile.kind === 'video' && thumbnailUrl && renderStatus === 'ready' ? (
+          <video
+            src={thumbnailUrl}
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+              if (!tile.preserveSlotAspectRatio) {
+                onPreviewLoad(tile.id, video.videoWidth, video.videoHeight);
+              }
+            }}
+            onError={() => onPreviewError(tile.id)}
+          />
+        ) : tile.kind === 'audio' && renderStatus === 'ready' ? (
+          <span className="workspace-media-card__waveform" aria-hidden>
+            {bars.map((height, index) => (
+              <i key={index} style={{ height: `${height}%` }} />
+            ))}
+          </span>
+        ) : (
+          <span className="workspace-media-card__fallback">
+            {isUnavailable ? <AlertTriangle size={19} /> : mediaIcon(tile.kind)}
+          </span>
+        )}
+
+        {tile.kind === 'video' && renderStatus === 'ready' && (
+          <span className="workspace-media-card__play" aria-hidden>
+            <Play size={16} fill="currentColor" />
+          </span>
+        )}
+
+        {isPending && (
+          <span className="workspace-media-card__type">
+            GEN
+          </span>
+        )}
+        </span>
+
+        <span className="workspace-media-card__overlay">
+          <strong>{tile.displayName}</strong>
+          <small>{tile.pathLabel}</small>
+          <span className="workspace-media-card__meta">
+            <span>{isPending ? 'generating' : tile.source}</span>
+            <span>{tile.kind}</span>
+            {tile.pending?.requestedAspectRatio && <span>{tile.pending.requestedAspectRatio}</span>}
+            {formatBytes(tile.sizeBytes) && <span>{formatBytes(tile.sizeBytes)}</span>}
+            {formatRelativeTime(tile.modifiedAt) && <span>{formatRelativeTime(tile.modifiedAt)}</span>}
+          </span>
+          {(isUnavailable || isThumbnailFailed) && !isPreviewLoading && (
+            <span className="workspace-media-card__unavailable">Preview unavailable</span>
+          )}
+        </span>
+      </button>
+      {!isPending && (onDelete || onSelect || onReference) && (
+        <span className="workspace-media-card__actions">
+          {onReference && (
+            <button
+              type="button"
+              className="workspace-media-card__action"
+              aria-label={`Reference ${tile.displayName}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onReference(tile, previewUrl);
+              }}
+            >
+              @
+            </button>
+          )}
+          {onSelect && (
+            <button
+              type="button"
+              className="workspace-media-card__action"
+              aria-label={`Select ${tile.displayName}`}
+              aria-pressed={isSelected}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(tile);
+              }}
+            >
+              {isSelected ? '✓' : '□'}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              className="workspace-media-card__action"
+              aria-label={`Delete ${tile.displayName}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(tile);
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          )}
+        </span>
+      )}
+    </span>
+  );
+};
+
+interface DeletedMediaTileProps {
+  item: WorkspaceMediaTrashRecord;
+  isSelected: boolean;
+  aspectRatio: string;
+  previewUrl?: string;
+  thumbnailUrl?: string;
+  previewStatus?: MediaPreviewState['status'];
+  onSelect: (item: WorkspaceMediaTrashRecord) => void;
+  onRestore: (item: WorkspaceMediaTrashRecord) => void;
+  onPurge: (item: WorkspaceMediaTrashRecord) => void;
+  onOpen: (item: WorkspaceMediaTrashRecord, previewUrl?: string) => void;
+}
+
+const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
+  item,
+  isSelected,
+  aspectRatio,
+  previewUrl,
+  thumbnailUrl,
+  previewStatus,
+  onSelect,
+  onRestore,
+  onPurge,
+  onOpen,
+}) => {
+  const isPreviewLoading = shouldResolveTrashPreview(item) && previewStatus === 'loading';
+  const isPreviewFailed = shouldResolveTrashPreview(item) && previewStatus === 'failed';
+  const canOpen = Boolean(previewUrl);
+  const bars = item.kind === 'audio' ? waveformBars(item.id) : [];
+
+  return (
+    <span className={`workspace-media-card-shell ${isSelected ? 'is-selected' : ''}`} data-testid={`workspace-media-trash-${item.id}`}>
+      <button
+        type="button"
+        className={`workspace-media-card workspace-media-card--${item.kind} workspace-media-card--deleted ${isPreviewFailed ? 'is-failed' : ''}`}
+        style={{ aspectRatio }}
+        onClick={() => {
+          if (canOpen) {
+            onOpen(item, previewUrl);
+          }
+        }}
+        aria-label={canOpen ? `Open ${item.fileName}` : `${item.fileName} preview unavailable`}
+      >
+        <span className="workspace-media-card__stage">
+          {item.kind === 'image' && thumbnailUrl ? (
+            <img src={thumbnailUrl} alt="" loading="lazy" />
+          ) : item.kind === 'video' && thumbnailUrl ? (
+            <video src={thumbnailUrl} muted playsInline preload="metadata" />
+          ) : item.kind === 'audio' ? (
+            <span className="workspace-media-card__audio" aria-hidden>
+              <FileAudio size={22} />
+              <span className="workspace-media-card__waveform">
+                {bars.map((height, index) => (
+                  <i key={`${item.id}-${index}`} style={{ height: `${height}%` }} />
+                ))}
+              </span>
+            </span>
+          ) : (
+            <span className={`workspace-media-card__placeholder ${isPreviewLoading ? 'is-loading' : ''}`} aria-hidden>
+              {mediaIcon(item.kind)}
+            </span>
+          )}
+          {item.kind === 'video' && (
+            <span className="workspace-media-card__play" aria-hidden>
+              <Play size={12} fill="currentColor" />
+            </span>
+          )}
+        </span>
+
+        <span className="workspace-media-card__overlay">
+          <strong>{item.fileName}</strong>
+          <small>{item.originalPath}</small>
+          <span className="workspace-media-card__meta">
+            <span>deleted</span>
+            <span>{item.kind}</span>
+            {formatBytes(item.sizeBytes) && <span>{formatBytes(item.sizeBytes)}</span>}
+            {formatRelativeTime(item.deletedAt) && <span>{formatRelativeTime(item.deletedAt)}</span>}
+          </span>
+          {isPreviewFailed && (
+            <span className="workspace-media-card__unavailable">Preview unavailable</span>
+          )}
+        </span>
+      </button>
+      <span className="workspace-media-card__actions">
+        <button
+          type="button"
+          className="workspace-media-card__action"
+          aria-label={`Select ${item.fileName}`}
+          aria-pressed={isSelected}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect(item);
+          }}
+        >
+          {isSelected ? '✓' : '□'}
+        </button>
+        <button
+          type="button"
+          className="workspace-media-card__action"
+          aria-label={`Restore ${item.fileName}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRestore(item);
+          }}
+        >
+          <RotateCcw size={13} />
+        </button>
+        <button
+          type="button"
+          className="workspace-media-card__action"
+          aria-label={`Delete forever ${item.fileName}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onPurge(item);
+          }}
+        >
+          <Trash2 size={13} />
+        </button>
+      </span>
+    </span>
+  );
+};
+
+export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
+  workspacePath,
+  service = workspaceMediaLibraryService,
+  imagePreviewResolver = resolveWorkspaceMediaImagePreviewUrl,
+  mediaPreviewResolver,
+}) => {
+  const { t } = useTranslation('components');
+  const [state, setState] = React.useState<WorkspaceMediaLibraryState>({ status: 'idle' });
+  const [view, setView] = React.useState<WorkspaceMediaView>('active');
+  const [trashState, setTrashState] = React.useState<WorkspaceMediaTrashStateResult>({ status: 'ready', items: [], checkedAt: 0 });
+  const [filter, setFilter] = React.useState<WorkspaceMediaFilter>('all');
+  const [sort, setSort] = React.useState<WorkspaceMediaSortKey>('recent');
+  const [query, setQuery] = React.useState('');
+  const [selectedTileIds, setSelectedTileIds] = React.useState<Set<string>>(() => new Set());
+  const [selectedTrashIds, setSelectedTrashIds] = React.useState<Set<string>>(() => new Set());
+  const [failedTileIds, setFailedTileIds] = React.useState<Set<string>>(() => new Set());
+  const [loadedImageAspectRatios, setLoadedImageAspectRatios] = React.useState<Record<string, string>>({});
+  const [mediaPreviewStates, setMediaPreviewStates] = React.useState<Record<string, MediaPreviewState>>({});
+  const isMountedRef = React.useRef(false);
+  const isScanningRef = React.useRef(false);
+  const refreshToken = useWorkspaceMediaRefreshStore(state => state.token);
+  const latestRefreshSignal = useWorkspaceMediaRefreshStore(state => state.lastSignal);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const scan = React.useCallback(async (showScanning = true) => {
+    if (isScanningRef.current) {
+      return;
+    }
+    isScanningRef.current = true;
+    if (showScanning) {
+      setState({ status: 'scanning' });
+    }
+    try {
+      const nextState = await service.scanLibrary(workspacePath);
+      if (isMountedRef.current) {
+        setState(nextState);
+      }
+    } finally {
+      isScanningRef.current = false;
+    }
+  }, [service, workspacePath]);
+
+  const refreshTrash = React.useCallback(async () => {
+    if (!service.listTrash) {
+      setTrashState({ status: 'ready', items: [], checkedAt: Date.now() });
+      return;
+    }
+    if (service.purgeExpiredTrash) {
+      await service.purgeExpiredTrash(workspacePath);
+    }
+    const nextTrashState = await service.listTrash(workspacePath);
+    if (isMountedRef.current) {
+      setTrashState(nextTrashState);
+    }
+  }, [service, workspacePath]);
+
+  React.useEffect(() => {
+    void scan();
+    void refreshTrash();
+  }, [refreshTrash, scan]);
+
+  React.useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void scan(false);
+    }, WORKSPACE_MEDIA_GALLERY_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [scan]);
+
+  React.useEffect(() => {
+    if (refreshToken <= 0) {
+      return;
+    }
+    const mismatch = getWorkspaceMediaPathMismatch(workspacePath);
+    if (mismatch && latestRefreshSignal?.token === mismatch.token) {
+      return;
+    }
+
+    const retryTimeoutIds = new Set<number>();
+    void scan(false);
+    for (const delay of WORKSPACE_MEDIA_EVENT_REFRESH_RETRY_DELAYS_MS) {
+      const timeoutId = window.setTimeout(() => {
+        retryTimeoutIds.delete(timeoutId);
+        void scan(false);
+      }, delay);
+      retryTimeoutIds.add(timeoutId);
+    }
+
+    return () => {
+      for (const timeoutId of retryTimeoutIds) {
+        window.clearTimeout(timeoutId);
+      }
+      retryTimeoutIds.clear();
+    };
+  }, [latestRefreshSignal?.token, refreshToken, scan, workspacePath]);
+
+  const pendingGenerations = React.useMemo(() => (
+    mergeWorkspaceMediaPendingGenerationsForWorkspace(
+      state.status === 'ready' ? state.pendingGenerations : [],
+      workspacePath
+    )
+  ), [state, workspacePath]);
+
+  const pathMismatch = React.useMemo(
+    () => getWorkspaceMediaPathMismatch(workspacePath),
+    [workspacePath]
+  );
+
+  const isReadyLike = state.status === 'ready' || (state.status === 'empty' && pendingGenerations.length > 0);
+
+  const tileModels = React.useMemo(
+    () => isReadyLike
+      ? mapWorkspaceMediaTiles(state.status === 'ready' ? state.items : [], pendingGenerations)
+      : [],
+    [isReadyLike, pendingGenerations, state]
+  );
+
+  const filteredTiles = React.useMemo(
+    () => sortWorkspaceMediaTiles(filterWorkspaceMediaTiles(tileModels, { filter, query }), sort),
+    [filter, query, sort, tileModels]
+  );
+
+  const primaryTiles = filteredTiles.filter(tile => tile.isPrimaryWallRenderable);
+  const unpreviewableTiles = filteredTiles.filter(tile => !tile.isPrimaryWallRenderable);
+  const effectiveMediaPreviewResolver = React.useMemo<WorkspaceMediaPreviewResolver>(() => {
+    if (mediaPreviewResolver) {
+      return mediaPreviewResolver;
+    }
+    return resolveWorkspaceMediaPreviewUrl;
+  }, [mediaPreviewResolver]);
+
+  React.useEffect(() => {
+    const loadingCount = Object.values(mediaPreviewStates)
+      .filter(state => state.status === 'loading')
+      .length;
+    const availableSlots = Math.max(0, MAX_MEDIA_PREVIEW_LOADS - loadingCount);
+    if (availableSlots === 0) {
+      return;
+    }
+
+    const tilesToLoad = tileModels
+      .filter(tile => shouldResolveTilePreview(tile) && !mediaPreviewStates[mediaPreviewCacheKey(tile)])
+      .slice(0, availableSlots);
+    if (tilesToLoad.length === 0) {
+      return;
+    }
+
+    setMediaPreviewStates((current) => {
+      const next = { ...current };
+      for (const tile of tilesToLoad) {
+        next[mediaPreviewCacheKey(tile)] = { status: 'loading' };
+      }
+      return next;
+    });
+
+    for (const tile of tilesToLoad) {
+      const cacheKey = mediaPreviewCacheKey(tile);
+      const resolver = tile.kind === 'image' ? imagePreviewResolver : effectiveMediaPreviewResolver;
+      void resolver({
+        filePath: tile.filePath,
+        extension: tile.extension,
+        kind: tile.kind,
+        modifiedAt: tile.modifiedAt,
+      })
+        .then((resolvedUrl) => {
+          if (!isMountedRef.current) {
+            return;
+          }
+          setMediaPreviewStates((current) => ({
+            ...current,
+            [cacheKey]: resolvedUrl ? { status: 'ready', url: resolvedUrl } : { status: 'failed' },
+          }));
+          if (resolvedUrl) {
+            setFailedTileIds((current) => {
+              if (!current.has(tile.id)) {
+                return current;
+              }
+              const next = new Set(current);
+              next.delete(tile.id);
+              return next;
+            });
+          }
+        })
+        .catch(() => {
+          if (!isMountedRef.current) {
+            return;
+          }
+          setMediaPreviewStates((current) => ({
+            ...current,
+            [cacheKey]: { status: 'failed' },
+          }));
+        });
+    }
+  }, [effectiveMediaPreviewResolver, imagePreviewResolver, mediaPreviewStates, tileModels]);
+
+  const deletedItems = React.useMemo(
+    () => trashState.status === 'ready' ? trashState.items : [],
+    [trashState]
+  );
+  const filteredDeletedItems = React.useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = deletedItems.filter((item) => {
+      if (filter !== 'all' && item.kind !== filter) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      return item.fileName.toLowerCase().includes(normalizedQuery)
+        || item.originalPath.toLowerCase().includes(normalizedQuery);
+    });
+    return [...filtered].sort((left, right) => {
+      if (sort === 'name') {
+        return left.fileName.localeCompare(right.fileName);
+      }
+      if (sort === 'size') {
+        return (right.sizeBytes || 0) - (left.sizeBytes || 0);
+      }
+      return right.deletedAt - left.deletedAt;
+    });
+  }, [deletedItems, filter, query, sort]);
+
+  React.useEffect(() => {
+    if (view !== 'deleted') {
+      return;
+    }
+    const loadingCount = Object.values(mediaPreviewStates)
+      .filter(state => state.status === 'loading')
+      .length;
+    const availableSlots = Math.max(0, MAX_MEDIA_PREVIEW_LOADS - loadingCount);
+    if (availableSlots === 0) {
+      return;
+    }
+
+    const itemsToLoad = filteredDeletedItems
+      .filter(item => shouldResolveTrashPreview(item) && !mediaPreviewStates[trashPreviewCacheKey(item)])
+      .slice(0, availableSlots);
+    if (itemsToLoad.length === 0) {
+      return;
+    }
+
+    setMediaPreviewStates((current) => {
+      const next = { ...current };
+      for (const item of itemsToLoad) {
+        next[trashPreviewCacheKey(item)] = { status: 'loading' };
+      }
+      return next;
+    });
+
+    for (const item of itemsToLoad) {
+      const cacheKey = trashPreviewCacheKey(item);
+      const resolver = item.kind === 'image' ? imagePreviewResolver : effectiveMediaPreviewResolver;
+      void resolver({
+        filePath: item.trashPath,
+        extension: extensionFromFileName(item.fileName),
+        kind: item.kind,
+        modifiedAt: item.deletedAt,
+      })
+        .then((resolvedUrl) => {
+          if (!isMountedRef.current) {
+            return;
+          }
+          setMediaPreviewStates((current) => ({
+            ...current,
+            [cacheKey]: resolvedUrl ? { status: 'ready', url: resolvedUrl } : { status: 'failed' },
+          }));
+        })
+        .catch(() => {
+          if (!isMountedRef.current) {
+            return;
+          }
+          setMediaPreviewStates((current) => ({
+            ...current,
+            [cacheKey]: { status: 'failed' },
+          }));
+        });
+    }
+  }, [effectiveMediaPreviewResolver, filteredDeletedItems, imagePreviewResolver, mediaPreviewStates, view]);
+
+  const counts = React.useMemo(() => {
+    if (view === 'deleted') {
+      const nextCounts: Record<WorkspaceMediaFilter, number> = {
+        all: deletedItems.length,
+        image: 0,
+        video: 0,
+        audio: 0,
+      };
+      for (const item of deletedItems) {
+        nextCounts[item.kind] += 1;
+      }
+      return nextCounts;
+    }
+    const nextCounts: Record<WorkspaceMediaFilter, number> = {
+      all: tileModels.length,
+      image: 0,
+      video: 0,
+      audio: 0,
+    };
+    for (const tile of tileModels) {
+      nextCounts[tile.kind] += 1;
+    }
+    return nextCounts;
+  }, [deletedItems, tileModels, view]);
+
+  const previewUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
+      return tile.previewUrl;
+    }
+    const state = mediaPreviewStates[mediaPreviewCacheKey(tile)];
+    return state?.status === 'ready' ? state.url : tile.previewUrl;
+  }, [mediaPreviewStates]);
+
+  const thumbnailUrlForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): string | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
+      return tile.thumbnailUrl;
+    }
+    const state = mediaPreviewStates[mediaPreviewCacheKey(tile)];
+    return state?.status === 'ready' ? state.url : undefined;
+  }, [mediaPreviewStates]);
+
+  const previewStatusForTile = React.useCallback((tile: WorkspaceMediaTileViewModel): MediaPreviewState['status'] | undefined => {
+    if (tile.kind !== 'image' && tile.kind !== 'video') {
+      return undefined;
+    }
+    return mediaPreviewStates[mediaPreviewCacheKey(tile)]?.status;
+  }, [mediaPreviewStates]);
+
+  const previewUrlForDeletedItem = React.useCallback((item: WorkspaceMediaTrashRecord): string | undefined => {
+    if (item.kind !== 'image' && item.kind !== 'video') {
+      return undefined;
+    }
+    const state = mediaPreviewStates[trashPreviewCacheKey(item)];
+    return state?.status === 'ready' ? state.url : undefined;
+  }, [mediaPreviewStates]);
+
+  const previewStatusForDeletedItem = React.useCallback((item: WorkspaceMediaTrashRecord): MediaPreviewState['status'] | undefined => {
+    if (item.kind !== 'image' && item.kind !== 'video') {
+      return undefined;
+    }
+    return mediaPreviewStates[trashPreviewCacheKey(item)]?.status;
+  }, [mediaPreviewStates]);
+
+  const resetFilters = () => {
+    setQuery('');
+    setFilter('all');
+  };
+
+  const selectedTiles = React.useMemo(
+    () => tileModels.filter(tile => selectedTileIds.has(tile.id)),
+    [selectedTileIds, tileModels]
+  );
+
+  const selectedDeletedItems = React.useMemo(
+    () => deletedItems.filter(item => selectedTrashIds.has(item.id)),
+    [deletedItems, selectedTrashIds]
+  );
+
+  const visibleSelectableTileIds = React.useMemo(
+    () => filteredTiles
+      .filter(tile => tile.renderStatus !== 'pending')
+      .map(tile => tile.id),
+    [filteredTiles]
+  );
+
+  const visibleSelectableTrashIds = React.useMemo(
+    () => filteredDeletedItems.map(item => item.id),
+    [filteredDeletedItems]
+  );
+
+  const areVisibleTilesSelected = visibleSelectableTileIds.length > 0
+    && visibleSelectableTileIds.every(id => selectedTileIds.has(id));
+  const areVisibleTrashItemsSelected = visibleSelectableTrashIds.length > 0
+    && visibleSelectableTrashIds.every(id => selectedTrashIds.has(id));
+
+  const toggleTileSelection = React.useCallback((tile: WorkspaceMediaTileViewModel) => {
+    setSelectedTileIds((current) => {
+      const next = new Set(current);
+      if (next.has(tile.id)) {
+        next.delete(tile.id);
+      } else {
+        next.add(tile.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleTrashSelection = React.useCallback((item: WorkspaceMediaTrashRecord) => {
+    setSelectedTrashIds((current) => {
+      const next = new Set(current);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleVisibleTileSelection = React.useCallback(() => {
+    setSelectedTileIds((current) => {
+      const next = new Set(current);
+      const shouldClearVisible = visibleSelectableTileIds.length > 0
+        && visibleSelectableTileIds.every(id => next.has(id));
+      for (const id of visibleSelectableTileIds) {
+        if (shouldClearVisible) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }, [visibleSelectableTileIds]);
+
+  const toggleVisibleTrashSelection = React.useCallback(() => {
+    setSelectedTrashIds((current) => {
+      const next = new Set(current);
+      const shouldClearVisible = visibleSelectableTrashIds.length > 0
+        && visibleSelectableTrashIds.every(id => next.has(id));
+      for (const id of visibleSelectableTrashIds) {
+        if (shouldClearVisible) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }, [visibleSelectableTrashIds]);
+
+  const deleteTiles = React.useCallback(async (tiles: WorkspaceMediaTileViewModel[]) => {
+    if (!service.deleteItems || tiles.length === 0) {
+      return;
+    }
+    const result = await service.deleteItems(workspacePath, tiles.map(selectionFromTile));
+    setTrashState(result);
+    if (result.status !== 'ready') {
+      return;
+    }
+    setSelectedTileIds(new Set());
+    await Promise.all([scan(false), refreshTrash()]);
+  }, [refreshTrash, scan, service, workspacePath]);
+
+  const referenceTile = React.useCallback((tile: WorkspaceMediaTileViewModel, previewUrl?: string) => {
+    dispatchMediaReference({
+      id: tile.stableSlotId,
+      kind: tile.kind,
+      filePath: tile.filePath,
+      displayName: tile.displayName,
+      previewUrl: previewUrl || tile.previewUrl,
+      thumbnailUrl: tile.thumbnailUrl,
+      source: tile.source,
+      stableSlotId: tile.stableSlotId,
+      extension: tile.extension,
+    });
+  }, []);
+
+  const restoreTrashItems = React.useCallback(async (items: WorkspaceMediaTrashRecord[]) => {
+    if (!service.restoreItems || items.length === 0) {
+      return;
+    }
+    const result = await service.restoreItems(workspacePath, items.map(item => item.id));
+    setTrashState(result);
+    if (result.status !== 'ready') {
+      return;
+    }
+    setSelectedTrashIds(new Set());
+    await Promise.all([scan(false), refreshTrash()]);
+  }, [refreshTrash, scan, service, workspacePath]);
+
+  const purgeTrashItems = React.useCallback(async (items: WorkspaceMediaTrashRecord[]) => {
+    if (!service.purgeItems || items.length === 0) {
+      return;
+    }
+    const result = await service.purgeItems(workspacePath, items.map(item => item.id));
+    setTrashState(result);
+    if (result.status !== 'ready') {
+      return;
+    }
+    setSelectedTrashIds(new Set());
+    await refreshTrash();
+  }, [refreshTrash, service, workspacePath]);
+
+  const openDeletedMediaPreview = React.useCallback((item: WorkspaceMediaTrashRecord, previewUrl?: string) => {
+    if (!previewUrl) {
+      return;
+    }
+    openMediaPreviewPanel({
+      kind: item.kind,
+      url: previewUrl,
+      localPath: item.trashPath,
+      title: item.fileName,
+    });
+  }, []);
+
+  const markTileFailed = React.useCallback((tileId: string) => {
+    setFailedTileIds((current) => {
+      const next = new Set(current);
+      next.add(tileId);
+      return next;
+    });
+  }, []);
+
+  const updateLoadedImageAspectRatio = React.useCallback((tileId: string, width: number, height: number) => {
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return;
+    }
+    const aspectRatio = `${Math.round(width)} / ${Math.round(height)}`;
+    setLoadedImageAspectRatios((current) => (
+      current[tileId] === aspectRatio ? current : { ...current, [tileId]: aspectRatio }
+    ));
+    setFailedTileIds((current) => {
+      if (!current.has(tileId)) {
+        return current;
+      }
+      const next = new Set(current);
+      next.delete(tileId);
+      return next;
+    });
+  }, []);
+
+  return (
+    <section className="workspace-media-gallery" aria-label={t('workspaceMedia.ariaLabel')}>
+      <div className="workspace-media-gallery__toolbar">
+        <div className="workspace-media-gallery__search-row">
+          <label className="workspace-media-gallery__search">
+            <Search size={16} />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('workspaceMedia.searchPlaceholder')}
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery('')}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+          <button
+            type="button"
+            className="workspace-media-gallery__refresh"
+            onClick={() => void scan()}
+            aria-label={t('workspaceMedia.refresh')}
+            title={t('workspaceMedia.refresh')}
+          >
+            <RefreshCw size={14} />
+          </button>
+        </div>
+
+        <div className="workspace-media-gallery__controls-row">
+          <div className="workspace-media-gallery__views" aria-label="Media view">
+            <button
+              type="button"
+              className={view === 'active' ? 'is-active' : ''}
+              onClick={() => setView('active')}
+            >
+              {t('workspaceMedia.views.active')}
+            </button>
+            <button
+              type="button"
+              className={view === 'deleted' ? 'is-active' : ''}
+              onClick={() => {
+                setView('deleted');
+                void refreshTrash();
+              }}
+            >
+              {t('workspaceMedia.views.deleted')}
+              {deletedItems.length > 0 && <small>{deletedItems.length}</small>}
+            </button>
+          </div>
+          {view === 'active' && visibleSelectableTileIds.length > 0 && (
+            <button
+              type="button"
+              className="workspace-media-gallery__select-visible"
+              aria-pressed={areVisibleTilesSelected}
+              onClick={toggleVisibleTileSelection}
+            >
+              {t(areVisibleTilesSelected
+                ? 'workspaceMedia.actions.clearVisibleSelection'
+                : 'workspaceMedia.actions.selectVisible')}
+            </button>
+          )}
+          {view === 'deleted' && visibleSelectableTrashIds.length > 0 && (
+            <button
+              type="button"
+              className="workspace-media-gallery__select-visible"
+              aria-pressed={areVisibleTrashItemsSelected}
+              onClick={toggleVisibleTrashSelection}
+            >
+              {t(areVisibleTrashItemsSelected
+                ? 'workspaceMedia.actions.clearVisibleSelection'
+                : 'workspaceMedia.actions.selectVisible')}
+            </button>
+          )}
+          <div className="workspace-media-gallery__filters" role="tablist" aria-label={t('workspaceMedia.filters.ariaLabel')}>
+            {FILTERS.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={filter === item.id ? 'is-active' : ''}
+                onClick={() => setFilter(item.id)}
+              >
+                <span>{t(item.labelKey)}</span>
+                <small>{counts[item.id]}</small>
+              </button>
+            ))}
+          </div>
+
+          <div className="workspace-media-gallery__sort" aria-label={t('workspaceMedia.sort.label')}>
+            <span>{t('workspaceMedia.sort.label')}</span>
+            {SORTS.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                className={sort === item.id ? 'is-active' : ''}
+                onClick={() => setSort(item.id)}
+              >
+                {t(item.labelKey)}
+              </button>
+            ))}
+          </div>
+        </div>
+        {view === 'active' && selectedTiles.length > 0 && (
+          <div className="workspace-media-gallery__selection-bar">
+            <span>{selectedTiles.length}</span>
+            <button type="button" onClick={() => void deleteTiles(selectedTiles)}>
+              {t('workspaceMedia.actions.deleteSelected')}
+            </button>
+            <button type="button" onClick={() => setSelectedTileIds(new Set())}>
+              <X size={13} />
+            </button>
+          </div>
+        )}
+        {view === 'active' && trashState.status === 'error' && (
+          <div className="workspace-media-gallery__operation-error" role="alert">
+            {trashState.error.message}
+          </div>
+        )}
+        {view === 'active' && trashState.status === 'unsupported' && (
+          <div className="workspace-media-gallery__operation-error" role="alert">
+            {trashState.reason.message}
+          </div>
+        )}
+        {view === 'deleted' && selectedDeletedItems.length > 0 && (
+          <div className="workspace-media-gallery__selection-bar">
+            <span>{selectedDeletedItems.length}</span>
+            <button type="button" onClick={() => void restoreTrashItems(selectedDeletedItems)}>
+              {t('workspaceMedia.actions.restoreSelected')}
+            </button>
+            <button type="button" onClick={() => void purgeTrashItems(selectedDeletedItems)}>
+              {t('workspaceMedia.actions.purgeSelected')}
+            </button>
+            <button type="button" onClick={() => setSelectedTrashIds(new Set())}>
+              <X size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {view === 'deleted' ? (
+        trashState.status === 'error' ? (
+          <div className="workspace-media-gallery__state is-error">{trashState.error.message}</div>
+        ) : trashState.status === 'unsupported' ? (
+          <div className="workspace-media-gallery__state">{trashState.reason.message}</div>
+        ) : deletedItems.length === 0 ? (
+          <div className="workspace-media-gallery__state">{t('workspaceMedia.states.deletedEmpty')}</div>
+        ) : filteredDeletedItems.length === 0 ? (
+          <div className="workspace-media-gallery__state">
+            <p>{t('workspaceMedia.states.noFilterMatches')}</p>
+            <button type="button" onClick={resetFilters}>{t('workspaceMedia.clearFilters')}</button>
+          </div>
+        ) : (
+          <div className="workspace-media-gallery__masonry">
+            {filteredDeletedItems.map(item => {
+              const previewUrl = previewUrlForDeletedItem(item);
+              return (
+                <span key={item.id} className="workspace-media-gallery__masonry-item">
+                  <DeletedMediaTile
+                    item={item}
+                    aspectRatio={item.kind === 'video' ? '16 / 9' : '1 / 1'}
+                    previewUrl={previewUrl}
+                    thumbnailUrl={previewUrl}
+                    previewStatus={previewStatusForDeletedItem(item)}
+                    isSelected={selectedTrashIds.has(item.id)}
+                    onSelect={toggleTrashSelection}
+                    onRestore={(record) => void restoreTrashItems([record])}
+                    onPurge={(record) => void purgeTrashItems([record])}
+                    onOpen={openDeletedMediaPreview}
+                  />
+                </span>
+              );
+            })}
+          </div>
+        )
+      ) : state.status === 'scanning' || state.status === 'idle' ? (
+        <div className="workspace-media-gallery__skeleton" aria-label={t('workspaceMedia.states.scanning')} aria-busy="true">
+          {['9 / 16', '16 / 9', '1 / 1', '4 / 5', '5 / 2', '16 / 9', '9 / 16', '1 / 1'].map((ratio, index) => (
+            <span key={`${ratio}-${index}`} style={{ aspectRatio: ratio }} />
+          ))}
+        </div>
+      ) : state.status === 'empty' && pathMismatch ? (
+        <div className="workspace-media-gallery__state" data-testid="workspace-media-path-mismatch">
+          Media generation is running in a different workspace. This panel is scanning {workspacePath || 'the current workspace'}, while the latest media signal targets {pathMismatch.workspacePath}.
+        </div>
+      ) : state.status === 'empty' && !isReadyLike ? (
+        <div className="workspace-media-gallery__state">{t('workspaceMedia.states.empty')}</div>
+      ) : state.status === 'unsupported' ? (
+        <div className="workspace-media-gallery__state">{state.reason.message}</div>
+      ) : state.status === 'error' ? (
+        <div className="workspace-media-gallery__state is-error">{state.error.message}</div>
+      ) : (
+        <>
+          {state.status === 'ready' && state.truncated && (
+            <div className="workspace-media-gallery__notice">{t('workspaceMedia.states.truncated')}</div>
+          )}
+          {filteredTiles.length === 0 ? (
+            <div className="workspace-media-gallery__state">
+              <p>{t('workspaceMedia.states.noFilterMatches')}</p>
+              <button type="button" onClick={resetFilters}>{t('workspaceMedia.clearFilters')}</button>
+            </div>
+          ) : (
+            <>
+              {primaryTiles.length > 0 && (
+                <div className="workspace-media-gallery__masonry">
+                  {primaryTiles.map(tile => (
+                    <span key={tile.stableSlotId} className="workspace-media-gallery__masonry-item">
+                      <MediaTile
+                        tile={tile}
+                        renderStatus={failedTileIds.has(tile.id) ? 'failed' : tile.renderStatus}
+                        aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
+                        previewUrl={previewUrlForTile(tile)}
+                        thumbnailUrl={thumbnailUrlForTile(tile)}
+                        previewStatus={previewStatusForTile(tile)}
+                        onOpen={openWorkspaceMediaPreview}
+                        onPreviewError={markTileFailed}
+                        onPreviewLoad={updateLoadedImageAspectRatio}
+                        onReference={referenceTile}
+                        onDelete={(item) => void deleteTiles([item])}
+                        onSelect={toggleTileSelection}
+                        isSelected={selectedTileIds.has(tile.id)}
+                      />
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {unpreviewableTiles.length > 0 && (
+                <section className="workspace-media-gallery__unpreviewable" data-testid="workspace-media-unpreviewable">
+                  <h3>{t('workspaceMedia.states.unpreviewable')}</h3>
+                  {unpreviewableTiles.map(tile => (
+                    <MediaTile
+                      key={tile.stableSlotId}
+                      tile={tile}
+                      renderStatus="unpreviewable"
+                      aspectRatio={loadedImageAspectRatios[tile.id] || tile.aspectRatio}
+                      previewUrl={previewUrlForTile(tile)}
+                      thumbnailUrl={thumbnailUrlForTile(tile)}
+                      previewStatus={previewStatusForTile(tile)}
+                      onOpen={openWorkspaceMediaPreview}
+                      onPreviewError={markTileFailed}
+                      onPreviewLoad={updateLoadedImageAspectRatio}
+                      onReference={referenceTile}
+                      onDelete={(item) => void deleteTiles([item])}
+                      onSelect={toggleTileSelection}
+                      isSelected={selectedTileIds.has(tile.id)}
+                    />
+                  ))}
+                </section>
+              )}
+            </>
+          )}
+        </>
+      )}
+    </section>
+  );
+};
+
+export default WorkspaceMediaGallery;

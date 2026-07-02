@@ -1,0 +1,15 @@
+[package]
+name = "void-core-types"
+version.workspace = true
+edition.workspace = true
+description = "Void shared low-level product DTOs"
+
+[lib]
+name = "void_core_types"
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

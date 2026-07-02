@@ -1,0 +1,154 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "close": "关闭",
+    "create": "创建"
+  },
+  "common": {
+    "unknown": "未知"
+  },
+  "counts": {
+    "tasks": "{{count}} 个任务"
+  },
+  "create": {
+    "title": "创建自动化任务",
+    "fields": {
+      "name": "任务名称",
+      "workspace": "工作区",
+      "executionMode": "执行模式",
+      "prompt": "任务 Prompt",
+      "schedule": "执行方式",
+      "priority": "紧急程度",
+      "runDate": "执行日期",
+      "startDate": "起始日期",
+      "time": "时间",
+      "hourlyMinute": "每小时第几分钟"
+    },
+    "placeholders": {
+      "name": "例如：每日竞品动态汇总",
+      "prompt": "例如：每天汇总当前工作区昨天的代码变更、风险点和下一步建议。"
+    },
+    "workspace": {
+      "empty": "暂无可用工作区",
+      "required": "请先打开一个项目工作区，再创建自动化任务。",
+      "open": "打开工作区"
+    },
+    "executionMode": {
+      "code": {
+        "label": "编码会话",
+        "hint": "适合代码、仓库、终端类任务"
+      },
+      "cowork": {
+        "label": "办公会话",
+        "hint": "适合写作、整理、日常协作任务"
+      }
+    },
+    "schedule": {
+      "once": {
+        "label": "单次执行",
+        "hint": "未来某一天定时运行一次"
+      },
+      "hourly": {
+        "label": "每小时",
+        "hint": "每个整点循环执行"
+      },
+      "daily": {
+        "label": "每天",
+        "hint": "每天定时执行"
+      }
+    }
+  },
+  "day": {
+    "now": "现在"
+  },
+  "detail": {
+    "agent": "执行 Agent",
+    "completedTime": "完成时间",
+    "delete": "删除",
+    "disable": "停用",
+    "duration": "预计耗时",
+    "enable": "启用",
+    "runNow": "立即执行",
+    "scheduledTime": "计划时间",
+    "roles": {
+      "assistant": "Agent",
+      "tool": "工具",
+      "user": "你"
+    },
+    "tabs": {
+      "artifacts": "产物",
+      "conversation": "会话记录",
+      "prompt": "提示词"
+    },
+    "empty": {
+      "artifactsPending": "任务完成后产物将显示在这里",
+      "conversation": "任务尚未执行，暂无会话记录",
+      "noArtifacts": "无产物"
+    }
+  },
+  "duration": {
+    "minutes": "{{count}} 分钟"
+  },
+  "header": {
+    "allTasks": "全部任务",
+    "createTask": "创建任务",
+    "next": "下一段",
+    "previous": "上一段",
+    "title": "自动化",
+    "today": "今天",
+    "filters": {
+      "agent": "按 Agent 筛选",
+      "allAgents": "全部 Agent",
+      "allPriorities": "全部优先级",
+      "allStatuses": "全部状态",
+      "clear": "清除",
+      "priority": "按优先级筛选",
+      "status": "按状态筛选"
+    },
+    "views": {
+      "day": "日",
+      "list": "列表",
+      "month": "月",
+      "week": "周"
+    }
+  },
+  "list": {
+    "empty": "没有匹配的任务"
+  },
+  "month": {
+    "more": "+{{count}} 更多"
+  },
+  "priority": {
+    "P0": "紧急",
+    "P1": "高",
+    "P2": "中",
+    "P3": "低"
+  },
+  "runNow": {
+    "failed": "立即执行失败：{{error}}",
+    "queued": "已加入执行队列",
+    "started": "已开始执行",
+    "triggered": "已触发立即执行"
+  },
+  "schedule": {
+    "daily": "每天",
+    "hourly": "每小时",
+    "monthly": "每月",
+    "once": "单次",
+    "weekly": "每周"
+  },
+  "sessionNav": {
+    "automationTaskSession": "自动化任务会话"
+  },
+  "status": {
+    "completed": "已完成",
+    "failed": "已失败",
+    "pending": "待执行",
+    "queued": "排队中",
+    "running": "进行中"
+  },
+  "targeting": {
+    "defaultTaskName": "自动化任务",
+    "sessionTitle": "自动化 · {{name}}"
+  }
+}

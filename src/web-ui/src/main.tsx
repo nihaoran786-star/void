@@ -1,0 +1,451 @@
+import ReactDOM from "react-dom/client";
+import App from "./app/App";
+import AgentCompanionDesktopPet from "./app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet";
+import CompactChatDesktopWindow from "./app/components/CompactChatDesktopWindow/CompactChatDesktopWindow";
+import AppErrorBoundary from "./app/components/AppErrorBoundary";
+import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
+import "./app/styles/index.scss";
+
+// Manually import Monaco Editor CSS.
+// This ensures the CSS loads correctly in Tauri production.
+import 'monaco-editor/min/vs/editor/editor.main.css';
+
+// Font: Noto Sans SC is loaded via a <link> tag in index.html.
+// File path: public/fonts/fonts.css, served as /fonts/fonts.css.
+
+import { initializeAllTools } from "./tools/initializeTools";
+import { initContextMenuSystem } from "./shared/context-menu-system";
+import { loader } from '@monaco-editor/react';
+import { getMonacoPath, getMonacoWorkerPath, logMonacoResourceCheck } from './tools/editor/utils/monacoPathHelper';
+import { bootstrapLogger, createLogger, initLogger } from './shared/utils/logger';
+import { elapsedMs, logElapsed, measureAsyncAndLog, nowMs } from './shared/utils/timing';
+import { startupTrace } from './shared/utils/startupTrace';
+import { scheduleAfterStartupSignal } from './shared/utils/startupTaskScheduling';
+import {
+  buildReactCrashLogPayload,
+  isMinifiedReactErrorMessage,
+} from './shared/utils/reactProductionError';
+
+// Install console forwarding before app startup so early console output is persisted too.
+bootstrapLogger();
+
+const log = createLogger('App');
+startupTrace.markPhase('first_script_eval');
+
+/** Dedupe only for white-screen heuristic (empty #root), not for Error Boundary logs. */
+const WHITE_SCREEN_LOGGED_FLAG = '__void_white_screen_crash_logged__';
+function hasLoggedWhiteScreenCrash(): boolean {
+  return Boolean((window as any)[WHITE_SCREEN_LOGGED_FLAG]);
+}
+function markWhiteScreenCrashLogged(): void {
+  (window as any)[WHITE_SCREEN_LOGGED_FLAG] = true;
+}
+
+function serializeError(err: unknown): Record<string, unknown> {
+  if (err instanceof Error) {
+    return {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    };
+  }
+  return { value: String(err) };
+}
+
+function isRootEmpty(): boolean {
+  const root = document.getElementById('root');
+  if (!root) {
+    return true;
+  }
+  return root.childElementCount === 0;
+}
+
+function registerGlobalErrorHandlers() {
+  const flag = '__void_global_error_handlers_registered__';
+  const w = window as any;
+  if (w[flag]) {
+    return;
+  }
+  w[flag] = true;
+
+  const scheduleCrashLog = (payload: { location: string; message: string; data?: Record<string, unknown> }) => {
+    // Always persist uncaught errors so they appear in webview.log for diagnostics.
+    // Mark white-screen crashes separately to allow callers to deduplicate.
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const isWhiteScreen = isRootEmpty();
+          const crashType = isWhiteScreen ? 'white-screen' : 'page-error';
+          // Deduplicate only white-screen crashes to avoid duplicate startup logs.
+          if (isWhiteScreen && hasLoggedWhiteScreenCrash()) {
+            return;
+          }
+          if (isWhiteScreen) {
+            markWhiteScreenCrashLogged();
+          }
+          log.error(`[CRASH:${crashType}] Uncaught error`, {
+            location: payload.location,
+            message: payload.message,
+            ...payload.data,
+          });
+        });
+      });
+    });
+  };
+
+  window.addEventListener(
+    'error',
+    (event: Event) => {
+      if (event instanceof ErrorEvent) {
+        const msg = event.message || '';
+        // Minified React errors often reach window.error even when #root is not empty;
+        // always persist so production builds get react.dev/errors/{code} in webview.log.
+        if (isMinifiedReactErrorMessage(msg)) {
+          const err =
+            event.error instanceof Error ? event.error : new Error(msg);
+          log.error('[CRASH] window:error (minified React)', {
+            location: 'window:error',
+            ...buildReactCrashLogPayload(err),
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+          });
+        }
+        scheduleCrashLog({
+          location: 'window:error',
+          message: msg || 'window error',
+          data: {
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+            error: serializeError(event.error),
+          },
+        });
+        return;
+      }
+
+    // Resource load errors rarely cause a white screen; log only if root is empty.
+      const target = event.target as any;
+      scheduleCrashLog({
+        location: 'window:resource-error',
+        message: 'resource load error',
+        data: {
+          tagName: target?.tagName,
+          src: target?.src,
+          href: target?.href,
+        },
+      });
+    },
+    true
+  );
+
+  window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+    const reason = event.reason;
+    const msg =
+      reason instanceof Error
+        ? reason.message
+        : typeof reason === 'string'
+          ? reason
+          : '';
+    if (isMinifiedReactErrorMessage(msg)) {
+      const err = reason instanceof Error ? reason : new Error(msg);
+      log.error('[CRASH] unhandledrejection (minified React)', {
+        location: 'window:unhandledrejection',
+        ...buildReactCrashLogPayload(err),
+      });
+    }
+    scheduleCrashLog({
+      location: 'window:unhandledrejection',
+      message: 'unhandled rejection',
+      data: {
+        reason: serializeError(event.reason),
+      },
+    });
+  });
+}
+
+registerGlobalErrorHandlers();
+
+// Disable Tab-key focus traversal globally.
+// Tab still works inside Monaco Editor and xterm terminal where it has semantic meaning.
+document.addEventListener(
+  'keydown',
+  (e: KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const target = e.target as Element | null;
+    if (target?.closest('.monaco-editor, .xterm')) return;
+    e.preventDefault();
+  },
+  true
+);
+
+// Configure Monaco Editor loader - use local files (offline-ready).
+const isDev = import.meta.env.DEV;
+const monacoPath = getMonacoPath();
+
+loader.config({
+  paths: {
+    vs: monacoPath
+  }
+});
+
+// Debug: check resource availability in production.
+if (!isDev) {
+  // Delay checks to avoid blocking startup.
+  setTimeout(() => {
+    logMonacoResourceCheck().catch(err => {
+      log.error('Monaco resource check failed', err);
+    });
+  }, 2000);
+}
+
+// Optimization: Monaco Editor worker mapping.
+const MONACO_WORKER_MAP: Record<string, string> = {
+  json: 'language/json/jsonWorker.js',
+  css: 'language/css/cssWorker.js',
+  scss: 'language/css/cssWorker.js',
+  less: 'language/css/cssWorker.js',
+  html: 'language/html/htmlWorker.js',
+  handlebars: 'language/html/htmlWorker.js',
+  razor: 'language/html/htmlWorker.js',
+  typescript: 'language/typescript/tsWorker.js',
+  javascript: 'language/typescript/tsWorker.js',
+};
+
+const DEFAULT_WORKER = 'base/worker/workerMain.js';
+
+(window as any).MonacoEnvironment = {
+  getWorker(_workerId: string, label: string) {
+    const workerFile = MONACO_WORKER_MAP[label] || DEFAULT_WORKER;
+    const workerPath = getMonacoWorkerPath(workerFile);
+    
+    return new Worker(workerPath, {
+      type: 'classic',
+      name: `monaco-${label}-worker`
+    });
+  }
+};
+
+/** Logger, theme, and minimal deps — must finish before first React paint (F5 / webview reload does not re-run Tauri init script). */
+async function initializeBeforeRender(): Promise<void> {
+  const phaseStartedAt = nowMs();
+  startupTrace.markPhase('before_render_start');
+  await measureAsyncAndLog(log, 'Startup step completed', () => initLogger(), {
+    data: { step: 'initLogger' },
+  });
+
+  await measureAsyncAndLog(log, 'Startup step completed', async () => {
+    const { initializeFrontendLogLevelSync } = await import('./infrastructure/config/services/FrontendLogLevelSync');
+    await initializeFrontendLogLevelSync();
+  }, {
+    data: { step: 'initializeFrontendLogLevelSync' },
+  });
+
+  log.debug('Monaco loader configured', { vs: monacoPath, isDev });
+  log.info('Initializing void');
+
+  await measureAsyncAndLog(log, 'Startup step completed', async () => {
+    const { themeService } = await import('./infrastructure/theme');
+    await themeService.initialize();
+  }, {
+    data: { step: 'themeService.initialize' },
+  });
+  log.info('Theme system initialized');
+  logElapsed(log, 'Startup phase completed', phaseStartedAt, {
+    data: { phase: 'initializeBeforeRender' },
+  });
+  startupTrace.markPhase('before_render_end', {
+    durationMs: elapsedMs(phaseStartedAt),
+  });
+}
+
+/** Rest of startup runs after the shell is visible so refresh latency stays reasonable. */
+async function initializeAfterRender(): Promise<void> {
+  const phaseStartedAt = nowMs();
+  startupTrace.markPhase('after_render_start');
+  const { fontPreferenceService } = await import('./infrastructure/font-preference');
+  await fontPreferenceService.initialize();
+  log.info('Font preference initialized at startup');
+
+  const initResults = await Promise.allSettled([
+    (async () => {
+      const { backgroundTaskScheduler } = await import('./shared/utils/backgroundTaskScheduler');
+      backgroundTaskScheduler.schedule(async () => {
+        const { configManager } = await import('./infrastructure/config/services/ConfigManager');
+        await configManager.getConfig('editor');
+        log.info('Editor configuration preloaded');
+      }, {
+        idle: true,
+        inFlightKey: 'startup:editor-config-preload',
+        priority: 'low',
+      });
+    })(),
+    (async () => {
+      const { installFrontendLogLevelConfigWatcher } = await import('./infrastructure/config/services/FrontendLogLevelSync');
+      await installFrontendLogLevelConfigWatcher();
+    })(),
+    (async () => {
+      const { registerDefaultContextTypes } = await import('./shared/context-system/core/registerDefaultTypes');
+      registerDefaultContextTypes();
+    })(),
+    (async () => {
+      const { initRecommendationProviders } = await import('./flow_chat/components/smart-recommendations');
+      initRecommendationProviders();
+    })(),
+    initializeAllTools(),
+    (async () => {
+      initContextMenuSystem({
+        registerBuiltinCommands: true,
+        registerBuiltinProviders: true,
+        debug: false,
+      });
+
+      const { registerNotificationContextMenu } = await import('./shared/notification-system');
+      registerNotificationContextMenu();
+    })(),
+  ]);
+
+  initResults.forEach((result, index) => {
+    const names = [
+      'EditorConfigPreload',
+      'LogLevelConfigWatcher',
+      'DefaultContextTypes',
+      'RecommendationProviders',
+      'Tools',
+      'ContextMenu',
+    ];
+    if (result.status === 'rejected') {
+      log.warn('Initialization failed', { module: names[index], error: result.reason });
+    }
+  });
+
+  log.info('void core systems initialized successfully');
+  logElapsed(log, 'Startup phase completed', phaseStartedAt, {
+    data: { phase: 'initializeAfterRender' },
+  });
+  startupTrace.markPhase('after_render_end', {
+    durationMs: elapsedMs(phaseStartedAt),
+  });
+}
+
+async function startApplication(): Promise<void> {
+  const appStartedAt = nowMs();
+  startupTrace.markPhase('start_application_start');
+  try {
+    await initializeBeforeRender();
+  } catch (error) {
+    log.error('Failed to initialize void (pre-render)', error);
+  }
+
+  // I18n Provider.
+  const i18nProviderImportResult = await measureAsyncAndLog(
+    log,
+    'Startup step completed',
+    () => import('./infrastructure/i18n'),
+    { data: { step: 'loadI18nProvider' } }
+  );
+  const { I18nProvider } = i18nProviderImportResult.value;
+  const windowParams = new URLSearchParams(window.location.search);
+  const isAgentCompanionWindow = windowParams.get('voidWindow') === 'agent-companion';
+  const isCompactChatWindow = windowParams.get('voidWindow') === 'compact-chat';
+
+  const renderStartedAt = nowMs();
+  if (isAgentCompanionWindow) {
+    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+      <AppErrorBoundary>
+        <I18nProvider>
+          <AgentCompanionDesktopPet />
+        </I18nProvider>
+      </AppErrorBoundary>
+    );
+    logElapsed(log, 'Startup step completed', renderStartedAt, {
+      data: {
+        step: 'scheduleAgentCompanionRender',
+        sinceStartupMs: elapsedMs(appStartedAt),
+      },
+    });
+    startupTrace.markPhase('agent_companion_render_scheduled', {
+      sinceStartupMs: elapsedMs(appStartedAt),
+    });
+    startupTrace.flushSummary('agent_companion_render_scheduled');
+    return;
+  }
+
+  if (isCompactChatWindow) {
+    ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+      <AppErrorBoundary>
+        <I18nProvider>
+          <CompactChatDesktopWindow />
+        </I18nProvider>
+      </AppErrorBoundary>
+    );
+    logElapsed(log, 'Startup step completed', renderStartedAt, {
+      data: {
+        step: 'scheduleCompactChatRender',
+        sinceStartupMs: elapsedMs(appStartedAt),
+      },
+    });
+    startupTrace.markPhase('compact_chat_render_scheduled', {
+      sinceStartupMs: elapsedMs(appStartedAt),
+    });
+    startupTrace.flushSummary('compact_chat_render_scheduled');
+    return;
+  }
+
+  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+    <AppErrorBoundary>
+      <I18nProvider>
+        <WorkspaceProvider>
+          <App />
+        </WorkspaceProvider>
+      </I18nProvider>
+    </AppErrorBoundary>
+  );
+  logElapsed(log, 'Startup step completed', renderStartedAt, {
+    data: {
+      step: 'scheduleInitialRender',
+      sinceStartupMs: elapsedMs(appStartedAt),
+    },
+  });
+  startupTrace.markPhase('react_render_scheduled', {
+    sinceStartupMs: elapsedMs(appStartedAt),
+  });
+
+  startupTrace.markPhase('non_critical_init_scheduled', {
+    signalName: 'void:main-window-shown',
+    fallbackTimeoutMs: 2000,
+    frameCount: 1,
+  });
+  scheduleAfterStartupSignal(async () => {
+    const nonCriticalStartedAt = nowMs();
+    try {
+      await initializeAfterRender();
+      startupTrace.markPhase('non_critical_init_done', {
+        durationMs: elapsedMs(nonCriticalStartedAt),
+      });
+      startupTrace.flushSummary('non_critical_init_completed');
+    } catch (error) {
+      log.error('Failed to complete post-render initialization', error);
+      startupTrace.markPhase('non_critical_init_failed', {
+        durationMs: elapsedMs(nonCriticalStartedAt),
+      });
+    }
+  }, {
+    signalName: 'void:main-window-shown',
+    fallbackTimeoutMs: 2000,
+    frameCount: 1,
+    onError: error => {
+      log.error('Failed to schedule post-render initialization', error);
+    },
+  });
+
+  logElapsed(log, 'Startup phase completed', appStartedAt, {
+    data: { phase: 'startApplication' },
+  });
+  startupTrace.markPhase('start_application_end', {
+    durationMs: elapsedMs(appStartedAt),
+  });
+  startupTrace.flushSummary('start_application_completed');
+}
+
+void startApplication();

@@ -1,0 +1,21 @@
+.short-drama-entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  width: 26px;
+  padding: 0;
+  border: 1px solid var(--void-border, rgba(148, 163, 184, 0.28));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--void-bg, #ffffff) 88%, #e8eef7);
+  color: var(--void-text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.short-drama-entry:hover {
+  color: var(--void-text-primary, #1f2937);
+  border-color: color-mix(in srgb, var(--void-border, #94a3b8) 60%, #247c86);
+  background: color-mix(in srgb, var(--void-bg, #ffffff) 78%, #dcebf2);
+}

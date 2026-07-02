@@ -1,0 +1,154 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "close": "關閉",
+    "create": "建立"
+  },
+  "common": {
+    "unknown": "未知"
+  },
+  "counts": {
+    "tasks": "{{count}} 個任務"
+  },
+  "create": {
+    "title": "建立自動化任務",
+    "fields": {
+      "name": "任務名稱",
+      "workspace": "工作區",
+      "executionMode": "執行模式",
+      "prompt": "任務 Prompt",
+      "schedule": "執行方式",
+      "priority": "緊急程度",
+      "runDate": "執行日期",
+      "startDate": "起始日期",
+      "time": "時間",
+      "hourlyMinute": "每小時第幾分鐘"
+    },
+    "placeholders": {
+      "name": "例如：每日競品動態彙總",
+      "prompt": "例如：每天彙總目前工作區昨天的程式碼變更、風險點和下一步建議。"
+    },
+    "workspace": {
+      "empty": "暫無可用工作區",
+      "required": "請先打開一個項目工作區，再建立自動化任務。",
+      "open": "打開工作區"
+    },
+    "executionMode": {
+      "code": {
+        "label": "編碼會話",
+        "hint": "適合程式碼、倉庫、終端類任務"
+      },
+      "cowork": {
+        "label": "辦公會話",
+        "hint": "適合寫作、整理、日常協作任務"
+      }
+    },
+    "schedule": {
+      "once": {
+        "label": "單次執行",
+        "hint": "未來某一天定時執行一次"
+      },
+      "hourly": {
+        "label": "每小時",
+        "hint": "每個整點循環執行"
+      },
+      "daily": {
+        "label": "每天",
+        "hint": "每天定時執行"
+      }
+    }
+  },
+  "day": {
+    "now": "現在"
+  },
+  "detail": {
+    "agent": "執行 Agent",
+    "completedTime": "完成時間",
+    "delete": "刪除",
+    "disable": "停用",
+    "duration": "預計耗時",
+    "enable": "啟用",
+    "runNow": "立即執行",
+    "scheduledTime": "計劃時間",
+    "roles": {
+      "assistant": "Agent",
+      "tool": "工具",
+      "user": "你"
+    },
+    "tabs": {
+      "artifacts": "產物",
+      "conversation": "會話記錄",
+      "prompt": "提示詞"
+    },
+    "empty": {
+      "artifactsPending": "任務完成後產物將顯示在這裡",
+      "conversation": "任務尚未執行，暫無會話記錄",
+      "noArtifacts": "無產物"
+    }
+  },
+  "duration": {
+    "minutes": "{{count}} 分鐘"
+  },
+  "header": {
+    "allTasks": "全部任務",
+    "createTask": "建立任務",
+    "next": "下一段",
+    "previous": "上一段",
+    "title": "自動化",
+    "today": "今天",
+    "filters": {
+      "agent": "按 Agent 篩選",
+      "allAgents": "全部 Agent",
+      "allPriorities": "全部優先級",
+      "allStatuses": "全部狀態",
+      "clear": "清除",
+      "priority": "按優先級篩選",
+      "status": "按狀態篩選"
+    },
+    "views": {
+      "day": "日",
+      "list": "列表",
+      "month": "月",
+      "week": "週"
+    }
+  },
+  "list": {
+    "empty": "沒有匹配的任務"
+  },
+  "month": {
+    "more": "+{{count}} 更多"
+  },
+  "priority": {
+    "P0": "緊急",
+    "P1": "高",
+    "P2": "中",
+    "P3": "低"
+  },
+  "runNow": {
+    "failed": "立即執行失敗：{{error}}",
+    "queued": "已加入執行隊列",
+    "started": "已開始執行",
+    "triggered": "已觸發立即執行"
+  },
+  "schedule": {
+    "daily": "每天",
+    "hourly": "每小時",
+    "monthly": "每月",
+    "once": "單次",
+    "weekly": "每週"
+  },
+  "sessionNav": {
+    "automationTaskSession": "自動化任務會話"
+  },
+  "status": {
+    "completed": "已完成",
+    "failed": "已失敗",
+    "pending": "待執行",
+    "queued": "排隊中",
+    "running": "進行中"
+  },
+  "targeting": {
+    "defaultTaskName": "自動化任務",
+    "sessionTitle": "自動化 · {{name}}"
+  }
+}

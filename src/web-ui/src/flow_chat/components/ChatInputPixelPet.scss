@@ -1,0 +1,805 @@
+/**
+ * Abstract void mark fallback — black/white silhouette, theme-aware decorations.
+ *
+ * Theming policy
+ *   - Mark color is fixed black-on-white in both light & dark themes.
+ *   - In dark theme we add a soft outer halo (CSS drop-shadow) so the
+ *     mascot still pops on a dark chat input background.
+ *   - DECORATIVE overlays (ZZZ, think pips, wait pips, sweat) DO invert
+ *     between themes so they remain readable.
+ *
+ * Animation philosophy
+ *   - All motion is local: tiny breathing, tilt, and pulse effects.
+ *   - The mark must never wander out of its slot or distract the user.
+ */
+
+/* ---------- Slot ---------- */
+
+.void-chat-input-pixel-pet {
+  /* FIXED mascot body palette — never inverted. */
+  --void-pet-color: #1f2024;
+  --void-pet-cream: #fafaf9;
+
+  /* Decorative palette — inverts between light/dark themes so overlays
+     stay readable on either chat background. */
+  --void-pet-decor: #1f2024;
+  --void-pet-decor-soft: rgba(31, 32, 36, 0.55);
+  --void-petdex-width: 42px;
+  --void-petdex-height: 46px;
+  --void-petdex-margin-top: -8px;
+
+  position: relative;
+  z-index: 0;
+  width: 56px;
+  height: 36px;
+  flex-shrink: 0;
+  overflow: visible;
+  pointer-events: none;
+
+  &__stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 70%;
+    will-change: transform;
+  }
+
+  &__svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    shape-rendering: geometricPrecision;
+  }
+
+  &__petdex {
+    width: var(--void-petdex-width);
+    height: var(--void-petdex-height);
+    margin-top: var(--void-petdex-margin-top);
+    background-image: var(--void-petdex-src);
+    background-repeat: no-repeat;
+    background-size: 800% 900%;
+    background-position-x: 0;
+    background-position-y: calc(var(--void-petdex-row) * 12.5%);
+    image-rendering: pixelated;
+    transform-origin: 50% 80%;
+    animation:
+      void-petdex-walk 1.8s steps(6) infinite,
+      void-petdex-breathe 6s ease-in-out infinite;
+  }
+
+  &__petdex--rest {
+    animation:
+      void-petdex-walk 2.4s steps(6) infinite,
+      void-petdex-breathe 6.4s ease-in-out infinite;
+  }
+
+  &__petdex--working {
+    animation:
+      void-petdex-walk 1.16s steps(6) infinite,
+      void-petdex-work 0.56s linear infinite;
+  }
+
+  &__petdex--hover {
+    animation:
+      void-petdex-walk 1.44s steps(6) infinite,
+      void-petdex-hover 1.9s ease-in-out infinite;
+  }
+
+  &__petdex--dragging {
+    animation:
+      void-petdex-walk 0.96s steps(6) infinite,
+      void-petdex-dragging 0.48s linear infinite;
+  }
+}
+
+/* Dark theme: keep mascot colors, invert decoration color, and apply the
+   SVG outline filter (defined inline in the markup) so the silhouette is
+   surrounded by a single continuous light contour rather than per-shape
+   outlines on every internal element. */
+:root[data-theme-type='dark'] .void-chat-input-pixel-pet,
+[data-theme-type='dark'] .void-chat-input-pixel-pet {
+  --void-pet-decor: #fafaf9;
+  --void-pet-decor-soft: rgba(250, 251, 249, 0.6);
+
+  .void-mascot-head__silhouette {
+    filter: url(#void-mascot-outline);
+  }
+}
+
+/* ---------- Fills ---------- */
+
+.void-mascot__b {
+  fill: var(--void-pet-color);
+}
+
+.void-mascot__face-mask {
+  fill: var(--void-pet-cream);
+}
+
+.void-mascot__halo {
+  fill: rgba(250, 250, 249, 0.86);
+}
+
+.void-mascot__core {
+  fill: var(--void-pet-color);
+  opacity: 0.86;
+}
+
+/* ---------- Head: gentle continuous breathing ---------- */
+
+.void-mascot-head {
+  transform-origin: 50% 88%;
+  transform-box: fill-box;
+  animation: void-head-breathe 6.8s ease-in-out infinite;
+
+  &--analyzing {
+    animation:
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-tilt 4.8s ease-in-out infinite;
+  }
+
+  &--waiting {
+    animation:
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-look 6s ease-in-out infinite;
+  }
+
+  &--working {
+    animation:
+      void-head-breathe 5.2s ease-in-out infinite,
+      void-head-shake 0.36s linear infinite;
+  }
+
+  &--hover {
+    animation:
+      void-head-breathe 4.2s ease-in-out infinite,
+      void-head-perk 1.9s ease-in-out infinite;
+  }
+
+  &--dragging {
+    animation:
+      void-head-breathe 4.8s ease-in-out infinite,
+      void-head-carried 0.48s linear infinite;
+  }
+}
+
+/* ---------- Mood overlay layers ---------- */
+
+.void-mascot-head {
+  &__face-layer {
+    opacity: 0;
+    transition: opacity 0.64s ease;
+
+    &[data-active='true'] {
+      opacity: 1;
+    }
+  }
+
+  /* Floating ZZZ above the sleeping mascot. */
+
+  &__zzz-glyph {
+    fill: var(--void-pet-decor);
+    font-family:
+      'Comic Sans MS', 'Marker Felt', 'Trebuchet MS', system-ui, sans-serif;
+    font-weight: 700;
+    opacity: 0;
+
+    &--a {
+      font-size: 30px;
+      animation: void-zzz-rise 6.8s ease-in-out infinite;
+    }
+
+    &--b {
+      font-size: 40px;
+      animation: void-zzz-rise 6.8s ease-in-out -2.2s infinite;
+    }
+
+    &--c {
+      font-size: 54px;
+      animation: void-zzz-rise 6.8s ease-in-out -4.4s infinite;
+    }
+  }
+
+  /* Analyzing — ears twitch + think pips climb upward in sequence. */
+
+  &--analyzing .void-mascot-head__ear--left {
+    animation: void-ear-twitch-l 2.8s ease-in-out infinite;
+    transform-origin: 50% 100%;
+    transform-box: fill-box;
+  }
+
+  &--analyzing .void-mascot-head__ear--right {
+    animation: void-ear-twitch-r 2.8s ease-in-out 0.72s infinite;
+    transform-origin: 50% 100%;
+    transform-box: fill-box;
+  }
+
+  &__think-pip {
+    fill: var(--void-pet-decor);
+    opacity: 0;
+    animation: void-think-pulse 3.2s ease-in-out infinite;
+
+    &:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    &:nth-child(2) {
+      animation-delay: 0.4s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.8s;
+    }
+  }
+
+  /* Waiting — front paw taps + dots bob. */
+
+  &--waiting .void-mascot-head__paw--front {
+    animation: void-paw-tap 1.8s ease-in-out infinite;
+    transform-origin: 70% 60%;
+    transform-box: fill-box;
+  }
+
+  &__wait-pip {
+    fill: var(--void-pet-decor);
+    opacity: 0.5;
+    animation: void-wait-bounce 2.2s ease-in-out infinite;
+
+    &:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    &:nth-child(2) {
+      animation-delay: 0.72s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 1.44s;
+    }
+  }
+
+  /* Working — sweat drop + tense ear. */
+
+  &__sweat-drop {
+    fill: var(--void-pet-decor-soft);
+    opacity: 0;
+    animation: void-sweat-fall 3.2s ease-in infinite;
+  }
+
+  &--working .void-mascot-head__ear--right {
+    animation: void-ear-tense 3.2s ease-in-out infinite;
+    transform-origin: 50% 100%;
+    transform-box: fill-box;
+  }
+
+  &--hover .void-mascot-head__ear--left,
+  &--hover .void-mascot-head__ear--right {
+    animation: void-ear-perk 1.9s ease-in-out infinite;
+    transform-origin: 50% 100%;
+    transform-box: fill-box;
+  }
+
+  &__sparkle {
+    fill: var(--void-pet-decor);
+    opacity: 0;
+    transform-origin: center;
+    transform-box: fill-box;
+    animation: void-sparkle-pop 2.4s ease-in-out infinite;
+
+    &--b {
+      animation-delay: 0.44s;
+    }
+  }
+
+  &--dragging .void-mascot-head__paw--front,
+  &--dragging .void-mascot-head__paw--rear {
+    animation: void-paw-hold 0.96s ease-in-out infinite;
+    transform-origin: 50% 60%;
+    transform-box: fill-box;
+  }
+
+  &__drag-line {
+    fill: none;
+    stroke: var(--void-pet-decor-soft);
+    stroke-width: 8;
+    stroke-linecap: round;
+    opacity: 0;
+    animation: void-drag-line-swoop 1.44s ease-in-out infinite;
+
+    &--b {
+      animation-delay: 0.32s;
+    }
+  }
+}
+
+/* ---------- Mood transition micro-bump ---------- */
+
+.void-chat-input-pixel-pet__stage--transition {
+  animation: void-stage-bump 0.64s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+
+/* ---------- Idle micro-actions (rest only, all in-place) ---------- */
+
+.void-chat-input-pixel-pet__stage--idle-ear-twitch-left .void-mascot-head__ear--left {
+  animation: void-ear-twitch-once 1.4s ease-in-out;
+  transform-origin: 50% 100%;
+  transform-box: fill-box;
+}
+
+.void-chat-input-pixel-pet__stage--idle-ear-twitch-right .void-mascot-head__ear--right {
+  animation: void-ear-twitch-once 1.4s ease-in-out;
+  transform-origin: 50% 100%;
+  transform-box: fill-box;
+}
+
+.void-chat-input-pixel-pet__stage--idle-yawn .void-mascot-head__muzzle {
+  animation: void-yawn 2.6s ease-in-out;
+  transform-origin: 50% 30%;
+  transform-box: fill-box;
+}
+
+.void-chat-input-pixel-pet__stage--idle-deep-breath .void-mascot-head__body--front {
+  animation: void-deep-breath 1.8s ease-in-out;
+  transform-origin: 50% 95%;
+  transform-box: fill-box;
+}
+
+.void-chat-input-pixel-pet__stage--idle-body-roll .void-mascot-head {
+  animation:
+    void-head-breathe 6.8s ease-in-out infinite,
+    void-body-roll 3.0s ease-in-out;
+}
+
+.void-chat-input-pixel-pet__stage--idle-paw-wiggle .void-mascot-head__paw--front {
+  animation: void-paw-wiggle 1.8s ease-in-out;
+  transform-origin: 70% 60%;
+  transform-box: fill-box;
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes void-head-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+
+  50% {
+    transform: translateY(-2px) scale(1.014, 0.986);
+  }
+}
+
+@keyframes void-head-tilt {
+  0%,
+  100% {
+    transform: rotate(-2.2deg);
+  }
+
+  50% {
+    transform: rotate(2.2deg);
+  }
+}
+
+@keyframes void-head-look {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(4px);
+  }
+
+  75% {
+    transform: translateX(-4px);
+  }
+}
+
+@keyframes void-head-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-1px, 0.5px);
+  }
+
+  50% {
+    transform: translate(0.8px, -0.5px);
+  }
+
+  75% {
+    transform: translate(-0.5px, 0.8px);
+  }
+}
+
+@keyframes void-zzz-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.7);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(-6px, -14px) scale(1);
+  }
+
+  80% {
+    opacity: 1;
+    transform: translate(-14px, -50px) scale(1.05);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-22px, -70px) scale(1.1);
+  }
+}
+
+@keyframes void-think-pulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.7);
+  }
+
+  20%,
+  45% {
+    opacity: 0.9;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes void-wait-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+
+  50% {
+    transform: translateY(-9px);
+    opacity: 1;
+  }
+}
+
+@keyframes void-paw-tap {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  40% {
+    transform: rotate(-6deg) translateY(-2px);
+  }
+
+  60% {
+    transform: rotate(0deg) translateY(0);
+  }
+}
+
+@keyframes void-sweat-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, -12px) scale(0.4);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translate(2px, 24px) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(2px, 38px) scale(0.7);
+  }
+}
+
+@keyframes void-ear-twitch-l {
+  0%,
+  85%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  92% {
+    transform: rotate(-12deg);
+  }
+}
+
+@keyframes void-ear-twitch-r {
+  0%,
+  85%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  92% {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes void-ear-twitch-once {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  35% {
+    transform: rotate(-16deg);
+  }
+
+  60% {
+    transform: rotate(6deg);
+  }
+
+  85% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes void-ear-tense {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(6deg);
+  }
+}
+
+@keyframes void-stage-bump {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  35% {
+    transform: scale(1.08, 0.92);
+  }
+
+  70% {
+    transform: scale(0.96, 1.04);
+  }
+}
+
+@keyframes void-yawn {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  35%,
+  55% {
+    transform: scale(1.1, 1.4);
+  }
+}
+
+@keyframes void-deep-breath {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+
+  45% {
+    transform: scale(1.04, 1.06);
+  }
+}
+
+@keyframes void-body-roll {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  30% {
+    transform: rotate(-3.5deg);
+  }
+
+  60% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes void-paw-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-8deg);
+  }
+
+  50% {
+    transform: rotate(6deg);
+  }
+
+  75% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes void-head-perk {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(-1.6deg);
+  }
+}
+
+@keyframes void-head-carried {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  25% {
+    transform: rotate(-2.8deg) translateY(-1px);
+  }
+
+  75% {
+    transform: rotate(2.8deg) translateY(1px);
+  }
+}
+
+@keyframes void-ear-perk {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  50% {
+    transform: rotate(-8deg) translateY(-2px);
+  }
+}
+
+@keyframes void-sparkle-pop {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.55) rotate(0deg);
+  }
+
+  38%,
+  70% {
+    opacity: 0.95;
+    transform: scale(1) rotate(14deg);
+  }
+}
+
+@keyframes void-paw-hold {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-2px) rotate(-3deg);
+  }
+}
+
+@keyframes void-drag-line-swoop {
+  0% {
+    opacity: 0;
+    transform: translateX(10px) scaleX(0.7);
+  }
+
+  35%,
+  70% {
+    opacity: 0.72;
+    transform: translateX(0) scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-10px) scaleX(0.8);
+  }
+}
+
+@keyframes void-petdex-walk {
+  from {
+    background-position-x: 0;
+  }
+
+  to {
+    background-position-x: 85.7142857%;
+  }
+}
+
+@keyframes void-petdex-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-2px) scale(1.03, 0.97);
+  }
+}
+
+@keyframes void-petdex-work {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(0, -2px);
+  }
+}
+
+@keyframes void-petdex-hover {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-5px) scale(1.04, 0.96);
+  }
+}
+
+@keyframes void-petdex-dragging {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  25% {
+    transform: rotate(-2.5deg) translateY(-1px);
+  }
+
+  75% {
+    transform: rotate(2.5deg) translateY(1px);
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .void-chat-input-pixel-pet__stage,
+  .void-chat-input-pixel-pet__stage--transition,
+  .void-chat-input-pixel-pet__stage[class*='--idle-'],
+  .void-chat-input-pixel-pet__petdex {
+    animation: none !important;
+    transition: none;
+  }
+
+  .void-mascot-head,
+  .void-mascot-head--rest,
+  .void-mascot-head--analyzing,
+  .void-mascot-head--waiting,
+  .void-mascot-head--working,
+  .void-mascot-head--hover,
+  .void-mascot-head--dragging,
+  .void-mascot-head__zzz-glyph,
+  .void-mascot-head--analyzing .void-mascot-head__ear--left,
+  .void-mascot-head--analyzing .void-mascot-head__ear--right,
+  .void-mascot-head--working .void-mascot-head__ear--right,
+  .void-mascot-head--hover .void-mascot-head__ear--left,
+  .void-mascot-head--hover .void-mascot-head__ear--right,
+  .void-mascot-head--dragging .void-mascot-head__paw--front,
+  .void-mascot-head--dragging .void-mascot-head__paw--rear,
+  .void-mascot-head--waiting .void-mascot-head__paw--front,
+  .void-mascot-head__think-pip,
+  .void-mascot-head__wait-pip,
+  .void-mascot-head__sweat-drop,
+  .void-mascot-head__sparkle,
+  .void-mascot-head__drag-line {
+    animation: none !important;
+  }
+}

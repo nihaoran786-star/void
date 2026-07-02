@@ -1,0 +1,154 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "create": "Create"
+  },
+  "common": {
+    "unknown": "Unknown"
+  },
+  "counts": {
+    "tasks": "{{count}} task(s)"
+  },
+  "create": {
+    "title": "Create automation task",
+    "fields": {
+      "name": "Task name",
+      "workspace": "Workspace",
+      "executionMode": "Execution mode",
+      "prompt": "Task prompt",
+      "schedule": "Schedule",
+      "priority": "Priority",
+      "runDate": "Run date",
+      "startDate": "Start date",
+      "time": "Time",
+      "hourlyMinute": "Minute of each hour"
+    },
+    "placeholders": {
+      "name": "Example: daily competitor update",
+      "prompt": "Example: summarize yesterday's code changes, risks, and next steps for the current workspace."
+    },
+    "workspace": {
+      "empty": "No workspace available",
+      "required": "Open a project workspace before creating an automation task.",
+      "open": "Open workspace"
+    },
+    "executionMode": {
+      "code": {
+        "label": "Code session",
+        "hint": "Best for code, repository, and terminal tasks"
+      },
+      "cowork": {
+        "label": "Cowork session",
+        "hint": "Best for writing, organizing, and everyday collaboration"
+      }
+    },
+    "schedule": {
+      "once": {
+        "label": "Run once",
+        "hint": "Run once at a future date"
+      },
+      "hourly": {
+        "label": "Hourly",
+        "hint": "Run repeatedly each hour"
+      },
+      "daily": {
+        "label": "Daily",
+        "hint": "Run every day at the selected time"
+      }
+    }
+  },
+  "day": {
+    "now": "Now"
+  },
+  "detail": {
+    "agent": "Agent",
+    "completedTime": "Completed",
+    "delete": "Delete",
+    "disable": "Disable",
+    "duration": "Duration",
+    "enable": "Enable",
+    "runNow": "Run now",
+    "scheduledTime": "Scheduled",
+    "roles": {
+      "assistant": "Agent",
+      "tool": "Tool",
+      "user": "You"
+    },
+    "tabs": {
+      "artifacts": "Artifacts",
+      "conversation": "Conversation",
+      "prompt": "Prompt"
+    },
+    "empty": {
+      "artifactsPending": "Artifacts will appear here after the task completes",
+      "conversation": "The task has not run yet; no conversation is available",
+      "noArtifacts": "No artifacts"
+    }
+  },
+  "duration": {
+    "minutes": "{{count}} min"
+  },
+  "header": {
+    "allTasks": "All tasks",
+    "createTask": "Create task",
+    "next": "Next period",
+    "previous": "Previous period",
+    "title": "Automation",
+    "today": "Today",
+    "filters": {
+      "agent": "Filter by agent",
+      "allAgents": "All agents",
+      "allPriorities": "All priorities",
+      "allStatuses": "All statuses",
+      "clear": "Clear",
+      "priority": "Filter by priority",
+      "status": "Filter by status"
+    },
+    "views": {
+      "day": "Day",
+      "list": "List",
+      "month": "Month",
+      "week": "Week"
+    }
+  },
+  "list": {
+    "empty": "No matching tasks"
+  },
+  "month": {
+    "more": "+{{count}} more"
+  },
+  "priority": {
+    "P0": "Urgent",
+    "P1": "High",
+    "P2": "Medium",
+    "P3": "Low"
+  },
+  "runNow": {
+    "failed": "Run now failed: {{error}}",
+    "queued": "Added to the run queue",
+    "started": "Run started",
+    "triggered": "Run triggered"
+  },
+  "schedule": {
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "monthly": "Monthly",
+    "once": "Once",
+    "weekly": "Weekly"
+  },
+  "sessionNav": {
+    "automationTaskSession": "Automation task session"
+  },
+  "status": {
+    "completed": "Completed",
+    "failed": "Failed",
+    "pending": "Pending",
+    "queued": "Queued",
+    "running": "Running"
+  },
+  "targeting": {
+    "defaultTaskName": "Automation task",
+    "sessionTitle": "Automation · {{name}}"
+  }
+}

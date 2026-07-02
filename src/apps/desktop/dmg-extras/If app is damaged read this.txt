@@ -1,0 +1,17 @@
+If macOS says "void is damaged and can't be opened", follow these steps:
+
+1. Drag void.app into the Applications folder
+2. Open Terminal (found in Applications > Utilities)
+3. Paste the following command and press Enter:
+
+   xattr -d com.apple.quarantine /Applications/void.app
+
+4. Open void again — it should launch normally
+
+---
+
+Why this happens:
+macOS Gatekeeper adds a quarantine flag to apps downloaded from the internet.
+Because void is not yet notarized by Apple, the system incorrectly reports
+it as "damaged". The command above removes the quarantine flag and does not
+affect your system security.

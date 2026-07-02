@@ -1,0 +1,20 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Void logo">
+  <defs>
+    <mask id="cutouts" maskUnits="userSpaceOnUse">
+      <rect width="1024" height="1024" fill="#ffffff"/>
+      <path d="M214 570C300 408 410 330 520 274C388 302 276 398 210 538L214 570Z" fill="#000000"/>
+      <path d="M534 824C672 764 774 648 826 500C816 660 714 786 564 824H534Z" fill="#000000"/>
+    </mask>
+  </defs>
+  <g mask="url(#cutouts)" fill="#111111" stroke="#111111">
+    <g fill="none" stroke-width="84" stroke-linecap="butt" stroke-linejoin="round">
+      <path d="M500 202H326C258 202 202 258 202 326V574"/>
+      <path d="M526 202H678C758 202 822 266 822 346V548"/>
+      <path d="M822 576V698C822 768 766 824 696 824H530"/>
+      <path d="M500 824H328C258 824 202 768 202 698V604"/>
+    </g>
+    <path d="M196 588C252 424 372 304 520 274C398 326 322 430 320 554C318 672 384 748 486 790C360 788 260 718 196 588Z"/>
+    <path d="M304 678C408 798 594 792 714 690C774 638 810 572 826 500C808 666 690 802 526 832C432 850 354 802 304 678Z"/>
+    <circle cx="660" cy="408" r="34"/>
+  </g>
+</svg>

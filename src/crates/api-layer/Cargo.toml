@@ -1,0 +1,21 @@
+[package]
+name = "void-api-layer"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Void API Layer - Platform-agnostic business handlers"
+
+[lib]
+name = "void_api_layer"
+
+[dependencies]
+# Internal crates
+void-transport = { path = "../transport" }
+
+# Inherited from workspace
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+log = { workspace = true }
+uuid = { workspace = true }

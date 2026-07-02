@@ -1,0 +1,22 @@
+[package]
+name = "void-tool-packs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Void concrete tool-pack owner crate"
+
+[lib]
+name = "void_tool_packs"
+crate-type = ["rlib"]
+
+[features]
+default = []
+basic = []
+git = []
+mcp = []
+browser-web = []
+computer-use = []
+image-analysis = []
+miniapp = []
+agent-control = []
+product-full = ["basic", "git", "mcp", "browser-web", "computer-use", "image-analysis", "miniapp", "agent-control"]

@@ -1,0 +1,24 @@
+[package]
+name = "void-product-domains"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Void product domain owner crate"
+
+[lib]
+name = "void_product_domains"
+crate-type = ["rlib"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+dirs = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+which = { workspace = true, optional = true }
+
+[features]
+default = []
+miniapp = ["dirs", "sha2", "which"]
+function-agents = ["log"]
+product-full = ["miniapp", "function-agents"]

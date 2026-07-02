@@ -1,0 +1,28 @@
+[package]
+name = "void-agent-stream"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Lightweight agent stream processing for Void"
+
+[lib]
+name = "void_agent_stream"
+crate-type = ["rlib"]
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+void-ai-adapters = { path = "../ai-adapters" }
+void-events = { path = "../events" }
+futures = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+axum = { workspace = true }
+reqwest = { workspace = true }
+tokio-stream = { workspace = true }

@@ -1,0 +1,24 @@
+[package]
+name = "void-ai-adapters"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+description = "Shared AI protocol adapters for Void core and installer"
+
+[lib]
+name = "void_ai_adapters"
+crate-type = ["rlib"]
+
+[dependencies]
+anyhow = { workspace = true }
+void-core-types = { path = "../core-types" }
+chrono = { workspace = true }
+eventsource-stream = { workspace = true }
+futures = { workspace = true }
+log = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+urlencoding = { workspace = true }
