@@ -4972,3 +4972,33 @@ Verification:
 Remaining risk:
 
 - This is an audit only. Concrete runtime migrations still require separate issues with protected surfaces, snapshot evidence, focused equivalence tests, and rollback-safe owner boundaries.
+
+## ISSUE-1180D High-Risk Migration Registry
+
+Status: Done
+
+Completed:
+
+- Added a high-risk migration registry to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Registered upstream-inspired candidates for concrete runtime owner moves, terminal exec runtime ports, remote exec runtime ports, provider HTTP owner movement, MCP runtime state movement, product tool runtime owner split, and product-full/app assembly profile split.
+- Kept every candidate at `registered-only` status and required a separate next issue before implementation.
+- Listed current Void owners, protected surfaces, required snapshot/focused-test evidence, and forbidden changes for each candidate.
+- Added DEC-120 to state that high-risk migration registry entries are gates, not approvals.
+- Incorporated read-only Risk-Agent and Architecture-Agent findings without source changes.
+
+Verification:
+
+- `git show --stat --oneline --no-renames 213299206 98f0f4113 bceded210 96cea08ca 8d69e5733`
+  - Result: passed; confirmed the candidates are broad owner/runtime migrations.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180D.
+
+Remaining risk:
+
+- This registry can become stale as future migration candidates are accepted or rejected. Each future concrete-runtime issue must update the registry status with evidence rather than treating `registered-only` as approval.

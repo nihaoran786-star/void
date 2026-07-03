@@ -5685,3 +5685,34 @@ Coverage:
 Remaining risk:
 
 - The gap list can become stale as future owner migrations land; each concrete-runtime issue must update this audit and add focused snapshot/equivalence tests.
+
+## ISSUE-1180D High-Risk Migration Registry
+
+Scope:
+
+- Current slice is docs-only and registers high-risk upstream owner/runtime migration candidates.
+- It does not implement any candidate, move crates, change Cargo features, change app entrypoints, extract managers, move scheduler/session restore, alter terminal execution, move provider HTTP owners, move MCP lifecycle state, or change AI media / AI short-drama / product runtime behavior.
+- Each registry entry remains `registered-only` and requires a separate implementation issue before code.
+
+Executed:
+
+- `git show --stat --oneline --no-renames 213299206 98f0f4113 bceded210 96cea08ca 8d69e5733`
+  - Result: passed; confirmed the candidates are broad owner/runtime migrations.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180D.
+
+Coverage:
+
+- Registered candidates include `213299206`, `98f0f4113`, `bceded210`, `96cea08ca`, `8d69e5733`, and related product assembly/profile work.
+- Each candidate lists current Void owner, seam idea, risk class, protected surfaces, required evidence before code, forbidden changes in the registry issue, and required next issue.
+- Risk-Agent and Architecture-Agent completed read-only reviews and confirmed the registry is a gate, not implementation approval.
+
+Remaining risk:
+
+- A registered candidate can still be misused as backlog permission if future issues skip snapshot/equivalence evidence. DEC-120 and the registry status wording are intended to prevent that.

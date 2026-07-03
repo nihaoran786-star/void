@@ -2569,7 +2569,7 @@ Result:
 ### ISSUE-1180D High-Risk Migration Registry
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Register high-risk upstream owner migrations as candidates with required snapshot and focused-test prerequisites.
 Allowed files: docs only.
 Forbidden files: any implementation migration.
@@ -2578,6 +2578,11 @@ Acceptance:
 - Each candidate lists protected local surfaces and required verification before code.
 - Candidates are explicitly not approved for implementation by being registered.
 Risk notes: This is a risk ledger, not a backlog permission slip.
+Result:
+- Added `High-risk migration registry（风险登记，不是迁移许可）` to `docs/architecture/core-decomposition.md`.
+- Registered high-risk candidates for concrete runtime owner moves, terminal exec runtime ports, remote exec runtime ports, provider HTTP owner movement, MCP runtime state movement, product tool runtime owner split, and product-full/app assembly profile split.
+- Listed protected local surfaces and required snapshot/focused-test evidence for each candidate before code.
+- Recorded DEC-120 to state that registry entries are gates, not approvals; no implementation migration, Cargo, feature graph, app entrypoint, manager owner, scheduler/session restore, terminal, provider, MCP, AI media, AI short-drama, or product runtime changes were made.
 
 ### ISSUE-1180E Product-Full Guardrail Audit
 
