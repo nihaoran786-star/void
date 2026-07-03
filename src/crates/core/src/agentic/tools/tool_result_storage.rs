@@ -7,6 +7,9 @@
 use crate::agentic::core::ToolResult;
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::util::errors::{VoidError, VoidResult};
+use log::{debug, warn};
+use std::collections::HashSet;
+use std::path::Path;
 use void_agent_tools::{
     build_persisted_tool_output_message, count_tool_result_lines, generate_tool_result_preview,
     sanitize_tool_result_file_component, select_tool_result_indices_for_persistence,
@@ -15,9 +18,6 @@ use void_agent_tools::{
 };
 #[cfg(test)]
 use void_agent_tools::{DEFAULT_MAX_TOOL_RESULT_CHARS, PERSISTED_OUTPUT_TAG};
-use log::{debug, warn};
-use std::collections::HashSet;
-use std::path::Path;
 
 /// Keep in sync with `FileReadTool::DEFAULT_READ_MAX_TOTAL_CHARS` plus wrapper overhead.
 pub(crate) const READ_MAX_TOOL_RESULT_CHARS: usize = 72_000;
@@ -518,6 +518,51 @@ mod tests {
             .expect("tool result path");
         let saved = std::fs::read_to_string(output_path).expect("saved output");
         assert_eq!(saved, full_output);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[tokio::test]
+    async fn mcp_large_result_persists_full_assistant_text() {
+        let root = temp_workspace("mcp");
+        let context = test_context(root.clone());
+        let full_output = format!(
+            "{}\ntail-sentinel",
+            "mcp-output\n".repeat(DEFAULT_MAX_TOOL_RESULT_CHARS / 10 + 1)
+        );
+        let result = ToolResult {
+            tool_id: "mcp_large_1".to_string(),
+            tool_name: "mcp__test__large_output".to_string(),
+            result: json!({
+                "content": [
+                    {
+                        "type": "text",
+                        "text": full_output
+                    }
+                ],
+                "isError": false,
+                "_meta": {
+                    "source": "test-mcp"
+                }
+            }),
+            result_for_assistant: Some(full_output.clone()),
+            is_error: false,
+            duration_ms: None,
+            image_attachments: None,
+        };
+
+        let processed = maybe_persist_large_tool_result(result, &context).await;
+        let assistant = processed.result_for_assistant.unwrap_or_default();
+
+        assert!(assistant.starts_with(PERSISTED_OUTPUT_TAG));
+        assert!(assistant.contains("Full output saved to:"));
+        let output_path = context
+            .current_workspace_session_tool_result_path("session_1", "mcp_large_1.txt")
+            .expect("tool result path");
+        let saved = std::fs::read_to_string(output_path).expect("saved output");
+        assert_eq!(saved, full_output);
+        assert!(saved.contains("tail-sentinel"));
+        assert!(!saved.contains("[Result truncated"));
 
         let _ = std::fs::remove_dir_all(root);
     }

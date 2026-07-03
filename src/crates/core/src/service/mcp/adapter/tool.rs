@@ -10,13 +10,13 @@ use crate::service::mcp::protocol::{MCPTool, MCPToolResult};
 use crate::service::mcp::server::MCPConnection;
 use crate::util::errors::VoidResult;
 use async_trait::async_trait;
+use log::{debug, error, info, warn};
+use serde_json::Value;
+use std::sync::Arc;
 use void_services_integrations::mcp::adapter::{
     build_mcp_tool_descriptor, render_mcp_tool_result_for_assistant, MCPDynamicToolProvider,
     McpDynamicToolDescriptor,
 };
-use log::{debug, error, info, warn};
-use serde_json::Value;
-use std::sync::Arc;
 
 /// MCP tool wrapper that adapts an MCP tool to Void's `Tool`.
 pub struct MCPToolWrapper {
@@ -29,6 +29,7 @@ pub struct MCPToolWrapper {
 
 impl MCPToolWrapper {
     const MAX_RESULT_TEXT_CHARS: usize = 12_000;
+    const STORAGE_RESULT_TEXT_CHARS: usize = usize::MAX;
 
     /// Creates a new MCP tool wrapper.
     pub fn new(
@@ -53,6 +54,10 @@ impl MCPToolWrapper {
 
     fn is_blocked_in_context(&self, _context: Option<&ToolUseContext>) -> bool {
         false
+    }
+
+    fn render_result_for_storage(tool_name: &str, result: &MCPToolResult) -> String {
+        render_mcp_tool_result_for_assistant(tool_name, result, Self::STORAGE_RESULT_TEXT_CHARS)
     }
 }
 
@@ -230,7 +235,7 @@ impl Tool for MCPToolWrapper {
 
         let result_value = serde_json::to_value(&result)?;
 
-        let result_for_assistant = self.render_result_for_assistant(&result_value);
+        let result_for_assistant = Self::render_result_for_storage(&self.mcp_tool.name, &result);
         Ok(vec![ToolResult::Result {
             data: result_value,
             result_for_assistant: Some(result_for_assistant),
@@ -307,6 +312,59 @@ impl MCPToolAdapter {
     /// Clears all tools.
     pub fn clear(&mut self) {
         self.tools.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::mcp::protocol::MCPToolAnnotations;
+    use serde_json::json;
+
+    fn test_tool() -> MCPTool {
+        MCPTool {
+            name: "large_output".to_string(),
+            title: Some("Large Output".to_string()),
+            description: Some("Large output test tool".to_string()),
+            input_schema: json!({ "type": "object" }),
+            output_schema: None,
+            icons: None,
+            annotations: Some(MCPToolAnnotations {
+                title: Some("Large Output".to_string()),
+                read_only_hint: Some(true),
+                destructive_hint: None,
+                idempotent_hint: None,
+                open_world_hint: None,
+            }),
+            meta: None,
+        }
+    }
+
+    #[test]
+    fn mcp_storage_render_preserves_large_text_for_shared_budget_policy() {
+        let tool = test_tool();
+        let long_text = format!(
+            "{}tail-sentinel",
+            "x".repeat(MCPToolWrapper::MAX_RESULT_TEXT_CHARS + 256)
+        );
+        let result: MCPToolResult = serde_json::from_value(json!({
+            "content": [
+                {
+                    "type": "text",
+                    "text": long_text.clone()
+                }
+            ],
+            "isError": false,
+            "_meta": {
+                "source": "test-mcp"
+            }
+        }))
+        .expect("valid MCP tool result");
+
+        let rendered = MCPToolWrapper::render_result_for_storage(&tool.name, &result);
+
+        assert_eq!(rendered, long_text);
+        assert!(!rendered.contains("[Result truncated"));
     }
 }
 

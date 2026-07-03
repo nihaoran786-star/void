@@ -40,25 +40,28 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140C image-context unique filename lookup slice complete.
 - [x] ISSUE-1140C media image-reference local path guard slice complete.
 - [x] ISSUE-1140C desktop image payload cache resolution coverage complete.
+- [x] ISSUE-1150A MCP large-output storage alignment complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140C Image Context Scope and Media Path Leak Guards`
+Issue: `ISSUE-1150A MCP Large Output Storage Alignment`
 
 Summary:
 
-- Added desktop API coverage for `resolve_missing_image_payloads` so missing image payloads are restored only from exact upload-cache ids.
-- Covered cache hit, cache hit without any usable payload, and expired/removed cache behavior.
-- Kept expired cache as a missing-cache API outcome instead of exposing core private TTL cleanup controls.
-- Did not touch Web UI, Flow Chat, BTW behavior logic, AI media service, AI short-drama service, provider adapters, APIMart client, execution engine, or image-context storage production behavior.
+- Changed the MCP adapter's storage path so large MCP assistant-visible text is not pre-truncated at the old 12k adapter limit before shared oversized-result storage can decide persistence.
+- Kept ordinary MCP result-message rendering bounded by the existing 12k renderer, so debug/UI-facing messages do not become unbounded.
+- Added storage coverage proving a large MCP-style result is persisted with the full tail content.
+- Did not touch Web UI tool cards, Flow Chat runtime/store, provider adapters, AI media, AI short-drama, review/multi-agent policy, crate features, or MCP owner migration.
 
 Verification:
 
-- `cargo test -p void-desktop resolve_missing_image_payloads --lib -- --nocapture` passed with 3 tests.
-- `cargo test -p void-desktop --lib` passed with 139 tests.
-- `cargo check -p void-desktop` passed with an unrelated existing dead-code warning in `clipboard_file_api.rs`.
-- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests.
-- `rustfmt --edition 2021 --check src/apps/desktop/src/api/agentic_api.rs` passed after formatting.
+- `cargo test -p void-core mcp_storage_render_preserves_large_text_for_shared_budget_policy --lib -- --nocapture` passed with 1 test.
+- `cargo test -p void-core mcp_large_result_persists_full_assistant_text --lib -- --nocapture` passed with 1 test.
+- `cargo test -p void-core tool_result_storage --lib -- --nocapture` passed with 7 tests.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_dynamic_tool_provider_preserves_manifest_contract -- --nocapture` passed with 1 test.
+- `node scripts/check-core-boundaries.mjs` passed after changing the core adapter test to build MCP result data through JSON deserialization instead of directly constructing content enums.
+- `cargo check -p void-core --features product-full` passed.
+- `rustfmt --edition 2021 --check src/crates/core/src/service/mcp/adapter/tool.rs src/crates/core/src/agentic/tools/tool_result_storage.rs` passed after formatting.
 - `git diff --check` passed.
 
 ## Subagent Summary

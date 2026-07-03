@@ -4035,6 +4035,47 @@ Implementation test plan for follow-up issues:
     - Tool pipeline rejection/timeout/cancel/denial classification tests for `ISSUE-1150E`.
     - Boundary-script and architecture equivalence checks for `ISSUE-1150F`.
   - Result: docs-only audit in the main session; no production code changed.
+
+## ISSUE-1150A MCP Large Output Storage Alignment
+
+Scope:
+
+- Current slice covers the core MCP dynamic tool adapter and shared oversized tool-result storage tests.
+- No Web UI tool cards, Flow Chat runtime/store, provider adapters, AI media, AI short-drama, review/multi-agent policy, crate features, or MCP owner migration was changed.
+
+Executed:
+
+- `cargo test -p void-core mcp_storage_render_preserves_large_text_for_shared_budget_policy --lib -- --nocapture`
+  - Result before implementation: failed because `MCPToolWrapper::render_result_for_storage` did not exist.
+  - Result after implementation: passed, 1 test.
+- `cargo test -p void-core mcp_large_result_persists_full_assistant_text --lib -- --nocapture`
+  - Result: passed, 1 test.
+- `cargo test -p void-core tool_result_storage --lib -- --nocapture`
+  - Result: passed, 7 tests.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_dynamic_tool_provider_preserves_manifest_contract -- --nocapture`
+  - Result: passed, 1 test.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed after the core MCP adapter test was changed to deserialize an MCP JSON result instead of directly constructing MCP content enums.
+- `cargo check -p void-core --features product-full`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src/crates/core/src/service/mcp/adapter/tool.rs src/crates/core/src/agentic/tools/tool_result_storage.rs`
+  - Result: passed after formatting.
+- `git diff --check`
+  - Result: passed.
+- `cargo test -p void-services-integrations mcp_dynamic_tool_provider_preserves_manifest_contract -- --nocapture`
+  - Result: not counted; matched 0 tests because the MCP integration contract is gated behind the `mcp` feature.
+- `cargo test -p void-services-integrations --test mcp_contracts mcp_dynamic_tool_provider_preserves_manifest_contract -- --nocapture`
+  - Result: not counted; matched 0 tests because the MCP integration contract is gated behind the `mcp` feature.
+
+Coverage:
+
+- MCP adapter storage rendering preserves large text above the previous 12k adapter threshold and does not inject `[Result truncated]`.
+- Shared `tool_result_storage` persists a large MCP-style assistant-visible result as full text, including tail sentinel content.
+- Regular MCP result message rendering remains on the bounded adapter renderer.
+
+Deferred:
+
+- Additional structured/resource/mixed MCP metadata permutations can be added under `ISSUE-1150A` follow-up only if a current regression appears; raw MCP result data still carries `_meta` for consumers.
 - `ISSUE-1160`:
   - `git show --name-status --stat --oneline 082cee447 cae512b9f 958a06095 797c94ad1 50d33d506 4e8c9c897 --`
     - Result: passed; identified upstream near-color governance, runtime token contract, visual governance contract, broad token/color compression, widget payload compatibility, and SCSS token migration scopes.

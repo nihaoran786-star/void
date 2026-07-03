@@ -1884,7 +1884,7 @@ Result:
 ### ISSUE-1150A MCP Large Output Storage Alignment
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Let MCP dynamic tool output flow into the shared large-output storage policy without pre-truncating assistant-visible text at the MCP adapter boundary.
 Allowed files: `src/crates/core/src/service/mcp/adapter/tool.rs`, focused MCP adapter tests, shared output policy tests/docs.
 Forbidden files: Web UI tool cards, Flow Chat runtime, provider adapters, media/short-drama services, crate owner migration.
@@ -1894,6 +1894,10 @@ Acceptance:
 - Shared storage preview/reference behavior remains owned by core runtime artifacts, not `void-agent-tools`.
 - Tests prove the adapter no longer hides content before the central oversized-result policy runs.
 Risk notes: Avoid double truncation. Do not move filesystem artifact writes into `void-agent-tools`.
+Progress:
+- Added a core MCP adapter storage-render path that preserves large MCP assistant-visible text for `ToolResult` storage while keeping regular UI result messages on the existing 12k bounded renderer.
+- Added focused tests proving large MCP text is not marked `[Result truncated]` before shared storage, and that `tool_result_storage` persists the full MCP assistant text including tail content.
+- Preserved raw MCP `data` including `_meta`; shared preview/reference/file writing remains owned by core `tool_result_storage`.
 
 ### ISSUE-1150B MCP Elicitation Legacy Compatibility
 
