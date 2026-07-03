@@ -5,6 +5,16 @@ import { createTauriCommandError } from '../errors/TauriCommandError';
 import type { SendMessageRequest } from './tauri-commands';
 import type { ConnectionTestMessageCode } from '@/shared/utils/aiConnectionTestMessages';
 
+export type ConnectionTestErrorCategory =
+  | 'auth'
+  | 'quota'
+  | 'proxy'
+  | 'tls'
+  | 'timeout'
+  | 'network'
+  | 'provider'
+  | 'unknown';
+
 export interface CreateAISessionRequest {
   session_id?: string;
   agent_type: string;
@@ -21,6 +31,7 @@ export interface ConnectionTestResult {
   response_time_ms: number;
   model_response?: string;
   message_code?: ConnectionTestMessageCode;
+  error_category?: ConnectionTestErrorCategory;
   error_details?: string;
 }
 

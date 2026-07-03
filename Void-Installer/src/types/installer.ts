@@ -57,12 +57,22 @@ export interface ModelConfig {
 
 /** Matches backend `ConnectionTestMessageCode` (camelCase JSON). */
 export type ConnectionTestMessageCode = 'toolCallsNotDetected' | 'imageInputCheckFailed';
+export type ConnectionTestErrorCategory =
+  | 'auth'
+  | 'quota'
+  | 'proxy'
+  | 'tls'
+  | 'timeout'
+  | 'network'
+  | 'provider'
+  | 'unknown';
 
 export interface ConnectionTestResult {
   success: boolean;
   responseTimeMs: number;
   modelResponse?: string;
   messageCode?: ConnectionTestMessageCode;
+  errorCategory?: ConnectionTestErrorCategory;
   errorDetails?: string;
 }
 

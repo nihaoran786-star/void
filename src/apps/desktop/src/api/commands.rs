@@ -1095,6 +1095,7 @@ pub async fn test_ai_config_connection(
                                     .model_response
                                     .or(result.model_response),
                                 message_code: image_result.message_code,
+                                error_category: image_result.error_category,
                                 error_details: image_result.error_details,
                             };
                             info!(
@@ -1109,6 +1110,7 @@ pub async fn test_ai_config_connection(
                             response_time_ms,
                             model_response: image_result.model_response.or(result.model_response),
                             message_code: result.message_code,
+                            error_category: result.error_category,
                             error_details: result.error_details,
                         };
                         info!(

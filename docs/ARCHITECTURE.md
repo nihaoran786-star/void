@@ -64,6 +64,19 @@ Protected contracts:
 - `ShortDramaProject` tool as the controlled AI short-drama project interface.
 - Media tool APIMart submission, polling, and workspace save contracts.
 
+### AI Provider Adapters
+
+Responsibility:
+
+- Own provider HTTP/SSE requests, response mapping, stream parsing, tool-call aggregation, model discovery, and health checks.
+- Return structured connection-test diagnostics through `ConnectionTestResult` fields such as `message_code`, `error_category`, and `error_details`.
+
+Forbidden:
+
+- UI, settings pages, desktop entrypoints, or installer frontends must not classify provider failures by matching raw error strings.
+- Connection-test classification must not change provider catalogs, model config schemas, retry policy, or core business retry behavior.
+- Provider/service owner migration requires a separate decision; `void-ai-adapters` remains the default provider transport owner.
+
 ### Desktop Tauri Adapter
 
 Responsibility:

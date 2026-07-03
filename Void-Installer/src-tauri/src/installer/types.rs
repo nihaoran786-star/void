@@ -86,6 +86,34 @@ impl From<void_ai_adapters::types::ConnectionTestMessageCode> for ConnectionTest
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectionTestErrorCategory {
+    Auth,
+    Quota,
+    Proxy,
+    Tls,
+    Timeout,
+    Network,
+    Provider,
+    Unknown,
+}
+
+impl From<void_ai_adapters::types::ConnectionTestErrorCategory> for ConnectionTestErrorCategory {
+    fn from(value: void_ai_adapters::types::ConnectionTestErrorCategory) -> Self {
+        match value {
+            void_ai_adapters::types::ConnectionTestErrorCategory::Auth => Self::Auth,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Quota => Self::Quota,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Proxy => Self::Proxy,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Tls => Self::Tls,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Timeout => Self::Timeout,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Network => Self::Network,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Provider => Self::Provider,
+            void_ai_adapters::types::ConnectionTestErrorCategory::Unknown => Self::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionTestResult {
     pub success: bool,
@@ -94,6 +122,8 @@ pub struct ConnectionTestResult {
     pub model_response: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_code: Option<ConnectionTestMessageCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_category: Option<ConnectionTestErrorCategory>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_details: Option<String>,
 }
@@ -105,6 +135,7 @@ impl From<void_ai_adapters::types::ConnectionTestResult> for ConnectionTestResul
             response_time_ms: value.response_time_ms,
             model_response: value.model_response,
             message_code: value.message_code.map(Into::into),
+            error_category: value.error_category.map(Into::into),
             error_details: value.error_details,
         }
     }

@@ -2180,15 +2180,20 @@ Result:
 ### ISSUE-1170B AI Connection Test Error Classification
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Evaluate upstream connection-test refinements and add typed TLS/proxy/network/provider error classification if local tests prove a low-risk adapter/UI boundary.
-Allowed files: focused `void-ai-adapters` health-check code, AI error presenter/config tests, docs.
+Allowed files: focused `void-ai-adapters` health-check code, bridge result types, AI error presenter/config tests, docs.
 Forbidden files: provider catalog redesign, model config schema migration, broad UI settings rewrite.
 Acceptance:
 - Connection-test failures return or map to explicit categories.
 - User-facing errors remain readable and diagnostics do not leak API keys or raw secrets.
-- Retry count changes are covered by focused tests.
+- Retry count changes are out of scope unless covered by a separate focused test.
 Risk notes: Do not mix this with provider instance or URL catalog refactors.
+Result:
+- Added `ConnectionTestErrorCategory` in `void-ai-adapters` and attached it as an optional `error_category` on failed connection-test results.
+- Classified auth, quota, proxy, TLS, timeout, network, provider, and unknown failures inside the adapter health-check boundary while preserving raw `error_details`.
+- Propagated the optional category through core, desktop connection-test merge paths, installer bridge types, and Web/installer TypeScript result contracts without adding UI presentation logic.
+- Added adapter tests for classifier behavior and legacy JSON compatibility when `error_category` is absent.
 
 ### ISSUE-1170C OpenAI Content-Part Array Parser Regression
 

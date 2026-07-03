@@ -58,29 +58,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F short drama center stage card token slice complete.
 - [x] ISSUE-1170A provider HTTP/SSE owner boundary static audit complete.
 - [x] ISSUE-1170C OpenAI content-part array parser regression complete.
+- [x] ISSUE-1170B AI connection-test error classification complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1170C OpenAI Content-Part Array Parser Regression`
+Issue: `ISSUE-1170B AI Connection Test Error Classification`
 
 Summary:
 
-- Added focused OpenAI adapter tests for plain JSON arrays, mixed invalid content-part arrays, and valid Chat Completions content-part arrays.
-- Updated `OpenAIMessageConverter` so Chat Completions only treats fully valid `text`/`image_url` arrays as multimodal content.
-- Plain JSON arrays and mixed invalid arrays now remain text, protecting tool JSON output and ordinary textual JSON.
-- Existing Responses API image conversion and tool-image attachment conversion remain unchanged.
-- Did not touch tool schemas, Flow Chat UI, media/short-drama context plumbing, non-OpenAI providers, provider catalog/config, or crate layout.
+- Added adapter-owned `ConnectionTestErrorCategory` and optional `error_category` on `ConnectionTestResult`.
+- Classified auth, quota, proxy, TLS, timeout, network, provider, and unknown connection-test failures while preserving raw `error_details`.
+- Propagated the optional category through core, desktop connection-test merge paths, installer bridge types, and Web/installer TypeScript result contracts.
+- Did not change provider catalogs, model config schemas, retry policy, settings UI presentation, Flow Chat, AI media, AI short-drama, MCP, terminal, Computer Use, or crate layout.
 
 Verification:
 
-- RED: `cargo test -p void-ai-adapters openai::message_converter -- --nocapture` failed with the new plain JSON array and mixed invalid content-part tests because arrays were passed through as `content`.
-- RED: the same target command failed again after review added a Responses-style `image_url` string case, proving that string `image_url` arrays were still being misclassified as valid Chat Completions content parts.
-- GREEN: `cargo test -p void-ai-adapters openai::message_converter -- --nocapture` passed with 13 OpenAI message converter tests.
-- `rustfmt src/crates/ai-adapters/src/providers/openai/message_converter.rs` completed successfully.
-- `cargo test -p void-ai-adapters` passed with 172 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests.
+- RED: `cargo test -p void-ai-adapters healthcheck -- --nocapture` failed before implementation because the classifier/helper did not exist, then failed once for proxy/auth precedence before the classification order was corrected.
+- GREEN: `cargo test -p void-ai-adapters healthcheck -- --nocapture` passed with 3 focused health-check tests.
+- `cargo test -p void-ai-adapters types::ai -- --nocapture` passed with 4 focused type tests.
+- `cargo test -p void-ai-adapters` passed with 177 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests.
 - `cargo metadata --no-deps --format-version 1` passed.
 - `node scripts/check-core-boundaries.mjs` passed.
-- `git diff --check -- src/crates/ai-adapters/src/providers/openai/message_converter.rs docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with Windows LF/CRLF working-copy warnings only.
+- `cargo check -p void-desktop` passed with the existing unrelated dead-code warning for `parse_clipboard_path_segments`.
+- `pnpm run type-check:web` passed.
+- `pnpm --dir Void-Installer run type-check` passed.
 
 ## Subagent Summary
 

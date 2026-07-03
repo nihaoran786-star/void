@@ -45,6 +45,20 @@ pub enum ConnectionTestMessageCode {
     ImageInputCheckFailed,
 }
 
+/// Structured error category for connection test failures.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectionTestErrorCategory {
+    Auth,
+    Quota,
+    Proxy,
+    Tls,
+    Timeout,
+    Network,
+    Provider,
+    Unknown,
+}
+
 /// AI connection test result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectionTestResult {
@@ -58,6 +72,9 @@ pub struct ConnectionTestResult {
     /// Structured message code for localized frontend messaging
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_code: Option<ConnectionTestMessageCode>,
+    /// Structured failure category for UI and diagnostics
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_category: Option<ConnectionTestErrorCategory>,
     /// Raw error or diagnostic details
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_details: Option<String>,
@@ -75,7 +92,7 @@ pub struct RemoteModelInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::GeminiUsage;
+    use super::{ConnectionTestErrorCategory, ConnectionTestResult, GeminiUsage};
 
     #[test]
     fn gemini_usage_roundtrips_cache_creation_field() {
@@ -107,5 +124,35 @@ mod tests {
         let parsed: GeminiUsage = serde_json::from_str(raw).expect("legacy payload");
         assert_eq!(parsed.cached_content_token_count, Some(3));
         assert_eq!(parsed.cache_creation_token_count, None);
+    }
+
+    #[test]
+    fn connection_test_result_legacy_payload_parses_without_error_category() {
+        let raw = r#"{
+            "success": false,
+            "response_time_ms": 12,
+            "error_details": "request failed"
+        }"#;
+        let parsed: ConnectionTestResult = serde_json::from_str(raw).expect("legacy payload");
+
+        assert!(!parsed.success);
+        assert_eq!(parsed.response_time_ms, 12);
+        assert_eq!(parsed.error_category, None);
+        assert_eq!(parsed.error_details.as_deref(), Some("request failed"));
+    }
+
+    #[test]
+    fn connection_test_error_category_serializes_as_snake_case() {
+        let result = ConnectionTestResult {
+            success: false,
+            response_time_ms: 7,
+            model_response: None,
+            message_code: None,
+            error_category: Some(ConnectionTestErrorCategory::Tls),
+            error_details: Some("certificate verify failed".to_string()),
+        };
+
+        let json = serde_json::to_string(&result).expect("serialize");
+        assert!(json.contains("\"error_category\":\"tls\""));
     }
 }

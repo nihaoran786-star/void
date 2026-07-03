@@ -899,6 +899,7 @@ pub async fn test_model_config_connection(
                 response_time_ms: 0,
                 model_response: None,
                 message_code: None,
+                error_category: None,
                 error_details: Some(format!("Missing required field: {}", field)),
             });
         }
@@ -937,6 +938,7 @@ pub async fn test_model_config_connection(
                                     .model_response
                                     .or(result.model_response),
                                 message_code: image_result.message_code.map(Into::into),
+                                error_category: image_result.error_category.map(Into::into),
                                 error_details: image_result.error_details,
                             };
                             log::info!(
@@ -951,6 +953,7 @@ pub async fn test_model_config_connection(
                             response_time_ms,
                             model_response: image_result.model_response.or(result.model_response),
                             message_code: result.message_code.map(Into::into),
+                            error_category: result.error_category.map(Into::into),
                             error_details: result.error_details,
                         };
                         log::info!(

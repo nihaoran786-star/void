@@ -3,6 +3,16 @@ import { aiApi } from '@/infrastructure/api';
 import { createLogger } from '@/shared/utils/logger';
 import type { ConnectionTestMessageCode } from './aiConnectionTestMessages';
 
+export type ConnectionTestErrorCategory =
+  | 'auth'
+  | 'quota'
+  | 'proxy'
+  | 'tls'
+  | 'timeout'
+  | 'network'
+  | 'provider'
+  | 'unknown';
+
 const log = createLogger('ConfigConverter');
 
  
@@ -95,6 +105,7 @@ export interface ConnectionTestResult {
   response_time_ms: number;
   model_response?: string;
   message_code?: ConnectionTestMessageCode;
+  error_category?: ConnectionTestErrorCategory;
   error_details?: string;
 }
 

@@ -1,6 +1,9 @@
 use crate::client::utils::elapsed_ms_u64;
 use crate::client::AIClient;
-use crate::types::{ConnectionTestMessageCode, ConnectionTestResult, Message, ToolDefinition};
+use crate::types::{
+    ConnectionTestErrorCategory, ConnectionTestMessageCode, ConnectionTestResult, Message,
+    ToolDefinition,
+};
 use anyhow::Result;
 use log::debug;
 
@@ -86,6 +89,7 @@ pub(crate) async fn test_connection(client: &AIClient) -> Result<ConnectionTestR
                     response_time_ms,
                     model_response: Some(response.text),
                     message_code: None,
+                    error_category: None,
                     error_details: None,
                 })
             } else {
@@ -94,6 +98,7 @@ pub(crate) async fn test_connection(client: &AIClient) -> Result<ConnectionTestR
                     response_time_ms,
                     model_response: Some(response.text),
                     message_code: Some(ConnectionTestMessageCode::ToolCallsNotDetected),
+                    error_category: None,
                     error_details: None,
                 })
             }
@@ -102,13 +107,7 @@ pub(crate) async fn test_connection(client: &AIClient) -> Result<ConnectionTestR
             let response_time_ms = elapsed_ms_u64(start_time);
             let error_msg = format!("{}", e);
             debug!("test connection failed: {}", error_msg);
-            Ok(ConnectionTestResult {
-                success: false,
-                response_time_ms,
-                model_response: None,
-                message_code: None,
-                error_details: Some(error_msg),
-            })
+            Ok(connection_test_failure_result(response_time_ms, error_msg))
         }
     }
 }
@@ -168,6 +167,7 @@ pub(crate) async fn test_image_input_connection(client: &AIClient) -> Result<Con
                     response_time_ms: elapsed_ms_u64(start_time),
                     model_response: Some(response.text),
                     message_code: None,
+                    error_category: None,
                     error_details: None,
                 })
             } else {
@@ -182,6 +182,7 @@ pub(crate) async fn test_image_input_connection(client: &AIClient) -> Result<Con
                     response_time_ms: elapsed_ms_u64(start_time),
                     model_response: Some(response.text),
                     message_code: Some(ConnectionTestMessageCode::ImageInputCheckFailed),
+                    error_category: Some(ConnectionTestErrorCategory::Provider),
                     error_details: Some(detail),
                 })
             }
@@ -189,13 +190,203 @@ pub(crate) async fn test_image_input_connection(client: &AIClient) -> Result<Con
         Err(e) => {
             let error_msg = format!("{}", e);
             debug!("test image input connection failed: {}", error_msg);
-            Ok(ConnectionTestResult {
-                success: false,
-                response_time_ms: elapsed_ms_u64(start_time),
-                model_response: None,
-                message_code: None,
-                error_details: Some(error_msg),
-            })
+            Ok(connection_test_failure_result(
+                elapsed_ms_u64(start_time),
+                error_msg,
+            ))
         }
+    }
+}
+
+pub(crate) fn classify_connection_test_error_message(
+    error_message: &str,
+) -> ConnectionTestErrorCategory {
+    let message = error_message.to_ascii_lowercase();
+
+    if contains_any(
+        &message,
+        &[
+            "insufficient_quota",
+            "insufficient quota",
+            "insufficient balance",
+            "quota",
+            "billing",
+            "not_enough_balance",
+            "not enough balance",
+            "余额不足",
+            "账户已欠费",
+            "402",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Quota;
+    }
+
+    if contains_any(&message, &["proxy", "tunnel"]) {
+        return ConnectionTestErrorCategory::Proxy;
+    }
+
+    if contains_any(
+        &message,
+        &[
+            "invalid api key",
+            "unauthorized",
+            "forbidden",
+            "authentication",
+            "permission denied",
+            "401",
+            "403",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Auth;
+    }
+
+    if contains_any(
+        &message,
+        &[
+            "tls",
+            "ssl",
+            "certificate",
+            "cert",
+            "x509",
+            "rustls",
+            "native-tls",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Tls;
+    }
+
+    if contains_any(
+        &message,
+        &[
+            "timeout",
+            "timed out",
+            "deadline exceeded",
+            "408",
+            "gateway timeout",
+            "504",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Timeout;
+    }
+
+    if contains_any(
+        &message,
+        &[
+            "dns",
+            "network",
+            "connection refused",
+            "connection reset",
+            "connection closed",
+            "broken pipe",
+            "unexpected eof",
+            "econnreset",
+            "econnrefused",
+            "etimedout",
+            "temporarily unavailable",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Network;
+    }
+
+    if contains_any(
+        &message,
+        &[
+            "provider",
+            "model not found",
+            "unsupported model",
+            "invalid request",
+            "bad request",
+            "malformed response",
+            "schema error",
+            "content policy",
+            "rate limit",
+            "too many requests",
+            "429",
+            "500",
+            "502",
+            "503",
+        ],
+    ) {
+        return ConnectionTestErrorCategory::Provider;
+    }
+
+    ConnectionTestErrorCategory::Unknown
+}
+
+fn connection_test_failure_result(
+    response_time_ms: u64,
+    error_msg: String,
+) -> ConnectionTestResult {
+    let error_category = classify_connection_test_error_message(&error_msg);
+    ConnectionTestResult {
+        success: false,
+        response_time_ms,
+        model_response: None,
+        message_code: None,
+        error_category: Some(error_category),
+        error_details: Some(error_msg),
+    }
+}
+
+fn contains_any(message: &str, needles: &[&str]) -> bool {
+    needles.iter().any(|needle| message.contains(needle))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_connection_test_error_message, connection_test_failure_result};
+    use crate::types::ConnectionTestErrorCategory;
+
+    #[test]
+    fn classifies_connection_test_transport_errors() {
+        assert_eq!(
+            classify_connection_test_error_message("request timed out after 30s"),
+            ConnectionTestErrorCategory::Timeout
+        );
+        assert_eq!(
+            classify_connection_test_error_message("proxy authentication required"),
+            ConnectionTestErrorCategory::Proxy
+        );
+        assert_eq!(
+            classify_connection_test_error_message("TLS certificate verify failed"),
+            ConnectionTestErrorCategory::Tls
+        );
+        assert_eq!(
+            classify_connection_test_error_message("dns error: connection refused"),
+            ConnectionTestErrorCategory::Network
+        );
+    }
+
+    #[test]
+    fn classifies_connection_test_provider_errors() {
+        assert_eq!(
+            classify_connection_test_error_message("invalid api key: unauthorized"),
+            ConnectionTestErrorCategory::Auth
+        );
+        assert_eq!(
+            classify_connection_test_error_message("insufficient_quota: billing hard limit"),
+            ConnectionTestErrorCategory::Quota
+        );
+        assert_eq!(
+            classify_connection_test_error_message("provider returned malformed response"),
+            ConnectionTestErrorCategory::Provider
+        );
+        assert_eq!(
+            classify_connection_test_error_message("unrecognized failure payload"),
+            ConnectionTestErrorCategory::Unknown
+        );
+    }
+
+    #[test]
+    fn failure_result_includes_error_category_without_losing_detail() {
+        let result = connection_test_failure_result(42, "proxy tunnel failed".to_string());
+
+        assert!(!result.success);
+        assert_eq!(result.response_time_ms, 42);
+        assert_eq!(
+            result.error_category,
+            Some(ConnectionTestErrorCategory::Proxy)
+        );
+        assert_eq!(result.error_details.as_deref(), Some("proxy tunnel failed"));
     }
 }

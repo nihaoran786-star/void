@@ -128,6 +128,49 @@ Residual risk:
 - This does not change Responses API content parsing or non-OpenAI providers.
 - The validator intentionally supports the current Chat Completions part shapes only; future OpenAI part types should add focused tests before being allowed through.
 
+## ISSUE-1170B AI Connection Test Error Classification
+
+Date: 2026-07-03
+
+Scope:
+
+- `void-ai-adapters` connection-test failure classification and result serialization.
+- Bridge type propagation through core, desktop connection-test merging, installer, and TypeScript API contracts.
+- No provider catalog redesign, model config schema migration, broad settings UI rewrite, retry behavior change, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, or crate layout change.
+
+Checks:
+
+- `cargo test -p void-ai-adapters healthcheck -- --nocapture`
+  - RED result: failed before implementation because the new classifier and failure-result helper did not exist.
+  - Interim result: failed once because `proxy authentication required` was classified as auth before proxy precedence was corrected.
+  - Final result: passed, 3 focused health-check tests.
+- `cargo test -p void-ai-adapters types::ai -- --nocapture`
+  - Result: passed, 4 focused type tests including legacy JSON without `error_category` and snake_case category serialization.
+- `cargo test -p void-ai-adapters healthcheck types::ai -- --nocapture`
+  - Result: command rejected by Cargo because only one test-name filter is accepted.
+  - Follow-up: reran `healthcheck` and `types::ai` as separate commands; both passed.
+- `cargo test -p void-ai-adapters`
+  - Result: passed, 177 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests.
+- `rustfmt src\crates\ai-adapters\src\client\healthcheck.rs src\crates\ai-adapters\src\types\ai.rs src\crates\ai-adapters\src\lib.rs`
+  - Initial result: failed because the default rustfmt edition treated existing async functions as Rust 2015.
+- `rustfmt --edition 2021 src\crates\ai-adapters\src\client\healthcheck.rs src\crates\ai-adapters\src\types\ai.rs src\crates\ai-adapters\src\lib.rs src\crates\core\src\util\types\ai.rs src\apps\desktop\src\api\commands.rs Void-Installer\src-tauri\src\installer\types.rs Void-Installer\src-tauri\src\installer\commands.rs`
+  - Result: passed.
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `cargo check -p void-desktop`
+  - Result: passed with the existing unrelated warning for `parse_clipboard_path_segments` being unused.
+- `pnpm run type-check:web`
+  - Result: passed.
+- `pnpm --dir Void-Installer run type-check`
+  - Result: passed.
+
+Residual risk:
+
+- The category classifier is intentionally heuristic and should be extended by adding focused tests for new provider error shapes.
+- No UI message copy was changed; future UI presentation should consume `error_category` rather than parse `error_details`.
+
 ## ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice
 
 Date: 2026-07-03

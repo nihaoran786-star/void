@@ -18,7 +18,7 @@ pub use model_selector::{
 };
 pub use stream::{UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
 pub use types::{
-    resolve_request_url, AIConfig, ConnectionTestMessageCode, ConnectionTestResult, GeminiResponse,
-    GeminiUsage, Message, ProxyConfig, ReasoningMode, RemoteModelInfo, ToolCall, ToolDefinition,
-    ToolImageAttachment,
+    resolve_request_url, AIConfig, ConnectionTestErrorCategory, ConnectionTestMessageCode,
+    ConnectionTestResult, GeminiResponse, GeminiUsage, Message, ProxyConfig, ReasoningMode,
+    RemoteModelInfo, ToolCall, ToolDefinition, ToolImageAttachment,
 };
