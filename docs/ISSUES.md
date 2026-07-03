@@ -2099,7 +2099,10 @@ Progress:
 - Completed the Workspace Media Gallery pending/generator visual token slice: generator glow, dark surface, grid, beam, ring, and core colors now use `--workspace-media-generator-*` local tokens.
 - Added `scripts/workspace-media-gallery-generator-theme.test.mjs` to lock the generator visual token boundary.
 - Preserved Gallery TSX state, pending generation ownership, media availability, preview resolution, selection, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
-- Remaining 1160F debt: Gallery fallback/overlay/waveform/action raw colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
+- Completed the Workspace Media Gallery card chrome visual token slice: fallback, placeholder, waveform, play/type badges, action buttons, overlay, unavailable text, and local divider colors now use `--workspace-media-card-chrome-*` tokens.
+- Added `scripts/workspace-media-gallery-card-chrome-theme.test.mjs` to lock the card chrome visual token boundary.
+- Preserved Gallery TSX state, media availability, previewability, pending generation ownership, selection, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
+- Remaining 1160F debt: Gallery operation-error raw colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

@@ -547,3 +547,9 @@ Reason: CenterPanel TSX owns stage selection, workspace manifest interpretation,
 Decision: The fourth `ISSUE-1160F` code slice keeps pending/generator visual cleanup inside `WorkspaceMediaGallery.scss`. The generator glow, dark surface, grid, beam, ring, and core colors are exposed only as `--workspace-media-generator-*` local tokens and consumed by the pending/generator selectors.
 
 Reason: Pending media generation has business meaning, but this slice only names its presentation colors. Keeping these tokens local avoids coupling theme governance to media task ownership, media availability, preview resolution, or gallery state transitions.
+
+## DEC-092: Gallery Card Chrome Visual Tokens Stay Presentation-Only
+
+Decision: The fifth `ISSUE-1160F` code slice keeps fallback, placeholder, waveform, play/type badges, action buttons, overlay, unavailable text, and local divider colors as `--workspace-media-card-chrome-*` tokens inside `WorkspaceMediaGallery.scss`.
+
+Reason: These colors describe card chrome presentation, not media availability, previewability, delete state, selection state, or pending ownership. Keeping them local reduces raw color debt without creating global product-state tokens or touching Gallery React/service behavior.

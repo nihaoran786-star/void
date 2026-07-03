@@ -169,6 +169,40 @@ Residual risk:
 - Gallery fallback, overlay, waveform, action controls, and operation-error raw colors remain separate visual-debt candidates.
 - This slice does not verify rendered screenshots or change pending generation behavior.
 
+## ISSUE-1160F Workspace Media Gallery Card Chrome Visual Token Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `WorkspaceMediaGallery.scss` card chrome visual colors only: fallback, placeholder, waveform, play/type badges, action buttons, overlay, unavailable text, and local divider.
+- Focused script guard for card chrome selector-level raw colors.
+- No Gallery TSX state, media availability, previewability, pending generation ownership, selection, delete/restore/purge flows, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/workspace-media-gallery-card-chrome-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: card chrome local tokens were missing and raw visual colors were still present in card chrome selectors.
+- `node --test scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs`
+  - Result: passed.
+  - Notes: 4 focused style-boundary tests passed.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx`
+  - Result: passed.
+  - Notes: 28 focused workspace-media tests passed.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+  - Notes: no baseline update required.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- Gallery operation-error raw colors remain a separate visual-debt candidate.
+- This slice does not verify rendered screenshots or change media preview behavior.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03

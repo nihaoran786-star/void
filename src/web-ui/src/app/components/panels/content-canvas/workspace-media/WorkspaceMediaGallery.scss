@@ -23,6 +23,29 @@
   --workspace-media-generator-outline-glow: rgba(56, 189, 248, 0.5);
   --workspace-media-generator-muted-line: rgba(226, 232, 240, 0.12);
   --workspace-media-generator-hotspot: rgba(255, 255, 255, 0.5);
+  --workspace-media-card-chrome-muted: #64748b;
+  --workspace-media-card-chrome-soft-shadow: rgba(15, 23, 42, 0.04);
+  --workspace-media-card-chrome-soft-fill: rgba(148, 163, 184, 0.2);
+  --workspace-media-card-chrome-waveform-start: rgba(241, 245, 249, 0.95);
+  --workspace-media-card-chrome-waveform-end: rgba(226, 232, 240, 0.92);
+  --workspace-media-card-chrome-waveform-bar: rgba(71, 85, 105, 0.48);
+  --workspace-media-card-chrome-glass: rgba(255, 255, 255, 0.72);
+  --workspace-media-card-chrome-glass-strong: rgba(255, 255, 255, 0.9);
+  --workspace-media-card-chrome-ink: #1f2937;
+  --workspace-media-card-chrome-play-ink: #0f172a;
+  --workspace-media-card-chrome-type-ink: #334155;
+  --workspace-media-card-chrome-pending-type-bg: rgba(14, 165, 233, 0.22);
+  --workspace-media-card-chrome-pending-type-text: #dff7ff;
+  --workspace-media-card-chrome-pending-overlay-start: rgba(8, 13, 23, 0.82);
+  --workspace-media-card-chrome-pending-overlay-mid: rgba(8, 13, 23, 0.16);
+  --workspace-media-card-chrome-pending-overlay-text: #e6f7ff;
+  --workspace-media-card-chrome-pending-meta: rgba(226, 244, 255, 0.74);
+  --workspace-media-card-chrome-overlay-start: rgba(15, 23, 42, 0.88);
+  --workspace-media-card-chrome-overlay-mid: rgba(15, 23, 42, 0.46);
+  --workspace-media-card-chrome-overlay-text: #f8fafc;
+  --workspace-media-card-chrome-overlay-meta: rgba(226, 232, 240, 0.78);
+  --workspace-media-card-chrome-unavailable: #fecaca;
+  --workspace-media-card-chrome-divider: rgba(148, 163, 184, 0.22);
   display: flex;
   flex: 1;
   min-height: 0;
@@ -388,9 +411,9 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #64748b;
+  color: var(--workspace-media-card-chrome-muted);
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.04), rgba(148, 163, 184, 0.2));
+    linear-gradient(135deg, var(--workspace-media-card-chrome-soft-shadow), var(--workspace-media-card-chrome-soft-fill));
 }
 
 .workspace-media-card__placeholder {
@@ -398,17 +421,17 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #64748b;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.04), rgba(148, 163, 184, 0.2));
+  color: var(--workspace-media-card-chrome-muted);
+  background: linear-gradient(135deg, var(--workspace-media-card-chrome-soft-shadow), var(--workspace-media-card-chrome-soft-fill));
 }
 
 .workspace-media-card__placeholder.is-loading {
   background:
     linear-gradient(
       110deg,
-      rgba(15, 23, 42, 0.04) 8%,
-      rgba(148, 163, 184, 0.2) 18%,
-      rgba(15, 23, 42, 0.04) 33%
+      var(--workspace-media-card-chrome-soft-shadow) 8%,
+      var(--workspace-media-card-chrome-soft-fill) 18%,
+      var(--workspace-media-card-chrome-soft-shadow) 33%
     );
   background-size: 200% 100%;
   animation: workspace-media-skeleton 1.2s linear infinite;
@@ -426,14 +449,14 @@
   justify-content: center;
   gap: 3px;
   padding: 36px 12px 22px;
-  background: linear-gradient(135deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.92));
+  background: linear-gradient(135deg, var(--workspace-media-card-chrome-waveform-start), var(--workspace-media-card-chrome-waveform-end));
 }
 
 .workspace-media-card__waveform i {
   flex: 1;
   min-width: 2px;
   border-radius: 999px;
-  background: rgba(71, 85, 105, 0.48);
+  background: var(--workspace-media-card-chrome-waveform-bar);
 }
 
 .workspace-media-card__play {
@@ -445,8 +468,8 @@
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.5);
-  color: #0f172a;
+  background: var(--workspace-media-generator-hotspot);
+  color: var(--workspace-media-card-chrome-play-ink);
   transform: translate(-50%, -50%);
   backdrop-filter: blur(8px);
 }
@@ -461,8 +484,8 @@
   top: 8px;
   left: 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #334155;
+  background: var(--workspace-media-card-chrome-glass);
+  color: var(--workspace-media-card-chrome-type-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 10px;
   font-weight: 700;
@@ -472,20 +495,20 @@
 }
 
 .workspace-media-card.is-pending .workspace-media-card__type {
-  background: rgba(14, 165, 233, 0.22);
-  color: #dff7ff;
+  background: var(--workspace-media-card-chrome-pending-type-bg);
+  color: var(--workspace-media-card-chrome-pending-type-text);
 }
 
 .workspace-media-card.is-pending .workspace-media-card__overlay {
-  background: linear-gradient(to top, rgba(8, 13, 23, 0.82), rgba(8, 13, 23, 0.16), transparent);
-  color: #e6f7ff;
+  background: linear-gradient(to top, var(--workspace-media-card-chrome-pending-overlay-start), var(--workspace-media-card-chrome-pending-overlay-mid), transparent);
+  color: var(--workspace-media-card-chrome-pending-overlay-text);
   opacity: 1;
   transform: none;
 }
 
 .workspace-media-card.is-pending .workspace-media-card__overlay small,
 .workspace-media-card.is-pending .workspace-media-card__meta {
-  color: rgba(226, 244, 255, 0.74);
+  color: var(--workspace-media-card-chrome-pending-meta);
 }
 
 .workspace-media-card__actions {
@@ -512,8 +535,8 @@
   height: 24px;
   border: 0;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #1f2937;
+  background: var(--workspace-media-card-chrome-glass);
+  color: var(--workspace-media-card-chrome-ink);
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
@@ -525,7 +548,7 @@
 
 .workspace-media-card__action:hover,
 .workspace-media-card__action:focus-visible {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--workspace-media-card-chrome-glass-strong);
 }
 
 .workspace-media-card__action:active {
@@ -540,8 +563,8 @@
   display: grid;
   gap: 3px;
   padding: 32px 9px 8px;
-  background: linear-gradient(to top, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.46), transparent);
-  color: #f8fafc;
+  background: linear-gradient(to top, var(--workspace-media-card-chrome-overlay-start), var(--workspace-media-card-chrome-overlay-mid), transparent);
+  color: var(--workspace-media-card-chrome-overlay-text);
   opacity: 0;
   transform: translateY(4px);
   transition: opacity 160ms ease, transform 160ms ease;
@@ -567,7 +590,7 @@
 
 .workspace-media-card__overlay small,
 .workspace-media-card__meta {
-  color: rgba(226, 232, 240, 0.78);
+  color: var(--workspace-media-card-chrome-overlay-meta);
   font-size: 10px;
 }
 
@@ -578,7 +601,7 @@
 }
 
 .workspace-media-card__unavailable {
-  color: #fecaca;
+  color: var(--workspace-media-card-chrome-unavailable);
   font-size: 11px;
 }
 
@@ -587,7 +610,7 @@
   gap: 8px;
   margin: 0 14px 14px;
   padding-top: 10px;
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  border-top: 1px solid var(--workspace-media-card-chrome-divider);
 }
 
 .workspace-media-gallery__unpreviewable h3 {
