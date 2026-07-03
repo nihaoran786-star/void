@@ -1994,7 +1994,7 @@ Result:
 ### ISSUE-1160B Theme CSS Variable Runtime Contract
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Introduce a Void-owned machine-readable CSS variable contract that ties together ThemeService runtime injection, component-library token exports, audit exceptions, and dynamic token domains.
 Allowed files: new `scripts/theme-css-var-contract.*`, `scripts/audit-theme-colors.mjs`, focused script tests, docs.
 Forbidden files: `ThemeService.ts`, presets, widget payload runtime, page/component SCSS rewrites, Flow Chat/media/short-drama logic.
@@ -2004,6 +2004,11 @@ Acceptance:
 - Tests cover valid contract, malformed contract, stale/unknown dynamic prefix, and current baseline compatibility.
 - `pnpm run check:theme-colors` continues to pass.
 Risk notes: This is a governance artifact first; do not change runtime token values in this slice.
+Progress:
+- Added `scripts/theme-css-var-contract.json` with required token domains, allowed dynamic prefixes, legacy aliases, and fallback exceptions.
+- Extended `audit-theme-colors` to expose defined CSS vars, validate the contract by default, and report contract failures without changing visual output.
+- Added focused script tests for valid contract data, malformed contract data, unknown dynamic prefixes, and current baseline compatibility.
+- Preserved ThemeService, presets, generated-widget payload runtime, Flow Chat, AI media, AI short-drama, and page/component SCSS behavior.
 
 ### ISSUE-1160C ThemeService Runtime Token Whitelist
 

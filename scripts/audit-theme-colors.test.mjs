@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
   auditThemeColors,
   checkBaseline,
+  checkCssVarContract,
   checkNearPairDecisions,
   collectCssVarReferences,
   collectThemeColorEntriesFromText,
@@ -197,6 +198,91 @@ test('checkNearPairDecisions reports malformed and stale decisions', () => {
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+test('checkCssVarContract validates required domains and current baseline compatibility', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const contractPath = path.join(tempDir, 'theme-css-var-contract.json');
+    writeText(contractPath, JSON.stringify({
+      version: 1,
+      description: 'fixture css var contract',
+      requiredTokenDomains: [
+        {
+          domain: 'background',
+          requiredVars: ['--color-bg-primary'],
+        },
+      ],
+      allowedDynamicPrefixes: ['--color-accent-'],
+      legacyAliases: ['--void-bg'],
+      fallbackExceptions: ['--legacy-fallback'],
+    }));
+
+    const report = {
+      cssVars: {
+        definedVars: [
+          { key: '--color-bg-primary', files: ['ThemeService.ts'] },
+          { key: '--color-accent-', files: ['ThemeService.ts'] },
+        ],
+        fallbackOnlyVars: [
+          { key: '--legacy-fallback', count: 1 },
+          { key: '--void-bg', count: 1 },
+        ],
+      },
+    };
+
+    assert.deepEqual(checkCssVarContract(report, contractPath), []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('checkCssVarContract reports malformed contracts and unknown dynamic prefixes', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const contractPath = path.join(tempDir, 'theme-css-var-contract.json');
+    writeText(contractPath, JSON.stringify({
+      version: 2,
+      requiredTokenDomains: [
+        {
+          domain: '',
+          requiredVars: ['--missing-required'],
+        },
+      ],
+      allowedDynamicPrefixes: ['color-accent-'],
+      legacyAliases: [42],
+      fallbackExceptions: [],
+    }));
+
+    const report = {
+      cssVars: {
+        definedVars: [
+          { key: '--unknown-dynamic-', files: ['ThemeService.ts'] },
+        ],
+        fallbackOnlyVars: [
+          { key: '--unapproved-fallback', count: 1 },
+        ],
+      },
+    };
+
+    const failures = checkCssVarContract(report, contractPath).join('\n');
+    assert.match(failures, /version must be 1/);
+    assert.match(failures, /requiredTokenDomains\[0\]\.domain must be a non-empty string/);
+    assert.match(failures, /required var --missing-required is not defined/);
+    assert.match(failures, /allowedDynamicPrefixes\[0\] must start with --/);
+    assert.match(failures, /legacyAliases\[0\] must be a string/);
+    assert.match(failures, /dynamic definition --unknown-dynamic- is not allowed/);
+    assert.match(failures, /fallback-only var --unapproved-fallback is not allowed/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('current css var contract matches the theme audit baseline', () => {
+  const contractPath = path.join(root, 'scripts/theme-css-var-contract.json');
+  const report = auditThemeColors({ root: 'src/web-ui/src', top: 0 });
+
+  assert.deepEqual(checkCssVarContract(report, contractPath), []);
 });
 
 test('Tabs component keeps destructive close styling on component-library tokens', () => {

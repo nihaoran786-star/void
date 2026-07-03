@@ -42,28 +42,27 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140C desktop image payload cache resolution coverage complete.
 - [x] ISSUE-1150A MCP large-output storage alignment complete.
 - [x] ISSUE-1150B MCP elicitation legacy compatibility complete.
+- [x] ISSUE-1160B theme CSS variable runtime contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150B MCP Elicitation Legacy Compatibility`
+Issue: `ISSUE-1160B Theme CSS Variable Runtime Contract`
 
 Summary:
 
-- Changed the remote MCP client-info helper to enable elicitation without advertising unsupported `schemaValidation`.
-- Updated the capability contract test to require roots, sampling, and elicitation while serializing elicitation as `{}`.
-- Preserved local initialize request wire shape and remote POST-SSE behavior.
-- Did not touch Streamable HTTP routing, legacy SSE runtime support, local stdio initialize code, MCP manager lifecycle, Web UI, provider adapters, AI media, or AI short-drama.
+- Added a Void-owned CSS variable contract artifact for required theme token domains, allowed dynamic prefixes, legacy aliases, and fallback exceptions.
+- Extended `audit-theme-colors` to expose defined CSS vars and validate the contract by default through the existing theme color audit path.
+- Added focused script tests for valid contract data, malformed contract data, unknown dynamic prefixes, and current baseline compatibility.
+- Did not touch ThemeService runtime logic, theme presets, generated-widget payload runtime, Flow Chat, AI media, AI short-drama, or page/component SCSS.
 
 Verification:
 
-- RED: `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_remote_client_info_declares_supported_client_capabilities -- --nocapture` failed before implementation because `schema_validation` was `Some(true)`.
-- GREEN: the same command passed with 1 test after switching to `enable_elicitation()`.
-- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_protocol_request_builders_preserve_wire_shape -- --nocapture` passed with 1 test.
-- `cargo test -p void-services-integrations --features mcp --test mcp_contracts -- --nocapture` passed with 33 tests.
-- `cargo test -p void-core remote_mcp_streamable_http_accepts_post_sse_and_maps_tool_metadata --test remote_mcp_streamable_http -- --nocapture` passed with 1 test.
-- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/protocol/client_info.rs src/crates/services-integrations/tests/mcp_contracts.rs` initially failed on import ordering, then passed after formatting.
-- `node scripts/check-core-boundaries.mjs` passed.
-- `cargo check -p void-services-integrations --features mcp` passed.
+- RED: `node --test scripts/audit-theme-colors.test.mjs` failed before implementation because `audit-theme-colors.mjs` did not export `checkCssVarContract`.
+- GREEN: `node --test scripts/audit-theme-colors.test.mjs` passed with 14 tests after implementation and contract correction.
+- `node --check scripts/audit-theme-colors.mjs` passed.
+- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --near-pair-decisions scripts/theme-color-near-pair-decisions.json --top=3` passed.
+- `node scripts/validate-theme-visual-contract.mjs --json` passed with 8/8 required surfaces covered.
+- `pnpm run check:theme-colors` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary

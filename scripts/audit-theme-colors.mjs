@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_ROOT = 'src/web-ui/src';
 const DEFAULT_BASELINE = 'scripts/theme-color-governance-baseline.json';
 const DEFAULT_NEAR_PAIR_DECISIONS = 'scripts/theme-color-near-pair-decisions.json';
+const DEFAULT_CSS_VAR_CONTRACT = 'scripts/theme-css-var-contract.json';
 const COLOR_EXTENSIONS = new Set(['.css', '.scss', '.ts', '.tsx', '.json']);
 const COLOR_PATTERN =
   /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+(?:\s*,\s*[-+]?\d*\.?\d+)?\s*\)/g;
@@ -213,6 +214,15 @@ function topEntries(map, limit) {
     .map(([key, count]) => ({ key, count }));
 }
 
+function setMapEntries(map) {
+  return Array.from(map.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, values]) => ({
+      key,
+      files: Array.from(values).sort(),
+    }));
+}
+
 function colorDistance(left, right) {
   return Math.sqrt(
     (left.r - right.r) ** 2 +
@@ -353,6 +363,7 @@ export function auditThemeColors(options = {}) {
       fallbackUnique: fallbackCounts.size,
       fallbackOnlyUnique: fallbackOnlyVars.length,
       undefinedUnique: undefinedVars.length,
+      definedVars: setMapEntries(definitionFiles),
       undefinedVars: undefinedVars.slice(0, 100).map(key => ({ key, count: usageCounts.get(key) ?? 0 })),
       fallbackOnlyVars: fallbackOnlyVars.slice(0, 100).map(key => ({ key, count: fallbackCounts.get(key) ?? 0 })),
     },
@@ -365,6 +376,129 @@ export function auditThemeColors(options = {}) {
       },
     },
   };
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function validateStringArray(value, field, failures, { prefix = null, suffix = null } = {}) {
+  if (!Array.isArray(value)) {
+    failures.push(`${field} must be an array`);
+    return [];
+  }
+
+  return value.filter((entry, index) => {
+    const itemField = `${field}[${index}]`;
+    if (typeof entry !== 'string') {
+      failures.push(`${itemField} must be a string`);
+      return false;
+    }
+    if (entry.trim().length === 0) {
+      failures.push(`${itemField} must be a non-empty string`);
+      return false;
+    }
+    if (prefix && !entry.startsWith(prefix)) {
+      failures.push(`${itemField} must start with ${prefix}`);
+      return false;
+    }
+    if (suffix && !entry.endsWith(suffix)) {
+      failures.push(`${itemField} must end with ${suffix}`);
+      return false;
+    }
+    return true;
+  });
+}
+
+export function checkCssVarContract(report, contractPath) {
+  if (!contractPath) {
+    return [];
+  }
+  if (!fs.existsSync(contractPath)) {
+    return [`${contractPath} does not exist`];
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  } catch (error) {
+    return [`${contractPath} must be valid JSON: ${error.message}`];
+  }
+
+  const failures = [];
+  if (parsed.version !== 1) {
+    failures.push(`${contractPath} version must be 1`);
+  }
+  if (!isNonEmptyString(parsed.description)) {
+    failures.push(`${contractPath} description must be a non-empty string`);
+  }
+
+  const definedVars = new Set((report.cssVars?.definedVars ?? []).map(entry => entry.key));
+  const fallbackOnlyVars = (report.cssVars?.fallbackOnlyVars ?? []).map(entry => entry.key);
+
+  const allowedDynamicPrefixes = validateStringArray(
+    parsed.allowedDynamicPrefixes,
+    `${contractPath} allowedDynamicPrefixes`,
+    failures,
+    { prefix: '--', suffix: '-' },
+  );
+  const legacyAliases = validateStringArray(
+    parsed.legacyAliases,
+    `${contractPath} legacyAliases`,
+    failures,
+    { prefix: '--' },
+  );
+  const fallbackExceptions = validateStringArray(
+    parsed.fallbackExceptions,
+    `${contractPath} fallbackExceptions`,
+    failures,
+    { prefix: '--' },
+  );
+
+  if (!Array.isArray(parsed.requiredTokenDomains)) {
+    failures.push(`${contractPath} requiredTokenDomains must be an array`);
+  } else {
+    parsed.requiredTokenDomains.forEach((domain, index) => {
+      const prefix = `${contractPath} requiredTokenDomains[${index}]`;
+      if (!domain || typeof domain !== 'object' || Array.isArray(domain)) {
+        failures.push(`${prefix} must be an object`);
+        return;
+      }
+      if (!isNonEmptyString(domain.domain)) {
+        failures.push(`${prefix}.domain must be a non-empty string`);
+      }
+      const requiredVars = validateStringArray(
+        domain.requiredVars,
+        `${prefix}.requiredVars`,
+        failures,
+        { prefix: '--' },
+      );
+      for (const requiredVar of requiredVars) {
+        if (!definedVars.has(requiredVar)) {
+          failures.push(`${prefix} required var ${requiredVar} is not defined`);
+        }
+      }
+    });
+  }
+
+  const allowedDynamicPrefixSet = new Set(allowedDynamicPrefixes);
+  for (const definedVar of definedVars) {
+    if (definedVar === '---') {
+      continue;
+    }
+    if (definedVar.endsWith('-') && !allowedDynamicPrefixSet.has(definedVar)) {
+      failures.push(`${contractPath} dynamic definition ${definedVar} is not allowed`);
+    }
+  }
+
+  const allowedFallbacks = new Set([...legacyAliases, ...fallbackExceptions]);
+  for (const fallbackVar of fallbackOnlyVars) {
+    if (!allowedFallbacks.has(fallbackVar)) {
+      failures.push(`${contractPath} fallback-only var ${fallbackVar} is not allowed`);
+    }
+  }
+
+  return failures;
 }
 
 function getMetric(report, metric) {
@@ -496,6 +630,7 @@ function parseArgs(argv) {
     root: DEFAULT_ROOT,
     baseline: DEFAULT_BASELINE,
     nearPairDecisions: DEFAULT_NEAR_PAIR_DECISIONS,
+    cssVarContract: DEFAULT_CSS_VAR_CONTRACT,
     json: false,
     reportJson: null,
     top: 20,
@@ -553,6 +688,18 @@ function parseArgs(argv) {
       }
     } else if (arg === '--no-near-pair-decisions') {
       options.nearPairDecisions = null;
+    } else if (arg === '--css-var-contract') {
+      options.cssVarContract = argv[++index];
+      if (!options.cssVarContract) {
+        throw new Error('--css-var-contract requires a path');
+      }
+    } else if (arg.startsWith('--css-var-contract=')) {
+      options.cssVarContract = arg.slice('--css-var-contract='.length);
+      if (!options.cssVarContract) {
+        throw new Error('--css-var-contract requires a path');
+      }
+    } else if (arg === '--no-css-var-contract') {
+      options.cssVarContract = null;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -621,6 +768,7 @@ function main() {
 
   const baselineFailures = checkBaseline(report, options.baseline);
   const nearPairDecisionFailures = checkNearPairDecisions(report, options.nearPairDecisions);
+  const cssVarContractFailures = checkCssVarContract(report, options.cssVarContract);
   report.summary.baseline = {
     path: options.baseline,
     enforced: Boolean(options.baseline),
@@ -630,6 +778,11 @@ function main() {
     path: options.nearPairDecisions,
     enforced: Boolean(options.nearPairDecisions),
     failures: nearPairDecisionFailures,
+  };
+  report.summary.cssVarContract = {
+    path: options.cssVarContract,
+    enforced: Boolean(options.cssVarContract),
+    failures: cssVarContractFailures,
   };
 
   if (options.json) {
@@ -651,6 +804,15 @@ function main() {
     console.error('');
     console.error('Theme near-pair decision failures:');
     for (const failure of nearPairDecisionFailures) {
+      console.error(`- ${failure}`);
+    }
+    process.exitCode = 1;
+  }
+
+  if (cssVarContractFailures.length > 0) {
+    console.error('');
+    console.error('Theme CSS variable contract failures:');
+    for (const failure of cssVarContractFailures) {
       console.error(`- ${failure}`);
     }
     process.exitCode = 1;

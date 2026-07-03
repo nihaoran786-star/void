@@ -499,3 +499,9 @@ Reason: Truncating MCP assistant-visible text in the adapter hides the full cont
 Decision: `ISSUE-1150B` keeps remote MCP client elicitation support enabled but removes the explicit `schemaValidation: true` claim from `create_mcp_client_info`. The client capability contract is now roots `{}`, sampling `{}`, and elicitation `{}`. Schema validation can be advertised only after a future issue implements and tests the actual validation behavior.
 
 Reason: Upstream enables legacy-compatible elicitation without claiming schema validation. Advertising unsupported schema validation can make older or stricter MCP servers assume behavior Void does not provide. This decision is limited to the client-info protocol helper and contract tests; Streamable HTTP routing, legacy SSE support, local stdio initialize JSON, MCP manager lifecycle, Web UI, provider adapters, AI media, and AI short-drama are unchanged.
+
+## DEC-084: CSS Variable Governance Is Audit-Owned Before Runtime Enforcement
+
+Decision: `ISSUE-1160B` introduces `scripts/theme-css-var-contract.json` as the machine-readable source for required theme token domains, allowed dynamic CSS variable prefixes, legacy aliases, and fallback-only exceptions. `scripts/audit-theme-colors.mjs` validates this contract by default and reports failures through the existing theme-color audit path. Runtime injection remains unchanged.
+
+Reason: Upstream theme governance is useful, but current Void must not mix governance with visual rewrites or runtime token filtering in one change. Keeping the first contract in audit scripts gives CI coverage for missing required tokens, stale dynamic prefixes, and unreviewed fallback exceptions while preserving ThemeService, presets, generated-widget payload runtime, Flow Chat, AI media, AI short-drama, and page/component SCSS behavior. Runtime whitelisting remains a separate `ISSUE-1160C` decision.

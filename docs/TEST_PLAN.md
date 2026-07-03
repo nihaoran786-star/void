@@ -4116,6 +4116,41 @@ Deferred:
 
 - Actual elicitation schema validation remains unimplemented and must not be advertised until a future issue adds behavior and tests.
 - Legacy SSE runtime support and local stdio initialize behavior remain separate issues.
+
+## ISSUE-1160B Theme CSS Variable Runtime Contract
+
+Scope:
+
+- Current slice covers the Web theme color audit script, focused script tests, and a Void-owned CSS variable contract artifact.
+- No ThemeService runtime logic, theme preset values, generated-widget payload runtime, Flow Chat logic, AI media logic, AI short-drama logic, or page/component SCSS was changed.
+
+Executed:
+
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - RED result before implementation: failed because `audit-theme-colors.mjs` did not export `checkCssVarContract`.
+  - Intermediate result: failed on mismatch between expected error text and implementation, plus missing current dynamic prefixes in the contract.
+  - GREEN result after implementation and contract correction: passed, 14 tests.
+- `node --check scripts/audit-theme-colors.mjs`
+  - Result: passed.
+- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --near-pair-decisions scripts/theme-color-near-pair-decisions.json --top=3`
+  - Result: passed.
+- `node scripts/validate-theme-visual-contract.mjs --json`
+  - Result: passed, 8/8 required surfaces covered.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+
+Coverage:
+
+- Valid CSS variable contract data passes when required vars are defined, dynamic prefixes are allowed, and fallback-only vars are reviewed.
+- Malformed contracts fail on version, description, required domain shape, malformed dynamic prefix entries, non-string legacy aliases, missing required vars, unknown dynamic prefixes, and unapproved fallback-only vars.
+- Current Web theme audit baseline remains compatible with the default CSS variable contract.
+- CLI theme color audit still runs through the existing `check:theme-colors` command.
+
+Deferred:
+
+- Runtime custom-theme key filtering remains `ISSUE-1160C`.
+- Generated-widget theme payload compatibility remains `ISSUE-1160D`.
+- Media and short-drama token cleanup remains `ISSUE-1160F`.
 - `ISSUE-1160`:
   - `git show --name-status --stat --oneline 082cee447 cae512b9f 958a06095 797c94ad1 50d33d506 4e8c9c897 --`
     - Result: passed; identified upstream near-color governance, runtime token contract, visual governance contract, broad token/color compression, widget payload compatibility, and SCSS token migration scopes.

@@ -1,0 +1,211 @@
+{
+  "version": 1,
+  "description": "Void Web UI CSS variable contract for theme runtime injection and theme color audit compatibility. This is governance data only; it does not change ThemeService runtime behavior.",
+  "requiredTokenDomains": [
+    {
+      "domain": "background",
+      "requiredVars": [
+        "--color-bg-primary",
+        "--color-bg-secondary",
+        "--color-bg-tertiary",
+        "--color-bg-quaternary",
+        "--color-bg-elevated",
+        "--color-bg-workbench",
+        "--color-bg-scene",
+        "--color-bg-flowchat"
+      ]
+    },
+    {
+      "domain": "text",
+      "requiredVars": [
+        "--color-text-primary",
+        "--color-text-secondary",
+        "--color-text-muted",
+        "--color-text-disabled"
+      ]
+    },
+    {
+      "domain": "accent",
+      "requiredVars": [
+        "--color-primary",
+        "--color-primary-hover",
+        "--color-accent",
+        "--color-accent-primary",
+        "--color-primary-rgb",
+        "--color-accent-"
+      ]
+    },
+    {
+      "domain": "semantic",
+      "requiredVars": [
+        "--color-success",
+        "--color-success-bg",
+        "--color-success-border",
+        "--color-warning",
+        "--color-warning-bg",
+        "--color-warning-border",
+        "--color-error",
+        "--color-error-bg",
+        "--color-error-border",
+        "--color-info",
+        "--color-info-bg",
+        "--color-info-border",
+        "--color-highlight",
+        "--color-highlight-bg"
+      ]
+    },
+    {
+      "domain": "border",
+      "requiredVars": [
+        "--border-subtle",
+        "--border-base",
+        "--border-medium",
+        "--border-strong",
+        "--border-prominent"
+      ]
+    },
+    {
+      "domain": "element",
+      "requiredVars": [
+        "--element-bg-subtle",
+        "--element-bg-soft",
+        "--element-bg-base",
+        "--element-bg-medium",
+        "--element-bg-strong",
+        "--element-bg-elevated"
+      ]
+    },
+    {
+      "domain": "component",
+      "requiredVars": [
+        "--input-bg",
+        "--input-border",
+        "--card-bg",
+        "--card-border",
+        "--modal-bg",
+        "--modal-border",
+        "--nav-bg",
+        "--panel-bg",
+        "--tooltip-bg"
+      ]
+    },
+    {
+      "domain": "tool-card",
+      "requiredVars": [
+        "--tool-card-bg-primary",
+        "--tool-card-bg-secondary",
+        "--tool-card-bg-hover",
+        "--tool-card-bg-elevated",
+        "--tool-card-border",
+        "--tool-card-border-subtle",
+        "--tool-card-text-primary",
+        "--tool-card-text-secondary",
+        "--tool-card-text-muted"
+      ]
+    },
+    {
+      "domain": "flow-chat",
+      "requiredVars": [
+        "--flowchat-link-color",
+        "--flowchat-link-hover-color"
+      ]
+    }
+  ],
+  "allowedDynamicPrefixes": [
+    "--blur-",
+    "--color-accent-",
+    "--color-purple-",
+    "--easing-",
+    "--flowchat-font-size-",
+    "--font-size-",
+    "--font-weight-",
+    "--line-height-",
+    "--motion-",
+    "--nav-font-size-",
+    "--radius-",
+    "--shadow-",
+    "--spacing-"
+  ],
+  "legacyAliases": [
+    "--void-accent",
+    "--void-bg",
+    "--void-border",
+    "--void-text-primary",
+    "--void-text-secondary"
+  ],
+  "fallbackExceptions": [
+    "--accent-primary",
+    "--accent-primary-hover",
+    "--background-color",
+    "--bg-hover",
+    "--bg-secondary",
+    "--bg-tertiary",
+    "--border-color",
+    "--border-light",
+    "--border-muted",
+    "--border-primary",
+    "--border-soft",
+    "--color-accent-400-rgb",
+    "--color-accent-alpha",
+    "--color-accent-rgb",
+    "--color-bg-elevated-hover",
+    "--color-bg-hover",
+    "--color-bg-input",
+    "--color-bg-subtle",
+    "--color-border-default",
+    "--color-border-primary",
+    "--color-border-subtle",
+    "--color-danger",
+    "--color-danger-500",
+    "--color-danger-600",
+    "--color-danger-bg",
+    "--color-danger-border",
+    "--color-danger-text",
+    "--color-error-alpha",
+    "--color-error-surface",
+    "--color-primary-alpha",
+    "--color-primary-border",
+    "--color-primary-dark",
+    "--color-scrollbar",
+    "--color-scrollbar-thumb",
+    "--color-scrollbar-thumb-hover",
+    "--color-selection",
+    "--color-shadow",
+    "--color-success-rgb",
+    "--color-surface-active",
+    "--color-surface-base",
+    "--color-surface-elevated",
+    "--color-surface-hover",
+    "--color-text-tertiary",
+    "--color-warning-rgb",
+    "--color-warning-surface",
+    "--element-bg-hover",
+    "--flowchat-card-pad-x",
+    "--flowchat-card-pad-y",
+    "--flowchat-card-tight-pad-x",
+    "--flowchat-card-tight-pad-y",
+    "--flowchat-code-block-pad-x",
+    "--flowchat-code-block-pad-y",
+    "--flowchat-control-pad-x",
+    "--flowchat-control-pad-y",
+    "--focus-ring-color",
+    "--motion-normal",
+    "--panel-collapse-hint-right",
+    "--radius-base",
+    "--radius-lg",
+    "--radius-md",
+    "--radius-sm",
+    "--shadow-color",
+    "--size-radius-md",
+    "--smooth-height-collapse-duration",
+    "--spacing-3",
+    "--spacing-4",
+    "--spacing-5",
+    "--surface-base",
+    "--text-color",
+    "--text-primary",
+    "--text-secondary",
+    "--text-tertiary",
+    "--tool-card-bg"
+  ]
+}
