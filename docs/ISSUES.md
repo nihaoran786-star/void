@@ -2096,7 +2096,10 @@ Progress:
 - Added `scripts/short-drama-center-theme.test.mjs` to lock the CenterPanel style boundary.
 - Lowered the web theme-color governance baseline after the audit showed reduced `cssVars.fallbackOnlyUnique` and `cssVars.undefinedUnique`.
 - Preserved Short Drama CenterPanel TSX state, stage navigation, workspace manifest interpretation, stage-agent tabs, artifact/media recovery, Flow Chat/runtime coordination, media services, and ThemeService runtime behavior.
-- Remaining 1160F debt: Gallery raw generator/overlay/waveform colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
+- Completed the Workspace Media Gallery pending/generator visual token slice: generator glow, dark surface, grid, beam, ring, and core colors now use `--workspace-media-generator-*` local tokens.
+- Added `scripts/workspace-media-gallery-generator-theme.test.mjs` to lock the generator visual token boundary.
+- Preserved Gallery TSX state, pending generation ownership, media availability, preview resolution, selection, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
+- Remaining 1160F debt: Gallery fallback/overlay/waveform/action raw colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

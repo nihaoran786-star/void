@@ -135,6 +135,40 @@ Residual risk:
 - ShortDramaCenterPanel stage/status/media-preview raw visual colors remain separate visual-debt candidates.
 - This slice does not verify rendered screenshots or change stage-agent/runtime behavior.
 
+## ISSUE-1160F Workspace Media Gallery Generator Visual Token Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `WorkspaceMediaGallery.scss` pending/generator visual colors only.
+- Focused script guard for generator selector-level raw cyan/dark pending colors.
+- No Gallery TSX state, pending generation ownership, media availability, preview resolution, selection, delete/restore/purge flows, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/workspace-media-gallery-generator-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: generator local tokens were missing and raw visual colors were still present in pending/generator selectors.
+- `node --test scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs`
+  - Result: passed.
+  - Notes: 3 focused style-boundary tests passed.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx`
+  - Result: passed.
+  - Notes: 28 focused workspace-media tests passed.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+  - Notes: no baseline update required.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- Gallery fallback, overlay, waveform, action controls, and operation-error raw colors remain separate visual-debt candidates.
+- This slice does not verify rendered screenshots or change pending generation behavior.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03

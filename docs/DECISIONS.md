@@ -541,3 +541,9 @@ Reason: Gallery contains both low-risk chrome styling and high-risk media/pendin
 Decision: The third `ISSUE-1160F` code slice keeps `ShortDramaCenterPanel.scss` as the only Short Drama CenterPanel owner touched. Its local tokens now map to global theme tokens, the undefined `--short-drama-text` reference is removed, and the existing band token is consumed locally. The slice may lower the web theme-color governance baseline when the audit proves debt decreased.
 
 Reason: CenterPanel TSX owns stage selection, workspace manifest interpretation, stage-agent tabs, artifact references, media recovery, and Flow Chat/runtime coordination. Theme governance must not encode those business states into global tokens or scripts. Local presentation tokens reduce visual debt while preserving the short-drama state model and service/tool boundaries.
+
+## DEC-091: Gallery Generator Visual Tokens Are Not State Tokens
+
+Decision: The fourth `ISSUE-1160F` code slice keeps pending/generator visual cleanup inside `WorkspaceMediaGallery.scss`. The generator glow, dark surface, grid, beam, ring, and core colors are exposed only as `--workspace-media-generator-*` local tokens and consumed by the pending/generator selectors.
+
+Reason: Pending media generation has business meaning, but this slice only names its presentation colors. Keeping these tokens local avoids coupling theme governance to media task ownership, media availability, preview resolution, or gallery state transitions.

@@ -49,24 +49,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F entry theme token boundary slice complete.
 - [x] ISSUE-1160F workspace media gallery theme token wrapper slice complete.
 - [x] ISSUE-1160F short drama center theme token boundary slice complete.
+- [x] ISSUE-1160F workspace media gallery generator visual token slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Short Drama Center Theme Token Boundary Slice`
+Issue: `ISSUE-1160F Workspace Media Gallery Generator Visual Token Slice`
 
 Summary:
 
-- Replaced Short Drama CenterPanel local token sources from direct `--void-*` dependencies to global theme tokens.
-- Removed the undefined `--short-drama-text` reference and reused the existing `--short-drama-ink` token.
-- Made the existing `--short-drama-band` token an actual local wrapper by consuming it in the script-empty surface.
-- Added `scripts/short-drama-center-theme.test.mjs` to prevent CenterPanel from regressing to direct `--void-*` or undefined `--short-drama-text`.
-- Lowered the web theme-color governance baseline after `check:theme-colors` proved reduced `cssVars.fallbackOnlyUnique` and `cssVars.undefinedUnique`.
-- Did not touch CenterPanel TSX state, stage navigation, workspace manifest interpretation, stage-agent tabs, artifact/media recovery, Flow Chat/runtime coordination, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+- Added `--workspace-media-generator-*` local visual tokens to `WorkspaceMediaGallery.scss`.
+- Replaced raw pending/generator glow, dark surface, grid, beam, ring, and core colors inside the Gallery pending/generator selectors.
+- Added `scripts/workspace-media-gallery-generator-theme.test.mjs` to prevent generator visual colors from regressing to selector-level raw values.
+- Did not touch Gallery TSX state, pending generation ownership, media availability, preview resolution, selection, delete/restore/purge flows, media services, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/short-drama-center-theme.test.mjs` failed before implementation because `ShortDramaCenterPanel.scss` directly used `--void-*` tokens.
-- GREEN: `node --test scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 3 tests after implementation.
+- RED: `node --test scripts/workspace-media-gallery-generator-theme.test.mjs` failed before implementation because generator local tokens were missing and raw visual colors were present in the generator selectors.
+- GREEN: `node --test scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 3 tests after implementation.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 28 tests.
 - `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
