@@ -4597,3 +4597,29 @@ Remaining risk:
 - Review readonly, multi-agent, AI media, AI short-drama, and Flow Chat must only consume MCP/tool-runtime facts through typed contracts, not MCP-specific UI or page logic.
 - Runtime owner migrations remain deferred behind `ISSUE-1150F`.
 - The next selective-upstream candidate is `ISSUE-1160 Theme Token Governance Incremental Upgrade`.
+
+## ISSUE-1160 Theme Token Governance Incremental Upgrade
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream theme-governance commits including `082cee447`, `958a06095`, `797c94ad1`, `cae512b9f`, `50d33d506`, and `4e8c9c897`.
+- Confirmed `ISSUE-1160A` already shipped the first safe slice: near-pair decision artifact, audit validation, Tabs close-hover token conformance, and theme governance checks.
+- Confirmed local theme governance already includes `check:theme-colors`, `check:theme-visual-contract`, `scripts/theme-visual-governance-contract.json`, `scripts/validate-theme-visual-contract.mjs`, and near-pair decisions.
+- Confirmed gaps: no runtime CSS variable contract file, no ThemeService dynamic-token whitelist, no generated-widget payload compatibility contract, visual governance evidence is mostly declarative, and AI media/short-drama still need token-boundary cleanup.
+- Split follow-up work into `ISSUE-1160B` CSS var runtime contract, `ISSUE-1160C` ThemeService runtime token whitelist, `ISSUE-1160D` generated-widget payload compatibility contract, `ISSUE-1160E` visual-governance evidence contract, and `ISSUE-1160F` AI media/short-drama token boundary.
+- Preserved protected surfaces: no production code, ThemeService, tokens, widget payload, Flow Chat, AI media, AI short-drama, terminal, provider, MCP, Rust crates, or brand assets were changed in this audit.
+
+Verification:
+
+- Upstream commit/file inspection completed for theme audit, runtime token contract, visual governance contract, widget payload compatibility, Tabs/token cleanup, and broad color baseline compression.
+- Local code inspection covered theme audit scripts, near-pair decisions, visual governance contract, ThemeService, component-library tokens, generated widget theme payload, and media/short-drama theme-sensitive surfaces.
+- Subagents reported current theme checks passed, including `pnpm run check:theme-colors`, `pnpm run check:theme-visual-contract`, focused ThemeService tests, and focused Flow Chat/media/short-drama regression tests.
+
+Remaining risk:
+
+- Main session did not rerun the broader theme/Flow Chat/media/short-drama tests after this docs-only update; no production behavior changed.
+- Current theme audit baselines still allow historical color debt; passing audits mean no growth, not complete visual quality.
+- Theme visual contract is a coverage checklist, not screenshot or contrast proof.
+- The next selective-upstream candidate is `ISSUE-1170 Provider Service Boundary Study`.

@@ -1927,7 +1927,7 @@ Risk notes: These upstream changes are architecture-scale; they must not be batc
 ### ISSUE-1160 Theme Token Governance Incremental Upgrade
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Adapt upstream `082cee447` theme-governance improvements, especially near-color decision tracking and Tabs/token audit tightening, without changing product branding.
 Allowed files: theme governance scripts/tests, component-library token docs, `Tabs.scss`, focused theme tests, docs.
 Forbidden files: page-specific visual exceptions, BitFun branding, broad visual redesign, AI media/short-drama page logic.
@@ -1936,6 +1936,83 @@ Acceptance:
 - Theme audits pass.
 - Component token changes are documented and do not introduce page-level business logic.
 Risk notes: Do not copy upstream BitFun class names or broad `tokens.scss` rewrites; visual polish must remain token-governed.
+Result:
+- Confirmed `ISSUE-1160A` already implemented the first safe near-color governance slice: Void-owned near-pair decisions, audit validation, focused Tabs destructive-close token conformance, and theme governance checks.
+- Reviewed upstream theme work after `082cee447`, including `958a06095`, `797c94ad1`, `cae512b9f`, `50d33d506`, and `4e8c9c897`.
+- Confirmed current Void already has `check:theme-colors`, `check:theme-visual-contract`, `scripts/theme-visual-governance-contract.json`, `scripts/validate-theme-visual-contract.mjs`, and near-pair decision validation.
+- Confirmed remaining gaps: no `theme-css-var-contract` runtime contract, no ThemeService dynamic-token whitelist, no generated-widget theme payload compatibility contract, limited visual-evidence structure, and no dedicated AI media/short-drama token-boundary cleanup.
+- Rejected direct copying of upstream broad `tokens.scss` compression, large SCSS color rewrites, BitFun/installer/CLI/mobile cross-surface baseline changes, and legacy mixin deletion.
+- Did not change production code, ThemeService, tokens, generated-widget payload, Flow Chat, AI media, AI short-drama, terminal, provider, MCP, Rust crates, or brand assets in this audit.
+
+### ISSUE-1160B Theme CSS Variable Runtime Contract
+
+Priority: P1
+Status: Proposed
+Goal: Introduce a Void-owned machine-readable CSS variable contract that ties together ThemeService runtime injection, component-library token exports, audit exceptions, and dynamic token domains.
+Allowed files: new `scripts/theme-css-var-contract.*`, `scripts/audit-theme-colors.mjs`, focused script tests, docs.
+Forbidden files: `ThemeService.ts`, presets, widget payload runtime, page/component SCSS rewrites, Flow Chat/media/short-drama logic.
+Acceptance:
+- Contract records required token domains, allowed dynamic prefixes, legacy aliases, and fallback exceptions.
+- `audit-theme-colors` consumes the contract or validates it without changing visual output.
+- Tests cover valid contract, malformed contract, stale/unknown dynamic prefix, and current baseline compatibility.
+- `pnpm run check:theme-colors` continues to pass.
+Risk notes: This is a governance artifact first; do not change runtime token values in this slice.
+
+### ISSUE-1160C ThemeService Runtime Token Whitelist
+
+Priority: P1
+Status: Proposed
+Goal: Prevent custom themes from injecting arbitrary runtime CSS variables by applying a contract-backed whitelist in ThemeService.
+Allowed files: `src/web-ui/src/infrastructure/theme/core/ThemeService.ts`, `ThemeService.test.ts`, theme contract files/tests, docs.
+Forbidden files: preset visual value rewrites, component SCSS batch changes, widget iframe behavior changes, Flow Chat/media/short-drama business logic.
+Acceptance:
+- Unknown dynamic theme keys are ignored or rejected according to an explicit contract.
+- Built-in themes still inject required background, text, accent, semantic, border, element, card, tool-card, Flow Chat link, and primary RGB variables.
+- Tests cover all built-in themes plus a custom theme containing unsupported token keys.
+- `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts src/infrastructure/theme/presets/startupThemeBootstrap.test.ts` and `pnpm run type-check:web` pass.
+Risk notes: ThemeService must stay a token injection layer and must not inspect session, provider, media, or short-drama state.
+
+### ISSUE-1160D Generated Widget Theme Payload Compatibility Contract
+
+Priority: P1
+Status: Proposed
+Goal: Make generated-widget theme payload compatibility explicit before reducing or renaming host CSS variables.
+Allowed files: `src/web-ui/src/tools/generative-widget/themePayload.ts`, optional `themePayloadCompatibility.ts`, focused widget theme payload tests, docs.
+Forbidden files: ThemeService runtime changes without 1160C, widget business logic, app store access, Flow Chat/media/short-drama state.
+Acceptance:
+- Required, optional, and legacy widget theme variables are documented and tested.
+- Existing generated widgets keep fallback compatibility for known legacy aliases.
+- Payload reader remains a pure host CSS-var reader; it does not infer app state.
+- Focused tests cover missing vars, legacy aliases, current payload keys, and at least one dark/light theme sample.
+Risk notes: Widget iframe compatibility is a boundary; do not delete or rename vars without a compatibility map.
+
+### ISSUE-1160E Theme Visual Governance Evidence Contract
+
+Priority: P2
+Status: Proposed
+Goal: Strengthen the visual governance contract so theme-sensitive surfaces declare verifiable evidence beyond free-form review text.
+Allowed files: `scripts/theme-visual-governance-contract.json`, `scripts/validate-theme-visual-contract.mjs`, focused validator tests, docs.
+Forbidden files: screenshot tooling overhaul, page SCSS rewrites, runtime theme changes, product business logic.
+Acceptance:
+- Evidence entries can declare theme, viewport, state, command/artifact name, and whether evidence is automated, manual, or deferred.
+- Existing surfaces remain covered: app shell, Flow Chat, terminal, markdown/Mermaid, generated widgets, media/short-drama, mobile web, installer.
+- Validator rejects missing required paths, unknown evidence types, and BitFun branding strings.
+- `pnpm run check:theme-visual-contract` passes.
+Risk notes: This contract still does not prove screenshots passed; it only makes evidence expectations machine-checkable.
+
+### ISSUE-1160F AI Media and Short-Drama Theme Token Boundary
+
+Priority: P2
+Status: Proposed
+Goal: Define and gradually reduce theme-color debt in AI media and AI short-drama surfaces without changing their state models or workflows.
+Allowed files: media/short-drama SCSS token wrappers, focused style tests or audit fixtures, docs.
+Forbidden files: media/short-drama service logic, ShortDramaProject tool behavior, Flow Chat session logic, ThemeService runtime whitelist, broad baseline rewrite.
+Acceptance:
+- Media and short-drama surfaces use semantic local tokens that map to global theme tokens.
+- Raw colors and `--void-*` fallback usage are audited before any visual change.
+- Any visual cleanup is one domain at a time and lowers or preserves the theme-color baseline.
+- Focused workspace-media and short-drama tests plus theme audit pass.
+Risk notes: Do not encode artifact status, media availability, or stage ownership into theme governance scripts or global tokens.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

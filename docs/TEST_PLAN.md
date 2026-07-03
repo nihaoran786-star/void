@@ -4024,6 +4024,28 @@ Implementation test plan for follow-up issues:
     - Tool pipeline rejection/timeout/cancel/denial classification tests for `ISSUE-1150E`.
     - Boundary-script and architecture equivalence checks for `ISSUE-1150F`.
   - Result: docs-only audit in the main session; no production code changed.
+- `ISSUE-1160`:
+  - `git show --name-status --stat --oneline 082cee447 cae512b9f 958a06095 797c94ad1 50d33d506 4e8c9c897 --`
+    - Result: passed; identified upstream near-color governance, runtime token contract, visual governance contract, broad token/color compression, widget payload compatibility, and SCSS token migration scopes.
+  - Local file inspection:
+    - Result: `ISSUE-1160A` already provides near-pair decision validation, theme color audit integration, and Tabs close-hover token conformance.
+    - Result: local `check:theme-colors` and `check:theme-visual-contract` exist and cover Web/CLI color audits plus visual-governance surface structure.
+    - Result: local `theme-css-var-contract.mjs`, ThemeService dynamic-token whitelist, widget payload compatibility contract, and executable visual evidence fields remain missing.
+    - Result: AI media and short-drama are included in the visual governance contract, but their local SCSS still contains surface-local tokens, `--void-*` fallbacks, and raw colors that need a separate boundary cleanup.
+  - Subagents reported current targeted checks passed:
+    - `node --test scripts/audit-theme-colors.test.mjs`
+    - `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3`
+    - `node scripts/validate-theme-visual-contract.mjs`
+    - `pnpm run check:theme-colors`
+    - `pnpm run check:theme-visual-contract`
+    - Focused ThemeService, Flow Chat, media, and short-drama regression tests listed in `ISSUE-1160` subagent notes.
+  - Recommended follow-up checks:
+    - `node --test scripts/audit-theme-colors.test.mjs` and `pnpm run check:theme-colors` for `ISSUE-1160B`.
+    - Focused ThemeService tests plus `pnpm run type-check:web` for `ISSUE-1160C`.
+    - Generated-widget theme payload tests for `ISSUE-1160D`.
+    - `pnpm run check:theme-visual-contract` plus validator tests for `ISSUE-1160E`.
+    - Focused workspace-media/short-drama tests plus theme audit for `ISSUE-1160F`.
+  - Result: docs-only audit in the main session; no production code changed.
 
 Protected-surface regression candidates:
 
