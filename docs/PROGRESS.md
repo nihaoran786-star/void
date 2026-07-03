@@ -66,26 +66,22 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140B BTW child-session image follow-up slice complete.
 - [x] ISSUE-1150D readonly manifest and dynamic provider metadata contract slice complete.
 - [x] ISSUE-1150C1 local stdio MCP request timeout injection contract complete.
+- [x] ISSUE-1150C2 remote MCP timeout helper contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150C1 Local Stdio Request Timeout Injection Contract`
+Issue: `ISSUE-1150C2 Remote MCP Timeout Helper Contract`
 
 Summary:
 
-- Added a distinct optional local stdio `MCPConnection` ordinary request timeout, separate from initialize timeout.
-- Kept production local ordinary-request default as `None`, documenting that current local stdio requests remain delegated to the outer tool pipeline timeout until a later config/default issue.
-- Added Windows-runnable timeout tests proving typed timeout errors and pending waiter cleanup.
-- Preserved remote Streamable HTTP timeout behavior, MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, and crate layout.
+- Added file-local tests for `RemoteMCPTransport::await_with_optional_timeout`.
+- Covered unbounded future behavior, fast future behavior under a configured timeout, and pending future conversion to `MCPRuntimeErrorKind::Timeout`.
+- Preserved existing remote Streamable HTTP production timeout behavior and did not change MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
+- Kept full `ISSUE-1150C` open for remote multi-method timeout failure coverage; this slice is helper-contract coverage only.
 
 Verification:
 
-- RED: `cargo test -p void-services-integrations --features mcp local_tool_call_request_timeout_cleans_pending_waiter --lib -- --nocapture` failed before implementation because `with_request_timeout` did not exist.
-- `cargo test -p void-services-integrations --features mcp --lib mcp::server::connection -- --nocapture` passed with 2 Windows tests.
-- `cargo test -p void-services-integrations --features mcp` passed with 5 lib tests, 33 MCP contract tests, and doc-tests.
-- `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture` passed.
-- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs` passed.
-- `node scripts/check-core-boundaries.mjs` passed.
+- `cargo test -p void-services-integrations --features mcp remote_mcp_request_timeout_helper --lib -- --nocapture` passed. The tests passed immediately because the production helper already had the expected behavior; no production code change was needed.
 
 ## Subagent Summary
 

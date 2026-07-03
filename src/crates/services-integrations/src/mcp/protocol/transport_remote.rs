@@ -349,10 +349,7 @@ impl RemoteMCPTransport {
         }
 
         if !header_map.contains_key(USER_AGENT) {
-            header_map.insert(
-                USER_AGENT,
-                HeaderValue::from_static("Void-MCP-Client/1.0"),
-            );
+            header_map.insert(USER_AGENT, HeaderValue::from_static("Void-MCP-Client/1.0"));
         }
 
         header_map
@@ -694,5 +691,56 @@ impl RemoteMCPTransport {
         .map_err(|e| MCPRuntimeError::mcp(format!("MCP tools/call failed: {}", e)))?;
 
         Ok(map_rmcp_tool_result(result))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RemoteMCPTransport;
+    use crate::mcp::MCPRuntimeErrorKind;
+    use std::future::pending;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn remote_mcp_request_timeout_helper_allows_unbounded_future() {
+        let value = RemoteMCPTransport::await_with_optional_timeout(
+            None,
+            async { "ready" },
+            "should not time out",
+        )
+        .await
+        .expect("future should resolve without timeout");
+
+        assert_eq!(value, "ready");
+    }
+
+    #[tokio::test]
+    async fn remote_mcp_request_timeout_helper_allows_fast_future() {
+        let value = RemoteMCPTransport::await_with_optional_timeout(
+            Some(Duration::from_secs(1)),
+            async { 42 },
+            "should not time out",
+        )
+        .await
+        .expect("future should resolve before timeout");
+
+        assert_eq!(value, 42);
+    }
+
+    #[tokio::test]
+    async fn remote_mcp_request_timeout_helper_returns_typed_timeout() {
+        let error = RemoteMCPTransport::await_with_optional_timeout(
+            Some(Duration::from_millis(1)),
+            pending::<()>(),
+            "MCP tools/list timeout",
+        )
+        .await
+        .expect_err("pending future should time out");
+
+        assert_eq!(error.kind(), MCPRuntimeErrorKind::Timeout);
+        assert!(
+            error.to_string().contains("MCP tools/list timeout"),
+            "timeout error should preserve the operation-specific message"
+        );
     }
 }

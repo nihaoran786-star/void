@@ -1989,6 +1989,26 @@ Progress:
 Deferred:
 - Full `ISSUE-1150C` remains Proposed for remote multi-method timeout coverage and any future local production default/config wiring.
 
+#### ISSUE-1150C2 Remote MCP Timeout Helper Contract
+
+Priority: P1
+Status: Done
+Goal: Lock the remote Streamable HTTP ordinary-request timeout helper contract without changing production timeout behavior.
+Allowed files: `src/crates/services-integrations/src/mcp/protocol/transport_remote.rs`, docs.
+Forbidden files: UI fallback strings, MCP manager lifecycle, tool pipeline broad rewrite, local stdio timeout defaults, provider adapters, media/short-drama services, runtime owner migration.
+Acceptance:
+- `RemoteMCPTransport::await_with_optional_timeout` allows unbounded futures when timeout is `None`.
+- The helper allows fast futures when a timeout is configured.
+- A pending future with a configured timeout returns `MCPRuntimeErrorKind::Timeout` and preserves the operation-specific timeout message.
+- The slice does not claim full remote method coverage for `tools/list`, `tools/call`, `resources/read`, or `prompts/get`.
+Progress:
+- Added file-local unit tests for the remote timeout helper's unbounded, fast, and timeout paths.
+- No production behavior changed; existing remote Streamable HTTP timeout routing remains intact.
+- Did not change UI, MCP manager lifecycle, tool pipeline, local stdio defaults, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
+- Verification: `cargo test -p void-services-integrations --features mcp remote_mcp_request_timeout_helper --lib -- --nocapture` passed.
+Deferred:
+- Full `ISSUE-1150C` remains Proposed for remote multi-method timeout failure coverage, pending waiter/transport lifecycle evidence where applicable, and any future local production default/config wiring.
+
 ### ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
 
 Priority: P1

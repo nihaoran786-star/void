@@ -5263,3 +5263,29 @@ Deferred:
 - Full `ISSUE-1150C` remains open for remote multi-method timeout failure coverage across tools/list, tools/call, resources/read, and prompts/get.
 - Wiring a production default/config for local stdio ordinary request timeout remains a separate compatibility decision.
 - Unix CI should continue to run `local_tool_calls_do_not_inherit_initialize_timeout`.
+
+## ISSUE-1150C2 Remote MCP Timeout Helper Contract
+
+Scope:
+
+- Current slice covers `RemoteMCPTransport::await_with_optional_timeout` helper behavior only.
+- It does not prove full remote method timeout coverage for `tools/list`, `tools/call`, `resources/read`, or `prompts/get`.
+- Remote Streamable HTTP production timeout behavior, MCP manager lifecycle, tool pipeline policy, UI fallback strings, local stdio defaults, provider adapters, AI media, AI short-drama, Cargo features, and crate layout were not changed.
+
+Executed:
+
+- `cargo test -p void-services-integrations --features mcp remote_mcp_request_timeout_helper --lib -- --nocapture`
+  - Result: passed, 3 tests. The tests passed immediately because the helper already allowed unbounded futures, allowed fast futures under timeout, and returned `MCPRuntimeErrorKind::Timeout` for pending futures under timeout.
+- `cargo test -p void-services-integrations --features mcp`
+  - Result: passed, 8 lib tests, 33 MCP contract tests, and doc-tests.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/protocol/transport_remote.rs`
+  - Initial result: failed on an existing one-line `HeaderValue::from_static` formatting difference in the same file after adding tests.
+  - Result after `rustfmt --edition 2021 src/crates/services-integrations/src/mcp/protocol/transport_remote.rs`: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- Remote timeout helper preserves operation-specific timeout messages.
+- Timeout classification stays typed at the MCP protocol boundary.
+- Full `ISSUE-1150C` remains open for remote multi-method timeout failure coverage and any future local production default/config wiring.
