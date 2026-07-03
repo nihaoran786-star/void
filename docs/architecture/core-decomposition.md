@@ -77,6 +77,63 @@ Rust 编译和链接面。
 除非有实测证据证明继续拆分可以减少关键编译目标或测试目标，并且该模块已经具备稳定的
 owner 边界，否则不要把一个 feature group 继续拆成更小的 crate。
 
+## 上游概念层映射（非迁移计划）
+
+上游的 `interfaces`、`assembly`、`adapters`、`services`、`execution`、`contracts`
+六层结构可以作为职责语言使用，但不得被解释为当前仓库要迁移目录或重命名 crate。
+该解释服从 `docs/DECISIONS.md` 中的 DEC-073：上游六层物理布局和 owner-migration
+commits 不被当前分支采纳为目录结构。
+当前 Void 仍采用 flat `src/crates/*` workspace；下表只是说明每个现有 crate 在概念上
+更接近哪一层，方便后续 issue 讨论 owner 边界。
+
+| 概念层 | 当前 Void 对应面 | 说明 |
+|---|---|---|
+| `surfaces` / app entrypoints | `src/apps/desktop`, `src/apps/cli`, `src/apps/server`, `src/apps/relay-server`, Web UI / mobile web / installer | 产品入口和 UI/CLI/服务端表面；只能编排状态和调用接口，不拥有 core runtime 事实。 |
+| `assembly` | `void-core` product runtime assembly、`src/crates/tool-packs` provider plan、app crate 的启动装配 | 负责把产品能力组装成可运行形态。当前仍主要由 `void-core` 和 app adapters 承担；不要新增第二套 product runtime path。 |
+| `contracts` / interfaces | `void-core-types`, `void-events`, `void-runtime-ports`, `void-agent-tools` 的纯 DTO/manifest/policy 部分, `void-transport`, `void-api-layer` | 稳定 DTO、事件、trait、manifest、provider-neutral policy。该层必须保持轻量，不得吸收 concrete managers、Tauri、provider HTTP、MCP runtime 或 CLI/TUI 依赖。 |
+| `execution` | `void-core` agent/session/tool pipeline compatibility runtime、`terminal-core`, `tool-runtime`, `void-agent-stream` | 执行状态机、流处理、PTY、tool execution runtime。`void-core` 仍是完整 agent runtime owner；概念映射不表示 execution 已经外移。 |
+| `services` | `void-services-core`, `void-services-integrations`, `void-product-domains` | workspace/config/filesystem/system service helpers、MCP/remote-connect/Git integrations、MiniApp/function-agent product domains。已有 helper 外移不等于 concrete scheduler/session restore/workspace runtime 已迁移。 |
+| `adapters` | `void-ai-adapters`, `void-webdriver`, desktop Tauri adapter modules, app-specific API adapters, provider/integration clients | 外部系统和平台协议适配。Provider HTTP/SSE、desktop host、WebDriver、OS integrations 必须留在 adapter 边界，不应回流到 contracts。 |
+
+### 当前 crate 到概念层的细分
+
+| 当前 crate / surface | 概念层 | 说明 |
+|---|---|---|
+| `void-core` | `assembly` + `execution` | 仍是完整 product runtime assembly、agent/session/tool pipeline owner 和旧路径 compatibility facade。映射不表示 runtime 已外移。 |
+| `void-core-types` | `contracts` | 稳定 DTO、纯类型和 AI 错误 DTO/helper。不得吸收 runtime manager、service crate、network/process/Tauri 依赖。 |
+| `void-events` | `contracts` | 传输层无关事件 DTO 和事件抽象。 |
+| `void-runtime-ports` | `contracts` | DTO、trait 和 decision primitives；只定义 seam/interface，不拥有 concrete runtime。 |
+| `void-agent-tools` | `contracts` | portable tool contracts、manifest/policy、provider-neutral path/result helpers。不得接收 `ToolUseContext`、concrete tools、workspace services 或 registry snapshot runtime。 |
+| `void-transport` | `contracts`，次要 `adapters` | 跨平台通信 interface；Tauri adapter feature 不能把 Tauri 依赖泄漏到纯 contract profile。 |
+| `void-api-layer` | `contracts` / interface | 平台无关业务 handler interface，通过 `void-transport` 连接 app surface。 |
+| `void-agent-stream` | `execution` | Stream 聚合和 stream-focused 处理；不拥有 provider wire serialization 或 core turn policy。 |
+| `terminal-core` | `execution` | PTY/session/replay owner；terminal replay facts 不进入 Flow Chat 或 `void-runtime-ports`。 |
+| `tool-runtime` | `execution` | Tool execution runtime；具体迁移仍需单独 issue 和等价测试。 |
+| `void-services-core` | `services` | Platform-neutral service DTO/helper、本地 filesystem operations/tree/search/listing；config/workspace/runtime/persistence 不能默认视为已迁出 core。 |
+| `void-services-integrations` | `services`，次要 `adapters` | MCP、remote-connect、Git、remote SSH 等 integration slices；不得泛化成 AI provider HTTP/SSE owner。 |
+| `void-product-domains` | `services` | MiniApp/function-agent 产品子域 pure decisions、ports、facades/helpers；IO、worker process、Git/AI service runtime 仍受保护。 |
+| `void-ai-adapters` | `adapters` | Provider HTTP/SSE、request/response mapping、stream parsing、tool-call aggregation、model discovery 和 health checks owner。 |
+| `void-webdriver` | `adapters` | Embedded WebDriver / desktop devtools adapter。 |
+| `void-acp` | `surfaces` + `adapters` | ACP protocol/client behavior 与 app-surface selection；只把稳定 capability facts 抽到 contract crate。 |
+| `void-tool-packs` | `assembly` | Tool feature-group scaffold metadata 和 product provider group plan；不拥有 concrete tools 或 runtime manifest execution。 |
+| `src/apps/*`, Web UI, mobile web, installer | `surfaces` | 产品入口和 presentation surface；只编排 state 与调用接口，不拥有 core runtime facts。 |
+
+禁止事项：
+
+- 不得把上表作为 `Cargo.toml` workspace member 改名、目录移动、module path 重写或
+  import 重排的依据。
+- 不得用概念层名新增 `src/crates/assembly`、`src/crates/interfaces`、
+  `src/crates/execution` 等镜像上游目录。
+- 不得因为某个 crate 被标为 `contracts` 就迁入 concrete runtime/service handle；
+  `void-runtime-ports`、`void-core-types`、`void-agent-tools` 的轻量限制仍由
+  `scripts/check-core-boundaries.mjs` 执行。
+- 不得把 `target`、`partial`、概念层名解释为“已完成迁移”或“允许继续迁移”。
+- 不得因为某个行为被标为 `services` 就绕过 `void-core` compatibility facade；
+  concrete owner 迁移必须有单独 issue、快照测试和行为等价验证。
+- 不得把 app surface 的产品决策下沉到 contract crate，尤其是 Flow Chat、subagent、
+  AI media、AI short-drama、terminal、Computer Use、ACP、installer 和 provider
+  选择行为。
+
 ## 依赖方向规则（Dependency Direction Rules）
 
 - 新拆出的 crate 不得反向依赖 `void-core`。

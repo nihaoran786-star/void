@@ -4887,3 +4887,31 @@ Remaining risk:
 
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 - Image summary generation/consumption remains future work; this slice only adds the safe bridge contract.
+
+## ISSUE-1180A Conceptual Layer Mapping
+
+Status: Done
+
+Completed:
+
+- Added an upstream-inspired conceptual layer mapping to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Mapped existing Void app surfaces and crates to `surfaces`, `assembly`, `contracts/interfaces`, `execution`, `services`, and `adapters` without changing any source layout.
+- Added crate-level notes for multi-role boundaries including `void-core`, `void-tool-packs`, `void-acp`, `void-transport`, `void-services-integrations`, and `void-ai-adapters`.
+- Recorded that conceptual layer labels are vocabulary only, not permission to add mirrored upstream directories, move workspace members, rename modules, rewrite imports, treat `target`/`partial` as migration status, or migrate concrete runtime owners.
+- Reaffirmed DEC-073 as the controlling rejection of upstream six-layer physical layout.
+- Updated architecture, issue, decision, and test-plan docs.
+
+Verification:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/crates src/apps`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` dirty files; no scoped Cargo manifest, app, or crate source changes were added for 1180A.
+
+Remaining risk:
+
+- Future concrete owner migration issues must keep this mapping current and prove behavior equivalence with focused tests.

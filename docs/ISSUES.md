@@ -2513,7 +2513,7 @@ Result:
 ### ISSUE-1180A Conceptual Layer Mapping
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Document how current flat `src/crates/*` maps to upstream's conceptual ownership layers without moving directories.
 Allowed files: docs and, if necessary, boundary checker comments or docs-only references.
 Forbidden files: Cargo workspace members, crate directory moves, module renames, production imports.
@@ -2522,6 +2522,12 @@ Acceptance:
 - The mapping states that it is not a migration plan.
 - Boundary checker behavior remains unchanged unless separately reviewed.
 Risk notes: Do not turn conceptual labels into physical path requirements.
+Result:
+- Added a non-migration conceptual layer mapping to `docs/architecture/core-decomposition.md`.
+- Mapped current Void flat crates and app surfaces to upstream-inspired `surfaces`, `assembly`, `contracts/interfaces`, `execution`, `services`, and `adapters` responsibilities, including crate-level notes for `void-core`, `void-tool-packs`, `void-acp`, `void-transport`, and provider/service owners.
+- Recorded explicit prohibitions against mirroring upstream directories, moving workspace members, renaming crates/modules, treating `target`/`partial`/concept labels as migration status, or using conceptual labels to migrate concrete runtime owners.
+- Reaffirmed DEC-073: upstream six-layer physical layout remains rejected as a directory structure.
+- Kept boundary checker behavior unchanged; existing `scripts/check-core-boundaries.mjs` remains the active static guard.
 
 ### ISSUE-1180B Product Assembly Contract Spike
 

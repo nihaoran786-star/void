@@ -5592,3 +5592,34 @@ Remaining risk:
 
 - Ack uses the existing `charCount` contract and `data.length`; a byte-count protocol would need a separate frontend/backend contract.
 - Core terminal `GetHistoryResponse` still does not include `historyStatus/historySource`; desktop/Web UI boundaries already do.
+
+## ISSUE-1180A Conceptual Layer Mapping
+
+Scope:
+
+- Current slice is docs-only and maps existing Void flat crates to upstream-inspired conceptual ownership layers.
+- It does not move crate directories, edit Cargo manifests, rename modules, change imports, or alter boundary checker behavior.
+- The mapping is vocabulary for future issue planning, not an implementation plan.
+
+Executed:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/crates src/apps`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` dirty files; no scoped Cargo manifest, app, or crate source changes were added for 1180A.
+
+Coverage:
+
+- Existing app surfaces, `void-core` assembly, contract crates, execution crates, service crates, and adapter crates are mapped without changing source.
+- Crate-level notes cover multi-role crates such as `void-core`, `void-tool-packs`, `void-acp`, `void-transport`, and provider/service owners.
+- Forbidden actions explicitly reject mirrored upstream directories, workspace member moves, crate/module renames, treating `target`/`partial` labels as migration status, and concrete owner migration by label.
+- DEC-073 remains the controlling decision that rejects upstream six-layer physical layout.
+- Existing boundary checker remains the active enforcement mechanism.
+
+Remaining risk:
+
+- Conceptual mappings can become stale as real owner migrations land; future migration issues must update this mapping with evidence.

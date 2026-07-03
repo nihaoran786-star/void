@@ -675,6 +675,7 @@ The current upstream reference is `upstream-bitfun/main@4da7ae5d8`. Upstream is 
 - AI media and AI short-drama remain local product-owned capabilities.
 - Provider/service extraction remains deferred unless an issue identifies a single owner move and proves it with boundary checks.
 - Upstream crate decomposition remains architecture guidance only until a separate crate-layout plan is accepted.
+- `docs/architecture/core-decomposition.md` may map current flat crates to upstream-inspired conceptual layers for vocabulary only; that mapping is not permission to add mirrored `assembly/interfaces/execution` directories, move workspace members, rename modules, or bypass existing owner checks.
 
 ### Adapter and External Boundaries
 
