@@ -2,9 +2,7 @@
 
 use super::types::{ImageContextData, ImageLimits};
 use crate::service::config::get_global_config_service;
-use crate::service::config::types::{
-    AIConfig as ServiceAIConfig, AIModelConfig, ModelCapability, ModelCategory,
-};
+use crate::service::config::types::{AIConfig as ServiceAIConfig, AIModelConfig};
 use crate::util::errors::{VoidError, VoidResult};
 use crate::util::types::Message;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -44,23 +42,22 @@ pub fn resolve_vision_model_from_ai_config(
         ));
     };
 
+    let resolved_id = ai_config
+        .resolve_model_reference_any(id)
+        .ok_or_else(|| VoidError::service(format!("Model not found: {}", id)))?;
+
     let model = ai_config
         .models
         .iter()
-        .find(|m| m.id == id)
+        .find(|m| m.id == resolved_id)
         .cloned()
-        .ok_or_else(|| VoidError::service(format!("Model not found: {}", id)))?;
+        .ok_or_else(|| VoidError::service(format!("Model not found: {}", resolved_id)))?;
 
     if !model.enabled {
         return Err(VoidError::service(format!("Model is disabled: {}", id)));
     }
 
-    let supports_image_understanding = model
-        .capabilities
-        .iter()
-        .any(|cap| matches!(cap, ModelCapability::ImageUnderstanding))
-        || matches!(model.category, ModelCategory::Multimodal);
-    if !supports_image_understanding {
+    if !ServiceAIConfig::model_supports_image_understanding(&model) {
         return Err(VoidError::service(format!(
             "Model does not support image understanding: {}",
             id
@@ -490,4 +487,91 @@ fn encode_dynamic_image(
         .to_string();
 
     Ok((buffer, mime))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::config::types::{DefaultModelsConfig, ModelCapability, ModelCategory};
+
+    fn test_model(
+        id: &str,
+        model_name: &str,
+        enabled: bool,
+        category: ModelCategory,
+        capabilities: Vec<ModelCapability>,
+    ) -> AIModelConfig {
+        AIModelConfig {
+            id: id.to_string(),
+            name: format!("{id}-display"),
+            provider: "openai".to_string(),
+            model_name: model_name.to_string(),
+            enabled,
+            category,
+            capabilities,
+            ..AIModelConfig::default()
+        }
+    }
+
+    #[test]
+    fn resolve_vision_model_accepts_model_name_reference() {
+        let ai_config = ServiceAIConfig {
+            models: vec![test_model(
+                "vision-id",
+                "gpt-vision",
+                true,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::TextChat],
+            )],
+            default_models: DefaultModelsConfig {
+                image_understanding: Some("gpt-vision".to_string()),
+                ..DefaultModelsConfig::default()
+            },
+            ..ServiceAIConfig::default()
+        };
+
+        let model = resolve_vision_model_from_ai_config(&ai_config)
+            .expect("model_name reference should resolve to the canonical model");
+
+        assert_eq!(model.id, "vision-id");
+    }
+
+    #[test]
+    fn resolve_vision_model_keeps_disabled_and_text_only_errors_explicit() {
+        let mut ai_config = ServiceAIConfig {
+            models: vec![
+                test_model(
+                    "disabled-vision",
+                    "disabled-vision-model",
+                    false,
+                    ModelCategory::Multimodal,
+                    vec![ModelCapability::ImageUnderstanding],
+                ),
+                test_model(
+                    "text-only",
+                    "text-only-model",
+                    true,
+                    ModelCategory::GeneralChat,
+                    vec![ModelCapability::TextChat],
+                ),
+            ],
+            default_models: DefaultModelsConfig {
+                image_understanding: Some("disabled-vision-model".to_string()),
+                ..DefaultModelsConfig::default()
+            },
+            ..ServiceAIConfig::default()
+        };
+
+        let disabled_error = resolve_vision_model_from_ai_config(&ai_config)
+            .expect_err("disabled vision model should be rejected")
+            .to_string();
+        assert!(disabled_error.contains("Model is disabled: disabled-vision-model"));
+
+        ai_config.default_models.image_understanding = Some("text-only-model".to_string());
+        let unsupported_error = resolve_vision_model_from_ai_config(&ai_config)
+            .expect_err("text-only model should be rejected")
+            .to_string();
+        assert!(unsupported_error
+            .contains("Model does not support image understanding: text-only-model"));
+    }
 }

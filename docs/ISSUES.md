@@ -2234,7 +2234,7 @@ Result:
 ### ISSUE-1170E Image Understanding Capability Reconcile
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Study and, if safe, implement a Void-native default-model reconcile so image-understanding defaults cannot silently point at text-only models.
 Allowed files: focused config/capability helpers and tests after a separate implementation gate.
 Forbidden files: generic image tool rewrites, upstream `view_image` copy, media/short-drama source-of-truth changes.
@@ -2243,6 +2243,11 @@ Acceptance:
 - Default image-understanding selection ignores disabled or text-only models.
 - Existing AI media and AI short-drama image semantics remain protected.
 Risk notes: This belongs after `ISSUE-1140` image-context guard work if capability state is still ambiguous.
+Result:
+- Added `AIConfig` helpers for image-understanding capability checks and first enabled image-capable default selection.
+- Extended `ConfigService::reconcile_models` so `ai.default_models.image_understanding` is repointed only to an enabled image-understanding-capable model, or cleared when none exists.
+- Updated `resolve_vision_model_from_ai_config` to share the same capability predicate while preserving disabled/text-only error classification and allowing saved `name` / `model_name` references to resolve to canonical model ids.
+- Preserved `AnalyzeImage` runtime behavior, provider multimodal wire conversion, AI media, AI short-drama, Flow Chat, Web UI, and upstream `view_image` boundaries.
 
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 

@@ -647,6 +647,8 @@ The current upstream reference is `upstream-bitfun/main@ac16dcc18`. Upstream is 
 - Terminal changes must pass through terminal service/core DTOs and preserve flat-history compatibility unless a dedicated issue changes the contract.
 - Computer Use changes must pass through `ComputerUseHost` or platform adapter modules, with explicit unsupported/error results.
 - Image understanding changes must pass through the existing `AnalyzeImage` tool contract and workspace-scoped image resolution.
+- Image-understanding default-model governance belongs to `AIConfig` capability helpers and `ConfigService::reconcile_models`. The `image_understanding` default slot may point only to an enabled image-capable model (`ImageUnderstanding` capability or `Multimodal` category) and must be cleared rather than silently falling back to a text-only model.
+- Runtime image-understanding model resolution may canonicalize saved `id` / `name` / `model_name` references, but must still return explicit disabled, unsupported-model, or not-configured errors. UI, AI media, AI short-drama, Flow Chat, and provider adapters must not duplicate this model-capability policy.
 - Theme governance changes must pass through scripts, token files, and component-library contracts, not page-specific visual exceptions.
 
 ### Domain Ownership

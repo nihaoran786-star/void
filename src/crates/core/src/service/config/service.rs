@@ -338,6 +338,8 @@ impl ConfigService {
     /// - `default_models.primary` / `.fast` are repointed to the first enabled
     ///   model when their current target is missing or disabled (or cleared
     ///   when no enabled model exists at all);
+    /// - `default_models.image_understanding` is repointed only to an enabled
+    ///   image-understanding-capable model, or cleared when none exists;
     /// - on every change, a [`ConfigUpdateEvent::ModelsReconciled`] is
     ///   broadcast so [`SessionManager`](crate::agentic::session::SessionManager)
     ///   and the AI client cache can react in lockstep.
@@ -359,6 +361,7 @@ impl ConfigService {
         // borrow `config.ai` (which would conflict with the later mutations
         // of `config.ai.agent_models` / `config.ai.default_models`).
         let mut active_refs: HashSet<String> = HashSet::new();
+        let mut active_image_refs: HashSet<String> = HashSet::new();
         let mut any_ref_to_id: std::collections::HashMap<String, String> =
             std::collections::HashMap::new();
         for m in &config.ai.models {
@@ -375,6 +378,11 @@ impl ConfigService {
                 active_refs.insert(m.id.clone());
                 active_refs.insert(m.name.clone());
                 active_refs.insert(m.model_name.clone());
+                if AIConfig::model_supports_image_understanding(m) {
+                    active_image_refs.insert(m.id.clone());
+                    active_image_refs.insert(m.name.clone());
+                    active_image_refs.insert(m.model_name.clone());
+                }
             }
         }
         let is_active = |reference: &str| -> bool {
@@ -483,6 +491,52 @@ impl ConfigService {
         repoint_default_slot(&mut config.ai.default_models.primary, "primary");
         repoint_default_slot(&mut config.ai.default_models.fast, "fast");
 
+        // 4. default_models.image_understanding must never fall back to a
+        // text-only model. Runtime paths still validate the model before use,
+        // but this keeps persisted defaults self-consistent.
+        let image_fallback_id = config.ai.first_enabled_image_understanding_model_id();
+        let mut repoint_image_understanding_slot = |slot: &mut Option<String>, slot_name: &str| {
+            let needs_fix = match slot.as_deref() {
+                Some("") => true,
+                Some(value) => !active_image_refs.contains(value),
+                None => false,
+            };
+            if !needs_fix {
+                return;
+            }
+
+            if let Some(current) = slot.as_deref() {
+                let canonical = any_ref_to_id
+                    .get(current)
+                    .cloned()
+                    .unwrap_or_else(|| current.to_string());
+                invalidated.insert(canonical);
+            }
+
+            match image_fallback_id.as_ref() {
+                Some(new_id) => {
+                    info!(
+                        "Reconcile ({caller}): default_models.{slot_name} repointed: {:?} -> {}",
+                        slot, new_id
+                    );
+                    *slot = Some(new_id.clone());
+                }
+                None => {
+                    info!(
+                            "Reconcile ({caller}): default_models.{slot_name} cleared (no enabled image-understanding model available); previous={:?}",
+                            slot
+                        );
+                    *slot = None;
+                }
+            }
+            default_models_changed = true;
+        };
+
+        repoint_image_understanding_slot(
+            &mut config.ai.default_models.image_understanding,
+            "image_understanding",
+        );
+
         // Ensure `invalidated` doesn't contain a still-existing-and-enabled id
         // (defensive: classify_invalid only inserts for inactive refs, but a
         // callsite could have re-resolved via name).
@@ -568,5 +622,145 @@ impl ReconcileModelsReport {
         self.invalidated_model_ids.is_empty()
             && !self.default_models_changed
             && !self.agent_models_changed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::infrastructure::PathManager;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TestTempDir {
+        path: PathBuf,
+    }
+
+    impl TestTempDir {
+        fn new(prefix: &str) -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock should be after UNIX_EPOCH")
+                .as_nanos();
+            let path =
+                std::env::temp_dir().join(format!("{prefix}-{}-{unique}", std::process::id()));
+            std::fs::create_dir_all(&path).expect("test temp dir should be created");
+            Self { path }
+        }
+
+        fn path(&self) -> PathBuf {
+            self.path.clone()
+        }
+    }
+
+    impl Drop for TestTempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn test_model(
+        id: &str,
+        enabled: bool,
+        category: ModelCategory,
+        capabilities: Vec<ModelCapability>,
+    ) -> AIModelConfig {
+        AIModelConfig {
+            id: id.to_string(),
+            name: id.to_string(),
+            provider: "openai".to_string(),
+            model_name: id.to_string(),
+            enabled,
+            category,
+            capabilities,
+            ..AIModelConfig::default()
+        }
+    }
+
+    async fn test_config_service(prefix: &str) -> (ConfigService, TestTempDir) {
+        let dir = TestTempDir::new(prefix);
+        let path_manager = Arc::new(PathManager::with_user_root_for_tests(dir.path()));
+        let service = ConfigService::with_settings(ConfigManagerSettings {
+            path_manager: Some(path_manager),
+            auto_save: true,
+            backup_count: 1,
+        })
+        .await
+        .expect("test config service should start");
+        (service, dir)
+    }
+
+    #[tokio::test]
+    async fn reconcile_repoints_image_understanding_to_enabled_vision_model() {
+        let (service, _dir) = test_config_service("void-config-image-understanding-repoint").await;
+        let mut ai = AIConfig::default();
+        ai.models = vec![
+            test_model(
+                "text-only",
+                true,
+                ModelCategory::GeneralChat,
+                vec![ModelCapability::TextChat],
+            ),
+            test_model(
+                "disabled-vision",
+                false,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::ImageUnderstanding],
+            ),
+            test_model(
+                "vision",
+                true,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::TextChat],
+            ),
+        ];
+        ai.default_models.image_understanding = Some("text-only".to_string());
+
+        service
+            .set_config("ai", &ai)
+            .await
+            .expect("setting AI config should reconcile models");
+
+        let reconciled: AIConfig = service
+            .get_config(Some("ai"))
+            .await
+            .expect("AI config should be readable");
+        assert_eq!(
+            reconciled.default_models.image_understanding,
+            Some("vision".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn reconcile_clears_image_understanding_when_no_enabled_vision_model_exists() {
+        let (service, _dir) = test_config_service("void-config-image-understanding-clear").await;
+        let mut ai = AIConfig::default();
+        ai.models = vec![
+            test_model(
+                "text-only",
+                true,
+                ModelCategory::GeneralChat,
+                vec![ModelCapability::TextChat],
+            ),
+            test_model(
+                "disabled-vision",
+                false,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::ImageUnderstanding],
+            ),
+        ];
+        ai.default_models.image_understanding = Some("text-only".to_string());
+
+        service
+            .set_config("ai", &ai)
+            .await
+            .expect("setting AI config should reconcile models");
+
+        let reconciled: AIConfig = service
+            .get_config(Some("ai"))
+            .await
+            .expect("AI config should be readable");
+        assert_eq!(reconciled.default_models.image_understanding, None);
     }
 }

@@ -199,7 +199,9 @@ fn default_agent_companion_pet() -> Option<AgentCompanionPetSelection> {
     Some(AgentCompanionPetSelection {
         id: "boxcat".to_string(),
         display_name: "Boxcat".to_string(),
-        description: Some("A tiny cat tucked inside a cardboard box for cozy coding sessions.".to_string()),
+        description: Some(
+            "A tiny cat tucked inside a cardboard box for cozy coding sessions.".to_string(),
+        ),
         source: "preset".to_string(),
         package_path: "/agent-companion-pets/boxcat".to_string(),
         spritesheet_path: "/agent-companion-pets/boxcat/spritesheet.webp".to_string(),
@@ -687,6 +689,35 @@ impl AIConfig {
     /// fallback when a configured default points to a disabled / missing model.
     pub fn first_enabled_model_id(&self) -> Option<String> {
         self.models.iter().find(|m| m.enabled).map(|m| m.id.clone())
+    }
+
+    pub fn model_supports_image_understanding(model: &AIModelConfig) -> bool {
+        model
+            .capabilities
+            .iter()
+            .any(|cap| matches!(cap, ModelCapability::ImageUnderstanding))
+            || matches!(model.category, ModelCategory::Multimodal)
+    }
+
+    /// Resolves a model reference only when it points to an enabled
+    /// image-understanding-capable model.
+    pub fn resolve_image_understanding_model_reference(&self, model_ref: &str) -> Option<String> {
+        self.models
+            .iter()
+            .find(|m| {
+                m.enabled
+                    && (m.id == model_ref || m.name == model_ref || m.model_name == model_ref)
+                    && Self::model_supports_image_understanding(m)
+            })
+            .map(|m| m.id.clone())
+    }
+
+    /// Returns the id of the first enabled image-understanding-capable model.
+    pub fn first_enabled_image_understanding_model_id(&self) -> Option<String> {
+        self.models
+            .iter()
+            .find(|m| m.enabled && Self::model_supports_image_understanding(m))
+            .map(|m| m.id.clone())
     }
 
     /// Resolves a model selector value.
@@ -1816,7 +1847,8 @@ impl AIModelConfig {
 #[cfg(test)]
 mod tests {
     use super::{
-        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, GlobalConfig, ReasoningMode,
+        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, GlobalConfig,
+        ModelCapability, ModelCategory, ReasoningMode,
     };
 
     #[test]
@@ -1857,6 +1889,72 @@ mod tests {
 
         let serialized = serde_json::to_value(&config).expect("AI config should serialize");
         assert_eq!(serialized["media"]["apimart_token"], "secret-token");
+    }
+
+    fn test_model(
+        id: &str,
+        enabled: bool,
+        category: ModelCategory,
+        capabilities: Vec<ModelCapability>,
+    ) -> AIModelConfig {
+        AIModelConfig {
+            id: id.to_string(),
+            name: id.to_string(),
+            provider: "openai".to_string(),
+            model_name: id.to_string(),
+            enabled,
+            category,
+            capabilities,
+            ..AIModelConfig::default()
+        }
+    }
+
+    #[test]
+    fn first_enabled_image_understanding_model_skips_text_only_models() {
+        let mut config = AIConfig::default();
+        config.models = vec![
+            test_model(
+                "text-only",
+                true,
+                ModelCategory::GeneralChat,
+                vec![ModelCapability::TextChat],
+            ),
+            test_model(
+                "vision",
+                true,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::TextChat],
+            ),
+        ];
+
+        assert_eq!(
+            config.first_enabled_image_understanding_model_id(),
+            Some("vision".to_string())
+        );
+    }
+
+    #[test]
+    fn first_enabled_image_understanding_model_skips_disabled_vision_models() {
+        let mut config = AIConfig::default();
+        config.models = vec![
+            test_model(
+                "disabled-vision",
+                false,
+                ModelCategory::Multimodal,
+                vec![ModelCapability::ImageUnderstanding],
+            ),
+            test_model(
+                "capability-vision",
+                true,
+                ModelCategory::GeneralChat,
+                vec![ModelCapability::ImageUnderstanding],
+            ),
+        ];
+
+        assert_eq!(
+            config.first_enabled_image_understanding_model_id(),
+            Some("capability-vision".to_string())
+        );
     }
 
     #[test]

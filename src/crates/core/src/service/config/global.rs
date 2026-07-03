@@ -64,7 +64,8 @@ pub enum ConfigUpdateEvent {
     /// after a model became unavailable (disabled, deleted, or otherwise
     /// invalid). Emitted whenever the config layer had to silently rewrite
     /// `ai.default_models`, `ai.agent_models`, or `ai.func_agent_models` so they
-    /// only reference enabled models.
+    /// only reference enabled models; image-understanding defaults additionally
+    /// require an enabled image-capable model.
     ModelsReconciled {
         /// Model ids that just became unusable (disabled or deleted) and that
         /// any active session, default slot, or agent mapping was pointing at

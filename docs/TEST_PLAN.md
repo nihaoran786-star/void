@@ -94,6 +94,50 @@ Residual risk:
 - The static guard is line-oriented and catches high-signal ownership drift, not every possible multi-line provider transport implementation.
 - Broader migration of existing core HTTP owners to service adapters remains a separate high-risk issue.
 
+## ISSUE-1170E Image Understanding Capability Reconcile
+
+Date: 2026-07-03
+
+Scope:
+
+- `AIConfig` image-understanding capability helpers.
+- `ConfigService::reconcile_models` handling for `ai.default_models.image_understanding`.
+- `resolve_vision_model_from_ai_config` canonical reference resolution and error classification.
+- No `AnalyzeImage` tool rewrite, `view_image` copy, provider adapter change, AI media change, AI short-drama change, Flow Chat change, or Web UI change.
+
+Executed:
+
+- `cargo test -p void-core first_enabled_image_understanding_model --lib -- --nocapture`
+  - RED result before implementation: failed to compile because `AIConfig::first_enabled_image_understanding_model_id` did not exist.
+  - GREEN result after implementation: passed, 2 tests.
+- `cargo test -p void-core image_understanding --lib -- --nocapture`
+  - Result: passed, 4 tests covering helper and service reconcile behavior.
+- `cargo test -p void-core resolve_vision_model --lib -- --nocapture`
+  - Result: passed, 2 tests covering `model_name` canonical resolution plus disabled/text-only error classification.
+- `cargo test -p void-core image_analysis --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src\crates\core\src\service\config\types.rs src\crates\core\src\service\config\service.rs src\crates\core\src\service\config\global.rs src\crates\core\src\agentic\image_analysis\image_processing.rs`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with LF/CRLF warnings only.
+
+Coverage:
+
+- Enabled text-only models are skipped when selecting an image-understanding default.
+- Disabled vision-capable models are skipped.
+- `ai.default_models.image_understanding` is repointed to an enabled vision-capable model when possible.
+- The slot is cleared when no enabled vision-capable model exists.
+- Runtime resolver accepts saved `model_name` references and returns the canonical model.
+- Runtime disabled and unsupported-model failures remain explicit.
+
+Pending broader checks:
+
+- Live provider verification requires user credentials and model configuration.
+
 ## ISSUE-1170C OpenAI Content-Part Array Parser Regression
 
 Date: 2026-07-03

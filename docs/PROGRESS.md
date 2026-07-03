@@ -38,6 +38,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1120D remote terminal history status/source contract slice complete.
 - [x] ISSUE-1140A AnalyzeImage permission/data_url contract slice complete.
 - [x] ISSUE-1140C image-context unique filename lookup slice complete.
+- [x] ISSUE-1170E image-understanding capability reconcile slice complete.
 - [x] ISSUE-1140C media image-reference local path guard slice complete.
 - [x] ISSUE-1140C desktop image payload cache resolution coverage complete.
 - [x] ISSUE-1150A MCP large-output storage alignment complete.
@@ -4725,6 +4726,43 @@ Remaining risk:
 - URL derivation, duplicated catalogs, adapter quirks, and retry boundary tests remain open follow-up work.
 - Upstream owner migrations remain deferred; direct crate layout synchronization is still forbidden.
 - The next selective-upstream candidate is `ISSUE-1180 Core Crate Decomposition Deferred Plan`.
+
+## ISSUE-1170E Image Understanding Capability Reconcile
+
+Status: Done
+
+Completed:
+
+- Added shared `AIConfig` capability helpers for image-understanding model support and first enabled image-capable default selection.
+- Extended `ConfigService::reconcile_models` to repair `ai.default_models.image_understanding` only to enabled image-capable models and clear the slot when none exists.
+- Updated runtime image-understanding model resolution to canonicalize saved `id` / `name` / `model_name` references while preserving disabled and text-only error classifications.
+- Kept `AnalyzeImage`, provider multimodal conversion, AI media, AI short-drama, Flow Chat, Web UI, and upstream `view_image` outside this slice.
+- Ran read-only Architecture/Integration and Risk/QA subagents; both agreed the boundary belongs in config/capability helpers and not in UI/media/short-drama/provider adapter code.
+
+Verification:
+
+- `cargo test -p void-core first_enabled_image_understanding_model --lib -- --nocapture`
+  - RED before implementation: compile failed because the helper did not exist.
+  - GREEN after implementation: passed, 2 tests.
+- `cargo test -p void-core image_understanding --lib -- --nocapture`
+  - Result: passed, 4 tests.
+- `cargo test -p void-core resolve_vision_model --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-core image_analysis --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src\crates\core\src\service\config\types.rs src\crates\core\src\service\config\service.rs src\crates\core\src\service\config\global.rs src\crates\core\src\agentic\image_analysis\image_processing.rs`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with LF/CRLF warnings only.
+
+Remaining risk:
+
+- Live provider verification still depends on user credentials and model configuration.
+- Generated version-file diffs from the running desktop project remain unrelated and must be excluded from the scoped commit.
 
 ## ISSUE-1180 Core Crate Decomposition Deferred Plan
 
