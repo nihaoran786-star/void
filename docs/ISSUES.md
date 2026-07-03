@@ -1811,7 +1811,7 @@ Risk notes: This is a Flow Chat service boundary issue, not an image byte loadin
 ### ISSUE-1140C Image Context Scope and Media Path Leak Guards
 
 Priority: P1
-Status: Active
+Status: Done
 Goal: Prevent global temporary image-context ambiguity and avoid leaking local paths through media image-reference inputs.
 Allowed files: `src/crates/core/src/agentic/tools/image_context.rs`, `src/apps/desktop/src/api/agentic_api.rs` tests, `src/crates/core/src/agentic/tools/implementations/media_tools.rs` tests/docs.
 Forbidden files: Web UI rewrites, provider adapter reorganization, short-drama service rewrites, generic fallback string matching.
