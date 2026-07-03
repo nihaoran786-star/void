@@ -43,25 +43,27 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150A MCP large-output storage alignment complete.
 - [x] ISSUE-1150B MCP elicitation legacy compatibility complete.
 - [x] ISSUE-1160B theme CSS variable runtime contract complete.
+- [x] ISSUE-1160C ThemeService runtime token whitelist complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160B Theme CSS Variable Runtime Contract`
+Issue: `ISSUE-1160C ThemeService Runtime Token Whitelist`
 
 Summary:
 
-- Added a Void-owned CSS variable contract artifact for required theme token domains, allowed dynamic prefixes, legacy aliases, and fallback exceptions.
-- Extended `audit-theme-colors` to expose defined CSS vars and validate the contract by default through the existing theme color audit path.
-- Added focused script tests for valid contract data, malformed contract data, unknown dynamic prefixes, and current baseline compatibility.
-- Did not touch ThemeService runtime logic, theme presets, generated-widget payload runtime, Flow Chat, AI media, AI short-drama, or page/component SCSS.
+- Added suffix-level allowlists to ThemeService dynamic CSS variable injection paths.
+- Custom themes can no longer inject unsupported dynamic variables such as `--color-accent-evil`, while valid built-in dynamic tokens remain injected.
+- Kept fixed ThemeService runtime vars outside the contract required-token subset so button, window-control, card, overlay, scrollbar, font, tool-card, Flow Chat link, and scene viewport tokens are not accidentally removed.
+- Did not touch theme preset visual values, component/page SCSS, widget payload runtime, Flow Chat, AI media, or AI short-drama logic.
 
 Verification:
 
-- RED: `node --test scripts/audit-theme-colors.test.mjs` failed before implementation because `audit-theme-colors.mjs` did not export `checkCssVarContract`.
-- GREEN: `node --test scripts/audit-theme-colors.test.mjs` passed with 14 tests after implementation and contract correction.
-- `node --check scripts/audit-theme-colors.mjs` passed.
-- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --near-pair-decisions scripts/theme-color-near-pair-decisions.json --top=3` passed.
-- `node scripts/validate-theme-visual-contract.mjs --json` passed with 8/8 required surfaces covered.
+- RED: `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts` failed before implementation because `--color-accent-evil` was injected.
+- GREEN: the same command passed with 5 tests after dynamic suffix filtering.
+- `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts src/infrastructure/theme/presets/startupThemeBootstrap.test.ts` passed with 9 tests.
+- `pnpm run type-check:web` passed.
+- `pnpm run check:theme-colors` initially failed after implementation because `--color-accent-` was incorrectly listed as a concrete required var, then passed after keeping it only as an allowed dynamic prefix.
+- `node --test scripts/audit-theme-colors.test.mjs` passed with 14 tests.
 - `pnpm run check:theme-colors` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 

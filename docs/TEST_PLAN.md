@@ -4148,7 +4148,41 @@ Coverage:
 
 Deferred:
 
-- Runtime custom-theme key filtering remains `ISSUE-1160C`.
+- Runtime custom-theme key filtering is completed by `ISSUE-1160C`.
+- Generated-widget theme payload compatibility remains `ISSUE-1160D`.
+- Media and short-drama token cleanup remains `ISSUE-1160F`.
+
+## ISSUE-1160C ThemeService Runtime Token Whitelist
+
+Scope:
+
+- Current slice covers ThemeService dynamic CSS variable key filtering, focused ThemeService tests, and the existing CSS variable contract artifact.
+- No theme preset visual values, component/page SCSS, widget iframe behavior, Flow Chat logic, AI media logic, or AI short-drama logic was changed.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts`
+  - RED result before implementation: failed because a custom `colors.accent.evil` key injected `--color-accent-evil`.
+  - GREEN result after implementation: passed, 5 tests.
+- `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts src/infrastructure/theme/presets/startupThemeBootstrap.test.ts`
+  - Result: passed, 9 tests.
+- `pnpm run type-check:web`
+  - Result: passed.
+- `pnpm run check:theme-colors`
+  - Initial result after implementation: failed because `--color-accent-` was incorrectly listed as a concrete required var in `theme-css-var-contract.json`.
+  - Result after moving that responsibility back to `allowedDynamicPrefixes`: passed.
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - Result: passed, 14 tests.
+
+Coverage:
+
+- Custom themes cannot inject unsupported dynamic keys through accent, purple, shadow, motion duration, or font-size object expansion.
+- Built-in themes still inject required contract tokens and representative fixed runtime variables such as button, window control, card, overlay, scene viewport, scrollbar, and font variables.
+- ThemeService exported dynamic prefixes stay aligned with `scripts/theme-css-var-contract.json`.
+- Startup theme bootstrap remains compatible.
+
+Deferred:
+
 - Generated-widget theme payload compatibility remains `ISSUE-1160D`.
 - Media and short-drama token cleanup remains `ISSUE-1160F`.
 - `ISSUE-1160`:
@@ -4157,7 +4191,7 @@ Deferred:
   - Local file inspection:
     - Result: `ISSUE-1160A` already provides near-pair decision validation, theme color audit integration, and Tabs close-hover token conformance.
     - Result: local `check:theme-colors` and `check:theme-visual-contract` exist and cover Web/CLI color audits plus visual-governance surface structure.
-    - Result: local `theme-css-var-contract.mjs`, ThemeService dynamic-token whitelist, widget payload compatibility contract, and executable visual evidence fields remain missing.
+    - Result: local ThemeService dynamic-token whitelist is now complete; widget payload compatibility contract and executable visual evidence fields remain missing.
     - Result: AI media and short-drama are included in the visual governance contract, but their local SCSS still contains surface-local tokens, `--void-*` fallbacks, and raw colors that need a separate boundary cleanup.
   - Main session and subagents reported current targeted checks passed:
     - `node --test scripts/audit-theme-colors.test.mjs`

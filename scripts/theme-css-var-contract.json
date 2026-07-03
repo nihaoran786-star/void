@@ -31,8 +31,7 @@
         "--color-primary-hover",
         "--color-accent",
         "--color-accent-primary",
-        "--color-primary-rgb",
-        "--color-accent-"
+        "--color-primary-rgb"
       ]
     },
     {

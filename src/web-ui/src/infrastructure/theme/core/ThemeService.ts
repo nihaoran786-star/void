@@ -31,6 +31,52 @@ const FLOW_CHAT_LINK_COLORS = {
   },
 } as const;
 
+export const THEME_SERVICE_DYNAMIC_CSS_VAR_PREFIXES = [
+  '--blur-',
+  '--color-accent-',
+  '--color-purple-',
+  '--easing-',
+  '--font-size-',
+  '--font-weight-',
+  '--line-height-',
+  '--motion-',
+  '--radius-',
+  '--shadow-',
+  '--spacing-',
+] as const;
+
+const ACCENT_KEYS = new Set(['50', '100', '200', '300', '400', '500', '600', '700', '800']);
+const SHADOW_KEYS = new Set(['xs', 'sm', 'base', 'lg', 'xl', '2xl']);
+const BLUR_KEYS = new Set(['subtle', 'base', 'medium', 'strong', 'intense']);
+const RADIUS_KEYS = new Set(['sm', 'base', 'lg', 'xl', '2xl', 'full']);
+const SPACING_KEYS = new Set(['1', '2', '3', '4', '5', '6', '8', '10', '12', '16']);
+const MOTION_KEYS = new Set(['instant', 'fast', 'base', 'slow', 'lazy']);
+const EASING_KEYS = new Set(['standard', 'decelerate', 'accelerate', 'bounce', 'smooth']);
+const FONT_WEIGHT_KEYS = new Set(['normal', 'medium', 'semibold', 'bold']);
+const FONT_SIZE_KEYS = new Set(['xs', 'sm', 'base', 'lg', 'xl', '2xl', '3xl', '4xl', '5xl']);
+const LINE_HEIGHT_KEYS = new Set(['tight', 'base', 'relaxed']);
+
+function setDynamicCssVariables(
+  root: HTMLElement,
+  prefix: typeof THEME_SERVICE_DYNAMIC_CSS_VAR_PREFIXES[number],
+  values: object | undefined,
+  allowedKeys: ReadonlySet<string>,
+): void {
+  if (!values) {
+    return;
+  }
+
+  Object.entries(values).forEach(([key, value]) => {
+    if (!allowedKeys.has(key)) {
+      return;
+    }
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      return;
+    }
+    root.style.setProperty(`${prefix}${key}`, String(value));
+  });
+}
+
 /** Space-separated R G B for `rgba(var(--color-primary-rgb) / α)` in component styles. */
 function accentColorToRgbChannels(accent: string): string | null {
   const trimmed = accent.trim();
@@ -340,9 +386,7 @@ export class ThemeService {
     root.style.setProperty('--color-text-disabled', colors.text.disabled);
 
 
-    Object.entries(colors.accent).forEach(([key, value]) => {
-      root.style.setProperty(`--color-accent-${key}`, value);
-    });
+    setDynamicCssVariables(root, '--color-accent-', colors.accent, ACCENT_KEYS);
 
     const primaryAccent = colors.accent[500];
     const primaryHover = colors.accent[600];
@@ -362,9 +406,7 @@ export class ThemeService {
 
 
     if (colors.purple) {
-      Object.entries(colors.purple).forEach(([key, value]) => {
-        root.style.setProperty(`--color-purple-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--color-purple-', colors.purple, ACCENT_KEYS);
     }
 
 
@@ -433,9 +475,7 @@ export class ThemeService {
 
 
     if (effects?.shadow) {
-      Object.entries(effects.shadow).forEach(([key, value]) => {
-        root.style.setProperty(`--shadow-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--shadow-', effects.shadow, SHADOW_KEYS);
     }
 
 
@@ -447,23 +487,17 @@ export class ThemeService {
 
 
     if (effects?.blur) {
-      Object.entries(effects.blur).forEach(([key, value]) => {
-        root.style.setProperty(`--blur-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--blur-', effects.blur, BLUR_KEYS);
     }
 
 
     if (effects?.radius) {
-      Object.entries(effects.radius).forEach(([key, value]) => {
-        root.style.setProperty(`--radius-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--radius-', effects.radius, RADIUS_KEYS);
     }
 
 
     if (effects?.spacing) {
-      Object.entries(effects.spacing).forEach(([key, value]) => {
-        root.style.setProperty(`--spacing-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--spacing-', effects.spacing, SPACING_KEYS);
     }
 
 
@@ -476,16 +510,12 @@ export class ThemeService {
 
 
     if (motion?.duration) {
-      Object.entries(motion.duration).forEach(([key, value]) => {
-        root.style.setProperty(`--motion-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--motion-', motion.duration, MOTION_KEYS);
     }
 
 
     if (motion?.easing) {
-      Object.entries(motion.easing).forEach(([key, value]) => {
-        root.style.setProperty(`--easing-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--easing-', motion.easing, EASING_KEYS);
     }
 
 
@@ -496,23 +526,17 @@ export class ThemeService {
 
 
     if (typography?.weight) {
-      Object.entries(typography.weight).forEach(([key, value]) => {
-        root.style.setProperty(`--font-weight-${key}`, String(value));
-      });
+      setDynamicCssVariables(root, '--font-weight-', typography.weight, FONT_WEIGHT_KEYS);
     }
 
 
     if (typography?.size) {
-      Object.entries(typography.size).forEach(([key, value]) => {
-        root.style.setProperty(`--font-size-${key}`, value);
-      });
+      setDynamicCssVariables(root, '--font-size-', typography.size, FONT_SIZE_KEYS);
     }
 
 
     if (typography?.lineHeight) {
-      Object.entries(typography.lineHeight).forEach(([key, value]) => {
-        root.style.setProperty(`--line-height-${key}`, String(value));
-      });
+      setDynamicCssVariables(root, '--line-height-', typography.lineHeight, LINE_HEIGHT_KEYS);
     }
 
 

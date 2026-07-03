@@ -2013,7 +2013,7 @@ Progress:
 ### ISSUE-1160C ThemeService Runtime Token Whitelist
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Prevent custom themes from injecting arbitrary runtime CSS variables by applying a contract-backed whitelist in ThemeService.
 Allowed files: `src/web-ui/src/infrastructure/theme/core/ThemeService.ts`, `ThemeService.test.ts`, theme contract files/tests, docs.
 Forbidden files: preset visual value rewrites, component SCSS batch changes, widget iframe behavior changes, Flow Chat/media/short-drama business logic.
@@ -2023,6 +2023,11 @@ Acceptance:
 - Tests cover all built-in themes plus a custom theme containing unsupported token keys.
 - `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts src/infrastructure/theme/presets/startupThemeBootstrap.test.ts` and `pnpm run type-check:web` pass.
 Risk notes: ThemeService must stay a token injection layer and must not inspect session, provider, media, or short-drama state.
+Progress:
+- Added suffix-level allowlists for ThemeService dynamic CSS variable domains instead of treating the CSS contract as a full fixed-variable allowlist.
+- Filtered custom theme dynamic keys for accent, purple, shadow, blur, radius, spacing, motion, easing, font weight, font size, and line height injection.
+- Added ThemeService tests proving unsupported custom dynamic keys are ignored, built-in themes still inject required and fixed runtime variables, and runtime dynamic prefixes stay aligned with the CSS variable contract.
+- Preserved preset values, component SCSS, widget payload runtime, Flow Chat, AI media, AI short-drama, and page/component styles.
 
 ### ISSUE-1160D Generated Widget Theme Payload Compatibility Contract
 
