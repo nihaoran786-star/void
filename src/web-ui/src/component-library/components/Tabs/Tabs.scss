@@ -83,8 +83,8 @@
       opacity: 1;
 
       &:hover {
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
+        background: tokens.$glass-red-hover;
+        color: tokens.$color-error;
       }
     }
   }

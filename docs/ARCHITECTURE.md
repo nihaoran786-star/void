@@ -598,8 +598,48 @@ Flow Chat history projection handoff contract:
 - `historyProjectionHandoff.ts` may own pure snapshot types and session-open selection helpers. It must not mutate sessions, access `FlowChatStore`, schedule async work, or render UI.
 - A handoff snapshot is session-scoped. Consumers must pass it through `activeSessionHistoryProjectionHandoff` or an equivalent active-session guard before rendering or acting on it.
 - Session-open handoff selection may create only a bottom-tail snapshot for a real session switch into `historyState: "ready"` and non-partial history. It must not run when the initial-history static scroller is active, when the session already activated a handoff, or when another active handoff belongs to the same session.
-- `VirtualMessageList` must not render `projection-handoff-overlay`, add handoff state, or filter navigation/visible-turn DOM through overlay content until a separate UI gate proves release behavior and overlay exclusion from measurement/navigation.
+- `VirtualMessageList` may render only the guarded `ISSUE-130F2` history handoff overlay as viewport-local, read-only DOM after active-session validation and bounded release behavior. Other projection handoff behavior, overlay filtering, store mutation, or navigation through overlay content still requires a separate UI gate.
 - Deferred full-history projection and partial-history state belong to the store/API contract. UI must read explicit `historyState` plus `isPartial`/count fields instead of inferring from empty arrays, and deferred full projection must no-op if the active session has changed before completion.
 - The 130G2 full-history follow-up scheduler belongs inside `FlowChatStore`. It may reuse existing restore fallbacks and `applyDeferredSessionHistoryProjection`, but it must not use UI state as a trigger, must not run for complete restores, ACP sessions, unsupported view-restore fallback paths, or legacy full restore paths, and must be testable without relying on real-time delays.
 - 130F work must not introduce `heightEstimates`, Virtuoso `firstItemIndex`, startup trace expansion, previous-history boundary status UI, `FlowChatStore.ts` behavior changes, session API changes, terminal, AI media, or AI short-drama changes unless a later issue explicitly allows them.
 - 130E work must not introduce history projection handoff, deferred full hydration, `FlowChatStore.ts`, `modernFlowChatStore.ts`, backend session API, subagent, AI media, AI short-drama, or terminal changes.
+
+## 2026-07-03 Selective Upgrade Wave Boundaries
+
+The current upstream reference is `upstream-bitfun/main@ac16dcc18`. Upstream is a design and bug-fix source, not an ownership source. This wave preserves the existing Void module graph.
+
+### Entry Points
+
+- Flow Chat UI entry points may render and compose state only.
+- Terminal UI entry points may display current service state only.
+- Computer Use UI/tool entry points may request host actions only through existing core and desktop host seams.
+- Theme entry points may consume tokens only; they must not infer product state.
+
+### Interfaces
+
+- Flow Chat changes must pass through `FlowChatStore`, `FlowChatManager`, `BtwThreadService`, or existing pure view helpers.
+- Terminal changes must pass through terminal service/core DTOs and preserve flat-history compatibility unless a dedicated issue changes the contract.
+- Computer Use changes must pass through `ComputerUseHost` or platform adapter modules, with explicit unsupported/error results.
+- Image understanding changes must pass through the existing `AnalyzeImage` tool contract and workspace-scoped image resolution.
+- Theme governance changes must pass through scripts, token files, and component-library contracts, not page-specific visual exceptions.
+
+### Domain Ownership
+
+- Multi-agent, subconversation, `/goal`, review-subagent, and background-result semantics remain core/runtime owned.
+- AI media and AI short-drama remain local product-owned capabilities.
+- Provider/service extraction remains deferred unless an issue identifies a single owner move and proves it with boundary checks.
+- Upstream crate decomposition remains architecture guidance only until a separate crate-layout plan is accepted.
+
+### Adapter and External Boundaries
+
+- Desktop Computer Use adapters own WGC, HWND, Win32/UIA/MSAA, macOS AX/SkyLight, and platform smoke behavior.
+- Remote MCP/tool runtime changes must return explicit `status/source/error` results and bounded timeout behavior.
+- External provider calls must remain behind existing provider adapters and workspace permissions.
+
+### Forbidden Coupling
+
+- No business decisions in `ChatInput.tsx`, Flow Chat containers, sidebar/header, terminal panels, or large page components.
+- No terminal replay facts inside Flow Chat transcript state.
+- No Computer Use platform policy in Web UI.
+- No image byte loading in UI.
+- No theme token exceptions inside feature pages to make a local screen "look better".

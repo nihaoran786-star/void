@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_ROOT = 'src/web-ui/src';
 const DEFAULT_BASELINE = 'scripts/theme-color-governance-baseline.json';
+const DEFAULT_NEAR_PAIR_DECISIONS = 'scripts/theme-color-near-pair-decisions.json';
 const COLOR_EXTENSIONS = new Set(['.css', '.scss', '.ts', '.tsx', '.json']);
 const COLOR_PATTERN =
   /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+(?:\s*,\s*[-+]?\d*\.?\d+)?\s*\)/g;
@@ -415,6 +416,76 @@ export function checkBaseline(report, baselinePath) {
   return failures;
 }
 
+export function checkNearPairDecisions(report, decisionsPath) {
+  if (!decisionsPath) {
+    return [];
+  }
+  if (!fs.existsSync(decisionsPath)) {
+    return [`${decisionsPath} does not exist`];
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(decisionsPath, 'utf8'));
+  } catch (error) {
+    return [`${decisionsPath} must be valid JSON: ${error.message}`];
+  }
+
+  const failures = [];
+  if (parsed.version !== 1) {
+    failures.push(`${decisionsPath} version must be 1`);
+  }
+  if (typeof parsed.description !== 'string' || parsed.description.trim().length === 0) {
+    failures.push(`${decisionsPath} description must be a non-empty string`);
+  }
+  if (!Array.isArray(parsed.decisions)) {
+    failures.push(`${decisionsPath} decisions must be an array`);
+    return failures;
+  }
+
+  const reportedPairs = new Set([
+    ...report.nearPairs.indistinguishable.map(pair => pair.key),
+    ...report.nearPairs.near.map(pair => pair.key),
+  ]);
+  const seenKeys = new Set();
+  const allowedDecisions = new Set(['keep', 'merge', 'defer']);
+  const requiredStringFields = ['root', 'domain', 'key', 'decision', 'owner', 'reason', 'reevaluateWhen'];
+
+  parsed.decisions.forEach((decision, index) => {
+    const prefix = `${decisionsPath} decisions[${index}]`;
+    if (!decision || typeof decision !== 'object' || Array.isArray(decision)) {
+      failures.push(`${prefix} must be an object`);
+      return;
+    }
+
+    for (const field of requiredStringFields) {
+      if (typeof decision[field] !== 'string' || decision[field].trim().length === 0) {
+        failures.push(`${prefix}.${field} must be a non-empty string`);
+      }
+    }
+
+    if (typeof decision.decision === 'string' && !allowedDecisions.has(decision.decision)) {
+      failures.push(`${prefix}.decision must be one of ${Array.from(allowedDecisions).join(', ')}`);
+    }
+
+    if (typeof decision.root === 'string' && normalizePath(decision.root) !== report.root) {
+      failures.push(`${prefix}.root must match audited root ${report.root}`);
+    }
+
+    if (typeof decision.key === 'string') {
+      if (seenKeys.has(decision.key)) {
+        failures.push(`${prefix}.key duplicates another near-pair decision`);
+      }
+      seenKeys.add(decision.key);
+      if (!reportedPairs.has(decision.key)) {
+        failures.push(`${prefix}.key is not present in the current near-pair report`);
+      }
+    }
+  });
+
+  return failures;
+}
+
 export function writeReportJson(report, reportJsonPath) {
   fs.mkdirSync(path.dirname(reportJsonPath), { recursive: true });
   fs.writeFileSync(reportJsonPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -424,6 +495,7 @@ function parseArgs(argv) {
   const options = {
     root: DEFAULT_ROOT,
     baseline: DEFAULT_BASELINE,
+    nearPairDecisions: DEFAULT_NEAR_PAIR_DECISIONS,
     json: false,
     reportJson: null,
     top: 20,
@@ -469,6 +541,18 @@ function parseArgs(argv) {
       options.top = Number.parseInt(arg.slice('--top='.length), 10);
     } else if (arg === '--no-baseline') {
       options.baseline = null;
+    } else if (arg === '--near-pair-decisions') {
+      options.nearPairDecisions = argv[++index];
+      if (!options.nearPairDecisions) {
+        throw new Error('--near-pair-decisions requires a path');
+      }
+    } else if (arg.startsWith('--near-pair-decisions=')) {
+      options.nearPairDecisions = arg.slice('--near-pair-decisions='.length);
+      if (!options.nearPairDecisions) {
+        throw new Error('--near-pair-decisions requires a path');
+      }
+    } else if (arg === '--no-near-pair-decisions') {
+      options.nearPairDecisions = null;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }
@@ -536,10 +620,16 @@ function main() {
   }
 
   const baselineFailures = checkBaseline(report, options.baseline);
+  const nearPairDecisionFailures = checkNearPairDecisions(report, options.nearPairDecisions);
   report.summary.baseline = {
     path: options.baseline,
     enforced: Boolean(options.baseline),
     failures: baselineFailures,
+  };
+  report.summary.nearPairDecisions = {
+    path: options.nearPairDecisions,
+    enforced: Boolean(options.nearPairDecisions),
+    failures: nearPairDecisionFailures,
   };
 
   if (options.json) {
@@ -552,6 +642,15 @@ function main() {
     console.error('');
     console.error('Theme color audit baseline failures:');
     for (const failure of baselineFailures) {
+      console.error(`- ${failure}`);
+    }
+    process.exitCode = 1;
+  }
+
+  if (nearPairDecisionFailures.length > 0) {
+    console.error('');
+    console.error('Theme near-pair decision failures:');
+    for (const failure of nearPairDecisionFailures) {
       console.error(`- ${failure}`);
     }
     process.exitCode = 1;

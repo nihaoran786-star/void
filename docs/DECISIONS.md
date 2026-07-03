@@ -38,11 +38,11 @@ Decision: Empty arrays or missing fields cannot represent business state for his
 
 Reason: Current UI depends on explicit `status/source/error/reason` states to avoid false success and workspace mismatch.
 
-## DEC-007: Upstream Baseline for Inventory
+## DEC-007: Earlier Upstream Baseline for Initial Inventory
 
-Decision: Use local upstream clone `tmp/upstream-bitfun` at observed head `c2f6a3c` on `main`, with upstream package version `0.2.11`, as the current inventory target. Historical migration docs reference `09bf6d1f`; inventory must record any history-depth limitation.
+Decision: The initial migration inventory used local upstream clone `tmp/upstream-bitfun` at observed head `c2f6a3c` on `main`, with upstream package version `0.2.11`, as its fixed comparison target. Historical migration docs reference `09bf6d1f`; inventory must record any history-depth limitation. Later waves may record a newer upstream reference in a separate decision.
 
-Reason: The migration needs a fixed comparison target and traceability for accepted, deferred, and rejected candidates.
+Reason: Each migration wave needs a fixed comparison target and traceability for accepted, deferred, and rejected candidates.
 
 ## DEC-008: Classification Changes Must Be Recorded
 
@@ -385,3 +385,9 @@ Reason: The accepted, independently testable sub-issues have already landed. Con
 Decision: The post-review hardening pass accepts only small, independently testable fixes found by subagent review: BTW image-context forwarding, `/goal budget` forwarding, deferred history hydration identity checks, initial historical window bottom positioning, selector-safe virtual item lookup, terminal live-event buffering, brand/CI guard wiring, and test harness alignment. Larger upstream deltas remain deferred behind dedicated gates: terminal crate/runtime-port migration, Computer Use WGC capture/shortcuts, AI adapter path reorganization, release/Homebrew orchestration, and Computer Use DTO extraction.
 
 Reason: The working branch already preserves local multi-agent, subconversation, floating chat, AI media, AI short-drama, terminal, Computer Use, and Void brand contracts. Whole-module upstream adoption would create high rollback risk. Targeted fixes close concrete bugs without moving module ownership or mixing release policy, platform smoke, and architecture reorganization into the same commit.
+
+## DEC-065: New Upstream Work Proceeds as a Selective Upgrade Wave
+
+Decision: The post-`08591f906` upstream comparison starts a new selective upgrade wave from `upstream-bitfun/main@ac16dcc18`. The wave uses the user-approved priority order: Flow Chat stability, terminal reliability, Computer Use Windows safety, image understanding, MCP/tool runtime reliability, theme/token governance, provider/service boundaries, and finally crate decomposition study. Each area must start with an audit issue before implementation unless the missing change is already proven to be a small isolated fix.
+
+Reason: Current Void and upstream BitFun are divergent histories. Direct merge or directory synchronization would threaten local multi-agent, subconversation, floating chat, AI media, AI short-drama, terminal, Computer Use, and brand contracts. A new wave keeps useful upstream fixes moving while preserving the earlier rule that upstream is a reference implementation, not the owner of Void module boundaries.

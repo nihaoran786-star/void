@@ -3822,3 +3822,70 @@ Pending / residual risk:
 
 - Full manual smoke of AI short-drama canvas and real remote MCP servers remains outside this automated pass.
 - Deferred upstream migrations for terminal runtime ports, Computer Use platform capture, AI adapter layout, and release automation require separate test matrices.
+
+## 2026-07-03 Selective Upgrade Wave Test Strategy
+
+Global rule: every implementation issue must run the smallest automated test that covers its module interface, then a broader check when the issue touches shared contracts.
+
+Planned checks by issue family:
+
+- `ISSUE-1100`: docs-only diff check and keyword cross-reference scan.
+- `ISSUE-1110`: Flow Chat Vitest around history navigation, virtual-list behavior, BTW/subagent/media grouping protection, plus `pnpm run type-check:web` for implementation slices.
+- `ISSUE-1120`: terminal service/core tests for replay normalization, pending live events, input queue/paste policy, and no Flow Chat store mutation.
+- `ISSUE-1130`: Windows-gated Rust tests or `cargo check -p void-desktop` on Windows for WGC/HWND changes; no cross-platform success claim without platform evidence.
+- `ISSUE-1140`: `AnalyzeImage` core tests, BTW image-context forwarding tests, workspace path denial tests, and media/short-drama manual contract notes when image flows touch those surfaces.
+- `ISSUE-1150`: remote MCP regression tests, tool manifest readonly tests, bounded-timeout tests, and `status/source/error` result-shape assertions.
+- `ISSUE-1160`: `pnpm run check:theme-colors`, theme governance unit tests, component-library token tests, and visual contract validation.
+- `ISSUE-1170`: static boundary checks before any provider/service movement.
+- `ISSUE-1180`: boundary checker self-test and Cargo metadata only; no runtime test because crate movement remains deferred.
+
+No test result may be recorded as passed until the command has actually run in the current issue.
+
+## ISSUE-1100 Upstream Incremental Inventory Refresh
+
+Scope:
+
+- Docs-only inventory refresh for upstream `ac16dcc18`.
+- No Web UI, Rust, desktop, terminal, media, short-drama, script, package, or Cargo behavior changes.
+
+Checks:
+
+- `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main`
+  - Result: passed before documentation update; local `upstream-bitfun/main` advanced to `ac16dcc18`.
+- `git log --oneline --first-parent --since='2026-07-01' upstream-bitfun/main -40`
+  - Result: passed; recent capability commits were visible for Flow Chat, terminal, Computer Use, image understanding, MCP/tool runtime, theme, provider/service, and crate-boundary review.
+- `git diff --check -- docs\PRD.md docs\ARCHITECTURE.md docs\ISSUES.md docs\DECISIONS.md docs\TEST_PLAN.md docs\PROGRESS.md docs\superpowers\plans\2026-07-03-upstream-selective-upgrade-wave.md`
+  - Result: passed with LF/CRLF warnings only.
+
+Risk notes:
+
+- No production behavior was changed.
+- Existing generated version-file diffs from the running desktop project remain outside this issue.
+
+## ISSUE-1160A Theme Near-Color Governance Slice
+
+Scope:
+
+- Added near-pair governance artifact validation to `scripts/audit-theme-colors.mjs`.
+- Added focused audit tests for valid, malformed, and stale near-pair decisions.
+- Added a component-library token conformance check for `Tabs.scss`.
+- Replaced Tabs close-hover raw destructive colors with existing component-library tokens.
+
+Commands run:
+
+- `node --test scripts\audit-theme-colors.test.mjs`
+  - Result: passed, 11 tests.
+- `pnpm run check:theme-colors`
+  - Result: passed for Web and CLI theme audits.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed, 8 required surfaces covered.
+- `node --test scripts\audit-theme-colors.test.mjs scripts\audit-cli-theme-colors.test.mjs`
+  - Result: passed, 21 tests.
+- `pnpm run type-check:web`
+  - Result: passed.
+
+Risk notes:
+
+- No browser visual smoke was run. The SCSS change is limited to Tabs close-hover destructive color tokens, so automated theme governance was considered sufficient for this slice.
+- Generated widget payload compatibility and ThemeService runtime token expansion remain future issues.
+- Existing generated version-file diffs from the running desktop project remain outside this issue.

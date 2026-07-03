@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "description": "Void-owned decisions for high-impact theme near-color pairs. Keep this file in sync with scripts/audit-theme-colors.mjs output; lower the baseline when a pair is merged.",
+  "decisions": [
+    {
+      "root": "src/web-ui/src",
+      "domain": "componentLibrary",
+      "key": "#111114 <-> #121214",
+      "decision": "keep",
+      "owner": "src/web-ui/src/component-library/styles/tokens.scss",
+      "reason": "The pair spans the base Void application surface and slightly deeper component surfaces. Collapsing them would flatten dark-mode layering before a full component-library surface review.",
+      "reevaluateWhen": "Revisit after the component-library dark surface ramp is redesigned with visual screenshots for app shell, Flow Chat, terminal, AI media, and AI short-drama."
+    },
+    {
+      "root": "src/web-ui/src",
+      "domain": "componentLibrary",
+      "key": "#121212 <-> #121214",
+      "decision": "keep",
+      "owner": "src/web-ui/src/component-library/styles/tokens.scss",
+      "reason": "The neutral pair is currently shared by app shell, markdown, Flow Chat, and component-library surfaces. It is a known near pair rather than a stray feature color.",
+      "reevaluateWhen": "Revisit when the base dark neutral ramp is consolidated across app shell and component-library tokens."
+    },
+    {
+      "root": "src/web-ui/src",
+      "domain": "workspaceMedia",
+      "key": "#f8fafc <-> #f9fafb",
+      "decision": "keep",
+      "owner": "src/web-ui/src/app/components/panels/content-canvas/workspace-media",
+      "reason": "Workspace media, preview, markdown, and automation surfaces use these light neutrals for different readable surface roles. The distinction should remain until light-theme visual review proves it redundant.",
+      "reevaluateWhen": "Revisit after light-theme screenshots cover workspace media, media preview, Flow Chat history, and generated-widget surfaces."
+    },
+    {
+      "root": "src/web-ui/src",
+      "domain": "componentLibrary",
+      "key": "#e4e4e4 <-> #e5e5e5",
+      "decision": "keep",
+      "owner": "src/web-ui/src/component-library",
+      "reason": "Adjacent light text and component states currently cross component-library controls and theme presets. The pair needs a token-ramp decision before it can be merged safely.",
+      "reevaluateWhen": "Revisit when component-library text roles are mapped to a single semantic light ramp."
+    },
+    {
+      "root": "src/web-ui/src",
+      "domain": "mermaidEditor",
+      "key": "#dfe2e8 <-> #e0e2e8",
+      "decision": "keep",
+      "owner": "src/web-ui/src/tools/mermaid-editor",
+      "reason": "The pair is localized to Mermaid theme rendering and should be reviewed with diagram readability before consolidation.",
+      "reevaluateWhen": "Revisit after Mermaid editor themes are audited against app-wide light neutral tokens."
+    }
+  ]
+}

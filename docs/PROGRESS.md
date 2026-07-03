@@ -53,19 +53,21 @@ Initial role coverage:
 
 ## Active Issue
 
-`ISSUE-999 Split Parent Closeout Audit` is complete. This is a docs-only reconciliation of the remaining Split parents after accepted sub-issues were implemented.
+`ISSUE-1100 Upstream Incremental Inventory Refresh` is complete for the new 2026-07-03 selective upgrade wave.
 
-`ISSUE-999A Final Verification Test Snapshot Reconciliation` is complete. Final verification found stale test expectations only; the fixes updated core registry and Flow Chat boundary tests without changing runtime behavior.
+Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
+
+Next candidate issue: `ISSUE-1110 Flow Chat History Navigation Delta Audit`, unless the next session deliberately continues theme governance with a new follow-up issue.
 
 Allowed files:
 
 - `docs/PRD.md`
+- `docs/ARCHITECTURE.md`
 - `docs/ISSUES.md`
 - `docs/DECISIONS.md`
 - `docs/TEST_PLAN.md`
 - `docs/PROGRESS.md`
-- `src/crates/core/src/agentic/tools/registry.rs` test expectations
-- `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.test.ts`
+- `docs/superpowers/plans/2026-07-03-upstream-selective-upgrade-wave.md`
 
 Forbidden:
 
@@ -77,14 +79,16 @@ Forbidden:
 
 Verification completed:
 
-- Issue-status scan confirmed all concrete child issues are `Done`, with four remaining Split parents and two Rejected issues.
-- Split/Rejected rationale scan confirmed residual parent scope is gated by browser smoke, release owner policy, DTO architecture, or crate-layout planning.
-- `ISSUE-999A` retests passed after stale test snapshot fixes: `cargo test -p void-core --lib`, targeted `virtualMessageListLayout` Vitest, full Web Vitest, and `git diff --check`.
-- Docs-only diff and whitespace checks passed for this closeout.
+- Upstream ref confirmed at `ac16dcc1857331c53ced97671528a4e5dc51d310`.
+- Recent upstream log includes `082cee447 refactor(theme): tighten extension color governance`.
+- Scoped docs `git diff --check` passed with LF/CRLF warnings only.
+- Theme baseline checks run by QA for readiness passed: `node --test scripts/audit-theme-colors.test.mjs`, `pnpm run check:theme-colors`, and `pnpm run check:theme-visual-contract`.
 
 Next issue:
 
-- Run final closeout verification and decide whether the overall migration goal can be marked complete only after requirement-by-requirement audit.
+- Resolve remaining documentation consistency notes, then start exactly one scoped implementation issue.
+
+Note: older issue sections below are historical snapshots. Current status is governed by this Active Issue section plus the latest issue-specific entries near the end of the file.
 
 ## ISSUE-999 Split Parent Closeout Audit
 
@@ -4272,3 +4276,77 @@ Remaining risk:
 
 - Upstream terminal crate/runtime-port migration, Computer Use WGC/platform smoke, AI adapter path reorganization, and release/Homebrew orchestration remain separate gates.
 - Full end-user manual smoke of the AI short-drama canvas was not run in this pass.
+
+## 2026-07-03 Selective Upgrade Wave Kickoff
+
+Status: Done
+Owner/session: main orchestrator with Product-Agent, Architecture-Agent, Issue-Agent, Risk-Agent, Implementation-Agent, Integration-Agent, QA-Agent, Refactor-Guard-Agent, Documentation-Agent, and Final-Review-Agent roles.
+
+Goal:
+
+- Start a new selective upgrade wave from `upstream-bitfun/main@ac16dcc18`.
+- Preserve current Void-only features: multi-agent collaboration, subconversations, floating chat, AI short-drama canvas, AI media, terminal, Computer Use, and Void brand identity.
+- Process upstream changes by small issues, not by direct merge.
+
+Completed in kickoff:
+
+- Reconfirmed current branch and upstream reference.
+- Reconfirmed that the working tree contains generated version-file changes from the running desktop project.
+- Added the new wave to PRD, architecture boundaries, issues, decisions, and test strategy.
+- Dispatched read-only Product, Architecture, Issue, Risk, Implementation, Integration, QA, Refactor-Guard, Documentation, and Final-Review subagents before implementation.
+
+Next:
+
+- Resolve documentation consistency findings from Documentation-Agent and Final-Review-Agent.
+- `ISSUE-1160A` has completed. Start the next issue only after a fresh Architecture Gate for that issue.
+
+## ISSUE-1100 Upstream Incremental Inventory Refresh
+
+Status: Done
+Date: 2026-07-03
+Owner/session: main orchestrator plus Product-Agent, Architecture-Agent, Issue-Agent, and Risk-Agent
+
+Completed:
+
+- Read current migration PRD, architecture, decisions, issues, test plan, and progress documents.
+- Fetched and compared upstream `GCWing/BitFun` `main`; current reference is `ac16dcc18`.
+- Confirmed the latest in-scope theme-governance commit is `082cee447`.
+- Classified the next wave into Flow Chat, Terminal, Computer Use Windows, Image understanding/context, MCP/tool runtime, Theme/token governance, Provider/service boundary, and Core crate decomposition issues.
+- Recorded subagent findings and converted them into `ISSUE-1100` through `ISSUE-1180`.
+
+Verification:
+
+- Docs-only diff check is required before final closeout of this turn.
+
+Remaining risk:
+
+- `ISSUE-1100` is inventory only. It does not implement upstream fixes.
+- Working tree still contains generated version-file diffs from the running desktop project; they must not be included in an upstream-migration commit unless explicitly intended.
+
+## ISSUE-1160A Theme Near-Color Governance Slice
+
+Status: Done
+Date: 2026-07-03
+Owner/session: main orchestrator plus Implementation-Agent, Integration-Agent, QA-Agent, Refactor-Guard-Agent, Documentation-Agent, and Final-Review-Agent
+
+Completed:
+
+- Added a Void-owned near-color decision artifact at `scripts/theme-color-near-pair-decisions.json`.
+- Added `checkNearPairDecisions` to the Web theme color audit so the artifact is validated during `pnpm run check:theme-colors`.
+- Added node tests for valid decisions, malformed/stale decisions, and Tabs destructive close styling token conformance.
+- Replaced the Tabs close-hover raw destructive color with existing component-library red tokens.
+- Preserved the agreed boundaries: no ThemeService runtime change, no theme preset rewrite, no generated widget compatibility migration, no Flow Chat, AI media, AI short-drama, terminal, Computer Use, provider, Rust, or brand changes.
+
+Verification:
+
+- Passed: `node --test scripts\audit-theme-colors.test.mjs`, 11 tests.
+- Passed: `pnpm run check:theme-colors`.
+- Passed: `pnpm run check:theme-visual-contract`.
+- Passed: `node --test scripts\audit-theme-colors.test.mjs scripts\audit-cli-theme-colors.test.mjs`, 21 tests.
+- Passed: `pnpm run type-check:web`.
+
+Remaining risk:
+
+- No browser or desktop visual smoke was run for Tabs. The style change is token-only and covered by theme governance tests.
+- Generated widget payload compatibility and broader ThemeService/runtime token contracts remain separate follow-up issues.
+- Generated version-file diffs from the running desktop project remain unrelated and must be excluded from any scoped commit for this issue.

@@ -1455,3 +1455,152 @@ Reason: Would overwrite Void identity and installer contracts.
 Priority: Rejected
 Status: Rejected
 Reason: Would risk local session restore, multi-agent, media, and short-drama behavior.
+
+## 2026-07-03 Selective Upgrade Wave
+
+### ISSUE-1100 Upstream Incremental Inventory Refresh
+
+Priority: P0
+Status: Done
+Goal: Refresh the upstream candidate inventory from `upstream-bitfun/main@ac16dcc18`, classify every recent capability in the user-approved priority list, and confirm what is already synchronized locally.
+Allowed files: consensus docs only.
+Forbidden files: production Web UI, Rust, desktop, terminal, media, short-drama, scripts except documentation references.
+Affected module: upstream migration governance.
+Acceptance:
+- Current upstream head and theme-governance commit are recorded.
+- Each candidate family has one of: synced, partially synced, planned, deferred, or rejected.
+- No code is changed in this inventory issue.
+Result:
+- Upstream reference refreshed to `upstream-bitfun/main@ac16dcc18`.
+- Latest theme-governance commit in this wave is `082cee447`.
+- Candidate families were classified without production code changes:
+  - Flow Chat history/navigation: partially synced through `ISSUE-130*`; `ISSUE-1110` audits remaining upstream delta.
+  - Terminal replay/input: partially synced; `ISSUE-1120` audits replay/input/runtime-port separation.
+  - Computer Use Windows: partially synced; `ISSUE-1130` audits WGC/D3D11/pointer/HWND fixes.
+  - Image understanding/context: partially synced; `ISSUE-1140` audits `AnalyzeImage`, BTW image context, and media/short-drama image flows.
+  - MCP/tool runtime: partially synced; `ISSUE-1150` audits timeout, readonly manifest, and output-contract gaps.
+  - Theme/token governance: planned; `ISSUE-1160` adapts upstream near-color/token governance.
+  - Provider/service boundary: planned study; `ISSUE-1170` maps one safe boundary improvement or defers.
+  - Core crate decomposition: deferred; `ISSUE-1180` records architecture guidance only.
+  - BitFun brand/installer/release identity: rejected by existing `ISSUE-901`.
+
+### ISSUE-1110 Flow Chat History Navigation Delta Audit
+
+Priority: P0
+Status: Proposed
+Goal: Compare recent upstream Flow Chat history/navigation fixes, especially `502270994`, against the current completed `ISSUE-130*` slices and identify any remaining low-risk gaps.
+Allowed files: Flow Chat tests/docs first; implementation only after audit.
+Forbidden files: wholesale `FlowChatStore.ts`, `VirtualMessageList.tsx`, or container replacement; AI media, short-drama, terminal, and subagent internals.
+Acceptance:
+- Remaining gaps are listed with file-level scope.
+- Existing multi-agent, BTW, floating chat, AI media, and short-drama projections are protected by tests or explicit manual checks.
+- Any implementation is split into a follow-up issue.
+Risk notes: Highest risk is duplicating or weakening completed `ISSUE-130*` history/viewport behavior; audit must classify covered work before proposing code.
+
+### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
+
+Priority: P0
+Status: Proposed
+Goal: Compare upstream terminal reliability and runtime-port work with current terminal replay buffering and decide the next safe terminal slice.
+Allowed files: terminal service/core tests and docs first.
+Forbidden files: upstream `src/crates/services/terminal` bulk migration, Flow Chat store changes, Computer Use policy changes.
+Acceptance:
+- Current flat and structured replay contracts are documented.
+- Input reliability, paste policy, renderer lazy-load, and runtime-port work are separated.
+- Follow-up implementation issue has one owner and one test surface.
+Risk notes: Terminal replay facts must not move into Flow Chat preview code, and desktop DTO changes must not hide PTY/session errors.
+
+### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
+
+Priority: P0
+Status: Proposed
+Goal: Isolate upstream Windows Computer Use fixes for WGC D3D11 arguments, pointer coordinate types, and dropping HWND before await.
+Allowed files: Windows desktop adapter tests/docs first; implementation only as platform-specific follow-up.
+Forbidden files: core schema expansion, Web UI, terminal, macOS adapters, unrelated Computer Use DTO extraction.
+Acceptance:
+- Each Windows fix is mapped to current local file ownership or marked absent.
+- Compile/test strategy is documented for Windows-specific code.
+- Unsupported or untestable behavior is not claimed as fixed.
+Risk notes: Windows API unsafe and async handle-lifetime changes require platform-specific proof; non-Windows checks are insufficient for release claims.
+
+### ISSUE-1140 Image Understanding and Image Context Completion Audit
+
+Priority: P1
+Status: Proposed
+Goal: Verify local `AnalyzeImage`, image contexts, BTW image forwarding, and media/short-drama image flows against upstream image-understanding changes.
+Allowed files: AnalyzeImage tests, BTW image-context tests, docs first.
+Forbidden files: UI byte loading, provider adapter reorganization, media or short-drama service rewrites.
+Acceptance:
+- Local synced, partial, and missing image-understanding pieces are listed.
+- Workspace-scoped path/data-url/image-id contracts remain explicit.
+- Any runtime completion is split into one tool-contract issue.
+Risk notes: Provider multimodal capability drift and workspace path permissions must stay inside the tool/runtime boundary.
+
+### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
+
+Priority: P1
+Status: Proposed
+Goal: Compare upstream MCP/tool runtime and readonly manifest reliability changes with current Void runtime, request timeout, and tool manifest tests.
+Allowed files: tool runtime tests/docs first.
+Forbidden files: runtime crate reorganization, provider/service mass moves, release workflow changes.
+Acceptance:
+- Existing remote MCP timeout and POST-SSE coverage are checked.
+- Readonly manifest gaps are listed.
+- Any implementation preserves explicit `status/source/error` outputs.
+Risk notes: Large outputs, timeouts, and readonly policy must not be represented by raw strings or hidden UI fallbacks.
+
+### ISSUE-1160 Theme Token Governance Incremental Upgrade
+
+Priority: P1
+Status: Proposed
+Goal: Adapt upstream `082cee447` theme-governance improvements, especially near-color decision tracking and Tabs/token audit tightening, without changing product branding.
+Allowed files: theme governance scripts/tests, component-library token docs, `Tabs.scss`, focused theme tests, docs.
+Forbidden files: page-specific visual exceptions, BitFun branding, broad visual redesign, AI media/short-drama page logic.
+Acceptance:
+- `theme-color-near-pair-decisions.json` or an equivalent Void-owned governance artifact exists.
+- Theme audits pass.
+- Component token changes are documented and do not introduce page-level business logic.
+Risk notes: Do not copy upstream BitFun class names or broad `tokens.scss` rewrites; visual polish must remain token-governed.
+
+### ISSUE-1160A Theme Near-Color Governance Slice
+
+Priority: P1
+Status: Done
+Goal: Implement the first safe theme-governance slice by adding a Void-owned near-color decision artifact, focused audit coverage, and at most a small Tabs token conformance cleanup.
+Allowed files: `scripts/audit-theme-colors.mjs`, `scripts/audit-theme-colors.test.mjs`, `scripts/theme-color-near-pair-decisions.json`, `src/web-ui/src/component-library/components/Tabs/Tabs.scss`, optional focused component token test, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ISSUES.md`.
+Forbidden files: `ThemeService.ts`, theme presets, mobile or installer theme files, Flow Chat, AI media, AI short-drama, terminal, Computer Use, provider/service, Rust crates, BitFun branding.
+Acceptance:
+- Near-color decision artifact validates shape and is checked by focused tests.
+- `pnpm run check:theme-colors` and `pnpm run check:theme-visual-contract` pass.
+- Any Tabs cleanup uses existing component-library tokens or CSS vars and does not create page-level exceptions.
+Risk notes: Keep this as governance plus one component-library cleanup; generated widget compatibility and runtime ThemeService expansion remain separate issues.
+Result:
+- Added `scripts/theme-color-near-pair-decisions.json` as a Void-owned near-color governance artifact.
+- Extended `scripts/audit-theme-colors.mjs` to validate near-pair decision shape and stale entries through the existing audit CLI.
+- Added focused node tests for near-pair decision validation and Tabs destructive close styling token conformance.
+- Replaced the Tabs close-hover raw destructive color with existing component-library red tokens.
+- Did not change ThemeService runtime behavior, presets, generated widget payload compatibility, Flow Chat, AI media, AI short-drama, terminal, provider, Computer Use, Rust crates, or brand assets.
+
+### ISSUE-1170 Provider Service Boundary Study
+
+Priority: P2
+Status: Proposed
+Goal: Study upstream provider HTTP owner moves and identify one possible low-risk boundary improvement for current Void.
+Allowed files: docs and static boundary checks first.
+Forbidden files: provider adapter mass move, crate layout changes, runtime behavior changes without a follow-up issue.
+Acceptance:
+- Current provider ownership is mapped.
+- One optional small boundary issue is proposed or the work is deferred.
+Risk notes: UI catalog, core config, provider adapters, and stream usage tests must move together or not at all.
+
+### ISSUE-1180 Core Crate Decomposition Deferred Plan
+
+Priority: P2
+Status: Proposed
+Goal: Extract useful architectural ideas from upstream crate decomposition while explicitly deferring directory migration.
+Allowed files: docs and boundary checker references.
+Forbidden files: Cargo manifests, crate moves, module renames, production code.
+Acceptance:
+- Deferred rationale is updated.
+- Boundary checker gaps, if any, are proposed as separate small issues.
+Risk notes: Crate movement is explicitly deferred; this issue may only improve documentation or static boundary checks.

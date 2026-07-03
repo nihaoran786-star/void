@@ -24,7 +24,7 @@ Direct upstream merge is out of scope because it risks overwriting brand, instal
 
 The current local upstream clone is `tmp/upstream-bitfun`.
 
-Current observed upstream head:
+Earlier observed upstream head for the initial migration baseline:
 
 - repository: `GCWing/BitFun`
 - branch: `main`
@@ -137,3 +137,38 @@ Current closeout status is tracked in `ISSUE-999 Split Parent Closeout Audit`.
 - Upstream capability coverage is explicit rather than guessed.
 - Low-risk migrated fixes land without regressions in existing media, short-drama, multi-agent, desktop, and brand behavior.
 - High-risk upstream changes are either decomposed into safe slices or documented as deferred/rejected.
+
+## 2026-07-03 Selective Upgrade Wave
+
+Upstream has advanced beyond the earlier migration baseline. The current observed upstream reference is:
+
+- repository: `GCWing/BitFun`
+- branch: `main`
+- commit: `ac16dcc18`
+- latest theme-governance commit in scope: `082cee447 refactor(theme): tighten extension color governance`
+
+This wave is not a whole-repository synchronization. It is a selective capability upgrade program for the following priority order:
+
+1. Flow Chat history, navigation, and long-session stability.
+2. Terminal input, replay, and session recovery reliability.
+3. Computer Use Windows capture, WGC, HWND, and platform safety fixes.
+4. Image understanding and image-context capability completion.
+5. MCP/tool runtime reliability and readonly manifest coverage.
+6. Theme and token governance, including upstream near-color decisions.
+7. Provider/service ownership boundaries.
+8. Core crate decomposition ideas as deferred architecture guidance only.
+
+Non-goals for this wave:
+
+- Do not directly merge upstream `main`.
+- Do not adopt BitFun branding, installer, release assets, or package identity.
+- Do not reorganize the Rust crate layout.
+- Do not replace large Flow Chat, terminal, Computer Use, media, or short-drama files wholesale.
+- Do not weaken current multi-agent, BTW/subconversation, floating chat, AI media, or AI short-drama behavior.
+
+Acceptance for this wave:
+
+- Every candidate above is represented by a small issue or an explicit deferred/rejected decision.
+- Implementation proceeds one issue at a time.
+- Each issue has a module owner, allowed files, forbidden files, tests, and rollback/risk notes.
+- Any upstream patch is adapted through the current Void interface, not copied as an owner replacement.

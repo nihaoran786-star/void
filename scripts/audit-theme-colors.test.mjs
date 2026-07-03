@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
   auditThemeColors,
   checkBaseline,
+  checkNearPairDecisions,
   collectCssVarReferences,
   collectThemeColorEntriesFromText,
   findNearColorPairs,
@@ -129,6 +130,86 @@ test('checkBaseline fails on growth and requires lowered baseline when debt drop
   }
 });
 
+test('checkNearPairDecisions validates recorded current near-pair decisions', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const decisionsPath = path.join(tempDir, 'near-pair-decisions.json');
+    const report = {
+      root: 'src/web-ui/src',
+      nearPairs: {
+        indistinguishable: [{ key: '#111111 <-> #111112' }],
+        near: [{ key: '#222222 <-> #222226' }],
+      },
+    };
+    writeText(decisionsPath, JSON.stringify({
+      version: 1,
+      description: 'fixture near-pair decisions',
+      decisions: [
+        {
+          root: 'src/web-ui/src',
+          domain: 'componentLibrary',
+          key: '#111111 <-> #111112',
+          decision: 'keep',
+          owner: 'src/web-ui/src/component-library',
+          reason: 'fixture reason',
+          reevaluateWhen: 'fixture trigger',
+        },
+      ],
+    }));
+
+    assert.deepEqual(checkNearPairDecisions(report, decisionsPath), []);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('checkNearPairDecisions reports malformed and stale decisions', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const decisionsPath = path.join(tempDir, 'near-pair-decisions.json');
+    const report = {
+      root: 'src/web-ui/src',
+      nearPairs: {
+        indistinguishable: [{ key: '#111111 <-> #111112' }],
+        near: [],
+      },
+    };
+    writeText(decisionsPath, JSON.stringify({
+      version: 1,
+      description: 'fixture near-pair decisions',
+      decisions: [
+        {
+          root: 'src/web-ui/src',
+          domain: 'componentLibrary',
+          key: '#222222 <-> #222226',
+          decision: 'unknown',
+          owner: '',
+          reason: 'fixture reason',
+          reevaluateWhen: 'fixture trigger',
+        },
+      ],
+    }));
+
+    const failures = checkNearPairDecisions(report, decisionsPath).join('\n');
+    assert.match(failures, /decision must be one of/);
+    assert.match(failures, /owner must be a non-empty string/);
+    assert.match(failures, /key is not present in the current near-pair report/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('Tabs component keeps destructive close styling on component-library tokens', () => {
+  const tabsScss = fs.readFileSync(
+    path.join(root, 'src/web-ui/src/component-library/components/Tabs/Tabs.scss'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(tabsScss, /#ef4444|rgba\(239,\s*68,\s*68,/);
+  assert.match(tabsScss, /tokens\.\$glass-red-hover/);
+  assert.match(tabsScss, /tokens\.\$color-error/);
+});
+
 test('writeReportJson creates parent directories', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
   try {
@@ -148,4 +229,5 @@ test('CLI audit can print a machine-readable report', () => {
   assert.equal(report.root, 'src/web-ui/src');
   assert.equal(typeof report.uniqueColors, 'number');
   assert.equal(Array.isArray(report.nearPairs.indistinguishable), true);
+  assert.equal(report.summary.nearPairDecisions.enforced, true);
 });
