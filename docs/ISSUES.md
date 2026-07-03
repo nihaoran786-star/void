@@ -2108,7 +2108,10 @@ Progress:
 - Completed the ShortDramaCenterPanel status pill token slice: ready/done, generating/reviewing/revising, stale, and error/unsupported/needs-intervention indicator dots now use local `--short-drama-status-*` tokens.
 - Added `scripts/short-drama-center-status-theme.test.mjs` to lock the status pill token boundary.
 - Preserved CenterPanel TSX state, status ownership, stage navigation, artifact/media recovery, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
-- Remaining 1160F debt: ShortDramaCenterPanel stage/media-preview/final-preview raw visual colors need separate domain slices.
+- Completed the ShortDramaCenterPanel media-preview token slice: default preview backdrop, empty/missing/referenced state, generating state, media fallback, and caption overlay/text colors now use local `--short-drama-preview-*` tokens.
+- Added `scripts/short-drama-center-media-preview-theme.test.mjs` to lock the media-preview token boundary.
+- Preserved CenterPanel TSX preview resolution, media availability classification, artifact/media recovery, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
+- Remaining 1160F debt: ShortDramaCenterPanel stage/final-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 
