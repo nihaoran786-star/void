@@ -14,6 +14,9 @@ use crate::agentic::tools::computer_use_host::{
 };
 use crate::agentic::tools::computer_use_optimizer::hash_screenshot_bytes;
 use crate::agentic::tools::framework::{Tool, ToolExposure, ToolResult, ToolUseContext};
+use crate::agentic::tools::tool_context_runtime::{
+    ToolResultImageAttachmentCapability, ToolResultImageAttachmentUnsupportedReason,
+};
 use crate::service::config::global::GlobalConfigManager;
 use crate::util::errors::{VoidError, VoidResult};
 use crate::util::types::ToolImageAttachment;
@@ -435,32 +438,21 @@ The **primary model cannot consume images** in tool results — **do not** use *
         Ok(vec![ToolResult::ok(body, Some(hint))])
     }
 
-    fn primary_api_format(ctx: &ToolUseContext) -> String {
-        ctx.custom_data
-            .get("primary_model_provider")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_lowercase()
-    }
-
     /// Screenshot tool results attach JPEGs via `tool_image_attachments`; only providers whose
     /// request converters emit multimodal tool output are supported (Anthropic + OpenAI-compatible).
     fn require_multimodal_tool_output_for_screenshot(ctx: &ToolUseContext) -> VoidResult<()> {
-        if !ctx.primary_model_supports_image_understanding() {
-            return Err(VoidError::tool(
+        match ctx.tool_result_image_attachment_capability() {
+            ToolResultImageAttachmentCapability::Supported { .. } => Ok(()),
+            ToolResultImageAttachmentCapability::Unsupported {
+                reason: ToolResultImageAttachmentUnsupportedReason::PrimaryModelDoesNotAcceptImages,
+                ..
+            } => Err(VoidError::tool(
                 "The primary model does not accept images; do not use ComputerUse action `screenshot` or other image-producing steps. Use `click_element`, `locate`, `move_to_text` (with `move_to_text_match_index` when listed), `mouse_move` with globals from tool JSON, `key_chord`, etc.".to_string(),
-            ));
+            )),
+            ToolResultImageAttachmentCapability::Unsupported { .. } => Err(VoidError::tool(
+                "Screenshot results include images in tool results; set the primary model to Anthropic (Claude) or OpenAI-compatible API format. Other providers are not supported for screenshots yet.".to_string(),
+            )),
         }
-        let f = Self::primary_api_format(ctx);
-        if matches!(
-            f.as_str(),
-            "anthropic" | "openai" | "response" | "responses"
-        ) {
-            return Ok(());
-        }
-        Err(VoidError::tool(
-            "Screenshot results include images in tool results; set the primary model to Anthropic (Claude) or OpenAI-compatible API format. Other providers are not supported for screenshots yet.".to_string(),
-        ))
     }
 
     fn resolve_xy_f64(

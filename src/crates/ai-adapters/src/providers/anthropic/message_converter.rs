@@ -262,7 +262,7 @@ impl AnthropicMessageConverter {
 #[cfg(test)]
 mod tests {
     use super::AnthropicMessageConverter;
-    use crate::types::Message;
+    use crate::types::{Message, ToolImageAttachment};
     use serde_json::json;
 
     #[test]
@@ -305,5 +305,39 @@ mod tests {
 
         assert_eq!(content[0]["type"], json!("text"));
         assert_eq!(content[0]["text"], json!("<void_contents>"));
+    }
+
+    #[test]
+    fn converts_tool_message_with_images_to_tool_result_blocks() {
+        let msg = Message {
+            role: "tool".to_string(),
+            content: Some("Screen captured".to_string()),
+            reasoning_content: None,
+            thinking_signature: None,
+            tool_calls: None,
+            tool_call_id: Some("toolu_1".to_string()),
+            name: Some("computer_use".to_string()),
+            is_error: None,
+            tool_image_attachments: Some(vec![ToolImageAttachment {
+                mime_type: "image/jpeg".to_string(),
+                data_base64: "AAA".to_string(),
+            }]),
+        };
+
+        let (_, messages) = AnthropicMessageConverter::convert_messages(vec![msg]);
+        let tool_result = &messages[0]["content"][0];
+
+        assert_eq!(messages[0]["role"], json!("user"));
+        assert_eq!(tool_result["type"], json!("tool_result"));
+        assert_eq!(tool_result["tool_use_id"], json!("toolu_1"));
+        assert_eq!(tool_result["content"][0]["type"], json!("image"));
+        assert_eq!(tool_result["content"][0]["source"]["type"], json!("base64"));
+        assert_eq!(
+            tool_result["content"][0]["source"]["media_type"],
+            json!("image/jpeg")
+        );
+        assert_eq!(tool_result["content"][0]["source"]["data"], json!("AAA"));
+        assert_eq!(tool_result["content"][1]["type"], json!("text"));
+        assert_eq!(tool_result["content"][1]["text"], json!("Screen captured"));
     }
 }

@@ -650,7 +650,7 @@ impl GeminiMessageConverter {
 #[cfg(test)]
 mod tests {
     use super::GeminiMessageConverter;
-    use crate::types::{Message, ToolCall, ToolDefinition};
+    use crate::types::{Message, ToolCall, ToolDefinition, ToolImageAttachment};
     use serde_json::json;
 
     #[test]
@@ -736,6 +736,37 @@ mod tests {
             contents[0]["parts"][0]["thoughtSignature"],
             json!("skip_thought_signature_validator")
         );
+    }
+
+    #[test]
+    fn gemini_tool_response_does_not_convert_tool_image_attachments() {
+        let messages = vec![Message {
+            role: "tool".to_string(),
+            content: Some("Screen captured".to_string()),
+            reasoning_content: None,
+            thinking_signature: None,
+            tool_calls: None,
+            tool_call_id: Some("call_1".to_string()),
+            name: Some("computer_use".to_string()),
+            is_error: None,
+            tool_image_attachments: Some(vec![ToolImageAttachment {
+                mime_type: "image/jpeg".to_string(),
+                data_base64: "AAA".to_string(),
+            }]),
+        }];
+
+        let (_, contents) = GeminiMessageConverter::convert_messages(messages, "gemini-2.5-pro");
+        let tool_part = &contents[0]["parts"][0];
+
+        assert_eq!(contents[0]["role"], json!("user"));
+        assert_eq!(tool_part["functionResponse"]["name"], json!("computer_use"));
+        assert_eq!(
+            tool_part["functionResponse"]["response"],
+            json!({ "content": "Screen captured" })
+        );
+        assert!(tool_part.get("inlineData").is_none());
+        assert!(tool_part.get("image").is_none());
+        assert!(!tool_part.to_string().contains("AAA"));
     }
 
     #[test]

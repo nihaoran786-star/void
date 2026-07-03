@@ -66,6 +66,38 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/crates/core/src/agentic/tools/tool_context_runtime.rs`.
+- `src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs`.
+- `src/crates/ai-adapters/src/providers/anthropic/message_converter.rs`.
+- `src/crates/ai-adapters/src/providers/gemini/message_converter.rs`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No concrete `ViewImage` runtime, filesystem/image reading, Web UI upload flow, AI media, AI short-drama, Flow Chat, provider transport rewrite, or `AnalyzeImage` behavior changed.
+
+Checks:
+
+- `cargo test -p void-ai-adapters tool_message_with_images --lib -- --nocapture`
+  - Result: passed.
+  - Notes: covers existing OpenAI Responses/Chat Completions paths plus the new Anthropic `tool_result` image/text block conversion test.
+- `cargo test -p void-ai-adapters gemini_tool_response_does_not_convert_tool_image_attachments --lib -- --nocapture`
+  - Result: failed first because the test expected a raw string response while existing Gemini `functionResponse` wraps text as `{ "content": ... }`.
+  - Result: passed after correcting the assertion to the current Gemini response shape.
+  - Notes: proves Gemini does not consume `ToolImageAttachment` for tool-result image output, so core capability gating must prevent image-emitting tools on that provider path.
+- `cargo test -p void-core tool_result_image_attachment_capability --lib -- --nocapture`
+  - Result: passed.
+  - Notes: covers supported providers, image-disabled primary models, unsupported Gemini provider, and missing provider defaulting to unsupported.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/core/src/agentic/tools/tool_context_runtime.rs src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs src/crates/ai-adapters/src/providers/anthropic/message_converter.rs src/crates/ai-adapters/src/providers/gemini/message_converter.rs docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md docs/DECISIONS.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui docs`
+  - Result: listed this slice's eight scoped files plus existing non-this-slice Web UI generated version files; generated files are not part of this change and must not be staged.
+
 ## ISSUE-1130C1 Windows Pointer Coordinate Contract Tests
 
 Date: 2026-07-04

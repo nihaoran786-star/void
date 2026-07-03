@@ -1996,7 +1996,7 @@ Result:
 ### ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Prove tool-result image attachments are sent only when the primary model/provider path supports them.
 Allowed files: provider adapter tests, tool-context capability tests, docs.
 Forbidden files: concrete `ViewImage` filesystem reads, Web UI upload flow, media/short-drama services, provider transport rewrites.
@@ -2004,6 +2004,12 @@ Acceptance:
 - OpenAI/Responses and any supported adapter paths have focused tests for `ToolImageAttachment` conversion.
 - Unsupported primary-model paths return a typed unsupported result rather than silently dropping images.
 - Provider-specific wire logic stays in adapters, not core tool contracts.
+Result:
+- Added a core `ToolUseContext::tool_result_image_attachment_capability()` contract with explicit supported/unsupported status, source, and reason.
+- Updated Computer Use screenshot gating to reuse that core capability contract while preserving existing user-facing errors.
+- Added Anthropic adapter coverage for `ToolImageAttachment` conversion into `tool_result` image/text blocks.
+- Added Gemini adapter coverage proving tool-result image attachments are not converted on the unsupported provider path; the core gate is responsible for preventing image-emitting tools from using that path.
+- Kept `ViewImage` unimplemented and unchanged in manifests until the path/image-processing slice passes.
 
 ### ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
 

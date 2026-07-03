@@ -62,6 +62,23 @@ pub struct ToolUseContext {
     pub workspace_services: Option<WorkspaceServices>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolResultImageAttachmentCapability {
+    Supported {
+        source: &'static str,
+    },
+    Unsupported {
+        source: &'static str,
+        reason: ToolResultImageAttachmentUnsupportedReason,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolResultImageAttachmentUnsupportedReason {
+    PrimaryModelDoesNotAcceptImages,
+    UnsupportedProvider { provider: String },
+}
+
 impl ToolUseContext {
     pub(crate) fn delegation_policy(&self) -> DelegationPolicy {
         let allow_subagent_spawn = self
@@ -125,6 +142,37 @@ impl ToolUseContext {
             .get("primary_model_supports_image_understanding")
             .and_then(|v| v.as_bool())
             .unwrap_or(true)
+    }
+
+    /// Whether tool results may include image attachments for the active primary provider.
+    pub fn tool_result_image_attachment_capability(&self) -> ToolResultImageAttachmentCapability {
+        if !self.primary_model_supports_image_understanding() {
+            return ToolResultImageAttachmentCapability::Unsupported {
+                source: "primary_model_supports_image_understanding",
+                reason: ToolResultImageAttachmentUnsupportedReason::PrimaryModelDoesNotAcceptImages,
+            };
+        }
+
+        let provider = self
+            .custom_data
+            .get("primary_model_provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        if matches!(
+            provider.as_str(),
+            "anthropic" | "openai" | "response" | "responses"
+        ) {
+            return ToolResultImageAttachmentCapability::Supported {
+                source: "primary_model_provider",
+            };
+        }
+
+        ToolResultImageAttachmentCapability::Unsupported {
+            source: "primary_model_provider",
+            reason: ToolResultImageAttachmentUnsupportedReason::UnsupportedProvider { provider },
+        }
     }
 }
 
@@ -691,6 +739,87 @@ fn git_relative_path(workspace_root: &Path, path: &str) -> Option<String> {
     };
 
     Some(relative.to_string_lossy().replace('\\', "/"))
+}
+
+#[cfg(test)]
+mod tool_result_image_attachment_capability_tests {
+    use super::{
+        ToolResultImageAttachmentCapability, ToolResultImageAttachmentUnsupportedReason,
+        ToolUseContext,
+    };
+    use crate::agentic::tools::ToolRuntimeRestrictions;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    fn context(provider: Option<&str>, supports_images: bool) -> ToolUseContext {
+        let mut custom_data = HashMap::new();
+        custom_data.insert(
+            "primary_model_supports_image_understanding".to_string(),
+            json!(supports_images),
+        );
+        if let Some(provider) = provider {
+            custom_data.insert("primary_model_provider".to_string(), json!(provider));
+        }
+
+        ToolUseContext {
+            tool_call_id: None,
+            agent_type: Some("test".to_string()),
+            session_id: None,
+            dialog_turn_id: None,
+            workspace: None,
+            unlocked_collapsed_tools: Vec::new(),
+            custom_data,
+            computer_use_host: None,
+            cancellation_token: None,
+            runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
+            workspace_services: None,
+        }
+    }
+
+    #[test]
+    fn tool_result_image_attachment_capability_allows_supported_providers() {
+        for provider in ["anthropic", "openai", "response", "responses"] {
+            assert_eq!(
+                context(Some(provider), true).tool_result_image_attachment_capability(),
+                ToolResultImageAttachmentCapability::Supported {
+                    source: "primary_model_provider",
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn tool_result_image_attachment_capability_rejects_primary_model_without_images() {
+        assert_eq!(
+            context(Some("openai"), false).tool_result_image_attachment_capability(),
+            ToolResultImageAttachmentCapability::Unsupported {
+                source: "primary_model_supports_image_understanding",
+                reason: ToolResultImageAttachmentUnsupportedReason::PrimaryModelDoesNotAcceptImages,
+            }
+        );
+    }
+
+    #[test]
+    fn tool_result_image_attachment_capability_rejects_unsupported_or_missing_provider() {
+        assert_eq!(
+            context(Some("gemini"), true).tool_result_image_attachment_capability(),
+            ToolResultImageAttachmentCapability::Unsupported {
+                source: "primary_model_provider",
+                reason: ToolResultImageAttachmentUnsupportedReason::UnsupportedProvider {
+                    provider: "gemini".to_string(),
+                },
+            }
+        );
+        assert_eq!(
+            context(None, true).tool_result_image_attachment_capability(),
+            ToolResultImageAttachmentCapability::Unsupported {
+                source: "primary_model_provider",
+                reason: ToolResultImageAttachmentUnsupportedReason::UnsupportedProvider {
+                    provider: String::new(),
+                },
+            }
+        );
+    }
 }
 
 #[cfg(test)]
