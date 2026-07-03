@@ -4572,3 +4572,28 @@ Remaining risk:
 - Image context global lookup collisions and local path leak guards remain open in `ISSUE-1140C`.
 - `ViewImage` and short-drama image-summary integration remain gated behind `ISSUE-1140D` and `ISSUE-1140E`.
 - The next selective-upstream candidate is `ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit`.
+
+## ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream MCP/tool-runtime commits including `d77093204`, `7dec5f489`, `8d69e5733`, `5df255a1a`, `cdfdd716d`, `4077c1a8a`, `d6b783967`, `29c78cfb9`, `8a7a54698`, and `65da1a082`.
+- Confirmed current Void already has Streamable HTTP remote MCP with bounded 120s request timeout, POST-SSE regression coverage, explicit MCP dynamic provider metadata, GetToolSpec collapsed-tool contracts, readonly-enabled filtering, runtime restrictions, and shared oversized-result policy.
+- Confirmed gaps: MCP adapter still has an adapter-level 12k text truncation before shared storage; local stdio ordinary MCP requests lack a clear bounded timeout contract; elicitation still advertises schema validation; tool results do not yet share a uniform `status/source/error` envelope; approval/rejection categories are still mixed across strings and pipeline states.
+- Split follow-up work into `ISSUE-1150A` MCP large-output storage alignment, `ISSUE-1150B` elicitation legacy compatibility, `ISSUE-1150C` MCP request timeout contract, `ISSUE-1150D` readonly/dynamic provider metadata contract, `ISSUE-1150E` typed approval/rejection outcomes, and `ISSUE-1150F` tool-runtime owner migration planning gate.
+- Preserved protected surfaces: no production code, MCP adapter, tool pipeline, Web UI, provider adapter, AI media, AI short-drama, Flow Chat runtime, or crate layout was changed in this audit.
+
+Verification:
+
+- Upstream commit/file inspection completed for MCP large output, elicitation compatibility, tool approvals, GetToolSpec tightening, MCP runtime owner migration, ExecCommand/tool-runtime migration, bridge contracts, and event/tool ABI work.
+- Local code inspection covered remote MCP transport, POST-SSE tests, MCP dynamic tool metadata, `void-agent-tools` contracts, product runtime manifest/GetToolSpec, shared tool-result storage, tool pipeline approval/rejection, runtime restrictions, and desktop/Web MCP boundary notes.
+- No production tests were run in the main session because this was a docs-only audit.
+
+Remaining risk:
+
+- MCP adapter large output, elicitation capability compatibility, local stdio timeout, typed result envelopes, and readonly/provider metadata tests remain follow-up work.
+- Review readonly, multi-agent, AI media, AI short-drama, and Flow Chat must only consume MCP/tool-runtime facts through typed contracts, not MCP-specific UI or page logic.
+- Runtime owner migrations remain deferred behind `ISSUE-1150F`.
+- The next selective-upstream candidate is `ISSUE-1160 Theme Token Governance Incremental Upgrade`.

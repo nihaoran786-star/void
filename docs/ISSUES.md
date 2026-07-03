@@ -1824,7 +1824,7 @@ Risk notes: Short-drama image understanding must be a bridge contract, not a gen
 ### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Compare upstream MCP/tool runtime and readonly manifest reliability changes with current Void runtime, request timeout, and tool manifest tests.
 Allowed files: tool runtime tests/docs first.
 Forbidden files: runtime crate reorganization, provider/service mass moves, release workflow changes.
@@ -1833,6 +1833,96 @@ Acceptance:
 - Readonly manifest gaps are listed.
 - Any implementation preserves explicit `status/source/error` outputs.
 Risk notes: Large outputs, timeouts, and readonly policy must not be represented by raw strings or hidden UI fallbacks.
+Result:
+- Reviewed upstream MCP/tool-runtime work from `d77093204`, `7dec5f489`, `8d69e5733`, `5df255a1a`, `cdfdd716d`, `4077c1a8a`, `d6b783967`, `29c78cfb9`, `8a7a54698`, and `65da1a082`.
+- Confirmed local remote MCP Streamable HTTP already has a bounded 120s request timeout and POST-SSE regression coverage in `src/crates/core/tests/remote_mcp_streamable_http.rs`.
+- Confirmed local MCP dynamic tool metadata preserves explicit provider identity (`providerId`, `providerKind`, MCP server id/name/tool name) instead of deriving provider ownership from registered names.
+- Confirmed local `void-agent-tools` / `product_runtime` already own generic manifest, readonly-enabled filtering, GetToolSpec collapsed-tool contracts, and shared large-output preview/storage policy.
+- Confirmed local gaps: MCP dynamic tool results still have a 12k adapter-level text truncation before shared storage; local stdio MCP ordinary requests do not have the same bounded timeout contract as remote requests; MCP elicitation still advertises schema validation; tool result `status/source/error` envelopes are not uniform; approval/rejection outcomes still rely on mixed string/result categories.
+- Rejected direct copying of upstream runtime-owner/crate migrations, full approval-bar UI changes, and event ABI migrations because they cross core/services/agent-tools/Web UI/product runtime boundaries.
+- Did not change production code, MCP adapters, tool pipeline, Web UI, provider adapters, AI media, AI short-drama, Flow Chat runtime, or crate layout in this audit.
+
+### ISSUE-1150A MCP Large Output Storage Alignment
+
+Priority: P1
+Status: Proposed
+Goal: Let MCP dynamic tool output flow into the shared large-output storage policy without pre-truncating assistant-visible text at the MCP adapter boundary.
+Allowed files: `src/crates/core/src/service/mcp/adapter/tool.rs`, focused MCP adapter tests, shared output policy tests/docs.
+Forbidden files: Web UI tool cards, Flow Chat runtime, provider adapters, media/short-drama services, crate owner migration.
+Acceptance:
+- MCP text output above the current 12k adapter threshold is not silently truncated before shared storage policy can decide preview/persistence.
+- Text, structured content, resource, and mixed MCP results preserve source metadata where available.
+- Shared storage preview/reference behavior remains owned by core runtime artifacts, not `void-agent-tools`.
+- Tests prove the adapter no longer hides content before the central oversized-result policy runs.
+Risk notes: Avoid double truncation. Do not move filesystem artifact writes into `void-agent-tools`.
+
+### ISSUE-1150B MCP Elicitation Legacy Compatibility
+
+Priority: P1
+Status: Proposed
+Goal: Match upstream legacy MCP elicitation compatibility by avoiding unsupported schema-validation capability claims.
+Allowed files: `src/crates/services-integrations/src/mcp/protocol/client_info.rs`, `src/crates/services-integrations/tests/mcp_contracts.rs`, docs.
+Forbidden files: MCP manager lifecycle migration, desktop UI, Flow Chat, provider adapters, media/short-drama services.
+Acceptance:
+- Client capability output no longer advertises elicitation schema validation unless a supported contract is implemented.
+- Existing roots/sampling/elicitation capability tests are updated with explicit expected JSON.
+- Remote POST-SSE tests continue to pass without changing transport routing.
+Risk notes: Keep Streamable HTTP, legacy SSE, and local stdio transport semantics separate.
+
+### ISSUE-1150C MCP Request Timeout Contract
+
+Priority: P1
+Status: Proposed
+Goal: Define bounded timeout behavior for MCP ordinary requests without confusing initialize timeout, remote request timeout, and local stdio behavior.
+Allowed files: MCP protocol/runtime tests and minimal timeout configuration code, docs.
+Forbidden files: UI fallback strings, tool pipeline broad rewrite, runtime owner migration, provider/service mass moves.
+Acceptance:
+- Remote MCP request timeout remains bounded and covered for tools/list, tools/call, resources/read, and prompts/get.
+- Local stdio ordinary request timeout is either explicitly bounded or explicitly documented as delegated to tool pipeline timeout with focused tests.
+- Pending waiter cleanup is verified for timeout paths.
+- Timeout failures return typed error categories suitable for `status/source/error` mapping.
+Risk notes: Do not apply initialize-only timeout semantics blindly to every request path.
+
+### ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
+
+Priority: P1
+Status: Proposed
+Goal: Make readonly/tool-provider metadata expectations explicit for product tools and dynamic MCP tools without changing model-facing schema prematurely.
+Allowed files: `void-agent-tools` contract tests, `void-core` registry/product runtime tests, `void-tool-packs` tests/docs.
+Forbidden files: concrete tool implementations, Web UI, MCP manager lifecycle, provider adapters, media/short-drama services.
+Acceptance:
+- Registry snapshot tests cover `readonly`, `enabled`, provider kind/id, and MCP server/tool metadata.
+- GetToolSpec detail and readonly-enabled filtering preserve existing ordering and collapsed-tool contracts.
+- Current image/media readonly tools use Void names (`AnalyzeImage`, `GetMediaTaskStatus`) rather than upstream names.
+- Any duplicate `GetToolSpec` allowed-list behavior is documented as current contract or split into a separate fix.
+Risk notes: `readOnlyHint` from MCP servers is not by itself a complete safety policy for destructive/open-world tools.
+
+### ISSUE-1150E Tool Approval and Rejection Typed Outcomes
+
+Priority: P2
+Status: Proposed
+Goal: Classify approval/rejection/denial/timeout outcomes at the tool pipeline boundary before adding or redesigning UI states.
+Allowed files: tool pipeline/state manager tests and small result-shape helpers, docs.
+Forbidden files: ToolApprovalBar UI redesign, Flow Chat card rewrite, event ABI migration, media/short-drama service changes.
+Acceptance:
+- User rejection, confirmation timeout, runtime restriction denial, collapsed-tool gate, MCP runtime error, and tool timeout each map to stable categories.
+- Assistant-visible result can be represented with explicit `status/source/error/error_code/retryable` or an equivalent typed contract.
+- Existing cancellation and completed states are not conflated with rejected/denied outcomes.
+- Tests cover pipeline behavior before Web UI rendering.
+Risk notes: UI should render typed state; it should not infer rejection or timeout by string matching.
+
+### ISSUE-1150F Tool Runtime Owner Migration Planning Gate
+
+Priority: P2
+Status: Proposed
+Goal: Preserve useful upstream owner-migration ideas while deferring high-risk crate/runtime moves behind explicit equivalence tests.
+Allowed files: architecture docs, boundary scripts/tests, optional focused contract tests.
+Forbidden files: direct crate moves, MCP runtime state migration, ExecCommand policy migration, remote file helper migration, event ABI migration, Web UI changes.
+Acceptance:
+- MCP runtime state, ExecCommand policy, remote file helpers, MCP/ACP bridge DTOs, tool snapshot ABI, and event projection manifest are tracked as separate migration candidates.
+- Each candidate lists owner, forbidden dependencies, product behavior equivalence tests, and protected surfaces.
+- No runtime/crate migration occurs inside this audit issue.
+Risk notes: These upstream changes are architecture-scale; they must not be batched with MCP timeout, large-output, or readonly-manifest fixes.
 
 ### ISSUE-1160 Theme Token Governance Incremental Upgrade
 

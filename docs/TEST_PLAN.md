@@ -3999,6 +3999,31 @@ Implementation test plan for follow-up issues:
     - Tool manifest/runtime and provider adapter tests before any `ISSUE-1140D` `ViewImage` implementation.
     - Short-drama context export/policy tests before `ISSUE-1140E`.
   - Result: docs-only audit in the main session; no production code changed.
+- `ISSUE-1150`:
+  - `git show --name-status --stat --oneline 65da1a082 8d69e5733 d77093204 5df255a1a cdfdd716d 4077c1a8a d6b783967 7dec5f489 29c78cfb9 8a7a54698 --`
+    - Result: passed; identified upstream MCP large-output, elicitation compatibility, approval/rejection, GetToolSpec, MCP runtime owner, ExecCommand/tool-runtime, bridge-contract, and event/tool ABI scopes.
+  - Local file inspection:
+    - Result: local remote MCP Streamable HTTP transport has bounded 120s request timeout and POST-SSE coverage.
+    - Result: local dynamic MCP tools preserve explicit provider metadata instead of deriving provider identity from tool names.
+    - Result: local `void-agent-tools` and product runtime already own GetToolSpec, readonly-enabled filtering, manifest policy, runtime restrictions, and oversized-result preview/storage contracts.
+    - Result: local gaps remain for MCP adapter-level 12k truncation, local stdio ordinary request timeout, elicitation schema-validation compatibility, typed result envelopes, approval/rejection categories, and readonly/provider metadata coverage.
+  - Recommended current checks before any implementation:
+    - `cargo test -p void-agent-tools --test tool_contracts`
+    - `cargo test -p void-services-integrations --features mcp --test mcp_contracts`
+    - `cargo test -p void-core --test remote_mcp_streamable_http`
+    - `cargo test -p void-core manifest_resolver`
+    - `cargo test -p void-core product_runtime`
+    - `cargo test -p void-core registry`
+    - `cargo test -p void-core tool_result_storage`
+    - `cargo test -p void-core restrictions`
+  - Recommended follow-up checks:
+    - Large MCP text/structured/resource result tests for `ISSUE-1150A`.
+    - Elicitation capability JSON contract tests for `ISSUE-1150B`.
+    - Local and remote MCP timeout tests for `ISSUE-1150C`.
+    - Registry/GetToolSpec/readonly dynamic-provider snapshot tests for `ISSUE-1150D`.
+    - Tool pipeline rejection/timeout/cancel/denial classification tests for `ISSUE-1150E`.
+    - Boundary-script and architecture equivalence checks for `ISSUE-1150F`.
+  - Result: docs-only audit in the main session; no production code changed.
 
 Protected-surface regression candidates:
 
