@@ -4515,6 +4515,31 @@ Remaining risk:
 - Natural PTY exit, frontend flow-control ack, remote empty history, and backend-to-frontend replay integration evidence remain open in `ISSUE-1120D`.
 - The next selective-upstream candidate is `ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit`.
 
+## ISSUE-1120A Terminal API Result Shape and Error Source Contract
+
+Status: Done
+
+Completed:
+
+- Added a terminal service boundary error type, `TerminalCommandError`, with `status`, `operation`, `source`, `code`, and `rawMessage`.
+- Added `classifyTerminalCommandError` so `TerminalService.write`, `TerminalService.resize`, and `TerminalService.getHistory` normalize backend `String`/`Error` failures before rethrowing.
+- Covered local `Session not found`, `Remote terminal manager not available`, `Terminal API not initialized`, and generic operation failures.
+- Kept `TerminalInputQueue` as a batching-only layer; it still receives ordinary Promise failures and does not infer source/status.
+- Deferred backend Tauri command DTO conversion to avoid broad changes to existing `Result<_, String>` command callers.
+- Preserved protected surfaces: terminal UI components, Flow Chat tool cards, AI media, AI short-drama, Computer Use, provider, Rust terminal crates, runtime-port ownership, and crate layout were not changed.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts` passed: 2 files, 12 tests.
+- `pnpm --dir src/web-ui run type-check` passed.
+- Subagents reviewed desktop terminal API string error sources, Web terminal service boundaries, and queue ownership.
+
+Remaining risk:
+
+- Desktop Tauri commands still return `Result<_, String>`; full backend DTO conversion remains deferred.
+- Remote `terminal_get_history` still returns empty history for known remote sessions and falls back to local lookup for unknown sessions; richer remote status/source is deferred to `ISSUE-1120D`.
+- Runtime-port migration remains deferred to `ISSUE-1120B`.
+
 ## ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 
 Status: Done

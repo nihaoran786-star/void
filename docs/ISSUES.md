@@ -1601,7 +1601,7 @@ Result:
 ### ISSUE-1120A Terminal API Result Shape and Error Source Contract
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Harden the current terminal local/remote API contract so write/resize/history/session failures expose explicit `status/source/error` semantics at the module boundary without adopting upstream runtime-port migration.
 Allowed files: terminal API tests/helpers, `src/apps/desktop/src/api/terminal_api.rs` only if an explicit DTO is accepted, focused Web terminal service tests, docs.
 Forbidden files: Flow Chat previews/tool cards, AI media, AI short-drama, Computer Use, provider, upstream `runtime-ports` crate movement, terminal crate directory migration.
@@ -1610,6 +1610,13 @@ Acceptance:
 - Web UI terminal input queue remains the only frontend write batching layer.
 - Tests target the terminal API/service boundary, not `xterm.js` internals.
 Risk notes: Avoid converting every Tauri command at once; a partial DTO must not break existing callers that expect `Result<(), String>`.
+Result:
+- Added `TerminalCommandError` and `classifyTerminalCommandError` at the Web `TerminalService` boundary.
+- `write`, `resize`, and `getHistory` now rethrow readable `Error` instances carrying `status`, `operation`, `source`, `code`, and `rawMessage`.
+- Covered local session-not-found, remote terminal manager unavailable, terminal API initialization failure, and generic operation failure classifications.
+- Preserved `TerminalInputQueue` as the only frontend write batching layer; it continues to receive/retry Promise failures without knowing API source or status.
+- Deferred backend Tauri DTO conversion because changing `Result<(), String>` command contracts would affect broader desktop callers.
+- Did not change terminal UI components, Flow Chat, AI media, AI short-drama, Computer Use, provider, Rust terminal crates, or runtime-port ownership.
 
 ### ISSUE-1120B Terminal Runtime-Port Boundary Study
 

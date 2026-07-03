@@ -3960,6 +3960,17 @@ Implementation test plan for follow-up issues:
     - `cargo test -p terminal-core session::replay`
     - Any `ISSUE-1120A` DTO/result-shape implementation must add or update tests for terminal local/remote write/resize/history boundary behavior.
   - Result: docs-only audit; no production tests were run because no terminal behavior changed in this slice.
+- `ISSUE-1120A`:
+  - `pnpm --dir src/web-ui run test:run src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts`
+    - Result: passed; 2 files, 12 tests.
+    - Covered `TerminalService` classification for local session-not-found write failures, remote-manager resize failures, terminal API initialization failures during history lookup, generic operation failures, and existing pending session event buffering.
+    - Covered `TerminalInputQueue` write batching and post-error recovery to prove the queue remains batching-only and does not absorb API source/status logic.
+  - `pnpm --dir src/web-ui run type-check`
+    - Result: passed.
+  - Subagent/local inspection:
+    - Result: desktop `terminal_write`, `terminal_resize`, and `terminal_get_history` still return `Result<_, String>`; this issue deliberately kept backend DTO conversion deferred.
+    - Result: `TerminalService` is now the only frontend conversion layer for `status/source/code/operation/rawMessage` on write/resize/history failures.
+  - Result: implementation changed only Web terminal service boundary and focused tests; no terminal UI, Flow Chat, AI media, AI short-drama, Computer Use, provider, Rust crate, or runtime-port behavior changed.
 - `ISSUE-1130`:
   - `git show --name-status --stat acf0cdb03 63a7b8160 918894f10 4a88374fc aab1032da --`
     - Result: passed; identified upstream Computer Use platform UX/capture, CUA integration, text-only describe-screen, and runtime-owner commits.

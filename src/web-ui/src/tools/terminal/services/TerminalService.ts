@@ -26,6 +26,83 @@ import type {
 const log = createLogger('TerminalService');
 const MAX_PENDING_SESSION_EVENTS = 100;
 
+export type TerminalCommandOperation = 'getHistory' | 'write' | 'resize';
+
+export type TerminalCommandErrorSource = 'local' | 'remote' | 'api' | 'unknown';
+
+export type TerminalCommandErrorCode =
+  | 'session_not_found'
+  | 'remote_manager_unavailable'
+  | 'terminal_api_unavailable'
+  | 'operation_failed';
+
+export class TerminalCommandError extends Error {
+  readonly status = 'error';
+  readonly operation: TerminalCommandOperation;
+  readonly source: TerminalCommandErrorSource;
+  readonly code: TerminalCommandErrorCode;
+  readonly rawMessage: string;
+
+  constructor(args: {
+    operation: TerminalCommandOperation;
+    source: TerminalCommandErrorSource;
+    code: TerminalCommandErrorCode;
+    rawMessage: string;
+  }) {
+    super(args.rawMessage);
+    this.name = 'TerminalCommandError';
+    this.operation = args.operation;
+    this.source = args.source;
+    this.code = args.code;
+    this.rawMessage = args.rawMessage;
+  }
+}
+
+function messageFromUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return String(error);
+}
+
+export function classifyTerminalCommandError(
+  operation: TerminalCommandOperation,
+  error: unknown
+): TerminalCommandError {
+  if (error instanceof TerminalCommandError) {
+    return error;
+  }
+
+  const rawMessage = messageFromUnknownError(error);
+  const lowerMessage = rawMessage.toLowerCase();
+  const source: TerminalCommandErrorSource = lowerMessage.includes('remote')
+    ? 'remote'
+    : lowerMessage.includes('terminal api not initialized')
+      ? 'api'
+      : rawMessage
+        ? 'local'
+        : 'unknown';
+
+  let code: TerminalCommandErrorCode = 'operation_failed';
+  if (lowerMessage.includes('session not found')) {
+    code = 'session_not_found';
+  } else if (lowerMessage.includes('remote terminal manager not available')) {
+    code = 'remote_manager_unavailable';
+  } else if (lowerMessage.includes('terminal api not initialized')) {
+    code = 'terminal_api_unavailable';
+  }
+
+  return new TerminalCommandError({
+    operation,
+    source,
+    code,
+    rawMessage,
+  });
+}
+
 /**
  * Singleton wrapper for terminal-related Tauri API calls.
  */
@@ -281,8 +358,9 @@ export class TerminalService {
       const history = await invoke<GetHistoryResponse>('terminal_get_history', { sessionId });
       return history;
     } catch (error) {
-      log.error('Failed to get history', error);
-      throw error;
+      const terminalError = classifyTerminalCommandError('getHistory', error);
+      log.error('Failed to get history', terminalError);
+      throw terminalError;
     }
   }
 
@@ -291,8 +369,9 @@ export class TerminalService {
       const request: WriteRequest = { sessionId, data };
       await invoke('terminal_write', { request });
     } catch (error) {
-      log.error('Failed to write to session', { sessionId, error });
-      throw error;
+      const terminalError = classifyTerminalCommandError('write', error);
+      log.error('Failed to write to session', { sessionId, error: terminalError });
+      throw terminalError;
     }
   }
 
@@ -301,8 +380,9 @@ export class TerminalService {
       const request: ResizeRequest = { sessionId, cols, rows };
       await invoke('terminal_resize', { request });
     } catch (error) {
-      log.error('Failed to resize session', { sessionId, cols, rows, error });
-      throw error;
+      const terminalError = classifyTerminalCommandError('resize', error);
+      log.error('Failed to resize session', { sessionId, cols, rows, error: terminalError });
+      throw terminalError;
     }
   }
 
