@@ -2092,7 +2092,11 @@ Progress:
 - Added `scripts/workspace-media-gallery-theme.test.mjs` to lock the Gallery style boundary.
 - Lowered the web theme-color governance baseline after the audit showed reduced `uniqueColors`, `cssVars.fallbackOnlyUnique`, and `nearPairs.nearTotal`.
 - Preserved Workspace Media Gallery React state, pending generation, preview, selection, delete/restore/purge behavior, media services, Short Drama files, Flow Chat session logic, and ThemeService runtime behavior.
-- Remaining 1160F debt: Gallery raw generator/overlay/waveform colors and ShortDramaCenterPanel local-token cleanup need separate domain slices.
+- Completed the Short Drama CenterPanel local-token boundary slice: `ShortDramaCenterPanel.scss` now maps local tokens to global theme tokens, consumes its local band token, and no longer directly uses `--void-*` or the undefined `--short-drama-text`.
+- Added `scripts/short-drama-center-theme.test.mjs` to lock the CenterPanel style boundary.
+- Lowered the web theme-color governance baseline after the audit showed reduced `cssVars.fallbackOnlyUnique` and `cssVars.undefinedUnique`.
+- Preserved Short Drama CenterPanel TSX state, stage navigation, workspace manifest interpretation, stage-agent tabs, artifact/media recovery, Flow Chat/runtime coordination, media services, and ThemeService runtime behavior.
+- Remaining 1160F debt: Gallery raw generator/overlay/waveform colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

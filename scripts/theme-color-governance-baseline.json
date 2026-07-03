@@ -10,10 +10,10 @@
       "max": 1653
     },
     "cssVars.fallbackOnlyUnique": {
-      "max": 76
+      "max": 72
     },
     "cssVars.undefinedUnique": {
-      "max": 51
+      "max": 50
     },
     "nearPairs.indistinguishableTotal": {
       "max": 53

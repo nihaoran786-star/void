@@ -48,24 +48,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160E theme visual governance evidence contract complete.
 - [x] ISSUE-1160F entry theme token boundary slice complete.
 - [x] ISSUE-1160F workspace media gallery theme token wrapper slice complete.
+- [x] ISSUE-1160F short drama center theme token boundary slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice`
+Issue: `ISSUE-1160F Short Drama Center Theme Token Boundary Slice`
 
 Summary:
 
-- Added `--workspace-media-gallery-*` local semantic tokens to `WorkspaceMediaGallery.scss`.
-- Replaced Gallery direct `--void-*` dependencies with local wrappers mapped to global theme tokens for background, text, muted text, border, accent, surface, hover, and error styling.
-- Added `scripts/workspace-media-gallery-theme.test.mjs` to prevent Gallery from regressing to direct `--void-*` dependencies.
-- Lowered the web theme-color governance baseline after `check:theme-colors` proved reduced `uniqueColors`, `cssVars.fallbackOnlyUnique`, and `nearPairs.nearTotal`.
-- Did not touch Gallery TSX state, media services, pending generation ownership, preview, delete/restore/purge flows, Short Drama files, Flow Chat session logic, ThemeService runtime behavior, or broad theme runtime contracts.
+- Replaced Short Drama CenterPanel local token sources from direct `--void-*` dependencies to global theme tokens.
+- Removed the undefined `--short-drama-text` reference and reused the existing `--short-drama-ink` token.
+- Made the existing `--short-drama-band` token an actual local wrapper by consuming it in the script-empty surface.
+- Added `scripts/short-drama-center-theme.test.mjs` to prevent CenterPanel from regressing to direct `--void-*` or undefined `--short-drama-text`.
+- Lowered the web theme-color governance baseline after `check:theme-colors` proved reduced `cssVars.fallbackOnlyUnique` and `cssVars.undefinedUnique`.
+- Did not touch CenterPanel TSX state, stage navigation, workspace manifest interpretation, stage-agent tabs, artifact/media recovery, Flow Chat/runtime coordination, media services, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/workspace-media-gallery-theme.test.mjs` failed before implementation because `WorkspaceMediaGallery.scss` directly used `--void-*` tokens.
-- GREEN: `node --test scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 2 tests after implementation.
-- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 28 tests.
+- RED: `node --test scripts/short-drama-center-theme.test.mjs` failed before implementation because `ShortDramaCenterPanel.scss` directly used `--void-*` tokens.
+- GREEN: `node --test scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 3 tests after implementation.
 - `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.

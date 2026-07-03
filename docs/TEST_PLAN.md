@@ -102,6 +102,39 @@ Residual risk:
 - Gallery generator, overlay, waveform, and media preview raw colors are still visual-debt candidates.
 - ShortDramaCenterPanel still has separate token cleanup debt, including a reported undefined `--short-drama-text` reference.
 
+## ISSUE-1160F Short Drama Center Theme Token Boundary Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `ShortDramaCenterPanel.scss` local semantic theme token sources only.
+- Focused script guard for CenterPanel direct `--void-*` and undefined `--short-drama-text` regressions.
+- Web theme-color governance baseline lowered only where the audit proved reduced debt.
+- No CenterPanel TSX state, stage navigation, workspace manifest interpretation, stage-agent tabs, artifact/media recovery, Flow Chat/runtime coordination, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/short-drama-center-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: `ShortDramaCenterPanel.scss` directly used `--void-*` tokens.
+- `node --test scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs`
+  - Result: passed.
+  - Notes: 3 focused style-boundary tests passed after local token mapping and undefined token cleanup.
+- `pnpm run check:theme-colors`
+  - Initial result: failed because audit values improved below baseline.
+  - Fix: lowered `cssVars.fallbackOnlyUnique` from 76 to 72 and `cssVars.undefinedUnique` from 51 to 50.
+  - Retest result: passed.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- ShortDramaCenterPanel stage/status/media-preview raw visual colors remain separate visual-debt candidates.
+- This slice does not verify rendered screenshots or change stage-agent/runtime behavior.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03

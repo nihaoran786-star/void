@@ -535,3 +535,9 @@ Reason: The entry buttons are a low-risk boundary: they expose navigation afford
 Decision: The second `ISSUE-1160F` code slice removes direct `--void-*` dependencies from `WorkspaceMediaGallery.scss` by defining `--workspace-media-gallery-*` local semantic tokens that map to global theme tokens. The slice may lower the web theme-color governance baseline when the audit proves debt decreased, but it must not change Gallery React behavior, media service state, pending generation ownership, preview resolution, delete/restore/purge flows, or Short Drama state.
 
 Reason: Gallery contains both low-risk chrome styling and high-risk media/pending visual language. Local wrappers let Gallery follow the global theme contract without encoding media availability, artifact status, or generation state into global tokens. Raw generator/overlay/waveform colors and Short Drama CenterPanel cleanup remain separate slices.
+
+## DEC-090: Short Drama CenterPanel Tokens Stay Presentation-Local
+
+Decision: The third `ISSUE-1160F` code slice keeps `ShortDramaCenterPanel.scss` as the only Short Drama CenterPanel owner touched. Its local tokens now map to global theme tokens, the undefined `--short-drama-text` reference is removed, and the existing band token is consumed locally. The slice may lower the web theme-color governance baseline when the audit proves debt decreased.
+
+Reason: CenterPanel TSX owns stage selection, workspace manifest interpretation, stage-agent tabs, artifact references, media recovery, and Flow Chat/runtime coordination. Theme governance must not encode those business states into global tokens or scripts. Local presentation tokens reduce visual debt while preserving the short-drama state model and service/tool boundaries.

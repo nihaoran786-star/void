@@ -1,9 +1,9 @@
 .short-drama-center {
-  --short-drama-ink: var(--void-text-primary, #1f2937);
-  --short-drama-muted: var(--void-text-secondary, #64748b);
-  --short-drama-border: var(--void-border, rgba(148, 163, 184, 0.28));
-  --short-drama-surface: var(--void-bg, #ffffff);
-  --short-drama-band: color-mix(in srgb, var(--void-bg, #ffffff) 92%, #e8eef7);
+  --short-drama-ink: var(--color-text-primary, #1f2937);
+  --short-drama-muted: var(--color-text-secondary, #64748b);
+  --short-drama-border: var(--border-base, rgba(148, 163, 184, 0.28));
+  --short-drama-surface: var(--color-bg-primary, #ffffff);
+  --short-drama-band: color-mix(in srgb, var(--short-drama-surface) 92%, #e8eef7);
   display: flex;
   min-height: 0;
   height: 100%;
@@ -216,7 +216,7 @@
   border: 1px solid var(--short-drama-border);
   border-radius: 8px;
   padding: 14px 16px;
-  background: color-mix(in srgb, var(--short-drama-surface) 88%, #eef2f7);
+  background: var(--short-drama-band);
   color: var(--short-drama-muted);
   font-size: 12px;
   line-height: 1.6;
@@ -532,7 +532,7 @@
 
 .short-drama-card__references strong {
     flex: 0 0 auto;
-    color: color-mix(in srgb, var(--short-drama-muted) 82%, var(--short-drama-text));
+    color: color-mix(in srgb, var(--short-drama-muted) 82%, var(--short-drama-ink));
     font-size: 10px;
     font-weight: 600;
   }
