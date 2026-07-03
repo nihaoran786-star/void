@@ -1957,7 +1957,7 @@ Progress:
 ### ISSUE-1150C MCP Request Timeout Contract
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Define bounded timeout behavior for MCP ordinary requests without confusing initialize timeout, remote request timeout, and local stdio behavior.
 Allowed files: MCP protocol/runtime tests and minimal timeout configuration code, docs.
 Forbidden files: UI fallback strings, tool pipeline broad rewrite, runtime owner migration, provider/service mass moves.
@@ -1967,6 +1967,11 @@ Acceptance:
 - Pending waiter cleanup is verified for timeout paths.
 - Timeout failures return typed error categories suitable for `status/source/error` mapping.
 Risk notes: Do not apply initialize-only timeout semantics blindly to every request path.
+Result:
+- Completed through `ISSUE-1150C1`, `ISSUE-1150C2`, and `ISSUE-1150C3`.
+- Remote Streamable HTTP request timeout is covered at the helper boundary and through the `tools/list`, `tools/call`, `resources/read`, and `prompts/get` method wrappers.
+- Local stdio ordinary request timeout remains a distinct optional connection field; production local default stays delegated to the outer tool pipeline timeout until a separate config/default issue.
+- Timeout failures remain typed as `MCPRuntimeErrorKind::Timeout`.
 
 #### ISSUE-1150C1 Local Stdio Request Timeout Injection Contract
 
@@ -1987,7 +1992,7 @@ Progress:
 - Did not change remote Streamable HTTP timeout behavior, MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
 - Verification: `cargo test -p void-services-integrations --features mcp --lib mcp::server::connection -- --nocapture`, `cargo test -p void-services-integrations --features mcp`, `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture`, `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs`, and `node scripts/check-core-boundaries.mjs` passed.
 Deferred:
-- Full `ISSUE-1150C` remains Proposed for remote multi-method timeout coverage and any future local production default/config wiring.
+- Any future production default/config for local stdio ordinary request timeout remains a separate compatibility issue.
 
 #### ISSUE-1150C2 Remote MCP Timeout Helper Contract
 
@@ -2007,7 +2012,27 @@ Progress:
 - Did not change UI, MCP manager lifecycle, tool pipeline, local stdio defaults, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
 - Verification: `cargo test -p void-services-integrations --features mcp remote_mcp_request_timeout_helper --lib -- --nocapture` passed.
 Deferred:
-- Full `ISSUE-1150C` remains Proposed for remote multi-method timeout failure coverage, pending waiter/transport lifecycle evidence where applicable, and any future local production default/config wiring.
+- Remote multi-method timeout failure coverage was completed later in `ISSUE-1150C3`; any future local production default/config wiring remains a separate compatibility issue.
+
+#### ISSUE-1150C3 Remote MCP Method Timeout Coverage
+
+Priority: P1
+Status: Done
+Goal: Prove the remote Streamable HTTP request timeout reaches the ordinary MCP method wrappers required by `ISSUE-1150C`.
+Allowed files: `src/crates/core/tests/remote_mcp_streamable_http.rs`, `src/crates/services-integrations/src/mcp/server/connection.rs`, docs.
+Forbidden files: UI fallback strings, MCP manager lifecycle, tool pipeline broad rewrite, provider adapters, media/short-drama services, runtime owner migration, default remote timeout value changes.
+Acceptance:
+- `tools/list`, `tools/call`, `resources/read`, and `prompts/get` return `MCPRuntimeErrorKind::Timeout` when the remote server stalls past an injected request timeout.
+- The default remote constructor continues to use the production request timeout.
+- The explicit short-timeout constructor accepts `Duration`, not `Option<Duration>`, so it does not become a public no-timeout escape hatch.
+- The test does not assert rmcp request ids, exact elapsed time, connection reuse internals, or all possible MCP methods.
+Progress:
+- Added `MCPConnection::new_remote_with_request_timeout` as a narrow explicit timeout injection constructor that delegates to the same remote constructor path as the default.
+- Added a Streamable HTTP integration test that stalls one method per server instance and verifies typed timeout results for `tools/list`, `tools/call`, `resources/read`, and `prompts/get`.
+- Did not change default 120s remote timeout behavior, MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
+- Verification: `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture` and `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture` passed.
+Deferred:
+- Local stdio production default/config remains a separate compatibility decision.
 
 ### ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
 

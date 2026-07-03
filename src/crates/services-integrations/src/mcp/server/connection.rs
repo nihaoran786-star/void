@@ -111,6 +111,45 @@ impl MCPConnection {
         headers: HashMap<String, String>,
         oauth_enabled: bool,
     ) -> MCPRuntimeResult<Self> {
+        Self::new_remote_with_data_dir_and_request_timeout(
+            data_dir,
+            server_id,
+            url,
+            headers,
+            oauth_enabled,
+            Some(REMOTE_MCP_REQUEST_TIMEOUT),
+        )
+        .await
+    }
+
+    /// Creates a new remote connection with an explicit ordinary request timeout.
+    pub async fn new_remote_with_request_timeout(
+        server_id: &str,
+        url: String,
+        headers: HashMap<String, String>,
+        oauth_enabled: bool,
+        request_timeout: Duration,
+    ) -> MCPRuntimeResult<Self> {
+        Self::new_remote_with_data_dir_and_request_timeout(
+            std::env::temp_dir(),
+            server_id,
+            url,
+            headers,
+            oauth_enabled,
+            Some(request_timeout),
+        )
+        .await
+    }
+
+    /// Creates a new remote connection with injected OAuth storage and request timeout.
+    async fn new_remote_with_data_dir_and_request_timeout(
+        data_dir: impl Into<PathBuf>,
+        server_id: &str,
+        url: String,
+        headers: HashMap<String, String>,
+        oauth_enabled: bool,
+        request_timeout: Option<Duration>,
+    ) -> MCPRuntimeResult<Self> {
         let initialize_timeout = None;
         let transport = Arc::new(
             RemoteMCPTransport::new(
@@ -118,7 +157,7 @@ impl MCPConnection {
                 server_id,
                 url,
                 headers,
-                Some(REMOTE_MCP_REQUEST_TIMEOUT),
+                request_timeout,
                 oauth_enabled,
             )
             .await?,

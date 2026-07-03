@@ -67,21 +67,28 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150D readonly manifest and dynamic provider metadata contract slice complete.
 - [x] ISSUE-1150C1 local stdio MCP request timeout injection contract complete.
 - [x] ISSUE-1150C2 remote MCP timeout helper contract complete.
+- [x] ISSUE-1150C3 remote MCP method timeout coverage complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150C2 Remote MCP Timeout Helper Contract`
+Issue: `ISSUE-1150C3 Remote MCP Method Timeout Coverage`
 
 Summary:
 
-- Added file-local tests for `RemoteMCPTransport::await_with_optional_timeout`.
-- Covered unbounded future behavior, fast future behavior under a configured timeout, and pending future conversion to `MCPRuntimeErrorKind::Timeout`.
-- Preserved existing remote Streamable HTTP production timeout behavior and did not change MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
-- Kept full `ISSUE-1150C` open for remote multi-method timeout failure coverage; this slice is helper-contract coverage only.
+- Added an explicit `MCPConnection::new_remote_with_request_timeout` constructor for controlled short-timeout injection without changing the default remote 120s timeout path.
+- Extended the existing Streamable HTTP MCP integration test server to stall selected methods.
+- Covered typed timeout failures for remote `tools/list`, `tools/call`, `resources/read`, and `prompts/get` wrappers.
+- Marked parent `ISSUE-1150C` done; future local stdio production default/config remains a separate compatibility decision.
+- Preserved MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, and crate layout.
 
 Verification:
 
-- `cargo test -p void-services-integrations --features mcp remote_mcp_request_timeout_helper --lib -- --nocapture` passed. The tests passed immediately because the production helper already had the expected behavior; no production code change was needed.
+- RED: `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture` failed before implementation because `MCPConnection::new_remote_with_request_timeout` did not exist.
+- GREEN: `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture` passed.
+- Regression: `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture` passed.
+- Regression: `cargo test -p void-services-integrations --features mcp` passed.
+- Check: `cargo check -p void-core --features product-full` passed.
+- Boundary/format: `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs src/crates/core/tests/remote_mcp_streamable_http.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed.
 
 ## Subagent Summary
 

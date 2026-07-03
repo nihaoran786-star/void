@@ -5260,7 +5260,7 @@ Coverage:
 
 Deferred:
 
-- Full `ISSUE-1150C` remains open for remote multi-method timeout failure coverage across tools/list, tools/call, resources/read, and prompts/get.
+- Remote multi-method timeout failure coverage across tools/list, tools/call, resources/read, and prompts/get was completed later in `ISSUE-1150C3`.
 - Wiring a production default/config for local stdio ordinary request timeout remains a separate compatibility decision.
 - Unix CI should continue to run `local_tool_calls_do_not_inherit_initialize_timeout`.
 
@@ -5288,4 +5288,37 @@ Coverage:
 
 - Remote timeout helper preserves operation-specific timeout messages.
 - Timeout classification stays typed at the MCP protocol boundary.
-- Full `ISSUE-1150C` remains open for remote multi-method timeout failure coverage and any future local production default/config wiring.
+- Remote multi-method timeout failure coverage was completed later in `ISSUE-1150C3`; any future local production default/config wiring remains a separate compatibility issue.
+
+## ISSUE-1150C3 Remote MCP Method Timeout Coverage
+
+Scope:
+
+- Current slice covers remote Streamable HTTP timeout behavior for `tools/list`, `tools/call`, `resources/read`, and `prompts/get` method wrappers.
+- It does not claim coverage for every possible MCP method, rmcp request id behavior, exact elapsed time, connection reuse internals, UI rendering, tool pipeline behavior, or local stdio production defaults.
+- Default remote timeout behavior remains `REMOTE_MCP_REQUEST_TIMEOUT`; tests use an explicit `Duration` injection constructor.
+
+Executed:
+
+- `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture`
+  - Result before implementation: failed because `MCPConnection::new_remote_with_request_timeout` did not exist.
+  - Result after implementation: passed, 1 test.
+- `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-services-integrations --features mcp`
+  - Result: passed, 8 lib tests, 33 MCP contract tests, and doc-tests.
+- `cargo check -p void-core --features product-full`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs src/crates/core/tests/remote_mcp_streamable_http.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/services-integrations/src/mcp/server/connection.rs src/crates/core/tests/remote_mcp_streamable_http.rs docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md docs/DECISIONS.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- `tools/list`, `tools/call`, `resources/read`, and `prompts/get` map stalled remote server responses to `MCPRuntimeErrorKind::Timeout`.
+- Timeout messages preserve the operation name without asserting exact full text.
+- Each method uses a fresh test server/connection so one timed-out request does not mask another method path.
+- Parent `ISSUE-1150C` is closed for current acceptance; local stdio production default/config remains separate future work.

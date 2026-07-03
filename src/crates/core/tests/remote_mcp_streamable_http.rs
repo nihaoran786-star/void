@@ -17,6 +17,7 @@ use tokio::sync::{mpsc, Mutex, Notify};
 use tokio_stream::StreamExt;
 use tokio_stream::{once, wrappers::UnboundedReceiverStream};
 use void_core::service::mcp::server::MCPConnection;
+use void_services_integrations::mcp::MCPRuntimeErrorKind;
 
 #[derive(Clone, Default)]
 struct TestState {
@@ -27,6 +28,7 @@ struct TestState {
     saw_roots_capability: Arc<AtomicBool>,
     saw_sampling_capability: Arc<AtomicBool>,
     saw_elicitation_capability: Arc<AtomicBool>,
+    slow_methods: Arc<Vec<&'static str>>,
 }
 
 async fn sse_handler(
@@ -64,6 +66,10 @@ async fn post_handler(
 ) -> impl IntoResponse {
     let method = body.get("method").and_then(Value::as_str).unwrap_or("");
     let id = body.get("id").cloned().unwrap_or(Value::Null);
+
+    if state.slow_methods.contains(&method) {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
 
     match method {
         "initialize" => {
@@ -227,4 +233,69 @@ async fn remote_mcp_streamable_http_accepts_post_sse_and_maps_tool_metadata() {
         state.saw_elicitation_capability.load(Ordering::SeqCst),
         "client should advertise elicitation capability"
     );
+}
+
+async fn spawn_test_server(state: TestState) -> String {
+    let app = Router::new()
+        .route("/mcp", get(sse_handler).post(post_handler))
+        .with_state(state);
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    format!("http://{addr}/mcp")
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn remote_mcp_streamable_http_request_timeout_covers_method_wrappers() {
+    for method in ["tools/list", "tools/call", "resources/read", "prompts/get"] {
+        let state = TestState {
+            slow_methods: Arc::new(vec![method]),
+            ..TestState::default()
+        };
+        let url = spawn_test_server(state).await;
+        let connection = MCPConnection::new_remote_with_request_timeout(
+            "test-server",
+            url,
+            Default::default(),
+            false,
+            Duration::from_millis(25),
+        )
+        .await
+        .expect("remote connection should be created");
+
+        connection
+            .initialize("VoidTest", "0.0.0")
+            .await
+            .expect("initialize should succeed before timeout case");
+
+        let error = match method {
+            "tools/list" => connection
+                .list_tools(None)
+                .await
+                .expect_err("tools/list should time out"),
+            "tools/call" => connection
+                .call_tool("hello", None)
+                .await
+                .expect_err("tools/call should time out"),
+            "resources/read" => connection
+                .read_resource("test://resource")
+                .await
+                .expect_err("resources/read should time out"),
+            "prompts/get" => connection
+                .get_prompt("hello", None)
+                .await
+                .expect_err("prompts/get should time out"),
+            other => panic!("unexpected method: {other}"),
+        };
+
+        assert_eq!(error.kind(), MCPRuntimeErrorKind::Timeout);
+        assert!(
+            error.to_string().contains(method),
+            "timeout should preserve the operation name for {method}"
+        );
+    }
 }
