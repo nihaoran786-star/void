@@ -3889,3 +3889,45 @@ Risk notes:
 - No browser visual smoke was run. The SCSS change is limited to Tabs close-hover destructive color tokens, so automated theme governance was considered sufficient for this slice.
 - Generated widget payload compatibility and ThemeService runtime token expansion remain future issues.
 - Existing generated version-file diffs from the running desktop project remain outside this issue.
+
+## ISSUE-1110 Flow Chat History Navigation Delta Audit
+
+Scope:
+
+- Docs-only audit of upstream `502270994 fix(flow-chat): stabilize history turn navigation`.
+- No Flow Chat production code, tests, E2E, AI media, AI short-drama, terminal, provider, Rust, or generated version files were changed.
+
+Evidence gathered:
+
+- `git show --name-status --stat 502270994 --`
+  - Result: upstream commit touches `ModernFlowChatContainer`, `VirtualMessageList`, `virtualMessageListLayout`, two Flow Chat tests, and adds release E2E.
+- Local source search for `HEADER_TURN_PIN_RETRY_MAX_ATTEMPTS`, `onUserScrollIntent`, `staticInitialHistoryUserLeftBottomRef`, `pendingStaticTurnPinRef`, `trailingOmittedEstimatedHeightPx`, and `data-history-initial-render-tail-spacer`
+  - Result: no matches for the upstream stabilization markers, so local coverage is partial.
+- Subagent read-only reviews:
+  - Result: upstream behavior and local gaps were independently confirmed by FlowChat-Upstream-Agent, FlowChat-Local-Agent, and FlowChat-QA-Risk-Agent.
+
+Implementation test plan for follow-up issues:
+
+- `ISSUE-1110A`:
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - `pnpm run type-check:web`
+- `ISSUE-1110B`:
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts src/flow_chat/components/modern/historyProjectionHandoff.test.ts`
+  - `pnpm run type-check:web`
+- `ISSUE-1110C`:
+  - Void-owned long-session turn-navigation E2E after fixture/workspace requirements are defined.
+
+Protected-surface regression candidates:
+
+- Multi-agent/subagent/BTW/media:
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/ModelRoundItem.progressive-render.test.tsx src/flow_chat/tool-cards/mediaToolGrouping.test.ts src/flow_chat/tool-cards/MediaGenerationToolCard.test.tsx src/flow_chat/utils/subagentProjection.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx`
+- Compact/floating chat:
+  - `pnpm --dir src/web-ui run test:run src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.test.tsx src/flow_chat/services/CompactChatPresentationBridge.test.ts src/flow_chat/utils/agentCompanionActivity.test.ts`
+- AI short-drama:
+  - `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaWorkspaceMode.test.ts src/shared/services/short-drama/ShortDramaStageWorkspace.test.ts src/shared/services/short-drama/ShortDramaRealStageAgentSessionResolver.test.ts src/shared/services/short-drama/ShortDramaToolPolicy.test.ts src/shared/services/short-drama/ShortDramaChatIntake.test.ts`
+
+Risk notes:
+
+- `ISSUE-1110` proves only classification and split. It does not prove the Flow Chat behavior is fixed.
+- Real release viewport geometry still needs E2E or manual smoke evidence in `ISSUE-1110C`.
+- Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.

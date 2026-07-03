@@ -1487,7 +1487,7 @@ Result:
 ### ISSUE-1110 Flow Chat History Navigation Delta Audit
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Compare recent upstream Flow Chat history/navigation fixes, especially `502270994`, against the current completed `ISSUE-130*` slices and identify any remaining low-risk gaps.
 Allowed files: Flow Chat tests/docs first; implementation only after audit.
 Forbidden files: wholesale `FlowChatStore.ts`, `VirtualMessageList.tsx`, or container replacement; AI media, short-drama, terminal, and subagent internals.
@@ -1496,6 +1496,58 @@ Acceptance:
 - Existing multi-agent, BTW, floating chat, AI media, and short-drama projections are protected by tests or explicit manual checks.
 - Any implementation is split into a follow-up issue.
 Risk notes: Highest risk is duplicating or weakening completed `ISSUE-130*` history/viewport behavior; audit must classify covered work before proposing code.
+Result:
+- Reviewed upstream `502270994 fix(flow-chat): stabilize history turn navigation`.
+- Confirmed current Void only partially covers the upstream behavior through earlier `ISSUE-130*` work.
+- Covered locally: explicit `SessionHistoryState`, history placeholders, base header turn navigation, session-keyed virtual-list remount, initial historical window helpers, partial-history store fields, deferred full-history scheduling, and existing initial-history/window tests.
+- Missing or not proven locally:
+  - Header turn pin RAF retry until `visibleTurnInfo.turnId` matches the requested turn.
+  - User scroll intent cancelling pending header turn retry.
+  - Static initial-history `pinTurnToTop` expansion/pin path for omitted targets.
+  - Tail spacer/effective-bottom behavior after pinning older turns.
+  - Release-level long-session turn-navigation E2E equivalent to upstream `l1-chat-turn-navigation-release.spec.ts`.
+- Split follow-up implementation/testing work into `ISSUE-1110A`, `ISSUE-1110B`, and `ISSUE-1110C`.
+
+### ISSUE-1110A Flow Chat Header Turn Pin Retry and User-Cancel Contract
+
+Priority: P0
+Status: Proposed
+Goal: Adapt the low-risk container/virtual-list contract from upstream `502270994` so header turn selection retries until the real viewport reports the target turn, and manual user scroll cancels pending retry.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx`, `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`, minimal `VirtualMessageList` prop surface if needed, docs.
+Forbidden files: `FlowChatStore.ts`, backend/session APIs, AI media, AI short-drama, terminal, provider, Rust crates, whole-file replacement.
+Acceptance:
+- Header current turn remains derived from `visibleTurnInfo`, not optimistic pending state.
+- `pinTurnToTop` accepted state continues retrying through RAF until `visibleTurnInfo.turnId` matches the target or bounded retry expires.
+- A user scroll intent from `VirtualMessageList` clears queued/pending header turn pin state.
+- Tests cover accepted-but-not-visible, retry-until-visible, and user-scroll-cancel cases.
+Risk notes: The contract crosses container state and viewport callbacks; UI must not infer turn visibility from overlay DOM or transcript text.
+
+### ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer
+
+Priority: P1
+Status: Proposed
+Goal: Adapt upstream static initial-history window fixes so omitted older targets can be expanded and pinned, while latest content remains reachable through a tail spacer/effective-bottom contract.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`, `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`, focused tests, docs.
+Forbidden files: `FlowChatStore.ts`, `ModernFlowChatContainer.tsx` except if `1110A` requires a prop contract, backend/session APIs, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- Static initial-history `pinTurnToTop` can request omitted targets without treating the sliced local index as the full-session index.
+- Tail spacer or equivalent effective-bottom logic keeps latest content reachable after pinning older turns.
+- Footer/input/collapse changes do not force the viewport back to bottom after user scroll or explicit turn pin.
+- Tests cover omitted target expansion, tail reachability, and user-left-bottom preservation.
+Risk notes: This is higher risk than `1110A` because it touches scroll geometry and static window behavior. It must not be bundled with store/API changes.
+
+### ISSUE-1110C Release Long-Session Turn Navigation E2E
+
+Priority: P1
+Status: Proposed
+Goal: Recreate a Void-owned release-level regression for long-session header turn navigation, based on upstream `l1-chat-turn-navigation-release.spec.ts` but with Void naming, fixtures, and protected feature checks.
+Allowed files: `tests/e2e/specs/*`, E2E helpers/fixtures if required, docs.
+Forbidden files: production Flow Chat source, session store/runtime code, AI media/short-drama source, terminal, provider, Rust crates.
+Acceptance:
+- The E2E opens a persisted long-session fixture, selects an older turn from the header list, and asserts the real message scroller moves the target turn near the viewport top.
+- The test avoids upstream BitFun naming and uses Void fixture/session identifiers.
+- The test records skip/precondition behavior when the release fixture workspace is unavailable.
+Risk notes: This test needs real browser/desktop evidence; jsdom unit tests cannot prove release viewport geometry.
 
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 

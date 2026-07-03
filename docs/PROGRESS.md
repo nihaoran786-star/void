@@ -57,7 +57,7 @@ Initial role coverage:
 
 Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
 
-Next candidate issue: `ISSUE-1110 Flow Chat History Navigation Delta Audit`, unless the next session deliberately continues theme governance with a new follow-up issue.
+Next candidate issue: `ISSUE-1110A Flow Chat Header Turn Pin Retry and User-Cancel Contract`.
 
 Allowed files:
 
@@ -4350,3 +4350,30 @@ Remaining risk:
 - No browser or desktop visual smoke was run for Tabs. The style change is token-only and covered by theme governance tests.
 - Generated widget payload compatibility and broader ThemeService/runtime token contracts remain separate follow-up issues.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from any scoped commit for this issue.
+
+## ISSUE-1110 Flow Chat History Navigation Delta Audit
+
+Status: Done
+Date: 2026-07-03
+Owner/session: main orchestrator plus FlowChat-Upstream-Agent, FlowChat-Local-Agent, and FlowChat-QA-Risk-Agent
+
+Completed:
+
+- Compared upstream `502270994 fix(flow-chat): stabilize history turn navigation` against current local Flow Chat code and the completed `ISSUE-130*` slices.
+- Confirmed local coverage is partial, not complete.
+- Recorded covered behavior: explicit history states, history placeholders, base header turn navigation, session-keyed virtual list, initial history window helpers, partial-history store fields, and deferred full-history scheduling.
+- Recorded missing behavior: header turn pin RAF retry until real viewport match, user-scroll cancellation of pending retry, static initial-history omitted-target pin path, tail spacer/effective-bottom behavior, and release long-session turn-navigation E2E.
+- Split follow-up work into `ISSUE-1110A`, `ISSUE-1110B`, and `ISSUE-1110C`.
+
+Verification:
+
+- Read-only upstream diff review completed for `502270994`.
+- Local marker search confirmed upstream stabilization markers are absent in current local Flow Chat files.
+- Subagent reviews independently converged on the same partial-sync conclusion.
+- Docs-only verification remains required before commit.
+
+Remaining risk:
+
+- No Flow Chat production behavior was changed in this audit.
+- `ISSUE-1110A` and `ISSUE-1110B` are required before claiming local parity with upstream `502270994`.
+- `ISSUE-1110C` or equivalent manual release smoke is required before claiming real long-session viewport behavior in release/desktop conditions.

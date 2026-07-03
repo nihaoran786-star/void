@@ -391,3 +391,9 @@ Reason: The working branch already preserves local multi-agent, subconversation,
 Decision: The post-`08591f906` upstream comparison starts a new selective upgrade wave from `upstream-bitfun/main@ac16dcc18`. The wave uses the user-approved priority order: Flow Chat stability, terminal reliability, Computer Use Windows safety, image understanding, MCP/tool runtime reliability, theme/token governance, provider/service boundaries, and finally crate decomposition study. Each area must start with an audit issue before implementation unless the missing change is already proven to be a small isolated fix.
 
 Reason: Current Void and upstream BitFun are divergent histories. Direct merge or directory synchronization would threaten local multi-agent, subconversation, floating chat, AI media, AI short-drama, terminal, Computer Use, and brand contracts. A new wave keeps useful upstream fixes moving while preserving the earlier rule that upstream is a reference implementation, not the owner of Void module boundaries.
+
+## DEC-066: Flow Chat Turn Navigation Stabilization Must Be Split
+
+Decision: Upstream `502270994` is accepted as valuable but not copied wholesale. The migration is split into container retry/cancel behavior (`ISSUE-1110A`), static initial-history window geometry (`ISSUE-1110B`), and release-level E2E evidence (`ISSUE-1110C`). `ISSUE-1110` itself remains an audit/classification issue.
+
+Reason: The upstream patch touches container state, virtual-list geometry, partial history behavior, and release E2E in one commit. Current Void already has local `ISSUE-130*` history-window, projection handoff, deferred hydration, multi-agent, BTW, AI media, AI short-drama, and compact chat behavior. Splitting prevents a large Flow Chat replacement and keeps each behavior testable without weakening protected local contracts.

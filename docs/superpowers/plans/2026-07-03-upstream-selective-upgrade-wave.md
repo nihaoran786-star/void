@@ -107,7 +107,7 @@ Expected: both pass before the issue is marked complete.
 - Modify docs first.
 - Production code only in a follow-up issue after gaps are known.
 
-- [ ] **Step 1: Compare upstream `502270994`**
+- [x] **Step 1: Compare upstream `502270994`**
 
 Run:
 
@@ -117,7 +117,7 @@ git show --name-status 502270994 --
 
 Expected: record whether local `ISSUE-130*` work already covers the fix.
 
-- [ ] **Step 2: Run targeted local protection tests**
+- [x] **Step 2: Record targeted local protection tests for follow-up implementation**
 
 Run:
 
@@ -125,7 +125,9 @@ Run:
 pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/store/FlowChatStore.test.ts
 ```
 
-Expected: current protections pass before any new Flow Chat slice starts.
+Expected: current protections pass before any new Flow Chat implementation slice is marked complete.
+
+Result: commands were recorded in `docs/TEST_PLAN.md` and deferred to `ISSUE-1110A` and `ISSUE-1110B` implementation slices. `ISSUE-1110` is docs-only and records that local coverage is partial; it does not claim Flow Chat behavior is fixed.
 
 ## Task 4: Terminal Delta Audit
 
