@@ -13,6 +13,8 @@ describe('normalizeTerminalReplay', () => {
       ],
       data: 'firstsecond',
       historySize: 11,
+      historyStatus: 'ready',
+      historySource: 'local',
       cols: 100,
       rows: 30,
     };
@@ -25,6 +27,8 @@ describe('normalizeTerminalReplay', () => {
       sessionId: 'session-1',
       data: 'legacy',
       historySize: 6,
+      historyStatus: 'ready',
+      historySource: 'local',
       cols: 90,
       rows: 25,
     };
@@ -39,10 +43,32 @@ describe('normalizeTerminalReplay', () => {
       sessionId: 'session-1',
       data: '',
       historySize: 0,
+      historyStatus: 'ready',
+      historySource: 'local',
       cols: 80,
       rows: 24,
     };
 
     expect(normalizeTerminalReplay(history)).toEqual([]);
+  });
+
+  it('keeps remote unsupported history explicit while returning no replay events', () => {
+    const history: GetHistoryResponse = {
+      sessionId: 'remote-session',
+      events: [],
+      data: '',
+      historySize: 0,
+      historyStatus: 'unsupported',
+      historySource: 'remote',
+      errorCode: 'remote_history_unsupported',
+      error: 'Remote terminal history replay is not supported yet',
+      cols: 120,
+      rows: 30,
+    };
+
+    expect(normalizeTerminalReplay(history)).toEqual([]);
+    expect(history.historyStatus).toBe('unsupported');
+    expect(history.historySource).toBe('remote');
+    expect(history.errorCode).toBe('remote_history_unsupported');
   });
 });

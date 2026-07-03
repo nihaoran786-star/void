@@ -388,6 +388,7 @@ Accepted terminal migration slices:
 - IME/key rollover safety stays in Web UI terminal utilities and is consumed by `Terminal.tsx`; the component may wire xterm/helper-textarea events but must not duplicate the rollover decision inline.
 - Resize repaint guard stays near xterm output handling, with pure utility tests before integration.
 - Structured replay crosses terminal core, desktop DTOs, and Web UI types/hooks only through explicit replay event interfaces.
+- Terminal history availability crosses the desktop/Web boundary through explicit `historyStatus`, `historySource`, `errorCode`, and `error` fields. Remote unsupported history is not equivalent to successful local empty history, and UI/entrypoints must not infer source or failure from empty `events` or empty `data`.
 - Terminal/GVim detection for `type_text` stays under desktop Computer Use input routing.
 
 Structured replay contract:

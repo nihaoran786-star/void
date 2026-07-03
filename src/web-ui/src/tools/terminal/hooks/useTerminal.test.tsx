@@ -98,6 +98,8 @@ describe('useTerminal replay ordering', () => {
       events: historyEvents,
       data: 'history-1history-2',
       historySize: 18,
+      historyStatus: 'ready',
+      historySource: 'local',
       cols: 100,
       rows: 30,
     };
@@ -144,6 +146,8 @@ describe('useTerminal replay ordering', () => {
       events: historyEvents,
       data: 'history-1',
       historySize: 9,
+      historyStatus: 'ready',
+      historySource: 'local',
       cols: 80,
       rows: 24,
     };
@@ -172,6 +176,46 @@ describe('useTerminal replay ordering', () => {
       'replay:history-1',
       'output:pending-live-1',
     ]);
+    expect(terminalServiceMock.drainPendingSessionEvents).toHaveBeenCalledWith('session-1');
+  });
+
+  it('treats remote unsupported history as empty replay without breaking live events', async () => {
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: [],
+      data: '',
+      historySize: 0,
+      historyStatus: 'unsupported',
+      historySource: 'remote',
+      errorCode: 'remote_history_unsupported',
+      error: 'Remote terminal history replay is not supported yet',
+      cols: 120,
+      rows: 30,
+    };
+    const order: string[] = [];
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+    terminalServiceMock.drainPendingSessionEvents.mockReturnValue([
+      { type: 'output', sessionId: 'session-1', data: 'live-after-unsupported-history' },
+    ]);
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={(events) => {
+            order.push(`replay:${events.length}`);
+          }}
+          onOutput={(data) => {
+            order.push(`output:${data}`);
+          }}
+        />,
+      );
+      await flushAsyncWork();
+    });
+
+    expect(order).toEqual(['output:live-after-unsupported-history']);
+    expect(terminalServiceMock.getHistory).toHaveBeenCalledWith('session-1');
+    expect(terminalServiceMock.onSessionEvent).toHaveBeenCalledWith('session-1', expect.any(Function));
     expect(terminalServiceMock.drainPendingSessionEvents).toHaveBeenCalledWith('session-1');
   });
 });

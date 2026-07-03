@@ -101,6 +101,10 @@ export interface TerminalReplayEvent {
   data: string;
 }
 
+export type TerminalHistoryStatus = 'ready' | 'unsupported' | 'error';
+
+export type TerminalHistorySource = 'local' | 'remote';
+
 export interface GetHistoryResponse {
   sessionId: string;
   /** Ordered resize/data events for terminal recovery. */
@@ -108,6 +112,14 @@ export interface GetHistoryResponse {
   data: string;
   /** Current history size in bytes. */
   historySize: number;
+  /** Explicit replay availability status; callers should not infer this from empty events. */
+  historyStatus: TerminalHistoryStatus;
+  /** Explicit source for the history response. */
+  historySource: TerminalHistorySource;
+  /** Stable machine-readable error code when history is unavailable or failed. */
+  errorCode?: string;
+  /** User-facing diagnostic message when history is unavailable or failed. */
+  error?: string;
   /** PTY column count when history was captured. */
   cols: number;
   /** PTY row count when history was captured. */

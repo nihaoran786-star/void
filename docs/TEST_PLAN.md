@@ -4166,7 +4166,8 @@ Remaining risk:
 Scope:
 
 - Current slices cover frontend terminal history/replay integration and backend natural PTY child-completion lifecycle.
-- No Flow Chat tool cards, xterm rendering, session manager ownership, desktop API, runtime-port migration, AI media, AI short-drama, Computer Use, provider, or remote terminal history code was changed.
+- Current slice also covers the desktop/Web terminal history contract for local empty history versus remote unsupported history.
+- No Flow Chat tool cards, xterm rendering, session manager ownership, runtime-port migration, AI media, AI short-drama, Computer Use, provider, or remote replay implementation was changed.
 
 Executed:
 
@@ -4181,15 +4182,26 @@ Executed:
   - Result: passed, 4 test files / 13 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed in the frontend replay-ordering slice.
+- `cargo test -p void-desktop terminal_api::tests -- --nocapture`
+  - Result: passed, 2 tests. Existing unrelated warning: `parse_clipboard_path_segments` is dead code.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/api/terminal_api.rs`
+  - Result: passed.
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts`
+  - Result: passed, 3 test files / 13 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed after `GetHistoryResponse` made `historyStatus/historySource` required.
 
 Coverage:
 
 - `useTerminal.test.tsx` proves structured `history.events` are delivered through `onReplay` before live output that arrives during the replay subscription window is flushed through `onOutput`.
 - The test covers the hook-level contract across `getHistory`, `onSessionEvent`, `drainPendingSessionEvents`, `normalizeTerminalReplay`, and `createReplayAwareTerminalEventHandler` without testing Flow Chat or xterm internals.
 - `natural_child_completion_emits_exit_event` proves a one-shot shell process that exits naturally emits `PtyEvent::Exit { exit_code: Some(7) }` without requiring explicit shutdown.
+- `terminal_api::tests` proves local empty history reports `ready/local` with no error and remote unsupported history serializes as `unsupported/remote` with `remote_history_unsupported`.
+- `terminalReplay.test.ts` proves remote unsupported history can return no replay events while preserving explicit metadata.
+- `useTerminal.test.tsx` proves remote unsupported history does not break subscription or drained live output.
 
 Deferred:
 
 - `TerminalService.acknowledge()` remains unused by frontend output consumption; backend flow-control ack requires a separate contract.
-- Remote `terminal_get_history` still returns empty events without explicit `status/source`; this remains a follow-up API contract hardening slice.
+- `historyStatus: "error"` remains a TypeScript contract value only; local backend history failures still use the existing `Result::Err(String)` command error path.
 - EOF-triggered immediate shutdown is now routed through the existing command task; a future hardening test can cover the edge case where PTY EOF and explicit shutdown/natural exit race on platforms that report EOF before the child is reapable.

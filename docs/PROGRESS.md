@@ -35,6 +35,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] Fourth verification issue complete.
 - [x] Fifth verification issue complete.
 - [x] Computer Use platform inventory complete.
+- [x] ISSUE-1120D remote terminal history status/source contract slice complete.
+
+## Latest Slice
+
+Issue: `ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests`
+
+Summary:
+
+- Added explicit desktop/Web terminal history status fields so local empty history is `ready/local` and remote unsupported history is `unsupported/remote` with `remote_history_unsupported`.
+- Preserved current behavior: remote terminal history still does not pretend to support replay, and `useTerminal` continues to subscribe and flush live output after empty unsupported history.
+- Kept backend `historyStatus: "error"` out of scope; local history fetch failures still use the existing command error path.
+
+Verification:
+
+- `cargo test -p void-desktop terminal_api::tests -- --nocapture` passed with 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/api/terminal_api.rs` passed.
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts` passed with 3 files / 13 tests.
+- `pnpm --dir src/web-ui run type-check` passed.
 
 ## Subagent Summary
 

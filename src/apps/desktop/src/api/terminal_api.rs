@@ -248,6 +248,12 @@ pub struct GetHistoryResponse {
     pub events: Vec<CoreTerminalReplayEvent>,
     pub data: String,
     pub history_size: usize,
+    pub history_status: String,
+    pub history_source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
     /// PTY column count at the time history was captured.
     pub cols: u16,
     /// PTY row count at the time history was captured.
@@ -261,9 +267,32 @@ impl From<CoreGetHistoryResponse> for GetHistoryResponse {
             events: resp.events,
             data: resp.data,
             history_size: resp.history_size,
+            history_status: "ready".to_string(),
+            history_source: "local".to_string(),
+            error_code: None,
+            error: None,
             cols: resp.cols,
             rows: resp.rows,
         }
+    }
+}
+
+fn remote_history_unsupported_response(
+    session_id: String,
+    cols: u16,
+    rows: u16,
+) -> GetHistoryResponse {
+    GetHistoryResponse {
+        session_id,
+        events: Vec::new(),
+        data: String::new(),
+        history_size: 0,
+        history_status: "unsupported".to_string(),
+        history_source: "remote".to_string(),
+        error_code: Some("remote_history_unsupported".to_string()),
+        error: Some("Remote terminal history replay is not supported yet".to_string()),
+        cols,
+        rows,
     }
 }
 
@@ -801,14 +830,11 @@ pub async fn terminal_get_history(
         if let Some(remote_manager) = get_remote_workspace_manager() {
             if let Some(terminal_manager) = remote_manager.get_terminal_manager().await {
                 if let Some(session) = terminal_manager.get_session(&session_id).await {
-                    return Ok(GetHistoryResponse {
-                        session_id: session.id,
-                        events: Vec::new(),
-                        data: String::new(),
-                        history_size: 0,
-                        cols: session.cols,
-                        rows: session.rows,
-                    });
+                    return Ok(remote_history_unsupported_response(
+                        session.id,
+                        session.cols,
+                        session.rows,
+                    ));
                 }
             }
         }
@@ -828,6 +854,10 @@ pub async fn terminal_get_history(
         events: response.events,
         data: response.data,
         history_size: response.history_size,
+        history_status: "ready".to_string(),
+        history_source: "local".to_string(),
+        error_code: None,
+        error: None,
         cols: response.cols,
         rows: response.rows,
     })
@@ -852,4 +882,45 @@ pub fn start_terminal_event_loop(terminal_state: TerminalState, app_handle: AppH
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{remote_history_unsupported_response, CoreGetHistoryResponse, GetHistoryResponse};
+
+    #[test]
+    fn remote_history_response_reports_unsupported_source_explicitly() {
+        let response = remote_history_unsupported_response("remote-session".to_string(), 120, 30);
+
+        let value = serde_json::to_value(response).expect("response should serialize");
+
+        assert_eq!(value["historyStatus"], "unsupported");
+        assert_eq!(value["historySource"], "remote");
+        assert_eq!(value["errorCode"], "remote_history_unsupported");
+        assert_eq!(
+            value["error"],
+            "Remote terminal history replay is not supported yet"
+        );
+        assert_eq!(value["events"].as_array().map(Vec::len), Some(0));
+        assert_eq!(value["historySize"], 0);
+    }
+
+    #[test]
+    fn local_empty_history_response_reports_ready_source_explicitly() {
+        let response = GetHistoryResponse::from(CoreGetHistoryResponse {
+            session_id: "local-session".to_string(),
+            events: Vec::new(),
+            data: String::new(),
+            history_size: 0,
+            cols: 80,
+            rows: 24,
+        });
+
+        assert_eq!(response.history_status, "ready");
+        assert_eq!(response.history_source, "local");
+        assert_eq!(response.error_code, None);
+        assert_eq!(response.error, None);
+        assert!(response.events.is_empty());
+        assert_eq!(response.history_size, 0);
+    }
 }
