@@ -4543,3 +4543,32 @@ Remaining risk:
 - Pointer precision and background input semantics require real Windows DPI/multi-monitor/UIPI testing in `ISSUE-1130C`.
 - Windows settings deep links and visual-grid capability gating remain separate from capture/input unsafe work in `ISSUE-1130D`.
 - The next selective-upstream candidate is `ISSUE-1140 Image Understanding and Image Context Completion Audit`.
+
+## ISSUE-1140 Image Understanding and Image Context Completion Audit
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream image-related commits `cf94e2f90`, `c2f6a3c91`, and `912111f6e`.
+- Compared upstream `analyze_image`, `view_image`, context upload, image-understanding model config, and `/btw` image side-question flow against current Void.
+- Confirmed current Void already owns a stronger `AnalyzeImage` contract with `image_id` / `image_path` / `data_url`, workspace path containment, explicit statuses, image-analysis helpers, and tool runtime registration.
+- Confirmed local `/btw` initial side-question path supports image payloads, while transient child-session follow-up still rejects image attachments in `MessageModule.ts`.
+- Confirmed AI media tools use image-context references for `GenerateImage` / `GenerateVideo`, and AI short-drama flows protect raw media through project/tool policy rather than generic image understanding.
+- Split follow-up work into `ISSUE-1140A` status/data-url guard, `ISSUE-1140B` BTW child-session image completion, `ISSUE-1140C` image-context/media path leak tests, `ISSUE-1140D` Void `ViewImage` contract gate, and `ISSUE-1140E` short-drama image-summary bridge.
+- Preserved protected surfaces: no production code, UI component, provider adapter, media service, short-drama service, Flow Chat runtime, or tool schema was changed in this audit.
+
+Verification:
+
+- Upstream commit/file diff inspection completed for image understanding, `view_image`, and BTW image side-question commits.
+- Local code inspection covered `AnalyzeImage`, image-analysis helpers, image context store, desktop image payload refill, BTW API/service flow, media image reference resolution, provider tool image attachments, and short-drama media policy.
+- Subagent QA reported the current targeted checks passed: `cargo test -p void-core analyze_image --lib`, `cargo test -p void-tool-packs`, and `pnpm --dir src/web-ui run test:run src/flow_chat/utils/imageContextForBackend.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx`.
+
+Remaining risk:
+
+- Main session did not rerun the targeted checks after this docs-only update; no production behavior changed.
+- `permission_denied` and `data_url` guard semantics still need explicit implementation/testing in `ISSUE-1140A`.
+- `/btw` child-session second-turn images are still incomplete until `ISSUE-1140B`.
+- Image context global lookup collisions and local path leak guards remain open in `ISSUE-1140C`.
+- `ViewImage` and short-drama image-summary integration remain gated behind `ISSUE-1140D` and `ISSUE-1140E`.
+- The next selective-upstream candidate is `ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit`.

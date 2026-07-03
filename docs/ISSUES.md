@@ -1733,7 +1733,7 @@ Risk notes: This is a UX/capability-gating issue. It must not be bundled with WG
 ### ISSUE-1140 Image Understanding and Image Context Completion Audit
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Verify local `AnalyzeImage`, image contexts, BTW image forwarding, and media/short-drama image flows against upstream image-understanding changes.
 Allowed files: AnalyzeImage tests, BTW image-context tests, docs first.
 Forbidden files: UI byte loading, provider adapter reorganization, media or short-drama service rewrites.
@@ -1742,6 +1742,84 @@ Acceptance:
 - Workspace-scoped path/data-url/image-id contracts remain explicit.
 - Any runtime completion is split into one tool-contract issue.
 Risk notes: Provider multimodal capability drift and workspace path permissions must stay inside the tool/runtime boundary.
+Result:
+- Reviewed upstream image-related work from `cf94e2f90`, `c2f6a3c91`, and `912111f6e`, including BTW image side questions, `analyze_image`, `view_image`, context upload, image-understanding default model config, provider capability checks, and tool registration.
+- Confirmed local `AnalyzeImage` already exists in `src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs` with `image_id` / `image_path` / `data_url` exactly-one-source validation, workspace path containment, explicit status output, and runtime tests. Do not overwrite it with the simpler upstream assembly implementation.
+- Confirmed local image context transport preserves `data_url`, local/URL paths, MIME, dimensions, and source metadata through `imageContextForBackend`, desktop payload refill, and coordinator image contexts.
+- Confirmed local `/btw` initial side-question path supports image payloads, but transient `/btw` child-session second-turn messages still reject image attachments in `MessageModule.ts`.
+- Confirmed local AI media tools resolve attached image ids/names into data URLs or provider URLs and local short-drama flows protect raw media by routing through short-drama project/tool policy; neither should be rewritten by generic image understanding.
+- Confirmed `ToolImageAttachment` and provider adapter conversion foundations exist, but a Void-owned `ViewImage` tool still needs a separate contract gate before copying upstream behavior.
+- Did not change production code, UI components, provider adapters, media services, short-drama services, Flow Chat runtime, or tool schemas in this audit.
+
+### ISSUE-1140A AnalyzeImage Permission and Data URL Guard
+
+Priority: P1
+Status: Proposed
+Goal: Align the `AnalyzeImage` status contract with actual behavior and harden inline `data_url` handling before any broader image-tool expansion.
+Allowed files: `src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs`, `src/crates/core/src/agentic/image_analysis/*` tests/docs.
+Forbidden files: Web UI, provider adapter rewrites, media tools, short-drama tools, Flow Chat pages, BTW panel logic.
+Acceptance:
+- `permission_denied` is either backed by a real permission path and tests or removed/deferred from the active status contract.
+- `data_url` input has explicit MIME, size, and invalid-payload tests before provider runtime execution.
+- `image_id` / `image_path` / `data_url` remains exactly-one-source.
+- Verification includes `cargo test -p void-core analyze_image --lib`.
+Risk notes: Readonly tools still enforce workspace/path policy. Do not represent permission or path failures with generic strings.
+
+### ISSUE-1140B BTW Child-Session Image Context Completion
+
+Priority: P1
+Status: Proposed
+Goal: Complete `/btw` image context support beyond initial side-question creation, especially child-session follow-up messages.
+Allowed files: `src/web-ui/src/flow_chat/services/flow-chat-manager/MessageModule.ts`, `src/web-ui/src/flow_chat/services/BtwThreadService.ts`, focused BTW tests, docs.
+Forbidden files: provider adapters, UI byte loading, `BtwSessionPanel` provider/path policy, media services, short-drama services, core image-analysis runtime.
+Acceptance:
+- Initial `/btw` with image remains supported.
+- Transient `/btw` child-session follow-up can either send image contexts through the existing backend path or returns a typed unsupported state documented at the service boundary.
+- No provider, path, or model capability judgment is added to `ChatInput.tsx` or `BtwSessionPanel.tsx`.
+- Tests cover initial `/btw` image payload, child follow-up with image, failure path preserving composer images, and no-image regression.
+Risk notes: This is a Flow Chat service boundary issue, not an image byte loading or provider implementation issue.
+
+### ISSUE-1140C Image Context Scope and Media Path Leak Guards
+
+Priority: P1
+Status: Proposed
+Goal: Prevent global temporary image-context ambiguity and avoid leaking local paths through media image-reference inputs.
+Allowed files: `src/crates/core/src/agentic/tools/image_context.rs`, `src/apps/desktop/src/api/agentic_api.rs` tests, `src/crates/core/src/agentic/tools/implementations/media_tools.rs` tests/docs.
+Forbidden files: Web UI rewrites, provider adapter reorganization, short-drama service rewrites, generic fallback string matching.
+Acceptance:
+- Tests document `image_id`, full filename, basename, expiration, and same-name collision behavior.
+- `resolve_missing_image_payloads` behavior is covered when cache payloads are missing or expired.
+- `GenerateImage` / `GenerateVideo` do not silently pass unmatched Windows/POSIX local paths as provider URLs.
+- Valid `http(s)` and `data:` image references continue to work.
+Risk notes: `image_context.rs` must stay a storage/lookup layer and must not start enforcing provider policy or workspace reads.
+
+### ISSUE-1140D Void ViewImage Tool Contract Gate
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate and implement a Void-native `ViewImage` tool only after tool-image-attachment, provider capability, remote workspace, and manifest boundaries are proven.
+Allowed files: tool contract tests, `void-tool-packs`, `product_runtime`, optional new ViewImage implementation under current Void core layout, docs.
+Forbidden files: upstream `assembly` crate layout, broad agent mode rewrites, provider wire conversion outside adapters, Web UI upload flow rewrites.
+Acceptance:
+- Tool manifest/readonly registration tests prove the intended exposure.
+- Provider capability tests prove only supported primary models receive tool image attachments.
+- Workspace local and remote path resolution are covered before bytes are read.
+- Image optimization uses existing image-processing helpers and reports width/height/size metadata.
+Risk notes: Do not copy upstream `view_image` wholesale; current Void already has different tool runtime and provider boundaries.
+
+### ISSUE-1140E Short Drama Image Understanding Bridge Contract
+
+Priority: P2
+Status: Proposed
+Goal: Define how AI short-drama workflows may consume image understanding summaries without exposing raw media or bypassing `ShortDramaProject`.
+Allowed files: short-drama docs/tests first, optional service-level bridge tests.
+Forbidden files: generic `AnalyzeImage` rewrites, raw media export into Main AI context, direct `.void/short-drama` UI mutation, media service rewrite.
+Acceptance:
+- Image summaries are represented as low-context artifact/reference metadata, not raw image bytes or raw URLs.
+- `ShortDramaProject` remains the AI-facing source of truth for project state.
+- Media result references and short-drama artifact coordinates continue to use existing media/short-drama tools.
+- Tests prove raw media URLs/bytes are omitted from Main AI context export.
+Risk notes: Short-drama image understanding must be a bridge contract, not a generic image tool reaching into the right-side page.
 
 ### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
 

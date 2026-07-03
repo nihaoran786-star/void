@@ -3975,6 +3975,30 @@ Implementation test plan for follow-up issues:
     - DPI/multi-monitor/background-input manual matrix for `ISSUE-1130C`.
     - Adapter-level settings URI/capability-gating decision tests for `ISSUE-1130D`.
   - Result: docs-only audit; no production tests were run because no Computer Use code changed and non-Windows checks cannot prove Windows capture/input behavior.
+- `ISSUE-1140`:
+  - `git show --name-status --stat --oneline cf94e2f90 c2f6a3c91 912111f6e --`
+    - Result: passed; identified upstream BTW image side-question, image understanding, and `view_image` merge scopes.
+  - `git diff --name-status c2f6a3c91^..c2f6a3c91 -- src docs package.json Cargo.toml`
+    - Result: passed; confirmed upstream `analyze_image` crosses desktop context upload, core execution, tool registry, model config, and Web UI send flow.
+  - `git diff --name-status cf94e2f90^..cf94e2f90 -- src docs package.json Cargo.toml`
+    - Result: passed; confirmed upstream BTW image support crosses API DTOs, BtwThreadService, MessageModule, ChatInput, and image payload helper extraction.
+  - `git diff --name-status 912111f6e^..912111f6e -- src docs package.json Cargo.toml`
+    - Result: passed; confirmed upstream `view_image` adds tool implementation, tool-pack/runtime registration, prompt/tool exposure, and provider image attachment concerns.
+  - Local file inspection:
+    - Result: local `AnalyzeImage` already supports `image_id` / `image_path` / `data_url`, workspace path containment, explicit statuses, and focused tests.
+    - Result: local initial `/btw` supports image payloads, but transient child-session second-turn images are still rejected by `MessageModule.ts`.
+    - Result: local media and short-drama image flows depend on image-context/media-reference semantics and must not be overwritten by upstream path-only upload behavior.
+  - QA subagent reported current targeted checks passed:
+    - `cargo test -p void-core analyze_image --lib`
+    - `cargo test -p void-tool-packs`
+    - `pnpm --dir src/web-ui run test:run src/flow_chat/utils/imageContextForBackend.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx`
+  - Recommended follow-up checks:
+    - `cargo test -p void-core analyze_image --lib` for `ISSUE-1140A`.
+    - Focused BTW service tests for `ISSUE-1140B`, covering initial and child-session image sends.
+    - `cargo test -p void-core media_tools image_context`-style focused tests for `ISSUE-1140C`.
+    - Tool manifest/runtime and provider adapter tests before any `ISSUE-1140D` `ViewImage` implementation.
+    - Short-drama context export/policy tests before `ISSUE-1140E`.
+  - Result: docs-only audit in the main session; no production code changed.
 
 Protected-surface regression candidates:
 
