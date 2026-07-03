@@ -70,11 +70,13 @@ Responsibility:
 
 - Own provider HTTP/SSE requests, response mapping, stream parsing, tool-call aggregation, model discovery, and health checks.
 - Return structured connection-test diagnostics through `ConnectionTestResult` fields such as `message_code`, `error_category`, and `error_details`.
+- Own provider stream handler lifecycle: dropping the adapter-returned stream or closing the handler event receiver must stop provider handler work without redefining core turn cancellation.
 
 Forbidden:
 
 - UI, settings pages, desktop entrypoints, or installer frontends must not classify provider failures by matching raw error strings.
 - Connection-test classification must not change provider catalogs, model config schemas, retry policy, or core business retry behavior.
+- Stream handler cancellation must not change completed-stream usage/tool-call delivery, adapter transport retry, or core/business retry.
 - Provider/service owner migration requires a separate decision; `void-ai-adapters` remains the default provider transport owner.
 
 ### Desktop Tauri Adapter

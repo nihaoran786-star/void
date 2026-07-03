@@ -2216,7 +2216,7 @@ Result:
 ### ISSUE-1170D SSE Handler Cancellation Contract
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Evaluate upstream orphan-stream-handler cancellation and add a local contract test before changing handler ownership.
 Allowed files: `void-ai-adapters` SSE/stream handler tests and minimal handler lifecycle code if proven necessary.
 Forbidden files: core turn cancellation semantics, Flow Chat state, terminal, MCP, provider catalog/config.
@@ -2225,6 +2225,11 @@ Acceptance:
 - Completed streams still deliver usage/tool-call events.
 - Core retry and adapter transport retry remain separate.
 Risk notes: Incorrect cancellation can drop final usage, leak tasks, or multiply provider requests.
+Result:
+- Added an adapter-owned abort-on-drop wrapper for `StreamResponse.stream` so dropping the returned stream aborts the spawned provider handler task.
+- Changed provider `spawn_handler` closures to return their `JoinHandle` to `execute_sse_request` without exposing handler handles through the public `StreamResponse` shape.
+- Added the same receiver-closed cancellation path to OpenAI, Anthropic, Gemini, and Responses handlers so a closed event receiver stops waiting for more provider SSE bytes.
+- Added TDD coverage for stream-drop abort and OpenAI handler receiver-drop cancellation; existing stream harness coverage proves completed streams still deliver usage/tool-call events.
 
 ### ISSUE-1170E Image Understanding Capability Reconcile
 

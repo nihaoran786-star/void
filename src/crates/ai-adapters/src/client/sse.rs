@@ -3,13 +3,17 @@ use crate::client::StreamResponse;
 use crate::stream::UnifiedResponse;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
+use futures::Stream;
 use log::{debug, error, warn};
 use reqwest::{
     header::{HeaderMap, RETRY_AFTER},
     StatusCode,
 };
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 const BASE_RETRY_DELAY_MS: u64 = 500;
 /// Maximum delay applied to a `Retry-After` header value.
@@ -22,6 +26,37 @@ enum StreamSendOutcome {
     Response(reqwest::Response),
     Transport(reqwest::Error),
     TtftTimeout,
+}
+
+struct AbortHandlerOnDropStream {
+    inner: tokio_stream::wrappers::UnboundedReceiverStream<Result<UnifiedResponse>>,
+    handler_task: JoinHandle<()>,
+}
+
+impl Stream for AbortHandlerOnDropStream {
+    type Item = Result<UnifiedResponse>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.inner).poll_next(cx)
+    }
+}
+
+impl Drop for AbortHandlerOnDropStream {
+    fn drop(&mut self) {
+        if !self.handler_task.is_finished() {
+            self.handler_task.abort();
+        }
+    }
+}
+
+fn stream_with_handler_abort_on_drop(
+    rx: mpsc::UnboundedReceiver<Result<UnifiedResponse>>,
+    handler_task: JoinHandle<()>,
+) -> Pin<Box<dyn Stream<Item = Result<UnifiedResponse>> + Send>> {
+    Box::pin(AbortHandlerOnDropStream {
+        inner: tokio_stream::wrappers::UnboundedReceiverStream::new(rx),
+        handler_task,
+    })
 }
 
 async fn send_stream_request<BuildRequest>(
@@ -128,7 +163,7 @@ where
         mpsc::UnboundedSender<Result<UnifiedResponse>>,
         Option<mpsc::UnboundedSender<String>>,
         Option<Duration>,
-    ),
+    ) -> JoinHandle<()>,
 {
     let mut last_error = None;
     for attempt in 0..max_tries {
@@ -247,10 +282,10 @@ where
         let (tx, rx) = mpsc::unbounded_channel();
         let (tx_raw, rx_raw) = mpsc::unbounded_channel();
         let remaining_ttft_timeout = remaining_ttft_timeout(request_start_time, ttft_timeout);
-        spawn_handler(response, tx, Some(tx_raw), remaining_ttft_timeout);
+        let handler_task = spawn_handler(response, tx, Some(tx_raw), remaining_ttft_timeout);
 
         return Ok(StreamResponse {
-            stream: Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)),
+            stream: stream_with_handler_abort_on_drop(rx, handler_task),
             raw_sse_rx: Some(rx_raw),
         });
     }
@@ -268,7 +303,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::{FutureExt, StreamExt};
     use reqwest::header::HeaderValue;
+    use tokio::sync::oneshot;
 
     #[test]
     fn format_ttft_timeout_error_includes_timeout_seconds() {
@@ -328,5 +365,36 @@ mod tests {
         assert_eq!(retry_delay_ms(0, &headers), 500);
         assert_eq!(retry_delay_ms(1, &headers), 1000);
         assert_eq!(retry_delay_ms(4, &headers), 4000);
+    }
+
+    #[tokio::test]
+    async fn dropping_returned_stream_aborts_handler_task() {
+        let (tx, rx) = mpsc::unbounded_channel::<Result<UnifiedResponse>>();
+        let (started_tx, started_rx) = oneshot::channel();
+        let (dropped_tx, dropped_rx) = oneshot::channel();
+        let handler_task = tokio::spawn(async move {
+            let _keep_sender_alive = tx;
+            let _ = started_tx.send(());
+            struct AbortDropNotify(Option<oneshot::Sender<()>>);
+            impl Drop for AbortDropNotify {
+                fn drop(&mut self) {
+                    if let Some(sender) = self.0.take() {
+                        let _ = sender.send(());
+                    }
+                }
+            }
+            let _notify = AbortDropNotify(Some(dropped_tx));
+            std::future::pending::<()>().await;
+        });
+
+        started_rx.await.expect("handler task started");
+        let mut stream = stream_with_handler_abort_on_drop(rx, handler_task);
+        drop(stream.next().now_or_never());
+        drop(stream);
+
+        tokio::time::timeout(Duration::from_secs(1), dropped_rx)
+            .await
+            .expect("handler task should be aborted when stream is dropped")
+            .expect("drop notification should send");
     }
 }

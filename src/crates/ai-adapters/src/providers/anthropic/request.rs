@@ -324,7 +324,7 @@ pub(crate) async fn send_stream(
                 inline_think_in_text,
                 remaining_ttft_timeout,
                 idle_timeout,
-            ));
+            ))
         },
     )
     .await

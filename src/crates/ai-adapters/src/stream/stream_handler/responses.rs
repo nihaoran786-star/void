@@ -257,7 +257,20 @@ pub async fn handle_responses_stream(
     let mut timeout_controller = StreamTimeoutController::new(ttft_timeout, idle_timeout);
 
     loop {
-        let sse = match next_stream_item(&mut stream, &timeout_controller).await {
+        if tx_event.is_closed() {
+            stats.log_summary("event_receiver_dropped");
+            return;
+        }
+
+        let stream_item = tokio::select! {
+            _ = tx_event.closed() => {
+                stats.log_summary("event_receiver_dropped");
+                return;
+            }
+            item = next_stream_item(&mut stream, &timeout_controller) => item,
+        };
+
+        let sse = match stream_item {
             TimedStreamItem::Item(Ok(sse)) => sse,
             TimedStreamItem::End => {
                 if received_finish_reason {

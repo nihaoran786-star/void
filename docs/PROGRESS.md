@@ -59,29 +59,31 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1170A provider HTTP/SSE owner boundary static audit complete.
 - [x] ISSUE-1170C OpenAI content-part array parser regression complete.
 - [x] ISSUE-1170B AI connection-test error classification complete.
+- [x] ISSUE-1170D SSE handler cancellation contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1170B AI Connection Test Error Classification`
+Issue: `ISSUE-1170D SSE Handler Cancellation Contract`
 
 Summary:
 
-- Added adapter-owned `ConnectionTestErrorCategory` and optional `error_category` on `ConnectionTestResult`.
-- Classified auth, quota, proxy, TLS, timeout, network, provider, and unknown connection-test failures while preserving raw `error_details`.
-- Propagated the optional category through core, desktop connection-test merge paths, installer bridge types, and Web/installer TypeScript result contracts.
-- Did not change provider catalogs, model config schemas, retry policy, settings UI presentation, Flow Chat, AI media, AI short-drama, MCP, terminal, Computer Use, or crate layout.
+- Added an adapter-owned stream wrapper so dropping `StreamResponse.stream` aborts the spawned provider handler task.
+- Provider `spawn_handler` closures now return their `JoinHandle` to `execute_sse_request`; the public `StreamResponse` field shape remains unchanged.
+- OpenAI, Anthropic, Gemini, and Responses stream handlers now stop when the event receiver is closed while waiting for more provider SSE bytes.
+- Did not change core turn cancellation, Flow Chat state, adapter transport retry, core/business retry, provider catalogs/config, AI media, AI short-drama, MCP, terminal, Computer Use, or crate layout.
 
 Verification:
 
-- RED: `cargo test -p void-ai-adapters healthcheck -- --nocapture` failed before implementation because the classifier/helper did not exist, then failed once for proxy/auth precedence before the classification order was corrected.
-- GREEN: `cargo test -p void-ai-adapters healthcheck -- --nocapture` passed with 3 focused health-check tests.
-- `cargo test -p void-ai-adapters types::ai -- --nocapture` passed with 4 focused type tests.
-- `cargo test -p void-ai-adapters` passed with 177 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests.
+- RED: `cargo test -p void-ai-adapters dropping_returned_stream_aborts_handler_task -- --nocapture` failed before implementation because the stream abort wrapper did not exist.
+- RED: `cargo test -p void-ai-adapters --test stream_test_harness openai_handler_stops_when_event_receiver_is_dropped -- --nocapture` failed before the `tx_event.closed()` select because the handler kept waiting for the next delayed SSE chunk.
+- GREEN: both focused cancellation tests passed.
+- `cargo test -p void-ai-adapters --test stream_test_harness -- --nocapture` passed with 11 stream harness tests.
+- `cargo test -p void-ai-adapters client::sse -- --nocapture` passed with 7 SSE facade tests.
+- `cargo test -p void-agent-stream` passed with 31 tests.
+- `cargo test -p void-ai-adapters` passed with 178 unit tests, 4 model-selector tests, 11 stream harness tests, and 0 doctests.
 - `cargo metadata --no-deps --format-version 1` passed.
 - `node scripts/check-core-boundaries.mjs` passed.
-- `cargo check -p void-desktop` passed with the existing unrelated dead-code warning for `parse_clipboard_path_segments`.
-- `pnpm run type-check:web` passed.
-- `pnpm --dir Void-Installer run type-check` passed.
+- `cargo test -p void-core round_executor --lib -- --nocapture` passed with 43 focused round-executor tests.
 
 ## Subagent Summary
 

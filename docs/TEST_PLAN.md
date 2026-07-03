@@ -171,6 +171,45 @@ Residual risk:
 - The category classifier is intentionally heuristic and should be extended by adding focused tests for new provider error shapes.
 - No UI message copy was changed; future UI presentation should consume `error_category` rather than parse `error_details`.
 
+## ISSUE-1170D SSE Handler Cancellation Contract
+
+Date: 2026-07-03
+
+Scope:
+
+- `void-ai-adapters` SSE request facade, provider handler lifecycle, and focused stream tests.
+- No core turn cancellation semantics, Flow Chat state, terminal, MCP, provider catalog/config, AI media, AI short-drama, or crate layout changes.
+
+Checks:
+
+- `cargo test -p void-ai-adapters dropping_returned_stream_aborts_handler_task -- --nocapture`
+  - RED result: failed before implementation because `stream_with_handler_abort_on_drop` did not exist.
+  - Interim result: failed once because the test was missing the `FutureExt` import for `now_or_never`.
+  - Final result: passed, proving dropping the adapter-returned parsed stream aborts the handler task.
+- `cargo test -p void-ai-adapters --test stream_test_harness openai_handler_stops_when_event_receiver_is_dropped -- --nocapture`
+  - RED result: failed because the OpenAI handler kept waiting for the next delayed SSE chunk after `rx_event` was dropped.
+  - Interim result: still failed after a loop-start `is_closed` check because the handler could already be inside `next_stream_item`.
+  - Final result: passed after selecting between `tx_event.closed()` and the next stream item.
+- `cargo test -p void-ai-adapters --test stream_test_harness -- --nocapture`
+  - Result: passed, 11 stream harness tests.
+- `cargo test -p void-ai-adapters client::sse -- --nocapture`
+  - Result: passed, 7 SSE facade tests.
+- `cargo test -p void-agent-stream`
+  - Result: passed, 31 tests across unit and stream processor harnesses.
+- `cargo test -p void-ai-adapters`
+  - Result: passed, 178 unit tests, 4 model-selector tests, 11 stream harness tests, and 0 doctests.
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `cargo test -p void-core round_executor --lib -- --nocapture`
+  - Result: passed, 43 focused round-executor tests.
+
+Residual risk:
+
+- Direct handler receiver-drop coverage is OpenAI-specific; the same `tx_event.closed()` lifecycle pattern was applied to Anthropic, Gemini, and Responses handlers and is covered indirectly by their existing completed-stream fixture tests.
+- This does not change core cancellation tokens or business retry semantics.
+
 ## ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice
 
 Date: 2026-07-03

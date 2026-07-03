@@ -49,6 +49,12 @@ async fn replay_openai_fixture(
     Ok(events)
 }
 
+fn openai_text_chunk(content: &str, created: u64) -> String {
+    format!(
+        "data: {{\"id\":\"chatcmpl_cancel\",\"object\":\"chat.completion.chunk\",\"created\":{created},\"model\":\"gpt-test\",\"choices\":[{{\"index\":0,\"delta\":{{\"content\":\"{content}\"}},\"finish_reason\":null}}]}}\n\n"
+    )
+}
+
 async fn replay_responses_fixture(fixture_path: &str) -> Result<Vec<UnifiedResponse>> {
     let payload = load_fixture_bytes(fixture_path);
     let server = FixtureSseServer::spawn(payload, FixtureSseServerOptions::default()).await;
@@ -209,6 +215,47 @@ async fn openai_ttft_timeout_waits_for_first_effective_stream_output_not_http_20
             .contains("TTFT timeout after 0s waiting for first effective output"),
         "unexpected error: {error}"
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn openai_handler_stops_when_event_receiver_is_dropped() -> Result<()> {
+    let first_chunk = openai_text_chunk("first", 1);
+    let payload = format!("{}{}", first_chunk, openai_text_chunk("second", 2)).into_bytes();
+    let server = FixtureSseServer::spawn(
+        payload,
+        FixtureSseServerOptions {
+            chunk_size: first_chunk.len(),
+            chunk_delay: Duration::from_millis(500),
+            ..Default::default()
+        },
+    )
+    .await;
+    let response = reqwest::get(server.url()).await?;
+    let (tx_event, mut rx_event) = mpsc::unbounded_channel();
+
+    let handler_task = tokio::spawn(handle_openai_stream(
+        response,
+        tx_event,
+        None,
+        false,
+        None,
+        Some(Duration::from_secs(2)),
+    ));
+
+    let first = rx_event
+        .recv()
+        .await
+        .expect("handler should emit first event")?;
+    assert_eq!(first.text.as_deref(), Some("first"));
+
+    drop(rx_event);
+
+    tokio::time::timeout(Duration::from_millis(100), handler_task)
+        .await
+        .expect("handler should stop before waiting for the next SSE chunk")
+        .expect("handler task should not panic");
 
     Ok(())
 }

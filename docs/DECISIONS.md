@@ -595,3 +595,9 @@ Reason: Upstream provider/service decomposition is useful as a boundary idea, bu
 Decision: `ISSUE-1170B` adds `ConnectionTestErrorCategory` as an optional adapter result field. `void-ai-adapters` owns raw error-message classification for connection tests and emits `auth`, `quota`, `proxy`, `tls`, `timeout`, `network`, `provider`, or `unknown`. Core, desktop, installer, and Web API types may pass the field through, but UI entrypoints must not infer these categories by matching `error_details`.
 
 Reason: Connection-test diagnostics need structured status for provider setup and future UI presentation, but the classification depends on transport/provider error text and belongs at the adapter health-check boundary. Keeping it optional preserves legacy JSON compatibility and avoids changing provider config schemas, retry behavior, Flow Chat, multi-agent/subagent flows, AI media, AI short-drama, MCP, terminal, or provider catalog ownership.
+
+## DEC-100: SSE Handler Lifetime Is Adapter-Owned
+
+Decision: `ISSUE-1170D` keeps provider stream handler lifecycle inside `void-ai-adapters`. `execute_sse_request` now receives each provider handler `JoinHandle` and wraps the returned parsed stream so dropping `StreamResponse.stream` aborts the handler task. Provider stream handlers also stop when their event receiver is closed while waiting for more SSE bytes. The public `StreamResponse` field shape is unchanged.
+
+Reason: Adapter consumers should not need to own provider handler tasks directly, and core turn cancellation should remain separate from provider transport lifecycle. This prevents orphaned provider SSE work when a stream is dropped while preserving completed-stream usage/tool-call delivery, adapter transport retry, core/business retry, Flow Chat state, multi-agent flows, AI media, AI short-drama, MCP, terminal, provider config, and crate layout.

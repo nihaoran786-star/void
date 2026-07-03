@@ -136,7 +136,7 @@ pub(crate) async fn send_stream(
                 tx_raw,
                 remaining_ttft_timeout,
                 idle_timeout,
-            ));
+            ))
         },
     )
     .await
