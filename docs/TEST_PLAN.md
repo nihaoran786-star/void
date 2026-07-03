@@ -4160,3 +4160,28 @@ Remaining risk:
 
 - No browser-level IME smoke was run; the regression is covered at the terminal utility/interface layer.
 - Lazy renderer `forwardRef` remains intentionally deferred because current Void terminal output call sites do not need an imperative ref.
+
+## ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
+
+Scope:
+
+- First slice covers frontend terminal history/replay integration only.
+- No production runtime behavior, Flow Chat tool cards, xterm rendering, backend PTY lifecycle, runtime-port migration, AI media, AI short-drama, Computer Use, or provider code was changed.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - Result: passed, 4 test files / 13 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- `useTerminal.test.tsx` proves structured `history.events` are delivered through `onReplay` before live output that arrives during the replay subscription window is flushed through `onOutput`.
+- The test covers the hook-level contract across `getHistory`, `onSessionEvent`, `drainPendingSessionEvents`, `normalizeTerminalReplay`, and `createReplayAwareTerminalEventHandler` without testing Flow Chat or xterm internals.
+
+Deferred:
+
+- Natural PTY exit/EOF/child completion still needs Rust-side coverage or explicit split.
+- `TerminalService.acknowledge()` remains unused by frontend output consumption; backend flow-control ack requires a separate contract.
+- Remote `terminal_get_history` still returns empty events without explicit `status/source`; this remains a follow-up API contract hardening slice.

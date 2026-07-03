@@ -1,0 +1,177 @@
+// @vitest-environment jsdom
+
+import React, { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type {
+  GetHistoryResponse,
+  SessionResponse,
+  TerminalEvent,
+  TerminalReplayEvent,
+} from '../types';
+
+const terminalServiceMock = vi.hoisted(() => ({
+  connect: vi.fn(),
+  isConnected: vi.fn(),
+  getSession: vi.fn(),
+  getHistory: vi.fn(),
+  onSessionEvent: vi.fn(),
+  drainPendingSessionEvents: vi.fn(),
+  clearPendingSessionEvents: vi.fn(),
+  write: vi.fn(),
+  resize: vi.fn(),
+  sendCtrlC: vi.fn(),
+  closeSession: vi.fn(),
+}));
+
+vi.mock('../services', () => ({
+  getTerminalService: () => terminalServiceMock,
+  TerminalService: class TerminalService {},
+}));
+
+import { useTerminal } from './useTerminal';
+
+const session: SessionResponse = {
+  id: 'session-1',
+  name: 'Session 1',
+  shellType: 'PowerShell',
+  cwd: 'D:\\workspace',
+  status: 'Running',
+  cols: 80,
+  rows: 24,
+  source: 'manual',
+};
+
+function flushAsyncWork(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0));
+}
+
+function UseTerminalHarness({
+  onReplay,
+  onOutput,
+}: {
+  onReplay: (events: TerminalReplayEvent[]) => void;
+  onOutput: (data: string) => void;
+}) {
+  useTerminal({
+    sessionId: 'session-1',
+    onReplay,
+    onOutput,
+  });
+  return null;
+}
+
+describe('useTerminal replay ordering', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    terminalServiceMock.connect.mockResolvedValue(undefined);
+    terminalServiceMock.isConnected.mockReturnValue(true);
+    terminalServiceMock.getSession.mockResolvedValue(session);
+    terminalServiceMock.clearPendingSessionEvents.mockReturnValue(undefined);
+    terminalServiceMock.drainPendingSessionEvents.mockReturnValue([]);
+    terminalServiceMock.onSessionEvent.mockReturnValue(() => {});
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    vi.clearAllMocks();
+  });
+
+  it('replays structured history events before flushing live events queued during replay', async () => {
+    const historyEvents: TerminalReplayEvent[] = [
+      { cols: 80, rows: 24, data: 'history-1' },
+      { cols: 100, rows: 30, data: 'history-2' },
+    ];
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: historyEvents,
+      data: 'history-1history-2',
+      historySize: 18,
+      cols: 100,
+      rows: 30,
+    };
+    const order: string[] = [];
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+    terminalServiceMock.onSessionEvent.mockImplementation((
+      _sessionId: string,
+      callback: (event: TerminalEvent) => void,
+    ) => {
+      callback({ type: 'output', sessionId: 'session-1', data: 'live-1' });
+      return () => {};
+    });
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={(events) => {
+            order.push(`replay:${events.map(event => event.data).join('|')}`);
+          }}
+          onOutput={(data) => {
+            order.push(`output:${data}`);
+          }}
+        />,
+      );
+      await flushAsyncWork();
+    });
+
+    expect(order).toEqual([
+      'replay:history-1|history-2',
+      'output:live-1',
+    ]);
+    expect(terminalServiceMock.clearPendingSessionEvents).toHaveBeenCalledWith('session-1');
+    expect(terminalServiceMock.getHistory).toHaveBeenCalledWith('session-1');
+    expect(terminalServiceMock.onSessionEvent).toHaveBeenCalledWith('session-1', expect.any(Function));
+  });
+
+  it('replays structured history events before flushing drained pending session events', async () => {
+    const historyEvents: TerminalReplayEvent[] = [
+      { cols: 80, rows: 24, data: 'history-1' },
+    ];
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: historyEvents,
+      data: 'history-1',
+      historySize: 9,
+      cols: 80,
+      rows: 24,
+    };
+    const order: string[] = [];
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+    terminalServiceMock.drainPendingSessionEvents.mockReturnValue([
+      { type: 'output', sessionId: 'session-1', data: 'pending-live-1' },
+    ]);
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={(events) => {
+            order.push(`replay:${events.map(event => event.data).join('|')}`);
+          }}
+          onOutput={(data) => {
+            order.push(`output:${data}`);
+          }}
+        />,
+      );
+      await flushAsyncWork();
+    });
+
+    expect(order).toEqual([
+      'replay:history-1',
+      'output:pending-live-1',
+    ]);
+    expect(terminalServiceMock.drainPendingSessionEvents).toHaveBeenCalledWith('session-1');
+  });
+});

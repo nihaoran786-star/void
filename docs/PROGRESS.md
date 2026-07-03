@@ -4729,3 +4729,28 @@ Remaining risk:
 - No manual/browser IME smoke was run in this session.
 - Lazy renderer `forwardRef` stays deferred until a real Void consumer needs it.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from the scoped commit.
+
+## ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
+
+Status: Active
+
+Completed in this slice:
+
+- Ran parallel read-only subagent review for backend terminal lifecycle/history and frontend terminal ack/replay ordering.
+- Confirmed frontend `TerminalService.acknowledge()` exists but is not called by output consumption paths; ack integration remains deferred rather than silently assumed.
+- Added [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover structured history replay before live output queued during replay.
+- Updated architecture and decision docs to keep replay/live ordering owned by the `useTerminal` hook boundary.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - Result: passed, 4 test files / 13 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Remaining risk:
+
+- Backend natural PTY exit/EOF/child completion still lacks Rust coverage and likely needs a separate RED/GREEN slice.
+- Remote `terminal_get_history` empty events still lack explicit `status/source` distinction from local empty history.
+- Backend `terminal_ack` flow-control semantics remain unconnected to frontend output consumption.
+- Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.

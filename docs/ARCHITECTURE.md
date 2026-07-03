@@ -396,6 +396,7 @@ Structured replay contract:
 - Empty `data` is a resize marker; non-empty `data` is raw terminal output written after applying its `cols`/`rows`.
 - Terminal API and desktop Tauri DTOs must keep legacy flat `data/historySize/cols/rows` fields while adding `events`.
 - Web UI normalizes history at the terminal hook boundary; `ConnectedTerminal` may replay xterm resize/data queue items, but replay resize must not call backend `terminal_resize`.
+- `useTerminal` owns the frontend replay/live-event ordering contract: it fetches history, subscribes to session events, drains pending session events through a replay-aware queue, delivers structured replay, then flushes queued live events.
 - `TerminalService` may buffer a bounded number of per-session live events when no session listener is registered so history replay does not drop events at the listener boundary.
 - Remote terminal history must stay explicit about unsupported replay by returning empty replay events until remote replay is implemented.
 

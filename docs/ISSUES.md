@@ -1654,7 +1654,7 @@ Result:
 ### ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
 
 Priority: P1
-Status: Proposed
+Status: Active
 Goal: Add focused tests for the current terminal lifecycle and history pipeline gaps without changing runtime-port ownership.
 Allowed files: `src/crates/terminal/src/**` tests, `src/apps/desktop/src/api/terminal_api.rs` tests/helpers if available, `src/web-ui/src/tools/terminal/services/*`, `src/web-ui/src/tools/terminal/hooks/*`, focused E2E terminal spec, docs.
 Forbidden files: Flow Chat store/tool cards, multi-agent/subagent projection, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration.
@@ -1664,6 +1664,12 @@ Acceptance:
 - Remote `terminal_get_history` empty-event behavior is documented and tested as an explicit remote status/source, not confused with local empty history.
 - One integration-style test covers backend history events through frontend replay queue semantics where practical.
 Risk notes: This issue is about observability and contract tests first; do not redesign PTY process management or remote terminal history in the same diff.
+
+Progress:
+- Added frontend hook-level integration coverage in `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx` for structured `history.events` replay before live output queued during replay. This locks the current `getHistory -> onSessionEvent -> drainPendingSessionEvents -> normalizeTerminalReplay -> finishReplay` ordering without touching Flow Chat, tool cards, xterm rendering, runtime ports, or backend PTY management.
+- Confirmed `TerminalService.acknowledge()` is currently defined but not called by Web terminal consumption paths. Backend flow-control ack remains explicitly deferred until a separate issue defines the consumption contract.
+- Confirmed backend natural PTY exit/EOF and remote empty-history status/source remain unimplemented or unproven by tests; do not mark this issue Done until those are covered or explicitly split.
+- Verification so far: `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` passed with 4 files / 13 tests. `pnpm --dir src/web-ui run type-check` passed.
 
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 
