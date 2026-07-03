@@ -1828,7 +1828,7 @@ Result:
 ### ISSUE-1140B BTW Child-Session Image Context Completion
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Complete `/btw` image context support beyond initial side-question creation, especially child-session follow-up messages.
 Allowed files: `src/web-ui/src/flow_chat/services/flow-chat-manager/MessageModule.ts`, `src/web-ui/src/flow_chat/services/BtwThreadService.ts`, focused BTW tests, docs.
 Forbidden files: provider adapters, UI byte loading, `BtwSessionPanel` provider/path policy, media services, short-drama services, core image-analysis runtime.
@@ -1838,6 +1838,13 @@ Acceptance:
 - No provider, path, or model capability judgment is added to `ChatInput.tsx` or `BtwSessionPanel.tsx`.
 - Tests cover initial `/btw` image payload, child follow-up with image, failure path preserving composer images, and no-image regression.
 Risk notes: This is a Flow Chat service boundary issue, not an image byte loading or provider implementation issue.
+Progress:
+- Removed the transient `/btw` child-session image rejection from `MessageModule` and now build an explicit `imagePayload` from existing `options.imageContexts` plus `options.imageDisplayData`.
+- Delegated image follow-up delivery through `BtwThreadService.sendMessageToTransientBtwSession`, preserving `BtwThreadService` as the only `btwAPI.askStream` caller/conversion layer for transient BTW sends.
+- Preserved no-image transient BTW follow-up behavior and failure behavior: failed sends do not create/delete normal dialog turns, and the composer-owned image payload is still passed to the service boundary.
+- No `ChatInput.tsx`, `BtwSessionPanel.tsx`, provider adapter, media service, short-drama service, core image-analysis runtime, or image-byte loading code was changed.
+- Verification: RED `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts` failed before implementation on `Transient /btw sessions do not support image attachments yet`; GREEN focused Flow Chat BTW/image tests passed after implementation. Full commands are recorded in `docs/TEST_PLAN.md`.
+- Deferred: backend stream echo/display metadata and deeper Rust-side BTW image consumption remain separate validation work; provider support remains governed by the existing backend image pipeline.
 
 ### ISSUE-1140C Image Context Scope and Media Path Leak Guards
 

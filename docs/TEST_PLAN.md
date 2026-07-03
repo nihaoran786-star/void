@@ -5154,3 +5154,36 @@ Coverage:
 Deferred:
 
 - Session/workspace scoping for the global image-context store remains unimplemented and belongs to a future storage-boundary issue.
+
+## ISSUE-1140B BTW Child-Session Image Context Completion
+
+Scope:
+
+- Current slice covers transient `/btw` child-session follow-up messages that include existing composer image contexts.
+- No `ChatInput.tsx`, `BtwSessionPanel.tsx`, provider adapter, media service, short-drama service, core image-analysis runtime, desktop upload/API, or image-byte loading behavior was changed.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts`
+  - Result before fix: failed as expected because `MessageModule` rejected transient `/btw` image attachments with `Transient /btw sessions do not support image attachments yet`.
+  - Result after fix: passed.
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/utils/imageContextForBackend.test.ts`
+  - Result: passed, 3 test files / 10 tests.
+- `pnpm --dir src/web-ui run test:run src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx`
+  - Result: passed, 1 test file / 21 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Transient BTW child-session follow-up forwards `imageContexts` and `imageDisplayData` as an explicit `imagePayload` to `BtwThreadService`.
+- No-image transient BTW follow-up keeps the existing path with `imagePayload: undefined`.
+- Failed transient BTW image follow-up does not create or delete a normal dialog turn, so failure handling stays at the service boundary instead of pretending a normal message was sent.
+- Existing `BtwThreadService` tests continue to prove `btwAPI.askStream` receives initial/follow-up image contexts through the backend path.
+- Existing `imageContextForBackend` tests continue to prove backend payload conversion without testing provider internals.
+
+Deferred:
+
+- Backend stream echo/display metadata for BTW image follow-up remains separate from delivery.
+- Deeper Rust-side BTW image consumption checks remain future validation work.
+- Provider support remains owned by the existing backend image pipeline; UI must not add provider/path/model capability inference.

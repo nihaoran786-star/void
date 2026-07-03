@@ -316,6 +316,7 @@ Interface ownership:
 - `AnalyzeImage` may call the configured image-understanding model through existing `image_analysis` and `AIClientFactory` infrastructure. It must not add provider-specific wire logic; provider payload conversion stays in `src/crates/ai-adapters` or existing image-processing helpers.
 - `src/crates/ai-adapters` owns provider-specific OpenAI/Responses, Anthropic, and Gemini multimodal request conversion only.
 - Flow Chat, media gallery, and short-drama UI/services may render image analysis state, but must not own provider calls, path policy, or schema interpretation.
+- BTW child-session follow-up image contexts are a Flow Chat service-boundary concern: `MessageModule` may package already-normalized `BackendImageContextPayload` from composer options, and `BtwThreadService` remains the only transient BTW send layer that maps it into `btwAPI.askStream`. `ChatInput.tsx`, `BtwSessionPanel.tsx`, media services, short-drama services, and provider adapters must not infer provider/path/model capability for this flow.
 
 Required state model:
 
@@ -648,6 +649,7 @@ The current upstream reference is `upstream-bitfun/main@ac16dcc18`. Upstream is 
 - Terminal changes must pass through terminal service/core DTOs and preserve flat-history compatibility unless a dedicated issue changes the contract.
 - Computer Use changes must pass through `ComputerUseHost` or platform adapter modules, with explicit unsupported/error results.
 - Image understanding changes must pass through the existing `AnalyzeImage` tool contract and workspace-scoped image resolution.
+- BTW follow-up image-context delivery must pass through `MessageModule` -> `BtwThreadService`; UI components may compose selected images but must not decide backend/provider support.
 - Image-understanding default-model governance belongs to `AIConfig` capability helpers and `ConfigService::reconcile_models`. The `image_understanding` default slot may point only to an enabled image-capable model (`ImageUnderstanding` capability or `Multimodal` category) and must be cleared rather than silently falling back to a text-only model.
 - Runtime image-understanding model resolution may canonicalize saved `id` / `name` / `model_name` references, but must still return explicit disabled, unsupported-model, or not-configured errors. UI, AI media, AI short-drama, Flow Chat, and provider adapters must not duplicate this model-capability policy.
 - Theme governance changes must pass through scripts, token files, and component-library contracts, not page-specific visual exceptions.

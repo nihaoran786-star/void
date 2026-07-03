@@ -619,3 +619,9 @@ Reason: WGC is the right fallback for UWP/WinUI/DirectComposition black `PrintWi
 Decision: `ISSUE-1130B1` keeps Windows HWND lifetime hardening inside `desktop_host.rs`. The host owns the expected-pid and optional pinned-`hwnd_raw` validation helper, and Windows `app_type_text` / `app_key_chord` now revalidate the selected HWND before cloaked input dispatch and validate the returned snapshot against the expected pid. The change does not alter Computer Use schemas, Web UI affordances, WGC capture, macOS/Linux adapters, terminal, provider, AI media, or AI short-drama behavior.
 
 Reason: HWND lifetime is a platform adapter concern. UI and tool schemas should not infer stale-window state by string matching or by carrying raw handles across module boundaries. The first safe slice blocks pid changes and pinned HWND changes for text/key input while leaving real HWND reuse, same-PID multi-window switching, UIPI/elevated-window behavior, and capture races to Windows smoke rather than overstating unit-test evidence.
+
+## DEC-104: BTW Follow-Up Images Stay Service-Owned
+
+Decision: `ISSUE-1140B` keeps transient `/btw` child-session image follow-up support inside the Flow Chat service boundary. `MessageModule` converts existing composer options into an explicit `imagePayload`, and `BtwThreadService.sendMessageToTransientBtwSession` remains the only transient BTW layer that forwards image contexts to `btwAPI.askStream`.
+
+Reason: Initial `/btw` image support already enters the backend through the Flow Chat/Btw service path. Child-session follow-up images should complete that same path without adding provider, path, or model capability judgment to `ChatInput.tsx`, `BtwSessionPanel.tsx`, media services, short-drama services, provider adapters, or core image-analysis runtime. Backend stream display metadata and deeper Rust-side image consumption checks remain separate validation work.

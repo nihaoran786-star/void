@@ -63,28 +63,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1170D SSE handler cancellation contract complete.
 - [x] ISSUE-1130A Windows WGC capture adapter wiring complete.
 - [x] ISSUE-1130B1 Windows input action HWND revalidation slice complete.
+- [x] ISSUE-1140B BTW child-session image follow-up slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1130B1 Windows Input Action HWND Revalidation Slice`
+Issue: `ISSUE-1140B BTW Child-Session Image Context Completion`
 
 Summary:
 
-- Split `ISSUE-1130B` after subagent review because real HWND reuse, same-PID multi-window switches, UIPI/elevated-window behavior, and capture races cannot be proven by pure unit tests.
-- Added a Windows host identity helper that rejects pid changes and pinned `hwnd_raw` changes as `[WINDOW_CHANGED]`.
-- Routed Windows `app_type_text` and `app_key_chord` through expected-pid HWND revalidation before dispatching cloaked input and through expected-pid snapshot validation after dispatch.
-- Preserved WGC implementation, Web UI, Computer Use schemas, macOS/Linux adapters, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package files, and crate layout.
+- Completed the transient `/btw` child-session image follow-up path by removing the service-layer rejection and forwarding existing composer image contexts as an explicit `imagePayload`.
+- Kept `BtwThreadService` as the only transient BTW `btwAPI.askStream` conversion layer.
+- Preserved `ChatInput.tsx`, `BtwSessionPanel.tsx`, provider adapters, media services, short-drama services, core image-analysis runtime, and image-byte loading behavior.
 
 Verification:
 
-- RED: `cargo test -p void-desktop windows_hwnd_lifetime_revalidation --lib -- --nocapture` failed before implementation because `windows_validate_target_identity` did not exist.
-- GREEN: the same HWND lifetime revalidation test passed after implementation.
-- `cargo test -p void-desktop windows_host_app_action_tests --lib -- --nocapture` passed with 21 tests.
-- `cargo test -p void-desktop windows_app_enumeration --lib -- --nocapture` passed with 4 tests.
-- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture` passed with 10 tests.
-- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture` passed with 5 tests.
-- `cargo check -p void-desktop` passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning.
-- Manual Windows smoke remains required for real HWND reuse, same-PID multi-window switches, UIPI/elevated-window behavior, and WGC/PrintWindow capture races.
+- RED: `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts` failed before implementation on the existing transient BTW image rejection.
+- GREEN: `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/utils/imageContextForBackend.test.ts` passed with 3 files / 10 tests.
+- `pnpm --dir src/web-ui run test:run src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx` passed with 1 file / 21 tests.
+- `pnpm --dir src/web-ui run type-check` passed.
+- Backend stream echo/display metadata and deeper Rust-side BTW image consumption remain deferred validation work.
 
 ## Subagent Summary
 
@@ -107,7 +104,7 @@ Initial role coverage:
 
 Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
 
-Next candidate issue: `ISSUE-1110C Release Long-Session Turn Navigation E2E`.
+Next candidate issue: select one remaining Proposed issue from `docs/ISSUES.md` after each completed slice; do not batch unrelated upstream areas into one diff.
 
 Allowed files:
 
