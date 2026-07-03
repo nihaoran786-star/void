@@ -1826,7 +1826,10 @@ Progress:
 - Changed filename/basename fallback to require a unique match. Same-name collisions now return `None` instead of taking an arbitrary `DashMap` iteration result; exact `image_id` lookup remains stable.
 - Preserved `image_context.rs` as storage/lookup only. No provider policy, workspace reads, Web UI, Flow Chat, media service, short-drama service, provider adapter, execution engine, or desktop API code changed.
 - Verification so far: `cargo test -p void-core image_context --lib -- --nocapture` passed with 8 tests, including existing media image-reference tests matched by the filter. `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests. `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/image_context.rs` passed.
-- Remaining 1140C work: `resolve_missing_image_payloads` missing/expired cache coverage, `GenerateImage` / `GenerateVideo` unmatched local-path guard coverage, and valid `http(s)` / `data:` image-reference regression tests.
+- Added media image-reference guard coverage for `GenerateImage` and `GenerateVideo`: unmatched Windows absolute paths, POSIX absolute paths, and relative local paths are filtered out of provider `image_urls` instead of being sent as provider URLs. Plain non-path references remain unchanged for compatibility, and valid `http(s)` / `data:image` references continue to pass through.
+- Preserved registered image-context behavior: `image_id` and file-name references still resolve to `data_url` first, then provider-compatible `image_path` only. Local-path upload behavior remains owned by `UploadMediaImage`.
+- Verification so far also includes `cargo test -p void-core media_image_reference_tests --lib -- --nocapture` passed with 15 tests, `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/media_tools.rs` passed after formatting, and `cargo check -p void-core --features product-full` passed.
+- Remaining 1140C work: `resolve_missing_image_payloads` missing/expired cache coverage.
 
 ### ISSUE-1140D Void ViewImage Tool Contract Gate
 

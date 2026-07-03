@@ -38,6 +38,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1120D remote terminal history status/source contract slice complete.
 - [x] ISSUE-1140A AnalyzeImage permission/data_url contract slice complete.
 - [x] ISSUE-1140C image-context unique filename lookup slice complete.
+- [x] ISSUE-1140C media image-reference local path guard slice complete.
 
 ## Latest Slice
 
@@ -45,16 +46,17 @@ Issue: `ISSUE-1140C Image Context Scope and Media Path Leak Guards`
 
 Summary:
 
-- Added `image_context.rs` tests for exact `image_id`, full filename, basename, expiration cleanup, and same-name collision lookup behavior.
-- Changed filename/basename fallback to fail closed when multiple stored images share the same name, while preserving exact `image_id` lookup.
-- Preserved `image_context.rs` as storage/lookup only: no provider policy, workspace read, media tool production logic, Flow Chat, AI media, AI short-drama, Web UI, execution engine, or desktop API changes.
-- Left the broader 1140C media path leak and missing payload coverage as remaining work.
+- Hardened `GenerateImage` / `GenerateVideo` `image_urls` normalization so unmatched Windows/POSIX/relative local paths are not sent to APIMart as provider URLs.
+- Preserved valid `http(s)`, `data:image`, registered image-context `data_url`, and registered provider URL behavior.
+- Left `UploadMediaImage` as the explicit local-path upload route.
+- Did not touch Web UI, Flow Chat, AI media service, AI short-drama service, provider adapters, APIMart client, execution engine, desktop API, or image-context lookup.
+- Left `resolve_missing_image_payloads` coverage as remaining `ISSUE-1140C` work.
 
 Verification:
 
-- `cargo test -p void-core image_context --lib -- --nocapture` passed with 8 matched tests.
-- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests.
-- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/image_context.rs` passed after formatting.
+- `cargo test -p void-core media_image_reference_tests --lib -- --nocapture` passed with 15 tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/media_tools.rs` passed after formatting.
+- `cargo check -p void-core --features product-full` passed.
 
 ## Subagent Summary
 

@@ -191,12 +191,26 @@ fn is_apimart_image_reference(value: &str) -> bool {
     value.starts_with("http://") || value.starts_with("https://") || value.starts_with("data:image")
 }
 
+fn is_unmatched_local_image_path_reference(value: &str) -> bool {
+    let value = value.trim();
+    if value.is_empty() {
+        return false;
+    }
+
+    value.starts_with('/')
+        || value.starts_with("./")
+        || value.starts_with("../")
+        || value.starts_with("~")
+        || value.as_bytes().get(1).is_some_and(|byte| *byte == b':')
+        || value.contains('\\')
+}
+
 fn resolve_media_image_urls(image_urls: Vec<String>) -> Vec<String> {
     image_urls
         .into_iter()
-        .map(|url| {
+        .filter_map(|url| {
             if is_apimart_image_reference(&url) {
-                return url;
+                return Some(url);
             }
 
             find_image_context_by_reference(&url)
@@ -207,7 +221,13 @@ fn resolve_media_image_urls(image_urls: Vec<String>) -> Vec<String> {
                             .filter(|path| is_apimart_image_reference(path))
                     })
                 })
-                .unwrap_or(url)
+                .or_else(|| {
+                    if is_unmatched_local_image_path_reference(&url) {
+                        None
+                    } else {
+                        Some(url)
+                    }
+                })
         })
         .collect()
 }
@@ -369,6 +389,58 @@ mod media_image_reference_tests {
         let resolved = resolve_media_image_urls(vec!["missing-reference.png".to_string()]);
 
         assert_eq!(resolved, vec!["missing-reference.png".to_string()]);
+    }
+
+    #[test]
+    fn filters_unmatched_local_paths_from_provider_image_urls() {
+        let resolved = resolve_media_image_urls(vec![
+            "C:\\Users\\me\\Pictures\\private.png".to_string(),
+            "/Users/me/Pictures/private.png".to_string(),
+            "../private.png".to_string(),
+            "https://example.com/keep.png".to_string(),
+            "data:image/png;base64,keep".to_string(),
+        ]);
+
+        assert_eq!(
+            resolved,
+            vec![
+                "https://example.com/keep.png".to_string(),
+                "data:image/png;base64,keep".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn drops_unmatched_local_paths_from_generate_image_request() {
+        let request = image_generation_request_from_input(&json!({
+            "prompt": "make a variant",
+            "image_urls": [
+                "C:\\Users\\me\\Pictures\\private.png",
+                "/Users/me/Pictures/private.png",
+                "https://example.com/reference.png"
+            ]
+        }));
+
+        assert_eq!(
+            request.image_urls,
+            vec!["https://example.com/reference.png".to_string()]
+        );
+    }
+
+    #[test]
+    fn drops_unmatched_local_paths_from_generate_video_request() {
+        let request = video_request_from_input(&json!({
+            "prompt": "animate this",
+            "image_urls": [
+                "/Users/me/Pictures/private.png",
+                "data:image/png;base64,reference"
+            ]
+        }));
+
+        assert_eq!(
+            request.image_urls,
+            vec!["data:image/png;base64,reference".to_string()]
+        );
     }
 
     #[test]

@@ -4265,4 +4265,32 @@ Deferred:
 
 - Session/workspace scoping for the global image-context store remains unimplemented.
 - `resolve_missing_image_payloads` missing/expired cache behavior remains to be covered.
-- `GenerateImage` / `GenerateVideo` unmatched local-path rejection and valid `http(s)` / `data:` references remain separate 1140C slices.
+
+## ISSUE-1140C Media Image Reference Path Guard
+
+Scope:
+
+- Current slice covers `GenerateImage` / `GenerateVideo` `image_urls` normalization in `media_tools.rs`.
+- No Web UI, Flow Chat, AI media service, AI short-drama service, provider adapter, APIMart client, `UploadMediaImage`, execution engine, desktop API, or image-context lookup behavior was changed.
+
+Executed:
+
+- `cargo test -p void-core media_image_reference_tests --lib -- --nocapture`
+  - Result before fix: failed as expected because unmatched Windows absolute, POSIX absolute, and relative local paths were preserved in provider `image_urls`.
+  - Result after fix: passed, 15 tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/media_tools.rs`
+  - Result before formatting: failed with a formatting diff.
+  - Result after `rustfmt --edition 2021 src/crates/core/src/agentic/tools/implementations/media_tools.rs`: passed.
+- `cargo check -p void-core --features product-full`
+  - Result: passed.
+
+Coverage:
+
+- Unmatched Windows absolute paths, POSIX absolute paths, and relative local paths are filtered out before provider payload construction.
+- `GenerateImage` and `GenerateVideo` request builders share the guarded normalization.
+- Existing tests still prove registered image contexts resolve by name/id to `data_url`, registered provider URLs still pass through, plain non-path references remain unchanged, and valid `http(s)` / `data:image` references remain accepted.
+- `UploadMediaImage` local upload path resolution remains unchanged.
+
+Deferred:
+
+- `resolve_missing_image_payloads` missing/expired cache behavior remains to be covered before marking all of `ISSUE-1140C` done.
