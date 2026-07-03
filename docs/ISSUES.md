@@ -2032,9 +2032,9 @@ Progress:
 ### ISSUE-1160D Generated Widget Theme Payload Compatibility Contract
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Make generated-widget theme payload compatibility explicit before reducing or renaming host CSS variables.
-Allowed files: `src/web-ui/src/tools/generative-widget/themePayload.ts`, optional `themePayloadCompatibility.ts`, focused widget theme payload tests, docs.
+Allowed files: `src/web-ui/src/tools/generative-widget/themePayload.ts`, optional `themePayloadCompatibility.ts`, focused widget theme payload tests, theme color governance baseline if verification improves it, docs.
 Forbidden files: ThemeService runtime changes without 1160C, widget business logic, app store access, Flow Chat/media/short-drama state.
 Acceptance:
 - Required, optional, and legacy widget theme variables are documented and tested.
@@ -2042,6 +2042,13 @@ Acceptance:
 - Payload reader remains a pure host CSS-var reader; it does not infer app state.
 - Focused tests cover missing vars, legacy aliases, current payload keys, and at least one dark/light theme sample.
 Risk notes: Widget iframe compatibility is a boundary; do not delete or rename vars without a compatibility map.
+Progress:
+- Exported a generated-widget theme payload contract with required vars, optional vars, and known legacy aliases.
+- Extended `readWidgetThemePayload` with `contractVersion`, `status`, `source`, `missingRequiredVars`, `appliedLegacyAliases`, and typed error metadata while preserving `id`, `type`, and `vars` compatibility.
+- Added legacy alias backfill for `--color-border-default` and `--border-base` in both directions.
+- Added focused tests for contract documentation, current keys, legacy fallback, missing required vars, unknown var isolation, and light/dark host theme samples.
+- Tightened the theme color governance fallback-only baseline from 78 to 77 after the widget payload reader promoted one fallback-only token into the explicit payload contract.
+- Preserved ThemeService, widget iframe business logic, MiniApp `--void-*` payloads, Flow Chat, AI media, and AI short-drama logic.
 
 ### ISSUE-1160E Theme Visual Governance Evidence Contract
 

@@ -151,6 +151,11 @@ GREEN checks:
   - Result: passed, 13 tests.
 - `pnpm run type-check:web`
   - Result: passed.
+- `pnpm run check:theme-colors`
+  - Initial result after implementation: failed because `cssVars.fallbackOnlyUnique` improved from the old baseline max 78 to 77.
+  - Result after lowering `scripts/theme-color-governance-baseline.json` `cssVars.fallbackOnlyUnique.max` to 77: passed.
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - Result: passed, 14 tests.
 
 Known validation limits:
 
@@ -4149,7 +4154,7 @@ Coverage:
 Deferred:
 
 - Runtime custom-theme key filtering is completed by `ISSUE-1160C`.
-- Generated-widget theme payload compatibility remains `ISSUE-1160D`.
+- Generated-widget theme payload compatibility is completed by `ISSUE-1160D`.
 - Media and short-drama token cleanup remains `ISSUE-1160F`.
 
 ## ISSUE-1160C ThemeService Runtime Token Whitelist
@@ -4191,7 +4196,7 @@ Deferred:
   - Local file inspection:
     - Result: `ISSUE-1160A` already provides near-pair decision validation, theme color audit integration, and Tabs close-hover token conformance.
     - Result: local `check:theme-colors` and `check:theme-visual-contract` exist and cover Web/CLI color audits plus visual-governance surface structure.
-    - Result: local ThemeService dynamic-token whitelist is now complete; widget payload compatibility contract and executable visual evidence fields remain missing.
+    - Result: local ThemeService dynamic-token whitelist and generated-widget payload compatibility contract are now complete; executable visual evidence fields remain missing.
     - Result: AI media and short-drama are included in the visual governance contract, but their local SCSS still contains surface-local tokens, `--void-*` fallbacks, and raw colors that need a separate boundary cleanup.
   - Main session and subagents reported current targeted checks passed:
     - `node --test scripts/audit-theme-colors.test.mjs`
@@ -4207,6 +4212,39 @@ Deferred:
     - `pnpm run check:theme-visual-contract` plus validator tests for `ISSUE-1160E`.
     - Focused workspace-media/short-drama tests plus theme audit for `ISSUE-1160F`.
   - Result: docs-only audit in the main session; no production code changed.
+
+## ISSUE-1160D Generated Widget Theme Payload Compatibility Contract
+
+Scope:
+
+- Current slice covers `src/web-ui/src/tools/generative-widget/themePayload.ts` and focused generated-widget theme payload tests.
+- No ThemeService runtime logic, theme preset values, widget iframe business protocol, MiniApp `--void-*` payloads, Flow Chat, AI media, or AI short-drama logic was changed.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/tools/generative-widget/themePayload.test.ts`
+  - RED result before implementation: failed because `WIDGET_THEME_PAYLOAD_CONTRACT` was missing, `--font-size-sm` was not read, and `--color-border-default` / `--border-base` were not backfilled.
+  - RED result before alias metadata implementation: failed because `appliedLegacyAliases` stayed empty after compatibility backfill.
+  - GREEN result after implementation: passed, 6 tests.
+- `pnpm run type-check:web`
+  - Result: passed.
+
+Coverage:
+
+- Required, optional, and legacy generated-widget theme variables are exported as a contract.
+- Current canonical widget keys remain in the payload, including shell-used optional tokens such as font size, font weight, spacing, and element background tokens.
+- `--color-border-default` and `--border-base` are compatible in both directions and report applied alias metadata.
+- Missing required vars return explicit `status: partial`, `source: host-css-vars`, `missingRequiredVars`, and typed error metadata instead of inferring app state.
+- Unknown host CSS variables do not leak into the widget payload.
+- Light and dark host theme samples produce ready payloads.
+- Theme color governance baseline is tightened for the reduced fallback-only token count.
+
+Deferred:
+
+- MiniApp `buildMiniAppThemeVars` remains a separate `--void-*` protocol and should be covered by a future MiniApp-specific issue, not by `ISSUE-1160D`.
+- Visual evidence metadata remains `ISSUE-1160E`.
+- AI media and short-drama token cleanup remains `ISSUE-1160F`.
+
 - `ISSUE-1170`:
   - `git show --stat --name-status --oneline 96cea08ca 629ced40a 6dc44c489 --`
     - Result: passed; identified upstream provider HTTP owner migration, provider-owned local runtime migration, and stream-contract extraction scopes.

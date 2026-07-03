@@ -44,27 +44,27 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150B MCP elicitation legacy compatibility complete.
 - [x] ISSUE-1160B theme CSS variable runtime contract complete.
 - [x] ISSUE-1160C ThemeService runtime token whitelist complete.
+- [x] ISSUE-1160D generated-widget theme payload compatibility contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160C ThemeService Runtime Token Whitelist`
+Issue: `ISSUE-1160D Generated Widget Theme Payload Compatibility Contract`
 
 Summary:
 
-- Added suffix-level allowlists to ThemeService dynamic CSS variable injection paths.
-- Custom themes can no longer inject unsupported dynamic variables such as `--color-accent-evil`, while valid built-in dynamic tokens remain injected.
-- Kept fixed ThemeService runtime vars outside the contract required-token subset so button, window-control, card, overlay, scrollbar, font, tool-card, Flow Chat link, and scene viewport tokens are not accidentally removed.
-- Did not touch theme preset visual values, component/page SCSS, widget payload runtime, Flow Chat, AI media, or AI short-drama logic.
+- Exported an explicit generated-widget theme payload contract for required vars, optional vars, and known legacy aliases.
+- Extended `readWidgetThemePayload` with `contractVersion`, `status`, `source`, `missingRequiredVars`, `appliedLegacyAliases`, and typed missing-var error metadata while preserving `{ id, type, vars }`.
+- Kept `--color-border-default` compatible with canonical `--border-base` in both directions for existing generated widgets.
+- Did not touch ThemeService runtime logic, theme preset values, widget iframe business protocol, MiniApp `--void-*` payloads, Flow Chat, AI media, or AI short-drama logic.
 
 Verification:
 
-- RED: `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts` failed before implementation because `--color-accent-evil` was injected.
-- GREEN: the same command passed with 5 tests after dynamic suffix filtering.
-- `pnpm --dir src/web-ui run test:run src/infrastructure/theme/core/ThemeService.test.ts src/infrastructure/theme/presets/startupThemeBootstrap.test.ts` passed with 9 tests.
+- RED: `pnpm --dir src/web-ui run test:run src/tools/generative-widget/themePayload.test.ts` failed before implementation because the payload contract, optional shell tokens, and legacy alias backfill were missing.
+- RED: the same command failed again before alias metadata implementation because `appliedLegacyAliases` stayed empty after compatibility backfill.
+- GREEN: the same command passed with 6 tests after implementation.
 - `pnpm run type-check:web` passed.
-- `pnpm run check:theme-colors` initially failed after implementation because `--color-accent-` was incorrectly listed as a concrete required var, then passed after keeping it only as an allowed dynamic prefix.
+- `pnpm run check:theme-colors` initially failed because `cssVars.fallbackOnlyUnique` improved from baseline max 78 to 77; after tightening `scripts/theme-color-governance-baseline.json`, it passed.
 - `node --test scripts/audit-theme-colors.test.mjs` passed with 14 tests.
-- `pnpm run check:theme-colors` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary
