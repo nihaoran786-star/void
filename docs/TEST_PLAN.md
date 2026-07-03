@@ -5655,3 +5655,33 @@ Coverage:
 Remaining risk:
 
 - This does not produce runtime availability reporting; it only prevents premature API/profile introduction.
+
+## ISSUE-1180C Runtime Services Gap Audit
+
+Scope:
+
+- Current slice is docs-only and classifies existing runtime service gaps.
+- It does not move service owners, managers, scheduler/session restore, terminal execution, remote-connect dispatch, product tool runtime, product-domain runtime, Cargo features, app entrypoints, or source code.
+- `void-core` remains the explicit compatibility owner for concrete runtime gaps until separate implementation issues provide evidence.
+
+Executed:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180C.
+
+Coverage:
+
+- Gap audit distinguishes `contract-only`, `service-helper`, and `concrete-runtime`.
+- Covered gaps include agent/session ports, remote-connect helpers, filesystem operations, session/usage summaries, product-domain runtime bindings, MCP runtime slices, remote SSH/file watch/Git integrations, terminal runtime services, and product tool runtime.
+- Subagent architecture review confirmed that scheduler/session restore, workspace and persistence reads, terminal pre-warm, remote-connect dispatcher/tracker host adapter, remote model catalog/config resolver, remote-SSH concrete runtime, product tool runtime, and product-domain runtime bindings remain concrete runtime gaps.
+- DEC-119 records that ports/helpers are not migration permission.
+
+Remaining risk:
+
+- The gap list can become stale as future owner migrations land; each concrete-runtime issue must update this audit and add focused snapshot/equivalence tests.

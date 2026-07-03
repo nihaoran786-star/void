@@ -160,6 +160,35 @@ product assembly Rust API 都必须先创建单独 issue，并证明：
 - `product-full` 仍是当前完整能力路径，任何更小 profile 只是 future product decision；
 - 有 snapshot/manifest/feature-graph 检查覆盖行为等价，而不是只增加类型名。
 
+## Runtime services gap audit（只列差距）
+
+当前 `void-runtime-ports`、`void-services-core`、`void-services-integrations` 已经承载了
+一批 DTO、纯 helper 和 integration slices，但它们不是完整 runtime owner。下面只列
+后续拆分需要面对的 gap；`concrete-runtime` 项必须单独建 issue，不能在审计 diff 中迁移。
+
+| Gap | 分类 | 当前 owner 事实 | 后续要求 |
+|---|---|---|---|
+| Agent/session submission ports | `contract-only` | `void-runtime-ports` 已有 session create、submission、dialog policy/outcome、cancel、remote state DTO/trait。`void-core::service_agent_runtime` 仍把这些 port 绑定到 global coordinator/scheduler。 | 后续迁移必须保留 queue/preempt/cancel-reply/background-result 行为，并用 scheduler/session equivalence tests 证明。 |
+| Remote-connect command and tracker helpers | `service-helper` | `void-services-integrations::remote_connect` 已有 remote-facing DTO、request builders、image-context helper、tracker state and policy helpers。Network lifecycle、product dispatch、workspace/session reads 和 concrete scheduler submit 仍在 core adapter。 | 可以继续拆 pure helpers；network/runtime owner 外移必须先锁 remote command/response snapshot、tracker fanout、restore/terminal-prewarm/submit 顺序。 |
+| Filesystem local operations | `service-helper` | `void-services-core::filesystem` owns local operations/listing/tree/service helpers. Remote overlay、workspace-root source、product runtime binding 仍在 core/workspace services。 | 后续只能按 local/remote boundary split，不能让 UI 或 tools 直接绕过 workspace service。 |
+| Session metadata and usage summaries | `service-helper` | `void-services-core::session`, `session_usage`, `token_usage` own DTO/classification/render helpers. Persistence manager、dialog turns、prompt-cache accounting and goal budget runtime remain core-owned. | Usage/cache migration must preserve cache read vs cache creation semantics and `/goal` billable usage behavior. |
+| Product-domain runtime bindings | `concrete-runtime` | `void-product-domains` owns pure MiniApp/function-agent contracts and facades; `void-core::product_domain_runtime` still binds filesystem/process/Git/AI adapters. | IO/worker/Git/AI runtime migration requires separate snapshot tests for MiniApp storage, worker host, export/import, Git and AI adapter behavior. |
+| MCP runtime | `service-helper` with concrete slices | `void-services-integrations::mcp` owns config/protocol/runtime-error/tool-info/server connection/process helpers behind features. Core still owns product tool context, catalog exposure, and MCP tool integration surfaces. | Future moves must preserve readonly manifest, provider metadata, timeout classification, catalog/tool-card compatibility and product tool runtime behavior. |
+| Remote SSH / file watch / Git integrations | `service-helper` | `void-services-integrations` owns focused integration helpers and DTOs. Product orchestration and workspace/runtime side effects remain outside this audit. | Each integration requires its own behavior-equivalence issue before concrete manager movement. |
+| Terminal runtime services | `concrete-runtime` | `terminal-core` owns PTY/session/replay; desktop `terminal_api.rs` adapts to Tauri; Web hook consumes replay/live output. `void-runtime-ports` does not own terminal execution. | Terminal owner changes must preserve replay/history status/source, ack, lifecycle exit, and desktop/Web adapter contracts. |
+| Product tool runtime | `concrete-runtime` | `void-agent-tools` and `void-tool-packs` own neutral contracts/plans; `void-core::agentic::tools::product_runtime` still materializes concrete tools, `ToolUseContext`, registry snapshot and GetToolSpec runtime. | Concrete tool migration must prove manifest, collapsed-tool unlock state, registry snapshot, readonly policy, and assistant-visible tool results. |
+
+禁止事项：
+
+- 不得把 `void-runtime-ports` 中存在 DTO/trait 解读为 scheduler、session restore、
+  terminal、remote-connect 或 agent runtime 已迁移。
+- 不得把 `void-services-core` / `void-services-integrations` 中存在 helper 解读为
+  workspace service、persistence、network lifecycle、tool runtime 或 product dispatch 已迁移。
+- 不得在 gap audit 中移动 managers、改 scheduler/session restore、改 feature graph、
+  或改变 `void-core` compatibility facade。
+- 后续 concrete-runtime gap 必须拆成单独 issue，并包含 protected surfaces、snapshot
+  evidence、focused tests 和 rollback-safe owner boundary。
+
 ## 依赖方向规则（Dependency Direction Rules）
 
 - 新拆出的 crate 不得反向依赖 `void-core`。

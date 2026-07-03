@@ -4944,3 +4944,31 @@ Verification:
 Remaining risk:
 
 - Product availability reporting remains future work; this slice only documents current assembly ownership and defers new profiles.
+
+## ISSUE-1180C Runtime Services Gap Audit
+
+Status: Done
+
+Completed:
+
+- Added a runtime services gap audit to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Classified runtime/service gaps as `contract-only`, `service-helper`, or `concrete-runtime`.
+- Recorded current gap facts for agent/session ports, remote-connect helpers, filesystem operations, session/usage summaries, product-domain runtime bindings, MCP runtime slices, remote SSH/file watch/Git integrations, terminal runtime services, and product tool runtime.
+- Kept `void-core` compatibility ownership explicit for scheduler/session restore, product dispatch, terminal pre-warm, remote image conversion, product-domain concrete adapters, and product tool materialization.
+- Added DEC-119 to state that runtime ports and service helpers are not migration permission.
+- Incorporated read-only Architecture-Agent findings without code changes.
+
+Verification:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180C.
+
+Remaining risk:
+
+- This is an audit only. Concrete runtime migrations still require separate issues with protected surfaces, snapshot evidence, focused equivalence tests, and rollback-safe owner boundaries.

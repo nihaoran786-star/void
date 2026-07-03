@@ -2551,7 +2551,7 @@ Result:
 ### ISSUE-1180C Runtime Services Gap Audit
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Compare current `void-runtime-ports`, `void-services-core`, and `void-services-integrations` against upstream runtime service boundaries and list only gaps.
 Allowed files: docs and read-only inspection first.
 Forbidden files: concrete service movement, manager extraction, scheduler/session restore changes.
@@ -2560,6 +2560,11 @@ Acceptance:
 - Concrete runtime work is split into separate implementation issues.
 - Existing `void-core` compatibility ownership remains explicit.
 Risk notes: Do not treat a port DTO as proof that runtime ownership migrated.
+Result:
+- Added a runtime services gap audit to `docs/architecture/core-decomposition.md`.
+- Classified gaps as `contract-only`, `service-helper`, or `concrete-runtime` for agent/session ports, remote-connect helpers, filesystem operations, session/usage summaries, product-domain runtime bindings, MCP runtime slices, remote SSH/file watch/Git integrations, terminal runtime services, and product tool runtime.
+- Kept `void-core` compatibility ownership explicit for scheduler/session restore, product dispatch, terminal pre-warm, remote image conversion, product-domain concrete adapters, and product tool materialization.
+- Deferred all concrete runtime work behind separate issues with snapshot/equivalence tests; no service movement, manager extraction, scheduler/session restore, Cargo, or source changes were made.
 
 ### ISSUE-1180D High-Risk Migration Registry
 
