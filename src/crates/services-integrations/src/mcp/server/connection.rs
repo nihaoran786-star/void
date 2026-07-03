@@ -24,6 +24,8 @@ use tokio::sync::{broadcast, mpsc, oneshot, RwLock};
 /// Request/response waiter.
 type ResponseWaiter = oneshot::Sender<MCPResponse>;
 
+const REMOTE_MCP_REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// Transport type.
 enum TransportType {
     Local(Arc<MCPTransport>),
@@ -103,7 +105,15 @@ impl MCPConnection {
     ) -> MCPRuntimeResult<Self> {
         let initialize_timeout = None;
         let transport = Arc::new(
-            RemoteMCPTransport::new(data_dir, server_id, url, headers, None, oauth_enabled).await?,
+            RemoteMCPTransport::new(
+                data_dir,
+                server_id,
+                url,
+                headers,
+                Some(REMOTE_MCP_REQUEST_TIMEOUT),
+                oauth_enabled,
+            )
+            .await?,
         );
         let pending_requests = Arc::new(RwLock::new(HashMap::new()));
         let (event_tx, _) = broadcast::channel(64);

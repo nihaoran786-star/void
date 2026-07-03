@@ -68,6 +68,7 @@ const resetStore = () => {
     }
   });
   metadataPageRequests?.clear();
+  ((flowChatStore as any).deferredFullHistoryHydrationRequests as Map<string, Promise<void>> | undefined)?.clear();
   ((flowChatStore as any).unsupportedRestoreCommands as Set<string> | undefined)?.clear();
   flowChatStore.setState((): FlowChatState => ({
     sessions: new Map(),
@@ -709,6 +710,305 @@ describe('FlowChatStore historical session hydration state', () => {
     });
   });
 
+  it('keeps partial view restore as a ready historical session with explicit counts', async () => {
+    const fullRestore = createDeferred<any>();
+    const restoredTurn = {
+      turnId: 'turn-1',
+      turnIndex: 0,
+      sessionId: 'history-1',
+      timestamp: 1,
+      userMessage: { id: 'user-1', content: 'hello', timestamp: 1 },
+      modelRounds: [],
+      startTime: 1,
+      status: 'completed',
+    };
+    apiMocks.restoreSessionView.mockResolvedValueOnce({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [restoredTurn],
+      contextRestoreState: 'pending',
+      isPartial: true,
+      loadedTurnCount: 1,
+      totalTurnCount: 50,
+    });
+    apiMocks.restoreSessionWithTurns.mockReturnValueOnce(fullRestore.promise);
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', createSession({
+          sessionId: 'history-1',
+          isHistorical: true,
+          historyState: 'metadata-only',
+        })],
+      ]),
+      activeSessionId: 'history-1',
+    }));
+
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/void');
+
+    const session = flowChatStore.getState().sessions.get('history-1');
+    expect(session).toMatchObject({
+      isHistorical: true,
+      historyState: 'ready',
+      contextRestoreState: 'pending',
+      isPartial: true,
+      loadedTurnCount: 1,
+      totalTurnCount: 50,
+    });
+    expect(session.dialogTurns).toHaveLength(1);
+
+    const deferredRequests = (flowChatStore as any).deferredFullHistoryHydrationRequests as Map<string, Promise<void>>;
+    expect(deferredRequests).toHaveLength(1);
+    fullRestore.resolve({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [restoredTurn],
+    });
+    await Promise.all([...deferredRequests.values()]);
+  });
+
+  it('schedules and applies a full-history follow-up after a partial view restore', async () => {
+    const partialTurn = {
+      turnId: 'turn-1',
+      turnIndex: 0,
+      sessionId: 'history-1',
+      timestamp: 1,
+      userMessage: { id: 'user-1', content: 'partial', timestamp: 1 },
+      modelRounds: [],
+      startTime: 1,
+      status: 'completed',
+    };
+    const fullTurn = {
+      turnId: 'turn-2',
+      turnIndex: 1,
+      sessionId: 'history-1',
+      timestamp: 2,
+      userMessage: { id: 'user-2', content: 'full', timestamp: 2 },
+      modelRounds: [],
+      startTime: 2,
+      status: 'completed',
+    };
+    apiMocks.restoreSessionView.mockResolvedValueOnce({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [partialTurn],
+      contextRestoreState: 'pending',
+      isPartial: true,
+      loadedTurnCount: 1,
+      totalTurnCount: 50,
+    });
+    apiMocks.restoreSessionWithTurns.mockResolvedValueOnce({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [fullTurn],
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', createSession({
+          sessionId: 'history-1',
+          isHistorical: true,
+          historyState: 'metadata-only',
+        })],
+      ]),
+      activeSessionId: 'history-1',
+    }));
+
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/void');
+    const deferredRequests = (flowChatStore as any).deferredFullHistoryHydrationRequests as Map<string, Promise<void>>;
+    expect(deferredRequests).toHaveLength(1);
+    await Promise.all([...deferredRequests.values()]);
+
+    expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
+    const session = flowChatStore.getState().sessions.get('history-1');
+    expect(session).toMatchObject({
+      isHistorical: false,
+      historyState: 'ready',
+      isPartial: false,
+      loadedTurnCount: undefined,
+      totalTurnCount: undefined,
+    });
+    expect(session?.dialogTurns).toHaveLength(1);
+    expect(session?.dialogTurns[0]?.id).toBe('turn-2');
+  });
+
+  it('keeps a partial session unchanged when deferred full-history completes after active session changes', async () => {
+    const fullRestore = createDeferred<any>();
+    const partialTurn = {
+      turnId: 'turn-1',
+      turnIndex: 0,
+      sessionId: 'history-1',
+      timestamp: 1,
+      userMessage: { id: 'user-1', content: 'partial', timestamp: 1 },
+      modelRounds: [],
+      startTime: 1,
+      status: 'completed',
+    };
+    const fullTurn = {
+      turnId: 'turn-2',
+      turnIndex: 1,
+      sessionId: 'history-1',
+      timestamp: 2,
+      userMessage: { id: 'user-2', content: 'full', timestamp: 2 },
+      modelRounds: [],
+      startTime: 2,
+      status: 'completed',
+    };
+    apiMocks.restoreSessionView.mockResolvedValueOnce({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [partialTurn],
+      contextRestoreState: 'pending',
+      isPartial: true,
+      loadedTurnCount: 1,
+      totalTurnCount: 50,
+    });
+    apiMocks.restoreSessionWithTurns.mockReturnValueOnce(fullRestore.promise);
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', createSession({
+          sessionId: 'history-1',
+          isHistorical: true,
+          historyState: 'metadata-only',
+        })],
+        ['history-2', createSession({
+          sessionId: 'history-2',
+          isHistorical: true,
+          historyState: 'metadata-only',
+        })],
+      ]),
+      activeSessionId: 'history-1',
+    }));
+
+    await flowChatStore.loadSessionHistory('history-1', 'D:/workspace/void');
+    const deferredRequests = (flowChatStore as any).deferredFullHistoryHydrationRequests as Map<string, Promise<void>>;
+    expect(deferredRequests).toHaveLength(1);
+    const [requestPromise] = [...deferredRequests.values()];
+
+    flowChatStore.setState(prev => ({
+      ...prev,
+      activeSessionId: 'history-2',
+    }));
+    fullRestore.resolve({
+      session: {
+        sessionId: 'history-1',
+        sessionName: 'History 1',
+        agentType: 'agentic',
+        state: 'Idle',
+        turnCount: 50,
+        createdAt: 1,
+      },
+      turns: [fullTurn],
+    });
+    await requestPromise;
+
+    expect(apiMocks.restoreSessionWithTurns).toHaveBeenCalledTimes(1);
+    expect(flowChatStore.getState().activeSessionId).toBe('history-2');
+    expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
+      isHistorical: false,
+      historyState: 'ready',
+      isPartial: false,
+      loadedTurnCount: undefined,
+      totalTurnCount: undefined,
+    });
+    expect(flowChatStore.getState().sessions.get('history-1')?.dialogTurns[0]?.id).toBe('turn-2');
+    expect(flowChatStore.getState().sessions.get('history-2')).toMatchObject({
+      historyState: 'metadata-only',
+      dialogTurns: [],
+    });
+  });
+
+  it('applies deferred full-history projection after the active session changes', () => {
+    const partialTurn = {
+      turnId: 'turn-1',
+      sessionId: 'history-1',
+      userMessage: { id: 'user-1', content: 'partial' },
+      modelRounds: [],
+      status: 'completed',
+    };
+    const fullTurn = {
+      turnId: 'turn-2',
+      turnIndex: 1,
+      sessionId: 'history-1',
+      timestamp: 2,
+      userMessage: { id: 'user-2', content: 'full', timestamp: 2 },
+      modelRounds: [],
+      startTime: 2,
+      status: 'completed',
+    };
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', {
+          ...createSession({
+            sessionId: 'history-1',
+            isHistorical: true,
+            historyState: 'ready',
+            dialogTurns: [partialTurn as any],
+          }),
+          isPartial: true,
+          loadedTurnCount: 1,
+          totalTurnCount: 2,
+        } as Session],
+        ['history-2', createSession({
+          sessionId: 'history-2',
+          isHistorical: true,
+          historyState: 'metadata-only',
+        })],
+      ]),
+      activeSessionId: 'history-2',
+    }));
+
+    const didApply = flowChatStore.applyDeferredSessionHistoryProjection(
+      'history-1',
+      { turns: [fullTurn] }
+    );
+
+    expect(didApply).toBe(true);
+    expect(flowChatStore.getState().activeSessionId).toBe('history-2');
+    expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
+      isHistorical: false,
+      historyState: 'ready',
+      isPartial: false,
+      loadedTurnCount: undefined,
+      totalTurnCount: undefined,
+      dialogTurns: expect.arrayContaining([
+        expect.objectContaining({ id: 'turn-2' }),
+      ]),
+    });
+    expect(flowChatStore.getState().sessions.get('history-2')).toMatchObject({
+      historyState: 'metadata-only',
+      dialogTurns: [],
+    });
+  });
+
   it('does not restore ACP historical sessions through the normal backend path', async () => {
     apiMocks.loadSessionTurns.mockResolvedValueOnce([]);
     flowChatStore.setState(() => ({
@@ -908,6 +1208,91 @@ describe('FlowChatStore historical session hydration state', () => {
       isHistorical: false,
       historyState: 'ready',
       contextRestoreState: 'ready',
+    });
+  });
+
+  it('applies deferred full-history hydration after the active session changes', () => {
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', createSession({
+          sessionId: 'history-1',
+          workspacePath: 'D:/workspace/void',
+          isHistorical: true,
+          isPartial: true,
+          historyState: 'metadata-only',
+        })],
+        ['history-2', createSession({
+          sessionId: 'history-2',
+          workspacePath: 'D:/workspace/void',
+        })],
+      ]),
+      activeSessionId: 'history-2',
+    }));
+
+    const didApply = flowChatStore.applyDeferredSessionHistoryProjection('history-1', {
+      workspacePath: 'D:/workspace/void',
+      turns: [{
+        turnId: 'turn-1',
+        turnIndex: 0,
+        sessionId: 'history-1',
+        timestamp: 1,
+        userMessage: { id: 'user-1', content: 'hello', timestamp: 1 },
+        modelRounds: [],
+        startTime: 1,
+        status: 'completed',
+      }],
+    });
+
+    expect(didApply).toBe(true);
+    expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
+      isHistorical: false,
+      isPartial: false,
+      historyState: 'ready',
+      dialogTurns: expect.arrayContaining([
+        expect.objectContaining({ id: 'turn-1' }),
+      ]),
+    });
+    expect(flowChatStore.getState().activeSessionId).toBe('history-2');
+  });
+
+  it('does not apply deferred full-history hydration across remote identities', () => {
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        ['history-1', createSession({
+          sessionId: 'history-1',
+          workspacePath: '/remote/workspace',
+          remoteConnectionId: 'remote-1',
+          remoteSshHost: 'current.example',
+          isHistorical: true,
+          isPartial: true,
+          historyState: 'metadata-only',
+        })],
+      ]),
+      activeSessionId: 'history-1',
+    }));
+
+    const didApply = flowChatStore.applyDeferredSessionHistoryProjection('history-1', {
+      workspacePath: '/remote/workspace',
+      remoteConnectionId: 'remote-1',
+      remoteSshHost: 'old.example',
+      turns: [{
+        turnId: 'turn-1',
+        turnIndex: 0,
+        sessionId: 'history-1',
+        timestamp: 1,
+        userMessage: { id: 'user-1', content: 'hello', timestamp: 1 },
+        modelRounds: [],
+        startTime: 1,
+        status: 'completed',
+      }],
+    });
+
+    expect(didApply).toBe(false);
+    expect(flowChatStore.getState().sessions.get('history-1')).toMatchObject({
+      isHistorical: true,
+      isPartial: true,
+      historyState: 'metadata-only',
+      dialogTurns: [],
     });
   });
 

@@ -21,10 +21,10 @@
 
 #![allow(dead_code)]
 
-use void_core::agentic::tools::computer_use_host::InteractiveElement;
-use void_core::util::errors::{VoidError, VoidResult};
 use image::{ImageOutputFormat, Rgba, RgbaImage};
 use std::io::Cursor;
+use void_core::agentic::tools::computer_use_host::InteractiveElement;
+use void_core::util::errors::{VoidError, VoidResult};
 
 /// Render the SoM overlay onto `jpeg_bytes` and return a fresh JPEG.
 ///
@@ -108,7 +108,7 @@ fn role_color(role: &str, subrole: Option<&str>) -> Rgba<u8> {
     if let Some(sr) = subrole {
         match sr {
             "AXCloseButton" | "AXMinimizeButton" | "AXFullScreenButton" => {
-                return Rgba([200, 80, 80, 255])
+                return Rgba([200, 80, 80, 255]);
             }
             "AXSecureTextField" => return Rgba([90, 110, 220, 255]),
             _ => {}

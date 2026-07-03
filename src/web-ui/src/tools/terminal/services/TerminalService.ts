@@ -24,6 +24,7 @@ import type {
 } from '../types';
 
 const log = createLogger('TerminalService');
+const MAX_PENDING_SESSION_EVENTS = 100;
 
 /**
  * Singleton wrapper for terminal-related Tauri API calls.
@@ -32,6 +33,8 @@ export class TerminalService {
   private static instance: TerminalService | null = null;
   
   private eventListeners: Map<string, Set<TerminalEventCallback>> = new Map();
+
+  private pendingSessionEvents: Map<string, TerminalEvent[]> = new Map();
   
   private globalListeners: Set<TerminalEventCallback> = new Set();
   
@@ -137,6 +140,15 @@ export class TerminalService {
         return;
     }
 
+    if (sessionId) {
+      const pending = this.pendingSessionEvents.get(sessionId) ?? [];
+      pending.push(event);
+      if (pending.length > MAX_PENDING_SESSION_EVENTS) {
+        pending.splice(0, pending.length - MAX_PENDING_SESSION_EVENTS);
+      }
+      this.pendingSessionEvents.set(sessionId, pending);
+    }
+
     const sessionListeners = this.eventListeners.get(sessionId);
     if (sessionListeners) {
       sessionListeners.forEach(callback => {
@@ -180,6 +192,16 @@ export class TerminalService {
         this.eventListeners.delete(sessionId);
       }
     };
+  }
+
+  clearPendingSessionEvents(sessionId: string): void {
+    this.pendingSessionEvents.delete(sessionId);
+  }
+
+  drainPendingSessionEvents(sessionId: string): TerminalEvent[] {
+    const pending = this.pendingSessionEvents.get(sessionId) ?? [];
+    this.pendingSessionEvents.delete(sessionId);
+    return pending;
   }
 
   onEvent(callback: TerminalEventCallback): UnsubscribeFunction {

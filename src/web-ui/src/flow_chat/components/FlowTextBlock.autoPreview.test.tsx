@@ -14,6 +14,12 @@ const mocks = vi.hoisted(() => ({
   maybeOpen: vi.fn(),
 }));
 
+const startupTraceMocks = vi.hoisted(() => ({
+  isStartupRenderTraceEnabled: vi.fn(() => globalThis.__VOID_RENDER_PROFILE_ENABLED__ === true),
+  recordReactRenderProfile: vi.fn(),
+  startupTrace: { markPhase: vi.fn() },
+}));
+
 vi.mock('@/component-library', () => ({
   MarkdownRenderer: ({ content }: { content: string }) => <div data-testid="markdown">{content}</div>,
 }));
@@ -39,6 +45,8 @@ vi.mock('@/shared/services/preview/AutoPreviewService', async () => {
     },
   };
 });
+
+vi.mock('@/shared/utils/startupTrace', () => startupTraceMocks);
 
 function buildTextItem(overrides: Partial<FlowTextItem>): FlowTextItem {
   return {
@@ -70,6 +78,9 @@ describe('FlowTextBlock auto preview', () => {
     container = dom.window.document.getElementById('root') as HTMLDivElement;
     root = createRoot(container);
     mocks.maybeOpen.mockReset();
+    startupTraceMocks.recordReactRenderProfile.mockClear();
+    startupTraceMocks.startupTrace.markPhase.mockClear();
+    startupTraceMocks.isStartupRenderTraceEnabled.mockClear();
   });
 
   afterEach(() => {
@@ -121,5 +132,52 @@ describe('FlowTextBlock auto preview', () => {
     });
 
     expect(autoPreviewOrchestrator.maybeOpen).not.toHaveBeenCalled();
+  });
+
+  it('records only sanitized render profile metrics when enabled', () => {
+    vi.stubGlobal('__VOID_RENDER_PROFILE_ENABLED__', true);
+
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider
+          value={{
+            sessionId: 'session-a',
+            activeSessionOverride: { workspacePath: 'D:/private/workspace' } as any,
+          }}
+        >
+          <FlowTextBlock textItem={buildTextItem({
+            content: 'Preview: http://127.0.0.1:5173/private-token',
+            status: 'streaming',
+            isStreaming: true,
+          })} />
+        </FlowChatContext.Provider>
+      );
+    });
+
+    expect(startupTraceMocks.recordReactRenderProfile).toHaveBeenCalled();
+    const [, profile] = startupTraceMocks.recordReactRenderProfile.mock.calls[0];
+    expect(profile).toMatchObject({
+      component: 'FlowTextBlock',
+      itemId: 'text-a',
+      contentLength: 'Preview: http://127.0.0.1:5173/private-token'.length,
+      renderedCount: 'Preview: http://127.0.0.1:5173/private-token'.length,
+      isStreaming: true,
+      hasCodeBlock: false,
+    });
+    expect(JSON.stringify(profile)).not.toContain('127.0.0.1');
+    expect(JSON.stringify(profile)).not.toContain('D:/private/workspace');
+    expect(JSON.stringify(profile)).not.toContain('private-token');
+  });
+
+  it('does not record render profile metrics by default', () => {
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider value={{ sessionId: 'session-a' }}>
+          <FlowTextBlock textItem={buildTextItem({ status: 'completed', isStreaming: false })} />
+        </FlowChatContext.Provider>
+      );
+    });
+
+    expect(startupTraceMocks.recordReactRenderProfile).not.toHaveBeenCalled();
   });
 });

@@ -64,6 +64,7 @@ resvg = { version = "0.47.0", default-features = false }
 core-foundation = "0.9"
 core-graphics = { version = "0.23", features = ["elcapitan", "highsierra"] }
 dispatch = "0.2"
+foreign-types = "0.3"
 objc2 = { version = "0.6", features = ["exception"] }
 objc2-foundation = "0.3"
 objc2-app-kit = "0.3"
@@ -78,7 +79,12 @@ windows = { version = "0.61.3", features = [
   "Media_Ocr",
   "Storage_Streams",
   "Win32_Foundation",
+  "Win32_Graphics_Dwm",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_Xps",
   "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_System_Variant",
   "Win32_UI_Accessibility",
   "Win32_UI_HiDpi",
   "Win32_UI_WindowsAndMessaging",

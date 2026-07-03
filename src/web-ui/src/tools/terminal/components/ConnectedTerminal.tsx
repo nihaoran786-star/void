@@ -8,23 +8,24 @@ import { AlertCircle, RefreshCw, Terminal as TerminalIcon, Trash2 } from 'lucide
 import Terminal, { TerminalRef } from './Terminal';
 import { useTerminal } from '../hooks/useTerminal';
 import { registerTerminalActions, unregisterTerminalActions } from '../services/TerminalActionManager';
+import {
+  POWERSHELL_READLINE_PASTE_SEQUENCE,
+  TerminalInputQueue,
+  createResizeRepaintGuard,
+  isStandaloneCursorPosition,
+  resolveTerminalPaste,
+  shouldUsePowerShellReadlinePaste,
+} from '../utils';
 import { confirmWarning } from '@/component-library';
 import { createLogger } from '@/shared/utils/logger';
-import type { SessionResponse } from '../types';
+import type { SessionResponse, TerminalReplayEvent } from '../types';
 import './Terminal.scss';
 
 const log = createLogger('ConnectedTerminal');
 
-/** Line threshold for multi-line paste confirmation. */
-const MULTILINE_PASTE_THRESHOLD = 1;
-
-/**
- * Matches a standalone absolute cursor position command: ESC [ R ; C H
- * ConPTY sends these after resize to reposition the cursor in its own coordinate
- * system, which diverges from xterm.js coordinates after history replay.
- */
-// eslint-disable-next-line no-control-regex -- ESC-based cursor reposition sequences are part of terminal protocol parsing.
-const CURSOR_POS_RE = /^\x1b\[(\d+);(\d+)H$/;
+type TerminalOutputQueueItem =
+  | { type: 'data'; data: string }
+  | { type: 'resize'; cols: number; rows: number };
 
 export interface ConnectedTerminalProps {
   sessionId: string;
@@ -54,13 +55,14 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const [title, setTitle] = useState<string>(initialSession?.name || 'Terminal');
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [isExited, setIsExited] = useState(false);
+  const isExitedRef = useRef(false);
 
   const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 
   // Buffer output until the terminal is ready.
   // Use a ref (not state) to avoid stale closure issues with isTerminalReady.
   const isTerminalReadyRef = useRef(false);
-  const outputQueueRef = useRef<string[]>([]);
+  const outputQueueRef = useRef<TerminalOutputQueueItem[]>([]);
 
   // After history replay, ConPTY sends absolute cursor-position commands (ESC[R;CH)
   // that reference its own coordinate system, which diverges from xterm.js after replay.
@@ -80,6 +82,7 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   // widths) cannot permanently truncate content written at the historical width.
   // Cleared when post-history cursor mode exits.
   const preventShrinkBelowColsRef = useRef<number>(0);
+  const resizeRepaintGuardRef = useRef(createResizeRepaintGuard());
 
   const handleOutput = useCallback((data: string) => {
     // Post-history cursor restoration:
@@ -88,14 +91,17 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     // effects) and instead snap the cursor back to the saved correct position via a
     // write callback after each one is processed by xterm.js.
     if (postHistoryCursorRef.current && postHistoryCursorRef.current.ignoreCount > 0) {
-      const isCursorOnly = CURSOR_POS_RE.test(data);
+      const isCursorOnly = isStandaloneCursorPosition(data);
       if (isCursorOnly) {
         const cursor = postHistoryCursorRef.current;
         cursor.ignoreCount--;
+        if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
+          return;
+        }
         const restoreSeq = `\x1b[${cursor.row};${cursor.col}H`;
         if (!isTerminalReadyRef.current || !terminalRef.current) {
-          outputQueueRef.current.push(data);
-          outputQueueRef.current.push(restoreSeq);
+          outputQueueRef.current.push({ type: 'data', data });
+          outputQueueRef.current.push({ type: 'data', data: restoreSeq });
           return;
         }
         const xterm = terminalRef.current.getTerminal?.();
@@ -117,8 +123,12 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
       }
     }
 
+    if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
+      return;
+    }
+
     if (!isTerminalReadyRef.current || !terminalRef.current) {
-      outputQueueRef.current.push(data);
+      outputQueueRef.current.push({ type: 'data', data });
       return;
     }
     terminalRef.current.write(data);
@@ -152,7 +162,25 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
       }
     }
 
-    queue.forEach(data => terminalRef.current?.write(data));
+    queue.forEach((item) => {
+      if (item.type === 'resize') {
+        const xterm = terminalRef.current?.getTerminal?.();
+        if (xterm) {
+          try {
+            xterm.resize(item.cols, item.rows);
+            preventShrinkBelowColsRef.current = Math.max(
+              preventShrinkBelowColsRef.current,
+              item.cols,
+            );
+          } catch {
+            // Ignore replay resize failures; subsequent data should still be written.
+          }
+        }
+        return;
+      }
+
+      terminalRef.current?.write(item.data);
+    });
 
     // After all history writes complete, save the cursor row so that subsequent
     // ConPTY cursor-only updates can be redirected to this correct position.
@@ -175,6 +203,8 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   }, []);
 
   const handleExit = useCallback((code?: number) => {
+    isExitedRef.current = true;
+    inputQueueRef.current?.clear();
     setExitCode(code ?? null);
     setIsExited(true);
     onExit?.(code);
@@ -187,6 +217,26 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const handleHistoryDims = useCallback((cols: number, rows: number) => {
     historyDimsRef.current = { cols, rows };
   }, []);
+
+  const handleReplay = useCallback((events: TerminalReplayEvent[]) => {
+    if (events.length === 0) {
+      return;
+    }
+
+    historyDimsRef.current = null;
+    resizeRepaintGuardRef.current.clear();
+
+    events.forEach((event) => {
+      outputQueueRef.current.push({ type: 'resize', cols: event.cols, rows: event.rows });
+      if (event.data) {
+        outputQueueRef.current.push({ type: 'data', data: event.data });
+      }
+    });
+
+    if (isTerminalReadyRef.current) {
+      flushOutputQueue();
+    }
+  }, [flushOutputQueue]);
 
   const {
     session,
@@ -205,15 +255,30 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     onExit: handleExit,
     onError: handleError,
     onHistoryDims: handleHistoryDims,
+    onReplay: handleReplay,
   });
 
+  const writeRef = useRef(write);
+  writeRef.current = write;
+
+  const inputQueueRef = useRef<TerminalInputQueue | null>(null);
+  if (!inputQueueRef.current) {
+    inputQueueRef.current = new TerminalInputQueue(
+      (data) => {
+        if (isExitedRef.current) {
+          return Promise.resolve();
+        }
+        return writeRef.current(data);
+      },
+      (err) => log.error('Write failed', { sessionId, error: err }),
+    );
+  }
+
   const handleData = useCallback((data: string) => {
-    if (!isExited) {
-      write(data).catch(err => {
-        log.error('Write failed', { sessionId, error: err });
-      });
+    if (!isExitedRef.current) {
+      inputQueueRef.current?.enqueue(data);
     }
-  }, [write, isExited, sessionId]);
+  }, []);
 
   const handleResize = useCallback((cols: number, rows: number) => {
     const lastSize = lastSentSizeRef.current;
@@ -235,9 +300,11 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     }
 
     resize(cols, rows).then(() => {
+      resizeRepaintGuardRef.current.markResize();
     }).catch(err => {
       log.error('Resize failed', { sessionId, cols, rows, error: err });
       lastSentSizeRef.current = null;
+      resizeRepaintGuardRef.current.clear();
     });
   }, [resize, sessionId]);
 
@@ -255,41 +322,41 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     flushOutputQueue();
   }, [flushOutputQueue]);
 
-  // Handle paste with multi-line confirmation.
-  const handlePaste = useCallback(async (text: string): Promise<boolean> => {
-    if (isExited) {
+  const handlePasteShortcut = useCallback(async (): Promise<boolean> => {
+    if (isExitedRef.current || !shouldUsePowerShellReadlinePaste(session?.shellType ?? initialSession?.shellType)) {
       return false;
     }
 
-    const lines = text.split('\n');
-    const lineCount = lines.length;
+    inputQueueRef.current?.enqueue(POWERSHELL_READLINE_PASTE_SEQUENCE);
+    return true;
+  }, [initialSession?.shellType, session?.shellType]);
 
-    if (lineCount > MULTILINE_PASTE_THRESHOLD) {
-      const maxPreviewLines = 10;
-      const previewLines = lines.slice(0, maxPreviewLines);
-      let preview = previewLines.join('\n');
-      if (lineCount > maxPreviewLines) {
-        preview += `\n... (${lineCount} lines total)`;
-      }
-
-      const confirmed = await confirmWarning(
-        'Paste multiple lines',
-        `The clipboard contains ${lineCount} lines. Pasting multiple lines in a terminal may execute multiple commands.`,
-        {
-          confirmText: 'Paste',
-          cancelText: 'Cancel',
-          preview,
-          previewMaxHeight: 150,
-        }
-      );
-
-      if (!confirmed) {
-        return false;
-      }
+  const handlePaste = useCallback(async (
+    text: string,
+    context: { bracketedPasteMode: boolean },
+  ) => {
+    if (isExitedRef.current) {
+      return { allow: false as const };
     }
 
-    return true;
-  }, [isExited]);
+    return resolveTerminalPaste(text, {
+      bracketedPasteMode: context.bracketedPasteMode,
+      confirmMultiLinePaste: async ({ lineCount, preview }) => {
+        const confirmed = await confirmWarning(
+          'Paste multiple lines',
+          `The clipboard contains ${lineCount} lines. Pasting multiple lines in a terminal may execute multiple commands.`,
+          {
+            confirmText: 'Paste',
+            cancelText: 'Cancel',
+            preview,
+            previewMaxHeight: 150,
+          },
+        );
+
+        return confirmed ? 'paste' : 'cancel';
+      },
+    });
+  }, []);
 
   const handleSendCtrlC = useCallback(() => {
     sendCtrlC().catch(err => {
@@ -314,7 +381,9 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     if (session) {
       setTitle(session.name);
       if (session.status === 'Exited' || session.status === 'Error') {
+        isExitedRef.current = true;
         setIsExited(true);
+        inputQueueRef.current?.clear();
       }
     }
   }, [session]);
@@ -326,8 +395,8 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
       getTerminal: () => terminalRef.current?.getTerminal() || null,
       isReadOnly: isExited,
       write: async (data: string) => {
-        if (!isExited) {
-          await write(data);
+        if (!isExitedRef.current) {
+          inputQueueRef.current?.enqueue(data);
         }
       },
       clear: () => {
@@ -410,6 +479,7 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
         onResize={handleResize}
         onTitleChange={handleTitleChange}
         onReady={handleTerminalReady}
+        onPasteShortcut={handlePasteShortcut}
         onPaste={handlePaste}
         preventShrinkBelowColsRef={preventShrinkBelowColsRef}
       />

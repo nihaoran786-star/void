@@ -1,0 +1,270 @@
+{
+  "version": 1,
+  "product": "Void",
+  "description": "Void visual governance contract for theme-sensitive surfaces. This is a validation checklist and coverage contract, not proof that visual screenshots or contrast reviews already passed.",
+  "surfaces": [
+    {
+      "key": "app-shell",
+      "label": "App shell and navigation",
+      "owner": "src/web-ui/src/app/layout; src/web-ui/src/app/components/NavPanel",
+      "requiredPaths": [
+        "src/web-ui/src/app/layout",
+        "src/web-ui/src/app/components/NavPanel",
+        "src/web-ui/src/infrastructure/theme"
+      ],
+      "platforms": ["desktop-webview", "web"],
+      "formFactors": ["desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "hover", "focus", "selected", "disabled"],
+      "tokenFamilies": ["--color-bg-*", "--color-text-*", "--element-bg-*", "--border-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Theme-sensitive shell changes must keep the existing Web UI color-governance baseline clean."
+        },
+        {
+          "type": "focused-visual-review",
+          "requirement": "Review desktop and narrow shell layouts after nav, background, border, or readable text token changes."
+        }
+      ],
+      "protectedContracts": [
+        "Shell components only compose and render app state.",
+        "Session, provider, media, and short-drama business decisions stay outside shell rendering."
+      ],
+      "risks": [
+        "System theme resolution can differ between browser and desktop webview.",
+        "Navigation state can hide selected and disabled contrast regressions."
+      ]
+    },
+    {
+      "key": "flow-chat",
+      "label": "Flow Chat conversation surface",
+      "owner": "src/web-ui/src/flow_chat",
+      "requiredPaths": [
+        "src/web-ui/src/flow_chat",
+        "src/web-ui/src/component-library/components/FlowChatCards"
+      ],
+      "platforms": ["desktop-webview", "web"],
+      "formFactors": ["desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "streaming", "hover", "focus", "selected", "error", "empty"],
+      "tokenFamilies": ["--flowchat-*", "--tool-card-*", "--color-bg-scene", "--color-text-*", "--color-accent-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Flow Chat changes must not increase unresolved vars, fallback-only vars, or near-color debt outside the accepted baseline."
+        },
+        {
+          "type": "focused-visual-review",
+          "requirement": "Review streaming, completed, background command, markdown, empty, and error states in dark and light themes."
+        }
+      ],
+      "protectedContracts": [
+        "Flow Chat store remains the state boundary for conversation rendering.",
+        "Multi-agent, subdialog, and floating-window features must stay available."
+      ],
+      "risks": [
+        "Streaming and virtualized entries can delay visible token regressions.",
+        "Tool cards combine card, status, markdown, and terminal color domains."
+      ]
+    },
+    {
+      "key": "terminal",
+      "label": "Terminal and terminal tool card",
+      "owner": "src/web-ui/src/tools/terminal; src/web-ui/src/flow_chat/tool-cards/TerminalToolCard",
+      "requiredPaths": [
+        "src/web-ui/src/tools/terminal",
+        "src/web-ui/src/flow_chat/tool-cards/TerminalToolCard.tsx"
+      ],
+      "platforms": ["desktop-webview", "web"],
+      "formFactors": ["desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "focus", "selection", "ansi-normal", "ansi-bright", "error"],
+      "tokenFamilies": ["terminal ANSI palette", "--color-text-*", "--border-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Terminal colors must remain in terminal-specific domains instead of becoming generic app UI literals."
+        },
+        {
+          "type": "contrast-review",
+          "requirement": "Review normal and bright ANSI colors against terminal background before merging terminal palette changes."
+        }
+      ],
+      "protectedContracts": [
+        "Terminal UI remains isolated from provider and desktop process-control internals.",
+        "Terminal rendering does not own command execution policy."
+      ],
+      "risks": [
+        "ANSI colors carry external semantic meaning and cannot be merged by numeric similarity alone.",
+        "Embedded terminal cards must satisfy both terminal and Flow Chat contrast expectations."
+      ]
+    },
+    {
+      "key": "markdown-mermaid",
+      "label": "Markdown, syntax, and Mermaid rendering",
+      "owner": "src/web-ui/src/component-library/components/Markdown; src/web-ui/src/tools/mermaid-editor",
+      "requiredPaths": [
+        "src/web-ui/src/component-library/components/Markdown",
+        "src/web-ui/src/tools/mermaid-editor"
+      ],
+      "platforms": ["desktop-webview", "web"],
+      "formFactors": ["desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "code", "table", "link", "diagram", "error"],
+      "tokenFamilies": ["--markdown-*", "--markdown-primary-color", "Mermaid palette", "Prism palette"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Markdown, Prism, and Mermaid colors must stay in syntax, mermaid, boundary, or token domains."
+        },
+        {
+          "type": "focused-visual-review",
+          "requirement": "Review prose, links, tables, code blocks, and diagrams after markdown or embedded-renderer token changes."
+        }
+      ],
+      "protectedContracts": [
+        "Markdown rendering stays a presentation boundary and must not infer session source.",
+        "Mermaid graph roles remain distinct from generic app status colors."
+      ],
+      "risks": [
+        "Embedded content can resolve fallback colors before host variables are available.",
+        "Diagram roles do not map directly to app success, warning, or error colors."
+      ]
+    },
+    {
+      "key": "generated-widgets",
+      "label": "Generated widgets and iframe fallbacks",
+      "owner": "src/web-ui/src/tools/generative-widget",
+      "requiredPaths": [
+        "src/web-ui/src/tools/generative-widget"
+      ],
+      "platforms": ["generated-widget", "web"],
+      "formFactors": ["iframe", "desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["fallback-before-host-payload", "host-payload", "loading", "error"],
+      "tokenFamilies": ["--color-*", "--border-*", "--element-bg-*", "--radius-*", "--spacing-*"],
+      "evidence": [
+        {
+          "type": "boundary-render-review",
+          "requirement": "Review iframe fallback rendering and host-payload rendering whenever widget payload token contracts change."
+        },
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Generated widget fallback colors must remain centralized and must not add untracked raw app colors."
+        }
+      ],
+      "protectedContracts": [
+        "Generated widgets communicate through host payload contracts rather than mutating app internals.",
+        "Iframe first paint remains supported before host variables arrive."
+      ],
+      "risks": [
+        "Fallback rendering can differ from host payload rendering.",
+        "Widget compatibility may require older aliases to stay exported while internal reads are reduced separately."
+      ]
+    },
+    {
+      "key": "media-short-drama",
+      "label": "AI media and short-drama canvas",
+      "owner": "src/web-ui/src/app/components/panels/content-canvas/workspace-media; src/web-ui/src/app/components/panels/content-canvas/short-drama",
+      "requiredPaths": [
+        "src/web-ui/src/app/components/panels/content-canvas/workspace-media",
+        "src/web-ui/src/app/components/panels/content-canvas/short-drama"
+      ],
+      "platforms": ["desktop-webview", "web"],
+      "formFactors": ["desktop", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "empty", "loading", "selected", "preview", "error"],
+      "tokenFamilies": ["--color-bg-*", "--color-text-*", "--border-*", "--color-accent-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
+          "requirement": "Canvas, media, and short-drama surfaces must stay inside the Web UI theme-governance baseline."
+        },
+        {
+          "type": "focused-visual-review",
+          "requirement": "Review asset grid, preview, empty, loading, and error states after media-canvas token or layout changes."
+        }
+      ],
+      "protectedContracts": [
+        "Workspace media and short-drama state models remain separate from theme governance scripts.",
+        "Canvas UI must not take dependencies on CLI, installer, or desktop process internals."
+      ],
+      "risks": [
+        "Media previews combine dense controls, asset thumbnails, and error states.",
+        "Short-drama workflow changes can hide theme regressions behind generated content availability."
+      ]
+    },
+    {
+      "key": "mobile-web",
+      "label": "Mobile web shell",
+      "owner": "src/mobile-web/src",
+      "requiredPaths": [
+        "src/mobile-web/src"
+      ],
+      "platforms": ["mobile-web"],
+      "formFactors": ["mobile", "narrow"],
+      "themes": ["dark", "light", "system"],
+      "states": ["default", "loading", "error", "navigation"],
+      "tokenFamilies": ["shared web tokens", "--color-bg-*", "--color-text-*", "--border-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root src/mobile-web/src --baseline scripts/theme-color-governance-baseline.mobile-web.json --top=3",
+          "requirement": "Mobile web theme changes must not increase the accepted mobile-web color-governance baseline."
+        },
+        {
+          "type": "mobile-build-review",
+          "command": "pnpm --dir src/mobile-web run type-check",
+          "requirement": "Theme contract changes must not assume desktop-only WebView behavior or break mobile-web type checking."
+        }
+      ],
+      "protectedContracts": [
+        "Mobile web remains a separate target with its own build and validation path.",
+        "Desktop-only theme runtime assumptions must not leak into mobile web."
+      ],
+      "risks": [
+        "Mobile and narrow layouts expose spacing and contrast regressions that desktop screenshots can miss.",
+        "Mobile web may not exercise desktop webview theme bootstrap paths."
+      ]
+    },
+    {
+      "key": "installer",
+      "label": "Installer visual shell",
+      "owner": "Void-Installer/src",
+      "requiredPaths": [
+        "Void-Installer/src"
+      ],
+      "platforms": ["installer"],
+      "formFactors": ["desktop"],
+      "themes": ["dark", "light"],
+      "states": ["default", "progress", "success", "error"],
+      "tokenFamilies": ["installer local palette", "--color-bg-*", "--color-text-*", "--border-*"],
+      "evidence": [
+        {
+          "type": "theme-color-audit",
+          "command": "node scripts/audit-theme-colors.mjs --root Void-Installer/src --baseline scripts/theme-color-governance-baseline.installer.json --top=3",
+          "requirement": "Installer visual changes must stay within the accepted installer color-governance baseline."
+        },
+        {
+          "type": "focused-visual-review",
+          "requirement": "Review progress, success, error, and permission states before merging installer visual changes."
+        }
+      ],
+      "protectedContracts": [
+        "Installer naming and bundle identity remain Void-only.",
+        "Installer visual governance does not modify release workflow or packaging targets."
+      ],
+      "risks": [
+        "Installer colors are validated separately from the Web UI baseline.",
+        "Packaging identity changes require a dedicated release workflow issue."
+      ]
+    }
+  ]
+}

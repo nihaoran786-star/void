@@ -27,11 +27,11 @@ use crate::service::config::types::AIConfig;
 use crate::util::errors::{VoidError, VoidResult};
 use crate::util::timing::elapsed_ms_u64;
 use async_trait::async_trait;
-use void_runtime_ports::SubagentContextMode;
 use log::{debug, warn};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::time::Instant;
+use void_runtime_ports::SubagentContextMode;
 pub struct TaskTool;
 
 const LARGE_TASK_PROMPT_SOFT_LINE_LIMIT: usize = 180;
@@ -52,9 +52,9 @@ impl TaskTool {
         match input.get("fork_context") {
             None => Ok(SubagentContextMode::Fresh),
             Some(value) => {
-                let fork_context = value.as_bool().ok_or_else(|| {
-                    VoidError::tool("fork_context must be a boolean".to_string())
-                })?;
+                let fork_context = value
+                    .as_bool()
+                    .ok_or_else(|| VoidError::tool("fork_context must be a boolean".to_string()))?;
                 Ok(if fork_context {
                     SubagentContextMode::Fork
                 } else {
@@ -863,8 +863,7 @@ impl Tool for TaskTool {
             }
             if is_retry || requested_auto_retry || input.get("retry_coverage").is_some() {
                 return Err(VoidError::tool(
-                    "DeepReview retry fields are not allowed when fork_context is true"
-                        .to_string(),
+                    "DeepReview retry fields are not allowed when fork_context is true".to_string(),
                 ));
             }
         }
@@ -1707,10 +1706,10 @@ mod tests {
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use crate::util::VoidError;
     use async_trait::async_trait;
-    use void_runtime_ports::DelegationPolicy;
     use serde_json::json;
     use std::collections::HashMap;
     use std::sync::Arc;
+    use void_runtime_ports::DelegationPolicy;
 
     struct PromptOrderTestAgent {
         id: String,
@@ -2970,10 +2969,9 @@ mod tests {
             auto_retry_elapsed_guard_seconds: 180,
         };
         let turn_id = "turn-provider-capacity-skip";
-        let decision =
-            TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
-                "Provider error: provider=openai, code=429, message=rate limit exceeded",
-            ));
+        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
+            "Provider error: provider=openai, code=429, message=rate limit exceeded",
+        ));
         assert!(decision.queueable);
         let reason = decision
             .reason
@@ -3002,9 +3000,9 @@ mod tests {
     fn deep_review_provider_quota_error_is_not_capacity_skipped() {
         use crate::util::VoidError;
 
-        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &VoidError::ai("Provider error: provider=glm, code=1113, message=insufficient quota"),
-        );
+        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
+            "Provider error: provider=glm, code=1113, message=insufficient quota",
+        ));
 
         assert!(
             !decision.queueable,
@@ -3024,9 +3022,9 @@ mod tests {
             allow_bounded_auto_retry: false,
             auto_retry_elapsed_guard_seconds: 180,
         };
-        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &VoidError::ai("Provider error: code=429, message=Retry-After: 45"),
-        );
+        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
+            "Provider error: code=429, message=Retry-After: 45",
+        ));
 
         assert_eq!(
             TaskTool::deep_review_provider_capacity_queue_wait_seconds_for_attempt(
@@ -3048,9 +3046,9 @@ mod tests {
             allow_bounded_auto_retry: false,
             auto_retry_elapsed_guard_seconds: 180,
         };
-        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &VoidError::ai("Provider error: code=429, message=too many concurrent requests"),
-        );
+        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
+            "Provider error: code=429, message=too many concurrent requests",
+        ));
 
         let waits = (0..3)
             .map(|attempt| {
@@ -3075,9 +3073,9 @@ mod tests {
             allow_bounded_auto_retry: false,
             auto_retry_elapsed_guard_seconds: 180,
         };
-        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(
-            &VoidError::ai("Provider error: code=invalid_model, message=model does not exist"),
-        );
+        let decision = TaskTool::deep_review_capacity_decision_for_provider_error(&VoidError::ai(
+            "Provider error: code=invalid_model, message=model does not exist",
+        ));
 
         assert_eq!(
             TaskTool::deep_review_provider_capacity_queue_wait_seconds_for_attempt(

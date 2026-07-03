@@ -324,10 +324,7 @@ Important notes:
                 .map_err(|e| VoidError::tool(format!("Failed to delete on remote: {}", e)))?;
 
             if exit_code != 0 && !stderr.is_empty() {
-                return Err(VoidError::tool(format!(
-                    "Remote delete failed: {}",
-                    stderr
-                )));
+                return Err(VoidError::tool(format!("Remote delete failed: {}", stderr)));
             }
 
             let result_data = json!({

@@ -11,8 +11,7 @@
   background: transparent; // Transparent background for glass effect.
   overflow: hidden; /* Prevent overflow. */
   overflow-x: hidden; /* Explicitly disable horizontal scrolling. */
-  
-  
+
   // Ensure the Virtuoso container has correct sizing.
   > div:first-child {
     width: 100%;
@@ -20,7 +19,7 @@
     position: relative;
     z-index: 1; // Keep scroll content below overlays.
     overflow-x: hidden; // Disable horizontal scrolling.
-    
+
     // Show scrollbar thumb when the anchor track is hovered.
     &.anchor-hovering {
       &::-webkit-scrollbar-thumb {
@@ -39,20 +38,62 @@
     overflow-anchor: none;
     scrollbar-gutter: stable;
   }
-  
+
+  .virtual-message-list__static-scroller {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    z-index: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-anchor: none;
+    scrollbar-gutter: stable;
+  }
+
+  .virtual-message-list__initial-history-spacer {
+    width: 100%;
+    flex-shrink: 0;
+    overflow-anchor: none;
+  }
+
+  .virtual-message-list__static-items {
+    width: 100%;
+  }
+
+  .history-projection-handoff-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--color-bg-flowchat);
+  }
+
+  .history-projection-handoff-overlay__items {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+
+  .history-projection-handoff-overlay__footer {
+    width: 100%;
+    overflow-anchor: none;
+  }
+
   &--empty {
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--color-bg-flowchat); /* FlowChat background. */
   }
-  
+
   .empty-state {
     text-align: center;
     color: var(--color-text-muted, #888);
     padding: 2rem;
   }
-  
+
   // Reserve space for the floating FlowChatHeader.
   // Header height (36px) + border (1px) + blur area (16px) + extra gap (4px) = 57px.
   .message-list-header {
@@ -60,7 +101,7 @@
     min-height: 57px;
     flex-shrink: 0;
   }
-  
+
   .message-list-footer {
     /* Inline height from VirtualMessageList (measured drop-zone + bottom inset + tail clearance). */
     height: 120px;

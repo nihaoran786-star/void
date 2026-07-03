@@ -54,6 +54,9 @@ pub enum GoalModeUpdateAction {
     Pause,
     Resume,
     Edit { goal_text: String },
+    Complete,
+    Block,
+    SetTokenBudget { token_budget: Option<u64> },
     Clear,
 }
 
@@ -386,7 +389,61 @@ pub fn update_goal_mode_state(
                 display_message: format!("Goal updated: {}", goal_text),
             })
         }
+        GoalModeUpdateAction::Complete => {
+            let mut state = existing.ok_or_else(|| {
+                VoidError::NotFound("No session goal exists to complete".to_string())
+            })?;
+            state.active = false;
+            state.status = GoalModeStatus::Complete;
+            state.activated_at_ms = now_ms;
+            Ok(GoalModeUpdateResult {
+                state: Some(state),
+                continuation_plan: None,
+                display_message: "Goal complete".to_string(),
+            })
+        }
+        GoalModeUpdateAction::Block => {
+            let mut state = existing.ok_or_else(|| {
+                VoidError::NotFound("No session goal exists to block".to_string())
+            })?;
+            state.active = false;
+            state.status = GoalModeStatus::Blocked;
+            state.activated_at_ms = now_ms;
+            Ok(GoalModeUpdateResult {
+                state: Some(state),
+                continuation_plan: None,
+                display_message: "Goal blocked".to_string(),
+            })
+        }
+        GoalModeUpdateAction::SetTokenBudget { token_budget } => {
+            let mut state = existing.ok_or_else(|| {
+                VoidError::NotFound("No session goal exists to update budget".to_string())
+            })?;
+            state.token_budget = token_budget;
+            state.activated_at_ms = now_ms;
+            if state
+                .token_budget
+                .is_some_and(|budget| budget > 0 && state.tokens_used >= budget)
+            {
+                state.active = false;
+                state.status = GoalModeStatus::UsageLimited;
+            }
+            Ok(GoalModeUpdateResult {
+                state: Some(state),
+                continuation_plan: None,
+                display_message: "Goal token budget updated".to_string(),
+            })
+        }
     }
+}
+
+pub fn billable_goal_tokens_from_counts(
+    input_tokens: usize,
+    output_tokens: Option<usize>,
+    cached_tokens: Option<usize>,
+) -> u64 {
+    let uncached_input = input_tokens.saturating_sub(cached_tokens.unwrap_or(0));
+    uncached_input.saturating_add(output_tokens.unwrap_or(0)) as u64
 }
 
 pub fn apply_goal_token_usage(
@@ -419,10 +476,16 @@ pub fn apply_goal_token_usage_event(
 ) -> VoidResult<Option<GoalModeState>> {
     match event {
         crate::agentic::events::AgenticEvent::TokenUsageUpdated {
-            total_tokens,
+            input_tokens,
+            output_tokens,
             is_subagent,
+            cached_tokens,
             ..
-        } => apply_goal_token_usage(existing, *total_tokens as u64, *is_subagent),
+        } => apply_goal_token_usage(
+            existing,
+            billable_goal_tokens_from_counts(*input_tokens, *output_tokens, *cached_tokens),
+            *is_subagent,
+        ),
         _ => Ok(existing),
     }
 }
@@ -1017,6 +1080,53 @@ mod tests {
     }
 
     #[test]
+    fn goal_mode_update_actions_complete_block_and_budget() {
+        let state = GoalModeState {
+            active: true,
+            status: GoalModeStatus::Active,
+            initial_goal: GoalModeInitialGoal::new("Ship feature".to_string(), vec![], None, 1),
+            goal_text: "Ship feature".to_string(),
+            success_criteria: vec![],
+            user_hint: None,
+            activated_at_ms: 1,
+            continuation_count: 2,
+            token_budget: None,
+            tokens_used: 125,
+        };
+
+        let budgeted = update_goal_mode_state(
+            Some(state.clone()),
+            GoalModeUpdateAction::SetTokenBudget {
+                token_budget: Some(500),
+            },
+            2,
+        )
+        .expect("set budget");
+        let budgeted_state = budgeted.state.expect("budgeted state");
+        assert_eq!(budgeted_state.token_budget, Some(500));
+        assert_eq!(budgeted_state.tokens_used, 125);
+        assert_eq!(budgeted_state.status, GoalModeStatus::Active);
+
+        let complete = update_goal_mode_state(
+            Some(budgeted_state.clone()),
+            GoalModeUpdateAction::Complete,
+            3,
+        )
+        .expect("complete");
+        let complete_state = complete.state.expect("complete state");
+        assert_eq!(complete_state.status, GoalModeStatus::Complete);
+        assert!(!complete_state.is_active());
+        assert_eq!(complete_state.token_budget, Some(500));
+
+        let blocked = update_goal_mode_state(Some(state), GoalModeUpdateAction::Block, 4)
+            .expect("block");
+        let blocked_state = blocked.state.expect("blocked state");
+        assert_eq!(blocked_state.status, GoalModeStatus::Blocked);
+        assert!(!blocked_state.is_active());
+        assert_eq!(blocked_state.tokens_used, 125);
+    }
+
+    #[test]
     fn goal_mode_resume_rejects_usage_limited_goal_without_available_budget() {
         let state = GoalModeState {
             active: false,
@@ -1141,7 +1251,43 @@ mod tests {
             apply_goal_token_usage_event(Some(state), &event).expect("event usage applies");
         let updated_state = updated.expect("state remains present");
 
-        assert_eq!(updated_state.tokens_used, 275);
+        assert_eq!(updated_state.tokens_used, 265);
+        assert_eq!(updated_state.status, GoalModeStatus::Active);
+    }
+
+    #[test]
+    fn goal_token_usage_event_counts_billable_tokens_only() {
+        let state = GoalModeState {
+            active: true,
+            status: GoalModeStatus::Active,
+            initial_goal: GoalModeInitialGoal::new("Ship feature".to_string(), vec![], None, 1),
+            goal_text: "Ship feature".to_string(),
+            success_criteria: vec![],
+            user_hint: None,
+            activated_at_ms: 1,
+            continuation_count: 0,
+            token_budget: Some(1_000),
+            tokens_used: 100,
+        };
+        let event = crate::agentic::events::AgenticEvent::TokenUsageUpdated {
+            session_id: "session-1".to_string(),
+            turn_id: "turn-1".to_string(),
+            model_id: "model".to_string(),
+            input_tokens: 100,
+            output_tokens: Some(25),
+            total_tokens: 125,
+            max_context_tokens: Some(1000),
+            is_subagent: false,
+            cached_tokens: Some(80),
+            token_details: None,
+            prompt_cache_telemetry: None,
+        };
+
+        let updated =
+            apply_goal_token_usage_event(Some(state), &event).expect("event usage applies");
+        let updated_state = updated.expect("state remains present");
+
+        assert_eq!(updated_state.tokens_used, 145);
         assert_eq!(updated_state.status, GoalModeStatus::Active);
     }
 

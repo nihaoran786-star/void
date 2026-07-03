@@ -111,9 +111,8 @@ fn derive_walk_root(search_path_abs: &Path, pattern: &str) -> (PathBuf, String) 
 }
 
 fn resolve_glob_config(pattern: &str) -> (bool, bool) {
-    let is_whitelisted = pattern.starts_with(".void")
-        || pattern.contains("/.void")
-        || pattern.contains("\\.void");
+    let is_whitelisted =
+        pattern.starts_with(".void") || pattern.contains("/.void") || pattern.contains("\\.void");
 
     let apply_gitignore = !is_whitelisted;
     let ignore_hidden_files = !is_whitelisted;
@@ -602,9 +601,7 @@ impl Tool for GlobTool {
             let (stdout, _stderr, _exit_code) = ws_shell
                 .exec(&remote_cmd, Some(30_000))
                 .await
-                .map_err(|e| {
-                    VoidError::tool(format!("Failed to glob on remote with rg: {}", e))
-                })?;
+                .map_err(|e| VoidError::tool(format!("Failed to glob on remote with rg: {}", e)))?;
 
             let matches: Vec<String> = stdout
                 .lines()

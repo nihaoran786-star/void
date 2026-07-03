@@ -17,18 +17,19 @@
 // without weakening real warnings elsewhere.
 #![allow(dead_code)]
 
-use void_core::agentic::tools::computer_use_host::{AppStateSnapshot, AxNode};
-use void_core::util::errors::{VoidError, VoidResult};
 use core_foundation::array::{CFArray, CFArrayRef};
 use core_foundation::base::{CFGetTypeID, CFTypeRef, TCFType};
-use core_foundation::boolean::{CFBooleanGetTypeID, CFBooleanRef};
+use core_foundation::boolean::{CFBoolean, CFBooleanGetTypeID, CFBooleanRef};
 use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::geometry::{CGPoint, CGSize};
 use sha1::{Digest, Sha1};
 use std::collections::{HashMap, VecDeque};
 use std::ffi::c_void;
 use std::sync::{Mutex, OnceLock};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::thread;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use void_core::agentic::tools::computer_use_host::{AppStateSnapshot, AxNode};
+use void_core::util::errors::{VoidError, VoidResult};
 
 type CFNumberRef = *const c_void;
 type CFTypeID = usize;
@@ -47,6 +48,11 @@ unsafe extern "C" {
         value: *mut CFTypeRef,
     ) -> i32;
     fn AXUIElementCopyActionNames(element: AXUIElementRef, names: *mut CFArrayRef) -> i32;
+    fn AXUIElementSetAttributeValue(
+        element: AXUIElementRef,
+        attribute: CFStringRef,
+        value: CFTypeRef,
+    ) -> i32;
     fn AXValueGetType(value: AXValueRef) -> u32;
     fn AXValueGetValue(value: AXValueRef, the_type: u32, ptr: *mut c_void) -> bool;
 }
@@ -325,12 +331,65 @@ unsafe fn read_action_names(elem: AXUIElementRef) -> Vec<String> {
     out
 }
 
+// ── Chromium AX tree enablement ───────────────────────────────────────────
+
+const CHROMIUM_SETTLE_SECONDS: f64 = 0.5;
+const K_AX_ERROR_ATTRIBUTE_UNSUPPORTED: i32 = -25205;
+
+fn enabled_pids() -> &'static Mutex<std::collections::HashSet<i32>> {
+    static ENABLED_PIDS: OnceLock<Mutex<std::collections::HashSet<i32>>> = OnceLock::new();
+    ENABLED_PIDS.get_or_init(|| Mutex::new(std::collections::HashSet::new()))
+}
+
+unsafe fn set_ax_bool_attr(elem: AXUIElementRef, key: &str, value: bool) -> i32 {
+    let key = CFString::new(key);
+    let value = if value {
+        CFBoolean::true_value()
+    } else {
+        CFBoolean::false_value()
+    };
+    AXUIElementSetAttributeValue(
+        elem,
+        key.as_concrete_TypeRef(),
+        value.as_concrete_TypeRef() as CFTypeRef,
+    )
+}
+
+unsafe fn enable_chromium_accessibility(app_element: AXUIElementRef) -> bool {
+    let modern_status = set_ax_bool_attr(app_element, "AXManualAccessibility", true);
+    match modern_status {
+        0 => return true,
+        K_AX_ERROR_ATTRIBUTE_UNSUPPORTED => {}
+        _ => return false,
+    }
+
+    set_ax_bool_attr(app_element, "AXEnhancedUserInterface", true) == 0
+}
+
+fn settle_after_chromium_enablement(pid: i32, app: AXUIElementRef) {
+    let already_enabled = enabled_pids()
+        .lock()
+        .map(|pids| pids.contains(&pid))
+        .unwrap_or(false);
+    if already_enabled {
+        return;
+    }
+
+    if unsafe { enable_chromium_accessibility(app) } {
+        thread::sleep(Duration::from_secs_f64(CHROMIUM_SETTLE_SECONDS));
+        if let Ok(mut pids) = enabled_pids().lock() {
+            pids.insert(pid);
+        }
+    }
+}
+
 // ── BFS walker ────────────────────────────────────────────────────────────
 
 struct Queued {
     elem: AXUIElementRef,
     parent_idx: Option<u32>,
     depth: u32,
+    is_app_root: bool,
 }
 
 /// Configurable knobs for the dump. Defaults mirror what the dispatch layer
@@ -360,6 +419,8 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> VoidResult<AppStateSnapshot> {
         )));
     }
 
+    settle_after_chromium_enablement(pid, app);
+
     // Pick the root we'll walk.
     let root = if opts.focus_window_only {
         unsafe {
@@ -388,6 +449,7 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> VoidResult<AppStateSnapshot> {
         elem: root,
         parent_idx: None,
         depth: 0,
+        is_app_root: !opts.focus_window_only,
     });
     let mut visited: usize = 0;
 
@@ -406,7 +468,10 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> VoidResult<AppStateSnapshot> {
         // AXValue is the canonical foot-gun: on a slider it's a CFNumber, on
         // a toggle it's a CFBoolean, on a tab group it's an AXUIElementRef
         // pointing at the selected child. Use the type-tolerant reader.
-        let value = unsafe { read_cf_value_attr(cur.elem, "AXValue") };
+        let value = crate::computer_use::macos_ax_snapshot_plan::value_or_placeholder(
+            unsafe { read_cf_value_attr(cur.elem, "AXValue") }.as_deref(),
+            unsafe { read_cf_string_attr(cur.elem, "AXPlaceholderValue") }.as_deref(),
+        );
         let description = unsafe { read_cf_string_attr(cur.elem, "AXDescription") };
         let help = unsafe { read_cf_string_attr(cur.elem, "AXHelp") };
         let identifier = unsafe { read_cf_string_attr(cur.elem, "AXIdentifier") };
@@ -441,24 +506,44 @@ pub fn dump_app_ax(pid: i32, opts: DumpOpts) -> VoidResult<AppStateSnapshot> {
         refs.push(AxRef(cur.elem));
 
         // Enqueue children — but DO NOT release `cur.elem`; the cache owns it.
-        let children_ref = unsafe { ax_copy_attr(cur.elem, "AXChildren") };
         let next_depth = cur.depth + 1;
-        let Some(ch) = children_ref else { continue };
-        unsafe {
-            let arr = CFArray::<*const c_void>::wrap_under_create_rule(ch as CFArrayRef);
-            for i in 0..arr.len() {
-                let Some(slot) = arr.get(i) else { continue };
-                let child = *slot;
-                if child.is_null() {
-                    continue;
-                }
-                let retained = CFRetain(child as CFTypeRef) as AXUIElementRef;
-                if !retained.is_null() {
-                    queue.push_back(Queued {
-                        elem: retained,
-                        parent_idx: Some(idx),
-                        depth: next_depth,
-                    });
+        let mut seen_child_ptrs = std::collections::HashSet::new();
+        let root_kind = if cur.is_app_root {
+            crate::computer_use::macos_ax_snapshot_plan::AxTraversalRootKind::AppRoot
+        } else if cur.parent_idx.is_none() {
+            crate::computer_use::macos_ax_snapshot_plan::AxTraversalRootKind::FocusedWindowRoot
+        } else {
+            crate::computer_use::macos_ax_snapshot_plan::AxTraversalRootKind::Child
+        };
+        for attr_name in
+            crate::computer_use::macos_ax_snapshot_plan::child_attributes_for_node(root_kind)
+        {
+            let children_ref = unsafe { ax_copy_attr(cur.elem, attr_name) };
+            let Some(ch) = children_ref else { continue };
+            unsafe {
+                let arr = CFArray::<*const c_void>::wrap_under_create_rule(ch as CFArrayRef);
+                for i in 0..arr.len() {
+                    let Some(slot) = arr.get(i) else { continue };
+                    let child = *slot;
+                    if child.is_null() {
+                        continue;
+                    }
+                    let ptr_key = child as usize;
+                    if !crate::computer_use::macos_ax_snapshot_plan::should_enqueue_child_pointer(
+                        ptr_key,
+                        &mut seen_child_ptrs,
+                    ) {
+                        continue;
+                    }
+                    let retained = CFRetain(child as CFTypeRef) as AXUIElementRef;
+                    if !retained.is_null() {
+                        queue.push_back(Queued {
+                            elem: retained,
+                            parent_idx: Some(idx),
+                            depth: next_depth,
+                            is_app_root: false,
+                        });
+                    }
                 }
             }
         }
@@ -728,8 +813,7 @@ mod tests {
             n(3, Some(1), "AXButton", Some("Close")),
         ];
         let out = render_tree_text(&nodes);
-        let expected =
-            "[0] AXApplication title=\"Cursor\"\n  [1] AXWindow title=\"main\"\n    [2] AXButton title=\"Save\"\n    [3] AXButton title=\"Close\"\n";
+        let expected = "[0] AXApplication title=\"Cursor\"\n  [1] AXWindow title=\"main\"\n    [2] AXButton title=\"Save\"\n    [3] AXButton title=\"Close\"\n";
         assert_eq!(out, expected);
     }
 

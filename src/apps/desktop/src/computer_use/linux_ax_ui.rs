@@ -3,14 +3,14 @@
 //! Requires session D-Bus, `at-spi2` registry, and apps exposing AT-SPI (typical on GNOME/KDE with a11y).
 
 use crate::computer_use::ui_locate_common;
+use atspi::AccessibilityConnection;
+use atspi::CoordType;
 use atspi::connection::P2P;
 use atspi::proxy::accessible::AccessibleProxy;
 use atspi::proxy::proxy_ext::ProxyExt;
-use atspi::AccessibilityConnection;
-use atspi::CoordType;
+use std::collections::VecDeque;
 use void_core::agentic::tools::computer_use_host::{UiElementLocateQuery, UiElementLocateResult};
 use void_core::util::errors::{VoidError, VoidResult};
-use std::collections::VecDeque;
 
 async fn component_extents_screen(acc: &AccessibleProxy<'_>) -> Option<(i32, i32, i32, i32)> {
     let proxies = acc.proxies().await.ok()?;

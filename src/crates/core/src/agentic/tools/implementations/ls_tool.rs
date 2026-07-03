@@ -123,8 +123,7 @@ Usage:
                         return ValidationResult {
                             result: false,
                             message: Some(
-                                "Tool context is required to resolve void runtime URIs"
-                                    .to_string(),
+                                "Tool context is required to resolve void runtime URIs".to_string(),
                             ),
                             error_code: Some(400),
                             meta: None,
@@ -254,10 +253,10 @@ Usage:
                 limit + 1
             );
 
-            let (stdout, _stderr, _exit_code) =
-                ws_shell.exec(&ls_cmd, Some(15_000)).await.map_err(|e| {
-                    VoidError::tool(format!("Failed to list remote directory: {}", e))
-                })?;
+            let (stdout, _stderr, _exit_code) = ws_shell
+                .exec(&ls_cmd, Some(15_000))
+                .await
+                .map_err(|e| VoidError::tool(format!("Failed to list remote directory: {}", e)))?;
 
             let mut file_lines = Vec::new();
             let mut dir_lines = Vec::new();
@@ -281,9 +280,10 @@ Usage:
                 shell_escape(&resolved.resolved_path),
                 shell_escape(&resolved.resolved_path)
             );
-            let (ls_output, _, _) = ws_shell.exec(&stat_cmd, Some(15_000)).await.map_err(|e| {
-                VoidError::tool(format!("Failed to list remote directory: {}", e))
-            })?;
+            let (ls_output, _, _) = ws_shell
+                .exec(&stat_cmd, Some(15_000))
+                .await
+                .map_err(|e| VoidError::tool(format!("Failed to list remote directory: {}", e)))?;
 
             let result_text = format!(
                 "Directory listing: {}\n\n{}",

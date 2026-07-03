@@ -3,16 +3,16 @@
 //! Coordinates match CoreGraphics global space used by [`crate::computer_use::DesktopComputerUseHost`].
 
 use crate::computer_use::ui_locate_common;
-use void_core::agentic::tools::computer_use_host::{
-    OcrAccessibilityHit, UiElementLocateQuery, UiElementLocateResult,
-};
-use void_core::util::errors::{VoidError, VoidResult};
 use core_foundation::array::{CFArray, CFArrayRef};
 use core_foundation::base::{CFGetTypeID, CFTypeRef, TCFType};
 use core_foundation::string::{CFString, CFStringRef};
 use core_graphics::geometry::{CGPoint, CGSize};
 use std::collections::VecDeque;
 use std::ffi::c_void;
+use void_core::agentic::tools::computer_use_host::{
+    OcrAccessibilityHit, UiElementLocateQuery, UiElementLocateResult,
+};
+use void_core::util::errors::{VoidError, VoidResult};
 
 type AXUIElementRef = *const c_void;
 type AXValueRef = *const c_void;
@@ -526,9 +526,7 @@ const MAX_CANDIDATES: usize = 10;
 
 /// Search the **frontmost** app's accessibility tree (BFS) for elements matching filters.
 /// Collects all matches, filters invisible/off-screen ones, ranks by relevance, returns the best.
-pub fn locate_ui_element_center(
-    query: &UiElementLocateQuery,
-) -> VoidResult<UiElementLocateResult> {
+pub fn locate_ui_element_center(query: &UiElementLocateQuery) -> VoidResult<UiElementLocateResult> {
     ui_locate_common::validate_query(query)?;
 
     // ── Batch 5: node_idx fast path ──────────────────────────────────────────

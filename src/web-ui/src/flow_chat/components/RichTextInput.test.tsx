@@ -2,13 +2,24 @@ import React, { act, createRef, forwardRef, useImperativeHandle, useState } from
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import RichTextInput from './RichTextInput';
-import type { ContextItem } from '../../shared/types/context';
+import type { ContextItem, FileContext } from '../../shared/types/context';
 
 type HarnessHandle = {
   setValue: (value: string) => void;
 };
 
 const emptyContexts: ContextItem[] = [];
+
+function placeCaretAtTextEnd(editor: HTMLDivElement) {
+  const textNode = editor.firstChild;
+  expect(textNode).toBeInstanceOf(Text);
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.setStart(textNode!, textNode?.textContent?.length ?? 0);
+  range.setEnd(textNode!, textNode?.textContent?.length ?? 0);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
 
 let JSDOMCtor: (new (
   html?: string,
@@ -77,6 +88,25 @@ describeWithJsdom('RichTextInput external sync', () => {
     vi.stubGlobal('cancelAnimationFrame', () => {});
     window.requestAnimationFrame = globalThis.requestAnimationFrame;
     window.cancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+    document.execCommand = vi.fn((command: string, _showUi?: boolean, value?: string) => {
+      if (command !== 'insertText') {
+        return false;
+      }
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        return false;
+      }
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const textNode = document.createTextNode(value ?? '');
+      range.insertNode(textNode);
+      range.setStart(textNode, textNode.textContent?.length ?? 0);
+      range.setEnd(textNode, textNode.textContent?.length ?? 0);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    }) as typeof document.execCommand;
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -161,5 +191,95 @@ describeWithJsdom('RichTextInput external sync', () => {
     });
 
     expect(onKeyDown).not.toHaveBeenCalled();
+  });
+
+  it('opens mention with only the needed leading space', async () => {
+    const onMentionStateChange = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value="hello"
+          onChange={() => {}}
+          onMentionStateChange={onMentionStateChange}
+          contexts={emptyContexts}
+          onRemoveContext={() => {}}
+        />
+      );
+    });
+
+    const editor = container.querySelector('.rich-text-input') as HTMLDivElement;
+    placeCaretAtTextEnd(editor);
+
+    await act(async () => {
+      (editor as any).openMention();
+    });
+
+    expect(editor.textContent).toBe('hello @');
+    expect(onMentionStateChange).toHaveBeenLastCalledWith({
+      isActive: true,
+      query: '',
+      startOffset: 6,
+    });
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value="hello "
+          onChange={() => {}}
+          onMentionStateChange={onMentionStateChange}
+          contexts={emptyContexts}
+          onRemoveContext={() => {}}
+        />
+      );
+    });
+
+    placeCaretAtTextEnd(editor);
+
+    await act(async () => {
+      (editor as any).openMention();
+    });
+
+    expect(editor.textContent).toBe('hello @');
+  });
+
+  it('replaces a mention with one tag and one trailing space', async () => {
+    const fileContext: FileContext = {
+      id: 'file-1',
+      type: 'file',
+      filePath: '/repo/src/file.ts',
+      fileName: 'file.ts',
+      relativePath: 'src/file.ts',
+      timestamp: 1,
+    };
+    const onChange = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value="ask @fi"
+          onChange={onChange}
+          contexts={[fileContext]}
+          onRemoveContext={() => {}}
+        />
+      );
+    });
+
+    const editor = container.querySelector('.rich-text-input') as HTMLDivElement;
+    placeCaretAtTextEnd(editor);
+
+    await act(async () => {
+      editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+
+    await act(async () => {
+      (editor as any).insertTagReplacingMention(fileContext);
+    });
+
+    expect(editor.childNodes[0].textContent).toBe('ask ');
+    expect(editor.childNodes[1]).toBeInstanceOf(HTMLSpanElement);
+    expect((editor.childNodes[1] as HTMLElement).dataset.tagFormat).toBe('#file:file.ts');
+    expect(Array.from(editor.childNodes).slice(2).map(node => node.textContent).join('')).toBe(' ');
+    expect(onChange).toHaveBeenLastCalledWith('ask #file:file.ts', [fileContext]);
   });
 });

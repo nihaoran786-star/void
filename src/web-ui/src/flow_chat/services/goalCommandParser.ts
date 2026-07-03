@@ -1,11 +1,21 @@
-const GOAL_COMMAND_PATTERN = /^\/goal(?:\s+([\s\S]*))?$/i;
+const GOAL_COMMAND_PATTERN = /^\/goal(?=\s|$)(?:\s+([\s\S]*))?$/i;
 
-export type GoalCommandAction = 'activate' | 'pause' | 'resume' | 'clear' | 'edit';
+export type GoalCommandAction =
+  | 'activate'
+  | 'pause'
+  | 'resume'
+  | 'clear'
+  | 'edit'
+  | 'complete'
+  | 'block'
+  | 'set-budget'
+  | 'clear-budget';
 
 export interface ParsedGoalCommand {
   action: GoalCommandAction;
   userHint?: string;
   goalText?: string;
+  tokenBudget?: number;
 }
 
 export function parseGoalCommand(message: string): ParsedGoalCommand | null {
@@ -30,6 +40,24 @@ export function parseGoalCommand(message: string): ParsedGoalCommand | null {
       return rest.length === 0 ? { action: 'clear' } : null;
     case 'edit':
       return remainder ? { action: 'edit', goalText: remainder } : null;
+    case 'complete':
+      return rest.length === 0 ? { action: 'complete' } : null;
+    case 'block':
+    case 'blocked':
+      return rest.length === 0 ? { action: 'block' } : null;
+    case 'budget': {
+      if (rest.length !== 1) {
+        return null;
+      }
+      if (rest[0].toLowerCase() === 'clear') {
+        return { action: 'clear-budget' };
+      }
+      if (!/^\d+$/.test(rest[0])) {
+        return null;
+      }
+      const tokenBudget = Number(rest[0]);
+      return Number.isSafeInteger(tokenBudget) ? { action: 'set-budget', tokenBudget } : null;
+    }
     default:
       return { action: 'activate', userHint: body };
   }

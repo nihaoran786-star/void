@@ -570,4 +570,49 @@ describe('WorkspaceMediaLibrary', () => {
     expect(result.status).toBe('error');
     expect(adapter.renameFile).not.toHaveBeenCalled();
   });
+
+  it('returns an explicit delete error when trash metadata cannot be saved', async () => {
+    const adapter = createMutableAdapter({}, {}, ['C:/work/media/generated/new.png']);
+    adapter.writeTextFile = vi.fn(async () => {
+      throw new Error('write failed');
+    });
+    const service = createWorkspaceMediaLibraryService(adapter);
+
+    const result = await service.deleteItems('C:/work', [{
+      id: 'new',
+      filePath: 'C:/work/media/generated/new.png',
+      kind: 'image',
+      source: 'generated',
+    }], 1000);
+
+    expect(result.status).toBe('error');
+    if (result.status !== 'error') return;
+    expect(result.error.code).toBe('trash_failed');
+    expect(result.error.message).toBe('write failed');
+  });
+
+  it('rejects restore ids that escape the media trash root', async () => {
+    const adapter = createMutableAdapter({}, {}, []);
+    const service = createWorkspaceMediaLibraryService(adapter);
+
+    const result = await service.restoreItems('C:/work', ['../../escape']);
+
+    expect(result.status).toBe('error');
+    if (result.status !== 'error') return;
+    expect(result.error.code).toBe('unsafe_path');
+    expect(adapter.readTextFile).not.toHaveBeenCalled();
+    expect(adapter.renameFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects purge ids that escape the media trash root', async () => {
+    const adapter = createMutableAdapter({}, {}, []);
+    const service = createWorkspaceMediaLibraryService(adapter);
+
+    const result = await service.purgeItems('C:/work', ['../../escape']);
+
+    expect(result.status).toBe('error');
+    if (result.status !== 'error') return;
+    expect(result.error.code).toBe('unsafe_path');
+    expect(adapter.deleteDirectory).not.toHaveBeenCalled();
+  });
 });

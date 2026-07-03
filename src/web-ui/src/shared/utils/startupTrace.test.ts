@@ -5,7 +5,9 @@ import {
   installStartupTraceDiagnostics,
   isRemoteTraceContext,
   isRemoteTraceRequest,
+  isStartupRenderTraceEnabled,
   markPhaseAfterAnimationFrames,
+  recordReactRenderProfile,
 } from './startupTrace';
 import type { LoggerLike } from './timing';
 
@@ -236,6 +238,164 @@ describe('startupTrace', () => {
         remote: false,
       },
     ]);
+  });
+
+  it('records API boundary timing fields without raw payloads', () => {
+    const trace = createStartupTrace({
+      logger: createTestLogger(),
+      traceId: 'trace-test',
+      now: () => 100,
+    });
+
+    trace.recordApiCall({
+      type: 'tauri',
+      command: 'get_workspace_stats',
+      target: 'workspace',
+      startedAtMs: 10.12,
+      durationMs: 25.67,
+      requestBytes: 120,
+      responseBytes: 240,
+      requestPayloadEstimateDurationMs: 1.24,
+      responsePayloadEstimateDurationMs: 2.46,
+      adapterInitDurationMs: 3.14,
+      transportDurationMs: 4.15,
+      invokeDurationMs: 18.38,
+      activeRequestsAtStart: 2,
+      activeRequestsAtEnd: 1,
+      maxConcurrentRequests: 4,
+      remote: true,
+    });
+
+    const snapshot = trace.snapshot();
+
+    expect(snapshot.api.payloadEstimateDurationMs).toBe(3.7);
+    expect(snapshot.api.calls[0]).toEqual({
+      traceId: 'trace-test',
+      type: 'tauri',
+      command: 'get_workspace_stats',
+      target: 'workspace',
+      startedAtMs: 10.1,
+      endedAtMs: 35.8,
+      durationMs: 25.7,
+      outcome: 'success',
+      cacheOutcome: 'unknown',
+      requestBytes: 120,
+      responseBytes: 240,
+      remote: true,
+      payloadEstimateDurationMs: 3.7,
+      requestPayloadEstimateDurationMs: 1.2,
+      responsePayloadEstimateDurationMs: 2.5,
+      adapterInitDurationMs: 3.1,
+      transportDurationMs: 4.2,
+      invokeDurationMs: 18.4,
+      activeRequestsAtStart: 2,
+      activeRequestsAtEnd: 1,
+      maxConcurrentRequests: 4,
+    });
+  });
+
+  it('records React render profiles only when explicitly enabled', () => {
+    const previousRenderProfileEnabled = globalThis.__VOID_RENDER_PROFILE_ENABLED__;
+    const trace = createStartupTrace({
+      logger: createTestLogger(),
+      traceId: 'trace-test',
+      now: () => 100,
+    });
+
+    try {
+      globalThis.__VOID_RENDER_PROFILE_ENABLED__ = false;
+      expect(isStartupRenderTraceEnabled()).toBe(false);
+      recordReactRenderProfile(trace, {
+        component: 'MarkdownRenderer',
+        phase: 'commit',
+        actualDurationMs: 12.345,
+        baseDurationMs: 20.5,
+        startTimeMs: 10,
+        commitTimeMs: 25,
+        contentLength: 1024,
+        itemCount: 12,
+        groupCount: 7,
+        renderedCount: 5,
+        turnId: 'turn-1',
+        roundId: 'round-1',
+        itemId: 'item-1',
+        visibleGroupStartIndex: 2,
+        visibleGroupEndIndex: 7,
+        textItemCount: 4,
+        toolItemCount: 8,
+        visibleTextItemCount: 2,
+        visibleToolItemCount: 3,
+        criticalGroupCount: 5,
+        exploreGroupCount: 2,
+        hasCodeBlock: true,
+        request: { unsafe: 'payload' },
+      });
+      expect(trace.snapshot().phases.events).toHaveLength(0);
+
+      globalThis.__VOID_RENDER_PROFILE_ENABLED__ = true;
+      expect(isStartupRenderTraceEnabled()).toBe(true);
+      recordReactRenderProfile(trace, {
+        component: 'MarkdownRenderer',
+        phase: 'commit',
+        actualDurationMs: 12.345,
+        baseDurationMs: 20.5,
+        startTimeMs: 10,
+        commitTimeMs: 25,
+        contentLength: 1024,
+        itemCount: 12,
+        groupCount: 7,
+        renderedCount: 5,
+        turnId: 'turn-1',
+        roundId: 'round-1',
+        itemId: 'item-1',
+        visibleGroupStartIndex: 2,
+        visibleGroupEndIndex: 7,
+        textItemCount: 4,
+        toolItemCount: 8,
+        visibleTextItemCount: 2,
+        visibleToolItemCount: 3,
+        criticalGroupCount: 5,
+        exploreGroupCount: 2,
+        hasCodeBlock: true,
+        request: { unsafe: 'payload' },
+      });
+
+      expect(trace.snapshot().phases.events).toEqual([
+        expect.objectContaining({
+          traceId: 'trace-test',
+          phase: 'react_render_profile',
+          component: 'MarkdownRenderer',
+          renderPhase: 'commit',
+          actualDurationMs: 12.3,
+          baseDurationMs: 20.5,
+          startTimeMs: 10,
+          commitTimeMs: 25,
+          contentLength: 1024,
+          itemCount: 12,
+          groupCount: 7,
+          renderedCount: 5,
+          turnId: 'turn-1',
+          roundId: 'round-1',
+          itemId: 'item-1',
+          visibleGroupStartIndex: 2,
+          visibleGroupEndIndex: 7,
+          textItemCount: 4,
+          toolItemCount: 8,
+          visibleTextItemCount: 2,
+          visibleToolItemCount: 3,
+          criticalGroupCount: 5,
+          exploreGroupCount: 2,
+          hasCodeBlock: true,
+        }),
+      ]);
+      expect(trace.snapshot().phases.events[0]).not.toHaveProperty('request');
+    } finally {
+      if (previousRenderProfileEnabled === undefined) {
+        delete globalThis.__VOID_RENDER_PROFILE_ENABLED__;
+      } else {
+        globalThis.__VOID_RENDER_PROFILE_ENABLED__ = previousRenderProfileEnabled;
+      }
+    }
   });
 
   it('installs a void startup diagnostics surface', () => {

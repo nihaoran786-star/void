@@ -135,6 +135,7 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "ControlHub" => Arc::new(ControlHubTool::new()),
         "ComputerUse" => Arc::new(ComputerUseTool::new()),
         "Playbook" => Arc::new(PlaybookTool::new()),
+        "AnalyzeImage" => Arc::new(AnalyzeImageTool::new()),
         "GenerateImage" => Arc::new(GenerateImageTool::new()),
         "GenerateVideo" => Arc::new(GenerateVideoTool::new()),
         "GetMediaTaskStatus" => Arc::new(GetMediaTaskStatusTool::new()),

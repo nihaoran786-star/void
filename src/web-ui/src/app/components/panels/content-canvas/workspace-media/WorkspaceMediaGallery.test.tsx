@@ -655,7 +655,9 @@ describe('WorkspaceMediaGallery', () => {
       await Promise.resolve();
     });
 
-    const immediateCard = container.querySelector('[data-testid="workspace-media-card-workspace-media-pending-settled-batch-1"]') as HTMLButtonElement;
+    const immediateCard = container.querySelector(
+      '[data-testid^="workspace-media-card-workspace-media-pending-C-work-media-tool-settled-batch-settled-batch-image-1"]'
+    ) as HTMLButtonElement;
     expect(immediateCard).toBeTruthy();
     expect(immediateCard.disabled).toBe(true);
     expect(service.scanLibrary).toHaveBeenCalledTimes(2);
@@ -824,7 +826,9 @@ describe('WorkspaceMediaGallery', () => {
       );
     });
 
-    const card = container.querySelector('[data-testid="workspace-media-card-workspace-media-pending-tool-media-tool-before-mount-1"]') as HTMLButtonElement;
+    const card = container.querySelector(
+      '[data-testid^="workspace-media-card-workspace-media-pending-C-work-media-tool-before-mount-tool-media-tool-before-mount-image-1"]'
+    ) as HTMLButtonElement;
     expect(card).toBeTruthy();
     expect(card.disabled).toBe(true);
     expect(card.querySelector('.workspace-media-card__generator')).toBeTruthy();

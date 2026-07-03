@@ -179,8 +179,14 @@ pub(crate) async fn send_stream(
         max_tries,
         ttft_timeout,
         || apply_headers(client, client.client.post(&url)),
-        move |response, tx, tx_raw| {
-            tokio::spawn(handle_gemini_stream(response, tx, tx_raw, idle_timeout));
+        move |response, tx, tx_raw, remaining_ttft_timeout| {
+            tokio::spawn(handle_gemini_stream(
+                response,
+                tx,
+                tx_raw,
+                remaining_ttft_timeout,
+                idle_timeout,
+            ));
         },
     )
     .await

@@ -9,3 +9,5 @@ export { default as ConnectedTerminal } from './ConnectedTerminal';
 export type { ConnectedTerminalProps } from './ConnectedTerminal';
 
 export { TerminalOutputRenderer } from './TerminalOutputRenderer';
+export { LazyTerminalOutputRenderer, TerminalOutputFallback } from './LazyTerminalOutputRenderer';
+export type { LazyTerminalOutputRendererProps } from './LazyTerminalOutputRenderer';

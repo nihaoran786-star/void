@@ -15,6 +15,7 @@ import {
   getXtermFontWeights,
   DEFAULT_XTERM_MINIMUM_CONTRAST_RATIO,
 } from '../utils';
+import type { TerminalPasteDecision } from '../utils';
 import { systemAPI } from '@/infrastructure/api/service-api/SystemAPI';
 import { themeService } from '@/infrastructure/theme/core/ThemeService';
 import { createLogger } from '@/shared/utils/logger';
@@ -119,10 +120,15 @@ export interface TerminalProps {
   onResize?: (cols: number, rows: number) => void;
   onReady?: (terminal: XTerm) => void;
   /**
-   * Paste interceptor: return true to allow, false to block.
-   * Uses the default multi-line confirmation when omitted.
+   * Keyboard paste shortcut interceptor. Return true when the shortcut was
+   * handled by the shell instead of the clipboard pipeline.
    */
-  onPaste?: (text: string) => Promise<boolean> | boolean;
+  onPasteShortcut?: () => Promise<boolean> | boolean;
+  /** Paste interceptor: return false to block or a decision to replace text. */
+  onPaste?: (
+    text: string,
+    context: { bracketedPasteMode: boolean },
+  ) => Promise<boolean | TerminalPasteDecision> | boolean | TerminalPasteDecision;
   /**
    * When set to a positive value, doXtermResize skips any resize that would
    * shrink the terminal below this column count. Used during history replay to
@@ -177,6 +183,7 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
   onTitleChange,
   onResize,
   onReady,
+  onPasteShortcut,
   onPaste,
   preventShrinkBelowColsRef,
 }, ref) => {
@@ -198,6 +205,7 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
   const onTitleChangeRef = useRef(onTitleChange);
   const onResizeRef = useRef(onResize);
   const onReadyRef = useRef(onReady);
+  const onPasteShortcutRef = useRef(onPasteShortcut);
   const onPasteRef = useRef(onPaste);
   const [isReady, setIsReady] = useState(false);
   const currentTheme = themeService.getCurrentTheme();
@@ -225,6 +233,7 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
   onTitleChangeRef.current = onTitleChange;
   onResizeRef.current = onResize;
   onReadyRef.current = onReady;
+  onPasteShortcutRef.current = onPasteShortcut;
   onPasteRef.current = onPaste;
   mergedOptionsRef.current = mergedOptions;
   initialFontWeightsRef.current = initialFontWeights;
@@ -521,6 +530,21 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
       onTitleChangeRef.current?.(title);
     });
 
+    function normalizePasteDecision(
+      decision: boolean | TerminalPasteDecision | undefined,
+      originalText: string,
+    ): TerminalPasteDecision {
+      if (decision === false) {
+        return { allow: false };
+      }
+
+      if (decision === true || decision === undefined) {
+        return { allow: true, text: originalText };
+      }
+
+      return decision;
+    }
+
     // Intercept paste (Ctrl+V / Ctrl+Shift+V).
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
       if (event.type === 'keydown' && event.ctrlKey && (event.key === 'v' || event.key === 'V')) {
@@ -528,17 +552,24 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
         
         (async () => {
           try {
+            if (await onPasteShortcutRef.current?.()) {
+              return;
+            }
+
             const text = await navigator.clipboard.readText();
             if (!text) return;
 
+            let decision: TerminalPasteDecision = { allow: true, text };
             if (onPasteRef.current) {
-              const allowed = await onPasteRef.current(text);
-              if (!allowed) {
+              decision = normalizePasteDecision(await onPasteRef.current(text, {
+                bracketedPasteMode: Boolean(terminal.modes.bracketedPasteMode),
+              }), text);
+              if (!decision.allow) {
                 return;
               }
             }
 
-            onDataRef.current?.(text);
+            onDataRef.current?.(decision.text);
           } catch (err) {
             log.error('Paste failed', err);
           }

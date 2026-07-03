@@ -107,6 +107,9 @@ export interface RestoreSessionViewResponse {
   session: SessionInfo;
   turns: DialogTurnData[];
   contextRestoreState: 'ready' | 'pending';
+  isPartial?: boolean;
+  loadedTurnCount?: number;
+  totalTurnCount?: number;
 }
 
 export interface EnsureAssistantBootstrapRequest {
@@ -367,8 +370,17 @@ export class AgentAPI {
 
   async updateSessionGoal(request: {
     sessionId: string;
-    action: 'pause' | 'resume' | 'clear' | 'edit';
+    action:
+      | 'pause'
+      | 'resume'
+      | 'clear'
+      | 'edit'
+      | 'complete'
+      | 'block'
+      | 'set-budget'
+      | 'clear-budget';
     goalText?: string;
+    tokenBudget?: number;
     workspacePath?: string;
     remoteConnectionId?: string;
     remoteSshHost?: string;

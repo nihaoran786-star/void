@@ -145,8 +145,8 @@ The **primary model cannot consume images** in tool results — **do not** use *
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["click_target", "move_to_target", "click_element", "move_to_text", "click", "mouse_move", "scroll", "drag", "locate", "key_chord", "type_text", "pointer_move_rel", "wait", "list_displays", "focus_display", "paste", "list_apps", "get_app_state", "app_click", "app_type_text", "app_scroll", "app_key_chord", "app_wait_for", "build_interactive_view", "interactive_click", "interactive_type_text", "interactive_scroll", "build_visual_mark_view", "visual_click", "open_app", "open_url", "open_file", "clipboard_get", "clipboard_set", "run_script", "run_apple_script", "get_os_info"],
-                    "description": "The action to perform. **Primary model is text-only — no `screenshot`.** **ACTION PRIORITY:** 1) Use Bash tool for CLI/terminal/system commands first. 2) **`open_app`** to launch apps. **`run_apple_script`** for AppleScript (macOS). 3) Prefer `key_chord` for shortcuts/navigation. 4) Only when above fail: `click_target` / `move_to_target` (AX → OCR → screen coords in one call), then lower-level `click_element`, `move_to_text`, or `mouse_move` + `click`. Never guess coordinates."
+                    "enum": ["describe_screen", "click_target", "move_to_target", "click_element", "move_to_text", "click", "mouse_move", "scroll", "drag", "locate", "key_chord", "type_text", "pointer_move_rel", "wait", "list_displays", "focus_display", "paste", "list_apps", "get_app_state", "app_click", "app_type_text", "app_scroll", "app_key_chord", "app_wait_for", "build_interactive_view", "interactive_click", "interactive_type_text", "interactive_scroll", "build_visual_mark_view", "visual_click", "open_app", "open_url", "open_file", "clipboard_get", "clipboard_set", "run_script", "run_apple_script", "get_os_info"],
+                    "description": "The action to perform. **Primary model is text-only — no `screenshot`.** Use `describe_screen` for a readonly JSON observation of current Computer Use context without image attachments. **ACTION PRIORITY:** 1) Use Bash tool for CLI/terminal/system commands first. 2) **`open_app`** to launch apps. **`run_apple_script`** for AppleScript (macOS). 3) Prefer `key_chord` for shortcuts/navigation. 4) Only when above fail: `click_target` / `move_to_target` (AX → OCR → screen coords in one call), then lower-level `click_element`, `move_to_text`, or `mouse_move` + `click`. Never guess coordinates."
                 },
                 "x": { "type": "integer", "description": "For `mouse_move` and `drag`: X in **global display** units when **`use_screen_coordinates`: true** (required). **Not** for `click`." },
                 "y": { "type": "integer", "description": "For `mouse_move` and `drag`: Y in **global display** units when **`use_screen_coordinates`: true** (required). **Not** for `click`." },
@@ -218,6 +218,69 @@ The **primary model cannot consume images** in tool results — **do not** use *
             "required": ["action"],
             "additionalProperties": false
         })
+    }
+
+    async fn describe_screen_result(context: &ToolUseContext) -> VoidResult<Vec<ToolResult>> {
+        let Some(host) = context.computer_use_host.as_ref() else {
+            let body = json!({
+                "action": "describe_screen",
+                "status": "unsupported",
+                "source": "none",
+                "scope": "current_session",
+                "has_image_attachment": false,
+                "screenshot_meta": null,
+                "ui_tree_text": null,
+                "computer_use_context": {
+                    "foreground_application": null,
+                    "pointer_global": null,
+                    "input_coordinates": null,
+                },
+                "interaction_state": null,
+                "warnings": [],
+                "error_code": "DESKTOP_HOST_UNAVAILABLE",
+                "error": "describe_screen requires Computer Use inside the Void desktop app.",
+            });
+            return Ok(vec![ToolResult::ok(
+                body,
+                Some("describe_screen is unavailable without the Void desktop host.".to_string()),
+            )]);
+        };
+
+        let host_ref = host.as_ref();
+        let snap = host_ref.computer_use_session_snapshot().await;
+        let interaction = host_ref.computer_use_interaction_state();
+        let ui_tree_text = host_ref.enumerate_ui_tree_text().await;
+        let source = if ui_tree_text
+            .as_deref()
+            .map(|text| !text.trim().is_empty())
+            .unwrap_or(false)
+        {
+            "ui_tree_text"
+        } else {
+            "session_snapshot"
+        };
+        let body = json!({
+            "action": "describe_screen",
+            "status": "completed",
+            "source": source,
+            "scope": "current_session",
+            "has_image_attachment": false,
+            "screenshot_meta": null,
+            "ui_tree_text": ui_tree_text,
+            "computer_use_context": {
+                "foreground_application": snap.foreground_application,
+                "pointer_global": snap.pointer_global,
+                "input_coordinates": null,
+            },
+            "interaction_state": interaction,
+            "warnings": [],
+            "error_code": null,
+            "error": null,
+        });
+        Ok(vec![ToolResult::ok(
+            body,
+            Some("Readonly screen context described without image attachment.".to_string()),
+        )])
     }
 
     /// Max OCR hits to attach as preview crops + AX (multimodal disambiguation).
@@ -1302,8 +1365,8 @@ impl Tool for ComputerUseTool {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["screenshot", "click_target", "move_to_target", "click_element", "move_to_text", "click", "mouse_move", "scroll", "drag", "locate", "key_chord", "type_text", "pointer_move_rel", "wait", "list_displays", "focus_display", "paste", "list_apps", "get_app_state", "app_click", "app_type_text", "app_scroll", "app_key_chord", "app_wait_for", "build_interactive_view", "interactive_click", "interactive_type_text", "interactive_scroll", "build_visual_mark_view", "visual_click", "open_app", "open_url", "open_file", "clipboard_get", "clipboard_set", "run_script", "run_apple_script", "get_os_info"],
-                    "description": "The action to perform. **ACTION PRIORITY:** 1) Use Bash tool for CLI/terminal/system commands (most efficient). 2) **`open_app`** to launch apps by name. **`run_apple_script`** to run AppleScript (macOS). 3) Prefer **`key_chord`** for shortcuts/navigation keys over mouse. 4) Only when above fail: `click_target` / `move_to_target` (AX → OCR → screen coords in one call) before lower-level `click_element`, `move_to_text`, or `mouse_move` + `click`. **`screenshot`** is for observation/confirmation ONLY — never derive mouse coordinates from screenshots. `click` = press at **current pointer only** (no x/y params). `scroll` supports optional position (`scroll_x`/`scroll_y`). `type_text`, `drag`, `pointer_move_rel`, `wait`, `locate` = standard actions."
+                    "enum": ["describe_screen", "screenshot", "click_target", "move_to_target", "click_element", "move_to_text", "click", "mouse_move", "scroll", "drag", "locate", "key_chord", "type_text", "pointer_move_rel", "wait", "list_displays", "focus_display", "paste", "list_apps", "get_app_state", "app_click", "app_type_text", "app_scroll", "app_key_chord", "app_wait_for", "build_interactive_view", "interactive_click", "interactive_type_text", "interactive_scroll", "build_visual_mark_view", "visual_click", "open_app", "open_url", "open_file", "clipboard_get", "clipboard_set", "run_script", "run_apple_script", "get_os_info"],
+                    "description": "The action to perform. `describe_screen` returns a readonly JSON observation without image attachments; `screenshot` remains the image-producing observation action. **ACTION PRIORITY:** 1) Use Bash tool for CLI/terminal/system commands (most efficient). 2) **`open_app`** to launch apps by name. **`run_apple_script`** to run AppleScript (macOS). 3) Prefer **`key_chord`** for shortcuts/navigation keys over mouse. 4) Only when above fail: `click_target` / `move_to_target` (AX → OCR → screen coords in one call) before lower-level `click_element`, `move_to_text`, or `mouse_move` + `click`. **`screenshot`** is for observation/confirmation ONLY — never derive mouse coordinates from screenshots. `click` = press at **current pointer only** (no x/y params). `scroll` supports optional position (`scroll_x`/`scroll_y`). `type_text`, `drag`, `pointer_move_rel`, `wait`, `locate` = standard actions."
                 },
                 "x": { "type": "integer", "description": "For `mouse_move` and `drag`: X in **global display** units when **`use_screen_coordinates`: true** (required). **Not** for `click`." },
                 "y": { "type": "integer", "description": "For `mouse_move` and `drag`: Y in **global display** units when **`use_screen_coordinates`: true** (required). **Not** for `click`." },
@@ -1440,6 +1503,10 @@ impl Tool for ComputerUseTool {
             .get("action")
             .and_then(|v| v.as_str())
             .ok_or_else(|| VoidError::tool("action is required".to_string()))?;
+
+        if action == "describe_screen" {
+            return Self::describe_screen_result(context).await;
+        }
 
         match action {
             "open_url" | "open_file" | "clipboard_get" | "clipboard_set" | "run_script"
@@ -2296,4 +2363,306 @@ fn req_i32(input: &Value, key: &str) -> VoidResult<i32> {
         .and_then(|v| v.as_i64())
         .map(|v| v as i32)
         .ok_or_else(|| VoidError::tool(format!("{} is required (integer)", key)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agentic::tools::computer_use_host::{
+        ComputerUseForegroundApplication, ComputerUsePointerGlobal, ComputerUseSessionSnapshot,
+    };
+    use crate::agentic::tools::tool_context_runtime::ToolUseContext;
+    use crate::agentic::workspace::WorkspaceServices;
+    use serde_json::json;
+    use std::collections::HashMap;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use void_agent_tools::ToolRuntimeRestrictions;
+
+    #[derive(Debug, Default)]
+    struct DescribeScreenTestHost {
+        screenshot_display_calls: AtomicUsize,
+        screenshot_peek_calls: AtomicUsize,
+        record_action_calls: AtomicUsize,
+        update_screenshot_hash_calls: AtomicUsize,
+        after_screenshot_calls: AtomicUsize,
+        after_committed_ui_action_calls: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl ComputerUseHost for DescribeScreenTestHost {
+        async fn permission_snapshot(
+            &self,
+        ) -> VoidResult<crate::agentic::tools::computer_use_host::ComputerUsePermissionSnapshot>
+        {
+            Ok(Default::default())
+        }
+
+        async fn request_accessibility_permission(&self) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn request_screen_capture_permission(&self) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn screenshot_display(
+            &self,
+            _params: crate::agentic::tools::computer_use_host::ComputerUseScreenshotParams,
+        ) -> VoidResult<ComputerScreenshot> {
+            self.screenshot_display_calls.fetch_add(1, Ordering::SeqCst);
+            Err(VoidError::tool(
+                "screenshot_display must not be called by describe_screen".to_string(),
+            ))
+        }
+
+        async fn screenshot_peek_full_display(&self) -> VoidResult<ComputerScreenshot> {
+            self.screenshot_peek_calls.fetch_add(1, Ordering::SeqCst);
+            Err(VoidError::tool(
+                "screenshot_peek_full_display is intentionally unavailable in this test"
+                    .to_string(),
+            ))
+        }
+
+        fn map_image_coords_to_pointer(&self, _x: i32, _y: i32) -> VoidResult<(i32, i32)> {
+            Err(VoidError::tool("not used".to_string()))
+        }
+
+        fn map_normalized_coords_to_pointer(&self, _x: i32, _y: i32) -> VoidResult<(i32, i32)> {
+            Err(VoidError::tool("not used".to_string()))
+        }
+
+        async fn mouse_move(&self, _x: i32, _y: i32) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn pointer_move_relative(&self, _dx: i32, _dy: i32) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn mouse_click(&self, _button: &str) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn scroll(&self, _delta_x: i32, _delta_y: i32) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn key_chord(&self, _keys: Vec<String>) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn type_text(&self, _text: &str) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn wait_ms(&self, _ms: u64) -> VoidResult<()> {
+            Ok(())
+        }
+
+        async fn computer_use_session_snapshot(&self) -> ComputerUseSessionSnapshot {
+            ComputerUseSessionSnapshot {
+                foreground_application: Some(ComputerUseForegroundApplication {
+                    name: Some("TestApp".to_string()),
+                    bundle_id: Some("com.example.TestApp".to_string()),
+                    process_id: Some(123),
+                }),
+                pointer_global: Some(ComputerUsePointerGlobal { x: 12.0, y: 34.0 }),
+            }
+        }
+
+        async fn enumerate_ui_tree_text(&self) -> Option<String> {
+            Some("Window TestApp\nButton Continue".to_string())
+        }
+
+        fn computer_use_after_screenshot(&self) {
+            self.after_screenshot_calls.fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn computer_use_after_committed_ui_action(&self) {
+            self.after_committed_ui_action_calls
+                .fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn record_action(&self, _action_type: &str, _action_params: &str, _success: bool) {
+            self.record_action_calls.fetch_add(1, Ordering::SeqCst);
+        }
+
+        fn update_screenshot_hash(&self, _hash: u64) {
+            self.update_screenshot_hash_calls
+                .fetch_add(1, Ordering::SeqCst);
+        }
+    }
+
+    fn test_context(
+        host: Option<crate::agentic::tools::computer_use_host::ComputerUseHostRef>,
+        primary_supports_image: bool,
+    ) -> ToolUseContext {
+        let mut custom_data = HashMap::new();
+        custom_data.insert(
+            "primary_model_supports_image_understanding".to_string(),
+            json!(primary_supports_image),
+        );
+        ToolUseContext {
+            tool_call_id: None,
+            agent_type: Some("test".to_string()),
+            session_id: Some("session-1".to_string()),
+            dialog_turn_id: Some("turn-1".to_string()),
+            workspace: None,
+            unlocked_collapsed_tools: Vec::new(),
+            custom_data,
+            computer_use_host: host,
+            cancellation_token: None,
+            runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
+            workspace_services: None::<WorkspaceServices>,
+        }
+    }
+
+    fn action_enum(schema: &Value) -> Vec<String> {
+        schema["properties"]["action"]["enum"]
+            .as_array()
+            .expect("action enum")
+            .iter()
+            .map(|v| v.as_str().expect("string action").to_string())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn computer_use_schema_exposes_describe_screen_in_text_only_and_multimodal() {
+        let tool = ComputerUseTool::new();
+        let text_schema = tool
+            .input_schema_for_model_with_context(Some(&test_context(None, false)))
+            .await;
+        let multimodal_schema = tool
+            .input_schema_for_model_with_context(Some(&test_context(None, true)))
+            .await;
+
+        let text_actions = action_enum(&text_schema);
+        assert!(text_actions.iter().any(|a| a == "describe_screen"));
+        assert!(!text_actions.iter().any(|a| a == "screenshot"));
+        assert!(
+            action_enum(&multimodal_schema)
+                .iter()
+                .any(|a| a == "describe_screen")
+        );
+    }
+
+    #[tokio::test]
+    async fn computer_use_describe_screen_returns_explicit_unsupported_without_desktop_host() {
+        let tool = ComputerUseTool::new();
+        let results = tool
+            .call_impl(
+                &json!({ "action": "describe_screen" }),
+                &test_context(None, false),
+            )
+            .await
+            .expect("describe_screen should return a structured unsupported result");
+
+        let ToolResult::Result {
+            data,
+            image_attachments,
+            ..
+        } = &results[0]
+        else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["action"], "describe_screen");
+        assert_eq!(data["status"], "unsupported");
+        assert_eq!(data["source"], "none");
+        assert_eq!(data["scope"], "current_session");
+        assert_eq!(data["error_code"], "DESKTOP_HOST_UNAVAILABLE");
+        assert!(
+            data["error"]
+                .as_str()
+                .unwrap_or_default()
+                .contains("Void desktop")
+        );
+        assert_eq!(image_attachments, &None);
+    }
+
+    #[tokio::test]
+    async fn computer_use_describe_screen_dispatch_does_not_fall_through_to_unknown_action() {
+        let tool = ComputerUseTool::new();
+        let host = Arc::new(DescribeScreenTestHost::default());
+        let results = tool
+            .call_impl(
+                &json!({ "action": "describe_screen" }),
+                &test_context(Some(host), false),
+            )
+            .await
+            .expect("describe_screen should be handled");
+
+        let ToolResult::Result {
+            data,
+            image_attachments,
+            ..
+        } = &results[0]
+        else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["action"], "describe_screen");
+        assert_ne!(data["error"], "Unknown action: describe_screen");
+        assert_eq!(data["status"], "completed");
+        assert_eq!(image_attachments, &None);
+    }
+
+    #[tokio::test]
+    async fn describe_screen_result_keeps_context_interaction_and_no_image_bytes() {
+        let tool = ComputerUseTool::new();
+        let host = Arc::new(DescribeScreenTestHost::default());
+        let results = tool
+            .call_impl(
+                &json!({ "action": "describe_screen" }),
+                &test_context(Some(host), true),
+            )
+            .await
+            .expect("describe_screen should return readonly observation");
+
+        let ToolResult::Result {
+            data,
+            image_attachments,
+            ..
+        } = &results[0]
+        else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(
+            data["computer_use_context"]["foreground_application"]["name"],
+            "TestApp"
+        );
+        assert!(data.get("interaction_state").is_some());
+        assert_eq!(data["has_image_attachment"], false);
+        assert!(data.get("bytes").is_none());
+        assert!(data.get("data_base64").is_none());
+        assert_eq!(image_attachments, &None);
+    }
+
+    #[tokio::test]
+    async fn describe_screen_is_readonly_and_does_not_mutate_screenshot_state() {
+        let tool = ComputerUseTool::new();
+        let host = Arc::new(DescribeScreenTestHost::default());
+        let host_for_context = host.clone();
+        let _ = tool
+            .call_impl(
+                &json!({ "action": "describe_screen" }),
+                &test_context(Some(host_for_context), true),
+            )
+            .await
+            .expect("describe_screen should return readonly observation");
+
+        assert_eq!(host.screenshot_display_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(host.screenshot_peek_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(host.record_action_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(host.update_screenshot_hash_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(host.after_screenshot_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            host.after_committed_ui_action_calls.load(Ordering::SeqCst),
+            0
+        );
+    }
 }

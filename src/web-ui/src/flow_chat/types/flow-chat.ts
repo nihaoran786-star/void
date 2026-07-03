@@ -309,6 +309,14 @@ export interface Session {
    * lazily; message sending must ensure this becomes 'ready' first.
    */
   contextRestoreState?: SessionContextRestoreState;
+
+  /**
+   * Partial history projection state. When true, `dialogTurns` is a renderable
+   * subset of the session history, not the complete persisted turn list.
+   */
+  isPartial?: boolean;
+  loadedTurnCount?: number;
+  totalTurnCount?: number;
   
   todos?: TodoItem[];
   

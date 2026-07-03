@@ -6,6 +6,7 @@ import { flowChatManager } from './FlowChatManager';
 import type { Session } from '../types/flow-chat';
 import type { SessionKind, SessionRelationship } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
+import type { BackendImageContextPayload } from '../utils/imageContextForBackend';
 
 function safeUuid(prefix = 'btw'): string {
   try {
@@ -223,6 +224,7 @@ export async function sendMessageToTransientBtwSession(params: {
   question: string;
   childSessionName?: string;
   modelId?: string;
+  imagePayload?: BackendImageContextPayload;
 }): Promise<{ requestId: string }> {
   const question = params.question.trim();
   if (!question) {
@@ -249,6 +251,7 @@ export async function sendMessageToTransientBtwSession(params: {
     childSessionName: params.childSessionName || childSession.title || 'Side thread',
     question,
     modelId: params.modelId ?? childSession.config.modelName ?? 'fast',
+    imageContexts: params.imagePayload?.imageContexts,
   });
   if (params.modelId?.trim()) {
     flowChatStore.updateSessionModelName(params.childSessionId, params.modelId.trim());
@@ -262,6 +265,7 @@ export async function startBtwThread(params: {
   workspacePath: string;
   question: string;
   modelId?: string;
+  imagePayload?: BackendImageContextPayload;
 }): Promise<{ requestId: string; childSessionId: string }> {
   const question = params.question.trim();
   if (!question) {
@@ -283,6 +287,7 @@ export async function startBtwThread(params: {
       question,
       childSessionName,
       modelId: params.modelId,
+      imagePayload: params.imagePayload,
     });
     return { requestId, childSessionId };
   } catch (error) {

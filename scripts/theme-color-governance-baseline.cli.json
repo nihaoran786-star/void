@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "notes": [
+    "Void CLI theme color governance baseline.",
+    "Budgets capture current color debt only; lower these values when cleanup reduces debt."
+  ],
+  "budgets": {
+    "presetFiles": {
+      "max": 6
+    },
+    "presetUniqueColors": {
+      "max": 135
+    },
+    "presetNearPairs.nearTotal": {
+      "max": 24
+    },
+    "rustFallbackUniqueColors": {
+      "max": 35
+    },
+    "rustFallbackNearPairs.nearTotal": {
+      "max": 4
+    },
+    "totalUniqueColors": {
+      "max": 168
+    }
+  }
+}

@@ -369,8 +369,7 @@ Usage:
                         return ValidationResult {
                             result: false,
                             message: Some(
-                                "Tool context is required to resolve void runtime URIs"
-                                    .to_string(),
+                                "Tool context is required to resolve void runtime URIs".to_string(),
                             ),
                             error_code: Some(400),
                             meta: None,

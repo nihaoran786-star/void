@@ -3,19 +3,30 @@
 #![allow(dead_code)]
 
 use async_trait::async_trait;
+use enigo::{Axis, Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
+use image::codecs::jpeg::JpegEncoder;
+use image::{DynamicImage, Rgb, RgbImage};
+use log::{debug, warn};
+use resvg::tiny_skia::{Pixmap, Transform};
+use resvg::usvg;
+use screenshots::Screen;
+use screenshots::display_info::DisplayInfo;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use void_core::agentic::tools::computer_use_host::{
-    clamp_point_crop_half_extent, ActionRecord, AppClickParams, AppInfo, AppSelector,
-    AppStateSnapshot, AppWaitPredicate, ClickTarget, ComputerScreenshot, ComputerUseDisplayInfo,
-    ComputerUseHost, ComputerUseImageContentRect, ComputerUseImageGlobalBounds,
-    ComputerUseImplicitScreenshotCenter, ComputerUseInteractionScreenshotKind,
-    ComputerUseInteractionState, ComputerUseLastMutationKind, ComputerUseNavigateQuadrant,
-    ComputerUseNavigationRect, ComputerUsePermissionSnapshot, ComputerUseScreenshotParams,
-    ComputerUseScreenshotRefinement, ComputerUseSessionSnapshot, InteractiveActionResult,
-    InteractiveClickParams, InteractiveScrollParams, InteractiveTypeTextParams, InteractiveView,
-    InteractiveViewOpts, LoopDetectionResult, OcrRegionNative, ScreenshotCropCenter,
-    UiElementLocateQuery, UiElementLocateResult, VisualActionResult, VisualClickParams, VisualMark,
-    VisualMarkView, VisualMarkViewOpts, COMPUTER_USE_QUADRANT_CLICK_READY_MAX_LONG_EDGE,
-    COMPUTER_USE_QUADRANT_EDGE_EXPAND_PX,
+    ActionRecord, AppClickParams, AppInfo, AppSelector, AppStateSnapshot, AppWaitPredicate,
+    COMPUTER_USE_QUADRANT_CLICK_READY_MAX_LONG_EDGE, COMPUTER_USE_QUADRANT_EDGE_EXPAND_PX,
+    ClickTarget, ComputerScreenshot, ComputerUseDisplayInfo, ComputerUseHost,
+    ComputerUseImageContentRect, ComputerUseImageGlobalBounds, ComputerUseImplicitScreenshotCenter,
+    ComputerUseInteractionScreenshotKind, ComputerUseInteractionState, ComputerUseLastMutationKind,
+    ComputerUseNavigateQuadrant, ComputerUseNavigationRect, ComputerUsePermissionSnapshot,
+    ComputerUseScreenshotParams, ComputerUseScreenshotRefinement, ComputerUseSessionSnapshot,
+    InteractiveActionResult, InteractiveClickParams, InteractiveScrollParams,
+    InteractiveTypeTextParams, InteractiveView, InteractiveViewOpts, LoopDetectionResult,
+    OcrRegionNative, ScreenshotCropCenter, UiElementLocateQuery, UiElementLocateResult,
+    VisualActionResult, VisualClickParams, VisualMark, VisualMarkView, VisualMarkViewOpts,
+    clamp_point_crop_half_extent,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use void_core::agentic::tools::computer_use_host::{
@@ -23,17 +34,6 @@ use void_core::agentic::tools::computer_use_host::{
 };
 use void_core::agentic::tools::computer_use_optimizer::ComputerUseOptimizer;
 use void_core::util::errors::{VoidError, VoidResult};
-use enigo::{Axis, Button, Coordinate, Direction, Enigo, Key, Keyboard, Mouse, Settings};
-use image::codecs::jpeg::JpegEncoder;
-use image::{DynamicImage, Rgb, RgbImage};
-use log::{debug, warn};
-use resvg::tiny_skia::{Pixmap, Transform};
-use resvg::usvg;
-use screenshots::display_info::DisplayInfo;
-use screenshots::Screen;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Mutex, OnceLock};
-use std::time::{Duration, Instant};
 
 /// Default pointer overlay; replace `assets/computer_use_pointer.svg` and rebuild to customize.
 /// Hotspot in SVG user space must stay at **(0,0)** (arrow tip).
@@ -714,6 +714,8 @@ struct ComputerUseSessionMutableState {
 #[derive(Debug, Clone)]
 struct CachedInteractiveView {
     digest: String,
+    hwnd_raw: Option<isize>,
+    screenshot_id: Option<String>,
     /// `i` → `node_idx` map (dense, indexed by `i`).
     elements: Vec<void_core::agentic::tools::computer_use_host::InteractiveElement>,
 }
@@ -721,6 +723,7 @@ struct CachedInteractiveView {
 #[derive(Debug, Clone)]
 struct CachedVisualMarkView {
     digest: String,
+    hwnd_raw: Option<isize>,
     marks: Vec<VisualMark>,
     screenshot_id: Option<String>,
 }
@@ -1082,10 +1085,8 @@ end tell"#])
         use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
         use core_graphics::geometry::CGPoint;
 
-        let source =
-            CGEventSource::new(CGEventSourceStateID::CombinedSessionState).map_err(|_| {
-                VoidError::tool("CGEventSource create failed (mouse_move)".to_string())
-            })?;
+        let source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+            .map_err(|_| VoidError::tool("CGEventSource create failed (mouse_move)".to_string()))?;
         let pt = CGPoint { x, y };
         let ev = CGEvent::new_mouse_event(source, CGEventType::MouseMoved, pt, CGMouseButton::Left)
             .map_err(|_| VoidError::tool("CGEvent MouseMoved failed".to_string()))?;
@@ -1331,11 +1332,7 @@ end tell"#])
     }
 
     /// Square region in global logical coordinates for raw OCR preview crops around `(cx, cy)`.
-    fn ocr_region_square_around_point(
-        cx: f64,
-        cy: f64,
-        half: u32,
-    ) -> VoidResult<OcrRegionNative> {
+    fn ocr_region_square_around_point(cx: f64, cy: f64, half: u32) -> VoidResult<OcrRegionNative> {
         let hh = half as f64;
         let x0 = (cx - hh).floor() as i32;
         let y0 = (cy - hh).floor() as i32;
@@ -1575,9 +1572,7 @@ end tell"#])
                 native_h,
             );
             let Some(new_rect) = intersect_navigation_rect(expanded, full_rect) else {
-                return Err(VoidError::tool(
-                    "Quadrant crop out of bounds.".to_string(),
-                ));
+                return Err(VoidError::tool("Quadrant crop out of bounds.".to_string()));
             };
             let cropped = Self::crop_rgb(
                 &full_frame,
@@ -1829,7 +1824,7 @@ end tell"#])
         fn is_process_elevated() -> bool {
             use windows::Win32::Foundation::HANDLE;
             use windows::Win32::Security::{
-                GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+                GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
             };
             use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
             unsafe {
@@ -2365,6 +2360,14 @@ impl DesktopComputerUseHost {
 
         Ok(Some((fx.round() as i32, fy.round() as i32)))
     }
+
+    #[cfg(target_os = "windows")]
+    fn windows_visual_grid_unsupported_error() -> VoidError {
+        VoidError::tool(
+            "[WINDOWS_VISUAL_GRID_UNSUPPORTED] Windows visual_grid app_click targets remain explicitly unsupported in ISSUE-120H5 because screenshot-to-grid detection has not completed real Windows smoke for DPI, occlusion, DirectComposition, and multi-monitor targets. Use build_visual_mark_view plus visual_click, or app_click ImageXy with an explicit screenshot basis instead."
+                .to_string(),
+        )
+    }
 }
 
 /// Draw a transient red highlight circle at `(gx, gy)` in CoreGraphics global coordinates (macOS).
@@ -2585,13 +2588,1167 @@ impl DesktopComputerUseHost {
             }
             Ok(snap)
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+            let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+            let hwnd_raw = windows_hwnd_raw(hwnd);
+            self.get_app_state_for_windows_hwnd_raw_inner(
+                hwnd_raw,
+                pid,
+                max_depth,
+                focus_window_only,
+                capture_screenshot,
+            )
+            .await
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, max_depth, focus_window_only, capture_screenshot);
             Err(VoidError::tool(
                 "get_app_state is only available on macOS in this build".to_string(),
             ))
         }
+    }
+
+    fn build_interactive_view_from_snapshot_for_pid(
+        &self,
+        pid: i32,
+        snap: AppStateSnapshot,
+        opts: InteractiveViewOpts,
+    ) -> VoidResult<InteractiveView> {
+        let max_elements = opts
+            .max_elements
+            .map(|n| n as usize)
+            .unwrap_or(80)
+            .clamp(1, 200);
+        let filter_opts = crate::computer_use::interactive_filter::FilterOpts {
+            max_elements,
+            clip_to_image_bounds: opts.focus_window_only,
+        };
+        let elements = crate::computer_use::interactive_filter::build_interactive_elements(
+            &snap.nodes,
+            snap.screenshot.as_ref(),
+            &filter_opts,
+        );
+        if elements.is_empty() {
+            return Err(VoidError::tool(
+                "[INTERACTIVE_VIEW_EMPTY] No interactive elements were found in the target window. Re-run get_app_state to inspect the accessibility tree or choose another target window.".to_string(),
+            ));
+        }
+        let tree_text = if opts.include_tree_text {
+            crate::computer_use::interactive_filter::render_element_tree_text(&elements)
+        } else {
+            String::new()
+        };
+        let digest = compute_interactive_view_digest(&elements);
+
+        let mut screenshot_out: Option<ComputerScreenshot> = None;
+        if opts.annotate_screenshot {
+            if let Some(shot) = snap.screenshot.as_ref() {
+                match crate::computer_use::som_overlay::render_overlay(
+                    &shot.bytes,
+                    &elements,
+                    Some(80),
+                ) {
+                    Ok(jpeg) => {
+                        let mut out = shot.clone();
+                        out.bytes = jpeg;
+                        out.mime_type = "image/jpeg".to_string();
+                        screenshot_out = Some(out);
+                    }
+                    Err(e) => {
+                        warn!(
+                            target: "computer_use::interactive_view",
+                            "som_overlay render failed (non-fatal): {}",
+                            e
+                        );
+                        screenshot_out = Some(shot.clone());
+                    }
+                }
+            }
+        } else {
+            screenshot_out = snap.screenshot.clone();
+        }
+
+        let captured_at_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or_default();
+
+        let view = InteractiveView {
+            app: snap.app.clone(),
+            window_title: snap.window_title.clone(),
+            elements: elements.clone(),
+            tree_text,
+            digest: digest.clone(),
+            captured_at_ms,
+            screenshot: screenshot_out,
+            loop_warning: snap.loop_warning.clone(),
+        };
+
+        {
+            let mut s = self
+                .state
+                .lock()
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+            s.interactive_view_cache.insert(
+                pid,
+                CachedInteractiveView {
+                    digest: digest.clone(),
+                    hwnd_raw: None,
+                    screenshot_id: snap
+                        .screenshot
+                        .as_ref()
+                        .and_then(|shot| shot.screenshot_id.clone()),
+                    elements,
+                },
+            );
+        }
+
+        Ok(view)
+    }
+
+    fn build_visual_mark_view_from_snapshot_for_pid(
+        &self,
+        pid: i32,
+        hwnd_raw: Option<isize>,
+        snap: AppStateSnapshot,
+        opts: VisualMarkViewOpts,
+    ) -> VoidResult<VisualMarkView> {
+        let shot = snap.screenshot.as_ref().ok_or_else(|| {
+            VoidError::tool(
+                "build_visual_mark_view: app screenshot unavailable; re-run get_app_state or choose another target window.".to_string(),
+            )
+        })?;
+        let marks = build_regular_visual_marks(shot, &opts)?;
+        if marks.is_empty() {
+            return Err(VoidError::tool(
+                "[VISUAL_MARK_VIEW_EMPTY] No visual marks were generated for the target screenshot. Retry with include_grid=true or choose another target region.".to_string(),
+            ));
+        }
+        let digest = compute_visual_mark_view_digest(&marks, shot.screenshot_id.as_deref());
+
+        let mut screenshot_out: Option<ComputerScreenshot> = Some(shot.clone());
+        if opts.include_grid {
+            let overlay_elements = visual_marks_to_overlay_elements(&marks);
+            match crate::computer_use::som_overlay::render_overlay(
+                &shot.bytes,
+                &overlay_elements,
+                Some(82),
+            ) {
+                Ok(jpeg) => {
+                    let mut out = shot.clone();
+                    out.bytes = jpeg;
+                    out.mime_type = "image/jpeg".to_string();
+                    screenshot_out = Some(out);
+                }
+                Err(e) => {
+                    warn!(
+                        target: "computer_use::visual_mark_view",
+                        "visual mark overlay render failed (non-fatal): {}",
+                        e
+                    );
+                }
+            }
+        }
+
+        let captured_at_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or_default();
+        let view = VisualMarkView {
+            app: snap.app.clone(),
+            window_title: snap.window_title.clone(),
+            marks: marks.clone(),
+            digest: digest.clone(),
+            captured_at_ms,
+            screenshot: screenshot_out,
+        };
+        {
+            let mut s = self
+                .state
+                .lock()
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+            s.visual_mark_cache.insert(
+                pid,
+                CachedVisualMarkView {
+                    digest,
+                    hwnd_raw,
+                    marks,
+                    screenshot_id: shot.screenshot_id.clone(),
+                },
+            );
+        }
+
+        Ok(view)
+    }
+
+    #[cfg(target_os = "windows")]
+    async fn resolve_click_target_windows(
+        &self,
+        app: &AppSelector,
+        target: &ClickTarget,
+        pid: i32,
+    ) -> VoidResult<(f64, f64)> {
+        match target {
+            ClickTarget::ScreenXy { x, y } => Ok((*x, *y)),
+            ClickTarget::ImageXy {
+                x,
+                y,
+                screenshot_id,
+            } => self.map_app_image_coords_to_pointer_f64(pid, *x, *y, screenshot_id.as_deref()),
+            ClickTarget::ImageGrid { screenshot_id, .. } => {
+                let (ix, iy) = Self::image_grid_target_to_xy(target)?
+                    .ok_or_else(|| VoidError::tool("invalid image_grid target".to_string()))?;
+                self.map_app_image_coords_to_pointer_f64(pid, ix, iy, screenshot_id.as_deref())
+            }
+            ClickTarget::NodeIdx { idx } => {
+                let snap = self
+                    .get_app_state_inner(app.clone(), 32, false, false)
+                    .await?;
+                let node = snap
+                    .nodes
+                    .iter()
+                    .find(|node| node.idx == *idx)
+                    .ok_or_else(|| {
+                        VoidError::tool(format!(
+                            "AX_NODE_STALE: idx={} no longer present in Windows app state",
+                            idx
+                        ))
+                    })?;
+                let (fx, fy, fw, fh) = node.frame_global.ok_or_else(|| {
+                    VoidError::tool(format!("AX_NODE_STALE: idx={} has no UIA/MSAA frame", idx))
+                })?;
+                if fw <= 0.0 || fh <= 0.0 {
+                    return Err(VoidError::tool(format!(
+                        "AX_NODE_STALE: idx={} has zero-size frame ({}x{})",
+                        idx, fw, fh
+                    )));
+                }
+                Ok((fx + fw / 2.0, fy + fh / 2.0))
+            }
+            ClickTarget::OcrText { needle } => {
+                let matches = self.ocr_find_text_matches(needle, None).await?;
+                let best = matches.into_iter().max_by(|a, b| {
+                    a.confidence
+                        .partial_cmp(&b.confidence)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                let matched = best.ok_or_else(|| {
+                    VoidError::tool(format!("NOT_FOUND: no OCR match for needle {:?}", needle))
+                })?;
+                Ok((matched.center_x, matched.center_y))
+            }
+            ClickTarget::VisualGrid { .. } => Err(Self::windows_visual_grid_unsupported_error()),
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    async fn get_app_state_for_windows_hwnd_raw(
+        &self,
+        hwnd_raw: isize,
+        max_depth: u32,
+    ) -> VoidResult<AppStateSnapshot> {
+        let pid = crate::computer_use::windows_ax_ui::window_pid(windows_hwnd_from_raw(hwnd_raw))?;
+        self.get_app_state_for_windows_hwnd_raw_inner(hwnd_raw, pid, max_depth, false, false)
+            .await
+    }
+
+    #[cfg(target_os = "windows")]
+    async fn get_app_state_for_windows_hwnd_raw_inner(
+        &self,
+        hwnd_raw: isize,
+        pid: i32,
+        max_depth: u32,
+        focus_window_only: bool,
+        capture_screenshot: bool,
+    ) -> VoidResult<AppStateSnapshot> {
+        let mut snap = tokio::task::spawn_blocking(move || {
+            crate::computer_use::windows_ax_ui::get_app_state_snapshot_for_window(
+                windows_hwnd_from_raw(hwnd_raw),
+                max_depth,
+                focus_window_only,
+            )
+        })
+        .await
+        .map_err(|e| VoidError::tool(e.to_string()))??;
+        if capture_screenshot {
+            let started = std::time::Instant::now();
+            match self.screenshot_for_windows_hwnd_raw(hwnd_raw, pid).await {
+                Ok((shot, warning)) => {
+                    debug!(
+                        "computer_use.app_state.windows: attached screenshot ({}x{} jpeg, {} bytes, {}ms)",
+                        shot.image_width,
+                        shot.image_height,
+                        shot.bytes.len(),
+                        started.elapsed().as_millis()
+                    );
+                    snap.screenshot = Some(shot);
+                    windows_merge_loop_warning(&mut snap.loop_warning, warning);
+                }
+                Err(e) => {
+                    debug!(
+                        "computer_use.app_state.windows: screenshot capture failed (non-fatal): {}",
+                        e
+                    );
+                }
+            }
+        }
+        Ok(snap)
+    }
+
+    #[cfg(target_os = "windows")]
+    async fn screenshot_for_windows_hwnd_raw(
+        &self,
+        hwnd_raw: isize,
+        pid: i32,
+    ) -> VoidResult<(ComputerScreenshot, Option<String>)> {
+        let capture = tokio::task::spawn_blocking(move || {
+            crate::computer_use::windows_capture::capture_window(windows_hwnd_from_raw(hwnd_raw))
+        })
+        .await
+        .map_err(|e| VoidError::tool(e.to_string()))??;
+        windows_validate_hwnd_raw_pid(hwnd_raw, pid)?;
+        let (shot, map, warning) = windows_screenshot_from_window_capture(capture)?;
+        let refinement = Self::refinement_from_shot(&shot);
+        {
+            let mut s = self
+                .state
+                .lock()
+                .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+            s.transition_after_screenshot(map, refinement, None);
+            s.app_pointer_maps.insert(pid, map);
+            if let Some(id) = shot.screenshot_id.clone() {
+                s.screenshot_pointer_maps.insert(id, map);
+            }
+        }
+        Ok((shot, warning))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_hwnd_raw(hwnd: windows::Win32::Foundation::HWND) -> isize {
+    hwnd.0 as isize
+}
+
+#[cfg(target_os = "windows")]
+fn windows_hwnd_from_raw(raw: isize) -> windows::Win32::Foundation::HWND {
+    windows::Win32::Foundation::HWND(raw as *mut std::ffi::c_void)
+}
+
+#[cfg(target_os = "windows")]
+fn windows_screenshot_from_window_capture(
+    capture: crate::computer_use::windows_capture::WindowCapture,
+) -> VoidResult<(ComputerScreenshot, PointerMap, Option<String>)> {
+    let metadata = capture.metadata;
+    let rgb = image::load_from_memory(&capture.png)
+        .map_err(|e| VoidError::tool(format!("windows_capture: PNG decode failed: {e}")))?
+        .to_rgb8();
+    let image_w = rgb.width();
+    let image_h = rgb.height();
+    if image_w == 0 || image_h == 0 || metadata.width == 0 || metadata.height == 0 {
+        return Err(VoidError::tool(
+            "windows_capture: captured window image has zero dimension".to_string(),
+        ));
+    }
+
+    let map = PointerMap {
+        image_w,
+        image_h,
+        content_origin_x: 0,
+        content_origin_y: 0,
+        content_w: image_w,
+        content_h: image_h,
+        native_w: metadata.width,
+        native_h: metadata.height,
+        origin_x: metadata.origin_x,
+        origin_y: metadata.origin_y,
+    };
+    let image_global_bounds = map.image_global_bounds();
+    let screenshot_id = DesktopComputerUseHost::next_screenshot_id();
+    let shot = ComputerScreenshot {
+        screenshot_id: Some(screenshot_id),
+        bytes: DesktopComputerUseHost::encode_jpeg(
+            &rgb,
+            DesktopComputerUseHost::OCR_RAW_JPEG_QUALITY,
+        )?,
+        mime_type: "image/jpeg".to_string(),
+        image_width: image_w,
+        image_height: image_h,
+        native_width: metadata.width,
+        native_height: metadata.height,
+        display_origin_x: metadata.origin_x,
+        display_origin_y: metadata.origin_y,
+        vision_scale: 1.0,
+        pointer_image_x: None,
+        pointer_image_y: None,
+        screenshot_crop_center: None,
+        point_crop_half_extent_native: None,
+        navigation_native_rect: None,
+        quadrant_navigation_click_ready: false,
+        image_content_rect: Some(ComputerUseImageContentRect {
+            left: 0,
+            top: 0,
+            width: image_w,
+            height: image_h,
+        }),
+        image_global_bounds,
+        ui_tree_text: None,
+        implicit_confirmation_crop_applied: false,
+    };
+    let warning = if metadata.potentially_occluded {
+        Some(format!(
+            "[WINDOWS_CAPTURE_UNCERTAIN] Window screenshot used {:?} and may be potentially occluded; verify before relying on image coordinates.",
+            metadata.source
+        ))
+    } else {
+        None
+    };
+    Ok((shot, map, warning))
+}
+
+#[cfg(target_os = "windows")]
+fn windows_validate_hwnd_raw_pid(hwnd_raw: isize, expected_pid: i32) -> VoidResult<()> {
+    let hwnd = windows_hwnd_from_raw(hwnd_raw);
+    let actual_pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+    if actual_pid != expected_pid {
+        return Err(VoidError::tool(format!(
+            "[WINDOW_CHANGED] Windows target HWND now belongs to pid {} but expected pid {}. Screenshot attachment was skipped; re-run get_app_state and retry.",
+            actual_pid, expected_pid
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn windows_merge_loop_warning(target: &mut Option<String>, incoming: Option<String>) {
+    let Some(incoming) = incoming else {
+        return;
+    };
+    match target {
+        Some(existing) if !existing.contains(&incoming) => {
+            existing.push_str(" | ");
+            existing.push_str(&incoming);
+        }
+        Some(_) => {}
+        None => *target = Some(incoming),
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_input_outcome_failure(
+    action: &str,
+    outcome: &crate::computer_use::windows_bg_input::WindowsInputOutcome,
+) -> Option<VoidError> {
+    use crate::computer_use::windows_bg_input::InputDeliveryStatus;
+
+    match outcome.status {
+        InputDeliveryStatus::BlockedUipi
+        | InputDeliveryStatus::ForegroundRestoreFailed
+        | InputDeliveryStatus::UnsupportedSurface
+        | InputDeliveryStatus::Win32Error => Some(VoidError::tool(format!(
+            "[WINDOWS_INPUT_FAILED] {} via {} returned {:?}: {}",
+            action,
+            outcome.path,
+            outcome.status,
+            outcome
+                .warning
+                .as_deref()
+                .unwrap_or("Windows input adapter reported failure")
+        ))),
+        InputDeliveryStatus::PostedUnknown
+        | InputDeliveryStatus::SentInput
+        | InputDeliveryStatus::ForegroundUnavailable => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_input_warning(
+    action: &str,
+    outcome: &crate::computer_use::windows_bg_input::WindowsInputOutcome,
+) -> Option<String> {
+    if outcome.delivery_uncertain || outcome.warning.is_some() {
+        Some(format!(
+            "{} via {} returned {:?}: {}",
+            action,
+            outcome.path,
+            outcome.status,
+            outcome
+                .warning
+                .as_deref()
+                .unwrap_or("delivery is uncertain")
+        ))
+    } else {
+        None
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_revalidate_hwnd_raw(app: &AppSelector, expected_pid: i32) -> VoidResult<isize> {
+    let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(app)?;
+    let actual_pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+    if actual_pid != expected_pid {
+        return Err(VoidError::tool(format!(
+            "[WINDOW_CHANGED] Windows target HWND now belongs to pid {} but expected pid {}. Re-run get_app_state and retry.",
+            actual_pid, expected_pid
+        )));
+    }
+    Ok(windows_hwnd_raw(hwnd))
+}
+
+#[cfg(all(test, target_os = "windows"))]
+mod windows_host_app_action_tests {
+    use super::*;
+
+    #[test]
+    fn windows_host_app_actions_fail_closed_for_blocked_input() {
+        let outcome = crate::computer_use::windows_bg_input::WindowsInputOutcome::blocked_uipi(
+            "blocked by UIPI",
+        );
+        let error = windows_input_outcome_failure("app_click", &outcome)
+            .expect("blocked UIPI must not be treated as success");
+        assert!(error.to_string().contains("[WINDOWS_INPUT_FAILED]"));
+    }
+
+    #[test]
+    fn windows_host_app_actions_preserve_uncertain_delivery_warning() {
+        let outcome = crate::computer_use::windows_bg_input::WindowsInputOutcome::posted_unknown(
+            "post_click_screen",
+        );
+        assert!(windows_input_outcome_failure("app_click", &outcome).is_none());
+
+        let warning = windows_input_warning("app_click", &outcome)
+            .expect("posted input should preserve delivery uncertainty");
+        assert!(warning.contains("PostedUnknown"));
+        assert!(warning.contains("post_click_screen"));
+    }
+
+    #[test]
+    fn windows_interactive_visual_views_convert_window_capture_to_screenshot_and_map() {
+        use crate::computer_use::windows_capture::{
+            CaptureSource, WindowCapture, WindowCaptureMetadata,
+        };
+
+        let mut png = Vec::new();
+        let rgba = image::RgbaImage::from_pixel(4, 3, image::Rgba([12, 34, 56, 255]));
+        DynamicImage::ImageRgba8(rgba)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .expect("encode png");
+        let capture = WindowCapture {
+            png,
+            metadata: WindowCaptureMetadata {
+                source: CaptureSource::PrintWindow,
+                potentially_occluded: false,
+                origin_x: 120,
+                origin_y: 240,
+                width: 4,
+                height: 3,
+            },
+        };
+
+        let (shot, map, warning) =
+            windows_screenshot_from_window_capture(capture).expect("convert capture");
+
+        assert_eq!(warning, None);
+        assert_eq!(shot.mime_type, "image/jpeg");
+        assert_eq!(shot.image_width, 4);
+        assert_eq!(shot.image_height, 3);
+        assert_eq!(shot.native_width, 4);
+        assert_eq!(shot.native_height, 3);
+        assert_eq!(shot.display_origin_x, 120);
+        assert_eq!(shot.display_origin_y, 240);
+        assert_eq!(shot.image_content_rect.as_ref().unwrap().width, 4);
+        assert!(shot.screenshot_id.is_some());
+        assert_eq!(map.image_w, 4);
+        assert_eq!(map.image_h, 3);
+        assert_eq!(map.origin_x, 120);
+        assert_eq!(map.origin_y, 240);
+        let (gx, gy) = map
+            .map_image_to_global_f64(0, 0)
+            .expect("map first pixel to global");
+        assert_eq!(gx, 120.5);
+        assert_eq!(gy, 240.5);
+    }
+
+    #[test]
+    fn windows_interactive_visual_views_warn_for_occluded_capture_source() {
+        use crate::computer_use::windows_capture::{
+            CaptureSource, WindowCapture, WindowCaptureMetadata,
+        };
+
+        let mut png = Vec::new();
+        let rgba = image::RgbaImage::from_pixel(2, 2, image::Rgba([200, 10, 10, 255]));
+        DynamicImage::ImageRgba8(rgba)
+            .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+            .expect("encode png");
+        let capture = WindowCapture {
+            png,
+            metadata: WindowCaptureMetadata {
+                source: CaptureSource::BitBltScreenRegion,
+                potentially_occluded: true,
+                origin_x: -10,
+                origin_y: 30,
+                width: 2,
+                height: 2,
+            },
+        };
+
+        let (_, _, warning) =
+            windows_screenshot_from_window_capture(capture).expect("convert capture");
+
+        let warning = warning.expect("occluded BitBlt fallback must warn");
+        assert!(warning.contains("[WINDOWS_CAPTURE_UNCERTAIN]"));
+        assert!(warning.contains("BitBltScreenRegion"));
+        assert!(warning.contains("potentially occluded"));
+    }
+
+    #[test]
+    fn windows_interactive_visual_views_merge_capture_warning_with_existing_warning() {
+        let mut warning = Some("[WINDOWS_UIA_PARTIAL] partial tree".to_string());
+
+        windows_merge_loop_warning(
+            &mut warning,
+            Some("[WINDOWS_CAPTURE_UNCERTAIN] potentially occluded".to_string()),
+        );
+
+        let warning = warning.expect("warning should remain present");
+        assert!(warning.contains("[WINDOWS_UIA_PARTIAL]"));
+        assert!(warning.contains("[WINDOWS_CAPTURE_UNCERTAIN]"));
+    }
+
+    fn windows_interactive_test_app(pid: i32) -> AppInfo {
+        AppInfo {
+            name: "notepad.exe".to_string(),
+            bundle_id: None,
+            pid: Some(pid),
+            running: true,
+            last_used_ms: None,
+            launch_count: 0,
+        }
+    }
+
+    fn windows_interactive_test_node(
+        idx: u32,
+        title: &str,
+        frame: (f64, f64, f64, f64),
+    ) -> void_core::agentic::tools::computer_use_host::AxNode {
+        void_core::agentic::tools::computer_use_host::AxNode {
+            idx,
+            parent_idx: Some(0),
+            role: "AXButton".to_string(),
+            title: Some(title.to_string()),
+            value: None,
+            description: None,
+            identifier: None,
+            enabled: true,
+            focused: false,
+            selected: None,
+            frame_global: Some(frame),
+            actions: vec!["AXPress".to_string()],
+            role_description: None,
+            subrole: None,
+            help: None,
+            url: None,
+            expanded: None,
+        }
+    }
+
+    fn windows_interactive_test_screenshot() -> ComputerScreenshot {
+        let img = RgbImage::from_pixel(200, 100, Rgb([240, 240, 240]));
+        let bytes = DesktopComputerUseHost::encode_jpeg(&img, 85).expect("encode jpeg");
+        ComputerScreenshot {
+            screenshot_id: Some("interactive-test-shot".to_string()),
+            bytes,
+            mime_type: "image/jpeg".to_string(),
+            image_width: 200,
+            image_height: 100,
+            native_width: 200,
+            native_height: 100,
+            display_origin_x: 10,
+            display_origin_y: 20,
+            vision_scale: 1.0,
+            pointer_image_x: None,
+            pointer_image_y: None,
+            screenshot_crop_center: None,
+            point_crop_half_extent_native: None,
+            navigation_native_rect: None,
+            quadrant_navigation_click_ready: false,
+            image_content_rect: Some(ComputerUseImageContentRect {
+                left: 0,
+                top: 0,
+                width: 200,
+                height: 100,
+            }),
+            image_global_bounds: Some(ComputerUseImageGlobalBounds {
+                left: 10.0,
+                top: 20.0,
+                width: 200.0,
+                height: 100.0,
+            }),
+            ui_tree_text: None,
+            implicit_confirmation_crop_applied: false,
+        }
+    }
+
+    fn windows_interactive_test_snapshot(pid: i32) -> AppStateSnapshot {
+        AppStateSnapshot {
+            app: windows_interactive_test_app(pid),
+            window_title: Some("Untitled - Notepad".to_string()),
+            tree_text: String::new(),
+            nodes: vec![windows_interactive_test_node(
+                7,
+                "Save",
+                (20.0, 30.0, 40.0, 20.0),
+            )],
+            digest: "snapshot-digest".to_string(),
+            captured_at_ms: 123,
+            screenshot: Some(windows_interactive_test_screenshot()),
+            loop_warning: Some("[WINDOWS_CAPTURE_UNCERTAIN] verify screenshot".to_string()),
+        }
+    }
+
+    fn windows_interactive_empty_snapshot(pid: i32) -> AppStateSnapshot {
+        AppStateSnapshot {
+            app: windows_interactive_test_app(pid),
+            window_title: Some("Empty - Notepad".to_string()),
+            tree_text: String::new(),
+            nodes: vec![void_core::agentic::tools::computer_use_host::AxNode {
+                idx: 1,
+                parent_idx: Some(0),
+                role: "AXGroup".to_string(),
+                title: Some("container".to_string()),
+                value: None,
+                description: None,
+                identifier: None,
+                enabled: true,
+                focused: false,
+                selected: None,
+                frame_global: Some((20.0, 30.0, 40.0, 20.0)),
+                actions: Vec::new(),
+                role_description: None,
+                subrole: None,
+                help: None,
+                url: None,
+                expanded: None,
+            }],
+            digest: "empty-snapshot-digest".to_string(),
+            captured_at_ms: 123,
+            screenshot: Some(windows_interactive_test_screenshot()),
+            loop_warning: None,
+        }
+    }
+
+    #[test]
+    fn windows_interactive_view_enablement_supports_view_and_visual_marks() {
+        let host = DesktopComputerUseHost::new();
+
+        assert!(host.supports_interactive_view());
+        assert!(host.supports_visual_mark_view());
+        assert!(!host.supports_background_input());
+    }
+
+    #[test]
+    fn windows_interactive_view_enablement_builds_view_and_populates_cache() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 4242;
+        let opts = InteractiveViewOpts {
+            annotate_screenshot: false,
+            include_tree_text: true,
+            ..InteractiveViewOpts::default()
+        };
+
+        let view = host
+            .build_interactive_view_from_snapshot_for_pid(
+                pid,
+                windows_interactive_test_snapshot(pid),
+                opts,
+            )
+            .expect("build view from snapshot");
+
+        assert_eq!(view.app.pid, Some(pid));
+        assert_eq!(view.window_title.as_deref(), Some("Untitled - Notepad"));
+        assert_eq!(view.elements.len(), 1);
+        assert_eq!(view.elements[0].i, 0);
+        assert_eq!(view.elements[0].node_idx, 7);
+        assert_eq!(view.elements[0].frame_image, Some((10, 10, 40, 20)));
+        assert!(view.tree_text.contains("[0] Button \"Save\""));
+        assert!(view.screenshot.is_some());
+        assert_eq!(
+            view.loop_warning.as_deref(),
+            Some("[WINDOWS_CAPTURE_UNCERTAIN] verify screenshot")
+        );
+
+        assert_eq!(
+            host.resolve_interactive_index_for_pid(pid, 0, Some(&view.digest))
+                .expect("resolve cached index"),
+            7
+        );
+        assert_eq!(
+            host.cached_interactive_image_center_for_pid(pid, 0),
+            Some((30, 20))
+        );
+        assert_eq!(
+            host.cached_interactive_screenshot_id_for_pid(pid)
+                .as_deref(),
+            Some("interactive-test-shot")
+        );
+    }
+
+    #[test]
+    fn windows_interactive_actions_image_fallback_keeps_screenshot_id() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 4243;
+        host.build_interactive_view_from_snapshot_for_pid(
+            pid,
+            windows_interactive_test_snapshot(pid),
+            InteractiveViewOpts {
+                annotate_screenshot: false,
+                include_tree_text: false,
+                ..InteractiveViewOpts::default()
+            },
+        )
+        .expect("build view");
+
+        let target = host
+            .cached_interactive_image_xy_target_for_pid(pid, 0)
+            .expect("image xy target");
+
+        assert_eq!(
+            target,
+            ClickTarget::ImageXy {
+                x: 30,
+                y: 20,
+                screenshot_id: Some("interactive-test-shot".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn windows_interactive_actions_reject_changed_cached_hwnd() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 4244;
+        host.build_interactive_view_from_snapshot_for_pid(
+            pid,
+            windows_interactive_test_snapshot(pid),
+            InteractiveViewOpts {
+                annotate_screenshot: false,
+                include_tree_text: false,
+                ..InteractiveViewOpts::default()
+            },
+        )
+        .expect("build view");
+        host.set_cached_interactive_hwnd_for_pid(pid, 111)
+            .expect("set hwnd");
+
+        host.validate_cached_interactive_hwnd_for_pid(pid, 111)
+            .expect("same hwnd should pass");
+        let error = host
+            .validate_cached_interactive_hwnd_for_pid(pid, 222)
+            .expect_err("changed hwnd should fail closed");
+
+        assert!(error.to_string().contains("[WINDOW_CHANGED]"));
+    }
+
+    #[test]
+    fn windows_interactive_actions_use_windows_key_chords() {
+        assert_eq!(
+            windows_interactive_clear_first_chords(),
+            [
+                vec!["ctrl".to_string(), "a".to_string()],
+                vec!["delete".to_string()],
+            ]
+        );
+        assert_eq!(windows_interactive_enter_chord(), vec!["enter".to_string()]);
+    }
+
+    #[test]
+    fn windows_interactive_actions_keep_background_input_unsupported() {
+        let host = DesktopComputerUseHost::new();
+
+        assert!(host.supports_interactive_view());
+        assert!(host.supports_visual_mark_view());
+        assert!(!host.supports_background_input());
+    }
+
+    #[test]
+    fn windows_visual_mark_view_builds_marks_and_populates_cache() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 7171;
+        let view = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                pid,
+                Some(313),
+                windows_interactive_test_snapshot(pid),
+                VisualMarkViewOpts {
+                    max_points: Some(9),
+                    ..VisualMarkViewOpts::default()
+                },
+            )
+            .expect("build visual mark view from snapshot");
+
+        assert_eq!(view.app.pid, Some(pid));
+        assert_eq!(view.window_title.as_deref(), Some("Untitled - Notepad"));
+        assert!(!view.marks.is_empty());
+        assert!(view.marks.len() <= 9);
+        assert_eq!(
+            view.screenshot
+                .as_ref()
+                .and_then(|s| s.screenshot_id.as_deref()),
+            Some("interactive-test-shot")
+        );
+        assert_eq!(
+            host.resolve_visual_mark_for_pid(pid, 0, Some(&view.digest))
+                .expect("resolve cached visual mark")
+                .i,
+            0
+        );
+        assert_eq!(
+            host.cached_visual_mark_screenshot_id_for_pid(pid)
+                .as_deref(),
+            Some("interactive-test-shot")
+        );
+        host.validate_cached_visual_mark_hwnd_for_pid(pid, 313)
+            .expect("same hwnd should pass");
+    }
+
+    #[test]
+    fn windows_visual_mark_view_missing_screenshot_is_explicit_error() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 7172;
+        let mut snap = windows_interactive_test_snapshot(pid);
+        snap.screenshot = None;
+
+        let error = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                pid,
+                Some(414),
+                snap,
+                VisualMarkViewOpts::default(),
+            )
+            .expect_err("missing screenshot must fail");
+
+        assert!(error.to_string().contains("screenshot unavailable"));
+        assert!(host.resolve_visual_mark_for_pid(pid, 0, None).is_err());
+    }
+
+    #[test]
+    fn windows_visual_mark_actions_resolver_reports_missing_stale_range_and_hwnd_change() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 7173;
+
+        let missing = host
+            .resolve_visual_mark_for_pid(pid, 0, None)
+            .expect_err("missing cache should fail");
+        assert!(missing.to_string().contains("VISUAL_MARK_VIEW_MISSING"));
+
+        let view = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                pid,
+                Some(515),
+                windows_interactive_test_snapshot(pid),
+                VisualMarkViewOpts {
+                    max_points: Some(4),
+                    ..VisualMarkViewOpts::default()
+                },
+            )
+            .expect("build visual marks");
+        let stale = host
+            .resolve_visual_mark_for_pid(pid, 0, Some("00000000"))
+            .expect_err("stale digest should fail");
+        assert!(stale.to_string().contains("STALE_VISUAL_MARK_VIEW"));
+        let range = host
+            .resolve_visual_mark_for_pid(pid, 99, Some(&view.digest))
+            .expect_err("out of range should fail");
+        assert!(range.to_string().contains("VISUAL_INDEX_OUT_OF_RANGE"));
+        let changed = host
+            .validate_cached_visual_mark_hwnd_for_pid(pid, 616)
+            .expect_err("changed hwnd should fail closed");
+        assert!(changed.to_string().contains("[WINDOW_CHANGED]"));
+    }
+
+    #[test]
+    fn windows_visual_mark_actions_image_target_keeps_screenshot_id() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 7174;
+        let view = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                pid,
+                Some(717),
+                windows_interactive_test_snapshot(pid),
+                VisualMarkViewOpts {
+                    max_points: Some(4),
+                    ..VisualMarkViewOpts::default()
+                },
+            )
+            .expect("build visual marks");
+
+        let mark = host
+            .resolve_visual_mark_for_pid(pid, 0, Some(&view.digest))
+            .expect("resolve mark");
+        assert_eq!(
+            host.cached_visual_mark_image_xy_target_for_pid(pid, &mark)
+                .expect("image xy target"),
+            ClickTarget::ImageXy {
+                x: mark.x,
+                y: mark.y,
+                screenshot_id: Some("interactive-test-shot".to_string()),
+            }
+        );
+    }
+
+    #[test]
+    fn windows_visual_mark_rebuilt_view_target_uses_rebuilt_pid_screenshot_id() {
+        let host = DesktopComputerUseHost::new();
+        let old_pid = 8184;
+        let rebuilt_pid = 8185;
+        let old_view = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                old_pid,
+                Some(818),
+                windows_interactive_test_snapshot(old_pid),
+                VisualMarkViewOpts {
+                    max_points: Some(4),
+                    ..VisualMarkViewOpts::default()
+                },
+            )
+            .expect("build old visual marks");
+        let mut rebuilt_snapshot = windows_interactive_test_snapshot(rebuilt_pid);
+        rebuilt_snapshot
+            .screenshot
+            .as_mut()
+            .expect("test screenshot")
+            .screenshot_id = Some("rebuilt-visual-shot".to_string());
+        let rebuilt_view = host
+            .build_visual_mark_view_from_snapshot_for_pid(
+                rebuilt_pid,
+                Some(819),
+                rebuilt_snapshot,
+                VisualMarkViewOpts {
+                    max_points: Some(4),
+                    ..VisualMarkViewOpts::default()
+                },
+            )
+            .expect("build rebuilt visual marks");
+
+        let rebuilt_mark = host
+            .resolve_visual_mark_for_pid(rebuilt_pid, 0, Some(&rebuilt_view.digest))
+            .expect("resolve rebuilt mark");
+        assert_eq!(
+            host.cached_visual_mark_image_xy_target_for_view(&rebuilt_view, &rebuilt_mark)
+                .expect("rebuilt view target"),
+            ClickTarget::ImageXy {
+                x: rebuilt_mark.x,
+                y: rebuilt_mark.y,
+                screenshot_id: Some("rebuilt-visual-shot".to_string()),
+            }
+        );
+        assert_eq!(
+            host.cached_visual_mark_screenshot_id_for_pid(old_pid),
+            Some("interactive-test-shot".to_string())
+        );
+        assert_ne!(old_view.app.pid, rebuilt_view.app.pid);
+    }
+
+    #[test]
+    fn windows_visual_grid_targets_remain_explicitly_unsupported() {
+        let err = DesktopComputerUseHost::windows_visual_grid_unsupported_error();
+        let text = err.to_string();
+
+        assert!(text.contains("[WINDOWS_VISUAL_GRID_UNSUPPORTED]"));
+        assert!(text.contains("ISSUE-120H5"));
+        assert!(text.contains("explicitly unsupported"));
+        assert!(text.contains("build_visual_mark_view"));
+        assert!(text.contains("visual_click"));
+        assert!(text.contains("ImageXy"));
+        assert!(!text.contains("WINDOW_CHANGED"));
+    }
+
+    #[test]
+    fn windows_visual_grid_decision_keeps_explicit_image_grid_targets() {
+        let target = ClickTarget::ImageGrid {
+            x0: 10,
+            y0: 20,
+            width: 90,
+            height: 60,
+            rows: 3,
+            cols: 3,
+            row: 1,
+            col: 2,
+            intersections: false,
+            screenshot_id: Some("grid-shot".to_string()),
+        };
+
+        assert_eq!(
+            DesktopComputerUseHost::image_grid_target_to_xy(&target)
+                .expect("valid image grid")
+                .expect("grid xy"),
+            (85, 50)
+        );
+    }
+
+    #[test]
+    fn windows_interactive_view_enablement_resolver_reports_missing_stale_and_range() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 5151;
+
+        let missing = host
+            .resolve_interactive_index_for_pid(pid, 0, None)
+            .expect_err("missing cache should fail");
+        assert!(missing.to_string().contains("INTERACTIVE_VIEW_MISSING"));
+
+        let view = host
+            .build_interactive_view_from_snapshot_for_pid(
+                pid,
+                windows_interactive_test_snapshot(pid),
+                InteractiveViewOpts {
+                    annotate_screenshot: false,
+                    include_tree_text: false,
+                    ..InteractiveViewOpts::default()
+                },
+            )
+            .expect("build view");
+        assert!(view.tree_text.is_empty());
+
+        let prefix = &view.digest[..8];
+        assert_eq!(
+            host.resolve_interactive_index_for_pid(pid, 0, Some(prefix))
+                .expect("digest prefix should resolve"),
+            7
+        );
+
+        let stale = host
+            .resolve_interactive_index_for_pid(pid, 0, Some("00000000"))
+            .expect_err("stale digest should fail");
+        assert!(stale.to_string().contains("STALE_INTERACTIVE_VIEW"));
+
+        let range = host
+            .resolve_interactive_index_for_pid(pid, 99, Some(&view.digest))
+            .expect_err("out of range should fail");
+        assert!(range.to_string().contains("INTERACTIVE_INDEX_OUT_OF_RANGE"));
+    }
+
+    #[test]
+    fn windows_interactive_view_enablement_empty_elements_are_explicit_error() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 6161;
+
+        let error = host
+            .build_interactive_view_from_snapshot_for_pid(
+                pid,
+                windows_interactive_empty_snapshot(pid),
+                InteractiveViewOpts {
+                    annotate_screenshot: false,
+                    ..InteractiveViewOpts::default()
+                },
+            )
+            .expect_err("empty interactive view must not be a successful support signal");
+
+        assert!(error.to_string().contains("INTERACTIVE_VIEW_EMPTY"));
+        assert!(
+            host.resolve_interactive_index_for_pid(pid, 0, None)
+                .is_err()
+        );
     }
 }
 
@@ -2913,9 +4070,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
                 .or_else(|| Screen::from_point(mx, my).ok())
                 .or_else(|| Screen::from_point(0, 0).ok())
                 .ok_or_else(|| {
-                    VoidError::tool(
-                        "Screen capture init (peek): no display available".to_string(),
-                    )
+                    VoidError::tool("Screen capture init (peek): no display available".to_string())
                 })?;
             let rgba = screen
                 .capture()
@@ -2983,8 +4138,7 @@ impl ComputerUseHost for DesktopComputerUseHost {
         &self,
         gx: f64,
         gy: f64,
-    ) -> VoidResult<Option<void_core::agentic::tools::computer_use_host::OcrAccessibilityHit>>
-    {
+    ) -> VoidResult<Option<void_core::agentic::tools::computer_use_host::OcrAccessibilityHit>> {
         #[cfg(target_os = "macos")]
         {
             let hit = tokio::task::spawn_blocking(move || {
@@ -3692,7 +4846,15 @@ tell application "System Events" to get unix id of first process whose frontmost
             .await
             .map_err(|e| VoidError::tool(e.to_string()))?
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            tokio::task::spawn_blocking(move || {
+                crate::computer_use::windows_list_apps::list_running_apps(include_hidden)
+            })
+            .await
+            .map_err(|e| VoidError::tool(e.to_string()))?
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = include_hidden;
             Ok(Vec::new())
@@ -3732,7 +4894,14 @@ tell application "System Events" to get unix id of first process whose frontmost
             // Try AX press path when the target is a node idx and the cache
             // still holds a live ref; otherwise inject background events at
             // the resolved global coordinate.
+            let ax_press_allowed =
+                crate::computer_use::macos_pointer_parity_plan::should_try_ax_press_for_click(
+                    &params.mouse_button,
+                    params.click_count,
+                    params.modifier_keys.len(),
+                );
             let ax_ok = match &params.target {
+                _ if !ax_press_allowed => false,
                 ClickTarget::NodeIdx { idx } => {
                     let idx = *idx;
                     // Run AX lookup + AXPress under @try/@catch on a blocking
@@ -3900,6 +5069,78 @@ tell application "System Events" to get unix id of first process whose frontmost
                     pid, self_pid, pid == self_pid, x, y, cnt
                 );
 
+                let chromium_click_route = {
+                    let metadata_pid = pid;
+                    let bundle_id = tokio::task::spawn_blocking(move || {
+                        macos::catch_objc(|| {
+                            crate::computer_use::macos_bg_input::bundle_id_for_pid(metadata_pid)
+                        })
+                    })
+                    .await
+                    .ok()
+                    .flatten();
+                    let window_id = tokio::task::spawn_blocking(move || {
+                        macos::catch_objc(|| {
+                            crate::computer_use::macos_bg_input::frontmost_window_id_for_pid(pid)
+                        })
+                    })
+                    .await
+                    .ok()
+                    .flatten();
+                    let window_bounds = tokio::task::spawn_blocking(move || {
+                        macos::catch_objc(|| {
+                            crate::computer_use::macos_ax_ui::window_bounds_global_for_pid(pid)
+                                .ok()
+                                .map(|(left, top, width, height)| {
+                                    crate::computer_use::macos_chromium_click_plan::MacosRect {
+                                        x: left as f64,
+                                        y: top as f64,
+                                        width: width as f64,
+                                        height: height as f64,
+                                    }
+                                })
+                        })
+                    })
+                    .await
+                    .ok()
+                    .flatten();
+                    let route =
+                        crate::computer_use::macos_chromium_click_plan::chromium_click_route(
+                            bundle_id.as_deref(),
+                            btn == crate::computer_use::macos_bg_input::BgMouseButton::Left,
+                            window_id,
+                            window_bounds,
+                            crate::computer_use::macos_chromium_click_plan::MacosPoint { x, y },
+                            cnt,
+                        );
+                    match &route {
+                        crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::ChromiumElectron {
+                            window_id,
+                            window_local_point,
+                            ..
+                        } => log::info!(
+                            target: "computer_use::app_click",
+                            "app_click.chromium_route pid={} bundle_id={:?} window_id={} local_x={:.2} local_y={:.2}",
+                            pid,
+                            bundle_id,
+                            window_id,
+                            window_local_point.x,
+                            window_local_point.y
+                        ),
+                        crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::Default(reason) => {
+                            debug!(
+                                target: "computer_use::app_click",
+                                "app_click.chromium_route_default pid={} bundle_id={:?} window_id={:?} reason={:?}",
+                                pid,
+                                bundle_id,
+                                window_id,
+                                reason
+                            );
+                        }
+                    }
+                    route
+                };
+
                 // Capture pre-click digest so we can detect "click delivered
                 // but UI did not change" and apply a foreground fallback when
                 // the target lives in our own process (the most common cause
@@ -3924,27 +5165,91 @@ tell application "System Events" to get unix id of first process whose frontmost
                 // synthetic events. No-op (returns false) when the pid is
                 // already frontmost.
                 let activate_pid = pid;
+                let activate_window_id = match &chromium_click_route {
+                    crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::ChromiumElectron {
+                        window_id,
+                        ..
+                    } => Some(*window_id),
+                    crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::Default(_) => None,
+                };
                 let _ = tokio::task::spawn_blocking(move || {
-                    macos::catch_objc(|| {
-                        crate::computer_use::macos_bg_input::activate_pid_macos(activate_pid)
+                    macos::catch_objc(|| match activate_window_id {
+                        Some(window_id) => {
+                            crate::computer_use::macos_bg_input::activate_pid_macos_with_window(
+                                activate_pid,
+                                Some(window_id),
+                            )
+                        }
+                        None => {
+                            crate::computer_use::macos_bg_input::activate_pid_macos(activate_pid)
+                        }
                     })
                 })
                 .await;
 
                 let mods_for_bg = mods.clone();
-                tokio::task::spawn_blocking(move || {
-                    macos::catch_objc(|| {
-                        crate::computer_use::macos_bg_input::bg_click(
-                            pid,
-                            (x, y),
-                            btn,
-                            cnt,
-                            &mods_for_bg,
-                        )
-                    })
-                })
-                .await
-                .map_err(|e| VoidError::tool(e.to_string()))??;
+                match chromium_click_route {
+                    crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::ChromiumElectron {
+                        window_id,
+                        global_point,
+                        window_local_point,
+                        click_count,
+                    } => {
+                        let chromium_result = tokio::task::spawn_blocking(move || {
+                            macos::catch_objc(|| {
+                                crate::computer_use::macos_bg_input::bg_click_chromium(
+                                    pid,
+                                    global_point.x,
+                                    global_point.y,
+                                    window_local_point.x,
+                                    window_local_point.y,
+                                    window_id,
+                                    click_count,
+                                    &mods_for_bg,
+                                )
+                            })
+                        })
+                        .await
+                        .map_err(|e| VoidError::tool(e.to_string()))?;
+                        if let Err(error) = chromium_result {
+                            warn!(
+                                target: "computer_use::app_click",
+                                "app_click.chromium_route_failed_falling_back pid={} error={}",
+                                pid,
+                                error
+                            );
+                            let mods_for_bg = mods.clone();
+                            tokio::task::spawn_blocking(move || {
+                                macos::catch_objc(|| {
+                                    crate::computer_use::macos_bg_input::bg_click(
+                                        pid,
+                                        (x, y),
+                                        btn,
+                                        cnt,
+                                        &mods_for_bg,
+                                    )
+                                })
+                            })
+                            .await
+                            .map_err(|e| VoidError::tool(e.to_string()))??;
+                        }
+                    }
+                    crate::computer_use::macos_chromium_click_plan::ChromiumClickRoute::Default(_) => {
+                        tokio::task::spawn_blocking(move || {
+                            macos::catch_objc(|| {
+                                crate::computer_use::macos_bg_input::bg_click(
+                                    pid,
+                                    (x, y),
+                                    btn,
+                                    cnt,
+                                    &mods_for_bg,
+                                )
+                            })
+                        })
+                        .await
+                        .map_err(|e| VoidError::tool(e.to_string()))??;
+                    }
+                }
 
                 // Same-process fallback: if `bg_click` left the digest
                 // unchanged AND the target is our own process (void-desktop
@@ -3989,11 +5294,52 @@ tell application "System Events" to get unix id of first process whose frontmost
             // Re-snapshot so the caller can see the new state + new digest.
             self.get_app_state(params.app, 32, false).await
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let app = params.app.clone();
+            let pid = {
+                let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+                crate::computer_use::windows_ax_ui::window_pid(hwnd)?
+            };
+            let (x, y) = self
+                .resolve_click_target_windows(&app, &params.target, pid)
+                .await?;
+            let hwnd_raw = windows_revalidate_hwnd_raw(&app, pid)?;
+            let button = params.mouse_button.clone();
+            let click_count = params.click_count.max(1) as usize;
+            let modifiers = params.modifier_keys.clone();
+            let outcome = tokio::task::spawn_blocking(move || {
+                crate::computer_use::windows_bg_input::post_click_screen(
+                    windows_hwnd_from_raw(hwnd_raw),
+                    x.round() as i32,
+                    y.round() as i32,
+                    &button,
+                    click_count,
+                    &modifiers,
+                )
+            })
+            .await
+            .map_err(|e| VoidError::tool(e.to_string()))??;
+            if let Some(error) = windows_input_outcome_failure("app_click", &outcome) {
+                return Err(error);
+            }
+            let settle_ms = params.wait_ms_after.unwrap_or(120).min(5_000);
+            if settle_ms > 0 {
+                tokio::time::sleep(Duration::from_millis(settle_ms as u64)).await;
+            }
+            let mut snap = self
+                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .await?;
+            if snap.loop_warning.is_none() {
+                snap.loop_warning = windows_input_warning("app_click", &outcome);
+            }
+            Ok(snap)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = params;
             Err(VoidError::tool(
-                "app_click is only available on macOS in this build".to_string(),
+                "app_click is only available on macOS or Windows in this build".to_string(),
             ))
         }
     }
@@ -4007,6 +5353,10 @@ tell application "System Events" to get unix id of first process whose frontmost
         #[cfg(target_os = "macos")]
         {
             let pid = resolve_pid_macos(self, &app).await?;
+            let focus_target_idx = match &focus {
+                Some(ClickTarget::NodeIdx { idx }) => Some(*idx),
+                _ => None,
+            };
             // If a focus target is provided, click it first to give focus.
             if let Some(target) = focus {
                 let click = AppClickParams {
@@ -4029,23 +5379,70 @@ tell application "System Events" to get unix id of first process whose frontmost
             let activate_pid = pid;
             let _ = tokio::task::spawn_blocking(move || {
                 macos::catch_objc(|| {
-                    crate::computer_use::macos_bg_input::activate_pid_macos(activate_pid)
+                    let _ = crate::computer_use::macos_bg_input::activate_pid_macos(activate_pid);
+                    if let Some(idx) = focus_target_idx {
+                        if let Some(r) =
+                            crate::computer_use::macos_ax_dump::cached_ref_loose(activate_pid, idx)
+                        {
+                            let _ = crate::computer_use::macos_ax_write::try_ax_focus(r);
+                        }
+                    }
+                    Ok::<_, VoidError>(())
                 })
             })
             .await;
             let txt = text.to_string();
             tokio::task::spawn_blocking(move || {
-                macos::catch_objc(|| crate::computer_use::macos_bg_input::bg_type_text(pid, &txt))
+                macos::catch_objc(|| {
+                    crate::computer_use::macos_bg_input::bg_type_text_auto(pid, &txt)
+                })
             })
             .await
             .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(target) = focus {
+                let click = AppClickParams {
+                    app: app.clone(),
+                    target,
+                    click_count: 1,
+                    mouse_button: "left".to_string(),
+                    modifier_keys: vec![],
+                    wait_ms_after: None,
+                };
+                let _ = self.app_click(click).await?;
+            }
+            let hwnd_raw = {
+                let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+                windows_hwnd_raw(hwnd)
+            };
+            let text = text.to_string();
+            let outcome = tokio::task::spawn_blocking(move || {
+                crate::computer_use::windows_bg_input::inject_text_cloaked(
+                    windows_hwnd_from_raw(hwnd_raw),
+                    &text,
+                )
+            })
+            .await
+            .map_err(|e| VoidError::tool(e.to_string()))??;
+            if let Some(error) = windows_input_outcome_failure("app_type_text", &outcome) {
+                return Err(error);
+            }
+            let mut snap = self
+                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .await?;
+            if snap.loop_warning.is_none() {
+                snap.loop_warning = windows_input_warning("app_type_text", &outcome);
+            }
+            Ok(snap)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, text, focus);
             Err(VoidError::tool(
-                "app_type_text is only available on macOS in this build".to_string(),
+                "app_type_text is only available on macOS or Windows in this build".to_string(),
             ))
         }
     }
@@ -4079,11 +5476,61 @@ tell application "System Events" to get unix id of first process whose frontmost
             .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let (pid, center) = {
+                let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+                (
+                    crate::computer_use::windows_ax_ui::window_pid(hwnd)?,
+                    crate::computer_use::windows_ax_ui::window_center(hwnd)?,
+                )
+            };
+            let (sx, sy) = if let Some(target) = focus {
+                let point = self
+                    .resolve_click_target_windows(&app, &target, pid)
+                    .await?;
+                let click = AppClickParams {
+                    app: app.clone(),
+                    target,
+                    click_count: 1,
+                    mouse_button: "left".to_string(),
+                    modifier_keys: vec![],
+                    wait_ms_after: None,
+                };
+                let _ = self.app_click(click).await?;
+                point
+            } else {
+                let (cx, cy) = center;
+                (cx as f64, cy as f64)
+            };
+            let hwnd_raw = windows_revalidate_hwnd_raw(&app, pid)?;
+            let outcome = tokio::task::spawn_blocking(move || {
+                crate::computer_use::windows_bg_input::post_scroll_screen(
+                    windows_hwnd_from_raw(hwnd_raw),
+                    sx.round() as i32,
+                    sy.round() as i32,
+                    dx,
+                    dy,
+                )
+            })
+            .await
+            .map_err(|e| VoidError::tool(e.to_string()))??;
+            if let Some(error) = windows_input_outcome_failure("app_scroll", &outcome) {
+                return Err(error);
+            }
+            let mut snap = self
+                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .await?;
+            if snap.loop_warning.is_none() {
+                snap.loop_warning = windows_input_warning("app_scroll", &outcome);
+            }
+            Ok(snap)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, focus, dx, dy);
             Err(VoidError::tool(
-                "app_scroll is only available on macOS in this build".to_string(),
+                "app_scroll is only available on macOS or Windows in this build".to_string(),
             ))
         }
     }
@@ -4121,11 +5568,50 @@ tell application "System Events" to get unix id of first process whose frontmost
             .map_err(|e| VoidError::tool(e.to_string()))??;
             self.get_app_state(app, 32, false).await
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(idx) = focus_idx {
+                let click = AppClickParams {
+                    app: app.clone(),
+                    target: ClickTarget::NodeIdx { idx },
+                    click_count: 1,
+                    mouse_button: "left".to_string(),
+                    modifier_keys: vec![],
+                    wait_ms_after: None,
+                };
+                let _ = self.app_click(click).await?;
+            }
+            let hwnd_raw = {
+                let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+                windows_hwnd_raw(hwnd)
+            };
+            let (modifiers, keycode) =
+                crate::computer_use::windows_bg_input::parse_key_chord(&keys)?;
+            let outcome = tokio::task::spawn_blocking(move || {
+                crate::computer_use::windows_bg_input::inject_key_cloaked(
+                    windows_hwnd_from_raw(hwnd_raw),
+                    keycode,
+                    &modifiers,
+                )
+            })
+            .await
+            .map_err(|e| VoidError::tool(e.to_string()))??;
+            if let Some(error) = windows_input_outcome_failure("app_key_chord", &outcome) {
+                return Err(error);
+            }
+            let mut snap = self
+                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .await?;
+            if snap.loop_warning.is_none() {
+                snap.loop_warning = windows_input_warning("app_key_chord", &outcome);
+            }
+            Ok(snap)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, keys, focus_idx);
             Err(VoidError::tool(
-                "app_key_chord is only available on macOS in this build".to_string(),
+                "app_key_chord is only available on macOS or Windows in this build".to_string(),
             ))
         }
     }
@@ -4200,11 +5686,11 @@ tell application "System Events" to get unix id of first process whose frontmost
     }
 
     fn supports_interactive_view(&self) -> bool {
-        cfg!(target_os = "macos")
+        cfg!(any(target_os = "macos", target_os = "windows"))
     }
 
     fn supports_visual_mark_view(&self) -> bool {
-        cfg!(target_os = "macos")
+        cfg!(any(target_os = "macos", target_os = "windows"))
     }
 
     async fn build_interactive_view(
@@ -4293,13 +5779,48 @@ tell application "System Events" to get unix id of first process whose frontmost
                     pid,
                     CachedInteractiveView {
                         digest: digest.clone(),
+                        hwnd_raw: None,
+                        screenshot_id: snap
+                            .screenshot
+                            .as_ref()
+                            .and_then(|shot| shot.screenshot_id.clone()),
                         elements,
                     },
                 );
             }
             Ok(view)
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+            let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+            let hwnd_raw = windows_hwnd_raw(hwnd);
+            let snap = self
+                .get_app_state_for_windows_hwnd_raw_inner(
+                    hwnd_raw,
+                    pid,
+                    64,
+                    opts.focus_window_only,
+                    true,
+                )
+                .await?;
+            let snap_pid = snap.app.pid.ok_or_else(|| {
+                VoidError::tool(
+                    "build_interactive_view: Windows app-state snapshot did not include a pid"
+                        .to_string(),
+                )
+            })?;
+            if snap_pid != pid {
+                return Err(VoidError::tool(format!(
+                    "[WINDOW_CHANGED] build_interactive_view snapshot pid {} did not match resolved pid {}; re-run build_interactive_view",
+                    snap_pid, pid
+                )));
+            }
+            let view = self.build_interactive_view_from_snapshot_for_pid(pid, snap, opts)?;
+            self.set_cached_interactive_hwnd_for_pid(pid, hwnd_raw)?;
+            Ok(view)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, opts);
             Err(VoidError::tool(
@@ -4423,7 +5944,98 @@ tell application "System Events" to get unix id of first process whose frontmost
                 execution_note: Some(note),
             })
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let mut auto_rebuilt = false;
+            let node_idx = match self
+                .resolve_interactive_index(&app, params.i, params.before_view_digest.as_deref())
+                .await
+            {
+                Ok(idx) => idx,
+                Err(err) if is_stale_interactive_view_error(&err) => {
+                    warn!(
+                        target: "computer_use::interactive_view",
+                        "interactive_click: STALE Windows view detected, rebuilding once and retrying (i={}): {}",
+                        params.i, err
+                    );
+                    let rebuilt = self
+                        .build_interactive_view(app.clone(), InteractiveViewOpts::default())
+                        .await?;
+                    if rebuilt.elements.iter().any(|e| e.i == params.i) {
+                        auto_rebuilt = true;
+                        self.resolve_interactive_index(&app, params.i, Some(&rebuilt.digest))
+                            .await?
+                    } else {
+                        return Err(VoidError::tool(format!(
+                            "INTERACTIVE_INDEX_OUT_OF_RANGE: i={} not in rebuilt view (len={}); the UI has changed under you, re-call `build_interactive_view` and pick a fresh `i`",
+                            params.i,
+                            rebuilt.elements.len()
+                        )));
+                    }
+                }
+                Err(other) => return Err(other),
+            };
+
+            let pointer_fallback = self
+                .cached_interactive_image_xy_target(&app, params.i)
+                .await;
+            let click_res = self
+                .app_click(AppClickParams {
+                    app: app.clone(),
+                    target: ClickTarget::NodeIdx { idx: node_idx },
+                    click_count: params.click_count.max(1),
+                    mouse_button: params.mouse_button.clone(),
+                    modifier_keys: params.modifier_keys.clone(),
+                    wait_ms_after: params.wait_ms_after,
+                })
+                .await;
+
+            let (snapshot, fallback_used) = match click_res {
+                Ok(s) => (s, false),
+                Err(e) if pointer_fallback.is_some() => {
+                    let target = pointer_fallback.unwrap();
+                    warn!(
+                        target: "computer_use::interactive_view",
+                        "interactive_click: Windows node path failed, falling back to image_xy: {}",
+                        e
+                    );
+                    let s = self
+                        .app_click(AppClickParams {
+                            app: app.clone(),
+                            target,
+                            click_count: params.click_count.max(1),
+                            mouse_button: params.mouse_button.clone(),
+                            modifier_keys: params.modifier_keys.clone(),
+                            wait_ms_after: params.wait_ms_after,
+                        })
+                        .await?;
+                    (s, true)
+                }
+                Err(e) => return Err(e),
+            };
+
+            let view = if params.return_view {
+                Some(
+                    self.build_interactive_view(app, InteractiveViewOpts::default())
+                        .await?,
+                )
+            } else {
+                None
+            };
+            let mut note = format!("index_resolved_via_node_idx({})", node_idx);
+            if auto_rebuilt {
+                note.push_str(",auto_rebuilt_view_after_stale");
+            }
+            if fallback_used {
+                note.push_str(",fallback_image_xy_with_screenshot_id");
+            }
+            Ok(InteractiveActionResult {
+                snapshot,
+                view,
+                execution_note: Some(note),
+            })
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, params);
             Err(VoidError::tool(
@@ -4502,6 +6114,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                     pid,
                     CachedVisualMarkView {
                         digest,
+                        hwnd_raw: None,
                         marks,
                         screenshot_id: shot.screenshot_id.clone(),
                     },
@@ -4509,7 +6122,29 @@ tell application "System Events" to get unix id of first process whose frontmost
             }
             Ok(view)
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+            let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+            let hwnd_raw = windows_hwnd_raw(hwnd);
+            let snap = self
+                .get_app_state_for_windows_hwnd_raw_inner(hwnd_raw, pid, 16, true, true)
+                .await?;
+            let snap_pid = snap.app.pid.ok_or_else(|| {
+                VoidError::tool(
+                    "build_visual_mark_view: Windows app-state snapshot did not include a pid"
+                        .to_string(),
+                )
+            })?;
+            if snap_pid != pid {
+                return Err(VoidError::tool(format!(
+                    "[WINDOW_CHANGED] build_visual_mark_view snapshot pid {} did not match resolved pid {}; re-run build_visual_mark_view",
+                    snap_pid, pid
+                )));
+            }
+            self.build_visual_mark_view_from_snapshot_for_pid(pid, Some(hwnd_raw), snap, opts)
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, opts);
             Err(VoidError::tool(
@@ -4597,7 +6232,95 @@ tell application "System Events" to get unix id of first process whose frontmost
                 execution_note: Some(note),
             })
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let (pid, mut auto_rebuilt) = {
+                let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
+                let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+                self.validate_cached_visual_mark_hwnd_for_pid(pid, windows_hwnd_raw(hwnd))?;
+                (pid, false)
+            };
+            let mut target_pid = pid;
+            let mut target_from_rebuilt_view: Option<ClickTarget> = None;
+            let mark = match self.resolve_visual_mark_for_pid(
+                pid,
+                params.i,
+                params.before_view_digest.as_deref(),
+            ) {
+                Ok(mark) => mark,
+                Err(err) if is_stale_visual_mark_view_error(&err) => {
+                    warn!(
+                        target: "computer_use::visual_mark_view",
+                        "visual_click: STALE Windows visual mark view detected, rebuilding once and retrying (i={}): {}",
+                        params.i, err
+                    );
+                    let rebuilt = self
+                        .build_visual_mark_view(app.clone(), VisualMarkViewOpts::default())
+                        .await?;
+                    let Some(mark) = rebuilt.marks.iter().find(|m| m.i == params.i).cloned() else {
+                        return Err(VoidError::tool(format!(
+                            "VISUAL_INDEX_OUT_OF_RANGE: i={} not in rebuilt view (len={}); re-call `build_visual_mark_view` and pick a fresh `i`",
+                            params.i,
+                            rebuilt.marks.len()
+                        )));
+                    };
+                    target_pid = rebuilt.app.pid.ok_or_else(|| {
+                        VoidError::tool(
+                            "VISUAL_MARK_VIEW_MISSING: rebuilt visual mark view did not include a Windows pid; re-run `build_visual_mark_view`".to_string(),
+                        )
+                    })?;
+                    target_from_rebuilt_view =
+                        self.cached_visual_mark_image_xy_target_for_view(&rebuilt, &mark);
+                    auto_rebuilt = true;
+                    mark
+                }
+                Err(other) => return Err(other),
+            };
+
+            let target = target_from_rebuilt_view
+                .or_else(|| self.cached_visual_mark_image_xy_target_for_pid(target_pid, &mark))
+                .ok_or_else(|| {
+                    VoidError::tool(
+                        "VISUAL_MARK_VIEW_MISSING: cached visual mark screenshot basis was unavailable; re-run `build_visual_mark_view`".to_string(),
+                    )
+                })?;
+
+            let snapshot = self
+                .app_click(AppClickParams {
+                    app: app.clone(),
+                    target,
+                    click_count: params.click_count.max(1),
+                    mouse_button: params.mouse_button.clone(),
+                    modifier_keys: params.modifier_keys.clone(),
+                    wait_ms_after: params.wait_ms_after,
+                })
+                .await?;
+
+            let view = if params.return_view {
+                Some(
+                    self.build_visual_mark_view(app, VisualMarkViewOpts::default())
+                        .await?,
+                )
+            } else {
+                None
+            };
+            let mut note = format!("visual_mark_image_xy({},{})", mark.x, mark.y);
+            if auto_rebuilt {
+                note.push_str(",auto_rebuilt_view_after_stale");
+            }
+            if self
+                .cached_visual_mark_screenshot_id_for_pid(target_pid)
+                .is_some()
+            {
+                note.push_str(",screenshot_id_bound");
+            }
+            Ok(VisualActionResult {
+                snapshot,
+                view,
+                execution_note: Some(note),
+            })
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, params);
             Err(VoidError::tool(
@@ -4689,7 +6412,73 @@ tell application "System Events" to get unix id of first process whose frontmost
                 execution_note: Some("ax_focus_then_bg_type_text".to_string()),
             })
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let focus = if let Some(i) = params.i {
+                let node_idx = self
+                    .resolve_interactive_index(&app, i, params.before_view_digest.as_deref())
+                    .await?;
+                Some(ClickTarget::NodeIdx { idx: node_idx })
+            } else {
+                None
+            };
+
+            if params.clear_first {
+                if let Some(target) = focus.clone() {
+                    let _ = self
+                        .app_click(AppClickParams {
+                            app: app.clone(),
+                            target,
+                            click_count: 1,
+                            mouse_button: "left".to_string(),
+                            modifier_keys: vec![],
+                            wait_ms_after: Some(60),
+                        })
+                        .await?;
+                }
+                for chord in windows_interactive_clear_first_chords() {
+                    let _ = self.app_key_chord(app.clone(), chord, None).await?;
+                }
+            }
+
+            let mut snapshot = self.app_type_text(app.clone(), &params.text, focus).await?;
+
+            if params.press_enter_after {
+                snapshot = self
+                    .app_key_chord(app.clone(), windows_interactive_enter_chord(), None)
+                    .await?;
+            }
+
+            if let Some(wait) = params.wait_ms_after {
+                tokio::time::sleep(Duration::from_millis(wait.min(5_000) as u64)).await;
+            }
+
+            let view = if params.return_view {
+                Some(
+                    self.build_interactive_view(app, InteractiveViewOpts::default())
+                        .await?,
+                )
+            } else {
+                None
+            };
+            let mut note = if params.i.is_some() {
+                "node_focus_then_windows_app_type_text".to_string()
+            } else {
+                "windows_app_type_text_no_index_focus".to_string()
+            };
+            if params.clear_first {
+                note.push_str(",clear_first_ctrl_a_delete");
+            }
+            if params.press_enter_after {
+                note.push_str(",press_enter_after");
+            }
+            Ok(InteractiveActionResult {
+                snapshot,
+                view,
+                execution_note: Some(note),
+            })
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, params);
             Err(VoidError::tool(
@@ -4733,7 +6522,37 @@ tell application "System Events" to get unix id of first process whose frontmost
                 execution_note: Some("app_scroll".to_string()),
             })
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        {
+            let focus = if let Some(i) = params.i {
+                let node_idx = self
+                    .resolve_interactive_index(&app, i, params.before_view_digest.as_deref())
+                    .await?;
+                Some(ClickTarget::NodeIdx { idx: node_idx })
+            } else {
+                None
+            };
+            let snapshot = self
+                .app_scroll(app.clone(), focus, params.dx, params.dy)
+                .await?;
+            if let Some(wait) = params.wait_ms_after {
+                tokio::time::sleep(Duration::from_millis(wait.min(5_000) as u64)).await;
+            }
+            let view = if params.return_view {
+                Some(
+                    self.build_interactive_view(app, InteractiveViewOpts::default())
+                        .await?,
+                )
+            } else {
+                None
+            };
+            Ok(InteractiveActionResult {
+                snapshot,
+                view,
+                execution_note: Some("windows_app_scroll".to_string()),
+            })
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         {
             let _ = (app, params);
             Err(VoidError::tool(
@@ -5243,18 +7062,81 @@ fn is_stale_visual_mark_view_error(err: &VoidError) -> bool {
     err.to_string().contains("STALE_VISUAL_MARK_VIEW")
 }
 
+#[cfg(target_os = "windows")]
+fn windows_interactive_clear_first_chords() -> [Vec<String>; 2] {
+    [
+        vec!["ctrl".to_string(), "a".to_string()],
+        vec!["delete".to_string()],
+    ]
+}
+
+#[cfg(target_os = "windows")]
+fn windows_interactive_enter_chord() -> Vec<String> {
+    vec!["enter".to_string()]
+}
+
 impl DesktopComputerUseHost {
     /// Return the image-pixel center `(x, y)` of the cached interactive
     /// element with the given `i`, when its `frame_image` is known. Used
     /// as a pointer-click fallback in `interactive_click` when AXPress
     /// fails (Electron / Canvas / custom-drawn surfaces).
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     async fn cached_interactive_image_center(
         &self,
         app: &AppSelector,
         i: u32,
     ) -> Option<(i32, i32)> {
+        #[cfg(target_os = "macos")]
         let pid = resolve_pid_macos(self, app).await.ok()?;
+        #[cfg(target_os = "windows")]
+        let pid = {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(app).ok()?;
+            crate::computer_use::windows_ax_ui::window_pid(hwnd).ok()?
+        };
+        self.cached_interactive_image_center_for_pid(pid, i)
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    async fn cached_interactive_image_xy_target(
+        &self,
+        app: &AppSelector,
+        i: u32,
+    ) -> Option<ClickTarget> {
+        #[cfg(target_os = "macos")]
+        let pid = resolve_pid_macos(self, app).await.ok()?;
+        #[cfg(target_os = "windows")]
+        let pid = {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(app).ok()?;
+            crate::computer_use::windows_ax_ui::window_pid(hwnd).ok()?
+        };
+        self.cached_interactive_image_xy_target_for_pid(pid, i)
+    }
+
+    /// Resolve an `interactive_*` `i` index into the underlying AX `node_idx`
+    /// using the per-pid cache populated by `build_interactive_view`. Returns
+    /// a `STALE_INTERACTIVE_VIEW` tool error when the digest no longer matches
+    /// (i.e. the UI changed between view + action) so the caller can re-build
+    /// the interactive view before retrying.
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    async fn resolve_interactive_index(
+        &self,
+        app: &AppSelector,
+        i: u32,
+        before_digest: Option<&str>,
+    ) -> VoidResult<u32> {
+        #[cfg(target_os = "macos")]
+        let pid = resolve_pid_macos(self, app).await?;
+        #[cfg(target_os = "windows")]
+        let pid = {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(app)?;
+            let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+            self.validate_cached_interactive_hwnd_for_pid(pid, windows_hwnd_raw(hwnd))?;
+            pid
+        };
+        self.resolve_interactive_index_for_pid(pid, i, before_digest)
+    }
+
+    fn cached_interactive_image_center_for_pid(&self, pid: i32, i: u32) -> Option<(i32, i32)> {
         let s = self.state.lock().ok()?;
         let cached = s.interactive_view_cache.get(&pid)?;
         let el = cached.elements.iter().find(|e| e.i == i)?;
@@ -5265,19 +7147,62 @@ impl DesktopComputerUseHost {
         ))
     }
 
-    /// Resolve an `interactive_*` `i` index into the underlying AX `node_idx`
-    /// using the per-pid cache populated by `build_interactive_view`. Returns
-    /// a `STALE_INTERACTIVE_VIEW` tool error when the digest no longer matches
-    /// (i.e. the UI changed between view + action) so the caller can re-build
-    /// the interactive view before retrying.
-    #[cfg(target_os = "macos")]
-    async fn resolve_interactive_index(
+    fn cached_interactive_screenshot_id_for_pid(&self, pid: i32) -> Option<String> {
+        let s = self.state.lock().ok()?;
+        s.interactive_view_cache
+            .get(&pid)
+            .and_then(|cached| cached.screenshot_id.clone())
+    }
+
+    fn cached_interactive_image_xy_target_for_pid(&self, pid: i32, i: u32) -> Option<ClickTarget> {
+        let (x, y) = self.cached_interactive_image_center_for_pid(pid, i)?;
+        Some(ClickTarget::ImageXy {
+            x,
+            y,
+            screenshot_id: self.cached_interactive_screenshot_id_for_pid(pid),
+        })
+    }
+
+    fn set_cached_interactive_hwnd_for_pid(&self, pid: i32, hwnd_raw: isize) -> VoidResult<()> {
+        let mut s = self
+            .state
+            .lock()
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+        if let Some(cached) = s.interactive_view_cache.get_mut(&pid) {
+            cached.hwnd_raw = Some(hwnd_raw);
+        }
+        Ok(())
+    }
+
+    fn validate_cached_interactive_hwnd_for_pid(
         &self,
-        app: &AppSelector,
+        pid: i32,
+        current_hwnd_raw: isize,
+    ) -> VoidResult<()> {
+        let s = self
+            .state
+            .lock()
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+        let Some(cached) = s.interactive_view_cache.get(&pid) else {
+            return Ok(());
+        };
+        if let Some(cached_hwnd_raw) = cached.hwnd_raw {
+            if cached_hwnd_raw != current_hwnd_raw {
+                return Err(VoidError::tool(format!(
+                    "[WINDOW_CHANGED] interactive view was built for hwnd_raw={} but current target resolved to hwnd_raw={}; re-run `build_interactive_view` before `interactive_*` actions",
+                    cached_hwnd_raw, current_hwnd_raw
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_interactive_index_for_pid(
+        &self,
+        pid: i32,
         i: u32,
         before_digest: Option<&str>,
     ) -> VoidResult<u32> {
-        let pid = resolve_pid_macos(self, app).await?;
         let s = self
             .state
             .lock()
@@ -5314,14 +7239,63 @@ impl DesktopComputerUseHost {
         Ok(el.node_idx)
     }
 
-    #[cfg(target_os = "macos")]
-    async fn resolve_visual_mark(
+    fn cached_visual_mark_screenshot_id_for_pid(&self, pid: i32) -> Option<String> {
+        let s = self.state.lock().ok()?;
+        s.visual_mark_cache
+            .get(&pid)
+            .and_then(|cached| cached.screenshot_id.clone())
+    }
+
+    fn cached_visual_mark_image_xy_target_for_pid(
         &self,
-        app: &AppSelector,
+        pid: i32,
+        mark: &VisualMark,
+    ) -> Option<ClickTarget> {
+        Some(ClickTarget::ImageXy {
+            x: mark.x,
+            y: mark.y,
+            screenshot_id: self.cached_visual_mark_screenshot_id_for_pid(pid),
+        })
+    }
+
+    fn cached_visual_mark_image_xy_target_for_view(
+        &self,
+        view: &VisualMarkView,
+        mark: &VisualMark,
+    ) -> Option<ClickTarget> {
+        let pid = view.app.pid?;
+        self.cached_visual_mark_image_xy_target_for_pid(pid, mark)
+    }
+
+    fn validate_cached_visual_mark_hwnd_for_pid(
+        &self,
+        pid: i32,
+        current_hwnd_raw: isize,
+    ) -> VoidResult<()> {
+        let s = self
+            .state
+            .lock()
+            .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
+        let Some(cached) = s.visual_mark_cache.get(&pid) else {
+            return Ok(());
+        };
+        if let Some(cached_hwnd_raw) = cached.hwnd_raw {
+            if cached_hwnd_raw != current_hwnd_raw {
+                return Err(VoidError::tool(format!(
+                    "[WINDOW_CHANGED] visual mark view was built for hwnd_raw={} but current target resolved to hwnd_raw={}; re-run `build_visual_mark_view` before `visual_click`",
+                    cached_hwnd_raw, current_hwnd_raw
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_visual_mark_for_pid(
+        &self,
+        pid: i32,
         i: u32,
         before_digest: Option<&str>,
     ) -> VoidResult<VisualMark> {
-        let pid = resolve_pid_macos(self, app).await?;
         let s = self
             .state
             .lock()
@@ -5360,5 +7334,24 @@ impl DesktopComputerUseHost {
                     cached.marks.len()
                 ))
             })
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    async fn resolve_visual_mark(
+        &self,
+        app: &AppSelector,
+        i: u32,
+        before_digest: Option<&str>,
+    ) -> VoidResult<VisualMark> {
+        #[cfg(target_os = "macos")]
+        let pid = resolve_pid_macos(self, app).await?;
+        #[cfg(target_os = "windows")]
+        let pid = {
+            let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(app)?;
+            let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+            self.validate_cached_visual_mark_hwnd_for_pid(pid, windows_hwnd_raw(hwnd))?;
+            pid
+        };
+        self.resolve_visual_mark_for_pid(pid, i, before_digest)
     }
 }

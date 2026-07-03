@@ -137,9 +137,10 @@ impl SessionMessageTool {
     }
 
     fn sender_session_id<'a>(&self, context: &'a ToolUseContext) -> VoidResult<&'a str> {
-        context.session_id.as_deref().ok_or_else(|| {
-            VoidError::tool("SessionMessage requires a source session".to_string())
-        })
+        context
+            .session_id
+            .as_deref()
+            .ok_or_else(|| VoidError::tool("SessionMessage requires a source session".to_string()))
     }
 
     fn sender_workspace(&self, context: &ToolUseContext) -> VoidResult<String> {

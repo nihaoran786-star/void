@@ -1,5 +1,6 @@
 //! Tool implementation module
 
+pub mod analyze_image_tool;
 pub mod ask_user_question_tool;
 pub mod bash_tool;
 pub mod code_review_tool;
@@ -44,6 +45,7 @@ pub mod todo_write_tool;
 pub mod util;
 pub mod web_tools;
 
+pub use analyze_image_tool::AnalyzeImageTool;
 pub use ask_user_question_tool::AskUserQuestionTool;
 pub use bash_tool::BashTool;
 pub use code_review_tool::CodeReviewTool;

@@ -1,4 +1,7 @@
 use crate::agentic::core::ToolCall;
+use crate::agentic::execution::write_content_sanitizer::{
+    contains_tool_invocation_artifacts, strip_tool_invocation_artifacts,
+};
 use crate::agentic::tools::file_read_state_runtime::{
     assert_file_not_unexpectedly_modified, file_mutation_timestamp_ms, get_stored_file_read_state,
     local_file_modification_time_ms, read_current_file_content, read_state_tracking_enabled,
@@ -8,9 +11,6 @@ use crate::agentic::tools::file_read_state_runtime::{
 use crate::agentic::tools::file_tool_guidance::{
     file_tool_guidance_message, is_file_tool_guidance_message,
 };
-use crate::agentic::execution::write_content_sanitizer::{
-    contains_tool_invocation_artifacts, strip_tool_invocation_artifacts,
-};
 use crate::agentic::tools::framework::{
     Tool, ToolPathResolution, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
@@ -18,10 +18,10 @@ use crate::agentic::tools::ToolPathOperation;
 use crate::service::config::types::WriteToolMode;
 use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
-use void_ai_adapters::tool_call_accumulator::strip_write_inline_content_fields;
 use serde_json::{json, Value};
 use std::path::Path;
 use tokio::fs;
+use void_ai_adapters::tool_call_accumulator::strip_write_inline_content_fields;
 
 pub struct FileWriteTool;
 

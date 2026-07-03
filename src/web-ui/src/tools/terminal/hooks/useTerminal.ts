@@ -4,9 +4,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getTerminalService, TerminalService } from '../services';
+import { createReplayAwareTerminalEventHandler, normalizeTerminalReplay } from '../utils';
 import { createLogger } from '@/shared/utils/logger';
 import type {
   SessionResponse,
+  TerminalReplayEvent,
   TerminalEvent,
   TerminalEventCallback,
 } from '../types';
@@ -21,6 +23,8 @@ export interface UseTerminalOptions {
   onReady?: () => void;
   onExit?: (exitCode?: number) => void;
   onError?: (message: string) => void;
+  /** Called with ordered replay events before live events are subscribed. */
+  onReplay?: (events: TerminalReplayEvent[]) => void;
   /** Called with the PTY dimensions stored alongside history, before onOutput. */
   onHistoryDims?: (cols: number, rows: number) => void;
 }
@@ -47,6 +51,7 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
     onReady,
     onExit,
     onError,
+    onReplay,
     onHistoryDims,
   } = options;
 
@@ -64,6 +69,7 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
   const onReadyRef = useRef(onReady);
   const onExitRef = useRef(onExit);
   const onErrorRef = useRef(onError);
+  const onReplayRef = useRef(onReplay);
   const onHistoryDimsRef = useRef(onHistoryDims);
 
   // Keep refs updated
@@ -73,6 +79,7 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
     onReadyRef.current = onReady;
     onExitRef.current = onExit;
     onErrorRef.current = onError;
+    onReplayRef.current = onReplay;
     onHistoryDimsRef.current = onHistoryDims;
   });
 
@@ -125,32 +132,61 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
 
         setSession(sessionInfo);
 
-        // Replay output history BEFORE subscribing to live events.
+        // Replay output history before consuming live events.
         // This prevents overlap: history covers [past → now], events cover [now → future].
-        // If we subscribed first, events arriving between subscribe and getHistory would
-        // appear in both the event stream and the history buffer, causing duplicate output.
+        // After getHistory resolves, subscribe immediately and queue live events until
+        // replay callbacks finish so events in that small window are not dropped.
+        let unsubscribe: (() => void) | null = null;
+        const replayAwareHandler = createReplayAwareTerminalEventHandler(handleEvent);
+        service.clearPendingSessionEvents(sessionId);
+
         try {
           const historyResponse = await service.getHistory(sessionId);
-          if (!cancelled && historyResponse.data) {
-            // Notify before queuing data so the terminal can resize to the correct
-            // dimensions before history is written to the buffer.
-            onHistoryDimsRef.current?.(historyResponse.cols, historyResponse.rows);
-            onOutputRef.current?.(historyResponse.data);
+          if (cancelled) return;
+
+          unsubscribe = service.onSessionEvent(sessionId, replayAwareHandler.handleEvent);
+          if (cancelled) {
+            unsubscribe();
+            return;
+          }
+          unsubscribeRef.current = unsubscribe;
+          service
+            .drainPendingSessionEvents(sessionId)
+            .forEach(replayAwareHandler.handleEvent);
+
+          if (!cancelled) {
+            const replayEvents = normalizeTerminalReplay(historyResponse);
+            if (replayEvents.length > 0) {
+              if (onReplayRef.current) {
+                onReplayRef.current(replayEvents);
+              } else {
+                replayEvents.forEach((event) => {
+                  onHistoryDimsRef.current?.(event.cols, event.rows);
+                  if (event.data) {
+                    onOutputRef.current?.(event.data);
+                  }
+                });
+              }
+            }
           }
         } catch (histErr) {
           // History replay is optional — a failed fetch must not break the terminal.
           log.warn('Failed to fetch terminal history', { sessionId, error: histErr });
+          if (cancelled) return;
+          unsubscribe = service.onSessionEvent(sessionId, replayAwareHandler.handleEvent);
+          if (cancelled) {
+            unsubscribe();
+            return;
+          }
+          unsubscribeRef.current = unsubscribe;
+          service
+            .drainPendingSessionEvents(sessionId)
+            .forEach(replayAwareHandler.handleEvent);
         }
 
         if (cancelled) return;
 
-        // Subscribe to live events AFTER history replay to eliminate overlap.
-        const unsubscribe = service.onSessionEvent(sessionId, handleEvent);
-        if (cancelled) {
-          unsubscribe();
-          return;
-        }
-        unsubscribeRef.current = unsubscribe;
+        replayAwareHandler.finishReplay();
 
         setIsLoading(false);
       } catch (err) {

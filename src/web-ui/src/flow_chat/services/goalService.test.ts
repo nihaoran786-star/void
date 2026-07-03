@@ -73,4 +73,40 @@ describe('goalService', () => {
     });
     expect(setGoalModeActiveMock).toHaveBeenCalledWith('session-1', false);
   });
+
+  it('forwards goal token budget updates to the runtime API', async () => {
+    updateSessionGoalMock.mockResolvedValue({
+      success: true,
+      status: 'active',
+      active: true,
+      goalText: 'Ship feature',
+      tokenBudget: 2000,
+      tokensUsed: 250,
+      displayMessage: 'Goal token budget updated',
+    });
+
+    await runGoalManagementCommand({
+      session: {
+        sessionId: 'session-1',
+        workspacePath: 'D:/workspace/project',
+        remoteConnectionId: undefined,
+        remoteSshHost: undefined,
+      } as Session,
+      action: 'set-budget',
+      tokenBudget: 2000,
+      failedTitle: 'Goal failed',
+      unknownErrorMessage: 'Unknown error',
+      updatedTitle: 'Goal updated',
+    });
+
+    expect(updateSessionGoalMock).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      action: 'set-budget',
+      goalText: undefined,
+      tokenBudget: 2000,
+      workspacePath: 'D:/workspace/project',
+      remoteConnectionId: undefined,
+      remoteSshHost: undefined,
+    });
+  });
 });

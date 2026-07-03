@@ -20,7 +20,8 @@ use void_core::service::terminal::{
     ResizeRequest as CoreResizeRequest, SendCommandRequest as CoreSendCommandRequest,
     SessionResponse as CoreSessionResponse, SessionSource as CoreSessionSource,
     ShellInfo as CoreShellInfo, ShellType, SignalRequest as CoreSignalRequest, TerminalApi,
-    TerminalConfig, WriteRequest as CoreWriteRequest,
+    TerminalConfig, TerminalReplayEvent as CoreTerminalReplayEvent,
+    WriteRequest as CoreWriteRequest,
 };
 
 pub struct TerminalState {
@@ -243,6 +244,8 @@ pub struct GetHistoryRequest {
 #[serde(rename_all = "camelCase")]
 pub struct GetHistoryResponse {
     pub session_id: String,
+    #[serde(default)]
+    pub events: Vec<CoreTerminalReplayEvent>,
     pub data: String,
     pub history_size: usize,
     /// PTY column count at the time history was captured.
@@ -255,6 +258,7 @@ impl From<CoreGetHistoryResponse> for GetHistoryResponse {
     fn from(resp: CoreGetHistoryResponse) -> Self {
         Self {
             session_id: resp.session_id,
+            events: resp.events,
             data: resp.data,
             history_size: resp.history_size,
             cols: resp.cols,
@@ -799,6 +803,7 @@ pub async fn terminal_get_history(
                 if let Some(session) = terminal_manager.get_session(&session_id).await {
                     return Ok(GetHistoryResponse {
                         session_id: session.id,
+                        events: Vec::new(),
                         data: String::new(),
                         history_size: 0,
                         cols: session.cols,
@@ -820,6 +825,7 @@ pub async fn terminal_get_history(
 
     Ok(GetHistoryResponse {
         session_id: response.session_id,
+        events: response.events,
         data: response.data,
         history_size: response.history_size,
         cols: response.cols,

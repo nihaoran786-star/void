@@ -22,7 +22,7 @@ import { createTerminalTab } from '@/shared/utils/tabUtils';
 import { BaseToolCard, ToolCardHeader } from './BaseToolCard';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
 import { DotMatrixLoader, IconButton } from '../../component-library';
-import { TerminalOutputRenderer } from '@/tools/terminal/components';
+import { LazyTerminalOutputRenderer } from '@/tools/terminal/components';
 import { createLogger } from '@/shared/utils/logger';
 import { useToolCardHeightContract, type ToolCardCollapseReason } from './useToolCardHeightContract';
 import { getTerminalViewState, type TerminalViewState } from './terminalToolCardState';
@@ -31,12 +31,21 @@ import { ToolCardCopyAction, ToolCardHeaderActions } from './ToolCardHeaderActio
 import { ToolCommandPreview } from './ToolCommandPreview';
 import { hasAcpPermissionOptions } from './AcpPermissionActions.utils';
 import { AcpPermissionActions } from './AcpPermissionActions';
+import { createTerminalOutputPreview, type TerminalOutputPreviewBudget } from './terminalOutputPreview';
 import './TerminalToolCard.scss';
 
 const log = createLogger('TerminalToolCard');
 const TERMINAL_COLLAPSED_STATUSES = new Set(['completed', 'cancelled', 'error', 'rejected']);
 const TERMINAL_OUTPUT_STREAMING_MAX_HEIGHT = 4 * 18 + 16;  // 88px – compact while streaming/executing
 const TERMINAL_OUTPUT_EXPANDED_MAX_HEIGHT = 15 * 18 + 16;  // 286px – comfortable reading when manually expanded
+const TERMINAL_OUTPUT_STREAMING_PREVIEW_BUDGET: TerminalOutputPreviewBudget = {
+  maxRows: 4,
+  maxCharacters: 8_000,
+};
+const TERMINAL_OUTPUT_EXPANDED_PREVIEW_BUDGET: TerminalOutputPreviewBudget = {
+  maxRows: 15,
+  maxCharacters: 24_000,
+};
 
 interface TerminalToolCardProps extends ToolCardProps {
   terminalSessionId?: string;
@@ -96,13 +105,21 @@ function renderTerminalExpandedContent(params: {
   const maxHeight = isStreamingPhase
     ? TERMINAL_OUTPUT_STREAMING_MAX_HEIGHT
     : TERMINAL_OUTPUT_EXPANDED_MAX_HEIGHT;
+  const previewBudget = isStreamingPhase
+    ? TERMINAL_OUTPUT_STREAMING_PREVIEW_BUDGET
+    : TERMINAL_OUTPUT_EXPANDED_PREVIEW_BUDGET;
+  const liveOutputPreview = createTerminalOutputPreview(liveOutput, previewBudget).content;
+  const completedOutputPreview = createTerminalOutputPreview(
+    parsedResult.output,
+    TERMINAL_OUTPUT_EXPANDED_PREVIEW_BUDGET,
+  ).content;
 
   return (
     <>
       {viewState.displayPhase === 'live_output' && (
         <div className="terminal-execution-output">
-          <TerminalOutputRenderer
-            content={liveOutput}
+          <LazyTerminalOutputRenderer
+            content={liveOutputPreview}
             className="terminal-xterm-output"
             maxHeight={maxHeight}
           />
@@ -119,8 +136,8 @@ function renderTerminalExpandedContent(params: {
         <div className="terminal-result-container">
           {parsedResult.output && (
             <div className="terminal-result-output">
-              <TerminalOutputRenderer
-                content={parsedResult.output}
+              <LazyTerminalOutputRenderer
+                content={completedOutputPreview}
                 className="terminal-xterm-output"
                 maxHeight={maxHeight}
               />
@@ -148,8 +165,8 @@ function renderTerminalExpandedContent(params: {
       {viewState.showCancelledResult && (
         <div className="terminal-result-container cancelled">
           <div className="terminal-result-output">
-            <TerminalOutputRenderer
-              content={liveOutput}
+            <LazyTerminalOutputRenderer
+              content={liveOutputPreview}
               className="terminal-xterm-output"
               maxHeight={maxHeight}
             />

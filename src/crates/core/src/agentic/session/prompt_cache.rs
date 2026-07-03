@@ -427,4 +427,62 @@ mod tests {
         assert!(cache.system_prompt.is_none());
         assert!(cache.user_context.is_none());
     }
+
+    #[test]
+    fn invalidate_system_prompt_preserves_user_context() {
+        let store = SessionPromptCacheStore::new();
+        store.create_session("session-1");
+        store.set_system_prompt(
+            "session-1",
+            CachedSystemPrompt::new(
+                SystemPromptCacheIdentity::new("template:agentic_mode"),
+                "prompt-a",
+            ),
+        );
+        store.set_user_context(
+            "session-1",
+            CachedUserContext::new(
+                UserContextCacheIdentity::new("workspace_context"),
+                "context",
+            ),
+        );
+
+        assert!(store.invalidate("session-1", PromptCacheScope::SystemPrompt));
+
+        let cache = store.get_cache("session-1").expect("session cache");
+        assert!(cache.system_prompt.is_none());
+        assert_eq!(
+            cache.user_context.expect("user context").text.content,
+            "context"
+        );
+    }
+
+    #[test]
+    fn invalidate_user_context_preserves_system_prompt() {
+        let store = SessionPromptCacheStore::new();
+        store.create_session("session-1");
+        store.set_system_prompt(
+            "session-1",
+            CachedSystemPrompt::new(
+                SystemPromptCacheIdentity::new("template:agentic_mode"),
+                "prompt-a",
+            ),
+        );
+        store.set_user_context(
+            "session-1",
+            CachedUserContext::new(
+                UserContextCacheIdentity::new("workspace_context"),
+                "context",
+            ),
+        );
+
+        assert!(store.invalidate("session-1", PromptCacheScope::UserContext));
+
+        let cache = store.get_cache("session-1").expect("session cache");
+        assert_eq!(
+            cache.system_prompt.expect("system prompt").text.content,
+            "prompt-a"
+        );
+        assert!(cache.user_context.is_none());
+    }
 }

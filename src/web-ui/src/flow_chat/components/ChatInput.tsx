@@ -67,8 +67,10 @@ import { useDeepReviewConsent } from './DeepReviewConsentDialog';
 import { useSessionReviewActivity } from '../hooks/useSessionReviewActivity';
 import { shouldBlockDeepReviewCommand } from '../utils/deepReviewCommandGuard';
 import { deriveDeepReviewSessionConcurrencyGuard } from '../utils/deepReviewCapacityGuard';
+import { popLastExistingImageUndoId } from '../utils/chatInputImageUndo';
 import { agentAPI } from '@/infrastructure/api/service-api/AgentAPI';
 import { shouldShowChatInputImageStrip } from '../utils/chatInputImageStrip';
+import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
 import {
   getMediaReferencePromptText,
   MEDIA_REFERENCE_EVENT,
@@ -254,6 +256,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const addContext = useContextStore(state => state.addContext);
   const removeContext = useContextStore(state => state.removeContext);
   const clearContexts = useContextStore(state => state.clearContexts);
+  const contextsRef = useRef(contexts);
+
+  useEffect(() => {
+    contextsRef.current = contexts;
+  }, [contexts]);
 
   const imageContexts = useMemo(
     () => contexts.filter((c): c is ImageContext => c.type === 'image'),
@@ -1446,11 +1453,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     try {
+      const imagePayload = imageContexts.length > 0
+        ? buildImageContextsForBackend(imageContexts)
+        : undefined;
       const { childSessionId } = await startBtwThread({
         parentSessionId: currentSessionId,
         workspacePath: chatStripRepositoryPath,
         question,
         modelId: 'fast',
+        imagePayload,
       });
       openBtwSessionInAuxPane({
         childSessionId,
@@ -1471,7 +1482,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         { duration: 5000 },
       );
     }
-  }, [chatStripRepositoryPath, clearPendingLargePastes, currentSessionId, derivedState, expandComposerSpecialTokens, inputState.value, isBtwSession, setQueuedInput, t]);
+  }, [chatStripRepositoryPath, clearPendingLargePastes, currentSessionId, derivedState, expandComposerSpecialTokens, imageContexts, inputState.value, isBtwSession, setQueuedInput, t]);
 
   const submitCompactFromInput = useCallback(async () => {
     if (!effectiveTargetSessionId || !effectiveTargetSession) {
@@ -1715,6 +1726,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         session: effectiveTargetSession,
         action: parsed.action,
         goalText: parsed.goalText,
+        tokenBudget: parsed.tokenBudget,
         failedTitle: t('chatInput.goalFailed', { defaultValue: 'Goal mode update failed' }),
         unknownErrorMessage: t('error.unknown'),
         updatedTitle: t('chatInput.goalUpdated', { defaultValue: 'Session goal updated' }),
@@ -2322,14 +2334,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
-      const stack = undoImageStackRef.current;
-      while (stack.length > 0) {
-        const imageId = stack.pop()!;
-        if (contexts.some(context => context.id === imageId)) {
-          e.preventDefault();
-          removeContext(imageId);
-          return;
-        }
+      const imageId = popLastExistingImageUndoId(
+        undoImageStackRef.current,
+        new Set(contextsRef.current.map(context => context.id)),
+      );
+      if (imageId) {
+        e.preventDefault();
+        removeContext(imageId);
+        return;
       }
     }
 

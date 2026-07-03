@@ -26,6 +26,7 @@ export interface GoalManagementCommandParams {
   session: Session;
   action: Exclude<GoalCommandAction, 'activate'>;
   goalText?: string;
+  tokenBudget?: number;
   failedTitle: string;
   unknownErrorMessage: string;
   updatedTitle: string;
@@ -145,6 +146,7 @@ export async function runGoalManagementCommand(
     sessionId: params.session.sessionId,
     action: params.action,
     goalText: params.goalText,
+    tokenBudget: params.tokenBudget,
     workspacePath: params.session.workspacePath,
     remoteConnectionId: params.session.remoteConnectionId,
     remoteSshHost: params.session.remoteSshHost,

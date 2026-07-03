@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "root": "src/web-ui/src",
+  "notes": [
+    "Void Web UI theme color governance baseline.",
+    "Budgets capture current audit debt only; lower values when cleanup reduces debt."
+  ],
+  "budgets": {
+    "uniqueColors": {
+      "max": 1655
+    },
+    "cssVars.fallbackOnlyUnique": {
+      "max": 78
+    },
+    "cssVars.undefinedUnique": {
+      "max": 51
+    },
+    "nearPairs.indistinguishableTotal": {
+      "max": 53
+    },
+    "nearPairs.nearTotal": {
+      "max": 1279
+    }
+  }
+}

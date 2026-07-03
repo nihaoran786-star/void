@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "root": "src/mobile-web/src",
+  "notes": [
+    "Void mobile-web theme color governance baseline.",
+    "Budgets capture current audit debt only; lower values when cleanup reduces debt."
+  ],
+  "budgets": {
+    "uniqueColors": {
+      "max": 185
+    },
+    "cssVars.fallbackOnlyUnique": {
+      "max": 4
+    },
+    "cssVars.undefinedUnique": {
+      "max": 5
+    },
+    "nearPairs.indistinguishableTotal": {
+      "max": 1
+    },
+    "nearPairs.nearTotal": {
+      "max": 8
+    }
+  }
+}

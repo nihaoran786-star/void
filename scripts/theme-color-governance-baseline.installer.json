@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "root": "Void-Installer/src",
+  "notes": [
+    "Void installer theme color governance baseline.",
+    "Budgets capture current audit debt only; lower values when cleanup reduces debt."
+  ],
+  "budgets": {
+    "uniqueColors": {
+      "max": 346
+    },
+    "cssVars.fallbackOnlyUnique": {
+      "max": 0
+    },
+    "cssVars.undefinedUnique": {
+      "max": 0
+    },
+    "nearPairs.indistinguishableTotal": {
+      "max": 0
+    },
+    "nearPairs.nearTotal": {
+      "max": 84
+    }
+  }
+}

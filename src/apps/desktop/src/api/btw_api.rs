@@ -11,8 +11,10 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::api::app_state::AppState;
+use super::agentic_api::resolve_missing_image_payloads;
 
 use void_core::agentic::coordination::ConversationCoordinator;
+use void_core::agentic::image_analysis::ImageContextData;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,6 +26,8 @@ pub struct BtwAskStreamRequest {
     pub child_session_name: Option<String>,
     /// Optional model id override. Supports "fast"/"primary" aliases.
     pub model_id: Option<String>,
+    #[serde(default)]
+    pub image_contexts: Option<Vec<ImageContextData>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -89,6 +93,17 @@ pub async fn btw_ask_stream(
         return Err("childSessionId is required".to_string());
     }
 
+    let image_contexts = if let Some(image_contexts) = request
+        .image_contexts
+        .as_ref()
+        .filter(|images| !images.is_empty())
+        .cloned()
+    {
+        Some(resolve_missing_image_payloads(image_contexts)?)
+    } else {
+        None
+    };
+
     let turn_id = coordinator
         .start_hidden_btw_turn(
             &request.request_id,
@@ -97,6 +112,7 @@ pub async fn btw_ask_stream(
             request.child_session_name.as_deref(),
             &request.question,
             request.model_id.as_deref(),
+            image_contexts,
         )
         .await
         .map_err(|e| e.to_string())?;

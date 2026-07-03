@@ -4,12 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths-ignore:
-      - '**/*.md'
       - 'png/**'
   push:
     branches: [main]
     paths-ignore:
-      - '**/*.md'
       - 'png/**'
 
 # Cancel previous runs on same branch/PR
@@ -122,6 +120,18 @@ jobs:
 
       - name: Validate GitHub config
         run: pnpm run check:github-config
+
+      - name: Audit legacy brand residue
+        run: pnpm run check:brand-residue
+
+      - name: Check core boundaries
+        run: pnpm run check:core-boundaries
+
+      - name: Audit theme colors
+        run: pnpm run check:theme-colors
+
+      - name: Validate theme visual contract
+        run: pnpm run check:theme-visual-contract
 
       - name: Validate i18n contract
         run: pnpm run i18n:contract:test

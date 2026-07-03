@@ -316,12 +316,13 @@ pub(crate) async fn send_stream(
         max_tries,
         ttft_timeout,
         || apply_headers(client, client.client.post(&url), &url),
-        move |response, tx, tx_raw| {
+        move |response, tx, tx_raw, remaining_ttft_timeout| {
             tokio::spawn(handle_anthropic_stream(
                 response,
                 tx,
                 tx_raw,
                 inline_think_in_text,
+                remaining_ttft_timeout,
                 idle_timeout,
             ));
         },

@@ -171,9 +171,7 @@ impl ComputerUseActions {
         context: &ToolUseContext,
     ) -> VoidResult<Vec<ToolResult>> {
         let host = context.computer_use_host.as_ref().ok_or_else(|| {
-            VoidError::tool(
-                "Desktop control is only available in the Void desktop app".to_string(),
-            )
+            VoidError::tool("Desktop control is only available in the Void desktop app".to_string())
         })?;
 
         // Legacy desktop implementation shared by the dedicated ComputerUse
@@ -361,9 +359,7 @@ impl ComputerUseActions {
             let target = match v {
                 Value::Null => None,
                 v => Some(v.as_u64().ok_or_else(|| {
-                    VoidError::tool(
-                        "display_id must be a non-negative integer or null".to_string(),
-                    )
+                    VoidError::tool("display_id must be a non-negative integer or null".to_string())
                 })? as u32),
             };
             if host.focused_display_id() != target {
@@ -503,14 +499,10 @@ impl ComputerUseActions {
             }
             if v.get("x").is_some() || v.get("y").is_some() {
                 let x = v.get("x").and_then(|x| x.as_f64()).ok_or_else(|| {
-                    VoidError::tool(
-                        "[INVALID_PARAMS] screen target requires numeric x".to_string(),
-                    )
+                    VoidError::tool("[INVALID_PARAMS] screen target requires numeric x".to_string())
                 })?;
                 let y = v.get("y").and_then(|y| y.as_f64()).ok_or_else(|| {
-                    VoidError::tool(
-                        "[INVALID_PARAMS] screen target requires numeric y".to_string(),
-                    )
+                    VoidError::tool("[INVALID_PARAMS] screen target requires numeric y".to_string())
                 })?;
                 return Ok(ClickTarget::ScreenXy { x, y });
             }

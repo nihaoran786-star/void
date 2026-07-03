@@ -639,10 +639,7 @@ impl SkillRegistry {
         agent_type: Option<&str>,
     ) -> VoidResult<SkillInfo> {
         let Some(mode_id) = agent_type.map(str::trim).filter(|value| !value.is_empty()) else {
-            return Err(VoidError::tool(format!(
-                "Skill '{}' not found",
-                skill_name
-            )));
+            return Err(VoidError::tool(format!("Skill '{}' not found", skill_name)));
         };
 
         let info = resolve_visible_skills(candidates)

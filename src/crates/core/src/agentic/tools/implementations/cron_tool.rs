@@ -1046,9 +1046,9 @@ Patch schema for "update":
             CronAction::Update => {
                 let cron_service = get_global_cron_service()
                     .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
-                let job_id = params.job_id.ok_or_else(|| {
-                    VoidError::tool("job_id is required for update".to_string())
-                })?;
+                let job_id = params
+                    .job_id
+                    .ok_or_else(|| VoidError::tool("job_id is required for update".to_string()))?;
                 Self::validate_job_id(&job_id).map_err(VoidError::tool)?;
                 let patch = params
                     .patch
@@ -1097,9 +1097,9 @@ Patch schema for "update":
             CronAction::Remove => {
                 let cron_service = get_global_cron_service()
                     .ok_or_else(|| VoidError::tool("cron service not initialized".to_string()))?;
-                let job_id = params.job_id.ok_or_else(|| {
-                    VoidError::tool("job_id is required for remove".to_string())
-                })?;
+                let job_id = params
+                    .job_id
+                    .ok_or_else(|| VoidError::tool("job_id is required for remove".to_string()))?;
                 Self::validate_job_id(&job_id).map_err(VoidError::tool)?;
 
                 let deleted = cron_service.delete_job(&job_id).await?;

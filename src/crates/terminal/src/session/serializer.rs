@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use crate::shell::ShellType;
 use crate::{TerminalError, TerminalResult};
 
-use super::{SessionMetadata, SessionSource, SessionStatus, TerminalSession};
+use super::{SessionMetadata, SessionSource, SessionStatus, TerminalReplayEvent, TerminalSession};
 
 /// Version of the serialization format
 const SERIALIZATION_VERSION: u32 = 1;
@@ -57,21 +57,11 @@ pub struct SerializedSession {
     pub source: SessionSource,
 
     /// Replay events for restoring terminal content
-    pub replay_events: Vec<ReplayEvent>,
+    #[serde(default)]
+    pub replay_events: Vec<TerminalReplayEvent>,
 
     /// Creation timestamp
     pub created_at: i64,
-}
-
-/// Event for replaying terminal content
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ReplayEvent {
-    /// Terminal dimensions at this point
-    pub cols: u16,
-    pub rows: u16,
-
-    /// Data to replay
-    pub data: String,
 }
 
 /// Session serializer
@@ -94,7 +84,7 @@ impl SessionSerializer {
                 env: s.env.clone(),
                 metadata: s.metadata.clone(),
                 source: s.source.clone(),
-                replay_events: Vec::new(), // TODO: Capture replay events
+                replay_events: s.get_replay_events(),
                 created_at: s.created_at.timestamp(),
             })
             .collect();
@@ -140,6 +130,7 @@ impl SessionSerializer {
         session.metadata = serialized.metadata.clone();
         session.metadata.was_restored = true;
         session.status = SessionStatus::Starting;
+        session.set_replay_events(serialized.replay_events.clone());
 
         session
     }
@@ -149,11 +140,8 @@ impl SessionSerializer {
         session: &TerminalSession,
         replay_data: &str,
     ) -> TerminalResult<String> {
-        let replay_event = ReplayEvent {
-            cols: session.cols,
-            rows: session.rows,
-            data: replay_data.to_string(),
-        };
+        let replay_event =
+            TerminalReplayEvent::data(session.cols, session.rows, replay_data.to_string());
 
         let serialized = SerializedSession {
             id: session.id.clone(),
@@ -199,5 +187,46 @@ mod tests {
         assert_eq!(deserialized[0].id, session.id);
         assert_eq!(deserialized[0].name, session.name);
         assert_eq!(deserialized[0].cwd, session.cwd);
+    }
+
+    #[test]
+    fn deserialize_accepts_legacy_sessions_without_replay_events() {
+        let payload = r#"{
+            "version": 1,
+            "sessions": [{
+                "id": "legacy-id",
+                "name": "Legacy Terminal",
+                "shell_type": "Bash",
+                "cwd": "/home/user",
+                "initial_cwd": "/home/user",
+                "cols": 80,
+                "rows": 24,
+                "env": {},
+                "metadata": {
+                    "icon": null,
+                    "color": null,
+                    "custom_title": null,
+                    "title_source": "Process",
+                    "was_restored": false,
+                    "shell_integration": {
+                        "enabled": false,
+                        "activated": false,
+                        "command_detection": false,
+                        "cwd_detection": false
+                    },
+                    "owner": null
+                },
+                "source": "manual",
+                "created_at": 0
+            }],
+            "timestamp": 0
+        }"#;
+
+        let sessions = SessionSerializer::deserialize(payload)
+            .expect("legacy serialized sessions without replay events should deserialize");
+
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0].id, "legacy-id");
+        assert!(sessions[0].replay_events.is_empty());
     }
 }

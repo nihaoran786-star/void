@@ -9,11 +9,11 @@ use crate::agentic::tools::product_runtime::{
 };
 use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
+use serde_json::Value;
 use void_agent_tools::{
     build_get_tool_spec_collapsed_tool_entry, GetToolSpecCollapsedToolSummary,
     GetToolSpecExecutionError, GET_TOOL_SPEC_TOOL_NAME,
 };
-use serde_json::Value;
 
 const GET_TOOL_SPEC_DESCRIPTION: &str = r#"Read usage instructions for additional tools.
 

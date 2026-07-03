@@ -10,13 +10,13 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Json;
 use axum::Router;
-use void_core::service::mcp::server::MCPConnection;
 use futures::Stream;
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, Mutex, Notify};
-use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt;
+use tokio_stream::{once, wrappers::UnboundedReceiverStream};
+use void_core::service::mcp::server::MCPConnection;
 
 #[derive(Clone, Default)]
 struct TestState {
@@ -151,16 +151,8 @@ async fn post_handler(
             })
             .to_string();
 
-            let clients = state.sse_clients_by_session.clone();
-            tokio::spawn(async move {
-                let mut guard = clients.lock().await;
-                let Some(list) = guard.get_mut("test-session") else {
-                    return;
-                };
-                list.retain(|tx| tx.send(payload.clone()).is_ok());
-            });
-
-            StatusCode::ACCEPTED.into_response()
+            let stream = once(Ok::<Event, axum::Error>(Event::default().data(payload)));
+            Sse::new(stream).into_response()
         }
         _ => {
             let response = json!({
@@ -174,7 +166,7 @@ async fn post_handler(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn remote_mcp_streamable_http_accepts_202_and_delivers_response_via_sse() {
+async fn remote_mcp_streamable_http_accepts_post_sse_and_maps_tool_metadata() {
     let state = TestState::default();
     let app = Router::new()
         .route("/mcp", get(sse_handler).post(post_handler))
@@ -196,22 +188,10 @@ async fn remote_mcp_streamable_http_accepts_202_and_delivers_response_via_sse() 
         .await
         .expect("initialize should succeed");
 
-    // `Notify::notify_waiters` only wakes tasks already waiting. The rmcp client may open the
-    // SSE GET during `initialize` and fire notify before we await `notified()`, which would
-    // drop the wakeup and time out. The atomic records that the handler ran at least once.
-    if !state.sse_connected.load(Ordering::SeqCst) {
-        tokio::time::timeout(
-            Duration::from_secs(2),
-            state.sse_connected_notify.notified(),
-        )
+    let tools = tokio::time::timeout(Duration::from_secs(30), connection.list_tools(None))
         .await
-        .expect("SSE stream should connect");
-    }
-
-    let tools = connection
-        .list_tools(None)
-        .await
-        .expect("tools/list should resolve via SSE");
+        .expect("tools/list should resolve via POST SSE before the test timeout")
+        .expect("tools/list should resolve via POST SSE");
     assert_eq!(tools.tools.len(), 1);
     assert_eq!(tools.tools[0].name, "hello");
     assert_eq!(tools.tools[0].title.as_deref(), Some("Hello Tool"));

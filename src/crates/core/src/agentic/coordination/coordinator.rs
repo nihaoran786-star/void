@@ -2046,8 +2046,10 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 "Session goal continuation limit reached; stopping auto-continue: session_id={}, goal={}",
                 session_id, goal_state.goal_text
             );
+            goal_state.active = false;
+            goal_state.status = GoalModeStatus::Blocked;
             self.session_manager
-                .merge_session_custom_metadata(session_id, clear_goal_mode_patch())
+                .merge_session_custom_metadata(session_id, goal_mode_patch(&goal_state))
                 .await?;
             self.emit_event(AgenticEvent::GoalVerificationFinished {
                 session_id: session_id.to_string(),
@@ -2091,8 +2093,10 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 "Session goal achieved: session_id={}, goal={}",
                 session_id, goal_state.goal_text
             );
+            goal_state.active = false;
+            goal_state.status = GoalModeStatus::Complete;
             self.session_manager
-                .merge_session_custom_metadata(session_id, clear_goal_mode_patch())
+                .merge_session_custom_metadata(session_id, goal_mode_patch(&goal_state))
                 .await?;
             self.emit_event(AgenticEvent::GoalVerificationFinished {
                 session_id: session_id.to_string(),
@@ -4599,6 +4603,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         child_session_name: Option<&str>,
         question: &str,
         model_id: Option<&str>,
+        image_contexts: Option<Vec<ImageContextData>>,
     ) -> VoidResult<String> {
         if request_id.trim().is_empty() {
             return Err(VoidError::Validation("request_id is required".to_string()));
@@ -4640,7 +4645,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             child_session_id.to_string(),
             build_btw_user_input(question),
             Some(question.trim().to_string()),
-            None,
+            image_contexts,
             Some(turn_id.clone()),
             child_session.agent_type.clone(),
             child_session.config.workspace_path.clone(),

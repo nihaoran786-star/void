@@ -28,6 +28,14 @@ import { taskCollapseStateManager } from '../../store/TaskCollapseStateManager';
 import { ExportImageButton } from './ExportImageButton';
 import { ForkSessionButton } from './ForkSessionButton';
 import { buildModelRoundItemGroups, COMPLETED_TOOL_TRANSIENT_MS } from './modelRoundItemGrouping';
+import {
+  MODEL_ROUND_GROUP_RENDER_CHUNK_DELAY_MS,
+  getInitialModelRoundGroupRenderCount,
+  getNextModelRoundGroupRenderCount,
+  getSynchronizedModelRoundGroupRenderCount,
+  getVisibleModelRoundGroupEndIndex,
+  getVisibleModelRoundGroupStartIndex,
+} from './modelRoundProgressiveRender';
 import { Tooltip } from '@/component-library';
 import { createLogger } from '@/shared/utils/logger';
 import { SubagentProjectionView } from '../subagent/SubagentProjectionView';
@@ -180,6 +188,111 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       groupMediaToolsInModelRoundGroups(groupedItems)
     ), [groupedItems]);
 
+    const hasMediaToolGroup = useMemo(
+      () => mediaGroupedItems.some(group => (
+        group.type === 'critical' && isMediaToolGroupRenderableItem(group.item)
+      )),
+      [mediaGroupedItems],
+    );
+
+    const hasTaskSubagentGroup = useMemo(
+      () => mediaGroupedItems.some(group => (
+        group.type === 'critical' &&
+        group.item.type === 'tool' &&
+        (group.item as FlowToolItem).toolName === 'Task'
+      )),
+      [mediaGroupedItems],
+    );
+
+    const progressiveRenderDisabled = hasMediaToolGroup || hasTaskSubagentGroup;
+    const progressiveRenderIsStreaming = round.isStreaming || progressiveRenderDisabled;
+    const initialGroupRenderCount = useMemo(() => (
+      getInitialModelRoundGroupRenderCount({
+        groupCount: mediaGroupedItems.length,
+        isStreaming: progressiveRenderIsStreaming,
+      })
+    ), [mediaGroupedItems.length, progressiveRenderIsStreaming]);
+
+    const [renderedGroupState, setRenderedGroupState] = useState(() => ({
+      roundId: round.id,
+      count: initialGroupRenderCount,
+    }));
+
+    useEffect(() => {
+      setRenderedGroupState((current) => {
+        const currentCount = current.roundId === round.id
+          ? current.count
+          : initialGroupRenderCount;
+        const nextCount = getSynchronizedModelRoundGroupRenderCount({
+          currentCount,
+          groupCount: mediaGroupedItems.length,
+          initialCount: initialGroupRenderCount,
+          isStreaming: progressiveRenderIsStreaming,
+        });
+
+        if (current.roundId === round.id && current.count === nextCount) {
+          return current;
+        }
+
+        return {
+          roundId: round.id,
+          count: nextCount,
+        };
+      });
+    }, [initialGroupRenderCount, mediaGroupedItems.length, progressiveRenderIsStreaming, round.id]);
+
+    const renderedGroupCount = renderedGroupState.roundId === round.id
+      ? renderedGroupState.count
+      : initialGroupRenderCount;
+
+    useEffect(() => {
+      if (
+        progressiveRenderIsStreaming ||
+        renderedGroupCount >= mediaGroupedItems.length
+      ) {
+        return;
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        setRenderedGroupState((current) => {
+          const currentCount = current.roundId === round.id
+            ? current.count
+            : initialGroupRenderCount;
+
+          return {
+            roundId: round.id,
+            count: getNextModelRoundGroupRenderCount({
+              currentCount,
+              groupCount: mediaGroupedItems.length,
+            }),
+          };
+        });
+      }, MODEL_ROUND_GROUP_RENDER_CHUNK_DELAY_MS);
+
+      return () => window.clearTimeout(timeoutId);
+    }, [
+      initialGroupRenderCount,
+      mediaGroupedItems.length,
+      progressiveRenderIsStreaming,
+      renderedGroupCount,
+      round.id,
+    ]);
+
+    const visibleGroupStartIndex = getVisibleModelRoundGroupStartIndex({
+      renderedCount: renderedGroupCount,
+      groupCount: mediaGroupedItems.length,
+      isStreaming: progressiveRenderIsStreaming,
+    });
+    const visibleGroupEndIndex = getVisibleModelRoundGroupEndIndex({
+      renderedCount: renderedGroupCount,
+      groupCount: mediaGroupedItems.length,
+      startIndex: visibleGroupStartIndex,
+    });
+    const visibleMediaGroupedItems = useMemo(
+      () => mediaGroupedItems.slice(visibleGroupStartIndex, visibleGroupEndIndex),
+      [mediaGroupedItems, visibleGroupEndIndex, visibleGroupStartIndex],
+    );
+
     const extractDialogTurnContent = useCallback(() => {
       const flowChatStore = FlowChatStore.getInstance();
       const state = flowChatStore.getState();
@@ -271,8 +384,9 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       <div 
         className={`model-round-item model-round-item--${round.isStreaming ? 'streaming' : 'complete'}`}
       >
-        {mediaGroupedItems.map((group, groupIndex) => {
-          const isLastGroup = groupIndex === mediaGroupedItems.length - 1;
+        {visibleMediaGroupedItems.map((group, groupIndex) => {
+          const absoluteGroupIndex = visibleGroupStartIndex + groupIndex;
+          const isLastGroup = absoluteGroupIndex === mediaGroupedItems.length - 1;
           const isLast = isLastRound && isLastGroup;
           switch (group.type) {
             case 'explore':

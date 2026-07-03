@@ -12,7 +12,11 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 const BASE_RETRY_DELAY_MS: u64 = 500;
-const MAX_RETRY_AFTER_DELAY_MS: u64 = 10_000;
+/// Maximum delay applied to a `Retry-After` header value.
+///
+/// Some providers return large values for TPM or capacity windows. Capping at
+/// 60s respects provider guidance without creating unbounded user-visible stalls.
+const MAX_RETRY_AFTER_DELAY_MS: u64 = 60_000;
 
 enum StreamSendOutcome {
     Response(reqwest::Response),
@@ -52,7 +56,24 @@ fn format_ttft_timeout_error(label: &str, ttft_timeout: Option<Duration>) -> Str
 }
 
 fn format_transport_error(label: &str, error: &reqwest::Error) -> String {
-    format!("{} connection failed: {}", label, error)
+    let mut message = format!("{} connection failed: {}", label, error);
+    let mut source = std::error::Error::source(error);
+    let mut index = 1;
+
+    while let Some(cause) = source {
+        message.push_str(&format!("; cause {}: {}", index, cause));
+        source = cause.source();
+        index += 1;
+    }
+
+    message
+}
+
+fn remaining_ttft_timeout(
+    started_at: std::time::Instant,
+    ttft_timeout: Option<Duration>,
+) -> Option<Duration> {
+    ttft_timeout.map(|timeout| timeout.saturating_sub(started_at.elapsed()))
 }
 
 fn is_retryable_http_status(status: StatusCode) -> bool {
@@ -106,6 +127,7 @@ where
         reqwest::Response,
         mpsc::UnboundedSender<Result<UnifiedResponse>>,
         Option<mpsc::UnboundedSender<String>>,
+        Option<Duration>,
     ),
 {
     let mut last_error = None;
@@ -224,7 +246,8 @@ where
 
         let (tx, rx) = mpsc::unbounded_channel();
         let (tx_raw, rx_raw) = mpsc::unbounded_channel();
-        spawn_handler(response, tx, Some(tx_raw));
+        let remaining_ttft_timeout = remaining_ttft_timeout(request_start_time, ttft_timeout);
+        spawn_handler(response, tx, Some(tx_raw), remaining_ttft_timeout);
 
         return Ok(StreamResponse {
             stream: Box::pin(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)),
@@ -278,6 +301,24 @@ mod tests {
             retry_after_delay_ms(&headers),
             Some(MAX_RETRY_AFTER_DELAY_MS)
         );
+    }
+
+    #[test]
+    fn remaining_ttft_timeout_subtracts_elapsed_request_time() {
+        let start = std::time::Instant::now() - Duration::from_secs(2);
+        let remaining = remaining_ttft_timeout(start, Some(Duration::from_secs(5)));
+
+        let remaining = remaining.expect("remaining timeout");
+        assert!(remaining <= Duration::from_secs(3));
+        assert!(remaining > Duration::from_secs(2));
+    }
+
+    #[test]
+    fn retry_after_preserves_sub_cap_values() {
+        let mut headers = HeaderMap::new();
+        headers.insert(RETRY_AFTER, HeaderValue::from_static("45"));
+
+        assert_eq!(retry_after_delay_ms(&headers), Some(45_000));
     }
 
     #[test]

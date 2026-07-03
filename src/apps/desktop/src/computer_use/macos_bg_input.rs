@@ -19,13 +19,30 @@
 
 #![allow(dead_code)]
 
-use void_core::util::errors::{VoidError, VoidResult};
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventType, CGMouseButton, ScrollEventUnit};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use core_graphics::geometry::CGPoint;
+use foreign_types::ForeignType;
 use log::{debug, info, warn};
+use std::ffi::c_void;
 use std::thread;
 use std::time::{Duration, Instant};
+use void_core::util::errors::{VoidError, VoidResult};
+
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGWindowListCopyWindowInfo(
+        option: u32,
+        relative_to_window: u32,
+    ) -> core_foundation::array::CFArrayRef;
+}
+
+#[allow(non_upper_case_globals)]
+const K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY: u32 = 1;
+#[allow(non_upper_case_globals)]
+const K_CG_WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS: u32 = 16;
+#[allow(non_upper_case_globals)]
+const K_CG_NULL_WINDOW_ID: u32 = 0;
 
 /// Logical mouse button for `bg_click`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,6 +76,60 @@ impl BgMouseButton {
     }
 }
 
+/// Logical mouse button for PID-scoped background drag primitives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BgDragButton {
+    Left,
+    Right,
+    Middle,
+}
+
+impl BgDragButton {
+    fn plan_button(self) -> crate::computer_use::macos_pointer_parity_plan::MacosPointerButton {
+        match self {
+            Self::Left => crate::computer_use::macos_pointer_parity_plan::MacosPointerButton::Left,
+            Self::Right => {
+                crate::computer_use::macos_pointer_parity_plan::MacosPointerButton::Right
+            }
+            Self::Middle => {
+                crate::computer_use::macos_pointer_parity_plan::MacosPointerButton::Middle
+            }
+        }
+    }
+
+    fn cg(self) -> CGMouseButton {
+        match self {
+            Self::Left => CGMouseButton::Left,
+            Self::Right => CGMouseButton::Right,
+            Self::Middle => CGMouseButton::Center,
+        }
+    }
+
+    fn down(self) -> CGEventType {
+        match self {
+            Self::Left => CGEventType::LeftMouseDown,
+            Self::Right => CGEventType::RightMouseDown,
+            Self::Middle => CGEventType::OtherMouseDown,
+        }
+    }
+
+    fn dragged(self) -> CGEventType {
+        match self {
+            Self::Left => CGEventType::LeftMouseDragged,
+            Self::Right => CGEventType::RightMouseDragged,
+            Self::Middle => CGEventType::OtherMouseDragged,
+        }
+    }
+
+    fn up(self) -> CGEventType {
+        match self {
+            Self::Left => CGEventType::LeftMouseUp,
+            Self::Right => CGEventType::RightMouseUp,
+            Self::Middle => CGEventType::OtherMouseUp,
+        }
+    }
+}
+
 /// Modifier keys understood by `bg_key_chord` / mouse modifiers.
 ///
 /// Maps to the 4 standard macOS modifier flag bits. We deliberately do not
@@ -69,33 +140,68 @@ pub enum BgModifier {
     Shift,
     Option, // alias: alt
     Control,
+    Fn,
 }
 
 impl BgModifier {
     pub fn from_str(s: &str) -> Option<Self> {
-        match s.to_ascii_lowercase().as_str() {
-            "cmd" | "command" | "meta" | "super" => Some(Self::Command),
-            "shift" => Some(Self::Shift),
-            "alt" | "option" | "opt" => Some(Self::Option),
-            "ctrl" | "control" => Some(Self::Control),
-            _ => None,
+        let kind = crate::computer_use::macos_key_parity_plan::modifier_from_alias(s)?;
+        if !crate::computer_use::macos_key_parity_plan::modifier_allowed_in_default_host_parser(
+            kind,
+        ) {
+            return None;
+        }
+        match kind {
+            crate::computer_use::macos_key_parity_plan::MacosModifierKind::Command => {
+                Some(Self::Command)
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierKind::Shift => {
+                Some(Self::Shift)
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierKind::Option => {
+                Some(Self::Option)
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierKind::Control => {
+                Some(Self::Control)
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierKind::Fn => None,
         }
     }
     fn flag(self) -> CGEventFlags {
-        match self {
-            Self::Command => CGEventFlags::CGEventFlagCommand,
-            Self::Shift => CGEventFlags::CGEventFlagShift,
-            Self::Option => CGEventFlags::CGEventFlagAlternate,
-            Self::Control => CGEventFlags::CGEventFlagControl,
+        let kind = match self {
+            Self::Command => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Command,
+            Self::Shift => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Shift,
+            Self::Option => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Option,
+            Self::Control => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Control,
+            Self::Fn => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Fn,
+        };
+        match crate::computer_use::macos_key_parity_plan::modifier_flag_kind(kind) {
+            crate::computer_use::macos_key_parity_plan::MacosModifierFlagKind::Command => {
+                CGEventFlags::CGEventFlagCommand
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierFlagKind::Shift => {
+                CGEventFlags::CGEventFlagShift
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierFlagKind::Option => {
+                CGEventFlags::CGEventFlagAlternate
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierFlagKind::Control => {
+                CGEventFlags::CGEventFlagControl
+            }
+            crate::computer_use::macos_key_parity_plan::MacosModifierFlagKind::SecondaryFn => {
+                CGEventFlags::CGEventFlagSecondaryFn
+            }
         }
     }
     fn keycode(self) -> u16 {
-        match self {
-            Self::Command => 55,
-            Self::Shift => 56,
-            Self::Option => 58,
-            Self::Control => 59,
-        }
+        let kind = match self {
+            Self::Command => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Command,
+            Self::Shift => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Shift,
+            Self::Option => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Option,
+            Self::Control => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Control,
+            Self::Fn => crate::computer_use::macos_key_parity_plan::MacosModifierKind::Fn,
+        };
+        crate::computer_use::macos_key_parity_plan::modifier_keycode(kind)
     }
 }
 
@@ -169,6 +275,48 @@ fn flags_from(mods: &[BgModifier]) -> CGEventFlags {
         .fold(CGEventFlags::CGEventFlagNull, |acc, m| acc | m.flag())
 }
 
+fn post_with_dual_fallback(
+    pid: i32,
+    event: &CGEvent,
+    kind: crate::computer_use::macos_dual_post::MacosPostKind,
+) {
+    let event_ptr = event.as_ptr() as *mut c_void;
+    let skylight_posted = crate::computer_use::macos_skylight::post_to_pid(
+        pid,
+        event_ptr,
+        kind.attach_auth_message(),
+    );
+    if crate::computer_use::macos_dual_post::public_fallback_after_skylight(kind, skylight_posted)
+        == crate::computer_use::macos_dual_post::PublicFallback::PostPublic
+    {
+        event.post_to_pid(pid);
+    }
+}
+
+fn post_both_mouse(pid: i32, event: &CGEvent) {
+    post_with_dual_fallback(
+        pid,
+        event,
+        crate::computer_use::macos_dual_post::MacosPostKind::Mouse,
+    );
+}
+
+fn post_both_keyboard(pid: i32, event: &CGEvent) {
+    post_with_dual_fallback(
+        pid,
+        event,
+        crate::computer_use::macos_dual_post::MacosPostKind::KeyboardAuth,
+    );
+}
+
+fn post_both_keyboard_no_auth(pid: i32, event: &CGEvent) {
+    post_with_dual_fallback(
+        pid,
+        event,
+        crate::computer_use::macos_dual_post::MacosPostKind::KeyboardNoAuth,
+    );
+}
+
 /// Send a click (down + up, possibly multi-click) at the given **global**
 /// pointer position to the target pid. The user's real cursor is NOT moved
 /// because we never call `CGWarpMouseCursorPosition` and the synthesized
@@ -230,7 +378,7 @@ pub fn bg_click(
     if !flags.is_empty() {
         mv.set_flags(flags);
     }
-    mv.post_to_pid(pid);
+    post_both_mouse(pid, &mv);
 
     for i in 1..=click_count {
         let down = CGEvent::new_mouse_event(src.clone(), button.down(), pt, button.cg())
@@ -244,7 +392,7 @@ pub fn bg_click(
         if !flags.is_empty() {
             down.set_flags(flags);
         }
-        down.post_to_pid(pid);
+        post_both_mouse(pid, &down);
 
         let up = CGEvent::new_mouse_event(src.clone(), button.up(), pt, button.cg())
             .map_err(|_| VoidError::tool("CGEvent MouseUp failed".to_string()))?;
@@ -255,7 +403,7 @@ pub fn bg_click(
         if !flags.is_empty() {
             up.set_flags(flags);
         }
-        up.post_to_pid(pid);
+        post_both_mouse(pid, &up);
     }
     info!(
         target: "computer_use::bg_input",
@@ -264,6 +412,256 @@ pub fn bg_click(
         started.elapsed().as_millis() as u64
     );
     Ok(())
+}
+
+/// Send a PID-scoped background drag gesture to the target app.
+///
+/// This is an adapter primitive only. It is deliberately not wired into the
+/// host/tool drag route until a separate route contract and macOS smoke exist.
+pub fn bg_drag(
+    pid: i32,
+    from: (f64, f64),
+    to: (f64, f64),
+    duration_ms: u64,
+    steps: usize,
+    modifiers: &[BgModifier],
+    button: BgDragButton,
+) -> VoidResult<()> {
+    let plan = crate::computer_use::macos_pointer_parity_plan::plan_drag(
+        button.plan_button(),
+        steps,
+        duration_ms,
+    );
+    let src = private_source("drag")?;
+    let flags = flags_from(modifiers);
+    let cg_button = button.cg();
+    let step_delay_ms = plan.step_delay_ms;
+
+    for event in plan.events {
+        let point = match event.kind {
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Down => from,
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Drag
+            | crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Up => {
+                crate::computer_use::macos_pointer_parity_plan::interpolate_point(from, to, event.t)
+            }
+        };
+        let event_type = match event.kind {
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Down => {
+                button.down()
+            }
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Drag => {
+                button.dragged()
+            }
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Up => {
+                button.up()
+            }
+        };
+        let cg_event = CGEvent::new_mouse_event(
+            src.clone(),
+            event_type,
+            CGPoint {
+                x: point.0,
+                y: point.1,
+            },
+            cg_button,
+        )
+        .map_err(|_| VoidError::tool(format!("drag: {:?} event failed", event.kind)))?;
+        if !flags.is_empty() {
+            cg_event.set_flags(flags);
+        }
+        post_both_mouse(pid, &cg_event);
+        if matches!(
+            event.kind,
+            crate::computer_use::macos_pointer_parity_plan::MacosPointerEventKind::Drag
+        ) && step_delay_ms > 0
+        {
+            thread::sleep(Duration::from_millis(step_delay_ms));
+        }
+    }
+
+    info!(
+        target: "computer_use::bg_input",
+        "bg_drag.posted pid={} from=({:.0},{:.0}) to=({:.0},{:.0}) button={:?}",
+        pid, from.0, from.1, to.0, to.1, button
+    );
+    Ok(())
+}
+
+fn stamp_chromium_fields(
+    event: &CGEvent,
+    pid: i32,
+    window_id: u32,
+    click_group_id: i64,
+    recipe_event: crate::computer_use::macos_chromium_click_plan::ChromiumClickRecipeEvent,
+    window_local: Option<(f64, f64)>,
+) -> bool {
+    let ptr = event.as_ptr() as *mut c_void;
+    for (field, value) in
+        crate::computer_use::macos_chromium_click_plan::chromium_click_event_fields(
+            pid,
+            window_id,
+            click_group_id,
+            recipe_event,
+        )
+    {
+        if !crate::computer_use::macos_skylight::set_integer_field(ptr, field, value) {
+            return false;
+        }
+    }
+    if let Some((x, y)) = window_local {
+        if !crate::computer_use::macos_skylight::set_window_location(ptr, x, y) {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn bg_click_chromium(
+    pid: i32,
+    screen_x: f64,
+    screen_y: f64,
+    win_local_x: f64,
+    win_local_y: f64,
+    window_id: u32,
+    click_count: u32,
+    modifiers: &[BgModifier],
+) -> VoidResult<()> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    if click_count == 0 {
+        return Ok(());
+    }
+
+    let src = private_source("click_chromium")?;
+    let target = CGPoint {
+        x: screen_x,
+        y: screen_y,
+    };
+    let offscreen = CGPoint { x: -1.0, y: -1.0 };
+    let flags = flags_from(modifiers);
+    let click_group_id = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos() as i64;
+
+    for event in
+        crate::computer_use::macos_chromium_click_plan::chromium_click_recipe_events(click_count)
+    {
+        let point = match event.target {
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::Target => {
+                target
+            }
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::OffscreenPrimer => {
+                offscreen
+            }
+        };
+        let event_type = match event.kind {
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Move => {
+                CGEventType::MouseMoved
+            }
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Down => {
+                CGEventType::LeftMouseDown
+            }
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Up => {
+                CGEventType::LeftMouseUp
+            }
+        };
+        let local = match event.target {
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::Target => {
+                (win_local_x, win_local_y)
+            }
+            crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::OffscreenPrimer => {
+                (-1.0, -1.0)
+            }
+        };
+        let cg_event =
+            CGEvent::new_mouse_event(src.clone(), event_type, point, CGMouseButton::Left).map_err(
+                |_| {
+                    VoidError::tool(format!(
+                        "Chromium click: failed to create {:?} event",
+                        event.kind
+                    ))
+                },
+            )?;
+        if !stamp_chromium_fields(
+            &cg_event,
+            pid,
+            window_id,
+            click_group_id,
+            event,
+            Some(local),
+        ) {
+            return Err(VoidError::tool(
+                "[CHROMIUM_CLICK_STAMP_UNAVAILABLE] Chromium background click requires SkyLight integer field and window-local event stamping; falling back to generic click."
+                    .to_string(),
+            ));
+        }
+        if !flags.is_empty() {
+            cg_event.set_flags(flags);
+        }
+        post_both_mouse(pid, &cg_event);
+
+        match (event.kind, event.target) {
+            (
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Move,
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::Target,
+            ) => thread::sleep(Duration::from_millis(15)),
+            (
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Down,
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::OffscreenPrimer,
+            )
+            | (
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Down,
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::Target,
+            ) => thread::sleep(Duration::from_millis(1)),
+            (
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventKind::Up,
+                crate::computer_use::macos_chromium_click_plan::ChromiumClickEventTarget::OffscreenPrimer,
+            ) => thread::sleep(Duration::from_millis(100)),
+            _ => {}
+        }
+    }
+
+    info!(
+        target: "computer_use::bg_input",
+        "bg_click_chromium.posted pid={} window_id={} x={:.2} y={:.2} click_count={}",
+        pid,
+        window_id,
+        screen_x,
+        screen_y,
+        click_count.min(2)
+    );
+    Ok(())
+}
+
+pub fn is_chromium_electron(bundle_id: Option<&str>) -> bool {
+    bundle_id
+        .map(crate::computer_use::macos_chromium_click_plan::is_chromium_electron_bundle_id)
+        .unwrap_or(false)
+}
+
+pub fn bundle_id_for_pid(pid: i32) -> Option<String> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    use std::ffi::CStr;
+    use std::os::raw::c_char;
+
+    unsafe {
+        let cls = objc2::runtime::AnyClass::get(c"NSRunningApplication")?;
+        let app: *mut AnyObject = msg_send![cls, runningApplicationWithProcessIdentifier: pid];
+        if app.is_null() {
+            return None;
+        }
+        let bundle: *mut AnyObject = msg_send![app, bundleIdentifier];
+        if bundle.is_null() {
+            return None;
+        }
+        let raw: *const c_char = msg_send![bundle, UTF8String];
+        if raw.is_null() {
+            return None;
+        }
+        CStr::from_ptr(raw).to_str().ok().map(str::to_string)
+    }
 }
 
 /// Best-effort lookup of the macOS frontmost-application pid via NSWorkspace.
@@ -283,11 +681,7 @@ fn frontmost_pid_macos() -> Option<i32> {
             return None;
         }
         let pid: i32 = msg_send![app, processIdentifier];
-        if pid <= 0 {
-            None
-        } else {
-            Some(pid)
-        }
+        if pid <= 0 { None } else { Some(pid) }
     }
 }
 
@@ -298,6 +692,49 @@ fn frontmost_pid_macos() -> Option<i32> {
 /// Returns `Ok(true)` when the activation call returned success, `Ok(false)`
 /// when the app could not be found, and `Err(_)` on AppKit FFI failures.
 pub fn activate_pid_macos(pid: i32) -> VoidResult<bool> {
+    activate_pid_macos_with_window(pid, frontmost_window_id_for_pid(pid))
+}
+
+pub fn activate_pid_macos_with_window(pid: i32, window_id: Option<u32>) -> VoidResult<bool> {
+    let focus_without_raise_available =
+        crate::computer_use::macos_skylight::is_focus_without_raise_available();
+    let plan = crate::computer_use::macos_focus_plan::plan_focus_activation(
+        window_id,
+        focus_without_raise_available,
+        true,
+    );
+
+    for attempt in plan.attempts {
+        match attempt {
+            crate::computer_use::macos_focus_plan::MacosFocusAttempt::FocusWithoutRaise {
+                window_id,
+            } => {
+                let ok =
+                    crate::computer_use::macos_skylight::activate_without_raise(pid, window_id);
+                info!(
+                    target: "computer_use::bg_input",
+                    "activate_without_raise.done pid={} window_id={} ok={}",
+                    pid,
+                    window_id,
+                    ok
+                );
+                if crate::computer_use::macos_focus_plan::public_fallback_after_focus_without_raise(
+                    ok,
+                ) == crate::computer_use::macos_focus_plan::MacosFocusPublicFallback::SkipPublic
+                {
+                    return Ok(true);
+                }
+            }
+            crate::computer_use::macos_focus_plan::MacosFocusAttempt::PublicActivate => {
+                return activate_pid_macos_public(pid);
+            }
+        }
+    }
+
+    Ok(false)
+}
+
+fn activate_pid_macos_public(pid: i32) -> VoidResult<bool> {
     use objc2::msg_send;
     use objc2::runtime::AnyObject;
     let started = Instant::now();
@@ -328,6 +765,64 @@ pub fn activate_pid_macos(pid: i32) -> VoidResult<bool> {
     Ok(result)
 }
 
+pub fn frontmost_window_id_for_pid(pid: i32) -> Option<u32> {
+    use core_foundation::array::CFArray;
+    use core_foundation::base::{CFGetTypeID, CFTypeRef, TCFType};
+    use core_foundation::dictionary::CFDictionary;
+    use core_foundation::number::CFNumber;
+    use core_foundation::string::CFString;
+
+    let raw_ref = unsafe {
+        CGWindowListCopyWindowInfo(
+            K_CG_WINDOW_LIST_OPTION_ON_SCREEN_ONLY | K_CG_WINDOW_LIST_EXCLUDE_DESKTOP_ELEMENTS,
+            K_CG_NULL_WINDOW_ID,
+        )
+    };
+    if raw_ref.is_null() {
+        return None;
+    }
+    let array: CFArray<CFTypeRef> = unsafe { CFArray::wrap_under_create_rule(raw_ref as _) };
+    let dict_type_id = CFDictionary::<*const c_void, *const c_void>::type_id();
+
+    for item in array.iter() {
+        let item = *item;
+        if unsafe { CFGetTypeID(item) } != dict_type_id {
+            continue;
+        }
+        let dict: CFDictionary<*const c_void, *const c_void> =
+            unsafe { CFDictionary::wrap_under_get_rule(item as _) };
+
+        let get_num = |key: &str| -> i64 {
+            let k = CFString::new(key);
+            dict.find(k.as_concrete_TypeRef() as *const c_void)
+                .and_then(|v| unsafe {
+                    let v = *v;
+                    if CFGetTypeID(v) == CFNumber::type_id() {
+                        CFNumber::wrap_under_get_rule(v as _).to_i64()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0)
+        };
+
+        let owner_pid = get_num("kCGWindowOwnerPID") as i32;
+        if owner_pid != pid {
+            continue;
+        }
+        let layer = get_num("kCGWindowLayer") as i32;
+        if layer != 0 {
+            continue;
+        }
+        let window_id = get_num("kCGWindowNumber") as u32;
+        if window_id != 0 {
+            return Some(window_id);
+        }
+    }
+
+    None
+}
+
 /// Pixel-delta scroll inside the focused scroll container of the target
 /// pid's frontmost window. Positive `dy` scrolls content down (matches
 /// trackpad / `wheel1>0` direction).
@@ -343,7 +838,7 @@ pub fn bg_scroll(pid: i32, dx: i32, dy: i32) -> VoidResult<()> {
     // moves down on screen, i.e. user is looking further into the document).
     let ev = CGEvent::new_scroll_event(src, ScrollEventUnit::PIXEL, 2, dy, dx, 0)
         .map_err(|_| VoidError::tool("CGEventCreateScrollWheelEvent2 failed".to_string()))?;
-    ev.post_to_pid(pid);
+    post_both_mouse(pid, &ev);
     Ok(())
 }
 
@@ -375,12 +870,12 @@ pub fn bg_type_text(pid: i32, text: &str) -> VoidResult<()> {
             .map_err(|_| VoidError::tool("CGEventCreateKeyboardEvent failed".to_string()))?;
         let buf: Vec<u16> = ch.encode_utf16(&mut [0u16; 2]).to_vec();
         ev.set_string_from_utf16_unchecked(&buf);
-        ev.post_to_pid(pid);
+        post_both_keyboard(pid, &ev);
         // Match keyup so the target app sees a complete keystroke.
         let ev2 = CGEvent::new_keyboard_event(src.clone(), 0, false)
             .map_err(|_| VoidError::tool("CGEventCreateKeyboardEvent (up) failed".to_string()))?;
         ev2.set_string_from_utf16_unchecked(&buf);
-        ev2.post_to_pid(pid);
+        post_both_keyboard(pid, &ev2);
         // 8ms inter-key gap matches Codex / native typing rates and avoids
         // dropped chars in Chromium webviews and SwiftUI multi-line fields
         // that throttle their keystroke handler. 1ms (the previous value)
@@ -388,6 +883,119 @@ pub fn bg_type_text(pid: i32, text: &str) -> VoidResult<()> {
         thread::sleep(Duration::from_millis(8));
     }
     Ok(())
+}
+
+fn macos_app_identity_for_pid(pid: i32) -> Option<(String, Option<String>)> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    unsafe {
+        let cls = objc2::runtime::AnyClass::get(c"NSRunningApplication")?;
+        let app: *mut AnyObject = msg_send![cls, runningApplicationWithProcessIdentifier: pid];
+        if app.is_null() {
+            return None;
+        }
+
+        let name = {
+            let value: *mut AnyObject = msg_send![app, localizedName];
+            nsstring_to_string(value).unwrap_or_default()
+        };
+        let bundle_id = {
+            let value: *mut AnyObject = msg_send![app, bundleIdentifier];
+            nsstring_to_string(value)
+        };
+
+        Some((name, bundle_id))
+    }
+}
+
+unsafe fn nsstring_to_string(value: *mut objc2::runtime::AnyObject) -> Option<String> {
+    if value.is_null() {
+        return None;
+    }
+    let utf8: *const std::os::raw::c_char = unsafe { objc2::msg_send![value, UTF8String] };
+    if utf8.is_null() {
+        return None;
+    }
+    Some(
+        unsafe { std::ffi::CStr::from_ptr(utf8) }
+            .to_string_lossy()
+            .into_owned(),
+    )
+}
+
+pub fn is_terminal_emulator(pid: i32) -> bool {
+    let Some((name, bundle_id)) = macos_app_identity_for_pid(pid) else {
+        return false;
+    };
+    crate::computer_use::terminal_detect::route_for_type_text(&name, bundle_id.as_deref(), "macos")
+        == crate::computer_use::terminal_detect::TerminalRoute::KeyEvent
+}
+
+pub fn bg_type_text_terminal_safe(pid: i32, text: &str) -> VoidResult<()> {
+    if text.is_empty() {
+        return Ok(());
+    }
+    info!(
+        target: "computer_use::bg_input",
+        "bg_type_text_terminal_safe.enter pid={} char_count={}",
+        pid,
+        text.chars().count()
+    );
+
+    let src = private_source("type_text_terminal")?;
+    for ch in text.chars() {
+        let terminal_key = crate::computer_use::terminal_detect::macos_terminal_key_for_char(ch);
+        let flags = if terminal_key.map(|key| key.shift).unwrap_or(false) {
+            flags_from(&[BgModifier::Shift])
+        } else {
+            CGEventFlags::CGEventFlagNull
+        };
+
+        if let Some(terminal_key) = terminal_key {
+            let down = CGEvent::new_keyboard_event(src.clone(), terminal_key.keycode, true)
+                .map_err(|_| VoidError::tool("terminal type: keydown failed".to_string()))?;
+            if flags != CGEventFlags::CGEventFlagNull {
+                down.set_flags(flags);
+            }
+            down.post_to_pid(pid);
+            thread::sleep(Duration::from_millis(8));
+
+            let up = CGEvent::new_keyboard_event(src.clone(), terminal_key.keycode, false)
+                .map_err(|_| VoidError::tool("terminal type: keyup failed".to_string()))?;
+            if flags != CGEventFlags::CGEventFlagNull {
+                up.set_flags(flags);
+            }
+            up.post_to_pid(pid);
+            thread::sleep(Duration::from_millis(8));
+        } else {
+            let buf: Vec<u16> = ch.encode_utf16(&mut [0u16; 2]).to_vec();
+            let down = CGEvent::new_keyboard_event(src.clone(), 0, true)
+                .map_err(|_| VoidError::tool("terminal type: unicode down failed".to_string()))?;
+            down.set_string_from_utf16_unchecked(&buf);
+            down.post_to_pid(pid);
+            thread::sleep(Duration::from_millis(8));
+
+            let up = CGEvent::new_keyboard_event(src.clone(), 0, false)
+                .map_err(|_| VoidError::tool("terminal type: unicode up failed".to_string()))?;
+            up.set_string_from_utf16_unchecked(&buf);
+            up.post_to_pid(pid);
+            thread::sleep(Duration::from_millis(8));
+        }
+    }
+    Ok(())
+}
+
+pub fn bg_type_text_auto(pid: i32, text: &str) -> VoidResult<()> {
+    if is_terminal_emulator(pid) {
+        debug!(
+            target: "computer_use::bg_input",
+            "bg_type_text_auto: pid={} detected as terminal-like target, using key-event typing",
+            pid
+        );
+        bg_type_text_terminal_safe(pid, text)
+    } else {
+        bg_type_text(pid, text)
+    }
 }
 
 /// Send a key chord (modifier+key combo) to the target pid using the
@@ -409,20 +1017,20 @@ pub fn bg_key_chord(pid: i32, modifiers: &[BgModifier], key: u16) -> VoidResult<
         let ev = CGEvent::new_keyboard_event(src.clone(), m.keycode(), true)
             .map_err(|_| VoidError::tool("CGEvent ModDown failed".to_string()))?;
         ev.set_flags(flags);
-        ev.post_to_pid(pid);
+        post_both_keyboard(pid, &ev);
     }
     // Press main key.
     {
         let ev = CGEvent::new_keyboard_event(src.clone(), key, true)
             .map_err(|_| VoidError::tool("CGEvent KeyDown failed".to_string()))?;
         ev.set_flags(flags);
-        ev.post_to_pid(pid);
+        post_both_keyboard(pid, &ev);
     }
     {
         let ev = CGEvent::new_keyboard_event(src.clone(), key, false)
             .map_err(|_| VoidError::tool("CGEvent KeyUp failed".to_string()))?;
         ev.set_flags(flags);
-        ev.post_to_pid(pid);
+        post_both_keyboard(pid, &ev);
     }
     // Release modifiers in reverse press order.
     for m in modifiers.iter().rev() {
@@ -435,7 +1043,58 @@ pub fn bg_key_chord(pid: i32, modifiers: &[BgModifier], key: u16) -> VoidResult<
             .filter(|x| x != m)
             .collect::<Vec<_>>();
         ev.set_flags(flags_from(&remaining));
-        ev.post_to_pid(pid);
+        post_both_keyboard(pid, &ev);
+    }
+    Ok(())
+}
+
+/// Send a key chord to `pid` without the SkyLight auth-message envelope.
+///
+/// This is a distinct adapter primitive for AppKit menu-equivalent smoke and
+/// future route policy. The default host `app_key_chord` path intentionally
+/// continues to use `bg_key_chord`.
+pub fn bg_key_chord_no_auth(pid: i32, modifiers: &[BgModifier], key: u16) -> VoidResult<()> {
+    debug_assert!(
+        !crate::computer_use::macos_key_parity_plan::post_mode_uses_auth_message(
+            crate::computer_use::macos_key_parity_plan::MacosKeyChordPostMode::NoAuth,
+        )
+    );
+    info!(
+        target: "computer_use::bg_input",
+        "bg_key_chord_no_auth.enter pid={} keycode={} modifiers={:?}",
+        pid, key, modifiers
+    );
+    let flags = flags_from(modifiers);
+    let src = private_source("key_chord_no_auth")?;
+
+    for m in modifiers {
+        let ev = CGEvent::new_keyboard_event(src.clone(), m.keycode(), true)
+            .map_err(|_| VoidError::tool("CGEvent ModDown (no_auth) failed".to_string()))?;
+        ev.set_flags(flags);
+        post_both_keyboard_no_auth(pid, &ev);
+    }
+    {
+        let ev = CGEvent::new_keyboard_event(src.clone(), key, true)
+            .map_err(|_| VoidError::tool("CGEvent KeyDown (no_auth) failed".to_string()))?;
+        ev.set_flags(flags);
+        post_both_keyboard_no_auth(pid, &ev);
+    }
+    {
+        let ev = CGEvent::new_keyboard_event(src.clone(), key, false)
+            .map_err(|_| VoidError::tool("CGEvent KeyUp (no_auth) failed".to_string()))?;
+        ev.set_flags(flags);
+        post_both_keyboard_no_auth(pid, &ev);
+    }
+    for m in modifiers.iter().rev() {
+        let ev = CGEvent::new_keyboard_event(src.clone(), m.keycode(), false)
+            .map_err(|_| VoidError::tool("CGEvent ModUp (no_auth) failed".to_string()))?;
+        let remaining = modifiers
+            .iter()
+            .copied()
+            .filter(|x| x != m)
+            .collect::<Vec<_>>();
+        ev.set_flags(flags_from(&remaining));
+        post_both_keyboard_no_auth(pid, &ev);
     }
     Ok(())
 }
@@ -633,6 +1292,7 @@ mod tests {
         assert_eq!(BgModifier::from_str("CMD"), Some(BgModifier::Command));
         assert_eq!(BgModifier::from_str("control"), Some(BgModifier::Control));
         assert_eq!(BgModifier::from_str("alt"), Some(BgModifier::Option));
+        assert_eq!(BgModifier::from_str("fn"), None);
         assert_eq!(BgModifier::from_str("zzz"), None);
     }
 
@@ -642,5 +1302,11 @@ mod tests {
         assert!(f.contains(CGEventFlags::CGEventFlagCommand));
         assert!(f.contains(CGEventFlags::CGEventFlagShift));
         assert!(!f.contains(CGEventFlags::CGEventFlagControl));
+    }
+
+    #[test]
+    fn fn_modifier_flag_and_keycode() {
+        assert_eq!(BgModifier::Fn.flag(), CGEventFlags::CGEventFlagSecondaryFn);
+        assert_eq!(BgModifier::Fn.keycode(), 63);
     }
 }

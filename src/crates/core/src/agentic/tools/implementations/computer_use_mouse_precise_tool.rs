@@ -98,9 +98,7 @@ impl Tool for ComputerUseMousePreciseTool {
             ));
         }
         let host = context.computer_use_host.as_ref().ok_or_else(|| {
-            VoidError::tool(
-                "Computer use is only available in the Void desktop app.".to_string(),
-            )
+            VoidError::tool("Computer use is only available in the Void desktop app.".to_string())
         })?;
 
         computer_use_execute_mouse_precise(host.as_ref(), input).await

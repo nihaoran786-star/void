@@ -2972,6 +2972,10 @@ const requiredContentRules = [
           /use void_runtime_ports::\{[\s\S]*DialogSessionStateFact[\s\S]*DialogSubmitQueueAction[\s\S]*DialogSubmitQueueFacts[\s\S]*DialogTurnOutcomeKind[\s\S]*resolve_dialog_submit_queue_action[\s\S]*should_skip_agent_session_reply_contract[\s\S]*should_suppress_agent_session_cancelled_reply_contract[\s\S]*\};/,
         message: 'missing dialog scheduler decision contract import',
       },
+      {
+        regex: /\bvoid_runtime_ports::dialog_policy_may_preempt\b/,
+        message: 'missing dialog preempt policy contract anchor',
+      },
     ],
   },
   {
@@ -3146,6 +3150,22 @@ const requiredContentRules = [
         message: 'missing core remote workspace file host binding',
       },
       {
+        regex: /\bCoreRemoteWorkspaceRuntimeHost\b/,
+        message: 'missing core remote workspace host binding',
+      },
+      {
+        regex: /\bCoreRemoteSessionRuntimeHost\b/,
+        message: 'missing core remote session host binding',
+      },
+      {
+        regex: /\bCoreRemotePollRuntimeHost\b/,
+        message: 'missing core remote poll host binding',
+      },
+      {
+        regex: /\bCoreRemoteInteractionRuntimeHost\b/,
+        message: 'missing core remote interaction host binding',
+      },
+      {
         regex: /\bCoreRemoteSessionTrackerHost\b/,
         message: 'missing core remote session tracker host binding',
       },
@@ -3164,6 +3184,22 @@ const requiredContentRules = [
       {
         regex: /\bimpl RemoteWorkspaceFileRuntimeHost for CoreRemoteWorkspaceFileRuntimeHost\b/,
         message: 'missing remote workspace file host adapter implementation in runtime owner',
+      },
+      {
+        regex: /\bimpl RemoteWorkspaceRuntimeHost for CoreRemoteWorkspaceRuntimeHost\b/,
+        message: 'missing remote workspace host adapter implementation in runtime owner',
+      },
+      {
+        regex: /\bimpl RemoteSessionRuntimeHost for CoreRemoteSessionRuntimeHost\b/,
+        message: 'missing remote session host adapter implementation in runtime owner',
+      },
+      {
+        regex: /\bimpl RemotePollRuntimeHost for CoreRemotePollRuntimeHost\b/,
+        message: 'missing remote poll host adapter implementation in runtime owner',
+      },
+      {
+        regex: /\bimpl RemoteInteractionRuntimeHost for CoreRemoteInteractionRuntimeHost\b/,
+        message: 'missing remote interaction host adapter implementation in runtime owner',
       },
       {
         regex: /\bimpl RemoteSessionTrackerHost for CoreRemoteSessionTrackerHost\b/,
@@ -3403,6 +3439,66 @@ const requiredContentRules = [
       {
         regex: /\bpub fn remote_assistant_list_response\b/,
         message: 'missing remote assistant-list response assembly helper',
+      },
+      {
+        regex: /\bpub trait RemoteWorkspaceRuntimeHost\b/,
+        message: 'missing remote workspace runtime host contract',
+      },
+      {
+        regex: /\bpub async fn handle_remote_workspace_command\b/,
+        message: 'missing remote workspace command owner handler',
+      },
+      {
+        regex: /\bremote_workspace_handler_preserves_response_shapes\b/,
+        message: 'missing remote workspace handler response regression',
+      },
+      {
+        regex: /\bpub trait RemoteInitialSyncRuntimeHost\b/,
+        message: 'missing remote initial sync runtime host contract',
+      },
+      {
+        regex: /\bpub async fn generate_remote_initial_sync\b/,
+        message: 'missing remote initial sync owner handler',
+      },
+      {
+        regex: /\bpub trait RemoteSessionRuntimeHost\b/,
+        message: 'missing remote session runtime host contract',
+      },
+      {
+        regex: /\bpub async fn handle_remote_session_command\b/,
+        message: 'missing remote session command owner handler',
+      },
+      {
+        regex: /\bremote_session_handler_preserves_list_and_create_policy\b/,
+        message: 'missing remote session handler regression',
+      },
+      {
+        regex: /\bremote_session_handler_removes_tracker_after_delete_success\b/,
+        message: 'missing remote session delete tracker cleanup regression',
+      },
+      {
+        regex: /\bpub trait RemotePollRuntimeHost\b/,
+        message: 'missing remote poll runtime host contract',
+      },
+      {
+        regex: /\bpub async fn handle_remote_poll_command\b/,
+        message: 'missing remote poll command owner handler',
+      },
+      {
+        regex: /\bremote_poll_handler_preserves_missing_workspace_error\b/,
+        message: 'missing remote poll missing workspace regression',
+      },
+      {
+        regex: /\bpub trait RemoteInteractionRuntimeHost\b/,
+        message: 'missing remote interaction runtime host contract',
+      },
+      {
+        regex: /\bpub async fn handle_remote_interaction_command\b/,
+        message: 'missing remote interaction command owner handler',
+      },
+      {
+        regex: /\bremote_interaction_handler_preserves_default_reject_reason\b/,
+        message: 'missing remote interaction default reject regression',
       },
       {
         regex: /\bpub fn remote_session_info\b/,
@@ -3793,6 +3889,68 @@ const requiredContentRules = [
       {
         regex: /\binner\.is_tool_collapsed\b/,
         message: 'missing collapsed exposure lookup delegation',
+      },
+    ],
+  },
+  {
+    path: 'src/crates/core/src/agentic/tools/computer_use_host.rs',
+    reason:
+      'Computer Use host seam must stay explicit while upstream tool-contract DTO extraction remains deferred',
+    patterns: [
+      {
+        regex: /\bpub trait ComputerUseHost\b/,
+        message: 'missing ComputerUseHost boundary trait',
+      },
+      {
+        regex: /\basync fn computer_use_session_snapshot\b/,
+        message: 'missing readonly session snapshot host seam',
+      },
+      {
+        regex: /\bfn computer_use_interaction_state\b/,
+        message: 'missing readonly interaction state host seam',
+      },
+      {
+        regex: /\basync fn enumerate_ui_tree_text\b/,
+        message: 'missing optional UI tree text host seam',
+      },
+    ],
+  },
+  {
+    path: 'src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs',
+    reason:
+      'Computer Use describe_screen must remain a readonly core tool action using existing host seams',
+    patterns: [
+      {
+        regex: /\basync fn describe_screen_result\b/,
+        message: 'missing describe_screen dispatch implementation',
+      },
+      {
+        regex: /\bcomputer_use_session_snapshot\(\)\.await\b/,
+        message: 'describe_screen must read the session snapshot seam',
+      },
+      {
+        regex: /\bcomputer_use_interaction_state\(\)/,
+        message: 'describe_screen must read the interaction state seam',
+      },
+      {
+        regex: /\benumerate_ui_tree_text\(\)\.await\b/,
+        message: 'describe_screen must read the optional UI tree seam',
+      },
+      {
+        regex: /screenshot_display must not be called by describe_screen/,
+        message: 'missing guard that describe_screen does not call screenshot_display',
+      },
+      {
+        regex: /\bcomputer_use_schema_exposes_describe_screen_in_text_only_and_multimodal\b/,
+        message: 'missing schema exposure regression test',
+      },
+      {
+        regex: /\bcomputer_use_describe_screen_dispatch_does_not_fall_through_to_unknown_action\b/,
+        message: 'missing dispatch regression test',
+      },
+      {
+        regex: /\bdescribe_screen_is_readonly_and_does_not_mutate_screenshot_state\b/,
+        message: 'missing readonly side-effect regression test',
       },
     ],
   },
@@ -5959,7 +6117,7 @@ function rustImportName(depName) {
 }
 
 function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 }
 
 function manifestDependencyHeaderPattern(depName) {
@@ -7219,6 +7377,28 @@ function runManifestParserSelfTest() {
         'ProductToolRuntime',
         'get_collapsed_tool_names',
         'resolve_product_readonly_enabled_tools',
+      ],
+    },
+    {
+      path: 'src/crates/core/src/agentic/tools/computer_use_host.rs',
+      contracts: [
+        'ComputerUseHost',
+        'computer_use_session_snapshot',
+        'computer_use_interaction_state',
+        'enumerate_ui_tree_text',
+      ],
+    },
+    {
+      path: 'src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs',
+      contracts: [
+        'describe_screen_result',
+        'computer_use_session_snapshot',
+        'computer_use_interaction_state',
+        'enumerate_ui_tree_text',
+        'screenshot_display must not be called by describe_screen',
+        'computer_use_schema_exposes_describe_screen_in_text_only_and_multimodal',
+        'computer_use_describe_screen_dispatch_does_not_fall_through_to_unknown_action',
+        'describe_screen_is_readonly_and_does_not_mutate_screenshot_state',
       ],
     },
     {

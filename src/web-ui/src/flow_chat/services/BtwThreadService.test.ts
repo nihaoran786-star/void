@@ -175,6 +175,48 @@ describe('BtwThreadService', () => {
     );
   });
 
+  it('passes image contexts to transient BTW follow-up streams', async () => {
+    sessions.set('btw-child-1', {
+      sessionId: 'btw-child-1',
+      title: 'Side question',
+      sessionKind: 'btw',
+      parentSessionId: 'parent-1',
+      isTransient: true,
+      agentBackedTransient: false,
+      config: {
+        modelName: 'fast',
+      },
+    });
+    mockAskStream.mockResolvedValue({ ok: true });
+
+    await sendMessageToTransientBtwSession({
+      parentSessionId: 'parent-1',
+      childSessionId: 'btw-child-1',
+      question: 'What is in this image?',
+      imagePayload: {
+        imageContexts: [
+          {
+            id: 'img-1',
+            mimeType: 'image/png',
+            dataUrl: 'data:image/png;base64,AAAA',
+          },
+        ],
+      },
+    });
+
+    expect(mockAskStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        imageContexts: [
+          {
+            id: 'img-1',
+            mimeType: 'image/png',
+            dataUrl: 'data:image/png;base64,AAAA',
+          },
+        ],
+      }),
+    );
+  });
+
   it('prepares the parent backend session before starting a transient BTW stream', async () => {
     mockAskStream.mockImplementation(() => {
       expect(mockEnsureBackendSession).toHaveBeenCalledWith('parent-1');

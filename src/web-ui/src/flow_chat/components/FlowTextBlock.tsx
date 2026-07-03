@@ -16,6 +16,11 @@ import {
   autoPreviewOrchestrator,
   detectAutoPreviewCandidates,
 } from '@/shared/services/preview/AutoPreviewService';
+import {
+  isStartupRenderTraceEnabled,
+  recordReactRenderProfile,
+  startupTrace,
+} from '@/shared/utils/startupTrace';
 import './FlowTextBlock.scss';
 
 // Idle timeout (ms) after content stops growing.
@@ -76,33 +81,33 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
   });
   const hasMountedRef = useRef(false);
   const wasStreamingRef = useRef(isStreaming);
-  
+
   // Heuristic: if content does not change for a while, streaming is done.
   const [isContentGrowing, setIsContentGrowing] = useState(true);
   const lastContentRef = useRef(content);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
     if (content !== lastContentRef.current) {
       lastContentRef.current = content;
       setIsContentGrowing(true);
-      
+
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      
+
       timeoutRef.current = setTimeout(() => {
         setIsContentGrowing(false);
       }, CONTENT_IDLE_TIMEOUT);
     }
-    
+
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
   }, [content]);
-  
+
   useEffect(() => {
     if (textItem.status === 'completed' || !textItem.isStreaming) {
       setIsContentGrowing(false);
@@ -142,16 +147,14 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
     textItem.runtimeStatus,
     textItem.status,
   ]);
-  
+
   const isActivelyStreaming = textItem.isStreaming &&
     (textItem.status === 'streaming' || textItem.status === 'running') &&
     isContentGrowing;
 
-  if (textItem.runtimeStatus) {
-    return <RuntimeStatusBlock textItem={textItem} className={className} />;
-  }
-
-  return (
+  const flowTextBlockContent = textItem.runtimeStatus ? (
+    <RuntimeStatusBlock textItem={textItem} className={className} />
+  ) : (
     <div className={`flow-text-block ${className} ${isActivelyStreaming ? 'streaming flow-text-block--streaming' : ''}`}>
       {textItem.isMarkdown ? (
         <MarkdownRenderer
@@ -178,6 +181,45 @@ export const FlowTextBlock = React.memo<FlowTextBlockProps>(({
         </div>
       )}
     </div>
+  );
+
+  const renderTraceEnabled = isStartupRenderTraceEnabled();
+  if (!renderTraceEnabled) {
+    return flowTextBlockContent;
+  }
+
+  const hasCodeBlock = /```/.test(displayContent);
+  const hasTable = /\n\|.+\|\n\|[-:\s|]+\|/.test(displayContent);
+
+  return (
+    <React.Profiler
+      id="FlowTextBlock"
+      onRender={(
+        id,
+        phase,
+        actualDuration,
+        baseDuration,
+        startTime,
+        commitTime,
+      ) => {
+        recordReactRenderProfile(startupTrace, {
+          component: id,
+          phase,
+          actualDurationMs: actualDuration,
+          baseDurationMs: baseDuration,
+          startTimeMs: startTime,
+          commitTimeMs: commitTime,
+          itemId: textItem.id,
+          contentLength: content.length,
+          renderedCount: displayContent.length,
+          isStreaming,
+          hasCodeBlock,
+          hasTable,
+        });
+      }}
+    >
+      {flowTextBlockContent}
+    </React.Profiler>
   );
 }, (prevProps, nextProps) => {
   const prev = prevProps.textItem;

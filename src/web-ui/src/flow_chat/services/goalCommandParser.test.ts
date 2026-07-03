@@ -18,10 +18,17 @@ describe('goalCommandParser', () => {
     expect(parseGoalCommand('/goal pause')).toEqual({ action: 'pause' });
     expect(parseGoalCommand('/goal resume')).toEqual({ action: 'resume' });
     expect(parseGoalCommand('/goal clear')).toEqual({ action: 'clear' });
+    expect(parseGoalCommand('/goal complete')).toEqual({ action: 'complete' });
+    expect(parseGoalCommand('/goal block')).toEqual({ action: 'block' });
     expect(parseGoalCommand('/goal edit ship importer fix')).toEqual({
       action: 'edit',
       goalText: 'ship importer fix',
     });
+    expect(parseGoalCommand('/goal budget 1000')).toEqual({
+      action: 'set-budget',
+      tokenBudget: 1000,
+    });
+    expect(parseGoalCommand('/goal budget clear')).toEqual({ action: 'clear-budget' });
   });
 
   it('parses multiline goal objectives', () => {
@@ -34,6 +41,10 @@ describe('goalCommandParser', () => {
   it('rejects malformed management commands', () => {
     expect(parseGoalCommand('/goal pause now')).toBeNull();
     expect(parseGoalCommand('/goal edit   ')).toBeNull();
+    expect(parseGoalCommand('/goal complete now')).toBeNull();
+    expect(parseGoalCommand('/goal block now')).toBeNull();
+    expect(parseGoalCommand('/goal budget abc')).toBeNull();
+    expect(parseGoalCommand('/goal budget 1 2')).toBeNull();
   });
 
   it('detects valid goal commands only', () => {

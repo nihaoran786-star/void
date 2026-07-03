@@ -1,0 +1,1457 @@
+# Upstream Migration Issues
+
+Date: 2026-07-02
+
+Each issue must be independently implementable and independently testable. Only one implementation issue may be active at a time.
+
+## Issue Template
+
+```md
+### ISSUE-NNN Title
+
+Priority: P0 | P1 | P2 | P3 | Rejected
+Status: Proposed | Active | Done | Blocked | Deferred | Split | Rejected
+Goal:
+Allowed files:
+Forbidden files:
+Affected module:
+Preserved contracts:
+Implementation rule:
+Verification:
+Docs to update:
+Risk notes:
+```
+
+## P0 - Verify, Inventory, or No-Op
+
+### ISSUE-000 Baseline and Protected Contract Audit
+
+Priority: P0
+Status: Done
+Goal: Confirm current baseline, protected capabilities, and verification commands before code migration.
+Allowed files: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, and consensus docs required to record audit findings.
+Forbidden files: functional source files, installer source files, brand source files.
+Affected module: migration governance.
+Preserved contracts: baseline branch/tag remains the comparison point; no functional code migration occurs.
+Verification: `git status --short --branch`; `git remote -v`; `git branch -r --list "origin/baseline/void-source-20260702"`; `git rev-parse --verify "origin/baseline/void-source-20260702"`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: untracked consensus docs are expected during planning but must be recorded.
+
+### ISSUE-003 Upstream Capability Inventory and Classification
+
+Priority: P0
+Status: Done
+Goal: Produce the complete upstream candidate inventory before functional migration.
+Allowed files: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Forbidden files: functional source files.
+Affected module: migration governance.
+Preserved contracts: no upstream candidate remains unclassified; accepted candidates map to Void module boundaries.
+Implementation rule: inventory only; no implementation.
+Verification: upstream reference is recorded; no discovered candidate remains unclassified; BitFun branding, installer, crate layout, and whole-file replacement candidates are explicitly rejected or deferred.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: insufficient upstream history depth must be recorded rather than guessed.
+
+Required inventory fields:
+
+- upstream commit/path when available,
+- capability description,
+- classification: `P0`, `P1`, `P2`, `P3`, or `Rejected`,
+- decision reason,
+- affected Void module,
+- protected contract,
+- required verification.
+
+#### ISSUE-003 Inventory - Upstream Reference and Coverage
+
+Observed upstream references:
+
+- Local upstream clone: `tmp/upstream-bitfun`
+- Local upstream HEAD: `c2f6a3c91d9e3f3cc8df834a613acecd47134b32`
+- Local upstream branch: `main`
+- Local upstream package version: `0.2.11`
+- GitHub release reference: `v0.2.11`, latest release observed by release inventory agent, published 2026-06-24.
+- GitHub nightly reference: `0.2.11-nightly.20260702+029e9e7d`, commit `029e9e7`, published 2026-07-02 07:34.
+- Local clone limitation: shallow clone. `git log` only exposes `c2f6a3c`; `git show HEAD` cannot be treated as a true delta because parents are missing.
+
+Classification rule:
+
+- `P0`: verification/protection gate before migration.
+- `P1`: low-risk fix or governance improvement with clear Void rewrite path.
+- `P2`: valuable but cross-module, platform, runtime, or state-model sensitive.
+- `P3`: useful later, large, debug-only, or high operational risk.
+- `Rejected`: conflicts with Void identity, local architecture, protected product contracts, or whole-file replacement policy.
+
+#### ISSUE-003 Inventory - Frontend and Flow Chat
+
+| Candidate | Upstream path/commit | Capability | Class | Void module | Protected contract | Verification |
+|---|---|---|---|---|---|---|
+| UF-001 | `c2f6a3c: RichTextInput.tsx` | IME-safe Escape/Enter handling | P1 | Chat input | IME owns composition; popup close must not cancel running tasks | RichTextInput tests; type-check |
+| UF-002 | `c2f6a3c: RichTextInput.tsx` | `openMention()` spacing | P1 | Chat input | Existing mention/context tag semantics | RichTextInput tests |
+| UF-003 | `c2f6a3c: RichTextInput.tsx` | `insertTagReplacingMention()` spacing | P1 | Chat input | Existing editor text and tag insertion | RichTextInput tests |
+| UF-004 | `c2f6a3c: FileMentionPicker/slash popup code` | Mention/slash/skills popup viewport bounds | P1 | Chat input UI | No business logic in `ChatInput.tsx` | Component/style smoke; type-check |
+| UF-005 | `c2f6a3c: chat image strip/paste/undo code` | Image context strip, paste, undo stability | P2 | Chat input/media context | Preserve `imageContextForBackend`, media references | Image paste tests; manual paste/undo |
+| UF-006 | `c2f6a3c: popup Escape handling` | Popup active disables global Escape task cancel | P1 | Chat input/task controls | Running task cancellation remains explicit | Chat input Escape tests |
+| UF-007 | `c2f6a3c: FlowChatStore/history restore` | `historyState` and `contextRestoreState` restore | P2 | Flow Chat session restore | Explicit history states; no `sessions: []` state shortcut | Session restore tests |
+| UF-008 | `c2f6a3c: history diagnostics` | History restore placeholder and failure diagnostics | P2 | Flow Chat diagnostics | UI renders state only | Restore failure fixture |
+| UF-009 | `c2f6a3c: VirtualMessageList` | Long-history initial windowing and scrollTop mapping | P2 | Flow Chat virtual list | Do not replace whole Flow Chat | Long-session layout tests |
+| UF-010 | `c2f6a3c: scroll policy/autoscroll` | Follow-output, anchor lock, user-scroll exit | P2 | Flow Chat scroll | Preserve media/short-drama tiles | Scroll stability E2E |
+| UF-011 | `c2f6a3c: model round rendering` | Progressive model-round rendering | P2 | Flow Chat rendering | Preserve model-round item ordering | Model round snapshot tests |
+| UF-012 | `c2f6a3c: startupTrace.ts` | Startup API timing, payload estimate, concurrency observability | P1 | Startup trace | Use `VOID`/existing Void trace names only | startupTrace tests |
+| UF-013 | `c2f6a3c: deferred startup systems` | Preload/deferred startup systems and perf contracts | P2 | Startup/session open | Do not alter startup order without decision | Startup perf smoke |
+| UF-014 | `c2f6a3c: mobile-web` | Mobile web dev/build/preview UI improvements | P2 | Mobile web | Do not affect desktop Flow Chat state | Mobile type-check/smoke |
+| UF-015 | `c2f6a3c: terminal frontend` | Lazy terminal output, resize repaint guard, paste queue | P2 | Terminal UI | Terminal domain stays in terminal service/core | Terminal targeted tests |
+| UF-016 | `c2f6a3c: session nav metadata` | Startup defer, expand, selection tests for session nav | P1 | Sidebar/session nav | Explicit session metadata source | Session nav tests |
+| UF-017 | `c2f6a3c: session restore API entrypoint` | Narrow API entrypoint for restore/startup hot paths | P1 | Session restore API | No business logic in page/header/sidebar | Restore tests |
+| UF-018 | `c2f6a3c: i18n/theme/repo hygiene scripts` | i18n/theme/repo hygiene audits | P1 | Governance scripts | Void baselines and names only | Audit script tests |
+| UF-019 | `c2f6a3c: Flow Chat replacement files` | Whole Flow Chat/store/virtual list replacement | Rejected | Flow Chat | Protect multi-agent, BTW, media, short-drama | N/A |
+| UF-020 | `c2f6a3c: ContentCanvas/media/short-drama alternatives` | Replace local media/short-drama canvas with upstream | Rejected | Media/short-drama | Preserve local AI media and short drama modules | N/A |
+| UF-021 | `c2f6a3c: package/installer/globals` | Root package, BitFun installer, startup globals | Rejected | Packaging/brand | Void identity only | Brand audit |
+
+#### ISSUE-003 Inventory - Core, Runtime, Tools, Providers
+
+| Candidate | Upstream path/commit | Capability | Class | Void module | Protected contract | Verification |
+|---|---|---|---|---|---|---|
+| C01 | `c2f6a3c: analyze_image_tool.rs` | Read-only `analyze_image` tool for local/remote workspace images | P2 | Core agent tools | `ToolUseContext` stays in core; readonly and path policy preserved | Tool schema/permission/remote path tests |
+| C02 | `c2f6a3c: image_processing.rs` | MIME detection, provider limits, compression/downsampling, multimodal payloads | P2 | Core image analysis/adapters | Provider wire format stays in adapters | PNG/JPEG/WebP and provider payload tests |
+| C03 | `c2f6a3c: processor.rs`, `enhancer.rs` | Pre-analyze uploaded images and inject structured analysis | P2 | Flow Chat to core image context | UI cannot infer image understanding results | JSON/fallback and E2E image-context smoke |
+| C04 | `c2f6a3c: image_context.rs` | Temporary image context storage, expiry, lookup, cleanup | P2 | Core tool context | Do not move workspace services into portable contracts | Expiry and lookup tests |
+| C05 | `c2f6a3c: tool_image_attachment.rs`, adapter converters | Tool result image attachments for OpenAI/Anthropic replay | P1 | Core types/AI adapters | Provider-neutral DTO in core; serialization in adapters | Adapter converter tests |
+| C06 | `c2f6a3c: ai-adapters/src/client/sse.rs` | SSE retry with 429/408/409/425/5xx and `Retry-After`, cap 60s | P1 | AI adapters | Preserve auth failure and user cancel semantics | Retry-after mock tests |
+| C07 | `c2f6a3c: tool_call_accumulator.rs` | Stream tool-call argument accumulation and truncated JSON safety | P1 | Agent stream/parser | Do not execute unsafe truncated tool calls | Tool accumulator fixtures |
+| C08 | `c2f6a3c: responses.rs` | OpenAI Responses `function_call_arguments.delta`, tail fallback, incomplete handling | P1 | OpenAI adapter | Core consumes unified stream only | Responses fixture replay |
+| C09 | `c2f6a3c: stream usage types` | Token usage split for cache read vs cache creation | P0 | AI adapters/core usage | Cache read and creation are distinct; adapter slices may implement as P1 sub-issues | Provider usage and token accounting tests |
+| C10 | `c2f6a3c: prompt_cache.rs` | Prompt cache identity, TTL, restore prune/delete, scope invalidation | P0 | Core prompt cache | Explicit prompt-cache identity | Prompt cache contract tests |
+| C11 | `c2f6a3c: thread_goal.rs`, `thread_goal_tools.rs` | Persistent `/goal`, budget, auto continuation, complete/blocked tools | P0 | Goal workflow | Goal state persisted; token accounting excludes cached reads; helper slices may be P1 | Goal contract tests |
+| C12 | `c2f6a3c: multitask.rs` | Multitask mode, shared coding tools, parallel subagent tendency | P0 | Agent modes/subagents | Permission-gated parallel behavior; review readonly limits | Mode prompt/tool exposure tests |
+| C13 | `c2f6a3c: assembly/execution/contracts layout` | Upstream crate decomposition | P3 | Architecture | Do not migrate upstream crate layout without a separate architecture decision | Core boundary audit |
+| C14 | `c2f6a3c: BitFun naming/config` | BitFun installer/brand/provider defaults | Rejected | Brand/installer | Void identity only | Brand audit |
+
+#### ISSUE-003 Inventory - Desktop, Computer Use, WebDriver, Terminal
+
+| Candidate | Upstream path/commit | Capability | Class | Void module | Protected contract | Verification |
+|---|---|---|---|---|---|---|
+| DESK-STARTUP-TRACE | `c2f6a3c: src/apps/desktop/src/startup_trace.rs`, `lib.rs` | Native startup phase, Tauri command, tray/window timing snapshots | P1 | Desktop startup observability | Void names/events only; no startup order change | Desktop check; startup smoke |
+| DESK-TRAY-TIMING | `c2f6a3c: tray.rs` | Tray menu/icon/refresh timing | P1 | Desktop tray | Tray integration only; preserve Void text/preferences | Desktop check; tray smoke |
+| DESK-WINDOW-CLOSE | `c2f6a3c: lib.rs` | macOS close ack, timeout fallback, minimize-to-tray behavior | P2 | Window lifecycle | Void close event/labels; frontend owns close preference | macOS close/reopen smoke |
+| DESK-REGISTRY-INSTALL-PATH | `c2f6a3c: lib.rs` | Windows NSIS install-location registry sync | P2 | Installer/desktop | Void registry path only; upstream BitFun registry names are rejected | Windows installer smoke; brand audit |
+| CU-WIN-CAPTURE | `c2f6a3c: windows_capture.rs` | Windows `PrintWindow`, DWM crop, BitBlt fallback, occlusion flag | P2 | Computer Use capture adapter | Platform capture stays behind `ComputerUseHost` | Windows capture smoke |
+| CU-WIN-BG-INPUT | `c2f6a3c: windows_bg_input.rs` | Background click/type/scroll/drag via PostMessage and fallback | P2 | Computer Use input adapter | Permission/tool policy not moved to Web UI | Windows input smoke |
+| CU-WIN-MSAA | `c2f6a3c: windows_msaa.rs` | MSAA fallback for UIA gaps | P2 | Computer Use accessibility adapter | Map to existing interactive-view state | Windows app smoke |
+| CU-TERMINAL-DETECT | `c2f6a3c: terminal_detect.rs` | Terminal/GVim detection routes `type_text` to key events | P2 | Computer Use input routing | Terminal domain not moved into desktop API | Pure function tests; terminal typing smoke |
+| CU-MAC-SKYLIGHT | `c2f6a3c: macos_skylight.rs` | macOS private SkyLight background input and focus/menu shortcuts | P2 | Computer Use macOS adapter | Private API contained in desktop adapter; real macOS smoke remains the release gate | macOS gated smoke |
+| CU-DEBUG-E2E | `c2f6a3c: debug_overlay.rs`, `integration_e2e.rs` | Computer Use debug overlay/e2e helpers | P3 | Devtools/test support | Debug-only feature gate; no release leakage | Devtools check |
+| WEBDRIVER-EMBEDDED-FEATURE | `c2f6a3c: webdriver/src/lib.rs`, desktop Cargo | WebDriver starts under debug or `embedded` feature | P1 | WebDriver/desktop devtools | Void env names and feature gates only | WebDriver check/smoke |
+| WEBDRIVER-BITFUN-ENV | `c2f6a3c: webdriver/src/lib.rs` | `BITFUN_WEBDRIVER_*` env names | Rejected | WebDriver identity | Must use `VOID_WEBDRIVER_*` | Brand grep |
+| BRAND-DESKTOP-IDENTITY | `c2f6a3c: tauri.conf.json`, updater key, icons, tray | BitFun product, identifier, publisher, updater, registry, tray text | Rejected | Installer/brand | Preserve Void identity | ISSUE-006 brand audit |
+| TERMINAL-CRATE-UPSTREAM | upstream lacks `src/crates/terminal`; current branch has it | No direct upstream terminal crate fix found | Rejected | Terminal crate | Terminal domain remains local; no upstream crate-layout migration applies | Local terminal tests when available |
+
+#### ISSUE-003 Inventory - Build, Docs, CI, Release Governance
+
+| Candidate | Upstream path/commit | Capability | Class | Void module | Protected contract | Verification |
+|---|---|---|---|---|---|---|
+| UBDI-001 | `c2f6a3c: package.json` | Root scripts for generate/build/desktop/installer/e2e/perf | P2 | Build orchestration | Void root layout and names; no BitFun package identity | Script dry run after Void rewrite |
+| UBDI-002 | `c2f6a3c: package.json`, `.github/workflows/ci.yml` | i18n contract CI profile and audit integration gate | P1 | CI/i18n | `VOID_I18N_*` only | i18n contract test |
+| UBDI-003 | `c2f6a3c: scripts/i18n-audit.mjs` and baselines | i18n dynamic key, fallback, locale, allowlist governance | P1 | i18n scripts | Void installer paths and reports only | i18n audit |
+| UBDI-004 | `c2f6a3c: scripts/i18n-contract.test.mjs` | i18n generated-file and audit integration contract tests | P1 | i18n tests | Void generated paths only | Node test |
+| UBDI-005 | `c2f6a3c: audit-theme-colors.mjs`, baselines | Web/mobile/installer theme color governance and CSS var contract | P2 | Theme/design tokens | Void surfaces and baselines only | Theme audit tests |
+| UBDI-006 | `c2f6a3c: audit-cli-theme-colors.mjs` | CLI preset/fallback color audit | P1 | CLI theme | Void CLI names only | CLI theme audit |
+| UBDI-007 | `c2f6a3c: validate-theme-visual-contract.mjs` | Visual governance contract for surfaces/form factors/evidence | P2 | Theme QA | Preserve media/short-drama contracts | Visual contract validation |
+| UBDI-008 | `c2f6a3c: generate-startup-theme-bootstrap.mjs` | Startup theme bootstrap and prompt snapshot generation | P2 | Desktop startup/theme | Adapt to local crate layout | Generator tests |
+| UBDI-009 | `c2f6a3c: check-core-boundaries.mjs`, rule dir | Rule-based core boundary checker | P2 | Architecture guardrails | Do not force upstream crate layout | Boundary checker tests |
+| UBDI-010 | `c2f6a3c: check-repo-hygiene.mjs` | Repo hygiene scan for secrets, local paths, prompt temp files | P1 | Repo hygiene/CI | Avoid generated false positives | Hygiene script test |
+| UBDI-011 | `c2f6a3c: cli-package-manual.yml` | Manual CLI package workflow | P1 | Release CI | Artifact/tap/repo names Void-only | Workflow review/YAML parse |
+| UBDI-012 | `c2f6a3c: desktop-package.yml`, `nightly.yml` | Release/nightly matrix, updater manifest collection | P0 | Desktop packaging | No `BITFUN_*`, GCWing URLs, bitfun artifacts; artifact-only slices may be P1 | GitHub config check |
+| UBDI-013 | `c2f6a3c: BitFun-Installer/*` | Installer app/package/Tauri config | Rejected | Installer | `Void-Installer`, Void registry, Void updater; only a separate Void rewrite could reopen this | Brand residue audit |
+| UBDI-014 | `c2f6a3c: performance-trace helpers` | Startup/native/API/resource timing E2E helpers | P2 | E2E perf | `__VOID_*` trace contract only | Perf trace smoke |
+| UBDI-015 | `c2f6a3c: run-startup-stability.mjs` | Release-fast startup stability runner | P2 | E2E perf | `VOID_E2E_*`; no `.bitfun` profile | Startup stability after rewrite |
+| UBDI-016 | `c2f6a3c: long-session fixture/matrix scripts` | Long-session open/reopen/switch/scroll/resize matrix | P2 | Flow Chat perf | Preserve SessionHistoryState, BTW, media | Long-session perf after rewrite |
+| UBDI-017 | `c2f6a3c: tests/e2e/specs/performance` | Startup/session input layout/editor performance specs | P2 | E2E perf | Void selectors and contracts | Targeted perf specs |
+| UBDI-018 | `c2f6a3c: chat scroll/code preview specs` | Scroll whitespace and code preview regressions | P2 | Flow Chat rendering | Avoid implementation-coupled tests | Targeted E2E specs |
+| UBDI-019 | local Void `brand-residue-audit.mjs` vs upstream BitFun residue | Brand audit protection | P0 verify | Brand governance | Reject BitFun names/envs/installer ids | Strict brand audit |
+| UBDI-020 | `c2f6a3c: workflows/scripts/E2E` | `BITFUN_*` env and `__BITFUN_*` globals | Rejected | CI/E2E/startup trace | Must use `VOID_*`/`__VOID_*` or existing Void contract before any future rewrite | Brand grep |
+
+#### ISSUE-003 Inventory - Release Notes and Product Capability Families
+
+| Candidate | Source | Capability | Class | Void module | Protected contract | Verification |
+|---|---|---|---|---|---|---|
+| REL-001 | PR #1390 / `c2f6a3c` | Image understanding tool family | P2 | Agent tools/image analysis/adapters | Preserve Void media, APIMart, gallery, permissions | ISSUE-100A/B/C |
+| REL-002 | `v0.2.11` release notes/files | Inline Skill references via `/` or `$` | P1 | Chat input/runtime skills | Do not break slash, mention, IME, media context; runtime expansion can be split later | RichTextInput and runtime parsing tests |
+| REL-003 | `v0.2.11` release notes/files | Custom Agent/Mode management | P2 | Agent registry/settings | Do not overwrite Void multi-agent, Review Team, BTW, `/goal` | Custom agent contract tests |
+| REL-004 | `v0.2.11` release notes/files | Background subagent activity panel/cancel | P2 | Flow Chat header/sidebar/runtime | Preserve parent-child subagent state | Background subagent tests |
+| REL-005 | `v0.2.11` release notes/files | PPT Live generation enhancements | P3 | MiniApp/product domains | Do not affect short-drama/media canvas; lower priority unless current MiniApp scope reopens | MiniApp smoke/export tests |
+| REL-006 | `v0.2.11` release notes/files | Terminal paste and resize stability | P2 | Terminal service/UI | Terminal logic remains in terminal service/core | Terminal tests/manual PowerShell smoke |
+| REL-007 | `v0.2.11` release notes/files | flashgrep upgrade and remote search mapping | P2 | Workspace search/remote SSH | Core does not depend on flashgrep internals | Local/remote search tests |
+| REL-008 | `v0.2.11` release notes/files | Open local HTML from file/tab menus | P1 | File explorer/command adapter | UI uses adapter; path escaping safe | htmlFilePreview tests/smoke |
+| REL-009 | `v0.2.11` release notes/files | Computer-use `describe_screen` | P2 | Computer Use tools/platform adapters | Preserve `ComputerUseHost` contract | Schema tests and platform smoke |
+| REL-010 | `v0.2.11` release notes/files | Startup and session responsiveness | P1 | Startup trace/session restore/tray | Preserve session restore model and tray lifecycle; risky UI slices stay separately gated | Startup/session perf tests |
+| REL-011 | `v0.2.11` release notes/files | 429/TPM rate-limit retry fixes | P2 | AI adapters/stream runtime | Preserve provider fallback and error taxonomy | 429 HTTP/SSE mocks |
+| REL-012 | `v0.2.11` release notes/files | Flow Chat retry/abnormal-end display fixes | P2 | Session/stream/Flow Chat | Preserve SessionHistoryState and BTW/subagent projection | Restore and abnormal-end fixtures |
+| REL-013 | `v0.2.11` release notes/files | Flow Chat scroll/truncation/long diff stability | P2 | Virtual list/scroll/code preview | No whole Flow Chat replacement | Layout and long-session E2E |
+| REL-014 | `v0.2.11` release notes/files | History session open/restore stability | P2 | Session history/sidebar/Flow Chat | Page components only compose/render | SessionOpenIntent tests |
+| REL-015 | `v0.2.11` release notes/files | OpenAI response format and stream parsing fixes | P2 | AI adapters/agent stream | Provider-neutral stream events | Stream fixture tests |
+| REL-016 | `v0.2.11` release notes/files | Remote workspace/ControlHub/SSH context prompts | P2 | Remote workspace/prompt builder | Remote/local source explicit | Prompt snapshots/remote tests |
+| REL-017 | `v0.2.11` release notes/files | Relay server default listen docs/scripts consistency | P1 | Relay server/docs | Do not alter deployment semantics silently | Script dry run/docs check |
+| REL-018 | `v0.2.11` release notes/files | Mobile session list loading stability | P1 | Mobile web | Do not affect desktop session state | Mobile type-check/smoke |
+| REL-019 | `v0.2.11` release notes/files | Persona `IDENTITY.md` frontmatter preservation | P1 | Custom agent/persona/profile | Preserve user markdown frontmatter | Roundtrip tests |
+| REL-020 | `v0.2.11` release notes/files | Prompt structure refresh after context compression | P2 | Compression/prompt cache/runtime | Preserve `/goal`, media, short-drama prompt contracts | Compression fixture tests |
+| REL-021 | `v0.2.11` release notes/files | MiniApp development support | P1 | MiniApp/skills/docs | Do not replace current skills/plugin system | Skill catalog/demo smoke |
+| REL-022 | README high-level capabilities | Agent workbench, office work, desktop execution, customization | P3 | Governance inventory | Product copy not migrated as feature; P0 only as protection inventory context | Use only as inventory index |
+
+### ISSUE-001 ACP `omp` Preset Verification
+
+Priority: P0
+Status: Done
+Goal: Verify locally migrated ACP `omp` behavior without copying upstream ACP structure.
+Allowed files: tests only if missing coverage is found; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: upstream ACP directory structure; BitFun naming.
+Affected module: ACP clients.
+Preserved contracts: `omp` remains user-managed/native; no automatic upstream adapter installation is introduced.
+Verification: targeted `void-acp` test if workspace cargo metadata is available; manual ACP verification if Rust workspace remains blocked.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing `void-acp` implementation and tests already preserve native `omp acp` behavior with no adapter or install package.
+
+### ISSUE-002 CLI Slash Substring Matching Verification
+
+Priority: P0
+Status: Done
+Goal: Verify locally migrated command matching behavior and add coverage only if missing.
+Allowed files: `src/apps/cli/src/commands.rs` tests only if needed; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: unrelated CLI UI refactors.
+Affected module: CLI command matching.
+Preserved contracts: slash command matching remains case-insensitive; command matching stops at the command segment.
+Verification: targeted `void-cli` command tests if workspace cargo metadata is available; manual CLI slash menu verification if Rust workspace remains blocked.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing `void-cli` command matching tests passed; no CLI source changes were required.
+
+### ISSUE-004 Prompt Cache, Multitask, and Goal Workflow Verification
+
+Priority: P0
+Status: Done
+Goal: Verify upstream prompt-cache, Multitask, and `/goal` workflow capabilities that are already present or partially present locally.
+Allowed files: tests only if missing coverage is found; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`; `docs/DECISIONS.md` if runtime accounting scope changes.
+Forbidden files: broad runtime rewrite; `/goal` UI rewrite.
+Affected module: core runtime, goal workflow, Multitask.
+Preserved contracts: prompt-cache identity and telemetry remain explicit; Multitask parallel behavior remains permission-gated; `/goal` status remains persisted and explicit.
+Verification: local behavior evidence for prompt cache and Multitask; `/goal` persisted status and pause/resume/clear/edit behavior evidence; runtime token-budget accounting gap recorded as its own issue if still missing.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md` if scope changes.
+
+Result: read-only verification completed. Prompt cache and Multitask capabilities are largely present; `/goal` has create, pause, resume, clear, edit, continuation, metadata persistence, and budget fields. Gaps are split below.
+
+### ISSUE-004A Prompt Cache Verification and Coverage
+
+Priority: P0
+Status: Done
+Goal: Verify prompt cache identity, TTL, restore prune/delete, clone, persistence, and scope invalidation after Rust workspace metadata is available.
+Allowed files: prompt cache tests only if coverage is missing; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: prompt cache runtime rewrite; provider adapter rewrite.
+Affected module: core prompt cache, session persistence, token usage.
+Preserved contracts: `SystemPromptCacheIdentity`, `UserContextCacheIdentity`, `PromptCacheScope`, cache read/write token separation.
+Verification: `cargo test -p void-core prompt_cache`; `cargo test -p void-core prompt_cache_telemetry`; `cargo test -p void-services-core token_usage_contracts`.
+Result: restored current-layout root Cargo workspace metadata, aligned workspace dependency versions to current Void source compatibility, added precise `SystemPrompt` and `UserContext` invalidation tests, and verified targeted cache/token usage tests.
+Risk notes: broad `cargo test -p void-core` still compiles the full product runtime and should remain targeted per issue to avoid unrelated migration scope.
+
+### ISSUE-004B Multitask Scheduler and Subagent Gate Verification
+
+Priority: P0
+Status: Done
+Goal: Verify Multitask mode, scheduler decisions, conflict/dependency rejection, permission gate, and recursive subagent blocking.
+Allowed files: Multitask/runtime-ports tests only if coverage is missing; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: agent mode rewrite; scheduler rewrite; broad subagent runtime changes.
+Affected module: core Multitask scheduler, runtime ports, Task tool.
+Preserved contracts: `DelegationPolicy::top_level().spawn_child()` disables recursive spawn; forced execution remains permission-gated.
+Verification: `cargo test -p void-runtime-ports delegation_policy_child_blocks_recursive_spawn_without_losing_depth`; `cargo test -p void-runtime-ports multitask_plan_serializes_scheduler_contract`; `cargo test -p void-core dry_run_accepts_independent_non_conflicting_branches`.
+Risk notes: lacks full E2E evidence for prompt to scheduler decision to background subagent result merge.
+Result: Existing targeted runtime/core tests passed for delegation depth, scheduler serialization, independent branch acceptance, dependency/write conflict rejection, permission-gated fallback, launcher failure recording, nested subagent rejection, and subagent fork wire compatibility. No runtime code changes were needed.
+
+### ISSUE-004C Goal Workflow Status and Budget Semantics
+
+Priority: P0
+Status: Done
+Goal: Define and implement only the missing `/goal` contract gaps: explicit complete/blocked persisted state if required, budget setting entrypoint, and billable token accounting.
+Allowed files: goal workflow tests and minimal core/API/UI files after a separate implementation gate; `docs/DECISIONS.md`; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: broad runtime rewrite; unrelated `/goal` UI rewrite; subagent scheduler changes.
+Affected module: core goal mode, runtime ports, desktop API, web goal services.
+Preserved contracts: goal state is explicit and persisted; UI renders state only; token accounting must not treat cached reads as billable if budget semantics require billable usage.
+Verification: goal core tests, web goal service tests, restore/continuation contract tests.
+Risk notes: current code has `Blocked` and `Complete` status variants but no observed setter; current budget usage appears to accumulate total tokens, not billable tokens excluding cache reads.
+Result: Implemented explicit complete/block/budget actions on current `GoalModeState`, persisted Complete/Blocked after verification success or continuation limit, counted billable goal tokens as uncached input plus output, and exposed minimal desktop/web service command plumbing without replacing the local `/goal` architecture.
+
+### ISSUE-004D Review Readonly and Recursive Subagent Contract Tests
+
+Priority: P0
+Status: Done
+Goal: Add or verify focused contract tests that Review/DeepReview cannot start non-readonly review subagents and child subagents cannot recursively spawn children.
+Allowed files: review/subagent contract tests only; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: review agent rewrite; tool permission rewrite.
+Affected module: review specialists, Task tool, runtime delegation policy.
+Preserved contracts: review readonly tools only; ReviewFixer remains gated by user approval; recursive subagent delegation remains blocked.
+Verification: targeted runtime-ports/core tests after Rust workspace metadata is available.
+Result: Existing focused tests passed for readonly review specialists, DeepReview reviewer registration, DeepReview nested task rejection, ReviewFixer rejection in DeepReview policy, review/DeepReview/ReviewFixer tool boundaries, Task tool nested subagent rejection, and runtime delegation policy. No source changes were needed.
+
+### ISSUE-005 Flow Chat, BTW, and Subagent Protected Contract Tests
+
+Priority: P0
+Status: Done
+Goal: Add or verify tests that protect session restore, BTW parent-child state, transient child sends, subagent projection fields, and model-round item ordering.
+Allowed files: Flow Chat, BTW, and subagent tests only; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: Flow Chat feature migration; whole-file replacement.
+Affected module: Flow Chat/session/subagent.
+Preserved contracts: `SessionHistoryState`; `SessionContextRestoreState`; `btwOrigin`; `parentSessionId`; `subagentType`; model round order.
+Verification: targeted web tests or documented test gap.
+Result: Existing targeted web tests passed for history placeholders, session metadata, subagent projection, BTW thread/opening contracts, dialog turn stability, model-round grouping, BTW panel child sends, DeepReview action bar state, store sync, FlowChatStore, SessionModule, PersistenceModule, and EventHandlerModule. No source changes were needed.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+
+### ISSUE-006 Brand, Installer, and Desktop Identity Audit
+
+Priority: P0
+Status: Done
+Goal: Verify Void brand, installer, updater, registry, window label, and URL parameter contracts before upstream migration touches desktop or packaging.
+Allowed files: brand/installer audit tests or scripts only if needed; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: BitFun identity restoration; installer replacement.
+Affected module: brand, installer, desktop identity.
+Preserved contracts: `Void`; `Void-Installer`; `void-desktop.exe`; Void window labels and URL parameters.
+Verification: brand audit script if available; manual audit for `BitFun`, `BITFUN_*`, installer ids, updater ids.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: No BitFun/GCWing identity residue was found in scoped source/config paths; desktop and installer configs preserve Void identity.
+
+## P1 - Low-Risk Migration
+
+### ISSUE-010A Chat Input Escape Handling
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream chat input Escape handling without breaking IME composition, slash popup, mention popup, or task cancellation behavior.
+Allowed files: `RichTextInput.tsx`, `RichTextInput.test.tsx`, `FileMentionPicker.tsx`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Forbidden files: `FlowChatStore.ts`; session/history/sidebar/header files; Rust core; desktop; installer; brand files.
+Affected module: Chat input UI.
+Preserved contracts: IME Escape remains IME-owned; slash popup close does not cancel running tasks; mention popup close does not alter session state.
+Implementation rule: tests first; no whole-file copy; no unrelated UI refactor.
+Verification: targeted chat input tests; `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing local Escape/IME/popup-active behavior matches the upstream fix path; targeted tests and TypeScript passed with no source changes.
+
+### ISSUE-010B Chat Input Mention Spacing
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream mention insertion spacing so `openMention()` and `insertTagReplacingMention()` add only necessary spaces.
+Allowed files: `RichTextInput.tsx`, `RichTextInput.test.tsx`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Forbidden files: `ChatInput.tsx` unless only wiring is required; unrelated context/media services.
+Affected module: Rich text input.
+Preserved contracts: context tags; file mention insertion; current editor text.
+Implementation rule: tests first; no whole-file copy.
+Verification: targeted `RichTextInput` tests; `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added RichTextInput spacing contract tests; existing implementation already matched upstream behavior.
+
+### ISSUE-010C Chat Input Popup Boundaries
+
+Priority: P1
+Status: Done
+Goal: Prevent mention and slash popups from overflowing narrow viewports without adding business logic to `ChatInput.tsx`.
+Allowed files: `FileMentionPicker.tsx`, `FileMentionPicker.scss`, `ChatInput.scss`, popup-boundary utility/tests if introduced, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Forbidden files: Flow Chat store/session files; workspace media/short-drama files.
+Affected module: Chat input popup UI.
+Preserved contracts: mention state remains owned by RichTextInput/FileMentionPicker; slash popup behavior remains unchanged except bounds.
+Verification: pure popup-bound calculation tests if introduced; targeted component/style smoke; `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added CSS viewport bounds for mention and slash popups; TypeScript, RichTextInput tests, and direct Sass compilation passed.
+
+### ISSUE-011 Chat Input Image Paste Undo Slice
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream image paste/undo stability while preserving local `imageContextForBackend` and media reference handling.
+Allowed files: chat input image tests and minimal UI files; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: media backend service rewrite; image context backend flow rewrite.
+Verification: targeted image paste tests; manual paste/undo smoke in dev server if practical.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added tested image undo stack helper and wired ChatInput undo to latest contexts; imageUtils and backend image context tests passed.
+
+### ISSUE-020A Startup Trace API Timing Observability
+
+Priority: P1
+Status: Done
+Goal: Add upstream-inspired API timing observability using Void naming and existing startup trace contracts.
+Allowed files: `src/web-ui/src/shared/utils/startupTrace.ts`, `src/web-ui/src/shared/utils/startupTrace.test.ts`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md`.
+Forbidden files: `__BITFUN_*` globals; replacing current startup trace implementation wholesale; startup order rewrites; media, short-drama, Flow Chat, desktop, installer, ACP, or CLI source changes.
+Verification: `src/web-ui/src/shared/utils/startupTrace.test.ts`; `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added API boundary timing fields to the existing Void startup trace snapshot, including request/response payload estimate durations, adapter/transport/invoke durations, active request counts, and max concurrency. Kept `__VOID_STARTUP_TRACE__` and existing logging behavior; did not copy upstream `__BITFUN_*` globals or render profile scope.
+
+### ISSUE-020B Startup Trace Concurrency Observability
+
+Priority: P1
+Status: Done
+Goal: Add bounded concurrency diagnostics without exposing sensitive data.
+Verification: `src/web-ui/src/shared/utils/startupTrace.test.ts`; `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Covered together with `ISSUE-020A` through bounded per-call `activeRequestsAtStart`, `activeRequestsAtEnd`, and `maxConcurrentRequests` fields in startup trace records.
+
+### ISSUE-020C Startup Trace Render Observability
+
+Priority: P1
+Status: Done
+Goal: Add render/startup phase diagnostics without changing startup order.
+Allowed files: `src/web-ui/src/shared/utils/startupTrace.ts`, `src/web-ui/src/shared/utils/startupTrace.test.ts`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ISSUES.md`, `docs/DECISIONS.md`.
+Forbidden files: Flow Chat render components, Markdown render components, startup order files, `__BITFUN_*` globals, media, short-drama, desktop, installer.
+Verification: `src/web-ui/src/shared/utils/startupTrace.test.ts`; startup smoke if available.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added default-off Void render profile primitives `isStartupRenderTraceEnabled()` and `recordReactRenderProfile()` using `__VOID_RENDER_PROFILE_ENABLED__`. The helper records sanitized `react_render_profile` phase metrics only when explicitly enabled.
+
+### ISSUE-020D Startup Trace Render Component Instrumentation
+
+Priority: P2
+Status: Split
+Goal: Evaluate whether to wire the render profile primitive into Markdown, code highlighting, and model-round rendering without disturbing Flow Chat performance or media/short-drama rendering contracts.
+Allowed files: component-specific tests and the minimal render components selected after a separate gate.
+Forbidden files: whole Flow Chat replacement; default-on profiling; raw payload capture; `__BITFUN_*` globals.
+Verification: targeted component tests, startupTrace tests, TypeScript, and browser startup/render smoke if implemented.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md`.
+Reason: Local Markdown and model-round render paths diverge from upstream and include KaTeX, right-panel preview links, media tool grouping, subagent projection, and media/short-drama-adjacent rendering. Component instrumentation should wait for a browser startup/render smoke gate.
+Split note: 020D is split after Startup-Trace-Agent review. `ISSUE-020D1` is limited to default-off `CodePreview` render profile instrumentation. `ISSUE-020D2` is limited to default-off `FlowTextBlock` render profile instrumentation. Markdown renderer internals, syntax-highlighter internals, and ModelRound instrumentation remain deferred until browser startup/render smoke is available.
+
+### ISSUE-020D1 CodePreview Render Profile Instrumentation
+
+Priority: P2
+Status: Done
+Goal: Wire the existing default-off startup render profile primitive into `CodePreview` only.
+Allowed files: `src/web-ui/src/flow_chat/components/CodePreview.tsx`, `src/web-ui/src/flow_chat/components/CodePreview.test.tsx`, docs.
+Forbidden files: Markdown renderer files, `ModelRoundItem.tsx`, `FlowTextBlock.tsx`, Flow Chat stores, backend/Tauri files, terminal/media/short-drama/subagent modules, `__BITFUN_*` globals.
+Affected module: Flow Chat code preview presentation diagnostics.
+Preserved contracts: profiling remains default-off behind `__VOID_RENDER_PROFILE_ENABLED__`; CodePreview final content remains complete; streaming viewport-tail and 6,000-character budget remain unchanged; no code content, file path, workspace path, model output, or raw payload is recorded.
+Acceptance:
+- RED/GREEN component test proves default-off profiling records nothing.
+- RED/GREEN component test proves enabled profiling records sanitized CodePreview render metrics only.
+- Existing CodePreview streaming-tail tests continue to pass.
+- `startupTrace` helper tests and web type-check pass.
+Result: Added default-off React Profiler wiring around `CodePreview` only when `__VOID_RENDER_PROFILE_ENABLED__` is true. Enabled profiling records sanitized metadata through `recordReactRenderProfile(startupTrace, ...)`: component id, render phase, rounded duration fields, content/display lengths, streaming flag, and `hasCodeBlock`. It does not record code content, file paths, workspace paths, model output, or raw payloads. Existing streaming viewport-tail behavior and completed content behavior remain unchanged. Markdown, syntax-highlighter internals, FlowTextBlock, ModelRoundItem, Flow Chat stores, terminal, media, short-drama, subagent, backend, and desktop modules were not changed.
+
+### ISSUE-020D2 FlowTextBlock Render Profile Instrumentation
+
+Priority: P2
+Status: Done
+Goal: Wire the existing default-off startup render profile primitive into `FlowTextBlock` only.
+Allowed files: `src/web-ui/src/flow_chat/components/FlowTextBlock.tsx`, `src/web-ui/src/flow_chat/components/FlowTextBlock.autoPreview.test.tsx`, docs.
+Forbidden files: Markdown renderer internals, syntax-highlighter internals, `ModelRoundItem.tsx`, Flow Chat stores/session/history/sidebar/header, terminal, media, short-drama, subagent, backend/Tauri, desktop, provider files, `__BITFUN_*` globals.
+Affected module: Flow Chat text-block presentation diagnostics.
+Preserved contracts: profiling remains default-off behind `__VOID_RENDER_PROFILE_ENABLED__`; `React.memo`, `useTypewriter`, raw `isStreaming` forwarding to `MarkdownRenderer`, streaming cursor class, auto-preview behavior, and runtime-status rendering remain unchanged; no raw content, URLs, workspace paths, file paths, model output, or raw payloads are recorded.
+Acceptance:
+- RED/GREEN component test proves enabled profiling records sanitized FlowTextBlock render metrics only.
+- RED/GREEN component test proves default-off behavior records nothing.
+- Existing auto-preview component tests continue to pass.
+- `CodePreview`, `startupTrace`, web type-check, and web build validation pass.
+- Browser startup/render smoke is recorded as unavailable if no Playwright, Puppeteer, or browser command exists in the local environment.
+Result: Added default-off React Profiler wiring around `FlowTextBlock` only when `__VOID_RENDER_PROFILE_ENABLED__` is true. Enabled profiling records sanitized metadata through `recordReactRenderProfile(startupTrace, ...)`: component id, render phase, duration fields, item id, content/display lengths, streaming flag, `hasCodeBlock`, and `hasTable`. The default-off path returns the existing content before code/table scans, so normal rendering avoids extra profiling work. Markdown renderer internals, syntax-highlighter internals, ModelRoundItem, Flow Chat stores/session/history/sidebar/header, terminal, media, short-drama, subagent, backend, desktop, and provider modules were not changed.
+
+### ISSUE-030A Workspace Media State Model Tests
+
+Priority: P1
+Status: Done
+Goal: Add tests for workspace media availability/library states, path mismatch, and pending-to-ready stable slots.
+Allowed files: workspace media tests; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: production media service changes unless a separate bug issue is created.
+Verification: targeted workspace media tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing workspace media coverage already protected availability/library states, empty/error/path mismatch UI states, pending refresh events, and pending-to-ready slot replacement. Updated stale Gallery test selectors to match the current stable pending-slot id model; no production media code changed.
+
+### ISSUE-030B Workspace Media Safety and Failure Tests
+
+Priority: P1
+Status: Done
+Goal: Add tests for unsafe trash path rejection, save failure fallback, trash restore, and purge safety.
+Allowed files: workspace media tests; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: production media service changes unless a separate bug issue is created.
+Verification: targeted workspace media tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added tests for trash metadata write failure and unsafe restore/purge ids. Fixed a real safety gap by rejecting unsafe trash id path segments before restore or purge touches the filesystem adapter.
+
+### ISSUE-040A Short Drama Project Fact Protection Tests
+
+Priority: P1
+Status: Done
+Goal: Add tests for existing project protection, manifest/script source facts, and workspace mismatch.
+Allowed files: short-drama service tests; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: short-drama production service changes unless a separate bug issue is created.
+Verification: targeted short-drama tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing short-drama tests already protect existing project initialization/migration, manifest/source sidecar precedence, workspace mismatch, workspace mode, project view model, change event, and target resolution contracts. No source changes were required.
+
+### ISSUE-040B Short Drama Agent Policy and Media Recovery Tests
+
+Priority: P1
+Status: Done
+Goal: Add tests for stage-agent permission boundaries, artifact attempts/revisions/change requests, and artifact media recovery.
+Allowed files: short-drama service tests; `docs/PROGRESS.md`; `docs/TEST_PLAN.md`.
+Forbidden files: short-drama production service changes unless a separate bug issue is created.
+Verification: targeted short-drama tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing short-drama tests already protect tool policy, stage mismatch boundaries, artifact revisions/attempts, optimization workflow, change requests, MainAI tools, stage workspace, and media recovery-related workflow contracts. No source changes were required.
+
+### ISSUE-050 Provider Adapter Parsing and Retry Inventory
+
+Priority: P1
+Status: Done
+Goal: Inventory upstream provider parsing and retry fixes and split accepted items by provider or adapter boundary.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Upstream `ai-adapters` differs substantially from current Void layout and adds a new fixture/harness test suite. Accepted follow-up slices are split below; no provider source was changed during inventory.
+
+### ISSUE-050A AI Adapter Fixture Harness Baseline
+
+Priority: P1
+Status: Done
+Goal: Add a Void-compatible adapter stream fixture harness before migrating parser behavior.
+Allowed files: `src/crates/ai-adapters/tests/**`, fixture files, minimal test-only helpers.
+Forbidden files: provider runtime changes unless a failing fixture proves a focused gap.
+Verification: targeted `cargo test -p void-ai-adapters` fixture harness tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added a test-only Void SSE fixture harness under `src/crates/ai-adapters/tests` with OpenAI replay coverage for split tool arguments with usage and inline `<think>` text. No provider runtime source was changed.
+
+### ISSUE-050B SSE Retry and Retry-After Semantics
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream SSE retry semantics for 408/409/425/429/5xx and capped `Retry-After` without changing auth failure or user-cancel semantics.
+Allowed files: `src/crates/ai-adapters/src/client/sse.rs`, focused tests.
+Forbidden files: provider message converters; core agent runtime; UI.
+Verification: targeted SSE retry unit tests and any fixture server tests added in 050A.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md` if retry policy changes.
+Result: Current Void already had retryable 408/409/425/429/5xx behavior and non-retryable auth/client errors. Migrated upstream's 60s `Retry-After` cap and richer transport error source diagnostics. TTFT first-effective-output semantics require stream-handler contract changes and are split into `ISSUE-050F`.
+
+### ISSUE-050C OpenAI and Responses Tool Argument Stream Parsing
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream OpenAI Chat/Responses stream parsing fixes for split arguments, orphan id-only chunks, malformed arguments, function call argument deltas, and usage preservation.
+Allowed files: OpenAI/Responses stream handlers, tool-call accumulator, focused fixtures/tests.
+Forbidden files: Anthropic/Gemini handlers unless split separately; core tool execution.
+Verification: OpenAI/Responses fixture replay tests; malformed argument tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing Void parser and accumulator behavior already covers the selected OpenAI/Responses upstream cases. Added fixture replay coverage for missing OpenAI tool `type`, id-only prelude reattachment, split arguments with usage, inline think text, and malformed Responses function-call arguments. No parser runtime source changed.
+
+### ISSUE-050D Anthropic and Gemini Stream Parsing Regressions
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream Anthropic/Gemini stream parsing fixes for extended thinking, interleaved parallel tool use, malformed deltas, and Gemini string function args.
+Allowed files: Anthropic/Gemini stream handlers and focused fixtures/tests.
+Forbidden files: OpenAI/Responses handlers unless split separately; core tool execution.
+Verification: Anthropic/Gemini fixture replay tests; malformed argument tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Existing Void Anthropic/Gemini parser behavior already covers the selected upstream cases. Added fixture replay coverage for Anthropic extended thinking signatures, interleaved parallel tool use, malformed tool arguments, and Gemini string function args. No provider runtime source changed.
+
+### ISSUE-050E Model Selector and CLI Credential Inventory
+
+Priority: P2
+Status: Done
+Goal: Evaluate upstream model selector and CLI credential helpers separately from stream parsing.
+Allowed files: docs during inventory; adapter config files after separate gate.
+Forbidden files: auth storage rewrites; provider default changes without decision.
+Verification: model selector tests if accepted.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Current Void already contains CLI UI model selector and desktop/core CLI credential discovery/refresh paths. Upstream `ai-adapters` adds a small standalone `model_selector.rs` helper that current Void lacks; accepted as `ISSUE-050E1`. No code changed in inventory.
+
+### ISSUE-050E1 AI Adapter Model Selector Helper
+
+Priority: P2
+Status: Done
+Goal: Add a standalone Void `ai-adapters` model selector helper matching upstream behavior for `primary`, `fast`, explicit ids, named references, and cache fallback semantics.
+Allowed files: `src/crates/ai-adapters/src/model_selector.rs`, `src/crates/ai-adapters/src/lib.rs`, focused tests.
+Forbidden files: CLI UI model selector rewrites; auth storage changes; provider defaults; installer identity.
+Verification: port/adapt upstream `model_selector.rs` tests with `void_ai_adapters` crate names.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added the standalone helper and exported it from `void_ai_adapters`. Ported upstream tests with Void crate names. No CLI UI, auth storage, provider default, or installer files changed.
+
+### ISSUE-050F Stream TTFT First Effective Output Semantics
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream TTFT semantics so the timeout waits for the first effective stream output, not only HTTP response headers.
+Allowed files: `src/crates/ai-adapters/src/client/sse.rs`, provider stream-handler signatures/call sites, focused fixture/harness tests.
+Forbidden files: provider parser behavior changes unrelated to timeout flow; core agent runtime; UI.
+Verification: delayed-body fixture test proving headers alone do not satisfy TTFT; existing provider fixture replay tests.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md` if stream handler contract changes.
+Result: Added a stream timeout controller that keeps TTFT active until text, reasoning, or meaningful tool-call output is observed, then switches to idle timeout. Provider stream handler signatures and call sites now receive remaining TTFT. Added delayed-body OpenAI fixture coverage. Parser semantics were not changed.
+
+### ISSUE-060 i18n, Theme, Repo Hygiene, and Brand-Safe Audit Inventory
+
+Priority: P1
+Status: Done
+Goal: Inventory upstream i18n/theme/repo hygiene improvements and adapt only brand-safe checks.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Completed read-only inventory with i18n, theme, and repo hygiene explorer subagents. Current Void already has i18n contract/audit scripts, mobile-web, installer locales, repo hygiene scripts, and Void-branded CLI/theme presets. Upstream adds root Node workspace orchestration, stronger i18n governance baselines, theme color/visual audits, startup theme bootstrap generation, CLI package workflow, and E2E performance runners. Accepted work is split below and must be Void-rewritten; direct BitFun package names, `BITFUN_*` env vars, `__BITFUN_*` globals, `BitFun-Installer` paths, `bitfun-*` theme ids, upstream installer identity, and upstream release/tap targets remain rejected.
+
+### ISSUE-060A Root Node Workspace and Void Script Entry Points
+
+Priority: P1
+Status: Done
+Goal: Restore a Void-branded root Node workspace entry so existing CI/root commands can execute without copying upstream BitFun identity.
+Allowed files: `package.json`, `pnpm-workspace.yaml`, `.npmrc`, docs.
+Forbidden files: functional app/runtime code, installer config identity, upstream `BitFun` package name/version, `BITFUN_*` env vars.
+Affected module: build orchestration.
+Preserved contracts: package identity remains Void; workspace paths use `Void-Installer`; root scripts delegate to existing module scripts.
+Implementation rule: create the minimal root workspace manifest and scripts needed by current CI and already-existing scripts; do not migrate theme/i18n behavior in this issue.
+Verification: `pnpm run i18n:contract:test`; `pnpm run i18n:audit`; `pnpm run check:repo-hygiene`; `pnpm run check:github-config`; `pnpm --dir src/mobile-web run type-check` if dependencies are available.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md` if root workspace policy changes.
+Risk notes: pnpm may still require build-script approval in this local workspace; record that as environment failure if it blocks before scripts run.
+Result: Added Void root `package.json`, `pnpm-workspace.yaml`, `.npmrc`, and `pnpm-lock.yaml`. Root scripts delegate to existing Void paths including `Void-Installer`, `src/web-ui`, `src/mobile-web`, and `tests/e2e`; E2E root env names use `VOID_E2E_*`. Added project-level pnpm build approvals for known native/binary dependencies so frozen install works non-interactively. `pnpm install --frozen-lockfile`, `pnpm run check:github-config`, `pnpm run i18n:contract:test`, `pnpm run check:repo-hygiene`, and `pnpm --dir src/mobile-web run type-check` passed. `pnpm run i18n:audit` reached the script and failed on existing short-drama CJK source candidates; that is tracked by `ISSUE-060C`.
+
+### ISSUE-060B Repo Hygiene Enhancements
+
+Priority: P1
+Status: Done
+Goal: Port upstream repo hygiene scanner improvements into the current Void script.
+Allowed files: `scripts/check-repo-hygiene.mjs`, focused script tests if added, docs.
+Forbidden files: root package/CI changes unless separately selected; brand/installer identity files.
+Affected module: repo hygiene governance.
+Preserved contracts: Void brand audit remains separate; generated assets and local runtime folders are not false positives.
+Implementation rule: port only scanner robustness such as scoped path detection, comment skipping, Rust inline-test handling, and ignore rules.
+Verification: `node scripts/check-repo-hygiene.mjs`; targeted script test if introduced.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Ported upstream scanner robustness into the current Void script: narrower workspace/user-specific absolute path matching, relay static asset ignore, comment-only line skip, and Rust inline test block skip. `node --check`, direct script run, root `pnpm run check:repo-hygiene`, and `pnpm run i18n:audit` passed.
+
+### ISSUE-060C i18n Governance Report and Baseline Layers
+
+Priority: P1
+Status: Done
+Goal: Add upstream-inspired i18n governance report, `--report-json`, CI profile, and baseline/allowlist layers using Void data, including a reviewed treatment for current short-drama CJK source candidates.
+Allowed files: `scripts/i18n-audit.mjs`, `scripts/i18n-contract.test.mjs`, `scripts/i18n-*.json`, docs.
+Forbidden files: locale copy replacement, `BitFun-Installer`, `src/crates/assembly`, `BITFUN_*`, `bitfun-i18n-state`, deleting Void-only namespaces.
+Affected module: i18n governance.
+Preserved contracts: Void locale contract, `Void-Installer`, `src/crates/core`, `void-i18n-state`, and existing Web UI namespaces remain intact.
+Implementation rule: migrate mechanisms only; baseline content must be generated/reviewed from current Void scan results, not copied from BitFun.
+Verification: `node scripts/i18n-audit.mjs --report-json <tmp-report>`; `node scripts/i18n-audit.mjs`; `$env:VOID_I18N_CONTRACT_TEST_PROFILE='ci'; node --test scripts/i18n-contract.test.mjs`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added `--report-json` governance output with error/warning counts and hardcoded CJK budget status. Registered the existing 25 short-drama CJK source candidate lines as a reviewed no-growth `web-ui-source` baseline, so audit passes with a warning and still fails on any growth. Updated contract tests to assert the report option and current baseline. No locale resources or short-drama business code changed.
+
+### ISSUE-060D Relay Homepage Shared i18n Terms
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream relay homepage `$shared` i18n mechanism and generated shared terms file to Void.
+Allowed files: `scripts/generate-i18n-contract.mjs`, `src/apps/relay-server/static/homepage/**`, docs.
+Forbidden files: BitFun homepage copy, BitFun product names, unrelated relay server runtime changes.
+Affected module: relay homepage i18n.
+Preserved contracts: shared terms resolve to Void product terms; generated files are checked by `--check`.
+Implementation rule: add generation/check support first, then minimal homepage loader support.
+Verification: `node scripts/generate-i18n-contract.mjs --check`; `node scripts/i18n-audit.mjs`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added generated `src/apps/relay-server/static/homepage/i18n.shared.json`, changed relay homepage `flowMobileSub` to `{ "$shared": "features.remoteControl" }`, taught the static loader to resolve `$shared`, and updated i18n audit/contract tests to keep the generated shared file and referenced Void shared term checked.
+
+### ISSUE-060E Theme Color Audit Foundation
+
+Priority: P2
+Status: Done
+Goal: Add Void-branded theme color audit and CSS variable contract scripts in observation/baseline mode.
+Allowed files: `scripts/audit-theme-colors*.mjs`, `scripts/theme-*.json`, docs.
+Forbidden files: replacing theme tokens, copying `bitfun-*` theme ids, changing visual identity, broad SCSS rewrites.
+Affected module: Web/mobile/installer theme governance.
+Preserved contracts: current `void-*` theme ids and Void visual identity remain source of truth.
+Implementation rule: start with scanner/tests/baseline; do not rename token families or enforce upstream visual vocabulary in the same issue.
+Verification: `node --test scripts/audit-theme-colors.test.mjs`; `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added a Void theme color audit foundation with tests and no-growth baselines for Web UI, mobile-web, and installer roots. The scanner reports color literals, CSS var definitions/usages/fallbacks, fallback-only and undefined vars, and near-color pairs. No theme tokens, presets, SCSS, UI runtime, installer config, root package, or CI files changed.
+
+### ISSUE-060F CLI Theme Color Audit
+
+Priority: P1
+Status: Done
+Goal: Add upstream-inspired CLI theme preset/fallback color audit for Void CLI themes.
+Allowed files: `scripts/audit-cli-theme-colors.mjs`, `scripts/audit-cli-theme-colors.test.mjs`, `scripts/theme-color-governance-baseline.cli.json`, docs.
+Forbidden files: changing CLI theme preset names from `void-*`, CLI UI rewrites.
+Affected module: CLI theme governance.
+Preserved contracts: CLI presets remain Void-named and current UI behavior is unchanged.
+Implementation rule: scanner and tests only unless a proven unsafe color value requires a separate fix.
+Verification: `node --test scripts/audit-cli-theme-colors.test.mjs`; `node scripts/audit-cli-theme-colors.mjs`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added a Void CLI theme color audit script, behavior tests, and a no-growth baseline generated from current `void-*` presets and `theme.rs` fallback colors. The scanner reports preset color counts, Rust fallback color counts, near-color pairs, and budget drift. No CLI runtime files, preset names, or theme values changed.
+
+### ISSUE-060G Startup Theme Bootstrap Manifest
+
+Priority: P2
+Status: Done
+Goal: Generate Void startup theme bootstrap and theme prompt snapshot manifests from Web UI built-in themes.
+Allowed files: `scripts/generate-startup-theme-bootstrap.mjs`, `src/web-ui/src/infrastructure/theme/presets/startupThemeBootstrap.ts`, `src/web-ui/src/infrastructure/theme/presets/themePromptSnapshots.ts`, focused tests, generated manifest files after separate review, docs.
+Forbidden files: desktop `theme.rs` behavior rewrite in this issue, `__BITFUN_*` globals, `--bitfun-*` CSS vars, `src/crates/assembly` paths.
+Affected module: theme bootstrap governance.
+Preserved contracts: source of truth remains current `void-*` `builtinThemes`; generated paths use current Void crate layout.
+Implementation rule: add manifest projection and generator check mode first; consuming the manifest from desktop Rust is separate.
+Verification: `pnpm --dir src/web-ui run test:run src/infrastructure/theme/presets/startupThemeBootstrap.test.ts`; `node scripts/generate-startup-theme-bootstrap.mjs --check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md` if generated artifacts become a contract.
+Result: Added pure Web UI theme projection helpers, generated Void startup bootstrap and prompt snapshot JSON manifests under `src/web-ui/src/infrastructure/theme/presets/generated/`, and added a generator with `--check` mode. Verification passed with focused Vitest, Web UI type-check, generator check, repo hygiene, brand scan, and diff check. Desktop startup consumption remains separate.
+
+### ISSUE-060H Theme Visual Governance Contract
+
+Priority: P2
+Status: Done
+Goal: Add a Void visual governance contract for app shell, Flow Chat, terminal, markdown/mermaid, generated widgets, mobile web, and installer surfaces.
+Allowed files: `scripts/validate-theme-visual-contract.mjs`, `scripts/theme-visual-governance-contract.json`, docs.
+Forbidden files: visual redesign, product copy changes, BitFun token families.
+Affected module: theme QA governance.
+Preserved contracts: media, short-drama, Flow Chat, and terminal UI remain governed by their existing module boundaries.
+Implementation rule: contract validation only; visual changes require separate UI issues.
+Verification: `node scripts/validate-theme-visual-contract.mjs`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Added a Void-specific visual governance contract and validator covering app shell, Flow Chat, terminal, markdown/mermaid, generated widgets, AI media/short-drama, mobile web, and installer surfaces. Validation checks required surface coverage, existing ownership paths, allowed platform/form-factor/theme/evidence values, protected contracts, and upstream identity leakage. No UI, theme token, runtime, installer, CI, or product-copy changes were made.
+
+### ISSUE-060I Manual CLI Package Workflow Inventory
+
+Priority: P2
+Status: Split
+Goal: Evaluate and Void-rewrite upstream manual CLI packaging workflow.
+Allowed files: `.github/workflows/cli-package-manual.yml`, docs after separate gate.
+Forbidden files: upstream release URLs, GCWing/BitFun release targets, Homebrew tap dispatch without owner confirmation, `bitfun-cli` artifact names.
+Affected module: release workflow.
+Preserved contracts: artifacts and package names are Void-only; external release targets must be confirmed.
+Implementation rule: keep as inventory/proposal until release targets are confirmed.
+Verification: YAML parse/static review; `cargo build --release -p void-cli`; `target/release/void-cli --version`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md` if accepted.
+Result: Inventory completed and workflow creation deferred. Upstream manual packaging adds useful non-release artifact capabilities: platform selection, Linux runner baseline selection, arbitrary ref checkout, dynamic matrix generation, read-only repository permission, and version/short-SHA artifact naming. It is not copied in this issue because the upstream workflow is tied to upstream CLI names and this repository's release targets, Homebrew tap ownership, and manual artifact policy need explicit confirmation before a new runnable workflow is added.
+Split note: 060I remains deferred for release upload and Homebrew tap behavior, but `ISSUE-060I1` accepts an artifact-only manual workflow that does not depend on external release targets.
+
+### ISSUE-060I1 Manual CLI Artifact-Only Workflow Draft
+
+Priority: P2
+Status: Done
+Goal: Add a manual CLI packaging workflow that only builds and uploads GitHub Actions artifacts for Void CLI.
+Allowed files: `.github/workflows/cli-package-manual.yml`, docs.
+Forbidden files: CLI source code, Cargo manifests, desktop/nightly/release workflows, installer files, GitHub Release upload logic, Homebrew tap dispatch, upstream release URLs, GCWing/BitFun names, `bitfun-cli` artifact names.
+Affected module: release workflow.
+Preserved contracts: artifacts and package names are Void-only; workflow permissions stay `contents: read`; release upload and Homebrew dispatch remain outside this issue.
+Acceptance:
+- Workflow is `workflow_dispatch` only and supports ref, platform, Linux runner baseline, and retention-day inputs.
+- Build matrix is generated from the selected platform and uses `void-cli` / `-p void-cli`.
+- Each selected platform builds, smoke-tests `--version`/`--help`, creates a tarball and sha256 file, and uploads only an Actions artifact.
+- Static checks prove no BitFun identity, release upload, Homebrew dispatch, or write permission is present.
+- YAML config parse, local CLI build, version smoke, help smoke, and diff checks pass.
+Result: Added `.github/workflows/cli-package-manual.yml` as an artifact-only manual workflow with read-only repository permissions, arbitrary ref checkout, platform selection, Linux x64 baseline selection, dynamic matrix generation, version/short-SHA artifact naming, tarball+sha256 staging, `void-cli --version`/`--help` smoke, and `actions/upload-artifact` retention selection. It does not upload GitHub Release assets, dispatch Homebrew tap updates, change release/nightly workflows, modify CLI source or Cargo manifests, or introduce upstream product identity.
+
+## P2 - Medium-Risk Migration
+
+### ISSUE-100A Image Understanding Architecture Decision
+
+Priority: P2
+Status: Done
+Goal: Evaluate upstream image understanding tool and record architecture decision before any implementation.
+Exit criteria before implementation: architecture decision recorded; tool schema reviewed; readonly and permission behavior defined; tests planned.
+Docs to update: `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Result: Architecture decision recorded. Current Void already contains `src/crates/core/src/agentic/image_analysis/*`, image context storage, `ToolImageAttachment`, and provider multimodal conversion foundations. Directly copying upstream `analyze_image`/`view_image` and image upload flow is rejected because it crosses UI, desktop API, tool runtime, provider, and crate-layout boundaries. Follow-up work is split into schema/permission/manifest first, then runtime/tool implementation.
+
+### ISSUE-100B Image Understanding Tool Schema and Permission Model
+
+Priority: P2
+Status: Done
+Goal: Define a Void `AnalyzeImage` tool schema, explicit output states, readonly/path permission behavior, provider configuration contract, and tool manifest impact before runtime execution is wired.
+Docs to update: `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Required boundaries: schema and manifest only; no provider calls; no UI wiring; no media or short-drama behavior changes.
+Verification: `cargo test -p void-tool-packs`; `cargo test -p void-core analyze_image` after focused contract tests are added.
+Result: Added `AnalyzeImage` to the product provider plan and core runtime materialization, implemented a readonly schema-only `AnalyzeImageTool`, and added contract tests for schema, source validation, output statuses, and explicit placeholder runtime state. Runtime image loading/provider execution remains deferred to `ISSUE-100C`.
+
+### ISSUE-100C Image Understanding Runtime Adapter
+
+Priority: P2
+Status: Done
+Goal: Implement `AnalyzeImage` runtime only after `ISSUE-100B` accepts the schema and permission contract.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Required boundaries: reuse `src/crates/core/src/agentic/image_analysis/*`, `ToolUseContext` path policy, and provider adapters' existing multimodal wire conversion; do not put provider calls in UI or media services.
+Verification: `cargo test -p void-core image_analysis`; targeted `void-ai-adapters` multimodal conversion tests; existing workspace media and short-drama tests if touched.
+Result: Replaced schema-only execution with a core-owned runtime adapter that resolves `data_url`, `image_id`, and workspace-scoped `image_path`, enforces workspace containment before file reads, maps expected failure classes to explicit statuses, reuses existing image processing/model/client infrastructure, and keeps provider wire conversion in existing AI adapter paths.
+
+### ISSUE-110A Terminal Reliability Inventory
+
+Priority: P2
+Status: Done
+Goal: Inventory upstream terminal reliability fixes and split each accepted behavior into one terminal service/core issue.
+Forbidden: moving terminal domain logic into desktop API adapter.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Classified upstream terminal reliability work into focused follow-up issues. Accepted candidates are lazy terminal output rendering, frontend input queue, paste policy, resize repaint guard, structured terminal replay, and Computer Use terminal detection. Deferred direct upstream crate-layout migration and whole-file replacement of `Terminal.tsx`, `ConnectedTerminal.tsx`, `TerminalToolCard.tsx`, or `terminal_api.rs`. Rejected BitFun identity/import/path changes, duplicate `terminal-core` workspace entries, removal of local ACP/confirmation behavior, and pretending remote terminal history has structured replay support.
+
+### ISSUE-110B Lazy Terminal Output Renderer
+
+Priority: P2
+Status: Done
+Goal: Add a lazy terminal output renderer for Flow Chat terminal output without changing terminal service/core behavior.
+Allowed files: `src/web-ui/src/tools/terminal/components/*`, `src/web-ui/src/flow_chat/tool-cards/TerminalToolCard.tsx`, focused tests.
+Forbidden: changing PTY/session APIs, replacing `TerminalToolCard.tsx`, changing ACP permission actions, changing media/short-drama behavior.
+Verification: `pnpm --dir src/web-ui run test:run src/tools/terminal/components/LazyTerminalOutputRenderer.test.tsx`; `pnpm run type-check:web`.
+Result: Added a Suspense-based `LazyTerminalOutputRenderer` with a lightweight `<pre>` fallback that strips terminal control sequences, preserves terminal output class names, limits preview rows, and reserves bounded height while the xterm renderer chunk loads. Flow Chat terminal tool-card output now uses the lazy renderer for live, completed, and cancelled output. No terminal service/core, desktop adapter, ACP permission, media, or short-drama behavior was changed.
+
+### ISSUE-110C Terminal Input Queue
+
+Priority: P2
+Status: Done
+Goal: Add a frontend input queue so rapid terminal keystrokes and writes are batched in order before IPC write calls.
+Allowed files: `src/web-ui/src/tools/terminal/utils/*`, `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`, focused tests.
+Forbidden: backend write protocol changes, session/replay changes, terminal service replacement.
+Verification: `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/TerminalInputQueue.test.ts`; `pnpm run type-check:web`.
+Result: Added a pure Web UI `TerminalInputQueue` that batches synchronous terminal input, keeps a single write in flight, reports write errors without killing the queue, and supports clearing unflushed buffered input. `ConnectedTerminal` now routes xterm `onData` and registered terminal action writes through the same queue, using refs to avoid stale `write` and exited-session writes. Backend write protocol, session/replay, terminal service/core, paste policy, and resize behavior were not changed.
+
+### ISSUE-110D Terminal Paste Policy
+
+Priority: P2
+Status: Done
+Goal: Extract terminal paste policy, preserve multiline confirmation, and add shell-aware PowerShell ReadLine paste handling.
+Allowed files: `src/web-ui/src/tools/terminal/utils/*`, `src/web-ui/src/tools/terminal/components/Terminal.tsx`, `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`, focused tests.
+Forbidden: bypassing user confirmation for multiline paste, moving paste policy into desktop API, changing global editor paste behavior.
+Verification: `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalPaste.test.ts`; `pnpm run type-check:web`.
+Result: Added a pure Web UI terminal paste policy utility covering single-line paste, true multiline confirmation, bracketed paste mode, trailing-blank-line trimming, paste-as-single-line decisions, compact previews, and Windows PowerShell ReadLine paste detection. `Terminal.tsx` now supports paste decisions and a shell-owned paste shortcut hook. `ConnectedTerminal` keeps the existing `confirmWarning` UI while resolving paste through the policy and sends `\\x16` for Windows PowerShell/pwsh Ctrl+V. Backend write protocol, terminal-core, desktop API, TerminalToolCard, ACP, media, short-drama, and global editor paste behavior were not changed.
+
+### ISSUE-110E Terminal Resize Repaint Guard
+
+Priority: P2
+Status: Done
+Goal: Add a guard for resize-triggered repaint/cursor-position output so xterm history is not corrupted after ConPTY or shell resize events.
+Allowed files: `src/web-ui/src/tools/terminal/utils/*`, `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`, `src/web-ui/src/tools/terminal/components/Terminal.tsx`, focused tests.
+Forbidden: swallowing normal live output, changing backend PTY dimensions without xterm agreement, moving guard logic into desktop API.
+Verification: `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/resizeRepaintGuard.test.ts`; `pnpm run type-check:web`.
+Result: Added a pure resize repaint guard utility that recognizes only standalone absolute cursor-position output, skips a short bounded burst after successful resize, expires quickly, and clears as soon as real output arrives. `ConnectedTerminal` now applies the guard at the backend-output-to-xterm boundary and clears it if backend resize fails. Normal live output, mixed cursor/content output, backend PTY dimensions, terminal-core, desktop API, TerminalToolCard, ACP, media, short-drama, and paste/input policies were not changed by this issue.
+
+### ISSUE-110F Structured Terminal Replay
+
+Priority: P2
+Status: Done
+Goal: Add ordered terminal replay events so restored history preserves data/resize ordering instead of replaying one flat string.
+Allowed files: `src/crates/terminal/src/session/*`, `src/crates/terminal/src/api.rs`, `src/apps/desktop/src/api/terminal_api.rs`, `src/web-ui/src/tools/terminal/types/session.ts`, `src/web-ui/src/tools/terminal/hooks/useTerminal.ts`, `src/web-ui/src/tools/terminal/services/TerminalService.ts`, `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`, focused tests.
+Forbidden: workspace crate layout migration, duplicate `terminal-core`, remote terminal history pretending to support replay, whole terminal service/UI replacement.
+Verification: `cargo test -p terminal-core session::replay`; `cargo check -p terminal-core`; `cargo check -p void-desktop`; `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts`; `pnpm run type-check:web`.
+Result: Added terminal-core replay history with ordered `{ cols, rows, data }` events while preserving legacy flat `data`. Resize markers are recorded in session replay history only when terminal dimensions change, and API/desktop/Web DTOs now expose `events` without removing old fields. Web history recovery normalizes old flat history and new structured events; `TerminalService` buffers pending live events when no session listener exists, `useTerminal` drains them through a replay-aware queue, and `ConnectedTerminal` replays resize/data queue items locally without sending replay resize back to the backend. Remote history continues to return empty replay events instead of pretending to support replay.
+
+### ISSUE-120B Computer Use Terminal Detection Routing
+
+Priority: P2
+Status: Done
+Goal: Add terminal/GVim detection for Computer Use `type_text` routing so terminal-like targets use key events instead of accessibility text insertion.
+Allowed files: `src/apps/desktop/src/computer_use/*`, platform-specific Computer Use input adapters, focused tests.
+Forbidden: moving this detection into `src/crates/terminal`, changing local terminal UI/service behavior, changing Computer Use permissions in Web UI.
+Verification: `cargo test -p void-desktop terminal_detect`; `cargo check -p void-desktop`.
+Result: Added a pure Computer Use `terminal_detect` route model with terminal/GVim positive coverage, regular-app negative coverage, platform normalization, and generic `terminal` false-positive protection. macOS `app_type_text` now calls a background-input `bg_type_text_auto` adapter that uses the route model to switch terminal-like targets to key-event typing while keeping normal apps on Unicode text injection. Windows/Linux detection is covered as pure routing only; Windows background/cloaked input remains a separate platform capability.
+
+### ISSUE-120A Computer Use Platform Inventory
+
+Priority: P2
+Status: Done
+Goal: Inventory upstream Computer Use platform improvements and split one issue per platform capability while preserving `ComputerUseHost` contract.
+Allowed files: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Forbidden: runtime Computer Use implementation, Web UI permission changes, terminal crate changes, Flow Chat/media/short-drama changes.
+Affected module: Desktop Computer Use platform adapters.
+Preserved contracts: `ComputerUseHost` remains the platform boundary; `screenshot_display` and click-safety state semantics remain unchanged; unsupported platform actions remain explicit via existing capability/status paths.
+Implementation rule: inventory only; no runtime source changes.
+Verification: subagent platform inventory review; `node scripts/check-repo-hygiene.mjs`; scoped `git diff --check` for consensus docs.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Compared upstream Windows and macOS Computer Use platform additions with current Void. Split Windows work into module gates/app enumeration, UIA/MSAA snapshot, foreground capture, background input primitives, host app actions, and interactive/visual views. Split macOS work into SkyLight bridge, dual-post background input, window identity/focus-without-raise, Chromium/Electron background click, AX snapshot improvements, and AX pre-focus/input parity. Deferred core schema and DTO extraction candidates to separate issues.
+
+### ISSUE-120C Windows Computer Use Module Gates and App Enumeration
+
+Priority: P2
+Status: Done
+Goal: Add only the Windows Computer Use module-gate and app/window enumeration foundation needed by later Windows platform slices.
+Allowed files: `src/apps/desktop/src/computer_use/mod.rs`, `src/apps/desktop/src/computer_use/windows_list_apps.rs`, `src/apps/desktop/src/computer_use/desktop_host.rs` limited to `DesktopComputerUseHost::list_apps`, focused tests, consensus docs.
+Forbidden: capture implementation, background input implementation, Web UI permission changes, core tool schema changes, whole `desktop_host.rs` replacement.
+Affected module: Desktop Computer Use Windows adapter.
+Preserved contracts: `ComputerUseHost::list_apps` remains the host boundary; unsupported platform behavior remains explicit on non-Windows builds.
+Implementation rule: keep enumeration pure and testable where possible; do not wire app actions, capture, or interactive views in this issue.
+Verification: `cargo check -p void-desktop`; focused Windows enumeration tests or documented Windows smoke if platform APIs cannot be unit-tested on the current host.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md` if a new adapter boundary is added.
+Risk notes: Windows-only APIs require careful `cfg(windows)` gating so Linux/macOS builds and current Windows desktop check remain stable.
+Result: Added a Windows-only `windows_list_apps` adapter gated in `mod.rs` and wired `DesktopComputerUseHost::list_apps` to call it on Windows while preserving macOS and other-platform behavior. The adapter enumerates visible, non-minimized, titled top-level windows, groups by pid, resolves exe basenames through kernel32 FFI, falls back to window title, and returns `AppInfo` without enabling capture, background input, app actions, interactive view, or visual view behavior. Added focused `windows_app_enumeration` tests for exe suffix handling, path basename extraction, pid grouping, sorting, and `AppInfo` fields.
+
+### ISSUE-120D Windows Computer Use UIA Snapshot and MSAA Fallback
+
+Priority: P2
+Status: Done
+Goal: Add cached Windows UIA snapshot support and a narrow MSAA fallback for SAL/VCL-style apps while preserving existing locate/hit-test APIs.
+Allowed files: `src/apps/desktop/Cargo.toml` limited to Windows accessibility features, `src/apps/desktop/src/computer_use/mod.rs`, `src/apps/desktop/src/computer_use/windows_ax_ui.rs`, `src/apps/desktop/src/computer_use/windows_msaa.rs`, `src/apps/desktop/src/computer_use/desktop_host.rs` limited to `get_app_state_inner` Windows snapshot routing, focused tests, consensus docs.
+Forbidden: screenshot capture, input injection, interactive view wiring, Web UI policy changes.
+Affected module: Desktop Computer Use Windows accessibility adapter.
+Preserved contracts: UI state is returned through existing Computer Use state/status models; UI must not infer support from empty arrays.
+Implementation rule: keep UIA and MSAA behind adapter functions; do not make `ComputerUseHost` own COM traversal details.
+Verification: `cargo check -p void-desktop`; focused UIA/MSAA helper tests where portable; Windows app smoke for SAL/VCL fallback.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: COM apartment/lifetime and UIA cache traversal can hang or return partial trees; errors must be explicit.
+Result: Implemented Windows foreground-window accessibility snapshot routing for `desktop.get_app_state`, added cached UIA tree traversal and conversion to `AppStateSnapshot/AxNode`, added a SAL/VCL MSAA fallback adapter, and kept screenshot/input/app-action/interactive/visual support disabled for later issues.
+
+### ISSUE-120E Windows Computer Use Foreground Window Capture
+
+Priority: P2
+Status: Done
+Goal: Add Windows foreground/window capture adapter using upstream `PrintWindow`/DWM crop/BitBlt fallback ideas without wiring input actions.
+Allowed files: Windows-only Computer Use capture adapter files, focused tests, consensus docs, and minimal Windows API feature flags.
+Forbidden: background input, app action wiring, screenshot safety-state changes, Web UI changes.
+Affected module: Desktop Computer Use Windows capture adapter.
+Preserved contracts: capture stays behind `ComputerUseHost`; occlusion/fallback status must be explicit.
+Implementation rule: return enough metadata to distinguish full capture, fallback capture, and potentially occluded capture.
+Verification: `cargo check -p void-desktop`; Windows smoke for a normal window and an occluded/minimized edge case where available.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: `BitBlt` fallback may capture occluded content incorrectly; this must not be reported as a guaranteed app snapshot.
+Result: Added Windows-only `windows_capture.rs` adapter foundation with `PrintWindow(PW_RENDERFULLCONTENT)`, DWM extended-frame crop, mostly-black detection, WGC explicit-unimplemented stub, screen-region `BitBlt` fallback, and internal `WindowCaptureMetadata` carrying capture source, geometry, and occlusion uncertainty. The adapter is not wired into `desktop_host.rs` yet, so existing Windows `get_app_state` user-visible behavior and `screenshot_display` safety state remain unchanged.
+
+### ISSUE-120F Windows Computer Use Background Input Primitives
+
+Priority: P2
+Status: Done
+Goal: Add Windows background input primitives for click/type/scroll/drag as isolated adapter functions.
+Allowed files: Windows-only Computer Use input adapter files, pure parsing/routing tests, consensus docs.
+Forbidden: host app action wiring, interactive/visual flow enabling, Web UI permission changes, terminal crate changes.
+Affected module: Desktop Computer Use Windows input adapter.
+Preserved contracts: Computer Use permission and click-safety checks remain outside the adapter; terminal/GVim routing from 120B is preserved.
+Implementation rule: implement and test primitives before connecting them to user-facing Computer Use actions.
+Verification: `cargo check -p void-desktop`; focused key/text parsing tests; Windows smoke for a simple app if available.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: UIPI, DWM cloaking, foreground restoration, and SendInput fallback can produce misleading success; adapter result types must expose failures.
+Result: Added Windows-only `windows_bg_input.rs` adapter primitives for PostMessage click/key/char/scroll/drag, cloaked SendInput text/key fallback, UIPI checks, DirectComposition/UWP heuristics, key chord parsing, and internal `WindowsInputOutcome` delivery status. Final review fixed cloaked input failure paths so SendInput/PostMessage errors are captured as explicit status while foreground restore and uncloaking still run. No `desktop_host.rs`, user-facing app action, interactive/visual, Web UI permission, terminal crate, or core schema wiring was added.
+
+### ISSUE-120G Windows Computer Use Host App Actions
+
+Priority: P2
+Status: Done
+Goal: Wire Windows `app_click`, `app_type_text`, `app_scroll`, and `app_key_chord` through the Windows capture/input/accessibility adapters after 120C-120F.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, Windows-only Computer Use adapter files, focused tests, consensus docs.
+Forbidden: implementing new low-level primitives in this issue, Web UI permission changes, core tool schema changes.
+Affected module: Desktop Computer Use host action wiring.
+Preserved contracts: action routing remains behind `ComputerUseHost`; safety state and unsupported defaults remain explicit.
+Implementation rule: only connect already-tested adapter primitives and keep each action's error/status explicit.
+Verification: `cargo check -p void-desktop`; targeted host-action tests where possible; Windows smoke.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: should not start until adapter primitives have passed their own issue checks.
+Result: Added Windows `ComputerUseHost` wiring for `app_click`, `app_type_text`, `app_scroll`, and `app_key_chord` using target HWND resolution, target-window UIA/MSAA snapshots, and existing `windows_bg_input` primitives. Adapter failures remain explicit through `WindowsInputOutcome` mapping; uncertain posted delivery is preserved as `loop_warning`. No new low-level input primitive, `supports_background_input` capability flip, interactive/visual/drag wiring, Web UI permission change, terminal behavior change, or core schema change was added.
+
+### ISSUE-120H Windows Computer Use Interactive and Visual Views
+
+Priority: P2
+Status: Done
+Goal: Enable Windows interactive and visual mark flows using previously accepted Windows snapshot/capture/input adapters.
+Allowed files: Desktop Computer Use host/view adapter files, focused tests, consensus docs.
+Forbidden: changing Web UI permission policy, replacing core Computer Use schemas, changing macOS behavior.
+Affected module: Desktop Computer Use interactive/visual views.
+Preserved contracts: UI receives explicit `supported/unsupported/error` state; empty arrays are not support signals.
+Implementation rule: wire only after Windows app actions and snapshot/capture slices are stable.
+Verification: `cargo check -p void-desktop`; Windows smoke for interactive view, visual marks, and unsupported app cases.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: this is a higher-integration issue and has been split into 120H1-120H5 after upstream/architecture/QA review.
+Result: Completed through `ISSUE-120H1`-`ISSUE-120H5`. Windows Computer Use now attaches same-HWND screenshots for app state, enables interactive view construction and cached interactive actions through existing app actions, enables visual mark view/click through cached screenshot-backed marks, and keeps Windows `ClickTarget::VisualGrid` explicitly unsupported under `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` until real Windows smoke covers DPI, occlusion, DirectComposition/UWP, same-process multi-window, and multi-monitor targets. Web UI permission policy, core Computer Use schemas, macOS behavior, drag, `app_wait_for`, terminal behavior, low-level input primitives, media, short-drama, and Flow Chat behavior remain unchanged.
+
+### ISSUE-120H1 Windows AppState Screenshot Attachment
+
+Priority: P2
+Status: Done
+Goal: Attach a same-HWND Windows screenshot to `get_app_state(..., capture_screenshot=true)` and register screenshot coordinate maps for later interactive/visual/image-click flows.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, focused tests, consensus docs.
+Forbidden: enabling `supports_interactive_view`, enabling `supports_visual_mark_view`, changing Web UI permission policy, replacing core Computer Use schemas, changing macOS behavior, adding new low-level input primitives.
+Affected module: Desktop Computer Use Windows app-state host attachment.
+Preserved contracts: Windows capture uncertainty remains explicit; `BitBltScreenRegion` fallback is not treated as guaranteed current app state.
+Implementation rule: use the target HWND already resolved for the Windows app-state snapshot; do not fall back to an unrelated foreground window.
+Verification: `cargo test -p void-desktop windows_interactive_visual_views -- --nocapture`; adjacent Windows Computer Use regression tests; `cargo check -p void-desktop`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: automatic tests validate conversion and map registration seams only; real capture reliability still needs Windows smoke for occlusion, minimized windows, DPI, and multi-monitor cases.
+Result: Added Windows host conversion from `WindowCapture` PNG/metadata to `ComputerScreenshot` plus `PointerMap`, registered maps by app pid and screenshot id, and wired Windows `get_app_state_inner(..., capture_screenshot=true)` to attach a same-HWND screenshot non-fatally. Final review added a post-capture HWND/pid revalidation before map registration so stale or reused HWNDs skip attachment instead of poisoning coordinate maps. `potentially_occluded` capture metadata is propagated as `[WINDOWS_CAPTURE_UNCERTAIN]` through `loop_warning` and composed with any existing warning. No interactive/visual support flag, Web UI, core schema, macOS behavior, terminal behavior, or low-level input primitive was changed.
+
+### ISSUE-120H2 Windows Interactive View Enablement
+
+Priority: P2
+Status: Done
+Goal: Enable Windows `build_interactive_view` and cache/index resolution using 120H1 screenshots plus existing `interactive_filter` and `som_overlay`.
+Allowed files: Desktop Computer Use host interactive-view code, focused tests, consensus docs.
+Forbidden: visual mark click support, Web UI permission changes, core schema changes, macOS behavior changes, new input primitives.
+Affected module: Desktop Computer Use interactive view host integration.
+Preserved contracts: stale digest and missing index errors remain explicit; empty element lists are not used as support signals.
+Implementation rule: reuse existing snapshot/screenshot/cache interfaces and do not open `supports_interactive_view` until build/cache tests pass.
+Verification: focused Windows interactive view tests; adjacent Windows Computer Use regression tests; `cargo check -p void-desktop`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: requires real Windows smoke for overlay readability and image-coordinate alignment.
+Result: Enabled Windows `supports_interactive_view` after adding focused tests for build/cache/resolver behavior. Windows `build_interactive_view` now reuses 120H1 same-HWND app-state screenshots, existing `interactive_filter`, and existing `som_overlay`; it writes `interactive_view_cache` by pid and preserves snapshot `loop_warning`. Final review fixed empty filtered views to return explicit `[INTERACTIVE_VIEW_EMPTY]` without writing cache, so empty arrays are not treated as support success. Resolver helpers now support macOS/Windows while keeping the same `INTERACTIVE_VIEW_MISSING`, `STALE_INTERACTIVE_VIEW`, and `INTERACTIVE_INDEX_OUT_OF_RANGE` contracts. No Windows `interactive_click/type_text/scroll`, visual mark view/click, `supports_visual_mark_view`, `supports_background_input`, Web UI, core schema, macOS behavior, terminal behavior, or new input primitive was changed.
+
+### ISSUE-120H3 Windows Interactive Actions
+
+Priority: P2
+Status: Done
+Goal: Enable Windows `interactive_click`, `interactive_type_text`, and `interactive_scroll` by resolving cached interactive indices and delegating to 120G app actions.
+Allowed files: Desktop Computer Use host interactive-action code, focused tests, consensus docs.
+Forbidden: new low-level Windows input primitives, drag, app_wait_for, Web UI permission changes, core schema changes.
+Affected module: Desktop Computer Use interactive action host integration.
+Preserved contracts: action delivery uncertainty remains warning/error based on `WindowsInputOutcome`; stale digest can rebuild once but must not silently target a different HWND.
+Implementation rule: reuse `app_click`, `app_type_text`, and `app_scroll`; Windows `clear_first` must use Windows key chords, not macOS command chords.
+Verification: focused Windows interactive action seam tests; adjacent Windows Computer Use regression tests; `cargo check -p void-desktop`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: automatic tests cannot prove `PostMessageW`/`SendInput` delivery; Notepad and elevated-target smoke remain required.
+Result: Windows `interactive_click`, `interactive_type_text`, and `interactive_scroll` now delegate through existing app actions. Cached interactive views store Windows HWND identity and fail closed with `[WINDOW_CHANGED]` if the current target window differs. `interactive_click` keeps a screenshot-id-bound `ImageXy` fallback from the cached interactive view; `clear_first` uses Windows `Ctrl+A`/`Delete`; `press_enter_after` uses Windows `Enter`. Visual marks, drag, `app_wait_for`, Web UI, core schema, and low-level primitives remain unchanged.
+
+### ISSUE-120H4 Windows Visual Mark View and Click
+
+Priority: P2
+Status: Done
+Goal: Enable Windows `build_visual_mark_view` and `visual_click` using 120H1 screenshot maps and existing visual mark/overlay helpers.
+Allowed files: Desktop Computer Use host visual-view code, focused tests, consensus docs.
+Forbidden: changing visual DTO schema, Web UI permission changes, macOS behavior changes, unrelated VisualGrid semantics.
+Affected module: Desktop Computer Use visual mark host integration.
+Preserved contracts: visual marks use the screenshot id and pointer map the model saw; stale/missing cache is explicit.
+Implementation rule: click through existing `app_click(ImageXy)` and preserve `[WINDOWS_CAPTURE_UNCERTAIN]` warnings.
+Verification: focused Windows visual mark tests; adjacent Windows Computer Use regression tests; `cargo check -p void-desktop`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: needs real Windows smoke for DPI, occlusion, and DirectComposition surfaces.
+Result: Windows `build_visual_mark_view` now builds regular visual marks from same-HWND app screenshots, stores cached `hwnd_raw` plus `screenshot_id`, and enables `supports_visual_mark_view`. Windows `visual_click` resolves cached marks, validates HWND identity, binds stale-rebuild clicks to the rebuilt view pid/cache, and delegates through existing `app_click(ImageXy)` with the cached screenshot id. VisualGrid, drag, `app_wait_for`, Web UI, core schema, macOS behavior, and low-level primitives remain unchanged.
+
+### ISSUE-120H5 Windows VisualGrid Support Decision
+
+Priority: P3
+Status: Done
+Goal: Decide whether Windows `ClickTarget::VisualGrid` should remain explicitly unsupported or be mapped through visual mark/grid logic after 120H4.
+Allowed files: Desktop Computer Use host target-resolution tests and docs.
+Forbidden: broad action rewrites, Web UI permission changes, core schema changes.
+Affected module: Desktop Computer Use visual target contract.
+Preserved contracts: unsupported states must be explicit and must not appear as empty-grid success.
+Implementation rule: make a contract decision after visual mark smoke, not before.
+Verification: focused contract tests and `cargo check -p void-desktop`.
+Docs to update: `docs/ISSUES.md`, `docs/TEST_PLAN.md`.
+Risk notes: premature support can mis-click on scaled or occluded Windows targets.
+Result: Windows `ClickTarget::VisualGrid` remains explicitly unsupported under `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` for 120H5. The error now points to ISSUE-120H5, explains that real Windows smoke for DPI, occlusion, DirectComposition, and multi-monitor targets is still missing, and recommends `build_visual_mark_view` plus `visual_click` or `ImageXy` with an explicit screenshot basis. `ImageGrid`, `ImageXy`, visual marks, macOS VisualGrid, Web UI, core schema, and low-level input primitives remain unchanged.
+
+### ISSUE-121A macOS Computer Use SkyLight Bridge
+
+Priority: P3
+Status: Done
+Goal: Add a macOS SkyLight bridge behind runtime availability checks as an adapter foundation, with no behavior change unless explicitly enabled by later slices.
+Allowed files: macOS-only Computer Use adapter files, focused tests where possible, consensus docs.
+Forbidden: broad macOS host rewrite, Web UI policy changes, BitFun private API naming leakage, Windows behavior changes.
+Affected module: Desktop Computer Use macOS adapter.
+Preserved contracts: private SPI remains contained and soft-fails; public API fallback remains available.
+Implementation rule: isolate unsafe/private symbols in one module and keep callers independent of private structs.
+Verification: `cargo check -p void-desktop`; macOS-target check or documented environment blocker; macOS smoke before release.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md`.
+Risk notes: private API usage is high risk and must remain optional and observable.
+Result: Added a contained `macos_skylight` foundation module with structured availability, diagnostics, default-disabled policy, and macOS runtime `dlopen`/`dlsym` probing for required SkyLight symbols. The module is compiled for macOS and tests only; it is not wired into host actions, background input, focus, click, scroll, Web UI, core schema, Windows behavior, or capability flags. Windows-local focused tests cover stable status messages, soft-fail behavior, default-disabled policy, and private-name containment. macOS target check is blocked in the current Windows environment because the `aarch64-apple-darwin` Rust target is not installed.
+
+### ISSUE-121B macOS Computer Use Dual-Post Background Input
+
+Priority: P3
+Status: Done
+Goal: Route macOS background mouse/keyboard posts through dual-post helpers using SkyLight plus public event fallback.
+Allowed files: macOS-only Computer Use input adapter files, focused tests, consensus docs.
+Forbidden: changing terminal detection semantics, replacing `desktop_host.rs`, Web UI permission changes.
+Affected module: Desktop Computer Use macOS input adapter.
+Preserved contracts: 120B terminal/GVim routing remains the route selector for `type_text`.
+Implementation rule: only start after SkyLight bridge availability and fallback behavior are documented.
+Verification: `cargo check -p void-desktop`; macOS smoke on normal app and terminal-like app.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: event-auth/no-auth mixing can silently fail or steal focus.
+Result: Added a pure dual-post policy seam plus macOS SkyLight `SLEventPostToPid` wrapper and routed normal click, scroll, Unicode text, and key chord posts through SkyLight/public fallback helpers. Terminal-safe typing, terminal detection semantics, `desktop_host.rs`, focus/window behavior, Web UI policy, Windows behavior, and core schemas were not changed. Real macOS smoke remains required.
+
+### ISSUE-121C macOS Computer Use Window Identity and Focus Without Raise
+
+Priority: P2
+Status: Done
+Goal: Resolve pid-owned window ids and focus target windows without raising them before app actions.
+Allowed files: macOS-only Computer Use window/focus adapter files, host wiring limited to target-window lookup, consensus docs.
+Forbidden: broad window lifecycle changes, tray/window label changes, Web UI policy changes.
+Affected module: Desktop Computer Use macOS window adapter.
+Preserved contracts: foreground app/window state must not be stolen unless the existing action explicitly requires it.
+Implementation rule: keep focus-without-raise separate from click/type/scroll behavior changes.
+Verification: `cargo check -p void-desktop`; macOS smoke with foreground and background app windows.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: wrong window id mapping can target the wrong app; all failures must be explicit.
+Result: Added a pure macOS focus activation plan, pid-owned on-screen layer-0 window id lookup, and a SkyLight focus-without-raise primitive with public activate fallback only through the existing explicit macOS activation entry point. Input event payloads, terminal routing, Web UI, core schema, Windows behavior, and broad host lifecycle were not changed. Real macOS compile and smoke remain required.
+
+### ISSUE-121D macOS Chromium and Electron Background Click Recipe
+
+Priority: P3
+Status: Done
+Goal: Add the upstream Chromium/Electron multi-event background click recipe as a narrow adapter path.
+Allowed files: macOS-only Computer Use input adapter files, focused tests, consensus docs.
+Forbidden: generic click behavior replacement, Web UI policy changes, Windows behavior changes.
+Affected module: Desktop Computer Use macOS click adapter.
+Preserved contracts: normal apps keep existing click path unless a targeted Chromium/Electron route is selected.
+Implementation rule: select by app/window metadata, not by loose display text matching.
+Verification: `cargo check -p void-desktop`; macOS smoke in a Chromium/Electron app.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: this depends on reliable window-local coordinates and window id resolution from earlier macOS issues.
+
+### ISSUE-121E macOS Computer Use AX Snapshot Improvements
+
+Priority: P2
+Status: Done
+Goal: Improve macOS AX snapshots by enabling Chromium AX tree support where safe, traversing `AXChildren` plus `AXWindows`, and using `AXPlaceholderValue` fallback.
+Allowed files: macOS-only Computer Use accessibility adapter files, focused tests, consensus docs.
+Forbidden: input injection changes, SkyLight behavior changes, Web UI policy changes.
+Affected module: Desktop Computer Use macOS accessibility adapter.
+Preserved contracts: snapshots return explicit supported/error state and must avoid duplicate/misowned nodes.
+Implementation rule: keep AX tree enablement cached/per-pid and settled; dedupe `AXChildren`/`AXWindows`.
+Verification: `cargo check -p void-desktop`; macOS smoke with Chromium/Electron and standard apps.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/ARCHITECTURE.md`.
+Risk notes: enabling AX trees can change app accessibility behavior; failures must fall back safely.
+
+### ISSUE-121F macOS Computer Use AX Pre-Focus and Input Parity
+
+Priority: P2
+Status: Done
+Goal: Add AX pre-focus before text input plus small parity helpers such as Fn modifier, right/middle click, drag, and no-auth key chord where adapter support is clear.
+Allowed files: macOS-only Computer Use input/accessibility adapter files, focused tests, consensus docs.
+Forbidden: terminal route changes, Windows behavior changes, Web UI policy changes.
+Affected module: Desktop Computer Use macOS input/accessibility adapter.
+Preserved contracts: input routing still flows through `ComputerUseHost` and 120B terminal detection where applicable.
+Implementation rule: split further if any helper requires a different platform contract.
+Verification: `cargo check -p void-desktop`; macOS smoke for text focus and each accepted helper.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Risk notes: helper parity is easy to over-broaden; keep each behavior independently testable.
+Outcome: Split after Architecture-Agent and QA/Risk-Agent review because AX focus, key parity, and pointer parity have different contracts.
+Parent closure: `ISSUE-121F1`, `ISSUE-121F2`, and `ISSUE-121F3` are complete. Real macOS compile/smoke remains a release risk, and adapter-only primitives such as `bg_drag` and no-auth key chord routing are not product-facing host/tool behavior until later issues accept route policy and smoke evidence.
+
+#### ISSUE-121F1 macOS AX Pre-Focus Before Text Input
+
+Priority: P2
+Status: Done
+Goal: For explicit `NodeIdx` text input focus targets, attempt AX pre-focus before text dispatch while preserving existing click/activation and `bg_type_text_auto` routing.
+Allowed files: `macos_ax_write.rs`, narrow `desktop_host.rs` `app_type_text` wiring, focused tests, consensus docs.
+Forbidden: `macos_bg_input.rs` key/drag parity changes, terminal route changes, Windows behavior changes, Web UI policy changes, core schema changes.
+Verification: `cargo test -p void-desktop terminal_detect -- --nocapture`; `cargo test -p void-desktop macos_ax_write -- --nocapture`; `cargo check -p void-desktop`; target-file rustfmt; macOS smoke pending.
+
+#### ISSUE-121F2 macOS Key Parity
+
+Priority: P3
+Status: Done
+Goal: Evaluate Fn modifier and no-auth key-chord route as a separate macOS keyboard adapter policy.
+Allowed files: `macos_bg_input.rs`, optional pure key route plan, focused tests, consensus docs.
+Forbidden: default `app_key_chord` route changes without explicit policy tests; terminal text route changes; Windows/Web UI/core schema changes.
+Risk notes: `Fn` and no-auth event delivery are platform-sensitive and need macOS smoke before routing from host actions.
+Outcome: Added a pure key parity plan and macOS adapter primitives for `Fn` flag/keycode and no-auth key chord. The default host parser still rejects `fn`, and `app_key_chord` still routes to authenticated `bg_key_chord`; exposing Fn/no-auth from host actions remains gated on later macOS smoke and policy.
+
+#### ISSUE-121F3 macOS Pointer Parity
+
+Priority: P3
+Status: Done
+Goal: Verify existing right/middle click coverage and evaluate PID-scoped background drag as a separate pointer gesture contract.
+Allowed files: macOS pointer adapter files, optional host/tool contract only after explicit design, focused tests, consensus docs.
+Forbidden: adding background drag to existing actions without a tool/host contract and macOS smoke plan.
+Risk notes: right/middle click appears already present; drag needs event sequence, window-local routing, Chromium/Electron behavior, and accessibility permission review.
+Outcome: Verified the existing right/middle click adapter path and fixed the macOS `NodeIdx` AXPress gate so only plain left single clicks may use AXPress; right/middle, multi-click, and modifier clicks now fall through to the background click path. Added `macos_pointer_parity_plan` and a PID-scoped `bg_drag` adapter primitive for future smoke, but did not route drag from host/tool actions.
+
+### ISSUE-122A Computer Use `describe_screen` Contract Inventory
+
+Priority: P2
+Status: Done
+Goal: Inventory upstream `describe_screen` capability as a core/tool-schema issue separate from platform adapter migration.
+Allowed files: consensus docs only for this issue: `docs/ISSUES.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`, and product constraints in `docs/PRD.md`.
+Forbidden: adding or changing core Computer Use schemas inside this docs-only inventory; adding platform adapter behavior; modifying `ComputerUseHost`; changing Web UI permission policy; changing Windows/macOS input/capture adapters; changing terminal behavior.
+Affected module: Computer Use tool contract.
+Preserved contracts: platform adapter migration must not alter core tool schema implicitly.
+Implementation rule: this docs-only issue records product/tool contract acceptance only. Code implementation must happen in a later issue with schema, dispatch, result-shape, and host-default tests.
+Contract inventory:
+- User value: provide a low-cost observation summary for text-only or weak-vision Computer Use flows, especially when AX/UIA trees miss Canvas/WebView/WebGL content.
+- Non-goals: do not replace `screenshot`, `get_app_state`, `build_interactive_view`, or `build_visual_mark_view`; do not add click/input capability; do not change click readiness, screenshot navigation state, or interaction-state semantics.
+- First implementation direction: core action composes existing host seams such as `screenshot_peek_full_display`, `get_app_state`, and existing result envelopes; do not add `ComputerUseHost::describe_screen` unless a later issue proves existing seams are insufficient.
+- Required output model: explicit `status`, `source`, `scope`, `description` or structured summary, warnings, and `error`/`error_code` for unsupported or failed states. Empty arrays, empty strings, or missing fields must not mean unsupported.
+- Coordinate policy: do not output unbound clickable coordinates. Any future region hints must be tied to a `screenshot_id` or an explicit coordinate basis.
+- Rejected shortcuts: schema-only action addition without dispatch; aliasing to `screenshot` while bypassing multimodal/provider gates; platform-specific screen-description logic in core; Web UI inference of platform state; broad DTO extraction.
+Verification: docs-only validation now; future schema tests, action dispatch tests, result-shape tests, host default/unsupported tests, and platform smoke before product-facing implementation.
+Docs to update: `docs/PRD.md`, `docs/ISSUES.md`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Risk notes: schema changes can affect agent prompts, runtime dispatch, provider capability gates, result rendering, and UI behavior, so they must be isolated from platform adapter work.
+
+### ISSUE-122C Computer Use `describe_screen` Schema and Readonly Observation
+
+Priority: P2
+Status: Done
+Goal: Implement the smallest product-facing `describe_screen` action after 122A contract acceptance, returning explicit readonly observation status without changing platform adapter behavior.
+Allowed files: `src/crates/core/src/agentic/tools/implementations/computer_use_tool.rs`, `src/crates/core/src/agentic/tools/implementations/computer_use_actions.rs`, result/input helpers only if needed, focused core tests, and consensus docs.
+Forbidden: Web UI changes; Windows/macOS adapter behavior changes; input injection changes; click/drag/focus changes; `ComputerUseHost::describe_screen` unless separately accepted; upstream DTO extraction; crate layout migration; platform smoke claims without evidence.
+Affected module: Computer Use tool contract and runtime dispatch.
+Preserved contracts: text-only vs multimodal schema exposure must be explicit; schema actions must not fall through to unknown action; screenshot bytes stay out of JSON; observation must not mutate screenshot readiness, pointer maps, or interactive/visual caches.
+Verification: schema snapshot tests, runtime dispatch tests, result-shape tests, fake-host side-effect tests, `cargo test -p void-core computer_use --lib`, and platform smoke checklist recorded before enabling richer behavior.
+Outcome: `ComputerUseTool` now exposes `describe_screen` in both text-only and multimodal schemas. Runtime dispatch returns either explicit `unsupported` without a desktop host or readonly JSON observation from existing host seams (`computer_use_session_snapshot`, `computer_use_interaction_state`, `enumerate_ui_tree_text`) without image attachments, screenshot calls, action-history mutation, or platform adapter changes.
+
+### ISSUE-122B Computer Use Tool-Contracts DTO Extraction
+
+Priority: P3
+Status: Split
+Goal: Evaluate upstream tool-contract DTO extraction only after current platform adapter work is stable.
+Allowed files: consensus docs only until accepted.
+Forbidden: upstream crate layout migration, portable DTO extraction during platform issues, whole core/desktop rewrites.
+Affected module: Computer Use core/tool contract architecture.
+Preserved contracts: current Void crate layout and `ComputerUseHost` boundary remain authoritative.
+Implementation rule: architecture decision required before any code.
+Verification: future boundary checker and targeted schema tests.
+Docs to update: `docs/DECISIONS.md`, `docs/ARCHITECTURE.md`, `docs/TEST_PLAN.md`.
+Risk notes: this is a broad architecture move and is not required for Windows/macOS platform parity slices.
+Split note: Full DTO extraction remains deferred. `ISSUE-122B1` accepts only static boundary checks and documentation that protect the current `ComputerUseHost` seam and `describe_screen` readonly contract.
+
+### ISSUE-122B1 Computer Use DTO Boundary Checker Guard
+
+Priority: P3
+Status: Done
+Goal: Add static guardrails so Computer Use DTO extraction cannot be mixed into platform adapter or `describe_screen` follow-up work.
+Allowed files: `scripts/check-core-boundaries.mjs`, consensus docs.
+Forbidden files: Computer Use Rust source, desktop platform adapters, Web UI, provider adapters, tool runtime, Cargo manifests, new crates, new traits, new host methods.
+Affected module: Computer Use architecture governance.
+Preserved contracts: `ComputerUseHost` remains the core-to-desktop boundary; `describe_screen` uses only `computer_use_session_snapshot`, `computer_use_interaction_state`, and `enumerate_ui_tree_text`; no `ComputerUseHost::describe_screen` is introduced.
+Acceptance:
+- Boundary checker self-test fails before Computer Use anchors are added and passes after.
+- Normal boundary checker passes.
+- Existing `describe_screen` and `computer_use` core tests pass.
+Result: Hardened `scripts/check-core-boundaries.mjs` with Computer Use owner anchors for the host seam and `describe_screen` readonly implementation/tests. No Computer Use Rust source, desktop adapter, Web UI, provider, tool runtime, Cargo, crate layout, or DTO extraction changes were made.
+
+### ISSUE-130A Flow Chat Long-Session Performance Inventory
+
+Priority: P2
+Status: Done
+Goal: Evaluate upstream long-session rendering and scrolling fixes before splitting implementation issues.
+Docs to update: `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: Accepted as a docs-only inventory. Local upstream snapshot `tmp/upstream-bitfun@c2f6a3c` contains Flow Chat long-session helpers and tests that are absent locally: `virtualMessageListLayout.ts`, `VirtualMessageList.layout.test.ts`, `VirtualMessageList.session-boundary.test.tsx`, `historyProjectionHandoff.ts`, `modelRoundProgressiveRender.ts`, and `modelRoundProgressiveRender.test.ts`. These must be migrated as small slices, not by replacing current Void Flow Chat files.
+Protected local contracts: multi-agent/subagent projection, BTW child dialogs, floating/compact chat surfaces, current `SessionHistoryState` / `SessionContextRestoreState`, AI media grouping/cards, AI short-drama canvas/services, terminal service boundaries, and Void product identity.
+
+### ISSUE-130B Flow Chat Model Round Progressive Render
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream `modelRoundProgressiveRender` so completed oversized model rounds render progressively while streaming rounds stay complete.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/modelRoundProgressiveRender.ts`, focused tests, minimal `ModelRoundItem.tsx` integration, docs.
+Forbidden files: `src/web-ui/src/flow_chat/store/FlowChatStore.ts`, `src/web-ui/src/flow_chat/store/modernFlowChatStore.ts`, subagent projection internals, AI media services, AI short-drama modules.
+Acceptance:
+- RED test proves completed large rounds currently render all groups at once.
+- GREEN behavior renders a bounded latest tail first, then increments on timer/frame without dropping group order.
+- Streaming/running rounds are not clipped.
+- Media generation groups and task/subagent projection groups remain visible.
+Result: Added pure progressive-render helper and focused tests. `ModelRoundItem` now renders completed oversized rounds from the newest bounded tail first, then advances in small chunks with component-local timer state. Streaming rounds stay fully rendered. Rounds containing synthetic AI media groups or `Task` subagent groups render fully in this first slice to avoid hiding grouped media results or subagent projection. No store, session, subagent projection internals, terminal service/core, AI media services, or AI short-drama files were changed.
+
+### ISSUE-130C Flow Chat Virtual Message Height Estimates
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream layout estimation helpers without enabling initial history windowing yet.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`, focused layout tests, minimal `VirtualMessageList.tsx` estimate wiring, docs.
+Forbidden files: `FlowChatStore.ts`, session history loading APIs, `modernFlowChatStore.ts` item-shape changes, AI media/short-drama modules.
+Acceptance:
+- RED tests cover default historical/user/model/explore/image height estimates.
+- Live session estimate behavior remains compatible with current follow-output behavior.
+- Historical compact-tail and model-round estimates use explicit pure helpers.
+- No scroll follow/pin/session data semantics change.
+Result: Added `virtualMessageListLayout.ts` pure helpers and focused tests for live default height, historical compact/default/model-round estimates, content-aware item estimates, projection classification, and the 130C/130E boundary. `VirtualMessageList` now derives Virtuoso `defaultItemHeight` from `activeSession.isHistorical` and current `virtualItems`. It does not enable `heightEstimates`, initial history render windows, `firstItemIndex`, handoff overlays, store changes, or session/history API changes.
+
+### ISSUE-130D Flow Chat Stable Virtual Item Keys and Session Boundary Reset
+
+Priority: P2
+Status: Done
+Goal: Prevent viewport-local scroll/follow state leaking across session switches by adapting upstream stable item-key and session-boundary reset patterns.
+Allowed files: `VirtualMessageList.tsx`, `VirtualMessageList.session-boundary.test.tsx`, docs.
+Forbidden files: `FlowChatStore.ts`, backend/session adapters, subagent/media/short-drama modules.
+Acceptance:
+- RED test proves session switch can retain stale at-bottom/follow state or stale visible range.
+- `computeItemKey` includes session identity and stable item identity.
+- Viewport-local state resets on active session boundary without changing virtual item data shape.
+Result: Implemented in `VirtualMessageList.tsx` with session-scoped stable item keys, `Virtuoso` session remount key, and layout-effect viewport-local state reset. Added focused source-contract and jsdom behavior coverage in `VirtualMessageList.session-boundary.test.tsx`.
+
+### ISSUE-130E Flow Chat Initial Historical Render Window
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream tail-window initial render for long historical sessions using spacer/height estimates after 130C and 130D.
+Allowed files: `VirtualMessageList.tsx`, `virtualMessageListLayout.ts`, `VirtualMessageList.scss`, focused tests, docs.
+Forbidden files: `FlowChatStore.ts` deferred hydration, backend session APIs, AI media/short-drama modules.
+Acceptance:
+- Long history initially renders the latest bounded window plus an omitted-height spacer.
+- Upward reveal expands the window and preserves scrollTop mapping.
+- `ScrollAnchor`, `ScrollToLatestBar`, and `StickyTaskIndicator` remain functional.
+Split note: 130E is split because direct upstream static-scroller migration has P1 risk in current Void; `VirtualMessageList` still has many `virtuosoRef`-dependent scroll/pin/follow paths. `ISSUE-130E1` implements pure helper foundations. `ISSUE-130E2` must choose and prove the UI render strategy before enabling a bounded render window.
+Result: Completed through `ISSUE-130E1` and `ISSUE-130E2`. The pure render-window helpers select a bounded latest historical tail and map upward-expansion scroll positions; `VirtualMessageList` now has a gated static-scroller path for historical sessions that renders the bounded tail plus omitted-height spacer, expands on upward intent or omitted-target navigation, and preserves `scrollToTurn`, `scrollToIndex`, `pinTurnToTop`, `ScrollAnchor`, `ScrollToLatestBar`, and `StickyTaskIndicator` behavior with focused tests. This parent closure does not add `heightEstimates`, Virtuoso `firstItemIndex`, history projection handoff, deferred hydration, store/API changes, media, short-drama, subagent, or terminal behavior.
+
+### ISSUE-130E1 Flow Chat Initial History Window Helpers
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream pure initial-history window selection and scrollTop expansion mapping helpers without changing `VirtualMessageList` render behavior.
+Allowed files: `virtualMessageListLayout.ts`, `virtualMessageListLayout.test.ts`, docs.
+Forbidden files: `VirtualMessageList.tsx`, `VirtualMessageList.scss`, `FlowChatStore.ts`, `modernFlowChatStore.ts`, backend session APIs, AI media/short-drama/subagent/terminal modules.
+Acceptance:
+- `selectInitialHistoryRenderWindow` keeps a bounded latest tail for large historical item lists.
+- User-only latest turns keep one extra previous turn.
+- Small histories remain unwindowed.
+- `mapInitialHistoryExpansionScrollTop` preserves top, spacer-ratio, visible-tail, and bottom-pinned positions.
+- Component boundary tests prove no static scroller, `heightEstimates`, handoff, or deferred hydration is enabled yet.
+Result: Implemented helper-only foundation with focused tests. UI behavior remains in `ISSUE-130E2`.
+
+### ISSUE-130E2 Flow Chat Initial Historical Render Window UI Gate
+
+Priority: P1
+Status: Done
+Goal: Enable the bounded initial historical render window in `VirtualMessageList` only after proving the render strategy preserves existing scroll/pin/follow APIs.
+Allowed files: `VirtualMessageList.tsx`, `VirtualMessageList.scss`, focused jsdom/component tests, docs.
+Forbidden files: `FlowChatStore.ts`, `modernFlowChatStore.ts`, backend session APIs, history projection handoff, deferred hydration, AI media/short-drama/subagent/terminal modules.
+Acceptance:
+- Chosen strategy is documented: static scroller, Virtuoso `firstItemIndex`, or another bounded-render adapter.
+- `scrollToTurn`, `scrollToIndex`, `pinTurnToTop`, `ScrollAnchor`, `ScrollToLatestBar`, `StickyTaskIndicator`, visible turn measurement, and follow-output behavior have focused tests for the chosen strategy.
+- Long historical sessions initially render only the bounded latest window plus omitted-height spacer or equivalent virtual offset.
+- Upward reveal expands the window and preserves scrollTop mapping through `mapInitialHistoryExpansionScrollTop`.
+- No `heightEstimates`, `firstItemIndex`, or static-scroller branch is added without tests covering index mapping and imperative navigation.
+Result: Enabled a gated static-scroller render path for long historical sessions in `VirtualMessageList`. The path initially renders the bounded latest tail plus omitted-height spacer, expands on upward wheel intent, and adapts `scrollToTurn`, `scrollToIndex`, and `pinTurnToTop` through a DOM-scroller adapter before using the existing overlays (`ScrollAnchor`, `ScrollToLatestBar`, `StickyTaskIndicator`). Boundary tests continue to forbid `heightEstimates`, `firstItemIndex`, history projection handoff, deferred hydration, store/API changes, media/short-drama changes, and terminal changes.
+
+### ISSUE-130F Flow Chat History Projection Handoff Overlay
+
+Priority: P2
+Status: Done
+Goal: Adapt upstream session-open handoff overlay to reduce blank UI during historical session switching after boundary reset is in place.
+Allowed files: `historyProjectionHandoff.ts`, `VirtualMessageList.tsx`, `VirtualMessageList.scss`, focused tests, docs.
+Forbidden files: `FlowChatStore.ts`, history restore API, terminal/media/short-drama modules.
+Acceptance:
+- Overlay snapshots are guarded by source/target session identity.
+- Overlay auto-releases after real session content is measured/rendered.
+- Actual session data is not mutated or replaced by overlay data.
+Split note: 130F is split because upstream overlay code is intertwined with partial history projection, startup trace, `heightEstimates`, `firstItemIndex`, previous-history boundary status, and session-open effects. `ISSUE-130F1` adds pure snapshot/session-open selection helpers only. `ISSUE-130F2` must separately gate any `VirtualMessageList` overlay UI and release behavior.
+Result: Completed through `ISSUE-130F1` and `ISSUE-130F2`. The pure handoff helpers create session-scoped bottom-tail snapshots only for valid session switches, and `VirtualMessageList` renders a guarded, read-only overlay as a sibling of the real scroller. The overlay releases after real target content renders or after a bounded timeout, while visible-turn measurement, imperative navigation, store/session data, and `virtualItems` remain based on the real list. This parent closure does not change `FlowChatStore`, restore APIs, deferred hydration, `heightEstimates`, Virtuoso `firstItemIndex`, startup trace expansion, terminal, media, short-drama, or subagent behavior.
+
+### ISSUE-130F1 Flow Chat History Projection Handoff Helpers
+
+Priority: P2
+Status: Done
+Goal: Add the pure history projection handoff snapshot contract and session-open selection logic without rendering an overlay.
+Allowed files: `historyProjectionHandoff.ts`, `historyProjectionHandoff.test.ts`, source-boundary tests, docs.
+Forbidden files: `VirtualMessageList.tsx`, `VirtualMessageList.scss`, `FlowChatStore.ts`, history restore API, terminal/media/short-drama modules.
+Acceptance:
+- `activeSessionHistoryProjectionHandoff` returns a snapshot only when its session id matches the active session id.
+- `selectSessionOpenHistoryProjectionHandoff` creates a bottom-tail snapshot only for a real session switch into ready, non-partial history without static initial-history windowing or duplicate activation.
+- Tail selection keeps the latest user message visible when it falls before the normal tail budget.
+- `VirtualMessageList` source-boundary tests prove no projection overlay or handoff state is wired yet.
+Result: Added `historyProjectionHandoff.ts` pure helpers and focused tests. No UI overlay, release scheduler, startup trace, partial-history projection, store/API, media/short-drama, or terminal behavior was changed.
+
+### ISSUE-130F2 Flow Chat History Projection Handoff Overlay UI Gate
+
+Priority: P2
+Status: Done
+Goal: Wire the 130F1 helper into `VirtualMessageList` as a guarded overlay only after proving render/release behavior.
+Allowed files: `VirtualMessageList.tsx`, `VirtualMessageList.scss`, focused jsdom/component tests, docs.
+Forbidden files: `FlowChatStore.ts`, history restore API, deferred full hydration, `heightEstimates`, `firstItemIndex`, startup trace expansion, terminal/media/short-drama modules.
+Acceptance:
+- Overlay renders only for an active-session-matching snapshot.
+- Overlay releases after real target content is rendered outside the overlay, or after an explicit bounded timeout.
+- Overlay DOM is ignored by visible-turn measurement and imperative navigation target lookup.
+- Actual session data and `virtualItems` are not mutated or replaced by overlay data.
+Result: Added a session-scoped, read-only `VirtualMessageList` handoff overlay that renders the 130F1 bottom-tail snapshot as a scroller sibling, releases after the real target turn is present or after a bounded timeout, and leaves store/session data unchanged. No `FlowChatStore`, restore API, deferred hydration, `heightEstimates`, `firstItemIndex`, startup trace, terminal, AI media, or AI short-drama code was changed.
+
+### ISSUE-130G Flow Chat Deferred Full History Hydration Inventory
+
+Priority: P2
+Status: Done
+Goal: Evaluate upstream partial-history/deferred-full-hydration store behavior before any store changes.
+Allowed files: docs and read-only comparisons of current/upstream `FlowChatStore.ts`.
+Forbidden files: production code changes until a later implementation issue is approved.
+Acceptance:
+- Documents current Void `SessionHistoryState` and restore semantics.
+- Identifies whether backend/adapter changes are required.
+- Splits any implementation into separate store/API/test issues.
+Split note: 130F Risk/Architecture-Agent found that projection overlay safety depends on partial/deferred full-history store semantics. `ISSUE-130G1` is the next proposed contract slice before any 130F2 UI overlay.
+Result: Completed through `ISSUE-130G1` and `ISSUE-130G2`. Flow Chat now has explicit frontend partial-history fields (`isPartial`, `loadedTurnCount`, `totalTurnCount`), maps partial `restoreSessionView` responses through `FlowChatStore`, and schedules one store-local full-history follow-up that reuses existing restore capability and applies only through the active-session-guarded projection entry point. This parent closure does not change `AgentAPI.restoreSessionView` request shape, backend Tauri/Rust restore commands, virtual-list UI, terminal, media, short-drama, or subagent behavior.
+
+### ISSUE-130G1 Flow Chat Deferred History Projection Store Contract
+
+Priority: P1
+Status: Done
+Goal: Define and test the minimum store/API-facing state model for partial historical restore and deferred full-history projection before UI overlay work.
+Allowed files: Flow Chat store tests and pure state helpers if accepted; docs.
+Forbidden files: `VirtualMessageList.tsx`, projection overlay UI, terminal/media/short-drama modules, broad backend API rewrites without a separate adapter decision.
+Acceptance:
+- Store tests prove a partial historical restore has explicit `historyState`, `isPartial`, loaded count, and total count semantics instead of overloading empty arrays.
+- Deferred full-history completion is session-scoped and cannot overwrite the active session after a session switch.
+- Any required `AgentAPI.restoreSessionView` contract gaps are documented before implementation.
+- No overlay UI or virtual-list handoff rendering is introduced.
+Result: Added optional partial-history fields to `Session` and `RestoreSessionViewResponse`, mapped `restoreSessionView` partial responses through `FlowChatStore.loadSessionHistory`, and added a guarded `applyDeferredSessionHistoryProjection` store entry point that no-ops after active-session changes. No `VirtualMessageList`, overlay UI, backend invoke request, terminal, AI media, or AI short-drama code was changed.
+
+### ISSUE-130G2 Flow Chat Deferred Full-History Hydration Scheduling
+
+Priority: P1
+Status: Done
+Goal: Start a bounded frontend full-history hydration follow-up after a partial `restoreSessionView` response, using the existing restore API and guarded store projection entry point.
+Allowed files: `src/web-ui/src/flow_chat/store/FlowChatStore.ts`, `src/web-ui/src/flow_chat/store/FlowChatStore.test.ts`, `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`, `docs/ISSUES.md`.
+Forbidden files: `VirtualMessageList.tsx`, `VirtualMessageList.scss`, `modernFlowChatStore.ts`, backend Tauri/Rust restore commands, `AgentAPI.restoreSessionView` request shape, terminal/media/short-drama/subagent modules, startup trace expansion beyond existing marks.
+Acceptance:
+- A partial `restoreSessionView` response stores explicit partial state and schedules exactly one full-history follow-up for that session.
+- The follow-up reuses existing full restore capability and applies through `applyDeferredSessionHistoryProjection`.
+- If the active session changes before the follow-up completes, the projection does not overwrite the new active session or mutate the stale partial session into full state.
+- Complete/non-partial restores, ACP sessions, unsupported view-restore fallbacks, and legacy restore paths do not start a duplicate deferred follow-up.
+- The scheduler is testable without timers that make tests flaky; no UI component infers hydration state from empty arrays.
+Result: Added a `FlowChatStore`-local in-flight scheduler that starts one `restoreSessionWithTurns` follow-up after partial `restoreSessionView`, applies results only through `applyDeferredSessionHistoryProjection`, and preserves stale partial state when the active session changes before completion. No UI, backend command, `AgentAPI` request shape, terminal, AI media, AI short-drama, or subagent code was changed.
+
+### ISSUE-130H Flow Chat Terminal Output Preview Budget
+
+Priority: P2
+Status: Done
+Goal: Evaluate/adapt upstream long terminal output preview clipping without changing terminal core/service behavior.
+Allowed files: `TerminalToolCard.tsx`, terminal preview state/pure helpers, focused tests, docs.
+Forbidden files: terminal backend/core, `FlowChatStore.ts`, `VirtualMessageList.tsx`, AI media/short-drama modules.
+Acceptance:
+- Live/final terminal output previews have explicit row/character budgets.
+- Full output remains available in the terminal panel/replay path.
+- ACP permission actions and terminal replay contracts do not regress.
+Result: Added `terminalOutputPreview.ts` pure helper and focused tests, then wired `TerminalToolCard` to pass bounded live/final preview content into `LazyTerminalOutputRenderer`. The existing open-in-terminal-panel path, terminal replay/core, ACP permission actions, FlowChatStore, VirtualMessageList, AI media, and AI short-drama modules were not changed.
+
+### ISSUE-130I Code Preview Long Streaming Performance
+
+Priority: P2
+Status: Done
+Goal: Inventory and then adapt upstream CodePreview long-streaming performance harness and viewport-tail rendering if compatible with Void.
+Allowed files: CodePreview component/tests/harness files only after an inventory confirms local file paths.
+Forbidden files: Flow Chat store/session state, AI media/short-drama modules, terminal core.
+Acceptance:
+- RED test proves long streaming code currently renders or scroll-writes too much.
+- GREEN behavior limits rendered tail/window without losing final complete code.
+- Perf harness uses Void naming and contains no upstream product identity.
+Result: Added `CodePreview.test.tsx`, adapted streaming CodePreview from fixed 60-line tail rendering to viewport-aware tail rendering with a 6,000-character cap, and added `codePreviewPerfHarness.tsx` with `void-code-preview-perf-probe` naming. No Flow Chat store/session, terminal, AI media, AI short-drama, Markdown, or tool-result schema code was changed.
+
+### ISSUE-999 Split Parent Closeout Audit
+
+Priority: P1
+Status: Done
+Goal: Reconcile remaining Split parents after accepted sub-issues are implemented, so the migration inventory does not imply hidden unimplemented low-risk work.
+Allowed files: consensus docs only: `docs/PRD.md`, `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Web UI, Rust core, desktop/Tauri, terminal, media, short-drama, provider, workflow, script, Cargo, package, or generated source files.
+Affected module: upstream migration governance.
+Preserved contracts: no product behavior, runtime state, API shape, release workflow, crate layout, render hot path, Computer Use DTO boundary, brand identity, media, short-drama, multi-agent, subagent, terminal, or desktop behavior changes.
+Closeout:
+- `ISSUE-020D` remains Split: `020D1` and `020D2` implemented safe default-off render profiling for CodePreview and FlowTextBlock. Markdown renderer internals, syntax-highlighter internals, and ModelRoundItem profiling remain deferred until real browser startup/render smoke is available.
+- `ISSUE-060I` remains Split: `060I1` implemented an artifact-only manual CLI workflow. GitHub Release upload and Homebrew tap dispatch remain deferred until repository owners explicitly confirm release policy and tap ownership.
+- `ISSUE-122B` remains Split: `122B1` added static guardrails for the current Computer Use host seam and `describe_screen` readonly contract. Full upstream DTO extraction remains deferred behind a separate architecture decision.
+- `ISSUE-900` remains Split: `900A` hardened runtime boundary checks for the current Void crate layout. Upstream-style crate reorganization remains deferred because it conflicts with current product runtime, multi-agent, terminal, Computer Use, media, and short-drama ownership.
+Verification: issue-status scan, Split/Rejected rationale scan, docs diff check, trailing-whitespace scan, and consensus-doc cross-reference checks.
+Result: Completed a docs-only parent closeout. No runtime code, workflow, script, or generated files were changed.
+
+### ISSUE-999A Final Verification Test Snapshot Reconciliation
+
+Priority: P1
+Status: Done
+Goal: Fix stale test snapshots found during final closeout verification without changing runtime behavior.
+Allowed files: `src/crates/core/src/agentic/tools/registry.rs` test expectations, `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.test.ts`, consensus docs.
+Forbidden files: tool registry runtime assembly, tool implementations, Flow Chat runtime components/store/API, media, short-drama, terminal, desktop, provider adapters, scripts, workflows, Cargo/package metadata.
+Affected modules: core agent tool registry tests; Flow Chat virtual list boundary tests.
+Preserved contracts: `AnalyzeImage` and `ShortDramaProject` remain explicit existing tool-manifest entries; Flow Chat initial history rendering still forbids `heightEstimates`/`firstItemIndex` while allowing the already-completed `ISSUE-130F` handoff overlay.
+Verification: `cargo test -p void-core --lib`; `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/virtualMessageListLayout.test.ts`; `pnpm --dir src/web-ui run test:run`; `git diff --check`.
+Result: Updated test expectations only. No runtime registry logic, Flow Chat component code, store, API, media, short-drama, terminal, desktop, provider adapter, script, workflow, Cargo, or package behavior was changed.
+
+## P3 - High-Risk or Deferred
+
+### ISSUE-900 Runtime Crate Layout Reorganization
+
+Priority: P3
+Status: Split
+Reason: High conflict with current flat crate layout and local product runtime.
+Split note: Full upstream-style runtime crate reorganization remains deferred. `ISSUE-900A` accepts only a boundary inventory and checker-hardening slice that preserves the current crate layout.
+
+### ISSUE-900A Runtime Crate Boundary Inventory and Checker Hardening
+
+Priority: P3
+Status: Done
+Goal: Convert the upstream crate-layout migration pressure into explicit checks for the current Void runtime crate boundaries.
+Allowed files: `scripts/check-core-boundaries.mjs`, consensus docs.
+Forbidden files: `Cargo.toml`, `Cargo.lock`, Rust production code, Web UI, desktop, terminal, provider adapters, tool runtime, crate directory moves, crate renames.
+Affected module: Rust workspace architecture governance.
+Preserved contracts: current crate graph and flat local runtime layout remain authoritative; boundary enforcement is static and does not move code.
+Acceptance:
+- Existing core-boundary check still passes.
+- Self-test covers slash-containing content anchors and runtime port/remote host contract anchors.
+- Cargo metadata still resolves the current workspace without manifest edits.
+Result: Hardened `scripts/check-core-boundaries.mjs` so self-test coverage matches current runtime boundaries, including dialog preempt policy usage, remote runtime host adapters, remote command handler traits, and initial-sync anchors. No Cargo manifests, Rust source files, crate directories, UI, desktop, terminal, provider, or tool-runtime files were changed.
+
+### ISSUE-901 Installer and Brand Upstream Changes
+
+Priority: Rejected
+Status: Rejected
+Reason: Would overwrite Void identity and installer contracts.
+
+### ISSUE-902 Whole Flow Chat Replacement
+
+Priority: Rejected
+Status: Rejected
+Reason: Would risk local session restore, multi-agent, media, and short-drama behavior.

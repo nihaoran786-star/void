@@ -21,6 +21,57 @@ vi.hoisted(() => {
   });
 });
 
+const flowChatStoreMock = vi.hoisted(() => {
+  let state = {
+    sessions: new Map<string, any>(),
+    activeSessionId: null as string | null,
+  };
+  const listeners = new Set<(nextState: typeof state) => void>();
+  const notify = () => {
+    listeners.forEach(listener => listener(state));
+  };
+
+  return {
+    getState: () => state,
+    setState: (updater: ((prev: typeof state) => typeof state) | (() => typeof state)) => {
+      state = updater(state);
+      notify();
+    },
+    subscribe: (listener: (nextState: typeof state) => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    addExternalSession: (
+      sessionId: string,
+      title: string,
+      mode: string,
+      workspacePath: string,
+    ) => {
+      state = {
+        ...state,
+        sessions: new Map(state.sessions).set(sessionId, {
+          sessionId,
+          title,
+          mode,
+          workspacePath,
+          dialogTurns: [],
+          status: 'idle',
+          config: { agentType: mode },
+          sessionKind: 'normal',
+        }),
+      };
+      notify();
+    },
+    switchSession: (sessionId: string) => {
+      state = {
+        ...state,
+        activeSessionId: sessionId,
+      };
+      notify();
+    },
+  };
+});
+
 import { ContentCanvas } from './ContentCanvas';
 import { useAgentCanvasStore } from './stores';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
@@ -59,6 +110,10 @@ vi.mock('./hooks', () => ({
 vi.mock('@/flow_chat/services/openBtwSession', () => ({
   openMainSession: vi.fn(),
   selectActiveBtwSessionTab: vi.fn(() => null),
+}));
+
+vi.mock('@/flow_chat/store/FlowChatStore', () => ({
+  flowChatStore: flowChatStoreMock,
 }));
 
 describe('ContentCanvas workspace media opening', () => {

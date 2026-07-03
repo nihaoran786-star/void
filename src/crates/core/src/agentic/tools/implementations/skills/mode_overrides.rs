@@ -110,9 +110,7 @@ pub async fn set_user_mode_skill_state(
     load_user_mode_skill_overrides(mode_id).await
 }
 
-pub async fn clear_user_mode_skill_overrides(
-    mode_id: &str,
-) -> VoidResult<UserModeSkillOverrides> {
+pub async fn clear_user_mode_skill_overrides(mode_id: &str) -> VoidResult<UserModeSkillOverrides> {
     persist_agent_profile_from_value(
         mode_id,
         json!({

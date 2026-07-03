@@ -1,0 +1,214 @@
+name: CLI Package Manual Artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build. Leave empty to build the workflow run commit."
+        required: false
+        type: string
+      platform:
+        description: "Platform artifact to build."
+        required: true
+        default: linux-x64
+        type: choice
+        options:
+          - linux-x64
+          - linux-arm64
+          - macos-arm64
+          - macos-x64
+          - all
+      linux_runner:
+        description: "Linux runner baseline for linux-x64 builds."
+        required: true
+        default: ubuntu-24.04
+        type: choice
+        options:
+          - ubuntu-24.04
+          - ubuntu-22.04
+      retention_days:
+        description: "Artifact retention in days."
+        required: true
+        default: "14"
+        type: choice
+        options:
+          - "7"
+          - "14"
+          - "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cli-package-manual-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_ref: ${{ steps.meta.outputs.checkout_ref }}
+      version: ${{ steps.meta.outputs.version }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Resolve artifact metadata
+        id: meta
+        shell: bash
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          CHECKOUT_REF="${INPUT_REF:-$GITHUB_SHA}"
+          VERSION="$(jq -r '.version' package.json)"
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
+
+          echo "checkout_ref=${CHECKOUT_REF}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build matrix
+        id: matrix
+        shell: bash
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          LINUX_RUNNER: ${{ inputs.linux_runner }}
+        run: |
+          set -euo pipefail
+
+          linux_x64="{\"os\":\"${LINUX_RUNNER}\",\"name\":\"linux-x64\",\"target\":\"x86_64-unknown-linux-gnu\"}"
+          linux_arm64="{\"os\":\"ubuntu-24.04-arm\",\"name\":\"linux-arm64\",\"target\":\"aarch64-unknown-linux-gnu\"}"
+          macos_arm64="{\"os\":\"macos-15\",\"name\":\"macos-arm64\",\"target\":\"aarch64-apple-darwin\"}"
+          macos_x64="{\"os\":\"macos-15-intel\",\"name\":\"macos-x64\",\"target\":\"x86_64-apple-darwin\"}"
+
+          case "${PLATFORM}" in
+            linux-x64)
+              matrix="{\"include\":[${linux_x64}]}"
+              ;;
+            linux-arm64)
+              matrix="{\"include\":[${linux_arm64}]}"
+              ;;
+            macos-arm64)
+              matrix="{\"include\":[${macos_arm64}]}"
+              ;;
+            macos-x64)
+              matrix="{\"include\":[${macos_x64}]}"
+              ;;
+            all)
+              matrix="{\"include\":[${linux_x64},${linux_arm64},${macos_arm64},${macos_x64}]}"
+              ;;
+            *)
+              echo "Unsupported platform: ${PLATFORM}" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config \
+            build-essential \
+            libssl-dev \
+            libxcb1-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          shared-key: cli-manual-${{ matrix.name }}
+          cache-bin: false
+
+      - name: Build void-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --release --target "${{ matrix.target }}" -p void-cli
+
+      - name: Smoke test void-cli
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/${{ matrix.target }}/release/void-cli"
+          "$BIN" --version
+          "$BIN" --help > /dev/null
+
+      - name: Stage artifact
+        id: stage
+        shell: bash
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHORT_SHA: ${{ needs.prepare.outputs.short_sha }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          PACKAGE_NAME="void-cli-${VERSION}-${SHORT_SHA}-${TARGET}"
+          STAGE_DIR="$(pwd)/dist-cli/${PACKAGE_NAME}"
+          mkdir -p "$STAGE_DIR"
+
+          cp "target/${TARGET}/release/void-cli" "$STAGE_DIR/"
+          cp LICENSE "$STAGE_DIR/" || true
+          cp README.md "$STAGE_DIR/" || true
+
+          if [[ -d "src/apps/cli/themes" ]]; then
+            cp -R "src/apps/cli/themes" "$STAGE_DIR/themes"
+          fi
+          if [[ -d "src/apps/cli/prompts" ]]; then
+            cp -R "src/apps/cli/prompts" "$STAGE_DIR/prompts"
+          fi
+
+          ARCHIVE="${PACKAGE_NAME}.tar.gz"
+          tar -C "$(dirname "$STAGE_DIR")" -czf "$ARCHIVE" "$(basename "$STAGE_DIR")"
+
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
+          else
+            shasum -a 256 "$ARCHIVE" > "${ARCHIVE}.sha256"
+          fi
+
+          echo "archive=${ARCHIVE}" >> "$GITHUB_OUTPUT"
+          echo "checksum=${ARCHIVE}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload manual artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: void-cli-manual-${{ needs.prepare.outputs.version }}-${{ needs.prepare.outputs.short_sha }}-${{ matrix.name }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention_days }}
+          path: |
+            ${{ steps.stage.outputs.archive }}
+            ${{ steps.stage.outputs.checksum }}

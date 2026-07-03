@@ -202,9 +202,9 @@ impl BashTool {
                         .to_string(),
                 )
             })?;
-            fs.is_dir(resolved_dir).await.map_err(|e| {
-                VoidError::tool(format!("Failed to validate working_directory: {e}"))
-            })
+            fs.is_dir(resolved_dir)
+                .await
+                .map_err(|e| VoidError::tool(format!("Failed to validate working_directory: {e}")))
         } else {
             Ok(Path::new(resolved_dir).is_dir())
         }
@@ -551,10 +551,10 @@ Before executing the command, please follow these steps:
 2. Command Execution:
    - Always quote file paths that contain spaces with double quotes (e.g., cd "path with spaces/file.txt")
    - Examples of proper quoting:
-     - cd "/Users/name/My Documents" (correct)
-     - cd /Users/name/My Documents (incorrect - will fail)
-     - python "/path/with spaces/script.py" (correct)
-     - python /path/with spaces/script.py (incorrect - will fail)
+     - cd "workspace/My Documents" (correct)
+     - cd workspace/My Documents (incorrect - will fail)
+     - python "workspace/with spaces/script.py" (correct)
+     - python workspace/with spaces/script.py (incorrect - will fail)
    - After ensuring proper quoting, execute the command.
    - Capture the output of the command.
 
@@ -901,9 +901,7 @@ Usage notes:
                     },
                 )
                 .await
-                .map_err(|e| {
-                    VoidError::tool(format!("Remote command execution failed: {}", e))
-                })?;
+                .map_err(|e| VoidError::tool(format!("Remote command execution failed: {}", e)))?;
 
             let output = exec_result.combined_output();
 
@@ -970,9 +968,7 @@ Usage notes:
         let binding = terminal_api.session_manager().binding();
         let workspace_path = context
             .workspace_root()
-            .ok_or_else(|| {
-                VoidError::tool("workspace_path is required for Bash tool".to_string())
-            })?
+            .ok_or_else(|| VoidError::tool("workspace_path is required for Bash tool".to_string()))?
             .to_string_lossy()
             .to_string();
 
@@ -1368,14 +1364,14 @@ impl BashTool {
         // Store background output under the session-scoped runtime tool-results tree:
         // local:  ~/.void/projects/<project-slug>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
         // remote: ~/.void/remote_ssh/<host>/<remote-path>/sessions/<chat-session-id>/tool-results/<tool-use-id>.txt
-        let output_file_path =
-            Self::background_output_file_path(context, chat_session_id, &tool_use_id).ok_or_else(
-                || {
-                    VoidError::tool(
-                        "Failed to prepare a background output file for Bash tool".to_string(),
-                    )
-                },
-            )?;
+        let output_file_path = Self::background_output_file_path(
+            context,
+            chat_session_id,
+            &tool_use_id,
+        )
+        .ok_or_else(|| {
+            VoidError::tool("Failed to prepare a background output file for Bash tool".to_string())
+        })?;
         if let Some(parent) = output_file_path.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|e| {
                 VoidError::tool(format!(

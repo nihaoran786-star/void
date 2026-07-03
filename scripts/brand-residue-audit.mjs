@@ -45,11 +45,20 @@ const ignoredPathPatterns = [
   /(^|\/)\.code-review-graph\//,
   /(^|\/)node_modules\//,
   /(^|\/)target\//,
+  /(^|\/)tmp\//,
   /(^|\/)dist\//,
   /(^|\/)build\//,
   /(^|\/)src\/web-ui\/public\/monaco-editor\//,
   /(^|\/)src\/mobile-web\/dist\//,
   /(^|\/)scripts\/brand-residue-audit\.mjs$/,
+];
+
+const allowedReferencePathPatterns = [
+  /(^|\/)docs\//,
+];
+
+const allowedReferenceLinePatterns = [
+  /tmp\/upstream-bitfun/,
 ];
 
 const binaryExtensions = new Set([
@@ -83,6 +92,15 @@ function normalizePath(file) {
 function shouldIgnorePath(file) {
   const normalized = normalizePath(file);
   return ignoredPathPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function allowsLegacyReference(file) {
+  const normalized = normalizePath(file);
+  return allowedReferencePathPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function allowsLegacyReferenceLine(line) {
+  return allowedReferenceLinePatterns.some((pattern) => pattern.test(line));
 }
 
 function isTextFile(file) {
@@ -123,11 +141,14 @@ function countMatches(value) {
 }
 
 const trackedFiles = runGit(['ls-files']);
+const untrackedFiles = runGit(['ls-files', '--others', '--exclude-standard']);
+const auditFiles = [...new Set([...trackedFiles, ...untrackedFiles])];
 const findings = [];
 
-for (const file of trackedFiles) {
+for (const file of auditFiles) {
   const normalized = normalizePath(file);
   if (shouldIgnorePath(normalized)) continue;
+  if (allowsLegacyReference(normalized)) continue;
 
   for (const match of countMatches(normalized)) {
     findings.push({
@@ -152,6 +173,7 @@ for (const file of trackedFiles) {
 
   const lines = content.split(/\r?\n/);
   for (const [index, line] of lines.entries()) {
+    if (allowsLegacyReferenceLine(line)) continue;
     const matches = countMatches(line);
     for (const match of matches) {
       findings.push({

@@ -5,6 +5,7 @@ import path from 'node:path';
 const root = process.cwd();
 const checkOnly = process.argv.includes('--check');
 const contractPath = path.join(root, 'src', 'shared', 'i18n', 'contract', 'locales.json');
+const RELAY_HOMEPAGE_SHARED_TERM_KEYS = ['features.remoteControl'];
 
 const outputs = [
   {
@@ -26,6 +27,10 @@ const outputs = [
   {
     path: path.join(root, 'Void-Installer', 'src-tauri', 'src', 'installer', 'generated_locale_contract.rs'),
     generate: generateInstallerRustLocaleContract,
+  },
+  {
+    path: path.join(root, 'src', 'apps', 'relay-server', 'static', 'homepage', 'i18n.shared.json'),
+    generate: generateRelayHomepageSharedTerms,
   },
 ];
 
@@ -150,6 +155,25 @@ function flattenSharedTerms(value, prefix = '') {
 
 function sharedTermsForLocales(sharedTermsByLocale, locales) {
   return Object.fromEntries(locales.map((locale) => [locale.id, sharedTermsByLocale[locale.id]]));
+}
+
+function getNestedSharedTerm(sharedTerms, keyPath) {
+  return keyPath.split('.').reduce((current, segment) => {
+    if (current == null || typeof current !== 'object' || Array.isArray(current)) {
+      return undefined;
+    }
+    return current[segment];
+  }, sharedTerms);
+}
+
+function setNestedValue(target, keyPath, value) {
+  const segments = keyPath.split('.');
+  let current = target;
+  for (const segment of segments.slice(0, -1)) {
+    current[segment] ??= {};
+    current = current[segment];
+  }
+  current[segments[segments.length - 1]] = value;
 }
 
 function generatedHeader(language) {
@@ -542,6 +566,22 @@ mod tests {
     }
 }
 `;
+}
+
+function generateRelayHomepageSharedTerms(contract, sharedTermsByLocale) {
+  const locales = contract.locales;
+  const output = {};
+  for (const locale of locales) {
+    const terms = {};
+    for (const key of RELAY_HOMEPAGE_SHARED_TERM_KEYS) {
+      const value = getNestedSharedTerm(sharedTermsByLocale[locale.id], key);
+      assert(typeof value === 'string', `${locale.id} is missing relay homepage shared term ${key}`);
+      setNestedValue(terms, key, value);
+    }
+    output[locale.id] = terms;
+  }
+
+  return `${JSON.stringify(output, null, 2)}\n`;
 }
 
 function main() {

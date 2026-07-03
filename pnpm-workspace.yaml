@@ -1,0 +1,19 @@
+packages:
+  - "src/web-ui"
+  - "src/mobile-web"
+  - "Void-Installer"
+  - "tests/e2e"
+
+onlyBuiltDependencies:
+  - "@parcel/watcher"
+  - "edgedriver"
+  - "esbuild"
+  - "geckodriver"
+  - "sharp"
+
+allowBuilds:
+  "@parcel/watcher": true
+  "edgedriver": true
+  "esbuild": true
+  "geckodriver": true
+  "sharp": true

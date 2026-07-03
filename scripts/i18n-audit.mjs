@@ -37,15 +37,54 @@ const localeContract = readJsonFile(contractPath);
 
 let errorCount = 0;
 let warningCount = 0;
+const cliOptions = parseCliOptions(process.argv.slice(2));
+const governanceReport = {
+  version: 1,
+  generatedBy: 'scripts/i18n-audit.mjs',
+  summary: {
+    counts: {
+      errors: 0,
+      warnings: 0,
+    },
+  },
+  errors: [],
+  warnings: [],
+  hardcodedSourceBudgets: [],
+};
+
+function parseCliOptions(args) {
+  const options = { reportJsonPath: null };
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--report-json') {
+      options.reportJsonPath = args[index + 1] ?? null;
+      index += 1;
+    } else if (arg.startsWith('--report-json=')) {
+      options.reportJsonPath = arg.slice('--report-json='.length);
+    }
+  }
+  return options;
+}
 
 function reportError(message) {
   errorCount += 1;
+  governanceReport.errors.push(message);
   console.error(`[i18n:audit] ERROR ${message}`);
 }
 
 function reportWarning(message) {
   warningCount += 1;
+  governanceReport.warnings.push(message);
   console.warn(`[i18n:audit] WARN ${message}`);
+}
+
+function writeGovernanceReport() {
+  if (!cliOptions.reportJsonPath) return;
+  governanceReport.summary.counts.errors = errorCount;
+  governanceReport.summary.counts.warnings = warningCount;
+  const reportPath = path.resolve(root, cliOptions.reportJsonPath);
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, `${JSON.stringify(governanceReport, null, 2)}\n`, 'utf8');
 }
 
 function toPosixPath(value) {
@@ -131,6 +170,33 @@ function flattenStringEntries(value, prefix = '') {
 
   return Object.entries(value)
     .flatMap(([key, child]) => flattenStringEntries(child, prefix ? `${prefix}.${key}` : key))
+    .sort(([left], [right]) => left.localeCompare(right));
+}
+
+function flattenRelayHomepageEntries(value, prefix = '') {
+  if (
+    value != null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    typeof value.$shared === 'string' &&
+    Object.keys(value).length === 1
+  ) {
+    return prefix ? [[prefix, `__shared:${value.$shared}`]] : [];
+  }
+
+  if (typeof value === 'string') {
+    return prefix ? [[prefix, value]] : [];
+  }
+  if (Array.isArray(value)) {
+    const text = value.filter((item) => typeof item === 'string').join('\n');
+    return prefix ? [[prefix, text]] : [];
+  }
+  if (value == null || typeof value !== 'object') {
+    return prefix ? [[prefix, '']] : [];
+  }
+
+  return Object.entries(value)
+    .flatMap(([key, child]) => flattenRelayHomepageEntries(child, prefix ? `${prefix}.${key}` : key))
     .sort(([left], [right]) => left.localeCompare(right));
 }
 
@@ -670,7 +736,7 @@ function readRelayHomepageMessages() {
 
   const entriesByLocale = new Map();
   for (const [locale, messages] of Object.entries(resource)) {
-    entriesByLocale.set(locale, new Map(flattenStringEntries(messages)));
+    entriesByLocale.set(locale, new Map(flattenRelayHomepageEntries(messages)));
   }
 
   return {
@@ -692,6 +758,19 @@ function auditRelayStaticHomepageResources() {
   const baselineEntries = entriesByLocale.get(baselineLocaleId) ?? new Map();
   const baselineKeys = Array.from(baselineEntries.keys()).sort();
   const dataKeys = collectRelayHomepageDataKeys();
+
+  for (const [locale, entries] of entriesByLocale.entries()) {
+    const sharedKeys = fs.existsSync(path.join(sharedTermsDir, locale, 'terms.json'))
+      ? new Set(flattenKeys(readJsonFile(path.join(sharedTermsDir, locale, 'terms.json'))))
+      : new Set();
+    for (const [key, value] of entries.entries()) {
+      if (!String(value).startsWith('__shared:')) continue;
+      const sharedKey = String(value).slice('__shared:'.length);
+      if (!sharedKeys.has(sharedKey)) {
+        reportError(`relay static homepage ${locale} key "${key}" references missing shared term "${sharedKey}"`);
+      }
+    }
+  }
 
   for (const locale of diffSets(expectedLocaleIds, localeIds)) {
     reportError(`relay static homepage i18n.json is missing locale "${locale}"`);
@@ -898,11 +977,30 @@ function auditHardcodedSourceBudgets() {
   for (const spec of specs) {
     const maxCjkLines = budgetById.get(spec.id);
     if (typeof maxCjkLines !== 'number') {
+      governanceReport.hardcodedSourceBudgets.push({
+        id: spec.id,
+        status: 'missing-baseline',
+        maxCjkLines: null,
+        actualCjkLines: null,
+        firstEntries: [],
+      });
       reportError(`Missing hardcoded CJK budget for ${spec.id}`);
       continue;
     }
 
     const findings = countCjkSourceLines(spec.root, spec.predicate);
+    const status = findings.length > maxCjkLines
+      ? 'over-budget'
+      : findings.length > 0
+        ? 'grandfathered'
+        : 'clean';
+    governanceReport.hardcodedSourceBudgets.push({
+      id: spec.id,
+      status,
+      maxCjkLines,
+      actualCjkLines: findings.length,
+      firstEntries: findings.slice(0, 12),
+    });
     if (findings.length > maxCjkLines) {
       reportError(`${spec.id} has ${findings.length} CJK source candidate line(s), budget is ${maxCjkLines}. First entries: ${findings.slice(0, 12).join(', ')}`);
     } else if (findings.length > 0) {
@@ -928,6 +1026,8 @@ auditCoreFluentParity();
 auditRelayStaticHomepageResources();
 auditSourceText();
 auditHardcodedSourceBudgets();
+
+writeGovernanceReport();
 
 if (errorCount > 0) {
   console.error(`[i18n:audit] Failed with ${errorCount} error(s) and ${warningCount} warning(s).`);

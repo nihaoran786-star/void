@@ -156,6 +156,8 @@ pub struct UpdateSessionGoalRequest {
     pub action: String,
     #[serde(default)]
     pub goal_text: Option<String>,
+    #[serde(default)]
+    pub token_budget: Option<u64>,
     pub workspace_path: Option<String>,
     #[serde(default)]
     pub remote_connection_id: Option<String>,
@@ -986,6 +988,14 @@ pub async fn update_session_goal(
         "edit" => GoalModeUpdateAction::Edit {
             goal_text: request.goal_text.unwrap_or_default(),
         },
+        "complete" => GoalModeUpdateAction::Complete,
+        "block" | "blocked" => GoalModeUpdateAction::Block,
+        "set-budget" | "set_budget" | "setbudget" => GoalModeUpdateAction::SetTokenBudget {
+            token_budget: request.token_budget,
+        },
+        "clear-budget" | "clear_budget" | "clearbudget" => {
+            GoalModeUpdateAction::SetTokenBudget { token_budget: None }
+        }
         other => return Err(format!("Unsupported goal action: {other}")),
     };
 
@@ -1104,11 +1114,11 @@ pub async fn run_init_agents_md(
     })
 }
 
-fn is_blank_text(value: Option<&String>) -> bool {
+pub(crate) fn is_blank_text(value: Option<&String>) -> bool {
     value.map(|s| s.trim().is_empty()).unwrap_or(true)
 }
 
-fn resolve_missing_image_payloads(
+pub(crate) fn resolve_missing_image_payloads(
     image_contexts: Vec<ImageContextData>,
 ) -> Result<Vec<ImageContextData>, String> {
     let mut resolved = Vec::with_capacity(image_contexts.len());

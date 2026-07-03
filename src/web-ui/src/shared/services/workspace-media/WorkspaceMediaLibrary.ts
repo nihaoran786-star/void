@@ -239,6 +239,10 @@ function stableTrashId(selection: WorkspaceMediaSelection, now: number): string 
   return `trash-${stableId(`${selection.filePath}:${selection.stableSlotId || selection.id}:${now}`).replace(/^workspace-media-/, '')}`;
 }
 
+function isSafeTrashId(value: string): boolean {
+  return /^[a-zA-Z0-9_-]+$/.test(value);
+}
+
 function trashRootPath(workspacePath: string): string {
   return joinWorkspaceMediaPath(workspacePath, '.void/media-trash');
 }
@@ -719,6 +723,9 @@ export function createWorkspaceMediaLibraryService(
     const deleteDirectory = adapter.deleteDirectory;
     try {
       for (const trashId of trashIds) {
+        if (!isSafeTrashId(trashId)) {
+          return unsafePathError('Refusing to purge media with an unsafe trash id.');
+        }
         await deleteDirectory(trashRecordDirectory(rootPath, trashId), true);
       }
       const remainingRecords = (await readTrashIndexRecords(rootPath))
@@ -866,6 +873,9 @@ export function createWorkspaceMediaLibraryService(
       const ensureDirectory = adapter.ensureDirectory;
       try {
         for (const trashId of trashIds) {
+          if (!isSafeTrashId(trashId)) {
+            return unsafePathError('Refusing to restore media with an unsafe trash id.');
+          }
           const record = parseTrashRecord(JSON.parse(await readTextFile(trashMetadataPath(rootPath, trashId))));
           if (!record || !isPathInsideWorkspace(rootPath, record.originalPath) || !isPathInsideTrash(rootPath, record.trashPath)) {
             return unsafePathError('Refusing to restore media with unsafe trash metadata.');
