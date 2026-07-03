@@ -553,3 +553,9 @@ Reason: Pending media generation has business meaning, but this slice only names
 Decision: The fifth `ISSUE-1160F` code slice keeps fallback, placeholder, waveform, play/type badges, action buttons, overlay, unavailable text, and local divider colors as `--workspace-media-card-chrome-*` tokens inside `WorkspaceMediaGallery.scss`.
 
 Reason: These colors describe card chrome presentation, not media availability, previewability, delete state, selection state, or pending ownership. Keeping them local reduces raw color debt without creating global product-state tokens or touching Gallery React/service behavior.
+
+## DEC-093: Gallery Operation Error Colors Reuse Local Error Tokens
+
+Decision: The sixth `ISSUE-1160F` code slice keeps operation-error styling inside `WorkspaceMediaGallery.scss` and reuses local Gallery error tokens for text and border color.
+
+Reason: The visual error affordance should be theme-governed, but the operation failure source and recovery semantics belong to Gallery state/service code. Reusing local presentation tokens avoids encoding trash/delete/restore/purge business states into global theme tokens.

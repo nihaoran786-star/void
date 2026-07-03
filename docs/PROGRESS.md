@@ -51,22 +51,23 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F short drama center theme token boundary slice complete.
 - [x] ISSUE-1160F workspace media gallery generator visual token slice complete.
 - [x] ISSUE-1160F workspace media gallery card chrome visual token slice complete.
+- [x] ISSUE-1160F workspace media gallery operation-error token slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Workspace Media Gallery Card Chrome Visual Token Slice`
+Issue: `ISSUE-1160F Workspace Media Gallery Operation Error Token Slice`
 
 Summary:
 
-- Added `--workspace-media-card-chrome-*` local visual tokens to `WorkspaceMediaGallery.scss`.
-- Replaced raw fallback, placeholder, waveform, play/type badge, action button, overlay, unavailable, and local divider colors inside the Gallery card chrome selectors.
-- Added `scripts/workspace-media-gallery-card-chrome-theme.test.mjs` to prevent card chrome visual colors from regressing to selector-level raw values.
-- Did not touch Gallery TSX state, media availability, previewability, pending generation ownership, selection, delete/restore/purge flows, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+- Added `--workspace-media-gallery-error-border` to `WorkspaceMediaGallery.scss`.
+- Replaced raw operation-error border and text colors with local Gallery error tokens.
+- Added `scripts/workspace-media-gallery-operation-error-theme.test.mjs` to prevent operation-error colors from regressing to selector-level raw values.
+- Did not touch Gallery TSX operation state, failure source, delete/restore/purge behavior, media services, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/workspace-media-gallery-card-chrome-theme.test.mjs` failed before implementation because card chrome local tokens were missing and raw visual colors were present in the card chrome selectors.
-- GREEN: `node --test scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 4 tests after implementation.
+- RED: `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs` failed before implementation because the operation-error block used raw destructive colors and lacked a local error-border token.
+- GREEN: `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 5 tests after implementation.
 - `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 28 tests.
 - `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.

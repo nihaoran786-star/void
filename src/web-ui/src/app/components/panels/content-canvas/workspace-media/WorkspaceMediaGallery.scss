@@ -7,6 +7,7 @@
   --workspace-media-gallery-hover-surface: color-mix(in srgb, var(--workspace-media-gallery-muted) 10%, transparent);
   --workspace-media-gallery-accent: var(--color-accent-primary, #2563eb);
   --workspace-media-gallery-error-text: var(--color-error, #b42318);
+  --workspace-media-gallery-error-border: color-mix(in srgb, var(--workspace-media-gallery-error-text) 20%, transparent);
   --workspace-media-gallery-error-bg: color-mix(in srgb, var(--color-error, #b42318) 9%, var(--workspace-media-gallery-bg));
   --workspace-media-generator-glow: rgba(56, 189, 248, 0.18);
   --workspace-media-generator-surface-start: rgba(15, 23, 42, 0.94);
@@ -703,8 +704,8 @@
 }
 
 .workspace-media-gallery__operation-error {
-  border-top: 1px solid color-mix(in srgb, #dc2626 20%, transparent);
-  color: #b91c1c;
+  border-top: 1px solid var(--workspace-media-gallery-error-border);
+  color: var(--workspace-media-gallery-error-text);
   font-size: 12px;
   line-height: 1.4;
   padding: 7px 0 0;

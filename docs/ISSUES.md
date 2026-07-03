@@ -2102,7 +2102,10 @@ Progress:
 - Completed the Workspace Media Gallery card chrome visual token slice: fallback, placeholder, waveform, play/type badges, action buttons, overlay, unavailable text, and local divider colors now use `--workspace-media-card-chrome-*` tokens.
 - Added `scripts/workspace-media-gallery-card-chrome-theme.test.mjs` to lock the card chrome visual token boundary.
 - Preserved Gallery TSX state, media availability, previewability, pending generation ownership, selection, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
-- Remaining 1160F debt: Gallery operation-error raw colors and ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
+- Completed the Workspace Media Gallery operation-error token slice: operation error border/text now use local Gallery error tokens.
+- Added `scripts/workspace-media-gallery-operation-error-theme.test.mjs` to lock the operation-error token boundary.
+- Preserved Gallery TSX operation state, failure source, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
+- Remaining 1160F debt: ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

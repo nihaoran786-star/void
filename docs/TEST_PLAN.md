@@ -203,6 +203,40 @@ Residual risk:
 - Gallery operation-error raw colors remain a separate visual-debt candidate.
 - This slice does not verify rendered screenshots or change media preview behavior.
 
+## ISSUE-1160F Workspace Media Gallery Operation Error Token Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `WorkspaceMediaGallery.scss` operation-error border/text colors only.
+- Focused script guard for operation-error selector-level raw destructive colors.
+- No Gallery TSX operation state, failure source, delete/restore/purge behavior, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: operation-error used raw destructive colors and the Gallery root did not define `--workspace-media-gallery-error-border`.
+- `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs`
+  - Result: passed.
+  - Notes: 5 focused style-boundary tests passed.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx`
+  - Result: passed.
+  - Notes: 28 focused workspace-media tests passed.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+  - Notes: no baseline update required.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- ShortDramaCenterPanel stage/status/media-preview raw visual colors remain separate visual-debt candidates.
+- This slice does not verify rendered screenshots or change operation failure behavior.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03
