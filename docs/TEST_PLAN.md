@@ -181,6 +181,29 @@ Remaining manual matrix for parent `ISSUE-1130C`:
 - UIPI/high-integrity target denial path and warning/status visibility.
 - DWM/PrintWindow/BitBlt/WGC coordinate consistency on real windows.
 
+## ISSUE-1130C2 Windows Pointer/Input Manual Smoke Matrix
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Defines the manual evidence boundary for parent `ISSUE-1130C`.
+- No Computer Use runtime, schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, macOS, or Linux behavior changed.
+
+Checks:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: `manual_pending`.
+- Notes: This slice does not claim real Windows smoke passed. The matrix requires evidence for DPI 100%/125%/150%, mixed-scale multi-monitor negative origin, foreground and occluded targets, high-integrity/UIPI denial, capture-source consistency, and stale/missing pointer-map failure.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

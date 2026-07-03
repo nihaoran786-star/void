@@ -1809,6 +1809,22 @@ Result:
 - Confirmed existing production behavior already satisfies this contract; no production code was changed.
 - Kept `ISSUE-1130C` open because Windows DPI scaling, mixed-scale multi-monitor layouts, foreground/occluded targets, and UIPI/high-integrity denial still need real Windows smoke.
 
+### ISSUE-1130C2 Windows Pointer/Input Manual Smoke Matrix
+
+Priority: P1
+Status: Done
+Goal: Define the real Windows smoke matrix needed to close `ISSUE-1130C` without pretending unit tests prove DPI, monitor, occlusion, or UIPI behavior.
+Allowed files: `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use production code, Computer Use schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, macOS/Linux behavior.
+Acceptance:
+- Manual smoke scenarios cover 100%/125%/150% DPI, mixed-scale multi-monitor negative origin, foreground input, occluded target input, high-integrity/UIPI denial, capture-source consistency, and stale/missing pointer maps.
+- Each scenario records environment, target identity, capture source, `screenshot_id` where relevant, result `status/source/path/error/warning`, and evidence path.
+- Parent `ISSUE-1130C` remains open until all manual scenarios have current evidence or explicit deferrals in `docs/DECISIONS.md`.
+- No runtime behavior or automated test result is claimed from the matrix alone.
+Result:
+- Added `docs/qa/windows-computer-use-smoke-matrix.md` with required environment fields, scenario table, result-record template, automated baseline commands, and closure rule.
+- Kept `ISSUE-1130C` open because this slice creates the evidence boundary; it does not execute real Windows smoke.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

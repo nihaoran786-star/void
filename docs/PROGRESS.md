@@ -81,8 +81,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140D2 ViewImage manifest and readonly exposure gate complete.
 - [x] ISSUE-1140D3 ViewImage provider image-attachment capability gate complete.
 - [x] ISSUE-1140D4 minimal Void ViewImage tool implementation complete.
+- [x] ISSUE-1130C2 Windows pointer/input manual smoke matrix complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C2 Windows Pointer/Input Manual Smoke Matrix`
+
+Summary:
+
+- Added a manual Windows Computer Use smoke matrix for the remaining `ISSUE-1130C` hardware-dependent proof.
+- The matrix records required environment fields, DPI/multi-monitor/foreground/occluded/UIPI/capture/stale-map scenarios, a result template, and the parent issue closure rule.
+- No Computer Use runtime, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, or platform adapter behavior changed.
+
+Verification:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
+
+## Previous Slice
 
 Issue: `ISSUE-1140D4 Minimal Void ViewImage Tool Implementation`
 
