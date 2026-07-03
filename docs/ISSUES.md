@@ -1978,7 +1978,7 @@ Result:
 ### ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Add or reject `ViewImage` manifest exposure through Void's existing tool-pack/product-runtime path with focused registry tests.
 Allowed files: `src/crates/tool-packs/src/lib.rs`, `src/crates/core/src/agentic/tools/product_runtime.rs`, `src/crates/core/src/agentic/tools/registry.rs`, focused tests, docs.
 Forbidden files: tool execution implementation, provider adapters, Web UI upload flow, media/short-drama services, upstream `assembly` crate layout.
@@ -1986,6 +1986,12 @@ Acceptance:
 - Manifest/readonly/collapsed exposure is explicitly tested before tool execution exists.
 - `AnalyzeImage` manifest behavior remains unchanged.
 - `ViewImage` is exposed only if the follow-up implementation can preserve explicit `status/source/error` and image attachment gating.
+Result:
+- Rejected `ViewImage` manifest exposure until `ISSUE-1140D3` and `ISSUE-1140D4` prove provider image-attachment support and workspace path/image-processing behavior.
+- Added `void-tool-packs` provider-plan coverage proving `ViewImage` is not planned while `AnalyzeImage` remains in the image-analysis group.
+- Added core registry coverage proving `ViewImage` is not materialized, not builtin-manifest visible, not collapsed/GetToolSpec-discoverable, and not readonly-visible.
+- Added product catalog facade coverage proving an allowed-tools list that includes `ViewImage` still cannot make it prompt-visible before runtime gates pass.
+- No `ViewImage` runtime implementation, provider adapter, Web UI, AI media, AI short-drama, Flow Chat, or `AnalyzeImage` behavior was changed.
 
 ### ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate
 

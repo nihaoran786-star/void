@@ -329,6 +329,23 @@ mod tests {
     }
 
     #[test]
+    fn product_provider_group_plan_keeps_view_image_gated_until_runtime_contract_exists() {
+        let tool_names = product_tool_provider_group_plan()
+            .iter()
+            .flat_map(|group| group.tool_names().iter().copied())
+            .collect::<Vec<_>>();
+
+        assert!(
+            !tool_names.contains(&"ViewImage"),
+            "ViewImage must not enter the product provider plan before manifest, provider, and path gates pass"
+        );
+        assert!(
+            tool_names.contains(&"AnalyzeImage"),
+            "AnalyzeImage remains the active image-understanding tool while ViewImage is gated"
+        );
+    }
+
+    #[test]
     fn product_provider_group_plan_preserves_feature_group_mapping() {
         let feature_groups = product_tool_provider_group_plan()
             .iter()

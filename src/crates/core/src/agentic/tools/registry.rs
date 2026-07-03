@@ -333,6 +333,26 @@ mod tests {
     }
 
     #[test]
+    fn registry_keeps_view_image_unexposed_until_contract_gates_pass() {
+        let registry = create_tool_registry();
+
+        assert!(
+            registry.get_tool("ViewImage").is_none(),
+            "ViewImage must not be materialized before manifest, provider, and path gates pass"
+        );
+        assert!(
+            !registry.get_tool_names().contains(&"ViewImage".to_string()),
+            "ViewImage must not appear in the builtin manifest before runtime implementation exists"
+        );
+        assert!(
+            !registry
+                .get_collapsed_tool_names()
+                .contains(&"ViewImage".to_string()),
+            "ViewImage must not be discoverable through GetToolSpec before provider/path gates pass"
+        );
+    }
+
+    #[test]
     fn registry_preserves_builtin_tool_manifest_for_owner_migration() {
         let registry = create_tool_registry();
         let expected_names = vec![
@@ -620,6 +640,25 @@ mod tests {
                 "GetMediaTaskStatus",
             ],
             "readonly tool manifest must stay stable before moving registry ownership"
+        );
+    }
+
+    #[tokio::test]
+    async fn readonly_manifest_keeps_view_image_gated_until_runtime_contract_exists() {
+        let readonly_names = super::get_readonly_tools()
+            .await
+            .expect("readonly tools")
+            .iter()
+            .map(|tool| tool.name().to_string())
+            .collect::<Vec<_>>();
+
+        assert!(
+            !readonly_names.contains(&"ViewImage".to_string()),
+            "ViewImage must not be exposed as readonly until provider attachment and path gates pass"
+        );
+        assert!(
+            readonly_names.contains(&"AnalyzeImage".to_string()),
+            "AnalyzeImage remains the active readonly image tool while ViewImage is gated"
         );
     }
 

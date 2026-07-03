@@ -395,6 +395,38 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn product_catalog_facade_keeps_view_image_gated_even_if_allowed() {
+        let allowed_tools = vec!["AnalyzeImage".to_string(), "ViewImage".to_string()];
+
+        let manifest = resolve_product_tool_manifest(
+            &allowed_tools,
+            &AgentToolPolicyOverrides::default(),
+            &tool_context(Some("agentic")),
+        )
+        .await;
+
+        let definition_names = manifest
+            .tool_definitions
+            .iter()
+            .map(|tool| tool.name.as_str())
+            .collect::<Vec<_>>();
+        assert!(
+            definition_names.contains(&"AnalyzeImage"),
+            "AnalyzeImage remains prompt-visible when allowed"
+        );
+        assert!(
+            !definition_names.contains(&"ViewImage"),
+            "ViewImage must not become prompt-visible until provider and path gates pass"
+        );
+        assert!(
+            !manifest
+                .collapsed_tool_names
+                .contains(&"ViewImage".to_string()),
+            "ViewImage must not become GetToolSpec-discoverable before runtime implementation exists"
+        );
+    }
+
+    #[tokio::test]
     async fn product_catalog_facade_resolves_get_tool_spec_results_from_same_provider_owner() {
         let results = resolve_product_get_tool_spec_results(
             &json!({ "tool_name": "WebFetch" }),

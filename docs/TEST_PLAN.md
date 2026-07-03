@@ -5841,3 +5841,35 @@ Remaining risk:
 
 - `ViewImage` is not implemented by this slice.
 - Future code slices must prove manifest exposure, provider support, and workspace path/image processing separately before exposing the tool.
+
+## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
+
+Scope:
+
+- Current slice covers manifest and exposure gating only.
+- `ViewImage` remains unimplemented and unexposed until provider image-attachment and workspace path/image-processing gates pass.
+- No provider adapter, Web UI, AI media, AI short-drama, Flow Chat, `AnalyzeImage`, workspace path reading, remote filesystem, or image-processing behavior changed.
+
+Executed:
+
+- `cargo test -p void-tool-packs view_image --lib -- --nocapture`
+  - Result: passed, 1 focused test.
+- `cargo test -p void-core view_image --lib -- --nocapture`
+  - Result: passed, 3 focused tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/tool-packs/src/lib.rs src/crates/core/src/agentic/tools/registry.rs src/crates/core/src/agentic/tools/product_runtime.rs docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: listed this slice's three scoped source files plus non-this-slice generated Web UI version files; generated files are not part of this change and are not staged.
+
+Coverage:
+
+- `ViewImage` is absent from `void-tool-packs` provider plan while `AnalyzeImage` remains present.
+- `ViewImage` is absent from core builtin manifest, collapsed manifest, readonly manifest, and runtime materialization.
+- Product catalog facade ignores `ViewImage` even when an allowed-tools list names it, while still exposing `AnalyzeImage`.
+
+Remaining risk:
+
+- Provider attachment support and workspace image path processing remain in `ISSUE-1140D3` and `ISSUE-1140D4`.
+- Future `ViewImage` exposure must update these tests intentionally rather than slipping into the manifest as a side effect.
