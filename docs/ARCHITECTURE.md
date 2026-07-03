@@ -272,6 +272,7 @@ Required boundary:
 - MCP ordinary-request timeout has separate remote and local contracts. Remote Streamable HTTP keeps its existing bounded request timeout in `RemoteMCPTransport`, with `await_with_optional_timeout` as the single helper that maps remote request futures into typed timeout outcomes. `MCPConnection::new_remote_with_request_timeout` is an explicit injection path for tests and controlled callers; the default remote constructor still uses the production timeout. Local stdio `MCPConnection` owns a distinct optional ordinary request timeout that must not reuse or inherit initialize timeout. The current production local default remains delegated to the outer tool pipeline timeout until a separate config issue wires a default. Local timeout paths must remove pending response waiters and return `MCPRuntimeErrorKind::Timeout`.
 - Current Void keeps its existing Rust workspace crate graph as the authoritative layout. Upstream-style crate reorganization is not accepted as a bulk move; boundary changes must be split into explicit issues with manifest, dependency, and behavior tests.
 - `scripts/check-core-boundaries.mjs` is the static governance check for this layout. It must keep owner file anchors for runtime scheduling, dialog preempt policy, remote runtime host adapters, remote command handler traits, and initial-sync handlers so future migrations cannot silently weaken current module boundaries.
+- Upstream tool/event ABI and plugin-runtime owner moves are planning inputs only. Current Void already owns local boundary equivalents such as `ToolCatalogSnapshotProvider`, `RuntimeEventSink`, runtime-port DTOs, and product-runtime tool assembly. Future owner migration candidates must be split before code: tool snapshot ABI, event projection manifest, plugin runtime/capability boundary, MCP runtime owner, ExecCommand/tool-runtime owner, and remote file/helper owner. Each candidate needs behavior-equivalence tests and must preserve Flow Chat, multi-agent/subagent, AI media, AI short-drama, MCP timeout, and provider boundaries before any crate move or event shape change.
 
 Forbidden:
 
@@ -646,7 +647,7 @@ Flow Chat history projection handoff contract:
 
 ## 2026-07-03 Selective Upgrade Wave Boundaries
 
-The current upstream reference is `upstream-bitfun/main@ac16dcc18`. Upstream is a design and bug-fix source, not an ownership source. This wave preserves the existing Void module graph.
+The current upstream reference is `upstream-bitfun/main@4da7ae5d8`. Upstream is a design and bug-fix source, not an ownership source. This wave preserves the existing Void module graph.
 
 ### Entry Points
 

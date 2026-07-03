@@ -192,6 +192,33 @@ Coverage:
 - Existing assistant-facing error result structure is preserved; the old `category` string is produced through the typed helper.
 - UI rendering and event schema migration remain separate follow-up work under parent `ISSUE-1150E`.
 
+## ISSUE-1150F Tool Runtime Owner Migration Planning Gate
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Read-only inspection of upstream commits `65da1a082` and `4da7ae5d8`.
+- No Rust/TS production source, Cargo manifest, event ABI, MCP runtime state, ExecCommand policy, remote file helper, Web UI, Flow Chat, multi-agent/subagent, AI media, or AI short-drama changes.
+
+Checks:
+
+- `git show --stat --oneline --no-renames 65da1a082`
+  - Result: inspected upstream tool/event ABI contract scope, including tool snapshot and event projection manifest additions.
+- `git show --stat --oneline --no-renames 4da7ae5d8`
+  - Result: inspected upstream plugin runtime boundary scope, including runtime-ports, product capabilities, LSP contracts, and agent runtime changes.
+- `git grep -n "ToolCatalogSnapshot\\|RuntimeEventSink\\|projection_manifest\\|PluginRuntime\\|ExecCommand" -- src/crates scripts docs`
+  - Result: confirmed current Void already has local equivalents for `ToolCatalogSnapshotProvider`, `RuntimeEventSink`, runtime-port DTOs, product-runtime tool assembly, and boundary-script anchors.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- Migration candidates are registered separately: tool snapshot ABI, event projection manifest, plugin runtime/capability boundary, MCP runtime owner, ExecCommand/tool-runtime owner, and remote file/helper owner.
+- Each candidate requires future behavior-equivalence tests before code movement.
+- This issue does not claim runtime parity with upstream plugin/runtime decomposition and does not approve any crate move.
+
 ## ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Date: 2026-07-03

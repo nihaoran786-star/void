@@ -2161,7 +2161,7 @@ Result:
 ### ISSUE-1150F Tool Runtime Owner Migration Planning Gate
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Preserve useful upstream owner-migration ideas while deferring high-risk crate/runtime moves behind explicit equivalence tests.
 Allowed files: architecture docs, boundary scripts/tests, optional focused contract tests.
 Forbidden files: direct crate moves, MCP runtime state migration, ExecCommand policy migration, remote file helper migration, event ABI migration, Web UI changes.
@@ -2170,6 +2170,12 @@ Acceptance:
 - Each candidate lists owner, forbidden dependencies, product behavior equivalence tests, and protected surfaces.
 - No runtime/crate migration occurs inside this audit issue.
 Risk notes: These upstream changes are architecture-scale; they must not be batched with MCP timeout, large-output, or readonly-manifest fixes.
+Result:
+- Registered upstream `65da1a082 refactor: establish tool and event ABI contracts` and `4da7ae5d8 refactor(core): establish plugin runtime boundary` as planning inputs only.
+- Confirmed current Void already has local equivalents for several boundary ideas: `ToolCatalogSnapshotProvider`, `RuntimeEventSink`, runtime-port DTOs, tool/provider metadata contracts, and `scripts/check-core-boundaries.mjs` owner anchors.
+- Split future migration candidates into separate gates: tool snapshot ABI, event projection manifest, plugin runtime/capability boundary, MCP runtime owner, ExecCommand/tool-runtime owner, and remote file/helper owner.
+- For each candidate, recorded that implementation requires behavior-equivalence tests before any crate move, event shape change, or runtime owner migration.
+- Did not change Rust/TS production code, Cargo manifests, event ABI, MCP lifecycle, tool execution behavior, Web UI, Flow Chat, multi-agent/subagent, AI media, or AI short-drama.
 
 ### ISSUE-1160 Theme Token Governance Incremental Upgrade
 

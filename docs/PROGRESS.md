@@ -74,25 +74,27 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140E1 short-drama Main AI media export leak guard complete.
 - [x] ISSUE-1120B terminal runtime-port boundary static guard complete.
 - [x] ISSUE-1150E1 tool pipeline outcome classification contract complete.
+- [x] ISSUE-1150F tool runtime owner migration planning gate complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150E1 Tool Pipeline Outcome Classification Contract`
+Issue: `ISSUE-1150F Tool Runtime Owner Migration Planning Gate`
 
 Summary:
 
-- Added `ToolPipelineOutcome` typed classification inside the core tool pipeline.
-- Classified user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, ordinary tool timeout, cancellation, not-found, invalid-arguments, and generic execution errors.
-- Routed the existing error result `category` through the typed helper while preserving the current assistant-facing result shape.
-- Kept parent `ISSUE-1150E` open for any future UI rendering or event ABI work.
+- Refreshed the upstream wave reference to `upstream-bitfun/main@4da7ae5d8`.
+- Registered upstream `65da1a082` tool/event ABI contracts and `4da7ae5d8` plugin runtime boundary as planning inputs only.
+- Confirmed current Void already has local boundary equivalents such as `ToolCatalogSnapshotProvider`, `RuntimeEventSink`, runtime-port DTOs, product-runtime tool assembly, and boundary-script anchors.
+- Split future owner migration candidates into tool snapshot ABI, event projection manifest, plugin runtime/capability boundary, MCP runtime owner, ExecCommand/tool-runtime owner, and remote file/helper owner.
+- Preserved runtime behavior, event ABI, crate layout, Flow Chat, multi-agent/subagent, AI media, and AI short-drama.
 
 Verification:
 
-- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture` passed.
-- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs` passed after applying rustfmt.
-- `cargo test -p void-core tool_pipeline --lib -- --nocapture` passed.
+- `git show --stat --oneline --no-renames 65da1a082` inspected.
+- `git show --stat --oneline --no-renames 4da7ae5d8` inspected.
+- `git grep -n "ToolCatalogSnapshot\\|RuntimeEventSink\\|projection_manifest\\|PluginRuntime\\|ExecCommand" -- src/crates scripts docs` inspected.
 - `node scripts/check-core-boundaries.mjs` passed.
-- `git diff --check -- src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
+- `git diff --check -- docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
 
 ## Subagent Summary
 
@@ -113,7 +115,7 @@ Initial role coverage:
 
 `ISSUE-1100 Upstream Incremental Inventory Refresh` is complete for the new 2026-07-03 selective upgrade wave.
 
-Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
+Current upstream wave reference: `upstream-bitfun/main@4da7ae5d8`.
 
 Next candidate issue: select one remaining Proposed issue from `docs/ISSUES.md` after each completed slice; do not batch unrelated upstream areas into one diff.
 
