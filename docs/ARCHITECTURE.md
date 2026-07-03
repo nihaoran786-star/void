@@ -377,6 +377,7 @@ Interface ownership:
 - `ShortDramaWorkspaceManifestAdapter` owns workspace-scoped manifest IO in Web UI services.
 - `ShortDramaRuntimeBridge` maps tool/subagent events into project status changes.
 - `ShortDramaCenterPanel` renders and coordinates panel interactions only.
+- Short-drama image-understanding bridge data must enter through `ShortDramaProject` as low-context artifact/reference metadata. Main AI context exports may expose media ids, active-media summaries, preview/playable availability, and recommended short-drama tools, but must not include raw `mediaReference`, `previewUrl`, `thumbnailUrl`, `localPath`, `filePath`, public CDN URLs, data URLs, or raw bytes. `AnalyzeImage` remains a generic image-context tool and must not read short-drama project state or right-panel UI state directly.
 
 Protected events:
 

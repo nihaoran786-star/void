@@ -109,6 +109,34 @@ Remaining manual matrix for parent `ISSUE-1130C`:
 - UIPI/high-integrity target denial path and warning/status visibility.
 - DWM/PrintWindow/BitBlt/WGC coordinate consistency on real windows.
 
+## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts`.
+- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No generic `AnalyzeImage` rewrite, provider wire conversion, media service rewrite, short-drama page behavior change, or `.void/short-drama` direct mutation.
+
+Checks:
+
+- `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts`
+  - Result: failed first with an overly broad `filePath` assertion because the export's own `.void/short-drama/awareness.md` metadata is allowed.
+  - Result: passed after narrowing the guard to raw media-reference fields and raw media values.
+  - Notes: the final test injects `previewUrl`, `thumbnailUrl` data URL content, Windows `localPath`, and Unix-like `filePath` into a short-drama image artifact and proves the Main AI export omits those raw values while retaining low-context `mediaItemId` and availability metadata.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `git diff --check -- src/web-ui/src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed.
+  - Notes: Git printed line-ending warnings only.
+
+Remaining follow-up for parent `ISSUE-1140E`:
+
+- Define a dedicated short-drama image media to generic `ImageContext` adapter only for explicit image media selection/reference.
+- Keep `AnalyzeImage` short-drama-agnostic; it must continue to accept only generic `image_id`, workspace-safe `image_path`, or inline `data_url`.
+- Add tests proving video/audio short-drama media do not become image contexts and HTTP preview URLs are not treated as directly analyzable image bytes.
+
 ## ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Date: 2026-07-03

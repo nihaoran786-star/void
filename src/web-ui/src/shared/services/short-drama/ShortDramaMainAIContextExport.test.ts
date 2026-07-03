@@ -43,6 +43,52 @@ describe('ShortDramaMainAIContextExport', () => {
     expect(result.context.selectedText).not.toContain('data:image/svg+xml');
   });
 
+  it('does not expose raw media references anywhere in the main AI export payload', () => {
+    const sourceProject = createShortDramaStaticProject();
+    const project = {
+      ...sourceProject,
+      artifacts: sourceProject.artifacts.map(artifact => artifact.id === 'episode-01-character-guard'
+        ? {
+            ...artifact,
+            mediaReference: {
+              mediaItemId: 'media-image-hero',
+              kind: 'image' as const,
+              label: 'External raw image reference',
+              previewUrl: 'https://cdn.example.com/raw-short-drama-image.png',
+              thumbnailUrl: 'data:image/png;base64,raw-thumbnail-bytes',
+              localPath: 'C:/Users/17949/Pictures/raw-short-drama-image.png',
+              filePath: '/mnt/workspace/raw-short-drama-image.png',
+            },
+          }
+        : artifact),
+    };
+
+    const result = createShortDramaMainAIContextExport(project, {
+      activeStage: 'assets',
+      activeEpisodeId: 'episode-01',
+      activeArtifactIdOrHandle: 'episode-01-character-guard',
+      panelState: 'open',
+    });
+
+    expect(result.status).toBe('ready');
+    const payload = JSON.stringify(result);
+    expect(payload).toContain('media-image-hero');
+    expect(payload).toContain('previewAvailable');
+    expect(payload).toContain('activeMedia');
+    expect(payload).not.toContain('data:image/svg+xml');
+    expect(payload).not.toContain('raw-thumbnail-bytes');
+    expect(payload).not.toContain('https://cdn.example.com/raw-short-drama-image.png');
+    expect(payload).not.toContain('C:/Users/17949/Pictures/raw-short-drama-image.png');
+    expect(payload).not.toContain('/mnt/workspace/raw-short-drama-image.png');
+    expect(payload).not.toContain('/short-drama-static/final-preview.mp4');
+    expect(payload).not.toContain('mediaReference');
+    expect(payload).not.toContain('previewUrl');
+    expect(payload).not.toContain('thumbnailUrl');
+    expect(payload).not.toContain('localPath');
+    expect(payload).not.toContain('rawMediaBytes');
+    expect(payload).not.toContain('rawMediaPayloadsIncluded');
+  });
+
   it('exports persistent stage agent session status without embedding chat history', () => {
     const project = createShortDramaStaticProject();
     const workspacePath = 'C:/Users/17949/Documents/void-source';

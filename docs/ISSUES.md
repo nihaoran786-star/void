@@ -1947,6 +1947,23 @@ Acceptance:
 - Tests prove raw media URLs/bytes are omitted from Main AI context export.
 Risk notes: Short-drama image understanding must be a bridge contract, not a generic image tool reaching into the right-side page.
 
+### ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
+
+Priority: P2
+Status: Done
+Goal: Lock the current Main AI short-drama awareness export so image/media references remain low-context metadata and do not leak raw URLs, local paths, or data URLs.
+Allowed files: `ShortDramaMainAIContextExport` tests and docs.
+Forbidden files: `AnalyzeImage` rewrites, provider image wire conversion, media service rewrite, short-drama UI page behavior, direct `.void/short-drama` mutation.
+Acceptance:
+- Main AI context export still uses `ShortDramaProject` as the source object and does not read the right-side page directly.
+- Export payload may include `mediaItemId`, `activeMedia`, and preview/playable availability flags.
+- Export payload must not include `mediaReference`, `previewUrl`, `thumbnailUrl`, `localPath`, `filePath`, raw data URLs, raw CDN URLs, or raw media byte labels.
+- Follow-up adapter work is split from this guard and must not make `AnalyzeImage` short-drama-aware.
+Result:
+- Added a focused test with a short-drama image artifact containing external CDN URL, data URL, Windows local path, and Unix-like file path metadata.
+- Confirmed the Main AI export keeps low-context media metadata while omitting raw media references.
+- Left the broader `ISSUE-1140E` open for a future explicit short-drama image-understanding summary/reference adapter.
+
 ### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
 
 Priority: P1

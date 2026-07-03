@@ -71,29 +71,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130D1 Windows settings link decision table complete.
 - [x] ISSUE-1130D Windows Computer Use capability gating/settings parent complete.
 - [x] ISSUE-1130C1 Windows pointer coordinate contract tests complete.
+- [x] ISSUE-1140E1 short-drama Main AI media export leak guard complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1130C1 Windows Pointer Coordinate Contract Tests`
+Issue: `ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard`
 
 Summary:
 
-- Added focused host tests for existing Windows pointer coordinate contracts without changing production behavior.
-- Verified explicit `screenshot_id` maps win over pid fallback maps in `map_app_image_coords_to_pointer_f64`.
-- Verified `PointerMap::map_image_to_global_f64` preserves subpixel center math across negative display origins and content/crop offsets.
-- Verified missing app/screenshot/global pointer basis fails explicitly with guidance to use a returned `screenshot_id`.
-- Kept parent `ISSUE-1130C` open because real Windows DPI scaling, mixed-scale multi-monitor, foreground/occlusion, and UIPI/high-integrity behavior still require manual smoke.
+- Added a focused Main AI context export test with a short-drama image artifact containing external CDN URL, data URL thumbnail, Windows local path, and Unix-like file path media metadata.
+- Verified the export payload may keep `mediaItemId`, `activeMedia`, and preview availability metadata, but omits raw `mediaReference`, `previewUrl`, `thumbnailUrl`, `localPath`, `filePath`, public URLs, data URLs, and raw byte labels.
+- Documented that short-drama image-understanding summaries must enter through `ShortDramaProject` as low-context artifact/reference metadata.
+- Kept parent `ISSUE-1140E` open for a future explicit short-drama image-media to generic image-context adapter; `AnalyzeImage` remains short-drama-agnostic.
 
 Verification:
 
-- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture` passed.
-- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture` passed.
-- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture` passed.
-- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture` passed.
-- `cargo check -p void-desktop` passed with the existing unrelated `parse_clipboard_path_segments` dead-code warning.
-- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs` passed.
-- `node scripts/check-core-boundaries.mjs` passed.
-- `git diff --check` passed with only Git line-ending warnings.
+- `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts` passed.
+- `pnpm --dir src/web-ui run type-check` passed.
+- `git diff --check -- src/web-ui/src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
 
 ## Subagent Summary
 
