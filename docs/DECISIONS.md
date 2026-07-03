@@ -571,3 +571,9 @@ Reason: The pill variants reflect existing CenterPanel presentation for ready, a
 Decision: The eighth `ISSUE-1160F` code slice keeps short-drama media-preview visuals inside `ShortDramaCenterPanel.scss` as local `--short-drama-preview-*` tokens for default preview backdrops, empty/missing/referenced states, generating state, media fallback, and caption overlay colors.
 
 Reason: Media preview presentation must be theme-governed, but media availability, artifact references, generation progress, and recovery behavior belong to existing CenterPanel state and short-drama/media services. Local preview tokens reduce raw selector-level color debt without changing how previews are resolved or how missing/generated media states are classified.
+
+## DEC-096: Short Drama Final Preview Tokens Stay Visual-Only
+
+Decision: The ninth `ISSUE-1160F` code slice keeps short-drama final-preview visuals inside `ShortDramaCenterPanel.scss` as local `--short-drama-final-preview-*` tokens for wrapper surface, frame border, non-empty frame background, media border, empty-frame background, and on-frame text.
+
+Reason: Final preview styling is a presentation concern, while final-video readiness, empty-state classification, and media resolution remain owned by existing CenterPanel state and short-drama/media services. Local final-preview tokens reduce selector-level raw color debt without changing post-stage workflow behavior.

@@ -21,6 +21,16 @@
   --short-drama-preview-generating-grid-line: rgba(15, 118, 110, 0.12);
   --short-drama-preview-caption-bg: rgba(15, 23, 42, 0.72);
   --short-drama-preview-caption-muted: rgba(255, 255, 255, 0.78);
+  --short-drama-final-preview-surface: color-mix(in srgb, var(--short-drama-surface) 94%, #eef4f8);
+  --short-drama-final-preview-border: color-mix(in srgb, var(--short-drama-border) 72%, transparent);
+  --short-drama-final-preview-frame-start: rgba(26, 32, 44, 0.92);
+  --short-drama-final-preview-frame-end: rgba(51, 65, 85, 0.78);
+  --short-drama-final-preview-frame-grid-line: rgba(255, 255, 255, 0.06);
+  --short-drama-final-preview-on-frame: #ffffff;
+  --short-drama-final-preview-media-border: color-mix(in srgb, var(--short-drama-border) 82%, transparent);
+  --short-drama-final-preview-empty-start: rgba(100, 116, 139, 0.22);
+  --short-drama-final-preview-empty-end: rgba(148, 163, 184, 0.1);
+  --short-drama-final-preview-empty-grid-line: rgba(100, 116, 139, 0.1);
   display: flex;
   min-height: 0;
   height: 100%;
@@ -707,7 +717,7 @@
   border: 1px solid var(--short-drama-border);
   border-radius: 8px;
   padding: 10px;
-  background: color-mix(in srgb, var(--short-drama-surface) 94%, #eef4f8);
+  background: var(--short-drama-final-preview-surface);
 }
 
 .short-drama-center__final-preview-frame {
@@ -715,23 +725,23 @@
   align-items: center;
   gap: 12px;
   min-height: 152px;
-  border: 1px dashed color-mix(in srgb, var(--short-drama-border) 72%, transparent);
+  border: 1px dashed var(--short-drama-final-preview-border);
   border-radius: 7px;
   padding: 14px;
   background:
-    linear-gradient(135deg, rgba(26, 32, 44, 0.92), rgba(51, 65, 85, 0.78)),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 18px);
-  color: white;
+    linear-gradient(135deg, var(--short-drama-final-preview-frame-start), var(--short-drama-final-preview-frame-end)),
+    repeating-linear-gradient(90deg, var(--short-drama-final-preview-frame-grid-line) 0 1px, transparent 1px 18px);
+  color: var(--short-drama-final-preview-on-frame);
 }
 
 .short-drama-center__final-preview > .short-drama-media-preview {
-  border: 1px solid color-mix(in srgb, var(--short-drama-border) 82%, transparent);
+  border: 1px solid var(--short-drama-final-preview-media-border);
 }
 
 .short-drama-center__final-preview.is-empty .short-drama-center__final-preview-frame {
   background:
-    linear-gradient(135deg, rgba(100, 116, 139, 0.22), rgba(148, 163, 184, 0.1)),
-    repeating-linear-gradient(90deg, transparent 0 18px, rgba(100, 116, 139, 0.1) 18px 19px);
+    linear-gradient(135deg, var(--short-drama-final-preview-empty-start), var(--short-drama-final-preview-empty-end)),
+    repeating-linear-gradient(90deg, transparent 0 18px, var(--short-drama-final-preview-empty-grid-line) 18px 19px);
   color: var(--short-drama-muted);
 }
 

@@ -54,23 +54,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F workspace media gallery operation-error token slice complete.
 - [x] ISSUE-1160F short drama center status pill token slice complete.
 - [x] ISSUE-1160F short drama center media-preview token slice complete.
+- [x] ISSUE-1160F short drama center final-preview token slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Short Drama Center Media Preview Token Slice`
+Issue: `ISSUE-1160F Short Drama Center Final Preview Token Slice`
 
 Summary:
 
-- Added `--short-drama-preview-*` local tokens to `ShortDramaCenterPanel.scss` for media preview backdrop, grid, on-media text, media fallback, empty/missing/referenced state, generating state, and caption overlay/text.
-- Replaced raw media-preview selector colors with local preview tokens.
-- Added `scripts/short-drama-center-media-preview-theme.test.mjs` to prevent media-preview colors from regressing to selector-level raw values.
-- Did not touch CenterPanel TSX preview resolution, media availability classification, artifact/media recovery, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
+- Added `--short-drama-final-preview-*` local tokens to `ShortDramaCenterPanel.scss` for final preview wrapper, frame, media border, empty frame, and on-frame text.
+- Replaced raw final-preview selector colors with local final-preview tokens.
+- Added `scripts/short-drama-center-final-preview-theme.test.mjs` to prevent final-preview colors from regressing to selector-level raw values.
+- Did not touch CenterPanel TSX final preview readiness, empty-state classification, preview resolution, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/short-drama-center-media-preview-theme.test.mjs` failed before implementation because the root did not define local media-preview tokens and media-preview selectors still used raw colors.
-- GREEN: `node --test scripts/short-drama-center-media-preview-theme.test.mjs` passed after implementation.
-- `node --test scripts/short-drama-center-media-preview-theme.test.mjs scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 8 tests.
+- RED: `node --test scripts/short-drama-center-final-preview-theme.test.mjs` failed before implementation because the root did not define local final-preview tokens and final-preview selectors still used raw colors.
+- GREEN: `node --test scripts/short-drama-center-final-preview-theme.test.mjs` passed after implementation.
+- `node --test scripts/short-drama-center-final-preview-theme.test.mjs scripts/short-drama-center-media-preview-theme.test.mjs scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 9 tests.
 - `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentBootstrap.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentSessionHydration.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentTabOrchestrator.test.ts` passed with 14 tests.
 - `pnpm run check:theme-colors` passed with no baseline update required.
 - `pnpm run check:theme-visual-contract` passed.

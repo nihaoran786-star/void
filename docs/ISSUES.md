@@ -2111,7 +2111,10 @@ Progress:
 - Completed the ShortDramaCenterPanel media-preview token slice: default preview backdrop, empty/missing/referenced state, generating state, media fallback, and caption overlay/text colors now use local `--short-drama-preview-*` tokens.
 - Added `scripts/short-drama-center-media-preview-theme.test.mjs` to lock the media-preview token boundary.
 - Preserved CenterPanel TSX preview resolution, media availability classification, artifact/media recovery, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
-- Remaining 1160F debt: ShortDramaCenterPanel stage/final-preview raw visual colors need separate domain slices.
+- Completed the ShortDramaCenterPanel final-preview token slice: wrapper surface, frame border/background, media border, empty-frame background, and on-frame text now use local `--short-drama-final-preview-*` tokens.
+- Added `scripts/short-drama-center-final-preview-theme.test.mjs` to lock the final-preview token boundary.
+- Preserved CenterPanel TSX final preview readiness, empty-state classification, preview resolution, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
+- Remaining 1160F debt: ShortDramaCenterPanel stage poster/card raw visual colors need a separate domain slice.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 
