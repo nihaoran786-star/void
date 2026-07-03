@@ -239,6 +239,43 @@ Manual smoke status:
 - Result: `manual_pending`.
 - Notes: Passing the automated baseline does not prove real Windows DPI scaling, mixed-scale multi-monitor, foreground/occluded target, capture-source, or UIPI/high-integrity behavior.
 
+## ISSUE-1130C4 Windows Computer Use Smoke Environment Preflight
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Records environment and harness availability before real Windows Computer Use smoke.
+- No Computer Use runtime, tests, schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or product app actions changed or executed.
+
+Checks:
+
+- `Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture`
+  - Result: passed.
+  - Notes: reported Microsoft Windows 11 Home Chinese edition, version `10.0.26200`, build `26200`, 64-bit.
+- `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens`
+  - Result: passed.
+  - Notes: reported one primary display, `\\.\DISPLAY1`, logical bounds `{X=0,Y=0,Width=1707,Height=960}`, working area `{X=0,Y=0,Width=1707,Height=912}`.
+- `Get-CimInstance Win32_VideoController | Select-Object Name,CurrentHorizontalResolution,CurrentVerticalResolution,CurrentBitsPerPixel,DriverVersion`
+  - Result: passed.
+  - Notes: reported Intel UHD at `2560x1440` 32 bpp, NVIDIA RTX 4090 Laptop GPU, and Oray/GameViewer virtual adapters.
+- `Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' | Select-Object AppliedDPI`
+  - Result: passed.
+  - Notes: `AppliedDPI=144`, meaning 150% scaling.
+- `git grep -n "pub async fn computer_use_\|generate_handler!\[" -- src/apps/desktop/src/api/computer_use_api.rs src/apps/desktop/src/lib.rs`
+  - Result: passed.
+  - Notes: desktop Tauri Computer Use API exposes status, permission request, and settings links.
+- `git grep -n "computer_use_get_status\|computer_use_open_system_settings\|app_click\|app_type_text\|app_scroll\|app_key_chord" -- src/apps/desktop/src/api src/apps/desktop/src/lib.rs src/apps/desktop/src/computer_use`
+  - Result: passed.
+  - Notes: `app_*` actions are inside `DesktopComputerUseHost`; no product-level Tauri command or script was identified to drive them as a safe smoke harness in this slice.
+
+Manual smoke status:
+
+- Result: `manual_pending`.
+- Notes: This is environment preflight only. It does not execute Notepad/Settings/Calculator actions, does not verify foreground or occluded target input, does not verify UIPI denial, and does not cover 100%/125% or mixed-scale multi-monitor scenarios.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

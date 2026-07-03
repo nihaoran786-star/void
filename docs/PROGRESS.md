@@ -83,8 +83,40 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140D4 minimal Void ViewImage tool implementation complete.
 - [x] ISSUE-1130C2 Windows pointer/input manual smoke matrix complete.
 - [x] ISSUE-1130C3 Windows Computer Use automated baseline evidence complete.
+- [x] ISSUE-1130C4 Windows Computer Use smoke environment preflight complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C4 Windows Computer Use Smoke Environment Preflight`
+
+Summary:
+
+- Recorded the current Windows environment for future `ISSUE-1130C` smoke: Windows 11 Home Chinese edition build `26200`, one primary logical display at `1707x960`, `AppliedDPI=144` / 150% scale, and WMI-reported graphics adapters.
+- Checked desktop API/Computer Use scopes and recorded that no product-level smoke harness command/script was identified for safely driving `app_click`, `app_type_text`, `app_scroll`, or `app_key_chord` from this session.
+- Kept all real Windows smoke scenarios as `manual_pending`; no product app actions were executed.
+- No Computer Use runtime/tests/schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or platform behavior changed.
+
+Verification:
+
+- `Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber,OSArchitecture`
+  - Result: passed.
+- `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens`
+  - Result: passed.
+- `Get-CimInstance Win32_VideoController | Select-Object Name,CurrentHorizontalResolution,CurrentVerticalResolution,CurrentBitsPerPixel,DriverVersion`
+  - Result: passed.
+- `Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' | Select-Object AppliedDPI`
+  - Result: passed.
+- `git grep -n "pub async fn computer_use_\|generate_handler!\[" -- src/apps/desktop/src/api/computer_use_api.rs src/apps/desktop/src/lib.rs`
+  - Result: passed.
+- `git grep -n "computer_use_get_status\|computer_use_open_system_settings\|app_click\|app_type_text\|app_scroll\|app_key_chord" -- src/apps/desktop/src/api src/apps/desktop/src/lib.rs src/apps/desktop/src/computer_use`
+  - Result: passed.
+
+Remaining:
+
+- Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
+- Current environment only covers a single 150% display session and does not provide a product-level smoke harness.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C3 Windows Computer Use Automated Baseline Evidence`
 
@@ -114,7 +146,7 @@ Remaining:
 
 - Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
 
-## Previous Slice
+## Earlier Slice
 
 Issue: `ISSUE-1130C2 Windows Pointer/Input Manual Smoke Matrix`
 
@@ -135,7 +167,7 @@ Remaining:
 
 - Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
 
-## Earlier Slice
+## Previous ViewImage Slice
 
 Issue: `ISSUE-1140D4 Minimal Void ViewImage Tool Implementation`
 

@@ -43,6 +43,52 @@ Status: `passed`
 
 Manual smoke remains `manual_pending`. This automated baseline does not prove real DPI, multi-monitor, occlusion, capture-source, or UIPI behavior.
 
+## Environment Preflight
+
+### 2026-07-04 Current Machine
+
+Status: `environment_preflight_only`
+
+```yaml
+manual_smoke_status: manual_pending
+product_smoke_executed: false
+app_click_executed: false
+app_type_text_executed: false
+app_scroll_executed: false
+app_key_chord_executed: false
+```
+
+Observed environment:
+
+- OS: Microsoft Windows 11 Home Chinese edition, version `10.0.26200`, build `26200`, 64-bit.
+- DPI: `AppliedDPI=144`, which is 150% scaling for the current user session.
+- Displays: one detected primary display, `\\.\DISPLAY1`, logical bounds `{X=0,Y=0,Width=1707,Height=960}`, working area `{X=0,Y=0,Width=1707,Height=912}`.
+- Video adapters reported by WMI:
+  - `OrayIddDriver Device`, driver `17.1.58.818`, no current resolution reported.
+  - `GameViewer Virtual Display Adapter`, driver `15.6.5.199`, no current resolution reported.
+  - `NVIDIA GeForce RTX 4090 Laptop GPU`, driver `32.0.15.9227`, no current resolution reported.
+  - `Intel(R) UHD Graphics`, resolution `2560x1440`, 32 bpp, driver `31.0.101.5445`.
+
+Available product smoke harness:
+
+```yaml
+status: not_found
+search_scope:
+  - docs
+  - scripts
+  - src/apps/desktop/src/api
+  - src/apps/desktop/src/computer_use
+  - src/apps/desktop/src/lib.rs
+product_smoke_executed: false
+notes: Current desktop Tauri commands expose Computer Use status, permission request, and settings links only. No product-level command or script was identified that safely drives app_click, app_type_text, app_scroll, or app_key_chord against Notepad/other target apps from this session.
+```
+
+Preflight gaps:
+
+- Current machine covers only a 150% single-display session; it does not cover 100%, 125%, mixed-scale multi-monitor, or negative-origin display scenarios.
+- No real app input action was executed, so foreground, occluded, UIPI, and capture-source behavior remain unverified.
+- Parent `ISSUE-1130C` remains open.
+
 ## Required Environment Fields
 
 Record these fields for every smoke run:

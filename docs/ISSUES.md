@@ -1842,6 +1842,24 @@ Result:
 - `cargo check -p void-desktop` still reports one existing unrelated dead-code warning for `parse_clipboard_path_segments`.
 - Real Windows smoke remains `manual_pending`; `ISSUE-1130C` is not closed.
 
+### ISSUE-1130C4 Windows Computer Use Smoke Environment Preflight
+
+Priority: P1
+Status: Done
+Goal: Record current Windows environment and available harness facts before attempting hardware-dependent `ISSUE-1130C` smoke.
+Allowed files: `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: `src/**`, `tests/**`, Cargo/package/workflow/generated files, Computer Use runtime/schema/test code, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- Record OS, DPI, display topology, graphics adapter facts, and current product smoke harness availability.
+- Mark the record as environment preflight only, not a real smoke pass.
+- Do not execute or claim `app_click`, `app_type_text`, `app_scroll`, `app_key_chord`, drag, or other product app actions.
+- Parent `ISSUE-1130C` remains open with manual smoke still `manual_pending`.
+Result:
+- Recorded current machine as Windows 11 Home Chinese edition build `26200`, one primary logical display at `1707x960`, and `AppliedDPI=144` / 150% scale.
+- Recorded WMI video adapters including Intel UHD at `2560x1440`, NVIDIA RTX 4090 Laptop GPU, and two virtual adapters.
+- Confirmed no product-level smoke harness command/script was identified in the inspected docs/scripts/desktop API/Computer Use scopes; no app actions were executed.
+- Real Windows smoke remains `manual_pending`; `ISSUE-1130C` is not closed.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2
