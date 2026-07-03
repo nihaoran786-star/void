@@ -4165,23 +4165,31 @@ Remaining risk:
 
 Scope:
 
-- First slice covers frontend terminal history/replay integration only.
-- No production runtime behavior, Flow Chat tool cards, xterm rendering, backend PTY lifecycle, runtime-port migration, AI media, AI short-drama, Computer Use, or provider code was changed.
+- Current slices cover frontend terminal history/replay integration and backend natural PTY child-completion lifecycle.
+- No Flow Chat tool cards, xterm rendering, session manager ownership, desktop API, runtime-port migration, AI media, AI short-drama, Computer Use, provider, or remote terminal history code was changed.
 
 Executed:
 
+- `cargo test -p terminal-core pty::process::tests::natural_child_completion_emits_exit_event -- --nocapture`
+  - Result before fix: failed because natural child completion timed out without `PtyEvent::Exit`.
+  - Result after fix: passed.
+- `cargo test -p terminal-core`
+  - Result: passed, 28 tests.
+- `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs`
+  - Result: passed.
 - `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
   - Result: passed, 4 test files / 13 tests.
 - `pnpm --dir src/web-ui run type-check`
-  - Result: passed.
+  - Result: passed in the frontend replay-ordering slice.
 
 Coverage:
 
 - `useTerminal.test.tsx` proves structured `history.events` are delivered through `onReplay` before live output that arrives during the replay subscription window is flushed through `onOutput`.
 - The test covers the hook-level contract across `getHistory`, `onSessionEvent`, `drainPendingSessionEvents`, `normalizeTerminalReplay`, and `createReplayAwareTerminalEventHandler` without testing Flow Chat or xterm internals.
+- `natural_child_completion_emits_exit_event` proves a one-shot shell process that exits naturally emits `PtyEvent::Exit { exit_code: Some(7) }` without requiring explicit shutdown.
 
 Deferred:
 
-- Natural PTY exit/EOF/child completion still needs Rust-side coverage or explicit split.
 - `TerminalService.acknowledge()` remains unused by frontend output consumption; backend flow-control ack requires a separate contract.
 - Remote `terminal_get_history` still returns empty events without explicit `status/source`; this remains a follow-up API contract hardening slice.
+- EOF-triggered immediate shutdown is now routed through the existing command task; a future hardening test can cover the edge case where PTY EOF and explicit shutdown/natural exit race on platforms that report EOF before the child is reapable.

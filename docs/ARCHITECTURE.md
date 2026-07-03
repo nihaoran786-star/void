@@ -392,6 +392,7 @@ Accepted terminal migration slices:
 
 Structured replay contract:
 
+- `pty/process.rs` owns low-level PTY child lifecycle. Natural child completion must emit `PtyEvent::Exit { exit_code }` through the existing PTY event stream; callers must not infer process exit from missing output, EOF, empty history, or closed UI state.
 - `terminal-core` session owns ordered replay facts as `{ cols, rows, data }` events.
 - Empty `data` is a resize marker; non-empty `data` is raw terminal output written after applying its `cols`/`rows`.
 - Terminal API and desktop Tauri DTOs must keep legacy flat `data/historySize/cols/rows` fields while adding `events`.

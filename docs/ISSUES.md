@@ -1667,9 +1667,10 @@ Risk notes: This issue is about observability and contract tests first; do not r
 
 Progress:
 - Added frontend hook-level integration coverage in `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx` for structured `history.events` replay before live output queued during replay. This locks the current `getHistory -> onSessionEvent -> drainPendingSessionEvents -> normalizeTerminalReplay -> finishReplay` ordering without touching Flow Chat, tool cards, xterm rendering, runtime ports, or backend PTY management.
+- Added backend PTY process coverage in `src/crates/terminal/src/pty/process.rs` for natural child completion emitting `PtyEvent::Exit { exit_code }`. The fix stays inside the existing command task/read-thread boundary and does not change session manager, desktop API, runtime-port, Flow Chat, or remote terminal history ownership.
 - Confirmed `TerminalService.acknowledge()` is currently defined but not called by Web terminal consumption paths. Backend flow-control ack remains explicitly deferred until a separate issue defines the consumption contract.
-- Confirmed backend natural PTY exit/EOF and remote empty-history status/source remain unimplemented or unproven by tests; do not mark this issue Done until those are covered or explicitly split.
-- Verification so far: `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` passed with 4 files / 13 tests. `pnpm --dir src/web-ui run type-check` passed.
+- Confirmed remote empty-history status/source remains unimplemented or unproven by tests; do not mark this issue Done until it is covered or explicitly split.
+- Verification so far: `cargo test -p terminal-core` passed with 28 tests. `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs` passed. `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` passed with 4 files / 13 tests. `pnpm --dir src/web-ui run type-check` passed in the frontend replay-ordering slice.
 
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 

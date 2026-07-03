@@ -451,3 +451,9 @@ Reason: Current Void already has terminal input queueing, paste policy, replay n
 Decision: `ISSUE-1120D` first locks the frontend replay/live-event ordering at the `useTerminal` hook boundary. `useTerminal` is the conversion layer that fetches structured history, subscribes to session events, drains pending events into a replay-aware queue, emits replay events, then releases queued live events. Flow Chat cards, terminal panels, and xterm rendering must not infer history source or reorder replay/live data.
 
 Reason: Current Void already has pure replay normalization and replay-aware event queue helpers. The missing evidence was hook-level integration coverage, not a UI or runtime-port rewrite. Backend `terminal_ack`, natural PTY exit propagation, and remote empty-history `status/source` remain separate `ISSUE-1120D` follow-up slices because each touches a different terminal boundary and needs its own focused proof.
+
+## DEC-076: Natural PTY Exit Emits an Explicit Event
+
+Decision: `ISSUE-1120D` accepts the natural child-completion fix inside `terminal-core` PTY process ownership. `pty/process.rs` now polls the spawned child in the existing command task and emits `PtyEvent::Exit { exit_code }` when the child exits without an explicit shutdown command. EOF observed by the reader thread routes through the same internal shutdown command path so exit-code collection remains owned by the command task.
+
+Reason: Terminal lifecycle consumers should receive an explicit exit event rather than infer process completion from no output, closed readers, empty history, or UI state. The fix stays inside the existing PTY process boundary and reuses `PtyEvent::Exit`; it does not move runtime ports, redesign process management, change Flow Chat/tool-card state, or alter remote history semantics.

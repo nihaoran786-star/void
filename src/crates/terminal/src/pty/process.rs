@@ -403,6 +403,7 @@ pub fn spawn_pty(
     // Clone for read thread
     let has_exited_read = has_exited.clone();
     let event_tx_read = event_tx.clone();
+    let command_tx_read = command_tx.clone();
 
     // Start the read thread (native thread, not tokio)
     thread::spawn(move || {
@@ -415,7 +416,11 @@ pub fn spawn_pty(
 
             match reader.read(&mut buffer) {
                 Ok(0) => {
-                    // EOF
+                    // EOF means the child side of the PTY closed naturally.
+                    // Route through the command task so exit-code collection
+                    // and PtyEvent::Exit emission stay in one owner.
+                    let _ = command_tx_read
+                        .blocking_send(InternalCommand::Shutdown { immediate: true });
                     break;
                 }
                 Ok(n) => {
@@ -468,130 +473,157 @@ pub fn spawn_pty(
         #[cfg(windows)]
         let mut delayed_resize_triggered = false;
 
-        while let Some(cmd) = command_rx.recv().await {
-            match cmd {
-                InternalCommand::Write(data) => {
-                    if let Ok(mut writer_guard) = writer.lock() {
-                        if let Err(e) = writer_guard.write_all(&data) {
-                            error!("Failed to write to PTY: {}", e);
-                        }
-                        let _ = writer_guard.flush();
-                    }
-                }
-                InternalCommand::Resize { cols, rows } => {
-                    // Throttle resize calls to prevent flooding
-                    // Use AtomicU64 to store timestamp as millis since UNIX_EPOCH
-                    let now_ms = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    let last_ms = last_resize_time.load(Ordering::Relaxed);
-                    let elapsed = now_ms.saturating_sub(last_ms);
+        let mut child_exit_check = tokio::time::interval(tokio::time::Duration::from_millis(50));
 
-                    if elapsed < resize_constants::RESIZE_THROTTLE_MS {
-                        let wait_time = resize_constants::RESIZE_THROTTLE_MS - elapsed;
-                        tokio::time::sleep(tokio::time::Duration::from_millis(wait_time)).await;
-                    }
-
-                    // Update last resize time
-                    let new_now_ms = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    last_resize_time.store(new_now_ms, Ordering::Relaxed);
-
-                    // Windows ConPTY: special handling for resize
-                    #[cfg(windows)]
-                    {
-                        // Handle delayed resize for Git Bash with initial 0x0 size
-                        if is_git_bash_shell && cols == 0 && rows == 0 && !delayed_resize_triggered
-                        {
-                            debug!(
-                                "Git Bash with 0x0 size detected, using delayed resize mechanism"
-                            );
-                            delayed_resize = Some((cols, rows));
-                            // Schedule delayed resize trigger
-                            let event_tx_delayed = event_tx.clone();
-                            tokio::spawn(async move {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(
-                                    resize_constants::DELAYED_RESIZE_TIMEOUT_MS,
-                                ))
-                                .await;
-                                // Send a resize completed event to trigger frontend re-sync
-                                let _ = event_tx_delayed
-                                    .try_send(PtyEvent::ResizeCompleted { cols: 80, rows: 24 });
-                            });
-                            continue;
-                        }
-
-                        // Determine the appropriate delay based on shell type
-                        let delay_ms = if is_git_bash_shell {
-                            resize_constants::GIT_BASH_RESIZE_DELAY_MS
-                        } else {
-                            resize_constants::CONPTY_RESIZE_DELAY_MS
-                        };
-
-                        // Add delay before resize to avoid issues where early resize calls are not respected
-                        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
-
-                        // Check if we have a pending delayed resize to apply
-                        if let Some((pending_cols, pending_rows)) = delayed_resize.take() {
-                            if pending_cols != cols || pending_rows != rows {
-                                delayed_resize_triggered = true;
-                            }
-                        }
-                    }
-
-                    // Ensure cols and rows are at least 1 (prevents native exceptions)
-                    let cols = cols.max(1);
-                    let rows = rows.max(1);
-
-                    if let Ok(master_guard) = master.lock() {
-                        if let Err(e) = master_guard.resize(PtySize {
-                            rows,
-                            cols,
-                            pixel_width: 0,
-                            pixel_height: 0,
-                        }) {
-                            warn!("Failed to resize PTY: {}", e);
-                        } else {
-                            // Send resize completed event for frontend synchronization
-                            let _ = event_tx.try_send(PtyEvent::ResizeCompleted { cols, rows });
-                        }
-                    }
-                }
-                InternalCommand::Signal(signal) => {
-                    // For now, we only support SIGINT via Ctrl+C
-                    if signal == "SIGINT" || signal == "INT" {
-                        if let Ok(mut writer_guard) = writer.lock() {
-                            // Send Ctrl+C (ASCII 0x03)
-                            let _ = writer_guard.write_all(&[0x03]);
-                            let _ = writer_guard.flush();
-                        }
-                    }
-                }
-                InternalCommand::Shutdown { immediate } => {
-                    has_exited_cmd.store(true, Ordering::Relaxed);
-
-                    if !immediate {
-                        // Wait for data flush
-                        tokio::time::sleep(tokio::time::Duration::from_millis(
-                            shutdown::DATA_FLUSH_TIMEOUT_MS,
-                        ))
-                        .await;
-                    }
-
-                    // Kill the process
-                    let code = match child.try_wait() {
-                        Ok(Some(status)) => Some(status.exit_code()),
-                        _ => {
-                            let _ = child.kill();
-                            child.try_wait().ok().flatten().map(|s| s.exit_code())
-                        }
+        loop {
+            tokio::select! {
+                maybe_cmd = command_rx.recv() => {
+                    let Some(cmd) = maybe_cmd else {
+                        break;
                     };
 
-                    let _ = event_tx.send(PtyEvent::Exit { exit_code: code }).await;
-                    break;
+                    match cmd {
+                        InternalCommand::Write(data) => {
+                            if let Ok(mut writer_guard) = writer.lock() {
+                                if let Err(e) = writer_guard.write_all(&data) {
+                                    error!("Failed to write to PTY: {}", e);
+                                }
+                                let _ = writer_guard.flush();
+                            }
+                        }
+                        InternalCommand::Resize { cols, rows } => {
+                            // Throttle resize calls to prevent flooding
+                            // Use AtomicU64 to store timestamp as millis since UNIX_EPOCH
+                            let now_ms = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64;
+                            let last_ms = last_resize_time.load(Ordering::Relaxed);
+                            let elapsed = now_ms.saturating_sub(last_ms);
+
+                            if elapsed < resize_constants::RESIZE_THROTTLE_MS {
+                                let wait_time = resize_constants::RESIZE_THROTTLE_MS - elapsed;
+                                tokio::time::sleep(tokio::time::Duration::from_millis(wait_time)).await;
+                            }
+
+                            // Update last resize time
+                            let new_now_ms = std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64;
+                            last_resize_time.store(new_now_ms, Ordering::Relaxed);
+
+                            // Windows ConPTY: special handling for resize
+                            #[cfg(windows)]
+                            {
+                                // Handle delayed resize for Git Bash with initial 0x0 size
+                                if is_git_bash_shell && cols == 0 && rows == 0 && !delayed_resize_triggered
+                                {
+                                    debug!(
+                                        "Git Bash with 0x0 size detected, using delayed resize mechanism"
+                                    );
+                                    delayed_resize = Some((cols, rows));
+                                    // Schedule delayed resize trigger
+                                    let event_tx_delayed = event_tx.clone();
+                                    tokio::spawn(async move {
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(
+                                            resize_constants::DELAYED_RESIZE_TIMEOUT_MS,
+                                        ))
+                                        .await;
+                                        // Send a resize completed event to trigger frontend re-sync
+                                        let _ = event_tx_delayed
+                                            .try_send(PtyEvent::ResizeCompleted { cols: 80, rows: 24 });
+                                    });
+                                    continue;
+                                }
+
+                                // Determine the appropriate delay based on shell type
+                                let delay_ms = if is_git_bash_shell {
+                                    resize_constants::GIT_BASH_RESIZE_DELAY_MS
+                                } else {
+                                    resize_constants::CONPTY_RESIZE_DELAY_MS
+                                };
+
+                                // Add delay before resize to avoid issues where early resize calls are not respected
+                                tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
+                                // Check if we have a pending delayed resize to apply
+                                if let Some((pending_cols, pending_rows)) = delayed_resize.take() {
+                                    if pending_cols != cols || pending_rows != rows {
+                                        delayed_resize_triggered = true;
+                                    }
+                                }
+                            }
+
+                            // Ensure cols and rows are at least 1 (prevents native exceptions)
+                            let cols = cols.max(1);
+                            let rows = rows.max(1);
+
+                            if let Ok(master_guard) = master.lock() {
+                                if let Err(e) = master_guard.resize(PtySize {
+                                    rows,
+                                    cols,
+                                    pixel_width: 0,
+                                    pixel_height: 0,
+                                }) {
+                                    warn!("Failed to resize PTY: {}", e);
+                                } else {
+                                    // Send resize completed event for frontend synchronization
+                                    let _ = event_tx.try_send(PtyEvent::ResizeCompleted { cols, rows });
+                                }
+                            }
+                        }
+                        InternalCommand::Signal(signal) => {
+                            // For now, we only support SIGINT via Ctrl+C
+                            if signal == "SIGINT" || signal == "INT" {
+                                if let Ok(mut writer_guard) = writer.lock() {
+                                    // Send Ctrl+C (ASCII 0x03)
+                                    let _ = writer_guard.write_all(&[0x03]);
+                                    let _ = writer_guard.flush();
+                                }
+                            }
+                        }
+                        InternalCommand::Shutdown { immediate } => {
+                            has_exited_cmd.store(true, Ordering::Relaxed);
+
+                            if !immediate {
+                                // Wait for data flush
+                                tokio::time::sleep(tokio::time::Duration::from_millis(
+                                    shutdown::DATA_FLUSH_TIMEOUT_MS,
+                                ))
+                                .await;
+                            }
+
+                            // Kill the process
+                            let code = match child.try_wait() {
+                                Ok(Some(status)) => Some(status.exit_code()),
+                                _ => {
+                                    let _ = child.kill();
+                                    child.try_wait().ok().flatten().map(|s| s.exit_code())
+                                }
+                            };
+
+                            let _ = event_tx.send(PtyEvent::Exit { exit_code: code }).await;
+                            break;
+                        }
+                    }
+                }
+                _ = child_exit_check.tick() => {
+                    match child.try_wait() {
+                        Ok(Some(status)) => {
+                            has_exited_cmd.store(true, Ordering::Relaxed);
+                            let _ = event_tx
+                                .send(PtyEvent::Exit {
+                                    exit_code: Some(status.exit_code()),
+                                })
+                                .await;
+                            break;
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            warn!("Failed to check PTY child exit status: {}", e);
+                        }
+                    }
                 }
             }
         }
@@ -674,7 +706,11 @@ pub enum PtyCommand {
 
 #[cfg(test)]
 mod tests {
-    use super::is_tauri_host_env;
+    use super::{is_tauri_host_env, spawn_pty, PtyEvent};
+    use crate::config::ShellConfig;
+    use crate::shell::ShellType;
+    use std::collections::HashMap;
+    use tokio::time::{timeout, Duration};
 
     #[test]
     fn strips_tauri_host_configuration_from_parent_env() {
@@ -690,5 +726,63 @@ mod tests {
         assert!(!is_tauri_host_env("TAURI_PRIVATE_KEY".as_ref()));
         assert!(!is_tauri_host_env("PATH".as_ref()));
         assert!(!is_tauri_host_env("TERMINAL_NONCE".as_ref()));
+    }
+
+    #[tokio::test]
+    async fn natural_child_completion_emits_exit_event() {
+        let mut spawned = spawn_pty(
+            42,
+            &single_exit_command_shell_config(),
+            single_exit_command_shell_type(),
+            80,
+            24,
+        )
+        .expect("test PTY should spawn");
+
+        let exit_code = timeout(Duration::from_secs(5), async {
+            loop {
+                match spawned.events.recv().await {
+                    Some(PtyEvent::Exit { exit_code }) => break exit_code,
+                    Some(_) => {}
+                    None => break None,
+                }
+            }
+        })
+        .await
+        .expect("natural child completion should emit a PTY exit event");
+
+        assert_eq!(exit_code, Some(7));
+    }
+
+    #[cfg(windows)]
+    fn single_exit_command_shell_config() -> ShellConfig {
+        ShellConfig {
+            executable: std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string()),
+            args: vec!["/C".to_string(), "exit 7".to_string()],
+            env: HashMap::new(),
+            cwd: None,
+            login: false,
+        }
+    }
+
+    #[cfg(windows)]
+    fn single_exit_command_shell_type() -> ShellType {
+        ShellType::Cmd
+    }
+
+    #[cfg(not(windows))]
+    fn single_exit_command_shell_config() -> ShellConfig {
+        ShellConfig {
+            executable: "/bin/sh".to_string(),
+            args: vec!["-c".to_string(), "exit 7".to_string()],
+            env: HashMap::new(),
+            cwd: None,
+            login: false,
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn single_exit_command_shell_type() -> ShellType {
+        ShellType::Sh
     }
 }

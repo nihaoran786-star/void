@@ -4739,18 +4739,26 @@ Completed in this slice:
 - Ran parallel read-only subagent review for backend terminal lifecycle/history and frontend terminal ack/replay ordering.
 - Confirmed frontend `TerminalService.acknowledge()` exists but is not called by output consumption paths; ack integration remains deferred rather than silently assumed.
 - Added [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover structured history replay before live output queued during replay.
+- Added `natural_child_completion_emits_exit_event` in [process.rs](D:/codex/void-source/src/crates/terminal/src/pty/process.rs) and fixed natural child completion so `pty/process.rs` emits `PtyEvent::Exit` without explicit shutdown.
 - Updated architecture and decision docs to keep replay/live ordering owned by the `useTerminal` hook boundary.
 
 Verification:
 
+- `cargo test -p terminal-core pty::process::tests::natural_child_completion_emits_exit_event -- --nocapture`
+  - RED result before fix: failed because natural child completion timed out without `PtyEvent::Exit`.
+  - GREEN result after fix: passed.
+- `cargo test -p terminal-core`
+  - Result: passed, 28 tests.
+- `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs`
+  - Result: passed.
 - `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
   - Result: passed, 4 test files / 13 tests.
 - `pnpm --dir src/web-ui run type-check`
-  - Result: passed.
+  - Result: passed in the frontend replay-ordering slice.
 
 Remaining risk:
 
-- Backend natural PTY exit/EOF/child completion still lacks Rust coverage and likely needs a separate RED/GREEN slice.
 - Remote `terminal_get_history` empty events still lack explicit `status/source` distinction from local empty history.
 - Backend `terminal_ack` flow-control semantics remain unconnected to frontend output consumption.
+- EOF-triggered immediate shutdown uses the existing command task; a future hardening slice can cover platforms where PTY EOF appears before the child is reapable or races with explicit shutdown.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.
