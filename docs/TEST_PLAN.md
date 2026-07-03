@@ -4046,6 +4046,33 @@ Implementation test plan for follow-up issues:
     - `pnpm run check:theme-visual-contract` plus validator tests for `ISSUE-1160E`.
     - Focused workspace-media/short-drama tests plus theme audit for `ISSUE-1160F`.
   - Result: docs-only audit in the main session; no production code changed.
+- `ISSUE-1170`:
+  - `git show --stat --name-status --oneline 96cea08ca 629ced40a 6dc44c489 --`
+    - Result: passed; identified upstream provider HTTP owner migration, provider-owned local runtime migration, and stream-contract extraction scopes.
+  - `git log --oneline --first-parent --since="2026-06-01" upstream-bitfun/main -- | Select-String -Pattern "provider|adapter|http|model|config|responses|openai|anthropic|gemini|service"`
+    - Result: passed; identified relevant upstream provider/service, AI adapter, model config, connection-test, parser, and stream handler commits.
+  - Local file inspection:
+    - Result: `void-ai-adapters` owns provider request/response mapping, HTTP/SSE transport, stream parsing, model discovery, health checks, tool-call aggregation, and portable AI types.
+    - Result: core maps app config into adapter `AIConfig` and consumes unified streams; Web UI owns provider templates/catalog display and config editing.
+    - Result: local gaps remain for provider id vs wire format separation, repeated request URL derivation, duplicated provider catalogs, string-matched adapter quirks, and explicit transport-vs-business retry boundaries.
+  - Subagents reported existing coverage and recommended future matrices:
+    - `cargo test -p void-ai-adapters client::sse::tests`
+    - `cargo test -p void-ai-adapters stream::stream_handler::tests`
+    - `cargo test -p void-ai-adapters stream::stream_handler::responses::tests`
+    - `cargo test -p void-ai-adapters --test stream_test_harness`
+    - `cargo test -p void-ai-adapters --test model_selector`
+    - `cargo test -p void-agent-stream`
+    - `cargo test -p void-core service::config` or `cargo test -p void-core --lib config`
+    - `pnpm --dir src/web-ui run test:run src/infrastructure/config/services/ConfigManager.test.ts src/infrastructure/config/services/modelConfigs.test.ts`
+    - `pnpm --dir src/web-ui run test:run src/shared/ai-errors/aiErrorPresenter.test.ts src/infrastructure/services/api/aiService.test.ts`
+    - `pnpm --dir src/web-ui run type-check`
+  - Recommended follow-up checks:
+    - Boundary script tests for `ISSUE-1170A`.
+    - Health-check/error-presenter tests for `ISSUE-1170B`.
+    - OpenAI message converter regression tests for `ISSUE-1170C`.
+    - Stream drop/cancel lifecycle tests for `ISSUE-1170D`.
+    - Config/capability/default-model tests for `ISSUE-1170E`.
+  - Result: docs-only audit in the main session; no production code changed.
 
 Protected-surface regression candidates:
 

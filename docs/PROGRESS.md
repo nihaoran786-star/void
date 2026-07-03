@@ -4623,3 +4623,31 @@ Remaining risk:
 - Current theme audit baselines still allow historical color debt; passing audits mean no growth, not complete visual quality.
 - Theme visual contract is a coverage checklist, not screenshot or contrast proof.
 - The next selective-upstream candidate is `ISSUE-1170 Provider Service Boundary Study`.
+
+## ISSUE-1170 Provider Service Boundary Study
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream provider/service boundary commits including `96cea08ca`, `629ced40a`, `47b5d6c94`, `a29bd63d2`, `4077c1a8a`, `545e81e23`, `01e067e97`, `314116874`, `94ed21559`, `d8ee47156`, `adaff67e7`, and `687ac8a51`.
+- Confirmed upstream provider/service work is mostly architecture owner migration: HTTP, runtime, platform, IM bot, and exec/tool owners move into services crates behind boundary rules.
+- Confirmed current Void already has `void-ai-adapters` as the provider HTTP/SSE, request/response mapping, stream parsing, tool-call aggregation, model discovery, and health-check owner.
+- Confirmed local provider boundary gaps: provider id vs wire format are mixed, URL derivation is repeated, provider catalogs are duplicated, provider quirks still use URL/model string matching, and adapter transport retry must remain separate from core business retry.
+- Split follow-up work into `ISSUE-1170A` provider HTTP boundary static audit, `ISSUE-1170B` AI connection-test error classification, `ISSUE-1170C` OpenAI content-part array parser regression, `ISSUE-1170D` SSE handler cancellation contract, and `ISSUE-1170E` image-understanding capability reconcile.
+- Preserved protected surfaces: no production code, provider adapter, Web UI config, core config, stream handler, runtime behavior, crate layout, Flow Chat, multi-agent/subagent, AI media, AI short-drama, terminal, MCP, or Computer Use files were changed in this audit.
+
+Verification:
+
+- Upstream commit/file inspection completed for provider HTTP owners, local runtime providers, platform providers, IM bot providers, exec-command policy, shared AI adapter extraction, provider grouping, connection testing, stream handler cancellation, OpenAI content-part parsing, and image-understanding capability reconcile.
+- Local code inspection covered `void-ai-adapters`, core AI config mapping/client factory, Web UI provider catalog/model config, stream consumption, existing adapter/agent-stream tests, and provider error presentation tests.
+- Three subagents independently reviewed upstream deltas, local provider boundaries, and QA/risk coverage.
+- No production tests were run in the main session because this was a docs-only audit.
+
+Remaining risk:
+
+- Static review did not exercise real user provider configuration migrations.
+- Provider id vs wire format ambiguity remains until a future compatibility-first issue addresses it.
+- URL derivation, duplicated catalogs, adapter quirks, and retry boundary tests remain open follow-up work.
+- Upstream owner migrations remain deferred; direct crate layout synchronization is still forbidden.
+- The next selective-upstream candidate is `ISSUE-1180 Core Crate Decomposition Deferred Plan`.

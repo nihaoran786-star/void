@@ -2036,7 +2036,7 @@ Result:
 ### ISSUE-1170 Provider Service Boundary Study
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Study upstream provider HTTP owner moves and identify one possible low-risk boundary improvement for current Void.
 Allowed files: docs and static boundary checks first.
 Forbidden files: provider adapter mass move, crate layout changes, runtime behavior changes without a follow-up issue.
@@ -2044,6 +2044,78 @@ Acceptance:
 - Current provider ownership is mapped.
 - One optional small boundary issue is proposed or the work is deferred.
 Risk notes: UI catalog, core config, provider adapters, and stream usage tests must move together or not at all.
+Result:
+- Reviewed upstream provider/service boundary commits including `96cea08ca`, `629ced40a`, `47b5d6c94`, `a29bd63d2`, `4077c1a8a`, `545e81e23`, `01e067e97`, `314116874`, `94ed21559`, `d8ee47156`, `adaff67e7`, and `687ac8a51`.
+- Confirmed upstream `96cea08ca` is primarily an owner-migration pattern: HTTP transport owners such as Web tools, CDP, debug-log, and review-platform clients move from assembly/core to `services-integrations`, while core keeps product semantics and facade contracts.
+- Confirmed current Void already has `void-ai-adapters` as the provider request/response, HTTP/SSE, stream parsing, tool-call aggregation, model discovery, and health-check boundary.
+- Confirmed current coupling points: `provider` and wire `format` are still mixed across UI/core/adapter config, request URL derivation exists in multiple places, provider catalogs are duplicated, adapter quirks still use URL/model string matching, and transport retry vs core business retry must remain distinct.
+- Split follow-up work into `ISSUE-1170A` provider HTTP boundary static audit, `ISSUE-1170B` AI connection-test error classification, `ISSUE-1170C` OpenAI content-part array parser regression, `ISSUE-1170D` SSE handler cancellation contract, and `ISSUE-1170E` image-understanding capability reconcile.
+- Preserved protected surfaces: no production code, provider adapter, Web UI config, core config, stream handler, runtime behavior, crate layout, Flow Chat, multi-agent/subagent, AI media, AI short-drama, terminal, MCP, or Computer Use files were changed in this audit.
+
+### ISSUE-1170A Provider HTTP Boundary Static Audit
+
+Priority: P2
+Status: Proposed
+Goal: Add a small static boundary check or documented rule that provider HTTP/SSE owners stay inside `void-ai-adapters` or an explicitly named service adapter.
+Allowed files: boundary scripts/tests and docs only.
+Forbidden files: provider implementation moves, crate layout changes, request/stream behavior changes.
+Acceptance:
+- Legal HTTP owner paths are listed.
+- Core/product paths are checked or documented as forbidden places for provider-specific HTTP ownership.
+- Existing `void-ai-adapters` ownership stays unchanged.
+Risk notes: This is governance only; it must not become a hidden crate migration.
+
+### ISSUE-1170B AI Connection Test Error Classification
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate upstream connection-test refinements and add typed TLS/proxy/network/provider error classification if local tests prove a low-risk adapter/UI boundary.
+Allowed files: focused `void-ai-adapters` health-check code, AI error presenter/config tests, docs.
+Forbidden files: provider catalog redesign, model config schema migration, broad UI settings rewrite.
+Acceptance:
+- Connection-test failures return or map to explicit categories.
+- User-facing errors remain readable and diagnostics do not leak API keys or raw secrets.
+- Retry count changes are covered by focused tests.
+Risk notes: Do not mix this with provider instance or URL catalog refactors.
+
+### ISSUE-1170C OpenAI Content-Part Array Parser Regression
+
+Priority: P2
+Status: Proposed
+Goal: Port the upstream parser guard that only treats valid OpenAI content-part arrays as multimodal message parts.
+Allowed files: OpenAI adapter message converter and focused adapter tests.
+Forbidden files: tool schemas, Flow Chat message UI, media/short-drama context plumbing, non-OpenAI provider behavior.
+Acceptance:
+- Plain JSON arrays used as text/tool content remain text.
+- Valid multimodal content-part arrays still serialize correctly.
+- Regression tests cover tool JSON arrays, mixed invalid arrays, and valid content parts.
+Risk notes: This must not weaken AI media or image-context attachment semantics.
+
+### ISSUE-1170D SSE Handler Cancellation Contract
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate upstream orphan-stream-handler cancellation and add a local contract test before changing handler ownership.
+Allowed files: `void-ai-adapters` SSE/stream handler tests and minimal handler lifecycle code if proven necessary.
+Forbidden files: core turn cancellation semantics, Flow Chat state, terminal, MCP, provider catalog/config.
+Acceptance:
+- Dropping/canceling a stream stops provider handler work.
+- Completed streams still deliver usage/tool-call events.
+- Core retry and adapter transport retry remain separate.
+Risk notes: Incorrect cancellation can drop final usage, leak tasks, or multiply provider requests.
+
+### ISSUE-1170E Image Understanding Capability Reconcile
+
+Priority: P2
+Status: Proposed
+Goal: Study and, if safe, implement a Void-native default-model reconcile so image-understanding defaults cannot silently point at text-only models.
+Allowed files: focused config/capability helpers and tests after a separate implementation gate.
+Forbidden files: generic image tool rewrites, upstream `view_image` copy, media/short-drama source-of-truth changes.
+Acceptance:
+- Image-understanding model capability checks are explicit.
+- Default image-understanding selection ignores disabled or text-only models.
+- Existing AI media and AI short-drama image semantics remain protected.
+Risk notes: This belongs after `ISSUE-1140` image-context guard work if capability state is still ambiguous.
 
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
