@@ -77,28 +77,29 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150E parent reconciliation complete.
 - [x] ISSUE-1150F tool runtime owner migration planning gate complete.
 - [x] ISSUE-1140E parent reconciliation complete.
+- [x] ISSUE-1140D1 ViewImage contract gate and slice plan complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140E Short Drama Image Understanding Bridge Contract`
+Issue: `ISSUE-1140D1 ViewImage Contract Gate and Slice Plan`
 
 Summary:
 
-- Reconciled the parent short-drama image-understanding bridge contract after `ISSUE-1140E1` and `ISSUE-1140E2`.
-- Confirmed Main AI export remains low-context and omits raw media references, URLs, local paths, data URLs, and raw byte labels.
-- Confirmed the short-drama-owned bridge resolves image artifact/media coordinates from `ShortDramaProject` and only creates generic `ImageContext` through explicit local/relative path helpers.
-- Left image-summary generation, persistence, and model invocation as future work rather than overclaiming this parent slice.
+- Split `ISSUE-1140D` before any `ViewImage` runtime implementation.
+- Confirmed current Void already has `ToolImageAttachment`, provider-side tool-image conversion, `ToolUseContext` workspace/path/capability facts, and `AnalyzeImage` registration.
+- Recorded that `ViewImage` must be distinct from `AnalyzeImage`: it may return a readonly tool-result image attachment and metadata, but it must not call the image-understanding model or copy upstream assembly behavior.
+- Split future work into manifest/readonly exposure, provider image-attachment capability, and workspace path/image-processing implementation slices.
 
 Verification:
 
-- `Select-String -Path docs/ISSUES.md,docs/TEST_PLAN.md,docs/DECISIONS.md -Pattern "ISSUE-1140E|ShortDramaImageContextBridge|DEC-115"`
+- `Select-String -Path docs/ISSUES.md,docs/ARCHITECTURE.md,docs/DECISIONS.md,docs/TEST_PLAN.md -Pattern "ISSUE-1140D|ViewImage|DEC-122"`
   - Result: passed.
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `git diff --check -- docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+- `git diff --check -- docs/ISSUES.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
 - `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
-  - Result: current worktree still lists non-this-slice generated Web UI version files; they are not part of this docs-only reconciliation and are not staged.
+  - Result: current worktree still lists non-this-slice generated Web UI version files; they are not part of this docs-only gate and are not staged.
 
 ## Subagent Summary
 

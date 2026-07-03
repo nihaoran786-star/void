@@ -1946,7 +1946,7 @@ Progress:
 ### ISSUE-1140D Void ViewImage Tool Contract Gate
 
 Priority: P2
-Status: Proposed
+Status: Split
 Goal: Evaluate and implement a Void-native `ViewImage` tool only after tool-image-attachment, provider capability, remote workspace, and manifest boundaries are proven.
 Allowed files: tool contract tests, `void-tool-packs`, `product_runtime`, optional new ViewImage implementation under current Void core layout, docs.
 Forbidden files: upstream `assembly` crate layout, broad agent mode rewrites, provider wire conversion outside adapters, Web UI upload flow rewrites.
@@ -1956,6 +1956,61 @@ Acceptance:
 - Workspace local and remote path resolution are covered before bytes are read.
 - Image optimization uses existing image-processing helpers and reports width/height/size metadata.
 Risk notes: Do not copy upstream `view_image` wholesale; current Void already has different tool runtime and provider boundaries.
+Split note: `ISSUE-1140D1` records the contract gate and splits implementation into manifest/provider/path slices before any `ViewImage` runtime code. `ISSUE-1140D2` owns manifest/readonly exposure tests. `ISSUE-1140D3` owns provider image-attachment capability gating. `ISSUE-1140D4` owns workspace path resolution, image optimization, and the minimal tool implementation.
+
+### ISSUE-1140D1 ViewImage Contract Gate and Slice Plan
+
+Priority: P2
+Status: Done
+Goal: Turn upstream `view_image` into a Void-owned implementation plan without adding a broad image tool or changing provider/UI boundaries.
+Allowed files: docs and read-only code inspection.
+Forbidden files: concrete `ViewImage` implementation, `AnalyzeImage` rewrite, provider adapter rewrite, Web UI upload flow, AI media, AI short-drama, Flow Chat.
+Acceptance:
+- Current image attachment, manifest, provider, and workspace-path owners are identified.
+- Direct upstream copy risks are recorded.
+- Follow-up code slices are low-coupling and independently testable.
+Result:
+- Confirmed `ToolImageAttachment` is a core-type payload of `mime_type` and `data_base64`; provider conversion currently lives in `src/crates/ai-adapters`.
+- Confirmed `AnalyzeImage` is already the authoritative analysis tool and remains registered through `void-tool-packs` plus `ProductToolRuntime`.
+- Confirmed `ToolUseContext` already owns workspace identity, remote/local path resolution, and primary-model image capability facts.
+- Split runtime implementation into `ISSUE-1140D2`, `ISSUE-1140D3`, and `ISSUE-1140D4` so manifest exposure, provider gating, and file/image processing are not bundled.
+
+### ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
+
+Priority: P2
+Status: Proposed
+Goal: Add or reject `ViewImage` manifest exposure through Void's existing tool-pack/product-runtime path with focused registry tests.
+Allowed files: `src/crates/tool-packs/src/lib.rs`, `src/crates/core/src/agentic/tools/product_runtime.rs`, `src/crates/core/src/agentic/tools/registry.rs`, focused tests, docs.
+Forbidden files: tool execution implementation, provider adapters, Web UI upload flow, media/short-drama services, upstream `assembly` crate layout.
+Acceptance:
+- Manifest/readonly/collapsed exposure is explicitly tested before tool execution exists.
+- `AnalyzeImage` manifest behavior remains unchanged.
+- `ViewImage` is exposed only if the follow-up implementation can preserve explicit `status/source/error` and image attachment gating.
+
+### ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate
+
+Priority: P2
+Status: Proposed
+Goal: Prove tool-result image attachments are sent only when the primary model/provider path supports them.
+Allowed files: provider adapter tests, tool-context capability tests, docs.
+Forbidden files: concrete `ViewImage` filesystem reads, Web UI upload flow, media/short-drama services, provider transport rewrites.
+Acceptance:
+- OpenAI/Responses and any supported adapter paths have focused tests for `ToolImageAttachment` conversion.
+- Unsupported primary-model paths return a typed unsupported result rather than silently dropping images.
+- Provider-specific wire logic stays in adapters, not core tool contracts.
+
+### ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
+
+Priority: P2
+Status: Proposed
+Goal: Implement the smallest Void-native `ViewImage` tool after manifest and provider gates pass.
+Allowed files: new `ViewImage` tool implementation under current core tool layout, `product_runtime`, `void-tool-packs`, image-processing helper tests, docs.
+Forbidden files: upstream `assembly` crate layout, Web UI upload flow rewrites, `AnalyzeImage` model-call behavior, AI media/short-drama source-of-truth changes.
+Acceptance:
+- `image_path` resolves through `ToolUseContext` before bytes are read for local and remote workspaces.
+- Image MIME/size/dimensions are detected through existing image-processing helpers.
+- Result includes explicit `status/source/error` plus width/height/size metadata.
+- Tool result image attachment uses `ToolImageAttachment`; no raw file path or provider-specific payload leaks into UI.
 
 ### ISSUE-1140E Short Drama Image Understanding Bridge Contract
 

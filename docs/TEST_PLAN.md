@@ -5811,3 +5811,33 @@ Coverage:
 Remaining risk:
 
 - This does not validate runtime behavior or startup smoke. Any future product profile or entrypoint feature change must add feature graph snapshots and behavior checks before code.
+
+## ISSUE-1140D1 ViewImage Contract Gate and Slice Plan
+
+Scope:
+
+- Documentation-only gate for the upstream `view_image` capability.
+- No `ViewImage` runtime implementation, tool manifest change, provider adapter change, Web UI upload change, AI media change, AI short-drama change, Flow Chat change, or `AnalyzeImage` rewrite.
+
+Executed:
+
+- `Select-String -Path docs/ISSUES.md,docs/ARCHITECTURE.md,docs/DECISIONS.md,docs/TEST_PLAN.md -Pattern "ISSUE-1140D|ViewImage|DEC-122"`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: current worktree still lists non-this-slice generated Web UI version files; they are not part of this docs-only gate and are not staged.
+
+Coverage:
+
+- Current image payload boundary is `ToolImageAttachment`.
+- Current manifest/runtime registration boundary is `void-tool-packs` plus `ProductToolRuntime`.
+- Current workspace and primary-model capability facts live in `ToolUseContext`.
+- Provider-specific image attachment conversion remains adapter-owned.
+
+Remaining risk:
+
+- `ViewImage` is not implemented by this slice.
+- Future code slices must prove manifest exposure, provider support, and workspace path/image processing separately before exposing the tool.
