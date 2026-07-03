@@ -17,13 +17,19 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const IMAGE_ANALYSIS_MAX_BYTES: usize = 1024 * 1024;
+const ALLOWED_DATA_URL_MIME_TYPES: &[&str] = &[
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    "image/bmp",
+];
 
 pub const ANALYZE_IMAGE_OUTPUT_STATUSES: &[&str] = &[
     "completed",
     "unsupported_model",
     "provider_not_configured",
     "missing_workspace",
-    "permission_denied",
     "path_denied",
     "invalid_image",
     "error",
@@ -82,6 +88,13 @@ fn selected_image_source(input: &Value) -> Option<(&'static str, String)> {
     ["image_id", "image_path", "data_url"]
         .into_iter()
         .find_map(|key| optional_text(input, key).map(|value| (key, value.to_string())))
+}
+
+fn count_image_sources(input: &Value) -> usize {
+    ["image_id", "image_path", "data_url"]
+        .into_iter()
+        .filter(|key| optional_text(input, key).is_some())
+        .count()
 }
 
 #[derive(Debug, Clone)]
@@ -297,17 +310,60 @@ fn completed_result(
     )]
 }
 
+fn decode_inline_data_url(data_url: &str) -> Result<(Vec<u8>, String), AnalyzeImageStatus> {
+    let (bytes, declared_mime) = decode_data_url(data_url)
+        .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
+
+    if bytes.len() > IMAGE_ANALYSIS_MAX_BYTES {
+        return Err(AnalyzeImageStatus::invalid_image(format!(
+            "data_url exceeds maximum size: {} > {} bytes",
+            bytes.len(),
+            IMAGE_ANALYSIS_MAX_BYTES
+        )));
+    }
+
+    if let Some(mime_type) = declared_mime.as_deref() {
+        if !ALLOWED_DATA_URL_MIME_TYPES.contains(&mime_type) {
+            return Err(AnalyzeImageStatus::invalid_image(format!(
+                "unsupported data_url MIME type: {mime_type}"
+            )));
+        }
+    }
+
+    let detected_mime = detect_mime_type_from_bytes(&bytes, None)
+        .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
+
+    if !ALLOWED_DATA_URL_MIME_TYPES.contains(&detected_mime.as_str()) {
+        return Err(AnalyzeImageStatus::invalid_image(format!(
+            "unsupported data_url MIME type: {detected_mime}"
+        )));
+    }
+
+    Ok((bytes, detected_mime))
+}
+
 async fn resolve_analyze_image_request(
     input: &Value,
     context: &ToolUseContext,
 ) -> Result<AnalyzeImageRequest, AnalyzeImageStatus> {
     let prompt = prompt_from_input(input);
+    match count_image_sources(input) {
+        0 => {
+            return Err(AnalyzeImageStatus::invalid_image(
+                "Exactly one of image_id, image_path, or data_url is required.",
+            ));
+        }
+        1 => {}
+        _ => {
+            return Err(AnalyzeImageStatus::invalid_image(
+                "Only one of image_id, image_path, or data_url may be provided.",
+            ));
+        }
+    }
+
     match selected_image_source(input) {
         Some(("data_url", data_url)) => {
-            let (bytes, mime_type) = decode_data_url(&data_url)
-                .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
-            let mime_type = detect_mime_type_from_bytes(&bytes, mime_type.as_deref())
-                .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
+            let (bytes, mime_type) = decode_inline_data_url(&data_url)?;
             Ok(AnalyzeImageRequest {
                 source: "data_url",
                 display_path: "inline data_url".to_string(),
@@ -321,10 +377,7 @@ async fn resolve_analyze_image_request(
                 AnalyzeImageStatus::invalid_image(format!("image_id not found: {image_id}"))
             })?;
             if let Some(data_url) = image.data_url {
-                let (bytes, mime_type) = decode_data_url(&data_url)
-                    .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
-                let mime_type = detect_mime_type_from_bytes(&bytes, mime_type.as_deref())
-                    .map_err(|error| AnalyzeImageStatus::invalid_image(error.to_string()))?;
+                let (bytes, mime_type) = decode_inline_data_url(&data_url)?;
                 return Ok(AnalyzeImageRequest {
                     source: "image_id",
                     display_path: image.image_name,
@@ -343,9 +396,7 @@ async fn resolve_analyze_image_request(
         Some(("image_path", image_path)) => {
             resolve_image_path_source("image_path", &image_path, prompt, context).await
         }
-        _ => Err(AnalyzeImageStatus::invalid_image(
-            "Exactly one of image_id, image_path, or data_url is required.",
-        )),
+        _ => unreachable!("image source count was validated before source selection"),
     }
 }
 
@@ -517,10 +568,7 @@ The tool is read-only, but runtime execution must still enforce workspace path p
         input: &Value,
         _context: Option<&ToolUseContext>,
     ) -> ValidationResult {
-        let source_count = ["image_id", "image_path", "data_url"]
-            .into_iter()
-            .filter(|key| optional_text(input, key).is_some())
-            .count();
+        let source_count = count_image_sources(input);
 
         if source_count == 0 {
             return invalid_input("Exactly one of image_id, image_path, or data_url is required.");
@@ -671,13 +719,13 @@ mod tests {
             "unsupported_model",
             "provider_not_configured",
             "missing_workspace",
-            "permission_denied",
             "path_denied",
             "invalid_image",
             "error",
         ] {
             assert!(ANALYZE_IMAGE_OUTPUT_STATUSES.contains(&status));
         }
+        assert!(!ANALYZE_IMAGE_OUTPUT_STATUSES.contains(&"permission_denied"));
     }
 
     #[tokio::test]
@@ -772,6 +820,110 @@ mod tests {
         };
 
         assert_eq!(data["status"], "invalid_image");
+    }
+
+    #[tokio::test]
+    async fn analyze_image_runtime_rejects_multiple_sources_even_if_validation_is_bypassed() {
+        let tool = AnalyzeImageTool::new_with_runtime_for_tests(std::sync::Arc::new(
+            PanicAnalyzeImageRuntime,
+        ));
+        let results = tool
+            .call_impl(
+                &json!({
+                    "image_id": "img-1",
+                    "data_url": tiny_png_data_url()
+                }),
+                &test_context(),
+            )
+            .await
+            .expect("multi-source input should be a structured tool result");
+
+        let ToolResult::Result { data, .. } = &results[0] else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["status"], "invalid_image");
+        assert!(data["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Only one of image_id, image_path, or data_url"));
+    }
+
+    #[tokio::test]
+    async fn analyze_image_runtime_rejects_non_image_data_url_payload_before_provider() {
+        use base64::engine::general_purpose::STANDARD as BASE64;
+        use base64::Engine as _;
+
+        let data_url = format!("data:image/png;base64,{}", BASE64.encode(b"not an image"));
+        let tool = AnalyzeImageTool::new_with_runtime_for_tests(std::sync::Arc::new(
+            PanicAnalyzeImageRuntime,
+        ));
+        let results = tool
+            .call_impl(&json!({ "data_url": data_url }), &test_context())
+            .await
+            .expect("non-image payload should be a structured tool result");
+
+        let ToolResult::Result { data, .. } = &results[0] else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["status"], "invalid_image");
+        assert!(data["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Unsupported or unrecognized image format"));
+    }
+
+    #[tokio::test]
+    async fn analyze_image_runtime_rejects_oversized_data_url_before_provider() {
+        use base64::engine::general_purpose::STANDARD as BASE64;
+        use base64::Engine as _;
+
+        let oversized_bytes = vec![0u8; 1024 * 1024 + 1];
+        let data_url = format!("data:image/png;base64,{}", BASE64.encode(oversized_bytes));
+        let tool = AnalyzeImageTool::new_with_runtime_for_tests(std::sync::Arc::new(
+            PanicAnalyzeImageRuntime,
+        ));
+        let results = tool
+            .call_impl(&json!({ "data_url": data_url }), &test_context())
+            .await
+            .expect("oversized image should be a structured tool result");
+
+        let ToolResult::Result { data, .. } = &results[0] else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["status"], "invalid_image");
+        assert!(data["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("data_url exceeds"));
+    }
+
+    #[tokio::test]
+    async fn analyze_image_runtime_rejects_unsupported_data_url_mime_before_provider() {
+        use base64::engine::general_purpose::STANDARD as BASE64;
+        use base64::Engine as _;
+
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg"></svg>"#;
+        let data_url = format!("data:image/svg+xml;base64,{}", BASE64.encode(svg));
+        let tool = AnalyzeImageTool::new_with_runtime_for_tests(std::sync::Arc::new(
+            PanicAnalyzeImageRuntime,
+        ));
+        let results = tool
+            .call_impl(&json!({ "data_url": data_url }), &test_context())
+            .await
+            .expect("unsupported mime should be a structured tool result");
+
+        let ToolResult::Result { data, .. } = &results[0] else {
+            panic!("expected regular tool result");
+        };
+
+        assert_eq!(data["status"], "invalid_image");
+        assert!(data["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("unsupported data_url MIME type"));
     }
 
     #[tokio::test]
@@ -940,6 +1092,19 @@ mod tests {
                 summary: "fake summary".to_string(),
                 analysis: "fake analysis".to_string(),
             })
+        }
+    }
+
+    #[derive(Debug)]
+    struct PanicAnalyzeImageRuntime;
+
+    #[async_trait::async_trait]
+    impl super::AnalyzeImageRuntime for PanicAnalyzeImageRuntime {
+        async fn analyze(
+            &self,
+            _request: super::AnalyzeImageRequest,
+        ) -> Result<super::AnalyzeImageSuccess, super::AnalyzeImageStatus> {
+            panic!("invalid data_url should be rejected before provider runtime");
         }
     }
 }

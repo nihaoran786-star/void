@@ -1776,7 +1776,7 @@ Result:
 ### ISSUE-1140A AnalyzeImage Permission and Data URL Guard
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Align the `AnalyzeImage` status contract with actual behavior and harden inline `data_url` handling before any broader image-tool expansion.
 Allowed files: `src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs`, `src/crates/core/src/agentic/image_analysis/*` tests/docs.
 Forbidden files: Web UI, provider adapter rewrites, media tools, short-drama tools, Flow Chat pages, BTW panel logic.
@@ -1786,6 +1786,13 @@ Acceptance:
 - `image_id` / `image_path` / `data_url` remains exactly-one-source.
 - Verification includes `cargo test -p void-core analyze_image --lib`.
 Risk notes: Readonly tools still enforce workspace/path policy. Do not represent permission or path failures with generic strings.
+Result:
+- Removed unreachable `permission_denied` from the active `AnalyzeImage` output status contract. The tool remains readonly and `needs_permissions()` remains false; path and workspace policy failures stay classified as `missing_workspace` or `path_denied`.
+- Added `call_impl`-level exactly-one-source enforcement so direct runtime calls cannot bypass `validate_input` and silently choose the first image source.
+- Hardened inline `data_url` request resolution before provider runtime execution: decoded payloads must be at most 1 MiB, use an allowed raster MIME type (`png/jpeg/gif/webp/bmp`), and contain bytes recognized as an image instead of relying on declared MIME fallback.
+- Added tests proving oversized, unsupported MIME, non-image payload, invalid base64, and multi-source data URL inputs return structured `invalid_image` results before provider runtime.
+- Deferred broader `image_context` scoping, provider image-context path containment, BTW follow-up image context, and media/short-drama bridge policy to their existing follow-up issues; no Web UI, provider adapter, media, short-drama, or Flow Chat files were changed.
+- Verification: `cargo test -p void-core analyze_image --lib -- --nocapture` passed with 14 tests. `cargo test -p void-core image_analysis --lib -- --nocapture` passed with 0 matching tests. `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs` passed.
 
 ### ISSUE-1140B BTW Child-Session Image Context Completion
 

@@ -36,23 +36,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] Fifth verification issue complete.
 - [x] Computer Use platform inventory complete.
 - [x] ISSUE-1120D remote terminal history status/source contract slice complete.
+- [x] ISSUE-1140A AnalyzeImage permission/data_url contract slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests`
+Issue: `ISSUE-1140A AnalyzeImage Permission and Data URL Guard`
 
 Summary:
 
-- Added explicit desktop/Web terminal history status fields so local empty history is `ready/local` and remote unsupported history is `unsupported/remote` with `remote_history_unsupported`.
-- Preserved current behavior: remote terminal history still does not pretend to support replay, and `useTerminal` continues to subscribe and flush live output after empty unsupported history.
-- Kept backend `historyStatus: "error"` out of scope; local history fetch failures still use the existing command error path.
+- Removed unreachable `permission_denied` from the active `AnalyzeImage` output status contract.
+- Added `call_impl`-level exactly-one-source enforcement for `image_id`, `image_path`, and `data_url`.
+- Hardened inline `data_url` handling before provider runtime: size cap, raster MIME whitelist, and real image payload detection.
+- Preserved protected surfaces: no Web UI, provider adapter, Flow Chat, BTW panel, AI media, AI short-drama, or desktop upload/API files changed.
 
 Verification:
 
-- `cargo test -p void-desktop terminal_api::tests -- --nocapture` passed with 2 tests.
-- `rustfmt --edition 2021 --check src/apps/desktop/src/api/terminal_api.rs` passed.
-- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts` passed with 3 files / 13 tests.
-- `pnpm --dir src/web-ui run type-check` passed.
+- `cargo test -p void-core analyze_image --lib -- --nocapture` passed with 14 tests.
+- `cargo test -p void-core image_analysis --lib -- --nocapture` passed with 0 matching tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs` passed.
 
 ## Subagent Summary
 

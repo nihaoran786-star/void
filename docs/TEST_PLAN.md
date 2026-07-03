@@ -4205,3 +4205,33 @@ Deferred:
 - `TerminalService.acknowledge()` remains unused by frontend output consumption; backend flow-control ack requires a separate contract.
 - `historyStatus: "error"` remains a TypeScript contract value only; local backend history failures still use the existing `Result::Err(String)` command error path.
 - EOF-triggered immediate shutdown is now routed through the existing command task; a future hardening test can cover the edge case where PTY EOF and explicit shutdown/natural exit race on platforms that report EOF before the child is reapable.
+
+## ISSUE-1140A AnalyzeImage Permission and Data URL Guard
+
+Scope:
+
+- Harden `AnalyzeImage` tool input/status contracts before provider runtime execution.
+- No Web UI, Flow Chat, BTW panel, provider adapter, AI media, AI short-drama, desktop upload/API, or generic image-context storage behavior was changed.
+
+Executed:
+
+- `cargo test -p void-core analyze_image --lib -- --nocapture`
+  - Result before fix: failed as expected for unreachable `permission_denied`, unsupported SVG data URL reaching provider runtime, and oversized data URL reaching provider runtime.
+  - Result after fix: passed, 14 tests.
+- `cargo test -p void-core image_analysis --lib -- --nocapture`
+  - Result: passed with 0 matching tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs`
+  - Result: passed.
+
+Coverage:
+
+- `ANALYZE_IMAGE_OUTPUT_STATUSES` no longer advertises unreachable `permission_denied`.
+- `call_impl` rejects multi-source input even when `validate_input` is bypassed.
+- Inline `data_url` inputs reject invalid base64, non-image payloads, unsupported raster-adjacent MIME such as `image/svg+xml`, and decoded payloads larger than 1 MiB before provider runtime execution.
+- Existing success coverage still proves valid PNG data URLs and image-context data URLs reach the injected runtime with `source` and `mime_type` preserved.
+
+Deferred:
+
+- `image_context` remains globally scoped and may match by filename; session/workspace scoping is a separate image-context issue.
+- `process_image_contexts_for_provider` path containment for generic model image contexts remains separate from `AnalyzeImage`.
+- BTW child-session follow-up images, AI media image references, and short-drama image-summary bridges remain under their own issue boundaries.

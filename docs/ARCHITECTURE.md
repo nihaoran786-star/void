@@ -290,6 +290,7 @@ Interface ownership:
 - `ToolUseContext` owns workspace identity, remote/local path resolution, read policy, primary-model capability facts, and tool execution context.
 - `AnalyzeImage` lives under `src/crates/core/src/agentic/tools/implementations/` and is registered through `void-tool-packs` plus `ProductToolRuntime`.
 - `AnalyzeImage` resolves exactly one source (`image_id`, `image_path`, or `data_url`) and maps runtime outcomes into explicit statuses. `image_path` must resolve through `ToolUseContext` and remain inside the current workspace before any bytes are read.
+- `AnalyzeImage` is the only conversion layer for inline `data_url` tool input. It must reject oversized, unsupported MIME, and unrecognized image payloads before provider runtime execution; UI, Flow Chat, media, and short-drama modules must not duplicate this policy.
 - `AnalyzeImage` may call the configured image-understanding model through existing `image_analysis` and `AIClientFactory` infrastructure. It must not add provider-specific wire logic; provider payload conversion stays in `src/crates/ai-adapters` or existing image-processing helpers.
 - `src/crates/ai-adapters` owns provider-specific OpenAI/Responses, Anthropic, and Gemini multimodal request conversion only.
 - Flow Chat, media gallery, and short-drama UI/services may render image analysis state, but must not own provider calls, path policy, or schema interpretation.
@@ -300,7 +301,6 @@ Required state model:
 - `unsupported_model`
 - `provider_not_configured`
 - `missing_workspace`
-- `permission_denied`
 - `path_denied`
 - `invalid_image`
 - `error`
