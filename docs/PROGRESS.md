@@ -61,23 +61,27 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1170C OpenAI content-part array parser regression complete.
 - [x] ISSUE-1170B AI connection-test error classification complete.
 - [x] ISSUE-1170D SSE handler cancellation contract complete.
+- [x] ISSUE-1130A Windows WGC capture adapter wiring complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1170D SSE Handler Cancellation Contract`
+Issue: `ISSUE-1130A Windows WGC Capture Implementation Gate`
 
 Summary:
 
-- Added an adapter-owned stream wrapper so dropping `StreamResponse.stream` aborts the spawned provider handler task.
-- Provider `spawn_handler` closures now return their `JoinHandle` to `execute_sse_request`; the public `StreamResponse` field shape remains unchanged.
-- OpenAI, Anthropic, Gemini, and Responses stream handlers now stop when the event receiver is closed while waiting for more provider SSE bytes.
-- Did not change core turn cancellation, Flow Chat state, adapter transport retry, core/business retry, provider catalogs/config, AI media, AI short-drama, MCP, terminal, Computer Use, or crate layout.
+- Added a Windows-only `windows_wgc_capture.rs` adapter using D3D11 hardware/WARP device creation, WinRT `GraphicsCaptureItem`, free-threaded frame pool, staging texture copy, row-pitch compaction, and timeout handling.
+- Wired `screenshot_window_via_wgc` to the adapter while keeping the existing `windows_capture.rs` tiered fallback chain and BitBlt uncertainty metadata.
+- Added only the required Windows crate features; did not copy upstream desktop-host module splitting or Web UI/tool-card/settings changes.
+- Preserved desktop host contracts, Computer Use schemas, macOS/Linux adapters, background input, Flow Chat, AI media, AI short-drama, terminal, provider, and crate layout.
 
 Verification:
 
-- RED: `cargo test -p void-ai-adapters dropping_returned_stream_aborts_handler_task -- --nocapture` failed before implementation because the stream abort wrapper did not exist.
-- RED: `cargo test -p void-ai-adapters --test stream_test_harness openai_handler_stops_when_event_receiver_is_dropped -- --nocapture` failed before the `tx_event.closed()` select because the handler kept waiting for the next delayed SSE chunk.
-- GREEN: both focused cancellation tests passed.
+- RED: `cargo test -p void-desktop windows_wgc_adapter_is_wired_for_capture_fallback --lib -- --nocapture` failed before implementation because `computer_use::windows_wgc_capture` did not exist.
+- GREEN: the same wiring test passed after implementation.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture` passed with 5 tests.
+- `cargo check -p void-desktop` passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning.
+- `cargo build -p void-desktop` initially failed with a `rustc` `STATUS_ACCESS_VIOLATION (0xc0000005)` and passed on retry with the same unrelated warning.
+- Manual WGC smoke remains required before claiming platform-verified occlusion-proof capture.
 - `cargo test -p void-ai-adapters --test stream_test_harness -- --nocapture` passed with 11 stream harness tests.
 - `cargo test -p void-ai-adapters client::sse -- --nocapture` passed with 7 SSE facade tests.
 - `cargo test -p void-agent-stream` passed with 31 tests.
@@ -4597,7 +4601,7 @@ Status: Done
 Completed:
 
 - Reviewed upstream Computer Use platform/capture commits from `acf0cdb03`, `63a7b8160`, `918894f10`, `4a88374fc`, and `aab1032da`.
-- Mapped upstream WGC work to current local ownership: local `src/apps/desktop/src/computer_use/windows_capture.rs` still has a `screenshot_window_via_wgc` stub, while upstream adds a real `windows_wgc_capture.rs` D3D11/WinRT frame-pool adapter.
+- Mapped upstream WGC work to current local ownership: local `src/apps/desktop/src/computer_use/windows_capture.rs` had a `screenshot_window_via_wgc` stub at audit time, while upstream added a real `windows_wgc_capture.rs` D3D11/WinRT frame-pool adapter. `ISSUE-1130A` has since wired the adapter.
 - Mapped HWND lifetime work: local `desktop_host.rs` already uses raw `isize` HWND handoff and PID revalidation in several Windows paths, including cached HWND validation tests, but full parity is not proven for every async path.
 - Mapped pointer/background-input work: local Windows input returns explicit `WindowsInputOutcome { status, path, delivery_uncertain, warning }`, and local host exposes `mouse_move_global_f64`; DPI/multi-monitor precision still needs Windows proof.
 - Confirmed local text-only Computer Use already has read-only `describe_screen`, prompt/schema image-removal behavior, and screenshot-bound `PointerMap` flows; those should be protected during Windows platform work.
@@ -4607,13 +4611,13 @@ Completed:
 Verification:
 
 - Upstream merge/file diff inspection completed for Computer Use platform/capture commits.
-- Local Windows capture/background input/desktop host files were inspected for WGC stub, raw HWND patterns, pointer movement, and input result status.
+- Local Windows capture/background input/desktop host files were inspected for WGC adapter status, raw HWND patterns, pointer movement, and input result status.
 - Subagent reviews were launched for upstream, local, and QA/risk perspectives.
 
 Remaining risk:
 
 - No Windows platform build or capture smoke was run in this docs-only audit.
-- WGC is not implemented locally and must not be claimed fixed until `ISSUE-1130A` lands with Windows evidence.
+- WGC is now wired by `ISSUE-1130A`, but must not be claimed platform-verified until Windows smoke covers UWP/WinUI/DirectComposition, occlusion, DPI/multi-monitor, timeout, and fallback behavior.
 - HWND raw/revalidation is partially present but still requires full-path audit in `ISSUE-1130B`.
 - Pointer precision and background input semantics require real Windows DPI/multi-monitor/UIPI testing in `ISSUE-1130C`.
 - Windows settings deep links and visual-grid capability gating remain separate from capture/input unsafe work in `ISSUE-1130D`.

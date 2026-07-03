@@ -1687,7 +1687,7 @@ Acceptance:
 Risk notes: Windows API unsafe and async handle-lifetime changes require platform-specific proof; non-Windows checks are insufficient for release claims.
 Result:
 - Reviewed upstream Computer Use platform work from `acf0cdb03` and `63a7b8160`, with focus on Windows capture/input ownership.
-- Confirmed local Windows capture still has `screenshot_window_via_wgc` as a stub in `src/apps/desktop/src/computer_use/windows_capture.rs`; upstream adds a real `windows_wgc_capture.rs` implementation using D3D11, WinRT `GraphicsCaptureItem`, frame pool, staging texture copy, and timeout handling.
+- Confirmed local Windows capture had `screenshot_window_via_wgc` as a stub in `src/apps/desktop/src/computer_use/windows_capture.rs` during the audit; upstream adds a real `windows_wgc_capture.rs` implementation using D3D11, WinRT `GraphicsCaptureItem`, frame pool, staging texture copy, and timeout handling. `ISSUE-1130A` has since wired the adapter while keeping platform smoke as required evidence.
 - Confirmed local desktop host already uses raw `isize` HWND handoff/revalidation patterns around async boundaries in several Windows paths, including PID validation tests for changed cached HWNDs; this is partial coverage, not proof that every upstream HWND lifetime fix is present.
 - Confirmed local pointer/global movement paths include `mouse_move_global_f64`, but Windows pointer coordinate precision and app image-to-pointer mappings still need platform-specific tests before claiming parity.
 - Confirmed local text-only Computer Use already supports `describe_screen` without screenshot attachment, and local image/pointer paths bind app screenshots through `PointerMap` and `screenshot_id`.
@@ -1698,7 +1698,7 @@ Result:
 ### ISSUE-1130A Windows WGC Capture Implementation Gate
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Implement or explicitly defer the Windows Graphics Capture fallback for mostly-black `PrintWindow` results using a narrow adapter and Windows-only proof.
 Allowed files: `src/apps/desktop/src/computer_use/windows_capture.rs`, optional `windows_wgc_capture.rs`, `src/apps/desktop/Cargo.toml` Windows feature additions, focused Windows tests/docs.
 Forbidden files: desktop-host module split, Web UI tool cards/settings, macOS/Linux adapters, Computer Use tool schema expansion, Flow Chat, AI media, AI short-drama, terminal, provider.
@@ -1709,6 +1709,14 @@ Acceptance:
 - `BitBlt` fallback preserves `potentially_occluded`/source metadata so agents are not told an occluded screen-region capture is authoritative.
 - Verification includes `cargo check -p void-desktop` on Windows and one manual/automated UWP/WinUI/DirectComposition capture smoke.
 Risk notes: This cannot be claimed fixed from non-Windows checks. The adapter touches WinRT/D3D11 unsafe code and Cargo feature surface.
+Result:
+- Added a Windows-only `windows_wgc_capture.rs` adapter using D3D11 device creation with hardware then WARP fallback, WinRT `GraphicsCaptureItem`, `Direct3D11CaptureFramePool::CreateFreeThreaded`, frame timeout, staging texture copy, and row-pitch compaction to BGRA.
+- Wired `screenshot_window_via_wgc` to the adapter and registered the module behind `#[cfg(target_os = "windows")]`.
+- Added the required Windows crate feature flags without replacing local `Cargo.toml` dependency style or other local desktop features.
+- Added a focused compile-level wiring test proving the WGC adapter symbol is present with the expected signature; existing `windows_foreground_capture` tests continue to cover mostly-black detection, DWM crop, and BitBlt uncertainty metadata.
+- Preserved `desktop_host.rs`, Computer Use schemas, Web UI, macOS/Linux adapters, background input, Flow Chat, AI media, AI short-drama, terminal, provider, and upstream desktop-host module split boundaries.
+- Verification: `cargo test -p void-desktop windows_wgc_adapter_is_wired_for_capture_fallback --lib -- --nocapture` passed, `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture` passed with 5 tests, and `cargo check -p void-desktop` passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning.
+- Manual UWP/WinUI/DirectComposition, occlusion, DPI/multi-monitor, timeout, minimized/stale-HWND, and WARP-fallback smoke remains required before claiming platform-verified WGC capture.
 
 ### ISSUE-1130B Windows HWND Lifetime and Revalidation Audit
 

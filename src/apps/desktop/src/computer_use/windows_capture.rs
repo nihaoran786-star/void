@@ -6,15 +6,15 @@ use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba};
 use log::warn;
 use void_core::util::errors::{VoidError, VoidResult};
 use windows::Win32::Foundation::{HWND, POINT, RECT};
-use windows::Win32::Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
+use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC,
-    DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, GetWindowDC, RGBQUAD, ReleaseDC,
-    SRCCOPY, SelectObject,
+    BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
+    GetWindowDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    RGBQUAD, SRCCOPY,
 };
-use windows::Win32::Storage::Xps::{PRINT_WINDOW_FLAGS, PrintWindow};
+use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GA_ROOT, GetAncestor, GetForegroundWindow, GetWindowRect, IsIconic, WindowFromPoint,
+    GetAncestor, GetForegroundWindow, GetWindowRect, IsIconic, WindowFromPoint, GA_ROOT,
 };
 
 const PW_RENDERFULLCONTENT: PRINT_WINDOW_FLAGS = PRINT_WINDOW_FLAGS(2u32);
@@ -229,10 +229,7 @@ pub fn capture_window(hwnd: HWND) -> VoidResult<WindowCapture> {
 }
 
 pub fn screenshot_window_via_wgc(hwnd: HWND) -> VoidResult<(Vec<u8>, u32, u32)> {
-    let _ = hwnd;
-    Err(VoidError::tool(
-        "Windows Graphics Capture is not implemented for this adapter yet.".to_string(),
-    ))
+    crate::computer_use::windows_wgc_capture::capture_window_bgra(hwnd)
 }
 
 unsafe fn capture_window_unsafe(hwnd: HWND) -> VoidResult<WindowCapture> {
@@ -513,5 +510,11 @@ mod tests {
             false,
         );
         assert!(meta.potentially_occluded);
+    }
+
+    #[test]
+    fn windows_wgc_adapter_is_wired_for_capture_fallback() {
+        let _adapter: fn(HWND) -> VoidResult<(Vec<u8>, u32, u32)> =
+            crate::computer_use::windows_wgc_capture::capture_window_bgra;
     }
 }

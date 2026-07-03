@@ -42,5 +42,7 @@ mod windows_capture;
 mod windows_list_apps;
 #[cfg(target_os = "windows")]
 mod windows_msaa;
+#[cfg(target_os = "windows")]
+mod windows_wgc_capture;
 
 pub use desktop_host::DesktopComputerUseHost;

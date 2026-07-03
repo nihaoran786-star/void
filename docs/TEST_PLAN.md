@@ -2793,6 +2793,44 @@ Failures:
 - No remaining automated-test or `cargo check` failures for 120E.
 - Manual Windows smoke remains required for normal, occluded, minimized, multi-monitor, DPI-scaled, and elevated-window scenarios before this adapter is wired into user-visible host paths.
 
+## ISSUE-1130A Results
+
+Date: 2026-07-04
+
+Scope:
+
+- Windows-only WGC fallback adapter wiring for mostly-black `PrintWindow` results.
+- Allowed code surfaces: `src/apps/desktop/src/computer_use/windows_wgc_capture.rs`, `windows_capture.rs`, `mod.rs`, and Windows dependency features in `src/apps/desktop/Cargo.toml`.
+- No `desktop_host.rs` split, Web UI/tool-card/settings change, Computer Use schema change, macOS/Linux adapter change, background-input change, Flow Chat change, AI media/short-drama change, terminal change, or provider change.
+
+Commands run:
+
+- `cargo test -p void-desktop windows_wgc_adapter_is_wired_for_capture_fallback --lib -- --nocapture`
+  - RED result before implementation: failed to compile because `computer_use::windows_wgc_capture` did not exist.
+  - GREEN result after implementation: passed, 1 test.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
+  - Result: passed, 5 tests.
+  - Notes: existing tests still cover mostly-black detection, dark nonblack UI, DWM crop/origin offsets, and BitBlt uncertainty metadata.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: one existing unrelated warning remains for `parse_clipboard_path_segments` dead code in `clipboard_file_api.rs`.
+- `cargo build -p void-desktop`
+  - Initial result: failed because `rustc` exited with `STATUS_ACCESS_VIOLATION (0xc0000005)` after compiling `void-desktop`; no Rust diagnostic pointed at the WGC changes.
+  - Retry result: passed.
+  - Notes: the same existing unrelated `parse_clipboard_path_segments` dead-code warning remains.
+
+Manual checks:
+
+- Architecture/Risk-Agent: passed.
+  - Notes: confirmed minimal safe migration is `windows_wgc_capture.rs`, module registration, `screenshot_window_via_wgc` wiring, and missing Windows features only.
+- QA-Agent: passed.
+  - Notes: confirmed `cargo check` alone is insufficient; compile-level wiring plus real Windows smoke are both needed.
+
+Remaining risk:
+
+- Manual WGC smoke has not been run in this session. Required targets include UWP/WinUI/DirectComposition black-`PrintWindow` recovery, occluded target capture, WGC failure to BitBlt fallback, DPI/multi-monitor origin correctness, minimized/stale HWND behavior, RDP/locked/no-GPU environments, WARP fallback, and frame timeout behavior.
+- The code is wired and compiled on Windows, but WGC must not be described as platform-verified occlusion-proof capture until that smoke passes.
+
 ## ISSUE-120F Results
 
 Date: 2026-07-03

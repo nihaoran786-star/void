@@ -476,7 +476,7 @@ Windows foreground/window capture adapter contract:
 - `src/apps/desktop/src/computer_use/windows_capture.rs` owns Windows-only foreground/window bitmap capture primitives.
 - The adapter may use `PrintWindow(PW_RENDERFULLCONTENT)`, DWM extended-frame bounds, mostly-black detection, and screen-region `BitBlt` fallback, but it must keep those Win32 details behind the desktop adapter boundary.
 - The adapter result must carry internal metadata for `CaptureSource`, `potentially_occluded`, origin, width, and height. A `BitBlt` fallback result is never a guaranteed target-window snapshot; it is current desktop pixels and may include an occluding window.
-- WGC/Windows Graphics Capture is explicitly unavailable until a later issue implements the Direct3D/WinRT path; a stub must not be documented as occlusion-proof capture.
+- WGC/Windows Graphics Capture is available only inside the Windows capture adapter as a Direct3D/WinRT tier-2 fallback after mostly-black `PrintWindow` results. Until real Windows smoke proves UWP/WinUI/DirectComposition, occlusion, DPI, multi-monitor, and timeout behavior, WGC must be described as wired but platform-unverified rather than guaranteed occlusion-proof capture.
 - 120E intentionally did not wire capture into `desktop_host.rs`, `get_app_state`, `screenshot_display`, interactive views, visual mark views, input actions, Web UI permission policy, or core schema. 120H1 later accepts a narrow host attachment only for Windows `get_app_state(..., capture_screenshot=true)`.
 
 Windows background input adapter contract:
