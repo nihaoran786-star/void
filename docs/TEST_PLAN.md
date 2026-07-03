@@ -3948,6 +3948,18 @@ Implementation test plan for follow-up issues:
   - Full fixture run command:
     - `VOID_E2E_APP_MODE=debug E2E_TEST_WORKSPACE=<fixture-workspace> VOID_E2E_TURN_NAV_SESSION_TITLE=<session-title> VOID_E2E_TURN_NAV_TARGET_TITLE=<older-turn-title> VOID_E2E_TURN_NAV_TARGET_TURN_ID=<optional-turn-id> pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts"`
     - Result: not run in this issue because no persisted long-session fixture env was provided.
+- `ISSUE-1120`:
+  - `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main`
+    - Result: passed; `upstream-bitfun/main` advanced to `65da1a082`.
+  - `git log --oneline --first-parent --since="2026-06-01" upstream-bitfun/main -- | Select-String -Pattern "terminal|pty|replay|input|paste|runtime|exec|port|shell"`
+    - Result: passed; identified small terminal reliability commits and larger runtime-port/exec ownership commits.
+  - Local file/test inspection:
+    - Result: local Void already contains structured terminal replay (`src/crates/terminal/src/session/replay.rs`, `src/web-ui/src/tools/terminal/utils/terminalReplay.ts`), paste policy (`terminalPaste.ts`), resize repaint guard (`resizeRepaintGuard.ts`), terminal input queue (`TerminalInputQueue.ts`), and focused tests for each.
+  - Recommended follow-up implementation checks:
+    - `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalPaste.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+    - `cargo test -p terminal-core session::replay`
+    - Any `ISSUE-1120A` DTO/result-shape implementation must add or update tests for terminal local/remote write/resize/history boundary behavior.
+  - Result: docs-only audit; no production tests were run because no terminal behavior changed in this slice.
 
 Protected-surface regression candidates:
 

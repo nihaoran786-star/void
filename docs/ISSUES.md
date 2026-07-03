@@ -1582,7 +1582,7 @@ Result: Added `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts` as a Voi
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Compare upstream terminal reliability and runtime-port work with current terminal replay buffering and decide the next safe terminal slice.
 Allowed files: terminal service/core tests and docs first.
 Forbidden files: upstream `src/crates/services/terminal` bulk migration, Flow Chat store changes, Computer Use policy changes.
@@ -1591,6 +1591,65 @@ Acceptance:
 - Input reliability, paste policy, renderer lazy-load, and runtime-port work are separated.
 - Follow-up implementation issue has one owner and one test surface.
 Risk notes: Terminal replay facts must not move into Flow Chat preview code, and desktop DTO changes must not hide PTY/session errors.
+Result:
+- Refreshed `upstream-bitfun/main` to `65da1a082` and reviewed terminal-related upstream work.
+- Confirmed local Void already has the main low-risk terminal reliability slices from upstream June work: structured terminal replay events, legacy flat replay fallback, resize repaint guard, terminal paste policy, PowerShell PSReadLine Ctrl+V delegation, terminal input write queue, and lazy terminal output renderer coverage.
+- Separated upstream runtime-port/service-decomposition commits (`4077c1a8a`, `98f0f4113`, `bceded210`) from direct implementation. Those commits move exec/terminal ownership across runtime-port crates and are not safe to copy into current Void as part of terminal reliability.
+- Identified the remaining safe follow-up as contract hardening, not bulk migration: document and test terminal API error/result shape around local vs remote write/resize/session-not-found paths, then consider stable test selectors or explicit DTOs in a narrow slice.
+- Did not change terminal production code, Flow Chat, Computer Use, AI media, AI short-drama, provider, or Rust crate layout.
+
+### ISSUE-1120A Terminal API Result Shape and Error Source Contract
+
+Priority: P0
+Status: Proposed
+Goal: Harden the current terminal local/remote API contract so write/resize/history/session failures expose explicit `status/source/error` semantics at the module boundary without adopting upstream runtime-port migration.
+Allowed files: terminal API tests/helpers, `src/apps/desktop/src/api/terminal_api.rs` only if an explicit DTO is accepted, focused Web terminal service tests, docs.
+Forbidden files: Flow Chat previews/tool cards, AI media, AI short-drama, Computer Use, provider, upstream `runtime-ports` crate movement, terminal crate directory migration.
+Acceptance:
+- Local session-not-found and remote-manager-unavailable cases are represented by explicit source/error categories or are documented as deferred with a failing/proposed test.
+- Web UI terminal input queue remains the only frontend write batching layer.
+- Tests target the terminal API/service boundary, not `xterm.js` internals.
+Risk notes: Avoid converting every Tauri command at once; a partial DTO must not break existing callers that expect `Result<(), String>`.
+
+### ISSUE-1120B Terminal Runtime-Port Boundary Study
+
+Priority: P2
+Status: Proposed
+Goal: Study upstream terminal/exec runtime-port commits and decide whether one small boundary checker or adapter seam can be added without moving crates or changing runtime behavior.
+Allowed files: docs and static boundary checks first.
+Forbidden files: Cargo crate moves, `src/crates/services/terminal` bulk migration, exec-command implementation rewrite, remote SSH rewrite, Flow Chat or terminal UI behavior changes.
+Acceptance:
+- Current owner chain for terminal exec/write/resize is mapped.
+- One optional static rule or adapter seam is proposed, or the runtime-port migration is explicitly deferred.
+- No runtime behavior is changed without a follow-up implementation issue.
+Risk notes: Upstream runtime-port work is architecture-scale and crosses CLI, desktop, server, core assembly, tool runtime, remote SSH, and terminal service ownership.
+
+### ISSUE-1120C Web Terminal Input and Lazy Renderer Delta
+
+Priority: P1
+Status: Proposed
+Goal: Compare the remaining upstream Web terminal input/lazy-renderer deltas against current Void and implement only missing isolated fixes.
+Allowed files: `src/web-ui/src/tools/terminal/components/Terminal.tsx`, `ConnectedTerminal.tsx`, `LazyTerminalOutputRenderer.tsx`, terminal utility tests, docs.
+Forbidden files: Flow Chat store/tool-card ownership changes, RichTextInput unrelated polish, agent companion unread behavior, AI media, AI short-drama, Computer Use, Rust terminal crates, runtime-port migration.
+Acceptance:
+- IME/key rollover behavior from upstream `b8197bbb7` is classified as present, missing, or intentionally deferred with a focused test.
+- `LazyTerminalOutputRenderer` `forwardRef`/fallback differences from upstream `970c33844` are classified and, if missing, patched without changing terminal output semantics.
+- Existing `TerminalInputQueue`, paste policy, replay, and resize guard tests still pass.
+Risk notes: Do not fold upstream companion unread or rich text scrollbar changes into this terminal issue; they are adjacent UI polish, not terminal replay/input reliability.
+
+### ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
+
+Priority: P1
+Status: Proposed
+Goal: Add focused tests for the current terminal lifecycle and history pipeline gaps without changing runtime-port ownership.
+Allowed files: `src/crates/terminal/src/**` tests, `src/apps/desktop/src/api/terminal_api.rs` tests/helpers if available, `src/web-ui/src/tools/terminal/services/*`, `src/web-ui/src/tools/terminal/hooks/*`, focused E2E terminal spec, docs.
+Forbidden files: Flow Chat store/tool cards, multi-agent/subagent projection, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration.
+Acceptance:
+- Natural PTY exit from shell EOF/child completion is covered or explicitly documented as unsupported with a failing/proposed test.
+- Frontend output consumption either calls `TerminalService.acknowledge` or flow-control ack remains explicitly deferred with test evidence.
+- Remote `terminal_get_history` empty-event behavior is documented and tested as an explicit remote status/source, not confused with local empty history.
+- One integration-style test covers backend history events through frontend replay queue semantics where practical.
+Risk notes: This issue is about observability and contract tests first; do not redesign PTY process management or remote terminal history in the same diff.
 
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 

@@ -4485,3 +4485,32 @@ Remaining risk:
 - No full persisted long-session fixture run was performed, so this issue adds release-level coverage but does not by itself prove a real fixture session passes on this machine.
 - Current session nav and turn list items still lack stable `data-testid`/id attributes; the spec uses visible titles to avoid production changes in this slice.
 - The next selective-upstream candidate is `ISSUE-1120 Terminal Replay and Input Reliability Delta Audit`.
+
+## ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
+
+Status: Done
+
+Completed:
+
+- Refreshed `upstream-bitfun/main` to `65da1a082`.
+- Reviewed upstream terminal reliability commits: paste policy (`00ee4622b`), resize/replay stabilization (`8fdd0828c`, `73c417c71`), output copy/scroll polish (`a68cf1603`), and recent runtime-port/exec ownership commits (`4077c1a8a`, `98f0f4113`, `bceded210`).
+- Confirmed current Void already carries the low-risk terminal reliability primitives: structured replay events, legacy flat replay fallback, resize repaint guard, terminal paste policy, PowerShell PSReadLine Ctrl+V delegation, terminal input write queue, lazy terminal output renderer tests, and focused utility tests.
+- Classified upstream runtime-port/service-decomposition as architecture-scale and unsafe to copy directly into this branch.
+- Split remaining work into `ISSUE-1120A` for terminal API result/source/error contract hardening, `ISSUE-1120B` for a runtime-port boundary study, `ISSUE-1120C` for Web terminal input/lazy-renderer delta, and `ISSUE-1120D` for lifecycle/ack/history integration tests.
+- Preserved protected surfaces: Flow Chat store, multi-agent/subagent projection, BTW child sessions, floating chat, AI media, AI short-drama, Computer Use, provider, and Rust crate layout were not changed.
+
+Verification:
+
+- `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main` passed.
+- Upstream terminal commit search passed and identified the relevant commits above.
+- Local file/test inspection confirmed existing terminal replay, paste, resize guard, and input queue tests.
+- QA/Risk subagent produced the test matrix and coupling prohibitions for follow-up implementation.
+
+Remaining risk:
+
+- No production terminal test was run in this docs-only audit because no terminal behavior changed.
+- Desktop terminal Tauri commands still stringify local/remote write/resize/session errors; whether to introduce explicit DTOs is deferred to `ISSUE-1120A`.
+- Runtime-port migration remains deferred to `ISSUE-1120B`; direct upstream crate movement is still prohibited.
+- Upstream IME/key rollover and lazy renderer ref/fallback differences require a separate `ISSUE-1120C` comparison before any Web terminal patch.
+- Natural PTY exit, frontend flow-control ack, remote empty history, and backend-to-frontend replay integration evidence remain open in `ISSUE-1120D`.
+- The next selective-upstream candidate is `ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit`.
