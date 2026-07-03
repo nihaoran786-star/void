@@ -2088,7 +2088,11 @@ Progress:
 - Replaced direct `--void-*` dependencies in the entry buttons with local semantic tokens mapped to global theme tokens such as `--color-bg-primary`, `--color-text-*`, and `--border-base`.
 - Added `scripts/media-short-drama-entry-theme.test.mjs` to lock the entry styles to local token prefixes and prevent reintroducing direct `--void-*` dependencies.
 - Preserved Workspace Media availability behavior, Short Drama entry click behavior, Gallery/CenterPanel styles, services, Flow Chat session logic, ThemeService runtime behavior, and broad baselines.
-- Remaining 1160F debt: Gallery and CenterPanel raw colors, `--void-*` usage, and media/short-drama surface-local visual tokens need separate domain slices.
+- Completed the Workspace Media Gallery token wrapper slice: `WorkspaceMediaGallery.scss` now defines `--workspace-media-gallery-*` local tokens mapped to global theme tokens, and no longer directly uses `--void-*`.
+- Added `scripts/workspace-media-gallery-theme.test.mjs` to lock the Gallery style boundary.
+- Lowered the web theme-color governance baseline after the audit showed reduced `uniqueColors`, `cssVars.fallbackOnlyUnique`, and `nearPairs.nearTotal`.
+- Preserved Workspace Media Gallery React state, pending generation, preview, selection, delete/restore/purge behavior, media services, Short Drama files, Flow Chat session logic, and ThemeService runtime behavior.
+- Remaining 1160F debt: Gallery raw generator/overlay/waveform colors and ShortDramaCenterPanel local-token cleanup need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

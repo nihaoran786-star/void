@@ -529,3 +529,9 @@ Reason: Upstream-style theme governance is useful only if visual review expectat
 Decision: The first `ISSUE-1160F` code slice limits cleanup to the Workspace Media and Short Drama entry buttons. `WorkspaceMediaEntry.scss` and `ShortDramaEntry.scss` define local semantic tokens (`--workspace-media-entry-*` and `--short-drama-entry-*`) that map to global theme tokens, then consume those local tokens for border, surface, text, and hover styling. Direct `--void-*` dependencies are removed from the entry buttons only.
 
 Reason: The entry buttons are a low-risk boundary: they expose navigation affordances but do not own media availability, artifact status, short-drama stage ownership, tab routing, or Flow Chat session state. Cleaning this domain first reduces theme debt without touching Gallery/CenterPanel styling, media or short-drama services, `ShortDramaProject` tool behavior, ThemeService runtime injection, or broad color baselines.
+
+## DEC-089: Workspace Media Gallery Tokens Stay Local
+
+Decision: The second `ISSUE-1160F` code slice removes direct `--void-*` dependencies from `WorkspaceMediaGallery.scss` by defining `--workspace-media-gallery-*` local semantic tokens that map to global theme tokens. The slice may lower the web theme-color governance baseline when the audit proves debt decreased, but it must not change Gallery React behavior, media service state, pending generation ownership, preview resolution, delete/restore/purge flows, or Short Drama state.
+
+Reason: Gallery contains both low-risk chrome styling and high-risk media/pending visual language. Local wrappers let Gallery follow the global theme contract without encoding media availability, artifact status, or generation state into global tokens. Raw generator/overlay/waveform colors and Short Drama CenterPanel cleanup remain separate slices.

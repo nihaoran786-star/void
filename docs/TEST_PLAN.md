@@ -66,6 +66,42 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `WorkspaceMediaGallery.scss` local semantic theme tokens only.
+- Focused script guard for Gallery direct `--void-*` regressions.
+- Web theme-color governance baseline lowered only where the audit proved reduced debt.
+- No Gallery TSX state, media services, pending generation ownership, preview resolution, delete/restore/purge flows, Short Drama files, Flow Chat session logic, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/workspace-media-gallery-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: `WorkspaceMediaGallery.scss` directly used `--void-*` tokens and did not define `--workspace-media-gallery-*` wrappers.
+- `node --test scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs`
+  - Result: passed.
+  - Notes: 2 focused style-boundary tests passed.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx`
+  - Result: passed.
+  - Notes: 28 focused workspace-media tests passed.
+- `pnpm run check:theme-colors`
+  - Initial result: failed because the audit values improved below baseline.
+  - Fix: lowered `uniqueColors` from 1655 to 1653, `cssVars.fallbackOnlyUnique` from 77 to 76, and `nearPairs.nearTotal` from 1279 to 1274.
+  - Retest result: passed.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- Gallery generator, overlay, waveform, and media preview raw colors are still visual-debt candidates.
+- ShortDramaCenterPanel still has separate token cleanup debt, including a reported undefined `--short-drama-text` reference.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03

@@ -7,10 +7,10 @@
   ],
   "budgets": {
     "uniqueColors": {
-      "max": 1655
+      "max": 1653
     },
     "cssVars.fallbackOnlyUnique": {
-      "max": 77
+      "max": 76
     },
     "cssVars.undefinedUnique": {
       "max": 51
@@ -19,7 +19,7 @@
       "max": 53
     },
     "nearPairs.nearTotal": {
-      "max": 1279
+      "max": 1274
     }
   }
 }

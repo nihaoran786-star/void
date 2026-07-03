@@ -47,23 +47,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160D generated-widget theme payload compatibility contract complete.
 - [x] ISSUE-1160E theme visual governance evidence contract complete.
 - [x] ISSUE-1160F entry theme token boundary slice complete.
+- [x] ISSUE-1160F workspace media gallery theme token wrapper slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Entry Theme Token Boundary Slice`
+Issue: `ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice`
 
 Summary:
 
-- Replaced direct `--void-*` dependencies in Workspace Media and Short Drama entry buttons with local semantic tokens.
-- Mapped `--workspace-media-entry-*` and `--short-drama-entry-*` tokens to global theme tokens for border, surface, text, and hover styling.
-- Added a focused style-boundary script test to prevent direct `--void-*` regressions in the entry buttons.
-- Did not touch Workspace Media Gallery, Short Drama CenterPanel, media/short-drama services, Flow Chat session logic, ThemeService runtime behavior, or broad baselines.
+- Added `--workspace-media-gallery-*` local semantic tokens to `WorkspaceMediaGallery.scss`.
+- Replaced Gallery direct `--void-*` dependencies with local wrappers mapped to global theme tokens for background, text, muted text, border, accent, surface, hover, and error styling.
+- Added `scripts/workspace-media-gallery-theme.test.mjs` to prevent Gallery from regressing to direct `--void-*` dependencies.
+- Lowered the web theme-color governance baseline after `check:theme-colors` proved reduced `uniqueColors`, `cssVars.fallbackOnlyUnique`, and `nearPairs.nearTotal`.
+- Did not touch Gallery TSX state, media services, pending generation ownership, preview, delete/restore/purge flows, Short Drama files, Flow Chat session logic, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/media-short-drama-entry-theme.test.mjs` failed before implementation because the entry SCSS files directly used `--void-*` tokens.
-- GREEN: the same command passed with 1 test after implementation.
-- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 3 tests.
+- RED: `node --test scripts/workspace-media-gallery-theme.test.mjs` failed before implementation because `WorkspaceMediaGallery.scss` directly used `--void-*` tokens.
+- GREEN: `node --test scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 2 tests after implementation.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 28 tests.
 - `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
