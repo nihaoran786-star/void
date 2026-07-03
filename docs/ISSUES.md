@@ -2141,6 +2141,23 @@ Acceptance:
 - Tests cover pipeline behavior before Web UI rendering.
 Risk notes: UI should render typed state; it should not infer rejection or timeout by string matching.
 
+### ISSUE-1150E1 Tool Pipeline Outcome Classification Contract
+
+Priority: P2
+Status: Done
+Goal: Add a pipeline-owned typed outcome helper that classifies tool rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, ordinary timeout, cancellation, not-found, invalid-arguments, and generic execution errors without changing UI or event ABI.
+Allowed files: `src/crates/core/src/agentic/tools/pipeline/types.rs`, `src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs`, docs.
+Forbidden files: `ToolApprovalBar`, Flow Chat cards, `void_events` event fields, MCP manager lifecycle, provider adapters, media services, short-drama services, crate moves.
+Acceptance:
+- Pipeline errors map to stable category strings plus internal status/source/error_code/retryable facts.
+- Existing model-facing error result shape is preserved; `category` now comes from the typed outcome helper.
+- User rejection and confirmation timeout are not conflated with generic invalid arguments or ordinary tool timeout.
+- Tests cover each category at the helper boundary before any Web UI rendering work.
+Result:
+- Added `ToolPipelineOutcome`, `ToolPipelineOutcomeCategory`, `ToolPipelineOutcomeStatus`, and `ToolPipelineOutcomeSource`.
+- Routed the existing `classify_tool_error()` through the typed helper while preserving the current error presentation shape.
+- Added focused unit tests for user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, tool timeout, cancellation, and legacy category string stability.
+
 ### ISSUE-1150F Tool Runtime Owner Migration Planning Gate
 
 Priority: P2

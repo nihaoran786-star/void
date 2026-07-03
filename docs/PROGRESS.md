@@ -73,24 +73,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C1 Windows pointer coordinate contract tests complete.
 - [x] ISSUE-1140E1 short-drama Main AI media export leak guard complete.
 - [x] ISSUE-1120B terminal runtime-port boundary static guard complete.
+- [x] ISSUE-1150E1 tool pipeline outcome classification contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1120B Terminal Runtime-Port Boundary Study`
+Issue: `ISSUE-1150E1 Tool Pipeline Outcome Classification Contract`
 
 Summary:
 
-- Added a terminal runtime boundary static guard to `scripts/check-core-boundaries.mjs`.
-- Mapped the current owner chain as Web terminal service/hook -> desktop `terminal_api.rs` DTO adapter -> `terminal-core` `TerminalApi`/`SessionManager`/PTY/session replay owner.
-- Guarded `terminal_api.rs` from owning `SessionManager`, replay history structs, or PTY internals.
-- Guarded Flow Chat from owning terminal replay/session internals.
-- Deferred real terminal runtime-port trait design, upstream `src/crates/services/terminal` layout migration, remote SSH rewrite, and terminal UI behavior changes.
+- Added `ToolPipelineOutcome` typed classification inside the core tool pipeline.
+- Classified user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, ordinary tool timeout, cancellation, not-found, invalid-arguments, and generic execution errors.
+- Routed the existing error result `category` through the typed helper while preserving the current assistant-facing result shape.
+- Kept parent `ISSUE-1150E` open for any future UI rendering or event ABI work.
 
 Verification:
 
-- `VOID_BOUNDARY_CHECK_SELF_TEST=1 node scripts/check-core-boundaries.mjs` passed.
-- `node scripts/check-core-boundaries.mjs` passed after narrowing two required-content regexes to the existing field shape.
-- `git diff --check -- scripts/check-core-boundaries.mjs docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
+- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture` passed.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs` passed after applying rustfmt.
+- `cargo test -p void-core tool_pipeline --lib -- --nocapture` passed.
+- `node scripts/check-core-boundaries.mjs` passed.
+- `git diff --check -- src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
 
 ## Subagent Summary
 

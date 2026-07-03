@@ -162,6 +162,36 @@ Coverage:
 - `terminal-core` `api.rs` and `session/replay.rs` are required to keep the current TerminalApi, SessionManager, get-history, replay-event, replay-history, and resize-marker owner anchors.
 - Real `TerminalRuntimePort` trait design, remote terminal replay, exec-command owner migration, and upstream `src/crates/services/terminal` layout remain deferred.
 
+## ISSUE-1150E1 Tool Pipeline Outcome Classification Contract
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/crates/core/src/agentic/tools/pipeline/types.rs`.
+- `src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs`.
+- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No Web UI, `void_events` event ABI, MCP manager lifecycle, provider adapter, media service, short-drama service, multi-agent/subagent behavior, or crate ownership changes.
+
+Checks:
+
+- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture`
+  - Result: passed, 7 tests.
+  - Notes: covers user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, tool timeout, cancellation, and legacy category strings.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs`
+  - Initial result: failed because new test formatting and import ordering needed rustfmt.
+  - Result after `rustfmt --edition 2021 src/crates/core/src/agentic/tools/pipeline/types.rs src/crates/core/src/agentic/tools/pipeline/tool_pipeline.rs`: passed.
+- `cargo test -p void-core tool_pipeline --lib -- --nocapture`
+  - Result: passed, 16 tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- `ToolPipelineOutcome` owns internal status/source/category/error_code/retryable classification for the current pipeline error families.
+- Existing assistant-facing error result structure is preserved; the old `category` string is produced through the typed helper.
+- UI rendering and event schema migration remain separate follow-up work under parent `ISSUE-1150E`.
+
 ## ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Date: 2026-07-03

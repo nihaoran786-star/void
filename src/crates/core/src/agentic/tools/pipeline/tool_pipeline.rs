@@ -15,13 +15,6 @@ use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::agentic::tools::tool_result_storage;
 use crate::util::elapsed_ms_u64;
 use crate::util::errors::{VoidError, VoidResult};
-use void_agent_tools::{
-    build_invalid_tool_call_error_message, build_tool_execution_error_presentation,
-    build_user_steering_interrupted_presentation, render_tool_result_for_assistant,
-    truncate_raw_tool_arguments_preview, truncate_tool_arguments_preview,
-    validate_collapsed_tool_usage, validate_tool_allowed_by_list, GET_TOOL_SPEC_TOOL_NAME,
-    USER_STEERING_INTERRUPTED_MESSAGE,
-};
 use dashmap::DashMap;
 use futures::future::join_all;
 use log::{debug, error, info, warn};
@@ -31,6 +24,13 @@ use std::time::{Instant, SystemTime};
 use tokio::sync::{oneshot, RwLock as TokioRwLock};
 use tokio::time::{timeout, Duration};
 use tokio_util::sync::CancellationToken;
+use void_agent_tools::{
+    build_invalid_tool_call_error_message, build_tool_execution_error_presentation,
+    build_user_steering_interrupted_presentation, render_tool_result_for_assistant,
+    truncate_raw_tool_arguments_preview, truncate_tool_arguments_preview,
+    validate_collapsed_tool_usage, validate_tool_allowed_by_list, GET_TOOL_SPEC_TOOL_NAME,
+    USER_STEERING_INTERRUPTED_MESSAGE,
+};
 
 /// A batch of tool tasks to execute together.
 struct ToolBatch {
@@ -147,13 +147,7 @@ fn elapsed_ms_since(time: SystemTime) -> u64 {
 }
 
 fn classify_tool_error(error: &VoidError) -> &'static str {
-    match error {
-        VoidError::Validation(_) => "invalid_arguments",
-        VoidError::Cancelled(_) => "cancelled",
-        VoidError::Timeout(_) => "timeout",
-        VoidError::NotFound(_) => "not_found",
-        _ => "execution_error",
-    }
+    ToolPipelineOutcome::from_error(error).category_str()
 }
 
 fn build_error_execution_result(
