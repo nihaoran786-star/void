@@ -74,6 +74,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140E1 short-drama Main AI media export leak guard complete.
 - [x] ISSUE-1120B terminal runtime-port boundary static guard complete.
 - [x] ISSUE-1150E1 tool pipeline outcome classification contract complete.
+- [x] ISSUE-1150E parent reconciliation complete.
 - [x] ISSUE-1150F tool runtime owner migration planning gate complete.
 
 ## Latest Slice
@@ -5034,3 +5035,31 @@ Verification:
 Remaining risk:
 
 - This is a guardrail audit only. It does not add service availability reporting, new product profiles, startup smoke coverage, or feature graph migration.
+
+## ISSUE-1150E Parent Reconciliation
+
+Status: Done
+
+Completed:
+
+- Reconciled parent `ISSUE-1150E` as complete through `ISSUE-1150E1`.
+- Confirmed the accepted scope was pipeline-owned classification before UI/event work, not ToolApprovalBar, Flow Chat card, or event ABI migration.
+- Narrowed the Result wording so direct test coverage is claimed only for the parent acceptance paths covered by `ISSUE-1150E1`.
+- Kept future UI rendering states and event schema changes deferred to separate issues.
+- Updated issue, progress, and test-plan docs only.
+
+Verification:
+
+- `Select-String -Path docs/ISSUES.md,docs/TEST_PLAN.md,docs/DECISIONS.md -Pattern "ISSUE-1150E|ToolPipelineOutcome|DEC-113"`
+  - Result: passed; confirmed parent acceptance is covered by `ISSUE-1150E1` documentation and DEC-113.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: showed only pre-existing unrelated Web UI generated version diffs and `src/crates/ai-adapters` working-copy warnings/status; no scoped source changes were added for this reconciliation.
+
+Remaining risk:
+
+- This reconciliation does not add UI rendering or event schema fields. Future UI/event consumer work must use the typed pipeline outcome rather than string matching.
+- Direct focused coverage for `not-found`, invalid-arguments, and generic fallback outcome details remains optional future helper-test cleanup if those categories become externally consumed.

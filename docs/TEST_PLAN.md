@@ -192,6 +192,36 @@ Coverage:
 - Existing assistant-facing error result structure is preserved; the old `category` string is produced through the typed helper.
 - UI rendering and event schema migration remain separate follow-up work under parent `ISSUE-1150E`.
 
+## ISSUE-1150E Parent Reconciliation
+
+Scope:
+
+- Current slice is docs-only and reconciles the parent `ISSUE-1150E` after `ISSUE-1150E1`.
+- It does not change tool pipeline code, ToolApprovalBar, Flow Chat tool cards, event ABI, MCP manager lifecycle, provider adapters, AI media, or AI short-drama services.
+
+Evidence:
+
+- `ISSUE-1150E1` added `ToolPipelineOutcome` and typed status/source/category/error-code/retryability facts.
+- `ISSUE-1150E1` tests cover user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, ordinary timeout, cancellation, and legacy category string stability.
+- DEC-113 records that the assistant-facing error result shape remains unchanged and UI/event schema migration is deferred.
+- `not-found`, invalid-arguments, and generic execution errors are represented by the typed helper contract, but this reconciliation does not claim direct test coverage equivalent to the parent acceptance paths.
+
+Executed:
+
+- `Select-String -Path docs/ISSUES.md,docs/TEST_PLAN.md,docs/DECISIONS.md -Pattern "ISSUE-1150E|ToolPipelineOutcome|DEC-113"`
+  - Result: passed; confirmed parent acceptance is covered by `ISSUE-1150E1` documentation and DEC-113.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: showed only pre-existing unrelated Web UI generated version diffs and `src/crates/ai-adapters` working-copy warnings/status; no scoped source changes were added for this reconciliation.
+
+Remaining risk:
+
+- This does not add UI rendering states or event schema fields. Any UI/event consumer work must use the typed pipeline outcome through a separate issue rather than string matching.
+- Direct focused coverage for `not-found`, invalid-arguments, and generic fallback outcome details can be added in a future helper-test cleanup if those categories become UI/event-facing.
+
 ## ISSUE-1150F Tool Runtime Owner Migration Planning Gate
 
 Date: 2026-07-04

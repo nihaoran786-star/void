@@ -2165,7 +2165,7 @@ Progress:
 ### ISSUE-1150E Tool Approval and Rejection Typed Outcomes
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Classify approval/rejection/denial/timeout outcomes at the tool pipeline boundary before adding or redesigning UI states.
 Allowed files: tool pipeline/state manager tests and small result-shape helpers, docs.
 Forbidden files: ToolApprovalBar UI redesign, Flow Chat card rewrite, event ABI migration, media/short-drama service changes.
@@ -2175,6 +2175,13 @@ Acceptance:
 - Existing cancellation and completed states are not conflated with rejected/denied outcomes.
 - Tests cover pipeline behavior before Web UI rendering.
 Risk notes: UI should render typed state; it should not infer rejection or timeout by string matching.
+Result:
+- Closed by `ISSUE-1150E1`.
+- Added a pipeline-owned `ToolPipelineOutcome` contract for status, source, category, error code, and retryability.
+- Covered the parent acceptance paths for user rejection, confirmation timeout, runtime restriction denial, collapsed-tool gate denial, MCP runtime error, ordinary tool timeout, cancellation, and legacy category string stability at the helper boundary.
+- Kept `not-found`, invalid-arguments, and generic execution errors represented by the typed helper contract, but direct test coverage for those non-parent paths remains narrower than the core acceptance coverage.
+- Preserved existing assistant-visible error result shape, Flow Chat cards, ToolApprovalBar UI, event ABI, MCP manager lifecycle, provider adapters, AI media, and AI short-drama behavior.
+- Deferred any future Web UI rendering or event schema migration to separate issues; the parent goal was the pipeline classification boundary before UI work.
 
 ### ISSUE-1150E1 Tool Pipeline Outcome Classification Contract
 
