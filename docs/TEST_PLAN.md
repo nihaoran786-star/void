@@ -348,6 +348,43 @@ Residual risk:
 - ShortDramaCenterPanel stage poster/card raw visual colors remain a separate visual-debt candidate.
 - This slice does not verify rendered screenshots or change final preview readiness/runtime behavior.
 
+## ISSUE-1160F Short Drama Center Stage Card Token Slice
+
+Date: 2026-07-03
+
+Scope:
+
+- `ShortDramaCenterPanel.scss` stage/card visual colors only: card surface, poster default/stage gradients, notice accent, media-reference surface, and stage rail surface.
+- Focused script guard for stage/card selector-level raw colors.
+- No CenterPanel TSX stage ownership, stage navigation, artifact status, media references, stage-agent coordination, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
+
+Checks:
+
+- `node --test scripts/short-drama-center-stage-card-theme.test.mjs`
+  - Initial result: failed.
+  - Cause: local stage/card tokens were missing and stage/card selectors still used raw colors.
+- `node --test scripts/short-drama-center-stage-card-theme.test.mjs`
+  - Result: passed.
+  - Notes: focused stage/card style-boundary test passed after local token mapping.
+- Broader focused style tests
+  - Result: passed.
+  - Notes: `node --test scripts/short-drama-center-stage-card-theme.test.mjs scripts/short-drama-center-final-preview-theme.test.mjs scripts/short-drama-center-media-preview-theme.test.mjs scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 10 tests.
+- Short-drama component behavior tests
+  - Result: passed.
+  - Notes: `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentBootstrap.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentSessionHydration.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentTabOrchestrator.test.ts` passed with 4 files and 14 tests.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+  - Notes: no baseline update required.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- `ISSUE-1160F` selector-level media/short-drama token boundary cleanup is complete, but rendered screenshot review, contrast tuning, and broader root-token consolidation remain separate future issues.
+- This slice does not verify rendered screenshots or change stage ownership/runtime behavior.
+
 ## ISSUE-999 Results
 
 Date: 2026-07-03

@@ -577,3 +577,9 @@ Reason: Media preview presentation must be theme-governed, but media availabilit
 Decision: The ninth `ISSUE-1160F` code slice keeps short-drama final-preview visuals inside `ShortDramaCenterPanel.scss` as local `--short-drama-final-preview-*` tokens for wrapper surface, frame border, non-empty frame background, media border, empty-frame background, and on-frame text.
 
 Reason: Final preview styling is a presentation concern, while final-video readiness, empty-state classification, and media resolution remain owned by existing CenterPanel state and short-drama/media services. Local final-preview tokens reduce selector-level raw color debt without changing post-stage workflow behavior.
+
+## DEC-097: Short Drama Stage Card Tokens Stay Presentation-Local
+
+Decision: The tenth `ISSUE-1160F` code slice keeps short-drama stage card, poster, notice, media-reference, and rail surface visuals inside `ShortDramaCenterPanel.scss` as local `--short-drama-card-*` and `--short-drama-stage-rail-*` tokens.
+
+Reason: Stage card colors express presentation for existing stages, not stage ownership or workflow authority. Keeping these tokens local reduces selector-level raw color debt without changing stage navigation, artifact status, media references, stage-agent coordination, or short-drama service behavior.

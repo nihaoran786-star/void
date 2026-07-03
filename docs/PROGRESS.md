@@ -55,23 +55,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F short drama center status pill token slice complete.
 - [x] ISSUE-1160F short drama center media-preview token slice complete.
 - [x] ISSUE-1160F short drama center final-preview token slice complete.
+- [x] ISSUE-1160F short drama center stage card token slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Short Drama Center Final Preview Token Slice`
+Issue: `ISSUE-1160F Short Drama Center Stage Card Token Slice`
 
 Summary:
 
-- Added `--short-drama-final-preview-*` local tokens to `ShortDramaCenterPanel.scss` for final preview wrapper, frame, media border, empty frame, and on-frame text.
-- Replaced raw final-preview selector colors with local final-preview tokens.
-- Added `scripts/short-drama-center-final-preview-theme.test.mjs` to prevent final-preview colors from regressing to selector-level raw values.
-- Did not touch CenterPanel TSX final preview readiness, empty-state classification, preview resolution, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
+- Added local `--short-drama-card-*` and `--short-drama-stage-rail-*` tokens to `ShortDramaCenterPanel.scss` for card surface, poster default/stage gradients, notice accent, media-reference surface, and stage rail surface.
+- Replaced raw stage/card selector colors with local stage card tokens.
+- Added `scripts/short-drama-center-stage-card-theme.test.mjs` to prevent stage/card colors from regressing to selector-level raw values.
+- Did not touch CenterPanel TSX stage ownership, stage navigation, artifact status, media references, stage-agent coordination, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
+- `ISSUE-1160F` scoped selector-level media/short-drama token boundary cleanup is complete; rendered screenshot review, contrast tuning, or broader root-token consolidation remain separate future issues.
 
 Verification:
 
-- RED: `node --test scripts/short-drama-center-final-preview-theme.test.mjs` failed before implementation because the root did not define local final-preview tokens and final-preview selectors still used raw colors.
-- GREEN: `node --test scripts/short-drama-center-final-preview-theme.test.mjs` passed after implementation.
-- `node --test scripts/short-drama-center-final-preview-theme.test.mjs scripts/short-drama-center-media-preview-theme.test.mjs scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 9 tests.
+- RED: `node --test scripts/short-drama-center-stage-card-theme.test.mjs` failed before implementation because the root did not define local stage/card tokens and stage/card selectors still used raw colors.
+- GREEN: `node --test scripts/short-drama-center-stage-card-theme.test.mjs` passed after implementation.
+- `node --test scripts/short-drama-center-stage-card-theme.test.mjs scripts/short-drama-center-final-preview-theme.test.mjs scripts/short-drama-center-media-preview-theme.test.mjs scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 10 tests.
 - `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentBootstrap.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentSessionHydration.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentTabOrchestrator.test.ts` passed with 14 tests.
 - `pnpm run check:theme-colors` passed with no baseline update required.
 - `pnpm run check:theme-visual-contract` passed.

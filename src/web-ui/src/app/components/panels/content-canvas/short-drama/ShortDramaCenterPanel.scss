@@ -31,6 +31,24 @@
   --short-drama-final-preview-empty-start: rgba(100, 116, 139, 0.22);
   --short-drama-final-preview-empty-end: rgba(148, 163, 184, 0.1);
   --short-drama-final-preview-empty-grid-line: rgba(100, 116, 139, 0.1);
+  --short-drama-card-surface: color-mix(in srgb, var(--short-drama-surface) 84%, #edf4f7);
+  --short-drama-card-poster-on-media: #ffffff;
+  --short-drama-card-poster-gradient-start: rgba(28, 38, 50, 0.88);
+  --short-drama-card-poster-gradient-end: rgba(30, 132, 141, 0.58);
+  --short-drama-card-poster-grid-line: rgba(255, 255, 255, 0.12);
+  --short-drama-card-stage-script-start: #2f3a4a;
+  --short-drama-card-stage-script-end: #64748b;
+  --short-drama-card-stage-assets-start: #1f3b3b;
+  --short-drama-card-stage-assets-end: #0f766e;
+  --short-drama-card-stage-storyboards-start: #2f2b46;
+  --short-drama-card-stage-storyboards-end: #6d5ca8;
+  --short-drama-card-stage-video-start: #242533;
+  --short-drama-card-stage-video-end: #b45309;
+  --short-drama-card-stage-post-start: #333323;
+  --short-drama-card-stage-post-end: #4d7c0f;
+  --short-drama-card-notice-accent: var(--short-drama-status-generating);
+  --short-drama-card-media-ref-surface: color-mix(in srgb, var(--short-drama-surface) 86%, #eef4f8);
+  --short-drama-stage-rail-surface: color-mix(in srgb, var(--short-drama-surface) 90%, #eef4f8);
   display: flex;
   min-height: 0;
   height: 100%;
@@ -307,7 +325,7 @@
   overflow: hidden;
   border: 1px solid var(--short-drama-border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--short-drama-surface) 84%, #edf4f7);
+  background: var(--short-drama-card-surface);
 }
 
 .short-drama-card__poster {
@@ -315,34 +333,34 @@
   align-items: flex-end;
   justify-content: space-between;
   padding: 10px;
-  color: white;
+  color: var(--short-drama-card-poster-on-media);
   font-size: 11px;
   font-weight: 800;
   aspect-ratio: 16 / 9;
   height: auto;
   background:
-    linear-gradient(135deg, rgba(28, 38, 50, 0.88), rgba(30, 132, 141, 0.58)),
-    repeating-linear-gradient(90deg, transparent 0 18px, rgba(255, 255, 255, 0.12) 18px 19px);
+    linear-gradient(135deg, var(--short-drama-card-poster-gradient-start), var(--short-drama-card-poster-gradient-end)),
+    repeating-linear-gradient(90deg, transparent 0 18px, var(--short-drama-card-poster-grid-line) 18px 19px);
 }
 
 .short-drama-card__poster[data-stage="script"] {
-  background: linear-gradient(135deg, #2f3a4a, #64748b);
+  background: linear-gradient(135deg, var(--short-drama-card-stage-script-start), var(--short-drama-card-stage-script-end));
 }
 
 .short-drama-card__poster[data-stage="assets"] {
-  background: linear-gradient(135deg, #1f3b3b, #0f766e);
+  background: linear-gradient(135deg, var(--short-drama-card-stage-assets-start), var(--short-drama-card-stage-assets-end));
 }
 
 .short-drama-card__poster[data-stage="storyboards"] {
-  background: linear-gradient(135deg, #2f2b46, #6d5ca8);
+  background: linear-gradient(135deg, var(--short-drama-card-stage-storyboards-start), var(--short-drama-card-stage-storyboards-end));
 }
 
 .short-drama-card__poster[data-stage="video"] {
-  background: linear-gradient(135deg, #242533, #b45309);
+  background: linear-gradient(135deg, var(--short-drama-card-stage-video-start), var(--short-drama-card-stage-video-end));
 }
 
 .short-drama-card__poster[data-stage="post"] {
-  background: linear-gradient(135deg, #333323, #4d7c0f);
+  background: linear-gradient(135deg, var(--short-drama-card-stage-post-start), var(--short-drama-card-stage-post-end));
 }
 
 .short-drama-media-preview {
@@ -529,7 +547,7 @@
   display: flex;
   gap: 6px;
   align-items: flex-start;
-  border-left: 2px solid #d97706;
+  border-left: 2px solid var(--short-drama-card-notice-accent);
   padding-left: 8px;
 }
 
@@ -588,7 +606,7 @@
   border: 1px solid var(--short-drama-border);
   border-radius: 7px;
   padding: 7px 8px;
-  background: color-mix(in srgb, var(--short-drama-surface) 86%, #eef4f8);
+  background: var(--short-drama-card-media-ref-surface);
   font-size: 11px;
 }
 
@@ -663,7 +681,7 @@
   border: 1px solid var(--short-drama-border);
   border-radius: 8px;
   padding: 4px;
-  background: color-mix(in srgb, var(--short-drama-surface) 90%, #eef4f8);
+  background: var(--short-drama-stage-rail-surface);
   color: var(--short-drama-ink);
   font-size: 11px;
   font-weight: 700;

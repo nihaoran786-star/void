@@ -2073,7 +2073,7 @@ Progress:
 ### ISSUE-1160F AI Media and Short-Drama Theme Token Boundary
 
 Priority: P2
-Status: Active
+Status: Done
 Goal: Define and gradually reduce theme-color debt in AI media and AI short-drama surfaces without changing their state models or workflows.
 Allowed files: media/short-drama SCSS token wrappers, focused style tests or audit fixtures, docs.
 Forbidden files: media/short-drama service logic, ShortDramaProject tool behavior, Flow Chat session logic, ThemeService runtime whitelist, broad baseline rewrite.
@@ -2114,7 +2114,10 @@ Progress:
 - Completed the ShortDramaCenterPanel final-preview token slice: wrapper surface, frame border/background, media border, empty-frame background, and on-frame text now use local `--short-drama-final-preview-*` tokens.
 - Added `scripts/short-drama-center-final-preview-theme.test.mjs` to lock the final-preview token boundary.
 - Preserved CenterPanel TSX final preview readiness, empty-state classification, preview resolution, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
-- Remaining 1160F debt: ShortDramaCenterPanel stage poster/card raw visual colors need a separate domain slice.
+- Completed the ShortDramaCenterPanel stage card token slice: card surface, poster default/stage gradients, notice accent, media-reference surface, and stage rail surface now use local `--short-drama-card-*` and `--short-drama-stage-rail-*` tokens.
+- Added `scripts/short-drama-center-stage-card-theme.test.mjs` to lock the stage card token boundary.
+- Preserved CenterPanel TSX stage ownership, stage navigation, artifact status, media references, stage-agent coordination, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
+- Result: `ISSUE-1160F` scoped selector-level media/short-drama token boundary cleanup is complete. Future rendered screenshot review, contrast tuning, or broader root-token consolidation should be separate issues.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 
