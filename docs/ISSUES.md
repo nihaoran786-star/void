@@ -1825,6 +1825,23 @@ Result:
 - Added `docs/qa/windows-computer-use-smoke-matrix.md` with required environment fields, scenario table, result-record template, automated baseline commands, and closure rule.
 - Kept `ISSUE-1130C` open because this slice creates the evidence boundary; it does not execute real Windows smoke.
 
+### ISSUE-1130C3 Windows Computer Use Automated Baseline Evidence
+
+Priority: P1
+Status: Done
+Goal: Run and record the automated baseline commands from the Windows Computer Use smoke matrix before any manual hardware-dependent smoke.
+Allowed files: `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use production code, Computer Use tests, Computer Use schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files.
+Acceptance:
+- Focused automated baseline commands are run and recorded with real pass/fail status.
+- Failures, if any, are recorded as failures and do not get hidden behind `manual_pending`.
+- Parent `ISSUE-1130C` remains open because automated baseline evidence does not prove real DPI, mixed-monitor, occlusion, capture-source, or UIPI behavior.
+- Existing unrelated dirty files are not staged.
+Result:
+- Automated baseline passed: `windows_app_image_coordinate`, `windows_pointer_map_handles_negative_origin`, `windows_host_app_actions`, `windows_bg_input`, `windows_foreground_capture`, and `cargo check -p void-desktop`.
+- `cargo check -p void-desktop` still reports one existing unrelated dead-code warning for `parse_clipboard_path_segments`.
+- Real Windows smoke remains `manual_pending`; `ISSUE-1130C` is not closed.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

@@ -82,8 +82,39 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140D3 ViewImage provider image-attachment capability gate complete.
 - [x] ISSUE-1140D4 minimal Void ViewImage tool implementation complete.
 - [x] ISSUE-1130C2 Windows pointer/input manual smoke matrix complete.
+- [x] ISSUE-1130C3 Windows Computer Use automated baseline evidence complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C3 Windows Computer Use Automated Baseline Evidence`
+
+Summary:
+
+- Ran the automated baseline commands listed by the Windows Computer Use smoke matrix.
+- Recorded real pass results for pointer image-coordinate mapping, negative-origin pointer map math, host input outcome mapping, Windows background input primitives, foreground capture metadata, and `cargo check -p void-desktop`.
+- Kept real Windows smoke as `manual_pending`; parent `ISSUE-1130C` remains open.
+- No Computer Use runtime/tests/schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or platform behavior changed.
+
+Verification:
+
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture`
+  - Result: passed, 1 test.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture`
+  - Result: passed, 10 tests.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
+  - Result: passed, 5 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one existing unrelated `parse_clipboard_path_segments` dead-code warning.
+
+Remaining:
+
+- Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C2 Windows Pointer/Input Manual Smoke Matrix`
 
@@ -104,7 +135,7 @@ Remaining:
 
 - Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
 
-## Previous Slice
+## Earlier Slice
 
 Issue: `ISSUE-1140D4 Minimal Void ViewImage Tool Implementation`
 

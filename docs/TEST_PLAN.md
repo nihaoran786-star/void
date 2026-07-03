@@ -204,6 +204,41 @@ Manual smoke status:
 - Result: `manual_pending`.
 - Notes: This slice does not claim real Windows smoke passed. The matrix requires evidence for DPI 100%/125%/150%, mixed-scale multi-monitor negative origin, foreground and occluded targets, high-integrity/UIPI denial, capture-source consistency, and stale/missing pointer-map failure.
 
+## ISSUE-1130C3 Windows Computer Use Automated Baseline Evidence
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Runs and records the automated baseline from the smoke matrix.
+- No Computer Use runtime, tests, schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, macOS, or Linux behavior changed.
+
+Checks:
+
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+  - Notes: first run compiled `void-desktop` test dependencies and took about 4m35s.
+- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture`
+  - Result: passed, 1 test.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture`
+  - Result: passed, 10 tests.
+  - Notes: Cargo briefly waited on the package cache because another focused test was running.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
+  - Result: passed, 5 tests.
+  - Notes: Cargo briefly waited on the package cache and artifact directory because another focused test was running.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: existing unrelated `parse_clipboard_path_segments` dead-code warning remains.
+
+Manual smoke status:
+
+- Result: `manual_pending`.
+- Notes: Passing the automated baseline does not prove real Windows DPI scaling, mixed-scale multi-monitor, foreground/occluded target, capture-source, or UIPI/high-integrity behavior.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

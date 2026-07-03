@@ -20,6 +20,29 @@ Run these checks before manual smoke so failures are separated from hardware, di
 - `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
 - `cargo check -p void-desktop`
 
+### 2026-07-04 Baseline Run
+
+Status: `passed`
+
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+  - Notes: first run compiled `void-desktop` test dependencies and took about 4m35s.
+- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture`
+  - Result: passed, 1 test.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture`
+  - Result: passed, 10 tests.
+  - Notes: Cargo briefly waited on the package cache because another focused test was running.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
+  - Result: passed, 5 tests.
+  - Notes: Cargo briefly waited on the package cache and artifact directory because another focused test was running.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: one existing unrelated warning remains for unused `parse_clipboard_path_segments` in `src/apps/desktop/src/api/clipboard_file_api.rs`.
+
+Manual smoke remains `manual_pending`. This automated baseline does not prove real DPI, multi-monitor, occlusion, capture-source, or UIPI behavior.
+
 ## Required Environment Fields
 
 Record these fields for every smoke run:
