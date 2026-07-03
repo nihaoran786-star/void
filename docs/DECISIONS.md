@@ -559,3 +559,9 @@ Reason: These colors describe card chrome presentation, not media availability, 
 Decision: The sixth `ISSUE-1160F` code slice keeps operation-error styling inside `WorkspaceMediaGallery.scss` and reuses local Gallery error tokens for text and border color.
 
 Reason: The visual error affordance should be theme-governed, but the operation failure source and recovery semantics belong to Gallery state/service code. Reusing local presentation tokens avoids encoding trash/delete/restore/purge business states into global theme tokens.
+
+## DEC-094: Short Drama Status Pill Colors Stay Presentation-Local
+
+Decision: The seventh `ISSUE-1160F` code slice keeps short-drama status pill indicator colors inside `ShortDramaCenterPanel.scss` as local `--short-drama-status-*` presentation tokens mapped to global success, warning, accent, and error tokens.
+
+Reason: The pill variants reflect existing CenterPanel presentation for ready, active, stale, and error states, but status ownership and recovery behavior remain in the short-drama state/model code. Local tokens theme the dots without moving artifact status, stage ownership, media availability, or failure handling into global theme governance.

@@ -2105,7 +2105,10 @@ Progress:
 - Completed the Workspace Media Gallery operation-error token slice: operation error border/text now use local Gallery error tokens.
 - Added `scripts/workspace-media-gallery-operation-error-theme.test.mjs` to lock the operation-error token boundary.
 - Preserved Gallery TSX operation state, failure source, delete/restore/purge behavior, media services, and ThemeService runtime behavior.
-- Remaining 1160F debt: ShortDramaCenterPanel stage/status/media-preview raw visual colors need separate domain slices.
+- Completed the ShortDramaCenterPanel status pill token slice: ready/done, generating/reviewing/revising, stale, and error/unsupported/needs-intervention indicator dots now use local `--short-drama-status-*` tokens.
+- Added `scripts/short-drama-center-status-theme.test.mjs` to lock the status pill token boundary.
+- Preserved CenterPanel TSX state, status ownership, stage navigation, artifact/media recovery, short-drama services, media services, Flow Chat coordination, and ThemeService runtime behavior.
+- Remaining 1160F debt: ShortDramaCenterPanel stage/media-preview/final-preview raw visual colors need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

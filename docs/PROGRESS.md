@@ -52,23 +52,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F workspace media gallery generator visual token slice complete.
 - [x] ISSUE-1160F workspace media gallery card chrome visual token slice complete.
 - [x] ISSUE-1160F workspace media gallery operation-error token slice complete.
+- [x] ISSUE-1160F short drama center status pill token slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160F Workspace Media Gallery Operation Error Token Slice`
+Issue: `ISSUE-1160F Short Drama Center Status Pill Token Slice`
 
 Summary:
 
-- Added `--workspace-media-gallery-error-border` to `WorkspaceMediaGallery.scss`.
-- Replaced raw operation-error border and text colors with local Gallery error tokens.
-- Added `scripts/workspace-media-gallery-operation-error-theme.test.mjs` to prevent operation-error colors from regressing to selector-level raw values.
-- Did not touch Gallery TSX operation state, failure source, delete/restore/purge behavior, media services, ThemeService runtime behavior, or broad theme runtime contracts.
+- Added `--short-drama-status-ready`, `--short-drama-status-generating`, `--short-drama-status-stale`, and `--short-drama-status-error` to `ShortDramaCenterPanel.scss`.
+- Replaced raw status pill indicator colors for ready/done, generating/reviewing/revising, stale, and error/unsupported/needs-intervention with local status tokens.
+- Added `scripts/short-drama-center-status-theme.test.mjs` to prevent status pill colors from regressing to selector-level raw values.
+- Did not touch CenterPanel TSX state, status ownership, stage navigation, artifact/media recovery, short-drama services, media services, Flow Chat coordination, ThemeService runtime behavior, or broad theme runtime contracts.
 
 Verification:
 
-- RED: `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs` failed before implementation because the operation-error block used raw destructive colors and lacked a local error-border token.
-- GREEN: `node --test scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs` passed with 5 tests after implementation.
-- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 28 tests.
+- RED: `node --test scripts/short-drama-center-status-theme.test.mjs` failed before implementation because the root did not define local status tokens and pill selectors still used raw status colors.
+- GREEN: `node --test scripts/short-drama-center-status-theme.test.mjs` passed after implementation.
+- `node --test scripts/short-drama-center-status-theme.test.mjs scripts/short-drama-center-theme.test.mjs scripts/media-short-drama-entry-theme.test.mjs scripts/workspace-media-gallery-operation-error-theme.test.mjs scripts/workspace-media-gallery-card-chrome-theme.test.mjs scripts/workspace-media-gallery-generator-theme.test.mjs scripts/workspace-media-gallery-theme.test.mjs` passed with 7 tests.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentBootstrap.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentSessionHydration.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaStageAgentTabOrchestrator.test.ts` passed with 14 tests.
 - `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
