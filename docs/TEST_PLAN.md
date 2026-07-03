@@ -5623,3 +5623,35 @@ Coverage:
 Remaining risk:
 
 - Conceptual mappings can become stale as real owner migrations land; future migration issues must update this mapping with evidence.
+
+## ISSUE-1180B Product Assembly Contract Spike
+
+Scope:
+
+- Current slice is docs-only and records existing product assembly facts.
+- It does not add Rust APIs, `DeliveryProfile`, service availability reporting, SDK/minimal runtime profile, Cargo feature changes, app entrypoint changes, or runtime behavior.
+- `product-full` remains the only documented full-capability product assembly path.
+
+Executed:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` dirty files; no scoped Cargo manifest, app, or crate source changes were added for 1180B.
+- `git diff --name-only -- package.json scripts/dev.cjs scripts/desktop-tauri-build.mjs scripts/ensure-openssl-windows.mjs scripts/ci/setup-openssl-windows.ps1 Void-Installer`
+  - Result: no output; build scripts and installer files were unchanged.
+
+Coverage:
+
+- Desktop and CLI are recorded as explicit `void-core product-full` consumers.
+- Server and relay are recorded as existing app surfaces, not proof of an SDK/minimal runtime profile.
+- Tool pack provider plans, core product tool runtime, product-domain runtime, and service-agent runtime bindings are recorded as current owner facts.
+- Future delivery profiles or service availability reports are deferred behind separate product decision issues with snapshot/manifest/feature-graph evidence.
+
+Remaining risk:
+
+- This does not produce runtime availability reporting; it only prevents premature API/profile introduction.

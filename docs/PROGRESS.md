@@ -4915,3 +4915,32 @@ Verification:
 Remaining risk:
 
 - Future concrete owner migration issues must keep this mapping current and prove behavior equivalence with focused tests.
+
+## ISSUE-1180B Product Assembly Contract Spike
+
+Status: Done
+
+Completed:
+
+- Added a docs-only product assembly contract snapshot to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Recorded current assembly facts for desktop, CLI, server, relay, `void-core product-full`, `void-tool-packs` plus core product tool runtime, product-domain runtime bindings, and service/runtime-port bindings.
+- Explicitly declined a Rust `ProductAssemblyPlan`, `DeliveryProfile`, service availability API, SDK profile, or feature graph change in this slice.
+- Deferred any smaller runtime profile or service availability report behind a future product decision issue with snapshot, manifest, feature-graph, and behavior-equivalence evidence.
+- Updated issue, decision, and test-plan docs.
+
+Verification:
+
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` dirty files; no scoped Cargo manifest, app, or crate source changes were added for 1180B.
+- `git diff --name-only -- package.json scripts/dev.cjs scripts/desktop-tauri-build.mjs scripts/ensure-openssl-windows.mjs scripts/ci/setup-openssl-windows.ps1 Void-Installer`
+  - Result: no output; build scripts and installer files were unchanged.
+
+Remaining risk:
+
+- Product availability reporting remains future work; this slice only documents current assembly ownership and defers new profiles.

@@ -134,6 +134,32 @@ commits 不被当前分支采纳为目录结构。
   AI media、AI short-drama、terminal、Computer Use、ACP、installer 和 provider
   选择行为。
 
+## 产品组装契约快照（非新 API）
+
+Void 当前不引入上游式 `ProductAssemblyPlan`、`DeliveryProfile` 或 service
+availability runtime API。下表只是记录当前 full-product 组装事实，用于后续 issue
+评估变更影响；它不得被解释为新增 SDK/minimal runtime profile。
+
+| 入口 / owner | 当前组装事实 | 禁止误读 |
+|---|---|---|
+| `src/apps/desktop` | 通过 `void-core = { default-features = false, features = ["product-full"] }` 依赖完整产品 runtime，并额外组装 Tauri、transport `tauri-adapter`、WebDriver、ACP、desktop host 和 OS integrations。 | 不得把 desktop adapter 逻辑下沉到 contract crate；不得把 Tauri dependency 泄漏到 pure contracts。 |
+| `src/apps/cli` | 通过 `void-core` `product-full` 依赖完整产品 runtime，并组装 CLI/TUI、ACP 和 presentation dependencies。 | `ratatui`、`crossterm`、`arboard`、`syntect-tui` 等仍属于 CLI surface，不得进入 `core-types`、`runtime-ports` 或 `agent-tools`。 |
+| `src/apps/server` | 作为 server surface 使用 Axum/Tokio 等 Web server dependencies；当前不等同于 desktop/CLI full product runtime assembly。 | 不得用 server surface 反推 SDK/minimal runtime profile 已存在。 |
+| `src/apps/relay-server` | 作为 Remote Connect relay app/lib，提供 relay-specific WebSocket/server behavior，并可被 `void-core` optional dependency 嵌入 full product runtime。 | Relay release/hosting behavior不是通用 product runtime profile。 |
+| `void-core` `product-full` | 当前 full-capability product runtime feature set，显式启用 product domains、service integrations、tool packs、tool-runtime、remote/MCP/media 等能力。 | `product-full` 是 guardrail，不是可随意塞入 app-specific behavior 的 dumping ground。 |
+| `void-tool-packs` + `void-core::agentic::tools::product_runtime` | `void-tool-packs` 只拥有 feature-group/provider plan；`void-core` materializes concrete tools、`ToolUseContext`、registry snapshot、GetToolSpec runtime 和 product tool catalog。 | Tool provider plan 不代表 concrete tools、unlock state、workspace services 或 registry runtime 已迁移。 |
+| `void-product-domains` + `void-core::product_domain_runtime` | Product-domain crates own stable contracts and pure orchestration; core keeps concrete MiniApp/function-agent filesystem, process, Git and AI bindings. | Product-domain helper 外移不表示 IO/worker/Git/AI runtime 已迁移。 |
+| `void-runtime-ports` / `void-services-*` + `void-core::service_agent_runtime` | Ports/services own DTOs, pure contracts and some integration helpers; core still binds scheduler execution, session restore, terminal pre-warm, remote image conversion and concrete runtime-port implementations. | Runtime port 存在不等于 concrete scheduler/session restore/remote runtime owner 已迁移。 |
+
+任何未来 `DeliveryProfile`、SDK/minimal runtime、service availability report 或
+product assembly Rust API 都必须先创建单独 issue，并证明：
+
+- desktop、CLI、ACP、server、relay 的现有组装行为保持不变；
+- multi-agent/subagent、`/goal`、Flow Chat、AI media、AI short-drama、terminal、
+  Computer Use、provider、MCP、ACP 和 installer 行为不被裁剪；
+- `product-full` 仍是当前完整能力路径，任何更小 profile 只是 future product decision；
+- 有 snapshot/manifest/feature-graph 检查覆盖行为等价，而不是只增加类型名。
+
 ## 依赖方向规则（Dependency Direction Rules）
 
 - 新拆出的 crate 不得反向依赖 `void-core`。

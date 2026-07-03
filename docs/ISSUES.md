@@ -2532,7 +2532,7 @@ Result:
 ### ISSUE-1180B Product Assembly Contract Spike
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Evaluate whether Void needs a docs-only equivalent of upstream `ProductAssemblyPlan` / `DeliveryProfile` / service availability reporting.
 Allowed files: architecture docs and issue docs.
 Forbidden files: new Rust APIs, product profile changes, feature graph changes, SDK profile implementation.
@@ -2541,6 +2541,12 @@ Acceptance:
 - Any SDK/minimal runtime idea is deferred behind a future implementation issue.
 - Existing desktop, CLI, ACP, server, relay, multi-agent, media, and short-drama assembly expectations remain unchanged.
 Risk notes: A contract spike must not create a second product runtime path.
+Result:
+- Added a docs-only product assembly contract snapshot to `docs/architecture/core-decomposition.md`.
+- Recorded that Void does not currently need a Rust `ProductAssemblyPlan`, `DeliveryProfile`, service availability API, or SDK/minimal runtime profile.
+- Documented current assembly facts for desktop, CLI, server, relay, `void-core product-full`, tool packs/product tool runtime, product-domain runtime, and service/runtime-port bindings.
+- Deferred any smaller delivery profile or service availability report behind a future product decision issue with snapshot/manifest/feature-graph evidence.
+- Preserved existing desktop, CLI, ACP, server, relay, multi-agent, media, short-drama, terminal, Computer Use, provider, MCP, and installer expectations without code changes.
 
 ### ISSUE-1180C Runtime Services Gap Audit
 
