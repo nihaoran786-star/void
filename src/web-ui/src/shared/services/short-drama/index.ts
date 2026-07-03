@@ -1,6 +1,7 @@
 export * from './ShortDramaAgentTaskDispatchAdapter';
 export * from './ShortDramaAuditLog';
 export * from './ShortDramaArtifactIndex';
+export * from './ShortDramaImageContextBridge';
 export * from './ShortDramaArtifactOptimizationWorkflow';
 export * from './ShortDramaArtifactRevisionWorkflow';
 export * from './ShortDramaChatIntake';

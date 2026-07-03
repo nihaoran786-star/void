@@ -4859,3 +4859,28 @@ Remaining risk:
 - Backend `terminal_ack` flow-control semantics remain unconnected to frontend output consumption.
 - EOF-triggered immediate shutdown uses the existing command task; a future hardening slice can cover platforms where PTY EOF appears before the child is reapable or races with explicit shutdown.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.
+
+## ISSUE-1140E2 Short Drama Image Context Bridge Adapter
+
+Status: Done
+
+Completed:
+
+- Added [ShortDramaImageContextBridge.ts](D:/codex/void-source/src/web-ui/src/shared/services/short-drama/ShortDramaImageContextBridge.ts) as the short-drama-owned bridge for image-understanding references.
+- Added a low-context resolver that returns only `ShortDramaProject` artifact/media coordinates and prompt summary fields.
+- Added explicit conversion helpers for generic `ImageContext` only when a local or relative image path is available.
+- Rejected video/audio media, missing media references, remote/data URL-only image references, and missing artifacts with explicit `status/source/error`.
+- Exported the bridge from the short-drama service barrel.
+- Updated architecture, issue, decision, and test-plan docs.
+
+Verification so far:
+
+- `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaImageContextBridge.test.ts`
+  - Result: passed, 1 test file / 6 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed after tightening shared bridge error-result typing.
+
+Remaining risk:
+
+- `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
+- Image summary generation/consumption remains future work; this slice only adds the safe bridge contract.

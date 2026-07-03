@@ -5529,3 +5529,31 @@ Coverage:
 - Windows settings link decision table covers supported `screen_capture`, unsupported `accessibility`, and unknown panes.
 - Windows visual-grid unsupported tests cover stable `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` guidance and explicit `ImageGrid` coordinate behavior.
 - Real Windows Settings UX and any future VisualGrid enablement remain separate smoke-backed work.
+
+## ISSUE-1140E2 Short Drama Image Context Bridge Adapter
+
+Scope:
+
+- Current slice covers short-drama service-level bridge contracts only.
+- It does not call image-analysis models, change `AnalyzeImage`, change provider wire conversion, change media services, change Main AI export behavior, or touch short-drama UI.
+- Low-context reference resolution and explicit generic `ImageContext` conversion are tested as separate outputs.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaImageContextBridge.test.ts`
+  - Result: passed, 1 test file / 6 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Initial result: failed because shared bridge error helpers used overly narrow `Extract<...>` return types that TypeScript inferred as `never`.
+  - Result after replacing the helper return type with an explicit bridge error-result type: passed.
+
+Coverage:
+
+- Low-context image-understanding reference includes project/artifact/media ids and prompt summary fields without raw CDN URLs, data URLs, local paths, file paths, preview fields, or thumbnail fields.
+- Explicit image-context conversion accepts local/relative image paths only and marks the result as local file context.
+- Artifact handles resolve through `ShortDramaProject`/artifact index rather than UI state.
+- Video media, remote/data URL-only image media, and missing artifacts return explicit `status/source/error`.
+
+Remaining risk:
+
+- This does not yet generate or persist image-understanding summaries.
+- Future consumers must keep Main AI awareness export low-context and call the explicit bridge only when they intentionally need a backend image context.

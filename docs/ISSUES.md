@@ -1970,6 +1970,23 @@ Result:
 - Confirmed the Main AI export keeps low-context media metadata while omitting raw media references.
 - Left the broader `ISSUE-1140E` open for a future explicit short-drama image-understanding summary/reference adapter.
 
+### ISSUE-1140E2 Short Drama Image Context Bridge Adapter
+
+Priority: P2
+Status: Done
+Goal: Add a short-drama-owned bridge that resolves image artifact references from `ShortDramaProject` without making UI or `AnalyzeImage` aware of short-drama internals.
+Allowed files: short-drama service adapter/tests, short-drama service export, docs.
+Forbidden files: generic `AnalyzeImage` rewrites, provider image wire conversion, media service rewrite, short-drama UI page behavior, direct `.void/short-drama` mutation.
+Acceptance:
+- A low-context image-understanding reference exposes only project/artifact/media coordinates and prompt summary fields, not raw media URLs, data URLs, local paths, file paths, or bytes.
+- A separate explicit image-context bridge can convert a resolved short-drama image media reference into generic `ImageContext` only when a local or relative image path exists.
+- Video/audio media, missing media references, remote-only image previews, and missing artifacts return explicit `status/source/error`.
+- `ShortDramaProject` remains the source of truth, and `AnalyzeImage` remains short-drama-agnostic.
+Result:
+- Added `ShortDramaImageContextBridge` with `resolveShortDramaImageUnderstandingReference`, `createShortDramaImageContextForArtifact`, and `createShortDramaImageContextFromMediaReference`.
+- Added focused tests for low-context reference output, local image path conversion, handle resolution, non-image rejection, remote/data URL rejection, and missing-artifact errors.
+- Confirmed the bridge does not modify Main AI export behavior and does not touch UI, provider, media service, or generic image-analysis code.
+
 ### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
 
 Priority: P1
