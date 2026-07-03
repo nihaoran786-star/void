@@ -69,25 +69,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150C2 remote MCP timeout helper contract complete.
 - [x] ISSUE-1150C3 remote MCP method timeout coverage complete.
 - [x] ISSUE-1130D1 Windows settings link decision table complete.
+- [x] ISSUE-1130D Windows Computer Use capability gating/settings parent complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1130D1 Windows Settings Link Decision Table`
+Issue: `ISSUE-1130D Windows Computer Use Capability Gating and Settings Links`
 
 Summary:
 
-- Added a pure Windows settings route helper for `computer_use_open_system_settings`.
-- Mapped `screen_capture` to `ms-settings:privacy-graphicscaptureprogrammatic`, matching Microsoft Learn's Windows Settings URI scheme reference for Graphics Capture privacy.
-- Kept Windows `accessibility` as an explicit actionable unsupported result with stable `error_code`, `platform`, `pane`, and `suggested_pane` facts rather than opening an unrelated Ease of Access page.
-- Preserved the current Tauri command return shape and did not change Web UI, Computer Use schemas, desktop host, WGC/HWND/input adapters, Flow Chat, AI media, AI short-drama, terminal, provider, or crate layout.
+- Closed the parent `ISSUE-1130D` after verifying both acceptance surfaces.
+- Settings links are covered by `ISSUE-1130D1`: `screen_capture` maps to the documented Graphics Capture privacy URI, while Windows `accessibility` and unknown panes return stable unsupported facts.
+- Existing Windows visual-grid contracts already keep `app_click` VisualGrid targets explicitly unsupported with `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` and fallback guidance to visual marks or explicit image-coordinate targets.
+- No runtime code changed in this parent closeout; no Web UI, Computer Use schema, desktop host, WGC/HWND/input adapter, Flow Chat, AI media, AI short-drama, terminal, provider, or crate-layout change was made.
 
 Verification:
 
-- RED: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture` failed before implementation because `windows_settings_pane_route` and `WindowsSettingsPaneRoute` did not exist.
-- GREEN: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture` passed.
-- Regression: `cargo test -p void-desktop computer_use_api --lib -- --nocapture` passed.
-- Check: `cargo check -p void-desktop` passed with one existing unrelated `parse_clipboard_path_segments` dead-code warning.
-- Boundary/format: `rustfmt --edition 2021 --check src/apps/desktop/src/api/computer_use_api.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed.
+- `cargo test -p void-desktop computer_use_api --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_visual_grid --lib -- --nocapture` passed.
+- `node scripts/check-core-boundaries.mjs` passed.
 
 ## Subagent Summary
 

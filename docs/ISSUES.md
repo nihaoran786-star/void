@@ -1772,7 +1772,7 @@ Risk notes: Pointer behavior must be tested on Windows with real DPI/display con
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Make Windows-only Computer Use unsupported capabilities explicit and actionable without changing core schemas or Web UI architecture.
 Allowed files: Windows desktop Computer Use adapter, focused capability tests, docs.
 Forbidden files: broad Computer Use schema expansion, Web UI tool-card redesign, desktop-host module split, Flow Chat, AI media, AI short-drama, terminal, provider.
@@ -1782,6 +1782,18 @@ Acceptance:
 - Unsupported capability responses preserve explicit status/source/error semantics instead of relying on generic string matching.
 - Tests cover at least the adapter-level decision table; no desktop UI redesign is included.
 Risk notes: This is a UX/capability-gating issue. It must not be bundled with WGC unsafe code or the upstream platform tool-card refactor.
+Result:
+- Completed through existing Windows visual-grid unsupported contracts plus `ISSUE-1130D1`.
+- Windows settings links now have an adapter-owned decision table: `screen_capture` opens the documented Graphics Capture privacy URI, while `accessibility` and unknown panes return stable unsupported facts.
+- Windows visual-grid `app_click` targets remain explicitly unsupported with `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` and documented fallbacks to `build_visual_mark_view` + `visual_click` or explicit `ImageXy`/`ImageGrid` targets.
+- No Web UI redesign, Computer Use schema expansion, desktop-host split, WGC/input adapter rewrite, Flow Chat, AI media, AI short-drama, terminal, provider, or crate-layout change was included.
+Verification:
+- `cargo test -p void-desktop computer_use_api --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_visual_grid --lib -- --nocapture` passed.
+- `node scripts/check-core-boundaries.mjs` passed.
+Remaining risk:
+- Real Windows UX smoke is still required to prove that the launched Settings page is useful on each Windows version/SKU.
+- VisualGrid remains intentionally unsupported until a separate Windows smoke-backed issue accepts it.
 
 #### ISSUE-1130D1 Windows Settings Link Decision Table
 
@@ -1802,7 +1814,7 @@ Progress:
 - Did not change Computer Use schemas, Web UI tool cards/settings, desktop host, WGC/HWND/input adapters, Flow Chat, AI media, AI short-drama, terminal, provider, or crate layout.
 - Verification: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture`, `cargo test -p void-desktop computer_use_api --lib -- --nocapture`, `cargo check -p void-desktop`, `rustfmt --edition 2021 --check src/apps/desktop/src/api/computer_use_api.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed. `cargo check -p void-desktop` still reports the existing unrelated `parse_clipboard_path_segments` dead-code warning.
 Deferred:
-- Hiding or reshaping visual-grid unsupported affordances remains in parent `ISSUE-1130D` or a later child issue.
+- Hiding or reshaping visual-grid unsupported affordances remains a future separate issue; parent `ISSUE-1130D` closes with the current explicit unsupported contract.
 
 ### ISSUE-1140 Image Understanding and Image Context Completion Audit
 

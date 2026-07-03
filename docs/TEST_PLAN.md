@@ -5354,3 +5354,25 @@ Coverage:
 - Windows `accessibility` returns stable unsupported facts: `error_code`, `platform`, `pane`, and `suggested_pane`.
 - Unknown panes return a stable `windows_settings_pane_unknown` error code and preserve the original pane.
 - No exact full user-facing unsupported prose is asserted.
+
+## ISSUE-1130D Parent Closeout
+
+Scope:
+
+- Documentation-only parent closeout for Windows Computer Use capability gating and settings links.
+- No code, Web UI, Computer Use schema, desktop host, WGC/HWND/input adapter, Flow Chat, AI media, AI short-drama, terminal, provider, or crate-layout behavior changed in this closeout.
+
+Executed:
+
+- `cargo test -p void-desktop computer_use_api --lib -- --nocapture`
+  - Result: passed, 3 tests.
+- `cargo test -p void-desktop windows_visual_grid --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- Windows settings link decision table covers supported `screen_capture`, unsupported `accessibility`, and unknown panes.
+- Windows visual-grid unsupported tests cover stable `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` guidance and explicit `ImageGrid` coordinate behavior.
+- Real Windows Settings UX and any future VisualGrid enablement remain separate smoke-backed work.
