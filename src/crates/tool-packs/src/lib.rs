@@ -160,6 +160,7 @@ const PRODUCT_TOOL_PROVIDER_GROUP_PLAN: &[ToolProviderGroupPlan] = &[
             "ComputerUse",
             "Playbook",
             "AnalyzeImage",
+            "ViewImage",
             "GenerateImage",
             "GenerateVideo",
             "GetMediaTaskStatus",
@@ -318,6 +319,7 @@ mod tests {
                 "ComputerUse",
                 "Playbook",
                 "AnalyzeImage",
+                "ViewImage",
                 "GenerateImage",
                 "GenerateVideo",
                 "GetMediaTaskStatus",
@@ -329,19 +331,19 @@ mod tests {
     }
 
     #[test]
-    fn product_provider_group_plan_keeps_view_image_gated_until_runtime_contract_exists() {
+    fn product_provider_group_plan_includes_view_image_after_contract_gates_pass() {
         let tool_names = product_tool_provider_group_plan()
             .iter()
             .flat_map(|group| group.tool_names().iter().copied())
             .collect::<Vec<_>>();
 
         assert!(
-            !tool_names.contains(&"ViewImage"),
-            "ViewImage must not enter the product provider plan before manifest, provider, and path gates pass"
+            tool_names.contains(&"ViewImage"),
+            "ViewImage enters the product provider plan only after manifest, provider, and path gates pass"
         );
         assert!(
             tool_names.contains(&"AnalyzeImage"),
-            "AnalyzeImage remains the active image-understanding tool while ViewImage is gated"
+            "AnalyzeImage remains the active image-understanding tool while ViewImage is available"
         );
     }
 

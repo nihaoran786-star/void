@@ -136,6 +136,7 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "ComputerUse" => Arc::new(ComputerUseTool::new()),
         "Playbook" => Arc::new(PlaybookTool::new()),
         "AnalyzeImage" => Arc::new(AnalyzeImageTool::new()),
+        "ViewImage" => Arc::new(ViewImageTool::new()),
         "GenerateImage" => Arc::new(GenerateImageTool::new()),
         "GenerateVideo" => Arc::new(GenerateVideoTool::new()),
         "GetMediaTaskStatus" => Arc::new(GetMediaTaskStatusTool::new()),
@@ -395,7 +396,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn product_catalog_facade_keeps_view_image_gated_even_if_allowed() {
+    async fn product_catalog_facade_exposes_view_image_as_collapsed_after_runtime_gates_pass() {
         let allowed_tools = vec!["AnalyzeImage".to_string(), "ViewImage".to_string()];
 
         let manifest = resolve_product_tool_manifest(
@@ -415,14 +416,14 @@ mod tests {
             "AnalyzeImage remains prompt-visible when allowed"
         );
         assert!(
-            !definition_names.contains(&"ViewImage"),
-            "ViewImage must not become prompt-visible until provider and path gates pass"
+            definition_names.contains(&"ViewImage"),
+            "ViewImage is available in the allowed manifest after provider and path gates pass"
         );
         assert!(
-            !manifest
+            manifest
                 .collapsed_tool_names
                 .contains(&"ViewImage".to_string()),
-            "ViewImage must not become GetToolSpec-discoverable before runtime implementation exists"
+            "ViewImage becomes GetToolSpec-discoverable after provider and path gates pass"
         );
     }
 

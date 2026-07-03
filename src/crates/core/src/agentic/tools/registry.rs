@@ -5,12 +5,12 @@ use crate::agentic::tools::product_runtime::{
     resolve_product_readonly_enabled_tools, ProductToolRuntime,
 };
 use crate::util::errors::VoidResult;
+use log::{debug, info, trace, warn};
+use std::sync::Arc;
 use void_agent_tools::{
     DynamicToolDescriptor, DynamicToolProvider, PortResult, ToolDecoratorRef,
     ToolRegistry as AgentToolRegistry,
 };
-use log::{debug, info, trace, warn};
-use std::sync::Arc;
 
 pub(in crate::agentic::tools) type ToolRef = Arc<dyn Tool>;
 pub(in crate::agentic::tools) type ProductToolDecoratorRef = ToolDecoratorRef<dyn Tool>;
@@ -174,10 +174,10 @@ mod tests {
     };
     use crate::agentic::tools::product_runtime::ProductToolRuntime;
     use async_trait::async_trait;
-    use void_agent_tools::{DynamicToolProvider, ToolDecorator};
     use serde_json::json;
     use serde_json::Value;
     use std::sync::Arc;
+    use void_agent_tools::{DynamicToolProvider, ToolDecorator};
 
     struct DynamicMetadataTool {
         name: String,
@@ -333,22 +333,22 @@ mod tests {
     }
 
     #[test]
-    fn registry_keeps_view_image_unexposed_until_contract_gates_pass() {
+    fn registry_includes_view_image_after_contract_gates_pass() {
         let registry = create_tool_registry();
 
         assert!(
-            registry.get_tool("ViewImage").is_none(),
-            "ViewImage must not be materialized before manifest, provider, and path gates pass"
+            registry.get_tool("ViewImage").is_some(),
+            "ViewImage is materialized after manifest, provider, and path gates pass"
         );
         assert!(
-            !registry.get_tool_names().contains(&"ViewImage".to_string()),
-            "ViewImage must not appear in the builtin manifest before runtime implementation exists"
+            registry.get_tool_names().contains(&"ViewImage".to_string()),
+            "ViewImage appears in the builtin manifest after runtime implementation exists"
         );
         assert!(
-            !registry
+            registry
                 .get_collapsed_tool_names()
                 .contains(&"ViewImage".to_string()),
-            "ViewImage must not be discoverable through GetToolSpec before provider/path gates pass"
+            "ViewImage is discoverable through GetToolSpec after provider/path gates pass"
         );
     }
 
@@ -393,6 +393,7 @@ mod tests {
             "ComputerUse",
             "Playbook",
             "AnalyzeImage",
+            "ViewImage",
             "GenerateImage",
             "GenerateVideo",
             "GetMediaTaskStatus",
@@ -592,6 +593,7 @@ mod tests {
                 "ComputerUse",
                 "Playbook",
                 "AnalyzeImage",
+                "ViewImage",
                 "GenerateImage",
                 "GenerateVideo",
                 "GetMediaTaskStatus",
@@ -637,6 +639,7 @@ mod tests {
                 "GenerativeUI",
                 "Playbook",
                 "AnalyzeImage",
+                "ViewImage",
                 "GetMediaTaskStatus",
             ],
             "readonly tool manifest must stay stable before moving registry ownership"
@@ -644,7 +647,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn readonly_manifest_keeps_view_image_gated_until_runtime_contract_exists() {
+    async fn readonly_manifest_includes_view_image_after_runtime_contract_exists() {
         let readonly_names = super::get_readonly_tools()
             .await
             .expect("readonly tools")
@@ -653,12 +656,12 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(
-            !readonly_names.contains(&"ViewImage".to_string()),
-            "ViewImage must not be exposed as readonly until provider attachment and path gates pass"
+            readonly_names.contains(&"ViewImage".to_string()),
+            "ViewImage is exposed as readonly after provider attachment and path gates pass"
         );
         assert!(
             readonly_names.contains(&"AnalyzeImage".to_string()),
-            "AnalyzeImage remains the active readonly image tool while ViewImage is gated"
+            "AnalyzeImage remains the active readonly image-understanding tool while ViewImage is available"
         );
     }
 

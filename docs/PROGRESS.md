@@ -80,27 +80,28 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140D1 ViewImage contract gate and slice plan complete.
 - [x] ISSUE-1140D2 ViewImage manifest and readonly exposure gate complete.
 - [x] ISSUE-1140D3 ViewImage provider image-attachment capability gate complete.
+- [x] ISSUE-1140D4 minimal Void ViewImage tool implementation complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate`
+Issue: `ISSUE-1140D4 Minimal Void ViewImage Tool Implementation`
 
 Summary:
 
-- Added a core `ToolUseContext::tool_result_image_attachment_capability()` contract with explicit supported/unsupported status, source, and reason.
-- Updated Computer Use screenshot gating to reuse that contract while preserving the existing unsupported-model and unsupported-provider messages.
-- Added Anthropic adapter coverage for `ToolImageAttachment` conversion into `tool_result` image/text blocks.
-- Added Gemini adapter coverage proving tool-result image attachments are not converted for the unsupported Gemini path.
-- Added no `ViewImage` runtime implementation and preserved manifests, Web UI upload flow, AI media, AI short-drama, Flow Chat, and `AnalyzeImage` behavior.
+- Added a minimal readonly, collapsed `ViewImage` tool for workspace `image_path` only.
+- The tool reuses `ToolUseContext` path/capability gates, reads local or remote workspace images, detects MIME/dimensions, optimizes image bytes, and returns `ToolImageAttachment` plus explicit `status/source/error` metadata.
+- Registered `ViewImage` in the image-analysis provider plan after `AnalyzeImage`, and updated registry/product-runtime expectations for builtin, collapsed/GetToolSpec, and readonly manifests.
+- Preserved `AnalyzeImage` as the model-based image-understanding tool and did not change Web UI, Flow Chat, provider adapters, AI media, AI short-drama, or upstream assembly/crate layout.
 
 Verification:
 
-- `cargo test -p void-ai-adapters tool_message_with_images --lib -- --nocapture`
+- `cargo test -p void-core view_image --lib -- --nocapture`
   - Result: passed.
-- `cargo test -p void-ai-adapters gemini_tool_response_does_not_convert_tool_image_attachments --lib -- --nocapture`
-  - Result: failed first because the test expected Gemini's existing `functionResponse.response` to be a raw string.
-  - Result: passed after correcting the assertion to the current `{ "content": ... }` response shape.
-- `cargo test -p void-core tool_result_image_attachment_capability --lib -- --nocapture`
+- `cargo test -p void-core registry_preserves --lib -- --nocapture`
+  - Result: passed.
+- `cargo test -p void-core product_tool_runtime --lib -- --nocapture`
+  - Result: passed.
+- `cargo test -p void-tool-packs product_provider_group_plan --lib -- --nocapture`
   - Result: passed.
 - Additional boundary and diff checks are tracked in `docs/TEST_PLAN.md` for this slice.
 

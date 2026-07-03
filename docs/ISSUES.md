@@ -2014,7 +2014,7 @@ Result:
 ### ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Implement the smallest Void-native `ViewImage` tool after manifest and provider gates pass.
 Allowed files: new `ViewImage` tool implementation under current core tool layout, `product_runtime`, `void-tool-packs`, image-processing helper tests, docs.
 Forbidden files: upstream `assembly` crate layout, Web UI upload flow rewrites, `AnalyzeImage` model-call behavior, AI media/short-drama source-of-truth changes.
@@ -2023,6 +2023,12 @@ Acceptance:
 - Image MIME/size/dimensions are detected through existing image-processing helpers.
 - Result includes explicit `status/source/error` plus width/height/size metadata.
 - Tool result image attachment uses `ToolImageAttachment`; no raw file path or provider-specific payload leaks into UI.
+Result:
+- Added a minimal readonly, collapsed `ViewImage` tool that accepts only workspace `image_path`, calls no model, and returns a `ToolImageAttachment` plus explicit metadata.
+- Reused `ToolUseContext` workspace/path and tool-result image attachment capability gates before reading image bytes.
+- Covered local and remote workspace reads, workspace containment, missing workspace, unsupported model/provider, non-image payload, schema, registry, readonly, and manifest behavior with focused tests.
+- Registered `ViewImage` in the image-analysis provider plan after `AnalyzeImage`; `AnalyzeImage` remains the model-based image-understanding tool.
+- Kept Web UI, Flow Chat, provider adapters, AI media, AI short-drama, and upstream assembly/crate layout unchanged.
 
 ### ISSUE-1140E Short Drama Image Understanding Bridge Contract
 

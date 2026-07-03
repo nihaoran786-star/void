@@ -66,6 +66,46 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/crates/core/src/agentic/tools/implementations/view_image_tool.rs`.
+- `src/crates/core/src/agentic/tools/implementations/mod.rs`.
+- `src/crates/core/src/agentic/tools/product_runtime.rs`.
+- `src/crates/core/src/agentic/tools/registry.rs`.
+- `src/crates/tool-packs/src/lib.rs`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`, `docs/DECISIONS.md`.
+- No Web UI, Flow Chat, provider adapter, AI media, AI short-drama, `AnalyzeImage` model-call behavior, or upstream assembly/crate layout changed.
+
+Checks:
+
+- `cargo test -p void-core view_image --lib -- --nocapture`
+  - Result: failed first because the test fixture PNG did not pass the real image decode/optimize path.
+  - Result: failed again because completed metadata exposed a local absolute path instead of a workspace-relative logical path.
+  - Result: passed after generating a real 1x1 PNG in the test, returning workspace-relative logical paths, removing unreachable `error` status, and ensuring local/remote non-file errors do not expose absolute workspace roots.
+  - Notes: covers schema, readonly/collapsed/no-permission metadata, local success with image attachment, remote `WorkspaceServices` read, unsupported provider, unsupported primary model, missing workspace, workspace-outside denial, non-image rejection, local/remote error path redaction, registry inclusion, readonly inclusion, and product manifest exposure.
+- `cargo test -p void-core registry_preserves --lib -- --nocapture`
+  - Result: passed.
+  - Notes: fixed builtin, collapsed, and readonly manifest order now includes `ViewImage` after `AnalyzeImage`.
+- `cargo test -p void-core product_tool_runtime --lib -- --nocapture`
+  - Result: passed.
+  - Notes: confirms product runtime owner and decorator assembly still preserve registry contracts.
+- `cargo test -p void-tool-packs product_provider_group_plan --lib -- --nocapture`
+  - Result: passed.
+  - Notes: confirms `ViewImage` is included in the image-analysis provider plan after D2/D3/D4 gates.
+- `cargo test -p void-core tool_result_image_attachment_capability --lib -- --nocapture`
+  - Result: passed.
+  - Notes: D3 provider/model capability gate still rejects unsupported primary model/provider paths.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/core/src/agentic/tools/implementations/view_image_tool.rs src/crates/core/src/agentic/tools/implementations/mod.rs src/crates/core/src/agentic/tools/product_runtime.rs src/crates/core/src/agentic/tools/registry.rs src/crates/tool-packs/src/lib.rs docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md docs/DECISIONS.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui docs`
+  - Result: listed this slice's tracked files plus existing non-this-slice Web UI generated version files; the new `view_image_tool.rs` is untracked until staging and must be included explicitly.
+
 ## ISSUE-1140D3 ViewImage Provider Image-Attachment Capability Gate
 
 Date: 2026-07-04
