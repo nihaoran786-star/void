@@ -2073,7 +2073,7 @@ Progress:
 ### ISSUE-1160F AI Media and Short-Drama Theme Token Boundary
 
 Priority: P2
-Status: Proposed
+Status: Active
 Goal: Define and gradually reduce theme-color debt in AI media and AI short-drama surfaces without changing their state models or workflows.
 Allowed files: media/short-drama SCSS token wrappers, focused style tests or audit fixtures, docs.
 Forbidden files: media/short-drama service logic, ShortDramaProject tool behavior, Flow Chat session logic, ThemeService runtime whitelist, broad baseline rewrite.
@@ -2083,6 +2083,12 @@ Acceptance:
 - Any visual cleanup is one domain at a time and lowers or preserves the theme-color baseline.
 - Focused workspace-media and short-drama tests plus theme audit pass.
 Risk notes: Do not encode artifact status, media availability, or stage ownership into theme governance scripts or global tokens.
+Progress:
+- Completed the entry-button token boundary slice for `WorkspaceMediaEntry.scss` and `ShortDramaEntry.scss`.
+- Replaced direct `--void-*` dependencies in the entry buttons with local semantic tokens mapped to global theme tokens such as `--color-bg-primary`, `--color-text-*`, and `--border-base`.
+- Added `scripts/media-short-drama-entry-theme.test.mjs` to lock the entry styles to local token prefixes and prevent reintroducing direct `--void-*` dependencies.
+- Preserved Workspace Media availability behavior, Short Drama entry click behavior, Gallery/CenterPanel styles, services, Flow Chat session logic, ThemeService runtime behavior, and broad baselines.
+- Remaining 1160F debt: Gallery and CenterPanel raw colors, `--void-*` usage, and media/short-drama surface-local visual tokens need separate domain slices.
 
 ### ISSUE-1160A Theme Near-Color Governance Slice
 

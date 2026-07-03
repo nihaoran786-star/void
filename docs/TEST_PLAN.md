@@ -4276,6 +4276,36 @@ Deferred:
 - This contract does not prove screenshots or manual visual reviews have been executed; it only validates the expected evidence metadata.
 - AI media and short-drama token cleanup remains `ISSUE-1160F`.
 
+## ISSUE-1160F Entry Theme Token Boundary Slice
+
+Scope:
+
+- Current slice covers only `WorkspaceMediaEntry.scss`, `ShortDramaEntry.scss`, and a focused style-boundary script test.
+- No Workspace Media Gallery, Short Drama CenterPanel, media/short-drama services, `ShortDramaProject` tool behavior, Flow Chat session logic, ThemeService runtime behavior, or broad theme-color baseline was changed.
+
+Executed:
+
+- `node --test scripts/media-short-drama-entry-theme.test.mjs`
+  - RED result before implementation: failed because `WorkspaceMediaEntry.scss` and `ShortDramaEntry.scss` depended directly on `--void-*` tokens.
+  - GREEN result after implementation: passed, 1 test.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx`
+  - Result: passed, 3 tests.
+- `pnpm run check:theme-colors`
+  - Result: passed.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed.
+
+Coverage:
+
+- Workspace media and short-drama entry button styles define local semantic tokens mapped to global theme tokens.
+- Entry button styles no longer directly depend on MiniApp/generated-widget `--void-*` tokens.
+- Workspace media availability and click behavior remain covered by the existing React entry tests.
+- Theme color and visual governance checks remain within baseline.
+
+Deferred:
+
+- Workspace Media Gallery and Short Drama CenterPanel still contain raw colors, local visual debt, and `--void-*` usages that require separate 1160F domain slices.
+
 - `ISSUE-1170`:
   - `git show --stat --name-status --oneline 96cea08ca 629ced40a 6dc44c489 --`
     - Result: passed; identified upstream provider HTTP owner migration, provider-owned local runtime migration, and stream-contract extraction scopes.

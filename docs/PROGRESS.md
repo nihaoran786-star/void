@@ -46,25 +46,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160C ThemeService runtime token whitelist complete.
 - [x] ISSUE-1160D generated-widget theme payload compatibility contract complete.
 - [x] ISSUE-1160E theme visual governance evidence contract complete.
+- [x] ISSUE-1160F entry theme token boundary slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160E Theme Visual Governance Evidence Contract`
+Issue: `ISSUE-1160F Entry Theme Token Boundary Slice`
 
 Summary:
 
-- Added entry-level visual evidence metadata for every theme-governance surface: `mode`, `theme`, `viewport`, `state`, and `command` or `artifactName`.
-- Extended `validate-theme-visual-contract.mjs` with `--contract <path>` fixture validation and evidence metadata checks.
-- Added focused validator tests for current evidence metadata, malformed fixture contracts, unsupported modes/types, and upstream branding rejection.
-- Did not touch screenshot tooling, page/component SCSS, ThemeService runtime behavior, Flow Chat, AI media, AI short-drama, installer/release workflow, or product business logic.
+- Replaced direct `--void-*` dependencies in Workspace Media and Short Drama entry buttons with local semantic tokens.
+- Mapped `--workspace-media-entry-*` and `--short-drama-entry-*` tokens to global theme tokens for border, surface, text, and hover styling.
+- Added a focused style-boundary script test to prevent direct `--void-*` regressions in the entry buttons.
+- Did not touch Workspace Media Gallery, Short Drama CenterPanel, media/short-drama services, Flow Chat session logic, ThemeService runtime behavior, or broad baselines.
 
 Verification:
 
-- RED: `node --test scripts/validate-theme-visual-contract.test.mjs` failed before implementation because evidence entries lacked metadata, the validator ignored `--contract`, and malformed fixture contracts were not rejected.
-- GREEN: the same command passed with 3 tests after implementation.
-- `node --check scripts/validate-theme-visual-contract.mjs` passed.
+- RED: `node --test scripts/media-short-drama-entry-theme.test.mjs` failed before implementation because the entry SCSS files directly used `--void-*` tokens.
+- GREEN: the same command passed with 1 test after implementation.
+- `pnpm --dir src/web-ui run test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.test.tsx` passed with 3 tests.
+- `pnpm run check:theme-colors` passed.
 - `pnpm run check:theme-visual-contract` passed.
-- `node scripts/validate-theme-visual-contract.mjs --json` passed with `ok: true`, 8 surfaces, and 8 required surfaces.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary

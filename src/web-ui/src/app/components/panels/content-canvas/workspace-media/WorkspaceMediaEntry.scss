@@ -1,21 +1,28 @@
 .workspace-media-entry {
+  --workspace-media-entry-border: var(--border-base, rgba(148, 163, 184, 0.28));
+  --workspace-media-entry-surface: color-mix(in srgb, var(--color-bg-primary, #ffffff) 88%, #eef2f7);
+  --workspace-media-entry-text: var(--color-text-secondary, #64748b);
+  --workspace-media-entry-hover-text: var(--color-text-primary, #1f2937);
+  --workspace-media-entry-hover-border: color-mix(in srgb, var(--border-base, #94a3b8) 60%, #64748b);
+  --workspace-media-entry-hover-surface: color-mix(in srgb, var(--color-bg-primary, #ffffff) 78%, #e8edf5);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   height: 26px;
   width: 26px;
   padding: 0;
-  border: 1px solid var(--void-border, rgba(148, 163, 184, 0.28));
+  border: 1px solid var(--workspace-media-entry-border);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--void-bg, #ffffff) 88%, #eef2f7);
-  color: var(--void-text-secondary, #64748b);
+  background: var(--workspace-media-entry-surface);
+  color: var(--workspace-media-entry-text);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
 }
 
 .workspace-media-entry:hover {
-  color: var(--void-text-primary, #1f2937);
-  border-color: color-mix(in srgb, var(--void-border, #94a3b8) 60%, #64748b);
-  background: color-mix(in srgb, var(--void-bg, #ffffff) 78%, #e8edf5);
+  color: var(--workspace-media-entry-hover-text);
+  border-color: var(--workspace-media-entry-hover-border);
+  background: var(--workspace-media-entry-hover-surface);
 }
