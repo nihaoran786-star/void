@@ -2587,7 +2587,7 @@ Result:
 ### ISSUE-1180E Product-Full Guardrail Audit
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Verify current `product-full` guardrails and app entrypoint feature assembly before any future SDK/minimal runtime discussion.
 Allowed files: docs, boundary check output notes, possibly focused boundary checker tests after separate approval.
 Forbidden files: feature graph changes, new delivery profiles, app entrypoint changes.
@@ -2596,3 +2596,9 @@ Acceptance:
 - `product-full` remains the supported full-capability path.
 - Any SDK/no-product-full idea remains deferred.
 Risk notes: Do not import upstream SDK profile until Void has an explicit product requirement.
+Result:
+- Added `Product-full guardrail audit（入口组装保护线）` to `docs/architecture/core-decomposition.md`.
+- Recorded that desktop, CLI, and ACP explicitly depend on `void-core` with `default-features = false` and `features = ["product-full"]`.
+- Recorded that server and relay are existing app surfaces, not SDK/minimal runtime profiles.
+- Recorded that `void-core default = ["product-full"]` and `void-core/product-full` explicitly aggregates current owner feature groups.
+- Recorded DEC-121; no `Cargo.toml`, feature graph, app entrypoint, `DeliveryProfile`, SDK/minimal runtime, service availability API, or runtime behavior changes were made.

@@ -209,6 +209,27 @@ app entrypoint 或 concrete runtime 已获准迁移。
 这类措辞。后续如果某行进入实现，必须先创建单独 issue，并把状态从 `registered-only`
 改为一个基于证据的、仍不表示实现许可的状态，例如 `needs-snapshot`。
 
+## Product-full guardrail audit（入口组装保护线）
+
+`product-full` 仍是当前完整产品 runtime 的保护开关，不是 SDK/minimal runtime profile。
+下面记录当前入口组装事实和边界脚本保护线；它只用于防止未来上游式 profile / assembly
+想法误伤本地完整产品能力。
+
+| Surface | 当前事实 | Boundary guard | 禁止误读 |
+|---|---|---|---|
+| Desktop app | `src/apps/desktop` 依赖 `void-core` 时设置 `default-features = false` 且显式 `features = ["product-full"]`；desktop 自己组装 Tauri、`void-transport` `tauri-adapter`、WebDriver、ACP 和 OS integrations。 | `scripts/check-core-boundaries.mjs` 要求 desktop 显式启用 `void-core/product-full`，并扫描 `src/apps` 防止新增 product entrypoint 漏规则。 | Desktop adapter / Tauri / OS integration 不得下沉到 contract crate；desktop 不是 SDK profile。 |
+| CLI app | `src/apps/cli` 依赖 `void-core/product-full`；CLI surface 自己拥有 `ratatui`、`crossterm`、`syntect-tui`、`arboard` 等 TUI/presentation 依赖。 | Boundary check 要求 CLI 显式启用 `void-core/product-full`。 | CLI presentation 依赖不得进入 `core-types`、`runtime-ports`、`agent-tools` 或 SDK-style contracts。 |
+| ACP crate | `src/crates/acp` 依赖 `void-core/product-full` 并接入完整产品 runtime。 | Boundary check 要求 ACP 显式启用 `void-core/product-full`。 | ACP 当前不是 minimal SDK runtime；不得用 ACP 证明轻量 profile 已存在。 |
+| Server app | `src/apps/server` 是 Axum/Tokio server surface；当前 metadata 未显示直接 `void-core` 依赖。 | Product-entrypoint coverage 会扫描 `src/apps` 下新增的 `void-core` 依赖；现有 server 不被记录为 full product runtime consumer。 | Server surface 不能反推 `DeliveryProfile`、service availability API 或 SDK/minimal runtime profile 已存在。 |
+| Relay server | `src/apps/relay-server` 是独立 Remote Connect relay app/lib；`void-core` 可通过 `service-integrations` optional dependency 嵌入 relay library。 | `void-core/product-full` 通过 `service-integrations` 显式聚合完整 relay-related product path；relay app 自身不是 `void-core` product entrypoint。 | Relay hosting/release 行为不是通用 runtime profile；不得把 relay app 当成 SDK/minimal assembly 证据。 |
+| `void-core` | `default = ["product-full"]`；`product-full` 显式聚合 `ssh-remote`、`product-domains`、`service-integrations`、`tool-packs` 和当前 full-runtime dependencies。 | Boundary check 锁定 default 必须包含 `product-full`，并要求 `product-full` 显式启用当前 owner feature groups。 | 不得弱化 `product-full` 或引入第二套 runtime path；任何改变都需要单独 product matrix review。 |
+| Owner crates | `void-services-integrations`、`void-tool-packs`、`void-product-domains` 都保持 `default = []`，各自 `product-full` 只聚合声明过的 feature group。 | Boundary check 要求 owner crate product feature groups 显式、default-light，且不得夹带未声明 feature/dependency shortcut。 | owner crate `product-full` 不表示 concrete runtime 已迁移，也不能用空 scaffold 假装拥有能力。 |
+
+未来只有在明确产品需求下，才可以讨论 `DeliveryProfile`、SDK/minimal runtime、
+service availability report 或替代 `product-full` 的 per-product feature matrix。进入实现前必须
+先有 feature graph baseline、entrypoint manifest snapshot、protected surface matrix、focused
+behavior checks 和 rollback plan。
+
 ## 依赖方向规则（Dependency Direction Rules）
 
 - 新拆出的 crate 不得反向依赖 `void-core`。

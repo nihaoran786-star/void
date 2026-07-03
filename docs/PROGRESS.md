@@ -5002,3 +5002,35 @@ Verification:
 Remaining risk:
 
 - This registry can become stale as future migration candidates are accepted or rejected. Each future concrete-runtime issue must update the registry status with evidence rather than treating `registered-only` as approval.
+
+## ISSUE-1180E Product-Full Guardrail Audit
+
+Status: Done
+
+Completed:
+
+- Added a product-full guardrail audit to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Recorded desktop, CLI, and ACP as explicit `void-core/product-full` consumers.
+- Recorded server and relay as existing app surfaces, not SDK/minimal runtime profiles.
+- Recorded `void-core default = ["product-full"]`, `void-core/product-full` owner feature aggregation, and default-light owner crates.
+- Added DEC-121 to keep `product-full` as the full runtime guardrail.
+- Incorporated read-only Product-Assembly-Agent findings without source or manifest changes.
+
+Verification:
+
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed; confirmed workspace manifests and product entrypoint dependency facts.
+- PowerShell metadata summary for `void-desktop`, `void-cli`, `void-acp`, `void-server`, `void-relay-server`, `void-core`, `void-services-integrations`, `void-tool-packs`, and `void-product-domains`
+  - Result: passed; confirmed desktop/CLI/ACP use `void-core product-full`, server/relay do not directly depend on `void-core`, `void-core default` is `product-full`, and owner crates remain default-light.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180E.
+
+Remaining risk:
+
+- This is a guardrail audit only. It does not add service availability reporting, new product profiles, startup smoke coverage, or feature graph migration.

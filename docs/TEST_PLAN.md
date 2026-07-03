@@ -5716,3 +5716,37 @@ Coverage:
 Remaining risk:
 
 - A registered candidate can still be misused as backlog permission if future issues skip snapshot/equivalence evidence. DEC-120 and the registry status wording are intended to prevent that.
+
+## ISSUE-1180E Product-Full Guardrail Audit
+
+Scope:
+
+- Current slice is docs-only and audits existing product entrypoint / `product-full` guardrails.
+- It does not change `Cargo.toml`, features, app entrypoints, `DeliveryProfile`, SDK/minimal runtime profile, service availability API, or runtime behavior.
+- Desktop, CLI, ACP, server, relay, `void-core`, and owner-crate feature facts are recorded as current state only.
+
+Executed:
+
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed; confirmed workspace manifests and product entrypoint dependency facts.
+- PowerShell metadata summary for `void-desktop`, `void-cli`, `void-acp`, `void-server`, `void-relay-server`, `void-core`, `void-services-integrations`, `void-tool-packs`, and `void-product-domains`
+  - Result: passed; confirmed desktop/CLI/ACP use `void-core product-full`, server/relay do not directly depend on `void-core`, `void-core default` is `product-full`, and owner crates remain default-light.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+  - Result: passed.
+- `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates`
+  - Result: showed only pre-existing unrelated `src/crates/ai-adapters` working-copy warnings/status; no scoped Cargo manifest, app, or crate source changes were added for 1180E.
+
+Coverage:
+
+- Desktop, CLI, and ACP explicit `void-core/product-full` assembly is covered by manifest inspection and existing boundary-checker rules.
+- Server and relay are recorded as app surfaces, not SDK/minimal runtime profile evidence.
+- `void-core default = ["product-full"]`, `void-core/product-full` owner feature aggregation, and default-light owner crates are recorded.
+- Product-Assembly-Agent completed read-only review and confirmed this is a guardrail audit, not feature/profile implementation.
+
+Remaining risk:
+
+- This does not validate runtime behavior or startup smoke. Any future product profile or entrypoint feature change must add feature graph snapshots and behavior checks before code.
