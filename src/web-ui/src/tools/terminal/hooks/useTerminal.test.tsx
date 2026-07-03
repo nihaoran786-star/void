@@ -19,6 +19,7 @@ const terminalServiceMock = vi.hoisted(() => ({
   onSessionEvent: vi.fn(),
   drainPendingSessionEvents: vi.fn(),
   clearPendingSessionEvents: vi.fn(),
+  acknowledge: vi.fn(),
   write: vi.fn(),
   resize: vi.fn(),
   sendCtrlC: vi.fn(),
@@ -78,6 +79,7 @@ describe('useTerminal replay ordering', () => {
     terminalServiceMock.clearPendingSessionEvents.mockReturnValue(undefined);
     terminalServiceMock.drainPendingSessionEvents.mockReturnValue([]);
     terminalServiceMock.onSessionEvent.mockReturnValue(() => {});
+    terminalServiceMock.acknowledge.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -177,6 +179,7 @@ describe('useTerminal replay ordering', () => {
       'output:pending-live-1',
     ]);
     expect(terminalServiceMock.drainPendingSessionEvents).toHaveBeenCalledWith('session-1');
+    expect(terminalServiceMock.acknowledge).toHaveBeenCalledWith('session-1', 'pending-live-1'.length);
   });
 
   it('treats remote unsupported history as empty replay without breaking live events', async () => {
@@ -217,5 +220,121 @@ describe('useTerminal replay ordering', () => {
     expect(terminalServiceMock.getHistory).toHaveBeenCalledWith('session-1');
     expect(terminalServiceMock.onSessionEvent).toHaveBeenCalledWith('session-1', expect.any(Function));
     expect(terminalServiceMock.drainPendingSessionEvents).toHaveBeenCalledWith('session-1');
+    expect(terminalServiceMock.acknowledge).toHaveBeenCalledWith('session-1', 'live-after-unsupported-history'.length);
+  });
+
+  it('does not acknowledge replayed history output as live terminal consumption', async () => {
+    const historyEvents: TerminalReplayEvent[] = [
+      { cols: 80, rows: 24, data: 'history-only' },
+    ];
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: historyEvents,
+      data: 'history-only',
+      historySize: 12,
+      historyStatus: 'ready',
+      historySource: 'local',
+      cols: 80,
+      rows: 24,
+    };
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={() => {}}
+          onOutput={() => {}}
+        />,
+      );
+      await flushAsyncWork();
+      await flushAsyncWork();
+    });
+
+    expect(terminalServiceMock.acknowledge).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges live output after delivering it to the consumer', async () => {
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: [],
+      data: '',
+      historySize: 0,
+      historyStatus: 'ready',
+      historySource: 'local',
+      cols: 80,
+      rows: 24,
+    };
+    const order: string[] = [];
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+    terminalServiceMock.onSessionEvent.mockImplementation((
+      _sessionId: string,
+      callback: (event: TerminalEvent) => void,
+    ) => {
+      callback({ type: 'output', sessionId: 'session-1', data: 'live-output' });
+      return () => {};
+    });
+    terminalServiceMock.acknowledge.mockImplementation(async (_sessionId: string, _charCount: number) => {
+      order.push('ack');
+    });
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={() => {
+            order.push('replay');
+          }}
+          onOutput={(data) => {
+            order.push(`output:${data}`);
+          }}
+        />,
+      );
+      await flushAsyncWork();
+      await flushAsyncWork();
+    });
+
+    expect(order).toEqual(['output:live-output', 'ack']);
+    expect(terminalServiceMock.acknowledge).toHaveBeenCalledWith('session-1', 'live-output'.length);
+  });
+
+  it('keeps delivered live output when acknowledgement fails', async () => {
+    const historyResponse: GetHistoryResponse = {
+      sessionId: 'session-1',
+      events: [],
+      data: '',
+      historySize: 0,
+      historyStatus: 'ready',
+      historySource: 'local',
+      cols: 80,
+      rows: 24,
+    };
+    const output: string[] = [];
+
+    terminalServiceMock.getHistory.mockResolvedValue(historyResponse);
+    terminalServiceMock.onSessionEvent.mockImplementation((
+      _sessionId: string,
+      callback: (event: TerminalEvent) => void,
+    ) => {
+      callback({ type: 'output', sessionId: 'session-1', data: 'live-output' });
+      return () => {};
+    });
+    terminalServiceMock.acknowledge.mockRejectedValue(new Error('ack failed'));
+
+    await act(async () => {
+      root.render(
+        <UseTerminalHarness
+          onReplay={() => {}}
+          onOutput={(data) => {
+            output.push(data);
+          }}
+        />,
+      );
+      await flushAsyncWork();
+      await flushAsyncWork();
+    });
+
+    expect(output).toEqual(['live-output']);
+    expect(terminalServiceMock.acknowledge).toHaveBeenCalledWith('session-1', 'live-output'.length);
   });
 });

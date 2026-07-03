@@ -1674,10 +1674,28 @@ Risk notes: This issue is about observability and contract tests first; do not r
 Progress:
 - Added frontend hook-level integration coverage in `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx` for structured `history.events` replay before live output queued during replay. This locks the current `getHistory -> onSessionEvent -> drainPendingSessionEvents -> normalizeTerminalReplay -> finishReplay` ordering without touching Flow Chat, tool cards, xterm rendering, runtime ports, or backend PTY management.
 - Added backend PTY process coverage in `src/crates/terminal/src/pty/process.rs` for natural child completion emitting `PtyEvent::Exit { exit_code }`. The fix stays inside the existing command task/read-thread boundary and does not change session manager, desktop API, runtime-port, Flow Chat, or remote terminal history ownership.
-- Confirmed `TerminalService.acknowledge()` is currently defined but not called by Web terminal consumption paths. Backend flow-control ack remains explicitly deferred until a separate issue defines the consumption contract.
+- Confirmed `TerminalService.acknowledge()` is now called by the Web terminal hook after live output is delivered to the consumer. Backend flow-control ack is no longer deferred for the frontend consumption path.
 - Added desktop/Web terminal history contract hardening: local empty history now reports `historyStatus: "ready"` and `historySource: "local"`, while remote unsupported history reports `historyStatus: "unsupported"`, `historySource: "remote"`, `errorCode: "remote_history_unsupported"`, and an explanatory `error`. `useTerminal` treats remote unsupported history as empty replay without breaking live events.
 - Remote `historyStatus: "error"` is not claimed in this slice; local `get_history` failures still use the existing command error path.
-- Verification so far: `cargo test -p terminal-core` passed with 28 tests. `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs` passed. `cargo test -p void-desktop terminal_api::tests -- --nocapture` passed with 2 tests. `rustfmt --edition 2021 --check src/apps/desktop/src/api/terminal_api.rs` passed. `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` passed with 4 files / 14 tests in the earlier replay slice; the latest remote-history slice passed `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts` with 3 files / 13 tests. `pnpm --dir src/web-ui run type-check` passed.
+- Verification so far: `cargo test -p terminal-core` passed with 28 tests. `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs` passed. `cargo test -p void-desktop terminal_api::tests -- --nocapture` passed with 2 tests. `rustfmt --edition 2021 --check src/apps/desktop/src/api/terminal_api.rs` passed. `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` now passes with 4 files / 19 tests, including live/pending output ack, history replay no-ack, ack failure, and replay handoff duplicate-event guard coverage. `pnpm --dir src/web-ui run type-check` passed.
+
+### ISSUE-1120D1 Terminal Frontend Output Ack Integration
+
+Priority: P1
+Status: Done
+Goal: Connect Web terminal live-output consumption to `TerminalService.acknowledge()` without changing terminal core, desktop API, xterm UI, or replay semantics.
+Allowed files: `src/web-ui/src/tools/terminal/hooks/useTerminal.ts`, `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx`, docs.
+Forbidden files: terminal Rust core, Tauri terminal API, xterm component rendering, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration.
+Acceptance:
+- Live terminal output is acknowledged after the hook delivers it to the consumer.
+- Pending live output drained during replay handoff is acknowledged after delivery.
+- Replayed history output is not acknowledged as live consumption.
+- Ack failures are logged without blocking terminal output rendering.
+Result:
+- `useTerminal` now calls `TerminalService.acknowledge(sessionId, data.length)` after delivering non-empty live output.
+- Added hook tests for direct live output ack, pending-live ack, unsupported-history live ack, history-only no-ack, and ack failure not blocking delivered output.
+- Added replay queue duplicate-event guard coverage so the same live event object cannot be flushed twice during the subscribe/drain handoff.
+- Kept `TerminalService` as the backend ack adapter and kept xterm UI components unaware of flow-control details.
 
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 

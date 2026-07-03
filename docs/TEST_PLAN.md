@@ -5557,3 +5557,38 @@ Remaining risk:
 
 - This does not yet generate or persist image-understanding summaries.
 - Future consumers must keep Main AI awareness export low-context and call the explicit bridge only when they intentionally need a backend image context.
+
+## ISSUE-1120D1 Terminal Frontend Output Ack Integration
+
+Scope:
+
+- Current slice covers Web terminal hook-level acknowledgement after live output delivery.
+- It does not change terminal core flow-control counters, desktop `terminal_ack`, xterm rendering, Flow Chat, AI media, AI short-drama, Computer Use, provider, or runtime-port ownership.
+- History replay remains snapshot recovery and is not acknowledged as live output consumption.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx`
+  - RED result before implementation: failed because live output was delivered but `TerminalService.acknowledge` was not called.
+  - GREEN result after implementation and added replay/pending/failure coverage: passed, 1 test file / 6 tests.
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - RED result before implementation: failed because the same live event object could be queued twice during replay handoff.
+  - GREEN result after adding reference-level queue de-duplication: passed, 1 test file / 3 tests.
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - Result: passed, 4 test files / 19 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Direct live output is acknowledged after `onOutput`.
+- Pending live output drained during replay handoff is acknowledged after delivery.
+- Remote unsupported history still allows later live output and that live output is acknowledged.
+- Replayed history output is not acknowledged as live terminal consumption.
+- Ack failures are caught and logged so rendering is not blocked.
+- The replay-aware live-event queue ignores the same event object when it arrives through both listener and pending-drain handoff paths.
+
+Remaining risk:
+
+- Ack uses the existing `charCount` contract and `data.length`; a byte-count protocol would need a separate frontend/backend contract.
+- Core terminal `GetHistoryResponse` still does not include `historyStatus/historySource`; desktop/Web UI boundaries already do.

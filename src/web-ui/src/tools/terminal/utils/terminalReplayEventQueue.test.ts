@@ -35,4 +35,20 @@ describe('createReplayAwareTerminalEventHandler', () => {
       { type: 'output', sessionId: 'session-1', data: 'live-2' },
     ]);
   });
+
+  it('does not queue the same live event object twice during replay handoff', () => {
+    const received: TerminalEvent[] = [];
+    const replayAwareHandler = createReplayAwareTerminalEventHandler((event) => {
+      received.push(event);
+    });
+    const liveEvent: TerminalEvent = { type: 'output', sessionId: 'session-1', data: 'live-1' };
+
+    replayAwareHandler.handleEvent(liveEvent);
+    replayAwareHandler.handleEvent(liveEvent);
+    replayAwareHandler.finishReplay();
+
+    expect(received).toEqual([
+      { type: 'output', sessionId: 'session-1', data: 'live-1' },
+    ]);
+  });
 });

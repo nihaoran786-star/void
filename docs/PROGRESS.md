@@ -4829,15 +4829,18 @@ Remaining risk:
 
 ## ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
 
-Status: Active
+Status: Done
 
 Completed in this slice:
 
 - Ran parallel read-only subagent review for backend terminal lifecycle/history and frontend terminal ack/replay ordering.
-- Confirmed frontend `TerminalService.acknowledge()` exists but is not called by output consumption paths; ack integration remains deferred rather than silently assumed.
+- Connected frontend live-output consumption to `TerminalService.acknowledge()` at the `useTerminal` hook boundary.
+- Confirmed desktop/Web UI history responses already distinguish local empty history (`ready/local`) from remote unsupported history (`unsupported/remote`); core terminal `GetHistoryResponse` does not yet carry that status/source contract.
 - Added [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover structured history replay before live output queued during replay.
+- Extended [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover direct live output ack, pending-live ack, unsupported-history live ack, history-only no-ack, and ack failure not blocking output delivery.
+- Added replay-aware queue coverage and reference-level duplicate guard for live events that can enter through both listener and pending-drain handoff paths.
 - Added `natural_child_completion_emits_exit_event` in [process.rs](D:/codex/void-source/src/crates/terminal/src/pty/process.rs) and fixed natural child completion so `pty/process.rs` emits `PtyEvent::Exit` without explicit shutdown.
-- Updated architecture and decision docs to keep replay/live ordering owned by the `useTerminal` hook boundary.
+- Updated architecture and decision docs to keep replay/live ordering and frontend ack owned by the `useTerminal` hook boundary.
 
 Verification:
 
@@ -4849,14 +4852,14 @@ Verification:
 - `rustfmt --edition 2021 --check src/crates/terminal/src/pty/process.rs`
   - Result: passed.
 - `pnpm --dir src/web-ui run test:run src/tools/terminal/hooks/useTerminal.test.tsx src/tools/terminal/services/TerminalService.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
-  - Result: passed, 4 test files / 13 tests.
+  - Result: passed, 4 test files / 19 tests.
 - `pnpm --dir src/web-ui run type-check`
-  - Result: passed in the frontend replay-ordering slice.
+  - Result: passed.
 
 Remaining risk:
 
-- Remote `terminal_get_history` empty events still lack explicit `status/source` distinction from local empty history.
-- Backend `terminal_ack` flow-control semantics remain unconnected to frontend output consumption.
+- Core terminal `GetHistoryResponse` still lacks explicit `historyStatus/historySource`; desktop/Web UI adapters already expose those fields.
+- Ack uses the existing `charCount` contract with JavaScript string length; byte-count semantics remain a future backend/frontend contract decision.
 - EOF-triggered immediate shutdown uses the existing command task; a future hardening slice can cover platforms where PTY EOF appears before the child is reapable or races with explicit shutdown.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.
 

@@ -5,10 +5,15 @@ export function createReplayAwareTerminalEventHandler(
 ) {
   let replaying = true;
   const queuedEvents: TerminalEvent[] = [];
+  const queuedEventRefs = new WeakSet<TerminalEvent>();
 
   return {
     handleEvent(event: TerminalEvent) {
       if (replaying) {
+        if (queuedEventRefs.has(event)) {
+          return;
+        }
+        queuedEventRefs.add(event);
         queuedEvents.push(event);
         return;
       }

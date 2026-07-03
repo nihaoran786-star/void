@@ -660,6 +660,7 @@ The current upstream reference is `upstream-bitfun/main@4da7ae5d8`. Upstream is 
 
 - Flow Chat changes must pass through `FlowChatStore`, `FlowChatManager`, `BtwThreadService`, or existing pure view helpers.
 - Terminal changes must pass through terminal service/core DTOs and preserve flat-history compatibility unless a dedicated issue changes the contract.
+- Web terminal output flow-control acknowledgements belong at the `useTerminal` live-output consumption boundary. `TerminalService` owns the `terminal_ack` adapter call; transport event normalization and xterm rendering components must not infer or duplicate backend ack policy.
 - Computer Use changes must pass through `ComputerUseHost` or platform adapter modules, with explicit unsupported/error results.
 - Image understanding changes must pass through the existing `AnalyzeImage` tool contract and workspace-scoped image resolution.
 - AI short-drama image-understanding bridge work must stay in `src/web-ui/src/shared/services/short-drama`. `resolveShortDramaImageUnderstandingReference` may expose only low-context `ShortDramaProject` coordinates and prompt summary fields, while `createShortDramaImageContextForArtifact` is the explicit conversion boundary for analyzable local/relative image paths. UI, Main AI awareness export, generic `AnalyzeImage`, provider adapters, and media services must not infer short-drama media source details.

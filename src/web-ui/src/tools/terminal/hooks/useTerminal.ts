@@ -91,7 +91,15 @@ export function useTerminal(options: UseTerminalOptions): UseTerminalReturn {
 
     switch (event.type) {
       case 'output':
-        onOutputRef.current?.((event as any).data);
+        {
+          const data = (event as any).data;
+          onOutputRef.current?.(data);
+          if (typeof data === 'string' && data.length > 0) {
+            serviceRef.current.acknowledge(sessionId, data.length).catch((ackError) => {
+              log.warn('Failed to acknowledge terminal output consumption', { sessionId, error: ackError });
+            });
+          }
+        }
         break;
       case 'ready':
         onReadyRef.current?.();
