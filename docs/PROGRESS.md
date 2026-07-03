@@ -70,23 +70,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150C3 remote MCP method timeout coverage complete.
 - [x] ISSUE-1130D1 Windows settings link decision table complete.
 - [x] ISSUE-1130D Windows Computer Use capability gating/settings parent complete.
+- [x] ISSUE-1130C1 Windows pointer coordinate contract tests complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1130D Windows Computer Use Capability Gating and Settings Links`
+Issue: `ISSUE-1130C1 Windows Pointer Coordinate Contract Tests`
 
 Summary:
 
-- Closed the parent `ISSUE-1130D` after verifying both acceptance surfaces.
-- Settings links are covered by `ISSUE-1130D1`: `screen_capture` maps to the documented Graphics Capture privacy URI, while Windows `accessibility` and unknown panes return stable unsupported facts.
-- Existing Windows visual-grid contracts already keep `app_click` VisualGrid targets explicitly unsupported with `[WINDOWS_VISUAL_GRID_UNSUPPORTED]` and fallback guidance to visual marks or explicit image-coordinate targets.
-- No runtime code changed in this parent closeout; no Web UI, Computer Use schema, desktop host, WGC/HWND/input adapter, Flow Chat, AI media, AI short-drama, terminal, provider, or crate-layout change was made.
+- Added focused host tests for existing Windows pointer coordinate contracts without changing production behavior.
+- Verified explicit `screenshot_id` maps win over pid fallback maps in `map_app_image_coords_to_pointer_f64`.
+- Verified `PointerMap::map_image_to_global_f64` preserves subpixel center math across negative display origins and content/crop offsets.
+- Verified missing app/screenshot/global pointer basis fails explicitly with guidance to use a returned `screenshot_id`.
+- Kept parent `ISSUE-1130C` open because real Windows DPI scaling, mixed-scale multi-monitor, foreground/occlusion, and UIPI/high-integrity behavior still require manual smoke.
 
 Verification:
 
-- `cargo test -p void-desktop computer_use_api --lib -- --nocapture` passed.
-- `cargo test -p void-desktop windows_visual_grid --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture` passed.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture` passed.
+- `cargo check -p void-desktop` passed with the existing unrelated `parse_clipboard_path_segments` dead-code warning.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs` passed.
 - `node scripts/check-core-boundaries.mjs` passed.
+- `git diff --check` passed with only Git line-ending warnings.
 
 ## Subagent Summary
 

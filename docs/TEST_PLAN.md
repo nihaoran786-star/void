@@ -66,6 +66,49 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1130C1 Windows Pointer Coordinate Contract Tests
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/computer_use/desktop_host.rs` tests only.
+- Locks existing pointer coordinate behavior for explicit `screenshot_id` map precedence, negative-origin/content-offset subpixel math, and missing pointer-map failure.
+- No production coordinate behavior, Windows input primitive, Computer Use schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, macOS, or Linux behavior changed.
+
+Checks:
+
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed.
+  - Notes: both new app-image coordinate tests passed immediately because existing production behavior already prefers explicit `screenshot_id` maps and fails explicitly when no pointer basis exists.
+- `cargo test -p void-desktop windows_pointer_map_handles_negative_origin --lib -- --nocapture`
+  - Result: passed.
+  - Notes: verifies existing `PointerMap::map_image_to_global_f64` center-pixel math across negative display origin and content/crop offset inputs.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed.
+  - Notes: existing host action tests still preserve blocked-input fail-closed and uncertain-delivery warning behavior.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture`
+  - Result: passed.
+  - Notes: 10 Windows background input primitive tests passed.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: existing unrelated `parse_clipboard_path_segments` dead-code warning remains.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed.
+  - Notes: Git printed line-ending warnings only.
+
+Remaining manual matrix for parent `ISSUE-1130C`:
+
+- Windows DPI scaling hit-test smoke at 100%, 125%, and 150%.
+- Mixed-scale multi-monitor smoke, including a secondary display with negative origin.
+- Foreground and occluded target windows for click/type/scroll delivery.
+- UIPI/high-integrity target denial path and warning/status visibility.
+- DWM/PrintWindow/BitBlt/WGC coordinate consistency on real windows.
+
 ## ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Date: 2026-07-03

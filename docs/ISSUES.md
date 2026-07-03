@@ -1769,6 +1769,22 @@ Acceptance:
 - Image coordinate mappings cover DWM crop origin offsets, negative monitor coordinates, explicit `screenshot_id`, and missing pointer-map failure.
 Risk notes: Pointer behavior must be tested on Windows with real DPI/display conditions; jsdom or non-Windows Rust tests cannot prove it.
 
+### ISSUE-1130C1 Windows Pointer Coordinate Contract Tests
+
+Priority: P1
+Status: Done
+Goal: Lock the already-present Windows pointer coordinate contract with focused host tests while leaving real DPI, multi-monitor, foreground/occlusion, and UIPI proof to `ISSUE-1130C`.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, docs.
+Forbidden files: production coordinate behavior, Windows input primitives, Computer Use schema, Web UI, Flow Chat, AI media, AI short-drama, terminal, macOS/Linux behavior.
+Acceptance:
+- Explicit `screenshot_id` pointer maps win over pid fallback maps for app image coordinate conversion.
+- Pointer map math covers negative display origins plus content/crop offsets using subpixel center coordinates.
+- Missing app/screenshot/global pointer basis fails explicitly instead of silently using an empty state.
+Result:
+- Added focused host tests for explicit screenshot-id map precedence, negative-origin/content-offset math, and missing pointer-map failure.
+- Confirmed existing production behavior already satisfies this contract; no production code was changed.
+- Kept `ISSUE-1130C` open because Windows DPI scaling, mixed-scale multi-monitor layouts, foreground/occluded targets, and UIPI/high-integrity denial still need real Windows smoke.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

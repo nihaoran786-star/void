@@ -3755,6 +3755,92 @@ mod windows_host_app_action_tests {
     }
 
     #[test]
+    fn windows_app_image_coordinate_maps_prefer_explicit_screenshot_id() {
+        let host = DesktopComputerUseHost::new();
+        let pid = 9191;
+        let app_map = PointerMap {
+            image_w: 10,
+            image_h: 10,
+            content_origin_x: 0,
+            content_origin_y: 0,
+            content_w: 10,
+            content_h: 10,
+            native_w: 10,
+            native_h: 10,
+            origin_x: 100,
+            origin_y: 200,
+        };
+        let explicit_map = PointerMap {
+            image_w: 10,
+            image_h: 10,
+            content_origin_x: 0,
+            content_origin_y: 0,
+            content_w: 10,
+            content_h: 10,
+            native_w: 10,
+            native_h: 10,
+            origin_x: -300,
+            origin_y: 40,
+        };
+        {
+            let mut state = host.state.lock().expect("state lock");
+            state.app_pointer_maps.insert(pid, app_map);
+            state
+                .screenshot_pointer_maps
+                .insert("explicit-shot".to_string(), explicit_map);
+        }
+
+        assert_eq!(
+            host.map_app_image_coords_to_pointer_f64(pid, 0, 0, Some("explicit-shot"))
+                .expect("explicit screenshot map"),
+            (-299.5, 40.5)
+        );
+        assert_eq!(
+            host.map_app_image_coords_to_pointer_f64(pid, 0, 0, None)
+                .expect("pid fallback map"),
+            (100.5, 200.5)
+        );
+    }
+
+    #[test]
+    fn windows_pointer_map_handles_negative_origin_and_content_offsets() {
+        let map = PointerMap {
+            image_w: 100,
+            image_h: 80,
+            content_origin_x: 10,
+            content_origin_y: 20,
+            content_w: 40,
+            content_h: 20,
+            native_w: 80,
+            native_h: 40,
+            origin_x: -500,
+            origin_y: 75,
+        };
+
+        assert_eq!(
+            map.map_image_to_global_f64(10, 20)
+                .expect("top-left content pixel"),
+            (-499.0, 76.0)
+        );
+        assert_eq!(
+            map.map_image_to_global_f64(49, 39)
+                .expect("bottom-right content pixel"),
+            (-421.0, 114.0)
+        );
+    }
+
+    #[test]
+    fn windows_app_image_coordinate_mapping_requires_pointer_basis() {
+        let host = DesktopComputerUseHost::new();
+        let error = host
+            .map_app_image_coords_to_pointer_f64(9292, 0, 0, Some("missing-shot"))
+            .expect_err("missing pointer basis should fail");
+
+        assert!(error.to_string().contains("No screenshot coordinate map"));
+        assert!(error.to_string().contains("screenshot_id"));
+    }
+
+    #[test]
     fn windows_interactive_view_enablement_resolver_reports_missing_stale_and_range() {
         let host = DesktopComputerUseHost::new();
         let pid = 5151;
