@@ -1971,7 +1971,7 @@ Risk notes: Do not apply initialize-only timeout semantics blindly to every requ
 ### ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Make readonly/tool-provider metadata expectations explicit for product tools and dynamic MCP tools without changing model-facing schema prematurely.
 Allowed files: `void-agent-tools` contract tests, `void-core` registry/product runtime tests, `void-tool-packs` tests/docs.
 Forbidden files: concrete tool implementations, Web UI, MCP manager lifecycle, provider adapters, media/short-drama services.
@@ -1981,6 +1981,13 @@ Acceptance:
 - Current image/media readonly tools use Void names (`AnalyzeImage`, `GetMediaTaskStatus`) rather than upstream names.
 - Any duplicate `GetToolSpec` allowed-list behavior is documented as current contract or split into a separate fix.
 Risk notes: `readOnlyHint` from MCP servers is not by itself a complete safety policy for destructive/open-world tools.
+Progress:
+- Added a focused `void-agent-tools` registry snapshot test covering readonly+enabled filtering, disabled-readonly exclusion, explicit MCP `providerKind`, `serverId`, `serverName`, and `toolName` metadata, and current `DynamicToolDescriptor` providerId-only compatibility.
+- Preserved the current runtime-port descriptor shape; richer MCP subtype metadata stays behind `get_dynamic_tool_info` instead of being added to `DynamicToolDescriptor` or model-facing tool schemas.
+- Existing core/tool-pack tests already cover builtin readonly manifest ordering, `AnalyzeImage` / `GetMediaTaskStatus` Void names, dynamic provider metadata, and provider group ordering.
+- No concrete tools, Web UI, MCP manager lifecycle, provider adapters, media services, short-drama services, runtime DTOs, or crate layout were changed.
+- Verification: `cargo test -p void-agent-tools registry_snapshot_preserves_readonly_enabled_and_dynamic_mcp_metadata --test tool_contracts -- --nocapture` passed. Additional verification is recorded in `docs/TEST_PLAN.md`.
+- Deferred: any future descriptor/schema expansion for MCP subtype metadata requires a separate compatibility issue.
 
 ### ISSUE-1150E Tool Approval and Rejection Typed Outcomes
 

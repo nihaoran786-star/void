@@ -5187,3 +5187,40 @@ Deferred:
 - Backend stream echo/display metadata for BTW image follow-up remains separate from delivery.
 - Deeper Rust-side BTW image consumption checks remain future validation work.
 - Provider support remains owned by the existing backend image pipeline; UI must not add provider/path/model capability inference.
+
+## ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
+
+Scope:
+
+- Current slice covers `void-agent-tools` registry snapshot contract tests and docs for readonly/tool-provider metadata.
+- No concrete tool implementation, Web UI, MCP manager lifecycle, provider adapter, media service, short-drama service, runtime DTO shape, model-facing schema, or crate layout was changed.
+
+Executed:
+
+- `cargo test -p void-agent-tools registry_snapshot_preserves_readonly_enabled_and_dynamic_mcp_metadata --test tool_contracts -- --nocapture`
+  - Result: passed, 1 focused test.
+- `cargo test -p void-runtime-ports dynamic_tool_descriptor`
+  - Result: passed, 2 tests.
+- `cargo test -p void-core dynamic_tool_provider`
+  - Result: passed, 3 matching core tests plus 0-test filtered integration binaries.
+- `cargo test -p void-core registry_preserves_readonly_tool_manifest_for_owner_migration`
+  - Result: passed, 1 matching core test plus 0-test filtered integration binaries.
+- `cargo test -p void-tool-packs`
+  - Result: passed, 6 tests and doc-tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src/crates/agent-tools/tests/tool_contracts.rs`
+  - Result: passed after formatting the focused test file.
+
+Coverage:
+
+- Registry snapshots expose readonly-enabled tools only when `is_readonly() && is_enabled()` are both true.
+- Disabled readonly tools are excluded from readonly-enabled output.
+- Explicit MCP dynamic metadata preserves `providerId`, `providerKind`, `serverId`, `serverName`, and `toolName` at the registry metadata boundary.
+- `DynamicToolDescriptor` remains the current compatibility shape and exposes only optional `providerId`; richer MCP subtype metadata stays behind `get_dynamic_tool_info`.
+- Existing core/tool-pack tests continue to cover builtin readonly manifest ordering, dynamic provider metadata, Void image/media tool names, provider group ordering, and `GetToolSpec` duplicate-load behavior.
+
+Deferred:
+
+- Expanding `DynamicToolDescriptor` or model-facing schemas with MCP subtype metadata requires a separate compatibility issue and broader tests.
+- `readOnlyHint` from MCP servers remains metadata, not a complete destructive-action safety policy.

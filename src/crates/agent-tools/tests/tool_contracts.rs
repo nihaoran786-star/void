@@ -1,15 +1,18 @@
+use serde_json::json;
+use std::path::PathBuf;
+use std::sync::Arc;
 use void_agent_tools::{
-    build_void_runtime_uri, build_collapsed_tool_stub_definition,
-    build_get_tool_spec_assistant_detail, build_get_tool_spec_catalog_description,
-    build_get_tool_spec_catalog_description_from_provider,
+    build_collapsed_tool_stub_definition, build_get_tool_spec_assistant_detail,
+    build_get_tool_spec_catalog_description, build_get_tool_spec_catalog_description_from_provider,
     build_get_tool_spec_collapsed_tool_entry, build_get_tool_spec_description,
     build_get_tool_spec_detail_result, build_get_tool_spec_duplicate_load_hint,
     build_get_tool_spec_duplicate_load_result, build_prompt_visible_tool_manifest_definitions,
     build_tool_path_policy_denial_message, build_tool_runtime_artifact_reference,
-    build_tool_session_runtime_artifact_reference, collect_loaded_collapsed_tool_names,
-    get_tool_spec_input_schema, get_tool_spec_is_concurrency_safe, get_tool_spec_is_readonly,
-    get_tool_spec_needs_permissions, get_tool_spec_short_description, is_void_runtime_uri,
-    is_remote_posix_path_within_root, is_tool_path_allowed_by_resolved_roots, normalize_host_path,
+    build_tool_session_runtime_artifact_reference, build_void_runtime_uri,
+    collect_loaded_collapsed_tool_names, get_tool_spec_input_schema,
+    get_tool_spec_is_concurrency_safe, get_tool_spec_is_readonly, get_tool_spec_needs_permissions,
+    get_tool_spec_short_description, is_remote_posix_path_within_root,
+    is_tool_path_allowed_by_resolved_roots, is_void_runtime_uri, normalize_host_path,
     normalize_runtime_relative_path, parse_void_runtime_uri, posix_resolve_path_with_workspace,
     posix_style_path_is_absolute, render_get_tool_spec_tool_use_message,
     resolve_contextual_tool_manifest, resolve_contextual_tool_manifest_from_provider,
@@ -49,9 +52,6 @@ use void_agent_tools::{
     StaticToolProviderGroup, ToolCatalogRuntime, ToolCatalogSnapshotProvider, ToolDecorator,
     ToolDecoratorRef, ToolRegistry, ToolRegistryItem, ToolRuntimeAssembly,
 };
-use serde_json::json;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 #[test]
 fn validation_result_default_preserves_success_contract() {
@@ -748,10 +748,7 @@ fn runtime_artifact_reference_owner_preserves_remote_uri_shape() {
     )
     .expect("remote artifact reference should build as runtime URI");
 
-    assert_eq!(
-        reference,
-        "void://runtime/workspace-123/plans/demo.plan.md"
-    );
+    assert_eq!(reference, "void://runtime/workspace-123/plans/demo.plan.md");
 }
 
 #[test]
@@ -1423,6 +1420,8 @@ fn get_tool_spec_contract_rejects_missing_tool_name_in_execution_plan() {
 struct RegistryMarkerTool {
     name: String,
     provider_id: Option<String>,
+    provider_kind: Option<String>,
+    mcp: Option<DynamicMcpToolInfo>,
     exposure: ToolExposure,
     readonly: bool,
     enabled: bool,
@@ -1463,8 +1462,8 @@ impl ToolRegistryItem for RegistryMarkerTool {
             .as_ref()
             .map(|provider_id| DynamicToolInfo {
                 provider_id: provider_id.clone(),
-                provider_kind: None,
-                mcp: None,
+                provider_kind: self.provider_kind.clone(),
+                mcp: self.mcp.clone(),
             })
     }
 }
@@ -1555,6 +1554,32 @@ fn registry_marker_tool_with_access(
     Arc::new(RegistryMarkerTool {
         name: name.to_string(),
         provider_id: provider_id.map(str::to_string),
+        provider_kind: None,
+        mcp: None,
+        exposure,
+        readonly,
+        enabled,
+    })
+}
+
+fn registry_marker_mcp_tool(
+    name: &str,
+    server_id: &str,
+    server_name: &str,
+    tool_name: &str,
+    exposure: ToolExposure,
+    readonly: bool,
+    enabled: bool,
+) -> Arc<RegistryMarkerTool> {
+    Arc::new(RegistryMarkerTool {
+        name: name.to_string(),
+        provider_id: Some(server_id.to_string()),
+        provider_kind: Some("mcp".to_string()),
+        mcp: Some(DynamicMcpToolInfo {
+            server_id: server_id.to_string(),
+            server_name: server_name.to_string(),
+            tool_name: tool_name.to_string(),
+        }),
         exposure,
         readonly,
         enabled,
@@ -1684,6 +1709,8 @@ impl ToolDecorator<Arc<RegistryMarkerTool>> for RegistryMarkerDecorator {
         Arc::new(RegistryMarkerTool {
             name: format!("decorated_{}", tool.name),
             provider_id: tool.provider_id.clone(),
+            provider_kind: tool.provider_kind.clone(),
+            mcp: tool.mcp.clone(),
             exposure: tool.exposure,
             readonly: tool.readonly,
             enabled: tool.enabled,
@@ -1698,6 +1725,8 @@ impl void_agent_tools::SnapshotToolWrapper<RegistryMarkerTool> for RegistryMarke
         Arc::new(RegistryMarkerTool {
             name: format!("snapshot_{}", tool.name),
             provider_id: tool.provider_id.clone(),
+            provider_kind: tool.provider_kind.clone(),
+            mcp: tool.mcp.clone(),
             exposure: tool.exposure,
             readonly: tool.readonly,
             enabled: tool.enabled,
@@ -1842,6 +1871,77 @@ async fn generic_readonly_enabled_filter_preserves_registry_order() {
         readonly_names,
         vec!["Read".to_string(), "WebFetch".to_string()],
         "readonly filtering must keep registry order and skip disabled or mutating tools"
+    );
+}
+
+#[tokio::test]
+async fn registry_snapshot_preserves_readonly_enabled_and_dynamic_mcp_metadata() {
+    let mut registry = ToolRegistry::new();
+    registry.register_tool(registry_marker_tool_with_access(
+        "Read",
+        None,
+        ToolExposure::Expanded,
+        true,
+        true,
+    ));
+    registry.register_tool(registry_marker_tool_with_access(
+        "Write",
+        None,
+        ToolExposure::Expanded,
+        false,
+        true,
+    ));
+    registry.register_tool(registry_marker_tool_with_access(
+        "DisabledReadonly",
+        None,
+        ToolExposure::Expanded,
+        true,
+        false,
+    ));
+    registry.register_tool(registry_marker_mcp_tool(
+        "mcp__github__search_repos",
+        "github-server-id",
+        "GitHub",
+        "search_repos",
+        ToolExposure::Collapsed,
+        true,
+        true,
+    ));
+
+    let readonly_names = resolve_readonly_enabled_tools(&registry.get_all_tools())
+        .await
+        .iter()
+        .map(|tool| tool.name().to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        readonly_names,
+        vec![
+            "Read".to_string(),
+            "mcp__github__search_repos".to_string()
+        ],
+        "registry snapshot must preserve readonly + enabled filtering order without treating disabled readonly tools as exposed"
+    );
+
+    let mcp_info = registry
+        .get_dynamic_tool_info("mcp__github__search_repos")
+        .expect("MCP dynamic metadata");
+    assert_eq!(mcp_info.provider_id, "github-server-id");
+    assert_eq!(mcp_info.provider_kind.as_deref(), Some("mcp"));
+    let mcp = mcp_info.mcp.expect("MCP subtype metadata");
+    assert_eq!(mcp.server_id, "github-server-id");
+    assert_eq!(mcp.server_name, "GitHub");
+    assert_eq!(mcp.tool_name, "search_repos");
+
+    let descriptors = registry
+        .list_dynamic_tools()
+        .await
+        .expect("dynamic descriptors");
+    assert_eq!(descriptors.len(), 1);
+    assert_eq!(descriptors[0].name, "mcp__github__search_repos");
+    assert_eq!(
+        descriptors[0].provider_id.as_deref(),
+        Some("github-server-id"),
+        "current dynamic descriptor wire shape exposes providerId only; richer MCP subtype metadata stays behind get_dynamic_tool_info"
     );
 }
 

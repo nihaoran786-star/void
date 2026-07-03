@@ -64,24 +64,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130A Windows WGC capture adapter wiring complete.
 - [x] ISSUE-1130B1 Windows input action HWND revalidation slice complete.
 - [x] ISSUE-1140B BTW child-session image follow-up slice complete.
+- [x] ISSUE-1150D readonly manifest and dynamic provider metadata contract slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140B BTW Child-Session Image Context Completion`
+Issue: `ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract`
 
 Summary:
 
-- Completed the transient `/btw` child-session image follow-up path by removing the service-layer rejection and forwarding existing composer image contexts as an explicit `imagePayload`.
-- Kept `BtwThreadService` as the only transient BTW `btwAPI.askStream` conversion layer.
-- Preserved `ChatInput.tsx`, `BtwSessionPanel.tsx`, provider adapters, media services, short-drama services, core image-analysis runtime, and image-byte loading behavior.
+- Added a `void-agent-tools` registry snapshot contract test that covers readonly+enabled filtering, disabled-readonly exclusion, explicit MCP provider subtype metadata, and current dynamic descriptor compatibility.
+- Documented the metadata split: `DynamicToolDescriptor` remains providerId-only, while `DynamicToolInfo` owns providerKind and MCP server/tool metadata.
+- Preserved concrete tools, Web UI, MCP manager lifecycle, provider adapters, media services, short-drama services, runtime DTO shape, and crate layout.
 
 Verification:
 
-- RED: `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts` failed before implementation on the existing transient BTW image rejection.
-- GREEN: `pnpm --dir src/web-ui run test:run src/flow_chat/services/flow-chat-manager/MessageModule.test.ts src/flow_chat/services/BtwThreadService.test.ts src/flow_chat/utils/imageContextForBackend.test.ts` passed with 3 files / 10 tests.
-- `pnpm --dir src/web-ui run test:run src/flow_chat/components/btw/BtwSessionPanel.review-action.test.tsx` passed with 1 file / 21 tests.
-- `pnpm --dir src/web-ui run type-check` passed.
-- Backend stream echo/display metadata and deeper Rust-side BTW image consumption remain deferred validation work.
+- `cargo test -p void-agent-tools registry_snapshot_preserves_readonly_enabled_and_dynamic_mcp_metadata --test tool_contracts -- --nocapture` passed.
+- `cargo test -p void-runtime-ports dynamic_tool_descriptor` passed with 2 tests.
+- `cargo test -p void-core dynamic_tool_provider` passed with 3 tests.
+- `cargo test -p void-core registry_preserves_readonly_tool_manifest_for_owner_migration` passed with 1 matching core test plus 0-test filtered integration binaries.
+- `cargo test -p void-tool-packs` passed with 6 tests and doc-tests.
+- `node scripts/check-core-boundaries.mjs` passed.
 
 ## Subagent Summary
 
