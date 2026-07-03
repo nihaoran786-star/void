@@ -4076,6 +4076,46 @@ Coverage:
 Deferred:
 
 - Additional structured/resource/mixed MCP metadata permutations can be added under `ISSUE-1150A` follow-up only if a current regression appears; raw MCP result data still carries `_meta` for consumers.
+
+## ISSUE-1150B MCP Elicitation Legacy Compatibility
+
+Scope:
+
+- Current slice covers the remote MCP client-info capability helper and its protocol contract tests.
+- No Streamable HTTP routing, legacy SSE implementation, local stdio initialize JSON, MCP manager lifecycle, Web UI, provider adapter, AI media, or AI short-drama code was changed.
+
+Executed:
+
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_remote_client_info_declares_supported_client_capabilities -- --nocapture`
+  - Result before implementation: failed because `schema_validation` was `Some(true)` instead of `None`.
+  - Result after implementation: passed, 1 test.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_protocol_request_builders_preserve_wire_shape -- --nocapture`
+  - Result: passed, 1 test.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts -- --nocapture`
+  - Result: passed, 33 tests.
+- `cargo test -p void-core remote_mcp_streamable_http_accepts_post_sse_and_maps_tool_metadata --test remote_mcp_streamable_http -- --nocapture`
+  - Result: passed, 1 test.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/protocol/client_info.rs src/crates/services-integrations/tests/mcp_contracts.rs`
+  - Initial result: failed on import ordering in `mcp_contracts.rs`.
+  - Result after `rustfmt --edition 2021 src/crates/services-integrations/src/mcp/protocol/client_info.rs src/crates/services-integrations/tests/mcp_contracts.rs`: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `cargo check -p void-services-integrations --features mcp`
+  - Result: passed.
+- `git diff --check`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- Remote MCP client info still declares roots, sampling, and elicitation capabilities.
+- Elicitation serializes as `{}` and does not emit `schemaValidation`.
+- Local protocol request builder wire shape remains unchanged.
+- Remote POST-SSE metadata mapping remains intact without transport routing changes.
+
+Deferred:
+
+- Actual elicitation schema validation remains unimplemented and must not be advertised until a future issue adds behavior and tests.
+- Legacy SSE runtime support and local stdio initialize behavior remain separate issues.
 - `ISSUE-1160`:
   - `git show --name-status --stat --oneline 082cee447 cae512b9f 958a06095 797c94ad1 50d33d506 4e8c9c897 --`
     - Result: passed; identified upstream near-color governance, runtime token contract, visual governance contract, broad token/color compression, widget payload compatibility, and SCSS token migration scopes.

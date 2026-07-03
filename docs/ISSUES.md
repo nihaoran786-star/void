@@ -1902,7 +1902,7 @@ Progress:
 ### ISSUE-1150B MCP Elicitation Legacy Compatibility
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Match upstream legacy MCP elicitation compatibility by avoiding unsupported schema-validation capability claims.
 Allowed files: `src/crates/services-integrations/src/mcp/protocol/client_info.rs`, `src/crates/services-integrations/tests/mcp_contracts.rs`, docs.
 Forbidden files: MCP manager lifecycle migration, desktop UI, Flow Chat, provider adapters, media/short-drama services.
@@ -1911,6 +1911,10 @@ Acceptance:
 - Existing roots/sampling/elicitation capability tests are updated with explicit expected JSON.
 - Remote POST-SSE tests continue to pass without changing transport routing.
 Risk notes: Keep Streamable HTTP, legacy SSE, and local stdio transport semantics separate.
+Progress:
+- Replaced the explicit `schema_validation: Some(true)` elicitation claim with the base `enable_elicitation()` capability used by upstream.
+- Updated the MCP client-info contract test to require roots, sampling, and elicitation while serializing elicitation as `{}` with no `schemaValidation`.
+- Verified remote POST-SSE behavior without changing Streamable HTTP, legacy SSE, local stdio, MCP manager lifecycle, UI, provider, media, or short-drama code.
 
 ### ISSUE-1150C MCP Request Timeout Contract
 

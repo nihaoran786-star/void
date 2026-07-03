@@ -1,8 +1,6 @@
 //! MCP client identity and capability helper contracts.
 
-use rmcp::model::{
-    ClientCapabilities, ClientInfo, ElicitationCapability, Implementation, ProtocolVersion,
-};
+use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProtocolVersion};
 
 pub fn create_mcp_client_info(
     client_name: impl Into<String>,
@@ -13,9 +11,7 @@ pub fn create_mcp_client_info(
         capabilities: ClientCapabilities::builder()
             .enable_roots()
             .enable_sampling()
-            .enable_elicitation_with(ElicitationCapability {
-                schema_validation: Some(true),
-            })
+            .enable_elicitation()
             .build(),
         client_info: Implementation {
             name: client_name.into(),

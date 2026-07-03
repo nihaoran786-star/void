@@ -493,3 +493,9 @@ Reason: Normal dialog turns and `/btw` share this desktop conversion helper, so 
 Decision: `ISSUE-1150A` keeps MCP dynamic tool output persistence owned by core `tool_result_storage`. The MCP adapter now uses an unbounded storage render path for `ToolResult.result_for_assistant` created by `call_impl`, so large MCP text can be evaluated and persisted by the shared oversized-result policy. The existing bounded 12k renderer remains for regular MCP result messages.
 
 Reason: Truncating MCP assistant-visible text in the adapter hides the full content from the central storage policy and can cause persisted tool output to contain only the adapter preview. The adapter should translate MCP content into a complete `ToolResult`; preview, reference, and filesystem artifact decisions belong to `tool_result_storage` and `ToolUseContext`. This avoids Web UI, Flow Chat, provider, AI media, AI short-drama, review, multi-agent, and crate owner changes.
+
+## DEC-083: MCP Elicitation Must Not Claim Schema Validation Until Implemented
+
+Decision: `ISSUE-1150B` keeps remote MCP client elicitation support enabled but removes the explicit `schemaValidation: true` claim from `create_mcp_client_info`. The client capability contract is now roots `{}`, sampling `{}`, and elicitation `{}`. Schema validation can be advertised only after a future issue implements and tests the actual validation behavior.
+
+Reason: Upstream enables legacy-compatible elicitation without claiming schema validation. Advertising unsupported schema validation can make older or stricter MCP servers assume behavior Void does not provide. This decision is limited to the client-info protocol helper and contract tests; Streamable HTTP routing, legacy SSE support, local stdio initialize JSON, MCP manager lifecycle, Web UI, provider adapters, AI media, and AI short-drama are unchanged.

@@ -41,28 +41,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140C media image-reference local path guard slice complete.
 - [x] ISSUE-1140C desktop image payload cache resolution coverage complete.
 - [x] ISSUE-1150A MCP large-output storage alignment complete.
+- [x] ISSUE-1150B MCP elicitation legacy compatibility complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150A MCP Large Output Storage Alignment`
+Issue: `ISSUE-1150B MCP Elicitation Legacy Compatibility`
 
 Summary:
 
-- Changed the MCP adapter's storage path so large MCP assistant-visible text is not pre-truncated at the old 12k adapter limit before shared oversized-result storage can decide persistence.
-- Kept ordinary MCP result-message rendering bounded by the existing 12k renderer, so debug/UI-facing messages do not become unbounded.
-- Added storage coverage proving a large MCP-style result is persisted with the full tail content.
-- Did not touch Web UI tool cards, Flow Chat runtime/store, provider adapters, AI media, AI short-drama, review/multi-agent policy, crate features, or MCP owner migration.
+- Changed the remote MCP client-info helper to enable elicitation without advertising unsupported `schemaValidation`.
+- Updated the capability contract test to require roots, sampling, and elicitation while serializing elicitation as `{}`.
+- Preserved local initialize request wire shape and remote POST-SSE behavior.
+- Did not touch Streamable HTTP routing, legacy SSE runtime support, local stdio initialize code, MCP manager lifecycle, Web UI, provider adapters, AI media, or AI short-drama.
 
 Verification:
 
-- `cargo test -p void-core mcp_storage_render_preserves_large_text_for_shared_budget_policy --lib -- --nocapture` passed with 1 test.
-- `cargo test -p void-core mcp_large_result_persists_full_assistant_text --lib -- --nocapture` passed with 1 test.
-- `cargo test -p void-core tool_result_storage --lib -- --nocapture` passed with 7 tests.
-- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_dynamic_tool_provider_preserves_manifest_contract -- --nocapture` passed with 1 test.
-- `node scripts/check-core-boundaries.mjs` passed after changing the core adapter test to build MCP result data through JSON deserialization instead of directly constructing content enums.
-- `cargo check -p void-core --features product-full` passed.
-- `rustfmt --edition 2021 --check src/crates/core/src/service/mcp/adapter/tool.rs src/crates/core/src/agentic/tools/tool_result_storage.rs` passed after formatting.
-- `git diff --check` passed.
+- RED: `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_remote_client_info_declares_supported_client_capabilities -- --nocapture` failed before implementation because `schema_validation` was `Some(true)`.
+- GREEN: the same command passed with 1 test after switching to `enable_elicitation()`.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts mcp_protocol_request_builders_preserve_wire_shape -- --nocapture` passed with 1 test.
+- `cargo test -p void-services-integrations --features mcp --test mcp_contracts -- --nocapture` passed with 33 tests.
+- `cargo test -p void-core remote_mcp_streamable_http_accepts_post_sse_and_maps_tool_metadata --test remote_mcp_streamable_http -- --nocapture` passed with 1 test.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/protocol/client_info.rs src/crates/services-integrations/tests/mcp_contracts.rs` initially failed on import ordering, then passed after formatting.
+- `node scripts/check-core-boundaries.mjs` passed.
+- `cargo check -p void-services-integrations --features mcp` passed.
+- `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary
 

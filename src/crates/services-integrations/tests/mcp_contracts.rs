@@ -1,6 +1,11 @@
 #![cfg(feature = "mcp")]
 
 use async_trait::async_trait;
+use rmcp::model::{AnnotateAble, Annotations, Content, Icon, Meta, RawResource, ResourceContents};
+use rmcp::transport::auth::StoredCredentials;
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use void_services_integrations::mcp::auth::{
     MCPRemoteOAuthCredentialVault, MCPRemoteOAuthSessionSnapshot, MCPRemoteOAuthStatus,
 };
@@ -33,11 +38,6 @@ use void_services_integrations::mcp::{
     MCPDynamicToolProvider, MCPToolCatalogClient, McpDynamicToolDescriptor, McpToolInfo,
     PromptAdapter, ResourceAdapter, MCP_TOOL_DELIMITER, MCP_TOOL_PREFIX,
 };
-use rmcp::model::{AnnotateAble, Annotations, Content, Icon, Meta, RawResource, ResourceContents};
-use rmcp::transport::auth::StoredCredentials;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn make_mcp_config(
     id: &str,
@@ -195,7 +195,25 @@ fn mcp_remote_client_info_declares_supported_client_capabilities() {
             .elicitation
             .as_ref()
             .and_then(|cap| cap.schema_validation),
-        Some(true)
+        None
+    );
+    assert_eq!(
+        serde_json::to_value(
+            info.capabilities
+                .elicitation
+                .as_ref()
+                .expect("elicitation capability")
+        )
+        .unwrap(),
+        serde_json::json!({})
+    );
+    assert_eq!(
+        serde_json::to_value(&info.capabilities).unwrap(),
+        serde_json::json!({
+            "roots": {},
+            "sampling": {},
+            "elicitation": {}
+        })
     );
 }
 
