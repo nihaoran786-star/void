@@ -131,11 +131,11 @@ Checks:
   - Result: passed.
   - Notes: Git printed line-ending warnings only.
 
-Remaining follow-up for parent `ISSUE-1140E`:
+Follow-up split for parent `ISSUE-1140E`:
 
-- Define a dedicated short-drama image media to generic `ImageContext` adapter only for explicit image media selection/reference.
-- Keep `AnalyzeImage` short-drama-agnostic; it must continue to accept only generic `image_id`, workspace-safe `image_path`, or inline `data_url`.
-- Add tests proving video/audio short-drama media do not become image contexts and HTTP preview URLs are not treated as directly analyzable image bytes.
+- The dedicated short-drama image media to generic `ImageContext` adapter is tracked by completed `ISSUE-1140E2`.
+- `AnalyzeImage` remains short-drama-agnostic; it continues to accept only generic `image_id`, workspace-safe `image_path`, or inline `data_url`.
+- Video/audio short-drama media and HTTP/data URL-only preview references are covered by `ISSUE-1140E2` bridge tests.
 
 ## ISSUE-1120B Terminal Runtime-Port Boundary Study
 
@@ -5587,6 +5587,37 @@ Remaining risk:
 
 - This does not yet generate or persist image-understanding summaries.
 - Future consumers must keep Main AI awareness export low-context and call the explicit bridge only when they intentionally need a backend image context.
+
+## ISSUE-1140E Parent Reconciliation
+
+Scope:
+
+- Documentation-only reconciliation for the parent short-drama image-understanding bridge contract.
+- Evidence comes from completed `ISSUE-1140E1` Main AI export leak guard and `ISSUE-1140E2` short-drama image context bridge adapter.
+- No source behavior, generic `AnalyzeImage`, provider wire conversion, media services, Flow Chat, right-panel UI, or `.void/short-drama` persistence changes.
+
+Executed:
+
+- `Select-String -Path docs/ISSUES.md,docs/TEST_PLAN.md,docs/DECISIONS.md -Pattern "ISSUE-1140E|ShortDramaImageContextBridge|DEC-115"`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: current worktree still lists non-this-slice generated Web UI version files; they are not part of this docs-only reconciliation and are not staged.
+
+Coverage:
+
+- Parent acceptance for low-context image-reference metadata is covered by `ISSUE-1140E2`.
+- Parent acceptance for `ShortDramaProject` as the AI-facing source of truth is covered by `ISSUE-1140E1` and `ISSUE-1140E2`.
+- Parent acceptance for existing media/short-drama coordinates is covered by `ISSUE-1140E2`.
+- Parent acceptance for raw media URL/byte omission from Main AI context export is covered by `ISSUE-1140E1`.
+
+Remaining risk:
+
+- Image summary generation, persistence, and model invocation remain future work.
+- Future consumers must keep the generic image tool short-drama-agnostic and call the short-drama bridge explicitly.
 
 ## ISSUE-1120D1 Terminal Frontend Output Ack Integration
 

@@ -76,26 +76,29 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150E1 tool pipeline outcome classification contract complete.
 - [x] ISSUE-1150E parent reconciliation complete.
 - [x] ISSUE-1150F tool runtime owner migration planning gate complete.
+- [x] ISSUE-1140E parent reconciliation complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150F Tool Runtime Owner Migration Planning Gate`
+Issue: `ISSUE-1140E Short Drama Image Understanding Bridge Contract`
 
 Summary:
 
-- Refreshed the upstream wave reference to `upstream-bitfun/main@4da7ae5d8`.
-- Registered upstream `65da1a082` tool/event ABI contracts and `4da7ae5d8` plugin runtime boundary as planning inputs only.
-- Confirmed current Void already has local boundary equivalents such as `ToolCatalogSnapshotProvider`, `RuntimeEventSink`, runtime-port DTOs, product-runtime tool assembly, and boundary-script anchors.
-- Split future owner migration candidates into tool snapshot ABI, event projection manifest, plugin runtime/capability boundary, MCP runtime owner, ExecCommand/tool-runtime owner, and remote file/helper owner.
-- Preserved runtime behavior, event ABI, crate layout, Flow Chat, multi-agent/subagent, AI media, and AI short-drama.
+- Reconciled the parent short-drama image-understanding bridge contract after `ISSUE-1140E1` and `ISSUE-1140E2`.
+- Confirmed Main AI export remains low-context and omits raw media references, URLs, local paths, data URLs, and raw byte labels.
+- Confirmed the short-drama-owned bridge resolves image artifact/media coordinates from `ShortDramaProject` and only creates generic `ImageContext` through explicit local/relative path helpers.
+- Left image-summary generation, persistence, and model invocation as future work rather than overclaiming this parent slice.
 
 Verification:
 
-- `git show --stat --oneline --no-renames 65da1a082` inspected.
-- `git show --stat --oneline --no-renames 4da7ae5d8` inspected.
-- `git grep -n "ToolCatalogSnapshot\\|RuntimeEventSink\\|projection_manifest\\|PluginRuntime\\|ExecCommand" -- src/crates scripts docs` inspected.
-- `node scripts/check-core-boundaries.mjs` passed.
-- `git diff --check -- docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
+- `Select-String -Path docs/ISSUES.md,docs/TEST_PLAN.md,docs/DECISIONS.md -Pattern "ISSUE-1140E|ShortDramaImageContextBridge|DEC-115"`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `git diff --name-only -- Cargo.toml src/apps src/crates src/web-ui`
+  - Result: current worktree still lists non-this-slice generated Web UI version files; they are not part of this docs-only reconciliation and are not staged.
 
 ## Subagent Summary
 

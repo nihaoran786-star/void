@@ -1960,7 +1960,7 @@ Risk notes: Do not copy upstream `view_image` wholesale; current Void already ha
 ### ISSUE-1140E Short Drama Image Understanding Bridge Contract
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Define how AI short-drama workflows may consume image understanding summaries without exposing raw media or bypassing `ShortDramaProject`.
 Allowed files: short-drama docs/tests first, optional service-level bridge tests.
 Forbidden files: generic `AnalyzeImage` rewrites, raw media export into Main AI context, direct `.void/short-drama` UI mutation, media service rewrite.
@@ -1970,6 +1970,12 @@ Acceptance:
 - Media result references and short-drama artifact coordinates continue to use existing media/short-drama tools.
 - Tests prove raw media URLs/bytes are omitted from Main AI context export.
 Risk notes: Short-drama image understanding must be a bridge contract, not a generic image tool reaching into the right-side page.
+Result:
+- Closed by `ISSUE-1140E1` and `ISSUE-1140E2`.
+- `ISSUE-1140E1` locks Main AI export to low-context media metadata and proves raw media references, URLs, local paths, data URLs, and raw byte labels are omitted.
+- `ISSUE-1140E2` adds a short-drama-owned bridge that resolves image artifact/media coordinates from `ShortDramaProject` and converts to generic `ImageContext` only through explicit local/relative image-path helpers.
+- Generic `AnalyzeImage`, provider image wire conversion, media services, Flow Chat, and right-panel short-drama UI remain short-drama-agnostic.
+- Image-summary generation, persistence, and model invocation remain future work; this parent closes the safe bridge contract only.
 
 ### ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
@@ -1986,7 +1992,7 @@ Acceptance:
 Result:
 - Added a focused test with a short-drama image artifact containing external CDN URL, data URL, Windows local path, and Unix-like file path metadata.
 - Confirmed the Main AI export keeps low-context media metadata while omitting raw media references.
-- Left the broader `ISSUE-1140E` open for a future explicit short-drama image-understanding summary/reference adapter.
+- Split the broader bridge adapter work into `ISSUE-1140E2`; the parent contract is now closed after that adapter slice.
 
 ### ISSUE-1140E2 Short Drama Image Context Bridge Adapter
 
