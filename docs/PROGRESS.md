@@ -65,24 +65,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130B1 Windows input action HWND revalidation slice complete.
 - [x] ISSUE-1140B BTW child-session image follow-up slice complete.
 - [x] ISSUE-1150D readonly manifest and dynamic provider metadata contract slice complete.
+- [x] ISSUE-1150C1 local stdio MCP request timeout injection contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract`
+Issue: `ISSUE-1150C1 Local Stdio Request Timeout Injection Contract`
 
 Summary:
 
-- Added a `void-agent-tools` registry snapshot contract test that covers readonly+enabled filtering, disabled-readonly exclusion, explicit MCP provider subtype metadata, and current dynamic descriptor compatibility.
-- Documented the metadata split: `DynamicToolDescriptor` remains providerId-only, while `DynamicToolInfo` owns providerKind and MCP server/tool metadata.
-- Preserved concrete tools, Web UI, MCP manager lifecycle, provider adapters, media services, short-drama services, runtime DTO shape, and crate layout.
+- Added a distinct optional local stdio `MCPConnection` ordinary request timeout, separate from initialize timeout.
+- Kept production local ordinary-request default as `None`, documenting that current local stdio requests remain delegated to the outer tool pipeline timeout until a later config/default issue.
+- Added Windows-runnable timeout tests proving typed timeout errors and pending waiter cleanup.
+- Preserved remote Streamable HTTP timeout behavior, MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, and crate layout.
 
 Verification:
 
-- `cargo test -p void-agent-tools registry_snapshot_preserves_readonly_enabled_and_dynamic_mcp_metadata --test tool_contracts -- --nocapture` passed.
-- `cargo test -p void-runtime-ports dynamic_tool_descriptor` passed with 2 tests.
-- `cargo test -p void-core dynamic_tool_provider` passed with 3 tests.
-- `cargo test -p void-core registry_preserves_readonly_tool_manifest_for_owner_migration` passed with 1 matching core test plus 0-test filtered integration binaries.
-- `cargo test -p void-tool-packs` passed with 6 tests and doc-tests.
+- RED: `cargo test -p void-services-integrations --features mcp local_tool_call_request_timeout_cleans_pending_waiter --lib -- --nocapture` failed before implementation because `with_request_timeout` did not exist.
+- `cargo test -p void-services-integrations --features mcp --lib mcp::server::connection -- --nocapture` passed with 2 Windows tests.
+- `cargo test -p void-services-integrations --features mcp` passed with 5 lib tests, 33 MCP contract tests, and doc-tests.
+- `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture` passed.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs` passed.
 - `node scripts/check-core-boundaries.mjs` passed.
 
 ## Subagent Summary

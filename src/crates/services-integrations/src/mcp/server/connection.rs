@@ -52,6 +52,7 @@ pub struct MCPConnection {
     transport: TransportType,
     pending_requests: Arc<RwLock<HashMap<u64, ResponseWaiter>>>,
     initialize_timeout: Option<Duration>,
+    request_timeout: Option<Duration>,
     event_tx: broadcast::Sender<MCPConnectionEvent>,
 }
 
@@ -74,6 +75,7 @@ impl MCPConnection {
             transport: TransportType::Local(transport),
             pending_requests,
             initialize_timeout: Some(LOCAL_INITIALIZE_TIMEOUT),
+            request_timeout: None,
             event_tx,
         }
     }
@@ -81,6 +83,12 @@ impl MCPConnection {
     #[cfg(test)]
     fn with_initialize_timeout(mut self, timeout: Option<Duration>) -> Self {
         self.initialize_timeout = timeout;
+        self
+    }
+
+    #[cfg(test)]
+    fn with_request_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.request_timeout = timeout;
         self
     }
 
@@ -122,6 +130,7 @@ impl MCPConnection {
             transport: TransportType::Remote(transport),
             pending_requests,
             initialize_timeout,
+            request_timeout: None,
             event_tx,
         })
     }
@@ -209,7 +218,7 @@ impl MCPConnection {
         method: String,
         params: Option<Value>,
     ) -> MCPRuntimeResult<MCPResponse> {
-        self.send_request_and_wait_with_timeout(method, params, None)
+        self.send_request_and_wait_with_timeout(method, params, self.request_timeout)
             .await
     }
 
@@ -526,6 +535,105 @@ mod tests {
             .initialize("VoidTest", "0.0.0")
             .await
             .expect_err("initialize should time out");
+        assert_eq!(error.kind(), crate::mcp::MCPRuntimeErrorKind::Timeout);
+
+        drop(stdout);
+        let _ = child.kill().await;
+    }
+
+    #[tokio::test]
+    async fn local_tool_call_request_timeout_cleans_pending_waiter() {
+        let mut child = tokio::process::Command::new("sh")
+            .arg("-c")
+            .arg("cat >/dev/null")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn silent stdio child");
+
+        let stdin = child.stdin.take().expect("capture stdin");
+        let stdout = child.stdout.take().expect("capture stdout");
+        let (_tx, rx) = mpsc::unbounded_channel();
+        let connection =
+            MCPConnection::new(stdin, rx).with_request_timeout(Some(Duration::from_millis(10)));
+
+        let error = connection
+            .call_tool("slow_tool", None)
+            .await
+            .expect_err("ordinary tool call should time out");
+
+        assert_eq!(error.kind(), crate::mcp::MCPRuntimeErrorKind::Timeout);
+        assert_eq!(
+            connection.pending_requests.read().await.len(),
+            0,
+            "timed out local requests must remove their pending response waiter"
+        );
+
+        drop(stdout);
+        let _ = child.kill().await;
+    }
+}
+
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+    use tokio::process::Command;
+
+    #[tokio::test]
+    async fn local_tool_call_request_timeout_cleans_pending_waiter() {
+        let mut child = Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-Command")
+            .arg("$input | Out-Null")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn silent stdio child");
+
+        let stdin = child.stdin.take().expect("capture stdin");
+        let stdout = child.stdout.take().expect("capture stdout");
+        let (_tx, rx) = mpsc::unbounded_channel();
+        let connection =
+            MCPConnection::new(stdin, rx).with_request_timeout(Some(Duration::from_millis(10)));
+
+        let error = connection
+            .call_tool("slow_tool", None)
+            .await
+            .expect_err("ordinary tool call should time out");
+
+        assert_eq!(error.kind(), crate::mcp::MCPRuntimeErrorKind::Timeout);
+        assert_eq!(
+            connection.pending_requests.read().await.len(),
+            0,
+            "timed out local requests must remove their pending response waiter"
+        );
+
+        drop(stdout);
+        let _ = child.kill().await;
+    }
+
+    #[tokio::test]
+    async fn local_initialize_uses_initialize_timeout() {
+        let mut child = Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-Command")
+            .arg("$input | Out-Null")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn silent stdio child");
+
+        let stdin = child.stdin.take().expect("capture stdin");
+        let stdout = child.stdout.take().expect("capture stdout");
+        let (_tx, rx) = mpsc::unbounded_channel();
+        let connection =
+            MCPConnection::new(stdin, rx).with_initialize_timeout(Some(Duration::from_millis(10)));
+
+        let error = connection
+            .initialize("VoidTest", "0.0.0")
+            .await
+            .expect_err("initialize should time out");
+
         assert_eq!(error.kind(), crate::mcp::MCPRuntimeErrorKind::Timeout);
 
         drop(stdout);

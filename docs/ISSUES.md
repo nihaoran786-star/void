@@ -1968,6 +1968,27 @@ Acceptance:
 - Timeout failures return typed error categories suitable for `status/source/error` mapping.
 Risk notes: Do not apply initialize-only timeout semantics blindly to every request path.
 
+#### ISSUE-1150C1 Local Stdio Request Timeout Injection Contract
+
+Priority: P1
+Status: Done
+Goal: Add a local stdio MCP ordinary-request timeout contract without changing production defaults or confusing it with initialize timeout.
+Allowed files: `src/crates/services-integrations/src/mcp/server/connection.rs`, docs.
+Forbidden files: UI fallback strings, MCP manager lifecycle, tool pipeline broad rewrite, remote request timeout behavior, provider adapters, media/short-drama services, runtime owner migration.
+Acceptance:
+- Local stdio `MCPConnection` has a distinct optional ordinary request timeout separate from `initialize_timeout`.
+- Tests can inject a short ordinary request timeout and prove `call_tool` returns `MCPRuntimeErrorKind::Timeout`.
+- Timeout path removes the pending response waiter.
+- Existing initialize timeout behavior remains independently covered on Windows; existing Unix-only tests still cover the slow local tool call not inheriting initialize timeout in Unix CI.
+Progress:
+- Added optional `request_timeout` to local/remote `MCPConnection` state and routed local ordinary `send_request_and_wait` through it.
+- Kept production local default as `None`; this slice documents local ordinary requests as delegated to the outer tool pipeline timeout until a later config/default issue.
+- Added Windows-runnable tests for local ordinary request timeout cleanup and local initialize timeout.
+- Did not change remote Streamable HTTP timeout behavior, MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, or crate layout.
+- Verification: `cargo test -p void-services-integrations --features mcp --lib mcp::server::connection -- --nocapture`, `cargo test -p void-services-integrations --features mcp`, `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture`, `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs`, and `node scripts/check-core-boundaries.mjs` passed.
+Deferred:
+- Full `ISSUE-1150C` remains Proposed for remote multi-method timeout coverage and any future local production default/config wiring.
+
 ### ISSUE-1150D Readonly Manifest and Dynamic Provider Metadata Contract
 
 Priority: P1

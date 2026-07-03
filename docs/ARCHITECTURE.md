@@ -268,6 +268,7 @@ Required boundary:
 - Tool manifest metadata has two explicit layers: `DynamicToolDescriptor` remains the current provider-list wire contract (`name`, `description`, `inputSchema`, optional `providerId`), while richer dynamic provider subtype facts such as `providerKind` and MCP `serverId/serverName/toolName` remain registry metadata exposed through `DynamicToolInfo`. Do not infer provider identity from dynamic tool names.
 - Readonly manifest snapshots are defined by `is_readonly() && is_enabled()`. Disabled readonly tools must not be exposed as readonly-enabled merely because their readonly flag is true.
 - `void-tool-packs` owns provider group planning and order only. It does not own concrete tool behavior, MCP lifecycle, provider adapters, media services, or short-drama services.
+- MCP ordinary-request timeout has separate remote and local contracts. Remote Streamable HTTP keeps its existing bounded request timeout in `RemoteMCPTransport`; local stdio `MCPConnection` owns a distinct optional ordinary request timeout that must not reuse or inherit initialize timeout. The current production local default remains delegated to the outer tool pipeline timeout until a separate config issue wires a default. Timeout paths must remove pending response waiters and return `MCPRuntimeErrorKind::Timeout`.
 - Current Void keeps its existing Rust workspace crate graph as the authoritative layout. Upstream-style crate reorganization is not accepted as a bulk move; boundary changes must be split into explicit issues with manifest, dependency, and behavior tests.
 - `scripts/check-core-boundaries.mjs` is the static governance check for this layout. It must keep owner file anchors for runtime scheduling, dialog preempt policy, remote runtime host adapters, remote command handler traits, and initial-sync handlers so future migrations cannot silently weaken current module boundaries.
 
@@ -278,6 +279,7 @@ Forbidden:
 - Weakening recursive subagent restrictions or review-subagent readonly behavior.
 - Adding provider-specific OpenAI Responses or Codex ChatGPT flat tool schemas to core portable tool contracts.
 - Expanding `DynamicToolDescriptor` or model-facing tool schemas to carry MCP subtype metadata without a dedicated contract issue and compatibility tests.
+- Reusing initialize timeout as local stdio ordinary-request timeout or representing MCP request timeout as a UI fallback string.
 - Renaming crates, moving crate directories, or changing Cargo manifests as an incidental follow-up to upstream migration inventory.
 
 ### Provider Adapters

@@ -5224,3 +5224,42 @@ Deferred:
 
 - Expanding `DynamicToolDescriptor` or model-facing schemas with MCP subtype metadata requires a separate compatibility issue and broader tests.
 - `readOnlyHint` from MCP servers remains metadata, not a complete destructive-action safety policy.
+
+## ISSUE-1150C1 Local Stdio Request Timeout Injection Contract
+
+Scope:
+
+- Current slice covers local stdio MCP ordinary-request timeout injection and pending waiter cleanup inside `MCPConnection`.
+- Remote Streamable HTTP timeout semantics, MCP manager lifecycle, tool pipeline policy, UI fallback strings, provider adapters, AI media, AI short-drama, Cargo features, and crate layout were not changed.
+- Production local stdio ordinary requests still default to `request_timeout: None` and remain delegated to the outer tool pipeline timeout until a later config/default issue.
+
+Executed:
+
+- `cargo test -p void-services-integrations --features mcp local_tool_call_request_timeout_cleans_pending_waiter --lib -- --nocapture`
+  - Result before implementation: failed because `with_request_timeout` did not exist.
+  - Result after implementation: passed.
+- `cargo test -p void-services-integrations --features mcp local_initialize_uses_initialize_timeout --lib -- --nocapture`
+  - Result: passed on Windows after adding a Windows-runnable initialize timeout test. Earlier same-name filter matched 0 tests because the existing test was Unix-only.
+- `cargo test -p void-services-integrations --features mcp --lib mcp::server::connection -- --nocapture`
+  - Result: passed, 2 Windows tests.
+- `cargo test -p void-services-integrations --features mcp`
+  - Result: passed, 5 lib tests, 33 MCP contract tests, and doc-tests.
+- `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture`
+  - Result: passed, 1 test.
+- `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- Local stdio ordinary `call_tool` can be given an independent request timeout and returns `MCPRuntimeErrorKind::Timeout` when the response waiter times out.
+- The timed-out request removes its pending response waiter.
+- Local initialize timeout remains separately covered and is not reused as ordinary request timeout.
+- Remote Streamable HTTP success behavior remains covered by the existing `remote_mcp_streamable_http` regression.
+
+Deferred:
+
+- Full `ISSUE-1150C` remains open for remote multi-method timeout failure coverage across tools/list, tools/call, resources/read, and prompts/get.
+- Wiring a production default/config for local stdio ordinary request timeout remains a separate compatibility decision.
+- Unix CI should continue to run `local_tool_calls_do_not_inherit_initialize_timeout`.
