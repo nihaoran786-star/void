@@ -3910,7 +3910,12 @@ Implementation test plan for follow-up issues:
 
 - `ISSUE-1110A`:
   - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+    - RED result: failed before implementation because header current turn optimistically changed to the pending target, `pinTurnToTop` did not retry after accepted-but-not-visible, and `VirtualMessageList` exposed no `onUserScrollIntent` contract.
+    - GREEN result: passed after `ModernFlowChatContainer` kept header state tied to `visibleTurnInfo`, added bounded RAF retry with auto-behavior follow-up pins, and `VirtualMessageList` reported user scroll intent to cancel pending retry.
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts`
+    - Result: passed after adding the `onUserScrollIntent` prop surface, covering adjacent static-window/session-boundary/list-layout behavior.
   - `pnpm run type-check:web`
+    - Result: passed.
 - `ISSUE-1110B`:
   - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts src/flow_chat/components/modern/historyProjectionHandoff.test.ts`
   - `pnpm run type-check:web`

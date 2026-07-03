@@ -32,6 +32,8 @@ import { openBtwSessionInAuxPane } from '../../services/openBtwSession';
 import { isChatPopupActive, subscribeChatPopupChange } from '../chatPopupState';
 import './ModernFlowChatContainer.scss';
 
+const HEADER_TURN_PIN_RETRY_MAX_ATTEMPTS = 120;
+
 interface ModernFlowChatContainerProps {
   className?: string;
   config?: Partial<FlowChatConfig>;
@@ -58,6 +60,8 @@ type BackgroundSubagentSummary = {
   parentToolCallId?: string;
   subagentType?: string;
 };
+
+type HeaderTurnPinOptions = Parameters<VirtualMessageListRef['pinTurnToTop']>[1];
 
 function isBackgroundTaskTool(item: FlowToolItem): boolean {
   const input = item.toolCall?.input;
@@ -180,6 +184,11 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   const autoPinnedSessionIdRef = useRef<string | null>(null);
   const virtualListRef = useRef<VirtualMessageListRef>(null);
   const chatScopeRef = useRef<HTMLDivElement>(null);
+  const headerTurnPinFrameRef = useRef<number | null>(null);
+  const headerTurnPinAttemptsRef = useRef(0);
+  const visibleTurnInfoRef = useRef<VisibleTurnInfo | null>(null);
+  const turnSummariesRef = useRef<FlowChatHeaderTurnSummary[]>([]);
+  const activeSessionIdRef = useRef<string | null>(null);
   const { workspacePath } = useWorkspaceContext();
   const allowUserMessageRollback = !isAcpFlowSession(activeSession);
   const historyState = activeSession?.historyState;
@@ -310,23 +319,88 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
       }));
   }, [activeSession?.dialogTurns, resolveLocalCommandHeaderTitle]);
 
-  const effectiveVisibleTurnInfo = useMemo<VisibleTurnInfo | null>(() => {
-    if (!pendingHeaderTurnId) {
-      return visibleTurnInfo;
+  visibleTurnInfoRef.current = visibleTurnInfo;
+  turnSummariesRef.current = turnSummaries;
+  activeSessionIdRef.current = activeSession?.sessionId ?? null;
+
+  const cancelHeaderTurnPinRequest = useCallback(() => {
+    if (headerTurnPinFrameRef.current !== null) {
+      cancelAnimationFrame(headerTurnPinFrameRef.current);
+      headerTurnPinFrameRef.current = null;
+    }
+    headerTurnPinAttemptsRef.current = 0;
+    setPendingHeaderTurnId(null);
+  }, []);
+
+  const scheduleHeaderTurnPinRetry = useCallback((turnId: string, options: HeaderTurnPinOptions) => {
+    const requestSessionId = activeSessionIdRef.current;
+
+    if (headerTurnPinFrameRef.current !== null) {
+      cancelAnimationFrame(headerTurnPinFrameRef.current);
+      headerTurnPinFrameRef.current = null;
     }
 
-    const targetTurn = turnSummaries.find(turn => turn.turnId === pendingHeaderTurnId);
-    if (!targetTurn) {
-      return visibleTurnInfo;
-    }
+    const retry = () => {
+      headerTurnPinFrameRef.current = null;
 
-    return {
-      turnId: targetTurn.turnId,
-      turnIndex: targetTurn.turnIndex,
-      totalTurns: turnSummaries.length,
-      userMessage: targetTurn.title,
+      if (activeSessionIdRef.current !== requestSessionId) {
+        headerTurnPinAttemptsRef.current = 0;
+        setPendingHeaderTurnId(null);
+        return;
+      }
+
+      if (visibleTurnInfoRef.current?.turnId === turnId) {
+        headerTurnPinAttemptsRef.current = 0;
+        setPendingHeaderTurnId(null);
+        return;
+      }
+
+      const targetStillExists = turnSummariesRef.current.some(turn => turn.turnId === turnId);
+      if (!targetStillExists || headerTurnPinAttemptsRef.current >= HEADER_TURN_PIN_RETRY_MAX_ATTEMPTS) {
+        headerTurnPinAttemptsRef.current = 0;
+        setPendingHeaderTurnId(null);
+        return;
+      }
+
+      const accepted = virtualListRef.current?.pinTurnToTop(turnId, {
+        ...options,
+        behavior: 'auto',
+      }) ?? false;
+      if (!accepted) {
+        headerTurnPinAttemptsRef.current = 0;
+        setPendingHeaderTurnId(null);
+        return;
+      }
+
+      headerTurnPinAttemptsRef.current += 1;
+      headerTurnPinFrameRef.current = requestAnimationFrame(retry);
     };
-  }, [pendingHeaderTurnId, turnSummaries, visibleTurnInfo]);
+
+    headerTurnPinFrameRef.current = requestAnimationFrame(retry);
+  }, []);
+
+  const requestHeaderTurnPin = useCallback((turnId: string, options: HeaderTurnPinOptions) => {
+    if (headerTurnPinFrameRef.current !== null) {
+      cancelAnimationFrame(headerTurnPinFrameRef.current);
+      headerTurnPinFrameRef.current = null;
+    }
+
+    const accepted = virtualListRef.current?.pinTurnToTop(turnId, options) ?? false;
+    if (!accepted) {
+      headerTurnPinAttemptsRef.current = 0;
+      setPendingHeaderTurnId(null);
+      return false;
+    }
+
+    headerTurnPinAttemptsRef.current = 1;
+    setPendingHeaderTurnId(turnId);
+    scheduleHeaderTurnPinRetry(turnId, options);
+    return true;
+  }, [scheduleHeaderTurnPinRetry]);
+
+  const effectiveVisibleTurnInfo = useMemo<VisibleTurnInfo | null>(() => {
+    return visibleTurnInfo;
+  }, [visibleTurnInfo]);
 
   const currentHeaderMessage = useMemo(() => {
     const turnId = effectiveVisibleTurnInfo?.turnId;
@@ -345,20 +419,26 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     if (!pendingHeaderTurnId) return;
 
     if (visibleTurnInfo?.turnId === pendingHeaderTurnId) {
-      setPendingHeaderTurnId(null);
+      cancelHeaderTurnPinRequest();
       return;
     }
 
     const targetStillExists = turnSummaries.some(turn => turn.turnId === pendingHeaderTurnId);
     if (!targetStillExists) {
-      setPendingHeaderTurnId(null);
+      cancelHeaderTurnPinRequest();
     }
-  }, [pendingHeaderTurnId, turnSummaries, visibleTurnInfo?.turnId]);
+  }, [cancelHeaderTurnPinRequest, pendingHeaderTurnId, turnSummaries, visibleTurnInfo?.turnId]);
 
   useEffect(() => {
     autoPinnedSessionIdRef.current = null;
-    setPendingHeaderTurnId(null);
-  }, [activeSession?.sessionId]);
+    cancelHeaderTurnPinRequest();
+  }, [activeSession?.sessionId, cancelHeaderTurnPinRequest]);
+
+  useEffect(() => {
+    return () => {
+      cancelHeaderTurnPinRequest();
+    };
+  }, [cancelHeaderTurnPinRequest]);
 
   useEffect(() => {
     const sessionId = activeSession?.sessionId;
@@ -374,21 +454,20 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     setPendingHeaderTurnId(resolvedLatestTurnId);
 
     const frameId = requestAnimationFrame(() => {
-      const accepted = virtualListRef.current?.pinTurnToTop(resolvedLatestTurnId, {
+      const accepted = requestHeaderTurnPin(resolvedLatestTurnId, {
         behavior: 'auto',
         pinMode: 'sticky-latest',
-      }) ?? false;
+      });
 
       if (!accepted) {
         autoPinnedSessionIdRef.current = null;
-        setPendingHeaderTurnId(null);
       }
     });
 
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [activeSession?.sessionId, turnSummaries]);
+  }, [activeSession?.sessionId, requestHeaderTurnPin, turnSummaries]);
 
   useEffect(() => {
     if (searchCurrentMatchVirtualIndex < 0) return;
@@ -405,13 +484,11 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
 
     const isLatestTurn = turnSummaries[turnSummaries.length - 1]?.turnId === turnId;
 
-    const accepted = virtualListRef.current?.pinTurnToTop(turnId, {
+    requestHeaderTurnPin(turnId, {
       behavior: 'smooth',
       pinMode: isLatestTurn ? 'sticky-latest' : 'transient',
-    }) ?? false;
-
-    setPendingHeaderTurnId(accepted ? turnId : null);
-  }, [turnSummaries]);
+    });
+  }, [requestHeaderTurnPin, turnSummaries]);
 
   const handleJumpToPreviousTurn = useCallback(() => {
     if (!effectiveVisibleTurnInfo || effectiveVisibleTurnInfo.turnIndex <= 1) return;
@@ -574,6 +651,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
               // viewport before the new session's auto-pin settles.
               key={activeSession?.sessionId ?? 'virtual-message-list'}
               ref={virtualListRef}
+              onUserScrollIntent={cancelHeaderTurnPinRequest}
             />
           )}
         </div>

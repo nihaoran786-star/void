@@ -66,6 +66,10 @@ export interface VirtualMessageListRef {
   pinTurnToTop: (turnId: string, options?: { behavior?: ScrollBehavior; pinMode?: FlowChatPinTurnToTopMode }) => boolean;
 }
 
+interface VirtualMessageListProps {
+  onUserScrollIntent?: () => void;
+}
+
 interface ScrollAnchorLockState {
   active: boolean;
   targetScrollTop: number;
@@ -260,7 +264,7 @@ function computeVirtualMessageItemKey(sessionId: string | null, item: VirtualIte
   return `${sessionId ?? 'no-active-session'}:${getVirtualItemStableKey(item)}`;
 }
 
-export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => {
+export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessageListProps>(({ onUserScrollIntent }, ref) => {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const virtualItems = useVirtualItems();
   const activeSession = useActiveSession();
@@ -351,6 +355,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
   const activeSessionState = useActiveSessionState();
   const isProcessing = activeSessionState.isProcessing;
   const processingPhase = activeSessionState.processingPhase;
+
+  const notifyUserScrollIntent = useCallback(() => {
+    onUserScrollIntent?.();
+    followOutputControllerRef.current.handleUserScrollIntent();
+  }, [onUserScrollIntent]);
 
   const getFooterHeightPx = useCallback((compensationPx: number) => {
     return inputStackFooterPxRef.current + compensationPx;
@@ -1405,7 +1414,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
       if (event.deltaY < 0) {
         userInitiatedUpwardScrollUntilMsRef.current =
           performance.now() + USER_UPWARD_SCROLL_INTENT_WINDOW_MS;
-        followOutputControllerRef.current.handleUserScrollIntent();
+        notifyUserScrollIntent();
         releaseAnchorLock('wheel-up');
       }
     };
@@ -1425,7 +1434,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
         touchScrollIntentStartYRef.current = currentY;
         userInitiatedUpwardScrollUntilMsRef.current =
           performance.now() + USER_UPWARD_SCROLL_INTENT_WINDOW_MS;
-        followOutputControllerRef.current.handleUserScrollIntent();
+        notifyUserScrollIntent();
         releaseAnchorLock('touch-scroll-up');
       }
     };
@@ -1441,7 +1450,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
 
       userInitiatedUpwardScrollUntilMsRef.current =
         performance.now() + USER_UPWARD_SCROLL_INTENT_WINDOW_MS;
-      followOutputControllerRef.current.handleUserScrollIntent();
+      notifyUserScrollIntent();
       releaseAnchorLock('keyboard-scroll-up');
     };
 
@@ -1457,7 +1466,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
       scrollbarPointerInteractionActiveRef.current = true;
       userInitiatedUpwardScrollUntilMsRef.current =
         performance.now() + USER_UPWARD_SCROLL_INTENT_WINDOW_MS;
-      followOutputControllerRef.current.handleUserScrollIntent();
+      notifyUserScrollIntent();
       releaseAnchorLock('scrollbar-pointer-down');
     };
 
@@ -1473,7 +1482,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
 
       userInitiatedUpwardScrollUntilMsRef.current =
         performance.now() + USER_UPWARD_SCROLL_INTENT_WINDOW_MS;
-      followOutputControllerRef.current.handleUserScrollIntent();
+      notifyUserScrollIntent();
       releaseAnchorLock('scrollbar-pointer-move');
     };
 
@@ -1606,6 +1615,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
     consumeBottomCompensation,
     getTotalBottomCompensationPx,
     latestTurnId,
+    notifyUserScrollIntent,
     pendingTurnPin?.pinMode,
     pendingTurnPin?.turnId,
     releaseAnchorLock,
@@ -2516,6 +2526,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef>((_, ref) => 
           data-initial-history-render-windowed="true"
           onWheelCapture={(event) => {
             if (event.deltaY < 0) {
+              onUserScrollIntent?.();
               expandInitialHistoryRenderWindow();
             }
           }}

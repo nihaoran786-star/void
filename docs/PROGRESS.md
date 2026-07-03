@@ -57,7 +57,7 @@ Initial role coverage:
 
 Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
 
-Next candidate issue: `ISSUE-1110A Flow Chat Header Turn Pin Retry and User-Cancel Contract`.
+Next candidate issue: `ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer`.
 
 Allowed files:
 
@@ -66,6 +66,19 @@ Allowed files:
 - `docs/ISSUES.md`
 - `docs/DECISIONS.md`
 - `docs/TEST_PLAN.md`
+- `docs/PROGRESS.md`
+- `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`
+- `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`
+- focused Flow Chat static-window tests
+
+Forbidden files for next candidate:
+
+- `FlowChatStore.ts`
+- backend/session APIs
+- AI media and workspace media modules
+- AI short-drama modules
+- terminal/provider/Rust crates
+- whole-file replacement
 - `docs/PROGRESS.md`
 - `docs/superpowers/plans/2026-07-03-upstream-selective-upgrade-wave.md`
 
@@ -4377,3 +4390,26 @@ Remaining risk:
 - No Flow Chat production behavior was changed in this audit.
 - `ISSUE-1110A` and `ISSUE-1110B` are required before claiming local parity with upstream `502270994`.
 - `ISSUE-1110C` or equivalent manual release smoke is required before claiming real long-session viewport behavior in release/desktop conditions.
+
+## ISSUE-1110A Flow Chat Header Turn Pin Retry and User-Cancel Contract
+
+Status: Done
+
+Completed:
+
+- Removed the header's optimistic pending-turn projection; the visible header turn now remains tied to `visibleTurnInfo`.
+- Added a bounded RAF retry loop for accepted header turn pins so the container keeps asking `VirtualMessageList.pinTurnToTop` until the target turn is actually reported visible, the target disappears, the request is rejected, or the retry bound expires.
+- Guarded retry frames with the active session id so stale retry work cannot pin a newly mounted session after a session switch.
+- Kept the initial user action smooth while forcing subsequent retry frames to `behavior: 'auto'`.
+- Added `VirtualMessageList.onUserScrollIntent` as the narrow cancel interface from viewport user intent back to the container.
+- Added container tests for accepted-but-not-visible, retry-until-visible, and user-scroll-cancel behavior.
+
+Verification:
+
+- RED: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx` failed before implementation on optimistic header state, missing retry, and missing scroll-intent prop.
+- GREEN: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx` passed after implementation.
+
+Remaining risk:
+
+- This issue does not solve static initial-history geometry or tail reachability; those remain in `ISSUE-1110B`.
+- Release/desktop long-session evidence remains deferred to `ISSUE-1110C`.

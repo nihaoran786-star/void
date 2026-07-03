@@ -1511,7 +1511,7 @@ Result:
 ### ISSUE-1110A Flow Chat Header Turn Pin Retry and User-Cancel Contract
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Adapt the low-risk container/virtual-list contract from upstream `502270994` so header turn selection retries until the real viewport reports the target turn, and manual user scroll cancels pending retry.
 Allowed files: `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx`, `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`, minimal `VirtualMessageList` prop surface if needed, docs.
 Forbidden files: `FlowChatStore.ts`, backend/session APIs, AI media, AI short-drama, terminal, provider, Rust crates, whole-file replacement.
@@ -1521,6 +1521,7 @@ Acceptance:
 - A user scroll intent from `VirtualMessageList` clears queued/pending header turn pin state.
 - Tests cover accepted-but-not-visible, retry-until-visible, and user-scroll-cancel cases.
 Risk notes: The contract crosses container state and viewport callbacks; UI must not infer turn visibility from overlay DOM or transcript text.
+Result: Completed by keeping header display derived from `visibleTurnInfo`, adding a bounded RAF retry loop for accepted header turn pins, retrying subsequent frames with `behavior: 'auto'`, and introducing `VirtualMessageList.onUserScrollIntent` so manual scroll intent clears pending header retry. Focused container tests cover accepted-but-not-visible, retry-until-visible, and user-scroll-cancel behavior.
 
 ### ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer
 
