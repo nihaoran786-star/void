@@ -4264,7 +4264,6 @@ Coverage:
 Deferred:
 
 - Session/workspace scoping for the global image-context store remains unimplemented.
-- `resolve_missing_image_payloads` missing/expired cache behavior remains to be covered.
 
 ## ISSUE-1140C Media Image Reference Path Guard
 
@@ -4291,6 +4290,36 @@ Coverage:
 - Existing tests still prove registered image contexts resolve by name/id to `data_url`, registered provider URLs still pass through, plain non-path references remain unchanged, and valid `http(s)` / `data:image` references remain accepted.
 - `UploadMediaImage` local upload path resolution remains unchanged.
 
+## ISSUE-1140C Desktop Image Payload Cache Resolution
+
+Scope:
+
+- Current slice covers `resolve_missing_image_payloads` in `agentic_api.rs`, the shared desktop API conversion layer used by normal dialog turns and `/btw`.
+- No Web UI, Flow Chat, BTW behavior logic, AI media service, AI short-drama service, provider adapter, APIMart client, execution engine, or image-context storage production behavior was changed.
+
+Executed:
+
+- `cargo test -p void-desktop resolve_missing_image_payloads --lib -- --nocapture`
+  - Result before fix: failed as expected because the new over-expiration test attempted to import private `cleanup_expired_images` across the crate boundary and the first helper mixed desktop request `ImageContextData` with stored tool `ImageContextData`.
+  - Result after test correction: passed, 3 tests.
+- `cargo test -p void-desktop --lib`
+  - Result: passed, 139 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with an unrelated existing dead-code warning for `parse_clipboard_path_segments` in `clipboard_file_api.rs`.
+- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1`
+  - Result: passed, 3 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/api/agentic_api.rs`
+  - Result before formatting: failed with a formatting diff in the new tests.
+  - Result after `rustfmt --edition 2021 src/apps/desktop/src/api/agentic_api.rs`: passed.
+- `git diff --check`
+  - Result: passed.
+
+Coverage:
+
+- Missing request payload is restored from the upload cache by exact `image_id`, including `data_url` and `resolved_from_upload_cache` metadata.
+- Cached entries that still lack both `image_path` and `data_url` fail closed with `missing image_path/data_url after cache resolution`.
+- Expired cache is represented at the desktop API boundary as a removed/missing cache entry, returning the re-attach error without exposing core TTL cleanup APIs.
+
 Deferred:
 
-- `resolve_missing_image_payloads` missing/expired cache behavior remains to be covered before marking all of `ISSUE-1140C` done.
+- Session/workspace scoping for the global image-context store remains unimplemented and belongs to a future storage-boundary issue.

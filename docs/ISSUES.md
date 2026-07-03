@@ -1654,7 +1654,7 @@ Result:
 ### ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
 
 Priority: P1
-Status: Active
+Status: Done
 Goal: Add focused tests for the current terminal lifecycle and history pipeline gaps without changing runtime-port ownership.
 Allowed files: `src/crates/terminal/src/**` tests, `src/apps/desktop/src/api/terminal_api.rs` tests/helpers if available, `src/web-ui/src/tools/terminal/services/*`, `src/web-ui/src/tools/terminal/hooks/*`, focused E2E terminal spec, docs.
 Forbidden files: Flow Chat store/tool cards, multi-agent/subagent projection, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration.
@@ -1829,7 +1829,8 @@ Progress:
 - Added media image-reference guard coverage for `GenerateImage` and `GenerateVideo`: unmatched Windows absolute paths, POSIX absolute paths, and relative local paths are filtered out of provider `image_urls` instead of being sent as provider URLs. Plain non-path references remain unchanged for compatibility, and valid `http(s)` / `data:image` references continue to pass through.
 - Preserved registered image-context behavior: `image_id` and file-name references still resolve to `data_url` first, then provider-compatible `image_path` only. Local-path upload behavior remains owned by `UploadMediaImage`.
 - Verification so far also includes `cargo test -p void-core media_image_reference_tests --lib -- --nocapture` passed with 15 tests, `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/media_tools.rs` passed after formatting, and `cargo check -p void-core --features product-full` passed.
-- Remaining 1140C work: `resolve_missing_image_payloads` missing/expired cache coverage.
+- Added desktop API tests for `resolve_missing_image_payloads`: cache hit restores missing payload and annotates metadata, cache hit with no payload returns a clear error, and expired/removed cache entries return the same re-attach error as missing cache entries.
+- Verification so far also includes `cargo test -p void-desktop resolve_missing_image_payloads --lib -- --nocapture` passed with 3 tests.
 
 ### ISSUE-1140D Void ViewImage Tool Contract Gate
 

@@ -39,6 +39,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140A AnalyzeImage permission/data_url contract slice complete.
 - [x] ISSUE-1140C image-context unique filename lookup slice complete.
 - [x] ISSUE-1140C media image-reference local path guard slice complete.
+- [x] ISSUE-1140C desktop image payload cache resolution coverage complete.
 
 ## Latest Slice
 
@@ -46,17 +47,19 @@ Issue: `ISSUE-1140C Image Context Scope and Media Path Leak Guards`
 
 Summary:
 
-- Hardened `GenerateImage` / `GenerateVideo` `image_urls` normalization so unmatched Windows/POSIX/relative local paths are not sent to APIMart as provider URLs.
-- Preserved valid `http(s)`, `data:image`, registered image-context `data_url`, and registered provider URL behavior.
-- Left `UploadMediaImage` as the explicit local-path upload route.
-- Did not touch Web UI, Flow Chat, AI media service, AI short-drama service, provider adapters, APIMart client, execution engine, desktop API, or image-context lookup.
-- Left `resolve_missing_image_payloads` coverage as remaining `ISSUE-1140C` work.
+- Added desktop API coverage for `resolve_missing_image_payloads` so missing image payloads are restored only from exact upload-cache ids.
+- Covered cache hit, cache hit without any usable payload, and expired/removed cache behavior.
+- Kept expired cache as a missing-cache API outcome instead of exposing core private TTL cleanup controls.
+- Did not touch Web UI, Flow Chat, BTW behavior logic, AI media service, AI short-drama service, provider adapters, APIMart client, execution engine, or image-context storage production behavior.
 
 Verification:
 
-- `cargo test -p void-core media_image_reference_tests --lib -- --nocapture` passed with 15 tests.
-- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/media_tools.rs` passed after formatting.
-- `cargo check -p void-core --features product-full` passed.
+- `cargo test -p void-desktop resolve_missing_image_payloads --lib -- --nocapture` passed with 3 tests.
+- `cargo test -p void-desktop --lib` passed with 139 tests.
+- `cargo check -p void-desktop` passed with an unrelated existing dead-code warning in `clipboard_file_api.rs`.
+- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/api/agentic_api.rs` passed after formatting.
+- `git diff --check` passed.
 
 ## Subagent Summary
 

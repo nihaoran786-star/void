@@ -1784,9 +1784,113 @@ fn system_time_to_unix_secs(time: std::time::SystemTime) -> u64 {
 mod tests {
     use super::*;
     use serde_json::json;
+    use void_core::agentic::tools::image_context::{
+        remove_image_context, store_image_context, ImageContextData as StoredImageContextData,
+    };
     use void_core::service::session::{
         ModelRoundData, ToolCallData, ToolItemData, ToolResultData, TurnStatus, UserMessageData,
     };
+
+    fn request_image_context(
+        id: &str,
+        image_path: Option<&str>,
+        data_url: Option<&str>,
+    ) -> ImageContextData {
+        ImageContextData {
+            id: id.to_string(),
+            image_path: image_path.map(ToString::to_string),
+            data_url: data_url.map(ToString::to_string),
+            mime_type: "image/png".to_string(),
+            metadata: Some(json!({ "name": format!("{id}.png") })),
+        }
+    }
+
+    fn stored_image_context(
+        id: &str,
+        image_path: Option<&str>,
+        data_url: Option<&str>,
+    ) -> StoredImageContextData {
+        StoredImageContextData {
+            id: id.to_string(),
+            image_path: image_path.map(ToString::to_string),
+            data_url: data_url.map(ToString::to_string),
+            mime_type: "image/png".to_string(),
+            image_name: format!("{id}.png"),
+            file_size: 42,
+            width: Some(640),
+            height: Some(360),
+            source: "upload".to_string(),
+        }
+    }
+
+    fn request_image_context_without_payload(id: &str) -> ImageContextData {
+        request_image_context(id, None, None)
+    }
+
+    #[test]
+    fn resolve_missing_image_payloads_restores_payload_from_upload_cache() {
+        let image_id = format!("agentic-api-resolve-cache-hit-{}", uuid::Uuid::new_v4());
+        remove_image_context(&image_id);
+        store_image_context(stored_image_context(
+            &image_id,
+            None,
+            Some("data:image/png;base64,cache"),
+        ));
+
+        let resolved =
+            resolve_missing_image_payloads(vec![request_image_context_without_payload(&image_id)])
+                .expect("cached payload should resolve missing image data");
+
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(
+            resolved[0].data_url.as_deref(),
+            Some("data:image/png;base64,cache")
+        );
+        let metadata = resolved[0]
+            .metadata
+            .as_ref()
+            .expect("cache resolution should annotate metadata");
+        assert_eq!(metadata["resolved_from_upload_cache"], true);
+        assert_eq!(metadata["name"], format!("{image_id}.png"));
+
+        remove_image_context(&image_id);
+    }
+
+    #[test]
+    fn resolve_missing_image_payloads_errors_when_cached_payload_is_still_missing() {
+        let image_id = format!("agentic-api-resolve-cache-empty-{}", uuid::Uuid::new_v4());
+        remove_image_context(&image_id);
+        store_image_context(stored_image_context(&image_id, None, None));
+
+        let error =
+            resolve_missing_image_payloads(vec![request_image_context_without_payload(&image_id)])
+                .expect_err("cache entries without image_path/data_url should not be accepted");
+
+        assert!(error.contains("missing image_path/data_url after cache resolution"));
+
+        remove_image_context(&image_id);
+    }
+
+    #[test]
+    fn resolve_missing_image_payloads_errors_when_cached_payload_expired() {
+        let image_id = format!("agentic-api-resolve-cache-expired-{}", uuid::Uuid::new_v4());
+        remove_image_context(&image_id);
+        store_image_context(stored_image_context(
+            &image_id,
+            None,
+            Some("data:image/png;base64,expired"),
+        ));
+        remove_image_context(&image_id);
+
+        let error =
+            resolve_missing_image_payloads(vec![request_image_context_without_payload(&image_id)])
+                .expect_err("expired cache entries should behave like missing upload payloads");
+
+        assert!(error.contains("Image context not found"));
+        assert!(error.contains("may have expired"));
+
+        remove_image_context(&image_id);
+    }
 
     #[test]
     fn goal_mode_status_wire_uses_stable_kebab_case_for_usage_limited() {
