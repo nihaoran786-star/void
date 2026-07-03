@@ -4651,3 +4651,31 @@ Remaining risk:
 - URL derivation, duplicated catalogs, adapter quirks, and retry boundary tests remain open follow-up work.
 - Upstream owner migrations remain deferred; direct crate layout synchronization is still forbidden.
 - The next selective-upstream candidate is `ISSUE-1180 Core Crate Decomposition Deferred Plan`.
+
+## ISSUE-1180 Core Crate Decomposition Deferred Plan
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream crate-decomposition and owner-migration commits including `fb8333afa`, `ea5321d66`, `401b9e61a`, `8338441c`, `213299206`, `a7fc6dcd1`, `98f0f4113`, `bceded210`, `8d69e5733`, `96cea08ca`, `47b5d6c94`, and `a29bd63d2`.
+- Confirmed upstream's most useful idea is staged ownership: product assembly/service contracts first, boundary checks second, concrete owner migration only after focused evidence.
+- Explicitly deferred upstream six-layer physical layout and concrete owner migrations because current Void already has protected local multi-agent, subdialog, floating chat, AI media, AI short-drama, terminal, Computer Use, MCP, provider, desktop, CLI, ACP, and installer behavior.
+- Confirmed current Void already has meaningful crate guardrails in `scripts/check-core-boundaries.mjs`: no owner crate may depend back on `void-core`, lightweight crates reject heavy deps, product entrypoints must use `product-full`, feature groups stay default-light, and legacy facades are checked.
+- Confirmed blockers: `void-core` still owns full runtime assembly, service/agent coupling needs ports, concrete tool and MiniApp runtime owners remain in core, and static dependency checks do not prove behavior equivalence.
+- Split follow-up work into `ISSUE-1180A` conceptual layer mapping, `ISSUE-1180B` product assembly contract spike, `ISSUE-1180C` runtime-services gap audit, `ISSUE-1180D` high-risk migration registry, and `ISSUE-1180E` product-full guardrail audit.
+- Preserved protected surfaces: no Cargo manifests, crate directories, module names, production code, boundary script behavior, or product runtime files were changed.
+
+Verification:
+
+- Upstream commit/file inspection completed for six-layer layout, product assembly contract, services runtime owner migration, product SDK assembly boundary, terminal/remote exec runtime ports, MCP runtime owner movement, provider HTTP owner movement, platform providers, and IM bot providers.
+- Local code inspection covered current crate list, `Cargo.toml`, `docs/architecture/core-decomposition.md`, `docs/plans/core-decomposition-plan.md`, `scripts/check-core-boundaries.mjs`, and crate-level AGENTS/README ownership notes.
+- Three subagents independently reviewed upstream architecture, local crate boundaries, and QA/risk verification.
+- No production tests were run in the main session because this was a docs-only audit.
+
+Remaining risk:
+
+- Current static checks prove dependency/anchor constraints, not runtime behavior equivalence.
+- Future physical crate moves still require Cargo graph baselines, product-entrypoint checks, focused owner-crate tests, and protected-surface regression tests.
+- SDK/minimal runtime profile remains a product decision, not an implementation target.
+- The selective-upstream audit wave is now complete through the listed P0-P3 priority inventory; implementation should continue from the proposed follow-up issues one at a time.

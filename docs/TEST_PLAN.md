@@ -4032,7 +4032,7 @@ Implementation test plan for follow-up issues:
     - Result: local `check:theme-colors` and `check:theme-visual-contract` exist and cover Web/CLI color audits plus visual-governance surface structure.
     - Result: local `theme-css-var-contract.mjs`, ThemeService dynamic-token whitelist, widget payload compatibility contract, and executable visual evidence fields remain missing.
     - Result: AI media and short-drama are included in the visual governance contract, but their local SCSS still contains surface-local tokens, `--void-*` fallbacks, and raw colors that need a separate boundary cleanup.
-  - Subagents reported current targeted checks passed:
+  - Main session and subagents reported current targeted checks passed:
     - `node --test scripts/audit-theme-colors.test.mjs`
     - `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3`
     - `node scripts/validate-theme-visual-contract.mjs`
@@ -4072,6 +4072,43 @@ Implementation test plan for follow-up issues:
     - OpenAI message converter regression tests for `ISSUE-1170C`.
     - Stream drop/cancel lifecycle tests for `ISSUE-1170D`.
     - Config/capability/default-model tests for `ISSUE-1170E`.
+  - Result: docs-only audit in the main session; no production code changed.
+- `ISSUE-1180`:
+  - `git show --stat --name-status --oneline 401b9e61a --`
+    - Result: passed; identified upstream six-layer physical crate layout and broad Cargo/docs/boundary-script/file moves.
+  - `git show --stat --name-status --oneline ea5321d66 fb8333afa 8338441c a7fc6dcd1 --`
+    - Result: passed; identified upstream layer-crate closure, product assembly service boundary, architecture-boundary docs, and product SDK assembly boundary validation.
+  - `git log --oneline --first-parent --since="2026-06-01" upstream-bitfun/main -- | Select-String -Pattern "decomposition|crate|services|assembly|runtime owner|move .* services|boundar|refactor\\(core\\)|refactor\\(runtime\\)"`
+    - Result: passed; identified upstream owner-migration sequence for services, runtime ports, execution, MCP, provider HTTP, platform providers, IM bot providers, and product assembly.
+  - Local file inspection:
+    - Result: current Void keeps a flat `src/crates/*` workspace with existing owner crates such as `void-core-types`, `void-runtime-ports`, `void-agent-tools`, `void-tool-packs`, `void-services-core`, `void-services-integrations`, `void-ai-adapters`, `void-agent-stream`, `terminal-core`, and `tool-runtime`.
+    - Result: local `scripts/check-core-boundaries.mjs` is the current boundary governance surface; upstream's rules directory was not copied.
+    - Result: local blockers remain in `void-core` runtime assembly, service/agent coupling, concrete tool runtime, MiniApp runtime, scheduler/session restore, workspace-root source, and product entrypoint assembly.
+  - Subagents reported current targeted checks passed:
+    - `node scripts/check-core-boundaries.mjs`
+    - `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+    - `cargo metadata --no-deps --format-version 1`
+    - Scoped docs/boundary `git diff --check`
+  - Recommended follow-up checks:
+    - For `ISSUE-1180A`: docs diff plus boundary checker if comments/rules are touched.
+    - For `ISSUE-1180B`: docs diff only unless a future issue explicitly approves Rust APIs.
+    - For `ISSUE-1180C`: `node scripts/check-core-boundaries.mjs`, self-test mode, and focused owner-crate tests for any touched runtime port/service contract.
+    - For `ISSUE-1180D`: docs diff and protected-surface test prerequisites listed per migration candidate.
+    - For `ISSUE-1180E`: `node scripts/check-core-boundaries.mjs`, `cargo metadata --no-deps --format-version 1`, and product entrypoint feature checks if feature assembly is inspected.
+  - Required checks before any future Cargo/crate layout change:
+    - `cargo metadata --no-deps --format-version 1`
+    - `cargo metadata --format-version 1 --locked`
+    - `cargo tree -p void-core -d`
+    - `cargo tree -p void-desktop -e features`
+    - `node scripts/check-core-boundaries.mjs`
+    - `cargo check -p void-core --features product-full`
+    - `cargo check -p void-desktop`
+    - `cargo check -p void-cli`
+    - `cargo check -p void-server`
+    - `cargo check -p void-relay-server`
+    - `cargo check -p void-acp`
+    - `cargo check --workspace`
+    - `cargo test --workspace`
   - Result: docs-only audit in the main session; no production code changed.
 
 Protected-surface regression candidates:

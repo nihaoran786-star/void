@@ -2120,7 +2120,7 @@ Risk notes: This belongs after `ISSUE-1140` image-context guard work if capabili
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Extract useful architectural ideas from upstream crate decomposition while explicitly deferring directory migration.
 Allowed files: docs and boundary checker references.
 Forbidden files: Cargo manifests, crate moves, module renames, production code.
@@ -2128,3 +2128,76 @@ Acceptance:
 - Deferred rationale is updated.
 - Boundary checker gaps, if any, are proposed as separate small issues.
 Risk notes: Crate movement is explicitly deferred; this issue may only improve documentation or static boundary checks.
+Result:
+- Reviewed upstream crate decomposition commits including `fb8333afa`, `ea5321d66`, `401b9e61a`, `8338441c`, `213299206`, `a7fc6dcd1`, `98f0f4113`, `bceded210`, `8d69e5733`, `96cea08ca`, `47b5d6c94`, and `a29bd63d2`.
+- Confirmed upstream's useful pattern is staged ownership: first define product assembly/runtime-service contracts, then add boundary checks, then migrate concrete owners only behind focused evidence.
+- Explicitly deferred upstream six-layer physical layout (`interfaces`, `assembly`, `adapters`, `services`, `execution`, `contracts`) because current Void uses a flat `src/crates/*` layout with existing protected local modules.
+- Confirmed current Void already has meaningful crate boundaries and static checks: no owner crate may depend back on `void-core`, lightweight contract crates reject heavy/runtime deps, product entrypoints must use `product-full`, and legacy facades are checked as re-export/narrow mapping surfaces.
+- Confirmed remaining blockers: `void-core` still owns full runtime assembly, service/agent coupling still needs ports, concrete tool and MiniApp runtimes remain in core, and static boundary checks do not prove product behavior equivalence.
+- Split follow-up work into `ISSUE-1180A` conceptual layer mapping, `ISSUE-1180B` product assembly contract spike, `ISSUE-1180C` runtime-services gap audit, `ISSUE-1180D` high-risk migration registry, and `ISSUE-1180E` product-full guardrail audit.
+- Preserved protected surfaces: no Cargo manifests, crate directories, module names, production code, boundary script behavior, Flow Chat, multi-agent/subagent, AI media, AI short-drama, terminal, Computer Use, MCP, provider, desktop, CLI, ACP, or installer files were changed.
+
+### ISSUE-1180A Conceptual Layer Mapping
+
+Priority: P2
+Status: Proposed
+Goal: Document how current flat `src/crates/*` maps to upstream's conceptual ownership layers without moving directories.
+Allowed files: docs and, if necessary, boundary checker comments or docs-only references.
+Forbidden files: Cargo workspace members, crate directory moves, module renames, production imports.
+Acceptance:
+- Current crates are mapped to conceptual assembly/contracts/execution/services/adapters/surfaces responsibilities.
+- The mapping states that it is not a migration plan.
+- Boundary checker behavior remains unchanged unless separately reviewed.
+Risk notes: Do not turn conceptual labels into physical path requirements.
+
+### ISSUE-1180B Product Assembly Contract Spike
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate whether Void needs a docs-only equivalent of upstream `ProductAssemblyPlan` / `DeliveryProfile` / service availability reporting.
+Allowed files: architecture docs and issue docs.
+Forbidden files: new Rust APIs, product profile changes, feature graph changes, SDK profile implementation.
+Acceptance:
+- Product assembly responsibilities are described separately from agent runtime behavior.
+- Any SDK/minimal runtime idea is deferred behind a future implementation issue.
+- Existing desktop, CLI, ACP, server, relay, multi-agent, media, and short-drama assembly expectations remain unchanged.
+Risk notes: A contract spike must not create a second product runtime path.
+
+### ISSUE-1180C Runtime Services Gap Audit
+
+Priority: P2
+Status: Proposed
+Goal: Compare current `void-runtime-ports`, `void-services-core`, and `void-services-integrations` against upstream runtime service boundaries and list only gaps.
+Allowed files: docs and read-only inspection first.
+Forbidden files: concrete service movement, manager extraction, scheduler/session restore changes.
+Acceptance:
+- Each gap says whether it is contract-only, service-helper, or concrete-runtime work.
+- Concrete runtime work is split into separate implementation issues.
+- Existing `void-core` compatibility ownership remains explicit.
+Risk notes: Do not treat a port DTO as proof that runtime ownership migrated.
+
+### ISSUE-1180D High-Risk Migration Registry
+
+Priority: P2
+Status: Proposed
+Goal: Register high-risk upstream owner migrations as candidates with required snapshot and focused-test prerequisites.
+Allowed files: docs only.
+Forbidden files: any implementation migration.
+Acceptance:
+- Candidate entries include commits such as `213299206`, `98f0f4113`, `bceded210`, `96cea08ca`, and `8d69e5733`.
+- Each candidate lists protected local surfaces and required verification before code.
+- Candidates are explicitly not approved for implementation by being registered.
+Risk notes: This is a risk ledger, not a backlog permission slip.
+
+### ISSUE-1180E Product-Full Guardrail Audit
+
+Priority: P2
+Status: Proposed
+Goal: Verify current `product-full` guardrails and app entrypoint feature assembly before any future SDK/minimal runtime discussion.
+Allowed files: docs, boundary check output notes, possibly focused boundary checker tests after separate approval.
+Forbidden files: feature graph changes, new delivery profiles, app entrypoint changes.
+Acceptance:
+- Desktop, CLI, ACP, server, and relay assembly expectations are listed.
+- `product-full` remains the supported full-capability path.
+- Any SDK/no-product-full idea remains deferred.
+Risk notes: Do not import upstream SDK profile until Void has an explicit product requirement.
