@@ -527,6 +527,31 @@ const facadeOnlyFiles = [
 
 const forbiddenContentRules = [
   {
+    path: 'src/apps/desktop/src/api/terminal_api.rs',
+    patterns: [
+      {
+        regex: /\bpub\s+struct\s+SessionManager\b/,
+        message:
+          'desktop terminal API must remain an adapter; SessionManager stays in terminal-core',
+      },
+      {
+        regex: /\bpub\s+struct\s+TerminalReplayEvent\b/,
+        message:
+          'desktop terminal API must not redefine replay facts; use terminal-core DTO adaptation',
+      },
+      {
+        regex: /\bpub\s+struct\s+TerminalReplayHistory\b/,
+        message:
+          'desktop terminal API must not own replay history; use terminal-core session replay',
+      },
+      {
+        regex: /\bportable_pty::/,
+        message:
+          'desktop terminal API must not own PTY implementation details; use terminal-core',
+      },
+    ],
+  },
+  {
     path: 'src/crates/core/src/service/filesystem/service.rs',
     patterns: [
       {
@@ -1834,6 +1859,28 @@ const forbiddenContentRules = [
 
 const forbiddenContentUnderRules = [
   {
+    path: 'src/web-ui/src/flow_chat',
+    reason:
+      'Flow Chat must render terminal tool state without owning terminal session or replay internals',
+    patterns: [
+      {
+        regex: /\bTerminalReplayEvent\b/,
+        message:
+          'terminal replay event facts stay in terminal services/core and Web terminal utilities',
+      },
+      {
+        regex: /\bTerminalReplayHistory\b/,
+        message:
+          'terminal replay history stays in terminal services/core and Web terminal utilities',
+      },
+      {
+        regex: /\bSessionManager\b/,
+        message:
+          'terminal session manager facts must not enter Flow Chat state or tool cards',
+      },
+    ],
+  },
+  {
     path: 'src/crates/core/src',
     reason:
       'core must use runtime-ports as the owner path for portable subagent contracts',
@@ -1980,6 +2027,48 @@ const forbiddenContentUnderRules = [
 ];
 
 const requiredContentRules = [
+  {
+    path: 'src/crates/terminal/src/api.rs',
+    reason:
+      'terminal-core public API must remain the owner adapter around terminal sessions and replay facts',
+    patterns: [
+      {
+        regex: /\bpub struct TerminalApi\b/,
+        message: 'terminal-core must expose the TerminalApi owner boundary',
+      },
+      {
+        regex: /\b(?:pub\s+)?session_manager: Arc<SessionManager>/,
+        message: 'TerminalApi must keep SessionManager ownership inside terminal-core',
+      },
+      {
+        regex: /\bpub async fn get_history\b/,
+        message: 'terminal-core must own terminal history retrieval',
+      },
+      {
+        regex: /\b(?:pub\s+)?events: Vec<TerminalReplayEvent>/,
+        message: 'terminal-core history DTO must expose structured replay events',
+      },
+    ],
+  },
+  {
+    path: 'src/crates/terminal/src/session/replay.rs',
+    reason:
+      'terminal-core session replay module must remain the owner of replay event facts',
+    patterns: [
+      {
+        regex: /\bpub struct TerminalReplayEvent\b/,
+        message: 'terminal replay events must stay owned by terminal-core',
+      },
+      {
+        regex: /\bpub struct TerminalReplayHistory\b/,
+        message: 'terminal replay history must stay owned by terminal-core',
+      },
+      {
+        regex: /\bresize_marker\b/,
+        message: 'terminal replay resize markers must stay in terminal-core',
+      },
+    ],
+  },
   {
     path: 'src/crates/services-core/src/filesystem/mod.rs',
     reason:
@@ -6806,6 +6895,39 @@ function runManifestParserSelfTest() {
       );
     }
   }
+  const terminalDesktopAdapterRule = forbiddenContentRules.find(
+    (rule) => rule.path === 'src/apps/desktop/src/api/terminal_api.rs',
+  );
+  if (!terminalDesktopAdapterRule) {
+    throw new Error('missing desktop terminal adapter boundary rule');
+  }
+  const terminalDesktopAdapterRuleText = terminalDesktopAdapterRule.patterns
+    .map((pattern) => pattern.regex.source)
+    .join('\n');
+  for (const contract of [
+    'SessionManager',
+    'TerminalReplayEvent',
+    'TerminalReplayHistory',
+    'portable_pty::',
+  ]) {
+    if (!terminalDesktopAdapterRuleText.includes(contract)) {
+      throw new Error(`desktop terminal adapter boundary rule must forbid: ${contract}`);
+    }
+  }
+  const flowChatTerminalRule = forbiddenContentUnderRules.find(
+    (rule) => rule.path === 'src/web-ui/src/flow_chat',
+  );
+  if (!flowChatTerminalRule) {
+    throw new Error('missing Flow Chat terminal replay boundary rule');
+  }
+  const flowChatTerminalRuleText = flowChatTerminalRule.patterns
+    .map((pattern) => pattern.regex.source)
+    .join('\n');
+  for (const contract of ['TerminalReplayEvent', 'TerminalReplayHistory', 'SessionManager']) {
+    if (!flowChatTerminalRuleText.includes(contract)) {
+      throw new Error(`Flow Chat terminal replay boundary rule must forbid: ${contract}`);
+    }
+  }
 
   const productDomainProfile = dependencyProfileRules.find(
     (rule) => rule.crateName === 'product-domains',
@@ -6969,6 +7091,23 @@ function runManifestParserSelfTest() {
   }
 
   const requiredContentContracts = [
+    {
+      path: 'src/crates/terminal/src/api.rs',
+      contracts: [
+        'pub struct TerminalApi',
+        'session_manager: Arc<SessionManager>',
+        'pub async fn get_history',
+        'events: Vec<TerminalReplayEvent>',
+      ],
+    },
+    {
+      path: 'src/crates/terminal/src/session/replay.rs',
+      contracts: [
+        'pub struct TerminalReplayEvent',
+        'pub struct TerminalReplayHistory',
+        'resize_marker',
+      ],
+    },
     {
       path: 'src/crates/runtime-ports/src/lib.rs',
       contracts: [

@@ -72,23 +72,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130D Windows Computer Use capability gating/settings parent complete.
 - [x] ISSUE-1130C1 Windows pointer coordinate contract tests complete.
 - [x] ISSUE-1140E1 short-drama Main AI media export leak guard complete.
+- [x] ISSUE-1120B terminal runtime-port boundary static guard complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard`
+Issue: `ISSUE-1120B Terminal Runtime-Port Boundary Study`
 
 Summary:
 
-- Added a focused Main AI context export test with a short-drama image artifact containing external CDN URL, data URL thumbnail, Windows local path, and Unix-like file path media metadata.
-- Verified the export payload may keep `mediaItemId`, `activeMedia`, and preview availability metadata, but omits raw `mediaReference`, `previewUrl`, `thumbnailUrl`, `localPath`, `filePath`, public URLs, data URLs, and raw byte labels.
-- Documented that short-drama image-understanding summaries must enter through `ShortDramaProject` as low-context artifact/reference metadata.
-- Kept parent `ISSUE-1140E` open for a future explicit short-drama image-media to generic image-context adapter; `AnalyzeImage` remains short-drama-agnostic.
+- Added a terminal runtime boundary static guard to `scripts/check-core-boundaries.mjs`.
+- Mapped the current owner chain as Web terminal service/hook -> desktop `terminal_api.rs` DTO adapter -> `terminal-core` `TerminalApi`/`SessionManager`/PTY/session replay owner.
+- Guarded `terminal_api.rs` from owning `SessionManager`, replay history structs, or PTY internals.
+- Guarded Flow Chat from owning terminal replay/session internals.
+- Deferred real terminal runtime-port trait design, upstream `src/crates/services/terminal` layout migration, remote SSH rewrite, and terminal UI behavior changes.
 
 Verification:
 
-- `pnpm --dir src/web-ui run test:run src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts` passed.
-- `pnpm --dir src/web-ui run type-check` passed.
-- `git diff --check -- src/web-ui/src/shared/services/short-drama/ShortDramaMainAIContextExport.test.ts docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
+- `VOID_BOUNDARY_CHECK_SELF_TEST=1 node scripts/check-core-boundaries.mjs` passed.
+- `node scripts/check-core-boundaries.mjs` passed after narrowing two required-content regexes to the existing field shape.
+- `git diff --check -- scripts/check-core-boundaries.mjs docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with only Git line-ending warnings.
 
 ## Subagent Summary
 

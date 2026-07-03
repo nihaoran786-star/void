@@ -399,6 +399,7 @@ Interface ownership:
 - Terminal domain logic remains in terminal service/core boundaries.
 - Terminal UI state and xterm behavior remain under `src/web-ui/src/tools/terminal`; Flow Chat tool cards render terminal tool state and must not infer PTY/session internals.
 - Terminal replay/history facts are owned by `src/crates/terminal`, with `terminal_api.rs` limited to DTO/command/event adaptation.
+- Current terminal owner chain is Web `TerminalService`/`useTerminal` -> desktop `terminal_api.rs` adapter -> `terminal-core` `TerminalApi`/`SessionManager` -> PTY/session/replay owner. `void-runtime-ports` must not acquire terminal-core, PTY, Tauri, or remote SSH implementation ownership without a separate implementation issue.
 - Computer Use strategy and policy remain behind `ComputerUseHost` and core tool contracts.
 - Platform-specific capture/input implementations remain under desktop platform adapters.
 - Computer Use terminal/GVim detection is an input-routing concern, not a terminal service concern.
@@ -406,6 +407,7 @@ Interface ownership:
 Forbidden:
 
 - Moving terminal domain logic into `src/apps/desktop/src/api/terminal_api.rs`.
+- Adding `SessionManager`, `TerminalReplayHistory`, PTY, or replay-event ownership to `terminal_api.rs`, `Flow Chat`, or `void-runtime-ports`.
 - Replacing the local terminal crate with upstream `src/crates/services/terminal` layout.
 - Whole-file replacement of `Terminal.tsx`, `ConnectedTerminal.tsx`, or `TerminalToolCard.tsx` to import upstream behavior.
 - Moving Computer Use permission, verification, or policy logic into Web UI.

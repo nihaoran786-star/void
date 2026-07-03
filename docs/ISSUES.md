@@ -1621,7 +1621,7 @@ Result:
 ### ISSUE-1120B Terminal Runtime-Port Boundary Study
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Study upstream terminal/exec runtime-port commits and decide whether one small boundary checker or adapter seam can be added without moving crates or changing runtime behavior.
 Allowed files: docs and static boundary checks first.
 Forbidden files: Cargo crate moves, `src/crates/services/terminal` bulk migration, exec-command implementation rewrite, remote SSH rewrite, Flow Chat or terminal UI behavior changes.
@@ -1630,6 +1630,12 @@ Acceptance:
 - One optional static rule or adapter seam is proposed, or the runtime-port migration is explicitly deferred.
 - No runtime behavior is changed without a follow-up implementation issue.
 Risk notes: Upstream runtime-port work is architecture-scale and crosses CLI, desktop, server, core assembly, tool runtime, remote SSH, and terminal service ownership.
+Result:
+- Added a focused terminal runtime boundary guard to `scripts/check-core-boundaries.mjs`.
+- Mapped the current owner chain as Web terminal UI/service -> desktop `terminal_api.rs` DTO adapter -> `terminal-core` `TerminalApi`/`SessionManager`/session replay owner, with remote terminal history still explicit and unsupported until a separate remote replay issue.
+- Guarded `terminal_api.rs` from owning `SessionManager`, replay history structs, or PTY internals.
+- Guarded Flow Chat from owning `TerminalReplayEvent`, `TerminalReplayHistory`, or `SessionManager` facts.
+- Deferred any real `TerminalRuntimePort` trait, `src/crates/services/terminal` migration, remote SSH rewrite, or terminal UI behavior change to separate issues.
 
 ### ISSUE-1120C Web Terminal Input and Lazy Renderer Delta
 

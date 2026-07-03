@@ -137,6 +137,31 @@ Remaining follow-up for parent `ISSUE-1140E`:
 - Keep `AnalyzeImage` short-drama-agnostic; it must continue to accept only generic `image_id`, workspace-safe `image_path`, or inline `data_url`.
 - Add tests proving video/audio short-drama media do not become image contexts and HTTP preview URLs are not treated as directly analyzable image bytes.
 
+## ISSUE-1120B Terminal Runtime-Port Boundary Study
+
+Date: 2026-07-04
+
+Scope:
+
+- `scripts/check-core-boundaries.mjs`.
+- `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No terminal runtime behavior, Web terminal UI, desktop terminal commands, `terminal-core`, remote SSH, Flow Chat, multi-agent/subagent, AI media, AI short-drama, Computer Use, provider, Cargo, or crate-layout changes.
+
+Checks:
+
+- `VOID_BOUNDARY_CHECK_SELF_TEST=1 node scripts/check-core-boundaries.mjs`
+  - Result: passed after adding self-test coverage for the terminal adapter, Flow Chat terminal replay, and terminal-core owner anchor rules.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: failed first because two required-content regexes used a word boundary after `>` and did not match existing `Arc<SessionManager>` / `Vec<TerminalReplayEvent>` fields.
+  - Result: passed after narrowing the regex fix to allow the existing field shape.
+
+Coverage:
+
+- `terminal_api.rs` is guarded from redefining `SessionManager`, `TerminalReplayEvent`, `TerminalReplayHistory`, or importing `portable_pty`.
+- Flow Chat is guarded from owning `TerminalReplayEvent`, `TerminalReplayHistory`, or `SessionManager` facts.
+- `terminal-core` `api.rs` and `session/replay.rs` are required to keep the current TerminalApi, SessionManager, get-history, replay-event, replay-history, and resize-marker owner anchors.
+- Real `TerminalRuntimePort` trait design, remote terminal replay, exec-command owner migration, and upstream `src/crates/services/terminal` layout remain deferred.
+
 ## ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Date: 2026-07-03
