@@ -268,18 +268,24 @@ Interface ownership:
 - `src/crates/ai-adapters` owns provider HTTP/SSE transport, provider stream parsing, and conversion into `UnifiedResponse`.
 - Integration fixtures under `src/crates/ai-adapters/tests` own provider replay inputs and expected public adapter output.
 - Core agent runtime consumes unified adapter output and must not depend on provider-specific fixture internals.
+- Legal AI provider HTTP/SSE owner paths are `src/crates/ai-adapters/src/**` and `src/crates/ai-adapters/tests/**`.
+- A future service adapter may own provider HTTP/SSE only when a specific issue and decision name that adapter explicitly. `services-integrations` MCP Streamable HTTP/SSE ownership is not a blanket AI provider transport owner.
+- `src/crates/core/src/**` may keep provider config, credential, model-selection, and unified adapter consumption facts, but must not own provider-specific OpenAI/Anthropic/Gemini HTTP transport or SSE stream parsing.
+- `src/crates/product-domains/src/**`, `src/crates/agent-tools/src/**`, `src/crates/runtime-ports/src/**`, and `src/crates/core-types/src/**` must not own provider HTTP/SSE runtime.
 
 Required boundary:
 
 - Parser and retry migrations must first add or update focused adapter tests.
 - Fixture harnesses should call public adapter APIs, not private provider internals, unless a later issue records a narrower test-only need.
 - Provider-specific parser fixes must remain split by provider family: OpenAI/Responses, Anthropic/Gemini, retry transport, and model selector/credential helpers.
+- `scripts/check-core-boundaries.mjs` owns the static guard for provider HTTP/SSE ownership under `forbiddenContentUnderRules`.
 
 Forbidden:
 
 - Copying upstream `bitfun_*` crate names, event types, globals, or crate layout into Void.
 - Folding provider-specific OpenAI/Responses/Gemini/Anthropic parsing assumptions into core portable tool contracts.
 - Combining retry policy changes with provider parser rewrites in one issue.
+- Adding provider-specific HTTP/SSE transport or provider stream-parser imports to core/product/domain/portable contract crates as an incidental upstream-sync change.
 
 ### Image Understanding
 

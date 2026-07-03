@@ -65,6 +65,7 @@ Candidate capability families:
 - Computer Use host improvements, platform by platform.
 - Computer Use tool-contract additions such as `describe_screen`, only after product/schema contract acceptance and without bundling them into platform adapter work.
 - Provider/adapter parsing and retry fixes.
+- Provider/service boundary governance, starting with static owner checks that keep AI provider HTTP/SSE transport in `void-ai-adapters` unless a later issue names a service adapter explicitly.
 - i18n, theme, repo hygiene, and brand-safe audit improvements.
 - Prompt cache, Multitask, and persisted `/goal` workflow verification where local behavior is already present.
 - Runtime token-budget accounting as a separate runtime-accounting candidate.

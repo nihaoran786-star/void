@@ -66,6 +66,34 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1170A Provider HTTP Boundary Static Audit
+
+Date: 2026-07-03
+
+Scope:
+
+- `scripts/check-core-boundaries.mjs` static governance only.
+- Provider HTTP/SSE owner documentation only.
+- No provider implementation, crate layout, request/stream behavior, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, or theme runtime changes.
+
+Checks:
+
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs`
+  - Initial result: failed.
+  - Cause: self-test required a provider HTTP/SSE owner boundary rule before the rule existed.
+- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; $exit=$LASTEXITCODE; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST; exit $exit`
+  - Final result: passed.
+  - Notes: self-test covers OpenAI/Anthropic/Gemini transport coupled to `reqwest` and direct provider SSE parser imports.
+- `node scripts/check-core-boundaries.mjs`
+  - Interim result: failed when patterns were too broad.
+  - Cause: endpoint-string checks matched credential/config facts, and a global `reqwest::Client` check matched existing non-provider HTTP owners.
+  - Final result: passed after narrowing the guard to provider-specific transport/SSE ownership signals.
+
+Residual risk:
+
+- The static guard is line-oriented and catches high-signal ownership drift, not every possible multi-line provider transport implementation.
+- Broader migration of existing core HTTP owners to service adapters remains a separate high-risk issue.
+
 ## ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice
 
 Date: 2026-07-03

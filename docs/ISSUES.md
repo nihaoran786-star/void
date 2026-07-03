@@ -2160,15 +2160,22 @@ Result:
 ### ISSUE-1170A Provider HTTP Boundary Static Audit
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Add a small static boundary check or documented rule that provider HTTP/SSE owners stay inside `void-ai-adapters` or an explicitly named service adapter.
 Allowed files: boundary scripts/tests and docs only.
 Forbidden files: provider implementation moves, crate layout changes, request/stream behavior changes.
 Acceptance:
-- Legal HTTP owner paths are listed.
+- Legal HTTP owner paths are listed in `docs/ARCHITECTURE.md`.
 - Core/product paths are checked or documented as forbidden places for provider-specific HTTP ownership.
 - Existing `void-ai-adapters` ownership stays unchanged.
+- Static checking lives in `forbiddenContentUnderRules`; it is not a Cargo dependency, facade-only, or required-content rule.
 Risk notes: This is governance only; it must not become a hidden crate migration.
+Result:
+- Added a focused `src/crates/core/src` guard in `scripts/check-core-boundaries.mjs` for provider-specific HTTP/SSE ownership signals.
+- The rule forbids core-owned OpenAI/Anthropic/Gemini transport lines coupled to `reqwest` and direct provider SSE parser imports such as `eventsource_stream::` or `sse_stream::`.
+- The rule intentionally does not ban all `reqwest::Client` usage, provider config strings, credential discovery URLs, APIMart media HTTP, web tools, remote bots, or review-platform HTTP clients.
+- Added self-test coverage for the provider HTTP/SSE owner boundary.
+- No provider implementation, crate layout, request behavior, stream behavior, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, or theme runtime code was changed.
 
 ### ISSUE-1170B AI Connection Test Error Classification
 

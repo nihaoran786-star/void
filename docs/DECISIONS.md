@@ -583,3 +583,9 @@ Reason: Final preview styling is a presentation concern, while final-video readi
 Decision: The tenth `ISSUE-1160F` code slice keeps short-drama stage card, poster, notice, media-reference, and rail surface visuals inside `ShortDramaCenterPanel.scss` as local `--short-drama-card-*` and `--short-drama-stage-rail-*` tokens.
 
 Reason: Stage card colors express presentation for existing stages, not stage ownership or workflow authority. Keeping these tokens local reduces selector-level raw color debt without changing stage navigation, artifact status, media references, stage-agent coordination, or short-drama service behavior.
+
+## DEC-098: Provider HTTP/SSE Owner Guard Is Governance-Only
+
+Decision: `ISSUE-1170A` adds a static provider HTTP/SSE ownership guard to `scripts/check-core-boundaries.mjs`. The legal default AI provider transport owner remains `src/crates/ai-adapters/src/**`, with provider replay expectations in `src/crates/ai-adapters/tests/**`. Core may retain provider config, credential, model-selection, and unified adapter consumption facts, but it must not add OpenAI/Anthropic/Gemini provider transport lines coupled to `reqwest` or direct provider SSE parser imports. A service adapter may become an AI provider HTTP/SSE owner only when a later issue and decision name it explicitly.
+
+Reason: Upstream provider/service decomposition is useful as a boundary idea, but a direct crate or transport migration would be high risk for current Void. A focused static guard prevents provider HTTP/SSE ownership from drifting back into core without touching existing APIMart media HTTP, web tools, remote bots, review-platform HTTP, CLI credential discovery, Flow Chat, multi-agent workflows, AI media, AI short-drama, terminal, MCP, Computer Use, or crate layout.

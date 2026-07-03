@@ -1847,6 +1847,24 @@ const forbiddenContentUnderRules = [
     ],
   },
   {
+    path: 'src/crates/core/src',
+    reason:
+      'core must not own provider-specific HTTP/SSE clients; use void-ai-adapters or an explicitly reviewed service adapter',
+    patterns: [
+      {
+        regex:
+          /\b(?:OpenAI|Anthropic|Gemini)\b.*\breqwest\b|\breqwest\b.*\b(?:OpenAI|Anthropic|Gemini)\b/i,
+        message:
+          'provider HTTP request ownership stays in void-ai-adapters or a named service adapter',
+      },
+      {
+        regex: /\beventsource_stream::|\bsse_stream::/,
+        message:
+          'provider SSE stream parsing ownership stays in void-ai-adapters or a named service adapter',
+      },
+    ],
+  },
+  {
     path: 'src/crates/product-domains/src',
     reason:
       'product-domains must not own IO/process/Git/AI/platform runtime behavior without an approved port/provider migration',
@@ -6877,6 +6895,26 @@ function runManifestParserSelfTest() {
     )
   ) {
     throw new Error('product-domains Command::new exception must stay scoped to MiniApp runtime detection');
+  }
+  const providerHttpOwnerRule = forbiddenContentUnderRules.find(
+    (rule) =>
+      rule.path === 'src/crates/core/src' &&
+      rule.reason.includes('provider-specific HTTP/SSE'),
+  );
+  if (!providerHttpOwnerRule) {
+    throw new Error('missing provider HTTP/SSE owner boundary rule');
+  }
+  const providerHttpOwnerSamples = [
+    ['OpenAI.*reqwest', 'let transport = OpenAI::new(reqwest::Client::new());'],
+    ['Anthropic.*reqwest', 'let transport = Anthropic::new(reqwest::Client::new());'],
+    ['Gemini.*reqwest', 'let transport = Gemini::new(reqwest::Client::new());'],
+    ['eventsource_stream::', 'use eventsource_stream::Eventsource;'],
+    ['sse_stream::', 'use sse_stream::SseStream;'],
+  ];
+  for (const [contract, sample] of providerHttpOwnerSamples) {
+    if (!providerHttpOwnerRule.patterns.some((pattern) => pattern.regex.test(sample))) {
+      throw new Error(`provider HTTP/SSE owner boundary rule must forbid: ${contract}`);
+    }
   }
   const coreTypesProfile = dependencyProfileRules.find((rule) => rule.crateName === 'core-types');
   if (!coreTypesProfile?.forbiddenNonOptionalDeps.includes('void-ai-adapters')) {
