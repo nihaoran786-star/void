@@ -77,14 +77,18 @@ pub fn find_image_context_by_reference(reference: &str) -> Option<ImageContextDa
         .and_then(|value| value.to_str())
         .unwrap_or(trimmed);
 
-    IMAGE_STORAGE.iter().find_map(|entry| {
+    let mut matched: Option<ImageContextData> = None;
+    for entry in IMAGE_STORAGE.iter() {
         let image = &entry.value().0;
         if image.image_name == trimmed || image.image_name == file_name {
-            Some(image.clone())
-        } else {
-            None
+            if matched.is_some() {
+                return None;
+            }
+            matched = Some(image.clone());
         }
-    })
+    }
+
+    matched
 }
 
 pub fn remove_image_context(image_id: &str) {
@@ -146,4 +150,100 @@ fn current_unix_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        cleanup_expired_images, find_image_context_by_reference, get_image_context,
+        remove_image_context, store_image_context, ImageContextData, IMAGE_STORAGE,
+    };
+
+    fn image(id: &str, image_path: Option<&str>, image_name: &str) -> ImageContextData {
+        ImageContextData {
+            id: id.to_string(),
+            image_path: image_path.map(ToString::to_string),
+            data_url: None,
+            mime_type: "image/png".to_string(),
+            image_name: image_name.to_string(),
+            file_size: 10,
+            width: Some(1),
+            height: Some(1),
+            source: "test".to_string(),
+        }
+    }
+
+    fn unique_name(prefix: &str) -> String {
+        format!("{prefix}-{}.png", uuid::Uuid::new_v4())
+    }
+
+    #[test]
+    fn image_context_lookup_matches_id_full_filename_and_basename() {
+        let id = format!("img-{}", uuid::Uuid::new_v4());
+        let image_name = unique_name("frame");
+        let image_path = format!("workspace/assets/{image_name}");
+        let lookup_path = format!("other/path/{image_name}");
+        store_image_context(image(&id, Some(&image_path), &image_name));
+
+        assert_eq!(
+            find_image_context_by_reference(&id).map(|image| image.id),
+            Some(id.clone())
+        );
+        assert_eq!(
+            find_image_context_by_reference(&image_name).map(|image| image.id),
+            Some(id.clone())
+        );
+        assert_eq!(
+            find_image_context_by_reference(&lookup_path).map(|image| image.id),
+            Some(id.clone())
+        );
+
+        remove_image_context(&id);
+    }
+
+    #[test]
+    fn image_context_lookup_returns_none_for_same_name_collision() {
+        let id_1 = format!("img-{}", uuid::Uuid::new_v4());
+        let id_2 = format!("img-{}", uuid::Uuid::new_v4());
+        let image_name = unique_name("collision");
+        let path_1 = format!("workspace/a/{image_name}");
+        let path_2 = format!("workspace/b/{image_name}");
+        let lookup_path = format!("other/path/{image_name}");
+        store_image_context(image(&id_1, Some(&path_1), &image_name));
+        store_image_context(image(&id_2, Some(&path_2), &image_name));
+
+        assert!(find_image_context_by_reference(&image_name).is_none());
+        assert!(find_image_context_by_reference(&lookup_path).is_none());
+        assert_eq!(
+            find_image_context_by_reference(&id_1).map(|image| image.id),
+            Some(id_1.clone())
+        );
+
+        remove_image_context(&id_1);
+        remove_image_context(&id_2);
+    }
+
+    #[test]
+    fn image_context_expiration_removes_stale_entries() {
+        let id = format!("img-{}", uuid::Uuid::new_v4());
+        let image_name = unique_name("expired");
+        IMAGE_STORAGE.insert(
+            id.clone(),
+            (
+                image(
+                    &id,
+                    Some(&format!("workspace/assets/{image_name}")),
+                    &image_name,
+                ),
+                0,
+            ),
+        );
+
+        cleanup_expired_images(300);
+
+        assert!(get_image_context(&id).is_none());
+        assert!(find_image_context_by_reference(&image_name).is_none());
+
+        remove_image_context(&id);
+    }
 }

@@ -4235,3 +4235,34 @@ Deferred:
 - `image_context` remains globally scoped and may match by filename; session/workspace scoping is a separate image-context issue.
 - `process_image_contexts_for_provider` path containment for generic model image contexts remains separate from `AnalyzeImage`.
 - BTW child-session follow-up images, AI media image references, and short-drama image-summary bridges remain under their own issue boundaries.
+
+## ISSUE-1140C Image Context Scope and Media Path Leak Guards
+
+Scope:
+
+- Current slice covers `image_context.rs` lookup semantics only.
+- No Web UI, Flow Chat, BTW, AI media service, AI short-drama service, provider adapter, execution engine, desktop API, provider policy, or workspace file read behavior was changed.
+
+Executed:
+
+- `cargo test -p void-core image_context --lib -- --nocapture`
+  - Result before fix: failed as expected for same-name filename collision returning a match. Initial test isolation also exposed shared global storage pollution, so tests were changed to use unique ids/names and remove only their own entries.
+  - Result after fix: passed, 8 tests matched by the filter, including existing media image-reference tests.
+- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1`
+  - Result: passed, 3 tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/image_context.rs`
+  - Result before formatting: failed with a formatting diff.
+  - Result after `rustfmt --edition 2021 src/crates/core/src/agentic/tools/image_context.rs`: passed.
+
+Coverage:
+
+- Exact `image_id` lookup remains stable.
+- Unique full filename and basename lookup still resolves the image context.
+- Same-name filename/basename collisions return `None` instead of an arbitrary map entry.
+- Expiration cleanup removes stale entries without relying on global storage clearing in tests.
+
+Deferred:
+
+- Session/workspace scoping for the global image-context store remains unimplemented.
+- `resolve_missing_image_payloads` missing/expired cache behavior remains to be covered.
+- `GenerateImage` / `GenerateVideo` unmatched local-path rejection and valid `http(s)` / `data:` references remain separate 1140C slices.

@@ -1811,7 +1811,7 @@ Risk notes: This is a Flow Chat service boundary issue, not an image byte loadin
 ### ISSUE-1140C Image Context Scope and Media Path Leak Guards
 
 Priority: P1
-Status: Proposed
+Status: Active
 Goal: Prevent global temporary image-context ambiguity and avoid leaking local paths through media image-reference inputs.
 Allowed files: `src/crates/core/src/agentic/tools/image_context.rs`, `src/apps/desktop/src/api/agentic_api.rs` tests, `src/crates/core/src/agentic/tools/implementations/media_tools.rs` tests/docs.
 Forbidden files: Web UI rewrites, provider adapter reorganization, short-drama service rewrites, generic fallback string matching.
@@ -1821,6 +1821,12 @@ Acceptance:
 - `GenerateImage` / `GenerateVideo` do not silently pass unmatched Windows/POSIX local paths as provider URLs.
 - Valid `http(s)` and `data:` image references continue to work.
 Risk notes: `image_context.rs` must stay a storage/lookup layer and must not start enforcing provider policy or workspace reads.
+Progress:
+- Added focused `image_context.rs` tests documenting exact `image_id` lookup, full filename lookup, basename lookup, expiration cleanup, and same-name collision behavior.
+- Changed filename/basename fallback to require a unique match. Same-name collisions now return `None` instead of taking an arbitrary `DashMap` iteration result; exact `image_id` lookup remains stable.
+- Preserved `image_context.rs` as storage/lookup only. No provider policy, workspace reads, Web UI, Flow Chat, media service, short-drama service, provider adapter, execution engine, or desktop API code changed.
+- Verification so far: `cargo test -p void-core image_context --lib -- --nocapture` passed with 8 tests, including existing media image-reference tests matched by the filter. `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests. `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/image_context.rs` passed.
+- Remaining 1140C work: `resolve_missing_image_payloads` missing/expired cache coverage, `GenerateImage` / `GenerateVideo` unmatched local-path guard coverage, and valid `http(s)` / `data:` image-reference regression tests.
 
 ### ISSUE-1140D Void ViewImage Tool Contract Gate
 

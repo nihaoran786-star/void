@@ -37,23 +37,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] Computer Use platform inventory complete.
 - [x] ISSUE-1120D remote terminal history status/source contract slice complete.
 - [x] ISSUE-1140A AnalyzeImage permission/data_url contract slice complete.
+- [x] ISSUE-1140C image-context unique filename lookup slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140A AnalyzeImage Permission and Data URL Guard`
+Issue: `ISSUE-1140C Image Context Scope and Media Path Leak Guards`
 
 Summary:
 
-- Removed unreachable `permission_denied` from the active `AnalyzeImage` output status contract.
-- Added `call_impl`-level exactly-one-source enforcement for `image_id`, `image_path`, and `data_url`.
-- Hardened inline `data_url` handling before provider runtime: size cap, raster MIME whitelist, and real image payload detection.
-- Preserved protected surfaces: no Web UI, provider adapter, Flow Chat, BTW panel, AI media, AI short-drama, or desktop upload/API files changed.
+- Added `image_context.rs` tests for exact `image_id`, full filename, basename, expiration cleanup, and same-name collision lookup behavior.
+- Changed filename/basename fallback to fail closed when multiple stored images share the same name, while preserving exact `image_id` lookup.
+- Preserved `image_context.rs` as storage/lookup only: no provider policy, workspace read, media tool production logic, Flow Chat, AI media, AI short-drama, Web UI, execution engine, or desktop API changes.
+- Left the broader 1140C media path leak and missing payload coverage as remaining work.
 
 Verification:
 
-- `cargo test -p void-core analyze_image --lib -- --nocapture` passed with 14 tests.
-- `cargo test -p void-core image_analysis --lib -- --nocapture` passed with 0 matching tests.
-- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/implementations/analyze_image_tool.rs` passed.
+- `cargo test -p void-core image_context --lib -- --nocapture` passed with 8 matched tests.
+- `cargo test -p void-core agentic::tools::image_context::tests --lib -- --nocapture --test-threads=1` passed with 3 tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/image_context.rs` passed after formatting.
 
 ## Subagent Summary
 
