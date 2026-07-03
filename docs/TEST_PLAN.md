@@ -94,6 +94,40 @@ Residual risk:
 - The static guard is line-oriented and catches high-signal ownership drift, not every possible multi-line provider transport implementation.
 - Broader migration of existing core HTTP owners to service adapters remains a separate high-risk issue.
 
+## ISSUE-1170C OpenAI Content-Part Array Parser Regression
+
+Date: 2026-07-03
+
+Scope:
+
+- `src/crates/ai-adapters/src/providers/openai/message_converter.rs` only.
+- Chat Completions content-part array validation only.
+- No tool schema, Flow Chat UI, media/short-drama context plumbing, non-OpenAI provider, provider catalog/config, or crate layout changes.
+
+Checks:
+
+- `cargo test -p void-ai-adapters openai::message_converter -- --nocapture`
+  - Initial result: failed.
+  - Cause: newly added tests showed plain JSON arrays and mixed invalid content-part arrays were passed through as OpenAI content arrays.
+  - Final result: passed.
+  - Notes: 13 OpenAI message converter tests passed after limiting array passthrough to valid Chat Completions `text`/`image_url` parts and rejecting Responses-style string `image_url` parts.
+- `rustfmt src/crates/ai-adapters/src/providers/openai/message_converter.rs`
+  - Result: passed.
+- `cargo test -p void-ai-adapters`
+  - Result: passed.
+  - Notes: 172 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests passed.
+- `cargo metadata --no-deps --format-version 1`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/ai-adapters/src/providers/openai/message_converter.rs docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Residual risk:
+
+- This does not change Responses API content parsing or non-OpenAI providers.
+- The validator intentionally supports the current Chat Completions part shapes only; future OpenAI part types should add focused tests before being allowed through.
+
 ## ISSUE-1160F Workspace Media Gallery Theme Token Wrapper Slice
 
 Date: 2026-07-03

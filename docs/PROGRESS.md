@@ -57,26 +57,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160F short drama center final-preview token slice complete.
 - [x] ISSUE-1160F short drama center stage card token slice complete.
 - [x] ISSUE-1170A provider HTTP/SSE owner boundary static audit complete.
+- [x] ISSUE-1170C OpenAI content-part array parser regression complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1170A Provider HTTP Boundary Static Audit`
+Issue: `ISSUE-1170C OpenAI Content-Part Array Parser Regression`
 
 Summary:
 
-- Added a focused `forbiddenContentUnderRules` guard in `scripts/check-core-boundaries.mjs` for provider-specific HTTP/SSE owner drift under `src/crates/core/src`.
-- The guard catches OpenAI/Anthropic/Gemini transport lines coupled to `reqwest` and direct provider SSE parser imports.
-- Documented legal owner paths and forbidden owner paths in `docs/ARCHITECTURE.md`.
-- Recorded DEC-098 for provider HTTP/SSE owner governance.
-- Marked `ISSUE-1170A` done and kept later provider parsing/error-classification work split into separate issues.
-- Did not touch provider implementation, crate layout, request/stream behavior, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, or theme runtime code.
+- Added focused OpenAI adapter tests for plain JSON arrays, mixed invalid content-part arrays, and valid Chat Completions content-part arrays.
+- Updated `OpenAIMessageConverter` so Chat Completions only treats fully valid `text`/`image_url` arrays as multimodal content.
+- Plain JSON arrays and mixed invalid arrays now remain text, protecting tool JSON output and ordinary textual JSON.
+- Existing Responses API image conversion and tool-image attachment conversion remain unchanged.
+- Did not touch tool schemas, Flow Chat UI, media/short-drama context plumbing, non-OpenAI providers, provider catalog/config, or crate layout.
 
 Verification:
 
-- RED: `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs` failed before the rule existed with `missing provider HTTP/SSE owner boundary rule`.
-- First GREEN attempts exposed over-broad patterns: endpoint-string checks hit CLI credential/config facts, and `reqwest::Client` hit existing media, web tools, remote bot, and review-platform HTTP owners.
-- Final GREEN: `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; $exit=$LASTEXITCODE; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST; exit $exit` passed.
-- Final GREEN: `node scripts/check-core-boundaries.mjs` passed.
+- RED: `cargo test -p void-ai-adapters openai::message_converter -- --nocapture` failed with the new plain JSON array and mixed invalid content-part tests because arrays were passed through as `content`.
+- RED: the same target command failed again after review added a Responses-style `image_url` string case, proving that string `image_url` arrays were still being misclassified as valid Chat Completions content parts.
+- GREEN: `cargo test -p void-ai-adapters openai::message_converter -- --nocapture` passed with 13 OpenAI message converter tests.
+- `rustfmt src/crates/ai-adapters/src/providers/openai/message_converter.rs` completed successfully.
+- `cargo test -p void-ai-adapters` passed with 172 unit tests, 4 model-selector tests, 10 stream harness tests, and 0 doctests.
+- `cargo metadata --no-deps --format-version 1` passed.
+- `node scripts/check-core-boundaries.mjs` passed.
+- `git diff --check -- src/crates/ai-adapters/src/providers/openai/message_converter.rs docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary
 

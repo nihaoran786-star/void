@@ -305,7 +305,7 @@ impl OpenAIMessageConverter {
                 }
             } else {
                 if let Ok(parsed) = serde_json::from_str::<Value>(&content) {
-                    if parsed.is_array() {
+                    if Self::is_chat_completions_content_part_array(&parsed) {
                         openai_msg["content"] = parsed;
                     } else {
                         openai_msg["content"] = Value::String(content);
@@ -388,6 +388,28 @@ impl OpenAIMessageConverter {
                 })
                 .collect()
         })
+    }
+
+    fn is_chat_completions_content_part_array(value: &Value) -> bool {
+        let Some(items) = value.as_array() else {
+            return false;
+        };
+        if items.is_empty() {
+            return false;
+        }
+
+        items
+            .iter()
+            .all(|item| match item.get("type").and_then(Value::as_str) {
+                Some("text") => item.get("text").and_then(Value::as_str).is_some(),
+                Some("image_url") => item
+                    .get("image_url")
+                    .and_then(|image_url| image_url.get("url"))
+                    .and_then(Value::as_str)
+                    .filter(|url| !url.trim().is_empty())
+                    .is_some(),
+                _ => false,
+            })
     }
 }
 
@@ -556,6 +578,61 @@ mod tests {
         assert_eq!(content[0]["type"], json!("image_url"));
         assert_eq!(content[1]["type"], json!("text"));
         assert_eq!(content[1]["text"], json!("ok"));
+    }
+
+    #[test]
+    fn preserves_plain_json_arrays_as_chat_completions_text() {
+        let content = json!(["alpha", {"result": true}]).to_string();
+        let openai = OpenAIMessageConverter::convert_messages(vec![Message::user(content.clone())]);
+
+        assert_eq!(openai[0]["content"], json!(content));
+    }
+
+    #[test]
+    fn preserves_mixed_invalid_content_part_arrays_as_chat_completions_text() {
+        let content = json!([
+            { "type": "text", "text": "valid" },
+            { "type": "image_url", "image_url": { "missing_url": true } }
+        ])
+        .to_string();
+        let openai = OpenAIMessageConverter::convert_messages(vec![Message::user(content.clone())]);
+
+        assert_eq!(openai[0]["content"], json!(content));
+    }
+
+    #[test]
+    fn preserves_responses_style_image_url_string_arrays_as_chat_completions_text() {
+        let content = json!([
+            { "type": "text", "text": "valid" },
+            { "type": "image_url", "image_url": "data:image/png;base64,abc" }
+        ])
+        .to_string();
+        let openai = OpenAIMessageConverter::convert_messages(vec![Message::user(content.clone())]);
+
+        assert_eq!(openai[0]["content"], json!(content));
+    }
+
+    #[test]
+    fn preserves_valid_content_part_arrays_for_chat_completions() {
+        let content = json!([
+            { "type": "text", "text": "Describe this image" },
+            {
+                "type": "image_url",
+                "image_url": { "url": "data:image/png;base64,abc", "detail": "auto" }
+            }
+        ])
+        .to_string();
+        let openai = OpenAIMessageConverter::convert_messages(vec![Message::user(content)]);
+        let parts = openai[0]["content"].as_array().expect("content parts");
+
+        assert_eq!(parts[0]["type"], json!("text"));
+        assert_eq!(parts[0]["text"], json!("Describe this image"));
+        assert_eq!(parts[1]["type"], json!("image_url"));
+        assert_eq!(
+            parts[1]["image_url"]["url"],
+            json!("data:image/png;base64,abc")
+        );
+        assert_eq!(parts[1]["image_url"]["detail"], json!("auto"));
     }
 
     #[test]

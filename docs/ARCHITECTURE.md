@@ -279,6 +279,7 @@ Required boundary:
 - Fixture harnesses should call public adapter APIs, not private provider internals, unless a later issue records a narrower test-only need.
 - Provider-specific parser fixes must remain split by provider family: OpenAI/Responses, Anthropic/Gemini, retry transport, and model selector/credential helpers.
 - `scripts/check-core-boundaries.mjs` owns the static guard for provider HTTP/SSE ownership under `forbiddenContentUnderRules`.
+- OpenAI Chat Completions content-part array recognition belongs to `OpenAIMessageConverter`; only fully valid `text`/`image_url` arrays may become multimodal content, while plain JSON arrays stay text.
 
 Forbidden:
 

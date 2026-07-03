@@ -2193,7 +2193,7 @@ Risk notes: Do not mix this with provider instance or URL catalog refactors.
 ### ISSUE-1170C OpenAI Content-Part Array Parser Regression
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Port the upstream parser guard that only treats valid OpenAI content-part arrays as multimodal message parts.
 Allowed files: OpenAI adapter message converter and focused adapter tests.
 Forbidden files: tool schemas, Flow Chat message UI, media/short-drama context plumbing, non-OpenAI provider behavior.
@@ -2202,6 +2202,11 @@ Acceptance:
 - Valid multimodal content-part arrays still serialize correctly.
 - Regression tests cover tool JSON arrays, mixed invalid arrays, and valid content parts.
 Risk notes: This must not weaken AI media or image-context attachment semantics.
+Result:
+- Added OpenAI Chat Completions content-part validation inside `OpenAIMessageConverter`.
+- Plain JSON arrays and mixed invalid content-part arrays now stay string content instead of being passed as OpenAI multimodal arrays.
+- Valid Chat Completions `text` and `image_url` content-part arrays still pass through unchanged.
+- Existing Responses API image-content conversion and tool-image attachment behavior remain unchanged.
 
 ### ISSUE-1170D SSE Handler Cancellation Contract
 
