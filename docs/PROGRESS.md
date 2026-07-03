@@ -4704,3 +4704,28 @@ Remaining risk:
 - Future physical crate moves still require Cargo graph baselines, product-entrypoint checks, focused owner-crate tests, and protected-surface regression tests.
 - SDK/minimal runtime profile remains a product decision, not an implementation target.
 - The selective-upstream audit wave is now complete through the listed P0-P3 priority inventory; implementation should continue from the proposed follow-up issues one at a time.
+
+## ISSUE-1120C Web Terminal Input and Lazy Renderer Delta
+
+Status: Done
+
+Completed:
+
+- Compared upstream `b8197bbb7` terminal input reliability against current Void and confirmed local Void already had `TerminalInputQueue` integration, paste policy, replay, resize guard, and lazy fallback coverage.
+- Added `terminalImeInputSafetyNet` as the Web terminal utility boundary for IME/key rollover handling: `keyCode === 229` bypass, composed `insertText` forwarding, keypress de-duplication, and keyup reset.
+- Wired `Terminal.tsx` to the utility through xterm custom key handling and the helper textarea input listener, leaving paste behavior, input queueing, replay, resize, Flow Chat, AI media, AI short-drama, Computer Use, runtime ports, and Rust terminal crates unchanged.
+- Classified upstream `970c33844` lazy renderer `forwardRef` as intentionally deferred because current Void call sites do not need an imperative renderer ref; existing fallback semantics remain unchanged.
+- Updated `docs/ARCHITECTURE.md`, `docs/ISSUES.md`, `docs/DECISIONS.md`, and `docs/TEST_PLAN.md`.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalImeInputSafetyNet.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts src/tools/terminal/components/LazyTerminalOutputRenderer.test.tsx src/tools/terminal/utils/terminalPaste.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - Result: passed, 7 test files / 33 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Remaining risk:
+
+- No manual/browser IME smoke was run in this session.
+- Lazy renderer `forwardRef` stays deferred until a real Void consumer needs it.
+- Generated version-file diffs from the running desktop project remain unrelated and must be excluded from the scoped commit.

@@ -1634,7 +1634,7 @@ Risk notes: Upstream runtime-port work is architecture-scale and crosses CLI, de
 ### ISSUE-1120C Web Terminal Input and Lazy Renderer Delta
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Compare the remaining upstream Web terminal input/lazy-renderer deltas against current Void and implement only missing isolated fixes.
 Allowed files: `src/web-ui/src/tools/terminal/components/Terminal.tsx`, `ConnectedTerminal.tsx`, `LazyTerminalOutputRenderer.tsx`, terminal utility tests, docs.
 Forbidden files: Flow Chat store/tool-card ownership changes, RichTextInput unrelated polish, agent companion unread behavior, AI media, AI short-drama, Computer Use, Rust terminal crates, runtime-port migration.
@@ -1643,6 +1643,13 @@ Acceptance:
 - `LazyTerminalOutputRenderer` `forwardRef`/fallback differences from upstream `970c33844` are classified and, if missing, patched without changing terminal output semantics.
 - Existing `TerminalInputQueue`, paste policy, replay, and resize guard tests still pass.
 Risk notes: Do not fold upstream companion unread or rich text scrollbar changes into this terminal issue; they are adjacent UI polish, not terminal replay/input reliability.
+
+Result:
+- Implemented the missing upstream `b8197bbb7` IME/key rollover safety net in the Web terminal input layer. `Terminal.tsx` now bypasses xterm key handling for `keydown` events with `keyCode === 229` and forwards composed `insertText` data from the helper textarea through a terminal utility.
+- Kept existing `TerminalInputQueue`, PowerShell paste delegation, paste policy, replay normalization, and resize repaint guard unchanged.
+- Classified the upstream `970c33844` lazy renderer `forwardRef` difference as intentionally deferred: current Void call sites use the renderer as read-only terminal output presentation and do not require an external imperative ref. The existing fallback behavior remains covered.
+- Excluded companion unread behavior, RichTextInput scrollbar polish, Flow Chat tool-card ownership changes, runtime-port migration, Rust terminal crates, AI media, and AI short-drama.
+- Verification: `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalImeInputSafetyNet.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts src/tools/terminal/components/LazyTerminalOutputRenderer.test.tsx src/tools/terminal/utils/terminalPaste.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts` passed with 7 files / 33 tests. `pnpm --dir src/web-ui run type-check` passed.
 
 ### ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
 

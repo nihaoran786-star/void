@@ -5,6 +5,8 @@
 export { TerminalResizeDebouncer } from './TerminalResizeDebouncer';
 export type { ResizeCallback, ResizeDebounceOptions } from './TerminalResizeDebouncer';
 export { TerminalInputQueue } from './TerminalInputQueue';
+export { createTerminalImeInputSafetyNet } from './terminalImeInputSafetyNet';
+export type { TerminalImeInputSafetyNet } from './terminalImeInputSafetyNet';
 export {
   POWERSHELL_READLINE_PASTE_SEQUENCE,
   analyzeTerminalPaste,

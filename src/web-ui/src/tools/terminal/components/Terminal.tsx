@@ -11,6 +11,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import {
   TerminalResizeDebouncer,
+  createTerminalImeInputSafetyNet,
   buildXtermTheme,
   getXtermFontWeights,
   DEFAULT_XTERM_MINIMUM_CONTRAST_RATIO,
@@ -207,6 +208,7 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
   const onReadyRef = useRef(onReady);
   const onPasteShortcutRef = useRef(onPasteShortcut);
   const onPasteRef = useRef(onPaste);
+  const imeInputSafetyNetRef = useRef(createTerminalImeInputSafetyNet());
   const [isReady, setIsReady] = useState(false);
   const currentTheme = themeService.getCurrentTheme();
   const initialFontWeights = getXtermFontWeights(currentTheme.type);
@@ -545,8 +547,10 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
       return decision;
     }
 
-    // Intercept paste (Ctrl+V / Ctrl+Shift+V).
+    // Intercept paste (Ctrl+V / Ctrl+Shift+V), while preserving IME key rollover.
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      const imeKeyResult = imeInputSafetyNetRef.current.handleKeyEvent(event);
+
       if (event.type === 'keydown' && event.ctrlKey && (event.key === 'v' || event.key === 'V')) {
         event.preventDefault();
         
@@ -577,9 +581,26 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
         
         return false;
       }
+
+      if (imeKeyResult.bypassXtermKeyHandling) {
+        return false;
+      }
       
       return true;
     });
+
+    const textareaEl = container.querySelector<HTMLTextAreaElement>('.xterm-helper-textarea');
+    const textareaKeyPressHandler = () => {
+      imeInputSafetyNetRef.current.handleTextareaKeyPress();
+    };
+    const textareaInputHandler = (ev: Event) => {
+      const insertedText = imeInputSafetyNetRef.current.getInsertedTextFromInputEvent(ev as InputEvent);
+      if (insertedText) {
+        onDataRef.current?.(insertedText);
+      }
+    };
+    textareaEl?.addEventListener('keypress', textareaKeyPressHandler);
+    textareaEl?.addEventListener('input', textareaInputHandler, true);
 
     const resizeObserver = new ResizeObserver(() => {
       requestAnimationFrame(() => {
@@ -639,6 +660,8 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
       dataDisposable.dispose();
       binaryDisposable.dispose();
       titleDisposable.dispose();
+      textareaEl?.removeEventListener('keypress', textareaKeyPressHandler);
+      textareaEl?.removeEventListener('input', textareaInputHandler, true);
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
       fontLoadCancelled = true;

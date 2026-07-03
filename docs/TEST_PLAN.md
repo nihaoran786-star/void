@@ -4136,3 +4136,27 @@ Risk notes:
 - `ISSUE-1110` proves only classification and split. It does not prove the Flow Chat behavior is fixed.
 - Real release viewport geometry still needs E2E or manual smoke evidence in `ISSUE-1110C`.
 - Generated version-file diffs from the running desktop project remain unrelated and must be excluded from scoped commits.
+
+## ISSUE-1120C Web Terminal Input and Lazy Renderer Delta
+
+Scope:
+
+- Port the missing upstream Web terminal IME/key rollover safety net from `b8197bbb7` without changing terminal replay, paste policy, Flow Chat, runtime ports, Rust terminal crates, AI media, or AI short-drama.
+- Classify the upstream `970c33844` lazy renderer `forwardRef` difference without expanding the local API unless a current call site requires it.
+
+Executed:
+
+- `pnpm --dir src/web-ui run test:run src/tools/terminal/utils/terminalImeInputSafetyNet.test.ts src/tools/terminal/utils/TerminalInputQueue.test.ts src/tools/terminal/components/LazyTerminalOutputRenderer.test.tsx src/tools/terminal/utils/terminalPaste.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts src/tools/terminal/utils/terminalReplayEventQueue.test.ts`
+  - Result: passed, 7 test files / 33 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- `terminalImeInputSafetyNet.test.ts` covers `keyCode === 229` bypass, composed `insertText` forwarding, normal keydown non-forwarding, keypress de-duplication, keyup reset, and ignored non-forwardable input events.
+- Existing terminal tests cover input queue batching/ordering/clear, paste policy, lazy fallback bounded preview, replay normalization, replay live-event queueing, and resize repaint guard behavior.
+
+Remaining risk:
+
+- No browser-level IME smoke was run; the regression is covered at the terminal utility/interface layer.
+- Lazy renderer `forwardRef` remains intentionally deferred because current Void terminal output call sites do not need an imperative ref.
