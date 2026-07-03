@@ -365,7 +365,7 @@ describe('VirtualMessageList initial history render window', () => {
     expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
   });
 
-  it('accepts pinTurnToTop for an omitted historical turn by expanding first', () => {
+  it('accepts pinTurnToTop for an omitted historical turn by anchoring the target window', () => {
     const items = createLongHistoricalItems();
     const listRef = React.createRef<VirtualMessageListRef>();
     stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
@@ -385,7 +385,166 @@ describe('VirtualMessageList initial history render window', () => {
     const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
     expect(didPin).toBe(true);
     expect(container.querySelector('[data-history-initial-render-spacer="true"]')).toBeNull();
+    expect(renderedItems.length).toBeLessThan(items.length);
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+  });
+
+  it('keeps a tail spacer after pinning an omitted historical turn so latest remains reachable', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    let didPin = false;
+    act(() => {
+      didPin = listRef.current?.pinTurnToTop('turn-0', { behavior: 'auto', pinMode: 'transient' }) ?? false;
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(didPin).toBe(true);
+    expect(renderedItems.length).toBeLessThan(items.length);
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(container.querySelector('[data-history-initial-render-spacer="true"]')).toBeNull();
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+  });
+
+  it('keeps the anchored target window for smooth omitted historical turn pins', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    act(() => {
+      listRef.current?.pinTurnToTop('turn-0', { behavior: 'smooth', pinMode: 'transient' });
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(renderedItems.length).toBeLessThan(items.length);
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+  });
+
+  it('pins an already rendered latest-window turn without creating an anchor tail spacer', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    let didPin = false;
+    act(() => {
+      didPin = listRef.current?.pinTurnToTop('turn-7', { behavior: 'auto', pinMode: 'sticky-latest' }) ?? false;
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(didPin).toBe(true);
+    expect(container.querySelector('[data-history-initial-render-spacer="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).toBeNull();
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-6');
+    expect(renderedItems.at(-1)?.getAttribute('data-turn-id')).toBe('turn-7');
+  });
+
+  it('returns from an anchored historical turn window to the latest tail through the latest action', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    act(() => {
+      listRef.current?.pinTurnToTop('turn-0', { behavior: 'auto', pinMode: 'transient' });
+    });
+
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+
+    act(() => {
+      listRef.current?.scrollToLatestEndPosition();
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).toBeNull();
+    expect(container.querySelector('[data-history-initial-render-spacer="true"]')).not.toBeNull();
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-6');
+    expect(renderedItems.at(-1)?.getAttribute('data-turn-id')).toBe('turn-7');
+  });
+
+  it('expands all history when the user reveals upward from an anchored historical turn window', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    act(() => {
+      listRef.current?.pinTurnToTop('turn-0', { behavior: 'auto', pinMode: 'transient' });
+    });
+
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+
+    const staticScroller = container.querySelector('[data-initial-history-render-windowed="true"]');
+    act(() => {
+      staticScroller?.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: -120,
+        bubbles: true,
+      }));
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).toBeNull();
+    expect(container.querySelector('[data-history-initial-render-spacer="true"]')).toBeNull();
     expect(renderedItems).toHaveLength(items.length);
     expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(renderedItems.at(-1)?.getAttribute('data-turn-id')).toBe('turn-7');
+  });
+
+  it('keeps navigation-expanded history expanded after an anchored pin and item count change', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 9 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    act(() => {
+      listRef.current?.pinTurnToTop('turn-0', { behavior: 'auto', pinMode: 'transient' });
+    });
+
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
+
+    act(() => {
+      listRef.current?.scrollToTurn(1);
+    });
+
+    stateMocks.virtualItems = [...items, createUserItem(8)];
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).toBeNull();
+    expect(container.querySelector('[data-history-initial-render-spacer="true"]')).toBeNull();
+    expect(renderedItems).toHaveLength(stateMocks.virtualItems.length);
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(renderedItems.at(-1)?.getAttribute('data-turn-id')).toBe('turn-8');
   });
 });

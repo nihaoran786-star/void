@@ -57,7 +57,7 @@ Initial role coverage:
 
 Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
 
-Next candidate issue: `ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer`.
+Next candidate issue: `ISSUE-1110B2 Static Initial-History Effective-Bottom and User-Left-Bottom Guard`.
 
 Allowed files:
 
@@ -68,8 +68,7 @@ Allowed files:
 - `docs/TEST_PLAN.md`
 - `docs/PROGRESS.md`
 - `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`
-- `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`
-- focused Flow Chat static-window tests
+- focused Flow Chat static-window/session-boundary tests
 
 Forbidden files for next candidate:
 
@@ -4413,3 +4412,29 @@ Remaining risk:
 
 - This issue does not solve static initial-history geometry or tail reachability; those remain in `ISSUE-1110B`.
 - Release/desktop long-session evidence remains deferred to `ISSUE-1110C`.
+
+## ISSUE-1110B1 Static Initial-History Omitted Pin Tail Spacer
+
+Status: Done
+
+Completed:
+
+- Added `trailingOmittedEstimatedHeightPx` to the initial-history render-window contract.
+- Changed static-window `pinTurnToTop` for omitted older turns to render a target anchored window instead of expanding the whole transcript.
+- Rendered a tail spacer after the anchored target window so latest content remains reachable.
+- Cleared the static anchor through the latest/end-position action so the list returns to the default latest-tail window.
+- Left full-window expansion behavior intact for upward user reveal, `scrollToTurn`, and `scrollToIndex`.
+- Separated the render-window key from the session-scoped expansion key so upward reveal and navigation expansion still expand all history after an anchored omitted-turn pin, even when item count changes.
+
+Verification:
+
+- RED: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx` failed before implementation because omitted-target pin expanded all 16 items and no tail spacer existed.
+- GREEN: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts` passed after implementation.
+- Regression: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx` passed.
+- Regression: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/historyProjectionHandoff.test.ts` passed.
+- Type check: `pnpm run type-check:web` passed.
+
+Remaining risk:
+
+- `ISSUE-1110B2` is still required for upstream's effective-bottom/user-left-bottom guard around footer/input/collapse changes.
+- `ISSUE-1110C` is still required for release-level long-session viewport evidence.

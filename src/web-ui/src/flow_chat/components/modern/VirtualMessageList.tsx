@@ -28,6 +28,7 @@ import {
 import { ScrollAnchor } from './ScrollAnchor';
 import { useFlowChatFollowOutput } from './useFlowChatFollowOutput';
 import {
+  estimateVirtualMessageItemHeight,
   getVirtualMessageDefaultItemHeightForSession,
   selectInitialHistoryRenderWindow,
 } from './virtualMessageListLayout';
@@ -128,6 +129,7 @@ interface PendingStaticTurnScroll {
 
 interface InitialHistoryRenderWindowRuntimeState {
   key: string;
+  expansionKey: string;
   useStaticWindow: boolean;
   isExpanded: boolean;
 }
@@ -279,6 +281,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   );
   const [pendingTurnPin, setPendingTurnPin] = useState<PendingTurnPinState | null>(null);
   const [expandedInitialHistoryRenderKey, setExpandedInitialHistoryRenderKey] = useState<string | null>(null);
+  const [staticAnchorWindowTurnId, setStaticAnchorWindowTurnId] = useState<string | null>(null);
   const [historyProjectionHandoff, setHistoryProjectionHandoff] = useState<HistoryProjectionHandoffSnapshot | null>(null);
 
   const scrollerElementRef = useRef<HTMLElement | null>(null);
@@ -295,6 +298,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const lastStaticInitialHistoryScrollKeyRef = useRef<string | null>(null);
   const initialHistoryRenderWindowRuntimeRef = useRef<InitialHistoryRenderWindowRuntimeState>({
     key: '',
+    expansionKey: '',
     useStaticWindow: false,
     isExpanded: true,
   });
@@ -674,6 +678,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     resetBottomReservations();
     setIsAtBottom(true);
     setPendingTurnPin(null);
+    setStaticAnchorWindowTurnId(null);
     previousMeasuredHeightRef.current = null;
     previousScrollTopRef.current = 0;
     touchScrollIntentStartYRef.current = null;
@@ -822,7 +827,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       return false;
     }
 
-    setExpandedInitialHistoryRenderKey(runtime.key);
+    setStaticAnchorWindowTurnId(null);
+    setExpandedInitialHistoryRenderKey(runtime.expansionKey);
     return true;
   }, []);
 
@@ -1841,13 +1847,18 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       }
 
       if (!runtime.isExpanded) {
+        if (scrollStaticTurnIntoView(turnId, requestedBehavior, 'start')) {
+          return true;
+        }
+
         pendingStaticTurnScrollRef.current = {
           turnId,
           itemType: 'user-message',
           behavior: requestedBehavior,
           align: 'start',
         };
-        expandInitialHistoryRenderWindowForNavigation();
+        setExpandedInitialHistoryRenderKey(null);
+        setStaticAnchorWindowTurnId(turnId);
         return true;
       }
 
@@ -2195,6 +2206,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
   const scrollToPhysicalBottomAndClearPin = useCallback(() => {
     const scroller = scrollerElementRef.current;
+    pendingStaticTurnScrollRef.current = null;
+    setStaticAnchorWindowTurnId(null);
     if (scroller) {
       clearAllBottomReservationsForUserNavigation();
       scroller.scrollTo({
@@ -2205,6 +2218,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [clearAllBottomReservationsForUserNavigation]);
 
   const scrollToLatestEndPosition = useCallback(() => {
+    pendingStaticTurnScrollRef.current = null;
+    setStaticAnchorWindowTurnId(null);
     enterFollowOutput('jump-to-latest');
   }, [enterFollowOutput]);
 
@@ -2304,20 +2319,64 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     })
   ), [activeSession?.isHistorical, virtualItems]);
 
-  const initialHistoryRenderWindow = React.useMemo(() => (
-    activeSession?.isHistorical === true
-      ? selectInitialHistoryRenderWindow(virtualItems)
-      : null
-  ), [activeSession?.isHistorical, virtualItems]);
+  const initialHistoryRenderWindow = React.useMemo(() => {
+    if (activeSession?.isHistorical !== true) {
+      return null;
+    }
+
+    if (!staticAnchorWindowTurnId) {
+      return selectInitialHistoryRenderWindow(virtualItems);
+    }
+
+    const targetIndex = virtualItems.findIndex(item => (
+      item.turnId === staticAnchorWindowTurnId && item.type === 'user-message'
+    ));
+    if (targetIndex < 0) {
+      return selectInitialHistoryRenderWindow(virtualItems);
+    }
+
+    let endIndex = targetIndex + 1;
+    while (
+      endIndex < virtualItems.length &&
+      virtualItems[endIndex]?.turnId === staticAnchorWindowTurnId
+    ) {
+      endIndex += 1;
+    }
+
+    const omittedEstimatedHeightPx = virtualItems
+      .slice(0, targetIndex)
+      .reduce((total, item) => total + estimateVirtualMessageItemHeight(item), 0);
+    const renderedEstimatedHeightPx = virtualItems
+      .slice(targetIndex, endIndex)
+      .reduce((total, item) => total + estimateVirtualMessageItemHeight(item), 0);
+    const trailingOmittedEstimatedHeightPx = virtualItems
+      .slice(endIndex)
+      .reduce((total, item) => total + estimateVirtualMessageItemHeight(item), 0);
+    const totalEstimatedHeightPx = omittedEstimatedHeightPx + renderedEstimatedHeightPx + trailingOmittedEstimatedHeightPx;
+
+    return {
+      items: virtualItems.slice(targetIndex, endIndex),
+      startIndex: targetIndex,
+      omittedEstimatedHeightPx,
+      trailingOmittedEstimatedHeightPx,
+      renderedEstimatedHeightPx,
+      totalEstimatedHeightPx,
+      isWindowed: targetIndex > 0 || endIndex < virtualItems.length,
+    };
+  }, [activeSession?.isHistorical, staticAnchorWindowTurnId, virtualItems]);
   const initialHistoryRenderKey = [
     activeSessionId ?? 'no-active-session',
     latestTurnId ?? 'no-latest-turn',
     virtualItems.length,
     initialHistoryRenderWindow?.startIndex ?? 0,
+    staticAnchorWindowTurnId ?? 'no-static-anchor',
+  ].join(':');
+  const initialHistoryExpansionKey = [
+    activeSessionId ?? 'no-active-session',
   ].join(':');
   const useStaticInitialHistoryWindow = activeSession?.isHistorical === true && initialHistoryRenderWindow?.isWindowed === true;
   const isInitialHistoryRenderWindowExpanded = !initialHistoryRenderWindow?.isWindowed ||
-    expandedInitialHistoryRenderKey === initialHistoryRenderKey;
+    expandedInitialHistoryRenderKey === initialHistoryExpansionKey;
   const renderedInitialHistoryItems = useStaticInitialHistoryWindow && initialHistoryRenderWindow && !isInitialHistoryRenderWindowExpanded
     ? initialHistoryRenderWindow.items
     : virtualItems;
@@ -2327,19 +2386,24 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const omittedInitialHistoryEstimatedHeightPx = useStaticInitialHistoryWindow && initialHistoryRenderWindow && !isInitialHistoryRenderWindowExpanded
     ? initialHistoryRenderWindow.omittedEstimatedHeightPx
     : 0;
+  const trailingOmittedInitialHistoryEstimatedHeightPx = useStaticInitialHistoryWindow && initialHistoryRenderWindow && !isInitialHistoryRenderWindowExpanded
+    ? initialHistoryRenderWindow.trailingOmittedEstimatedHeightPx
+    : 0;
   const expandInitialHistoryRenderWindow = useCallback(() => {
     if (!useStaticInitialHistoryWindow || isInitialHistoryRenderWindowExpanded) {
       return;
     }
-    setExpandedInitialHistoryRenderKey(initialHistoryRenderKey);
+    setStaticAnchorWindowTurnId(null);
+    setExpandedInitialHistoryRenderKey(initialHistoryExpansionKey);
   }, [
-    initialHistoryRenderKey,
+    initialHistoryExpansionKey,
     isInitialHistoryRenderWindowExpanded,
     useStaticInitialHistoryWindow,
   ]);
 
   initialHistoryRenderWindowRuntimeRef.current = {
     key: initialHistoryRenderKey,
+    expansionKey: initialHistoryExpansionKey,
     useStaticWindow: useStaticInitialHistoryWindow,
     isExpanded: isInitialHistoryRenderWindowExpanded,
   };
@@ -2364,7 +2428,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
   React.useLayoutEffect(() => {
     const pendingScroll = pendingStaticTurnScrollRef.current;
-    if (!pendingScroll || !isInitialHistoryRenderWindowExpanded) {
+    if (!pendingScroll) {
+      return;
+    }
+
+    if (!isInitialHistoryRenderWindowExpanded && pendingScroll.turnId !== staticAnchorWindowTurnId) {
       return;
     }
 
@@ -2380,6 +2448,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     isInitialHistoryRenderWindowExpanded,
     renderedInitialHistoryItems,
     scrollStaticTurnIntoView,
+    staticAnchorWindowTurnId,
   ]);
 
   const footerHeightPx = getFooterHeightPx(getTotalBottomCompensationPx(bottomReservationState));
@@ -2549,6 +2618,14 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
               />
             ))}
           </div>
+          {trailingOmittedInitialHistoryEstimatedHeightPx > 0 ? (
+            <div
+              className="virtual-message-list__initial-history-spacer"
+              data-history-initial-render-tail-spacer="true"
+              aria-hidden="true"
+              style={{ height: `${Math.round(trailingOmittedInitialHistoryEstimatedHeightPx)}px` }}
+            />
+          ) : null}
           <ProcessingIndicator visible={showBreathingIndicator} reserveSpace={reserveSpaceForIndicator} />
           <div
             ref={footerElementRef}

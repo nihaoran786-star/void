@@ -1526,7 +1526,7 @@ Result: Completed by keeping header display derived from `visibleTurnInfo`, addi
 ### ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer
 
 Priority: P1
-Status: Proposed
+Status: In Progress
 Goal: Adapt upstream static initial-history window fixes so omitted older targets can be expanded and pinned, while latest content remains reachable through a tail spacer/effective-bottom contract.
 Allowed files: `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`, `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`, focused tests, docs.
 Forbidden files: `FlowChatStore.ts`, `ModernFlowChatContainer.tsx` except if `1110A` requires a prop contract, backend/session APIs, AI media, AI short-drama, terminal, provider.
@@ -1536,6 +1536,33 @@ Acceptance:
 - Footer/input/collapse changes do not force the viewport back to bottom after user scroll or explicit turn pin.
 - Tests cover omitted target expansion, tail reachability, and user-left-bottom preservation.
 Risk notes: This is higher risk than `1110A` because it touches scroll geometry and static window behavior. It must not be bundled with store/API changes.
+Progress: Split into `ISSUE-1110B1` for omitted-target pin tail reachability and `ISSUE-1110B2` for effective-bottom/user-left-bottom guard. Do not mark this parent done until both slices and release evidence are recorded.
+
+### ISSUE-1110B1 Static Initial-History Omitted Pin Tail Spacer
+
+Priority: P1
+Status: Done
+Goal: Keep latest content reachable after `pinTurnToTop` targets an omitted older turn in the static initial-history window.
+Allowed files: `VirtualMessageList.tsx`, `virtualMessageListLayout.ts`, `VirtualMessageList.initial-history-window.test.tsx`, `virtualMessageListLayout.test.ts`, docs.
+Forbidden files: `FlowChatStore.ts`, `ModernFlowChatContainer.tsx`, backend/session APIs, AI media, AI short-drama, terminal, provider, Rust crates.
+Acceptance:
+- `InitialHistoryRenderWindow` exposes `trailingOmittedEstimatedHeightPx`.
+- A static-window `pinTurnToTop` for an omitted older turn renders an anchored target window instead of expanding the whole transcript.
+- A tail spacer is rendered after the anchored target window so latest content remains reachable.
+- The latest action clears the static anchor and returns to the default latest-tail window.
+Result: Completed with focused tests covering anchored omitted pin, tail spacer rendering, latest-action recovery, and layout helper defaults.
+
+### ISSUE-1110B2 Static Initial-History Effective-Bottom and User-Left-Bottom Guard
+
+Priority: P1
+Status: Proposed
+Goal: Adapt the remaining upstream guard so static initial-history bottom management does not force the viewport back to bottom after user scroll, explicit pin, footer/input changes, or collapse compensation.
+Allowed files: `VirtualMessageList.tsx`, focused static-window/session-boundary tests, docs.
+Forbidden files: `FlowChatStore.ts`, backend/session APIs, AI media, AI short-drama, terminal, provider, Rust crates.
+Acceptance:
+- Static initial-history auto-bottom logic uses effective bottom, including footer/bottom reservations.
+- User-left-bottom intent prevents background updates or footer/collapse changes from dragging the viewport back to bottom.
+- Tests cover user-left-bottom preservation and explicit pin not being overridden by the initial bottom guard.
 
 ### ISSUE-1110C Release Long-Session Turn Navigation E2E
 

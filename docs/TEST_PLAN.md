@@ -3919,6 +3919,16 @@ Implementation test plan for follow-up issues:
 - `ISSUE-1110B`:
   - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts src/flow_chat/components/modern/historyProjectionHandoff.test.ts`
   - `pnpm run type-check:web`
+- `ISSUE-1110B1`:
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx src/flow_chat/components/modern/virtualMessageListLayout.test.ts`
+    - RED result: failed before implementation because omitted-target `pinTurnToTop` expanded the whole transcript and rendered no tail spacer.
+    - GREEN result: passed after static omitted pin rendered an anchored target window with `data-history-initial-render-tail-spacer="true"`, smooth omitted pins preserved the anchor, upward reveal still expanded all history, navigation expansion cleared stale anchors, item-count changes kept expanded history expanded for the session, and the latest action cleared the anchor.
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx`
+    - Result: passed after adding static anchor/tail spacer state.
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/historyProjectionHandoff.test.ts`
+    - Result: passed.
+  - `pnpm run type-check:web`
+    - Result: passed.
 - `ISSUE-1110C`:
   - Void-owned long-session turn-navigation E2E after fixture/workspace requirements are defined.
 

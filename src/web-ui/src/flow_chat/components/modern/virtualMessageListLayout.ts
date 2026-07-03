@@ -158,6 +158,7 @@ export interface InitialHistoryRenderWindow {
   items: VirtualItem[];
   startIndex: number;
   omittedEstimatedHeightPx: number;
+  trailingOmittedEstimatedHeightPx: number;
   renderedEstimatedHeightPx: number;
   totalEstimatedHeightPx: number;
   isWindowed: boolean;
@@ -241,6 +242,7 @@ export function selectInitialHistoryRenderWindow(
       items,
       startIndex: 0,
       omittedEstimatedHeightPx: 0,
+      trailingOmittedEstimatedHeightPx: 0,
       renderedEstimatedHeightPx: totalEstimatedHeightPx,
       totalEstimatedHeightPx,
       isWindowed: false,
@@ -278,6 +280,7 @@ export function selectInitialHistoryRenderWindow(
     items: items.slice(startIndex),
     startIndex,
     omittedEstimatedHeightPx,
+    trailingOmittedEstimatedHeightPx: 0,
     renderedEstimatedHeightPx,
     totalEstimatedHeightPx,
     isWindowed: startIndex > 0,

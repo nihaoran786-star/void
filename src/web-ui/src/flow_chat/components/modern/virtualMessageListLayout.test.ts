@@ -290,6 +290,7 @@ describe('selectInitialHistoryRenderWindow', () => {
     expect(window.items[0]?.turnId).toBe('turn-6');
     expect(window.items.at(-1)?.turnId).toBe('turn-7');
     expect(window.omittedEstimatedHeightPx).toBeGreaterThan(0);
+    expect(window.trailingOmittedEstimatedHeightPx).toBe(0);
     expect(window.renderedEstimatedHeightPx).toBeGreaterThan(0);
     expect(window.totalEstimatedHeightPx).toBeGreaterThan(window.renderedEstimatedHeightPx);
     expect(window.isWindowed).toBe(true);
@@ -326,6 +327,7 @@ describe('selectInitialHistoryRenderWindow', () => {
     expect(window.startIndex).toBe(0);
     expect(window.items).toHaveLength(items.length);
     expect(window.omittedEstimatedHeightPx).toBe(0);
+    expect(window.trailingOmittedEstimatedHeightPx).toBe(0);
     expect(window.isWindowed).toBe(false);
   });
 });
