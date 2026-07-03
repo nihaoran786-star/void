@@ -4461,3 +4461,27 @@ Verification:
 Remaining risk:
 
 - `ISSUE-1110C` is still required for release-level long-session viewport evidence in desktop/release conditions.
+
+## ISSUE-1110C Release Long-Session Turn Navigation E2E
+
+Status: Done
+
+Completed:
+
+- Added a Void-owned release-compatible WDIO spec at `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts`.
+- Kept the test outside the default L1 aggregate because it depends on a persisted long-session fixture.
+- Required fixture env is explicit: `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`; `VOID_E2E_TURN_NAV_TARGET_TURN_ID` is optional.
+- The spec selects an older turn through the Flow Chat header turn list and verifies the real message viewport moves the target user turn near the scroller top.
+- It uses current Void DOM contracts and avoids BitFun env names, BitFun session id defaults, and Vite-only source imports.
+
+Verification:
+
+- `pnpm --dir tests/e2e exec tsc --noEmit` failed on the existing E2E type environment because `@wdio/globals/types` cannot be resolved from `tests/e2e/tsconfig.json`.
+- `pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --help` passed.
+- `pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --dry-run` passed with 1 skipped test. The runner started the debug desktop app, loaded the spec, and followed the intended skip path because fixture env was not provided.
+
+Remaining risk:
+
+- No full persisted long-session fixture run was performed, so this issue adds release-level coverage but does not by itself prove a real fixture session passes on this machine.
+- Current session nav and turn list items still lack stable `data-testid`/id attributes; the spec uses visible titles to avoid production changes in this slice.
+- The next selective-upstream candidate is `ISSUE-1120 Terminal Replay and Input Reliability Delta Audit`.

@@ -1568,7 +1568,7 @@ Result: Completed for the current static-window contract. The static scroller re
 ### ISSUE-1110C Release Long-Session Turn Navigation E2E
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Recreate a Void-owned release-level regression for long-session header turn navigation, based on upstream `l1-chat-turn-navigation-release.spec.ts` but with Void naming, fixtures, and protected feature checks.
 Allowed files: `tests/e2e/specs/*`, E2E helpers/fixtures if required, docs.
 Forbidden files: production Flow Chat source, session store/runtime code, AI media/short-drama source, terminal, provider, Rust crates.
@@ -1577,6 +1577,7 @@ Acceptance:
 - The test avoids upstream BitFun naming and uses Void fixture/session identifiers.
 - The test records skip/precondition behavior when the release fixture workspace is unavailable.
 Risk notes: This test needs real browser/desktop evidence; jsdom unit tests cannot prove release viewport geometry.
+Result: Added `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts` as a Void-owned release-compatible WDIO regression. The spec opens `E2E_TEST_WORKSPACE`, locates a session by `VOID_E2E_TURN_NAV_SESSION_TITLE`, reveals/selects `VOID_E2E_TURN_NAV_TARGET_TITLE` from the Flow Chat header turn list, and asserts the real message viewport pins the target user turn near the scroller top using DOM geometry. It avoids BitFun env names and skips explicitly when the fixture env is unavailable. It is intentionally not added to the default L1 aggregate because CI/local runs without the long-session fixture would only skip.
 
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 

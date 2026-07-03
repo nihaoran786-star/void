@@ -3939,7 +3939,15 @@ Implementation test plan for follow-up issues:
   - `pnpm run type-check:web`
     - Result: passed.
 - `ISSUE-1110C`:
-  - Void-owned long-session turn-navigation E2E after fixture/workspace requirements are defined.
+  - `pnpm --dir tests/e2e exec tsc --noEmit`
+    - Result: failed before runtime execution because the current E2E TypeScript environment cannot resolve `@wdio/globals/types` from `tests/e2e/tsconfig.json`. This is an existing E2E type-environment issue: WDIO CLI resolves and runs, but raw `tsc` cannot load that type entry.
+  - `pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --help`
+    - Result: passed. WDIO CLI and config entrypoint are available.
+  - `pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --dry-run`
+    - Result: passed with 1 skipped test. WDIO started the debug desktop app and loaded the new spec; because `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE` were not provided, the spec followed its intended precondition skip path.
+  - Full fixture run command:
+    - `VOID_E2E_APP_MODE=debug E2E_TEST_WORKSPACE=<fixture-workspace> VOID_E2E_TURN_NAV_SESSION_TITLE=<session-title> VOID_E2E_TURN_NAV_TARGET_TITLE=<older-turn-title> VOID_E2E_TURN_NAV_TARGET_TURN_ID=<optional-turn-id> pnpm --dir tests/e2e exec wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts"`
+    - Result: not run in this issue because no persisted long-session fixture env was provided.
 
 Protected-surface regression candidates:
 
