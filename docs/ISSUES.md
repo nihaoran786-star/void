@@ -1526,7 +1526,7 @@ Result: Completed by keeping header display derived from `visibleTurnInfo`, addi
 ### ISSUE-1110B Static Initial-History Turn Pin and Tail Spacer
 
 Priority: P1
-Status: In Progress
+Status: Done
 Goal: Adapt upstream static initial-history window fixes so omitted older targets can be expanded and pinned, while latest content remains reachable through a tail spacer/effective-bottom contract.
 Allowed files: `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`, `src/web-ui/src/flow_chat/components/modern/virtualMessageListLayout.ts`, focused tests, docs.
 Forbidden files: `FlowChatStore.ts`, `ModernFlowChatContainer.tsx` except if `1110A` requires a prop contract, backend/session APIs, AI media, AI short-drama, terminal, provider.
@@ -1536,7 +1536,7 @@ Acceptance:
 - Footer/input/collapse changes do not force the viewport back to bottom after user scroll or explicit turn pin.
 - Tests cover omitted target expansion, tail reachability, and user-left-bottom preservation.
 Risk notes: This is higher risk than `1110A` because it touches scroll geometry and static window behavior. It must not be bundled with store/API changes.
-Progress: Split into `ISSUE-1110B1` for omitted-target pin tail reachability and `ISSUE-1110B2` for effective-bottom/user-left-bottom guard. Do not mark this parent done until both slices and release evidence are recorded.
+Result: Completed through `ISSUE-1110B1` and `ISSUE-1110B2`. Static omitted-turn pins now use an anchored target window with a tail spacer so latest remains reachable; explicit latest/navigation reveal paths clear stale anchors; static initial-history auto-bottom now uses effective bottom and preserves user-left-bottom state across item-count/layout changes. Release-level viewport evidence remains tracked separately in `ISSUE-1110C`.
 
 ### ISSUE-1110B1 Static Initial-History Omitted Pin Tail Spacer
 
@@ -1555,7 +1555,7 @@ Result: Completed with focused tests covering anchored omitted pin, tail spacer 
 ### ISSUE-1110B2 Static Initial-History Effective-Bottom and User-Left-Bottom Guard
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Adapt the remaining upstream guard so static initial-history bottom management does not force the viewport back to bottom after user scroll, explicit pin, footer/input changes, or collapse compensation.
 Allowed files: `VirtualMessageList.tsx`, focused static-window/session-boundary tests, docs.
 Forbidden files: `FlowChatStore.ts`, backend/session APIs, AI media, AI short-drama, terminal, provider, Rust crates.
@@ -1563,6 +1563,7 @@ Acceptance:
 - Static initial-history auto-bottom logic uses effective bottom, including footer/bottom reservations.
 - User-left-bottom intent prevents background updates or footer/collapse changes from dragging the viewport back to bottom.
 - Tests cover user-left-bottom preservation and explicit pin not being overridden by the initial bottom guard.
+Result: Completed for the current static-window contract. The static scroller records whether the user has left effective bottom, auto-bottom uses `scrollHeight - clientHeight - bottomReservation`, and later item/layout key changes skip auto-bottom while user-left-bottom is active. Focused tests cover user-left-bottom preservation after item-count changes plus B1 explicit pin/anchor behavior. More detailed footer/collapse compensation edge cases can be expanded if future regressions appear.
 
 ### ISSUE-1110C Release Long-Session Turn Navigation E2E
 

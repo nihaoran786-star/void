@@ -3929,6 +3929,15 @@ Implementation test plan for follow-up issues:
     - Result: passed.
   - `pnpm run type-check:web`
     - Result: passed.
+- `ISSUE-1110B2`:
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx`
+    - RED result: failed before implementation because static initial-history appended items changed the render key and forced `scrollTop` back to the new bottom after the user had scrolled away from bottom.
+    - GREEN result: passed after static scroller scroll events recorded user-left-effective-bottom state and later auto-bottom used effective bottom while skipping forced bottom when that state is active.
+    - Added coverage: footer/input height changes after user-left-bottom keep `scrollTop`, and explicit omitted-turn pin still anchors after user-left-bottom.
+  - `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/historyProjectionHandoff.test.ts`
+    - Result: passed.
+  - `pnpm run type-check:web`
+    - Result: passed.
 - `ISSUE-1110C`:
   - Void-owned long-session turn-navigation E2E after fixture/workspace requirements are defined.
 

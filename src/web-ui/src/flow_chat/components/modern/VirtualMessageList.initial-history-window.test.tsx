@@ -15,6 +15,11 @@ const stateMocks = vi.hoisted(() => ({
   virtualItems: [] as VirtualItem[],
   visibleTurnInfo: null as unknown,
   setVisibleTurnInfo: vi.fn(),
+  chatInput: {
+    isActive: false,
+    isExpanded: false,
+    inputHeight: 0,
+  },
 }));
 
 vi.mock('react-virtuoso', () => ({
@@ -67,11 +72,7 @@ vi.mock('../../hooks/useActiveSessionState', () => ({
 }));
 
 vi.mock('../../store/chatInputStateStore', () => ({
-  useChatInputState: (selector: (state: any) => unknown) => selector({
-    isActive: false,
-    isExpanded: false,
-    inputHeight: 0,
-  }),
+  useChatInputState: (selector: (state: any) => unknown) => selector(stateMocks.chatInput),
 }));
 
 vi.mock('./VirtualItemRenderer', () => ({
@@ -226,6 +227,11 @@ describe('VirtualMessageList initial history render window', () => {
     root = createRoot(container);
     stateMocks.visibleTurnInfo = null;
     stateMocks.setVisibleTurnInfo.mockReset();
+    stateMocks.chatInput = {
+      isActive: false,
+      isExpanded: false,
+      inputHeight: 0,
+    };
   });
 
   afterEach(() => {
@@ -293,6 +299,148 @@ describe('VirtualMessageList initial history render window', () => {
         Object.defineProperty(HTMLElement.prototype, 'clientHeight', clientHeightDescriptor);
       }
     }
+  });
+
+  it('does not force static history back to bottom after the user leaves the bottom', () => {
+    const items = createLongHistoricalItems();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 9 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
+    const clientHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get() {
+        return this instanceof HTMLElement && this.dataset.initialHistoryRenderWindowed === 'true'
+          ? stateMocks.virtualItems.length * 100
+          : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return this instanceof HTMLElement && this.dataset.initialHistoryRenderWindowed === 'true'
+          ? 250
+          : 0;
+      },
+    });
+
+    try {
+      act(() => {
+        root.render(<VirtualMessageList />);
+      });
+
+      const staticScroller = container.querySelector<HTMLElement>('[data-initial-history-render-windowed="true"]');
+      expect(staticScroller?.scrollTop).toBe(items.length * 100 - 250);
+
+      act(() => {
+        if (staticScroller) {
+          staticScroller.scrollTop = 320;
+          staticScroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
+      });
+
+      stateMocks.virtualItems = [...items, createUserItem(8)];
+      act(() => {
+        root.render(<VirtualMessageList />);
+      });
+
+      expect(staticScroller?.scrollTop).toBe(320);
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollHeight', scrollHeightDescriptor);
+      }
+      if (clientHeightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'clientHeight', clientHeightDescriptor);
+      }
+    }
+  });
+
+  it('does not force static history back to bottom after footer height changes while the user is away from bottom', () => {
+    const items = createLongHistoricalItems();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
+    const clientHeightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get() {
+        return this instanceof HTMLElement && this.dataset.initialHistoryRenderWindowed === 'true'
+          ? 1200 + stateMocks.chatInput.inputHeight
+          : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get() {
+        return this instanceof HTMLElement && this.dataset.initialHistoryRenderWindowed === 'true'
+          ? 250
+          : 0;
+      },
+    });
+
+    try {
+      act(() => {
+        root.render(<VirtualMessageList />);
+      });
+
+      const staticScroller = container.querySelector<HTMLElement>('[data-initial-history-render-windowed="true"]');
+      expect(staticScroller?.scrollTop).toBe(950);
+
+      act(() => {
+        if (staticScroller) {
+          staticScroller.scrollTop = 320;
+          staticScroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+        }
+      });
+
+      stateMocks.chatInput = {
+        isActive: true,
+        isExpanded: true,
+        inputHeight: 180,
+      };
+      act(() => {
+        root.render(<VirtualMessageList />);
+      });
+
+      expect(staticScroller?.scrollTop).toBe(320);
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollHeight', scrollHeightDescriptor);
+      }
+      if (clientHeightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'clientHeight', clientHeightDescriptor);
+      }
+    }
+  });
+
+  it('still anchors an omitted turn pin after the user has left static history bottom', () => {
+    const items = createLongHistoricalItems();
+    const listRef = React.createRef<VirtualMessageListRef>();
+    stateMocks.activeSession = createSession('history-session', Array.from({ length: 8 }, (_, index) => `turn-${index}`));
+    stateMocks.virtualItems = items;
+
+    act(() => {
+      root.render(<VirtualMessageList ref={listRef} />);
+    });
+
+    const staticScroller = container.querySelector<HTMLElement>('[data-initial-history-render-windowed="true"]');
+    act(() => {
+      if (staticScroller) {
+        staticScroller.scrollTop = 320;
+        staticScroller.dispatchEvent(new Event('scroll', { bubbles: true }));
+      }
+    });
+
+    act(() => {
+      listRef.current?.pinTurnToTop('turn-0', { behavior: 'auto', pinMode: 'transient' });
+    });
+
+    const renderedItems = Array.from(container.querySelectorAll('.virtual-item-wrapper'));
+    expect(renderedItems.length).toBeLessThan(items.length);
+    expect(renderedItems[0]?.getAttribute('data-turn-id')).toBe('turn-0');
+    expect(container.querySelector('[data-history-initial-render-tail-spacer="true"]')).not.toBeNull();
   });
 
   it('expands the initial history window when the user scrolls upward', () => {

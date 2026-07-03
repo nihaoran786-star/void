@@ -57,7 +57,7 @@ Initial role coverage:
 
 Current upstream wave reference: `upstream-bitfun/main@ac16dcc18`.
 
-Next candidate issue: `ISSUE-1110B2 Static Initial-History Effective-Bottom and User-Left-Bottom Guard`.
+Next candidate issue: `ISSUE-1110C Release Long-Session Turn Navigation E2E`.
 
 Allowed files:
 
@@ -67,13 +67,12 @@ Allowed files:
 - `docs/DECISIONS.md`
 - `docs/TEST_PLAN.md`
 - `docs/PROGRESS.md`
-- `src/web-ui/src/flow_chat/components/modern/VirtualMessageList.tsx`
-- focused Flow Chat static-window/session-boundary tests
+- `tests/e2e/specs/*`
+- E2E helpers/fixtures if required
+- docs
 
 Forbidden files for next candidate:
 
-- `FlowChatStore.ts`
-- backend/session APIs
 - AI media and workspace media modules
 - AI short-drama modules
 - terminal/provider/Rust crates
@@ -4438,3 +4437,27 @@ Remaining risk:
 
 - `ISSUE-1110B2` is still required for upstream's effective-bottom/user-left-bottom guard around footer/input/collapse changes.
 - `ISSUE-1110C` is still required for release-level long-session viewport evidence.
+
+## ISSUE-1110B2 Static Initial-History Effective-Bottom and User-Left-Bottom Guard
+
+Status: Done
+
+Completed:
+
+- Added static-window user-left-bottom tracking based on the effective bottom position.
+- Changed static initial-history auto-bottom to use effective bottom (`scrollHeight - clientHeight - bottom reservation`) instead of physical bottom.
+- Preserved the user's non-bottom scroll position across static-window item-count/layout key changes.
+- Preserved the user's non-bottom scroll position across footer/input height-only changes.
+- Kept explicit omitted-turn anchor/pin behavior from `ISSUE-1110B1` intact.
+
+Verification:
+
+- RED: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx` failed before implementation because appending a static-window item after user scroll forced `scrollTop` back to the new bottom.
+- GREEN: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.initial-history-window.test.tsx` passed after implementation.
+- Added regression coverage for footer/input height-only changes and omitted-turn pin after user-left-bottom.
+- Regression: `pnpm --dir src/web-ui run test:run src/flow_chat/components/modern/VirtualMessageList.session-boundary.test.tsx src/flow_chat/components/modern/historyProjectionHandoff.test.ts` passed.
+- Type check: `pnpm run type-check:web` passed.
+
+Remaining risk:
+
+- `ISSUE-1110C` is still required for release-level long-session viewport evidence in desktop/release conditions.

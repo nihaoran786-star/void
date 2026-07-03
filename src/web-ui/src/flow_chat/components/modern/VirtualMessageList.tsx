@@ -296,6 +296,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const mutationObserverRef = useRef<MutationObserver | null>(null);
   const pendingStaticTurnScrollRef = useRef<PendingStaticTurnScroll | null>(null);
   const lastStaticInitialHistoryScrollKeyRef = useRef<string | null>(null);
+  const staticInitialHistoryUserLeftBottomRef = useRef(false);
   const initialHistoryRenderWindowRuntimeRef = useRef<InitialHistoryRenderWindowRuntimeState>({
     key: '',
     expansionKey: '',
@@ -372,6 +373,15 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const getTotalBottomCompensationPx = useCallback((state: BottomReservationState = bottomReservationStateRef.current) => {
     return getReservationTotalPx(state.collapse) + getReservationTotalPx(state.pin);
   }, []);
+
+  const getEffectiveBottomScrollTop = useCallback((scroller: HTMLElement) => (
+    Math.max(0, scroller.scrollHeight - scroller.clientHeight - getTotalBottomCompensationPx())
+  ), [getTotalBottomCompensationPx]);
+
+  const recordStaticInitialHistoryBottomState = useCallback((scroller: HTMLElement) => {
+    const distanceFromBottom = Math.max(0, getEffectiveBottomScrollTop(scroller) - scroller.scrollTop);
+    staticInitialHistoryUserLeftBottomRef.current = distanceFromBottom > COMPENSATION_EPSILON_PX;
+  }, [getEffectiveBottomScrollTop]);
 
   const snapshotMeasuredContentHeight = useCallback((
     scroller: HTMLElement,
@@ -684,6 +694,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     touchScrollIntentStartYRef.current = null;
     scrollbarPointerInteractionActiveRef.current = false;
     userInitiatedUpwardScrollUntilMsRef.current = 0;
+    staticInitialHistoryUserLeftBottomRef.current = false;
     hasPrimedMountedStreamingTurnFollowRef.current = false;
     previousLatestTurnIdForFollowRef.current = currentLatestTurnId;
     latestTurnAutoFollowStateRef.current = {
@@ -2418,9 +2429,16 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       return;
     }
 
+    const hasAutoScrolledThisSession = lastStaticInitialHistoryScrollKeyRef.current !== null;
+    if (hasAutoScrolledThisSession && staticInitialHistoryUserLeftBottomRef.current) {
+      return;
+    }
+
     lastStaticInitialHistoryScrollKeyRef.current = initialHistoryRenderKey;
-    scroller.scrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    scroller.scrollTop = getEffectiveBottomScrollTop(scroller);
+    staticInitialHistoryUserLeftBottomRef.current = false;
   }, [
+    getEffectiveBottomScrollTop,
     initialHistoryRenderKey,
     isInitialHistoryRenderWindowExpanded,
     useStaticInitialHistoryWindow,
@@ -2450,6 +2468,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     scrollStaticTurnIntoView,
     staticAnchorWindowTurnId,
   ]);
+
+  const handleInitialHistoryStaticScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    recordStaticInitialHistoryBottomState(event.currentTarget);
+  }, [recordStaticInitialHistoryBottomState]);
 
   const footerHeightPx = getFooterHeightPx(getTotalBottomCompensationPx(bottomReservationState));
   const activeHistoryProjectionHandoff = activeSessionHistoryProjectionHandoff(
@@ -2593,6 +2615,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
           className="virtual-message-list__static-scroller"
           data-virtuoso-scroller="true"
           data-initial-history-render-windowed="true"
+          onScroll={handleInitialHistoryStaticScroll}
           onWheelCapture={(event) => {
             if (event.deltaY < 0) {
               onUserScrollIntent?.();
