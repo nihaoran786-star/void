@@ -448,6 +448,7 @@ Computer Use platform migration contract:
 - `screenshot_display` may keep mutating coordinate/navigation/click readiness state; peek-style screenshot APIs must not mutate readiness state.
 - `ComputerUseInteractionState` serialized shape, click safety guards, `after_screenshot`, `after_pointer_mutation`, and unsupported platform statuses must not be weakened by platform parity work.
 - Capture adapters must expose fallback or occlusion uncertainty explicitly instead of presenting fallback pixels as guaranteed current app state.
+- Windows Computer Use settings deep-link routing belongs to `src/apps/desktop/src/api/computer_use_api.rs`. It may map supported panes to documented `ms-settings:` URIs or return stable unsupported facts, but Web UI and `ComputerUseHost` must not infer Windows permission state from raw settings strings.
 - Core schema additions such as `describe_screen` and upstream tool-contract DTO extraction are separate architecture issues, not hidden prerequisites for platform adapter migration.
 
 Computer Use `describe_screen` contract:

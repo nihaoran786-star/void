@@ -1783,6 +1783,27 @@ Acceptance:
 - Tests cover at least the adapter-level decision table; no desktop UI redesign is included.
 Risk notes: This is a UX/capability-gating issue. It must not be bundled with WGC unsafe code or the upstream platform tool-card refactor.
 
+#### ISSUE-1130D1 Windows Settings Link Decision Table
+
+Priority: P2
+Status: Done
+Goal: Make Windows `computer_use_open_system_settings` routing explicit for supported panes without pretending Windows has a macOS-equivalent Accessibility permission pane.
+Allowed files: `src/apps/desktop/src/api/computer_use_api.rs`, docs.
+Forbidden files: Web UI, Computer Use core schemas, desktop host/input/WGC adapters, Flow Chat, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- `screen_capture` maps to the Microsoft-documented Graphics Capture privacy URI `ms-settings:privacy-graphicscaptureprogrammatic`.
+- `accessibility` returns a stable actionable unsupported outcome on Windows instead of opening an unrelated Ease of Access page.
+- Unknown panes return a stable error code and preserve the original pane name.
+- Tests cover the adapter decision table before any UI redesign.
+Progress:
+- Added a pure Windows settings route helper returning either `Uri` or `Unsupported` with stable `error_code`, `platform`, `pane`, and optional `suggested_pane` facts.
+- Wired the Windows Tauri command branch through the helper and `cmd /C start` for the supported `screen_capture` route.
+- Kept the command return shape as `Result<(), String>` to avoid a Web UI contract migration in this slice.
+- Did not change Computer Use schemas, Web UI tool cards/settings, desktop host, WGC/HWND/input adapters, Flow Chat, AI media, AI short-drama, terminal, provider, or crate layout.
+- Verification: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture`, `cargo test -p void-desktop computer_use_api --lib -- --nocapture`, `cargo check -p void-desktop`, `rustfmt --edition 2021 --check src/apps/desktop/src/api/computer_use_api.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed. `cargo check -p void-desktop` still reports the existing unrelated `parse_clipboard_path_segments` dead-code warning.
+Deferred:
+- Hiding or reshaping visual-grid unsupported affordances remains in parent `ISSUE-1130D` or a later child issue.
+
 ### ISSUE-1140 Image Understanding and Image Context Completion Audit
 
 Priority: P1

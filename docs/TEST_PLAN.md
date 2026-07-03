@@ -5322,3 +5322,35 @@ Coverage:
 - Timeout messages preserve the operation name without asserting exact full text.
 - Each method uses a fresh test server/connection so one timed-out request does not mask another method path.
 - Parent `ISSUE-1150C` is closed for current acceptance; local stdio production default/config remains separate future work.
+
+## ISSUE-1130D1 Windows Settings Link Decision Table
+
+Scope:
+
+- Current slice covers Windows `computer_use_open_system_settings` routing decisions only.
+- It does not change Web UI, Computer Use core schemas, desktop host behavior, WGC capture, HWND/input adapters, visual-grid behavior, Flow Chat, AI media, AI short-drama, terminal, provider, or crate layout.
+- `screen_capture` uses the Microsoft Learn Windows Settings URI scheme reference for Graphics Capture privacy: `ms-settings:privacy-graphicscaptureprogrammatic`.
+
+Executed:
+
+- `cargo test -p void-desktop windows_settings_route --lib -- --nocapture`
+  - Result before implementation: failed because `windows_settings_pane_route` and `WindowsSettingsPaneRoute` did not exist.
+  - Result after implementation: passed, 3 tests.
+- `cargo test -p void-desktop computer_use_api --lib -- --nocapture`
+  - Result: passed, 3 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one existing unrelated `parse_clipboard_path_segments` dead-code warning.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/api/computer_use_api.rs`
+  - Initial result: failed on import ordering and `cfg` indentation after implementation.
+  - Result after `rustfmt --edition 2021 src/apps/desktop/src/api/computer_use_api.rs`: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/api/computer_use_api.rs`
+  - Result: passed with Windows LF/CRLF working-copy warning only.
+
+Coverage:
+
+- `screen_capture` maps to `ms-settings:privacy-graphicscaptureprogrammatic`.
+- Windows `accessibility` returns stable unsupported facts: `error_code`, `platform`, `pane`, and `suggested_pane`.
+- Unknown panes return a stable `windows_settings_pane_unknown` error code and preserve the original pane.
+- No exact full user-facing unsupported prose is asserted.

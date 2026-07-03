@@ -649,3 +649,9 @@ Reason: The helper is the narrowest boundary for timeout classification and can 
 Decision: `ISSUE-1150C3` adds `MCPConnection::new_remote_with_request_timeout` as an explicit `Duration`-based constructor for controlled remote timeout tests and callers. The default `new_remote` and `new_remote_with_data_dir` paths continue to use `REMOTE_MCP_REQUEST_TIMEOUT`. Remote timeout method coverage is limited to `tools/list`, `tools/call`, `resources/read`, and `prompts/get`.
 
 Reason: The remote transport already owns bounded request timeout behavior, but the production 120s default makes failure-path tests impractical. A narrow explicit injection constructor avoids changing config/runtime behavior and avoids exposing a no-timeout public escape hatch. This keeps timeout classification in the MCP connection/transport boundary without changing MCP manager lifecycle, UI fallback strings, tool pipeline policy, provider adapters, AI media, AI short-drama, or crate layout.
+
+## DEC-109: Windows Computer Use Settings Links Stay Adapter-Owned
+
+Decision: `ISSUE-1130D1` keeps Windows Computer Use settings deep-link routing inside the desktop API adapter. The Windows `screen_capture` pane maps to the documented Graphics Capture privacy URI `ms-settings:privacy-graphicscaptureprogrammatic`. The Windows `accessibility` pane returns a stable actionable unsupported outcome instead of opening an unrelated Ease of Access page.
+
+Reason: Windows Ease of Access settings are not equivalent to macOS Accessibility app permission approval. Pretending they are equivalent would make Computer Use permission troubleshooting misleading. Keeping routing in a pure adapter helper gives a tested decision table while preserving the existing Tauri command shape and avoiding Web UI, Computer Use schema, desktop host, WGC/input adapter, Flow Chat, AI media, AI short-drama, terminal, provider, and crate-layout changes.

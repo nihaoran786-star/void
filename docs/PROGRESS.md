@@ -68,27 +68,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1150C1 local stdio MCP request timeout injection contract complete.
 - [x] ISSUE-1150C2 remote MCP timeout helper contract complete.
 - [x] ISSUE-1150C3 remote MCP method timeout coverage complete.
+- [x] ISSUE-1130D1 Windows settings link decision table complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150C3 Remote MCP Method Timeout Coverage`
+Issue: `ISSUE-1130D1 Windows Settings Link Decision Table`
 
 Summary:
 
-- Added an explicit `MCPConnection::new_remote_with_request_timeout` constructor for controlled short-timeout injection without changing the default remote 120s timeout path.
-- Extended the existing Streamable HTTP MCP integration test server to stall selected methods.
-- Covered typed timeout failures for remote `tools/list`, `tools/call`, `resources/read`, and `prompts/get` wrappers.
-- Marked parent `ISSUE-1150C` done; future local stdio production default/config remains a separate compatibility decision.
-- Preserved MCP manager lifecycle, tool pipeline, UI, provider adapters, AI media, AI short-drama, Cargo features, and crate layout.
+- Added a pure Windows settings route helper for `computer_use_open_system_settings`.
+- Mapped `screen_capture` to `ms-settings:privacy-graphicscaptureprogrammatic`, matching Microsoft Learn's Windows Settings URI scheme reference for Graphics Capture privacy.
+- Kept Windows `accessibility` as an explicit actionable unsupported result with stable `error_code`, `platform`, `pane`, and `suggested_pane` facts rather than opening an unrelated Ease of Access page.
+- Preserved the current Tauri command return shape and did not change Web UI, Computer Use schemas, desktop host, WGC/HWND/input adapters, Flow Chat, AI media, AI short-drama, terminal, provider, or crate layout.
 
 Verification:
 
-- RED: `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture` failed before implementation because `MCPConnection::new_remote_with_request_timeout` did not exist.
-- GREEN: `cargo test -p void-core --test remote_mcp_streamable_http remote_mcp_streamable_http_request_timeout_covers_method_wrappers -- --nocapture` passed.
-- Regression: `cargo test -p void-core --test remote_mcp_streamable_http -- --nocapture` passed.
-- Regression: `cargo test -p void-services-integrations --features mcp` passed.
-- Check: `cargo check -p void-core --features product-full` passed.
-- Boundary/format: `rustfmt --edition 2021 --check src/crates/services-integrations/src/mcp/server/connection.rs src/crates/core/tests/remote_mcp_streamable_http.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed.
+- RED: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture` failed before implementation because `windows_settings_pane_route` and `WindowsSettingsPaneRoute` did not exist.
+- GREEN: `cargo test -p void-desktop windows_settings_route --lib -- --nocapture` passed.
+- Regression: `cargo test -p void-desktop computer_use_api --lib -- --nocapture` passed.
+- Check: `cargo check -p void-desktop` passed with one existing unrelated `parse_clipboard_path_segments` dead-code warning.
+- Boundary/format: `rustfmt --edition 2021 --check src/apps/desktop/src/api/computer_use_api.rs`, `node scripts/check-core-boundaries.mjs`, and targeted `git diff --check` passed.
 
 ## Subagent Summary
 
