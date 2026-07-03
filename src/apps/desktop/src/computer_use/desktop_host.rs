@@ -9,24 +9,24 @@ use image::{DynamicImage, Rgb, RgbImage};
 use log::{debug, warn};
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg;
-use screenshots::Screen;
 use screenshots::display_info::DisplayInfo;
+use screenshots::Screen;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use void_core::agentic::tools::computer_use_host::{
-    ActionRecord, AppClickParams, AppInfo, AppSelector, AppStateSnapshot, AppWaitPredicate,
-    COMPUTER_USE_QUADRANT_CLICK_READY_MAX_LONG_EDGE, COMPUTER_USE_QUADRANT_EDGE_EXPAND_PX,
-    ClickTarget, ComputerScreenshot, ComputerUseDisplayInfo, ComputerUseHost,
-    ComputerUseImageContentRect, ComputerUseImageGlobalBounds, ComputerUseImplicitScreenshotCenter,
-    ComputerUseInteractionScreenshotKind, ComputerUseInteractionState, ComputerUseLastMutationKind,
-    ComputerUseNavigateQuadrant, ComputerUseNavigationRect, ComputerUsePermissionSnapshot,
-    ComputerUseScreenshotParams, ComputerUseScreenshotRefinement, ComputerUseSessionSnapshot,
-    InteractiveActionResult, InteractiveClickParams, InteractiveScrollParams,
-    InteractiveTypeTextParams, InteractiveView, InteractiveViewOpts, LoopDetectionResult,
-    OcrRegionNative, ScreenshotCropCenter, UiElementLocateQuery, UiElementLocateResult,
-    VisualActionResult, VisualClickParams, VisualMark, VisualMarkView, VisualMarkViewOpts,
-    clamp_point_crop_half_extent,
+    clamp_point_crop_half_extent, ActionRecord, AppClickParams, AppInfo, AppSelector,
+    AppStateSnapshot, AppWaitPredicate, ClickTarget, ComputerScreenshot, ComputerUseDisplayInfo,
+    ComputerUseHost, ComputerUseImageContentRect, ComputerUseImageGlobalBounds,
+    ComputerUseImplicitScreenshotCenter, ComputerUseInteractionScreenshotKind,
+    ComputerUseInteractionState, ComputerUseLastMutationKind, ComputerUseNavigateQuadrant,
+    ComputerUseNavigationRect, ComputerUsePermissionSnapshot, ComputerUseScreenshotParams,
+    ComputerUseScreenshotRefinement, ComputerUseSessionSnapshot, InteractiveActionResult,
+    InteractiveClickParams, InteractiveScrollParams, InteractiveTypeTextParams, InteractiveView,
+    InteractiveViewOpts, LoopDetectionResult, OcrRegionNative, ScreenshotCropCenter,
+    UiElementLocateQuery, UiElementLocateResult, VisualActionResult, VisualClickParams, VisualMark,
+    VisualMarkView, VisualMarkViewOpts, COMPUTER_USE_QUADRANT_CLICK_READY_MAX_LONG_EDGE,
+    COMPUTER_USE_QUADRANT_EDGE_EXPAND_PX,
 };
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 use void_core::agentic::tools::computer_use_host::{
@@ -1824,7 +1824,7 @@ end tell"#])
         fn is_process_elevated() -> bool {
             use windows::Win32::Foundation::HANDLE;
             use windows::Win32::Security::{
-                GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation,
+                GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
             };
             use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
             unsafe {
@@ -2856,6 +2856,28 @@ impl DesktopComputerUseHost {
     }
 
     #[cfg(target_os = "windows")]
+    async fn get_app_state_for_revalidated_windows_hwnd_raw(
+        &self,
+        context: &str,
+        hwnd_raw: isize,
+        pid: i32,
+        max_depth: u32,
+    ) -> VoidResult<AppStateSnapshot> {
+        windows_validate_hwnd_raw_pid(hwnd_raw, pid)?;
+        let snap = self
+            .get_app_state_for_windows_hwnd_raw_inner(hwnd_raw, pid, max_depth, false, false)
+            .await?;
+        let snap_pid = snap.app.pid.ok_or_else(|| {
+            VoidError::tool(format!(
+                "[WINDOW_CHANGED] {context} snapshot did not include a Windows pid; re-run get_app_state and retry."
+            ))
+        })?;
+        windows_validate_target_identity(context, pid, Some(hwnd_raw), snap_pid, hwnd_raw)?;
+        windows_validate_hwnd_raw_pid(hwnd_raw, pid)?;
+        Ok(snap)
+    }
+
+    #[cfg(target_os = "windows")]
     async fn get_app_state_for_windows_hwnd_raw_inner(
         &self,
         hwnd_raw: isize,
@@ -3012,11 +3034,37 @@ fn windows_screenshot_from_window_capture(
 fn windows_validate_hwnd_raw_pid(hwnd_raw: isize, expected_pid: i32) -> VoidResult<()> {
     let hwnd = windows_hwnd_from_raw(hwnd_raw);
     let actual_pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+    windows_validate_target_identity(
+        "Windows target",
+        expected_pid,
+        Some(hwnd_raw),
+        actual_pid,
+        hwnd_raw,
+    )?;
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn windows_validate_target_identity(
+    context: &str,
+    expected_pid: i32,
+    expected_hwnd_raw: Option<isize>,
+    actual_pid: i32,
+    actual_hwnd_raw: isize,
+) -> VoidResult<()> {
     if actual_pid != expected_pid {
         return Err(VoidError::tool(format!(
-            "[WINDOW_CHANGED] Windows target HWND now belongs to pid {} but expected pid {}. Screenshot attachment was skipped; re-run get_app_state and retry.",
-            actual_pid, expected_pid
+            "[WINDOW_CHANGED] {context} resolved hwnd_raw={} now belongs to pid {} but expected pid {}. Re-run get_app_state and retry.",
+            actual_hwnd_raw, actual_pid, expected_pid
         )));
+    }
+    if let Some(expected_hwnd_raw) = expected_hwnd_raw {
+        if actual_hwnd_raw != expected_hwnd_raw {
+            return Err(VoidError::tool(format!(
+                "[WINDOW_CHANGED] {context} resolved hwnd_raw={} but expected hwnd_raw={}. Re-run get_app_state and retry.",
+                actual_hwnd_raw, expected_hwnd_raw
+            )));
+        }
     }
     Ok(())
 }
@@ -3122,6 +3170,25 @@ mod windows_host_app_action_tests {
             .expect("posted input should preserve delivery uncertainty");
         assert!(warning.contains("PostedUnknown"));
         assert!(warning.contains("post_click_screen"));
+    }
+
+    #[test]
+    fn windows_hwnd_lifetime_revalidation_rejects_pid_or_hwnd_change() {
+        windows_validate_target_identity("test", 42, Some(1001), 42, 1001)
+            .expect("same pid and hwnd should pass");
+
+        let pid_error = windows_validate_target_identity("test", 42, Some(1001), 7, 1001)
+            .expect_err("same hwnd with a different pid must fail closed");
+        assert!(pid_error.to_string().contains("[WINDOW_CHANGED]"));
+        assert!(pid_error.to_string().contains("expected pid 42"));
+
+        let hwnd_error = windows_validate_target_identity("test", 42, Some(1001), 42, 2002)
+            .expect_err("same pid with a different hwnd must fail closed when hwnd is pinned");
+        assert!(hwnd_error.to_string().contains("[WINDOW_CHANGED]"));
+        assert!(hwnd_error.to_string().contains("expected hwnd_raw=1001"));
+
+        windows_validate_target_identity("test", 42, None, 42, 2002)
+            .expect("pid-only validation should allow hwnd changes when no hwnd is pinned");
     }
 
     #[test]
@@ -3745,10 +3812,9 @@ mod windows_host_app_action_tests {
             .expect_err("empty interactive view must not be a successful support signal");
 
         assert!(error.to_string().contains("INTERACTIVE_VIEW_EMPTY"));
-        assert!(
-            host.resolve_interactive_index_for_pid(pid, 0, None)
-                .is_err()
-        );
+        assert!(host
+            .resolve_interactive_index_for_pid(pid, 0, None)
+            .is_err());
     }
 }
 
@@ -5414,9 +5480,10 @@ tell application "System Events" to get unix id of first process whose frontmost
                 };
                 let _ = self.app_click(click).await?;
             }
-            let hwnd_raw = {
+            let (pid, hwnd_raw) = {
                 let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
-                windows_hwnd_raw(hwnd)
+                let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+                (pid, windows_revalidate_hwnd_raw(&app, pid)?)
             };
             let text = text.to_string();
             let outcome = tokio::task::spawn_blocking(move || {
@@ -5431,7 +5498,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 return Err(error);
             }
             let mut snap = self
-                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .get_app_state_for_revalidated_windows_hwnd_raw("app_type_text", hwnd_raw, pid, 32)
                 .await?;
             if snap.loop_warning.is_none() {
                 snap.loop_warning = windows_input_warning("app_type_text", &outcome);
@@ -5581,9 +5648,10 @@ tell application "System Events" to get unix id of first process whose frontmost
                 };
                 let _ = self.app_click(click).await?;
             }
-            let hwnd_raw = {
+            let (pid, hwnd_raw) = {
                 let hwnd = crate::computer_use::windows_list_apps::resolve_window_for_app(&app)?;
-                windows_hwnd_raw(hwnd)
+                let pid = crate::computer_use::windows_ax_ui::window_pid(hwnd)?;
+                (pid, windows_revalidate_hwnd_raw(&app, pid)?)
             };
             let (modifiers, keycode) =
                 crate::computer_use::windows_bg_input::parse_key_chord(&keys)?;
@@ -5600,7 +5668,7 @@ tell application "System Events" to get unix id of first process whose frontmost
                 return Err(error);
             }
             let mut snap = self
-                .get_app_state_for_windows_hwnd_raw(hwnd_raw, 32)
+                .get_app_state_for_revalidated_windows_hwnd_raw("app_key_chord", hwnd_raw, pid, 32)
                 .await?;
             if snap.loop_warning.is_none() {
                 snap.loop_warning = windows_input_warning("app_key_chord", &outcome);

@@ -1721,7 +1721,7 @@ Result:
 ### ISSUE-1130B Windows HWND Lifetime and Revalidation Audit
 
 Priority: P0
-Status: Proposed
+Status: Split
 Goal: Prove all Windows Computer Use async paths avoid carrying `HWND` handles across `.await` and revalidate the target before using cached handles.
 Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, Windows list/AX/input helper tests, docs.
 Forbidden files: WGC implementation, Web UI, macOS/Linux adapters, runtime/service decomposition, Flow Chat, AI media, AI short-drama, terminal.
@@ -1731,6 +1731,29 @@ Acceptance:
 - App click/type/scroll/key-chord paths revalidate PID/window identity before background input where practical.
 - Tests include closed window, same-PID multi-window switch, HWND reuse, and capture-after-PID-change fail-closed cases.
 Risk notes: Handle lifetime bugs are subtle; a compile pass is not enough. Tests must target stale/reused HWND behavior, not only happy path calls.
+Result:
+- Split after subagent review because real closed-window, HWND-reuse, same-PID multi-window, UIPI/elevated-window, and WGC/capture-race behavior cannot be honestly proven by pure unit tests.
+- Completed the first safe implementation slice in `ISSUE-1130B1`.
+- Remaining platform smoke and deeper capture/build-view race cases stay open for follow-up issues; do not claim full Windows HWND lifetime parity until those smoke checks pass.
+
+### ISSUE-1130B1 Windows Input Action HWND Revalidation Slice
+
+Priority: P0
+Status: Done
+Goal: Harden Windows input actions that previously resolved `hwnd_raw` without an expected-pid identity gate after focus/click awaits.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, docs.
+Forbidden files: WGC implementation, Web UI, macOS/Linux adapters, runtime/service decomposition, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package files.
+Acceptance:
+- `app_type_text` records expected pid and revalidates the selected HWND before dispatching cloaked text input.
+- `app_key_chord` records expected pid and revalidates the selected HWND before dispatching cloaked key input.
+- Post-action snapshots for these input actions use the expected pid boundary instead of recomputing target pid from a possibly stale/reused HWND.
+- Tests cover pid mismatch and pinned hwnd mismatch as explicit `[WINDOW_CHANGED]` failures.
+Risk notes: This does not prove real HWND reuse, same-PID multi-window switches, UIPI/elevated-window behavior, or capture races. Those still require Windows smoke.
+Result:
+- Added a pure Windows host identity helper that fails closed when pid changes or a pinned `hwnd_raw` changes.
+- Routed Windows `app_type_text` and `app_key_chord` through expected-pid HWND revalidation before dispatch and expected-pid snapshot validation after dispatch.
+- Preserved `app_click`/`app_scroll` existing pre-dispatch revalidation and did not change WGC, Web UI, Computer Use schemas, AI media, AI short-drama, terminal, provider, macOS/Linux adapters, or crate layout.
+- Verification: `cargo test -p void-desktop windows_hwnd_lifetime_revalidation --lib -- --nocapture` failed before implementation because the helper did not exist, then passed after implementation; `cargo test -p void-desktop windows_host_app_action_tests --lib -- --nocapture`, `windows_app_enumeration`, `windows_bg_input`, and `windows_foreground_capture` passed; `cargo check -p void-desktop` passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning.
 
 ### ISSUE-1130C Windows Pointer Coordinate Precision and Background Input Tests
 

@@ -4955,6 +4955,43 @@ Remaining risk:
 - No browser-level IME smoke was run; the regression is covered at the terminal utility/interface layer.
 - Lazy renderer `forwardRef` remains intentionally deferred because current Void terminal output call sites do not need an imperative ref.
 
+## ISSUE-1130B1 Windows Input Action HWND Revalidation Slice
+
+Scope:
+
+- Current slice covers Windows `app_type_text` and `app_key_chord` input-action target identity.
+- The slice adds a pure identity helper for expected pid and optional pinned `hwnd_raw` checks.
+- No WGC implementation, Web UI, Computer Use schema, macOS/Linux adapter, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package, or crate-layout behavior was changed.
+
+Executed:
+
+- `cargo test -p void-desktop windows_hwnd_lifetime_revalidation --lib -- --nocapture`
+  - Result before fix: failed because `windows_validate_target_identity` did not exist.
+  - Result after fix: passed, 1 test.
+- `cargo test -p void-desktop windows_host_app_action_tests --lib -- --nocapture`
+  - Result: passed, 21 tests.
+- `cargo test -p void-desktop windows_app_enumeration --lib -- --nocapture`
+  - Result: passed, 4 tests.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture`
+  - Result: passed, 10 tests.
+- `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture`
+  - Result: passed, 5 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning in `clipboard_file_api.rs`.
+
+Coverage:
+
+- Same pid and same pinned `hwnd_raw` passes.
+- Same `hwnd_raw` with a different pid fails closed with `[WINDOW_CHANGED]`.
+- Same pid with a different pinned `hwnd_raw` fails closed with `[WINDOW_CHANGED]`.
+- Pid-only validation remains allowed when no `hwnd_raw` is pinned.
+- Windows `app_type_text` and `app_key_chord` now resolve expected pid, revalidate the selected HWND before cloaked input dispatch, and return snapshots through the expected-pid validation boundary.
+
+Deferred:
+
+- Real HWND reuse, same-PID multi-window switching, closed-window races during Win32/UIA calls, UIPI/elevated-window behavior, and WGC/PrintWindow/DWM capture races still require Windows smoke.
+- `app_click` and `app_scroll` already had pre-dispatch revalidation and were not broadened in this slice to avoid changing post-click window-transition semantics.
+
 ## ISSUE-1120D Terminal Lifecycle, Ack, and History Integration Tests
 
 Scope:

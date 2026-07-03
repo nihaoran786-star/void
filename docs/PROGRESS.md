@@ -62,33 +62,29 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1170B AI connection-test error classification complete.
 - [x] ISSUE-1170D SSE handler cancellation contract complete.
 - [x] ISSUE-1130A Windows WGC capture adapter wiring complete.
+- [x] ISSUE-1130B1 Windows input action HWND revalidation slice complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1130A Windows WGC Capture Implementation Gate`
+Issue: `ISSUE-1130B1 Windows Input Action HWND Revalidation Slice`
 
 Summary:
 
-- Added a Windows-only `windows_wgc_capture.rs` adapter using D3D11 hardware/WARP device creation, WinRT `GraphicsCaptureItem`, free-threaded frame pool, staging texture copy, row-pitch compaction, and timeout handling.
-- Wired `screenshot_window_via_wgc` to the adapter while keeping the existing `windows_capture.rs` tiered fallback chain and BitBlt uncertainty metadata.
-- Added only the required Windows crate features; did not copy upstream desktop-host module splitting or Web UI/tool-card/settings changes.
-- Preserved desktop host contracts, Computer Use schemas, macOS/Linux adapters, background input, Flow Chat, AI media, AI short-drama, terminal, provider, and crate layout.
+- Split `ISSUE-1130B` after subagent review because real HWND reuse, same-PID multi-window switches, UIPI/elevated-window behavior, and capture races cannot be proven by pure unit tests.
+- Added a Windows host identity helper that rejects pid changes and pinned `hwnd_raw` changes as `[WINDOW_CHANGED]`.
+- Routed Windows `app_type_text` and `app_key_chord` through expected-pid HWND revalidation before dispatching cloaked input and through expected-pid snapshot validation after dispatch.
+- Preserved WGC implementation, Web UI, Computer Use schemas, macOS/Linux adapters, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package files, and crate layout.
 
 Verification:
 
-- RED: `cargo test -p void-desktop windows_wgc_adapter_is_wired_for_capture_fallback --lib -- --nocapture` failed before implementation because `computer_use::windows_wgc_capture` did not exist.
-- GREEN: the same wiring test passed after implementation.
+- RED: `cargo test -p void-desktop windows_hwnd_lifetime_revalidation --lib -- --nocapture` failed before implementation because `windows_validate_target_identity` did not exist.
+- GREEN: the same HWND lifetime revalidation test passed after implementation.
+- `cargo test -p void-desktop windows_host_app_action_tests --lib -- --nocapture` passed with 21 tests.
+- `cargo test -p void-desktop windows_app_enumeration --lib -- --nocapture` passed with 4 tests.
+- `cargo test -p void-desktop windows_bg_input --lib -- --nocapture` passed with 10 tests.
 - `cargo test -p void-desktop windows_foreground_capture --lib -- --nocapture` passed with 5 tests.
 - `cargo check -p void-desktop` passed with one unrelated existing `parse_clipboard_path_segments` dead-code warning.
-- `cargo build -p void-desktop` initially failed with a `rustc` `STATUS_ACCESS_VIOLATION (0xc0000005)` and passed on retry with the same unrelated warning.
-- Manual WGC smoke remains required before claiming platform-verified occlusion-proof capture.
-- `cargo test -p void-ai-adapters --test stream_test_harness -- --nocapture` passed with 11 stream harness tests.
-- `cargo test -p void-ai-adapters client::sse -- --nocapture` passed with 7 SSE facade tests.
-- `cargo test -p void-agent-stream` passed with 31 tests.
-- `cargo test -p void-ai-adapters` passed with 178 unit tests, 4 model-selector tests, 11 stream harness tests, and 0 doctests.
-- `cargo metadata --no-deps --format-version 1` passed.
-- `node scripts/check-core-boundaries.mjs` passed.
-- `cargo test -p void-core round_executor --lib -- --nocapture` passed with 43 focused round-executor tests.
+- Manual Windows smoke remains required for real HWND reuse, same-PID multi-window switches, UIPI/elevated-window behavior, and WGC/PrintWindow capture races.
 
 ## Subagent Summary
 

@@ -490,6 +490,7 @@ Windows host action wiring contract:
 
 - Windows `app_click`, `app_type_text`, `app_scroll`, and `app_key_chord` are `ComputerUseHost` orchestration only: resolve target HWND/AppSelector, resolve target coordinates, call Windows adapters, wait for settle where applicable, then return a fresh `AppStateSnapshot`.
 - Target HWND resolution belongs to `windows_list_apps`; target-window UIA/MSAA snapshots belong to `windows_ax_ui`; low-level dispatch belongs to `windows_bg_input`.
+- Host orchestration owns HWND identity revalidation. Text/key input actions must carry an expected pid across await boundaries, revalidate the selected HWND before dispatch, and validate returned snapshots through the expected-pid boundary instead of recomputing identity from a potentially stale handle.
 - Host wiring must preserve `WindowsInputOutcome`: `BlockedUipi`, `ForegroundRestoreFailed`, `UnsupportedSurface`, and `Win32Error` fail closed; uncertain delivery such as `PostedUnknown` may return a snapshot but must preserve a warning through existing host fields.
 - Windows host action wiring does not enable `supports_background_input`, interactive views, visual mark views, drag, `app_wait_for`, Web UI permission changes, terminal behavior changes, or core schema changes.
 
