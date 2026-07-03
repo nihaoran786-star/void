@@ -1654,7 +1654,7 @@ Risk notes: This issue is about observability and contract tests first; do not r
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 
 Priority: P0
-Status: Proposed
+Status: Done
 Goal: Isolate upstream Windows Computer Use fixes for WGC D3D11 arguments, pointer coordinate types, and dropping HWND before await.
 Allowed files: Windows desktop adapter tests/docs first; implementation only as platform-specific follow-up.
 Forbidden files: core schema expansion, Web UI, terminal, macOS adapters, unrelated Computer Use DTO extraction.
@@ -1663,6 +1663,72 @@ Acceptance:
 - Compile/test strategy is documented for Windows-specific code.
 - Unsupported or untestable behavior is not claimed as fixed.
 Risk notes: Windows API unsafe and async handle-lifetime changes require platform-specific proof; non-Windows checks are insufficient for release claims.
+Result:
+- Reviewed upstream Computer Use platform work from `acf0cdb03` and `63a7b8160`, with focus on Windows capture/input ownership.
+- Confirmed local Windows capture still has `screenshot_window_via_wgc` as a stub in `src/apps/desktop/src/computer_use/windows_capture.rs`; upstream adds a real `windows_wgc_capture.rs` implementation using D3D11, WinRT `GraphicsCaptureItem`, frame pool, staging texture copy, and timeout handling.
+- Confirmed local desktop host already uses raw `isize` HWND handoff/revalidation patterns around async boundaries in several Windows paths, including PID validation tests for changed cached HWNDs; this is partial coverage, not proof that every upstream HWND lifetime fix is present.
+- Confirmed local pointer/global movement paths include `mouse_move_global_f64`, but Windows pointer coordinate precision and app image-to-pointer mappings still need platform-specific tests before claiming parity.
+- Confirmed local text-only Computer Use already supports `describe_screen` without screenshot attachment, and local image/pointer paths bind app screenshots through `PointerMap` and `screenshot_id`.
+- Confirmed local Windows settings deep link still returns a not-wired error, and Windows visual grid is explicitly unsupported; these are UX/capability-gating gaps, not capture implementation gaps.
+- Separated upstream platform UX and desktop-host module split from direct implementation. The upstream merge deletes/replaces `desktop_host.rs`, adds multiple host submodules, changes Computer Use tool cards/UI copy, and crosses Web UI/settings; that is too broad for this branch.
+- Did not change Computer Use production code, Flow Chat, multi-agent/subagent, AI media, AI short-drama, terminal, provider, or Web UI.
+
+### ISSUE-1130A Windows WGC Capture Implementation Gate
+
+Priority: P0
+Status: Proposed
+Goal: Implement or explicitly defer the Windows Graphics Capture fallback for mostly-black `PrintWindow` results using a narrow adapter and Windows-only proof.
+Allowed files: `src/apps/desktop/src/computer_use/windows_capture.rs`, optional `windows_wgc_capture.rs`, `src/apps/desktop/Cargo.toml` Windows feature additions, focused Windows tests/docs.
+Forbidden files: desktop-host module split, Web UI tool cards/settings, macOS/Linux adapters, Computer Use tool schema expansion, Flow Chat, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- `screenshot_window_via_wgc` either calls a real WGC adapter or remains explicitly deferred with a failing/proposed Windows test.
+- D3D11 device creation covers hardware then WARP fallback, BGRA support, staging texture copy, row pitch, and frame timeout.
+- Mostly-black `PrintWindow` recovery order is documented and tested where possible: WGC first, screen-region `BitBlt` fallback second.
+- `BitBlt` fallback preserves `potentially_occluded`/source metadata so agents are not told an occluded screen-region capture is authoritative.
+- Verification includes `cargo check -p void-desktop` on Windows and one manual/automated UWP/WinUI/DirectComposition capture smoke.
+Risk notes: This cannot be claimed fixed from non-Windows checks. The adapter touches WinRT/D3D11 unsafe code and Cargo feature surface.
+
+### ISSUE-1130B Windows HWND Lifetime and Revalidation Audit
+
+Priority: P0
+Status: Proposed
+Goal: Prove all Windows Computer Use async paths avoid carrying `HWND` handles across `.await` and revalidate the target before using cached handles.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, Windows list/AX/input helper tests, docs.
+Forbidden files: WGC implementation, Web UI, macOS/Linux adapters, runtime/service decomposition, Flow Chat, AI media, AI short-drama, terminal.
+Acceptance:
+- Each Windows path using `HWND` is classified: raw handle captured before await, reconstructed inside blocking closure, or unsafe/deferred.
+- Cached interactive/visual-mark HWND validation is covered by tests or documented gaps.
+- App click/type/scroll/key-chord paths revalidate PID/window identity before background input where practical.
+- Tests include closed window, same-PID multi-window switch, HWND reuse, and capture-after-PID-change fail-closed cases.
+Risk notes: Handle lifetime bugs are subtle; a compile pass is not enough. Tests must target stale/reused HWND behavior, not only happy path calls.
+
+### ISSUE-1130C Windows Pointer Coordinate Precision and Background Input Tests
+
+Priority: P1
+Status: Proposed
+Goal: Verify Windows pointer coordinate conversion and background input status semantics without changing cross-platform Computer Use contracts.
+Allowed files: Windows background input helper tests, desktop host coordinate mapping tests, docs.
+Forbidden files: Computer Use schema expansion, macOS/Linux behavior changes, Web UI, Flow Chat, AI media, AI short-drama, terminal.
+Acceptance:
+- `mouse_move_global_f64` and Windows app image/global coordinate paths are classified as present/missing for subpixel-safe movement.
+- Background click/scroll/type/key outcomes preserve explicit status/path/warning semantics.
+- Tests or manual matrix cover DPI scaling, multi-monitor origin offsets, foreground/occluded window, and UIPI/high-integrity denial.
+- Image coordinate mappings cover DWM crop origin offsets, negative monitor coordinates, explicit `screenshot_id`, and missing pointer-map failure.
+Risk notes: Pointer behavior must be tested on Windows with real DPI/display conditions; jsdom or non-Windows Rust tests cannot prove it.
+
+### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
+
+Priority: P2
+Status: Proposed
+Goal: Make Windows-only Computer Use unsupported capabilities explicit and actionable without changing core schemas or Web UI architecture.
+Allowed files: Windows desktop Computer Use adapter, focused capability tests, docs.
+Forbidden files: broad Computer Use schema expansion, Web UI tool-card redesign, desktop-host module split, Flow Chat, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- Windows `computer_use_open_system_settings` maps supported settings categories to safe `ms-settings:` URIs or returns a typed, actionable unsupported result.
+- Windows visual-grid unsupported behavior is either hidden earlier through capability gating or documented with a clear fallback to visual mark/image-coordinate flows.
+- Unsupported capability responses preserve explicit status/source/error semantics instead of relying on generic string matching.
+- Tests cover at least the adapter-level decision table; no desktop UI redesign is included.
+Risk notes: This is a UX/capability-gating issue. It must not be bundled with WGC unsafe code or the upstream platform tool-card refactor.
 
 ### ISSUE-1140 Image Understanding and Image Context Completion Audit
 

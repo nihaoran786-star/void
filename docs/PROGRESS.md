@@ -4514,3 +4514,32 @@ Remaining risk:
 - Upstream IME/key rollover and lazy renderer ref/fallback differences require a separate `ISSUE-1120C` comparison before any Web terminal patch.
 - Natural PTY exit, frontend flow-control ack, remote empty history, and backend-to-frontend replay integration evidence remain open in `ISSUE-1120D`.
 - The next selective-upstream candidate is `ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit`.
+
+## ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
+
+Status: Done
+
+Completed:
+
+- Reviewed upstream Computer Use platform/capture commits from `acf0cdb03`, `63a7b8160`, `918894f10`, `4a88374fc`, and `aab1032da`.
+- Mapped upstream WGC work to current local ownership: local `src/apps/desktop/src/computer_use/windows_capture.rs` still has a `screenshot_window_via_wgc` stub, while upstream adds a real `windows_wgc_capture.rs` D3D11/WinRT frame-pool adapter.
+- Mapped HWND lifetime work: local `desktop_host.rs` already uses raw `isize` HWND handoff and PID revalidation in several Windows paths, including cached HWND validation tests, but full parity is not proven for every async path.
+- Mapped pointer/background-input work: local Windows input returns explicit `WindowsInputOutcome { status, path, delivery_uncertain, warning }`, and local host exposes `mouse_move_global_f64`; DPI/multi-monitor precision still needs Windows proof.
+- Confirmed local text-only Computer Use already has read-only `describe_screen`, prompt/schema image-removal behavior, and screenshot-bound `PointerMap` flows; those should be protected during Windows platform work.
+- Split follow-up work into `ISSUE-1130A` WGC implementation gate, `ISSUE-1130B` HWND lifetime/revalidation audit, `ISSUE-1130C` pointer coordinate/background-input tests, and `ISSUE-1130D` Windows capability gating/settings links.
+- Preserved protected surfaces: Flow Chat, multi-agent/subagent, BTW, floating chat, AI media, AI short-drama, terminal, provider, and Web UI were not changed.
+
+Verification:
+
+- Upstream merge/file diff inspection completed for Computer Use platform/capture commits.
+- Local Windows capture/background input/desktop host files were inspected for WGC stub, raw HWND patterns, pointer movement, and input result status.
+- Subagent reviews were launched for upstream, local, and QA/risk perspectives.
+
+Remaining risk:
+
+- No Windows platform build or capture smoke was run in this docs-only audit.
+- WGC is not implemented locally and must not be claimed fixed until `ISSUE-1130A` lands with Windows evidence.
+- HWND raw/revalidation is partially present but still requires full-path audit in `ISSUE-1130B`.
+- Pointer precision and background input semantics require real Windows DPI/multi-monitor/UIPI testing in `ISSUE-1130C`.
+- Windows settings deep links and visual-grid capability gating remain separate from capture/input unsafe work in `ISSUE-1130D`.
+- The next selective-upstream candidate is `ISSUE-1140 Image Understanding and Image Context Completion Audit`.

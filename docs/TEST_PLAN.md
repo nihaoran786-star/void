@@ -3960,6 +3960,21 @@ Implementation test plan for follow-up issues:
     - `cargo test -p terminal-core session::replay`
     - Any `ISSUE-1120A` DTO/result-shape implementation must add or update tests for terminal local/remote write/resize/history boundary behavior.
   - Result: docs-only audit; no production tests were run because no terminal behavior changed in this slice.
+- `ISSUE-1130`:
+  - `git show --name-status --stat acf0cdb03 63a7b8160 918894f10 4a88374fc aab1032da --`
+    - Result: passed; identified upstream Computer Use platform UX/capture, CUA integration, text-only describe-screen, and runtime-owner commits.
+  - `git diff --name-status 98f0f4113..acf0cdb03 -- src`
+    - Result: passed; confirmed upstream adds `windows_wgc_capture.rs`, refactors desktop host modules, changes Computer Use tool/UI contracts, and touches Web UI/settings.
+  - Local file inspection:
+    - Result: local `windows_capture.rs` still stubs `screenshot_window_via_wgc`; local `desktop_host.rs` already uses raw `isize` HWND handoff/revalidation around several async Windows paths; local `windows_bg_input.rs` exposes explicit `WindowsInputOutcome` status/path/warning.
+    - Result: local text-only Computer Use already has read-only `describe_screen`/image-removal behavior; local Windows settings links and visual grid remain explicit capability gaps.
+  - Recommended follow-up checks:
+    - `cargo check -p void-desktop --target x86_64-pc-windows-msvc` or native Windows `cargo check -p void-desktop`.
+    - Windows-only WGC smoke against UWP/WinUI/DirectComposition window after `ISSUE-1130A`.
+    - Focused stale HWND/reused window tests for `ISSUE-1130B`.
+    - DPI/multi-monitor/background-input manual matrix for `ISSUE-1130C`.
+    - Adapter-level settings URI/capability-gating decision tests for `ISSUE-1130D`.
+  - Result: docs-only audit; no production tests were run because no Computer Use code changed and non-Windows checks cannot prove Windows capture/input behavior.
 
 Protected-surface regression candidates:
 
