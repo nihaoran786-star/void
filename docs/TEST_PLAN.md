@@ -4245,6 +4245,37 @@ Deferred:
 - Visual evidence metadata remains `ISSUE-1160E`.
 - AI media and short-drama token cleanup remains `ISSUE-1160F`.
 
+## ISSUE-1160E Theme Visual Governance Evidence Contract
+
+Scope:
+
+- Current slice covers `scripts/theme-visual-governance-contract.json`, `scripts/validate-theme-visual-contract.mjs`, focused validator tests, and docs.
+- No screenshot tooling, page/component SCSS, ThemeService runtime behavior, Flow Chat logic, AI media logic, AI short-drama logic, installer release workflow, or product business logic was changed.
+
+Executed:
+
+- `node --test scripts/validate-theme-visual-contract.test.mjs`
+  - RED result before implementation: failed because current evidence entries lacked `mode/theme/viewport/state`, the validator ignored `--contract`, and malformed fixture contracts were not rejected.
+  - GREEN result after implementation: passed, 3 tests.
+- `node --check scripts/validate-theme-visual-contract.mjs`
+  - Result: passed.
+- `pnpm run check:theme-visual-contract`
+  - Result: passed, 8/8 required surfaces covered.
+- `node scripts/validate-theme-visual-contract.mjs --json`
+  - Result: passed with `ok: true`, 8 surfaces, 8 required surfaces.
+
+Coverage:
+
+- Current contract evidence entries declare `mode`, `theme`, `viewport`, `state`, and either `command` or `artifactName`.
+- Validator supports `--contract <path>` fixture validation for focused tests.
+- Validator rejects unsupported evidence modes, missing evidence metadata, missing command/artifact declarations, unknown evidence types, and upstream branding strings.
+- Existing surface coverage remains app shell, Flow Chat, terminal, markdown/Mermaid, generated widgets, media/short-drama, mobile web, and installer.
+
+Deferred:
+
+- This contract does not prove screenshots or manual visual reviews have been executed; it only validates the expected evidence metadata.
+- AI media and short-drama token cleanup remains `ISSUE-1160F`.
+
 - `ISSUE-1170`:
   - `git show --stat --name-status --oneline 96cea08ca 629ced40a 6dc44c489 --`
     - Result: passed; identified upstream provider HTTP owner migration, provider-owned local runtime migration, and stream-contract extraction scopes.

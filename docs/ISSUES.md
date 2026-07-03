@@ -2053,7 +2053,7 @@ Progress:
 ### ISSUE-1160E Theme Visual Governance Evidence Contract
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Strengthen the visual governance contract so theme-sensitive surfaces declare verifiable evidence beyond free-form review text.
 Allowed files: `scripts/theme-visual-governance-contract.json`, `scripts/validate-theme-visual-contract.mjs`, focused validator tests, docs.
 Forbidden files: screenshot tooling overhaul, page SCSS rewrites, runtime theme changes, product business logic.
@@ -2063,6 +2063,12 @@ Acceptance:
 - Validator rejects missing required paths, unknown evidence types, and BitFun branding strings.
 - `pnpm run check:theme-visual-contract` passes.
 Risk notes: This contract still does not prove screenshots passed; it only makes evidence expectations machine-checkable.
+Progress:
+- Added entry-level evidence metadata for every visual-governance surface: `mode`, `theme`, `viewport`, `state`, and `command` or `artifactName`.
+- Extended the validator with `--contract <path>` support so focused tests can validate fixture contracts without mutating the real contract.
+- Added validator checks for unknown evidence modes, missing evidence metadata, missing command/artifact declarations, unknown evidence types, and upstream branding strings.
+- Added focused validator tests covering current contract metadata, malformed fixture contracts, unsupported modes/types, and BitFun branding rejection.
+- Preserved screenshot tooling, page/component SCSS, ThemeService runtime behavior, Flow Chat, AI media, AI short-drama, installer/release workflow, and product business logic.
 
 ### ISSUE-1160F AI Media and Short-Drama Theme Token Boundary
 

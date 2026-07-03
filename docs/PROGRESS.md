@@ -45,26 +45,26 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1160B theme CSS variable runtime contract complete.
 - [x] ISSUE-1160C ThemeService runtime token whitelist complete.
 - [x] ISSUE-1160D generated-widget theme payload compatibility contract complete.
+- [x] ISSUE-1160E theme visual governance evidence contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1160D Generated Widget Theme Payload Compatibility Contract`
+Issue: `ISSUE-1160E Theme Visual Governance Evidence Contract`
 
 Summary:
 
-- Exported an explicit generated-widget theme payload contract for required vars, optional vars, and known legacy aliases.
-- Extended `readWidgetThemePayload` with `contractVersion`, `status`, `source`, `missingRequiredVars`, `appliedLegacyAliases`, and typed missing-var error metadata while preserving `{ id, type, vars }`.
-- Kept `--color-border-default` compatible with canonical `--border-base` in both directions for existing generated widgets.
-- Did not touch ThemeService runtime logic, theme preset values, widget iframe business protocol, MiniApp `--void-*` payloads, Flow Chat, AI media, or AI short-drama logic.
+- Added entry-level visual evidence metadata for every theme-governance surface: `mode`, `theme`, `viewport`, `state`, and `command` or `artifactName`.
+- Extended `validate-theme-visual-contract.mjs` with `--contract <path>` fixture validation and evidence metadata checks.
+- Added focused validator tests for current evidence metadata, malformed fixture contracts, unsupported modes/types, and upstream branding rejection.
+- Did not touch screenshot tooling, page/component SCSS, ThemeService runtime behavior, Flow Chat, AI media, AI short-drama, installer/release workflow, or product business logic.
 
 Verification:
 
-- RED: `pnpm --dir src/web-ui run test:run src/tools/generative-widget/themePayload.test.ts` failed before implementation because the payload contract, optional shell tokens, and legacy alias backfill were missing.
-- RED: the same command failed again before alias metadata implementation because `appliedLegacyAliases` stayed empty after compatibility backfill.
-- GREEN: the same command passed with 6 tests after implementation.
-- `pnpm run type-check:web` passed.
-- `pnpm run check:theme-colors` initially failed because `cssVars.fallbackOnlyUnique` improved from baseline max 78 to 77; after tightening `scripts/theme-color-governance-baseline.json`, it passed.
-- `node --test scripts/audit-theme-colors.test.mjs` passed with 14 tests.
+- RED: `node --test scripts/validate-theme-visual-contract.test.mjs` failed before implementation because evidence entries lacked metadata, the validator ignored `--contract`, and malformed fixture contracts were not rejected.
+- GREEN: the same command passed with 3 tests after implementation.
+- `node --check scripts/validate-theme-visual-contract.mjs` passed.
+- `pnpm run check:theme-visual-contract` passed.
+- `node scripts/validate-theme-visual-contract.mjs --json` passed with `ok: true`, 8 surfaces, and 8 required surfaces.
 - `git diff --check` passed with Windows LF/CRLF working-copy warnings only.
 
 ## Subagent Summary

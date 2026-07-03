@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
-const contractPath = path.join(__dirname, 'theme-visual-governance-contract.json');
+const defaultContractPath = path.join(__dirname, 'theme-visual-governance-contract.json');
 
 const REQUIRED_SURFACE_KEYS = [
   'app-shell',
@@ -33,6 +33,7 @@ const ALLOWED_EVIDENCE_TYPES = new Set([
   'mobile-build-review',
   'theme-color-audit',
 ]);
+const ALLOWED_EVIDENCE_MODES = new Set(['automated', 'manual', 'deferred']);
 
 const prohibitedIdentityPatterns = [
   ['Bit', 'Fun'].join(''),
@@ -45,8 +46,10 @@ const prohibitedIdentityPatterns = [
 ];
 
 function parseArgs(argv) {
+  const contractIndex = argv.indexOf('--contract');
   return {
     json: argv.includes('--json'),
+    contractPath: contractIndex >= 0 ? path.resolve(argv[contractIndex + 1] || '') : defaultContractPath,
   };
 }
 
@@ -114,10 +117,23 @@ function validateEvidence(surface, failures) {
     if (isNonEmptyString(entry.type) && !ALLOWED_EVIDENCE_TYPES.has(entry.type)) {
       failures.push(`${entryPath}.type has unsupported value ${entry.type}`);
     }
+    addStringFailure(entry.mode, `${entryPath}.mode`, failures);
+    if (isNonEmptyString(entry.mode) && !ALLOWED_EVIDENCE_MODES.has(entry.mode)) {
+      failures.push(`${entryPath}.mode has unsupported value ${entry.mode}`);
+    }
+    addStringFailure(entry.theme, `${entryPath}.theme`, failures);
+    addStringFailure(entry.viewport, `${entryPath}.viewport`, failures);
+    addStringFailure(entry.state, `${entryPath}.state`, failures);
     addStringFailure(entry.requirement, `${entryPath}.requirement`, failures);
 
     if (isNonEmptyString(entry.command)) {
       hasActionableEvidence = true;
+    }
+    if (isNonEmptyString(entry.artifactName)) {
+      hasActionableEvidence = true;
+    }
+    if (!isNonEmptyString(entry.command) && !isNonEmptyString(entry.artifactName)) {
+      failures.push(`${entryPath} must declare command or artifactName`);
     }
     if (entry.type === 'boundary-render-review' || entry.type === 'mobile-build-review') {
       hasActionableEvidence = true;
@@ -184,7 +200,8 @@ function validateIdentity(text, failures) {
   }
 }
 
-function readContract() {
+function readContract(nextContractPath) {
+  const contractPath = nextContractPath || defaultContractPath;
   const text = fs.readFileSync(contractPath, 'utf8');
   return {
     text,
@@ -237,7 +254,7 @@ function main() {
   let result;
 
   try {
-    const { contract, text } = readContract();
+    const { contract, text } = readContract(args.contractPath);
     const failures = validateContract(contract, text);
     result = {
       ok: failures.length === 0,

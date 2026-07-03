@@ -20,11 +20,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Theme-sensitive shell changes must keep the existing Web UI color-governance baseline clean."
         },
         {
           "type": "focused-visual-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "desktop-narrow",
+          "state": "default-hover-focus-selected-disabled",
+          "artifactName": "manual-app-shell-theme-review",
           "requirement": "Review desktop and narrow shell layouts after nav, background, border, or readable text token changes."
         }
       ],
@@ -53,11 +62,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Flow Chat changes must not increase unresolved vars, fallback-only vars, or near-color debt outside the accepted baseline."
         },
         {
           "type": "focused-visual-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "desktop-narrow",
+          "state": "default-streaming-hover-focus-selected-error-empty",
+          "artifactName": "manual-flow-chat-theme-review",
           "requirement": "Review streaming, completed, background command, markdown, empty, and error states in dark and light themes."
         }
       ],
@@ -86,11 +104,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Terminal colors must remain in terminal-specific domains instead of becoming generic app UI literals."
         },
         {
           "type": "contrast-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "desktop-narrow",
+          "state": "default-focus-selection-ansi-normal-ansi-bright-error",
+          "artifactName": "manual-terminal-contrast-review",
           "requirement": "Review normal and bright ANSI colors against terminal background before merging terminal palette changes."
         }
       ],
@@ -119,11 +146,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Markdown, Prism, and Mermaid colors must stay in syntax, mermaid, boundary, or token domains."
         },
         {
           "type": "focused-visual-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "desktop-narrow",
+          "state": "default-code-table-link-diagram-error",
+          "artifactName": "manual-markdown-mermaid-theme-review",
           "requirement": "Review prose, links, tables, code blocks, and diagrams after markdown or embedded-renderer token changes."
         }
       ],
@@ -151,10 +187,19 @@
       "evidence": [
         {
           "type": "boundary-render-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "iframe-desktop-narrow",
+          "state": "fallback-before-host-payload-host-payload-loading-error",
+          "artifactName": "manual-generated-widget-boundary-review",
           "requirement": "Review iframe fallback rendering and host-payload rendering whenever widget payload token contracts change."
         },
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Generated widget fallback colors must remain centralized and must not add untracked raw app colors."
         }
@@ -184,11 +229,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3",
           "requirement": "Canvas, media, and short-drama surfaces must stay inside the Web UI theme-governance baseline."
         },
         {
           "type": "focused-visual-review",
+          "mode": "manual",
+          "theme": "dark-light-system",
+          "viewport": "desktop-narrow",
+          "state": "default-empty-loading-selected-preview-error",
+          "artifactName": "manual-media-short-drama-theme-review",
           "requirement": "Review asset grid, preview, empty, loading, and error states after media-canvas token or layout changes."
         }
       ],
@@ -216,11 +270,19 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "mobile-narrow",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root src/mobile-web/src --baseline scripts/theme-color-governance-baseline.mobile-web.json --top=3",
           "requirement": "Mobile web theme changes must not increase the accepted mobile-web color-governance baseline."
         },
         {
           "type": "mobile-build-review",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "mobile-narrow",
+          "state": "default-loading-error-navigation",
           "command": "pnpm --dir src/mobile-web run type-check",
           "requirement": "Theme contract changes must not assume desktop-only WebView behavior or break mobile-web type checking."
         }
@@ -249,11 +311,20 @@
       "evidence": [
         {
           "type": "theme-color-audit",
+          "mode": "automated",
+          "theme": "system",
+          "viewport": "desktop",
+          "state": "default",
           "command": "node scripts/audit-theme-colors.mjs --root Void-Installer/src --baseline scripts/theme-color-governance-baseline.installer.json --top=3",
           "requirement": "Installer visual changes must stay within the accepted installer color-governance baseline."
         },
         {
           "type": "focused-visual-review",
+          "mode": "manual",
+          "theme": "dark-light",
+          "viewport": "desktop",
+          "state": "default-progress-success-error",
+          "artifactName": "manual-installer-theme-review",
           "requirement": "Review progress, success, error, and permission states before merging installer visual changes."
         }
       ],
