@@ -2923,6 +2923,27 @@ Result:
 - Kept the existing container-level retry contract and did not migrate to upstream `FlowChatTurnPinRequestStatus`.
 Risk notes: Current Void already covers most user-visible behavior through `ISSUE-1110A/B/C`; this issue is test-first parity, not a wholesale migration to upstream `FlowChatTurnPinRequestStatus`.
 
+### ISSUE-1190A1 Flow Chat Turn Navigation E2E Type Preflight
+
+Priority: P1
+Status: Done
+Goal: Close the `ISSUE-1190A` e2e type preflight gap for the release turn-navigation spec without broadening into all legacy e2e type debt.
+Allowed files: `tests/e2e/package.json`, `tests/e2e/package-lock.json`, `tests/e2e/tsconfig.turn-navigation.json`, `tests/e2e/types/**`, `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts`, migration docs.
+Forbidden files: Flow Chat runtime components, `FlowChatStore`, session restore/deferred hydration APIs, backend/Tauri/Rust, AI media, AI short-drama, subagent/BTW internals, terminal, provider, Canvas, generated version files.
+Acceptance:
+- The release turn-navigation spec has an e2e-local static preflight that resolves WDIO globals and browser dynamic import contracts.
+- The spec remains runtime-compatible with the existing WDIO flow and does not import Vite-only source modules at top level.
+- Any remaining all-e2e type debt or fixture/runtime smoke gaps are recorded rather than claimed fixed.
+Result:
+- Added explicit `@wdio/globals` dev dependency so `@wdio/globals/types` resolves for e2e typechecking.
+- Added `tsconfig.turn-navigation.json` plus narrow e2e type stubs for the browser-only `/src/...` dynamic imports used by `workspace-helper`.
+- Updated the release turn-navigation spec to await WDIO v9 collection lengths under static type checking.
+- `npx tsc --noEmit -p tsconfig.turn-navigation.json` passes.
+Risk notes:
+- Full `npx tsc --noEmit -p tsconfig.json` still fails on unrelated legacy e2e type debt across page objects, helpers, and older specs.
+- WDIO dry-run still depends on local dev-server/WebDriver readiness; this run failed because pnpm attempted to load a missing root `.pnpmfile.mjs`.
+- Full persisted long-session fixture validation still requires `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
+
 ### ISSUE-1190B Canvas Artifact Domain RFC
 
 Priority: P1

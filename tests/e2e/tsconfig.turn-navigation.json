@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@page-objects/*": ["./page-objects/*"],
+      "@helpers/*": ["./helpers/*"],
+      "@fixtures/*": ["./fixtures/*"],
+      "/src/*": ["./types/src/*"]
+    }
+  },
+  "include": [
+    "./specs/l1-chat-turn-navigation-release.spec.ts",
+    "./helpers/workspace-helper.ts",
+    "./helpers/screenshot-utils.ts"
+  ]
+}

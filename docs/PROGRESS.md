@@ -108,46 +108,34 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192E file explorer paste shortcut label complete.
 - [x] ISSUE-1192F FlowChat history test localStorage fixture complete.
 - [x] ISSUE-1192G upstream remote workspace wave closeout complete.
+- [x] ISSUE-1190A1 Flow Chat turn-navigation e2e type preflight complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192G Upstream Remote Workspace Wave Closeout`
+Issue: `ISSUE-1190A1 Flow Chat Turn Navigation E2E Type Preflight`
 
 Summary:
 
-- Verified upstream main remains `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
-- Closed out upstream commits `1ab4d323f` and `95441b782` by mapping all 14 changed upstream files to local issues `ISSUE-1192A` through `ISSUE-1192F`.
-- Recorded coverage for remote CRUD connection context, desktop reveal arguments, context-menu path utilities, delete confirmation, paste shortcut label, and FlowChat history test fixture.
-- Recorded remaining manual smoke gaps for real remote SSH CRUD and Linux FileManager1 behavior.
-- No production source, tests, generated files, AI adapters, FlowChat runtime, AI media, AI short-drama, desktop API, remote/path_target, provider, terminal, Canvas runtime, installer/brand, or generated version files changed in this closeout.
+- Closed the immediate `ISSUE-1190A` e2e type preflight blocker for the release turn-navigation spec without changing Flow Chat runtime behavior.
+- Added explicit `@wdio/globals` dev dependency because `tests/e2e/tsconfig.json` referenced `@wdio/globals/types` but the e2e package did not declare the package.
+- Added a focused `tsconfig.turn-navigation.json` and e2e-local type stubs for browser-only `/src/...` dynamic imports used by `workspace-helper`.
+- Updated `l1-chat-turn-navigation-release.spec.ts` to await WDIO v9 collection lengths.
+- Preserved `FlowChatStore`, session restore/deferred hydration APIs, backend/Tauri/Rust, AI media, AI short-drama, terminal, provider, Canvas, and generated version files.
 
 Verification:
 
-- `git ls-remote https://github.com/GCWing/BitFun.git refs/heads/main`
-  - Result: passed, upstream HEAD `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
-- `git rev-parse refs/remotes/upstream-bitfun/main`
-  - Result: passed, local tracking ref `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
-- `git diff --name-status ea14b2d424d6ba978d976efc6ed25bffb4cff75e..refs/remotes/upstream-bitfun/main`
-  - Result: passed, 14 changed upstream files reviewed.
-- `git show --name-only --oneline 1ab4d323f`
+- `npx tsc --noEmit -p tsconfig.turn-navigation.json` from `tests/e2e`
   - Result: passed.
-- `git show --name-only --oneline 95441b782`
-  - Result: passed.
-- `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
-  - Result: passed, 1 focused Rust test.
-- `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`
-  - Result: passed, 2 focused Rust tests.
-- `cargo test -p terminal-core --lib`
-  - Result: passed, 30 tests.
-- `cargo check -p void-desktop`
-  - Result: passed with one existing unrelated warning in `src/apps/desktop/src/api/clipboard_file_api.rs`.
-- Subagent read-only reviews:
-  - Result: passed; terminal contract reviewer confirmed Web/desktop already require explicit history status/source and core DTO was the remaining owner gap.
+- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
+  - Result: failed on existing broader e2e type debt after the original `@wdio/globals/types` missing-package blocker was removed.
+- `npx wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --dry-run` from `tests/e2e`
+  - Result: failed before spec execution because the dev server could not start; pnpm attempted to load missing root `.pnpmfile.mjs`, port `1422` did not become ready, then WebDriver session creation failed.
 
 Remaining:
 
-- Remote terminal history replay remains unsupported.
-- Local backend history failures still use the existing command error path rather than a successful `historyStatus: "error"` DTO.
+- Full all-e2e TypeScript cleanup remains separate and should not be folded into Flow Chat runtime work.
+- Full release fixture validation still requires `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
+- The local WDIO dev-server bootstrap needs a separate environment/config issue for the missing `.pnpmfile.mjs` precondition.
 - Terminal ack byte-count semantics remain a separate contract decision.
 
 ## Previous Slice

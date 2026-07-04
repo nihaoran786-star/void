@@ -8,6 +8,41 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1190A1 Flow Chat Turn Navigation E2E Type Preflight
+
+Date: 2026-07-04
+
+Scope:
+
+- `tests/e2e/package.json`
+- `tests/e2e/package-lock.json`
+- `tests/e2e/tsconfig.turn-navigation.json`
+- `tests/e2e/types/**`
+- `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts`
+- Migration docs.
+- No Flow Chat runtime component, Flow Chat store, session restore/deferred hydration API, backend/Tauri/Rust, AI media, AI short-drama, subagent/BTW, terminal, provider, Canvas, generated version, or production Web UI behavior changed.
+
+Checks:
+
+- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
+  - Result: failed before implementation.
+  - Notes: TypeScript could not resolve `@wdio/globals/types` because `tests/e2e/package.json` did not declare `@wdio/globals`.
+- `npx tsc --noEmit -p tsconfig.turn-navigation.json` from `tests/e2e`
+  - Result: passed.
+  - Notes: focused static preflight covers `l1-chat-turn-navigation-release.spec.ts`, `workspace-helper`, `screenshot-utils`, WDIO globals, and e2e-local stubs for browser-only dynamic imports.
+- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
+  - Result: failed after implementation on broader existing e2e type debt.
+  - Notes: remaining errors are in legacy e2e config/page objects/helpers/specs, including WDIO v9 async collection lengths, readonly `stdio`, missing `/src/...` declarations outside the focused preflight, and short-drama smoke imports. The original missing `@wdio/globals/types` blocker is no longer present.
+- `npx wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --dry-run` from `tests/e2e`
+  - Result: failed before spec execution.
+  - Notes: dev server startup failed because pnpm attempted to load missing root `.pnpmfile.mjs`; port `1422` did not become ready, and WebDriver session creation then failed with `UND_ERR_SOCKET`.
+
+Manual status:
+
+- Full persisted long-session fixture execution was not run because no fixture env was provided.
+- Required fixture env remains `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
+- The WDIO dev-server bootstrap `.pnpmfile.mjs` precondition is a separate e2e environment/config issue.
+
 ## ISSUE-1192G Upstream Remote Workspace Wave Closeout
 
 Date: 2026-07-04

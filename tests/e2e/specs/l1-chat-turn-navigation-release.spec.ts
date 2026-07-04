@@ -135,7 +135,7 @@ async function waitForSessionHydrated(): Promise<void> {
 
 async function openHeaderTurnList(): Promise<void> {
   const existingItems = await $$(TURN_LIST_ITEM_SELECTOR);
-  if (existingItems.length > 0) {
+  if (await existingItems.length > 0) {
     return;
   }
 
@@ -144,7 +144,7 @@ async function openHeaderTurnList(): Promise<void> {
   await turnListButton.click();
   await browser.waitUntil(async () => {
     const items = await $$(TURN_LIST_ITEM_SELECTOR);
-    return items.length > 0;
+    return await items.length > 0;
   }, {
     timeout: 3000,
     interval: 100,
@@ -154,7 +154,7 @@ async function openHeaderTurnList(): Promise<void> {
 
 async function closeHeaderTurnList(): Promise<void> {
   const items = await $$(TURN_LIST_ITEM_SELECTOR);
-  if (items.length === 0) {
+  if (await items.length === 0) {
     return;
   }
 
@@ -162,7 +162,7 @@ async function closeHeaderTurnList(): Promise<void> {
   await turnListButton.click();
   await browser.waitUntil(async () => {
     const currentItems = await $$(TURN_LIST_ITEM_SELECTOR);
-    return currentItems.length === 0;
+    return await currentItems.length === 0;
   }, { timeout: 3000, interval: 100 }).catch(() => undefined);
 }
 
@@ -233,9 +233,10 @@ async function clickHeaderTurnListItemByTitle(targetTitle: string): Promise<{
 }> {
   await openHeaderTurnList();
   const items = await $$(TURN_LIST_ITEM_SELECTOR);
+  const itemCount = await items.length;
   const itemTexts: string[] = [];
   let targetIndex = -1;
-  for (let index = 0; index < items.length; index += 1) {
+  for (let index = 0; index < itemCount; index += 1) {
     const text = await items[index].getText();
     itemTexts.push(text);
     if (targetIndex < 0 && text.includes(targetTitle)) {
@@ -251,7 +252,7 @@ async function clickHeaderTurnListItemByTitle(targetTitle: string): Promise<{
   }
 
   await items[targetIndex].click();
-  return { itemCount: items.length, itemTexts };
+  return { itemCount, itemTexts };
 }
 
 async function readTargetViewportMetrics(
