@@ -68,13 +68,13 @@ where
     BuildRequest: Fn() -> reqwest::RequestBuilder,
 {
     match ttft_timeout {
-        Some(timeout) => match tokio::time::timeout(timeout, build_request().json(request_body).send())
-            .await
-        {
-            Ok(Ok(response)) => StreamSendOutcome::Response(response),
-            Ok(Err(error)) => StreamSendOutcome::Transport(error),
-            Err(_) => StreamSendOutcome::TtftTimeout,
-        },
+        Some(timeout) => {
+            match tokio::time::timeout(timeout, build_request().json(request_body).send()).await {
+                Ok(Ok(response)) => StreamSendOutcome::Response(response),
+                Ok(Err(error)) => StreamSendOutcome::Transport(error),
+                Err(_) => StreamSendOutcome::TtftTimeout,
+            }
+        }
         None => match build_request().json(request_body).send().await {
             Ok(response) => StreamSendOutcome::Response(response),
             Err(error) => StreamSendOutcome::Transport(error),
@@ -356,6 +356,25 @@ mod tests {
         headers.insert(RETRY_AFTER, HeaderValue::from_static("45"));
 
         assert_eq!(retry_after_delay_ms(&headers), Some(45_000));
+    }
+
+    #[test]
+    fn retry_after_http_date_in_the_past_retries_immediately() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            RETRY_AFTER,
+            HeaderValue::from_static("Wed, 21 Oct 2015 07:28:00 GMT"),
+        );
+
+        assert_eq!(retry_after_delay_ms(&headers), Some(0));
+    }
+
+    #[test]
+    fn invalid_retry_after_header_uses_exponential_backoff() {
+        let mut headers = HeaderMap::new();
+        headers.insert(RETRY_AFTER, HeaderValue::from_static("not-a-date"));
+
+        assert_eq!(retry_delay_ms(2, &headers), 2000);
     }
 
     #[test]

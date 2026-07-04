@@ -2854,6 +2854,21 @@ Result:
 - Updated `resolve_vision_model_from_ai_config` to share the same capability predicate while preserving disabled/text-only error classification and allowing saved `name` / `model_name` references to resolve to canonical model ids.
 - Preserved `AnalyzeImage` runtime behavior, provider multimodal wire conversion, AI media, AI short-drama, Flow Chat, Web UI, and upstream `view_image` boundaries.
 
+### ISSUE-1170F SSE Retry-After Contract Coverage
+
+Priority: P1
+Status: Done
+Goal: Lock the upstream-inspired SSE retry contract for `Retry-After` edge cases without moving provider HTTP ownership or changing runtime retry behavior.
+Allowed files: `src/crates/ai-adapters/src/client/sse.rs` tests and migration docs.
+Forbidden files: provider adapters, core retry policy, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, crate layout, provider catalog/config, package/workflow files.
+Affected module: AI adapter transport retry.
+Preserved contracts: adapter transport retry remains separate from core business retry; 401/400/404 client errors are not retried; retry delay remains capped at 60s.
+Implementation rule: test-only behavior lock; no provider/service owner migration and no whole-file upstream copy.
+Verification: `cargo test -p void-ai-adapters sse --lib -- --nocapture`; `rustfmt --edition 2021 --check src/crates/ai-adapters/src/client/sse.rs`.
+Result:
+- Added focused tests for RFC 2822 `Retry-After` HTTP-date values in the past and invalid `Retry-After` values falling back to exponential delay.
+- Kept existing 429/408/409/425/5xx retry status behavior, seconds cap behavior, and abort-on-drop handler behavior unchanged.
+
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
 Priority: P2

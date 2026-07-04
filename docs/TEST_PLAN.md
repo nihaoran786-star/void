@@ -8,6 +8,31 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1170F SSE Retry-After Contract Coverage
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/crates/ai-adapters/src/client/sse.rs`
+- Migration docs.
+- No provider adapters, core retry policy, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, provider catalog/config, crate layout, package/workflow files, or generated files changed.
+
+Checks:
+
+- `cargo test -p void-ai-adapters sse --lib -- --nocapture`
+  - Initial result: failed because the new test accidentally called `retry_after_delay_ms` with the `retry_delay_ms` signature. This was a test bug, not a runtime failure.
+  - Result after correcting the test: passed, 15 tests.
+- `rustfmt --edition 2021 --check src/crates/ai-adapters/src/client/sse.rs`
+  - Initial result: failed on an existing formatting shape in `send_stream_request`.
+  - Result after applying the rustfmt-compatible local formatting change: passed.
+
+Coverage:
+
+- Locks retryable HTTP status coverage, numeric `Retry-After` cap behavior, RFC 2822 `Retry-After` HTTP-date in the past, invalid `Retry-After` fallback to exponential backoff, TTFT remaining timeout, and stream handler abort-on-drop behavior.
+- Does not claim live provider 429/TPM smoke coverage.
+- Does not move provider HTTP/SSE ownership or change runtime retry defaults.
+
 ## ISSUE-010D RichTextInput Root Attribute Forwarding
 
 Date: 2026-07-04
