@@ -1832,7 +1832,7 @@ Result:
 ### ISSUE-1130C Windows Pointer Coordinate Precision and Background Input Tests
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Verify Windows pointer coordinate conversion and background input status semantics without changing cross-platform Computer Use contracts.
 Allowed files: Windows background input helper tests, desktop host coordinate mapping tests, docs.
 Forbidden files: Computer Use schema expansion, macOS/Linux behavior changes, Web UI, Flow Chat, AI media, AI short-drama, terminal.
@@ -1842,6 +1842,12 @@ Acceptance:
 - Tests or manual matrix cover DPI scaling, multi-monitor origin offsets, foreground/occluded window, and UIPI/high-integrity denial.
 - Image coordinate mappings cover DWM crop origin offsets, negative monitor coordinates, explicit `screenshot_id`, and missing pointer-map failure.
 Risk notes: Pointer behavior must be tested on Windows with real DPI/display conditions; jsdom or non-Windows Rust tests cannot prove it.
+Result:
+- Completed through `ISSUE-1130C1` to `ISSUE-1130C9` as a split evidence and deferral track.
+- Automated host tests now cover pointer-map math, negative-origin coordinate conversion, explicit `screenshot_id` precedence, missing pointer-map failure, and background input outcome status/warning contracts.
+- Default-off Windows manual harness evidence now covers the current single-display 150% Notepad path for `get_app_state`, `app_type_text`, screenshot-basis `app_click`, focus-target `app_scroll`, `app_key_chord`, and stale explicit `screenshot_id` fail-closed behavior.
+- Remaining hardware/permission scenarios are explicitly deferred in `DEC-123`: 100%/125% DPI, mixed-scale multi-monitor negative origin, occluded/non-foreground target behavior, high-integrity/UIPI denial, and capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
+- No Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, macOS/Linux behavior, Cargo/package/workflow/generated files, or product runtime behavior was changed by the closeout slice.
 
 ### ISSUE-1130C1 Windows Pointer Coordinate Contract Tests
 
@@ -1980,6 +1986,23 @@ Result:
 - Extended the env-enabled Notepad manual harness to scroll the focused Notepad target and send `ctrl+end` through `app_key_chord` after the existing type/click path.
 - Preserved the default-off harness gates and stale `screenshot_id` fail-closed assertion.
 - Current-machine smoke now partially covers `WIN-CU-FOREGROUND`; parent `ISSUE-1130C` remains open for the remaining Windows matrix.
+
+### ISSUE-1130C9 Windows Pointer Smoke Closeout and Deferral Decision
+
+Priority: P1
+Status: Done
+Goal: Close parent `ISSUE-1130C` by recording the current single-display 150% evidence as bounded evidence and explicitly deferring the remaining hardware/permission scenarios.
+Allowed files: `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: `src/**`, `tests/**`, Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, macOS/Linux adapters, Cargo/package/workflow/generated files.
+Acceptance:
+- Scenario status summary distinguishes `passed`, `partially_passed`, and `deferred`.
+- The current 150% single-display smoke is recorded as bounded evidence, not full Windows parity.
+- Every unproven hardware/permission scenario has an explicit deferral rationale in `docs/DECISIONS.md`.
+- Parent `ISSUE-1130C` can be marked done without claiming untested hardware behavior.
+Result:
+- Added `DEC-123` to document the deferral boundary for 100%/125% DPI, mixed-scale multi-monitor negative origin, occluded/non-foreground targets, UIPI/high-integrity denial, and capture-source consistency.
+- Updated the smoke matrix with a scenario status summary and closeout record.
+- Closed parent `ISSUE-1130C` based on current evidence plus explicit deferrals, while preserving the requirement that future platform parity claims need fresh machine-specific evidence.
 
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 

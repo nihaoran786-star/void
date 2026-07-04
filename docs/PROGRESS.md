@@ -91,8 +91,32 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1110E FlowChat history placeholder intent integration complete.
 - [x] ISSUE-1110F session nav list state contract complete.
 - [x] ISSUE-1130C8 Windows foreground scroll/key chord smoke evidence complete.
+- [x] ISSUE-1130C9 Windows pointer smoke closeout and deferral decision complete.
+- [x] ISSUE-1130C Windows pointer coordinate/background input parent complete with explicit deferrals.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C9 Windows Pointer Smoke Closeout and Deferral Decision`
+
+Summary:
+
+- Closed parent `ISSUE-1130C` by separating proven evidence from deferred platform scenarios.
+- Recorded the current Windows 11 single-display 150% Notepad harness as bounded evidence only.
+- Added `DEC-123` so 100%/125% DPI, mixed-scale multi-monitor negative origin, occlusion/non-foreground input, high-integrity/UIPI denial, and capture-source consistency are explicit future smoke obligations instead of implied pass/fail claims.
+- Did not change `src/**`, tests, Computer Use schemas, Tauri routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or product runtime behavior.
+
+Verification:
+
+- `git diff --check -- docs/ISSUES.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- Manual structure review:
+  - Result: passed; `ISSUE-1130C` closes through completed C1-C9 evidence/decision slices, and `DEC-123` owns remaining unproven hardware/permission deferrals.
+
+Remaining:
+
+- Future Windows parity claims still require fresh machine-specific smoke for each deferred scenario.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C8 Windows Foreground Scroll and Key Chord Smoke Evidence`
 

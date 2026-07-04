@@ -513,6 +513,31 @@ Manual smoke status:
 - Covered: current single-display 150% foreground Notepad path for `get_app_state`, `app_type_text`, screenshot-basis `app_click`, focus-target `app_scroll`, `app_key_chord`, and stale explicit `screenshot_id` fail-closed behavior.
 - Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency.
 
+## ISSUE-1130C9 Windows Pointer Smoke Closeout and Deferral Decision
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/DECISIONS.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No `src/**`, tests, Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, macOS/Linux adapter, Cargo/package/workflow/generated file, or product runtime behavior changed.
+
+Checks:
+
+- Manual structure review:
+  - Result: passed.
+  - Notes: verify that `ISSUE-1130C` is closed only through completed sub-issues plus `DEC-123` deferrals, not through false hardware parity claims.
+- `git diff --check -- docs/ISSUES.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: closed with bounded evidence and explicit deferrals.
+- Passed evidence: automated host contracts, current single-display 150% Notepad manual harness, stale explicit `screenshot_id` fail-closed path.
+- Deferred: 100%/125% DPI, mixed-scale multi-monitor negative origin, occluded/non-foreground targets, high-integrity/UIPI denial, and capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
+- Decision record: `DEC-123`.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

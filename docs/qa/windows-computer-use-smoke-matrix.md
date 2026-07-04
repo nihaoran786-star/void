@@ -2,12 +2,12 @@
 
 Issue: `ISSUE-1130C2`
 
-Status: `manual_pending`
+Status: `closed_with_deferred_scenarios`
 
 ## Purpose
 
-This matrix defines the real Windows smoke evidence required before closing parent `ISSUE-1130C`.
-It does not replace the automated host/unit tests and must not be treated as passed until each scenario has current evidence.
+This matrix defines the real Windows smoke evidence required for Windows pointer/input parity claims.
+It does not replace the automated host/unit tests and must not be treated as passed until each scenario has current evidence or an explicit deferral decision.
 
 ## Automated Baseline
 
@@ -89,7 +89,7 @@ Preflight gaps:
 
 - Current machine covers only a 150% single-display session; it does not cover 100%, 125%, mixed-scale multi-monitor, or negative-origin display scenarios.
 - No real app input action was executed, so foreground, occluded, UIPI, and capture-source behavior remain unverified.
-- Parent `ISSUE-1130C` remains open.
+- At the preflight slice time, parent `ISSUE-1130C` remained open. It is now closed by `ISSUE-1130C9` with later bounded evidence and `DEC-123` deferrals.
 
 ## Manual Harness
 
@@ -164,7 +164,7 @@ Still pending:
 - UIPI/high-integrity denial.
 - Capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
 
-Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
+Manual smoke remains partially complete. Parent `ISSUE-1130C` is closed by `ISSUE-1130C9` only because unproven hardware/permission scenarios are explicitly deferred in `DEC-123`.
 
 ### 2026-07-04 Foreground Scroll and Key Chord Evidence
 
@@ -203,7 +203,48 @@ evidence: env-enabled windows_computer_use_manual_harness passed
 notes: Covers foreground action delivery on current single-display 150% Notepad only. Does not cover 100/125 DPI, mixed-monitor negative origin, occlusion, UIPI, or capture-source consistency.
 ```
 
-Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
+Manual smoke remains partially complete. Parent `ISSUE-1130C` is closed by `ISSUE-1130C9` only because unproven hardware/permission scenarios are explicitly deferred in `DEC-123`.
+
+### 2026-07-04 Closeout and Deferrals
+
+Status: `closed_with_deferred_scenarios`
+
+Closeout record:
+
+```yaml
+scenario_group: ISSUE-1130C
+status: closed_with_deferred_scenarios
+date: 2026-07-04
+operator: Codex Orchestrator
+decision: DEC-123
+passed_evidence:
+  - automated host pointer-map and input-outcome contracts
+  - WIN-CU-DPI-150 bounded current-machine Notepad harness path
+  - WIN-CU-FOREGROUND bounded current-machine Notepad harness path
+  - WIN-CU-STALE-MAP stale explicit screenshot_id fail-closed path
+deferred_scenarios:
+  - WIN-CU-DPI-100
+  - WIN-CU-DPI-125
+  - WIN-CU-MULTI-NEG
+  - WIN-CU-OCCLUDED
+  - WIN-CU-UIPI
+  - WIN-CU-CAPTURE
+notes: Closing the parent issue does not claim full Windows parity. Future parity claims require fresh evidence per deferred scenario.
+```
+
+## Scenario Status Summary
+
+| ID | Status | Evidence / decision |
+| --- | --- | --- |
+| WIN-CU-DPI-100 | deferred | Requires a Windows session at 100% scaling; see `DEC-123`. |
+| WIN-CU-DPI-125 | deferred | Requires a Windows session at 125% scaling; see `DEC-123`. |
+| WIN-CU-DPI-150 | passed_bounded | Current single-display 150% Notepad harness path passed; not evidence for other scaling or topologies. |
+| WIN-CU-MULTI-NEG | deferred | Requires mixed-scale multi-monitor negative-origin topology; see `DEC-123`. |
+| WIN-CU-FOREGROUND | passed_bounded | Current single-display 150% foreground Notepad click/type/scroll/key-chord path passed. |
+| WIN-CU-OCCLUDED | deferred | Requires controlled occlusion/non-foreground setup; see `DEC-123`. |
+| WIN-CU-UIPI | deferred | Requires high-integrity/elevated target and permission boundary evidence; see `DEC-123`. |
+| WIN-CU-CAPTURE | deferred | Requires capture-source observability across WGC/DWM/PrintWindow/BitBlt; see `DEC-123`. |
+| WIN-CU-STALE-MAP | passed | Stale explicit `screenshot_id` fails closed before input dispatch. |
 
 ## Required Environment Fields
 
@@ -268,4 +309,4 @@ Parent `ISSUE-1130C` can be closed only when every required scenario is either:
 - `passed` with current evidence, or
 - explicitly `deferred` with rationale recorded in `docs/DECISIONS.md`.
 
-Until then, `ISSUE-1130C` remains open even if all automated tests pass.
+`ISSUE-1130C9` applies this rule: proven scenarios are recorded above, and unproven hardware/permission scenarios are deferred by `DEC-123`.
