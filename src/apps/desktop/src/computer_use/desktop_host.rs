@@ -3840,6 +3840,139 @@ mod windows_host_app_action_tests {
         assert!(error.to_string().contains("screenshot_id"));
     }
 
+    #[cfg(target_os = "windows")]
+    struct ManualWindowsComputerUseSmokeGuard {
+        child: std::process::Child,
+    }
+
+    #[cfg(target_os = "windows")]
+    impl ManualWindowsComputerUseSmokeGuard {
+        fn spawn_notepad() -> Self {
+            let child = std::process::Command::new("notepad.exe")
+                .spawn()
+                .expect("launch notepad for manual Computer Use smoke");
+            Self { child }
+        }
+
+        fn pid(&self) -> i32 {
+            self.child.id() as i32
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    impl Drop for ManualWindowsComputerUseSmokeGuard {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn manual_windows_smoke_enabled() -> bool {
+        std::env::var("VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE").as_deref() == Ok("1")
+    }
+
+    #[cfg(target_os = "windows")]
+    fn first_editable_node_target(snapshot: &AppStateSnapshot) -> Option<ClickTarget> {
+        snapshot
+            .nodes
+            .iter()
+            .find(|node| {
+                node.enabled
+                    && node.frame_global.is_some()
+                    && (node.role.to_ascii_lowercase().contains("edit")
+                        || node.role.to_ascii_lowercase().contains("text"))
+            })
+            .map(|node| ClickTarget::NodeIdx { idx: node.idx })
+    }
+
+    #[cfg(target_os = "windows")]
+    #[tokio::test]
+    #[ignore = "manual Windows Computer Use smoke; run only with VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1"]
+    async fn windows_computer_use_manual_harness_notepad_app_input_gate() {
+        if !manual_windows_smoke_enabled() {
+            eprintln!(
+                "skipping manual smoke: set VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1 and run this ignored test explicitly"
+            );
+            return;
+        }
+
+        let notepad = ManualWindowsComputerUseSmokeGuard::spawn_notepad();
+        let pid = notepad.pid();
+        let app = AppSelector::by_pid(pid);
+        let host = DesktopComputerUseHost::new();
+        tokio::time::sleep(Duration::from_millis(1_500)).await;
+
+        let before = host
+            .get_app_state(app.clone(), 6, true)
+            .await
+            .expect("capture Notepad app state before manual smoke");
+        assert_eq!(before.app.pid, Some(pid));
+
+        let focus = first_editable_node_target(&before)
+            .or_else(|| {
+                before.screenshot.as_ref().map(|_| ClickTarget::ImageXy {
+                    x: (before
+                        .screenshot
+                        .as_ref()
+                        .expect("checked screenshot")
+                        .image_width
+                        / 2) as i32,
+                    y: (before
+                        .screenshot
+                        .as_ref()
+                        .expect("checked screenshot")
+                        .image_height
+                        / 2) as i32,
+                    screenshot_id: before
+                        .screenshot
+                        .as_ref()
+                        .expect("checked screenshot")
+                        .screenshot_id
+                        .clone(),
+                })
+            })
+            .expect("manual smoke needs either an editable node or screenshot basis");
+
+        let typed = host
+            .app_type_text(app.clone(), &format!("VOID-CU-SMOKE-{pid}"), Some(focus))
+            .await
+            .expect("type text into Notepad through ComputerUseHost");
+        assert_eq!(typed.app.pid, Some(pid));
+
+        let clicked = host
+            .app_click(AppClickParams {
+                app: app.clone(),
+                target: ClickTarget::ImageXy {
+                    x: typed
+                        .screenshot
+                        .as_ref()
+                        .expect("typed state screenshot")
+                        .image_width
+                        .saturating_div(2) as i32,
+                    y: typed
+                        .screenshot
+                        .as_ref()
+                        .expect("typed state screenshot")
+                        .image_height
+                        .saturating_div(2) as i32,
+                    screenshot_id: typed
+                        .screenshot
+                        .as_ref()
+                        .expect("typed state screenshot")
+                        .screenshot_id
+                        .clone(),
+                },
+                click_count: 1,
+                mouse_button: "left".to_string(),
+                modifier_keys: Vec::new(),
+                wait_ms_after: Some(100),
+            })
+            .await
+            .expect("click Notepad screenshot center through ComputerUseHost");
+        assert_eq!(clicked.app.pid, Some(pid));
+    }
+
     #[test]
     fn windows_interactive_view_enablement_resolver_reports_missing_stale_and_range() {
         let host = DesktopComputerUseHost::new();

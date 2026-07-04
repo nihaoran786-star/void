@@ -84,8 +84,41 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C2 Windows pointer/input manual smoke matrix complete.
 - [x] ISSUE-1130C3 Windows Computer Use automated baseline evidence complete.
 - [x] ISSUE-1130C4 Windows Computer Use smoke environment preflight complete.
+- [x] ISSUE-1130C5 Windows Computer Use manual harness gate complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C5 Windows Computer Use Manual Harness Gate`
+
+Summary:
+
+- Added a Windows-only, default-ignored manual harness test for future Notepad `ComputerUseHost` smoke.
+- The harness has two gates: `#[ignore]` and `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`; without the env var, even `--ignored` exits before launching Notepad or calling app actions.
+- The env-enabled path uses existing `DesktopComputerUseHost` / `ComputerUseHost` APIs only: `get_app_state`, `app_type_text`, and `app_click`.
+- Kept real Windows smoke as `manual_pending`; the env-enabled manual command was not run.
+- No Computer Use production logic/schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or product runtime behavior changed.
+
+Verification:
+
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed; the harness compiled and was reported as ignored.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed; without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, it printed a skip message and executed no app action.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
+- The harness is available but not a pass result. Running it with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` will launch Notepad and perform app actions in the user's desktop session.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C4 Windows Computer Use Smoke Environment Preflight`
 
@@ -116,7 +149,7 @@ Remaining:
 - Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
 - Current environment only covers a single 150% display session and does not provide a product-level smoke harness.
 
-## Previous Slice
+## Earlier Slice
 
 Issue: `ISSUE-1130C3 Windows Computer Use Automated Baseline Evidence`
 

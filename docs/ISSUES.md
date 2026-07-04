@@ -1860,6 +1860,25 @@ Result:
 - Confirmed no product-level smoke harness command/script was identified in the inspected docs/scripts/desktop API/Computer Use scopes; no app actions were executed.
 - Real Windows smoke remains `manual_pending`; `ISSUE-1130C` is not closed.
 
+### ISSUE-1130C5 Windows Computer Use Manual Harness Gate
+
+Priority: P1
+Status: Done
+Goal: Add a default-off manual Windows Computer Use harness that future smoke runs can execute explicitly without changing product runtime behavior.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use production logic outside the test gate, Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files.
+Acceptance:
+- The harness is `#[ignore]` so normal `cargo test` does not execute real app actions.
+- The harness requires `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` before launching Notepad or calling `app_*` actions, so `--ignored` alone remains safe.
+- The harness uses existing `DesktopComputerUseHost` / `ComputerUseHost` APIs rather than low-level Win32 primitives or new product routes.
+- Default verification compiles/discovers the harness and proves the env gate skips without executing real actions.
+- Parent `ISSUE-1130C` remains open because the real env-enabled manual smoke was not run.
+Result:
+- Added `windows_computer_use_manual_harness_notepad_app_input_gate` as a Windows-only ignored test in `desktop_host.rs`.
+- The env-enabled path launches Notepad by pid, captures app state, types a unique `VOID-CU-SMOKE-{pid}` marker through `app_type_text`, and clicks via screenshot-basis `app_click`.
+- Verified default run reports the test as ignored; verified `--ignored` without the env var prints a skip message and performs no app action.
+- Real Windows smoke with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` remains `manual_pending`; `ISSUE-1130C` is not closed.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

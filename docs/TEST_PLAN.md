@@ -276,6 +276,40 @@ Manual smoke status:
 - Result: `manual_pending`.
 - Notes: This is environment preflight only. It does not execute Notepad/Settings/Calculator actions, does not verify foreground or occluded target input, does not verify UIPI denial, and does not cover 100%/125% or mixed-scale multi-monitor scenarios.
 
+## ISSUE-1130C5 Windows Computer Use Manual Harness Gate
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/computer_use/desktop_host.rs` test-only code.
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Adds a default-off harness for future manual Windows Computer Use smoke.
+- No Computer Use production logic, schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or product runtime behavior changed.
+
+Checks:
+
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed.
+  - Notes: the harness compiled and was reported as ignored; no Notepad launch or app action executed.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, the harness printed a skip message and did not launch Notepad or execute `app_*` actions.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: `manual_pending`.
+- Notes: The env-enabled command was not run. Future manual smoke must use `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE="1"; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture` and record evidence before any `WIN-CU-*` scenario is marked passed.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

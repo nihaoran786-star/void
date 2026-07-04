@@ -72,7 +72,7 @@ Observed environment:
 Available product smoke harness:
 
 ```yaml
-status: not_found
+status: available_default_off
 search_scope:
   - docs
   - scripts
@@ -80,7 +80,9 @@ search_scope:
   - src/apps/desktop/src/computer_use
   - src/apps/desktop/src/lib.rs
 product_smoke_executed: false
-notes: Current desktop Tauri commands expose Computer Use status, permission request, and settings links only. No product-level command or script was identified that safely drives app_click, app_type_text, app_scroll, or app_key_chord against Notepad/other target apps from this session.
+default_safe_check: cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture
+manual_run_command: $env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE="1"; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture
+notes: Desktop Tauri commands still expose Computer Use status, permission request, and settings links only. A default-ignored Rust test harness now exists in desktop_host.rs for explicit manual Notepad smoke through ComputerUseHost, but it did not execute app actions in this slice.
 ```
 
 Preflight gaps:
@@ -88,6 +90,28 @@ Preflight gaps:
 - Current machine covers only a 150% single-display session; it does not cover 100%, 125%, mixed-scale multi-monitor, or negative-origin display scenarios.
 - No real app input action was executed, so foreground, occluded, UIPI, and capture-source behavior remain unverified.
 - Parent `ISSUE-1130C` remains open.
+
+## Manual Harness
+
+### 2026-07-04 Harness Gate
+
+Status: `manual_harness_available`
+
+The harness is intentionally default-off:
+
+- Test filter: `windows_computer_use_manual_harness`.
+- Default-safe command: `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`.
+- Manual smoke command: `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE="1"; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`.
+- First gate: `#[ignore]`, so normal tests do not run the harness.
+- Second gate: `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, so even `--ignored` skips without the explicit environment variable.
+
+2026-07-04 verification:
+
+- Default-safe command result: passed; the harness was discovered as ignored and no app action executed.
+- `--ignored` without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`: passed; printed a skip message and did not launch Notepad or run app actions.
+- Real manual smoke with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`: not run.
+
+Manual smoke remains `manual_pending`.
 
 ## Required Environment Fields
 
