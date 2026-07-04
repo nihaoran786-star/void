@@ -3224,3 +3224,37 @@ Risk notes:
 Result:
 - `ModernFlowChatContainer.history-state.test.tsx` now stubs a minimal callable `localStorage` in `beforeEach`.
 - FlowChat production components, store, session/history state model, and UI behavior were not changed.
+
+### ISSUE-1192G Upstream Remote Workspace Wave Closeout
+
+Priority: P0
+Status: Done
+Goal: Close out upstream `ea14b2d..1cce339` by verifying each changed upstream file is either adapted in a local issue or explicitly deferred/rejected.
+Allowed files: migration docs only.
+Forbidden files: production source, tests, generated files, AI adapters, FlowChat runtime, AI media, AI short-drama, desktop APIs, remote/path_target.
+Acceptance:
+- Upstream commits `1ab4d323f` and `95441b782` are mapped to local issues.
+- Every changed upstream file has a local disposition.
+- Remaining validation gaps are recorded without claiming unsupported manual smoke coverage.
+Coverage matrix:
+- `src/apps/desktop/src/api/commands.rs`: covered by `ISSUE-1192A` remote CRUD DTO forwarding and `ISSUE-1192B` reveal-in-explorer platform argument contract.
+- `src/apps/desktop/src/api/path_target.rs`: covered by `ISSUE-1192A`.
+- Upstream `src/crates/services/services-integrations/src/remote_ssh/{disabled.rs,remote_fs.rs,workspace_registry.rs}`: adapted to current Void paths `src/crates/core/src/service/remote_ssh/{disabled.rs,remote_fs.rs}` and `src/crates/services-integrations/src/remote_ssh/workspace_registry.rs` under `ISSUE-1192A`.
+- `src/web-ui/src/app/components/panels/FilesPanel.tsx`: covered by `ISSUE-1192A` current workspace connection id forwarding and remote path normalization.
+- `src/web-ui/src/infrastructure/api/service-api/WorkspaceAPI.ts`: covered by `ISSUE-1192A`.
+- `src/web-ui/src/shared/utils/pathUtils.ts`: covered by `ISSUE-1192A` local rename normalization and `ISSUE-1192C` clipboard formatting tests.
+- `CopyPathCommand.ts`, `NewFileCommand.ts`, `NewFolderCommand.ts`: covered by `ISSUE-1192C`.
+- `DeleteCommand.ts`: covered by `ISSUE-1192D`.
+- `FileExplorerMenuProvider.ts`: covered by `ISSUE-1192E`.
+- `ModernFlowChatContainer.history-state.test.tsx`: covered by `ISSUE-1192F`.
+Verification summary:
+- `ISSUE-1192A`: registry tests, path utility tests, web type-check, desktop check.
+- `ISSUE-1192B`: desktop reveal helper tests and desktop check.
+- `ISSUE-1192C`: path utility tests and web type-check.
+- `ISSUE-1192D`: delete command tests and web type-check.
+- `ISSUE-1192E`: file explorer provider tests and web type-check.
+- `ISSUE-1192F`: FlowChat history-state tests and web type-check.
+Remaining risk:
+- Real remote SSH create/delete/rename still needs manual remote workspace smoke coverage.
+- Linux FileManager1 `ShowItems` behavior still needs a Linux desktop session smoke; fallback behavior remains covered by code path and tests.
+- This closeout does not address unrelated pre-existing dirty files in `ai-adapters` or generated version files.

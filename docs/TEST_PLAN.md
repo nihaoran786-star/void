@@ -8,6 +8,38 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192G Upstream Remote Workspace Wave Closeout
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/ISSUES.md`
+- `docs/PROGRESS.md`
+- `docs/TEST_PLAN.md`
+- No production source, tests, generated files, AI adapters, FlowChat runtime, AI media, AI short-drama, desktop API, remote/path_target, or provider code changed.
+
+Checks:
+
+- `git ls-remote https://github.com/GCWing/BitFun.git refs/heads/main`
+  - Result: passed.
+  - Notes: upstream main remains `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
+- `git rev-parse refs/remotes/upstream-bitfun/main`
+  - Result: passed.
+  - Notes: local upstream tracking ref is also `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
+- `git diff --name-status ea14b2d424d6ba978d976efc6ed25bffb4cff75e..refs/remotes/upstream-bitfun/main`
+  - Result: passed.
+  - Notes: 14 changed upstream files mapped to `ISSUE-1192A` through `ISSUE-1192F`.
+- `git show --name-only --oneline 1ab4d323f`
+  - Result: passed.
+- `git show --name-only --oneline 95441b782`
+  - Result: passed.
+
+Manual status:
+
+- Coverage matrix recorded in `docs/ISSUES.md`.
+- Real remote SSH CRUD and Linux FileManager1 desktop behavior remain manual smoke gaps; no manual smoke was claimed in this closeout.
+
 ## ISSUE-1192F FlowChat History Test LocalStorage Fixture
 
 Date: 2026-07-04

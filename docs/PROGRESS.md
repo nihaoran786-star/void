@@ -107,22 +107,31 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192D file delete confirmation service complete.
 - [x] ISSUE-1192E file explorer paste shortcut label complete.
 - [x] ISSUE-1192F FlowChat history test localStorage fixture complete.
+- [x] ISSUE-1192G upstream remote workspace wave closeout complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192F FlowChat History Test LocalStorage Fixture`
+Issue: `ISSUE-1192G Upstream Remote Workspace Wave Closeout`
 
 Summary:
 
-- Adapted the upstream FlowChat history-state test fixture hardening.
-- `ModernFlowChatContainer.history-state.test.tsx` now stubs a minimal callable `localStorage` surface in test setup.
-- FlowChat runtime components, FlowChat store, session/history state model, desktop APIs, remote/path_target, context-menu commands, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
+- Verified upstream main remains `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
+- Closed out upstream commits `1ab4d323f` and `95441b782` by mapping all 14 changed upstream files to local issues `ISSUE-1192A` through `ISSUE-1192F`.
+- Recorded coverage for remote CRUD connection context, desktop reveal arguments, context-menu path utilities, delete confirmation, paste shortcut label, and FlowChat history test fixture.
+- Recorded remaining manual smoke gaps for real remote SSH CRUD and Linux FileManager1 behavior.
+- No production source, tests, generated files, AI adapters, FlowChat runtime, AI media, AI short-drama, desktop API, remote/path_target, provider, terminal, Canvas runtime, installer/brand, or generated version files changed in this closeout.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
-  - Result: passed, 1 file / 8 tests.
-- `pnpm --dir src/web-ui run type-check`
+- `git ls-remote https://github.com/GCWing/BitFun.git refs/heads/main`
+  - Result: passed, upstream HEAD `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
+- `git rev-parse refs/remotes/upstream-bitfun/main`
+  - Result: passed, local tracking ref `1cce339c19b8b885af3d5cdf36f2c60860882c2c`.
+- `git diff --name-status ea14b2d424d6ba978d976efc6ed25bffb4cff75e..refs/remotes/upstream-bitfun/main`
+  - Result: passed, 14 changed upstream files reviewed.
+- `git show --name-only --oneline 1ab4d323f`
+  - Result: passed.
+- `git show --name-only --oneline 95441b782`
   - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
   - Result: passed, 1 focused Rust test.
