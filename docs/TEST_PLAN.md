@@ -6457,6 +6457,36 @@ Remaining risk:
 - Broader visual polish and generated-runtime theme domain governance remain separate work under `ISSUE-1190F`.
 - No rendered screenshot smoke was run for MiniApp gallery because this slice changes helper ownership and icon mappings only; a future visual theme issue should include browser validation.
 
+## ISSUE-1190F Theme Domain Governance for Generated Runtimes
+
+Scope:
+
+- Current slice covers theme audit governance only: CSS var contract data, color-domain reporting, domain budget enforcement, and documentation.
+- It does not change ThemeService runtime injection, page SCSS visuals, Canvas runtime, generated widget runtime behavior, AI media, AI short-drama, terminal, provider, or generated version files.
+
+Executed:
+
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - Result: passed, 16 tests.
+- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3 --json`
+  - Result: passed; global, app-ui, generated-runtime, near-pair, and CSS var contract checks had no failures.
+- `node --test scripts/validate-theme-visual-contract.test.mjs`
+  - Result: passed, 3 tests.
+- `node scripts/validate-theme-visual-contract.mjs`
+  - Result: passed, 8 required surfaces covered.
+
+Coverage:
+
+- `generated-runtime` declares owner, reason, merge policy, and path prefixes in the CSS var contract.
+- `audit-theme-colors` reports both global hardcoded-color debt and stable per-domain metrics.
+- Baseline enforcement covers `domainMetrics.app-ui.uniqueColors` and `domainMetrics.generated-runtime.uniqueColors` independently.
+- Contract tests reject upstream BitFun/Canvas-named owned color domains.
+
+Remaining risk:
+
+- This does not create a runtime fallback color registry or generated-runtime palette projection.
+- This does not split near-pair debt by domain; future work should add separate evidence before changing near-pair baseline semantics.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

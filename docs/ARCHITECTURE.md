@@ -222,6 +222,8 @@ Flow Chat tool-card display names, confirmation policy, MCP display-name fallbac
 
 `scripts/validate-theme-visual-contract.mjs` validates contract shape, required surface coverage, ownership paths, allowed platform/form-factor/theme/evidence values, protected contracts, and upstream identity leakage. The validator is a QA governance boundary only; it must not import UI modules, change theme tokens, infer business state, or replace screenshot/manual review when a future issue changes visuals.
 
+`scripts/theme-css-var-contract.json` owns theme audit domains. Generated runtime colors use the Void-owned `generated-runtime` domain with explicit owner, reason, merge policy, and path prefixes. `scripts/audit-theme-colors.mjs` must continue to report both global debt and stable `domainMetrics` so app UI budgets and generated-runtime budgets can be enforced independently. Domain reporting must not subtract generated-runtime literals from the global baseline or introduce BitFun/Canvas naming.
+
 ## Rejected Architectural Moves
 
 - Whole-repo merge.

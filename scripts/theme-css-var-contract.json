@@ -125,6 +125,17 @@
     "--shadow-",
     "--spacing-"
   ],
+  "ownedColorDomains": [
+    {
+      "domain": "generated-runtime",
+      "owner": "src/web-ui/src/tools/generative-widget",
+      "reason": "Generated widget iframe fallbacks need a separately named audit domain before host theme payload variables are available; this does not create persistent Canvas state or bypass the app UI baseline.",
+      "mergePolicy": "same-baseline-no-subtraction",
+      "pathPrefixes": [
+        "src/web-ui/src/tools/generative-widget"
+      ]
+    }
+  ],
   "legacyAliases": [
     "--void-accent",
     "--void-bg",

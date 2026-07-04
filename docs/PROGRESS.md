@@ -5510,3 +5510,33 @@ Remaining risk:
 
 - This slice does not redesign MiniApp cards or theme palettes. Broader theme-token/domain work remains in `ISSUE-1190F`.
 - Tool-card metadata now has a light owner file, but future new tools must update that helper and its tests rather than adding display decisions in cards.
+
+## ISSUE-1190F Theme Domain Governance for Generated Runtimes
+
+Status: Done
+
+Completed:
+
+- Added a Void-owned `generated-runtime` color domain to `theme-css-var-contract.json`.
+- Extended `audit-theme-colors.mjs` with `colorDomains[]` and stable `domainMetrics` for `app-ui` and generated-runtime reporting.
+- Added independent baseline enforcement for `domainMetrics.app-ui.uniqueColors` and `domainMetrics.generated-runtime.uniqueColors` while keeping global `uniqueColors`.
+- Tightened the Web UI theme color baseline to current audited values.
+- Added script tests for generated-runtime separation, independent domain budgets, CSS var contract validation, and upstream BitFun/Canvas naming rejection.
+- Incorporated read-only subagent findings for upstream theme-domain patterns and local script enforcement gaps.
+- Kept the slice out of ThemeService runtime behavior, page SCSS rewrites, Canvas runtime, AI media, AI short-drama, terminal, provider, and generated version files.
+
+Verification:
+
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - Result: passed, 16 tests.
+- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3 --json`
+  - Result: passed; `app-ui` reported 1539 unique colors and `generated-runtime` reported 24 unique colors with no baseline, near-pair, or CSS var contract failures.
+- `node --test scripts/validate-theme-visual-contract.test.mjs`
+  - Result: passed, 3 tests.
+- `node scripts/validate-theme-visual-contract.mjs`
+  - Result: passed; 8 surfaces / 8 required surfaces covered.
+
+Remaining risk:
+
+- Near-pair analysis remains global rather than per-domain. Per-domain near-pair budgeting is a higher-risk follow-up because it changes interpretation of existing debt.
+- Runtime boundary fallback registries and compact generated-runtime theme projection remain future implementation issues; this slice only adds audit governance.

@@ -3007,7 +3007,7 @@ Result:
 ### ISSUE-1190F Theme Domain Governance for Generated Runtimes
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Evaluate upstream theme-domain isolation for generated runtimes and adapt only Void-named governance if it protects app UI budgets.
 Allowed files: theme governance docs, theme audit script/tests, theme CSS variable contract files, docs.
 Forbidden files: BitFun `bitfunCanvas` domain names, `--bitfun-canvas-*` variables, Canvas runtime, page SCSS rewrites, AI media/short-drama logic, ThemeService runtime changes without a separate issue.
@@ -3016,6 +3016,13 @@ Acceptance:
 - Audit tests distinguish app UI color debt from generated-runtime-owned color surfaces.
 - No visual redesign or runtime token injection behavior changes are included.
 Risk notes: Upstream's domain isolation idea is useful; upstream names and Canvas-specific baselines are not.
+Result:
+- Added Void-owned `generated-runtime` color-domain governance to `scripts/theme-css-var-contract.json` with owner, reason, merge policy, and path prefixes.
+- Extended `scripts/audit-theme-colors.mjs` to report `colorDomains[]` and stable `domainMetrics` while preserving global `uniqueColors` and near-pair budgets.
+- Added baseline support for `domainMetrics.app-ui.uniqueColors` and `domainMetrics.generated-runtime.uniqueColors` so app UI and generated-runtime debt can be enforced independently.
+- Tightened the Web UI baseline to the current audited values instead of loosening budgets.
+- Added tests proving generated-runtime colors are reported separately, app UI budget enforcement does not count generated-runtime growth, generated-runtime can have its own budget, and upstream BitFun/Canvas-owned domain naming is rejected.
+- Did not change ThemeService runtime behavior, page SCSS, Canvas runtime, AI media, AI short-drama logic, terminal, provider, or generated version files.
 
 ### ISSUE-1190G CLI Rich Model-Round Persistence Audit
 

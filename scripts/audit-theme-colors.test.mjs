@@ -94,6 +94,49 @@ test('auditThemeColors ignores test files and generated build artifacts', (t) =>
   assert.equal(report.cssVars.undefinedUnique, 0);
 });
 
+test('auditThemeColors separates generated-runtime owned color domains without lowering global debt', (t) => {
+  const { dir, sourceRoot } = createFixture({
+    'app/App.scss': '.app { color: #111111; }\n',
+    'tools/generative-widget/Frame.tsx': "export const fallback = { color: '#222222' };\n",
+  });
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const report = auditThemeColors({
+    root: sourceRoot,
+    top: 10,
+    ownedColorDomains: [
+      {
+        domain: 'generated-runtime',
+        owner: 'src/web-ui/src/tools/generative-widget',
+        reason: 'Generated runtime fallback colors are tracked separately from app UI debt.',
+        mergePolicy: 'same-baseline-no-subtraction',
+        pathPrefixes: ['tools/generative-widget'],
+      },
+    ],
+  });
+
+  const appUi = report.colorDomains.find(domain => domain.domain === 'app-ui');
+  const generatedRuntime = report.colorDomains.find(domain => domain.domain === 'generated-runtime');
+
+  assert.equal(report.uniqueColors, 2);
+  assert.equal(report.colorOccurrences, 2);
+  assert.equal(appUi.uniqueColors, 1);
+  assert.equal(appUi.colorOccurrences, 1);
+  assert.equal(generatedRuntime.uniqueColors, 1);
+  assert.equal(generatedRuntime.colorOccurrences, 1);
+  assert.equal(generatedRuntime.mergePolicy, 'same-baseline-no-subtraction');
+  assert.deepEqual(report.domainMetrics, {
+    'app-ui': {
+      colorOccurrences: 1,
+      uniqueColors: 1,
+    },
+    'generated-runtime': {
+      colorOccurrences: 1,
+      uniqueColors: 1,
+    },
+  });
+});
+
 test('findNearColorPairs reports nearby but not identical colors', () => {
   const pairs = findNearColorPairs([
     { file: 'a.scss', color: '#111111' },
@@ -125,6 +168,53 @@ test('checkBaseline fails on growth and requires lowered baseline when debt drop
     assert.match(
       checkBaseline({ uniqueColors: 1, nearPairs: { indistinguishableTotal: 0 } }, baselinePath).join('\n'),
       /uniqueColors has 1 candidate\(s\), below baseline 2/,
+    );
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('checkBaseline can enforce app-ui and generated-runtime domain budgets independently', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const appUiOnlyBaselinePath = path.join(tempDir, 'app-ui-baseline.json');
+    writeText(appUiOnlyBaselinePath, JSON.stringify({
+      version: 1,
+      budgets: {
+        'domainMetrics.app-ui.uniqueColors': { max: 1 },
+      },
+    }));
+    assert.deepEqual(checkBaseline({
+      domainMetrics: {
+        'app-ui': { uniqueColors: 1 },
+        'generated-runtime': { uniqueColors: 99 },
+      },
+    }, appUiOnlyBaselinePath), []);
+    assert.match(
+      checkBaseline({
+        domainMetrics: {
+          'app-ui': { uniqueColors: 2 },
+          'generated-runtime': { uniqueColors: 1 },
+        },
+      }, appUiOnlyBaselinePath).join('\n'),
+      /domainMetrics\.app-ui\.uniqueColors has 2 candidate\(s\), above baseline 1/,
+    );
+
+    const generatedRuntimeBaselinePath = path.join(tempDir, 'generated-runtime-baseline.json');
+    writeText(generatedRuntimeBaselinePath, JSON.stringify({
+      version: 1,
+      budgets: {
+        'domainMetrics.generated-runtime.uniqueColors': { max: 1 },
+      },
+    }));
+    assert.match(
+      checkBaseline({
+        domainMetrics: {
+          'app-ui': { uniqueColors: 1 },
+          'generated-runtime': { uniqueColors: 2 },
+        },
+      }, generatedRuntimeBaselinePath).join('\n'),
+      /domainMetrics\.generated-runtime\.uniqueColors has 2 candidate\(s\), above baseline 1/,
     );
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -214,6 +304,15 @@ test('checkCssVarContract validates required domains and current baseline compat
         },
       ],
       allowedDynamicPrefixes: ['--color-accent-'],
+      ownedColorDomains: [
+        {
+          domain: 'generated-runtime',
+          owner: 'src/web-ui/src/tools/generative-widget',
+          reason: 'fixture generated runtime domain',
+          mergePolicy: 'same-baseline-no-subtraction',
+          pathPrefixes: ['src/web-ui/src/tools/generative-widget'],
+        },
+      ],
       legacyAliases: ['--void-bg'],
       fallbackExceptions: ['--legacy-fallback'],
     }));
@@ -250,6 +349,15 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
         },
       ],
       allowedDynamicPrefixes: ['color-accent-'],
+      ownedColorDomains: [
+        {
+          domain: 'bitfun-canvas',
+          owner: '',
+          reason: '',
+          mergePolicy: 'merge-with-app',
+          pathPrefixes: ['src/web-ui/src/bitfun'],
+        },
+      ],
       legacyAliases: [42],
       fallbackExceptions: [],
     }));
@@ -270,6 +378,11 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
     assert.match(failures, /requiredTokenDomains\[0\]\.domain must be a non-empty string/);
     assert.match(failures, /required var --missing-required is not defined/);
     assert.match(failures, /allowedDynamicPrefixes\[0\] must start with --/);
+    assert.match(failures, /ownedColorDomains\[0\]\.domain must be Void-owned/);
+    assert.match(failures, /ownedColorDomains\[0\]\.owner must be a non-empty string/);
+    assert.match(failures, /ownedColorDomains\[0\]\.reason must be a non-empty string/);
+    assert.match(failures, /ownedColorDomains\[0\]\.mergePolicy must be one of/);
+    assert.match(failures, /ownedColorDomains\[0\]\.pathPrefixes must not reference upstream BitFun paths/);
     assert.match(failures, /legacyAliases\[0\] must be a string/);
     assert.match(failures, /dynamic definition --unknown-dynamic- is not allowed/);
     assert.match(failures, /fallback-only var --unapproved-fallback is not allowed/);

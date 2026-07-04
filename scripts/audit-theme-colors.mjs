@@ -7,6 +7,7 @@ const DEFAULT_ROOT = 'src/web-ui/src';
 const DEFAULT_BASELINE = 'scripts/theme-color-governance-baseline.json';
 const DEFAULT_NEAR_PAIR_DECISIONS = 'scripts/theme-color-near-pair-decisions.json';
 const DEFAULT_CSS_VAR_CONTRACT = 'scripts/theme-css-var-contract.json';
+const DEFAULT_COLOR_DOMAIN = 'app-ui';
 const COLOR_EXTENSIONS = new Set(['.css', '.scss', '.ts', '.tsx', '.json']);
 const COLOR_PATTERN =
   /#[0-9a-fA-F]{3,8}\b|rgba?\(\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+\s*,\s*[-+]?\d*\.?\d+(?:\s*,\s*[-+]?\d*\.?\d+)?\s*\)/g;
@@ -207,6 +208,42 @@ function addSetMap(map, key, value) {
   map.set(key, values);
 }
 
+function normalizeOwnedColorDomains(domains) {
+  if (!Array.isArray(domains)) {
+    return [];
+  }
+
+  return domains
+    .filter(domain => domain && typeof domain === 'object' && !Array.isArray(domain))
+    .map(domain => ({
+      domain: domain.domain,
+      owner: domain.owner,
+      reason: domain.reason,
+      mergePolicy: domain.mergePolicy,
+      pathPrefixes: Array.isArray(domain.pathPrefixes)
+        ? domain.pathPrefixes.map(prefix => normalizePath(prefix).replace(/\/$/, ''))
+        : [],
+    }))
+    .filter(domain => isNonEmptyString(domain.domain));
+}
+
+function classifyColorDomain(relativeToRoot, relativeToCwd, ownedDomains) {
+  const normalizedRootPath = normalizePath(relativeToRoot);
+  const normalizedCwdPath = normalizePath(relativeToCwd);
+  for (const domain of ownedDomains) {
+    if (domain.pathPrefixes.some(prefix => (
+      normalizedRootPath === prefix ||
+      normalizedRootPath.startsWith(`${prefix}/`) ||
+      normalizedCwdPath === prefix ||
+      normalizedCwdPath.startsWith(`${prefix}/`)
+    ))) {
+      return domain.domain;
+    }
+  }
+
+  return DEFAULT_COLOR_DOMAIN;
+}
+
 function topEntries(map, limit) {
   return Array.from(map.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -288,9 +325,13 @@ export function findNearColorPairs(entries) {
 export function auditThemeColors(options = {}) {
   const root = options.root ?? DEFAULT_ROOT;
   const top = options.top ?? 20;
+  const ownedColorDomains = normalizeOwnedColorDomains(options.ownedColorDomains);
   const files = walkFiles(root);
   const colorCounts = new Map();
   const fileColorCounts = new Map();
+  const domainColorCounts = new Map();
+  const domainOccurrenceCounts = new Map();
+  const domainFiles = new Map();
   const definitionFiles = new Map();
   const usageCounts = new Map();
   const fallbackCounts = new Map();
@@ -319,9 +360,13 @@ export function auditThemeColors(options = {}) {
       filesWithColors += 1;
     }
     allColorEntries.push(...colors);
+    const colorDomain = classifyColorDomain(relativeToRoot, relativeToCwd, ownedColorDomains);
     for (const entry of colors) {
       incrementMap(colorCounts, entry.color);
       incrementMap(fileColorCounts, relativeToCwd);
+      incrementMap(domainOccurrenceCounts, colorDomain);
+      addSetMap(domainColorCounts, colorDomain, entry.colorKey);
+      addSetMap(domainFiles, colorDomain, relativeToCwd);
     }
 
     const refs = collectCssVarReferences(relativeToCwd, text);
@@ -345,6 +390,28 @@ export function auditThemeColors(options = {}) {
     .filter(name => !definedVars.has(name))
     .sort();
   const nearPairs = findNearColorPairs(allColorEntries);
+  const colorDomains = [DEFAULT_COLOR_DOMAIN, ...ownedColorDomains.map(domain => domain.domain)]
+    .filter((domain, index, all) => all.indexOf(domain) === index)
+    .map(domain => {
+      const owned = ownedColorDomains.find(entry => entry.domain === domain);
+      return {
+        domain,
+        owner: owned?.owner ?? 'Void app UI',
+        reason: owned?.reason ?? 'Default application UI color debt domain.',
+        mergePolicy: owned?.mergePolicy ?? 'baseline',
+        pathPrefixes: owned?.pathPrefixes ?? [],
+        colorOccurrences: domainOccurrenceCounts.get(domain) ?? 0,
+        uniqueColors: domainColorCounts.get(domain)?.size ?? 0,
+        files: Array.from(domainFiles.get(domain) ?? []).sort().slice(0, 25),
+      };
+    });
+  const domainMetrics = Object.fromEntries(colorDomains.map(domain => [
+    domain.domain,
+    {
+      colorOccurrences: domain.colorOccurrences,
+      uniqueColors: domain.uniqueColors,
+    },
+  ]));
 
   return {
     root: normalizePath(root),
@@ -354,6 +421,8 @@ export function auditThemeColors(options = {}) {
     filesWithColors,
     colorOccurrences: allColorEntries.length,
     uniqueColors: colorCounts.size,
+    colorDomains,
+    domainMetrics,
     topColors: topEntries(colorCounts, top),
     topFiles: topEntries(fileColorCounts, top),
     cssVars: {
@@ -454,6 +523,54 @@ export function checkCssVarContract(report, contractPath) {
     failures,
     { prefix: '--' },
   );
+  const allowedMergePolicies = new Set(['same-baseline-no-subtraction', 'separate-report-only']);
+
+  if (parsed.ownedColorDomains !== undefined) {
+    if (!Array.isArray(parsed.ownedColorDomains)) {
+      failures.push(`${contractPath} ownedColorDomains must be an array`);
+    } else {
+      const seenOwnedDomains = new Set();
+      parsed.ownedColorDomains.forEach((domain, index) => {
+        const prefix = `${contractPath} ownedColorDomains[${index}]`;
+        if (!domain || typeof domain !== 'object' || Array.isArray(domain)) {
+          failures.push(`${prefix} must be an object`);
+          return;
+        }
+        if (!isNonEmptyString(domain.domain)) {
+          failures.push(`${prefix}.domain must be a non-empty string`);
+        } else {
+          if (!/^[a-z0-9-]+$/.test(domain.domain)) {
+            failures.push(`${prefix}.domain must be kebab-case`);
+          }
+          if (/bitfun|canvas/i.test(domain.domain)) {
+            failures.push(`${prefix}.domain must be Void-owned and must not use upstream Canvas or BitFun naming`);
+          }
+          if (seenOwnedDomains.has(domain.domain)) {
+            failures.push(`${prefix}.domain duplicates another owned color domain`);
+          }
+          seenOwnedDomains.add(domain.domain);
+        }
+        for (const field of ['owner', 'reason', 'mergePolicy']) {
+          if (!isNonEmptyString(domain[field])) {
+            failures.push(`${prefix}.${field} must be a non-empty string`);
+          }
+        }
+        if (isNonEmptyString(domain.mergePolicy) && !allowedMergePolicies.has(domain.mergePolicy)) {
+          failures.push(`${prefix}.mergePolicy must be one of ${Array.from(allowedMergePolicies).join(', ')}`);
+        }
+        const pathPrefixes = validateStringArray(
+          domain.pathPrefixes,
+          `${prefix}.pathPrefixes`,
+          failures,
+        );
+        for (const pathPrefix of pathPrefixes) {
+          if (/bitfun/i.test(pathPrefix)) {
+            failures.push(`${prefix}.pathPrefixes must not reference upstream BitFun paths`);
+          }
+        }
+      });
+    }
+  }
 
   if (!Array.isArray(parsed.requiredTokenDomains)) {
     failures.push(`${contractPath} requiredTokenDomains must be an array`);
@@ -745,10 +862,16 @@ function printReport(report) {
   console.log(`Undefined vars: ${report.cssVars.undefinedUnique}`);
   console.log(`Indistinguishable color pairs: ${report.nearPairs.indistinguishableTotal}`);
   console.log(`Near color pairs: ${report.nearPairs.nearTotal}`);
+  console.log(`Color domains: ${report.colorDomains.length}`);
   console.log('');
   printRows('Top colors:', report.topColors);
   console.log('');
   printRows('Top files:', report.topFiles);
+  console.log('');
+  printRows('Color domains:', report.colorDomains.map(domain => ({
+    key: `${domain.domain} unique=${domain.uniqueColors} policy=${domain.mergePolicy}`,
+    count: domain.colorOccurrences,
+  })));
   console.log('');
   printRows('Undefined vars:', report.cssVars.undefinedVars.slice(0, 10));
   console.log('');
@@ -761,7 +884,16 @@ function printReport(report) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const report = auditThemeColors({ root: options.root, top: options.top });
+  let ownedColorDomains = [];
+  if (options.cssVarContract && fs.existsSync(options.cssVarContract)) {
+    try {
+      const contract = JSON.parse(fs.readFileSync(options.cssVarContract, 'utf8'));
+      ownedColorDomains = contract.ownedColorDomains;
+    } catch {
+      ownedColorDomains = [];
+    }
+  }
+  const report = auditThemeColors({ root: options.root, top: options.top, ownedColorDomains });
   if (options.reportJson) {
     writeReportJson(report, options.reportJson);
   }
