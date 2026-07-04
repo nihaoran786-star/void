@@ -3187,3 +3187,23 @@ Result:
 - Confirmed delete still emits `file:delete` with the existing `{ path, isDirectory }` payload.
 - Cancelled delete returns a failure result and does not emit `file:delete`.
 - Added focused command tests with mocked confirmation service.
+
+### ISSUE-1192E File Explorer Paste Shortcut Label
+
+Priority: P2
+Status: Done
+Goal: Adapt the upstream file explorer paste shortcut label fix so Apple platforms display `Cmd+V` and other platforms display `Ctrl+V`.
+Allowed files: `src/web-ui/src/shared/context-menu-system/providers/FileExplorerMenuProvider.ts`, focused tests, migration docs.
+Forbidden files: file operation handlers, `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop APIs, remote/path_target, file command behavior, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand.
+Acceptance:
+- Paste menu items use a platform-aware shortcut label.
+- Platform detection is testable without relying on global `navigator` during module import.
+- Paste event payload and menu structure remain unchanged.
+- Focused provider tests and Web type-check pass.
+Risk notes:
+- This is display metadata only; it does not change paste execution or keyboard handling.
+Result:
+- Added `getPasteShortcut()` as a testable provider helper.
+- File explorer paste menu entries now show `Cmd+V` on Apple user agents and `Ctrl+V` elsewhere.
+- Paste event payloads and menu structure remain unchanged.
+- Added focused provider tests for Apple and non-Apple shortcut labels.

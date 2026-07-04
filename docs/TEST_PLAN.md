@@ -8,6 +8,29 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192E File Explorer Paste Shortcut Label
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/shared/context-menu-system/providers/FileExplorerMenuProvider.ts`
+- `src/web-ui/src/shared/context-menu-system/providers/FileExplorerMenuProvider.test.ts`
+- Migration docs.
+- No file operation handlers, `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop API, remote/path_target, command behavior, Flow Chat, AI media, AI short-drama, provider, terminal, Canvas runtime, installer/brand, or generated version changes.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/providers/FileExplorerMenuProvider.test.ts`
+  - Result: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Manual status:
+
+- Paste menu shortcut label is now `Cmd+V` for Apple user agents and `Ctrl+V` elsewhere.
+- Paste event payloads and menu structure are unchanged.
+
 ## ISSUE-1192D File Delete Confirmation Service
 
 Date: 2026-07-04

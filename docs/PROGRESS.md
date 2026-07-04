@@ -105,22 +105,23 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192B desktop reveal-in-explorer argument contract complete.
 - [x] ISSUE-1192C file context menu path utility contract complete.
 - [x] ISSUE-1192D file delete confirmation service complete.
+- [x] ISSUE-1192E file explorer paste shortcut label complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192D File Delete Confirmation Service`
+Issue: `ISSUE-1192E File Explorer Paste Shortcut Label`
 
 Summary:
 
-- Adapted the upstream DeleteCommand confirmation improvement as a narrow command-level slice.
-- `DeleteFileCommand` now uses shared `confirmDanger` instead of browser `window.confirm`.
-- Confirmed delete still emits the existing `file:delete` payload; cancelled delete does not emit.
-- Protected FilesPanel, WorkspaceAPI, desktop API, remote/path_target, paste shortcut provider, Copy/New commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files.
+- Adapted the upstream file explorer paste shortcut label fix.
+- Added testable `getPasteShortcut()` helper to keep platform label detection out of menu item literals.
+- Paste menu entries now show `Cmd+V` for Apple user agents and `Ctrl+V` elsewhere.
+- Paste event payloads, menu structure, file operation handlers, FilesPanel, WorkspaceAPI, desktop APIs, remote/path_target, command behavior, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/commands/builtin/file/DeleteCommand.test.ts`
-  - Result: passed, 1 file / 2 tests after fixing the node-environment test fixture.
+- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/providers/FileExplorerMenuProvider.test.ts`
+  - Result: passed, 1 file / 2 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
