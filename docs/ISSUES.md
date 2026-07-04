@@ -1747,6 +1747,24 @@ Result:
 - Added replay queue duplicate-event guard coverage so the same live event object cannot be flushed twice during the subscribe/drain handoff.
 - Kept `TerminalService` as the backend ack adapter and kept xterm UI components unaware of flow-control details.
 
+### ISSUE-1120E Terminal Resize Local Acceptance Gate
+
+Priority: P1
+Status: Done
+Goal: Prevent backend PTY resize synchronization when the local xterm resize is rejected by the history-replay shrink guard or an xterm resize failure.
+Allowed files: `src/web-ui/src/tools/terminal/utils/TerminalResizeDebouncer.ts`, `src/web-ui/src/tools/terminal/utils/TerminalResizeDebouncer.test.ts`, `src/web-ui/src/tools/terminal/components/Terminal.tsx`, docs.
+Forbidden files: terminal Rust core, Tauri terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration, Cargo/package configuration.
+Acceptance:
+- `TerminalResizeDebouncer` treats `onXtermResize(...): false` as a rejected local resize and does not call backend resize or resize-complete hooks.
+- Immediate, row-only, and flush paths are covered.
+- Accepted local resizes still synchronize backend size.
+- `Terminal.tsx` returns an explicit local resize acceptance boolean from the xterm lifecycle boundary.
+Result:
+- Extended the debouncer callback contract to `boolean | void`, preserving existing callers that return `void`.
+- `Terminal.tsx` now returns `false` when there is no terminal, the history replay shrink guard rejects a resize, or xterm resize throws; it returns `true` for already-matching or successful local resize.
+- Added focused utility tests for accepted resize and rejected immediate, row-only, and flush paths.
+- No terminal core, desktop API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, or generated files changed.
+
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 
 Priority: P0

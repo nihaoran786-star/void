@@ -6559,6 +6559,38 @@ Remaining risk:
 - Ack uses the existing `charCount` contract and `data.length`; a byte-count protocol would need a separate frontend/backend contract.
 - Core terminal `GetHistoryResponse` still does not include `historyStatus/historySource`; desktop/Web UI boundaries already do.
 
+## ISSUE-1120E Terminal Resize Local Acceptance Gate
+
+Scope:
+
+- Current slice covers Web terminal resize synchronization through `TerminalResizeDebouncer` and the xterm lifecycle boundary in `Terminal.tsx`.
+- It does not change terminal Rust core, desktop terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port ownership, Cargo/package config, or generated files.
+
+RED checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/TerminalResizeDebouncer.test.ts`
+  - Result before implementation: failed, 3 tests. Immediate, row-only, and flush paths all called backend resize even when `onXtermResize` returned `false`.
+
+GREEN checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/TerminalResizeDebouncer.test.ts`
+  - Result: passed, 4 tests.
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
+  - Result: passed, 12 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Accepted local resize still synchronizes backend size and calls `onResizeComplete`.
+- Rejected immediate, row-only, and flushed local resize paths do not synchronize backend size or call `onResizeComplete`.
+- `Terminal.tsx` now returns explicit resize acceptance from `doXtermResize`, including history replay shrink-guard rejection.
+
+Remaining risk:
+
+- This does not change terminal core flow-control or byte-count ack semantics.
+- This does not implement remote terminal history replay.
+
 ## ISSUE-1180A Conceptual Layer Mapping
 
 Scope:

@@ -112,28 +112,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1190A1 Flow Chat turn-navigation e2e type preflight complete.
 - [x] ISSUE-1190A2 Flow Chat turn-navigation e2e lockfile reproducibility complete.
 - [x] ISSUE-1140F provider image context workspace containment complete.
+- [x] ISSUE-1120E terminal resize local acceptance gate complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1140F Provider Image Context Workspace Containment`
+Issue: `ISSUE-1120E Terminal Resize Local Acceptance Gate`
 
 Summary:
 
-- Added workspace containment for ordinary `image_contexts` before image bytes are processed for provider multimodal payloads.
-- Workspace-relative image paths still process successfully.
-- Absolute image paths outside the active workspace are denied before provider payload construction.
-- Preserved `AnalyzeImage`, `ViewImage`, provider adapters, Flow Chat, BTW, desktop upload APIs, AI media, AI short-drama, terminal, Canvas, and tool manifest/runtime behavior.
+- Added a local acceptance gate to Web terminal resize synchronization.
+- `TerminalResizeDebouncer` now skips backend PTY resize and resize-complete hooks when local xterm resize returns `false`.
+- `Terminal.tsx` returns explicit local resize acceptance from the xterm lifecycle boundary, including history replay shrink-guard rejection.
+- Preserved terminal Rust core, desktop terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, and generated files.
 
 Verification:
 
-- `cargo test -p void-core process_image_contexts_ --lib -- --nocapture`
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
+  - Result: passed, 12 tests.
+- `pnpm --dir src/web-ui run type-check`
   - Result: passed.
-- Broader verification is recorded in `docs/TEST_PLAN.md`.
 
 Remaining:
 
-- Global image context store session/workspace scoping remains a separate higher-coupling issue.
-- Historical no-workspace image contexts keep existing behavior in this slice.
+- Terminal ack still uses the existing character-count contract; byte-count ack remains a separate frontend/backend contract issue.
+- Remote terminal history replay remains explicitly unsupported for remote sessions.
 
 ## Previous Slice
 

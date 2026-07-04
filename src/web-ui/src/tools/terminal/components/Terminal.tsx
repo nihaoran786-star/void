@@ -247,13 +247,13 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
     clearTextureAtlas(terminal);
   }, []);
 
-  const doXtermResize = useCallback((cols: number, rows: number) => {
+  const doXtermResize = useCallback((cols: number, rows: number): boolean => {
     const terminal = terminalRef.current;
-    if (!terminal) return;
+    if (!terminal) return false;
 
     try {
       if (terminal.cols === cols && terminal.rows === rows) {
-        return;
+        return true;
       }
 
       // While the caller has set a minimum column guard (e.g., during history
@@ -262,12 +262,14 @@ const Terminal = forwardRef<TerminalRef, TerminalProps>(({
       // truncating buffered content that was written at a wider column count.
       const minCols = preventShrinkBelowColsRef?.current ?? 0;
       if (minCols > 0 && cols < minCols) {
-        return;
+        return false;
       }
 
       terminal.resize(cols, rows);
+      return true;
     } catch (error) {
       log.warn('Xterm resize error', { cols, rows, error });
+      return false;
     }
   }, [preventShrinkBelowColsRef]);
 

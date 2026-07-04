@@ -24,7 +24,7 @@ export interface ResizeDebounceOptions {
   getTerminal: () => Terminal | null;
   isVisible: () => boolean;
   /** Local xterm resize callback. */
-  onXtermResize: (cols: number, rows: number) => void;
+  onXtermResize: (cols: number, rows: number) => boolean | void;
   /** Backend PTY resize callback (debounced/merged). */
   onBackendResize: (cols: number, rows: number) => void | Promise<void>;
   /** Optional hook invoked after flush. */
@@ -117,8 +117,9 @@ export class TerminalResizeDebouncer {
       this.clearPendingJobs();
       if (this.isNewApi) {
         const opts = this.options as ResizeDebounceOptions;
-        opts.onXtermResize(cols, rows);
-        this.scheduleBackendResize(cols, rows);
+        if (opts.onXtermResize(cols, rows) !== false) {
+          this.scheduleBackendResize(cols, rows);
+        }
       } else {
         this.executeResize(cols, rows, true);
       }
@@ -137,8 +138,9 @@ export class TerminalResizeDebouncer {
       const opts = this.options as ResizeDebounceOptions;
       
       if (rowsChanged && !colsChanged) {
-        opts.onXtermResize(currentCols, rows);
-        this.scheduleBackendResize(currentCols, rows);
+        if (opts.onXtermResize(currentCols, rows) !== false) {
+          this.scheduleBackendResize(currentCols, rows);
+        }
       }
       else if (colsChanged) {
         this.debounceXtermResizeX(cols, rows);
@@ -205,8 +207,8 @@ export class TerminalResizeDebouncer {
   private executeResize(cols: number, rows: number, includeBackend: boolean): void {
     if (this.isNewApi) {
       const opts = this.options as ResizeDebounceOptions;
-      opts.onXtermResize(cols, rows);
-      if (includeBackend) {
+      const accepted = opts.onXtermResize(cols, rows) !== false;
+      if (includeBackend && accepted) {
         opts.onBackendResize(cols, rows);
         opts.onResizeComplete?.();
       }
@@ -225,8 +227,9 @@ export class TerminalResizeDebouncer {
       this.resizeXTimeoutId = null;
       if (!this.disposed && this.isNewApi) {
         const opts = this.options as ResizeDebounceOptions;
-        opts.onXtermResize(cols, rows);
-        this.scheduleBackendResize(cols, rows);
+        if (opts.onXtermResize(cols, rows) !== false) {
+          this.scheduleBackendResize(cols, rows);
+        }
       }
     }, RESIZE_X_DEBOUNCE_MS);
   }
