@@ -89,8 +89,32 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C7 Windows stale screenshot-map fail-closed evidence complete.
 - [x] ISSUE-1110D FlowChat history session open intent contract complete.
 - [x] ISSUE-1110E FlowChat history placeholder intent integration complete.
+- [x] ISSUE-1110F session nav list state contract complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1110F Session Nav List State Contract`
+
+Summary:
+
+- Added `resolveSessionNavListState` as a pure session nav helper that returns explicit `status/source/action/showExpandToggle`.
+- `SessionsSection` now consumes that helper for loading/empty and expand-toggle rendering decisions.
+- Preserved existing row rendering, metadata pagination fetch behavior, active-row selection, session switching, rename/archive/delete behavior, FlowChat store ownership, and protected media/short-drama/terminal/Computer Use/provider modules.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts src/app/components/NavPanel/sections/sessions/SessionsSectionAutomation.test.ts src/app/components/NavPanel/sections/sessions/SessionsSectionLayout.test.ts`
+  - Result: passed, 3 files / 10 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `git diff --check -- src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.ts src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- This helper covers list-level nav state only. It does not change session metadata fetching, backend restore/open APIs, or sidebar/header outside `SessionsSection`.
+
+## Previous Slice
 
 Issue: `ISSUE-1110E FlowChat History Placeholder Intent Integration`
 

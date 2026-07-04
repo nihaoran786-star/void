@@ -119,6 +119,33 @@ Coverage:
 - Unsupported metadata-only history scope now renders the history error placeholder rather than falling through to the welcome panel.
 - Sidebar/header/session-nav integration remains future work.
 
+## ISSUE-1110F Session Nav List State Contract
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.ts`.
+- `src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts`.
+- `src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No `FlowChatStore.ts`, session API/load behavior, session open/switch behavior, sidebar/header outside `SessionsSection`, Flow Chat container, backend restore APIs, AI media, AI short-drama, terminal, Computer Use, provider, Rust crate, or generated version behavior changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui run test:run src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts src/app/components/NavPanel/sections/sessions/SessionsSectionAutomation.test.ts src/app/components/NavPanel/sections/sessions/SessionsSectionLayout.test.ts`
+  - Result: passed, 3 files / 10 tests.
+  - Notes: covered active-row selection, nav list empty/loading/ready/metadata-page state helper, automation marker source smoke, and layout source smoke.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `git diff --check -- src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.ts src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- Empty local list, metadata loading, ready local list, and metadata-page expand affordance return explicit `status/source/action/showExpandToggle`.
+- `SessionsSection` consumes the helper output for list-level render branching only.
+
 ## ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
 
 Date: 2026-07-04

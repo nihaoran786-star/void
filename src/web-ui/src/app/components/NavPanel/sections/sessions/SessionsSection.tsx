@@ -31,7 +31,10 @@ import { stateMachineManager } from '@/flow_chat/state-machine';
 import { SessionExecutionState } from '@/flow_chat/state-machine/types';
 import { i18nService } from '@/infrastructure/i18n';
 import { resolveSessionTitle } from '@/flow_chat/utils/sessionTitle';
-import { isSessionNavRowActive } from './sessionNavSelection';
+import {
+  isSessionNavRowActive,
+  resolveSessionNavListState,
+} from './sessionNavSelection';
 import {
   deriveSessionReviewActivity,
   isReviewActivityBlocking,
@@ -367,6 +370,12 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
   const totalTopLevelSessionCount = metadataPageState.totalTopLevelCount ?? topLevelSessions.length;
   const hasMoreUnloadedSessions =
     metadataPageState.hasMore || topLevelSessions.length < totalTopLevelSessionCount;
+  const navListState = resolveSessionNavListState({
+    visibleTopLevelCount: topLevelSessions.length,
+    totalTopLevelCount: totalTopLevelSessionCount,
+    hasMoreUnloaded: hasMoreUnloadedSessions,
+    isLoading: metadataPageState.isLoading,
+  });
 
   const visibleItems = useMemo(() => {
     const visibleParents = topLevelSessions.slice(0, sessionDisplayLimit);
@@ -609,8 +618,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
     totalTopLevelSessionCount,
   ]);
 
-  if (topLevelSessions.length === 0) {
-    if (metadataPageState.isLoading) {
+  if (navListState.status !== 'ready') {
+    if (navListState.action === 'show_loading') {
       return (
         <div className="void-nav-panel__inline-list">
           <div className="void-nav-panel__inline-loading">
@@ -887,7 +896,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           );
         })}
 
-      {(totalTopLevelSessionCount > SESSIONS_LEVEL_0 || hasMoreUnloadedSessions) && (
+      {navListState.showExpandToggle && (
         <button
           type="button"
           className={`void-nav-panel__inline-toggle${metadataPageState.isLoading ? ' is-loading' : ''}`}

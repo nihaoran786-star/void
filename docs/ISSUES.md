@@ -1613,6 +1613,22 @@ Result:
 - Added a component test proving unsupported metadata-only history scope renders the history error placeholder and does not fall through to the welcome panel.
 - Preserved existing history placeholder tests plus helper contract tests.
 
+### ISSUE-1110F Session Nav List State Contract
+
+Priority: P1
+Status: Done
+Goal: Give the session navigation list a pure state contract for empty/loading/ready/expand affordance so the nav component does not infer meaning from raw counts and metadata pagination flags inline.
+Allowed files: `src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.ts`, `src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavSelection.test.ts`, `src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx`, docs.
+Forbidden files: `FlowChatStore.ts`, session API/load behavior, session open/switch behavior, sidebar/header outside SessionsSection, Flow Chat container, backend restore APIs, AI media, AI short-drama, terminal, Computer Use, provider, Rust crates.
+Acceptance:
+- Empty local list, metadata loading, ready local list, and metadata-page pagination are represented by explicit `status/source/action/showExpandToggle`.
+- `SessionsSection` consumes the helper output for loading/empty and expand-toggle rendering while preserving current row rendering and metadata fetch behavior.
+- Focused tests cover the helper contract and existing SessionsSection layout/automation smoke tests still pass.
+Result:
+- Added `resolveSessionNavListState` beside `isSessionNavRowActive`.
+- `SessionsSection` now consumes the helper for list status and expand-toggle decisions.
+- Did not change FlowChat store, metadata page loading, session switching, row active selection, archive/delete/rename behavior, or any protected media/short-drama/terminal/Computer Use/provider code.
+
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 
 Priority: P0
