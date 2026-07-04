@@ -93,8 +93,37 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C8 Windows foreground scroll/key chord smoke evidence complete.
 - [x] ISSUE-1130C9 Windows pointer smoke closeout and deferral decision complete.
 - [x] ISSUE-1130C Windows pointer coordinate/background input parent complete with explicit deferrals.
+- [x] ISSUE-1190 upstream Canvas and turn-ownership incremental inventory complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1190 Upstream Canvas and Turn-Ownership Incremental Inventory`
+
+Summary:
+
+- Fetched `GCWing/BitFun main` and observed upstream advanced from `4da7ae5d8` to `ea14b2d42`.
+- Classified the new upstream wave: Canvas product domain/runtime/tooling is high-value but high-risk; Flow Chat turn-navigation ownership has mostly local behavior coverage but needs parity tests; governance changes suggest small tool-card/icon/theme follow-ups.
+- Added `DEC-124` to reject direct Canvas merge and require Void-owned artifact/domain/security decisions first.
+- Split follow-up issues `ISSUE-1190A` through `ISSUE-1190G`.
+- Preserved current Void multi-agent, subdialogs, floating chat, AI short-drama canvas, AI media, terminal, Computer Use, provider, and brand contracts; no production code was changed.
+
+Verification:
+
+- `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main`
+  - Result: passed; remote advanced `4da7ae5d8..ea14b2d42`.
+- `git log --reverse --format="%H%x09%s" 4da7ae5d8..refs/remotes/upstream-bitfun/main`
+  - Result: passed; identified 13 non-merge commits plus merge commits in the wave.
+- Subagent read-only reviews:
+  - Result: passed; Canvas/Product, FlowChat/Risk, and Governance/QA agents reported classifications without modifying files.
+- `git diff --check -- docs/ISSUES.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- `ISSUE-1190A` is the next lowest-risk implementation/test slice if continuing this wave.
+- Canvas/Artifact work must start with RFC/security decisions before code.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C9 Windows Pointer Smoke Closeout and Deferral Decision`
 

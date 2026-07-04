@@ -8,6 +8,38 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1190 Upstream Canvas and Turn-Ownership Incremental Inventory
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/ISSUES.md`, `docs/DECISIONS.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Read-only upstream inspection against `4da7ae5d8..refs/remotes/upstream-bitfun/main`.
+- No `src/**`, scripts, Cargo manifests, Web UI runtime, Flow Chat implementation, AI media, AI short-drama, terminal, provider, Computer Use, or generated files changed.
+
+Checks:
+
+- `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main`
+  - Result: passed.
+  - Notes: upstream advanced from `4da7ae5d8` to `ea14b2d42`.
+- `git log --reverse --format="%H%x09%s" 4da7ae5d8..refs/remotes/upstream-bitfun/main`
+  - Result: passed.
+  - Notes: identified Canvas product-domain commits, Flow Chat turn-navigation ownership, CLI rich model-round persistence, miniapp icon registration, tool-card metadata/color, and governance changes.
+- `git diff --name-status 4da7ae5d8..refs/remotes/upstream-bitfun/main`
+  - Result: passed.
+  - Notes: the wave touches 126 files, mostly Canvas product/runtime/tooling plus targeted Flow Chat and governance files.
+- Subagent read-only reviews:
+  - Result: passed.
+  - Notes: Canvas/Product, FlowChat/Risk, and Governance/QA agents independently classified the wave and recommended small follow-up issues.
+- `git diff --check -- docs/ISSUES.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual status:
+
+- Result: inventory only.
+- No Canvas runtime, Flow Chat ownership model, miniapp icon mapping, tool-card code, theme audit code, CLI persistence, or product runtime behavior was changed.
+
 ## Baseline Checks
 
 - `git status --short --branch`

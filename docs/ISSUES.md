@@ -2883,3 +2883,115 @@ Result:
 - Recorded that server and relay are existing app surfaces, not SDK/minimal runtime profiles.
 - Recorded that `void-core default = ["product-full"]` and `void-core/product-full` explicitly aggregates current owner feature groups.
 - Recorded DEC-121; no `Cargo.toml`, feature graph, app entrypoint, `DeliveryProfile`, SDK/minimal runtime, service availability API, or runtime behavior changes were made.
+
+### ISSUE-1190 Upstream Canvas and Turn-Ownership Incremental Inventory
+
+Priority: P0
+Status: Done
+Goal: Refresh the upstream candidate inventory from `upstream-bitfun/main@ea14b2d42` and classify the new Canvas, Flow Chat ownership, CLI rich model-round persistence, miniapp icon, tool-card, and theme-governance deltas without changing production code.
+Allowed files: consensus docs only.
+Forbidden files: `src/**`, scripts, Cargo manifests, Web UI runtime, Flow Chat implementation, AI media, AI short-drama, terminal, provider, Computer Use, generated files.
+Affected module: upstream migration governance.
+Acceptance:
+- The new upstream reference and commit range are recorded.
+- Canvas is classified as a high-value but high-risk product-domain wave, not a direct merge candidate.
+- Low-risk Flow Chat/governance follow-ups are split into small issues.
+- Protected local surfaces are restated: multi-agent, subdialogs, floating chat, AI short-drama canvas, AI media, terminal, Computer Use, provider, and Void brand.
+Result:
+- Fetched `GCWing/BitFun main` into `refs/remotes/upstream-bitfun/main`, advancing the observed upstream wave from `4da7ae5d8` to `ea14b2d42`.
+- Reviewed non-merge commits: `94409f3fe`, `b8f6335de`, `5f5ff9af8`, `4a989d7f8`, `6560c99c7`, `c457aa17b`, `9440f62ce`, `2e6b56bf9`, `aecab3b08`, `6fd87c11a`, `d455a6a74`, `0d195e947`, and `32e895dd4`.
+- Classified the Canvas wave as valuable architecture input for persistent interactive artifacts, exact patch/update semantics, diagnostics, last-known-good compiled payloads, and SDK guidance, but rejected direct migration of `bitfun-canvas` runtime, iframe bridge, skills, desktop APIs, `core.canvas` exposure, and session-scoped Canvas storage into current Void.
+- Split follow-up issues below for Flow Chat turn-navigation ownership tests, Canvas/artifact domain RFC, GenerativeUI/Canvas/miniapp boundary, Canvas runtime security review, tool-card/icon governance, theme domain governance, and CLI rich model-round persistence audit.
+- No production code, scripts, Cargo manifests, Web UI runtime, Flow Chat, AI media, AI short-drama, terminal, provider, Computer Use, or generated files were changed.
+
+### ISSUE-1190A Flow Chat Turn Navigation Ownership Parity Tests
+
+Priority: P0
+Status: Proposed
+Goal: Compare upstream `32e895dd4` turn-navigation ownership semantics against current Void and add missing tests before considering any `pinTurnToTop` status-model change.
+Allowed files: Flow Chat header/follow-output tests, existing Flow Chat turn-navigation e2e spec, docs.
+Forbidden files: `FlowChatStore`, `modernFlowChatStore`, session restore/deferred hydration APIs, backend/Tauri/Rust history restore, terminal, AI media, AI short-drama, subagent/BTW internals, Canvas tool-card changes.
+Acceptance:
+- `FlowChatHeader` tests cover accepted turn selection closing the list and rejected selection keeping the list open.
+- `useFlowChatFollowOutput` tests cover explicit user upward scroll intent exiting follow-output before scroll metrics move, and user intent canceling armed auto-follow.
+- The release turn-navigation e2e includes a focused assertion that the header turn list disappears after a successful selection.
+- No runtime ownership model is changed unless a failing test proves the current container-level retry contract is insufficient.
+Risk notes: Current Void already covers most user-visible behavior through `ISSUE-1110A/B/C`; this issue is test-first parity, not a wholesale migration to upstream `FlowChatTurnPinRequestStatus`.
+
+### ISSUE-1190B Canvas Artifact Domain RFC
+
+Priority: P1
+Status: Proposed
+Goal: Define a Void-owned persistent interactive artifact domain contract inspired by upstream Canvas without adopting BitFun runtime paths or session storage as a source of truth.
+Allowed files: docs first; optional future domain contract tests after a separate implementation gate.
+Forbidden files: Canvas runtime implementation, desktop Canvas APIs, iframe bridge, `core.canvas` tool exposure, skills registration, AI short-drama source-of-truth changes, AI media storage changes, Cargo feature graph changes.
+Acceptance:
+- The RFC distinguishes current `GenerativeUI`, miniapps, AI media artifacts, AI short-drama project artifacts, and any future persistent interactive artifact.
+- Artifact state uses explicit `status/source/error/diagnostic` facts and does not rely on UI panel state as the source of truth.
+- Short-drama project facts remain owned by `ShortDramaProject` / `.void/short-drama`; Canvas-like artifacts may only be projections unless a future issue changes ownership explicitly.
+Risk notes: Directly importing upstream `CanvasArtifact`, `CanvasStoragePort`, or `bitfun-canvas://` identities would create dual source-of-truth risk.
+
+### ISSUE-1190C GenerativeUI, Miniapp, and Canvas Boundary Decision
+
+Priority: P1
+Status: Proposed
+Goal: Decide when Void should use one-shot generated widgets, existing miniapps, AI short-drama canvas, or a future persistent Canvas-like artifact.
+Allowed files: docs and focused existing tests if they only lock current behavior.
+Forbidden files: new Canvas runtime, generated-widget rewrite, miniapp registry rewrite, short-drama UI rewrite, media service rewrite, provider changes.
+Acceptance:
+- The decision names the single owner for each visual artifact type.
+- Existing `GenerativeUI` behavior remains compatible.
+- Any future Canvas-like route must avoid automatic promotion from generated widget to persistent artifact without explicit state ownership and tests.
+Risk notes: Upstream Canvas overlaps with current `GenerativeUI` and AI short-drama surface area; boundary clarity must precede implementation.
+
+### ISSUE-1190D Canvas Runtime Security Review
+
+Priority: P1
+Status: Proposed
+Goal: Review upstream Canvas iframe/runtime/security model before any Void implementation of a generated interactive artifact runtime.
+Allowed files: docs, security checklist, optional static policy tests after a separate gate.
+Forbidden files: iframe runtime, `postMessage` bridge, auto-repair, workspace file opener, session opener, HTML export, React UMD/raw inline runtime, CSP changes, desktop APIs.
+Acceptance:
+- Review covers iframe sandbox, message origin/source validation, action allowlists, workspace file/session opening, state persistence, runtime diagnostics, auto-repair loops, CSP, bundle size, and user confirmation.
+- Auto-repair and generated-content-initiated file/session opening remain rejected or separately gated.
+- No runtime code is added in this review issue.
+Risk notes: Upstream Canvas lets generated runtime actions affect host UI; Void must not copy that bridge before permission and loop controls exist.
+
+### ISSUE-1190E Tool Card Metadata and Miniapp Icon Governance
+
+Priority: P2
+Status: Proposed
+Goal: Borrow the low-risk upstream governance patterns for tool-card display names and builtin miniapp icon registration without adopting Canvas.
+Allowed files: existing tool-card metadata tests, existing miniapp icon mapping tests, docs.
+Forbidden files: CanvasToolCard, BitFun/Canvas runtime, generated-widget behavior changes, Flow Chat store/session logic, AI media, AI short-drama, terminal, provider.
+Acceptance:
+- Tool-card headers use a single metadata source for display names and tests cover at least one non-default tool name.
+- Builtin miniapp icon mapping tests prove known icons resolve to non-fallback icons while unknown icons still fall back safely.
+- Styles use existing theme tokens and do not add raw colors.
+Risk notes: This is governance/test hardening only; missing icon additions should be driven by current Void miniapp metadata, not upstream Canvas needs.
+
+### ISSUE-1190F Theme Domain Governance for Generated Runtimes
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate upstream theme-domain isolation for generated runtimes and adapt only Void-named governance if it protects app UI budgets.
+Allowed files: theme governance docs, theme audit script/tests, theme CSS variable contract files, docs.
+Forbidden files: BitFun `bitfunCanvas` domain names, `--bitfun-canvas-*` variables, Canvas runtime, page SCSS rewrites, AI media/short-drama logic, ThemeService runtime changes without a separate issue.
+Acceptance:
+- Any new generated-runtime theme domain is Void-named, declares owner/reason/merge policy, and does not loosen app UI hardcoded-color budgets.
+- Audit tests distinguish app UI color debt from generated-runtime-owned color surfaces.
+- No visual redesign or runtime token injection behavior changes are included.
+Risk notes: Upstream's domain isolation idea is useful; upstream names and Canvas-specific baselines are not.
+
+### ISSUE-1190G CLI Rich Model-Round Persistence Audit
+
+Priority: P1
+Status: Proposed
+Goal: Audit upstream `6fd87c11a` rich model-round persistence for CLI execution messages against current Void session/model-round persistence before implementing any fix.
+Allowed files: read-only audit docs first; focused core/session tests only if a missing persistence path is proven.
+Forbidden files: Flow Chat UI, AI media, AI short-drama, terminal, provider, Canvas, broad session-manager rewrite, event ABI changes.
+Acceptance:
+- Current CLI execution message persistence path is mapped.
+- Any missing rich model-round fields are identified with a focused failing test before code changes.
+- Multi-agent/subagent projection and BTW session behavior are explicitly protected.
+Risk notes: This may be a small high-value stability fix, but it touches persisted conversation structure and must not be bundled with Canvas.
