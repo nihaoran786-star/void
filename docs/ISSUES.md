@@ -3167,3 +3167,23 @@ Result:
 - `CopyPathCommand` now writes formatted clipboard paths while leaving POSIX/remote-style paths unchanged.
 - `NewFileCommand` and `NewFolderCommand` now derive file parent paths through `dirnameAbsolutePath`.
 - Added path utility coverage for Windows drive, UNC, POSIX, local rename, and remote normalization behavior.
+
+### ISSUE-1192D File Delete Confirmation Service
+
+Priority: P1
+Status: Done
+Goal: Adapt the upstream `DeleteCommand` confirmation improvement so file delete uses the shared danger confirm dialog instead of browser `window.confirm`.
+Allowed files: `src/web-ui/src/shared/context-menu-system/commands/builtin/file/DeleteCommand.ts`, focused tests, migration docs.
+Forbidden files: `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop APIs, remote/path_target, paste shortcut provider, Copy/New commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand.
+Acceptance:
+- Delete confirmation uses `confirmDanger` with the existing delete title/message/action text.
+- Cancelling confirmation does not emit `file:delete`.
+- Confirming preserves the existing `file:delete` event payload.
+- Focused command tests and Web type-check pass.
+Risk notes:
+- This is UI command confirmation only; actual delete execution and remote/local routing remain owned by existing file panel/API handlers.
+Result:
+- `DeleteFileCommand` now uses shared `confirmDanger` with the existing delete title/message/action text.
+- Confirmed delete still emits `file:delete` with the existing `{ path, isDirectory }` payload.
+- Cancelled delete returns a failure result and does not emit `file:delete`.
+- Added focused command tests with mocked confirmation service.

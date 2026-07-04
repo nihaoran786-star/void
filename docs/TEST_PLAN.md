@@ -8,6 +8,31 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192D File Delete Confirmation Service
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/shared/context-menu-system/commands/builtin/file/DeleteCommand.ts`
+- `src/web-ui/src/shared/context-menu-system/commands/builtin/file/DeleteCommand.test.ts`
+- Migration docs.
+- No `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop API, remote/path_target, paste shortcut provider, Copy/New commands, Flow Chat, AI media, AI short-drama, provider, terminal, Canvas runtime, installer/brand, or generated version changes.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/commands/builtin/file/DeleteCommand.test.ts`
+  - Result: initially failed because the test fixture used `MouseEvent`/`document` in Vitest's node environment.
+  - Fix: replaced DOM objects in the test fixture with typed minimal placeholders.
+  - Final result: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Manual status:
+
+- Delete command now uses the shared danger confirm dialog service.
+- Existing delete event payload and cancellation behavior are preserved.
+
 ## ISSUE-1192C File Context Menu Path Utility Contract
 
 Date: 2026-07-04

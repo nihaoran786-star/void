@@ -104,22 +104,23 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192A remote workspace file CRUD connection context complete.
 - [x] ISSUE-1192B desktop reveal-in-explorer argument contract complete.
 - [x] ISSUE-1192C file context menu path utility contract complete.
+- [x] ISSUE-1192D file delete confirmation service complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192C File Context Menu Path Utility Contract`
+Issue: `ISSUE-1192D File Delete Confirmation Service`
 
 Summary:
 
-- Adapted the low-risk context-menu path handling parts of upstream `1ab4d323f`.
-- Added `formatPathForClipboard` so Copy Path writes Windows drive and UNC-style paths with native backslashes while leaving POSIX/remote-style paths unchanged.
-- `NewFileCommand` and `NewFolderCommand` now use shared `dirnameAbsolutePath` for parent path derivation.
-- Protected Delete confirmation, paste shortcut labels, FilesPanel, WorkspaceAPI, desktop APIs, remote/path_target, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files.
+- Adapted the upstream DeleteCommand confirmation improvement as a narrow command-level slice.
+- `DeleteFileCommand` now uses shared `confirmDanger` instead of browser `window.confirm`.
+- Confirmed delete still emits the existing `file:delete` payload; cancelled delete does not emit.
+- Protected FilesPanel, WorkspaceAPI, desktop API, remote/path_target, paste shortcut provider, Copy/New commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
-  - Result: passed, 1 file / 5 tests.
+- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/commands/builtin/file/DeleteCommand.test.ts`
+  - Result: passed, 1 file / 2 tests after fixing the node-environment test fixture.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
