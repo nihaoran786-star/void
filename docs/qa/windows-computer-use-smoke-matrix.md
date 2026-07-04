@@ -109,9 +109,25 @@ The harness is intentionally default-off:
 
 - Default-safe command result: passed; the harness was discovered as ignored and no app action executed.
 - `--ignored` without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`: passed; printed a skip message and did not launch Notepad or run app actions.
-- Real manual smoke with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`: not run.
+- Real manual smoke with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`: passed after the harness was changed to open a unique temporary file and target that file title instead of the initial Notepad child pid.
 
-Manual smoke remains `manual_pending`.
+Covered current-machine smoke:
+
+- Current environment: single display, 150% scale (`AppliedDPI=144`).
+- Target: Notepad opened on a unique temporary `void-cu-smoke-*.txt` file.
+- Actions: `get_app_state`, `app_type_text` with `VOID-CU-SMOKE-{pid}`, and screenshot-basis `app_click`.
+- Result: passed.
+
+Still pending:
+
+- 100% and 125% DPI.
+- Mixed-scale multi-monitor and negative-origin displays.
+- Occluded or covered target windows.
+- UIPI/high-integrity denial.
+- Capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
+- Explicit stale/missing pointer-map failure in a real app window.
+
+Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
 
 ## Required Environment Fields
 

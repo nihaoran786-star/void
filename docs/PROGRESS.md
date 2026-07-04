@@ -85,8 +85,43 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C3 Windows Computer Use automated baseline evidence complete.
 - [x] ISSUE-1130C4 Windows Computer Use smoke environment preflight complete.
 - [x] ISSUE-1130C5 Windows Computer Use manual harness gate complete.
+- [x] ISSUE-1130C6 Windows Notepad single-display smoke evidence complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C6 Windows Notepad Single-Display Smoke Evidence`
+
+Summary:
+
+- Ran the env-enabled Windows manual harness on the current machine.
+- Fixed two harness assumptions found by the real run: Windows 11 Notepad may not expose a top-level window for the launcher child pid, and the `app_type_text` result may not include an attached screenshot.
+- The harness now opens a unique temporary `void-cu-smoke-*.txt` target and uses that title to avoid existing user Notepad windows.
+- Current-machine smoke passed for single-display 150% Notepad `get_app_state`, `app_type_text`, and `app_click` through `DesktopComputerUseHost`.
+- Kept parent `ISSUE-1130C` open because full DPI/multi-monitor/occlusion/UIPI/capture-source coverage is still missing.
+
+Verification:
+
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: failed first with `[WINDOW_NOT_FOUND]` for the initial Notepad child pid, then failed second on a typed-snapshot screenshot assumption, then passed after the harness fixes.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed; the harness remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed; without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, it printed a skip message and executed no app action.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Real Windows smoke is partially covered only for the current single-display 150% Notepad path.
+- Parent `ISSUE-1130C` remains open until 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, capture-source consistency, and real stale/missing pointer-map behavior have evidence or explicit deferrals.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C5 Windows Computer Use Manual Harness Gate`
 
@@ -118,7 +153,7 @@ Remaining:
 - Real Windows smoke is still `manual_pending`; parent `ISSUE-1130C` remains open until required scenarios have evidence or explicit deferrals.
 - The harness is available but not a pass result. Running it with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` will launch Notepad and perform app actions in the user's desktop session.
 
-## Previous Slice
+## Earlier Slice
 
 Issue: `ISSUE-1130C4 Windows Computer Use Smoke Environment Preflight`
 

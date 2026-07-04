@@ -3843,19 +3843,30 @@ mod windows_host_app_action_tests {
     #[cfg(target_os = "windows")]
     struct ManualWindowsComputerUseSmokeGuard {
         child: std::process::Child,
+        file_name: String,
+        file_path: std::path::PathBuf,
     }
 
     #[cfg(target_os = "windows")]
     impl ManualWindowsComputerUseSmokeGuard {
         fn spawn_notepad() -> Self {
+            let file_name = format!("void-cu-smoke-{}.txt", std::process::id());
+            let file_path = std::env::temp_dir().join(&file_name);
+            std::fs::write(&file_path, "Void Windows Computer Use smoke target\r\n")
+                .expect("create manual Computer Use smoke target file");
             let child = std::process::Command::new("notepad.exe")
+                .arg(&file_path)
                 .spawn()
                 .expect("launch notepad for manual Computer Use smoke");
-            Self { child }
+            Self {
+                child,
+                file_name,
+                file_path,
+            }
         }
 
-        fn pid(&self) -> i32 {
-            self.child.id() as i32
+        fn app_selector(&self) -> AppSelector {
+            AppSelector::by_name(self.file_name.clone())
         }
     }
 
@@ -3864,6 +3875,7 @@ mod windows_host_app_action_tests {
         fn drop(&mut self) {
             let _ = self.child.kill();
             let _ = self.child.wait();
+            let _ = std::fs::remove_file(&self.file_path);
         }
     }
 
@@ -3898,8 +3910,7 @@ mod windows_host_app_action_tests {
         }
 
         let notepad = ManualWindowsComputerUseSmokeGuard::spawn_notepad();
-        let pid = notepad.pid();
-        let app = AppSelector::by_pid(pid);
+        let app = notepad.app_selector();
         let host = DesktopComputerUseHost::new();
         tokio::time::sleep(Duration::from_millis(1_500)).await;
 
@@ -3907,7 +3918,10 @@ mod windows_host_app_action_tests {
             .get_app_state(app.clone(), 6, true)
             .await
             .expect("capture Notepad app state before manual smoke");
-        assert_eq!(before.app.pid, Some(pid));
+        let pid = before
+            .app
+            .pid
+            .expect("manual smoke Notepad target should resolve to a pid");
 
         let focus = first_editable_node_target(&before)
             .or_else(|| {
@@ -3933,6 +3947,7 @@ mod windows_host_app_action_tests {
                 })
             })
             .expect("manual smoke needs either an editable node or screenshot basis");
+        let click_target = focus.clone();
 
         let typed = host
             .app_type_text(app.clone(), &format!("VOID-CU-SMOKE-{pid}"), Some(focus))
@@ -3943,26 +3958,7 @@ mod windows_host_app_action_tests {
         let clicked = host
             .app_click(AppClickParams {
                 app: app.clone(),
-                target: ClickTarget::ImageXy {
-                    x: typed
-                        .screenshot
-                        .as_ref()
-                        .expect("typed state screenshot")
-                        .image_width
-                        .saturating_div(2) as i32,
-                    y: typed
-                        .screenshot
-                        .as_ref()
-                        .expect("typed state screenshot")
-                        .image_height
-                        .saturating_div(2) as i32,
-                    screenshot_id: typed
-                        .screenshot
-                        .as_ref()
-                        .expect("typed state screenshot")
-                        .screenshot_id
-                        .clone(),
-                },
+                target: click_target,
                 click_count: 1,
                 mouse_button: "left".to_string(),
                 modifier_keys: Vec::new(),

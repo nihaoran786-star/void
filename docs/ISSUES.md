@@ -1879,6 +1879,24 @@ Result:
 - Verified default run reports the test as ignored; verified `--ignored` without the env var prints a skip message and performs no app action.
 - Real Windows smoke with `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` remains `manual_pending`; `ISSUE-1130C` is not closed.
 
+### ISSUE-1130C6 Windows Notepad Single-Display Smoke Evidence
+
+Priority: P1
+Status: Done
+Goal: Run the env-enabled Windows manual harness once on the current machine and record the limited evidence without claiming full `ISSUE-1130C` completion.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files.
+Acceptance:
+- If the manual harness fails, record the real failure and fix only harness assumptions that block valid evidence collection.
+- The harness must avoid targeting existing user Notepad windows.
+- The env-enabled run must be recorded as limited current-machine evidence, not as full DPI/multi-monitor/occlusion/UIPI/capture-source coverage.
+- Parent `ISSUE-1130C` remains open until the rest of the manual matrix has evidence or explicit deferrals.
+Result:
+- First env-enabled run failed because Windows 11 Notepad did not expose a top-level window for the initial child pid.
+- Fixed the harness to open a unique temporary `void-cu-smoke-*.txt` file and select the target window by that unique title instead of the launcher pid, avoiding existing user Notepad windows.
+- Env-enabled run passed on the current single-display 150% environment: `get_app_state`, `app_type_text`, and `app_click` completed through `DesktopComputerUseHost`.
+- Remaining manual coverage still excludes 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded windows, UIPI/high-integrity denial, capture-source consistency, and real stale-map behavior; `ISSUE-1130C` is not closed.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

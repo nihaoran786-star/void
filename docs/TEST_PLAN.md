@@ -310,6 +310,50 @@ Manual smoke status:
 - Result: `manual_pending`.
 - Notes: The env-enabled command was not run. Future manual smoke must use `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE="1"; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture` and record evidence before any `WIN-CU-*` scenario is marked passed.
 
+## ISSUE-1130C6 Windows Notepad Single-Display Smoke Evidence
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/computer_use/desktop_host.rs` test-only harness fix.
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- Runs the env-enabled harness on the current machine and records limited evidence.
+- No Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or production runtime behavior changed.
+
+Checks:
+
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: failed first.
+  - Notes: Notepad on this Windows 11 machine did not expose a top-level window for the initial launcher child pid; the failure was `[WINDOW_NOT_FOUND] no Windows top-level window matched selector ... pid Some(...)`.
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: failed second.
+  - Notes: after selecting by unique temporary file title, the harness reached `app_type_text`, but the follow-up click assumed the typed snapshot always had an attached screenshot.
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: the harness now opens a unique temporary `void-cu-smoke-*.txt` file, targets that title, types a `VOID-CU-SMOKE-{pid}` marker, and clicks through the existing focus/screenshot target without relying on a post-type screenshot.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed.
+  - Notes: the harness compiled and remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, the harness printed a skip message and did not launch Notepad or execute `app_*` actions.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: partially covered.
+- Covered: current single-display 150% Notepad path through `get_app_state`, `app_type_text`, and `app_click`.
+- Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, capture-source consistency, and real stale/missing pointer-map behavior.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04
