@@ -117,29 +117,30 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-010D RichTextInput root attribute forwarding complete.
 - [x] ISSUE-1170F SSE Retry-After contract coverage complete.
 - [x] ISSUE-1193A IDENTITY frontmatter preservation complete.
+- [x] ISSUE-1193B IDENTITY frontmatter raw metadata preservation complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1193A IDENTITY Frontmatter Preservation`
+Issue: `ISSUE-1193B IDENTITY Frontmatter Raw Metadata Preservation`
 
 Summary:
 
-- Preserved unknown `IDENTITY.md` YAML frontmatter fields when the My Agent identity editor updates known fields.
-- `identityDocument` now stores the original frontmatter block from parsed documents and serializes known editor-owned fields plus unknown metadata fields.
+- Strengthened `IDENTITY.md` preservation so unknown frontmatter comments and relative order survive My Agent identity edits.
+- `identityDocument` now filters known editor-owned top-level fields from the original frontmatter text and appends the remaining raw metadata block instead of re-stringifying unknown YAML.
 - Preserved My Agent page state, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
 
 Verification:
 
 - `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
-  - RED result: failed as expected because unknown `reviewPolicy` frontmatter was dropped.
+  - RED result: failed as expected because unknown frontmatter comments were dropped.
 - `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
-  - Result: passed, 1 test.
+  - Result: passed, 2 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 
 Remaining:
 
-- This slice preserves unknown frontmatter data, not comments or exact original key ordering.
+- This slice preserves unknown top-level metadata blocks, comments, and relative order, but it does not preserve comments attached inside known editor-owned fields because those fields are intentionally rewritten.
 - Full custom agent/mode management remains a separate higher-risk issue.
 
 ## Previous Slice

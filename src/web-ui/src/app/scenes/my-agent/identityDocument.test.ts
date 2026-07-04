@@ -30,4 +30,37 @@ Original body
     expect(serialized).toContain('- reviewer');
     expect(serialized).toContain('Updated body');
   });
+
+  it('preserves unknown frontmatter comments and relative order', () => {
+    const parsed = parseIdentityDocument(`---
+name: Ada
+# release policy must stay with reviewPolicy
+reviewPolicy:
+  requireTests: true
+tags:
+  - reviewer
+creature: fox
+vibe: precise
+emoji: 🧭
+customBlock:
+  owner: platform
+---
+
+Original body
+`);
+
+    const serialized = serializeIdentityDocument({
+      ...parsed,
+      name: 'Ada Lovelace',
+    });
+
+    const reviewPolicyIndex = serialized.indexOf('reviewPolicy:');
+    const tagsIndex = serialized.indexOf('tags:');
+    const customBlockIndex = serialized.indexOf('customBlock:');
+
+    expect(serialized).toContain('# release policy must stay with reviewPolicy');
+    expect(reviewPolicyIndex).toBeGreaterThan(-1);
+    expect(tagsIndex).toBeGreaterThan(reviewPolicyIndex);
+    expect(customBlockIndex).toBeGreaterThan(tagsIndex);
+  });
 });

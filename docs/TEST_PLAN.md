@@ -8,6 +8,33 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1193B IDENTITY Frontmatter Raw Metadata Preservation
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/app/scenes/my-agent/identityDocument.ts`
+- `src/web-ui/src/app/scenes/my-agent/identityDocument.test.ts`
+- Migration docs.
+- No My Agent page layout, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, or generated files changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - RED result: failed as expected because unknown frontmatter comments were dropped by YAML re-stringification.
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - Intermediate result: failed because comments between known and unknown top-level fields were still skipped by the raw filter.
+  - Result after preserving comment lines: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Covers unknown metadata fields, nested unknown blocks, comments adjacent to unknown blocks, and relative order across unknown top-level blocks.
+- Does not preserve comments attached inside known editor-owned fields because those fields are intentionally regenerated.
+- Does not implement broader custom agent/mode management.
+
 ## ISSUE-1193A IDENTITY Frontmatter Preservation
 
 Date: 2026-07-04

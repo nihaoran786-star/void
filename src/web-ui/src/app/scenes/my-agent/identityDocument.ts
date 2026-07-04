@@ -87,15 +87,32 @@ function parseFrontmatterRecord(frontmatter: string): Record<string, unknown> {
 
 function serializeUnknownFrontmatterFields(frontmatter: string): string {
   const knownFields = new Set<string>(FRONTMATTER_FIELDS);
-  const unknownFields = Object.fromEntries(
-    Object.entries(parseFrontmatterRecord(frontmatter)).filter(([field]) => !knownFields.has(field)),
-  );
+  const lines = normalizeLineEndings(frontmatter || '').split('\n');
+  const preserved: string[] = [];
+  let skippingKnownField = false;
 
-  if (Object.keys(unknownFields).length === 0) {
-    return '';
+  for (const line of lines) {
+    const topLevelKey = line.match(/^([A-Za-z0-9_-]+):(?:\s|$)/)?.[1];
+
+    if (line.trimStart().startsWith('#')) {
+      preserved.push(line);
+      continue;
+    }
+
+    if (topLevelKey) {
+      skippingKnownField = knownFields.has(topLevelKey);
+      if (!skippingKnownField) {
+        preserved.push(line);
+      }
+      continue;
+    }
+
+    if (!skippingKnownField) {
+      preserved.push(line);
+    }
   }
 
-  return yaml.stringify(unknownFields).trimEnd();
+  return preserved.join('\n').replace(/^\n+/, '').trimEnd();
 }
 
 export function parseIdentityDocument(content: string): IdentityDocument {

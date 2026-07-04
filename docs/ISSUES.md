@@ -2885,6 +2885,22 @@ Result:
 - `serializeIdentityDocument()` now rewrites known editor fields while appending unknown YAML frontmatter fields from the original document.
 - Preserved My Agent page state, agent runtime, Flow Chat, multi-agent/subagent behavior, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
 
+### ISSUE-1193B IDENTITY Frontmatter Raw Metadata Preservation
+
+Priority: P1
+Status: Done
+Goal: Preserve unknown `IDENTITY.md` frontmatter comments and relative order while still allowing the My Agent identity editor to rewrite known fields.
+Allowed files: `src/web-ui/src/app/scenes/my-agent/identityDocument.ts`, focused tests, migration docs.
+Forbidden files: My Agent page layout, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files.
+Affected module: My Agent identity document parser/serializer.
+Preserved contracts: known identity fields remain editor-owned; unknown frontmatter is preserved as raw metadata and not interpreted by UI.
+Implementation rule: pure parser/serializer slice only; no custom agent/mode management migration in this issue.
+Verification: `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`; `pnpm --dir src/web-ui run type-check`.
+Result:
+- Replaced YAML re-stringification of unknown frontmatter with a raw top-level field filter that removes known editor-owned fields and preserves unknown comments/blocks in their original order.
+- Added focused coverage for preserving comments and relative order around `reviewPolicy`, `tags`, and `customBlock`.
+- Preserved My Agent page state, agent runtime, Flow Chat, multi-agent/subagent behavior, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
+
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
 Priority: P2
