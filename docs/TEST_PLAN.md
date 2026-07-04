@@ -8,6 +8,33 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1193A IDENTITY Frontmatter Preservation
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/app/scenes/my-agent/identityDocument.ts`
+- `src/web-ui/src/app/scenes/my-agent/identityDocument.test.ts`
+- Migration docs.
+- No My Agent page layout, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, or generated files changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - RED result: failed as expected before implementation because unknown `reviewPolicy` and `tags` frontmatter fields were dropped.
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - Result: passed, 1 file / 1 test.
+- `pnpm --dir src/web-ui run type-check`
+  - Initial result: failed because the new `frontmatter` field was incorrectly included in the known frontmatter field type.
+  - Result after excluding `frontmatter` from `IdentityFrontmatterField`: passed.
+
+Coverage:
+
+- Covers preserving unknown YAML metadata fields while editing known persona fields.
+- Does not preserve YAML comments or exact original key ordering.
+- Does not implement broader custom agent/mode management.
+
 ## ISSUE-1170F SSE Retry-After Contract Coverage
 
 Date: 2026-07-04

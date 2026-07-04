@@ -116,28 +116,31 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1120F terminal replay screen-text width guard complete.
 - [x] ISSUE-010D RichTextInput root attribute forwarding complete.
 - [x] ISSUE-1170F SSE Retry-After contract coverage complete.
+- [x] ISSUE-1193A IDENTITY frontmatter preservation complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1170F SSE Retry-After Contract Coverage`
+Issue: `ISSUE-1193A IDENTITY Frontmatter Preservation`
 
 Summary:
 
-- Added focused SSE retry contract coverage for upstream-inspired `Retry-After` edge cases.
-- `void-ai-adapters` now locks RFC 2822 HTTP-date values in the past to immediate retry and invalid `Retry-After` values to exponential backoff.
-- Preserved existing runtime retry behavior, provider adapters, core retry policy, Flow Chat, AI media, AI short-drama, terminal, MCP, Computer Use, provider catalog/config, crate layout, package/workflow files, and generated files.
+- Preserved unknown `IDENTITY.md` YAML frontmatter fields when the My Agent identity editor updates known fields.
+- `identityDocument` now stores the original frontmatter block from parsed documents and serializes known editor-owned fields plus unknown metadata fields.
+- Preserved My Agent page state, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
 
 Verification:
 
-- `cargo test -p void-ai-adapters sse --lib -- --nocapture`
-  - Result: passed, 15 tests.
-- `rustfmt --edition 2021 --check src/crates/ai-adapters/src/client/sse.rs`
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - RED result: failed as expected because unknown `reviewPolicy` frontmatter was dropped.
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`
+  - Result: passed, 1 test.
+- `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 
 Remaining:
 
-- This slice does not move provider HTTP ownership into services or change retry timing behavior; it only locks existing adapter contract.
-- Live provider 429/TPM behavior still requires provider-specific smoke or fixture server integration before release-level parity claims.
+- This slice preserves unknown frontmatter data, not comments or exact original key ordering.
+- Full custom agent/mode management remains a separate higher-risk issue.
 
 ## Previous Slice
 

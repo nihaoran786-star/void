@@ -2869,6 +2869,22 @@ Result:
 - Added focused tests for RFC 2822 `Retry-After` HTTP-date values in the past and invalid `Retry-After` values falling back to exponential delay.
 - Kept existing 429/408/409/425/5xx retry status behavior, seconds cap behavior, and abort-on-drop handler behavior unchanged.
 
+### ISSUE-1193A IDENTITY Frontmatter Preservation
+
+Priority: P1
+Status: Done
+Goal: Preserve unknown `IDENTITY.md` frontmatter fields when the My Agent identity editor updates known persona fields.
+Allowed files: `src/web-ui/src/app/scenes/my-agent/identityDocument.ts`, focused tests, migration docs.
+Forbidden files: My Agent page layout, agent runtime, custom agent registry, multi-agent/subagent execution, Flow Chat, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files.
+Affected module: My Agent identity document parser/serializer.
+Preserved contracts: known identity fields (`name`, `creature`, `vibe`, `emoji`, `modelPrimary`, `modelFast`) remain editor-owned; unknown frontmatter metadata is round-tripped rather than interpreted by UI.
+Implementation rule: pure parser/serializer slice only; no custom agent/mode management migration in this issue.
+Verification: `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts`; `pnpm --dir src/web-ui run type-check`.
+Result:
+- Added `splitMarkdownFrontmatter()` and retained the original frontmatter block in `IdentityDocument`.
+- `serializeIdentityDocument()` now rewrites known editor fields while appending unknown YAML frontmatter fields from the original document.
+- Preserved My Agent page state, agent runtime, Flow Chat, multi-agent/subagent behavior, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
+
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
 Priority: P2
