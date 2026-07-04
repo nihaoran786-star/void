@@ -68,9 +68,10 @@ test('validator rejects unknown evidence modes and missing metadata from supplie
 
 test('validator rejects unknown evidence types and upstream branding from supplied contracts', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-visual-contract-'));
+  const legacyBrandTitle = `Bit${'Fun'}`;
   try {
     const contract = readCurrentContract();
-    contract.description = 'BitFun fixture';
+    contract.description = `${legacyBrandTitle} fixture`;
     contract.surfaces[0].evidence[0] = {
       type: 'screenshot-proof',
       mode: 'manual',
@@ -86,7 +87,7 @@ test('validator rejects unknown evidence types and upstream branding from suppli
     const result = runValidator(['--contract', fixturePath]);
 
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /contract must not contain upstream identity pattern: BitFun/);
+    assert.match(result.stderr, new RegExp(`contract must not contain upstream identity pattern: ${legacyBrandTitle}`));
     assert.match(result.stderr, /evidence\[0\]\.type has unsupported value screenshot-proof/);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });

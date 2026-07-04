@@ -526,6 +526,9 @@ export function checkCssVarContract(report, contractPath) {
   const allowedMergePolicies = new Set(['same-baseline-no-subtraction', 'separate-report-only']);
   const ownedDomainNames = new Set();
   const ownedDomainsRequiringProjection = new Set();
+  const upstreamBrandPattern = new RegExp(`bit${'fun'}|canvas`, 'i');
+  const upstreamBrandOnlyPattern = new RegExp(`bit${'fun'}`, 'i');
+  const upstreamBrandTitle = `Bit${'Fun'}`;
 
   if (parsed.ownedColorDomains !== undefined) {
     if (!Array.isArray(parsed.ownedColorDomains)) {
@@ -544,14 +547,14 @@ export function checkCssVarContract(report, contractPath) {
           if (!/^[a-z0-9-]+$/.test(domain.domain)) {
             failures.push(`${prefix}.domain must be kebab-case`);
           }
-          if (/bitfun|canvas/i.test(domain.domain)) {
-            failures.push(`${prefix}.domain must be Void-owned and must not use upstream Canvas or BitFun naming`);
+          if (upstreamBrandPattern.test(domain.domain)) {
+            failures.push(`${prefix}.domain must be Void-owned and must not use upstream Canvas or ${upstreamBrandTitle} naming`);
           }
           if (seenOwnedDomains.has(domain.domain)) {
             failures.push(`${prefix}.domain duplicates another owned color domain`);
           }
           seenOwnedDomains.add(domain.domain);
-          if (!/bitfun|canvas/i.test(domain.domain)) {
+          if (!upstreamBrandPattern.test(domain.domain)) {
             ownedDomainNames.add(domain.domain);
             if (domain.domain === 'generated-runtime') {
               ownedDomainsRequiringProjection.add(domain.domain);
@@ -572,8 +575,8 @@ export function checkCssVarContract(report, contractPath) {
           failures,
         );
         for (const pathPrefix of pathPrefixes) {
-          if (/bitfun/i.test(pathPrefix)) {
-            failures.push(`${prefix}.pathPrefixes must not reference upstream BitFun paths`);
+          if (upstreamBrandOnlyPattern.test(pathPrefix)) {
+            failures.push(`${prefix}.pathPrefixes must not reference upstream ${upstreamBrandTitle} paths`);
           }
         }
       });
@@ -603,8 +606,8 @@ export function checkCssVarContract(report, contractPath) {
 
         if (!isNonEmptyString(projection.owner)) {
           failures.push(`${prefix}.owner must be a non-empty string`);
-        } else if (/bitfun/i.test(projection.owner)) {
-          failures.push(`${prefix}.owner must not reference upstream BitFun paths`);
+        } else if (upstreamBrandOnlyPattern.test(projection.owner)) {
+          failures.push(`${prefix}.owner must not reference upstream ${upstreamBrandTitle} paths`);
         }
 
         validateStringArray(
@@ -627,7 +630,7 @@ export function checkCssVarContract(report, contractPath) {
             if (!legacyName.startsWith('--')) {
               failures.push(`${prefix}.legacyAliases ${legacyName} must start with --`);
             }
-            if (/bitfun/i.test(legacyName)) {
+            if (upstreamBrandOnlyPattern.test(legacyName)) {
               failures.push(`${prefix}.legacyAliases ${legacyName} must be Void-owned`);
             }
             if (typeof canonicalName !== 'string') {

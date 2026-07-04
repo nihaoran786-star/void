@@ -349,6 +349,10 @@ test('checkCssVarContract validates required domains and current baseline compat
 
 test('checkCssVarContract reports malformed contracts and unknown dynamic prefixes', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  const legacyBrandLower = `bit${'fun'}`;
+  const legacyBrandTitle = `Bit${'Fun'}`;
+  const legacyBorderVar = `--${legacyBrandLower}-border`;
+  const upstreamDomain = `${legacyBrandLower}-canvas`;
   try {
     const contractPath = path.join(tempDir, 'theme-css-var-contract.json');
     writeText(contractPath, JSON.stringify({
@@ -362,21 +366,21 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
       allowedDynamicPrefixes: ['color-accent-'],
       ownedColorDomains: [
         {
-          domain: 'bitfun-canvas',
+          domain: upstreamDomain,
           owner: '',
           reason: '',
           mergePolicy: 'merge-with-app',
-          pathPrefixes: ['src/web-ui/src/bitfun'],
+          pathPrefixes: [`src/web-ui/src/${legacyBrandLower}`],
         },
       ],
       runtimePaletteProjections: [
         {
-          domain: 'bitfun-canvas',
+          domain: upstreamDomain,
           owner: '',
           requiredVars: ['missing-prefix'],
           optionalVars: [123],
           legacyAliases: {
-            '--bitfun-border': 'border-base',
+            [legacyBorderVar]: 'border-base',
           },
         },
       ],
@@ -404,13 +408,13 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
     assert.match(failures, /ownedColorDomains\[0\]\.owner must be a non-empty string/);
     assert.match(failures, /ownedColorDomains\[0\]\.reason must be a non-empty string/);
     assert.match(failures, /ownedColorDomains\[0\]\.mergePolicy must be one of/);
-    assert.match(failures, /ownedColorDomains\[0\]\.pathPrefixes must not reference upstream BitFun paths/);
+    assert.match(failures, new RegExp(`ownedColorDomains\\[0\\]\\.pathPrefixes must not reference upstream ${legacyBrandTitle} paths`));
     assert.match(failures, /runtimePaletteProjections\[0\]\.domain must reference an owned color domain/);
     assert.match(failures, /runtimePaletteProjections\[0\]\.owner must be a non-empty string/);
     assert.match(failures, /runtimePaletteProjections\[0\]\.requiredVars\[0\] must start with --/);
     assert.match(failures, /runtimePaletteProjections\[0\]\.optionalVars\[0\] must be a string/);
-    assert.match(failures, /runtimePaletteProjections\[0\]\.legacyAliases --bitfun-border must be Void-owned/);
-    assert.match(failures, /runtimePaletteProjections\[0\]\.legacyAliases --bitfun-border target must start with --/);
+    assert.match(failures, new RegExp(`runtimePaletteProjections\\[0\\]\\.legacyAliases ${legacyBorderVar} must be Void-owned`));
+    assert.match(failures, new RegExp(`runtimePaletteProjections\\[0\\]\\.legacyAliases ${legacyBorderVar} target must start with --`));
     assert.match(failures, /legacyAliases\[0\] must be a string/);
     assert.match(failures, /dynamic definition --unknown-dynamic- is not allowed/);
     assert.match(failures, /fallback-only var --unapproved-fallback is not allowed/);

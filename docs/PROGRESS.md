@@ -135,7 +135,8 @@ Summary:
 
 Verification:
 
-- Pending final closeout verification commands are recorded in `docs/TEST_PLAN.md` and will be run before marking the goal complete.
+- Final closeout verification is recorded in `docs/TEST_PLAN.md` and passed before the goal was marked complete.
+- Coverage included repository hygiene, core-boundary checks, focused Web/Rust tests, e2e turn-navigation type preflight, and `build:web`.
 
 Remaining:
 
