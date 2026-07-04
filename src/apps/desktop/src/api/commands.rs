@@ -2749,6 +2749,21 @@ pub struct ListDirectoryFilesRequest {
     pub extensions: Option<Vec<String>>,
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn windows_explorer_select_arg(path: &str) -> String {
+    format!("/select,{}", path)
+}
+
+#[cfg(any(target_os = "linux", test))]
+fn linux_file_manager_uri(path: &str) -> String {
+    let encoded_path = path
+        .split('/')
+        .map(|segment| urlencoding::encode(segment).to_string())
+        .collect::<Vec<_>>()
+        .join("/");
+    format!("file://{}", encoded_path)
+}
+
 #[tauri::command]
 pub async fn list_directory_files(
     state: State<'_, AppState>,
@@ -2859,7 +2874,7 @@ pub async fn reveal_in_explorer(
         } else {
             let normalized_path = path_str.replace("/", "\\");
             void_core::util::process_manager::create_command("explorer")
-                .args(["/select,", &normalized_path])
+                .arg(windows_explorer_select_arg(&normalized_path))
                 .spawn()
                 .map_err(|e| format!("Failed to open explorer: {}", e))?;
         }
@@ -2882,20 +2897,63 @@ pub async fn reveal_in_explorer(
 
     #[cfg(target_os = "linux")]
     {
-        let target = if is_directory {
-            path.to_path_buf()
+        if is_directory {
+            void_core::util::process_manager::create_command("xdg-open")
+                .arg(&path_str)
+                .spawn()
+                .map_err(|e| format!("Failed to open file manager: {}", e))?;
         } else {
-            path.parent()
-                .ok_or_else(|| "Failed to get parent directory".to_string())?
-                .to_path_buf()
-        };
-        void_core::util::process_manager::create_command("xdg-open")
-            .arg(target)
-            .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+            let file_uri = linux_file_manager_uri(&path.to_string_lossy());
+            let dbus_ok = match void_core::util::process_manager::create_command("dbus-send")
+                .args([
+                    "--session",
+                    "--print-reply",
+                    "--dest=org.freedesktop.FileManager1",
+                    "/org/freedesktop/FileManager1",
+                    "org.freedesktop.FileManager1.ShowItems",
+                    &format!("array:string:{}", file_uri),
+                    "string:",
+                ])
+                .spawn()
+            {
+                Ok(mut child) => child.wait().map(|status| status.success()).unwrap_or(false),
+                Err(_) => false,
+            };
+
+            if !dbus_ok {
+                let parent = path
+                    .parent()
+                    .ok_or_else(|| "Failed to get parent directory".to_string())?;
+                void_core::util::process_manager::create_command("xdg-open")
+                    .arg(parent)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open file manager: {}", e))?;
+            }
+        }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod reveal_in_explorer_tests {
+    use super::{linux_file_manager_uri, windows_explorer_select_arg};
+
+    #[test]
+    fn windows_select_arg_keeps_select_and_path_in_one_argument() {
+        assert_eq!(
+            windows_explorer_select_arg(r"C:\Users\me\file.txt"),
+            r"/select,C:\Users\me\file.txt"
+        );
+    }
+
+    #[test]
+    fn linux_file_manager_uri_encodes_each_path_segment() {
+        assert_eq!(
+            linux_file_manager_uri("/tmp/my file/#1.txt"),
+            "file:///tmp/my%20file/%231.txt"
+        );
+    }
 }
 
 #[tauri::command]

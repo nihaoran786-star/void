@@ -102,30 +102,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1191B CLI theme truecolor preset fallback governance complete.
 - [x] ISSUE-1191C terminal core history status/source contract complete.
 - [x] ISSUE-1192A remote workspace file CRUD connection context complete.
+- [x] ISSUE-1192B desktop reveal-in-explorer argument contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192A Remote Workspace File CRUD Connection Context`
+Issue: `ISSUE-1192B Desktop Reveal In Explorer Argument Contract`
 
 Summary:
 
-- Adapted upstream `1ab4d323f` remote workspace file CRUD connection context as a focused Void boundary slice.
-- Web `WorkspaceAPI` and desktop command DTOs now carry optional `remoteConnectionId` for create/delete/rename file operations.
-- `FilesPanel` passes current workspace connection id through WorkspaceAPI and uses remote path normalization only when the current workspace is remote.
-- `path_target` remains the sole desktop local/remote resolver for file CRUD operations.
-- Remote registry preferred connection id now disambiguates multiple matches without discarding a unique path match.
-- Protected Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, upstream directory layout, context-menu UI polish, and generated version files.
+- Adapted upstream `reveal_in_explorer` desktop OS integration fixes from `1ab4d323f` and `95441b782`.
+- Windows file reveal now passes `/select,<path>` as one Explorer argument.
+- Linux file reveal now attempts freedesktop FileManager1 `ShowItems` with a segment-encoded `file://` URI, then falls back to opening the parent directory.
+- Directory reveal behavior, remote-path rejection, workspace resolution, remote CRUD, Web UI file commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
 
 Verification:
 
-- `cargo test -p void-services-integrations --features remote-ssh preferred_connection --lib -- --nocapture`
+- `cargo test -p void-desktop reveal_in_explorer_tests --lib -- --nocapture`
   - Result: passed, 2 focused Rust tests.
 - `cargo check -p void-desktop`
   - Result: passed with one existing unrelated dead-code warning in `clipboard_file_api.rs`.
-- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
-  - Result: passed, 1 file / 2 tests.
-- `pnpm --dir src/web-ui run type-check`
-  - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
   - Result: passed, 1 focused Rust test.
 - `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`

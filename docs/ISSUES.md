@@ -3126,3 +3126,24 @@ Result:
 - Added non-recursive `RemoteFileService::remove_dir` and kept recursive delete on `remove_dir_all`.
 - Updated `RemoteWorkspaceRegistry` so preferred connection id only disambiguates multiple matching remote roots.
 - Added focused registry and path normalization tests.
+
+### ISSUE-1192B Desktop Reveal In Explorer Argument Contract
+
+Priority: P1
+Status: Done
+Goal: Adapt the upstream `reveal_in_explorer` desktop OS integration fixes from `1ab4d323f` and `95441b782` without changing workspace resolution or remote file behavior.
+Allowed files: `src/apps/desktop/src/api/commands.rs`, focused tests, migration docs.
+Forbidden files: `path_target`, remote CRUD logic, Web UI file commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand.
+Acceptance:
+- Windows file reveal passes `/select,<path>` as a single Explorer argument.
+- Linux file reveal attempts freedesktop FileManager1 `ShowItems` with a valid encoded `file://` URI, then falls back to opening the parent directory.
+- Directory reveal behavior remains `explorer/open/xdg-open` by directory path.
+- Remote paths still fail before local explorer launch through existing `path_target` behavior.
+- Focused desktop tests and desktop check pass.
+Risk notes:
+- Linux file-manager selection depends on the user's desktop environment supporting `org.freedesktop.FileManager1`; fallback keeps existing behavior.
+Result:
+- Added focused helpers for Windows Explorer file selection argument construction and Linux FileManager1 file URI construction.
+- Windows file reveal now passes `/select,<path>` as one argument.
+- Linux file reveal now tries `org.freedesktop.FileManager1.ShowItems` for file selection and falls back to opening the parent directory with `xdg-open`.
+- Directory reveal behavior and remote-path rejection remain unchanged.

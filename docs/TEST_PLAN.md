@@ -8,6 +8,30 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192B Desktop Reveal In Explorer Argument Contract
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/api/commands.rs`
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`
+- No `path_target`, remote CRUD, Web UI file command, Flow Chat, AI media, AI short-drama, provider, terminal, Canvas runtime, installer/brand, or generated version changes.
+
+Checks:
+
+- `cargo test -p void-desktop reveal_in_explorer_tests --lib -- --nocapture`
+  - Result: passed, 2 focused helper tests.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: existing unrelated warning remains in `src/apps/desktop/src/api/clipboard_file_api.rs` for `parse_clipboard_path_segments` dead code.
+
+Manual status:
+
+- Windows reveal now builds the Explorer select flag and path as a single process argument.
+- Linux file reveal attempts FileManager1 `ShowItems` with an encoded `file://` URI and keeps the parent-directory `xdg-open` fallback.
+- Linux D-Bus behavior was not manually smoked in a Linux desktop session in this Windows workspace.
+
 ## ISSUE-1192A Remote Workspace File CRUD Connection Context
 
 Date: 2026-07-04
