@@ -239,6 +239,14 @@ describe('ModernFlowChatContainer historical empty state', () => {
     vi.stubGlobal('cancelAnimationFrame', (frameId: number) => {
       window.clearTimeout(frameId);
     });
+    vi.stubGlobal('localStorage', {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+      key: vi.fn(() => null),
+      length: 0,
+    });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);

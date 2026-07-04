@@ -106,22 +106,22 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192C file context menu path utility contract complete.
 - [x] ISSUE-1192D file delete confirmation service complete.
 - [x] ISSUE-1192E file explorer paste shortcut label complete.
+- [x] ISSUE-1192F FlowChat history test localStorage fixture complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192E File Explorer Paste Shortcut Label`
+Issue: `ISSUE-1192F FlowChat History Test LocalStorage Fixture`
 
 Summary:
 
-- Adapted the upstream file explorer paste shortcut label fix.
-- Added testable `getPasteShortcut()` helper to keep platform label detection out of menu item literals.
-- Paste menu entries now show `Cmd+V` for Apple user agents and `Ctrl+V` elsewhere.
-- Paste event payloads, menu structure, file operation handlers, FilesPanel, WorkspaceAPI, desktop APIs, remote/path_target, command behavior, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
+- Adapted the upstream FlowChat history-state test fixture hardening.
+- `ModernFlowChatContainer.history-state.test.tsx` now stubs a minimal callable `localStorage` surface in test setup.
+- FlowChat runtime components, FlowChat store, session/history state model, desktop APIs, remote/path_target, context-menu commands, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/shared/context-menu-system/providers/FileExplorerMenuProvider.test.ts`
-  - Result: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Result: passed, 1 file / 8 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`

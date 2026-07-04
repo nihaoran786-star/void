@@ -8,6 +8,28 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192F FlowChat History Test LocalStorage Fixture
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+- Migration docs.
+- No FlowChat runtime component, FlowChat store, session/history state model, desktop API, remote/path_target, context-menu command, AI media, AI short-drama, provider, terminal, Canvas runtime, installer/brand, or generated version changes.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Result: passed, 1 file / 8 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Manual status:
+
+- Test setup now supplies a minimal callable `localStorage` surface for Vitest/jsdom environment differences.
+- Runtime browser storage behavior was not changed.
+
 ## ISSUE-1192E File Explorer Paste Shortcut Label
 
 Date: 2026-07-04

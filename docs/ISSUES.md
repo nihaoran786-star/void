@@ -3207,3 +3207,20 @@ Result:
 - File explorer paste menu entries now show `Cmd+V` on Apple user agents and `Ctrl+V` elsewhere.
 - Paste event payloads and menu structure remain unchanged.
 - Added focused provider tests for Apple and non-Apple shortcut labels.
+
+### ISSUE-1192F FlowChat History Test LocalStorage Fixture
+
+Priority: P2
+Status: Done
+Goal: Adapt the upstream FlowChat history-state test fixture hardening so Vitest/jsdom localStorage shape differences do not break history-state tests.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`, migration docs.
+Forbidden files: FlowChat runtime components, FlowChat store, session/history state model, desktop APIs, remote/path_target, context-menu commands, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand.
+Acceptance:
+- The history-state test explicitly stubs a callable `localStorage` surface.
+- FlowChat runtime behavior and production code remain unchanged.
+- Focused FlowChat history-state tests pass.
+Risk notes:
+- This is test-environment resilience only; it does not prove or change runtime browser storage behavior.
+Result:
+- `ModernFlowChatContainer.history-state.test.tsx` now stubs a minimal callable `localStorage` in `beforeEach`.
+- FlowChat production components, store, session/history state model, and UI behavior were not changed.
