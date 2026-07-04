@@ -1965,6 +1965,22 @@ Result:
 - Extended the env-enabled Notepad manual harness to attempt a stale `ImageXy` click and assert it fails before dispatching input.
 - Current-machine smoke now covers `WIN-CU-STALE-MAP`; parent `ISSUE-1130C` remains open because 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency still need evidence or explicit deferrals.
 
+### ISSUE-1130C8 Windows Foreground Scroll and Key Chord Smoke Evidence
+
+Priority: P1
+Status: Done
+Goal: Extend the default-off Windows manual harness to record current-machine foreground `app_scroll` and `app_key_chord` evidence without claiming full parent `ISSUE-1130C` completion.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files.
+Acceptance:
+- Default ignored and env gates still prevent accidental Notepad launches or app actions.
+- Env-enabled Notepad smoke covers `get_app_state`, `app_type_text`, `app_click`, `app_scroll`, `app_key_chord`, and stale-map fail-closed behavior on the current single-display 150% setup.
+- Parent `ISSUE-1130C` remains open for 100%/125% DPI, mixed-scale multi-monitor/negative origin, occlusion, UIPI/high-integrity denial, and capture-source consistency.
+Result:
+- Extended the env-enabled Notepad manual harness to scroll the focused Notepad target and send `ctrl+end` through `app_key_chord` after the existing type/click path.
+- Preserved the default-off harness gates and stale `screenshot_id` fail-closed assertion.
+- Current-machine smoke now partially covers `WIN-CU-FOREGROUND`; parent `ISSUE-1130C` remains open for the remaining Windows matrix.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2

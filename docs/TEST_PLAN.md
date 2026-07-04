@@ -475,6 +475,44 @@ Manual smoke status:
 - Covered: `WIN-CU-STALE-MAP` on current single-display 150% Notepad path; stale explicit `screenshot_id` fails closed instead of falling back to unrelated pointer state.
 - Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency.
 
+## ISSUE-1130C8 Windows Foreground Scroll and Key Chord Smoke Evidence
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/computer_use/desktop_host.rs` Windows-only manual harness.
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or unrelated production runtime behavior changed.
+
+Checks:
+
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed.
+  - Notes: the harness remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, the harness printed a skip message and did not launch Notepad or execute `app_*` actions.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+  - Notes: existing blocked-input fail-closed and uncertain-delivery warning contracts remain intact.
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: the harness opened a unique Notepad target, completed `get_app_state`, `app_type_text`, `app_click`, `app_scroll`, `app_key_chord` with `ctrl+end`, and stale `screenshot_id` fail-closed verification.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: failed first on formatting around the new `app_key_chord` call, then passed after formatting the call.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: partially covered.
+- Covered: current single-display 150% foreground Notepad path for `get_app_state`, `app_type_text`, screenshot-basis `app_click`, focus-target `app_scroll`, `app_key_chord`, and stale explicit `screenshot_id` fail-closed behavior.
+- Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

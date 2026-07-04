@@ -3973,7 +3973,7 @@ mod windows_host_app_action_tests {
         let clicked = host
             .app_click(AppClickParams {
                 app: app.clone(),
-                target: click_target,
+                target: click_target.clone(),
                 click_count: 1,
                 mouse_button: "left".to_string(),
                 modifier_keys: Vec::new(),
@@ -3982,6 +3982,29 @@ mod windows_host_app_action_tests {
             .await
             .expect("click Notepad screenshot center through ComputerUseHost");
         assert_eq!(clicked.app.pid, Some(pid));
+
+        let scrolled = host
+            .app_scroll(app.clone(), Some(click_target.clone()), 0, -120)
+            .await
+            .expect("scroll Notepad through ComputerUseHost");
+        assert_eq!(scrolled.app.pid, Some(pid));
+
+        let key_focus_idx = match click_target {
+            ClickTarget::NodeIdx { idx } => Some(idx),
+            _ => first_editable_node_target(&clicked).and_then(|target| match target {
+                ClickTarget::NodeIdx { idx } => Some(idx),
+                _ => None,
+            }),
+        };
+        let keyed = host
+            .app_key_chord(
+                app.clone(),
+                vec!["ctrl".to_string(), "end".to_string()],
+                key_focus_idx,
+            )
+            .await
+            .expect("send key chord to Notepad through ComputerUseHost");
+        assert_eq!(keyed.app.pid, Some(pid));
 
         let stale = host
             .app_click(AppClickParams {

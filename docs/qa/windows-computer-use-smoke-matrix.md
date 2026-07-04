@@ -115,7 +115,7 @@ Covered current-machine smoke:
 
 - Current environment: single display, 150% scale (`AppliedDPI=144`).
 - Target: Notepad opened on a unique temporary `void-cu-smoke-*.txt` file.
-- Actions: `get_app_state`, `app_type_text` with `VOID-CU-SMOKE-{pid}`, and screenshot-basis `app_click`.
+- Actions: `get_app_state`, `app_type_text` with `VOID-CU-SMOKE-{pid}`, screenshot-basis `app_click`, focus-target `app_scroll`, and `app_key_chord` with `ctrl+end`.
 - Result: passed.
 
 ### 2026-07-04 Stale Screenshot Map Evidence
@@ -163,6 +163,45 @@ Still pending:
 - Occluded or covered target windows.
 - UIPI/high-integrity denial.
 - Capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
+
+Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
+
+### 2026-07-04 Foreground Scroll and Key Chord Evidence
+
+Status: `partially_passed`
+
+The harness now also verifies foreground scroll and key-chord delivery on the current machine:
+
+- Current environment: single display, 150% scale (`AppliedDPI=144`).
+- Target: Notepad opened on a unique temporary `void-cu-smoke-*.txt` file.
+- Actions: `get_app_state`, `app_type_text`, screenshot-basis `app_click`, focus-target `app_scroll`, and `app_key_chord` with `ctrl+end`.
+- Result: passed.
+
+Covered scenario:
+
+```yaml
+scenario_id: WIN-CU-FOREGROUND
+status: partially_passed
+date: 2026-07-04
+operator: Codex manual harness
+commit: pending current slice commit
+windows: Microsoft Windows 11 Home Chinese edition, version 10.0.26200, build 26200, 64-bit
+display_topology: one primary display, logical bounds {X=0,Y=0,Width=1707,Height=960}, AppliedDPI=144 / 150%
+target: Notepad unique temporary void-cu-smoke-*.txt
+target_integrity: current user session, not elevated
+hwnd: resolved by DesktopComputerUseHost during get_app_state
+pid: resolved from get_app_state result
+screenshot_id: returned by get_app_state when screenshot fallback is needed
+capture_source: existing get_app_state app screenshot path
+action: get_app_state, app_type_text, app_click, app_scroll dx=0 dy=-120, app_key_chord ctrl+end
+result_status: passed for harness-level AppStateSnapshot assertions
+result_source: DesktopComputerUseHost app action path
+result_path: foreground Notepad app action smoke
+result_error_code:
+result_warning:
+evidence: env-enabled windows_computer_use_manual_harness passed
+notes: Covers foreground action delivery on current single-display 150% Notepad only. Does not cover 100/125 DPI, mixed-monitor negative origin, occlusion, UIPI, or capture-source consistency.
+```
 
 Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
 

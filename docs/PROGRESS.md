@@ -90,8 +90,41 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1110D FlowChat history session open intent contract complete.
 - [x] ISSUE-1110E FlowChat history placeholder intent integration complete.
 - [x] ISSUE-1110F session nav list state contract complete.
+- [x] ISSUE-1130C8 Windows foreground scroll/key chord smoke evidence complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C8 Windows Foreground Scroll and Key Chord Smoke Evidence`
+
+Summary:
+
+- Extended the default-off Windows Notepad manual harness to cover foreground `app_scroll` and `app_key_chord` after the existing `get_app_state`, `app_type_text`, `app_click`, and stale-map fail-closed paths.
+- Preserved the double gate: the harness remains `#[ignore]`, and `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1` is still required before launching Notepad or dispatching app input.
+- Kept the parent `ISSUE-1130C` open because this only proves the current single-display 150% foreground Notepad path.
+- Protected Computer Use schemas, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, and unrelated generated version files.
+
+Verification:
+
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed; the harness remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed; without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, the harness printed a skip message and did not launch Notepad or execute app actions.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed on Windows 11 Home Chinese edition build 26200, single display, 150% scale.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: failed first on formatting around `app_key_chord`, then passed after formatting the call.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Parent `ISSUE-1130C` still needs 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded target, UIPI/high-integrity denial, and capture-source consistency evidence or explicit deferrals.
+
+## Previous Slice
 
 Issue: `ISSUE-1110F Session Nav List State Contract`
 
