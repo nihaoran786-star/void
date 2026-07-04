@@ -193,6 +193,28 @@ describeWithJsdom('RichTextInput external sync', () => {
     expect(onKeyDown).not.toHaveBeenCalled();
   });
 
+  it('forwards standard div attributes to the editable root', async () => {
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value=""
+          onChange={() => {}}
+          contexts={emptyContexts}
+          onRemoveContext={() => {}}
+          data-testid="composer-input"
+          aria-label="Composer input"
+          spellCheck={false}
+        />
+      );
+    });
+
+    const editor = container.querySelector('.rich-text-input');
+    expect(editor).toBeInstanceOf(HTMLDivElement);
+    expect(editor?.getAttribute('data-testid')).toBe('composer-input');
+    expect(editor?.getAttribute('aria-label')).toBe('Composer input');
+    expect(editor?.getAttribute('spellcheck')).toBe('false');
+  });
+
   it('opens mention with only the needed leading space', async () => {
     const onMentionStateChange = vi.fn();
 

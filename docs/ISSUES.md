@@ -357,6 +357,20 @@ Verification: pure popup-bound calculation tests if introduced; targeted compone
 Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
 Result: Added CSS viewport bounds for mention and slash popups; TypeScript, RichTextInput tests, and direct Sass compilation passed.
 
+### ISSUE-010D RichTextInput Root Attribute Forwarding
+
+Priority: P1
+Status: Done
+Goal: Adapt the low-risk upstream `RichTextInput` root-prop forwarding improvement so E2E selectors, ARIA labels, and standard editable-root attributes can be attached without wrapping or modifying parent chat components.
+Allowed files: `src/web-ui/src/flow_chat/components/RichTextInput.tsx`, `src/web-ui/src/flow_chat/components/RichTextInput.test.tsx`, docs.
+Forbidden files: `ChatInput.tsx`, Flow Chat store/session/history/sidebar/header files, BTW/subagent modules, AI media, AI short-drama, provider adapters, terminal, desktop/Rust APIs, installer/brand files.
+Affected module: Chat input UI.
+Preserved contracts: `RichTextInput` continues to own editor input, IME, mention, paste, and tag behavior; parent chat surfaces can only pass standard div attributes through the component boundary.
+Implementation rule: tests first; no whole-file upstream copy; no inline skill/slash runtime expansion in this slice.
+Verification: targeted `RichTextInput` tests and `pnpm --dir src/web-ui run type-check`.
+Docs to update: `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+Result: `RichTextInputProps` now extends standard `HTMLAttributes<HTMLDivElement>` minus locally owned handlers, and the contenteditable root receives `...restProps` before local controlled attributes override ownership-critical fields.
+
 ### ISSUE-011 Chat Input Image Paste Undo Slice
 
 Priority: P1

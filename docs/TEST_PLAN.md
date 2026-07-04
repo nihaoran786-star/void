@@ -8,6 +8,32 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-010D RichTextInput Root Attribute Forwarding
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/flow_chat/components/RichTextInput.tsx`
+- `src/web-ui/src/flow_chat/components/RichTextInput.test.tsx`
+- Migration docs.
+- No `ChatInput.tsx`, Flow Chat store/session/history/sidebar/header files, BTW/subagent modules, AI media, AI short-drama, provider adapters, terminal, desktop/Rust APIs, installer/brand files, or generated files changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/RichTextInput.test.tsx`
+  - RED result: failed as expected before implementation because `data-testid` was not forwarded to the editable root.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/RichTextInput.test.tsx src/flow_chat/components/richTextInputSync.test.ts`
+  - Result: passed, 2 files / 10 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Covers `data-*`, `aria-*`, and standard div attributes at the `RichTextInput` component boundary.
+- Confirms local owned attributes still come from `RichTextInput` because `...restProps` is applied before `ref`, `className`, `contentEditable`, and local handlers.
+- Does not cover upstream inline skill/slash runtime expansion; that remains separate because it crosses chat-input picker and skill-runtime boundaries.
+
 ## ISSUE-1120F Terminal Replay Screen-Text Width Guard
 
 Date: 2026-07-04

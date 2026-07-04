@@ -114,31 +114,31 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140F provider image context workspace containment complete.
 - [x] ISSUE-1120E terminal resize local acceptance gate complete.
 - [x] ISSUE-1120F terminal replay screen-text width guard complete.
+- [x] ISSUE-010D RichTextInput root attribute forwarding complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1120F Terminal Replay Screen-Text Width Guard`
+Issue: `ISSUE-010D RichTextInput Root Attribute Forwarding`
 
 Summary:
 
-- Added a terminal replay helper that distinguishes printable screen text from resize markers, OSC metadata, cursor-only sequences, and whitespace/control-only data.
-- `ConnectedTerminal` still applies replay resize events, but only enables or expands the history replay shrink guard when queued replay data contains screen text.
-- Preserved terminal Rust core, desktop terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, and generated files.
+- Adapted the low-risk upstream `RichTextInput` root-prop forwarding improvement.
+- `RichTextInputProps` now accepts standard `HTMLAttributes<HTMLDivElement>` except locally owned handlers, and the contenteditable root receives `data-*`, `aria-*`, `spellCheck`, and other standard div attributes.
+- Preserved `RichTextInput` ownership of className, contentEditable, IME, mention, paste, tags, Flow Chat state, BTW/subagent behavior, AI media, AI short-drama, provider, terminal, desktop/Rust APIs, and generated files.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts`
-  - RED result: failed as expected because `terminalReplayHasScreenText` did not exist.
-- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
-  - Result: passed, 18 tests.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/RichTextInput.test.tsx`
+  - RED result: failed as expected because `data-testid` was not forwarded to the editable root.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/RichTextInput.test.tsx src/flow_chat/components/richTextInputSync.test.ts`
+  - Result: passed, 10 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 
 Remaining:
 
-- Terminal ack still uses the existing character-count contract; byte-count ack remains a separate frontend/backend contract issue.
-- Remote terminal history replay remains explicitly unsupported for remote sessions.
-- This slice does not add browser visual smoke for the terminal open animation; it covers the module helper and type boundary.
+- This slice does not implement upstream inline skill/slash trigger runtime expansion; that remains a separate chat-input/runtime issue because it crosses picker state and skill-runtime boundaries.
+- Browser manual smoke for parent chat surfaces was not run; focused jsdom tests and type-check cover the component boundary.
 
 ## Previous Slice
 

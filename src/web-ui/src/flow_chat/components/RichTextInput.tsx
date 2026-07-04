@@ -19,7 +19,11 @@ export interface MentionState {
   startOffset: number;  // Position of the @ symbol in text
 }
 
-export interface RichTextInputProps {
+export interface RichTextInputProps
+  extends Omit<
+    React.HTMLAttributes<HTMLDivElement>,
+    'onChange' | 'onFocus' | 'onBlur' | 'onCompositionStart' | 'onCompositionEnd'
+  > {
   value: string;
   onChange: (value: string, contexts: ContextItem[]) => void;
   onLargePaste?: (text: string) => string | null;
@@ -137,6 +141,7 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
   contexts,
   onRemoveContext,
   onMentionStateChange,
+  ...restProps
 }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const internalRef = (ref as React.RefObject<HTMLDivElement>) || editorRef;
@@ -818,6 +823,7 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
 
   return (
     <div
+      {...restProps}
       ref={internalRef}
       className={`rich-text-input ${isFocused ? 'rich-text-input--focused' : ''} ${className}`}
       contentEditable={!disabled}
