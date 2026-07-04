@@ -111,33 +111,29 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192G upstream remote workspace wave closeout complete.
 - [x] ISSUE-1190A1 Flow Chat turn-navigation e2e type preflight complete.
 - [x] ISSUE-1190A2 Flow Chat turn-navigation e2e lockfile reproducibility complete.
+- [x] ISSUE-1140F provider image context workspace containment complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1190A2 Flow Chat Turn Navigation E2E Lockfile Reproducibility`
+Issue: `ISSUE-1140F Provider Image Context Workspace Containment`
 
 Summary:
 
-- Committed the root `pnpm-lock.yaml` update implied by `tests/e2e/package.json` adding `@wdio/globals` for the turn-navigation e2e type preflight.
-- Kept this as dependency-lock governance only.
-- Preserved Flow Chat runtime, store, session restore, backend, AI media, AI short-drama, terminal, provider, Canvas, and generated-version files.
-- Kept broader legacy e2e type debt and full fixture/runtime validation as separate risks.
+- Added workspace containment for ordinary `image_contexts` before image bytes are processed for provider multimodal payloads.
+- Workspace-relative image paths still process successfully.
+- Absolute image paths outside the active workspace are denied before provider payload construction.
+- Preserved `AnalyzeImage`, `ViewImage`, provider adapters, Flow Chat, BTW, desktop upload APIs, AI media, AI short-drama, terminal, Canvas, and tool manifest/runtime behavior.
 
 Verification:
 
-- `pnpm install --lockfile-only --ignore-scripts`
-  - Result: passed; workspace lockfile was already up to date.
-- `pnpm install --frozen-lockfile --ignore-scripts`
+- `cargo test -p void-core process_image_contexts_ --lib -- --nocapture`
   - Result: passed.
-- `pnpm --dir tests/e2e exec tsc --noEmit -p tsconfig.turn-navigation.json`
-  - Result: passed.
-- `git diff --check -- pnpm-lock.yaml docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
-  - Result: passed with LF/CRLF warnings only.
+- Broader verification is recorded in `docs/TEST_PLAN.md`.
 
 Remaining:
 
-- Full persisted long-session fixture execution still requires `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
-- Broader legacy e2e type debt remains outside this slice.
+- Global image context store session/workspace scoping remains a separate higher-coupling issue.
+- Historical no-workspace image contexts keep existing behavior in this slice.
 
 ## Previous Slice
 

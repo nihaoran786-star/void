@@ -6487,6 +6487,43 @@ Remaining risk:
 - Image summary generation, persistence, and model invocation remain future work.
 - Future consumers must keep the generic image tool short-drama-agnostic and call the short-drama bridge explicitly.
 
+## ISSUE-1140F Provider Image Context Workspace Containment
+
+Scope:
+
+- Current slice covers `process_image_contexts_for_provider` path handling in `src/crates/core/src/agentic/image_analysis/image_processing.rs`.
+- No `AnalyzeImage`, `ViewImage`, provider adapter, Flow Chat UI, BTW UI, desktop upload API, AI media, AI short-drama, tool manifest/runtime registration, or generated file changed.
+
+RED checks:
+
+- `cargo test -p void-core process_image_contexts_ --lib -- --nocapture`
+  - Result before implementation: failed because an absolute image path outside the workspace was read and processed successfully.
+
+GREEN checks:
+
+- `cargo test -p void-core process_image_contexts_ --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-core image_analysis --lib -- --nocapture`
+  - Result: passed, 4 tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/image_analysis/image_processing.rs`
+  - Result: passed after formatting the target file.
+- `git diff --check -- src/crates/core/src/agentic/image_analysis/image_processing.rs docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with LF/CRLF warnings only.
+
+Coverage:
+
+- Workspace-relative image paths under the active workspace process successfully.
+- Absolute image paths outside the active workspace are rejected before provider payload construction.
+- The test uses real 1x1 PNG bytes and the real processing path.
+
+Remaining risk:
+
+- This does not add session/workspace scoping to the global image context store.
+- This does not change historical no-workspace image context behavior.
+- Provider adapter multimodal conversion remains covered by existing adapter tests, not this helper test.
+
 ## ISSUE-1120D1 Terminal Frontend Output Ack Integration
 
 Scope:

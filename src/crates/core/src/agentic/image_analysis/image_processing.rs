@@ -89,6 +89,33 @@ pub fn resolve_image_path(path: &str, workspace_path: Option<&Path>) -> VoidResu
     }
 }
 
+fn resolve_workspace_image_path(path: &str, workspace_path: Option<&Path>) -> VoidResult<PathBuf> {
+    let resolved = resolve_image_path(path, workspace_path)?;
+
+    let Some(workspace) = workspace_path else {
+        return Ok(resolved);
+    };
+
+    let canonical_workspace = workspace.canonicalize().map_err(|e| {
+        VoidError::io(format!(
+            "Failed to resolve workspace path for image context: {}",
+            e
+        ))
+    })?;
+    let canonical_image = resolved
+        .canonicalize()
+        .map_err(|e| VoidError::io(format!("Failed to resolve image path: {}", e)))?;
+
+    if !canonical_image.starts_with(&canonical_workspace) {
+        return Err(VoidError::validation(format!(
+            "image path resolves outside the current workspace: {}",
+            path
+        )));
+    }
+
+    Ok(canonical_image)
+}
+
 pub async fn load_image_from_path(
     path: &Path,
     _workspace_path: Option<&Path>,
@@ -345,7 +372,7 @@ pub async fn process_image_contexts_for_provider(
             let (data, data_url_mime) = decode_data_url(data_url)?;
             (data, data_url_mime.or_else(|| Some(ctx.mime_type.clone())))
         } else if let Some(path_str) = &ctx.image_path {
-            let path = resolve_image_path(path_str, workspace_path)?;
+            let path = resolve_workspace_image_path(path_str, workspace_path)?;
             let data = load_image_from_path(&path, workspace_path).await?;
             let detected_mime = detect_mime_type_from_bytes(&data, Some(&ctx.mime_type)).ok();
             (data, detected_mime.or_else(|| Some(ctx.mime_type.clone())))
@@ -493,6 +520,7 @@ fn encode_dynamic_image(
 mod tests {
     use super::*;
     use crate::service::config::types::{DefaultModelsConfig, ModelCapability, ModelCategory};
+    use std::fs as std_fs;
 
     fn test_model(
         id: &str,
@@ -573,5 +601,79 @@ mod tests {
             .to_string();
         assert!(unsupported_error
             .contains("Model does not support image understanding: text-only-model"));
+    }
+
+    fn temp_dir(prefix: &str) -> PathBuf {
+        let root = std::env::temp_dir().join(format!("{prefix}-{}", uuid::Uuid::new_v4()));
+        std_fs::create_dir_all(&root).expect("create temp directory");
+        root
+    }
+
+    fn tiny_png_bytes() -> Vec<u8> {
+        BASE64
+            .decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+            )
+            .expect("decode tiny png")
+    }
+
+    #[tokio::test]
+    async fn process_image_contexts_accepts_workspace_relative_image_paths() {
+        let workspace = temp_dir("void-image-context-workspace");
+        let image_dir = workspace.join("assets");
+        std_fs::create_dir_all(&image_dir).expect("create image dir");
+        std_fs::write(image_dir.join("inside.png"), tiny_png_bytes()).expect("write image");
+
+        let images = process_image_contexts_for_provider(
+            &[ImageContextData {
+                id: "inside".to_string(),
+                image_path: Some("assets/inside.png".to_string()),
+                data_url: None,
+                mime_type: "image/png".to_string(),
+                metadata: None,
+            }],
+            "openai",
+            Some(&workspace),
+        )
+        .await
+        .expect("workspace-relative image should process");
+
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].mime_type, "image/png");
+
+        let _ = std_fs::remove_dir_all(workspace);
+    }
+
+    #[tokio::test]
+    async fn process_image_contexts_denies_absolute_image_paths_outside_workspace() {
+        let workspace = temp_dir("void-image-context-workspace");
+        let outside = temp_dir("void-image-context-outside").join("outside.png");
+        std_fs::write(&outside, tiny_png_bytes()).expect("write outside image");
+
+        let error = process_image_contexts_for_provider(
+            &[ImageContextData {
+                id: "outside".to_string(),
+                image_path: Some(outside.to_string_lossy().to_string()),
+                data_url: None,
+                mime_type: "image/png".to_string(),
+                metadata: None,
+            }],
+            "openai",
+            Some(&workspace),
+        )
+        .await
+        .expect_err("absolute image outside workspace should be denied");
+
+        assert!(
+            error
+                .to_string()
+                .contains("image path resolves outside the current workspace"),
+            "unexpected error: {error}"
+        );
+
+        let _ = std_fs::remove_dir_all(workspace);
+        if let Some(parent) = outside.parent() {
+            let _ = std_fs::remove_dir_all(parent);
+        }
     }
 }

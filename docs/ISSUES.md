@@ -2279,6 +2279,24 @@ Result:
 - Added focused tests for low-context reference output, local image path conversion, handle resolution, non-image rejection, remote/data URL rejection, and missing-artifact errors.
 - Confirmed the bridge does not modify Main AI export behavior and does not touch UI, provider, media service, or generic image-analysis code.
 
+### ISSUE-1140F Provider Image Context Workspace Containment
+
+Priority: P1
+Status: Done
+Goal: Enforce workspace containment for ordinary `image_contexts` before image bytes are processed for provider multimodal payloads.
+Allowed files: `src/crates/core/src/agentic/image_analysis/image_processing.rs`, focused tests, docs.
+Forbidden files: `AnalyzeImage` / `ViewImage` behavior, provider adapters, Flow Chat UI, BTW UI, desktop upload APIs, media services, short-drama services, tool manifest/runtime registration.
+Acceptance:
+- Workspace-relative image paths under the active workspace still process successfully.
+- Absolute image paths outside the active workspace are rejected before bytes are read into provider payloads.
+- The failure is explicit and does not rely on provider adapter errors or UI fallback strings.
+- `AnalyzeImage`, `ViewImage`, AI media, short-drama, Flow Chat, and provider adapters remain unchanged.
+Result:
+- Added focused `process_image_contexts_for_provider` tests for workspace-relative success and absolute outside-workspace denial.
+- Added a provider image-context path resolver that canonicalizes workspace and image paths and rejects paths outside the active workspace.
+- Preserved existing `data_url` handling and no-workspace path behavior for legacy contexts; the containment guard applies when a workspace path is available.
+- Did not change `AnalyzeImage`, `ViewImage`, provider adapters, Flow Chat, BTW, AI media, AI short-drama, desktop upload APIs, or tool manifests.
+
 ### ISSUE-1150 MCP and Tool Runtime Reliability Delta Audit
 
 Priority: P1
