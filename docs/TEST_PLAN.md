@@ -8,6 +8,32 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1150E2 Tool Pipeline Outcome Helper Coverage Completion
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/crates/core/src/agentic/tools/pipeline/types.rs`
+- Migration docs.
+- No `ToolApprovalBar`, Flow Chat card, event ABI, MCP manager lifecycle, provider adapter, media service, short-drama service, crate layout, or tool execution behavior changed.
+
+Checks:
+
+- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture`
+  - Result: passed, 10 tests.
+  - Notes: covers user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, tool timeout, cancellation, invalid arguments, not found, generic execution error, and legacy category strings.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs`
+  - Initial result: failed after adding tests because rustfmt wanted line wrapping changes.
+  - Result after `rustfmt --edition 2021 src/crates/core/src/agentic/tools/pipeline/types.rs`: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+
+Coverage:
+
+- `ToolPipelineOutcome` now has direct helper-level assertions for `InvalidArguments`, `NotFound`, and `ExecutionError` status/source/category/error-code/retryability.
+- Assistant-facing error result shape, UI rendering, and event schema remain unchanged.
+
 ## ISSUE-1190A1 Flow Chat Turn Navigation E2E Type Preflight
 
 Date: 2026-07-04

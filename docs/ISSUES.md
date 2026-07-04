@@ -2474,6 +2474,22 @@ Result:
 - Routed the existing `classify_tool_error()` through the typed helper while preserving the current error presentation shape.
 - Added focused unit tests for user rejection, confirmation timeout, runtime denial, collapsed-tool gate denial, MCP runtime error, tool timeout, cancellation, and legacy category string stability.
 
+### ISSUE-1150E2 Tool Pipeline Outcome Helper Coverage Completion
+
+Priority: P2
+Status: Done
+Goal: Close the remaining direct helper-test coverage gap for `not-found`, invalid-arguments, and generic execution-error tool outcomes without changing UI, event ABI, or runtime behavior.
+Allowed files: `src/crates/core/src/agentic/tools/pipeline/types.rs`, docs.
+Forbidden files: `ToolApprovalBar`, Flow Chat cards, `void_events` event fields, MCP manager lifecycle, provider adapters, media services, short-drama services, crate moves, tool execution behavior.
+Acceptance:
+- Direct helper tests assert status, source, category, error code, and retryability for invalid arguments.
+- Direct helper tests assert status, source, category, error code, and retryability for not-found outcomes.
+- Direct helper tests assert status, source, category, error code, and retryability for generic execution errors.
+- No assistant-facing error shape, UI rendering state, or event schema changes are introduced.
+Result:
+- Added direct focused tests for `InvalidArguments`, `NotFound`, and `ExecutionError` outcome details.
+- Kept production `ToolPipelineOutcome::from_error` behavior unchanged.
+
 ### ISSUE-1150F Tool Runtime Owner Migration Planning Gate
 
 Priority: P2

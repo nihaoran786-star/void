@@ -368,6 +368,46 @@ mod tests {
     }
 
     #[test]
+    fn tool_pipeline_outcome_classifies_invalid_arguments() {
+        let result = outcome(VoidError::Validation(
+            "Arguments are invalid JSON.".to_string(),
+        ));
+
+        assert_eq!(result.status, ToolPipelineOutcomeStatus::Error);
+        assert_eq!(result.source, ToolPipelineOutcomeSource::ToolPipeline);
+        assert_eq!(
+            result.category,
+            ToolPipelineOutcomeCategory::InvalidArguments
+        );
+        assert_eq!(result.error_code, "tool_invalid_arguments");
+        assert!(!result.retryable);
+    }
+
+    #[test]
+    fn tool_pipeline_outcome_classifies_not_found() {
+        let result = outcome(VoidError::NotFound(
+            "Tool task not found: tool_1".to_string(),
+        ));
+
+        assert_eq!(result.status, ToolPipelineOutcomeStatus::Error);
+        assert_eq!(result.source, ToolPipelineOutcomeSource::ToolPipeline);
+        assert_eq!(result.category, ToolPipelineOutcomeCategory::NotFound);
+        assert_eq!(result.error_code, "tool_not_found");
+        assert!(!result.retryable);
+    }
+
+    #[test]
+    fn tool_pipeline_outcome_classifies_generic_execution_error() {
+        let result = outcome(VoidError::Tool("tool exited with status 1".to_string()));
+
+        assert_eq!(result.status, ToolPipelineOutcomeStatus::Error);
+        assert_eq!(result.source, ToolPipelineOutcomeSource::ToolPipeline);
+        assert_eq!(result.category, ToolPipelineOutcomeCategory::ExecutionError);
+        assert_eq!(result.error_code, "tool_execution_error");
+        assert!(!result.retryable);
+    }
+
+    #[test]
     fn tool_pipeline_outcome_preserves_legacy_category_strings() {
         assert_eq!(
             ToolPipelineOutcomeCategory::InvalidArguments.as_str(),

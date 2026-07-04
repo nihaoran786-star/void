@@ -75,6 +75,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1120B terminal runtime-port boundary static guard complete.
 - [x] ISSUE-1150E1 tool pipeline outcome classification contract complete.
 - [x] ISSUE-1150E parent reconciliation complete.
+- [x] ISSUE-1150E2 tool pipeline outcome helper coverage complete.
 - [x] ISSUE-1150F tool runtime owner migration planning gate complete.
 - [x] ISSUE-1140E parent reconciliation complete.
 - [x] ISSUE-1140D1 ViewImage contract gate and slice plan complete.
@@ -112,31 +113,28 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 
 ## Latest Slice
 
-Issue: `ISSUE-1190A1 Flow Chat Turn Navigation E2E Type Preflight`
+Issue: `ISSUE-1150E2 Tool Pipeline Outcome Helper Coverage Completion`
 
 Summary:
 
-- Closed the immediate `ISSUE-1190A` e2e type preflight blocker for the release turn-navigation spec without changing Flow Chat runtime behavior.
-- Added explicit `@wdio/globals` dev dependency because `tests/e2e/tsconfig.json` referenced `@wdio/globals/types` but the e2e package did not declare the package.
-- Added a focused `tsconfig.turn-navigation.json` and e2e-local type stubs for browser-only `/src/...` dynamic imports used by `workspace-helper`.
-- Updated `l1-chat-turn-navigation-release.spec.ts` to await WDIO v9 collection lengths.
-- Preserved `FlowChatStore`, session restore/deferred hydration APIs, backend/Tauri/Rust, AI media, AI short-drama, terminal, provider, Canvas, and generated version files.
+- Closed the remaining direct helper-test coverage gap for `not-found`, invalid-arguments, and generic execution-error tool pipeline outcomes.
+- Added focused assertions for status, source, category, error code, and retryability for `InvalidArguments`, `NotFound`, and `ExecutionError`.
+- Kept production `ToolPipelineOutcome::from_error` behavior unchanged.
+- Preserved `ToolApprovalBar`, Flow Chat cards, event ABI, MCP manager lifecycle, provider adapters, AI media, AI short-drama, crate layout, and tool execution behavior.
 
 Verification:
 
-- `npx tsc --noEmit -p tsconfig.turn-navigation.json` from `tests/e2e`
+- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture`
+  - Result: passed, 10 tests.
+- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs`
   - Result: passed.
-- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
-  - Result: failed on existing broader e2e type debt after the original `@wdio/globals/types` missing-package blocker was removed.
-- `npx wdio run ./config/wdio.conf.ts --spec "./specs/l1-chat-turn-navigation-release.spec.ts" --dry-run` from `tests/e2e`
-  - Result: failed before spec execution because the dev server could not start; pnpm attempted to load missing root `.pnpmfile.mjs`, port `1422` did not become ready, then WebDriver session creation failed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
 
 Remaining:
 
-- Full all-e2e TypeScript cleanup remains separate and should not be folded into Flow Chat runtime work.
-- Full release fixture validation still requires `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
-- The local WDIO dev-server bootstrap needs a separate environment/config issue for the missing `.pnpmfile.mjs` precondition.
-- Terminal ack byte-count semantics remain a separate contract decision.
+- UI rendering states and event schema migration remain deferred to separate issues.
+- This slice is test-only; it does not change assistant-facing error payload shape or tool execution behavior.
 
 ## Previous Slice
 
