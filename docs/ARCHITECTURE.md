@@ -214,6 +214,7 @@ Interface ownership:
 - `FlowChatManager` owns user-message orchestration, backend session readiness, queued input handling, and event module coordination.
 - `BtwThreadService` owns BTW child session creation, transient child send flow, parent-child origin updates, and parent backend-session readiness.
 - `FlowChatStore` owns UI state projection, session metadata restore, history hydration states, and turn/model-round item ordering.
+- `sessionOpenIntent.ts` owns Flow Chat history-session open diagnostics for UI callers. It converts a single session or explicit missing selection into `status/source/action/error` facts; page, sidebar, and header components must not infer restore source from empty `sessions`, empty turns, or raw history strings.
 - BTW components render child session state and review actions; they must not own parent-child relationship semantics.
 - Session APIs/adapters are transport and persistence boundaries only.
 

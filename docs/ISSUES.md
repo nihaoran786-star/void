@@ -1579,6 +1579,23 @@ Acceptance:
 Risk notes: This test needs real browser/desktop evidence; jsdom unit tests cannot prove release viewport geometry.
 Result: Added `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts` as a Void-owned release-compatible WDIO regression. The spec opens `E2E_TEST_WORKSPACE`, locates a session by `VOID_E2E_TURN_NAV_SESSION_TITLE`, reveals/selects `VOID_E2E_TURN_NAV_TARGET_TITLE` from the Flow Chat header turn list, and asserts the real message viewport pins the target user turn near the scroller top using DOM geometry. It avoids BitFun env names and skips explicitly when the fixture env is unavailable. It is intentionally not added to the default L1 aggregate because CI/local runs without the long-session fixture would only skip.
 
+### ISSUE-1110D FlowChat History Session Open Intent Contract
+
+Priority: P1
+Status: Done
+Goal: Add a FlowChat service-layer contract for historical session open diagnostics so pages/sidebar/header do not infer history state from empty session lists or raw store shape.
+Allowed files: `src/web-ui/src/flow_chat/services/sessionOpenIntent.ts`, `src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts`, docs.
+Forbidden files: `chat-screen.tsx`, sidebar/header components, `ModernFlowChatContainer.tsx`, `FlowChatStore.ts`, backend restore APIs, AI media, AI short-drama, terminal, Computer Use, provider, Rust crates.
+Acceptance:
+- Missing sessions, new empty runtime sessions, metadata-only history, in-flight history, failed history, missing workspace scope, partial history, and pending context restore are represented by explicit `status/source/action/error`.
+- The helper accepts a single session or explicit missing selection; it does not inspect `sessions: []` or mutate store state.
+- UI/entrypoint integration is deferred; future callers must consume this helper as the conversion layer instead of adding raw history/session-source inference in pages/sidebar/header.
+- Focused tests cover the contract and `pnpm --dir src/web-ui run type-check` passes.
+Result:
+- Added `resolveSessionOpenIntent` as a pure FlowChat service helper returning explicit `status`, `source`, `action`, `error`, history state, context-restore state, and turn-count facts.
+- Added focused tests for missing selection, new runtime empty session, metadata-only load request, in-flight load, history failure, workspace-missing unsupported state, partial history, and pending backend context restore.
+- Did not wire UI, sidebar, header, FlowChat store, backend APIs, media, short-drama, terminal, Computer Use, provider, or Rust code in this slice.
+
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 
 Priority: P0

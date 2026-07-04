@@ -66,6 +66,32 @@ cargo test -p void-cli empty_query_returns_empty
 - Desktop: main window, compact chat floating window, desktop pet, tray.
 - Brand: Void names, icons, installer, registry identity, absence of BitFun leakage.
 
+## ISSUE-1110D FlowChat History Session Open Intent Contract
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/flow_chat/services/sessionOpenIntent.ts`.
+- `src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts`.
+- `docs/ARCHITECTURE.md`, `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No `chat-screen.tsx`, sidebar/header, `ModernFlowChatContainer.tsx`, `FlowChatStore.ts`, backend restore API, AI media, AI short-drama, terminal, Computer Use, provider, Rust crate, or generated version behavior changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/sessionOpenIntent.test.ts`
+  - Result: passed, 1 file / 8 tests.
+  - Notes: covered missing selection, new runtime empty session, metadata-only load request, in-flight history load, history failure, workspace-missing unsupported state, partial history, and pending backend context restore.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `git diff --check -- src/web-ui/src/flow_chat/services/sessionOpenIntent.ts src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- The helper returns explicit `status/source/action/error` facts and never treats `sessions: []` as a business state.
+- UI integration remains deferred to a separate issue.
+
 ## ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
 
 Date: 2026-07-04

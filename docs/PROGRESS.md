@@ -87,8 +87,35 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C5 Windows Computer Use manual harness gate complete.
 - [x] ISSUE-1130C6 Windows Notepad single-display smoke evidence complete.
 - [x] ISSUE-1130C7 Windows stale screenshot-map fail-closed evidence complete.
+- [x] ISSUE-1110D FlowChat history session open intent contract complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1110D FlowChat History Session Open Intent Contract`
+
+Summary:
+
+- Added `resolveSessionOpenIntent` as a pure FlowChat service-layer conversion helper.
+- The helper returns explicit `status/source/action/error` facts for missing selection, new empty runtime sessions, metadata-only history, in-flight history, failed history, missing workspace scope, partial history, and pending backend context restore.
+- The helper consumes a single session or explicit missing selection and does not inspect `sessions: []`, mutate store state, or call backend APIs.
+- UI/sidebar/header integration remains deferred so future callers can consume this helper as the boundary instead of adding raw history/source inference in page components.
+- Preserved FlowChat store, `ModernFlowChatContainer`, sidebar/header, backend restore APIs, multi-agent/subagent, BTW, AI media, AI short-drama, terminal, Computer Use, provider, and Rust code.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/sessionOpenIntent.test.ts`
+  - Result: passed, 1 file / 8 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `git diff --check -- src/web-ui/src/flow_chat/services/sessionOpenIntent.ts src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md docs/ARCHITECTURE.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- This slice adds the contract only. A future UI integration slice can replace direct history placeholder branching in `ModernFlowChatContainer` or sidebar/header callers with this helper after separate tests.
+- Upstream long-session interaction matrix remains separate from this helper contract.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C7 Windows Stale Screenshot Map Fail-Closed Evidence`
 
