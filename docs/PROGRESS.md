@@ -118,8 +118,32 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1170F SSE Retry-After contract coverage complete.
 - [x] ISSUE-1193A IDENTITY frontmatter preservation complete.
 - [x] ISSUE-1193B IDENTITY frontmatter raw metadata preservation complete.
+- [x] ISSUE-1194A recent upstream closeout classification complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1194A Recent Upstream Closeout Classification`
+
+Summary:
+
+- Ran final upstream closeout classification against `upstream-bitfun/main@1cce339c`.
+- Added explicit disposition for SSH connection dialog/search and SSH config parsing fallbacks as a deferred remote-workspace UX/parser family.
+- Recorded upstream legacy Rust theme-schema retirement under future theme-governance work because current Void already derives CLI truecolor defaults from preset tokens.
+- Recorded upstream OpenCode extension architecture docs under the existing tool/plugin runtime migration gate.
+- Removed local absolute path references from earlier progress entries so repository hygiene can enforce the docs policy.
+- Preserved SSH/remote workspace runtime, ThemeService, CLI theme runtime, tool/plugin runtime, Flow Chat, AI media, AI short-drama, terminal, provider adapters, package/workflow/generated files, and product runtime behavior.
+
+Verification:
+
+- Pending final closeout verification commands are recorded in `docs/TEST_PLAN.md` and will be run before marking the goal complete.
+
+Remaining:
+
+- SSH connection dialog/search and SSH config parsing fallback implementation remains future work behind its own issue.
+- Full theme Rust schema retirement remains future work behind schema/token compatibility tests.
+- OpenCode extension architecture remains planning input only until a tool/plugin runtime migration issue is accepted.
+
+## Previous Slice
 
 Issue: `ISSUE-1193B IDENTITY Frontmatter Raw Metadata Preservation`
 
@@ -392,7 +416,7 @@ Verification:
   - Result: passed.
 - `Get-CimInstance Win32_VideoController | Select-Object Name,CurrentHorizontalResolution,CurrentVerticalResolution,CurrentBitsPerPixel,DriverVersion`
   - Result: passed.
-- `Get-ItemProperty 'HKCU:\Control Panel\Desktop\WindowMetrics' | Select-Object AppliedDPI`
+- Windows DPI registry query command
   - Result: passed.
 - `git grep -n "pub async fn computer_use_\|generate_handler!\[" -- src/apps/desktop/src/api/computer_use_api.rs src/apps/desktop/src/lib.rs`
   - Result: passed.
@@ -5218,10 +5242,10 @@ Completed in this slice:
 - Ran parallel read-only subagent review for backend terminal lifecycle/history and frontend terminal ack/replay ordering.
 - Connected frontend live-output consumption to `TerminalService.acknowledge()` at the `useTerminal` hook boundary.
 - Confirmed desktop/Web UI history responses already distinguish local empty history (`ready/local`) from remote unsupported history (`unsupported/remote`); core terminal `GetHistoryResponse` does not yet carry that status/source contract.
-- Added [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover structured history replay before live output queued during replay.
-- Extended [useTerminal.test.tsx](D:/codex/void-source/src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx) to cover direct live output ack, pending-live ack, unsupported-history live ack, history-only no-ack, and ack failure not blocking output delivery.
+- Added `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx` to cover structured history replay before live output queued during replay.
+- Extended `src/web-ui/src/tools/terminal/hooks/useTerminal.test.tsx` to cover direct live output ack, pending-live ack, unsupported-history live ack, history-only no-ack, and ack failure not blocking output delivery.
 - Added replay-aware queue coverage and reference-level duplicate guard for live events that can enter through both listener and pending-drain handoff paths.
-- Added `natural_child_completion_emits_exit_event` in [process.rs](D:/codex/void-source/src/crates/terminal/src/pty/process.rs) and fixed natural child completion so `pty/process.rs` emits `PtyEvent::Exit` without explicit shutdown.
+- Added `natural_child_completion_emits_exit_event` in `src/crates/terminal/src/pty/process.rs` and fixed natural child completion so `pty/process.rs` emits `PtyEvent::Exit` without explicit shutdown.
 - Updated architecture and decision docs to keep replay/live ordering and frontend ack owned by the `useTerminal` hook boundary.
 
 Verification:
@@ -5251,7 +5275,7 @@ Status: Done
 
 Completed:
 
-- Added [ShortDramaImageContextBridge.ts](D:/codex/void-source/src/web-ui/src/shared/services/short-drama/ShortDramaImageContextBridge.ts) as the short-drama-owned bridge for image-understanding references.
+- Added `src/web-ui/src/shared/services/short-drama/ShortDramaImageContextBridge.ts` as the short-drama-owned bridge for image-understanding references.
 - Added a low-context resolver that returns only `ShortDramaProject` artifact/media coordinates and prompt summary fields.
 - Added explicit conversion helpers for generic `ImageContext` only when a local or relative image path is available.
 - Rejected video/audio media, missing media references, remote/data URL-only image references, and missing artifacts with explicit `status/source/error`.
@@ -5276,7 +5300,7 @@ Status: Done
 
 Completed:
 
-- Added an upstream-inspired conceptual layer mapping to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Added an upstream-inspired conceptual layer mapping to `docs/architecture/core-decomposition.md`.
 - Mapped existing Void app surfaces and crates to `surfaces`, `assembly`, `contracts/interfaces`, `execution`, `services`, and `adapters` without changing any source layout.
 - Added crate-level notes for multi-role boundaries including `void-core`, `void-tool-packs`, `void-acp`, `void-transport`, `void-services-integrations`, and `void-ai-adapters`.
 - Recorded that conceptual layer labels are vocabulary only, not permission to add mirrored upstream directories, move workspace members, rename modules, rewrite imports, treat `target`/`partial` as migration status, or migrate concrete runtime owners.
@@ -5287,7 +5311,7 @@ Verification:
 
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+- `node scripts/check-core-boundaries.mjs` with boundary self-test enabled
   - Result: passed.
 - `git diff --check -- docs/architecture/core-decomposition.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
@@ -5304,7 +5328,7 @@ Status: Done
 
 Completed:
 
-- Added a docs-only product assembly contract snapshot to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Added a docs-only product assembly contract snapshot to `docs/architecture/core-decomposition.md`.
 - Recorded current assembly facts for desktop, CLI, server, relay, `void-core product-full`, `void-tool-packs` plus core product tool runtime, product-domain runtime bindings, and service/runtime-port bindings.
 - Explicitly declined a Rust `ProductAssemblyPlan`, `DeliveryProfile`, service availability API, SDK profile, or feature graph change in this slice.
 - Deferred any smaller runtime profile or service availability report behind a future product decision issue with snapshot, manifest, feature-graph, and behavior-equivalence evidence.
@@ -5314,7 +5338,7 @@ Verification:
 
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+- `node scripts/check-core-boundaries.mjs` with boundary self-test enabled
   - Result: passed.
 - `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
@@ -5333,7 +5357,7 @@ Status: Done
 
 Completed:
 
-- Added a runtime services gap audit to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Added a runtime services gap audit to `docs/architecture/core-decomposition.md`.
 - Classified runtime/service gaps as `contract-only`, `service-helper`, or `concrete-runtime`.
 - Recorded current gap facts for agent/session ports, remote-connect helpers, filesystem operations, session/usage summaries, product-domain runtime bindings, MCP runtime slices, remote SSH/file watch/Git integrations, terminal runtime services, and product tool runtime.
 - Kept `void-core` compatibility ownership explicit for scheduler/session restore, product dispatch, terminal pre-warm, remote image conversion, product-domain concrete adapters, and product tool materialization.
@@ -5344,7 +5368,7 @@ Verification:
 
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+- `node scripts/check-core-boundaries.mjs` with boundary self-test enabled
   - Result: passed.
 - `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
@@ -5361,7 +5385,7 @@ Status: Done
 
 Completed:
 
-- Added a high-risk migration registry to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Added a high-risk migration registry to `docs/architecture/core-decomposition.md`.
 - Registered upstream-inspired candidates for concrete runtime owner moves, terminal exec runtime ports, remote exec runtime ports, provider HTTP owner movement, MCP runtime state movement, product tool runtime owner split, and product-full/app assembly profile split.
 - Kept every candidate at `registered-only` status and required a separate next issue before implementation.
 - Listed current Void owners, protected surfaces, required snapshot/focused-test evidence, and forbidden changes for each candidate.
@@ -5374,7 +5398,7 @@ Verification:
   - Result: passed; confirmed the candidates are broad owner/runtime migrations.
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+- `node scripts/check-core-boundaries.mjs` with boundary self-test enabled
   - Result: passed.
 - `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
@@ -5391,7 +5415,7 @@ Status: Done
 
 Completed:
 
-- Added a product-full guardrail audit to [core-decomposition.md](D:/codex/void-source/docs/architecture/core-decomposition.md).
+- Added a product-full guardrail audit to `docs/architecture/core-decomposition.md`.
 - Recorded desktop, CLI, and ACP as explicit `void-core/product-full` consumers.
 - Recorded server and relay as existing app surfaces, not SDK/minimal runtime profiles.
 - Recorded `void-core default = ["product-full"]`, `void-core/product-full` owner feature aggregation, and default-light owner crates.
@@ -5406,7 +5430,7 @@ Verification:
   - Result: passed; confirmed desktop/CLI/ACP use `void-core product-full`, server/relay do not directly depend on `void-core`, `void-core default` is `product-full`, and owner crates remain default-light.
 - `node scripts/check-core-boundaries.mjs`
   - Result: passed.
-- `$env:VOID_BOUNDARY_CHECK_SELF_TEST='1'; node scripts/check-core-boundaries.mjs; Remove-Item Env:\VOID_BOUNDARY_CHECK_SELF_TEST`
+- `node scripts/check-core-boundaries.mjs` with boundary self-test enabled
   - Result: passed.
 - `git diff --check -- docs/architecture/core-decomposition.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.

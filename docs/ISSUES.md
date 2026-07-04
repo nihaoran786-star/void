@@ -2901,6 +2901,23 @@ Result:
 - Added focused coverage for preserving comments and relative order around `reviewPolicy`, `tags`, and `customBlock`.
 - Preserved My Agent page state, agent runtime, Flow Chat, multi-agent/subagent behavior, AI media, AI short-drama, provider adapters, desktop/Rust APIs, package/workflow files, and generated files.
 
+### ISSUE-1194A Recent Upstream Closeout Classification
+
+Priority: P0
+Status: Done
+Goal: Close the final upstream-inventory gap for recent `upstream-bitfun/main@1cce339c` updates by classifying newly noticed SSH, theme-schema, and OpenCode extension documentation changes before goal closeout.
+Allowed files: migration consensus docs only.
+Forbidden files: SSH connection dialog UI, SSH config parser/runtime, remote workspace services, ThemeService, CLI theme runtime, Rust theme schemas, tool/plugin runtime, OpenCode extension implementation, Flow Chat, AI media, AI short-drama, terminal, provider adapters, package/workflow/generated files.
+Affected module: upstream migration governance.
+Preserved contracts: no product behavior changes; recent upstream families must have explicit accept/defer/reject disposition before declaring closeout.
+Implementation rule: docs-only classification; no runtime implementation.
+Verification: `pnpm run check:repo-hygiene`; `node scripts/check-core-boundaries.mjs`; `git diff --check`.
+Result:
+- Classified upstream SSH connection dialog/search and SSH config parsing commits `b78539913` and `1ac8cc62` as a deferred remote-workspace UX/parser family. A future implementation must start with a separate PRD/issue around the connection-dialog state model, SSH config parse contract, explicit `status/source/error`, and focused tests; it must not be bundled into remote file CRUD or Flow Chat.
+- Classified upstream `c82729189` legacy Rust theme-schema retirement under existing theme/CLI governance. Current Void already derives CLI truecolor defaults from preset tokens through `ISSUE-1191B`; any broader Rust theme schema retirement remains a future theme-governance issue with token/schema compatibility tests.
+- Classified upstream `ac16dcc18` OpenCode extension architecture docs under the existing tool/plugin runtime owner-migration gate (`ISSUE-1150F`, `DEC-114`). The documentation is a reference only and does not approve event ABI, plugin runtime, or crate owner movement.
+- Preserved current SSH/remote workspace runtime, ThemeService, CLI theme runtime, tool/plugin runtime, Flow Chat, AI media, AI short-drama, terminal, provider, and generated files.
+
 ### ISSUE-1180 Core Crate Decomposition Deferred Plan
 
 Priority: P2

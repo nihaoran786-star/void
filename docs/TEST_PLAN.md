@@ -8,6 +8,51 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1194A Recent Upstream Closeout Classification
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/ISSUES.md`
+- `docs/DECISIONS.md`
+- `docs/PROGRESS.md`
+- `docs/TEST_PLAN.md`
+- No SSH connection dialog UI, SSH config parser/runtime, remote workspace services, ThemeService, CLI theme runtime, Rust theme schemas, tool/plugin runtime, Flow Chat, AI media, AI short-drama, terminal, provider adapters, package/workflow/generated files, or product runtime behavior changed.
+
+Checks:
+
+- `git diff --check`
+  - Result: passed, with Windows LF/CRLF working-copy warnings only.
+- `pnpm run check:repo-hygiene`
+  - Initial result: failed because historical `docs/PROGRESS.md` entries contained local absolute paths.
+  - Result after replacing local paths with repository-relative paths or descriptive command names: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `pnpm install --frozen-lockfile --ignore-scripts`
+  - Result: passed; workspace was already up to date.
+- `pnpm --dir src/web-ui exec vitest run src/app/scenes/my-agent/identityDocument.test.ts src/flow_chat/components/RichTextInput.test.tsx src/flow_chat/components/richTextInputSync.test.ts src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
+  - Result: passed, 6 files / 30 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `cargo test -p void-ai-adapters sse --lib -- --nocapture`
+  - Result: passed, 15 tests.
+- `cargo test -p void-core process_image_contexts_ --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-core image_analysis --lib -- --nocapture`
+  - Result: passed, 4 tests.
+- `pnpm --dir tests/e2e exec tsc --noEmit -p tsconfig.turn-navigation.json`
+  - Result: passed.
+- `pnpm run build:web`
+  - Result: passed; Vite reported existing dynamic/static import chunk warnings and large chunk warnings, and `verify-monaco-assets` passed.
+  - Note: build refreshed generated version files as a command side effect; those generated diffs were restored because this issue is docs-only.
+
+Coverage:
+
+- Covers final upstream-disposition completeness for SSH connection UX/parser updates, legacy Rust theme schema retirement, and OpenCode extension architecture docs.
+- Covers repository hygiene enforcement after removing local absolute paths from progress documentation.
+- Does not implement SSH connection dialog/search, SSH config parsing fallback, Rust theme schema retirement, or OpenCode extension runtime behavior.
+
 ## ISSUE-1193B IDENTITY Frontmatter Raw Metadata Preservation
 
 Date: 2026-07-04
