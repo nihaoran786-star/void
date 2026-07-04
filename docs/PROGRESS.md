@@ -110,31 +110,34 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1192F FlowChat history test localStorage fixture complete.
 - [x] ISSUE-1192G upstream remote workspace wave closeout complete.
 - [x] ISSUE-1190A1 Flow Chat turn-navigation e2e type preflight complete.
+- [x] ISSUE-1190A2 Flow Chat turn-navigation e2e lockfile reproducibility complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1150E2 Tool Pipeline Outcome Helper Coverage Completion`
+Issue: `ISSUE-1190A2 Flow Chat Turn Navigation E2E Lockfile Reproducibility`
 
 Summary:
 
-- Closed the remaining direct helper-test coverage gap for `not-found`, invalid-arguments, and generic execution-error tool pipeline outcomes.
-- Added focused assertions for status, source, category, error code, and retryability for `InvalidArguments`, `NotFound`, and `ExecutionError`.
-- Kept production `ToolPipelineOutcome::from_error` behavior unchanged.
-- Preserved `ToolApprovalBar`, Flow Chat cards, event ABI, MCP manager lifecycle, provider adapters, AI media, AI short-drama, crate layout, and tool execution behavior.
+- Committed the root `pnpm-lock.yaml` update implied by `tests/e2e/package.json` adding `@wdio/globals` for the turn-navigation e2e type preflight.
+- Kept this as dependency-lock governance only.
+- Preserved Flow Chat runtime, store, session restore, backend, AI media, AI short-drama, terminal, provider, Canvas, and generated-version files.
+- Kept broader legacy e2e type debt and full fixture/runtime validation as separate risks.
 
 Verification:
 
-- `cargo test -p void-core tool_pipeline_outcome --lib -- --nocapture`
-  - Result: passed, 10 tests.
-- `rustfmt --edition 2021 --check src/crates/core/src/agentic/tools/pipeline/types.rs`
+- `pnpm install --lockfile-only --ignore-scripts`
+  - Result: passed; workspace lockfile was already up to date.
+- `pnpm install --frozen-lockfile --ignore-scripts`
   - Result: passed.
-- `node scripts/check-core-boundaries.mjs`
+- `pnpm --dir tests/e2e exec tsc --noEmit -p tsconfig.turn-navigation.json`
   - Result: passed.
+- `git diff --check -- pnpm-lock.yaml docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with LF/CRLF warnings only.
 
 Remaining:
 
-- UI rendering states and event schema migration remain deferred to separate issues.
-- This slice is test-only; it does not change assistant-facing error payload shape or tool execution behavior.
+- Full persisted long-session fixture execution still requires `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
+- Broader legacy e2e type debt remains outside this slice.
 
 ## Previous Slice
 

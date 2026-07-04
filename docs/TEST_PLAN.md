@@ -69,6 +69,31 @@ Manual status:
 - Required fixture env remains `E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, and `VOID_E2E_TURN_NAV_TARGET_TITLE`.
 - The WDIO dev-server bootstrap `.pnpmfile.mjs` precondition is a separate e2e environment/config issue.
 
+## ISSUE-1190A2 Flow Chat Turn Navigation E2E Lockfile Reproducibility
+
+Date: 2026-07-04
+
+Scope:
+
+- Root `pnpm-lock.yaml` only, plus migration docs.
+- No Flow Chat runtime component, Flow Chat store, session restore/deferred hydration API, backend/Tauri/Rust, AI media, AI short-drama, subagent/BTW, terminal, provider, Canvas, generated version, or production Web UI behavior changed.
+
+Checks:
+
+- `git diff --exit-code -- pnpm-lock.yaml`
+  - RED result before this slice: failed because the workspace lockfile had an unstaged update implied by `tests/e2e/package.json` declaring `@wdio/globals`.
+- `pnpm install --lockfile-only --ignore-scripts`
+  - Result: passed; pnpm reported the workspace was already up to date.
+- `pnpm install --frozen-lockfile --ignore-scripts`
+  - Result: passed.
+- `pnpm --dir tests/e2e exec tsc --noEmit -p tsconfig.turn-navigation.json`
+  - Result: passed.
+
+Remaining risk:
+
+- This does not fix the broader legacy e2e `tsconfig.json` type debt recorded in `ISSUE-1190A1`.
+- This does not run the full persisted long-session fixture because required fixture env was not provided.
+
 ## ISSUE-1192G Upstream Remote Workspace Wave Closeout
 
 Date: 2026-07-04

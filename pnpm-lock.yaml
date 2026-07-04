@@ -353,6 +353,9 @@ importers:
       '@wdio/devtools-service':
         specifier: ^10.1.0
         version: 10.6.1(@types/node@20.19.43)(@wdio/protocols@9.28.0)(devtools@8.42.0)(expect-webdriverio@5.7.0)(puppeteer-core@21.11.0)(rollup@4.62.2)(vite@7.3.6(@types/node@20.19.43)(jiti@2.7.0)(sass@1.101.0)(terser@5.48.0)(tsx@4.22.4)(yaml@2.9.0))(webdriverio@9.29.1(puppeteer-core@21.11.0))
+      '@wdio/globals':
+        specifier: ^9.23.0
+        version: 9.29.1(expect-webdriverio@5.7.0)(webdriverio@9.29.1(puppeteer-core@21.11.0))
       '@wdio/local-runner':
         specifier: ^9.0.0
         version: 9.29.1(@wdio/globals@9.29.1)(webdriverio@9.29.1(puppeteer-core@21.11.0))
@@ -8023,7 +8026,7 @@ snapshots:
 
   agent-base@7.0.2:
     dependencies:
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -9115,7 +9118,7 @@ snapshots:
 
   extract-zip@2.0.1:
     dependencies:
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       get-stream: 5.2.0
       yauzl: 2.10.0
     optionalDependencies:
@@ -9287,7 +9290,7 @@ snapshots:
 
   geckodriver@4.2.1:
     dependencies:
-      '@wdio/logger': 8.38.0
+      '@wdio/logger': 8.11.0
       decamelize: 6.0.1
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.1
@@ -9331,7 +9334,7 @@ snapshots:
     dependencies:
       basic-ftp: 5.3.1
       data-uri-to-buffer: 5.0.1
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       fs-extra: 8.1.0
     transitivePeerDependencies:
       - supports-color
@@ -9590,7 +9593,7 @@ snapshots:
   https-proxy-agent@7.0.0:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -9604,7 +9607,7 @@ snapshots:
   https-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -10626,7 +10629,7 @@ snapshots:
     dependencies:
       '@tootallnate/quickjs-emscripten': 0.23.0
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       get-uri: 6.0.1
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.0
@@ -10639,7 +10642,7 @@ snapshots:
     dependencies:
       '@tootallnate/quickjs-emscripten': 0.23.0
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       get-uri: 6.0.1
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.2
@@ -10714,11 +10717,11 @@ snapshots:
   parse5-htmlparser2-tree-adapter@7.1.0:
     dependencies:
       domhandler: 5.0.3
-      parse5: 7.3.0
+      parse5: 7.0.0
 
   parse5-parser-stream@7.1.2:
     dependencies:
-      parse5: 7.3.0
+      parse5: 7.0.0
 
   parse5@7.0.0:
     dependencies:
@@ -10925,7 +10928,7 @@ snapshots:
   proxy-agent@6.3.0:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.0
       lru-cache: 7.14.1
@@ -10938,7 +10941,7 @@ snapshots:
   proxy-agent@6.3.1:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.2
       lru-cache: 7.14.1
@@ -11386,7 +11389,7 @@ snapshots:
   socks-proxy-agent@8.0.1:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
@@ -11394,7 +11397,7 @@ snapshots:
   socks-proxy-agent@8.0.2:
     dependencies:
       agent-base: 7.0.2
-      debug: 4.3.4(supports-color@8.1.1)
+      debug: 4.4.3
       socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
