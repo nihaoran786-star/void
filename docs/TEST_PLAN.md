@@ -6513,6 +6513,36 @@ Remaining risk:
 - This slice does not persist upstream round timing/model metadata from `ModelRoundCompleted` events; that remains separate because current `ExecutionResult.new_messages` does not carry those event fields.
 - This slice does not add CLI end-to-end replay smoke; it covers the core persistence interface used by CLI and other hosts.
 
+## ISSUE-1191A CLI Rich Model-Round Replay Smoke
+
+Scope:
+
+- Current slice covers core session restore/replay conversion only: `SessionManager::build_messages_from_turns` rebuilding runtime messages from persisted `DialogTurnData.model_rounds`.
+- It does not change CLI runtime execution, Flow Chat UI, event ABI, terminal replay, provider adapters, Canvas runtime, AI media, AI short-drama, generated version files, or session schema fields.
+
+Executed:
+
+- `cargo test -p void-core build_messages_from_turns_restores_rich_model_rounds_for_replay --lib -- --nocapture`
+  - Result: passed, 1 focused Rust test.
+- `cargo test -p void-core rich_model_rounds --lib -- --nocapture`
+  - Result: passed, 2 focused Rust tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/core/src/agentic/session/session_manager.rs docs/ISSUES.md docs/DECISIONS.md docs/ARCHITECTURE.md docs/TEST_PLAN.md docs/PROGRESS.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- Verifies persisted user input still restores as an actual user message.
+- Verifies a persisted model round restores assistant reasoning, visible text, and tool calls into one mixed assistant message.
+- Verifies persisted `ToolResultData` restores as a following tool-result message matched by `tool_id`.
+- Verifies a later persisted model round restores as a separate assistant replay message, preserving multi-round ordering at the message boundary.
+
+Remaining risk:
+
+- This slice does not persist or replay upstream round timing/model metadata from `ModelRoundCompleted` events.
+- This slice does not add a real CLI process-level E2E; the covered contract is the core restore interface used by CLI and other session hosts.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

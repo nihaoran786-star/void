@@ -3042,3 +3042,48 @@ Result:
 - `SessionManager` builds fallback persisted `ModelRoundData` from execution messages only when the turn has no existing assistant text, preserving already-written rich rounds.
 - The converter supports assistant text, assistant mixed reasoning/text/tool calls, assistant multimodal text, and following tool results matched by `tool_id`.
 - Flow Chat UI, event ABI, Canvas, terminal, provider, AI media, AI short-drama, and broad session restore code were not changed.
+
+### ISSUE-1191A CLI Rich Model-Round Replay Smoke
+
+Priority: P1
+Status: Done
+Goal: Close the immediate replay gap after `ISSUE-1190G` by proving and preserving that persisted rich model rounds rebuild runtime messages with assistant tool calls and tool results during session restore.
+Allowed files: `src/crates/core/src/agentic/session/session_manager.rs`, migration docs.
+Forbidden files: CLI runtime execution, provider adapters, Flow Chat UI/store, event ABI, terminal, Canvas, AI media, AI short-drama, broad session restore API shape, upstream field/schema imports.
+Acceptance:
+- `build_messages_from_turns` restores persisted assistant thinking/text/tool calls from `DialogTurnData.model_rounds`.
+- Following persisted `ToolResultData` entries are restored as tool result messages matched by `tool_id`.
+- Existing rich model-round persistence coverage still passes.
+- No real provider, CLI E2E, UI rendering, or event ABI changes are required.
+Result:
+- Updated the session restore conversion to rebuild one assistant message per persisted model round and append matching tool result messages after each round.
+- Added focused replay coverage for user -> assistant mixed thinking/text/tool call -> tool result -> assistant follow-up.
+- Preserved model-invisible turn filtering, Flow Chat UI, CLI execution, providers, terminal, Canvas, AI media, and AI short-drama behavior.
+Risk notes:
+- This still does not persist or replay upstream round timing/model metadata from `ModelRoundCompleted` events.
+- A real CLI process-level E2E can remain a later smoke because the core restore/replay interface is now covered without provider dependency.
+
+### ISSUE-1191B CLI Theme Truecolor Preset Fallback Governance
+
+Priority: P2
+Status: Proposed
+Goal: Evaluate upstream `912cd7561` and, if still applicable, derive CLI truecolor default fallbacks from Void builtin presets instead of maintaining a second Rust RGB fallback table.
+Allowed files: `src/apps/cli/src/ui/theme.rs`, CLI theme audit tests/baseline, docs.
+Forbidden files: CLI preset visual values, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, Cargo/package script churn, BitFun naming.
+Acceptance:
+- `Theme::dark()` / `Theme::light()` derive from local `void-dark` / `void-light` preset tokens.
+- Partial custom theme JSON still falls back to the base theme.
+- CLI theme audit reduces or eliminates Rust fallback color debt without loosening budgets.
+Risk notes: Do not rename presets or import upstream `bitfun-*` identifiers.
+
+### ISSUE-1191C Terminal Core History Status/Source Contract
+
+Priority: P2
+Status: Proposed
+Goal: Extend terminal core history response contracts with explicit status/source fields where local Web/desktop already expect them, without moving terminal ownership into runtime ports.
+Allowed files: `src/crates/terminal/src/api.rs`, `src/apps/desktop/src/api/terminal_api.rs` conversion/tests, docs.
+Forbidden files: terminal session internals, Web terminal runtime hooks/components, Flow Chat, MCP, provider, AI media, AI short-drama, runtime-port owner moves, Cargo/crate layout changes.
+Acceptance:
+- Terminal core get-history response exposes explicit history status/source values compatible with existing desktop/Web contracts.
+- Focused terminal-core and desktop terminal API tests pass.
+Risk notes: This is a DTO/status contract slice only; byte-count ack, remote terminal replay, runtime-port migration, and UI behavior remain out of scope.

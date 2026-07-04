@@ -98,32 +98,37 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C Windows pointer coordinate/background input parent complete with explicit deferrals.
 - [x] ISSUE-1190 upstream Canvas and turn-ownership incremental inventory complete.
 - [x] ISSUE-1190G CLI rich model-round persistence complete.
+- [x] ISSUE-1191A CLI rich model-round replay smoke complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1190G CLI Rich Model-Round Persistence Audit`
+Issue: `ISSUE-1191A CLI Rich Model-Round Replay Smoke`
 
 Summary:
 
-- Adapted upstream `6fd87c11a` as a focused Void session persistence fix instead of a cherry-pick.
-- `ConversationCoordinator` now passes `ExecutionResult.new_messages` into `SessionManager::complete_dialog_turn`.
-- `SessionManager` rebuilds missing persisted model rounds from execution messages only when a completed turn has no assistant text already persisted.
-- Persisted fallback rounds now preserve assistant text, thinking content, tool calls, tool results matched by `tool_id`, `round_index`, and item `order_index`.
-- Protected Flow Chat UI, event ABI, terminal, provider, Canvas, AI media, AI short-drama, and broad session restore behavior.
+- Closed the immediate replay gap after `ISSUE-1190G`.
+- `SessionManager::build_messages_from_turns` now rebuilds one assistant runtime message per persisted model round.
+- Persisted assistant thinking, visible text, tool calls, and matching tool results replay through the existing `MessageContent::Mixed` and `MessageContent::ToolResult` model.
+- Protected CLI runtime execution, Flow Chat UI/store, event ABI, terminal, provider, Canvas, AI media, AI short-drama, and broad session schema behavior.
 
 Verification:
 
-- `cargo test -p void-core complete_dialog_turn_persists_rich_model_rounds_from_execution_messages --lib -- --nocapture`
+- `cargo test -p void-core build_messages_from_turns_restores_rich_model_rounds_for_replay --lib -- --nocapture`
   - Result: passed, 1 focused Rust test.
-- `git diff --check -- src/crates/core/src/agentic/coordination/coordinator.rs src/crates/core/src/agentic/session/session_manager.rs`
+- `cargo test -p void-core rich_model_rounds --lib -- --nocapture`
+  - Result: passed, 2 focused Rust tests.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/crates/core/src/agentic/session/session_manager.rs docs/ISSUES.md docs/DECISIONS.md docs/ARCHITECTURE.md docs/TEST_PLAN.md docs/PROGRESS.md`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
 - Subagent read-only reviews:
-  - Result: passed; upstream and local persistence reviewers independently confirmed the missing rich model-round write path.
+  - Result: passed; session, CLI theme, and terminal reviewers identified this replay smoke as the next lowest-risk slice before theme/terminal follow-ups.
 
 Remaining:
 
-- Round timing/model metadata from `ModelRoundCompleted` events is not included in this slice because the accepted data source is `ExecutionResult.new_messages`.
-- A CLI end-to-end replay smoke can be added later; the core persisted turn interface is covered.
+- Round timing/model metadata from `ModelRoundCompleted` events is still outside this slice.
+- A real CLI process-level E2E can be added later; the core persisted restore interface is covered.
+- Proposed follow-ups: `ISSUE-1191B` CLI theme truecolor preset fallback governance and `ISSUE-1191C` terminal core history status/source contract.
 
 ## Previous Slice
 

@@ -5,7 +5,7 @@
 use crate::agentic::core::{
     new_turn_id, CompressionContract, CompressionState, Message, MessageContent, MessageRole,
     MessageSemanticKind, ProcessingPhase, Session, SessionConfig, SessionKind, SessionState,
-    SessionSummary, TurnStats,
+    SessionSummary, ToolCall, ToolResult, TurnStats,
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::persistence::PersistenceManager;
@@ -567,41 +567,72 @@ impl SessionManager {
                     .with_semantic_kind(MessageSemanticKind::ActualUserInput),
             );
 
-            let assistant_text = turn
-                .model_rounds
-                .iter()
-                .flat_map(|round| round.text_items.iter())
-                .map(|item| item.content.clone())
-                .filter(|value| !value.trim().is_empty())
-                .collect::<Vec<_>>()
-                .join("\n\n");
+            for round in &turn.model_rounds {
+                let assistant_text = round
+                    .text_items
+                    .iter()
+                    .map(|item| item.content.clone())
+                    .filter(|value| !value.trim().is_empty())
+                    .collect::<Vec<_>>()
+                    .join("\n\n");
 
-            let assistant_thinking = turn
-                .model_rounds
-                .iter()
-                .flat_map(|round| round.thinking_items.iter())
-                .map(|item| item.content.clone())
-                .filter(|value| !value.trim().is_empty())
-                .collect::<Vec<_>>()
-                .join("\n\n");
+                let assistant_thinking = round
+                    .thinking_items
+                    .iter()
+                    .map(|item| item.content.clone())
+                    .filter(|value| !value.trim().is_empty())
+                    .collect::<Vec<_>>()
+                    .join("\n\n");
 
-            let has_text = !assistant_text.trim().is_empty();
-            let has_thinking = !assistant_thinking.trim().is_empty();
+                let tool_calls = round
+                    .tool_items
+                    .iter()
+                    .map(|item| ToolCall {
+                        tool_id: item.tool_call.id.clone(),
+                        tool_name: item.tool_name.clone(),
+                        arguments: item.tool_call.input.clone(),
+                        raw_arguments: None,
+                        is_error: false,
+                        recovered_from_truncation: false,
+                    })
+                    .collect::<Vec<_>>();
 
-            if has_text || has_thinking {
-                let reasoning_content = if has_thinking {
-                    Some(assistant_thinking)
-                } else {
-                    None
-                };
-                messages.push(
-                    Message::assistant_with_reasoning(
-                        reasoning_content,
-                        assistant_text,
-                        Vec::new(),
-                    )
-                    .with_turn_id(turn.turn_id.clone()),
-                );
+                let has_text = !assistant_text.trim().is_empty();
+                let has_thinking = !assistant_thinking.trim().is_empty();
+
+                if has_text || has_thinking || !tool_calls.is_empty() {
+                    let reasoning_content = if has_thinking {
+                        Some(assistant_thinking)
+                    } else {
+                        None
+                    };
+                    messages.push(
+                        Message::assistant_with_reasoning(
+                            reasoning_content,
+                            assistant_text,
+                            tool_calls,
+                        )
+                        .with_turn_id(turn.turn_id.clone()),
+                    );
+                }
+
+                for item in &round.tool_items {
+                    let Some(result) = item.tool_result.as_ref() else {
+                        continue;
+                    };
+                    messages.push(
+                        Message::tool_result(ToolResult {
+                            tool_id: item.tool_call.id.clone(),
+                            tool_name: item.tool_name.clone(),
+                            result: result.result.clone(),
+                            result_for_assistant: result.result_for_assistant.clone(),
+                            is_error: !result.success,
+                            duration_ms: result.duration_ms,
+                            image_attachments: None,
+                        })
+                        .with_turn_id(turn.turn_id.clone()),
+                    );
+                }
             }
         }
 
@@ -4170,8 +4201,8 @@ mod tests {
     use crate::service::remote_ssh::workspace_state::local_workspace_roots_equal;
     use crate::service::session::{
         DialogTurnData, DialogTurnKind, ModelRoundData, SessionKind, SessionMetadata,
-        SessionRelationship, SessionRelationshipKind, ToolCallData, ToolItemData, ToolResultData,
-        TurnStatus, UserMessageData,
+        SessionRelationship, SessionRelationshipKind, TextItemData, ThinkingItemData, ToolCallData,
+        ToolItemData, ToolResultData, TurnStatus, UserMessageData,
     };
     use dashmap::try_result::TryResult;
     use serde_json::json;
@@ -5449,6 +5480,179 @@ mod tests {
 
         assert_eq!(messages.len(), 1);
         assert!(messages[0].is_actual_user_message());
+    }
+
+    #[test]
+    fn build_messages_from_turns_restores_rich_model_rounds_for_replay() {
+        let mut turn = DialogTurnData::new(
+            "turn-rich".to_string(),
+            0,
+            "session-1".to_string(),
+            UserMessageData {
+                id: "user-rich".to_string(),
+                content: "run command".to_string(),
+                timestamp: 1,
+                metadata: None,
+            },
+        );
+        turn.model_rounds = vec![
+            ModelRoundData {
+                id: "round-0".to_string(),
+                turn_id: "turn-rich".to_string(),
+                round_index: 0,
+                timestamp: 2,
+                text_items: vec![TextItemData {
+                    id: "text-0".to_string(),
+                    content: "I'll run it.".to_string(),
+                    is_streaming: false,
+                    timestamp: 2,
+                    is_markdown: true,
+                    order_index: Some(1),
+                    is_subagent_item: None,
+                    parent_task_tool_id: None,
+                    subagent_session_id: None,
+                    status: Some("completed".to_string()),
+                }],
+                tool_items: vec![ToolItemData {
+                    id: "tool-1".to_string(),
+                    tool_name: "shell".to_string(),
+                    tool_call: ToolCallData {
+                        input: json!({ "cmd": "echo hi" }),
+                        id: "tool-1".to_string(),
+                    },
+                    tool_result: Some(ToolResultData {
+                        result: json!({ "stdout": "hi" }),
+                        success: true,
+                        result_for_assistant: Some("hi".to_string()),
+                        error: None,
+                        duration_ms: Some(5),
+                    }),
+                    ai_intent: None,
+                    start_time: 2,
+                    end_time: Some(3),
+                    duration_ms: Some(5),
+                    queue_wait_ms: None,
+                    preflight_ms: None,
+                    confirmation_wait_ms: None,
+                    execution_ms: Some(5),
+                    order_index: Some(2),
+                    is_subagent_item: None,
+                    parent_task_tool_id: None,
+                    subagent_session_id: None,
+                    subagent_model_id: None,
+                    subagent_model_alias: None,
+                    status: Some("completed".to_string()),
+                    interruption_reason: None,
+                }],
+                thinking_items: vec![ThinkingItemData {
+                    id: "thinking-0".to_string(),
+                    content: "need to inspect output".to_string(),
+                    is_streaming: false,
+                    is_collapsed: false,
+                    timestamp: 2,
+                    order_index: Some(0),
+                    status: Some("completed".to_string()),
+                    is_subagent_item: None,
+                    parent_task_tool_id: None,
+                    subagent_session_id: None,
+                }],
+                start_time: 2,
+                end_time: Some(3),
+                duration_ms: Some(1),
+                provider_id: None,
+                model_id: None,
+                model_alias: None,
+                first_chunk_ms: None,
+                first_visible_output_ms: None,
+                stream_duration_ms: None,
+                attempt_count: None,
+                failure_category: None,
+                token_details: None,
+                status: "completed".to_string(),
+            },
+            ModelRoundData {
+                id: "round-1".to_string(),
+                turn_id: "turn-rich".to_string(),
+                round_index: 1,
+                timestamp: 4,
+                text_items: vec![TextItemData {
+                    id: "text-1".to_string(),
+                    content: "Done.".to_string(),
+                    is_streaming: false,
+                    timestamp: 4,
+                    is_markdown: true,
+                    order_index: Some(0),
+                    is_subagent_item: None,
+                    parent_task_tool_id: None,
+                    subagent_session_id: None,
+                    status: Some("completed".to_string()),
+                }],
+                tool_items: Vec::new(),
+                thinking_items: Vec::new(),
+                start_time: 4,
+                end_time: Some(4),
+                duration_ms: Some(0),
+                provider_id: None,
+                model_id: None,
+                model_alias: None,
+                first_chunk_ms: None,
+                first_visible_output_ms: None,
+                stream_duration_ms: None,
+                attempt_count: None,
+                failure_category: None,
+                token_details: None,
+                status: "completed".to_string(),
+            },
+        ];
+
+        let messages = SessionManager::build_messages_from_turns(&[turn]);
+
+        assert_eq!(messages.len(), 4);
+        assert!(messages[0].is_actual_user_message());
+        match &messages[1].content {
+            MessageContent::Mixed {
+                reasoning_content,
+                text,
+                tool_calls,
+            } => {
+                assert_eq!(reasoning_content.as_deref(), Some("need to inspect output"));
+                assert_eq!(text, "I'll run it.");
+                assert_eq!(tool_calls.len(), 1);
+                assert_eq!(tool_calls[0].tool_id, "tool-1");
+                assert_eq!(tool_calls[0].tool_name, "shell");
+                assert_eq!(tool_calls[0].arguments, json!({ "cmd": "echo hi" }));
+            }
+            other => panic!("expected mixed assistant message, got {other:?}"),
+        }
+        match &messages[2].content {
+            MessageContent::ToolResult {
+                tool_id,
+                tool_name,
+                result,
+                result_for_assistant,
+                is_error,
+                ..
+            } => {
+                assert_eq!(tool_id, "tool-1");
+                assert_eq!(tool_name, "shell");
+                assert_eq!(result, &json!({ "stdout": "hi" }));
+                assert_eq!(result_for_assistant.as_deref(), Some("hi"));
+                assert!(!is_error);
+            }
+            other => panic!("expected tool result message, got {other:?}"),
+        }
+        match &messages[3].content {
+            MessageContent::Mixed {
+                reasoning_content,
+                text,
+                tool_calls,
+            } => {
+                assert!(reasoning_content.is_none());
+                assert_eq!(text, "Done.");
+                assert!(tool_calls.is_empty());
+            }
+            other => panic!("expected assistant replay message, got {other:?}"),
+        }
     }
 
     #[test]
