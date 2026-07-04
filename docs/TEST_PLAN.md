@@ -354,6 +354,47 @@ Manual smoke status:
 - Covered: current single-display 150% Notepad path through `get_app_state`, `app_type_text`, and `app_click`.
 - Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, capture-source consistency, and real stale/missing pointer-map behavior.
 
+## ISSUE-1130C7 Windows Stale Screenshot Map Fail-Closed Evidence
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/apps/desktop/src/computer_use/desktop_host.rs` coordinate mapping and Windows-only manual harness.
+- `docs/qa/windows-computer-use-smoke-matrix.md`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files, or unrelated production runtime behavior changed.
+
+Checks:
+
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+  - Notes: explicit `screenshot_id` still wins over pid fallback; explicit missing `screenshot_id` now fails closed; `screenshot_id: None` still uses pid fallback.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed.
+  - Notes: the harness remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, the harness printed a skip message and did not launch Notepad or execute `app_*` actions.
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed.
+  - Notes: the harness opened a unique Notepad target, completed input/click, then verified a stale `ImageXy` `screenshot_id` fails before input dispatch.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+  - Notes: existing blocked-input fail-closed and uncertain-delivery warning contracts remain intact.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Manual smoke status:
+
+- Result: partially covered.
+- Covered: `WIN-CU-STALE-MAP` on current single-display 150% Notepad path; stale explicit `screenshot_id` fails closed instead of falling back to unrelated pointer state.
+- Remaining: 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency.
+
 ## ISSUE-1140E1 Short Drama Main AI Media Export Leak Guard
 
 Date: 2026-07-04

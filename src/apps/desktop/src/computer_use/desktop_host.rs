@@ -2302,15 +2302,24 @@ impl DesktopComputerUseHost {
                 .state
                 .lock()
                 .map_err(|e| VoidError::tool(format!("lock: {}", e)))?;
-            screenshot_id
-                .and_then(|id| s.screenshot_pointer_maps.get(id).copied())
-                .or_else(|| s.app_pointer_maps.get(&pid).copied())
-                .or(s.pointer_map)
-        };
-        let Some(map) = map else {
-            return Err(VoidError::tool(
-                "No screenshot coordinate map is available for this app. Call desktop.get_app_state for the target app first, then use app_click image_xy/image_grid against that returned screenshot_id.".to_string(),
-            ));
+            if let Some(id) = screenshot_id {
+                s.screenshot_pointer_maps.get(id).copied().ok_or_else(|| {
+                    VoidError::tool(format!(
+                        "No screenshot coordinate map is available for screenshot_id '{}'. Call desktop.get_app_state for the target app again and use the returned screenshot_id.",
+                        id
+                    ))
+                })?
+            } else {
+                s.app_pointer_maps
+                    .get(&pid)
+                    .copied()
+                    .or(s.pointer_map)
+                    .ok_or_else(|| {
+                        VoidError::tool(
+                            "No screenshot coordinate map is available for this app. Call desktop.get_app_state for the target app first, then use app_click image_xy/image_grid against that returned screenshot_id.".to_string(),
+                        )
+                    })?
+            }
         };
         map.map_image_to_global_f64(x, y)
     }
@@ -3800,6 +3809,12 @@ mod windows_host_app_action_tests {
                 .expect("pid fallback map"),
             (100.5, 200.5)
         );
+
+        let missing = host
+            .map_app_image_coords_to_pointer_f64(pid, 0, 0, Some("missing-shot"))
+            .expect_err("explicit missing screenshot id should fail");
+        assert!(missing.to_string().contains("screenshot_id"));
+        assert!(missing.to_string().contains("missing-shot"));
     }
 
     #[test]
@@ -3967,6 +3982,24 @@ mod windows_host_app_action_tests {
             .await
             .expect("click Notepad screenshot center through ComputerUseHost");
         assert_eq!(clicked.app.pid, Some(pid));
+
+        let stale = host
+            .app_click(AppClickParams {
+                app,
+                target: ClickTarget::ImageXy {
+                    x: 1,
+                    y: 1,
+                    screenshot_id: Some("stale-manual-smoke-shot".to_string()),
+                },
+                click_count: 1,
+                mouse_button: "left".to_string(),
+                modifier_keys: Vec::new(),
+                wait_ms_after: Some(0),
+            })
+            .await
+            .expect_err("stale screenshot_id must fail before dispatching input");
+        assert!(stale.to_string().contains("screenshot_id"));
+        assert!(stale.to_string().contains("stale-manual-smoke-shot"));
     }
 
     #[test]

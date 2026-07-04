@@ -118,6 +118,44 @@ Covered current-machine smoke:
 - Actions: `get_app_state`, `app_type_text` with `VOID-CU-SMOKE-{pid}`, and screenshot-basis `app_click`.
 - Result: passed.
 
+### 2026-07-04 Stale Screenshot Map Evidence
+
+Status: `partially_passed`
+
+The harness now also verifies stale explicit screenshot ids:
+
+- Current environment: single display, 150% scale (`AppliedDPI=144`).
+- Target: Notepad opened on a unique temporary `void-cu-smoke-*.txt` file.
+- Action: `app_click` with `ImageXy` and stale `screenshot_id: stale-manual-smoke-shot`.
+- Expected result: fail before input dispatch with an explicit `screenshot_id` error.
+- Result: passed.
+
+Covered scenario:
+
+```yaml
+scenario_id: WIN-CU-STALE-MAP
+status: passed
+date: 2026-07-04
+operator: Codex manual harness
+commit: pending current slice commit
+windows: Microsoft Windows 11 Home Chinese edition, version 10.0.26200, build 26200, 64-bit
+display_topology: one primary display, logical bounds {X=0,Y=0,Width=1707,Height=960}, AppliedDPI=144 / 150%
+target: Notepad unique temporary void-cu-smoke-*.txt
+target_integrity: current user session, not elevated
+hwnd: resolved by DesktopComputerUseHost during get_app_state
+pid: resolved from get_app_state result
+screenshot_id: stale-manual-smoke-shot
+capture_source: existing get_app_state app screenshot path
+action: app_click ImageXy x=1 y=1 with stale explicit screenshot_id
+result_status: failed closed through VoidResult error
+result_source: DesktopComputerUseHost image-coordinate mapping
+result_path: app_click target resolution before Windows input dispatch
+result_error_code: explicit screenshot_id coordinate map missing
+result_warning:
+evidence: env-enabled windows_computer_use_manual_harness passed
+notes: This covers stale/missing explicit screenshot-id behavior only. It does not prove DPI 100/125, multi-monitor, occlusion, UIPI, or capture-source consistency.
+```
+
 Still pending:
 
 - 100% and 125% DPI.
@@ -125,7 +163,6 @@ Still pending:
 - Occluded or covered target windows.
 - UIPI/high-integrity denial.
 - Capture-source consistency across WGC/DWM/PrintWindow/BitBlt.
-- Explicit stale/missing pointer-map failure in a real app window.
 
 Manual smoke remains partially complete; parent `ISSUE-1130C` remains open.
 

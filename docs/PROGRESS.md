@@ -86,8 +86,45 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C4 Windows Computer Use smoke environment preflight complete.
 - [x] ISSUE-1130C5 Windows Computer Use manual harness gate complete.
 - [x] ISSUE-1130C6 Windows Notepad single-display smoke evidence complete.
+- [x] ISSUE-1130C7 Windows stale screenshot-map fail-closed evidence complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1130C7 Windows Stale Screenshot Map Fail-Closed Evidence`
+
+Summary:
+
+- Tightened app image-coordinate mapping so an explicit `screenshot_id` must resolve to its own pointer map instead of falling back to pid/app pointer state.
+- Preserved the existing pid/app pointer-map fallback only for calls without an explicit `screenshot_id`.
+- Extended the Windows Notepad manual harness to attempt a stale `ImageXy` click and assert it fails before dispatching input.
+- Current-machine smoke now covers `WIN-CU-STALE-MAP` for the single-display 150% Notepad path.
+- Kept parent `ISSUE-1130C` open because DPI 100%/125%, mixed-scale multi-monitor/negative origin, occlusion, UIPI/high-integrity denial, and capture-source consistency are still missing.
+
+Verification:
+
+- `$env:VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE='1'; cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed; the harness completed Notepad input/click and verified stale `screenshot_id` fails explicitly.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --nocapture`
+  - Result: passed; the harness remained ignored by default.
+- `cargo test -p void-desktop windows_computer_use_manual_harness --lib -- --ignored --nocapture`
+  - Result: passed; without `VOID_RUN_WINDOWS_COMPUTER_USE_SMOKE=1`, it printed a skip message and executed no app action.
+- `cargo test -p void-desktop windows_app_image_coordinate --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `cargo test -p void-desktop windows_host_app_actions --lib -- --nocapture`
+  - Result: passed, 2 tests.
+- `rustfmt --edition 2021 --check src/apps/desktop/src/computer_use/desktop_host.rs`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `git diff --check -- src/apps/desktop/src/computer_use/desktop_host.rs docs/ISSUES.md docs/TEST_PLAN.md docs/PROGRESS.md docs/qa/windows-computer-use-smoke-matrix.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Real Windows smoke is partially covered only for the current single-display 150% Notepad path and stale-map fail-closed behavior.
+- Parent `ISSUE-1130C` remains open until 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency have evidence or explicit deferrals.
+
+## Previous Slice
 
 Issue: `ISSUE-1130C6 Windows Notepad Single-Display Smoke Evidence`
 

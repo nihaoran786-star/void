@@ -1897,6 +1897,24 @@ Result:
 - Env-enabled run passed on the current single-display 150% environment: `get_app_state`, `app_type_text`, and `app_click` completed through `DesktopComputerUseHost`.
 - Remaining manual coverage still excludes 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded windows, UIPI/high-integrity denial, capture-source consistency, and real stale-map behavior; `ISSUE-1130C` is not closed.
 
+### ISSUE-1130C7 Windows Stale Screenshot Map Fail-Closed Evidence
+
+Priority: P1
+Status: Done
+Goal: Ensure app image-coordinate actions with an explicit stale or missing `screenshot_id` fail closed instead of falling back to unrelated app/pid pointer maps.
+Allowed files: `src/apps/desktop/src/computer_use/desktop_host.rs`, `docs/qa/windows-computer-use-smoke-matrix.md`, `docs/ISSUES.md`, `docs/TEST_PLAN.md`, `docs/PROGRESS.md`.
+Forbidden files: Computer Use schema, Tauri API/routes, Web UI, Flow Chat, AI media, AI short-drama, terminal, provider, Cargo/package/workflow/generated files.
+Acceptance:
+- If `app_click` receives `ImageXy` or `ImageGrid` with an explicit `screenshot_id`, that id must resolve to a current pointer map.
+- Missing explicit screenshot ids must fail with an actionable error mentioning `screenshot_id`.
+- `screenshot_id: None` may still use the existing pid/app pointer-map fallback.
+- Env-enabled Notepad smoke records real stale-map fail-closed evidence without claiming DPI/multi-monitor/occlusion/UIPI/capture-source completion.
+Result:
+- Tightened `map_app_image_coords_to_pointer_f64` so explicit `screenshot_id` lookup is authoritative and does not fall back to pid/app maps when stale or missing.
+- Extended `windows_app_image_coordinate_maps_prefer_explicit_screenshot_id` to cover the fail-closed explicit-missing-id path while preserving pid fallback for `None`.
+- Extended the env-enabled Notepad manual harness to attempt a stale `ImageXy` click and assert it fails before dispatching input.
+- Current-machine smoke now covers `WIN-CU-STALE-MAP`; parent `ISSUE-1130C` remains open because 100%/125% DPI, mixed-scale multi-monitor/negative origin, occluded targets, UIPI/high-integrity denial, and capture-source consistency still need evidence or explicit deferrals.
+
 ### ISSUE-1130D Windows Computer Use Capability Gating and Settings Links
 
 Priority: P2
