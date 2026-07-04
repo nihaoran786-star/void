@@ -90,12 +90,29 @@ Responsibility:
 - Terminal adapter.
 - Computer Use host.
 - WebDriver bridge.
+- Workspace file command DTOs and OS/remote adapter handoff.
 
 Forbidden:
 
 - Moving terminal domain logic into `terminal_api.rs`.
 - Moving Computer Use policy into UI.
 - Replacing Void window labels or URL parameters with upstream labels.
+- Resolving workspace file operations in page components or command entrypoints instead of `path_target`.
+
+### Remote Workspace File Operations
+
+```text
+FilesPanel -> WorkspaceAPI -> desktop command request -> path_target -> local filesystem | RemoteFileService
+```
+
+Required contract:
+
+- Web UI may pass the current workspace `connectionId` as an optional hint, but it must not call remote services or infer SSH availability from path strings.
+- `WorkspaceAPI` owns the Tauri request shape for file CRUD and carries `remoteConnectionId` through as explicit request data.
+- Desktop command handlers only deserialize and forward request fields.
+- `path_target` is the only desktop conversion layer that resolves local vs remote targets for create/delete/rename/read/write operations.
+- `RemoteWorkspaceRegistry` may use a preferred connection id only to disambiguate multiple matching remote roots; a unique path match must not be discarded by a mismatched hint.
+- Remote non-recursive directory delete uses a non-recursive remote file service method; recursive delete uses `remove_dir_all`.
 
 ### Installer and Brand
 

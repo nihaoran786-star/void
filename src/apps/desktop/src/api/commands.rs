@@ -792,6 +792,8 @@ async fn search_remote_file_names_with_progress(
 pub struct RenameFileRequest {
     pub old_path: String,
     pub new_path: String,
+    #[serde(default)]
+    pub remote_connection_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -804,22 +806,30 @@ pub struct ExportLocalFileRequest {
 #[derive(Debug, Deserialize)]
 pub struct DeleteFileRequest {
     pub path: String,
+    #[serde(default, rename = "remoteConnectionId")]
+    pub remote_connection_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DeleteDirectoryRequest {
     pub path: String,
     pub recursive: Option<bool>,
+    #[serde(default, rename = "remoteConnectionId")]
+    pub remote_connection_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateFileRequest {
     pub path: String,
+    #[serde(default, rename = "remoteConnectionId")]
+    pub remote_connection_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateDirectoryRequest {
     pub path: String,
+    #[serde(default, rename = "remoteConnectionId")]
+    pub remote_connection_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2651,7 +2661,13 @@ pub async fn rename_file(
     state: State<'_, AppState>,
     request: RenameFileRequest,
 ) -> Result<(), String> {
-    rename_path(&state, &request.old_path, &request.new_path).await
+    rename_path(
+        &state,
+        &request.old_path,
+        &request.new_path,
+        request.remote_connection_id.as_deref(),
+    )
+    .await
 }
 
 /// Copy a local file to another local path (binary-safe). Used for export and drag-upload into local workspaces.
@@ -2678,7 +2694,12 @@ pub async fn delete_file(
     state: State<'_, AppState>,
     request: DeleteFileRequest,
 ) -> Result<(), String> {
-    delete_desktop_file(&state, &request.path).await
+    delete_desktop_file(
+        &state,
+        &request.path,
+        request.remote_connection_id.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2687,7 +2708,13 @@ pub async fn delete_directory(
     request: DeleteDirectoryRequest,
 ) -> Result<(), String> {
     let recursive = request.recursive.unwrap_or(false);
-    delete_desktop_directory(&state, &request.path, recursive).await
+    delete_desktop_directory(
+        &state,
+        &request.path,
+        recursive,
+        request.remote_connection_id.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2695,7 +2722,12 @@ pub async fn create_file(
     state: State<'_, AppState>,
     request: CreateFileRequest,
 ) -> Result<(), String> {
-    create_empty_file(&state, &request.path).await
+    create_empty_file(
+        &state,
+        &request.path,
+        request.remote_connection_id.as_deref(),
+    )
+    .await
 }
 
 #[tauri::command]
@@ -2703,7 +2735,12 @@ pub async fn create_directory(
     state: State<'_, AppState>,
     request: CreateDirectoryRequest,
 ) -> Result<(), String> {
-    create_desktop_directory(&state, &request.path).await
+    create_desktop_directory(
+        &state,
+        &request.path,
+        request.remote_connection_id.as_deref(),
+    )
+    .await
 }
 
 #[derive(Debug, Deserialize)]

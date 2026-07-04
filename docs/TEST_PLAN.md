@@ -8,6 +8,44 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192A Remote Workspace File CRUD Connection Context
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/infrastructure/api/service-api/WorkspaceAPI.ts`
+- `src/web-ui/src/app/components/panels/FilesPanel.tsx`
+- `src/web-ui/src/shared/utils/pathUtils.ts`
+- `src/web-ui/src/shared/utils/pathUtils.test.ts`
+- `src/apps/desktop/src/api/commands.rs`
+- `src/apps/desktop/src/api/path_target.rs`
+- `src/crates/core/src/service/remote_ssh/remote_fs.rs`
+- `src/crates/core/src/service/remote_ssh/disabled.rs`
+- `src/crates/services-integrations/src/remote_ssh/workspace_registry.rs`
+- Migration docs.
+- No Flow Chat, AI media, AI short-drama, provider adapter, terminal, Canvas runtime, installer/brand, generated version file, or upstream directory migration changes.
+
+Checks:
+
+- `cargo test -p void-services-integrations remote_ssh::workspace_registry --lib -- --nocapture`
+  - Result: ran but matched 0 tests because `remote-ssh` is feature-gated.
+- `cargo test -p void-services-integrations --features remote-ssh preferred_connection --lib -- --nocapture`
+  - Result: passed, 2 focused registry tests.
+- `cargo check -p void-desktop`
+  - Result: passed.
+  - Notes: existing unrelated warning remains in `src/apps/desktop/src/api/clipboard_file_api.rs` for `parse_clipboard_path_segments` dead code.
+- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
+  - Result: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Manual status:
+
+- The issue adapts upstream `1ab4d323f` remote workspace CRUD context propagation and path registry disambiguation.
+- The issue intentionally excludes upstream confirm-dialog, copy-path clipboard formatting, paste shortcut, and Linux reveal-in-explorer UI behavior.
+- Real SSH create/delete/rename remains a manual remote environment smoke item; this slice covers interface and routing contracts.
+
 ## ISSUE-1190 Upstream Canvas and Turn-Ownership Incremental Inventory
 
 Date: 2026-07-04

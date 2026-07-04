@@ -128,8 +128,10 @@ impl RemoteWorkspaceRegistry {
             .filter(|r| registration_matches_path(r, &path_norm))
             .collect();
 
-        if let Some(pref) = preferred_connection_id {
-            candidates.retain(|r| r.connection_id == pref);
+        if candidates.len() > 1 {
+            if let Some(pref) = preferred_connection_id {
+                candidates.retain(|r| r.connection_id == pref);
+            }
         }
 
         let best_len = candidates.iter().map(|r| r.remote_root.len()).max()?;
@@ -207,4 +209,50 @@ fn remote_path_is_under_root(path: &str, root: &str) -> bool {
 
 fn registration_matches_path(reg: &RegisteredRemoteWorkspace, path_norm: &str) -> bool {
     path_norm == reg.remote_root || remote_path_is_under_root(path_norm, &reg.remote_root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RemoteWorkspaceRegistry;
+
+    async fn register(registry: &RemoteWorkspaceRegistry, remote_path: &str, connection_id: &str) {
+        registry
+            .register_remote_workspace(
+                remote_path.to_string(),
+                connection_id.to_string(),
+                connection_id.to_string(),
+                format!("{}.example", connection_id),
+            )
+            .await;
+    }
+
+    #[tokio::test]
+    async fn preferred_connection_does_not_override_unique_path_match() {
+        let registry = RemoteWorkspaceRegistry::new();
+        register(&registry, "/project-a", "conn-a").await;
+        register(&registry, "/project-b", "conn-b").await;
+
+        let entry = registry
+            .lookup_connection("/project-a/src/main.rs", Some("conn-b"))
+            .await
+            .expect("unique path match should resolve");
+
+        assert_eq!(entry.connection_id, "conn-a");
+        assert_eq!(entry.remote_root, "/project-a");
+    }
+
+    #[tokio::test]
+    async fn preferred_connection_disambiguates_multiple_path_matches() {
+        let registry = RemoteWorkspaceRegistry::new();
+        register(&registry, "/", "conn-a").await;
+        register(&registry, "/", "conn-b").await;
+
+        let entry = registry
+            .lookup_connection("/src/main.rs", Some("conn-b"))
+            .await
+            .expect("preferred connection should resolve ambiguous roots");
+
+        assert_eq!(entry.connection_id, "conn-b");
+        assert_eq!(entry.remote_root, "/");
+    }
 }

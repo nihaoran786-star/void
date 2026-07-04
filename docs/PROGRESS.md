@@ -101,23 +101,31 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1191A CLI rich model-round replay smoke complete.
 - [x] ISSUE-1191B CLI theme truecolor preset fallback governance complete.
 - [x] ISSUE-1191C terminal core history status/source contract complete.
+- [x] ISSUE-1192A remote workspace file CRUD connection context complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1191C Terminal Core History Status/Source Contract`
+Issue: `ISSUE-1192A Remote Workspace File CRUD Connection Context`
 
 Summary:
 
-- Moved local terminal history availability facts into terminal-core DTOs.
-- `TerminalApi::get_history` now returns explicit `historyStatus: "ready"` and `historySource: "local"` through `GetHistoryResponse`.
-- Desktop local history conversion now passes through core status/source instead of synthesizing local state twice.
-- Remote unsupported history remains desktop-owned as `unsupported/remote` with `remote_history_unsupported`.
-- Protected terminal session internals, Web terminal hooks/components, remote terminal replay, byte-count ack semantics, Flow Chat, MCP, provider, AI media, AI short-drama, runtime-port, Cargo layout, and generated version files.
+- Adapted upstream `1ab4d323f` remote workspace file CRUD connection context as a focused Void boundary slice.
+- Web `WorkspaceAPI` and desktop command DTOs now carry optional `remoteConnectionId` for create/delete/rename file operations.
+- `FilesPanel` passes current workspace connection id through WorkspaceAPI and uses remote path normalization only when the current workspace is remote.
+- `path_target` remains the sole desktop local/remote resolver for file CRUD operations.
+- Remote registry preferred connection id now disambiguates multiple matches without discarding a unique path match.
+- Protected Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, upstream directory layout, context-menu UI polish, and generated version files.
 
 Verification:
 
-- `cargo test -p terminal-core terminal_history --lib -- --nocapture`
-  - Result: passed, 1 focused Rust test.
+- `cargo test -p void-services-integrations --features remote-ssh preferred_connection --lib -- --nocapture`
+  - Result: passed, 2 focused Rust tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one existing unrelated dead-code warning in `clipboard_file_api.rs`.
+- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
+  - Result: passed, 1 file / 2 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
   - Result: passed, 1 focused Rust test.
 - `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`

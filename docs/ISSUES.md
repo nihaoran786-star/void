@@ -3101,3 +3101,28 @@ Result:
 Risk notes:
 - This slice does not implement remote terminal replay or `historyStatus: "error"` as a successful DTO; local core failures still use the existing error path.
 - Byte-count ack semantics remain a separate terminal frontend/backend contract decision.
+
+### ISSUE-1192A Remote Workspace File CRUD Connection Context
+
+Priority: P1
+Status: Done
+Goal: Adapt upstream `1ab4d323f` remote workspace file CRUD fix so create/delete/rename operations carry explicit remote connection context through the existing Void WorkspaceAPI -> desktop command -> path target -> remote file service chain.
+Allowed files: `src/web-ui/src/infrastructure/api/service-api/WorkspaceAPI.ts`, `src/web-ui/src/app/components/panels/FilesPanel.tsx`, `src/web-ui/src/shared/utils/pathUtils.ts`, focused tests, `src/apps/desktop/src/api/commands.rs`, `src/apps/desktop/src/api/path_target.rs`, `src/crates/core/src/service/remote_ssh/{remote_fs.rs,disabled.rs}`, `src/crates/services-integrations/src/remote_ssh/workspace_registry.rs`, docs.
+Forbidden files: Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, upstream directory migration, context-menu UI polish not needed for CRUD correctness.
+Acceptance:
+- Web WorkspaceAPI accepts optional `remoteConnectionId` for create/delete/rename file operations.
+- FilesPanel passes the current remote workspace connection id without directly calling backend or remote services.
+- Desktop command DTOs accept optional remote connection ids and pass them to `path_target`.
+- `path_target` remains the only local/remote operation resolver for these CRUD commands.
+- Remote registry only uses preferred connection id to disambiguate multiple path matches, not to discard an otherwise unique path match.
+- Focused Rust and Web tests pass, plus desktop check/type-check when feasible.
+Risk notes:
+- This slice intentionally excludes upstream confirm-dialog, copy-path clipboard, paste shortcut, and Linux reveal-in-explorer UI changes.
+- Real SSH CRUD still requires manual remote environment validation; automated coverage is contract-level.
+Result:
+- Added optional `remoteConnectionId` to Web WorkspaceAPI file create/delete/rename calls and desktop command request DTOs.
+- FilesPanel now passes the current workspace connection id through WorkspaceAPI for create/delete/rename and normalizes remote paths with `normalizeRemoteWorkspacePath`.
+- `path_target` now receives the preferred remote connection id for create/delete/rename and remains the only local/remote resolution layer for these operations.
+- Added non-recursive `RemoteFileService::remove_dir` and kept recursive delete on `remove_dir_all`.
+- Updated `RemoteWorkspaceRegistry` so preferred connection id only disambiguates multiple matching remote roots.
+- Added focused registry and path normalization tests.
