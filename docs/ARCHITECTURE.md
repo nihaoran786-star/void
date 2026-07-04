@@ -201,6 +201,8 @@ AI/tool event -> Artifact tool/core permission interface -> workspace-scoped art
 
 `ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` are not allowed to become persistent artifact source-of-truth modules.
 
+`docs/architecture/visual-artifact-boundary-decision.md` defines the route-level ownership matrix for visual artifact surfaces. `GenerativeUI` remains a chat-scoped tool result, MiniApps remain reusable app/runtime entities, AI media remains asset/manifest owned, AI short-drama remains project/manifest owned, and future persistent interactive artifacts require an explicit save/promote/import route through a Void-owned artifact module. No route may automatically promote a generated widget, media asset, MiniApp, or short-drama artifact into persistent Canvas-like state without the future module interface and tests.
+
 ## Upstream Adaptation Rules
 
 1. Compare upstream behavior first.

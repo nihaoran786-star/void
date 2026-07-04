@@ -65,6 +65,16 @@ Minimum content facts:
 - theme/runtime governance metadata
 - optional links to media ids, MiniApp ids, short-drama coordinates, or Flow Chat tool-call ids
 
+Allowed link fields must stay narrow:
+
+- MiniApp links: app id, name, permission summary, runtime status, catalog metadata, or runner projection.
+- AI media links: batch id, item index, media item id, relative path metadata, manifest metadata, preview facts, or thumbnail facts.
+- AI short-drama links: project id, stage, episode id, artifact id/handle, revision/attempt summary, media reference, or derived index entry facts.
+- `GenerativeUI` promotion inputs: session id, tool call id, tool item id, widget id, title, and widget code.
+- Content canvas links: tab/layout projection metadata only.
+
+Artifact records must not copy MiniApp storage, media manifests, generated media files, short-drama manifests, short-drama artifacts, or panel snapshots into artifact-owned state.
+
 Required commands:
 
 - create artifact

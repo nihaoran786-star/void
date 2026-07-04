@@ -106,6 +106,38 @@ Manual status:
 - RFC keeps short-drama project facts owned by `ShortDramaProject` / `.void/short-drama`; future Canvas-like artifacts may only project or reference them unless a separate issue changes ownership.
 - RFC records that `ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` remain projections/coordinators, not persistent artifact source-of-truth modules.
 
+## ISSUE-1190C Visual Artifact Boundary Decision
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/architecture/visual-artifact-boundary-decision.md`.
+- `docs/ARCHITECTURE.md`.
+- `docs/DECISIONS.md`.
+- `docs/ISSUES.md`.
+- `docs/PROGRESS.md`.
+- `docs/TEST_PLAN.md`.
+- No runtime source, scripts, Cargo manifests, generated-widget runtime, MiniApp manager/API/runtime, AI media service, AI short-drama service/panel, provider, desktop API, iframe bridge, or generated version behavior changed.
+
+Checks:
+
+- `git diff --check -- docs/architecture/visual-artifact-boundary-decision.md docs/architecture/canvas-artifact-domain-rfc.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- Read-only subagent boundary reviews for `GenerativeUI` and MiniApp/AI media/AI short-drama ownership.
+  - Result: passed.
+  - Notes: reviewers confirmed `GenerativeUI` panel saves are session tool-result edits, future promotion requires explicit artifact logical references, and future artifact work must reference rather than migrate MiniApp, AI media, or AI short-drama facts.
+
+Manual status:
+
+- The decision names a single owner and source of truth for `GenerativeUI`, MiniApps, AI media, AI short-drama, and future persistent interactive artifacts.
+- The decision keeps existing `GenerativeUI` behavior as chat-scoped raw HTML/SVG tool-result rendering.
+- The decision records that generated-widget panel saves are session tool-result edits, not workspace artifact saves.
+- The decision records allowed reference fields and requires future tests proving artifact storage does not write MiniApp, AI media, or AI short-drama source-of-truth files.
+- The decision rejects automatic promotion from generated widget, MiniApp, media asset, or short-drama artifact into persistent Canvas-like state without an explicit future module interface and tests.
+
 ## Baseline Checks
 
 - `git status --short --branch`

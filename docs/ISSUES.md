@@ -2945,7 +2945,7 @@ Risk notes: Directly importing upstream `CanvasArtifact`, `CanvasStoragePort`, o
 ### ISSUE-1190C GenerativeUI, Miniapp, and Canvas Boundary Decision
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Decide when Void should use one-shot generated widgets, existing miniapps, AI short-drama canvas, or a future persistent Canvas-like artifact.
 Allowed files: docs and focused existing tests if they only lock current behavior.
 Forbidden files: new Canvas runtime, generated-widget rewrite, miniapp registry rewrite, short-drama UI rewrite, media service rewrite, provider changes.
@@ -2953,7 +2953,15 @@ Acceptance:
 - The decision names the single owner for each visual artifact type.
 - Existing `GenerativeUI` behavior remains compatible.
 - Any future Canvas-like route must avoid automatic promotion from generated widget to persistent artifact without explicit state ownership and tests.
+- Future artifact work must prove it references rather than migrates MiniApp, AI media, and AI short-drama facts, and must test that artifact storage does not write their source-of-truth files.
 Risk notes: Upstream Canvas overlaps with current `GenerativeUI` and AI short-drama surface area; boundary clarity must precede implementation.
+Result:
+- Added `docs/architecture/visual-artifact-boundary-decision.md`.
+- Recorded `DEC-126` in `docs/DECISIONS.md`.
+- Locked route owners for `GenerativeUI`, MiniApps, AI media, AI short-drama, and future persistent interactive artifacts.
+- Recorded that generated-widget panel saves are session tool-result edits, not workspace artifact saves.
+- Added allowed-reference constraints for MiniApp, AI media, AI short-drama, `GenerativeUI`, and `ContentCanvas`.
+- Kept this slice documentation-only; no runtime, UI, provider, media, MiniApp, short-drama, desktop API, or generated-widget code changed.
 
 ### ISSUE-1190D Canvas Runtime Security Review
 
