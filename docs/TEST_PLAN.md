@@ -75,6 +75,37 @@ Manual status:
 - The release turn-navigation e2e spec now asserts that the header turn list closes after successful selection.
 - The full release e2e was not executed in this slice because it requires the long-session fixture environment (`E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, `VOID_E2E_TURN_NAV_TARGET_TITLE`).
 
+## ISSUE-1190B Canvas Artifact Domain RFC
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/architecture/canvas-artifact-domain-rfc.md`.
+- `docs/ARCHITECTURE.md`.
+- `docs/DECISIONS.md`.
+- `docs/ISSUES.md`.
+- `docs/PROGRESS.md`.
+- `docs/TEST_PLAN.md`.
+- No runtime source, scripts, Cargo manifests, Web UI Canvas runtime, desktop APIs, iframe bridge, skills registration, `core.canvas` exposure, AI media storage, AI short-drama source-of-truth, MiniApp storage, terminal, provider, Computer Use, or generated version behavior changed.
+
+Checks:
+
+- `git diff --check -- docs/architecture/canvas-artifact-domain-rfc.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- Subagent RFC/spec review:
+  - Result: passed.
+  - Notes: upstream Canvas review and current Void artifact ownership review were read-only and their recommendations were incorporated into the RFC.
+
+Manual status:
+
+- RFC distinguishes current `GenerativeUI`, MiniApps, AI media artifacts, AI short-drama project artifacts, and future persistent interactive artifacts.
+- RFC requires Void-owned logical references plus explicit `status/source/error/diagnostic`, snapshot, source/compiled revision, exact patch, and last-known-good compiled payload facts for future artifact state.
+- RFC keeps short-drama project facts owned by `ShortDramaProject` / `.void/short-drama`; future Canvas-like artifacts may only project or reference them unless a separate issue changes ownership.
+- RFC records that `ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` remain projections/coordinators, not persistent artifact source-of-truth modules.
+
 ## Baseline Checks
 
 - `git status --short --branch`

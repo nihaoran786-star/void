@@ -2926,7 +2926,7 @@ Risk notes: Current Void already covers most user-visible behavior through `ISSU
 ### ISSUE-1190B Canvas Artifact Domain RFC
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Define a Void-owned persistent interactive artifact domain contract inspired by upstream Canvas without adopting BitFun runtime paths or session storage as a source of truth.
 Allowed files: docs first; optional future domain contract tests after a separate implementation gate.
 Forbidden files: Canvas runtime implementation, desktop Canvas APIs, iframe bridge, `core.canvas` tool exposure, skills registration, AI short-drama source-of-truth changes, AI media storage changes, Cargo feature graph changes.
@@ -2934,6 +2934,12 @@ Acceptance:
 - The RFC distinguishes current `GenerativeUI`, miniapps, AI media artifacts, AI short-drama project artifacts, and any future persistent interactive artifact.
 - Artifact state uses explicit `status/source/error/diagnostic` facts and does not rely on UI panel state as the source of truth.
 - Short-drama project facts remain owned by `ShortDramaProject` / `.void/short-drama`; Canvas-like artifacts may only be projections unless a future issue changes ownership explicitly.
+Result:
+- Added `docs/architecture/canvas-artifact-domain-rfc.md`.
+- Recorded existing ownership for `GenerativeUI`, MiniApps, AI media, AI short-drama artifacts, and future persistent interactive artifacts.
+- Required Void-owned logical references, snapshot/source/state/diagnostic facts, exact unique patch semantics, and last-known-good compiled payload behavior for any future implementation.
+- Added DEC-125 to require a Void-owned artifact interface before runtime code.
+- No Canvas runtime, desktop API, iframe bridge, skills, `core.canvas` exposure, AI media storage, AI short-drama source-of-truth, or Cargo feature graph changed.
 Risk notes: Directly importing upstream `CanvasArtifact`, `CanvasStoragePort`, or `bitfun-canvas://` identities would create dual source-of-truth risk.
 
 ### ISSUE-1190C GenerativeUI, Miniapp, and Canvas Boundary Decision

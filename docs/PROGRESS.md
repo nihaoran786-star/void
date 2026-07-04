@@ -5454,3 +5454,31 @@ Remaining risk:
 - The release e2e assertion was added but not fully executed in this slice because it depends on a long-session fixture environment (`E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, `VOID_E2E_TURN_NAV_TARGET_TITLE`).
 - e2e static type checking currently needs the WebdriverIO globals type dependency/config fixed before it can be used as a reliable preflight.
 - Full upstream `FlowChatTurnPinRequestStatus` migration remains deferred; future work must prove it with separate failing tests before changing VirtualMessageList ownership.
+
+## ISSUE-1190B Canvas Artifact Domain RFC
+
+Status: Done
+
+Completed:
+
+- Added `docs/architecture/canvas-artifact-domain-rfc.md` as the Void-owned documentation contract for future Canvas-like persistent interactive artifacts.
+- Distinguished current `GenerativeUI`, MiniApps, AI media, AI short-drama artifacts, and future persistent interactive artifacts by owner, source of truth, and UI role.
+- Added logical reference, snapshot, structured diagnostic, exact patch, revision, and last-known-good compiled payload requirements based on the upstream Canvas wave.
+- Recorded that `ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` must remain projections/coordinators rather than future artifact source-of-truth modules.
+- Added the persistent interactive artifact section to `docs/ARCHITECTURE.md`.
+- Added DEC-125 to require a Void-owned artifact interface before storage/runtime/tool/UI implementation.
+- Kept this slice docs-only; no runtime, Cargo, Canvas, MiniApp, AI media, or AI short-drama source code changed.
+
+Verification:
+
+- `git diff --check -- docs/architecture/canvas-artifact-domain-rfc.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- Subagent RFC/spec review:
+  - Result: passed; upstream Canvas review identified logical reference, snapshot, diagnostic, patch, and last-known-good concepts, and current Void artifact ownership review confirmed existing panels/stores are projections rather than source-of-truth modules.
+
+Remaining risk:
+
+- This RFC does not implement storage, compiler/runtime, security, tool exposure, or UI. Those remain split across `ISSUE-1190C`, `ISSUE-1190D`, and later implementation issues.
+- Existing `GenerativeUI` still contains legacy `bf-*` scaffold naming in prompts; renaming or theming that surface is outside this RFC and belongs to theme/tool-card governance issues.

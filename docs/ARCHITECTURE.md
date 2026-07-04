@@ -180,6 +180,27 @@ Required state model:
 - artifact attempts/revisions/change requests
 - workspace mismatch state
 
+### Persistent Interactive Artifacts
+
+`docs/architecture/canvas-artifact-domain-rfc.md` is the Void-owned RFC for future Canvas-like persistent interactive artifacts. It is documentation only until a later issue accepts storage, runtime, security, and tool-exposure implementation.
+
+Current ownership remains unchanged:
+
+- `GenerativeUI` is a chat-scoped tool-result widget, not persistent artifact storage.
+- Miniapps remain owned by MiniApp manager/domain modules, source files, storage, permissions, and runtime state.
+- AI media remains owned by media tools, `.void/media-jobs`, generated media manifests, and `WorkspaceMediaLibraryService`.
+- AI short-drama remains owned by `ShortDramaProject`, `.void/short-drama` facts, sidecars, attempts, revisions, change requests, and rebuildable indexes.
+
+Future artifact state must use a Void-owned logical reference, explicit `status/source/error/diagnostic` facts, source/compiled revision facts, snapshot facts, and last-known-good compiled payload facts. Patch operations must use exact unique replacement semantics, with full source replacement reserved for ambiguous changes. UI panels and tool cards may render or dispatch commands only through the module interface; they must not infer artifact state from iframe messages, panel state, missing files, empty arrays, chat transcript text, or session-scoped Canvas storage.
+
+The preferred future ownership chain is:
+
+```text
+AI/tool event -> Artifact tool/core permission interface -> workspace-scoped artifact facts -> Web ArtifactLibraryService -> Canvas panel projection
+```
+
+`ContentCanvas`, content-canvas `canvasStore`, Flow Chat tool cards, generated-widget frames, MiniApp scenes, and `ShortDramaCenterPanel` are not allowed to become persistent artifact source-of-truth modules.
+
 ## Upstream Adaptation Rules
 
 1. Compare upstream behavior first.
