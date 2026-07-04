@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeTerminalReplay } from './terminalReplay';
+import { normalizeTerminalReplay, terminalReplayHasScreenText } from './terminalReplay';
 import type { GetHistoryResponse } from '../types';
 
 describe('normalizeTerminalReplay', () => {
@@ -70,5 +70,23 @@ describe('normalizeTerminalReplay', () => {
     expect(history.historyStatus).toBe('unsupported');
     expect(history.historySource).toBe('remote');
     expect(history.errorCode).toBe('remote_history_unsupported');
+  });
+});
+
+describe('terminalReplayHasScreenText', () => {
+  it('does not treat resize markers or terminal metadata controls as screen text', () => {
+    expect(terminalReplayHasScreenText([
+      { cols: 120, rows: 30, data: '' },
+      { cols: 120, rows: 30, data: '\x1b]0;PowerShell\x07' },
+      { cols: 120, rows: 30, data: '\x1b[30;1H' },
+      { cols: 120, rows: 30, data: '\r\n\t' },
+    ])).toBe(false);
+  });
+
+  it('detects printable replay content after control sequences', () => {
+    expect(terminalReplayHasScreenText([
+      { cols: 120, rows: 30, data: '\x1b]0;PowerShell\x07' },
+      { cols: 120, rows: 30, data: '\x1b[32mready\x1b[0m' },
+    ])).toBe(true);
   });
 });

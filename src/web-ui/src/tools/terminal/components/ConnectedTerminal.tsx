@@ -15,6 +15,7 @@ import {
   isStandaloneCursorPosition,
   resolveTerminalPaste,
   shouldUsePowerShellReadlinePaste,
+  terminalReplayHasScreenText,
 } from '../utils';
 import { confirmWarning } from '@/component-library';
 import { createLogger } from '@/shared/utils/logger';
@@ -139,6 +140,9 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     if (queue.length === 0) return;
     // Clear first to prevent orphaned items if new data arrives during flush
     outputQueueRef.current = [];
+    const shouldProtectReplayWidth = terminalReplayHasScreenText(
+      queue.filter((item): item is Extract<TerminalOutputQueueItem, { type: 'data' }> => item.type === 'data'),
+    );
 
     // If we have historical PTY dimensions, resize xterm.js to the correct row
     // count before replaying content.  This prevents absolute cursor-position
@@ -157,8 +161,10 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
             xterm.resize(xterm.cols, targetRows);
           }
         } catch { /* ignore */ }
-        // Prevent doXtermResize from shrinking below the historical col width.
-        preventShrinkBelowColsRef.current = dims.cols;
+        if (shouldProtectReplayWidth) {
+          // Prevent doXtermResize from shrinking below the historical col width.
+          preventShrinkBelowColsRef.current = dims.cols;
+        }
       }
     }
 
@@ -168,10 +174,12 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
         if (xterm) {
           try {
             xterm.resize(item.cols, item.rows);
-            preventShrinkBelowColsRef.current = Math.max(
-              preventShrinkBelowColsRef.current,
-              item.cols,
-            );
+            if (shouldProtectReplayWidth) {
+              preventShrinkBelowColsRef.current = Math.max(
+                preventShrinkBelowColsRef.current,
+                item.cols,
+              );
+            }
           } catch {
             // Ignore replay resize failures; subsequent data should still be written.
           }

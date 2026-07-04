@@ -30,7 +30,7 @@ export type {
   ResizeRepaintGuard,
   ResizeRepaintGuardOptions,
 } from './resizeRepaintGuard';
-export { normalizeTerminalReplay } from './terminalReplay';
+export { normalizeTerminalReplay, terminalReplayHasScreenText } from './terminalReplay';
 export { createReplayAwareTerminalEventHandler } from './terminalReplayEventQueue';
 export {
   buildXtermTheme,

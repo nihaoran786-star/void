@@ -8,6 +8,35 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1120F Terminal Replay Screen-Text Width Guard
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/tools/terminal/utils/terminalReplay.ts`
+- `src/web-ui/src/tools/terminal/utils/terminalReplay.test.ts`
+- `src/web-ui/src/tools/terminal/utils/index.ts`
+- `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`
+- Migration docs.
+- No terminal Rust core, desktop/Tauri terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, or generated files changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts`
+  - RED result: failed as expected before implementation because `terminalReplayHasScreenText` was not exported.
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
+  - Result: passed, 3 files / 18 tests.
+  - Notes: covers resize-only, OSC metadata, cursor-only, whitespace/control-only replay, printable replay behind SGR controls, resize acceptance gate, and resize repaint guard.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Coverage:
+
+- Terminal replay screen-text detection is covered at the module helper boundary.
+- `ConnectedTerminal` only composes the helper result into the existing shrink-guard state; it does not parse terminal control sequences itself.
+- Browser visual smoke for open-animation replay remains a future manual/E2E check.
+
 ## ISSUE-1150E2 Tool Pipeline Outcome Helper Coverage Completion
 
 Date: 2026-07-04

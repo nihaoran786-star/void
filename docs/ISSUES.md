@@ -1765,6 +1765,23 @@ Result:
 - Added focused utility tests for accepted resize and rejected immediate, row-only, and flush paths.
 - No terminal core, desktop API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, or generated files changed.
 
+### ISSUE-1120F Terminal Replay Screen-Text Width Guard
+
+Priority: P1
+Status: Done
+Goal: Prevent pure resize, cursor, or terminal metadata replay from enabling the history replay shrink guard when no actual screen text is being restored.
+Allowed files: `src/web-ui/src/tools/terminal/utils/terminalReplay.ts`, `src/web-ui/src/tools/terminal/utils/terminalReplay.test.ts`, `src/web-ui/src/tools/terminal/utils/index.ts`, `src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx`, docs.
+Forbidden files: terminal Rust core, Tauri terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port crate migration, Cargo/package configuration.
+Acceptance:
+- Terminal replay text detection lives in a terminal utility helper, not in the connected component.
+- Resize-only, OSC title/metadata, cursor-only, and whitespace/control-only replay does not request width protection.
+- Printable replay content behind terminal control sequences still requests width protection.
+- `ConnectedTerminal` continues to resize xterm for replay events but only expands `preventShrinkBelowColsRef` when the replay queue contains screen text.
+Result:
+- Added `terminalReplayHasScreenText()` with focused tests for control-only and printable replay data.
+- `ConnectedTerminal` now uses the helper as the sole conversion layer before enabling the replay shrink guard.
+- Preserved terminal core, desktop API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, and generated files.
+
 ### ISSUE-1130 Computer Use Windows WGC and HWND Safety Audit
 
 Priority: P0

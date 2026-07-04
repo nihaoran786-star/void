@@ -113,22 +113,24 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1190A2 Flow Chat turn-navigation e2e lockfile reproducibility complete.
 - [x] ISSUE-1140F provider image context workspace containment complete.
 - [x] ISSUE-1120E terminal resize local acceptance gate complete.
+- [x] ISSUE-1120F terminal replay screen-text width guard complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1120E Terminal Resize Local Acceptance Gate`
+Issue: `ISSUE-1120F Terminal Replay Screen-Text Width Guard`
 
 Summary:
 
-- Added a local acceptance gate to Web terminal resize synchronization.
-- `TerminalResizeDebouncer` now skips backend PTY resize and resize-complete hooks when local xterm resize returns `false`.
-- `Terminal.tsx` returns explicit local resize acceptance from the xterm lifecycle boundary, including history replay shrink-guard rejection.
+- Added a terminal replay helper that distinguishes printable screen text from resize markers, OSC metadata, cursor-only sequences, and whitespace/control-only data.
+- `ConnectedTerminal` still applies replay resize events, but only enables or expands the history replay shrink guard when queued replay data contains screen text.
 - Preserved terminal Rust core, desktop terminal API, Flow Chat, AI media, AI short-drama, Computer Use, provider, runtime-port, Cargo/package, and generated files.
 
 Verification:
 
-- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
-  - Result: passed, 12 tests.
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts`
+  - RED result: failed as expected because `terminalReplayHasScreenText` did not exist.
+- `pnpm --dir src/web-ui exec vitest run src/tools/terminal/utils/terminalReplay.test.ts src/tools/terminal/utils/TerminalResizeDebouncer.test.ts src/tools/terminal/utils/resizeRepaintGuard.test.ts`
+  - Result: passed, 18 tests.
 - `pnpm --dir src/web-ui run type-check`
   - Result: passed.
 
@@ -136,6 +138,7 @@ Remaining:
 
 - Terminal ack still uses the existing character-count contract; byte-count ack remains a separate frontend/backend contract issue.
 - Remote terminal history replay remains explicitly unsupported for remote sessions.
+- This slice does not add browser visual smoke for the terminal open animation; it covers the module helper and type boundary.
 
 ## Previous Slice
 
