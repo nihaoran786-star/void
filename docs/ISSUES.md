@@ -3147,3 +3147,23 @@ Result:
 - Windows file reveal now passes `/select,<path>` as one argument.
 - Linux file reveal now tries `org.freedesktop.FileManager1.ShowItems` for file selection and falls back to opening the parent directory with `xdg-open`.
 - Directory reveal behavior and remote-path rejection remain unchanged.
+
+### ISSUE-1192C File Context Menu Path Utility Contract
+
+Priority: P1
+Status: Done
+Goal: Adapt the low-risk path handling parts of upstream `1ab4d323f` for file context-menu commands without changing delete confirmation, paste shortcuts, remote CRUD, or file explorer state.
+Allowed files: `src/web-ui/src/shared/context-menu-system/commands/builtin/file/{CopyPathCommand.ts,NewFileCommand.ts,NewFolderCommand.ts}`, `src/web-ui/src/shared/utils/pathUtils.ts`, focused tests, migration docs.
+Forbidden files: `DeleteCommand.ts`, `FileExplorerMenuProvider.ts`, `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop APIs, remote/path_target, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand.
+Acceptance:
+- Copy Path writes Windows drive and UNC-style paths to the clipboard with native backslashes.
+- POSIX and remote-style paths remain unchanged when copied.
+- New File/New Folder parent-path derivation uses the shared `dirnameAbsolutePath` helper rather than command-local string slicing.
+- Focused path utility tests and Web type-check pass.
+Risk notes:
+- This slice intentionally leaves upstream confirm-dialog and paste-shortcut polish for separate issues.
+Result:
+- Added `formatPathForClipboard` to centralize Windows/UNC clipboard separator handling.
+- `CopyPathCommand` now writes formatted clipboard paths while leaving POSIX/remote-style paths unchanged.
+- `NewFileCommand` and `NewFolderCommand` now derive file parent paths through `dirnameAbsolutePath`.
+- Added path utility coverage for Windows drive, UNC, POSIX, local rename, and remote normalization behavior.

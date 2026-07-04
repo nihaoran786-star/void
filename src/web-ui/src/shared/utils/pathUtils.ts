@@ -139,6 +139,16 @@ export function normalizeLocalPathForRename(path: string): string {
 }
 
 /**
+ * Preserve OS-native separators when copying Windows-style paths to clipboard.
+ */
+export function formatPathForClipboard(path: string): string {
+  if (/^[a-zA-Z]:\//.test(path) || path.startsWith('//')) {
+    return path.replace(/\//g, '\\');
+  }
+  return path;
+}
+
+/**
  * True if two absolute filesystem paths refer to the same location.
  * Normalizes `\\` vs `/`; on Windows-style roots (`C:` or `\\`) compares case-insensitively.
  */

@@ -4,6 +4,7 @@ import { BaseCommand } from '../../BaseCommand';
 import { CommandResult } from '../../../types/command.types';
 import { MenuContext, ContextType, FileNodeContext } from '../../../types/context.types';
 import { i18nService } from '@/infrastructure/i18n';
+import { formatPathForClipboard } from '@/shared/utils/pathUtils';
 
 export class CopyPathCommand extends BaseCommand {
   constructor() {
@@ -26,13 +27,14 @@ export class CopyPathCommand extends BaseCommand {
     try {
       const t = i18nService.getT();
       const fileContext = context as FileNodeContext;
+      const clipboardPath = formatPathForClipboard(fileContext.filePath);
       
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(fileContext.filePath);
+        await navigator.clipboard.writeText(clipboardPath);
       } else {
         
         const textarea = document.createElement('textarea');
-        textarea.value = fileContext.filePath;
+        textarea.value = clipboardPath;
         textarea.style.position = 'fixed';
         textarea.style.opacity = '0';
         document.body.appendChild(textarea);
@@ -41,7 +43,7 @@ export class CopyPathCommand extends BaseCommand {
         document.body.removeChild(textarea);
       }
 
-      return this.success(t('common:contextMenu.status.copyPathSuccess'), { path: fileContext.filePath });
+      return this.success(t('common:contextMenu.status.copyPathSuccess'), { path: clipboardPath });
     } catch (error) {
       const t = i18nService.getT();
       return this.failure(t('errors:contextMenu.copyPathFailed'), error as Error);

@@ -8,6 +8,34 @@ Run the smallest useful checks per issue, then broader checks before final compl
 
 No test result may be recorded as passing unless the command actually ran and passed in this workspace.
 
+## ISSUE-1192C File Context Menu Path Utility Contract
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/shared/context-menu-system/commands/builtin/file/CopyPathCommand.ts`
+- `src/web-ui/src/shared/context-menu-system/commands/builtin/file/NewFileCommand.ts`
+- `src/web-ui/src/shared/context-menu-system/commands/builtin/file/NewFolderCommand.ts`
+- `src/web-ui/src/shared/utils/pathUtils.ts`
+- `src/web-ui/src/shared/utils/pathUtils.test.ts`
+- Migration docs.
+- No `DeleteCommand.ts`, `FileExplorerMenuProvider.ts`, `FilesPanel.tsx`, `WorkspaceAPI.ts`, desktop API, remote/path_target, Flow Chat, AI media, AI short-drama, provider, terminal, Canvas runtime, installer/brand, or generated version changes.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
+  - Result: passed, 1 file / 5 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+
+Manual status:
+
+- Copy Path now converts Windows drive and UNC-style slash-normalized paths back to native backslashes for clipboard output.
+- POSIX and remote-style paths remain unchanged.
+- New File/New Folder use the shared `dirnameAbsolutePath` helper for parent derivation.
+- Upstream delete confirmation and paste shortcut changes remain intentionally separate.
+
 ## ISSUE-1192B Desktop Reveal In Explorer Argument Contract
 
 Date: 2026-07-04

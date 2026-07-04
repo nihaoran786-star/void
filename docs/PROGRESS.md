@@ -103,24 +103,25 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1191C terminal core history status/source contract complete.
 - [x] ISSUE-1192A remote workspace file CRUD connection context complete.
 - [x] ISSUE-1192B desktop reveal-in-explorer argument contract complete.
+- [x] ISSUE-1192C file context menu path utility contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1192B Desktop Reveal In Explorer Argument Contract`
+Issue: `ISSUE-1192C File Context Menu Path Utility Contract`
 
 Summary:
 
-- Adapted upstream `reveal_in_explorer` desktop OS integration fixes from `1ab4d323f` and `95441b782`.
-- Windows file reveal now passes `/select,<path>` as one Explorer argument.
-- Linux file reveal now attempts freedesktop FileManager1 `ShowItems` with a segment-encoded `file://` URI, then falls back to opening the parent directory.
-- Directory reveal behavior, remote-path rejection, workspace resolution, remote CRUD, Web UI file commands, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files were not changed.
+- Adapted the low-risk context-menu path handling parts of upstream `1ab4d323f`.
+- Added `formatPathForClipboard` so Copy Path writes Windows drive and UNC-style paths with native backslashes while leaving POSIX/remote-style paths unchanged.
+- `NewFileCommand` and `NewFolderCommand` now use shared `dirnameAbsolutePath` for parent path derivation.
+- Protected Delete confirmation, paste shortcut labels, FilesPanel, WorkspaceAPI, desktop APIs, remote/path_target, Flow Chat, AI media, AI short-drama, provider adapters, terminal, Canvas runtime, installer/brand, and generated version files.
 
 Verification:
 
-- `cargo test -p void-desktop reveal_in_explorer_tests --lib -- --nocapture`
-  - Result: passed, 2 focused Rust tests.
-- `cargo check -p void-desktop`
-  - Result: passed with one existing unrelated dead-code warning in `clipboard_file_api.rs`.
+- `pnpm --dir src/web-ui exec vitest run src/shared/utils/pathUtils.test.ts`
+  - Result: passed, 1 file / 5 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
 - `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
   - Result: passed, 1 focused Rust test.
 - `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`
