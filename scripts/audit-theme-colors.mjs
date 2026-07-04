@@ -524,6 +524,8 @@ export function checkCssVarContract(report, contractPath) {
     { prefix: '--' },
   );
   const allowedMergePolicies = new Set(['same-baseline-no-subtraction', 'separate-report-only']);
+  const ownedDomainNames = new Set();
+  const ownedDomainsRequiringProjection = new Set();
 
   if (parsed.ownedColorDomains !== undefined) {
     if (!Array.isArray(parsed.ownedColorDomains)) {
@@ -549,6 +551,12 @@ export function checkCssVarContract(report, contractPath) {
             failures.push(`${prefix}.domain duplicates another owned color domain`);
           }
           seenOwnedDomains.add(domain.domain);
+          if (!/bitfun|canvas/i.test(domain.domain)) {
+            ownedDomainNames.add(domain.domain);
+            if (domain.domain === 'generated-runtime') {
+              ownedDomainsRequiringProjection.add(domain.domain);
+            }
+          }
         }
         for (const field of ['owner', 'reason', 'mergePolicy']) {
           if (!isNonEmptyString(domain[field])) {
@@ -569,6 +577,73 @@ export function checkCssVarContract(report, contractPath) {
           }
         }
       });
+    }
+  }
+
+  const projectionDomainNames = new Set();
+  if (parsed.runtimePaletteProjections !== undefined) {
+    if (!Array.isArray(parsed.runtimePaletteProjections)) {
+      failures.push(`${contractPath} runtimePaletteProjections must be an array`);
+    } else {
+      parsed.runtimePaletteProjections.forEach((projection, index) => {
+        const prefix = `${contractPath} runtimePaletteProjections[${index}]`;
+        if (!projection || typeof projection !== 'object' || Array.isArray(projection)) {
+          failures.push(`${prefix} must be an object`);
+          return;
+        }
+
+        if (!isNonEmptyString(projection.domain)) {
+          failures.push(`${prefix}.domain must be a non-empty string`);
+        } else {
+          if (!ownedDomainNames.has(projection.domain)) {
+            failures.push(`${prefix}.domain must reference an owned color domain`);
+          }
+          projectionDomainNames.add(projection.domain);
+        }
+
+        if (!isNonEmptyString(projection.owner)) {
+          failures.push(`${prefix}.owner must be a non-empty string`);
+        } else if (/bitfun/i.test(projection.owner)) {
+          failures.push(`${prefix}.owner must not reference upstream BitFun paths`);
+        }
+
+        validateStringArray(
+          projection.requiredVars,
+          `${prefix}.requiredVars`,
+          failures,
+          { prefix: '--' },
+        );
+        validateStringArray(
+          projection.optionalVars,
+          `${prefix}.optionalVars`,
+          failures,
+          { prefix: '--' },
+        );
+
+        if (!projection.legacyAliases || typeof projection.legacyAliases !== 'object' || Array.isArray(projection.legacyAliases)) {
+          failures.push(`${prefix}.legacyAliases must be an object`);
+        } else {
+          Object.entries(projection.legacyAliases).forEach(([legacyName, canonicalName]) => {
+            if (!legacyName.startsWith('--')) {
+              failures.push(`${prefix}.legacyAliases ${legacyName} must start with --`);
+            }
+            if (/bitfun/i.test(legacyName)) {
+              failures.push(`${prefix}.legacyAliases ${legacyName} must be Void-owned`);
+            }
+            if (typeof canonicalName !== 'string') {
+              failures.push(`${prefix}.legacyAliases ${legacyName} target must be a string`);
+            } else if (!canonicalName.startsWith('--')) {
+              failures.push(`${prefix}.legacyAliases ${legacyName} target must start with --`);
+            }
+          });
+        }
+      });
+    }
+  }
+
+  for (const ownedDomainName of ownedDomainsRequiringProjection) {
+    if (!projectionDomainNames.has(ownedDomainName)) {
+      failures.push(`${contractPath} owned color domain ${ownedDomainName} must have a runtimePaletteProjections entry`);
     }
   }
 

@@ -313,8 +313,19 @@ test('checkCssVarContract validates required domains and current baseline compat
           pathPrefixes: ['src/web-ui/src/tools/generative-widget'],
         },
       ],
+      runtimePaletteProjections: [
+        {
+          domain: 'generated-runtime',
+          owner: 'src/web-ui/src/tools/generative-widget/themePayload.ts',
+          requiredVars: ['--color-bg-primary'],
+          optionalVars: ['--color-accent-500'],
+          legacyAliases: {
+            '--color-border-default': '--border-base',
+          },
+        },
+      ],
       legacyAliases: ['--void-bg'],
-      fallbackExceptions: ['--legacy-fallback'],
+      fallbackExceptions: ['--legacy-fallback', '--color-accent-500'],
     }));
 
     const report = {
@@ -358,6 +369,17 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
           pathPrefixes: ['src/web-ui/src/bitfun'],
         },
       ],
+      runtimePaletteProjections: [
+        {
+          domain: 'bitfun-canvas',
+          owner: '',
+          requiredVars: ['missing-prefix'],
+          optionalVars: [123],
+          legacyAliases: {
+            '--bitfun-border': 'border-base',
+          },
+        },
+      ],
       legacyAliases: [42],
       fallbackExceptions: [],
     }));
@@ -383,9 +405,53 @@ test('checkCssVarContract reports malformed contracts and unknown dynamic prefix
     assert.match(failures, /ownedColorDomains\[0\]\.reason must be a non-empty string/);
     assert.match(failures, /ownedColorDomains\[0\]\.mergePolicy must be one of/);
     assert.match(failures, /ownedColorDomains\[0\]\.pathPrefixes must not reference upstream BitFun paths/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.domain must reference an owned color domain/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.owner must be a non-empty string/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.requiredVars\[0\] must start with --/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.optionalVars\[0\] must be a string/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.legacyAliases --bitfun-border must be Void-owned/);
+    assert.match(failures, /runtimePaletteProjections\[0\]\.legacyAliases --bitfun-border target must start with --/);
     assert.match(failures, /legacyAliases\[0\] must be a string/);
     assert.match(failures, /dynamic definition --unknown-dynamic- is not allowed/);
     assert.match(failures, /fallback-only var --unapproved-fallback is not allowed/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('checkCssVarContract requires generated-runtime palette projection ownership', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'void-theme-audit-'));
+  try {
+    const contractPath = path.join(tempDir, 'theme-css-var-contract.json');
+    writeText(contractPath, JSON.stringify({
+      version: 1,
+      description: 'fixture css var contract',
+      requiredTokenDomains: [],
+      allowedDynamicPrefixes: [],
+      ownedColorDomains: [
+        {
+          domain: 'generated-runtime',
+          owner: 'src/web-ui/src/tools/generative-widget',
+          reason: 'fixture generated runtime domain',
+          mergePolicy: 'same-baseline-no-subtraction',
+          pathPrefixes: ['src/web-ui/src/tools/generative-widget'],
+        },
+      ],
+      legacyAliases: [],
+      fallbackExceptions: [],
+    }));
+
+    const report = {
+      cssVars: {
+        definedVars: [],
+        fallbackOnlyVars: [],
+      },
+    };
+
+    assert.match(
+      checkCssVarContract(report, contractPath).join('\n'),
+      /owned color domain generated-runtime must have a runtimePaletteProjections entry/,
+    );
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

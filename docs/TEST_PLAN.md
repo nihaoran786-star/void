@@ -6740,6 +6740,36 @@ Remaining risk:
 - This does not create a runtime fallback color registry or generated-runtime palette projection.
 - This does not split near-pair debt by domain; future work should add separate evidence before changing near-pair baseline semantics.
 
+## ISSUE-1190F1 Generated Runtime Palette Projection Contract
+
+Scope:
+
+- Current slice covers CSS variable contract governance for the `generated-runtime` palette projection.
+- It does not change ThemeService runtime injection, generated-widget runtime behavior, page SCSS visuals, Canvas runtime, AI media, AI short-drama, terminal, provider, generated version files, or package dependencies.
+
+Executed:
+
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - RED result before implementation: failed because projection validation and missing generated-runtime projection checks were not implemented.
+  - GREEN result after implementation: passed, 17 tests.
+- `node --check scripts/audit-theme-colors.mjs`
+  - Result: passed.
+- `node scripts/audit-theme-colors.mjs --root src/web-ui/src --baseline scripts/theme-color-governance-baseline.json --top=3 --json`
+  - Result: passed; global, app-ui, generated-runtime, near-pair, CSS var contract, and runtime palette projection checks had no failures.
+- `pnpm run check:theme-colors`
+  - Result: passed for Web and CLI theme audits.
+
+Coverage:
+
+- `generated-runtime` must declare a `runtimePaletteProjections` contract entry.
+- Projection entries validate domain ownership, owner path, required/optional CSS variable names, and legacy alias shape.
+- Upstream BitFun-owned projection aliases and non-CSS variable names are rejected by contract tests.
+
+Remaining risk:
+
+- This does not reduce generated-runtime visual debt or change the widget payload variable list.
+- No browser screenshot smoke was run because this slice is contract/test-only and does not alter rendered UI.
+
 ## ISSUE-1190G CLI Rich Model-Round Persistence
 
 Scope:

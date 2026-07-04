@@ -5550,3 +5550,26 @@ Remaining risk:
 
 - Near-pair analysis remains global rather than per-domain. Per-domain near-pair budgeting is a higher-risk follow-up because it changes interpretation of existing debt.
 - Runtime boundary fallback registries and compact generated-runtime theme projection remain future implementation issues; this slice only adds audit governance.
+
+## ISSUE-1190F1 Generated Runtime Palette Projection Contract
+
+Status: Done
+
+Completed:
+
+- Added `runtimePaletteProjections` to `scripts/theme-css-var-contract.json` for the Void-owned `generated-runtime` domain.
+- Recorded the generated widget payload boundary owner, required host variables, optional host variables, and legacy alias mapping.
+- Extended `checkCssVarContract` to validate runtime palette projections and require one for `generated-runtime`.
+- Added tests for valid projection metadata, malformed projection metadata, and missing generated-runtime projection ownership.
+- Kept the slice out of ThemeService runtime behavior, generated-widget runtime behavior, page SCSS, Canvas runtime, AI media, AI short-drama, terminal, provider, and generated version files.
+
+Verification:
+
+- `node --test scripts/audit-theme-colors.test.mjs`
+  - Result: passed, 17 tests.
+- Full theme color audit and package script verification are recorded in `docs/TEST_PLAN.md`.
+
+Remaining risk:
+
+- The contract now documents the generated widget palette boundary, but it does not shrink or rename runtime payload vars.
+- Visual polish and screenshot evidence for generated widgets remain separate work.

@@ -3061,6 +3061,25 @@ Result:
 - Added tests proving generated-runtime colors are reported separately, app UI budget enforcement does not count generated-runtime growth, generated-runtime can have its own budget, and upstream BitFun/Canvas-owned domain naming is rejected.
 - Did not change ThemeService runtime behavior, page SCSS, Canvas runtime, AI media, AI short-drama logic, terminal, provider, or generated version files.
 
+### ISSUE-1190F1 Generated Runtime Palette Projection Contract
+
+Priority: P2
+Status: Done
+Goal: Make generated-runtime theme palette projection explicit in the CSS variable contract so future visual cleanup cannot silently remove widget-required host variables.
+Allowed files: `scripts/theme-css-var-contract.json`, `scripts/audit-theme-colors.mjs`, focused theme audit tests, docs.
+Forbidden files: ThemeService runtime behavior, generated-widget runtime behavior, page SCSS rewrites, Canvas runtime, AI media, AI short-drama, terminal, provider, generated version files.
+Acceptance:
+- `generated-runtime` declares a `runtimePaletteProjections` entry with owner, required vars, optional vars, and legacy aliases.
+- Theme audit contract validation fails if `generated-runtime` lacks its palette projection.
+- Malformed projection entries reject unknown domains, empty owners, non-CSS-variable names, and upstream BitFun-owned aliases.
+- `pnpm run check:theme-colors` continues to pass.
+Risk notes: This is governance-only. It must not rename widget payload variables or change runtime injection.
+Result:
+- Added `runtimePaletteProjections` to `scripts/theme-css-var-contract.json` for the generated widget theme payload boundary.
+- Extended `checkCssVarContract` to validate projection ownership, CSS variable names, aliases, and generated-runtime projection presence.
+- Added focused tests for valid projection data, malformed projection data, and missing generated-runtime projection ownership.
+- Did not change ThemeService, generated-widget runtime behavior, page SCSS, Canvas runtime, AI media, AI short-drama, terminal, provider, or generated version files.
+
 ### ISSUE-1190G CLI Rich Model-Round Persistence Audit
 
 Priority: P1
