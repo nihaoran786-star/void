@@ -99,36 +99,39 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1190 upstream Canvas and turn-ownership incremental inventory complete.
 - [x] ISSUE-1190G CLI rich model-round persistence complete.
 - [x] ISSUE-1191A CLI rich model-round replay smoke complete.
+- [x] ISSUE-1191B CLI theme truecolor preset fallback governance complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1191A CLI Rich Model-Round Replay Smoke`
+Issue: `ISSUE-1191B CLI Theme Truecolor Preset Fallback Governance`
 
 Summary:
 
-- Closed the immediate replay gap after `ISSUE-1190G`.
-- `SessionManager::build_messages_from_turns` now rebuilds one assistant runtime message per persisted model round.
-- Persisted assistant thinking, visible text, tool calls, and matching tool results replay through the existing `MessageContent::Mixed` and `MessageContent::ToolResult` model.
-- Protected CLI runtime execution, Flow Chat UI/store, event ABI, terminal, provider, Canvas, AI media, AI short-drama, and broad session schema behavior.
+- Adapted upstream `912cd7561` as a Void CLI theme-governance fix, not a BitFun preset rename.
+- `Theme::dark()` and `Theme::light()` now derive truecolor defaults from local `void-dark` and `void-light` builtin preset JSON.
+- Custom opencode theme overlays still inherit missing values from the selected base theme through `apply_opencode_theme_json`.
+- CLI theme audit baseline now enforces zero Rust fallback color debt.
+- Protected preset visual values, ANSI16/monochrome behavior, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, generated version files, and package scripts.
 
 Verification:
 
-- `cargo test -p void-core build_messages_from_turns_restores_rich_model_rounds_for_replay --lib -- --nocapture`
-  - Result: passed, 1 focused Rust test.
-- `cargo test -p void-core rich_model_rounds --lib -- --nocapture`
-  - Result: passed, 2 focused Rust tests.
-- `node scripts/check-core-boundaries.mjs`
+- `cargo test -p void-cli theme::tests -- --nocapture`
+  - Result: passed, 4 focused Rust tests.
+- `cargo check -p void-cli`
   - Result: passed.
-- `git diff --check -- src/crates/core/src/agentic/session/session_manager.rs docs/ISSUES.md docs/DECISIONS.md docs/ARCHITECTURE.md docs/TEST_PLAN.md docs/PROGRESS.md`
-  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `node --test scripts/audit-cli-theme-colors.test.mjs`
+  - Result: passed, 10 tests.
+- `node scripts/audit-cli-theme-colors.mjs --top=5`
+  - Result: passed; Rust fallback occurrences, unique colors, and near pairs are all 0.
+- `pnpm run check:theme-colors`
+  - Result: passed for Web and CLI theme audits.
 - Subagent read-only reviews:
-  - Result: passed; session, CLI theme, and terminal reviewers identified this replay smoke as the next lowest-risk slice before theme/terminal follow-ups.
+  - Result: passed; CLI theme reviewer confirmed preset-derived defaults are feasible and warned against recursion, hidden RGB fallback tables, preset value edits, and BitFun naming.
 
 Remaining:
 
-- Round timing/model metadata from `ModelRoundCompleted` events is still outside this slice.
-- A real CLI process-level E2E can be added later; the core persisted restore interface is covered.
-- Proposed follow-ups: `ISSUE-1191B` CLI theme truecolor preset fallback governance and `ISSUE-1191C` terminal core history status/source contract.
+- This slice does not change the actual preset palette or broaden theme visual polish.
+- `ISSUE-1191C` terminal core history status/source contract remains the next proposed low-coupling terminal slice.
 
 ## Previous Slice
 

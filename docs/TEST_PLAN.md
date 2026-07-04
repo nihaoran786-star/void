@@ -6543,6 +6543,38 @@ Remaining risk:
 - This slice does not persist or replay upstream round timing/model metadata from `ModelRoundCompleted` events.
 - This slice does not add a real CLI process-level E2E; the covered contract is the core restore interface used by CLI and other session hosts.
 
+## ISSUE-1191B CLI Theme Truecolor Preset Fallback Governance
+
+Scope:
+
+- Current slice covers CLI truecolor default theme construction and CLI theme color governance baseline only.
+- It does not change CLI preset JSON visual values, ANSI16/monochrome behavior, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, generated version files, or package scripts.
+
+Executed:
+
+- `cargo test -p void-cli theme::tests -- --nocapture`
+  - Result: passed, 4 focused Rust tests.
+- `cargo check -p void-cli`
+  - Result: passed.
+- `node --test scripts/audit-cli-theme-colors.test.mjs`
+  - Result: passed, 10 tests.
+- `node scripts/audit-cli-theme-colors.mjs --top=5`
+  - Result: passed; Rust fallback occurrences, unique colors, and near pairs are all 0.
+- `pnpm run check:theme-colors`
+  - Result: passed for Web and CLI theme audits.
+
+Coverage:
+
+- Verifies `Theme::dark()` and `Theme::light()` resolve from the `void-dark` and `void-light` builtin presets for key runtime fields.
+- Verifies partial custom opencode theme JSON keeps base-theme fallback behavior and uses `backgroundElement` for missing `inputBackground`.
+- Verifies all builtin presets still resolve for dark and light appearances.
+- CLI audit baseline now enforces `rustFallbackUniqueColors: 0`, `rustFallbackNearPairs.nearTotal: 0`, and `totalUniqueColors: 135`.
+
+Remaining risk:
+
+- This does not change the preset palette itself; broader theme visual polish remains a separate design issue.
+- This does not alter Web/mobile/installer theme token governance or generated-runtime palette projection.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

@@ -225,6 +225,8 @@ Flow Chat tool-card display names, confirmation policy, MCP display-name fallbac
 
 `scripts/theme-css-var-contract.json` owns theme audit domains. Generated runtime colors use the Void-owned `generated-runtime` domain with explicit owner, reason, merge policy, and path prefixes. `scripts/audit-theme-colors.mjs` must continue to report both global debt and stable `domainMetrics` so app UI budgets and generated-runtime budgets can be enforced independently. Domain reporting must not subtract generated-runtime literals from the global baseline or introduce BitFun/Canvas naming.
 
+CLI truecolor defaults are owned by local preset tokens, not by a second Rust RGB fallback table. `src/apps/cli/src/ui/theme.rs` may map resolved `void-*` opencode preset tokens into the CLI `Theme` struct and may overlay custom `theme.json` values on top of a selected base theme. CLI callers must continue to choose or render a `Theme`; they must not parse preset JSON, infer BitFun/upstream preset IDs, or add page/screen-specific theme exceptions.
+
 ## Rejected Architectural Moves
 
 - Whole-repo merge.

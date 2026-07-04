@@ -3066,7 +3066,7 @@ Risk notes:
 ### ISSUE-1191B CLI Theme Truecolor Preset Fallback Governance
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Evaluate upstream `912cd7561` and, if still applicable, derive CLI truecolor default fallbacks from Void builtin presets instead of maintaining a second Rust RGB fallback table.
 Allowed files: `src/apps/cli/src/ui/theme.rs`, CLI theme audit tests/baseline, docs.
 Forbidden files: CLI preset visual values, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, Cargo/package script churn, BitFun naming.
@@ -3074,7 +3074,14 @@ Acceptance:
 - `Theme::dark()` / `Theme::light()` derive from local `void-dark` / `void-light` preset tokens.
 - Partial custom theme JSON still falls back to the base theme.
 - CLI theme audit reduces or eliminates Rust fallback color debt without loosening budgets.
-Risk notes: Do not rename presets or import upstream `bitfun-*` identifiers.
+Result:
+- `Theme::dark()` and `Theme::light()` now build from `void-dark` and `void-light` builtin preset tokens through a shared resolved-token conversion helper.
+- Partial custom `theme.json` fallback behavior remains owned by `apply_opencode_theme_json` and still inherits missing values from the selected base theme.
+- CLI theme audit baseline was tightened after Rust fallback debt dropped to zero: `rustFallbackUniqueColors: 0`, `rustFallbackNearPairs.nearTotal: 0`, `totalUniqueColors: 135`.
+- Preset JSON visual values, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, Cargo/package scripts, and BitFun naming were not changed.
+Risk notes:
+- Builtin preset completeness now fails loudly during CLI theme construction instead of silently falling back to a second RGB table.
+- `ISSUE-1191C` remains a separate proposed terminal DTO/status contract slice.
 
 ### ISSUE-1191C Terminal Core History Status/Source Contract
 

@@ -263,36 +263,7 @@ fn parse_osc_color(s: &str) -> Option<(u8, u8, u8)> {
 
 impl Theme {
     pub fn dark() -> Self {
-        Self {
-            primary: Color::Rgb(59, 130, 246),  // blue
-            success: Color::Rgb(34, 197, 94),   // green
-            warning: Color::Rgb(251, 191, 36),  // yellow
-            error: Color::Rgb(239, 68, 68),     // red
-            info: Color::Rgb(147, 197, 253),    // light blue
-            muted: Color::Rgb(156, 163, 175),   // gray
-            background: Color::Rgb(17, 24, 39), // dark gray background
-            border: Color::Rgb(55, 65, 81),     // border gray
-
-            background_panel: Color::Rgb(30, 38, 55),
-            background_element: Color::Rgb(40, 50, 70),
-            input_background: Color::Rgb(40, 50, 70),
-
-            diff_added_fg: Color::Rgb(34, 197, 94),
-            diff_removed_fg: Color::Rgb(239, 68, 68),
-            diff_added_bg: Color::Rgb(20, 50, 20),
-            diff_removed_bg: Color::Rgb(50, 20, 20),
-
-            block_bg: Color::Rgb(24, 32, 48),
-            block_bg_hover: Color::Rgb(32, 42, 62),
-            block_border_active: Color::Rgb(59, 130, 246),
-
-            inline_icon: Color::Rgb(100, 140, 220),
-
-            command_text: Color::Rgb(180, 210, 255),
-
-            diff_hunk_header: Color::Rgb(100, 120, 180),
-            diff_line_number: Color::Rgb(80, 90, 110),
-        }
+        builtin_theme("void-dark", Appearance::Dark)
     }
 
     pub fn dark_ansi16() -> Self {
@@ -329,36 +300,7 @@ impl Theme {
     }
 
     pub fn light() -> Self {
-        Self {
-            primary: Color::Rgb(37, 99, 235),
-            success: Color::Rgb(22, 163, 74),
-            warning: Color::Rgb(245, 158, 11),
-            error: Color::Rgb(220, 38, 38),
-            info: Color::Rgb(59, 130, 246),
-            muted: Color::Rgb(107, 114, 128),
-            background: Color::Rgb(249, 250, 251),
-            border: Color::Rgb(209, 213, 219),
-
-            background_panel: Color::Rgb(243, 244, 246),
-            background_element: Color::Rgb(229, 231, 235),
-            input_background: Color::Rgb(229, 231, 235),
-
-            diff_added_fg: Color::Rgb(22, 163, 74),
-            diff_removed_fg: Color::Rgb(220, 38, 38),
-            diff_added_bg: Color::Rgb(220, 252, 231),
-            diff_removed_bg: Color::Rgb(254, 226, 226),
-
-            block_bg: Color::Rgb(240, 242, 245),
-            block_bg_hover: Color::Rgb(232, 235, 240),
-            block_border_active: Color::Rgb(37, 99, 235),
-
-            inline_icon: Color::Rgb(60, 100, 200),
-
-            command_text: Color::Rgb(30, 60, 120),
-
-            diff_hunk_header: Color::Rgb(80, 100, 160),
-            diff_line_number: Color::Rgb(140, 150, 170),
-        }
+        builtin_theme("void-light", Appearance::Light)
     }
 
     pub fn light_ansi16() -> Self {
@@ -467,44 +409,7 @@ impl Theme {
     ) -> anyhow::Result<Self> {
         let fallback = self.clone();
         let resolved = resolve_opencode_theme(json, appearance)?;
-        Ok(Theme {
-            primary: resolved.primary.unwrap_or(fallback.primary),
-            success: resolved.success.unwrap_or(fallback.success),
-            warning: resolved.warning.unwrap_or(fallback.warning),
-            error: resolved.error.unwrap_or(fallback.error),
-            info: resolved.info.unwrap_or(fallback.info),
-            muted: resolved.muted.unwrap_or(fallback.muted),
-            background: resolved.background.unwrap_or(fallback.background),
-            border: resolved.border.unwrap_or(fallback.border),
-            background_panel: resolved
-                .background_panel
-                .unwrap_or(fallback.background_panel),
-            background_element: resolved
-                .background_element
-                .unwrap_or(fallback.background_element),
-            input_background: resolved.input_background.unwrap_or(
-                resolved
-                    .background_element
-                    .unwrap_or(fallback.input_background),
-            ),
-            diff_added_fg: resolved.diff_added_fg.unwrap_or(fallback.diff_added_fg),
-            diff_removed_fg: resolved.diff_removed_fg.unwrap_or(fallback.diff_removed_fg),
-            diff_added_bg: resolved.diff_added_bg.unwrap_or(fallback.diff_added_bg),
-            diff_removed_bg: resolved.diff_removed_bg.unwrap_or(fallback.diff_removed_bg),
-            block_bg: resolved.block_bg.unwrap_or(fallback.block_bg),
-            block_bg_hover: resolved.block_bg_hover.unwrap_or(fallback.block_bg_hover),
-            block_border_active: resolved
-                .block_border_active
-                .unwrap_or(fallback.block_border_active),
-            inline_icon: resolved.inline_icon.unwrap_or(fallback.inline_icon),
-            command_text: resolved.command_text.unwrap_or(fallback.command_text),
-            diff_hunk_header: resolved
-                .diff_hunk_header
-                .unwrap_or(fallback.diff_hunk_header),
-            diff_line_number: resolved
-                .diff_line_number
-                .unwrap_or(fallback.diff_line_number),
-        })
+        build_theme_from_resolved_tokens(resolved, Some(&fallback))
     }
 
     pub fn style(&self, kind: StyleKind) -> Style {
@@ -824,6 +729,14 @@ pub fn builtin_theme_json(id: &str) -> Option<&'static OpencodeThemeJson> {
     BUILTIN_OPENCODE_THEMES.get(id)
 }
 
+fn builtin_theme(id: &str, appearance: Appearance) -> Theme {
+    let json = builtin_theme_json(id).unwrap_or_else(|| panic!("Built-in theme {id} is missing"));
+    let resolved = resolve_opencode_theme(json, appearance)
+        .unwrap_or_else(|err| panic!("Built-in theme {id} failed to resolve: {err}"));
+    build_theme_from_resolved_tokens(resolved, None)
+        .unwrap_or_else(|err| panic!("Built-in theme {id} is incomplete: {err}"))
+}
+
 #[derive(Debug, Default)]
 struct ResolvedTokens {
     primary: Option<Color>,
@@ -848,6 +761,106 @@ struct ResolvedTokens {
     command_text: Option<Color>,
     diff_hunk_header: Option<Color>,
     diff_line_number: Option<Color>,
+}
+
+fn required_theme_color(
+    name: &str,
+    value: Option<Color>,
+    fallback: Option<Color>,
+) -> anyhow::Result<Color> {
+    value
+        .or(fallback)
+        .ok_or_else(|| anyhow::anyhow!("Theme color \"{}\" is required", name))
+}
+
+fn build_theme_from_resolved_tokens(
+    resolved: ResolvedTokens,
+    fallback: Option<&Theme>,
+) -> anyhow::Result<Theme> {
+    Ok(Theme {
+        primary: required_theme_color("primary", resolved.primary, fallback.map(|t| t.primary))?,
+        success: required_theme_color("success", resolved.success, fallback.map(|t| t.success))?,
+        warning: required_theme_color("warning", resolved.warning, fallback.map(|t| t.warning))?,
+        error: required_theme_color("error", resolved.error, fallback.map(|t| t.error))?,
+        info: required_theme_color("info", resolved.info, fallback.map(|t| t.info))?,
+        muted: required_theme_color("textMuted", resolved.muted, fallback.map(|t| t.muted))?,
+        background: required_theme_color(
+            "background",
+            resolved.background,
+            fallback.map(|t| t.background),
+        )?,
+        border: required_theme_color("border", resolved.border, fallback.map(|t| t.border))?,
+        background_panel: required_theme_color(
+            "backgroundPanel",
+            resolved.background_panel,
+            fallback.map(|t| t.background_panel),
+        )?,
+        background_element: required_theme_color(
+            "backgroundElement",
+            resolved.background_element,
+            fallback.map(|t| t.background_element),
+        )?,
+        input_background: required_theme_color(
+            "inputBackground",
+            resolved.input_background.or(resolved.background_element),
+            fallback.map(|t| t.input_background),
+        )?,
+        diff_added_fg: required_theme_color(
+            "diffAdded",
+            resolved.diff_added_fg,
+            fallback.map(|t| t.diff_added_fg),
+        )?,
+        diff_removed_fg: required_theme_color(
+            "diffRemoved",
+            resolved.diff_removed_fg,
+            fallback.map(|t| t.diff_removed_fg),
+        )?,
+        diff_added_bg: required_theme_color(
+            "diffAddedBg",
+            resolved.diff_added_bg,
+            fallback.map(|t| t.diff_added_bg),
+        )?,
+        diff_removed_bg: required_theme_color(
+            "diffRemovedBg",
+            resolved.diff_removed_bg,
+            fallback.map(|t| t.diff_removed_bg),
+        )?,
+        block_bg: required_theme_color(
+            "backgroundPanel",
+            resolved.block_bg,
+            fallback.map(|t| t.block_bg),
+        )?,
+        block_bg_hover: required_theme_color(
+            "backgroundElement",
+            resolved.block_bg_hover,
+            fallback.map(|t| t.block_bg_hover),
+        )?,
+        block_border_active: required_theme_color(
+            "borderActive",
+            resolved.block_border_active,
+            fallback.map(|t| t.block_border_active),
+        )?,
+        inline_icon: required_theme_color(
+            "accent",
+            resolved.inline_icon,
+            fallback.map(|t| t.inline_icon),
+        )?,
+        command_text: required_theme_color(
+            "accent",
+            resolved.command_text,
+            fallback.map(|t| t.command_text),
+        )?,
+        diff_hunk_header: required_theme_color(
+            "diffHunkHeader",
+            resolved.diff_hunk_header,
+            fallback.map(|t| t.diff_hunk_header),
+        )?,
+        diff_line_number: required_theme_color(
+            "diffLineNumber",
+            resolved.diff_line_number,
+            fallback.map(|t| t.diff_line_number),
+        )?,
+    })
 }
 
 fn resolve_opencode_theme(
@@ -995,6 +1008,45 @@ mod tests {
                 .apply_opencode_theme_json(json, Appearance::Light)
                 .unwrap_or_else(|err| panic!("failed to resolve light theme {id}: {err}"));
         }
+    }
+
+    #[test]
+    fn truecolor_defaults_are_backed_by_void_builtin_presets() {
+        let dark = Theme::dark();
+        assert_eq!(dark.primary, Color::Rgb(96, 165, 250));
+        assert_eq!(dark.background, Color::Rgb(14, 14, 16));
+        assert_eq!(dark.input_background, Color::Rgb(37, 37, 40));
+        assert_eq!(dark.diff_line_number, Color::Rgb(102, 102, 109));
+
+        let light = Theme::light();
+        assert_eq!(light.primary, Color::Rgb(71, 85, 105));
+        assert_eq!(light.background, Color::Rgb(243, 243, 245));
+        assert_eq!(light.input_background, Color::Rgb(231, 236, 243));
+        assert_eq!(light.diff_line_number, Color::Rgb(148, 163, 184));
+    }
+
+    #[test]
+    fn partial_opencode_theme_json_keeps_base_theme_fallbacks() {
+        let base = Theme::dark();
+        let json = serde_json::from_str::<OpencodeThemeJson>(
+            r##"{
+                "theme": {
+                    "primary": "#112233",
+                    "backgroundElement": "#223344"
+                }
+            }"##,
+        )
+        .unwrap();
+
+        let theme = base
+            .apply_opencode_theme_json(&json, Appearance::Dark)
+            .unwrap();
+
+        assert_eq!(theme.primary, Color::Rgb(17, 34, 51));
+        assert_eq!(theme.background_element, Color::Rgb(34, 51, 68));
+        assert_eq!(theme.input_background, Color::Rgb(34, 51, 68));
+        assert_eq!(theme.success, base.success);
+        assert_eq!(theme.diff_removed_bg, base.diff_removed_bg);
     }
 
     #[test]
