@@ -2966,7 +2966,7 @@ Result:
 ### ISSUE-1190D Canvas Runtime Security Review
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Review upstream Canvas iframe/runtime/security model before any Void implementation of a generated interactive artifact runtime.
 Allowed files: docs, security checklist, optional static policy tests after a separate gate.
 Forbidden files: iframe runtime, `postMessage` bridge, auto-repair, workspace file opener, session opener, HTML export, React UMD/raw inline runtime, CSP changes, desktop APIs.
@@ -2975,6 +2975,13 @@ Acceptance:
 - Auto-repair and generated-content-initiated file/session opening remain rejected or separately gated.
 - No runtime code is added in this review issue.
 Risk notes: Upstream Canvas lets generated runtime actions affect host UI; Void must not copy that bridge before permission and loop controls exist.
+Result:
+- Added `docs/architecture/canvas-runtime-security-review.md`.
+- Recorded `DEC-127` in `docs/DECISIONS.md`.
+- Reviewed upstream Canvas desktop API, tools, product-domain contracts, compiler/runtime, skill, panel, runtime, tool card, and Web API surfaces as security inputs only.
+- Recorded that current `GenerativeUI` iframe bridge is chat-scoped and that `sendPrompt` / `open-file` style actions must not become persistent artifact host actions without a future permission model and confirmation.
+- Rejected upstream runtime, iframe bridge, desktop API, HTML export, skills, `core.canvas`, generated-content file/session opening, and auto-repair in this slice.
+- Kept this slice documentation-only; no Web UI runtime, iframe bridge, desktop API, skills, provider, MiniApp, AI media, AI short-drama, or generated files changed.
 
 ### ISSUE-1190E Tool Card Metadata and Miniapp Icon Governance
 

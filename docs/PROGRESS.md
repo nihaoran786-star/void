@@ -80,6 +80,7 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1140D1 ViewImage contract gate and slice plan complete.
 - [x] ISSUE-1190B Canvas artifact domain RFC complete.
 - [x] ISSUE-1190C GenerativeUI, MiniApp, media, short-drama, and future Canvas boundary decision complete.
+- [x] ISSUE-1190D Canvas runtime security review complete.
 - [x] ISSUE-1140D2 ViewImage manifest and readonly exposure gate complete.
 - [x] ISSUE-1140D3 ViewImage provider image-attachment capability gate complete.
 - [x] ISSUE-1140D4 minimal Void ViewImage tool implementation complete.

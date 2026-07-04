@@ -138,6 +138,37 @@ Manual status:
 - The decision records allowed reference fields and requires future tests proving artifact storage does not write MiniApp, AI media, or AI short-drama source-of-truth files.
 - The decision rejects automatic promotion from generated widget, MiniApp, media asset, or short-drama artifact into persistent Canvas-like state without an explicit future module interface and tests.
 
+## ISSUE-1190D Canvas Runtime Security Review
+
+Date: 2026-07-04
+
+Scope:
+
+- `docs/architecture/canvas-runtime-security-review.md`.
+- `docs/ARCHITECTURE.md`.
+- `docs/DECISIONS.md`.
+- `docs/ISSUES.md`.
+- `docs/PROGRESS.md`.
+- `docs/TEST_PLAN.md`.
+- No runtime source, scripts, Cargo manifests, iframe bridge, generated-widget bridge, Canvas API, desktop API, skills, `core.canvas`, HTML export, MiniApp, AI media, AI short-drama, provider, or generated version behavior changed.
+
+Checks:
+
+- `git diff --check -- docs/architecture/canvas-runtime-security-review.md docs/ARCHITECTURE.md docs/DECISIONS.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- Read-only subagent reviews for upstream Canvas security and current Void runtime security boundaries.
+  - Result: passed.
+  - Notes: reviewers confirmed upstream Canvas host actions, state persistence, auto-repair, React runtime/CSP model, and `core.canvas` tool exposure must remain rejected or separately gated; current `GenerativeUI` and MiniApp bridges are not reusable persistent artifact runtime security models.
+
+Manual status:
+
+- The review covers iframe sandbox, message validation, host action allowlists, workspace file/session opening, state persistence, runtime diagnostics, auto-repair, CSP/source/bundle policy, and user confirmation.
+- The review rejects generated-content initiated file/session opening and auto-repair until separate permission and confirmation gates exist.
+- The review keeps current `GenerativeUI` bridge actions chat-scoped and does not approve them for persistent artifact runtime reuse.
+- The review records that MiniApp bridge capabilities remain MiniApp-owned and are not precedent for persistent artifact runtime reuse.
+
 ## Baseline Checks
 
 - `git status --short --branch`
