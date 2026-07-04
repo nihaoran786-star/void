@@ -5424,3 +5424,33 @@ Remaining risk:
 
 - This reconciliation does not add UI rendering or event schema fields. Future UI/event consumer work must use the typed pipeline outcome rather than string matching.
 - Direct focused coverage for `not-found`, invalid-arguments, and generic fallback outcome details remains optional future helper-test cleanup if those categories become externally consumed.
+
+## ISSUE-1190A Flow Chat Turn Navigation Ownership Parity Tests
+
+Status: Done
+
+Completed:
+
+- Added `FlowChatHeader` accepted/rejected turn-list selection behavior and tests.
+- Added `useFlowChatFollowOutput` tests for explicit upward user intent exiting follow-output before scroll metrics move and canceling armed auto-follow.
+- Added the release turn-navigation e2e assertion that the header turn list closes after a successful selection.
+- Preserved the current container-level retry contract instead of migrating to upstream `FlowChatTurnPinRequestStatus`.
+
+Verification:
+
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/FlowChatHeader.test.tsx src/flow_chat/components/modern/useFlowChatFollowOutput.test.tsx`
+  - Result: passed, 2 files / 8 tests.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Result: passed, 1 file / 8 tests.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
+  - Result: failed before checking the changed spec because `@wdio/globals/types` is missing from the e2e TypeScript type roots.
+
+Remaining risk:
+
+- The release e2e assertion was added but not fully executed in this slice because it depends on a long-session fixture environment (`E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, `VOID_E2E_TURN_NAV_TARGET_TITLE`).
+- e2e static type checking currently needs the WebdriverIO globals type dependency/config fixed before it can be used as a reliable preflight.
+- Full upstream `FlowChatTurnPinRequestStatus` migration remains deferred; future work must prove it with separate failing tests before changing VirtualMessageList ownership.

@@ -3,7 +3,7 @@
 import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { FlowChatHeader } from './FlowChatHeader';
+import { FlowChatHeader, type FlowChatHeaderProps } from './FlowChatHeader';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -56,6 +56,19 @@ vi.mock('react-i18next', () => ({
 describe('FlowChatHeader', () => {
   let container: HTMLDivElement;
   let root: Root;
+
+  const createProps = (overrides: Partial<FlowChatHeaderProps> = {}): FlowChatHeaderProps => ({
+    currentTurn: 1,
+    totalTurns: 2,
+    currentUserMessage: 'Current user message',
+    visible: true,
+    turns: [
+      { turnId: 'turn-1', turnIndex: 1, title: 'First turn' },
+      { turnId: 'turn-2', turnIndex: 2, title: 'Second turn' },
+    ],
+    onJumpToTurn: vi.fn(),
+    ...overrides,
+  });
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -127,5 +140,68 @@ describe('FlowChatHeader', () => {
     });
 
     expect(onOpenWorkspaceMedia).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the turn list as soon as a different turn selection is accepted', () => {
+    const onJumpToTurn = vi.fn(() => true);
+
+    act(() => {
+      root.render(<FlowChatHeader {...createProps({ onJumpToTurn })} />);
+    });
+
+    const turnListButton = container.querySelector<HTMLButtonElement>('[data-testid="flowchat-header-turn-list"]');
+    act(() => {
+      turnListButton?.click();
+    });
+
+    const turnItems = Array.from(container.querySelectorAll<HTMLButtonElement>('.flowchat-header__turn-list-item'));
+    act(() => {
+      turnItems[1]?.click();
+    });
+
+    expect(onJumpToTurn).toHaveBeenCalledWith('turn-2');
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('closes the turn list when the selected current turn is accepted', () => {
+    const onJumpToTurn = vi.fn(() => true);
+
+    act(() => {
+      root.render(<FlowChatHeader {...createProps({ onJumpToTurn })} />);
+    });
+
+    const turnListButton = container.querySelector<HTMLButtonElement>('[data-testid="flowchat-header-turn-list"]');
+    act(() => {
+      turnListButton?.click();
+    });
+
+    const turnItems = Array.from(container.querySelectorAll<HTMLButtonElement>('.flowchat-header__turn-list-item'));
+    act(() => {
+      turnItems[0]?.click();
+    });
+
+    expect(onJumpToTurn).toHaveBeenCalledWith('turn-1');
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('keeps the turn list open when the container rejects the selection', () => {
+    const onJumpToTurn = vi.fn(() => false);
+
+    act(() => {
+      root.render(<FlowChatHeader {...createProps({ onJumpToTurn })} />);
+    });
+
+    const turnListButton = container.querySelector<HTMLButtonElement>('[data-testid="flowchat-header-turn-list"]');
+    act(() => {
+      turnListButton?.click();
+    });
+
+    const turnItems = Array.from(container.querySelectorAll<HTMLButtonElement>('.flowchat-header__turn-list-item'));
+    act(() => {
+      turnItems[1]?.click();
+    });
+
+    expect(onJumpToTurn).toHaveBeenCalledWith('turn-2');
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 });

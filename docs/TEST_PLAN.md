@@ -40,6 +40,41 @@ Manual status:
 - Result: inventory only.
 - No Canvas runtime, Flow Chat ownership model, miniapp icon mapping, tool-card code, theme audit code, CLI persistence, or product runtime behavior was changed.
 
+## ISSUE-1190A Flow Chat Turn Navigation Ownership Parity Tests
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/flow_chat/components/modern/FlowChatHeader.tsx`.
+- `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx`.
+- `src/web-ui/src/flow_chat/components/modern/useFlowChatFollowOutput.ts`.
+- `src/web-ui/src/flow_chat/components/modern/FlowChatHeader.test.tsx`.
+- `src/web-ui/src/flow_chat/components/modern/useFlowChatFollowOutput.test.tsx`.
+- `tests/e2e/specs/l1-chat-turn-navigation-release.spec.ts`.
+- No FlowChat store, session restore/deferred hydration API, backend/Tauri/Rust restore, terminal, AI media, AI short-drama, subagent/BTW internals, Canvas, tool-card, provider, or generated version behavior changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/FlowChatHeader.test.tsx src/flow_chat/components/modern/useFlowChatFollowOutput.test.tsx`
+  - Result: passed, 2 files / 8 tests.
+  - Notes: covers accepted/rejected header turn-list selection and follow-output user intent cancellation.
+- `pnpm --dir src/web-ui exec vitest run src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Result: passed, 1 file / 8 tests.
+  - Notes: confirms the existing container-level retry behavior remains covered.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed.
+- `node scripts/check-core-boundaries.mjs`
+  - Result: passed.
+- `npx tsc --noEmit -p tsconfig.json` from `tests/e2e`
+  - Result: failed before validating the changed spec.
+  - Notes: TypeScript could not find `@wdio/globals/types`, which is referenced by the e2e tsconfig type roots. This pre-existing e2e type dependency/config gap is not resolved in this Flow Chat slice.
+
+Manual status:
+
+- The release turn-navigation e2e spec now asserts that the header turn list closes after successful selection.
+- The full release e2e was not executed in this slice because it requires the long-session fixture environment (`E2E_TEST_WORKSPACE`, `VOID_E2E_TURN_NAV_SESSION_TITLE`, `VOID_E2E_TURN_NAV_TARGET_TITLE`).
+
 ## Baseline Checks
 
 - `git status --short --branch`

@@ -2907,15 +2907,20 @@ Result:
 ### ISSUE-1190A Flow Chat Turn Navigation Ownership Parity Tests
 
 Priority: P0
-Status: Proposed
-Goal: Compare upstream `32e895dd4` turn-navigation ownership semantics against current Void and add missing tests before considering any `pinTurnToTop` status-model change.
-Allowed files: Flow Chat header/follow-output tests, existing Flow Chat turn-navigation e2e spec, docs.
+Status: Done
+Goal: Compare upstream `32e895dd4` turn-navigation ownership semantics against current Void, add missing tests, and apply only the minimal Flow Chat interface-layer fixes needed by those tests before considering any `pinTurnToTop` status-model change.
+Allowed files: Flow Chat header/follow-output tests, existing Flow Chat turn-navigation e2e spec, `FlowChatHeader.tsx`, `ModernFlowChatContainer.tsx`, `useFlowChatFollowOutput.ts`, docs.
 Forbidden files: `FlowChatStore`, `modernFlowChatStore`, session restore/deferred hydration APIs, backend/Tauri/Rust history restore, terminal, AI media, AI short-drama, subagent/BTW internals, Canvas tool-card changes.
 Acceptance:
 - `FlowChatHeader` tests cover accepted turn selection closing the list and rejected selection keeping the list open.
 - `useFlowChatFollowOutput` tests cover explicit user upward scroll intent exiting follow-output before scroll metrics move, and user intent canceling armed auto-follow.
 - The release turn-navigation e2e includes a focused assertion that the header turn list disappears after a successful selection.
 - No runtime ownership model is changed unless a failing test proves the current container-level retry contract is insufficient.
+Result:
+- Added `FlowChatHeader` coverage for accepted selection closing the list and rejected selection keeping it open.
+- Added `useFlowChatFollowOutput` coverage for explicit user upward intent exiting follow-output before browser scroll metrics move and canceling armed auto-follow.
+- Added the focused release e2e assertion that the header turn list disappears after successful selection.
+- Kept the existing container-level retry contract and did not migrate to upstream `FlowChatTurnPinRequestStatus`.
 Risk notes: Current Void already covers most user-visible behavior through `ISSUE-1110A/B/C`; this issue is test-first parity, not a wholesale migration to upstream `FlowChatTurnPinRequestStatus`.
 
 ### ISSUE-1190B Canvas Artifact Domain RFC

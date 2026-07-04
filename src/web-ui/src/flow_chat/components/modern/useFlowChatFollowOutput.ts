@@ -11,7 +11,6 @@ const PROGRAMMATIC_SCROLL_GUARD_MS = 160;
 const AUTO_FOLLOW_BOTTOM_THRESHOLD_PX = 24;
 const USER_SCROLL_DIRECTION_EPSILON_PX = 0.5;
 const USER_SCROLL_INTENT_WINDOW_MS = 450;
-const USER_SCROLL_INTENT_PROGRAMMATIC_GRACE_MS = 80;
 
 export type FollowOutputEnterReason = 'jump-to-latest' | 'auto-follow';
 export type FollowOutputExitReason =
@@ -287,23 +286,15 @@ export function useFlowChatFollowOutput({
     }
 
     const now = performance.now();
-    if (now <= programmaticScrollUntilMsRef.current) {
-      const scroller = scrollerRef.current;
-      const alreadyAwayFromBottom = scroller
-        ? getDistanceFromBottom(scroller) > AUTO_FOLLOW_BOTTOM_THRESHOLD_PX
-        : false;
-
-      if (!alreadyAwayFromBottom) {
-        return;
-      }
-
-      programmaticScrollUntilMsRef.current = Math.min(
-        programmaticScrollUntilMsRef.current,
-        now + USER_SCROLL_INTENT_PROGRAMMATIC_GRACE_MS,
-      );
-    }
     explicitUserScrollIntentUntilMsRef.current = now + USER_SCROLL_INTENT_WINDOW_MS;
-  }, [scrollerRef]);
+
+    if (isFollowingOutputRef.current) {
+      exitFollowOutput('user-scroll-up');
+      return;
+    }
+
+    cancelPendingAutoFollowArm();
+  }, [cancelPendingAutoFollowArm, exitFollowOutput]);
 
   const scheduleFollowToLatest = useCallback((_reason: string) => {
     if (

@@ -492,11 +492,11 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   }, [searchCurrentMatchVirtualIndex]);
 
   const handleJumpToTurn = useCallback((turnId: string) => {
-    if (!turnId) return;
+    if (!turnId) return false;
 
     const isLatestTurn = turnSummaries[turnSummaries.length - 1]?.turnId === turnId;
 
-    requestHeaderTurnPin(turnId, {
+    return requestHeaderTurnPin(turnId, {
       behavior: 'smooth',
       pinMode: isLatestTurn ? 'sticky-latest' : 'transient',
     });
