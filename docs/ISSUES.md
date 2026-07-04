@@ -1596,6 +1596,23 @@ Result:
 - Added focused tests for missing selection, new runtime empty session, metadata-only load request, in-flight load, history failure, workspace-missing unsupported state, partial history, and pending backend context restore.
 - Did not wire UI, sidebar, header, FlowChat store, backend APIs, media, short-drama, terminal, Computer Use, provider, or Rust code in this slice.
 
+### ISSUE-1110E FlowChat History Placeholder Intent Integration
+
+Priority: P1
+Status: Done
+Goal: Use the `SessionOpenIntent` helper as the Flow Chat container conversion layer for history placeholder decisions without moving history business logic into page/sidebar/header components.
+Allowed files: `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx`, `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`, docs.
+Forbidden files: `FlowChatStore.ts`, sidebar/header components, `chat-screen.tsx`, backend restore APIs, AI media, AI short-drama, terminal, Computer Use, provider, Rust crates.
+Acceptance:
+- `ModernFlowChatContainer` consumes `resolveSessionOpenIntent` for history placeholder decisions instead of directly branching on raw `historyState`.
+- Existing metadata-only, hydrating, failed, and new-session placeholder behavior remains intact.
+- Unsupported history scope from the helper maps to an error/retry placeholder rather than the new-session welcome.
+- No store, backend API, sidebar/header, media, short-drama, terminal, Computer Use, provider, or Rust behavior changes.
+Result:
+- `ModernFlowChatContainer` now derives history placeholder visibility and placeholder state from `SessionOpenIntent`.
+- Added a component test proving unsupported metadata-only history scope renders the history error placeholder and does not fall through to the welcome panel.
+- Preserved existing history placeholder tests plus helper contract tests.
+
 ### ISSUE-1120 Terminal Replay and Input Reliability Delta Audit
 
 Priority: P0

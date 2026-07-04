@@ -320,6 +320,21 @@ describe('ModernFlowChatContainer historical empty state', () => {
     expect(switchChatSessionMock).toHaveBeenCalledWith('session-1');
   });
 
+  it('uses session open intent diagnostics for unsupported history scope', () => {
+    stateMocks.activeSession = createSession({
+      isHistorical: true,
+      historyState: 'metadata-only',
+      workspacePath: '',
+    } as Partial<Session>);
+
+    act(() => {
+      root.render(<ModernFlowChatContainer />);
+    });
+
+    expect(container.textContent).toContain('Session history did not load');
+    expect(container.querySelector('[data-testid="welcome-panel"]')).toBeNull();
+  });
+
   it('keeps the header current turn tied to the visible turn while a header jump is pending', () => {
     stateMocks.activeSession = createSession({
       dialogTurns: [

@@ -92,6 +92,33 @@ Coverage:
 - The helper returns explicit `status/source/action/error` facts and never treats `sessions: []` as a business state.
 - UI integration remains deferred to a separate issue.
 
+## ISSUE-1110E FlowChat History Placeholder Intent Integration
+
+Date: 2026-07-04
+
+Scope:
+
+- `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx`.
+- `src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`.
+- `docs/ISSUES.md`, `docs/PROGRESS.md`, `docs/TEST_PLAN.md`.
+- No `FlowChatStore.ts`, sidebar/header, `chat-screen.tsx`, backend restore API, AI media, AI short-drama, terminal, Computer Use, provider, Rust crate, or generated version behavior changed.
+
+Checks:
+
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/sessionOpenIntent.test.ts src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Initial result: failed, because placeholder visibility used `SessionOpenIntent` but placeholder display state still used raw `metadata-only`, so unsupported history scope rendered the loading copy.
+  - Final result: passed, 2 files / 16 tests after deriving the placeholder state from intent errors.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed after removing an unused local `historyState` variable from `ModernFlowChatContainer`.
+- `git diff --check -- src/web-ui/src/flow_chat/services/sessionOpenIntent.ts src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- Existing metadata-only/hydrating/failed/new-session placeholder behavior stays covered.
+- Unsupported metadata-only history scope now renders the history error placeholder rather than falling through to the welcome panel.
+- Sidebar/header/session-nav integration remains future work.
+
 ## ISSUE-1140D4 Minimal Void ViewImage Tool Implementation
 
 Date: 2026-07-04

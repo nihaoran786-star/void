@@ -88,8 +88,34 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C6 Windows Notepad single-display smoke evidence complete.
 - [x] ISSUE-1130C7 Windows stale screenshot-map fail-closed evidence complete.
 - [x] ISSUE-1110D FlowChat history session open intent contract complete.
+- [x] ISSUE-1110E FlowChat history placeholder intent integration complete.
 
 ## Latest Slice
+
+Issue: `ISSUE-1110E FlowChat History Placeholder Intent Integration`
+
+Summary:
+
+- Wired `ModernFlowChatContainer` to use `resolveSessionOpenIntent` for history placeholder visibility and placeholder state.
+- Preserved existing metadata-only loading, hydrating loading, failed retry, and genuinely new empty-session welcome behavior.
+- Added a component test proving unsupported metadata-only history scope renders the history error placeholder instead of the welcome panel.
+- Kept the integration inside the Flow Chat container and did not change `FlowChatStore`, sidebar/header, `chat-screen.tsx`, backend restore APIs, multi-agent/subagent, BTW, AI media, AI short-drama, terminal, Computer Use, provider, or Rust code.
+
+Verification:
+
+- `pnpm --dir src/web-ui run test:run src/flow_chat/services/sessionOpenIntent.test.ts src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx`
+  - Result: passed, 2 files / 16 tests after fixing placeholder state to derive from intent errors.
+- `pnpm --dir src/web-ui run type-check`
+  - Result: passed after removing an unused local `historyState` variable from `ModernFlowChatContainer`.
+- `git diff --check -- src/web-ui/src/flow_chat/services/sessionOpenIntent.ts src/web-ui/src/flow_chat/services/sessionOpenIntent.test.ts src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.tsx src/web-ui/src/flow_chat/components/modern/ModernFlowChatContainer.history-state.test.tsx docs/ARCHITECTURE.md docs/ISSUES.md docs/PROGRESS.md docs/TEST_PLAN.md`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Remaining:
+
+- Sidebar/header/session-nav open intent consumers remain future work.
+- Upstream long-session interaction matrix remains separate from this helper integration.
+
+## Previous Slice
 
 Issue: `ISSUE-1110D FlowChat History Session Open Intent Contract`
 

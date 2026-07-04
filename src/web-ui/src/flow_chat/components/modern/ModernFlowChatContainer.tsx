@@ -29,6 +29,7 @@ import { createReviewPlatformPullRequestDetailTab } from '@/shared/utils/tabUtil
 import { isAcpFlowSession } from '../../utils/acpSession';
 import { flowChatStore } from '../../store/FlowChatStore';
 import { openBtwSessionInAuxPane } from '../../services/openBtwSession';
+import { resolveSessionOpenIntent } from '../../services/sessionOpenIntent';
 import { isChatPopupActive, subscribeChatPopupChange } from '../chatPopupState';
 import './ModernFlowChatContainer.scss';
 
@@ -191,11 +192,22 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   const activeSessionIdRef = useRef<string | null>(null);
   const { workspacePath } = useWorkspaceContext();
   const allowUserMessageRollback = !isAcpFlowSession(activeSession);
-  const historyState = activeSession?.historyState;
+  const sessionOpenIntent = useMemo(
+    () => resolveSessionOpenIntent({ session: activeSession }),
+    [activeSession]
+  );
+  const historyPlaceholderState = sessionOpenIntent.action === 'show_error'
+    ? 'failed'
+    : sessionOpenIntent.action === 'show_loading'
+      ? 'hydrating'
+      : 'metadata-only';
   const showHistoryPlaceholder = virtualItems.length === 0 && (
-    historyState === 'metadata-only' ||
-    historyState === 'hydrating' ||
-    historyState === 'failed'
+    sessionOpenIntent.action === 'load_history' ||
+    sessionOpenIntent.action === 'show_loading' ||
+    (
+      sessionOpenIntent.action === 'show_error' &&
+      sessionOpenIntent.source === 'history'
+    )
   );
   const {
     exploreGroupStates,
@@ -631,7 +643,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
         <div className="modern-flowchat-container__messages">
           {showHistoryPlaceholder ? (
             <HistorySessionPlaceholder
-              state={historyState}
+              state={historyPlaceholderState}
               onRetry={handleRetryHistoryLoad}
             />
           ) : virtualItems.length === 0 ? (
