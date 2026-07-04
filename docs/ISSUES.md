@@ -3086,11 +3086,18 @@ Risk notes:
 ### ISSUE-1191C Terminal Core History Status/Source Contract
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Extend terminal core history response contracts with explicit status/source fields where local Web/desktop already expect them, without moving terminal ownership into runtime ports.
 Allowed files: `src/crates/terminal/src/api.rs`, `src/apps/desktop/src/api/terminal_api.rs` conversion/tests, docs.
 Forbidden files: terminal session internals, Web terminal runtime hooks/components, Flow Chat, MCP, provider, AI media, AI short-drama, runtime-port owner moves, Cargo/crate layout changes.
 Acceptance:
 - Terminal core get-history response exposes explicit history status/source values compatible with existing desktop/Web contracts.
 - Focused terminal-core and desktop terminal API tests pass.
-Risk notes: This is a DTO/status contract slice only; byte-count ack, remote terminal replay, runtime-port migration, and UI behavior remain out of scope.
+Result:
+- Added terminal-core `TerminalHistoryStatus` and `TerminalHistorySource` DTO enums with Web-compatible serialized values.
+- `TerminalApi::get_history` now returns `historyStatus: "ready"` and `historySource: "local"` from the core response instead of relying on desktop/Web inference.
+- Desktop `GetHistoryResponse::from(CoreGetHistoryResponse)` now formats and passes through the core status/source fields; remote unsupported history remains desktop-owned.
+- Web terminal types, terminal hooks/components, terminal session internals, remote terminal replay, runtime-port, Flow Chat, MCP, provider, AI media, and AI short-drama were not changed.
+Risk notes:
+- This slice does not implement remote terminal replay or `historyStatus: "error"` as a successful DTO; local core failures still use the existing error path.
+- Byte-count ack semantics remain a separate terminal frontend/backend contract decision.

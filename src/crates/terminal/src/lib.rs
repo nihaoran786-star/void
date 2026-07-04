@@ -24,7 +24,8 @@ pub mod shell;
 pub use api::{
     AcknowledgeRequest, CloseSessionRequest, CreateSessionRequest, ExecuteCommandRequest,
     ExecuteCommandResponse, GetHistoryRequest, GetHistoryResponse, ResizeRequest,
-    SendCommandRequest, SessionResponse, ShellInfo, SignalRequest, TerminalApi, WriteRequest,
+    SendCommandRequest, SessionResponse, ShellInfo, SignalRequest, TerminalApi,
+    TerminalHistorySource, TerminalHistoryStatus, WriteRequest,
 };
 pub use config::{ShellConfig, TerminalConfig};
 pub use events::{TerminalEvent, TerminalEventEmitter};

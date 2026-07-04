@@ -100,38 +100,40 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1190G CLI rich model-round persistence complete.
 - [x] ISSUE-1191A CLI rich model-round replay smoke complete.
 - [x] ISSUE-1191B CLI theme truecolor preset fallback governance complete.
+- [x] ISSUE-1191C terminal core history status/source contract complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1191B CLI Theme Truecolor Preset Fallback Governance`
+Issue: `ISSUE-1191C Terminal Core History Status/Source Contract`
 
 Summary:
 
-- Adapted upstream `912cd7561` as a Void CLI theme-governance fix, not a BitFun preset rename.
-- `Theme::dark()` and `Theme::light()` now derive truecolor defaults from local `void-dark` and `void-light` builtin preset JSON.
-- Custom opencode theme overlays still inherit missing values from the selected base theme through `apply_opencode_theme_json`.
-- CLI theme audit baseline now enforces zero Rust fallback color debt.
-- Protected preset visual values, ANSI16/monochrome behavior, Web UI ThemeService, installer/mobile themes, Canvas, Flow Chat, AI media, AI short-drama, generated version files, and package scripts.
+- Moved local terminal history availability facts into terminal-core DTOs.
+- `TerminalApi::get_history` now returns explicit `historyStatus: "ready"` and `historySource: "local"` through `GetHistoryResponse`.
+- Desktop local history conversion now passes through core status/source instead of synthesizing local state twice.
+- Remote unsupported history remains desktop-owned as `unsupported/remote` with `remote_history_unsupported`.
+- Protected terminal session internals, Web terminal hooks/components, remote terminal replay, byte-count ack semantics, Flow Chat, MCP, provider, AI media, AI short-drama, runtime-port, Cargo layout, and generated version files.
 
 Verification:
 
-- `cargo test -p void-cli theme::tests -- --nocapture`
-  - Result: passed, 4 focused Rust tests.
-- `cargo check -p void-cli`
-  - Result: passed.
-- `node --test scripts/audit-cli-theme-colors.test.mjs`
-  - Result: passed, 10 tests.
-- `node scripts/audit-cli-theme-colors.mjs --top=5`
-  - Result: passed; Rust fallback occurrences, unique colors, and near pairs are all 0.
-- `pnpm run check:theme-colors`
-  - Result: passed for Web and CLI theme audits.
+- `cargo test -p terminal-core terminal_history --lib -- --nocapture`
+  - Result: passed, 1 focused Rust test.
+- `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
+  - Result: passed, 1 focused Rust test.
+- `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`
+  - Result: passed, 2 focused Rust tests.
+- `cargo test -p terminal-core --lib`
+  - Result: passed, 30 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one existing unrelated warning in `src/apps/desktop/src/api/clipboard_file_api.rs`.
 - Subagent read-only reviews:
-  - Result: passed; CLI theme reviewer confirmed preset-derived defaults are feasible and warned against recursion, hidden RGB fallback tables, preset value edits, and BitFun naming.
+  - Result: passed; terminal contract reviewer confirmed Web/desktop already require explicit history status/source and core DTO was the remaining owner gap.
 
 Remaining:
 
-- This slice does not change the actual preset palette or broaden theme visual polish.
-- `ISSUE-1191C` terminal core history status/source contract remains the next proposed low-coupling terminal slice.
+- Remote terminal history replay remains unsupported.
+- Local backend history failures still use the existing command error path rather than a successful `historyStatus: "error"` DTO.
+- Terminal ack byte-count semantics remain a separate contract decision.
 
 ## Previous Slice
 

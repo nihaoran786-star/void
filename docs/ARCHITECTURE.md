@@ -457,6 +457,7 @@ Accepted terminal migration slices:
 - Resize repaint guard stays near xterm output handling, with pure utility tests before integration.
 - Structured replay crosses terminal core, desktop DTOs, and Web UI types/hooks only through explicit replay event interfaces.
 - Terminal history availability crosses the desktop/Web boundary through explicit `historyStatus`, `historySource`, `errorCode`, and `error` fields. Remote unsupported history is not equivalent to successful local empty history, and UI/entrypoints must not infer source or failure from empty `events` or empty `data`.
+- Terminal core owns local history status/source for `GetHistoryResponse` and returns `ready/local` for local replay. Desktop may adapt core DTOs and classify known remote sessions as `unsupported/remote`, but it must not own local replay availability policy or move remote replay into terminal-core without a dedicated issue.
 - Terminal/GVim detection for `type_text` stays under desktop Computer Use input routing.
 
 Structured replay contract:

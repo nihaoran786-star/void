@@ -168,10 +168,33 @@ pub struct GetHistoryResponse {
     /// Current history size in bytes
     #[serde(rename = "historySize")]
     pub history_size: usize,
+    /// Explicit replay availability status; callers must not infer this from empty history.
+    #[serde(rename = "historyStatus")]
+    pub history_status: TerminalHistoryStatus,
+    /// Explicit source for the history response.
+    #[serde(rename = "historySource")]
+    pub history_source: TerminalHistorySource,
     /// Terminal column count when history was recorded (PTY current size)
     pub cols: u16,
     /// Terminal row count when history was recorded (PTY current size)
     pub rows: u16,
+}
+
+/// Terminal history availability status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalHistoryStatus {
+    Ready,
+    Unsupported,
+    Error,
+}
+
+/// Terminal history source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TerminalHistorySource {
+    Local,
+    Remote,
 }
 
 /// Shell information response
@@ -407,6 +430,8 @@ impl TerminalApi {
             events,
             data,
             history_size,
+            history_status: TerminalHistoryStatus::Ready,
+            history_source: TerminalHistorySource::Local,
             cols: session.cols,
             rows: session.rows,
         })
@@ -510,6 +535,58 @@ impl TerminalApi {
     /// Get the underlying session manager
     pub fn session_manager(&self) -> Arc<SessionManager> {
         self.session_manager.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        GetHistoryResponse, TerminalHistorySource, TerminalHistoryStatus, TerminalReplayEvent,
+    };
+
+    #[test]
+    fn get_history_response_serializes_status_and_source_contract() {
+        let response = GetHistoryResponse {
+            session_id: "local-session".to_string(),
+            events: Vec::<TerminalReplayEvent>::new(),
+            data: String::new(),
+            history_size: 0,
+            history_status: TerminalHistoryStatus::Ready,
+            history_source: TerminalHistorySource::Local,
+            cols: 80,
+            rows: 24,
+        };
+
+        let value = serde_json::to_value(response).expect("history response should serialize");
+
+        assert_eq!(value["historyStatus"], "ready");
+        assert_eq!(value["historySource"], "local");
+        assert_eq!(value["historySize"], 0);
+        assert_eq!(value["events"].as_array().map(Vec::len), Some(0));
+    }
+
+    #[test]
+    fn terminal_history_status_and_source_values_match_web_contract() {
+        assert_eq!(
+            serde_json::to_string(&TerminalHistoryStatus::Ready).unwrap(),
+            "\"ready\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TerminalHistoryStatus::Unsupported).unwrap(),
+            "\"unsupported\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TerminalHistoryStatus::Error).unwrap(),
+            "\"error\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TerminalHistorySource::Local).unwrap(),
+            "\"local\""
+        );
+        assert_eq!(
+            serde_json::to_string(&TerminalHistorySource::Remote).unwrap(),
+            "\"remote\""
+        );
     }
 }
 

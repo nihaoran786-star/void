@@ -6575,6 +6575,39 @@ Remaining risk:
 - This does not change the preset palette itself; broader theme visual polish remains a separate design issue.
 - This does not alter Web/mobile/installer theme token governance or generated-runtime palette projection.
 
+## ISSUE-1191C Terminal Core History Status/Source Contract
+
+Scope:
+
+- Current slice covers terminal-core get-history DTO status/source and desktop DTO adaptation only.
+- It does not change terminal session internals, remote terminal replay, byte-count ack semantics, Web terminal hooks/components, Flow Chat, MCP, provider, AI media, AI short-drama, runtime-port ownership, Cargo layout, or generated version files.
+
+Executed:
+
+- `cargo test -p terminal-core terminal_history --lib -- --nocapture`
+  - Result: passed, 1 focused enum serialization contract test.
+- `cargo test -p terminal-core get_history_response_serializes_status_and_source_contract --lib -- --nocapture`
+  - Result: passed, 1 focused response serialization contract test.
+- `cargo test -p void-desktop terminal_api::tests --lib -- --nocapture`
+  - Result: passed, 2 focused desktop adapter tests.
+- `cargo test -p terminal-core --lib`
+  - Result: passed, 30 tests.
+- `cargo check -p void-desktop`
+  - Result: passed with one existing unrelated warning in `src/apps/desktop/src/api/clipboard_file_api.rs`.
+
+Coverage:
+
+- Verifies terminal-core serializes `TerminalHistoryStatus` values as `ready`, `unsupported`, and `error`.
+- Verifies terminal-core serializes `TerminalHistorySource` values as `local` and `remote`.
+- Verifies core `GetHistoryResponse` emits `historyStatus: "ready"` and `historySource: "local"` for local replay DTOs.
+- Verifies desktop local conversion keeps `ready/local` and remote unsupported history still returns `unsupported/remote` with `remote_history_unsupported`.
+
+Remaining risk:
+
+- This does not implement remote terminal history replay.
+- This does not return local backend failures as successful `historyStatus: "error"` DTOs; local failures still use the existing command error path.
+- This does not change terminal ack byte-count semantics.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

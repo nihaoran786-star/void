@@ -20,8 +20,9 @@ use void_core::service::terminal::{
     ResizeRequest as CoreResizeRequest, SendCommandRequest as CoreSendCommandRequest,
     SessionResponse as CoreSessionResponse, SessionSource as CoreSessionSource,
     ShellInfo as CoreShellInfo, ShellType, SignalRequest as CoreSignalRequest, TerminalApi,
-    TerminalConfig, TerminalReplayEvent as CoreTerminalReplayEvent,
-    WriteRequest as CoreWriteRequest,
+    TerminalConfig, TerminalHistorySource as CoreTerminalHistorySource,
+    TerminalHistoryStatus as CoreTerminalHistoryStatus,
+    TerminalReplayEvent as CoreTerminalReplayEvent, WriteRequest as CoreWriteRequest,
 };
 
 pub struct TerminalState {
@@ -267,8 +268,8 @@ impl From<CoreGetHistoryResponse> for GetHistoryResponse {
             events: resp.events,
             data: resp.data,
             history_size: resp.history_size,
-            history_status: "ready".to_string(),
-            history_source: "local".to_string(),
+            history_status: format_terminal_history_status(resp.history_status),
+            history_source: format_terminal_history_source(resp.history_source),
             error_code: None,
             error: None,
             cols: resp.cols,
@@ -323,6 +324,21 @@ fn format_session_source(source: &CoreSessionSource) -> String {
     match source {
         CoreSessionSource::Manual => "manual".to_string(),
         CoreSessionSource::Agent => "agent".to_string(),
+    }
+}
+
+fn format_terminal_history_status(status: CoreTerminalHistoryStatus) -> String {
+    match status {
+        CoreTerminalHistoryStatus::Ready => "ready".to_string(),
+        CoreTerminalHistoryStatus::Unsupported => "unsupported".to_string(),
+        CoreTerminalHistoryStatus::Error => "error".to_string(),
+    }
+}
+
+fn format_terminal_history_source(source: CoreTerminalHistorySource) -> String {
+    match source {
+        CoreTerminalHistorySource::Local => "local".to_string(),
+        CoreTerminalHistorySource::Remote => "remote".to_string(),
     }
 }
 
@@ -849,18 +865,7 @@ pub async fn terminal_get_history(
         .await
         .map_err(|e| format!("Failed to get history: {}", e))?;
 
-    Ok(GetHistoryResponse {
-        session_id: response.session_id,
-        events: response.events,
-        data: response.data,
-        history_size: response.history_size,
-        history_status: "ready".to_string(),
-        history_source: "local".to_string(),
-        error_code: None,
-        error: None,
-        cols: response.cols,
-        rows: response.rows,
-    })
+    Ok(GetHistoryResponse::from(response))
 }
 
 pub fn start_terminal_event_loop(terminal_state: TerminalState, app_handle: AppHandle) {
@@ -886,7 +891,10 @@ pub fn start_terminal_event_loop(terminal_state: TerminalState, app_handle: AppH
 
 #[cfg(test)]
 mod tests {
-    use super::{remote_history_unsupported_response, CoreGetHistoryResponse, GetHistoryResponse};
+    use super::{
+        remote_history_unsupported_response, CoreGetHistoryResponse, CoreTerminalHistorySource,
+        CoreTerminalHistoryStatus, GetHistoryResponse,
+    };
 
     #[test]
     fn remote_history_response_reports_unsupported_source_explicitly() {
@@ -912,6 +920,8 @@ mod tests {
             events: Vec::new(),
             data: String::new(),
             history_size: 0,
+            history_status: CoreTerminalHistoryStatus::Ready,
+            history_source: CoreTerminalHistorySource::Local,
             cols: 80,
             rows: 24,
         });
