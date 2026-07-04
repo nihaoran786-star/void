@@ -6487,6 +6487,32 @@ Remaining risk:
 - This does not create a runtime fallback color registry or generated-runtime palette projection.
 - This does not split near-pair debt by domain; future work should add separate evidence before changing near-pair baseline semantics.
 
+## ISSUE-1190G CLI Rich Model-Round Persistence
+
+Scope:
+
+- Current slice covers core session persistence only: coordinator completion wiring and `SessionManager` fallback conversion from execution `new_messages` into persisted `ModelRoundData`.
+- It does not change Flow Chat UI, event ABI, terminal replay, provider adapters, Canvas runtime, AI media, AI short-drama, generated version files, or broad session restore behavior.
+
+Executed:
+
+- `cargo test -p void-core complete_dialog_turn_persists_rich_model_rounds_from_execution_messages --lib -- --nocapture`
+  - Result: passed, 1 focused Rust test.
+- `git diff --check -- src/crates/core/src/agentic/coordination/coordinator.rs src/crates/core/src/agentic/session/session_manager.rs`
+  - Result: passed with Windows LF/CRLF working-copy warnings only.
+
+Coverage:
+
+- Verifies that `complete_dialog_turn` persists assistant reasoning as `thinking_items`.
+- Verifies assistant text and later assistant text become stable persisted text model rounds.
+- Verifies tool calls become `tool_items` and following tool results attach by matching `tool_id`.
+- Verifies the test reads persisted session turns from disk, not only in-memory values.
+
+Remaining risk:
+
+- This slice does not persist upstream round timing/model metadata from `ModelRoundCompleted` events; that remains separate because current `ExecutionResult.new_messages` does not carry those event fields.
+- This slice does not add CLI end-to-end replay smoke; it covers the core persistence interface used by CLI and other hosts.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

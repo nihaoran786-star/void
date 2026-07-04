@@ -3027,12 +3027,18 @@ Result:
 ### ISSUE-1190G CLI Rich Model-Round Persistence Audit
 
 Priority: P1
-Status: Proposed
+Status: Done
 Goal: Audit upstream `6fd87c11a` rich model-round persistence for CLI execution messages against current Void session/model-round persistence before implementing any fix.
-Allowed files: read-only audit docs first; focused core/session tests only if a missing persistence path is proven.
+Allowed files: read-only audit docs first; focused core/session tests and `SessionManager`/coordinator wiring only after the missing persistence path is proven.
 Forbidden files: Flow Chat UI, AI media, AI short-drama, terminal, provider, Canvas, broad session-manager rewrite, event ABI changes.
 Acceptance:
 - Current CLI execution message persistence path is mapped.
 - Any missing rich model-round fields are identified with a focused failing test before code changes.
 - Multi-agent/subagent projection and BTW session behavior are explicitly protected.
 Risk notes: This may be a small high-value stability fix, but it touches persisted conversation structure and must not be bundled with Canvas.
+Result:
+- Upstream `6fd87c11a` was adapted as a focused Void session persistence fix, not a cherry-pick.
+- `ConversationCoordinator` now passes `ExecutionResult.new_messages` into `SessionManager::complete_dialog_turn`.
+- `SessionManager` builds fallback persisted `ModelRoundData` from execution messages only when the turn has no existing assistant text, preserving already-written rich rounds.
+- The converter supports assistant text, assistant mixed reasoning/text/tool calls, assistant multimodal text, and following tool results matched by `tool_id`.
+- Flow Chat UI, event ABI, Canvas, terminal, provider, AI media, AI short-drama, and broad session restore code were not changed.

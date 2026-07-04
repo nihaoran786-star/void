@@ -3,8 +3,9 @@
 //! Responsible for session CRUD, lifecycle management, and resource association
 
 use crate::agentic::core::{
-    new_turn_id, CompressionContract, CompressionState, Message, MessageSemanticKind,
-    ProcessingPhase, Session, SessionConfig, SessionKind, SessionState, SessionSummary, TurnStats,
+    new_turn_id, CompressionContract, CompressionState, Message, MessageContent, MessageRole,
+    MessageSemanticKind, ProcessingPhase, Session, SessionConfig, SessionKind, SessionState,
+    SessionSummary, TurnStats,
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::persistence::PersistenceManager;
@@ -22,7 +23,8 @@ use crate::service::config::{
 };
 use crate::service::session::{
     DialogTurnData, DialogTurnKind, ModelRoundData, SessionMetadata, SessionRelationship,
-    SessionRelationshipKind, TextItemData, TurnStatus, UserMessageData,
+    SessionRelationshipKind, TextItemData, ThinkingItemData, ToolCallData, ToolItemData,
+    ToolResultData, TurnStatus, UserMessageData,
 };
 use crate::service::snapshot::ensure_snapshot_manager_for_workspace;
 use crate::service::workspace::get_global_workspace_service;
@@ -2986,12 +2988,245 @@ impl SessionManager {
         Ok(turn)
     }
 
+    fn make_completed_text_item(
+        id: String,
+        content: String,
+        timestamp: u64,
+        order_index: usize,
+    ) -> TextItemData {
+        TextItemData {
+            id,
+            content,
+            is_streaming: false,
+            timestamp,
+            is_markdown: true,
+            order_index: Some(order_index),
+            is_subagent_item: None,
+            parent_task_tool_id: None,
+            subagent_session_id: None,
+            status: Some("completed".to_string()),
+        }
+    }
+
+    fn build_model_rounds_from_messages(
+        new_messages: &[Message],
+        turn_id: &str,
+        timestamp: u64,
+    ) -> Vec<ModelRoundData> {
+        let mut rounds = Vec::new();
+
+        for message in new_messages {
+            match (&message.role, &message.content) {
+                (MessageRole::Assistant, MessageContent::Text(text)) => {
+                    if text.trim().is_empty() {
+                        continue;
+                    }
+                    let round_index = rounds.len();
+                    rounds.push(ModelRoundData {
+                        id: format!("{}-message-round-{}", turn_id, round_index),
+                        turn_id: turn_id.to_string(),
+                        round_index,
+                        timestamp,
+                        text_items: vec![Self::make_completed_text_item(
+                            format!("{}-message-text-{}", turn_id, round_index),
+                            text.clone(),
+                            timestamp,
+                            0,
+                        )],
+                        tool_items: Vec::new(),
+                        thinking_items: Vec::new(),
+                        start_time: timestamp,
+                        end_time: Some(timestamp),
+                        duration_ms: Some(0),
+                        provider_id: None,
+                        model_id: None,
+                        model_alias: None,
+                        first_chunk_ms: None,
+                        first_visible_output_ms: None,
+                        stream_duration_ms: None,
+                        attempt_count: None,
+                        failure_category: None,
+                        token_details: None,
+                        status: "completed".to_string(),
+                    });
+                }
+                (
+                    MessageRole::Assistant,
+                    MessageContent::Mixed {
+                        reasoning_content,
+                        text,
+                        tool_calls,
+                    },
+                ) => {
+                    if reasoning_content
+                        .as_ref()
+                        .is_none_or(|content| content.trim().is_empty())
+                        && text.trim().is_empty()
+                        && tool_calls.is_empty()
+                    {
+                        continue;
+                    }
+
+                    let round_index = rounds.len();
+                    let mut order_index = 0;
+                    let mut thinking_items = Vec::new();
+                    if let Some(content) = reasoning_content
+                        .as_ref()
+                        .filter(|content| !content.trim().is_empty())
+                    {
+                        thinking_items.push(ThinkingItemData {
+                            id: format!("{}-message-thinking-{}", turn_id, round_index),
+                            content: content.clone(),
+                            is_streaming: false,
+                            is_collapsed: false,
+                            timestamp,
+                            order_index: Some(order_index),
+                            status: Some("completed".to_string()),
+                            is_subagent_item: None,
+                            parent_task_tool_id: None,
+                            subagent_session_id: None,
+                        });
+                        order_index += 1;
+                    }
+
+                    let mut text_items = Vec::new();
+                    if !text.trim().is_empty() {
+                        text_items.push(Self::make_completed_text_item(
+                            format!("{}-message-text-{}", turn_id, round_index),
+                            text.clone(),
+                            timestamp,
+                            order_index,
+                        ));
+                        order_index += 1;
+                    }
+
+                    let mut tool_items = Vec::new();
+                    for tool_call in tool_calls {
+                        tool_items.push(ToolItemData {
+                            id: tool_call.tool_id.clone(),
+                            tool_name: tool_call.tool_name.clone(),
+                            tool_call: ToolCallData {
+                                input: tool_call.arguments.clone(),
+                                id: tool_call.tool_id.clone(),
+                            },
+                            tool_result: None,
+                            ai_intent: None,
+                            start_time: timestamp,
+                            end_time: Some(timestamp),
+                            duration_ms: None,
+                            queue_wait_ms: None,
+                            preflight_ms: None,
+                            confirmation_wait_ms: None,
+                            execution_ms: None,
+                            order_index: Some(order_index),
+                            is_subagent_item: None,
+                            parent_task_tool_id: None,
+                            subagent_session_id: None,
+                            subagent_model_id: None,
+                            subagent_model_alias: None,
+                            status: Some("completed".to_string()),
+                            interruption_reason: None,
+                        });
+                        order_index += 1;
+                    }
+
+                    rounds.push(ModelRoundData {
+                        id: format!("{}-message-round-{}", turn_id, round_index),
+                        turn_id: turn_id.to_string(),
+                        round_index,
+                        timestamp,
+                        text_items,
+                        tool_items,
+                        thinking_items,
+                        start_time: timestamp,
+                        end_time: Some(timestamp),
+                        duration_ms: Some(0),
+                        provider_id: None,
+                        model_id: None,
+                        model_alias: None,
+                        first_chunk_ms: None,
+                        first_visible_output_ms: None,
+                        stream_duration_ms: None,
+                        attempt_count: None,
+                        failure_category: None,
+                        token_details: None,
+                        status: "completed".to_string(),
+                    });
+                }
+                (MessageRole::Assistant, MessageContent::Multimodal { text, .. }) => {
+                    if text.trim().is_empty() {
+                        continue;
+                    }
+                    let round_index = rounds.len();
+                    rounds.push(ModelRoundData {
+                        id: format!("{}-message-round-{}", turn_id, round_index),
+                        turn_id: turn_id.to_string(),
+                        round_index,
+                        timestamp,
+                        text_items: vec![Self::make_completed_text_item(
+                            format!("{}-message-text-{}", turn_id, round_index),
+                            text.clone(),
+                            timestamp,
+                            0,
+                        )],
+                        tool_items: Vec::new(),
+                        thinking_items: Vec::new(),
+                        start_time: timestamp,
+                        end_time: Some(timestamp),
+                        duration_ms: Some(0),
+                        provider_id: None,
+                        model_id: None,
+                        model_alias: None,
+                        first_chunk_ms: None,
+                        first_visible_output_ms: None,
+                        stream_duration_ms: None,
+                        attempt_count: None,
+                        failure_category: None,
+                        token_details: None,
+                        status: "completed".to_string(),
+                    });
+                }
+                (
+                    MessageRole::Tool,
+                    MessageContent::ToolResult {
+                        tool_id,
+                        result,
+                        result_for_assistant,
+                        is_error,
+                        ..
+                    },
+                ) => {
+                    if let Some(tool_item) = rounds.last_mut().and_then(|round| {
+                        round.tool_items.iter_mut().find(|item| item.id == *tool_id)
+                    }) {
+                        tool_item.tool_result = Some(ToolResultData {
+                            result: result.clone(),
+                            success: !is_error,
+                            result_for_assistant: result_for_assistant.clone(),
+                            error: if *is_error {
+                                Some(result.to_string())
+                            } else {
+                                None
+                            },
+                            duration_ms: None,
+                        });
+                        tool_item.end_time = Some(timestamp);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        rounds
+    }
+
     /// Complete dialog turn
     pub async fn complete_dialog_turn(
         &self,
         session_id: &str,
         turn_id: &str,
         final_response: String,
+        new_messages: &[Message],
         stats: TurnStats,
     ) -> VoidResult<()> {
         if !self.should_persist_session_id(session_id) {
@@ -3036,41 +3271,44 @@ impl SessionManager {
                 .iter()
                 .any(|item| !item.content.trim().is_empty())
         });
-        if !has_assistant_text && !final_response.trim().is_empty() {
-            let round_index = turn.model_rounds.len();
-            turn.model_rounds.push(ModelRoundData {
-                id: format!("{}-final-round", turn.turn_id),
-                turn_id: turn.turn_id.clone(),
-                round_index,
-                timestamp: completion_timestamp,
-                text_items: vec![TextItemData {
-                    id: format!("{}-final-text", turn.turn_id),
-                    content: final_response.clone(),
-                    is_streaming: false,
+        if !has_assistant_text {
+            let rich_rounds = Self::build_model_rounds_from_messages(
+                new_messages,
+                &turn.turn_id,
+                completion_timestamp,
+            );
+            if !rich_rounds.is_empty() {
+                turn.model_rounds = rich_rounds;
+            } else if !final_response.trim().is_empty() {
+                let round_index = turn.model_rounds.len();
+                turn.model_rounds.push(ModelRoundData {
+                    id: format!("{}-final-round", turn.turn_id),
+                    turn_id: turn.turn_id.clone(),
+                    round_index,
                     timestamp: completion_timestamp,
-                    is_markdown: true,
-                    order_index: Some(0),
-                    is_subagent_item: None,
-                    parent_task_tool_id: None,
-                    subagent_session_id: None,
-                    status: Some("completed".to_string()),
-                }],
-                tool_items: Vec::new(),
-                thinking_items: Vec::new(),
-                start_time: completion_timestamp,
-                end_time: Some(completion_timestamp),
-                duration_ms: Some(0),
-                provider_id: None,
-                model_id: None,
-                model_alias: None,
-                first_chunk_ms: None,
-                first_visible_output_ms: None,
-                stream_duration_ms: None,
-                attempt_count: None,
-                failure_category: None,
-                token_details: None,
-                status: "completed".to_string(),
-            });
+                    text_items: vec![Self::make_completed_text_item(
+                        format!("{}-final-text", turn.turn_id),
+                        final_response.clone(),
+                        completion_timestamp,
+                        0,
+                    )],
+                    tool_items: Vec::new(),
+                    thinking_items: Vec::new(),
+                    start_time: completion_timestamp,
+                    end_time: Some(completion_timestamp),
+                    duration_ms: Some(0),
+                    provider_id: None,
+                    model_id: None,
+                    model_alias: None,
+                    first_chunk_ms: None,
+                    first_visible_output_ms: None,
+                    stream_duration_ms: None,
+                    attempt_count: None,
+                    failure_category: None,
+                    token_details: None,
+                    status: "completed".to_string(),
+                });
+            }
         }
         turn.status = TurnStatus::Completed;
         turn.duration_ms = Some(stats.duration_ms);
@@ -3918,6 +4156,7 @@ mod tests {
     use super::{SessionManager, SessionManagerConfig};
     use crate::agentic::core::{
         Message, MessageContent, MessageRole, ProcessingPhase, Session, SessionConfig, SessionState,
+        TurnStats,
     };
     use crate::agentic::persistence::PersistenceManager;
     use crate::agentic::session::{
@@ -4300,6 +4539,112 @@ mod tests {
             .expect("metadata should load")
             .expect("metadata should exist");
         assert_eq!(metadata.turn_count, 1);
+    }
+
+    #[tokio::test]
+    async fn complete_dialog_turn_persists_rich_model_rounds_from_execution_messages() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
+        );
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "CLI session".to_string(),
+                "agent".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+
+        let turn_id = manager
+            .start_dialog_turn(
+                &session.session_id,
+                "agentic".to_string(),
+                "run command".to_string(),
+                Some("cli-turn-1".to_string()),
+                None,
+                None,
+            )
+            .await
+            .expect("turn should start");
+
+        let tool_call = crate::agentic::core::ToolCall {
+            tool_id: "tool-1".to_string(),
+            tool_name: "shell".to_string(),
+            arguments: json!({ "cmd": "echo hi" }),
+            raw_arguments: Some("{\"cmd\":\"echo hi\"}".to_string()),
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+        let new_messages = vec![
+            Message::assistant_with_reasoning(
+                Some("need to inspect output".to_string()),
+                "I'll run it.".to_string(),
+                vec![tool_call],
+            ),
+            Message::tool_result(crate::agentic::core::ToolResult {
+                tool_id: "tool-1".to_string(),
+                tool_name: "shell".to_string(),
+                result: json!({ "stdout": "hi" }),
+                result_for_assistant: Some("hi".to_string()),
+                is_error: false,
+                duration_ms: Some(5),
+                image_attachments: None,
+            }),
+            Message::assistant("Done.".to_string()),
+        ];
+
+        manager
+            .complete_dialog_turn(
+                &session.session_id,
+                &turn_id,
+                "Done.".to_string(),
+                &new_messages,
+                TurnStats {
+                    total_rounds: 2,
+                    total_tools: 1,
+                    total_tokens: 0,
+                    duration_ms: 10,
+                },
+            )
+            .await
+            .expect("turn should complete");
+
+        let persisted_turns = persistence_manager
+            .load_session_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("turns should load");
+        let turn = persisted_turns.first().expect("turn should persist");
+        assert_eq!(turn.status, TurnStatus::Completed);
+        assert_eq!(turn.model_rounds.len(), 2);
+
+        let first_round = &turn.model_rounds[0];
+        assert_eq!(first_round.thinking_items.len(), 1);
+        assert_eq!(first_round.thinking_items[0].content, "need to inspect output");
+        assert_eq!(first_round.thinking_items[0].order_index, Some(0));
+        assert_eq!(first_round.text_items.len(), 1);
+        assert_eq!(first_round.text_items[0].content, "I'll run it.");
+        assert_eq!(first_round.text_items[0].order_index, Some(1));
+        assert_eq!(first_round.tool_items.len(), 1);
+        assert_eq!(first_round.tool_items[0].id, "tool-1");
+        assert_eq!(first_round.tool_items[0].tool_name, "shell");
+        assert_eq!(first_round.tool_items[0].order_index, Some(2));
+
+        let tool_result = first_round.tool_items[0]
+            .tool_result
+            .as_ref()
+            .expect("tool result should attach to tool call");
+        assert!(tool_result.success);
+        assert_eq!(tool_result.result_for_assistant.as_deref(), Some("hi"));
+
+        let second_round = &turn.model_rounds[1];
+        assert_eq!(second_round.round_index, 1);
+        assert_eq!(second_round.text_items.len(), 1);
+        assert_eq!(second_round.text_items[0].content, "Done.");
     }
 
     #[tokio::test]

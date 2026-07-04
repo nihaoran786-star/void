@@ -60,6 +60,7 @@ Responsibility:
 Protected contracts:
 
 - `SessionManager -> Session -> DialogTurn -> ModelRound`.
+- `SessionManager` is the only fallback conversion layer that may rebuild persisted `ModelRoundData` from execution `Message` values when the host did not already persist assistant model rounds. Coordinators may pass `ExecutionResult.new_messages`; Flow Chat, CLI output renderers, terminal, providers, Canvas, media, and short-drama modules must not duplicate that conversion or infer model-round state from transcript text.
 - Tool permission and readonly/concurrency flags.
 - `ShortDramaProject` tool as the controlled AI short-drama project interface.
 - Media tool APIMart submission, polling, and workspace save contracts.

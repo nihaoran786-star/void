@@ -97,34 +97,33 @@ Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and 
 - [x] ISSUE-1130C9 Windows pointer smoke closeout and deferral decision complete.
 - [x] ISSUE-1130C Windows pointer coordinate/background input parent complete with explicit deferrals.
 - [x] ISSUE-1190 upstream Canvas and turn-ownership incremental inventory complete.
+- [x] ISSUE-1190G CLI rich model-round persistence complete.
 
 ## Latest Slice
 
-Issue: `ISSUE-1190 Upstream Canvas and Turn-Ownership Incremental Inventory`
+Issue: `ISSUE-1190G CLI Rich Model-Round Persistence Audit`
 
 Summary:
 
-- Fetched `GCWing/BitFun main` and observed upstream advanced from `4da7ae5d8` to `ea14b2d42`.
-- Classified the new upstream wave: Canvas product domain/runtime/tooling is high-value but high-risk; Flow Chat turn-navigation ownership has mostly local behavior coverage but needs parity tests; governance changes suggest small tool-card/icon/theme follow-ups.
-- Added `DEC-124` to reject direct Canvas merge and require Void-owned artifact/domain/security decisions first.
-- Split follow-up issues `ISSUE-1190A` through `ISSUE-1190G`.
-- Preserved current Void multi-agent, subdialogs, floating chat, AI short-drama canvas, AI media, terminal, Computer Use, provider, and brand contracts; no production code was changed.
+- Adapted upstream `6fd87c11a` as a focused Void session persistence fix instead of a cherry-pick.
+- `ConversationCoordinator` now passes `ExecutionResult.new_messages` into `SessionManager::complete_dialog_turn`.
+- `SessionManager` rebuilds missing persisted model rounds from execution messages only when a completed turn has no assistant text already persisted.
+- Persisted fallback rounds now preserve assistant text, thinking content, tool calls, tool results matched by `tool_id`, `round_index`, and item `order_index`.
+- Protected Flow Chat UI, event ABI, terminal, provider, Canvas, AI media, AI short-drama, and broad session restore behavior.
 
 Verification:
 
-- `git fetch https://github.com/GCWing/BitFun.git main:refs/remotes/upstream-bitfun/main`
-  - Result: passed; remote advanced `4da7ae5d8..ea14b2d42`.
-- `git log --reverse --format="%H%x09%s" 4da7ae5d8..refs/remotes/upstream-bitfun/main`
-  - Result: passed; identified 13 non-merge commits plus merge commits in the wave.
-- Subagent read-only reviews:
-  - Result: passed; Canvas/Product, FlowChat/Risk, and Governance/QA agents reported classifications without modifying files.
-- `git diff --check -- docs/ISSUES.md docs/DECISIONS.md docs/PROGRESS.md docs/TEST_PLAN.md`
+- `cargo test -p void-core complete_dialog_turn_persists_rich_model_rounds_from_execution_messages --lib -- --nocapture`
+  - Result: passed, 1 focused Rust test.
+- `git diff --check -- src/crates/core/src/agentic/coordination/coordinator.rs src/crates/core/src/agentic/session/session_manager.rs`
   - Result: passed with Windows LF/CRLF working-copy warnings only.
+- Subagent read-only reviews:
+  - Result: passed; upstream and local persistence reviewers independently confirmed the missing rich model-round write path.
 
 Remaining:
 
-- `ISSUE-1190A` is the next lowest-risk implementation/test slice if continuing this wave.
-- Canvas/Artifact work must start with RFC/security decisions before code.
+- Round timing/model metadata from `ModelRoundCompleted` events is not included in this slice because the accepted data source is `ExecutionResult.new_messages`.
+- A CLI end-to-end replay smoke can be added later; the core persisted turn interface is covered.
 
 ## Previous Slice
 
