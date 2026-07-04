@@ -205,6 +205,8 @@ AI/tool event -> Artifact tool/core permission interface -> workspace-scoped art
 
 `docs/architecture/canvas-runtime-security-review.md` is the security gate for any future persistent interactive artifact runtime. It rejects direct upstream Canvas runtime, desktop API, iframe bridge, generated-content host actions, HTML export, skills, `core.canvas`, and auto-repair until a separate issue defines iframe/worker isolation, message validation, host action policy, user confirmation, structured runtime diagnostics, revision-aware state persistence, CSP/source/bundle policy, and contract tests. Current `GenerativeUI` bridge actions such as `sendPrompt` and `open-file` remain chat-scoped only.
 
+Flow Chat tool-card display names, confirmation policy, MCP display-name fallback, and unknown-tool fallback are owned by `src/web-ui/src/flow_chat/tool-cards/toolCardMetadata.ts`. `src/web-ui/src/flow_chat/tool-cards/index.ts` is the component registry and compatibility re-export layer only; pages, tool cards, and registries must not duplicate display-name or confirmation decisions. MiniApp icon-name conversion and fallback are owned by `src/web-ui/src/app/scenes/miniapps/utils/miniAppIcons.tsx`; Gallery/Card/Store surfaces may render helper output but must not infer icon availability or duplicate fallback logic.
+
 ## Upstream Adaptation Rules
 
 1. Compare upstream behavior first.

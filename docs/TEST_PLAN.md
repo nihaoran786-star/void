@@ -6432,6 +6432,31 @@ Remaining risk:
 - `ViewImage` is not implemented by this slice.
 - Future code slices must prove manifest exposure, provider support, and workspace path/image processing separately before exposing the tool.
 
+## ISSUE-1190E Tool Card Metadata and MiniApp Icon Governance
+
+Scope:
+
+- Current slice covers Flow Chat tool-card metadata ownership and MiniApp icon-name fallback governance.
+- It does not copy Canvas tool cards, Canvas runtime, generated-widget behavior, Flow Chat store/session logic, AI media, AI short-drama, terminal, provider, or generated version files.
+
+Executed:
+
+- `pnpm --dir src/web-ui test:run src/flow_chat/tool-cards/toolCardMetadata.test.ts src/app/scenes/miniapps/utils/miniAppIcons.test.tsx`
+  - Result: passed, 2 focused files / 13 tests.
+- `pnpm --dir src/web-ui type-check`
+  - Result: passed.
+
+Coverage:
+
+- `toolCardMetadata.ts` covers non-default display names, MCP parsed display names, unknown fallback, confirmation policy, and registered tool listing.
+- `miniAppIcons.tsx` covers known current/upstream icon names resolving to non-fallback Lucide icons and unknown icon names falling back to `Box`.
+- MiniApp icon gradients now return CSS variable references so style ownership remains in SCSS/theme surfaces.
+
+Remaining risk:
+
+- Broader visual polish and generated-runtime theme domain governance remain separate work under `ISSUE-1190F`.
+- No rendered screenshot smoke was run for MiniApp gallery because this slice changes helper ownership and icon mappings only; a future visual theme issue should include browser validation.
+
 ## ISSUE-1140D2 ViewImage Manifest and Readonly Exposure Contract
 
 Scope:

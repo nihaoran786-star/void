@@ -5485,3 +5485,28 @@ Remaining risk:
 
 - This RFC does not implement storage, compiler/runtime, security, tool exposure, or UI. Those remain split across `ISSUE-1190C`, `ISSUE-1190D`, and later implementation issues.
 - Existing `GenerativeUI` still contains legacy `bf-*` scaffold naming in prompts; renaming or theming that surface is outside this RFC and belongs to theme/tool-card governance issues.
+
+## ISSUE-1190E Tool Card Metadata and MiniApp Icon Governance
+
+Status: Done
+
+Completed:
+
+- Split Flow Chat tool-card display metadata into `toolCardMetadata.ts` while keeping `tool-cards/index.ts` as the component registry and compatibility re-export.
+- Added focused tests for non-default display names, MCP parsed display names, unknown tool fallback, confirmation policy, and registered tool listing.
+- Added MiniApp icon mapping tests for known current/upstream icons and unknown fallback.
+- Added `Aperture`, `Grid3x3`, `GitPullRequest`, `Presentation`, and `Regex` MiniApp icon mappings.
+- Moved MiniApp icon gradient selection to gallery-owned `--miniapp-icon-gradient-*` CSS variables.
+- Incorporated read-only subagent findings for tool-card metadata and MiniApp icon governance without touching Canvas runtime, Flow Chat store/session logic, AI media, AI short-drama, terminal, provider, or generated version files.
+
+Verification:
+
+- `pnpm --dir src/web-ui test:run src/flow_chat/tool-cards/toolCardMetadata.test.ts src/app/scenes/miniapps/utils/miniAppIcons.test.tsx`
+  - Result: passed, 2 files / 13 tests.
+- `pnpm --dir src/web-ui type-check`
+  - Result: passed.
+
+Remaining risk:
+
+- This slice does not redesign MiniApp cards or theme palettes. Broader theme-token/domain work remains in `ISSUE-1190F`.
+- Tool-card metadata now has a light owner file, but future new tools must update that helper and its tests rather than adding display decisions in cards.

@@ -2986,7 +2986,7 @@ Result:
 ### ISSUE-1190E Tool Card Metadata and Miniapp Icon Governance
 
 Priority: P2
-Status: Proposed
+Status: Done
 Goal: Borrow the low-risk upstream governance patterns for tool-card display names and builtin miniapp icon registration without adopting Canvas.
 Allowed files: existing tool-card metadata tests, existing miniapp icon mapping tests, docs.
 Forbidden files: CanvasToolCard, BitFun/Canvas runtime, generated-widget behavior changes, Flow Chat store/session logic, AI media, AI short-drama, terminal, provider.
@@ -2995,6 +2995,14 @@ Acceptance:
 - Builtin miniapp icon mapping tests prove known icons resolve to non-fallback icons while unknown icons still fall back safely.
 - Styles use existing theme tokens and do not add raw colors.
 Risk notes: This is governance/test hardening only; missing icon additions should be driven by current Void miniapp metadata, not upstream Canvas needs.
+Result:
+- Added `src/web-ui/src/flow_chat/tool-cards/toolCardMetadata.ts` as the single light metadata source for display names, confirmation policy, MCP fallback naming, and unknown-tool fallback.
+- Kept `src/web-ui/src/flow_chat/tool-cards/index.ts` as the component registry and compatibility re-export only.
+- Added focused metadata tests covering non-default tool names, MCP parsed display names, unknown fallback, confirmation policy, and registered tool listing.
+- Added MiniApp icon tests covering known upstream/current builtin icons and unknown fallback.
+- Added builtin MiniApp icon mappings for `Aperture`, `Grid3x3`, `GitPullRequest`, `Presentation`, and `Regex`.
+- Moved MiniApp icon gradients to `--miniapp-icon-gradient-*` variables under the MiniApp gallery surface instead of returning raw gradients from the helper.
+- Did not copy Canvas tool cards, Canvas runtime, generated-widget behavior, Flow Chat session/store logic, AI media, AI short-drama, terminal, provider, or generated version files.
 
 ### ISSUE-1190F Theme Domain Governance for Generated Runtimes
 
