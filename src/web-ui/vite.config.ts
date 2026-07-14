@@ -63,13 +63,6 @@ export default defineConfig(({ mode, command }) => {
         path.resolve(__dirname, '../../'), // Workspace root
       ],
     },
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri` and `apps`
-      ignored: ["**/src-tauri/**", "**/apps/**"],
-      // Increase polling interval for stability (especially on Windows)
-      usePolling: true,
-      interval: 100,
-    },
   },
 
   // Optimize dependency pre-building
