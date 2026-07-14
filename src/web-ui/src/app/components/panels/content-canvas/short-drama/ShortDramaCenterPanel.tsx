@@ -1533,6 +1533,9 @@ function VideoStage({
   const activePosterArtifact = activeVideo
     ? selectVideoPosterArtifact(activeVideo, episodeArtifacts)
     : undefined;
+  const activeVideoIndex = activeVideo
+    ? artifacts.findIndex(artifact => artifact.id === activeVideo.id)
+    : -1;
 
   useEffect(() => {
     if (!selectedVideoId && activeVideo) {
@@ -1542,7 +1545,44 @@ function VideoStage({
 
   return (
     <div className="short-drama-center__video" data-testid="short-drama-video-stage">
-      <div className="short-drama-center__rail">
+      <article
+        id={activeVideo ? getShortDramaArtifactDomId(activeVideo.id) : undefined}
+        className="short-drama-center__stage"
+        data-testid="short-drama-artifact-card"
+        onClick={() => {
+          if (activeVideo) {
+            onArtifactFocus(activeVideo);
+          }
+        }}
+      >
+        <div className="short-drama-center__scene-marker">
+          <span>
+            {activeVideoIndex >= 0
+              ? t('shortDrama.video.sceneRef', { scene: activeVideoIndex + 1 })
+              : t('shortDrama.tabs.video')}
+          </span>
+          {activeVideoIndex >= 0 && <em>{activeVideoIndex + 1} / {artifacts.length}</em>}
+        </div>
+        {activeVideo && (
+          <MediaPreview
+            artifact={activeVideo}
+            mediaEntry={mediaEntriesByArtifactId.get(activeVideo.id)}
+            posterArtifact={activePosterArtifact}
+            posterMediaEntry={activePosterArtifact ? mediaEntriesByArtifactId.get(activePosterArtifact.id) : undefined}
+            t={t}
+            variant="large"
+          />
+        )}
+        <div className="short-drama-center__prompt">
+          {activeVideo?.summary ?? t('shortDrama.video.noPrompt')}
+        </div>
+      </article>
+
+      <div
+        className="short-drama-center__rail"
+        role="tablist"
+        aria-label={t('shortDrama.tabs.video')}
+      >
         {artifacts.map((artifact, index) => {
           const posterArtifact = selectVideoPosterArtifact(artifact, episodeArtifacts);
           return (
@@ -1551,6 +1591,9 @@ function VideoStage({
               type="button"
               data-testid="short-drama-video-rail-item"
               className={activeVideo?.id === artifact.id ? 'is-active' : ''}
+              role="tab"
+              aria-selected={activeVideo?.id === artifact.id}
+              tabIndex={activeVideo?.id === artifact.id ? 0 : -1}
               onClick={() => {
                 setSelectedVideoId(artifact.id);
                 onArtifactFocus(artifact);
@@ -1569,32 +1612,6 @@ function VideoStage({
           );
         })}
       </div>
-
-      <article
-        id={activeVideo ? getShortDramaArtifactDomId(activeVideo.id) : undefined}
-        className="short-drama-center__stage"
-        data-testid="short-drama-artifact-card"
-        onClick={() => {
-          if (activeVideo) {
-            onArtifactFocus(activeVideo);
-          }
-        }}
-      >
-        {activeVideo && (
-          <MediaPreview
-            artifact={activeVideo}
-            mediaEntry={mediaEntriesByArtifactId.get(activeVideo.id)}
-            posterArtifact={activePosterArtifact}
-            posterMediaEntry={activePosterArtifact ? mediaEntriesByArtifactId.get(activePosterArtifact.id) : undefined}
-            t={t}
-            variant="large"
-          />
-        )}
-        <h3>{activeVideo?.title ?? t('shortDrama.tabs.video')}</h3>
-        <div className="short-drama-center__prompt">
-          {activeVideo?.summary ?? t('shortDrama.video.noPrompt')}
-        </div>
-      </article>
     </div>
   );
 }
@@ -1790,11 +1807,6 @@ function MediaPreview({
   const mediaUrl = preview.status === 'ready'
     ? resolvedPreviewUrl ?? (isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined)
     : undefined;
-  const extractedVideoFrameUrl = useVideoFirstFrameThumbnail(
-    mediaUrl,
-    preview.status === 'ready' && preview.kind === 'video',
-    { width: isRail ? 240 : 960, quality: isRail ? 0.72 : 0.84 },
-  );
   const className = [
     'short-drama-media-preview',
     `short-drama-media-preview--${variant}`,
@@ -1897,11 +1909,9 @@ function MediaPreview({
       ? preview.thumbnailUrl
       : undefined;
     const thumbnailUrl = preview.kind === 'video'
-      ? extractedVideoFrameUrl ?? directThumbnailUrl ?? resolvedPosterUrl
+      ? directThumbnailUrl ?? resolvedPosterUrl
       : resolvedThumbnailUrl ?? directThumbnailUrl ?? mediaUrl;
-    const railThumbnailUrl = preview.kind === 'video'
-      ? extractedVideoFrameUrl ?? directThumbnailUrl
-      : thumbnailUrl;
+    const railThumbnailUrl = preview.kind === 'video' ? directThumbnailUrl ?? resolvedPosterUrl : thumbnailUrl;
     const handleOpenPreview = () => {
       if (isRail || !mediaUrl) {
         return;
@@ -1939,7 +1949,6 @@ function MediaPreview({
           ) : preview.kind === 'video' ? (
             isRail ? (
               <VideoRailThumbnail
-                mediaUrl={mediaUrl}
                 thumbnailUrl={railThumbnailUrl}
                 title={artifact.title}
                 t={t}
@@ -1950,7 +1959,7 @@ function MediaPreview({
                 onClick={(event) => event.stopPropagation()}
               >
                 <video
-                  key={`${mediaUrl}:${thumbnailUrl ?? 'no-poster'}`}
+                  key={mediaUrl}
                   src={mediaUrl}
                   poster={thumbnailUrl}
                   controls
@@ -2018,12 +2027,10 @@ function MediaPreview({
 }
 
 function VideoRailThumbnail({
-  mediaUrl,
   thumbnailUrl,
   title,
   t,
 }: {
-  mediaUrl?: string;
   thumbnailUrl?: string;
   title: string;
   t: Translate;
@@ -2042,29 +2049,6 @@ function VideoRailThumbnail({
     );
   }
 
-  if (mediaUrl) {
-    return (
-      <video
-        src={mediaUrl}
-        muted
-        playsInline
-        preload="metadata"
-        tabIndex={-1}
-        aria-label={title}
-        onLoadedMetadata={(event) => {
-          const video = event.currentTarget;
-          if (Number.isFinite(video.duration) && video.duration > 0.16) {
-            try {
-              video.currentTime = Math.min(0.12, Math.max(0.04, video.duration * 0.02));
-            } catch {
-              // Keep the browser-selected first frame.
-            }
-          }
-        }}
-      />
-    );
-  }
-
   return (
     <div className="short-drama-media-preview__empty">
       <span className="short-drama-center__play-mark" aria-hidden="true" />
@@ -2074,139 +2058,6 @@ function VideoRailThumbnail({
       </div>
     </div>
   );
-}
-
-function useVideoFirstFrameThumbnail(
-  videoUrl: string | undefined,
-  enabled: boolean,
-  options: { width: number; quality: number },
-): string | undefined {
-  const [thumbnailUrl, setThumbnailUrl] = useState<string>();
-  const capturedRef = useRef(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let captureScheduled = false;
-    let seekRequested = false;
-    capturedRef.current = false;
-    if (!enabled || !videoUrl || typeof document === 'undefined') {
-      setThumbnailUrl(undefined);
-      return undefined;
-    }
-
-    setThumbnailUrl(undefined);
-
-    const video = document.createElement('video');
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = 'auto';
-
-    const cleanup = () => {
-      video.removeAttribute('src');
-      video.load();
-    };
-
-    const captureFrame = () => {
-      if (cancelled || capturedRef.current || captureScheduled || !video.videoWidth || !video.videoHeight) {
-        return;
-      }
-      captureScheduled = true;
-
-      window.requestAnimationFrame(() => {
-        captureScheduled = false;
-        if (cancelled || !video.videoWidth || !video.videoHeight) {
-          return;
-        }
-
-        try {
-          const width = options.width;
-          const height = Math.max(1, Math.round(width * (video.videoHeight / video.videoWidth)));
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const context = canvas.getContext('2d');
-          if (!context) {
-            return;
-          }
-          context.drawImage(video, 0, 0, width, height);
-          if (!cancelled) {
-            capturedRef.current = true;
-            setThumbnailUrl(canvas.toDataURL('image/jpeg', options.quality));
-          }
-        } catch {
-          if (!cancelled) {
-            setThumbnailUrl(undefined);
-          }
-        }
-      });
-    };
-
-    const seekOrCapture = () => {
-      if (cancelled || capturedRef.current) {
-        return;
-      }
-      if (seekRequested) {
-        captureFrame();
-        return;
-      }
-
-      const canSeek = Number.isFinite(video.duration) && video.duration > 0.16;
-      if (!canSeek) {
-        captureFrame();
-        return;
-      }
-
-      seekRequested = true;
-      try {
-        video.currentTime = Math.min(0.12, Math.max(0.04, video.duration * 0.02));
-      } catch {
-        captureFrame();
-      }
-    };
-
-    const handleSeeked = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        captureFrame();
-      }
-    };
-
-    const handleLoaded = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-        seekOrCapture();
-      }
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && seekRequested) {
-        captureFrame();
-      }
-    };
-
-    const timeoutId = window.setTimeout(() => {
-      if (!cancelled && !capturedRef.current) {
-        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-          captureFrame();
-        }
-      }
-    }, 1200);
-
-    video.addEventListener('loadedmetadata', handleLoaded);
-    video.addEventListener('loadeddata', handleLoaded);
-    video.addEventListener('canplay', handleLoaded);
-    video.addEventListener('seeked', handleSeeked);
-    video.addEventListener('error', () => {
-      if (!cancelled) {
-        setThumbnailUrl(undefined);
-      }
-    }, { once: true });
-    video.src = videoUrl;
-    video.load();
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-      cleanup();
-    };
-  }, [enabled, options.quality, options.width, videoUrl]);
-
-  return thumbnailUrl;
 }
 
 function extensionFromPath(path: string): string | undefined {

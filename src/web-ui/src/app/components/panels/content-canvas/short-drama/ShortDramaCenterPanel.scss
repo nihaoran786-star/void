@@ -703,16 +703,22 @@
 
 .short-drama-center__video {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
   min-width: 0;
 }
 
 .short-drama-center__rail {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-auto-columns: clamp(96px, 16cqi, 128px);
+  grid-auto-flow: column;
+  gap: 8px;
   min-width: 0;
+  padding: 2px 2px 7px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: inline proximity;
+  scrollbar-width: thin;
 }
 
 .short-drama-center__rail button {
@@ -725,11 +731,19 @@
   color: var(--short-drama-ink);
   font-size: 11px;
   font-weight: 700;
+  scroll-snap-align: start;
+  text-align: left;
   cursor: pointer;
 }
 
 .short-drama-center__rail button.is-active {
-  outline: 2px solid color-mix(in srgb, var(--short-drama-ink) 55%, transparent);
+  border-color: color-mix(in srgb, var(--short-drama-ink) 42%, var(--short-drama-border));
+  background: color-mix(in srgb, var(--short-drama-stage-rail-surface) 88%, var(--short-drama-ink));
+}
+
+.short-drama-center__rail button:hover,
+.short-drama-center__rail button:focus-visible {
+  border-color: color-mix(in srgb, var(--short-drama-ink) 32%, var(--short-drama-border));
 }
 
 .short-drama-center__rail button > span {
@@ -750,11 +764,28 @@
   color: var(--short-drama-ink);
 }
 
-.short-drama-center__stage h3 {
-  margin: 0;
+.short-drama-center__scene-marker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
   color: var(--short-drama-ink);
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.short-drama-center__scene-marker span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.short-drama-center__scene-marker em {
+  flex: 0 0 auto;
+  color: var(--short-drama-muted);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }
 
 .short-drama-center__prompt {
@@ -947,14 +978,8 @@
   }
 
   .short-drama-center__rail {
-    display: grid;
     grid-auto-columns: 92px;
-    grid-auto-flow: column;
     gap: 8px;
-    padding-bottom: 4px;
-    overflow-x: auto;
-    overscroll-behavior-inline: contain;
-    scrollbar-width: thin;
   }
 
   .short-drama-center__rail button {
@@ -979,6 +1004,10 @@
 
   .short-drama-center__stage {
     gap: 7px;
+  }
+
+  .short-drama-center__prompt {
+    display: none;
   }
 
   .short-drama-media-preview--large .short-drama-media-preview__canvas,
@@ -1018,8 +1047,4 @@
     overflow-x: hidden;
   }
 
-  .short-drama-center__rail {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
-  }
 }
