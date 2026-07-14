@@ -1,4 +1,6 @@
 .short-drama-center {
+  container-name: short-drama-panel;
+  container-type: inline-size;
   --short-drama-ink: var(--control-text-hover);
   --short-drama-muted: var(--control-text-muted);
   --short-drama-border: var(--control-border);
@@ -368,20 +370,41 @@
   display: grid;
   min-width: 0;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  border-radius: 8px;
   background:
     linear-gradient(135deg, var(--short-drama-preview-gradient-start), var(--short-drama-preview-gradient-end)),
     repeating-linear-gradient(90deg, transparent 0 18px, var(--short-drama-preview-grid-line) 18px 19px);
   color: var(--short-drama-preview-on-media);
 }
 
-.short-drama-media-preview img,
-.short-drama-media-preview video {
+.short-drama-media-preview__canvas {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--short-drama-preview-media-fallback);
+}
+
+.short-drama-media-preview__canvas > img,
+.short-drama-media-preview__canvas video {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
   background: var(--short-drama-preview-media-fallback);
+}
+
+.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row) .short-drama-media-preview__canvas > img,
+.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row) .short-drama-media-preview__canvas video {
+  object-fit: contain;
+}
+
+.short-drama-media-preview--rail .short-drama-media-preview__canvas > img,
+.short-drama-media-preview--rail .short-drama-media-preview__canvas video,
+.short-drama-media-preview--row .short-drama-media-preview__canvas > img,
+.short-drama-media-preview--row .short-drama-media-preview__canvas video {
+  object-fit: cover;
 }
 
 .short-drama-media-preview audio {
@@ -397,24 +420,20 @@
   min-width: 0;
 }
 
-.short-drama-media-preview__video-poster {
-  position: absolute;
-  inset: 0 0 48px;
-  z-index: 1;
-  pointer-events: none;
-}
-
 .short-drama-media-preview--large,
 .short-drama-media-preview--final {
-  border-radius: 8px;
-  aspect-ratio: 16 / 9;
-  min-height: 220px;
+  width: 100%;
+}
+
+.short-drama-media-preview--large .short-drama-media-preview__canvas,
+.short-drama-media-preview--final .short-drama-media-preview__canvas {
+  height: clamp(220px, 56cqi, 620px);
+  aspect-ratio: auto;
 }
 
 .short-drama-media-preview--rail {
   width: 100%;
   border-radius: 7px;
-  aspect-ratio: 16 / 9;
   min-height: 0;
 }
 
@@ -425,16 +444,11 @@
 .short-drama-media-preview--row {
   width: 112px;
   border-radius: 7px;
-  aspect-ratio: 16 / 9;
   min-height: 0;
 }
 
 .short-drama-media-preview--large {
   margin-bottom: 14px;
-}
-
-.short-drama-media-preview--final {
-  min-height: 236px;
 }
 
 .short-drama-media-preview.is-missing,
@@ -481,7 +495,7 @@
 }
 
 .short-drama-media-preview__empty strong,
-.short-drama-media-preview__caption strong {
+.short-drama-media-preview__meta strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -493,30 +507,54 @@
   line-height: 1.45;
 }
 
-.short-drama-media-preview__caption {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  left: 8px;
+.short-drama-media-preview__footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border-top: 1px solid color-mix(in srgb, var(--short-drama-border) 66%, transparent);
+  padding: 7px 8px;
+  background: var(--short-drama-band);
+}
+
+.short-drama-media-preview__meta {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 8px;
   align-items: center;
-  border-radius: 7px;
-  padding: 7px 8px;
-  background: var(--short-drama-preview-caption-bg);
-  color: var(--short-drama-preview-on-media);
+  min-width: 0;
+  color: var(--short-drama-ink);
   font-size: 11px;
-  pointer-events: none;
 }
 
-.short-drama-media-preview__caption span,
-.short-drama-media-preview__caption em {
+.short-drama-media-preview__meta span,
+.short-drama-media-preview__meta em {
   overflow: hidden;
-  color: var(--short-drama-preview-caption-muted);
+  color: var(--short-drama-muted);
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.short-drama-media-preview__open {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--short-drama-muted);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.short-drama-media-preview__open:hover,
+.short-drama-media-preview__open:focus-visible {
+  background: var(--control-bg-hover);
+  color: var(--short-drama-ink);
 }
 
 .short-drama-card__body {
@@ -667,12 +705,14 @@
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
   gap: 14px;
+  min-width: 0;
 }
 
 .short-drama-center__rail {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .short-drama-center__rail button {
@@ -898,6 +938,65 @@
 .short-drama-center__episode-rail strong {
   font-size: 11px;
   line-height: 1;
+}
+
+@container short-drama-panel (max-width: 620px) {
+  .short-drama-center__video {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .short-drama-center__rail {
+    display: grid;
+    grid-auto-columns: 92px;
+    grid-auto-flow: column;
+    gap: 8px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .short-drama-center__rail button {
+    min-width: 0;
+  }
+
+  .short-drama-media-preview--large .short-drama-media-preview__canvas,
+  .short-drama-media-preview--final .short-drama-media-preview__canvas {
+    height: clamp(200px, 68cqi, 480px);
+  }
+}
+
+@container short-drama-panel (max-width: 420px) {
+  .short-drama-center__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .short-drama-center__rail {
+    grid-auto-columns: 82px;
+  }
+
+  .short-drama-center__stage {
+    gap: 7px;
+  }
+
+  .short-drama-media-preview--large .short-drama-media-preview__canvas,
+  .short-drama-media-preview--final .short-drama-media-preview__canvas {
+    height: clamp(180px, 78cqi, 360px);
+  }
+
+  .short-drama-media-preview__meta {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .short-drama-media-preview__meta span {
+    display: none;
+  }
+
+  .short-drama-center__final-preview {
+    padding: 7px;
+  }
 }
 
 @media (max-width: 860px) {

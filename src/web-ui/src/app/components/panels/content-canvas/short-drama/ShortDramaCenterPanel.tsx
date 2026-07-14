@@ -1786,7 +1786,6 @@ function MediaPreview({
   const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string>();
   const [resolvedThumbnailUrl, setResolvedThumbnailUrl] = useState<string>();
   const [resolvedPosterUrl, setResolvedPosterUrl] = useState<string>();
-  const [videoStarted, setVideoStarted] = useState(false);
   const isRail = variant === 'rail';
   const mediaUrl = preview.status === 'ready'
     ? resolvedPreviewUrl ?? (isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined)
@@ -1893,10 +1892,6 @@ function MediaPreview({
     readyPosterPreviewLocalPath,
   ]);
 
-  useEffect(() => {
-    setVideoStarted(false);
-  }, [mediaUrl]);
-
   if (preview.status === 'ready') {
     const directThumbnailUrl = preview.thumbnailUrl && isDirectRenderableMediaUrl(preview.thumbnailUrl)
       ? preview.thumbnailUrl
@@ -1923,83 +1918,88 @@ function MediaPreview({
       <div
         className={className}
         data-testid="short-drama-media-preview"
-        role={!isRail && mediaUrl ? 'button' : undefined}
-        tabIndex={!isRail && mediaUrl ? 0 : undefined}
-        aria-label={!isRail && mediaUrl ? `Open ${artifact.title}` : undefined}
-        onClick={handleOpenPreview}
-        onKeyDown={(event) => {
-          if ((event.key === 'Enter' || event.key === ' ') && mediaUrl) {
-            event.preventDefault();
-            handleOpenPreview();
-          }
-        }}
       >
-        {preview.kind === 'image' ? (
-          mediaUrl ? (
-            <img
-              src={mediaUrl}
-              alt={artifact.title}
-              loading="lazy"
-            />
-          ) : (
-            <div className="short-drama-media-preview__empty">
-              <span className="short-drama-center__play-mark" aria-hidden="true" />
-              <div>
-                <strong>{artifact.title}</strong>
-                <p>{t('shortDrama.mediaPreview.referenced')}</p>
-              </div>
-            </div>
-          )
-        ) : preview.kind === 'video' ? (
-          isRail ? (
-            <VideoRailThumbnail
-              mediaUrl={mediaUrl}
-              thumbnailUrl={railThumbnailUrl}
-              title={artifact.title}
-              t={t}
-            />
-          ) : mediaUrl ? (
-            <div className="short-drama-media-preview__video-frame">
-              <video
-                key={`${mediaUrl}:${thumbnailUrl ?? 'no-poster'}`}
+        <div className="short-drama-media-preview__canvas">
+          {preview.kind === 'image' ? (
+            mediaUrl ? (
+              <img
                 src={mediaUrl}
-                poster={thumbnailUrl}
-                controls
-                playsInline
-                preload="metadata"
-                onPlay={() => setVideoStarted(true)}
+                alt={artifact.title}
+                loading="lazy"
               />
-              {!videoStarted && (
-                <VideoPosterFrame
-                  mediaUrl={mediaUrl}
-                  thumbnailUrl={thumbnailUrl}
-                  title={artifact.title}
+            ) : (
+              <div className="short-drama-media-preview__empty">
+                <span className="short-drama-center__play-mark" aria-hidden="true" />
+                <div>
+                  <strong>{artifact.title}</strong>
+                  <p>{t('shortDrama.mediaPreview.referenced')}</p>
+                </div>
+              </div>
+            )
+          ) : preview.kind === 'video' ? (
+            isRail ? (
+              <VideoRailThumbnail
+                mediaUrl={mediaUrl}
+                thumbnailUrl={railThumbnailUrl}
+                title={artifact.title}
+                t={t}
+              />
+            ) : mediaUrl ? (
+              <div
+                className="short-drama-media-preview__video-frame"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <video
+                  key={`${mediaUrl}:${thumbnailUrl ?? 'no-poster'}`}
+                  src={mediaUrl}
+                  poster={thumbnailUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
                 />
-              )}
-            </div>
-          ) : (
-            <div className="short-drama-media-preview__empty">
-              <span className="short-drama-center__play-mark" aria-hidden="true" />
-              <div>
-                <strong>{artifact.title}</strong>
-                <p>{t('shortDrama.mediaPreview.referenced')}</p>
               </div>
-            </div>
-          )
-        ) : (
-          mediaUrl ? (
-            <audio src={mediaUrl} controls preload="metadata" />
-          ) : (
-            <div className="short-drama-media-preview__empty">
-              <span className="short-drama-center__play-mark" aria-hidden="true" />
-              <div>
-                <strong>{artifact.title}</strong>
-                <p>{t('shortDrama.mediaPreview.referenced')}</p>
+            ) : (
+              <div className="short-drama-media-preview__empty">
+                <span className="short-drama-center__play-mark" aria-hidden="true" />
+                <div>
+                  <strong>{artifact.title}</strong>
+                  <p>{t('shortDrama.mediaPreview.referenced')}</p>
+                </div>
               </div>
-            </div>
-          )
+            )
+          ) : (
+            mediaUrl ? (
+              <audio src={mediaUrl} controls preload="metadata" />
+            ) : (
+              <div className="short-drama-media-preview__empty">
+                <span className="short-drama-center__play-mark" aria-hidden="true" />
+                <div>
+                  <strong>{artifact.title}</strong>
+                  <p>{t('shortDrama.mediaPreview.referenced')}</p>
+                </div>
+              </div>
+            )
+          )}
+        </div>
+        {!isRail && variant !== 'row' && (
+          <div className="short-drama-media-preview__footer">
+            <MediaPreviewCaption artifact={artifact} preview={preview} t={t} />
+            {mediaUrl && (
+              <button
+                type="button"
+                className="short-drama-media-preview__open"
+                aria-label={`Open ${artifact.title}`}
+                title={`Open ${artifact.title}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleOpenPreview();
+                }}
+              >
+                ↗
+              </button>
+            )}
+          </div>
         )}
-        {preview.kind === 'image' && variant !== 'rail' && <MediaPreviewCaption artifact={artifact} preview={preview} t={t} />}
       </div>
     );
   }
@@ -2015,56 +2015,6 @@ function MediaPreview({
       </div>
     </div>
   );
-}
-
-function VideoPosterFrame({
-  mediaUrl,
-  thumbnailUrl,
-  title,
-}: {
-  mediaUrl?: string;
-  thumbnailUrl?: string;
-  title: string;
-}) {
-  const [imageFailed, setImageFailed] = useState(false);
-
-  if (thumbnailUrl && !imageFailed) {
-    return (
-      <img
-        className="short-drama-media-preview__video-poster"
-        src={thumbnailUrl}
-        alt={title}
-        loading="eager"
-        onError={() => setImageFailed(true)}
-      />
-    );
-  }
-
-  if (mediaUrl) {
-    return (
-      <video
-        className="short-drama-media-preview__video-poster"
-        src={mediaUrl}
-        muted
-        playsInline
-        preload="metadata"
-        tabIndex={-1}
-        aria-label={title}
-        onLoadedMetadata={(event) => {
-          const video = event.currentTarget;
-          if (Number.isFinite(video.duration) && video.duration > 0.16) {
-            try {
-              video.currentTime = Math.min(0.12, Math.max(0.04, video.duration * 0.02));
-            } catch {
-              // Keep the browser-selected first frame.
-            }
-          }
-        }}
-      />
-    );
-  }
-
-  return null;
 }
 
 function VideoRailThumbnail({
@@ -2283,7 +2233,7 @@ function MediaPreviewCaption({
   t: Translate;
 }) {
   return (
-    <div className="short-drama-media-preview__caption">
+    <div className="short-drama-media-preview__meta">
       <strong>{artifact.title}</strong>
       <span>{preview.label ?? preview.mediaItemId}</span>
       {preview.durationMs && (
