@@ -1,6 +1,6 @@
 /**
  * Auto-generated version info. Do not edit.
- * Generated: 2026-07-03T07:14:14.560Z
+ * Generated: 2026-07-04T14:32:35.312Z
  */
 
 import type { VersionInfo } from '../shared/types/version';
@@ -8,11 +8,11 @@ import type { VersionInfo } from '../shared/types/version';
 export const VERSION_INFO: VersionInfo = {
   "name": "void",
   "version": "0.2.8",
-  "buildDate": "2026-07-03T07:14:14.559Z",
-  "buildTimestamp": 1783062854559,
+  "buildDate": "2026-07-04T14:32:35.311Z",
+  "buildTimestamp": 1783175555311,
   "buildEnv": "development",
   "isDev": true,
-  "gitCommit": "6b0476e",
-  "gitCommitFull": "6b0476ea269cf69ddf512c3ec427655ec25fd731",
+  "gitCommit": "c13994e",
+  "gitCommitFull": "c13994ecc4233858760e1e1a9b8bb98e2447dcdf",
   "gitBranch": "baseline/void-source-20260702"
 };
