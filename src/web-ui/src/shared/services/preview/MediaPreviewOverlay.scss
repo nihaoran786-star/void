@@ -9,7 +9,7 @@
 .media-preview-overlay__backdrop {
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, #020617 62%, transparent);
+  background: color-mix(in srgb, var(--color-bg-primary) 62%, transparent);
 }
 
 .media-preview-overlay__panel {
@@ -19,10 +19,10 @@
   width: min(1120px, calc(100vw - 48px));
   height: min(820px, calc(100vh - 48px));
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-border, #e2e8f0) 45%, transparent);
-  border-radius: 10px;
-  background: var(--color-bg-primary, #fff);
-  box-shadow: 0 24px 80px rgb(15 23 42 / 0.28);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--color-bg-primary);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--color-bg-primary) 28%, transparent);
 }
 
 .media-preview-overlay__header {
@@ -32,21 +32,22 @@
   gap: 16px;
   min-height: 44px;
   padding: 8px 10px 8px 14px;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  border-bottom: 1px solid var(--control-border);
+  background: var(--control-bg);
 }
 
 .media-preview-overlay__title {
   display: grid;
   min-width: 0;
   gap: 2px;
-  color: var(--color-text-primary, #0f172a);
+  color: var(--control-text);
   font-size: 13px;
   font-weight: 600;
 }
 
 .media-preview-overlay__title small {
   overflow: hidden;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--control-text-muted);
   font-size: 11px;
   font-weight: 400;
   text-overflow: ellipsis;
@@ -64,10 +65,10 @@
   height: 30px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 6px;
-  background: var(--color-bg-secondary, #f8fafc);
-  color: var(--color-text-primary, #0f172a);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--control-bg-hover);
+  color: var(--control-text);
   cursor: pointer;
 }
 
@@ -77,7 +78,7 @@
   overflow: hidden;
   place-items: center;
   padding: 14px;
-  background: color-mix(in srgb, var(--color-bg-secondary, #f8fafc) 70%, #000);
+  background: color-mix(in srgb, var(--color-bg-secondary) 70%, var(--color-bg-primary));
 }
 
 .media-preview-overlay__media {

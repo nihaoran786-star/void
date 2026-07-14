@@ -1,6 +1,6 @@
 .media-generation-card {
   svg {
-    color: var(--color-accent, #2563eb);
+    color: var(--color-accent-500);
   }
 }
 
@@ -21,11 +21,11 @@
 .media-generation-card__error {
   font-size: 12px;
   line-height: 1.45;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--control-text-muted);
 }
 
 .media-generation-card__error {
-  color: var(--color-error, #dc2626);
+  color: var(--status-error-text);
 }
 
 .media-generation-card__generating {
@@ -35,10 +35,10 @@
   min-height: 54px;
   overflow: hidden;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--color-accent, #2563eb) 20%, var(--color-border, #e2e8f0));
-  border-radius: 10px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg-secondary, #f8fafc) 82%, transparent), var(--color-bg-primary, #fff));
-  color: var(--color-text-primary, #0f172a);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--control-bg);
+  color: var(--control-text);
   font-size: 13px;
   font-weight: 600;
   isolation: isolate;
@@ -67,7 +67,7 @@
   position: relative;
   z-index: 2;
   margin-left: auto;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--control-text-muted);
   font-size: 11px;
   font-weight: 500;
 }
@@ -92,10 +92,10 @@
   position: absolute;
   inset: -20%;
   background-image:
-    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--color-accent, #2563eb) 75%, #fff) 0%, transparent 48%),
-    radial-gradient(circle at 42% 46%, #94a3b8 0%, transparent 42%),
-    radial-gradient(circle at 58% 55%, #38bdf8 0%, transparent 42%),
-    radial-gradient(circle at 46% 58%, #22c55e 0%, transparent 38%);
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--color-accent-500) 75%, var(--control-text-hover)) 0%, transparent 48%),
+    radial-gradient(circle at 42% 46%, var(--control-text-muted) 0%, transparent 42%),
+    radial-gradient(circle at 58% 55%, var(--status-info-text) 0%, transparent 42%),
+    radial-gradient(circle at 46% 58%, var(--status-success-text) 0%, transparent 38%);
   mask: radial-gradient(circle at 50% 50%, transparent 0%, transparent 12%, black 30%);
   animation:
     media-generation-sweep 2s infinite alternate cubic-bezier(0.6, 0.8, 0.5, 1),
@@ -117,9 +117,9 @@
   display: block;
   overflow: hidden;
   padding: 0;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
-  background: var(--color-bg-secondary, #f8fafc);
+  background: var(--control-bg);
   color: inherit;
   cursor: pointer;
   aspect-ratio: 1 / 1;
@@ -143,10 +143,10 @@
   min-width: 0;
   aspect-ratio: 1 / 1;
   padding: 0;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--control-border);
   border-radius: 7px;
-  background: var(--color-bg-secondary, #f8fafc);
-  color: var(--color-text-primary, #0f172a);
+  background: var(--control-bg);
+  color: var(--control-text);
   cursor: pointer;
 }
 
@@ -154,7 +154,7 @@
 .media-generation-card__preview-asset:focus-visible,
 .media-generation-card__preview-more:hover,
 .media-generation-card__preview-more:focus-visible {
-  border-color: color-mix(in srgb, var(--color-accent, #2563eb) 45%, var(--color-border, #e2e8f0));
+  border-color: var(--control-border-focus);
   outline: none;
 }
 
@@ -173,12 +173,12 @@
 
 .media-generation-card__asset:hover,
 .media-generation-card__asset:focus-visible {
-  border-color: color-mix(in srgb, var(--color-accent, #2563eb) 45%, var(--color-border, #e2e8f0));
-  background: color-mix(in srgb, var(--color-bg-secondary, #f8fafc) 78%, var(--color-accent, #2563eb));
+  border-color: var(--control-border-focus);
+  background: color-mix(in srgb, var(--control-bg) 78%, var(--color-accent-500));
 }
 
 .media-generation-card__asset:focus-visible {
-  outline: 1px solid var(--color-accent, #2563eb);
+  outline: 1px solid var(--control-focus-ring);
   outline-offset: 2px;
 }
 
@@ -188,10 +188,10 @@
   left: 6px;
   z-index: 1;
   padding: 2px 6px;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-bg-primary, #fff) 86%, transparent);
-  color: var(--color-text-primary, #0f172a);
+  background: color-mix(in srgb, var(--control-bg) 86%, transparent);
+  color: var(--control-text);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -216,8 +216,8 @@
 .media-generation-card__preview-asset img:not([src]),
 .media-generation-card__preview-asset video:not([src]) {
   background:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--color-bg-primary, #fff) 72%, transparent), transparent),
-    var(--color-bg-secondary, #f8fafc);
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--control-bg) 72%, transparent), transparent),
+    var(--control-bg);
 }
 
 .media-generation-card__audio-asset {
@@ -227,7 +227,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--control-text-muted);
   font-size: 12px;
   font-weight: 600;
 }
@@ -249,8 +249,8 @@
   right: 6px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-bg-primary, #fff) 88%, transparent);
-  color: var(--color-text-primary, #0f172a);
+  background: color-mix(in srgb, var(--control-bg) 88%, transparent);
+  color: var(--control-text);
   font-size: 11px;
 }
 
@@ -273,10 +273,10 @@
   align-items: center;
   gap: 4px;
   padding: 4px 7px;
-  border: 1px solid color-mix(in srgb, var(--color-border, #e2e8f0) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--control-border) 80%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-bg-primary, #fff) 90%, transparent);
-  color: var(--color-text-primary, #0f172a);
+  background: color-mix(in srgb, var(--control-bg) 90%, transparent);
+  color: var(--control-text);
   font: inherit;
   font-size: 11px;
   line-height: 1;
@@ -304,8 +304,8 @@ button.media-generation-card__asset-action {
   overflow: hidden;
   padding: 3px 7px;
   border-radius: 999px;
-  background: var(--color-bg-secondary, #f8fafc);
-  color: var(--color-text-secondary, #64748b);
+  background: var(--control-bg);
+  color: var(--control-text-muted);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -323,16 +323,16 @@ button.media-generation-card__asset-action {
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--control-border);
   border-radius: 8px;
-  background: var(--color-bg-secondary, #f8fafc);
-  color: var(--color-text-secondary, #64748b);
+  background: var(--control-bg);
+  color: var(--control-text-muted);
   font-size: 12px;
 }
 
 .media-generation-card__item--error {
-  border-color: color-mix(in srgb, var(--color-error, #dc2626) 28%, var(--color-border, #e2e8f0));
-  color: var(--color-error, #dc2626);
+  border-color: var(--status-error-border);
+  color: var(--status-error-text);
 }
 
 .media-generation-card__item-index {
@@ -350,10 +350,10 @@ button.media-generation-card__asset-action {
 .media-generation-card__load-more {
   align-self: center;
   padding: 6px 11px;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
-  background: var(--color-bg-primary, #fff);
-  color: var(--color-text-secondary, #64748b);
+  background: var(--control-bg);
+  color: var(--control-text-muted);
   cursor: pointer;
   font: inherit;
   font-size: 12px;
@@ -362,8 +362,8 @@ button.media-generation-card__asset-action {
 
 .media-generation-card__load-more:hover,
 .media-generation-card__load-more:focus-visible {
-  border-color: color-mix(in srgb, var(--color-accent, #2563eb) 45%, var(--color-border, #e2e8f0));
-  color: var(--color-text-primary, #0f172a);
+  border-color: var(--control-border-focus);
+  color: var(--control-text);
 }
 
 @keyframes media-generation-sweep {
@@ -381,7 +381,7 @@ button.media-generation-card__asset-action {
   0% { opacity: 0.2; }
   8% {
     opacity: 1;
-    text-shadow: 0 0 4px color-mix(in srgb, var(--color-accent, #2563eb) 45%, #fff);
+    text-shadow: 0 0 4px color-mix(in srgb, var(--color-accent-500) 45%, var(--control-text-hover));
     transform: translateY(-1px);
   }
   28% { opacity: 0.32; }

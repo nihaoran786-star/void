@@ -16,6 +16,17 @@ const flexiblePanel = read('src/web-ui/src/app/components/panels/base/FlexiblePa
 const panelHeader = read('src/web-ui/src/app/components/panels/base/PanelHeader.scss');
 const alert = read('src/web-ui/src/component-library/components/Alert/Alert.scss');
 const reviewPlatform = read('src/web-ui/src/app/components/panels/review-platform/ReviewPlatformPanel.scss');
+const mediaSurfaces = new Map([
+  ['WorkspaceMediaGallery', read('src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.scss')],
+  ['MediaGenerationToolCard', read('src/web-ui/src/flow_chat/tool-cards/MediaGenerationToolCard.scss')],
+  ['MediaPreviewOverlay', read('src/web-ui/src/shared/services/preview/MediaPreviewOverlay.scss')],
+]);
+const shortDramaSurfaces = new Map([
+  ['ShortDramaCenterPanel', read('src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.scss')],
+  ['ShortDramaEntry', read('src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaEntry.scss')],
+]);
+
+const countRawColors = styles => (styles.match(/rgba?\(|#[0-9a-f]{3,8}\b/gi) ?? []).length;
 
 test('component tokens define semantic control aliases from existing theme variables', () => {
   const expectedMappings = new Map([
@@ -128,5 +139,34 @@ test('review platform consumes shared control and status contracts', () => {
 
   for (const tone of ['neutral', 'info', 'success', 'warning', 'error']) {
     assert.match(reviewPlatform, new RegExp(`var\\(--status-${tone}-bg\\)`));
+  }
+});
+
+test('media preview surfaces consume shared theme contracts and cap raw colors', () => {
+  const limits = new Map([
+    ['WorkspaceMediaGallery', 35],
+    ['MediaGenerationToolCard', 30],
+    ['MediaPreviewOverlay', 3],
+  ]);
+
+  for (const [name, styles] of mediaSurfaces) {
+    for (const token of ['--control-bg', '--control-border', '--control-text', '--control-text-muted']) {
+      assert.match(styles, new RegExp(`var\\(${token}\\)`), `${name} must consume ${token}`);
+    }
+    assert.ok(countRawColors(styles) <= limits.get(name), `${name} raw color count must be <= ${limits.get(name)}`);
+  }
+});
+
+test('short drama surfaces consume shared theme contracts and cap raw colors', () => {
+  const limits = new Map([
+    ['ShortDramaCenterPanel', 30],
+    ['ShortDramaEntry', 2],
+  ]);
+
+  for (const [name, styles] of shortDramaSurfaces) {
+    for (const token of ['--control-bg', '--control-border', '--control-text', '--control-text-muted']) {
+      assert.match(styles, new RegExp(`var\\(${token}\\)`), `${name} must consume ${token}`);
+    }
+    assert.ok(countRawColors(styles) <= limits.get(name), `${name} raw color count must be <= ${limits.get(name)}`);
   }
 });
