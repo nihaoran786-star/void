@@ -1,0 +1,4 @@
+interface:
+  display_name: "短剧角色身份板"
+  short_description: "锁定角色身份、分集造型与制作级角色板格式"
+  default_prompt: "使用 $short-drama-character-board 为当前角色生成 16:9 制作级身份板提示词。"

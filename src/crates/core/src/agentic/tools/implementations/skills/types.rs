@@ -87,6 +87,8 @@ pub enum ModeSkillStateReason {
     BuiltinPolicyDisabled,
     EnabledByUserOverride,
     DisabledByUserOverride,
+    EnabledByAgentAllowlist,
+    DisabledByAgentAllowlist,
 }
 
 /// Skill information annotated for a specific mode.

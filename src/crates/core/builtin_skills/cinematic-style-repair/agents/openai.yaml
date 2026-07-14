@@ -1,0 +1,4 @@
+interface:
+  display_name: "电影感风格修复"
+  short_description: "生成与修复克制电影感画面，支持多参考图优先选择和自适应路由"
+  default_prompt: "使用 $cinematic-style-repair 生成电影感画面；有参考图时先编号并确认优先保留项。"

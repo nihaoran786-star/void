@@ -199,7 +199,15 @@ impl CustomSubagent {
 
     fn append_runtime_policy(&self, prompt: String) -> String {
         if self.has_short_drama_project_tool() {
-            format!("{prompt}\n\n{}", SHORT_DRAMA_CUSTOM_SUBAGENT_POLICY)
+            let asset_ai_policy = if self.name.eq_ignore_ascii_case("AssetAI") {
+                format!("\n\n{SHORT_DRAMA_ASSET_AI_POLICY}")
+            } else {
+                String::new()
+            };
+            format!(
+                "{prompt}\n\n{}{asset_ai_policy}",
+                SHORT_DRAMA_CUSTOM_SUBAGENT_POLICY
+            )
         } else {
             prompt
         }
@@ -289,6 +297,17 @@ Stage guidance:
 - SplitAI owns storyboard prompts, keyframes, and storyboard images. Before generation, it should read the current script segment, StoryboardReferencePlan, and referenced assets. It should request AssetAI or ScriptAI changes instead of editing their stages directly.
 - VideoAI owns shot videos, transitions, and motion consistency. It should trace videos back to script segments, storyboard artifacts, and referenced character/location/prop assets. Storyboard or asset problems become ChangeRequest items.
 - EditorAI owns editing, subtitles, sound, and final episode structure. It should read video and post-production context and request upstream fixes instead of directly rewriting script, assets, storyboards, or video artifacts.
+"#;
+
+const SHORT_DRAMA_ASSET_AI_POLICY: &str = r#"# AssetAI fixed production workflow
+
+Your first responsibility is to read the current script and extract production assets before generating images: 角色、场景、道具、服装, reusable visual anchors, and episode-specific states such as hairstyle, makeup, costume, injury, age, and emotion. Keep different episode or story states as separate asset artifacts. Do not invent missing identity details; request clarification from ScriptAI or MainAI through ChangeRequest.
+
+For every character identity board, invoke both `short-drama-character-board` and `cinematic-style-repair` before `GenerateImage`. The character-board skill controls the 16:9 identity-study layout and strict identity consistency; the cinematic skill controls credible light, skin, materials, and imaging style without breaking the board layout.
+
+For scene images, character-shot images, prop images, and all other asset images, invoke `cinematic-style-repair` before `GenerateImage`. Do not invoke unrelated skills.
+
+Create or update one asset anchor per output before generation. Preserve the existing short-drama coordinates in the media request, and attach every successful result to its asset with `upsert_asset_artifact` and `patch.mediaReference`; do not leave completed images only in the conversation.
 "#;
 
 #[cfg(test)]
@@ -395,6 +414,33 @@ mod tests {
             prompt.contains("do not leave successful asset images only inside the chat transcript")
         );
         assert!(prompt.contains("These tools do not burn subtitles into video"));
+    }
+
+    #[tokio::test]
+    async fn asset_ai_prompt_requires_fixed_asset_workflow() {
+        let dir = TestTempDir::new("void-subagent-asset-ai-policy-test");
+        let subagent = CustomSubagent::new(
+            "AssetAI".to_string(),
+            "Asset specialist".to_string(),
+            vec!["ShortDramaProject".to_string()],
+            "You are AssetAI.".to_string(),
+            true,
+            dir.join("asset-ai.md"),
+            CustomSubagentKind::User,
+        );
+        let context = PromptBuilderContext::new("", None, None);
+
+        let prompt = subagent
+            .build_prompt(&context)
+            .await
+            .expect("AssetAI prompt should build");
+
+        assert!(prompt.contains("short-drama-character-board"));
+        assert!(prompt.contains("cinematic-style-repair"));
+        assert!(prompt.contains("角色、场景、道具、服装"));
+        assert!(prompt.contains("episode-specific"));
+        assert!(prompt.contains("GenerateImage"));
+        assert!(prompt.contains("patch.mediaReference"));
     }
 
     #[test]

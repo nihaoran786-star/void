@@ -4,7 +4,7 @@
 //! and produces a single effective availability decision for a skill in a mode.
 
 use super::mode_overrides::UserModeSkillOverrides;
-use super::policy::resolve_builtin_default_enabled;
+use super::policy::{fixed_skill_allowlist_for_agent, resolve_builtin_default_enabled};
 use super::types::{ModeSkillStateReason, SkillInfo, SkillLocation};
 use std::collections::HashSet;
 
@@ -16,6 +16,10 @@ pub struct ModeSkillState {
 }
 
 pub fn resolve_skill_default_enabled_for_mode(skill: &SkillInfo, mode_id: &str) -> bool {
+    if let Some(allowlist) = fixed_skill_allowlist_for_agent(mode_id) {
+        return skill.is_builtin && allowlist.contains(&skill.dir_name.as_str());
+    }
+
     match skill.level {
         SkillLocation::Project => true,
         SkillLocation::User => {
@@ -55,6 +59,19 @@ pub fn resolve_skill_state_for_mode(
     user_overrides: &UserModeSkillOverrides,
     disabled_project_skills: &HashSet<String>,
 ) -> ModeSkillState {
+    if let Some(allowlist) = fixed_skill_allowlist_for_agent(mode_id) {
+        let enabled = skill.is_builtin && allowlist.contains(&skill.dir_name.as_str());
+        return ModeSkillState {
+            default_enabled: enabled,
+            effective_enabled: enabled,
+            reason: if enabled {
+                ModeSkillStateReason::EnabledByAgentAllowlist
+            } else {
+                ModeSkillStateReason::DisabledByAgentAllowlist
+            },
+        };
+    }
+
     match skill.level {
         SkillLocation::Project => {
             let disabled = disabled_project_skills.contains(&skill.key);
@@ -157,6 +174,54 @@ mod tests {
         assert!(state.default_enabled);
         assert!(state.effective_enabled);
         assert_eq!(state.reason, ModeSkillStateReason::CustomUserDefaultEnabled);
+    }
+
+    #[test]
+    fn asset_ai_uses_only_fixed_short_drama_image_skills() {
+        let user_overrides = UserModeSkillOverrides::default();
+        let disabled_project = HashSet::new();
+        let character_board = builtin_skill("short-drama-character-board");
+        let cinematic = builtin_skill("cinematic-style-repair");
+        let shadowing_cinematic = custom_user_skill("cinematic-style-repair");
+        let superpowers = custom_user_skill("using-superpowers");
+
+        let character_board = resolve_skill_state_for_mode(
+            &character_board,
+            "AssetAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        let cinematic =
+            resolve_skill_state_for_mode(&cinematic, "AssetAI", &user_overrides, &disabled_project);
+        let shadowing_cinematic = resolve_skill_state_for_mode(
+            &shadowing_cinematic,
+            "AssetAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        let superpowers = resolve_skill_state_for_mode(
+            &superpowers,
+            "AssetAI",
+            &user_overrides,
+            &disabled_project,
+        );
+
+        assert!(character_board.effective_enabled);
+        assert!(cinematic.effective_enabled);
+        assert!(!shadowing_cinematic.effective_enabled);
+        assert!(!superpowers.effective_enabled);
+        assert_eq!(
+            superpowers.reason,
+            ModeSkillStateReason::DisabledByAgentAllowlist
+        );
+
+        let script_ai = resolve_skill_state_for_mode(
+            &custom_user_skill("using-superpowers"),
+            "ScriptAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        assert!(script_ai.effective_enabled);
     }
 
     #[test]

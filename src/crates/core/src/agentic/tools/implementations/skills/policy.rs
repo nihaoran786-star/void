@@ -72,6 +72,16 @@ pub struct ModeSkillPolicy {
     pub rules: &'static [SkillPolicyRule],
 }
 
+pub const ASSET_AI_SKILL_ALLOWLIST: &[&str] =
+    &["short-drama-character-board", "cinematic-style-repair"];
+
+pub fn fixed_skill_allowlist_for_agent(agent_type: &str) -> Option<&'static [&'static str]> {
+    agent_type
+        .trim()
+        .eq_ignore_ascii_case("AssetAI")
+        .then_some(ASSET_AI_SKILL_ALLOWLIST)
+}
+
 const DISABLE_OFFICE: SkillPolicyRule = SkillPolicyRule {
     selector: SkillSelector::Group(BuiltinSkillGroup::Office),
     effect: PolicyEffect::Disable,
@@ -169,7 +179,23 @@ pub fn resolve_builtin_default_enabled(dir_name: &str, mode_id: &str) -> Option<
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_builtin_default_enabled, PolicyEffect, SkillModeId};
+    use super::{
+        fixed_skill_allowlist_for_agent, resolve_builtin_default_enabled, PolicyEffect,
+        SkillModeId, ASSET_AI_SKILL_ALLOWLIST,
+    };
+
+    #[test]
+    fn asset_ai_has_a_fixed_two_skill_allowlist() {
+        assert_eq!(
+            fixed_skill_allowlist_for_agent("AssetAI"),
+            Some(ASSET_AI_SKILL_ALLOWLIST)
+        );
+        assert_eq!(
+            fixed_skill_allowlist_for_agent("assetai"),
+            Some(ASSET_AI_SKILL_ALLOWLIST)
+        );
+        assert_eq!(fixed_skill_allowlist_for_agent("ScriptAI"), None);
+    }
 
     #[test]
     fn builtin_defaults_follow_mode_policies() {

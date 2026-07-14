@@ -7,6 +7,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BuiltinSkillId {
     AgentBrowser,
+    CinematicStyleRepair,
     Docx,
     FindSkills,
     GstackAutoplan,
@@ -26,6 +27,7 @@ pub enum BuiltinSkillId {
     GstackShip,
     Pdf,
     Pptx,
+    ShortDramaCharacterBoard,
     WritingSkills,
     Xlsx,
 }
@@ -36,6 +38,7 @@ pub enum BuiltinSkillGroup {
     Meta,
     ComputerUse,
     Gstack,
+    ShortDrama,
 }
 
 impl BuiltinSkillGroup {
@@ -45,6 +48,7 @@ impl BuiltinSkillGroup {
             Self::Meta => "meta",
             Self::ComputerUse => "computer-use",
             Self::Gstack => "gstack",
+            Self::ShortDrama => "short-drama",
         }
     }
 }
@@ -61,6 +65,11 @@ const BUILTIN_SKILL_SPECS: &[BuiltinSkillSpec] = &[
         id: BuiltinSkillId::AgentBrowser,
         dir_name: "agent-browser",
         group: BuiltinSkillGroup::ComputerUse,
+    },
+    BuiltinSkillSpec {
+        id: BuiltinSkillId::CinematicStyleRepair,
+        dir_name: "cinematic-style-repair",
+        group: BuiltinSkillGroup::ShortDrama,
     },
     BuiltinSkillSpec {
         id: BuiltinSkillId::Docx,
@@ -158,6 +167,11 @@ const BUILTIN_SKILL_SPECS: &[BuiltinSkillSpec] = &[
         group: BuiltinSkillGroup::Office,
     },
     BuiltinSkillSpec {
+        id: BuiltinSkillId::ShortDramaCharacterBoard,
+        dir_name: "short-drama-character-board",
+        group: BuiltinSkillGroup::ShortDrama,
+    },
+    BuiltinSkillSpec {
         id: BuiltinSkillId::WritingSkills,
         dir_name: "writing-skills",
         group: BuiltinSkillGroup::Meta,
@@ -202,6 +216,14 @@ mod tests {
             Some("computer-use")
         );
         assert_eq!(builtin_skill_group_key("gstack-review"), Some("gstack"));
+        assert_eq!(
+            builtin_skill_group_key("short-drama-character-board"),
+            Some("short-drama")
+        );
+        assert_eq!(
+            builtin_skill_group_key("cinematic-style-repair"),
+            Some("short-drama")
+        );
         assert_eq!(builtin_skill_group("unknown-skill"), None);
     }
 
