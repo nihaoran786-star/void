@@ -225,6 +225,46 @@ mod tests {
     }
 
     #[test]
+    fn split_ai_uses_only_the_builtin_cinematic_skill() {
+        let user_overrides = UserModeSkillOverrides::default();
+        let disabled_project = HashSet::new();
+
+        let cinematic = resolve_skill_state_for_mode(
+            &builtin_skill("cinematic-style-repair"),
+            "SplitAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        let character_board = resolve_skill_state_for_mode(
+            &builtin_skill("short-drama-character-board"),
+            "SplitAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        let shadowing_cinematic = resolve_skill_state_for_mode(
+            &custom_user_skill("cinematic-style-repair"),
+            "SplitAI",
+            &user_overrides,
+            &disabled_project,
+        );
+        let superpowers = resolve_skill_state_for_mode(
+            &custom_user_skill("using-superpowers"),
+            "SplitAI",
+            &user_overrides,
+            &disabled_project,
+        );
+
+        assert!(cinematic.effective_enabled);
+        assert_eq!(
+            cinematic.reason,
+            ModeSkillStateReason::EnabledByAgentAllowlist
+        );
+        assert!(!character_board.effective_enabled);
+        assert!(!shadowing_cinematic.effective_enabled);
+        assert!(!superpowers.effective_enabled);
+    }
+
+    #[test]
     fn overrides_apply_on_top_of_defaults() {
         let pdf = builtin_skill("pdf");
         let mut overrides = UserModeSkillOverrides::default();

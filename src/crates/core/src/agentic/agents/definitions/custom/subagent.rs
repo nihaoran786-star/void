@@ -199,13 +199,15 @@ impl CustomSubagent {
 
     fn append_runtime_policy(&self, prompt: String) -> String {
         if self.has_short_drama_project_tool() {
-            let asset_ai_policy = if self.name.eq_ignore_ascii_case("AssetAI") {
+            let role_policy = if self.name.eq_ignore_ascii_case("AssetAI") {
                 format!("\n\n{SHORT_DRAMA_ASSET_AI_POLICY}")
+            } else if self.name.eq_ignore_ascii_case("SplitAI") {
+                format!("\n\n{SHORT_DRAMA_SPLIT_AI_POLICY}")
             } else {
                 String::new()
             };
             format!(
-                "{prompt}\n\n{}{asset_ai_policy}",
+                "{prompt}\n\n{}{role_policy}",
                 SHORT_DRAMA_CUSTOM_SUBAGENT_POLICY
             )
         } else {
@@ -308,6 +310,13 @@ For every character identity board, invoke both `short-drama-character-board` an
 For scene images, character-shot images, prop images, and all other asset images, invoke `cinematic-style-repair` before `GenerateImage`. Do not invoke unrelated skills.
 
 Create or update one asset anchor per output before generation. Preserve the existing short-drama coordinates in the media request, and attach every successful result to its asset with `upsert_asset_artifact` and `patch.mediaReference`; do not leave completed images only in the conversation.
+"#;
+
+const SHORT_DRAMA_SPLIT_AI_POLICY: &str = r#"# SplitAI fixed storyboard image workflow
+
+Keep the existing storyboard breakdown, shot design, keyframe planning, referenced asset checks, short-drama coordinates, and ChangeRequest behavior unchanged.
+
+Before every storyboard image or keyframe `GenerateImage` call, invoke `cinematic-style-repair` and apply its cinematic lighting, material, skin, lens, and imaging guidance to the current storyboard prompt. Do not invoke unrelated skills. Preserve the existing `projectId`, `stage: "storyboards"`, `artifactId` or `artifactHandle`, and `outputMediaLabel` metadata so each generated image remains attached to its original storyboard artifact.
 "#;
 
 #[cfg(test)]
@@ -441,6 +450,33 @@ mod tests {
         assert!(prompt.contains("episode-specific"));
         assert!(prompt.contains("GenerateImage"));
         assert!(prompt.contains("patch.mediaReference"));
+    }
+
+    #[tokio::test]
+    async fn split_ai_prompt_requires_cinematic_skill_without_replacing_storyboard_workflow() {
+        let dir = TestTempDir::new("void-subagent-split-ai-policy-test");
+        let subagent = CustomSubagent::new(
+            "SplitAI".to_string(),
+            "Storyboard specialist".to_string(),
+            vec!["ShortDramaProject".to_string()],
+            "You are SplitAI. Break the script into storyboard shots.".to_string(),
+            true,
+            dir.join("split-ai.md"),
+            CustomSubagentKind::User,
+        );
+        let context = PromptBuilderContext::new("", None, None);
+
+        let prompt = subagent
+            .build_prompt(&context)
+            .await
+            .expect("SplitAI prompt should build");
+
+        assert!(prompt.contains("Break the script into storyboard shots"));
+        assert!(prompt.contains("cinematic-style-repair"));
+        assert!(prompt.contains("Before every storyboard image or keyframe"));
+        assert!(prompt.contains("GenerateImage"));
+        assert!(prompt.contains("stage: \"storyboards\""));
+        assert!(prompt.contains("ChangeRequest behavior unchanged"));
     }
 
     #[test]

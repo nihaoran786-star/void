@@ -74,12 +74,17 @@ pub struct ModeSkillPolicy {
 
 pub const ASSET_AI_SKILL_ALLOWLIST: &[&str] =
     &["short-drama-character-board", "cinematic-style-repair"];
+pub const SPLIT_AI_SKILL_ALLOWLIST: &[&str] = &["cinematic-style-repair"];
 
 pub fn fixed_skill_allowlist_for_agent(agent_type: &str) -> Option<&'static [&'static str]> {
-    agent_type
-        .trim()
-        .eq_ignore_ascii_case("AssetAI")
-        .then_some(ASSET_AI_SKILL_ALLOWLIST)
+    let agent_type = agent_type.trim();
+    if agent_type.eq_ignore_ascii_case("AssetAI") {
+        Some(ASSET_AI_SKILL_ALLOWLIST)
+    } else if agent_type.eq_ignore_ascii_case("SplitAI") {
+        Some(SPLIT_AI_SKILL_ALLOWLIST)
+    } else {
+        None
+    }
 }
 
 const DISABLE_OFFICE: SkillPolicyRule = SkillPolicyRule {
@@ -181,7 +186,7 @@ pub fn resolve_builtin_default_enabled(dir_name: &str, mode_id: &str) -> Option<
 mod tests {
     use super::{
         fixed_skill_allowlist_for_agent, resolve_builtin_default_enabled, PolicyEffect,
-        SkillModeId, ASSET_AI_SKILL_ALLOWLIST,
+        SkillModeId, ASSET_AI_SKILL_ALLOWLIST, SPLIT_AI_SKILL_ALLOWLIST,
     };
 
     #[test]
@@ -195,6 +200,18 @@ mod tests {
             Some(ASSET_AI_SKILL_ALLOWLIST)
         );
         assert_eq!(fixed_skill_allowlist_for_agent("ScriptAI"), None);
+    }
+
+    #[test]
+    fn split_ai_has_a_fixed_cinematic_skill_allowlist() {
+        assert_eq!(
+            fixed_skill_allowlist_for_agent("SplitAI"),
+            Some(SPLIT_AI_SKILL_ALLOWLIST)
+        );
+        assert_eq!(
+            fixed_skill_allowlist_for_agent("splitai"),
+            Some(SPLIT_AI_SKILL_ALLOWLIST)
+        );
     }
 
     #[test]
