@@ -1010,6 +1010,48 @@ $badge-info-text: $color-info;
   --opacity-hover: #{$opacity-hover};
   --opacity-focus: #{$opacity-focus};
   --opacity-overlay: #{$opacity-overlay};
+
+  // Shared interactive-control contract. Values remain owned by ThemeService.
+  --control-bg: var(--element-bg-base);
+  --control-bg-hover: var(--element-bg-medium);
+  --control-bg-active: var(--element-bg-soft);
+  --control-border: var(--border-base);
+  --control-border-hover: var(--border-medium);
+  --control-border-focus: var(--color-accent-400);
+  --control-text: var(--color-text-secondary);
+  --control-text-hover: var(--color-text-primary);
+  --control-text-muted: var(--color-text-muted);
+  --control-focus-ring: var(--color-accent-400);
+  --control-disabled-opacity: 0.45;
+  --control-radius: var(--size-radius-sm);
+  --control-height-xs: 24px;
+  --control-height-sm: var(--button-height-sm);
+  --control-height-md: var(--button-height-base);
+  --control-height-lg: var(--button-height-lg);
+  --control-square-xs: 24px;
+  --control-square-sm: 28px;
+  --control-square-md: 32px;
+  --control-square-lg: 40px;
+  --control-icon-xs: 14px;
+  --control-icon-sm: 16px;
+  --control-icon-md: 16px;
+  --control-icon-lg: 20px;
+
+  --status-neutral-bg: var(--element-bg-base);
+  --status-neutral-border: var(--border-base);
+  --status-neutral-text: var(--color-text-secondary);
+  --status-info-bg: var(--color-info-bg);
+  --status-info-border: var(--color-info-border);
+  --status-info-text: var(--color-info);
+  --status-success-bg: var(--color-success-bg);
+  --status-success-border: var(--color-success-border);
+  --status-success-text: var(--color-success);
+  --status-warning-bg: var(--color-warning-bg);
+  --status-warning-border: var(--color-warning-border);
+  --status-warning-text: var(--color-warning);
+  --status-error-bg: var(--color-error-bg);
+  --status-error-border: var(--color-error-border);
+  --status-error-text: var(--color-error);
   
   --badge-border-radius: #{$badge-border-radius};
   --badge-padding-x: #{$badge-padding-x};
