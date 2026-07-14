@@ -15,6 +15,7 @@ const card = read('src/web-ui/src/component-library/components/Card/Card.scss');
 const flexiblePanel = read('src/web-ui/src/app/components/panels/base/FlexiblePanel.scss');
 const panelHeader = read('src/web-ui/src/app/components/panels/base/PanelHeader.scss');
 const alert = read('src/web-ui/src/component-library/components/Alert/Alert.scss');
+const reviewPlatform = read('src/web-ui/src/app/components/panels/review-platform/ReviewPlatformPanel.scss');
 
 test('component tokens define semantic control aliases from existing theme variables', () => {
   const expectedMappings = new Map([
@@ -109,5 +110,23 @@ test('cards, panels, and alerts consume shared surface contracts', () => {
     for (const role of ['bg', 'border', 'text']) {
       assert.match(alert, new RegExp(`var\\(--status-${tone}-${role}\\)`));
     }
+  }
+});
+
+test('review platform consumes shared control and status contracts', () => {
+  for (const token of [
+    '--control-bg',
+    '--control-bg-hover',
+    '--control-border',
+    '--control-text',
+    '--control-text-muted',
+    '--control-focus-ring',
+    '--control-disabled-opacity',
+  ]) {
+    assert.match(reviewPlatform, new RegExp(`var\\(${token}\\)`), `ReviewPlatform must consume ${token}`);
+  }
+
+  for (const tone of ['neutral', 'info', 'success', 'warning', 'error']) {
+    assert.match(reviewPlatform, new RegExp(`var\\(--status-${tone}-bg\\)`));
   }
 });
