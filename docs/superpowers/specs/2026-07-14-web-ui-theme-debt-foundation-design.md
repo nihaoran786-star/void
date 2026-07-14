@@ -62,17 +62,14 @@ The component-library root token block will expose a compact alias layer. Aliase
 - `--control-focus-ring`, `--control-disabled-opacity`
 - `--control-radius`
 - `--control-height-xs`, `--control-height-sm`, `--control-height-md`, `--control-height-lg`
+- `--control-square-xs`, `--control-square-sm`, `--control-square-md`, `--control-square-lg`
 - `--control-icon-xs`, `--control-icon-sm`, `--control-icon-md`, `--control-icon-lg`
 
 The aliases preserve the current effective sizes unless an existing primitive disagrees with the established 24/28/32/40 icon-button scale or 32/40/48 text-control scale. Normalization may change local duplicate values but may not change page layout.
 
 ### Status feedback
 
-For each of `neutral`, `info`, `success`, `warning`, and `error`:
-
-- `--status-<tone>-bg`
-- `--status-<tone>-border`
-- `--status-<tone>-text`
+For each of `neutral`, `info`, `success`, `warning`, and `error`, define a `bg`, `border`, and `text` variable, producing the concrete families `--status-neutral-*`, `--status-info-*`, `--status-success-*`, `--status-warning-*`, and `--status-error-*`.
 
 These aliases derive from the existing element, accent, and semantic theme variables. Components must not add a second status palette.
 
