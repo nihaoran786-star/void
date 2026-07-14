@@ -19,8 +19,8 @@
   flex-shrink: 0;
 
   &--neutral {
-    background: var(--element-bg-base);
-    color: var(--color-text-secondary);
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
   }
 
   &--accent {
@@ -34,22 +34,22 @@
   }
 
   &--success {
-    background: var(--color-success-bg);
-    color: var(--color-success);
+    background: var(--status-success-bg);
+    color: var(--status-success-text);
   }
 
   &--warning {
-    background: var(--color-warning-bg);
-    color: var(--color-warning);
+    background: var(--status-warning-bg);
+    color: var(--status-warning-text);
   }
 
   &--error {
-    background: var(--color-error-bg);
-    color: var(--color-error);
+    background: var(--status-error-bg);
+    color: var(--status-error-text);
   }
 
   &--info {
-    background: var(--color-info-bg);
-    color: var(--color-info);
+    background: var(--status-info-bg);
+    color: var(--status-info-text);
   }
 }

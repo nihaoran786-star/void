@@ -13,7 +13,7 @@
     margin-bottom: var(--size-gap-2, 8px);
     font-size: var(--font-size-sm, 14px);
     font-weight: var(--font-weight-medium, 500);
-    color: var(--color-text-secondary, #e5e5e5);
+    color: var(--control-text);
     letter-spacing: 0.2px;
   }
 
@@ -22,9 +22,9 @@
     align-items: center;
     gap: var(--size-gap-3, 12px);
     padding: 6px 12px;
-    background: transparent;
-    border: 1px solid var(--border-base, rgba(255, 255, 255, 0.14));
-    border-radius: var(--size-radius-sm, 6px);
+    background: var(--control-bg);
+    border: 1px solid var(--control-border);
+    border-radius: var(--control-radius);
     cursor: pointer;
     transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     min-height: 36px;
@@ -33,14 +33,15 @@
     overflow: hidden;
 
     &:hover:not(.select--disabled &) {
-      background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
-      border-color: var(--border-strong, rgba(255, 255, 255, 0.26));
+      background: var(--control-bg-hover);
+      border-color: var(--control-border-hover);
     }
 
     &:focus-visible {
       outline: none;
-      background: transparent;
-      border-color: var(--color-accent-500, #60a5fa);
+      background: var(--control-bg);
+      border-color: var(--control-border-focus);
+      box-shadow: 0 0 0 1px var(--control-focus-ring);
     }
   }
 
@@ -49,7 +50,7 @@
     border-style: solid;
     border-color: var(--border-medium, rgba(255, 255, 255, 0.20));
     border-bottom-color: transparent;
-    border-radius: var(--size-radius-sm, 6px) var(--size-radius-sm, 6px) 0 0;
+    border-radius: var(--control-radius) var(--control-radius) 0 0;
   }
 
   &--open.select--placement-top &__trigger {
@@ -59,7 +60,7 @@
   }
 
   &--disabled {
-    opacity: var(--opacity-disabled, 0.6);
+    opacity: var(--control-disabled-opacity);
     cursor: default;
 
     .select__trigger {
@@ -69,10 +70,10 @@
 
   &--error {
     .select__trigger {
-      border-color: var(--color-error-border, rgba(199, 112, 112, 0.3));
+      border-color: var(--status-error-border);
 
       &:hover:not(.select--disabled &) {
-        border-color: var(--color-error, #c77070);
+        border-color: var(--status-error-text);
       }
     }
   }
@@ -91,11 +92,11 @@
   }
 
   &__value {
-    color: var(--color-text-primary, #e8e8e8);
+    color: var(--control-text-hover);
   }
 
   &__placeholder {
-    color: var(--color-text-muted, #a0a0a0);
+    color: var(--control-text-muted);
   }
 
   &__value-icon,

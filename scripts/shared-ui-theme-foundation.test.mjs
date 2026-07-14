@@ -8,6 +8,9 @@ const read = relativePath => readFileSync(join(repoRoot, relativePath), 'utf8');
 const tokens = read('src/web-ui/src/component-library/styles/tokens.scss');
 const button = read('src/web-ui/src/component-library/components/Button/Button.scss');
 const iconButton = read('src/web-ui/src/component-library/components/IconButton/IconButton.scss');
+const select = read('src/web-ui/src/component-library/components/Select/Select.scss');
+const badge = read('src/web-ui/src/component-library/components/Badge/Badge.scss');
+const tag = read('src/web-ui/src/component-library/components/Tag/Tag.scss');
 
 test('component tokens define semantic control aliases from existing theme variables', () => {
   const expectedMappings = new Map([
@@ -68,4 +71,26 @@ test('buttons consume the shared control contract', () => {
     assert.match(combined, new RegExp(`var\\(--status-${tone}-bg\\)`));
     assert.match(combined, new RegExp(`var\\(--status-${tone}-text\\)`));
   }
+});
+
+test('select and labels consume shared control and status contracts', () => {
+  for (const token of [
+    '--control-bg',
+    '--control-bg-hover',
+    '--control-border',
+    '--control-border-focus',
+    '--control-text',
+    '--control-text-muted',
+    '--control-focus-ring',
+    '--control-disabled-opacity',
+  ]) {
+    assert.match(select, new RegExp(`var\\(${token}\\)`), `Select must consume ${token}`);
+  }
+
+  const labels = `${badge}\n${tag}`;
+  for (const tone of ['neutral', 'info', 'success', 'warning', 'error']) {
+    assert.match(labels, new RegExp(`var\\(--status-${tone}-bg\\)`));
+    assert.match(labels, new RegExp(`var\\(--status-${tone}-text\\)`));
+  }
+  assert.doesNotMatch(tag, /transition:\s*all/);
 });

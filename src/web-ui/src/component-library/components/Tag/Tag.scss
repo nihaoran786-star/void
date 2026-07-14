@@ -7,7 +7,9 @@
   padding: tokens.$size-gap-1 tokens.$size-gap-3;
   border-radius: tokens.$size-radius-sm;
   font-weight: tokens.$font-weight-medium;
-  transition: all tokens.$motion-base tokens.$easing-standard;
+  transition:
+    background tokens.$motion-base tokens.$easing-standard,
+    color tokens.$motion-base tokens.$easing-standard;
   position: relative;
 
   &--small {
@@ -27,38 +29,38 @@
   }
 
   &--blue {
-    background: var(--color-accent-200);
-    color: var(--color-text-secondary);
+    background: var(--status-info-bg);
+    color: var(--status-info-text);
 
     &:hover {
-      background: var(--color-accent-300);
+      background: color-mix(in srgb, var(--status-info-bg), var(--status-info-text) 10%);
     }
   }
 
   &--green {
-    background: rgba(52, 211, 153, 0.14);
-    color: tokens.$color-success;
+    background: var(--status-success-bg);
+    color: var(--status-success-text);
 
     &:hover {
-      background: rgba(52, 211, 153, 0.2);
+      background: color-mix(in srgb, var(--status-success-bg), var(--status-success-text) 10%);
     }
   }
 
   &--red {
-    background: rgba(239, 68, 68, 0.14);
-    color: tokens.$color-error;
+    background: var(--status-error-bg);
+    color: var(--status-error-text);
 
     &:hover {
-      background: rgba(239, 68, 68, 0.2);
+      background: color-mix(in srgb, var(--status-error-bg), var(--status-error-text) 10%);
     }
   }
 
   &--yellow {
-    background: rgba(245, 158, 11, 0.14);
-    color: tokens.$color-warning;
+    background: var(--status-warning-bg);
+    color: var(--status-warning-text);
 
     &:hover {
-      background: rgba(245, 158, 11, 0.2);
+      background: color-mix(in srgb, var(--status-warning-bg), var(--status-warning-text) 10%);
     }
   }
 
@@ -72,12 +74,12 @@
   }
 
   &--gray {
-    background: tokens.$element-bg-medium;
-    color: tokens.$color-text-secondary;
+    background: var(--status-neutral-bg);
+    color: var(--status-neutral-text);
 
     &:hover {
-      background: tokens.$element-bg-strong;
-      color: tokens.$color-text-primary;
+      background: var(--control-bg-hover);
+      color: var(--control-text-hover);
     }
   }
 
@@ -100,7 +102,7 @@
     border: none;
     border-radius: 50%;
     cursor: pointer;
-    transition: all tokens.$motion-base tokens.$easing-standard;
+    transition: background tokens.$motion-base tokens.$easing-standard;
 
     &:hover {
       background: rgba(0, 0, 0, 0.15);
