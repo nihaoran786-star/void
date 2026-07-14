@@ -11,6 +11,10 @@ const iconButton = read('src/web-ui/src/component-library/components/IconButton/
 const select = read('src/web-ui/src/component-library/components/Select/Select.scss');
 const badge = read('src/web-ui/src/component-library/components/Badge/Badge.scss');
 const tag = read('src/web-ui/src/component-library/components/Tag/Tag.scss');
+const card = read('src/web-ui/src/component-library/components/Card/Card.scss');
+const flexiblePanel = read('src/web-ui/src/app/components/panels/base/FlexiblePanel.scss');
+const panelHeader = read('src/web-ui/src/app/components/panels/base/PanelHeader.scss');
+const alert = read('src/web-ui/src/component-library/components/Alert/Alert.scss');
 
 test('component tokens define semantic control aliases from existing theme variables', () => {
   const expectedMappings = new Map([
@@ -93,4 +97,17 @@ test('select and labels consume shared control and status contracts', () => {
     assert.match(labels, new RegExp(`var\\(--status-${tone}-text\\)`));
   }
   assert.doesNotMatch(tag, /transition:\s*all/);
+});
+
+test('cards, panels, and alerts consume shared surface contracts', () => {
+  const surfaces = `${card}\n${flexiblePanel}\n${panelHeader}`;
+  for (const token of ['--control-bg', '--control-border', '--control-radius']) {
+    assert.match(surfaces, new RegExp(`var\\(${token}\\)`));
+  }
+
+  for (const tone of ['info', 'success', 'warning', 'error']) {
+    for (const role of ['bg', 'border', 'text']) {
+      assert.match(alert, new RegExp(`var\\(--status-${tone}-${role}\\)`));
+    }
+  }
 });

@@ -5,16 +5,18 @@
   flex-direction: column;
   position: relative;
 
-  background: var(--card-bg-default, rgba(255, 255, 255, 0.04));
-  border: none;
-  border-radius: var(--size-radius-base, 8px);
-  color: var(--color-text-secondary, #e5e5e5);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: var(--control-text);
 
-  transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  transition:
+    background var(--motion-base) var(--easing-standard),
+    border-color var(--motion-base) var(--easing-standard);
 
 
   &--default {
-    background: var(--card-bg-default, rgba(255, 255, 255, 0.04));
+    background: var(--control-bg);
   }
 
   &--elevated {
@@ -46,11 +48,12 @@
     cursor: pointer;
 
     &:hover {
-      background: var(--card-bg-hover, rgba(255, 255, 255, 0.06));
+      background: var(--control-bg-hover);
+      border-color: var(--control-border-hover);
     }
 
     &:active {
-      background: var(--card-bg-active, rgba(255, 255, 255, 0.08));
+      background: var(--control-bg-active);
     }
 
     &.v-card--accent:hover {

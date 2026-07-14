@@ -13,7 +13,7 @@
   -webkit-backdrop-filter: $blur-base;
   box-shadow: none;
   overflow: hidden;
-  transition: all $motion-base $easing-standard;
+  transition: height $motion-base $easing-standard;
   font-family: $font-family-sans;
   position: relative;
 
@@ -28,7 +28,7 @@
 .void-flexible-panel__header {
   @include mixins.flex-layout(row, center, between);
   padding: 0 $size-gap-3;
-  background: var(--color-bg-elevated);
+  background: var(--control-bg);
   border-bottom: none;
   backdrop-filter: $blur-subtle;
   -webkit-backdrop-filter: $blur-subtle;
@@ -58,14 +58,16 @@
   padding: 0;
   background: none;
   border: none;
-  border-radius: 0;
-  color: var(--color-text-secondary);
+  border-radius: var(--control-radius);
+  color: var(--control-text);
   cursor: pointer;
-  transition: all $motion-fast $easing-standard;
+  transition:
+    background $motion-fast $easing-standard,
+    color $motion-fast $easing-standard;
 
   &:hover {
-    background: var(--element-bg-base);
-    color: var(--color-text-primary);
+    background: var(--control-bg-hover);
+    color: var(--control-text-hover);
   }
 }
 
@@ -359,20 +361,20 @@
   gap: $size-gap-2;
   padding: $size-gap-4;
   margin: $size-gap-4;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: $size-radius-base;
-  color: var(--color-error);
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  border-radius: var(--control-radius);
+  color: var(--status-error-text);
 
   svg {
     flex-shrink: 0;
-    color: var(--color-error);
+    color: var(--status-error-text);
   }
 
   p {
     margin: 0;
     font-size: var(--font-size-base);
-    color: var(--color-error);
+    color: var(--status-error-text);
   }
 }
 

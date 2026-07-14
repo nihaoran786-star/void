@@ -13,13 +13,11 @@
   position: relative;
 
   &--success {
-    border-color: var(--color-success-border);
-    background: linear-gradient(135deg,
-      rgba(52, 211, 153, 0.06) 0%,
-      rgba(52, 211, 153, 0.04) 100%);
+    border-color: var(--status-success-border);
+    background: var(--status-success-bg);
 
     .alert__icon {
-      color: var(--color-success);
+      color: var(--status-success-text);
     }
 
     .alert__title {
@@ -28,13 +26,11 @@
   }
 
   &--error {
-    border-color: var(--color-error-border);
-    background: linear-gradient(135deg,
-      rgba(239, 68, 68, 0.06) 0%,
-      rgba(239, 68, 68, 0.04) 100%);
+    border-color: var(--status-error-border);
+    background: var(--status-error-bg);
 
     .alert__icon {
-      color: var(--color-error);
+      color: var(--status-error-text);
     }
 
     .alert__title {
@@ -43,13 +39,11 @@
   }
 
   &--warning {
-    border-color: var(--color-warning-border);
-    background: linear-gradient(135deg,
-      rgba(245, 158, 11, 0.06) 0%,
-      rgba(245, 158, 11, 0.04) 100%);
+    border-color: var(--status-warning-border);
+    background: var(--status-warning-bg);
 
     .alert__icon {
-      color: var(--color-warning);
+      color: var(--status-warning-text);
     }
 
     .alert__title {
@@ -58,13 +52,11 @@
   }
 
   &--info {
-    border-color: var(--color-info-border);
-    background: linear-gradient(135deg,
-      rgba(96, 165, 250, 0.06) 0%,
-      rgba(96, 165, 250, 0.04) 100%);
+    border-color: var(--status-info-border);
+    background: var(--status-info-bg);
 
     .alert__icon {
-      color: var(--color-info);
+      color: var(--status-info-text);
     }
 
     .alert__title {
