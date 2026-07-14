@@ -1,12 +1,10 @@
-@use '../../styles/tokens.scss' as tokens;
-
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: var(--size-radius-sm, 6px);
+  border-radius: var(--control-radius);
   cursor: pointer;
   position: relative;
   outline: none;
@@ -19,18 +17,18 @@
     background var(--motion-fast, 0.15s) var(--easing-standard, ease),
     color var(--motion-fast, 0.15s) var(--easing-standard, ease);
 
-  background: transparent;
-  color: var(--color-text-secondary, #a0a0a0);
+  background: var(--control-bg);
+  color: var(--control-text);
 
   &:hover:not(:disabled) {
     transform: scale(1.06);
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--color-accent-500, #60a5fa);
+    background: var(--control-bg-hover);
+    color: var(--control-text-hover);
   }
 
   &:active:not(:disabled) {
     transform: scale(1.02);
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--control-bg-active);
   }
 
   svg {
@@ -40,42 +38,42 @@
   }
 
   &--xs {
-    width: 24px;
-    height: 24px;
+    width: var(--control-square-xs);
+    height: var(--control-square-xs);
 
     svg {
-      width: 14px;
-      height: 14px;
+      width: var(--control-icon-xs);
+      height: var(--control-icon-xs);
     }
   }
 
   &--small {
-    width: 28px;
-    height: 28px;
+    width: var(--control-square-sm);
+    height: var(--control-square-sm);
 
     svg {
-      width: 16px;
-      height: 16px;
+      width: var(--control-icon-sm);
+      height: var(--control-icon-sm);
     }
   }
 
   &--medium {
-    width: 32px;
-    height: 32px;
+    width: var(--control-square-md);
+    height: var(--control-square-md);
 
     svg {
-      width: 16px;
-      height: 16px;
+      width: var(--control-icon-md);
+      height: var(--control-icon-md);
     }
   }
 
   &--large {
-    width: 40px;
-    height: 40px;
+    width: var(--control-square-lg);
+    height: var(--control-square-lg);
 
     svg {
-      width: 20px;
-      height: 20px;
+      width: var(--control-icon-lg);
+      height: var(--control-icon-lg);
     }
   }
 
@@ -85,82 +83,82 @@
 
 
   &--primary {
-    background: rgba(96, 165, 250, 0.20);
-    color: #ffffff;
+    background: var(--color-accent-200);
+    color: var(--control-text-hover);
 
     &:hover:not(:disabled) {
-      background: rgba(96, 165, 250, 0.30);
+      background: var(--color-accent-300);
     }
 
     &:active:not(:disabled) {
-      background: rgba(96, 165, 250, 0.24);
+      background: var(--color-accent-200);
     }
   }
 
   &--danger {
     background: transparent;
-    color: var(--color-text-secondary, #a0a0a0);
+    color: var(--control-text);
 
     &:hover:not(:disabled) {
-      background: rgba(199, 112, 112, 0.28);
-      color: var(--color-error, #c77070);
+      background: var(--status-error-bg);
+      color: var(--status-error-text);
     }
 
     &:active:not(:disabled) {
-      background: rgba(199, 112, 112, 0.22);
-      color: var(--color-error, #c77070);
+      background: var(--status-error-bg);
+      color: var(--status-error-text);
     }
   }
 
   &--success {
-    background: rgba(110, 184, 140, 0.18);
-    color: var(--color-success, #6eb88c);
+    background: var(--status-success-bg);
+    color: var(--status-success-text);
 
     &:hover:not(:disabled) {
-      background: rgba(110, 184, 140, 0.28);
-      color: #ffffff;
+      background: color-mix(in srgb, var(--status-success-bg), var(--status-success-text) 10%);
+      color: var(--control-text-hover);
     }
 
     &:active:not(:disabled) {
-      background: rgba(110, 184, 140, 0.22);
+      background: var(--status-success-bg);
     }
   }
 
   &--warning {
-    background: rgba(201, 148, 77, 0.18);
-    color: var(--color-warning, #c9944d);
+    background: var(--status-warning-bg);
+    color: var(--status-warning-text);
 
     &:hover:not(:disabled) {
-      background: rgba(201, 148, 77, 0.28);
-      color: #ffffff;
+      background: color-mix(in srgb, var(--status-warning-bg), var(--status-warning-text) 10%);
+      color: var(--control-text-hover);
     }
 
     &:active:not(:disabled) {
-      background: rgba(201, 148, 77, 0.22);
+      background: var(--status-warning-bg);
     }
   }
 
   &--ai {
-    background: rgba(139, 92, 246, 0.18);
-    color: tokens.$color-purple-500;
+    background: var(--color-purple-200);
+    color: var(--color-purple-500);
 
     &:hover:not(:disabled) {
-      background: rgba(139, 92, 246, 0.28);
-      color: #ffffff;
+      background: var(--color-purple-300);
+      color: var(--control-text-hover);
     }
 
     &:active:not(:disabled) {
-      background: rgba(139, 92, 246, 0.22);
+      background: var(--color-purple-200);
     }
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(96, 165, 250, 0.5);
+    outline: 2px solid var(--control-focus-ring);
     outline-offset: 1px;
   }
 
   &:disabled {
-    opacity: 0.45;
+    opacity: var(--control-disabled-opacity);
     cursor: default;
     pointer-events: none;
   }

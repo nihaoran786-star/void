@@ -6,6 +6,8 @@ import { test } from 'node:test';
 const repoRoot = process.cwd();
 const read = relativePath => readFileSync(join(repoRoot, relativePath), 'utf8');
 const tokens = read('src/web-ui/src/component-library/styles/tokens.scss');
+const button = read('src/web-ui/src/component-library/components/Button/Button.scss');
+const iconButton = read('src/web-ui/src/component-library/components/IconButton/IconButton.scss');
 
 test('component tokens define semantic control aliases from existing theme variables', () => {
   const expectedMappings = new Map([
@@ -50,5 +52,20 @@ test('component tokens define the complete shared status contract', () => {
     for (const role of ['bg', 'border', 'text']) {
       assert.match(tokens, new RegExp(`--status-${tone}-${role}:`));
     }
+  }
+});
+
+test('buttons consume the shared control contract', () => {
+  for (const [name, styles] of [['Button', button], ['IconButton', iconButton]]) {
+    for (const token of ['--control-bg', '--control-bg-hover', '--control-text', '--control-focus-ring']) {
+      assert.match(styles, new RegExp(`var\\(${token}\\)`), `${name} must consume ${token}`);
+    }
+    assert.doesNotMatch(styles, /transition:\s*all/, `${name} must not transition every property`);
+  }
+
+  const combined = `${button}\n${iconButton}`;
+  for (const tone of ['success', 'error']) {
+    assert.match(combined, new RegExp(`var\\(--status-${tone}-bg\\)`));
+    assert.match(combined, new RegExp(`var\\(--status-${tone}-text\\)`));
   }
 });

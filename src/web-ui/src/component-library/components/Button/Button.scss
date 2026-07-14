@@ -1,5 +1,3 @@
-@use '../../styles/tokens.scss' as tokens;
-@use '../../styles/_extended-mixins.scss' as mixins;
 @use '../../styles/btn-primary-tokens.scss' as btn-primary;
 
 .btn {
@@ -15,47 +13,50 @@
   outline: none;
   user-select: none;
 
-  background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
-  color: var(--color-text-secondary, #e5e5e5);
+  background: var(--control-bg);
+  color: var(--control-text);
   border: none;
-  border-radius: var(--size-radius-sm, 6px);
-  transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  border-radius: var(--control-radius);
+  transition:
+    background var(--motion-fast) var(--easing-standard),
+    color var(--motion-fast) var(--easing-standard),
+    border-color var(--motion-fast) var(--easing-standard);
 
   &:focus-visible {
-    outline: 2px solid rgba(96, 165, 250, 0.5);
+    outline: 2px solid var(--control-focus-ring);
     outline-offset: 1px;
   }
 
   &-sm {
-    height: var(--button-height-sm, 32px);
+    height: var(--control-height-sm);
     padding: 0 var(--size-gap-3, 12px);
     font-size: var(--font-size-sm, 14px);
   }
 
   &-base {
-    height: var(--button-height-base, 40px);
+    height: var(--control-height-md);
     padding: 0 var(--size-gap-4, 16px);
     font-size: var(--font-size-base, 15px);
   }
 
   &-lg {
-    height: var(--button-height-lg, 48px);
+    height: var(--control-height-lg);
     padding: 0 var(--size-gap-6, 24px);
     font-size: var(--font-size-lg, 16px);
   }
 
   &:hover:not(:disabled) {
-    background: var(--element-bg-medium, rgba(255, 255, 255, 0.14));
-    color: var(--color-text-primary, #ffffff);
+    background: var(--control-bg-hover);
+    color: var(--control-text-hover);
   }
 
   &:active:not(:disabled) {
-    background: var(--element-bg-soft, rgba(255, 255, 255, 0.10));
+    background: var(--control-bg-active);
   }
 
   &:disabled,
   &-disabled {
-    opacity: 0.45;
+    opacity: var(--control-disabled-opacity);
     cursor: default;
     pointer-events: none;
   }
@@ -81,47 +82,47 @@
   }
 
   &-secondary {
-    background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
-    color: var(--color-text-secondary, #e5e5e5);
+    background: var(--control-bg);
+    color: var(--control-text);
 
     &:hover:not(:disabled) {
-      background: var(--element-bg-medium, rgba(255, 255, 255, 0.14));
-      color: var(--color-text-primary, #ffffff);
+      background: var(--control-bg-hover);
+      color: var(--control-text-hover);
     }
 
     &:active:not(:disabled) {
-      background: var(--element-bg-soft, rgba(255, 255, 255, 0.10));
+      background: var(--control-bg-active);
     }
   }
 
   &-ghost {
     background: transparent;
-    color: var(--color-text-secondary, #e5e5e5);
+    color: var(--control-text);
 
     &:hover:not(:disabled) {
-      background: var(--element-bg-soft, rgba(255, 255, 255, 0.08));
-      color: var(--color-text-primary, #ffffff);
+      background: var(--control-bg-active);
+      color: var(--control-text-hover);
     }
 
     &:active:not(:disabled) {
-      background: var(--element-bg-base, rgba(255, 255, 255, 0.10));
+      background: var(--control-bg);
     }
   }
 
   &-dashed {
     background: transparent;
-    color: var(--color-text-secondary, #e5e5e5);
-    border: 1px dashed var(--border-base, rgba(255, 255, 255, 0.16));
+    color: var(--control-text);
+    border: 1px dashed var(--control-border);
 
     &:hover:not(:disabled) {
-      background: var(--element-bg-subtle, rgba(255, 255, 255, 0.08));
-      color: var(--color-text-primary, #ffffff);
+      background: var(--control-bg-active);
+      color: var(--control-text-hover);
       border-style: solid;
-      border-color: var(--border-medium, rgba(255, 255, 255, 0.24));
+      border-color: var(--control-border-hover);
     }
 
     &:active:not(:disabled) {
-      background: var(--element-bg-base, rgba(255, 255, 255, 0.1));
+      background: var(--control-bg);
       border-color: var(--border-strong, rgba(255, 255, 255, 0.32));
     }
   }
@@ -172,65 +173,67 @@
   position: relative;
   outline: none;
   border: none;
-  border-radius: var(--size-radius-sm, 6px);
-  transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+  border-radius: var(--control-radius);
+  transition:
+    background var(--motion-fast) var(--easing-standard),
+    color var(--motion-fast) var(--easing-standard);
 
-  background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
-  color: var(--color-text-secondary, #e5e5e5);
+  background: var(--control-bg);
+  color: var(--control-text);
 
   &:hover {
-    background: var(--element-bg-medium, rgba(255, 255, 255, 0.14));
-    color: var(--color-text-primary, #ffffff);
+    background: var(--control-bg-hover);
+    color: var(--control-text-hover);
   }
 
   &-ai {
-    background: rgba(139, 92, 246, 0.18);
-    color: tokens.$color-purple-500;
+    background: var(--color-purple-200);
+    color: var(--color-purple-500);
 
     &:hover {
-      background: rgba(139, 92, 246, 0.28);
-      color: #ffffff;
+      background: var(--color-purple-300);
+      color: var(--control-text-hover);
 
       svg {
-        color: tokens.$color-purple-500;
+        color: var(--color-purple-500);
       }
     }
 
     &:active {
-      background: rgba(139, 92, 246, 0.22);
+      background: var(--color-purple-200);
     }
   }
 
   &-danger {
-    background: rgba(199, 112, 112, 0.18);
-    color: var(--color-error, #c77070);
+    background: var(--status-error-bg);
+    color: var(--status-error-text);
 
     &:hover {
-      background: rgba(199, 112, 112, 0.28);
-      color: #ffffff;
+      background: color-mix(in srgb, var(--status-error-bg), var(--status-error-text) 10%);
+      color: var(--control-text-hover);
     }
 
     &:active {
-      background: rgba(199, 112, 112, 0.22);
+      background: var(--status-error-bg);
     }
   }
 
   &-success {
-    background: rgba(110, 184, 140, 0.18);
-    color: var(--color-success, #6eb88c);
+    background: var(--status-success-bg);
+    color: var(--status-success-text);
 
     &:hover {
-      background: rgba(110, 184, 140, 0.28);
-      color: #ffffff;
+      background: color-mix(in srgb, var(--status-success-bg), var(--status-success-text) 10%);
+      color: var(--control-text-hover);
     }
 
     &:active {
-      background: rgba(110, 184, 140, 0.22);
+      background: var(--status-success-bg);
     }
   }
 
   &:disabled {
-    opacity: 0.45;
+    opacity: var(--control-disabled-opacity);
     cursor: default;
     pointer-events: none;
   }
