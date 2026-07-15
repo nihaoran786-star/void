@@ -3,7 +3,6 @@
  * Manages tool execution events from backend and integrates with frontend
  */
 
-import { listen } from '@tauri-apps/api/event';
 import { 
   ToolExecutionInfo, 
   ToolResult, 
@@ -15,6 +14,7 @@ import {
   AdvancedToolResult
 } from '../types/tool-display';
 import { createLogger } from '@/shared/utils/logger';
+import { isTauriRuntime } from '@/infrastructure/runtime/environment';
 
 const log = createLogger('ToolExecutionService');
 
@@ -55,6 +55,7 @@ export interface ToolExecutionErrorEvent {
 }
 
 export type ToolExecutionEventHandler = (message: ToolDisplayMessage) => void;
+type UnlistenFn = () => void;
 
 export class ToolExecutionService {
   private static instance: ToolExecutionService | null = null;
@@ -62,7 +63,10 @@ export class ToolExecutionService {
   private activeExecutions: Map<string, ToolExecutionInfo> = new Map();
   private processedEvents: Set<string> = new Set(); 
   private listenersSetup: boolean = false;
-  private cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
+  private unlistenFunctions: UnlistenFn[] = [];
+  private inFlightUnlisteners: UnlistenFn[] | null = null;
+  private listenerGeneration = 0;
+  private destroyed = false;
 
   static getInstance(): ToolExecutionService {
     if (!ToolExecutionService.instance) {
@@ -71,58 +75,138 @@ export class ToolExecutionService {
     return ToolExecutionService.instance;
   }
 
+  static destroyExistingInstance(): void {
+    ToolExecutionService.instance?.destroy();
+  }
+
   private constructor() {
-    this.setupEventListeners();
-    
-    this.cleanupIntervalId = setInterval(() => {
-      if (this.processedEvents.size > 1000) {
-        this.processedEvents.clear();
-      }
-    }, 60000);
+    const generation = ++this.listenerGeneration;
+    void this.setupEventListeners(generation);
   }
 
   destroy(): void {
-    if (this.cleanupIntervalId !== null) {
-      clearInterval(this.cleanupIntervalId);
-      this.cleanupIntervalId = null;
+    if (this.destroyed) return;
+
+    this.destroyed = true;
+    this.listenerGeneration += 1;
+    if (this.inFlightUnlisteners) {
+      this.releaseUnlisteners(this.inFlightUnlisteners);
+      this.inFlightUnlisteners = null;
     }
+    this.releaseUnlisteners(this.unlistenFunctions);
+    this.listenersSetup = false;
     this.eventHandlers.clear();
     this.activeExecutions.clear();
     this.processedEvents.clear();
-    ToolExecutionService.instance = null;
+    if (ToolExecutionService.instance === this) {
+      ToolExecutionService.instance = null;
+    }
   }
 
-  private async setupEventListeners() {
-    if (this.listenersSetup) {
+  private async setupEventListeners(generation: number): Promise<void> {
+    if (this.listenersSetup || !isTauriRuntime()) {
       return;
     }
-    
+
+    const localUnlisteners: UnlistenFn[] = [];
+    this.inFlightUnlisteners = localUnlisteners;
+
     try {
-      
-      // Listen for tool execution started events
-      await listen<ToolExecutionStartedEvent>('backend-event-toolexecutionstarted', (event) => {
-        this.handleToolExecutionStarted(event.payload);
-      });
+      const { listen } = await import('@tauri-apps/api/event');
+      if (!this.isCurrentGeneration(generation)) return;
 
-      // Listen for tool execution progress events
-      await listen<ToolExecutionProgressEvent>('backend-event-toolexecutionprogress', (event) => {
-        this.handleToolExecutionProgress(event.payload);
-      });
+      const register = async <T>(
+        eventName: string,
+        handler: (payload: T) => void,
+      ): Promise<boolean> => {
+        const unlisten = await listen<T>(eventName, event => {
+          if (this.isCurrentGeneration(generation)) {
+            handler(event.payload);
+          }
+        });
 
-      // Listen for tool execution completed events
-      await listen<ToolExecutionCompletedEvent>('backend-event-toolexecutioncompleted', (event) => {
-        this.handleToolExecutionCompleted(event.payload);
-      });
+        if (!this.isCurrentGeneration(generation)) {
+          this.releaseUnlisteners([unlisten]);
+          return false;
+        }
 
-      // Listen for tool execution error events
-      await listen<ToolExecutionErrorEvent>('backend-event-toolexecutionerror', (event) => {
-        this.handleToolExecutionError(event.payload);
-      });
+        localUnlisteners.push(unlisten);
+        return true;
+      };
 
+      if (!await register<ToolExecutionStartedEvent>(
+        'backend-event-toolexecutionstarted',
+        payload => this.handleToolExecutionStarted(payload),
+      )) {
+        this.releaseUnlisteners(localUnlisteners);
+        return;
+      }
+      if (!await register<ToolExecutionProgressEvent>(
+        'backend-event-toolexecutionprogress',
+        payload => this.handleToolExecutionProgress(payload),
+      )) {
+        this.releaseUnlisteners(localUnlisteners);
+        return;
+      }
+      if (!await register<ToolExecutionCompletedEvent>(
+        'backend-event-toolexecutioncompleted',
+        payload => this.handleToolExecutionCompleted(payload),
+      )) {
+        this.releaseUnlisteners(localUnlisteners);
+        return;
+      }
+      if (!await register<ToolExecutionErrorEvent>(
+        'backend-event-toolexecutionerror',
+        payload => this.handleToolExecutionError(payload),
+      )) {
+        this.releaseUnlisteners(localUnlisteners);
+        return;
+      }
+
+      if (!this.isCurrentGeneration(generation)) {
+        this.releaseUnlisteners(localUnlisteners);
+        return;
+      }
+
+      this.unlistenFunctions.push(...localUnlisteners.splice(0));
       this.listenersSetup = true;
     } catch (error) {
-      log.error('Failed to setup event listeners', error);
+      this.releaseUnlisteners(localUnlisteners);
+      if (this.isCurrentGeneration(generation)) {
+        log.error('Failed to setup event listeners', error);
+      }
+    } finally {
+      if (this.inFlightUnlisteners === localUnlisteners) {
+        this.inFlightUnlisteners = null;
+      }
     }
+  }
+
+  private isCurrentGeneration(generation: number): boolean {
+    return !this.destroyed && this.listenerGeneration === generation;
+  }
+
+  private releaseUnlisteners(unlisteners: UnlistenFn[]): void {
+    for (const unlisten of unlisteners.splice(0)) {
+      try {
+        unlisten();
+      } catch (error) {
+        log.warn('Failed to remove tool execution event listener', error);
+      }
+    }
+  }
+
+  private rememberProcessedEvent(eventKey: string): boolean {
+    if (this.processedEvents.has(eventKey)) return false;
+
+    this.processedEvents.add(eventKey);
+    if (this.processedEvents.size > 1000) {
+      const oldestEventKey = this.processedEvents.values().next().value;
+      if (oldestEventKey !== undefined) {
+        this.processedEvents.delete(oldestEventKey);
+      }
+    }
+    return true;
   }
 
   private handleToolExecutionStarted(event: ToolExecutionStartedEvent) {
@@ -133,10 +217,7 @@ export class ToolExecutionService {
     
     
     const eventKey = `started_${toolUseId}_${eventData.timestamp}`;
-    if (this.processedEvents.has(eventKey)) {
-      return;
-    }
-    this.processedEvents.add(eventKey);
+    if (!this.rememberProcessedEvent(eventKey)) return;
     
     const toolExecution: ToolExecutionInfo = {
       id: toolUseId,
@@ -188,10 +269,7 @@ export class ToolExecutionService {
     
     
     const eventKey = `completed_${toolUseId}_${eventData.timestamp}`;
-    if (this.processedEvents.has(eventKey)) {
-      return;
-    }
-    this.processedEvents.add(eventKey);
+    if (!this.rememberProcessedEvent(eventKey)) return;
     
     const execution = this.activeExecutions.get(toolUseId);
     if (execution) {
@@ -414,4 +492,10 @@ export class ToolExecutionService {
   public hasActiveExecutions(): boolean {
     return this.activeExecutions.size > 0;
   }
+}
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    ToolExecutionService.destroyExistingInstance();
+  });
 }

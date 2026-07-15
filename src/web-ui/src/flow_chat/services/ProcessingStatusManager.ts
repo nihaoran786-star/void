@@ -36,6 +36,7 @@ export class ProcessingStatusManager {
     };
 
     this.statuses.set(id, fullStatus);
+    this.startCleanupTimer();
     this.notifyListeners();
     
     return id;
@@ -103,7 +104,7 @@ export class ProcessingStatusManager {
   }
 
   getAllStatuses(): ProcessingStatus[] {
-    return Array.from(this.statuses.values()).sort((a, b) => a.startTime - b.startTime);
+    return [...this.statuses.values()].sort((a, b) => a.startTime - b.startTime);
   }
 
   getSessionStatuses(sessionId: string): ProcessingStatus[] {
@@ -116,7 +117,7 @@ export class ProcessingStatusManager {
 
   getCurrentMainStatus(): ProcessingStatus | null {
     const statuses = this.getAllStatuses();
-    return statuses.length > 0 ? statuses[statuses.length - 1] : null;
+    return statuses.at(-1) ?? null;
   }
 
   addListener(listener: ProcessingStatusListener): () => void {
@@ -128,6 +129,9 @@ export class ProcessingStatusManager {
   }
 
   private notifyListeners(): void {
+    if (!this.statuses.size) {
+      this.stopCleanupTimer();
+    }
     const statuses = this.getAllStatuses();
     this.listeners.forEach(listener => {
       try {
@@ -156,10 +160,10 @@ export class ProcessingStatusManager {
   }
 
   startCleanupTimer(): void {
-    if (this.cleanupIntervalId !== null) return;
+    if (this.cleanupIntervalId !== null || !this.statuses.size) return;
     this.cleanupIntervalId = setInterval(() => {
       this.cleanupOldStatuses();
-    }, 60 * 1000);
+    }, 60_000);
   }
 
   stopCleanupTimer(): void {
@@ -175,12 +179,11 @@ export class ProcessingStatusManager {
     switch (status.status) {
       case 'thinking':
       case 'analyzing':
+      case 'generating':
         return 2500;
       case 'processing':
       case 'executing':
         return 3000;
-      case 'generating':
-        return 2500;
       case 'completing':
         return 1500;
       default:
@@ -190,11 +193,10 @@ export class ProcessingStatusManager {
 
   cleanupOldStatuses(): void {
     const now = Date.now();
-    const timeout = 5 * 60 * 1000;
     
     let hasChanges = false;
     for (const [id, status] of this.statuses.entries()) {
-      if (now - status.startTime > timeout) {
+      if (now - status.startTime > 300_000) {
         this.statuses.delete(id);
         hasChanges = true;
       }
@@ -209,4 +211,8 @@ export class ProcessingStatusManager {
 
 export const processingStatusManager = new ProcessingStatusManager();
 
-processingStatusManager.startCleanupTimer();
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    processingStatusManager.stopCleanupTimer();
+  });
+}
