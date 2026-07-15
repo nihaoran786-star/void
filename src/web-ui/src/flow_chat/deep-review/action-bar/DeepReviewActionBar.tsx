@@ -1,5 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShallow } from 'zustand/react/shallow';
 import {
   CheckCircle,
   AlertTriangle,
@@ -11,6 +21,8 @@ import {
 import {
   getReviewActionBarStateForSession,
   useReviewActionBarStore,
+  type ReviewActionBarData,
+  type ReviewActionBarState,
   type DeepReviewCapacityQueueAction,
   type DeepReviewCapacityQueueState,
   type ReviewActionPhase,
@@ -37,6 +49,7 @@ import {
   extractPartialReviewData,
 } from '../../utils/deepReviewExperience';
 import { flowChatStore } from '../../store/FlowChatStore';
+import type { Session } from '../../types/flow-chat';
 import { agentAPI } from '@/infrastructure/api/service-api/AgentAPI';
 import { useSettingsStore } from '@/app/scenes/settings/settingsStore';
 import { useSceneStore } from '@/app/stores/sceneStore';
@@ -102,7 +115,198 @@ interface PendingDecisionAction {
 
 interface ReviewActionBarProps {
   childSessionId?: string;
+  isActive?: boolean;
+  presentationSession?: Session | null;
 }
+
+const RUNNING_PHASES = new Set<ReviewActionPhase>([
+  'review_running',
+  'fix_running',
+  'resume_running',
+]);
+const LONG_RUNNING_NOTICE_MS = 3 * 60 * 1000;
+const RunningStartedAtContext = createContext<number | null>(null);
+const MISSING_SCOPED_ACTION_DATA: ReviewActionBarData = {
+  childSessionId: null,
+  parentSessionId: null,
+  reviewMode: 'deep',
+  phase: 'idle',
+  reviewData: null,
+  remediationItems: [],
+  selectedRemediationIds: new Set(),
+  minimized: false,
+  activeAction: null,
+  lastSubmittedAction: null,
+  customInstructions: '',
+  errorMessage: null,
+  interruption: null,
+  completedRemediationIds: new Set(),
+  fixingRemediationIds: new Set(),
+  fixingBaselineTurnId: null,
+  resumeBaselineTurnId: null,
+  remainingFixIds: [],
+  decisionSelections: {},
+  capacityQueueState: null,
+  lastCapacityQueueAction: null,
+};
+
+function isRunningPhase(phase: ReviewActionPhase): boolean {
+  return RUNNING_PHASES.has(phase);
+}
+
+function resolveActionBarData(
+  state: ReviewActionBarState,
+  scopedChildSessionId?: string,
+): ReviewActionBarData {
+  if (!scopedChildSessionId) {
+    return state;
+  }
+  return getReviewActionBarStateForSession(state, scopedChildSessionId) ?? MISSING_SCOPED_ACTION_DATA;
+}
+
+function useActionBarPresentationState(
+  scopedChildSessionId: string | undefined,
+  isActive: boolean,
+): ReviewActionBarData {
+  const frozenSnapshotRef = useRef(
+    resolveActionBarData(useReviewActionBarStore.getState(), scopedChildSessionId),
+  );
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    if (!isActive) {
+      return () => {};
+    }
+    return useReviewActionBarStore.subscribe(onStoreChange);
+  }, [isActive]);
+  const getSnapshot = useCallback(() => {
+    if (!isActive) {
+      return frozenSnapshotRef.current;
+    }
+    const snapshot = resolveActionBarData(
+      useReviewActionBarStore.getState(),
+      scopedChildSessionId,
+    );
+    frozenSnapshotRef.current = snapshot;
+    return snapshot;
+  }, [isActive, scopedChildSessionId]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function useFlowChatPresentationSession(
+  childSessionId: string | null,
+  isActive: boolean,
+): Session | null {
+  const readSession = useCallback(() => (
+    childSessionId
+      ? flowChatStore.getState().sessions.get(childSessionId) ?? null
+      : null
+  ), [childSessionId]);
+  const frozenSnapshotRef = useRef<Session | null>(readSession());
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    if (!isActive) {
+      return () => {};
+    }
+    return flowChatStore.subscribe(() => onStoreChange());
+  }, [isActive]);
+  const getSnapshot = useCallback(() => {
+    if (!isActive) {
+      return frozenSnapshotRef.current;
+    }
+    const snapshot = readSession();
+    frozenSnapshotRef.current = snapshot;
+    return snapshot;
+  }, [isActive, readSession]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+function useFrozenPresentationSession(
+  session: Session | null,
+  isActive: boolean,
+): Session | null {
+  const frozenSessionRef = useRef(session);
+  if (isActive) {
+    frozenSessionRef.current = session;
+  }
+  return frozenSessionRef.current;
+}
+
+const RunningLifecycleProvider: React.FC<{
+  phase: ReviewActionPhase;
+  longRunningMessage: string;
+  children: React.ReactNode;
+}> = ({ phase, longRunningMessage, children }) => {
+  const running = isRunningPhase(phase);
+  const [startedAt, setStartedAt] = useState<number | null>(() => (
+    running ? Date.now() : null
+  ));
+  const notifiedStartedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (running) {
+      setStartedAt((current) => current ?? Date.now());
+      return;
+    }
+    notifiedStartedAtRef.current = null;
+    setStartedAt(null);
+  }, [running]);
+
+  useEffect(() => {
+    if (!running || startedAt === null || notifiedStartedAtRef.current === startedAt) {
+      return;
+    }
+    const delay = Math.max(0, startedAt + LONG_RUNNING_NOTICE_MS - Date.now());
+    const timeout = setTimeout(() => {
+      if (notifiedStartedAtRef.current === startedAt) {
+        return;
+      }
+      notifiedStartedAtRef.current = startedAt;
+      notificationService.info(longRunningMessage, { duration: 5000 });
+    }, delay);
+    return () => clearTimeout(timeout);
+  }, [longRunningMessage, running, startedAt]);
+
+  return (
+    <RunningStartedAtContext.Provider value={running ? startedAt : null}>
+      {children}
+    </RunningStartedAtContext.Provider>
+  );
+};
+
+const RunningElapsedClock: React.FC<{ isActive: boolean }> = ({ isActive }) => {
+  const { t } = useTranslation('flow-chat');
+  const startedAt = useContext(RunningStartedAtContext);
+  const [sampledElapsedMs, setSampledElapsedMs] = useState(0);
+
+  useEffect(() => {
+    if (!isActive || startedAt === null) {
+      return;
+    }
+    const updateElapsed = () => {
+      setSampledElapsedMs(Math.max(0, Date.now() - startedAt));
+    };
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [isActive, startedAt]);
+
+  if (!isActive || startedAt === null) {
+    return null;
+  }
+  const elapsedMs = Math.max(sampledElapsedMs, Date.now() - startedAt);
+  if (elapsedMs <= 0) {
+    return null;
+  }
+
+  return (
+    <span className="deep-review-action-bar__elapsed">
+      {t('deepReviewActionBar.elapsedTime', {
+        time: formatElapsedTime(elapsedMs),
+        defaultValue: `Running for ${formatElapsedTime(elapsedMs)}`,
+      })}
+    </span>
+  );
+};
 
 const PHASE_CONFIG: Record<ReviewActionPhase, {
   icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties; className?: string }>;
@@ -125,13 +329,26 @@ const PHASE_CONFIG: Record<ReviewActionPhase, {
   review_error: { icon: AlertTriangle, iconClass: 'deep-review-action-bar__icon--error', variant: 'error' },
 };
 
-export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId: scopedChildSessionId }) => {
+export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({
+  childSessionId: scopedChildSessionId,
+  isActive = true,
+  presentationSession,
+}) => {
   const { t } = useTranslation('flow-chat');
-  const store = useReviewActionBarStore();
-  const scopedState = scopedChildSessionId
-    ? getReviewActionBarStateForSession(store, scopedChildSessionId)
-    : null;
-  const actionState = scopedState ?? store;
+  const store = useReviewActionBarStore.getState();
+  const actionState = useActionBarPresentationState(scopedChildSessionId, isActive);
+  const {
+    phase: lifecyclePhase,
+    childSessionId: lifecycleChildSessionId,
+  } = useReviewActionBarStore(useShallow((state) => {
+    const scopedState = scopedChildSessionId
+      ? getReviewActionBarStateForSession(state, scopedChildSessionId)
+      : state;
+    return {
+      phase: scopedState?.phase ?? 'idle',
+      childSessionId: scopedState?.childSessionId ?? scopedChildSessionId ?? null,
+    };
+  }));
   const {
     childSessionId,
     reviewMode,
@@ -156,8 +373,6 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
   const [showPartialResults, setShowPartialResults] = useState(false);
   const [expandedDecisionIds, setExpandedDecisionIds] = useState<Set<string>>(new Set());
   const [pendingDecisionAction, setPendingDecisionAction] = useState<PendingDecisionAction | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [longRunningNotified, setLongRunningNotified] = useState(false);
 
   const selectedCount = selectedRemediationIds.size;
   const isFixDisabled = activeAction !== null || selectedCount === 0;
@@ -242,11 +457,17 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
   }, []);
 
   // ---- progress tracking ----
-  const sessions = flowChatStore.getState().sessions;
-  const childSession = useMemo(() => {
-    if (!childSessionId) return null;
-    return Array.from(sessions.values()).find((s) => s.sessionId === childSessionId) ?? null;
-  }, [sessions, childSessionId]);
+  const fallbackPresentationSession = useFlowChatPresentationSession(
+    childSessionId,
+    isActive && presentationSession === undefined,
+  );
+  const explicitPresentationSession = useFrozenPresentationSession(
+    presentationSession ?? null,
+    isActive,
+  );
+  const childSession = presentationSession === undefined
+    ? fallbackPresentationSession
+    : explicitPresentationSession;
 
   const retryableSlices = useMemo(() => {
     if (!isDeepReview || !reviewData || !childSession?.deepReviewRunManifest) {
@@ -316,30 +537,6 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
     }
     return null;
   }, [interruption]);
-
-  // ---- long-running hint ----
-  useEffect(() => {
-    if (phase !== 'review_running' && phase !== 'fix_running' && phase !== 'resume_running') {
-      setElapsedMs(0);
-      setLongRunningNotified(false);
-      return;
-    }
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      setElapsedMs(elapsed);
-      if (elapsed > 3 * 60 * 1000 && !longRunningNotified) {
-        setLongRunningNotified(true);
-        notificationService.info(
-          t('deepReviewActionBar.longRunningHint', {
-            defaultValue: 'Review is still running. This may take a few more minutes.',
-          }),
-          { duration: 5000 },
-        );
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [phase, longRunningNotified, t]);
 
   const phaseConfig = PHASE_CONFIG[phase];
   const PhaseIcon = phaseConfig.icon;
@@ -754,11 +951,18 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
   }
 
   return (
-    <div
-      className={`deep-review-action-bar deep-review-action-bar--${phaseConfig.variant}`}
-      onWheel={stopNestedScrollPropagation}
-      onTouchMove={stopNestedScrollPropagation}
+    <RunningLifecycleProvider
+      key={lifecycleChildSessionId ?? 'unscoped-review'}
+      phase={lifecyclePhase}
+      longRunningMessage={t('deepReviewActionBar.longRunningHint', {
+        defaultValue: 'Review is still running. This may take a few more minutes.',
+      })}
     >
+      <div
+        className={`deep-review-action-bar deep-review-action-bar--${phaseConfig.variant}`}
+        onWheel={stopNestedScrollPropagation}
+        onTouchMove={stopNestedScrollPropagation}
+      >
       <ReviewActionHeader
         reviewData={reviewData}
         PhaseIcon={PhaseIcon}
@@ -775,14 +979,7 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
           <span className="deep-review-action-bar__progress-text">
             {progressText}
           </span>
-          {elapsedMs > 0 && (
-            <span className="deep-review-action-bar__elapsed">
-              {t('deepReviewActionBar.elapsedTime', {
-                time: formatElapsedTime(elapsedMs),
-                defaultValue: `Running for ${formatElapsedTime(elapsedMs)}`,
-              })}
-            </span>
-          )}
+          <RunningElapsedClock isActive={isActive} />
         </div>
       )}
 
@@ -956,7 +1153,7 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
         </div>
       )}
 
-      <ReviewActionControls
+        <ReviewActionControls
         phase={phase}
         isDeepReview={isDeepReview}
         retryableSliceCount={retryableSlices.length}
@@ -979,8 +1176,9 @@ export const ReviewActionBar: React.FC<ReviewActionBarProps> = ({ childSessionId
         onContinueFix={handleContinueFix}
         onSkipRemainingFixes={() => store.skipRemainingFixes(childSessionId ?? undefined)}
         onMinimize={handleMinimize}
-      />
-    </div>
+        />
+      </div>
+    </RunningLifecycleProvider>
   );
 };
 

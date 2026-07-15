@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { useReviewActionBarStore } from './deepReviewActionBarStore';
+import { persistReviewActionState } from '../services/ReviewActionBarPersistenceService';
 
 vi.mock('../services/ReviewActionBarPersistenceService', () => ({
   persistReviewActionState: vi.fn().mockResolvedValue(undefined),
@@ -461,6 +462,93 @@ describe('deepReviewActionBarStore', () => {
 
       bar().toggleGroupRemediation('should_improve');
       expect(bar().selectedRemediationIds.size).toBe(0);
+    });
+  });
+
+  describe('persistence scheduling', () => {
+    it('does not rearm a pending persist for queue-only state', async () => {
+      vi.useFakeTimers();
+      try {
+        bar().showActionBar({
+          childSessionId: 'child-1',
+          parentSessionId: 'parent-1',
+          reviewData: {
+            summary: { recommended_action: 'request_changes' },
+            remediation_plan: ['Fix issue 1'],
+          },
+        });
+        await vi.advanceTimersByTimeAsync(1_000);
+        vi.mocked(persistReviewActionState).mockClear();
+
+        bar().setCustomInstructions('persist at the original deadline', 'child-1');
+        await vi.advanceTimersByTimeAsync(500);
+        bar().setCapacityQueueState({
+          status: 'queued_for_capacity',
+          queuedReviewerCount: 1,
+        }, 'child-1');
+        await vi.advanceTimersByTimeAsync(499);
+        expect(persistReviewActionState).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(persistReviewActionState).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(persistReviewActionState).mock.calls[0][0]).toMatchObject({
+          childSessionId: 'child-1',
+          customInstructions: 'persist at the original deadline',
+        });
+      } finally {
+        bar().reset();
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
+    });
+
+    it('keeps real pending persists isolated across sessions and queue churn', async () => {
+      vi.useFakeTimers();
+      try {
+        const reviewData = {
+          summary: { recommended_action: 'request_changes' as const },
+          remediation_plan: ['Fix issue 1'],
+        };
+        bar().showActionBar({
+          childSessionId: 'child-a',
+          parentSessionId: 'parent-1',
+          reviewData,
+        });
+        bar().showActionBar({
+          childSessionId: 'child-b',
+          parentSessionId: 'parent-1',
+          reviewData,
+        });
+        await vi.advanceTimersByTimeAsync(1_000);
+        vi.mocked(persistReviewActionState).mockClear();
+
+        bar().setCustomInstructions('session A', 'child-a');
+        await vi.advanceTimersByTimeAsync(250);
+        bar().setCustomInstructions('session B', 'child-b');
+        await vi.advanceTimersByTimeAsync(250);
+        bar().setCapacityQueueState({
+          status: 'queued_for_capacity',
+          queuedReviewerCount: 2,
+        }, 'child-b');
+
+        await vi.advanceTimersByTimeAsync(500);
+        expect(persistReviewActionState).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(persistReviewActionState).mock.calls[0][0]).toMatchObject({
+          childSessionId: 'child-a',
+          customInstructions: 'session A',
+        });
+
+        await vi.advanceTimersByTimeAsync(250);
+        expect(persistReviewActionState).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(persistReviewActionState).mock.calls[1][0]).toMatchObject({
+          childSessionId: 'child-b',
+          customInstructions: 'session B',
+        });
+      } finally {
+        bar().reset();
+        vi.clearAllTimers();
+        vi.useRealTimers();
+      }
     });
   });
 

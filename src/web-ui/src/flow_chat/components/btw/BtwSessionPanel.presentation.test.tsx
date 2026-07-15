@@ -12,6 +12,7 @@ const mockCancelSession = vi.fn();
 const mockBtwCancel = vi.fn();
 const mockGetModeSkillConfigs = vi.fn();
 const mockLoadSessionHistory = vi.fn();
+const reviewActionBarRenderMock = vi.hoisted(() => vi.fn());
 let mockExecutionState = 'processing';
 
 vi.mock('react-i18next', () => ({
@@ -40,12 +41,21 @@ vi.mock('./DeepReviewActionBar', async () => {
     '../modern/FlowChatPresentationActivity'
   );
   return {
-    ReviewActionBar: () => (
-      <div
-        data-testid="review-action-presentation-activity"
-        data-active={String(activity.useFlowChatPresentationActive())}
-      />
-    ),
+    ReviewActionBar: (props: {
+      childSessionId?: string;
+      isActive?: boolean;
+      presentationSession?: Session | null;
+    }) => {
+      reviewActionBarRenderMock(props);
+      return (
+        <div
+          data-testid="review-action-presentation-activity"
+          data-active={String(activity.useFlowChatPresentationActive())}
+          data-presentation-active={String(props.isActive)}
+          data-session-title={props.presentationSession?.title ?? ''}
+        />
+      );
+    },
   };
 });
 
@@ -383,5 +393,147 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     );
     expect(mockCancelSession).not.toHaveBeenCalled();
     expect(mockBtwCancel).not.toHaveBeenCalled();
+  });
+
+  it('keeps hidden queue updates shallow and restores the latest presentation session', async () => {
+    useReviewActionBarStore.getState().showActionBar({
+      childSessionId: 'review-child',
+      parentSessionId: 'parent',
+      reviewMode: 'deep',
+      reviewData: {
+        summary: { recommended_action: 'request_changes' },
+        remediation_plan: ['Fix issue'],
+      },
+      phase: 'review_completed',
+    });
+    useReviewActionBarStore.getState().showActionBar({
+      childSessionId: 'review-other',
+      parentSessionId: 'parent',
+      reviewMode: 'deep',
+      reviewData: {
+        summary: { recommended_action: 'request_changes' },
+        remediation_plan: ['Fix other issue'],
+      },
+      phase: 'review_completed',
+    });
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive={false}
+        />,
+      );
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(1);
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]).toMatchObject({
+      isActive: false,
+      presentationSession: expect.objectContaining({ title: 'Review child' }),
+    });
+
+    await act(async () => {
+      useReviewActionBarStore.getState().setCapacityQueueState({
+        status: 'queued_for_capacity',
+        queuedReviewerCount: 1,
+      }, 'review-child');
+      useReviewActionBarStore.getState().setCapacityQueueState({
+        status: 'queued_for_capacity',
+        queuedReviewerCount: 2,
+      }, 'review-other');
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(1);
+
+    const latestSession = {
+      ...createDeepReviewSession(),
+      title: 'Latest review child',
+    } as Session;
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        ['review-child', latestSession],
+        ['parent', createParentSession()],
+      ]),
+    };
+    await act(async () => {
+      flowChatListeners.forEach(listener => listener(flowChatState));
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(2);
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]).toMatchObject({
+      isActive: true,
+      presentationSession: expect.objectContaining({ title: 'Latest review child' }),
+    });
+  });
+
+  it('retains a minimized action lifecycle without forwarding presentation churn', async () => {
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'review-child',
+      parentSessionId: 'parent',
+      reviewMode: 'deep',
+    });
+    useReviewActionBarStore.getState().restore('review-child');
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(1);
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]).toMatchObject({ isActive: true });
+
+    await act(async () => {
+      useReviewActionBarStore.getState().minimize('review-child');
+    });
+    expect(container.querySelector('.btw-session-panel__action-bar-wrapper')?.hasAttribute('hidden'))
+      .toBe(true);
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(2);
+    const minimizedPresentationSession = reviewActionBarRenderMock.mock.lastCall?.[0]
+      ?.presentationSession;
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]).toMatchObject({ isActive: false });
+
+    const latestSession = {
+      ...createDeepReviewSession(),
+      title: 'Updated while minimized',
+    } as Session;
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        ['review-child', latestSession],
+        ['parent', createParentSession()],
+      ]),
+    };
+    await act(async () => {
+      flowChatListeners.forEach(listener => listener(flowChatState));
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(2);
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]?.presentationSession)
+      .toBe(minimizedPresentationSession);
+
+    await act(async () => {
+      useReviewActionBarStore.getState().restore('review-child');
+    });
+    expect(reviewActionBarRenderMock).toHaveBeenCalledTimes(3);
+    expect(reviewActionBarRenderMock.mock.lastCall?.[0]).toMatchObject({
+      isActive: true,
+      presentationSession: expect.objectContaining({ title: 'Updated while minimized' }),
+    });
   });
 });

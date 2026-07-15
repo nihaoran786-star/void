@@ -244,9 +244,9 @@ export function getReviewActionBarStateForSession(
     return null;
   }
 
-  return state.childSessionId === childSessionId
-    ? state
-    : state.sessionStates[childSessionId] ?? null;
+  return state.sessionStates[childSessionId] ?? (
+    state.childSessionId === childSessionId ? state : null
+  );
 }
 
 function isTerminalQueueStatus(status: DeepReviewCapacityQueueStatus): boolean {
@@ -764,30 +764,57 @@ export const useReviewActionBarStore = create<ReviewActionBarState>((set, get) =
   });
 });
 
-// Subscribe to state changes and persist when relevant fields change
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
+// Subscribe to state changes and persist when relevant fields change.
+// Each review session owns its debounce so unrelated sessions cannot cancel it.
+const persistTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const PERSIST_DEBOUNCE_MS = 1000;
 
+function haveSameSetContents(left: Set<string>, right: Set<string>): boolean {
+  if (left.size !== right.size) {
+    return false;
+  }
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 useReviewActionBarStore.subscribe((state, prevState) => {
-  if (!state.childSessionId) return;
+  if (!state.childSessionId) {
+    persistTimers.forEach(clearTimeout);
+    persistTimers.clear();
+    return;
+  }
+
+  const childSessionId = state.childSessionId;
+  const previousSessionState = getReviewActionBarStateForSession(prevState, childSessionId);
 
   const shouldPersist =
-    state.phase !== prevState.phase ||
-    state.minimized !== prevState.minimized ||
-    state.completedRemediationIds !== prevState.completedRemediationIds ||
-    state.customInstructions !== prevState.customInstructions;
+    !previousSessionState ||
+    state.phase !== previousSessionState.phase ||
+    state.minimized !== previousSessionState.minimized ||
+    !haveSameSetContents(
+      state.completedRemediationIds,
+      previousSessionState.completedRemediationIds,
+    ) ||
+    state.customInstructions !== previousSessionState.customInstructions;
 
   if (!shouldPersist) return;
 
-  if (persistTimer) clearTimeout(persistTimer);
+  clearTimeout(persistTimers.get(childSessionId));
 
-  persistTimer = setTimeout(() => {
+  const persistSnapshot = state;
+  const timer = setTimeout(() => {
+    persistTimers.delete(childSessionId);
     import('../services/ReviewActionBarPersistenceService').then(({ persistReviewActionState }) => {
-      persistReviewActionState(state).catch(() => {
+      persistReviewActionState(persistSnapshot).catch(() => {
         // Silently ignore persistence errors
       });
     });
   }, PERSIST_DEBOUNCE_MS);
+  persistTimers.set(childSessionId, timer);
 });
 
 export const useDeepReviewActionBarStore = useReviewActionBarStore;

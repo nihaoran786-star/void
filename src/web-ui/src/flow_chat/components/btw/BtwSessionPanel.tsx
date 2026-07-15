@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
+import {useShallow} from 'zustand/react/shallow';
 import path from 'path-browserify';
 import {CornerUpLeft, Image as ImageIcon, Link2, Loader2, Send, Square, Sparkles, X} from 'lucide-react';
 import {FlowChatContext} from '../modern/FlowChatContext';
@@ -74,8 +75,7 @@ const resolveSessionTitle = (session?: Session | null, fallback = 'Side thread')
   session?.title?.trim() || fallback;
 const log = createLogger('BtwSessionPanel');
 const REVIEW_ACTION_BOTTOM_BLANK_SPACE_PX = 96;
-const EMPTY_ACTION_ID_SET = new Set<string>();
-const EMPTY_REMEDIATION_ITEMS: ReturnType<typeof buildReviewRemediationItems> = [];
+const MemoizedReviewActionBar = React.memo(ReviewActionBar);
 
 const isActiveReviewTurnStatus = (status?: DialogTurn['status']) =>
   status === 'pending' ||
@@ -530,28 +530,51 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   }, [childAgentType, childKind, childSession?.workspacePath, childSessionId, isActive, workspacePath]);
 
   // ---- Review action bar integration ----
-  const actionBarState = useReviewActionBarStore((s) =>
-    getReviewActionBarStateForSession(s, childSessionId),
-  );
-  const actionBarPhase = actionBarState?.phase ?? 'idle';
-  const actionBarMinimized = actionBarState?.minimized ?? false;
-  const actionBarChildSessionId = actionBarState?.childSessionId ?? null;
-  const actionBarCompletedIds = actionBarState?.completedRemediationIds ?? EMPTY_ACTION_ID_SET;
-  const actionBarRemediationItems = actionBarState?.remediationItems ?? EMPTY_REMEDIATION_ITEMS;
-  const actionBarSelectedIds = actionBarState?.selectedRemediationIds ?? EMPTY_ACTION_ID_SET;
-  const actionBarFixingIds = actionBarState?.fixingRemediationIds ?? EMPTY_ACTION_ID_SET;
-  const actionBarLastSubmittedAction = actionBarState?.lastSubmittedAction ?? null;
+  const {
+    actionBarPhase,
+    actionBarMinimized,
+    actionBarChildSessionId,
+    actionBarLastSubmittedAction,
+    actionBarCompletedCount,
+    actionBarTotalCount,
+    actionBarFixScopedCount,
+    actionBarFixScopedCompletedCount,
+  } = useReviewActionBarStore(useShallow((state) => {
+    const actionState = getReviewActionBarStateForSession(state, childSessionId);
+    const completedIds = actionState?.completedRemediationIds;
+    const fixingIds = actionState?.fixingRemediationIds;
+    const selectedIds = actionState?.selectedRemediationIds;
+    const fixScopedIds = fixingIds && fixingIds.size > 0 ? fixingIds : selectedIds;
+    let fixScopedCompletedCount = 0;
+    if (fixScopedIds && completedIds) {
+      for (const id of fixScopedIds) {
+        if (completedIds.has(id)) {
+          fixScopedCompletedCount += 1;
+        }
+      }
+    }
+    return {
+      actionBarPhase: actionState?.phase ?? 'idle',
+      actionBarMinimized: actionState?.minimized ?? false,
+      actionBarChildSessionId: actionState?.childSessionId ?? null,
+      actionBarLastSubmittedAction: actionState?.lastSubmittedAction ?? null,
+      actionBarCompletedCount: completedIds?.size ?? 0,
+      actionBarTotalCount: actionState?.remediationItems.length ?? 0,
+      actionBarFixScopedCount: fixScopedIds?.size ?? 0,
+      actionBarFixScopedCompletedCount: fixScopedCompletedCount,
+    };
+  }));
   const reviewRelationship = resolveSessionRelationship(reviewSession);
   const isDeepReview = reviewRelationship.kind === 'deep_review';
   const isReviewSession =
     reviewRelationship.kind === 'review' || reviewRelationship.kind === 'deep_review';
   const canReturnToParentSession = isReviewSession && Boolean(parentSessionId);
   const btwOrigin = childSession?.btwOrigin;
-  const showReviewActionBar =
+  const hasReviewActionBarLifecycle =
     isReviewSession &&
     actionBarChildSessionId === childSessionId &&
-    actionBarPhase !== 'idle' &&
-    !actionBarMinimized;
+    actionBarPhase !== 'idle';
+  const showReviewActionBar = hasReviewActionBarLifecycle && !actionBarMinimized;
 
   const showMinimizedIndicator =
     isReviewSession &&
@@ -575,15 +598,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         defaultValue: `Go back to the source session: ${parentLabel}`,
       });
 
-  const remainingCount = actionBarRemediationItems.length - actionBarCompletedIds.size;
-  const totalCount = actionBarRemediationItems.length;
-  const fixScopedIds = actionBarFixingIds.size > 0 ? actionBarFixingIds : actionBarSelectedIds;
-  const fixScopedCompletedCount = [...fixScopedIds].filter((id) => actionBarCompletedIds.has(id)).length;
+  const remainingCount = actionBarTotalCount - actionBarCompletedCount;
+  const totalCount = actionBarTotalCount;
   const minimizedCountLabel = (
     ['fix_running', 'fix_completed', 'fix_failed', 'fix_timeout', 'fix_interrupted'].includes(actionBarPhase) &&
-    fixScopedIds.size > 0
+    actionBarFixScopedCount > 0
   )
-    ? `${fixScopedCompletedCount}/${fixScopedIds.size}`
+    ? `${actionBarFixScopedCompletedCount}/${actionBarFixScopedCount}`
     : `${remainingCount}/${totalCount}`;
   const minimizedActionLabel = useMemo(() => {
     switch (actionBarPhase) {
@@ -633,6 +654,11 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
             });
     }
   }, [actionBarPhase, actionBarLastSubmittedAction, isDeepReview, t]);
+
+  const actionBarPresentationSessionRef = useRef<Session | null>(childSession ?? null);
+  if (isActive && showReviewActionBar) {
+    actionBarPresentationSessionRef.current = childSession ?? null;
+  }
 
   // Detect when a review completes with a remediation plan and auto-show the action bar.
   useEffect(() => {
@@ -1352,9 +1378,18 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
           </div>
         )}
 
-        {showReviewActionBar && (
-          <div ref={actionBarRef} className="btw-session-panel__action-bar-wrapper">
-            <ReviewActionBar childSessionId={childSessionId} />
+        {hasReviewActionBarLifecycle && (
+          <div
+            ref={showReviewActionBar ? actionBarRef : undefined}
+            className="btw-session-panel__action-bar-wrapper"
+            hidden={!showReviewActionBar}
+            aria-hidden={!showReviewActionBar}
+          >
+            <MemoizedReviewActionBar
+              childSessionId={childSessionId}
+              isActive={isActive && showReviewActionBar}
+              presentationSession={actionBarPresentationSessionRef.current}
+            />
           </div>
         )}
 

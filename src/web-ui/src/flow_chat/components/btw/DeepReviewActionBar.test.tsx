@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { useReviewActionBarStore } from '../../store/deepReviewActionBarStore';
+import type { Session } from '../../types/flow-chat';
 import { DeepReviewActionBar, ReviewActionBar } from './DeepReviewActionBar';
 
 const sendMessageMock = vi.hoisted(() => vi.fn());
@@ -19,18 +20,24 @@ const buildRecoveryPlanMock = vi.hoisted(() => vi.fn(() => ({
 })));
 const controlDeepReviewQueueMock = vi.hoisted(() => vi.fn());
 const flowChatSessionsMock = vi.hoisted(() => new Map<string, unknown>());
+const flowChatSubscribersMock = vi.hoisted(() => new Set<() => void>());
+const notificationInfoMock = vi.hoisted(() => vi.fn());
+const translationHookMock = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
   initReactI18next: {
     type: '3rdParty',
     init: vi.fn(),
   },
-  useTranslation: () => ({
-    t: (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => {
-      const template = options?.defaultValue ?? _key;
-      return template.replace(/{{(\w+)}}/g, (_match, token: string) => String(options?.[token] ?? _match));
-    },
-  }),
+  useTranslation: () => {
+    translationHookMock();
+    return {
+      t: (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => {
+        const template = options?.defaultValue ?? _key;
+        return template.replace(/{{(\w+)}}/g, (_match, token: string) => String(options?.[token] ?? _match));
+      },
+    };
+  },
 }));
 
 vi.mock('@/component-library', () => ({
@@ -104,7 +111,7 @@ vi.mock('@/component-library/components/ConfirmDialog/confirmService', () => ({
 vi.mock('@/shared/notification-system', () => ({
   notificationService: {
     error: vi.fn(),
-    info: vi.fn(),
+    info: notificationInfoMock,
     success: vi.fn(),
   },
 }));
@@ -124,7 +131,10 @@ vi.mock('../../store/FlowChatStore', () => ({
       sessions: flowChatSessionsMock,
       activeSessionId: null,
     }),
-    subscribe: () => () => {},
+    subscribe: (listener: () => void) => {
+      flowChatSubscribersMock.add(listener);
+      return () => flowChatSubscribersMock.delete(listener);
+    },
   },
 }));
 
@@ -165,6 +175,38 @@ try {
 
 const describeWithJsdom = JSDOMCtor ? describe : describe.skip;
 
+function createProgressSession(
+  sessionId: string,
+  nonLastReviewerStatus: string,
+): Session {
+  return {
+    sessionId,
+    sessionKind: 'deep_review',
+    dialogTurns: [{
+      id: 'review-turn',
+      status: 'processing',
+      modelRounds: [{
+        id: 'review-round',
+        items: [
+          {
+            id: 'reviewer-task',
+            type: 'tool',
+            name: 'Task',
+            status: nonLastReviewerStatus,
+          },
+          {
+            id: 'stable-last-item',
+            type: 'text',
+            content: 'The last item is unchanged',
+            status: 'streaming',
+          },
+        ],
+      }],
+    }],
+    config: {},
+  } as Session;
+}
+
 describeWithJsdom('DeepReviewActionBar', () => {
   let dom: { window: Window & typeof globalThis };
   let container: HTMLDivElement;
@@ -195,6 +237,7 @@ describeWithJsdom('DeepReviewActionBar', () => {
     aggregateReviewerProgressMock.mockReturnValue([]);
     buildReviewerProgressSummaryMock.mockReturnValue(null);
     flowChatSessionsMock.clear();
+    flowChatSubscribersMock.clear();
     useReviewActionBarStore.getState().reset();
   });
 
@@ -207,7 +250,355 @@ describeWithJsdom('DeepReviewActionBar', () => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
     flowChatSessionsMock.clear();
+    flowChatSubscribersMock.clear();
     useReviewActionBarStore.getState().reset();
+  });
+
+  const setProgressSummary = (handled: number, total = 2) => {
+    aggregateReviewerProgressMock.mockReturnValue([
+      { reviewer: 'ReviewSecurity', status: handled >= 1 ? 'completed' : 'running' },
+      { reviewer: 'ReviewFrontend', status: handled >= 2 ? 'completed' : 'running' },
+    ]);
+    buildReviewerProgressSummaryMock.mockReturnValue({
+      completed: handled,
+      failed: 0,
+      timedOut: 0,
+      running: Math.max(0, total - handled),
+      skipped: 0,
+      unknown: 0,
+      handled,
+      total,
+      text: `${handled}/${total} handled`,
+    });
+  };
+
+  const finishFakeTimerTest = () => {
+    act(() => root.unmount());
+    root = createRoot(container);
+    useReviewActionBarStore.getState().reset();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  };
+
+  it('keeps one hidden business deadline without an elapsed interval', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T00:00:00Z'));
+    try {
+      const session = createProgressSession('hidden-review', 'running');
+      setProgressSummary(1);
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'hidden-review',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+      const intervalSpy = vi.spyOn(globalThis, 'setInterval');
+      const timeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="hidden-review"
+            isActive={false}
+            presentationSession={session}
+          />,
+        );
+      });
+
+      expect(intervalSpy).not.toHaveBeenCalled();
+      expect(timeoutSpy.mock.calls.filter((call) => call[1] === 3 * 60 * 1000)).toHaveLength(1);
+      expect(flowChatSubscribersMock.size).toBe(0);
+    } finally {
+      finishFakeTimerTest();
+    }
+  });
+
+  it('fills elapsed time from the stable start when presentation resumes', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T00:00:00Z'));
+    try {
+      const session = createProgressSession('resume-review', 'running');
+      setProgressSummary(1);
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'resume-review',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="resume-review"
+            presentationSession={session}
+          />,
+        );
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+      expect(container.textContent).toContain('Running for 2s');
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="resume-review"
+            isActive={false}
+            presentationSession={session}
+          />,
+        );
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(8_000);
+      });
+      expect(container.textContent).not.toContain('Running for');
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="resume-review"
+            isActive
+            presentationSession={session}
+          />,
+        );
+      });
+      expect(container.textContent).toContain('Running for 10s');
+    } finally {
+      finishFakeTimerTest();
+    }
+  });
+
+  it('notifies once at three minutes and keeps elapsed time monotonic', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T00:00:00Z'));
+    try {
+      const session = createProgressSession('long-review', 'running');
+      setProgressSummary(1);
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'long-review',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+      notificationInfoMock.mockClear();
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="long-review"
+            presentationSession={session}
+          />,
+        );
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+      });
+
+      expect(notificationInfoMock).toHaveBeenCalledTimes(1);
+      expect(container.textContent).toContain('Running for 3m 0s');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+      expect(notificationInfoMock).toHaveBeenCalledTimes(1);
+      expect(container.textContent).toContain('Running for 3m 5s');
+    } finally {
+      finishFakeTimerTest();
+    }
+  });
+
+  it('clears elapsed and deadline timers on a terminal phase', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T00:00:00Z'));
+    try {
+      const session = createProgressSession('terminal-review', 'running');
+      setProgressSummary(1);
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'terminal-review',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+      notificationInfoMock.mockClear();
+
+      await act(async () => {
+        root.render(
+          <ReviewActionBar
+            childSessionId="terminal-review"
+            presentationSession={session}
+          />,
+        );
+      });
+      const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval');
+      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+      await act(async () => {
+        useReviewActionBarStore.getState().updatePhase(
+          'review_completed',
+          undefined,
+          'terminal-review',
+        );
+      });
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+      });
+      expect(notificationInfoMock).not.toHaveBeenCalled();
+    } finally {
+      finishFakeTimerTest();
+    }
+  });
+
+  it('updates explicit progress when a non-last reviewer task changes', async () => {
+    const runningSession = createProgressSession('explicit-review', 'running');
+    const completedSession = createProgressSession('explicit-review', 'completed');
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'explicit-review',
+      parentSessionId: 'parent-session',
+      reviewMode: 'deep',
+    });
+    setProgressSummary(1);
+
+    await act(async () => {
+      root.render(
+        <ReviewActionBar
+          childSessionId="explicit-review"
+          presentationSession={runningSession}
+        />,
+      );
+    });
+    expect(container.textContent).toContain('1/2 handled');
+
+    setProgressSummary(2);
+    await act(async () => {
+      root.render(
+        <ReviewActionBar
+          childSessionId="explicit-review"
+          presentationSession={completedSession}
+        />,
+      );
+    });
+    expect(container.textContent).toContain('2/2 handled');
+  });
+
+  it('keeps direct callers live through an active FlowChat session subscription', async () => {
+    const runningSession = createProgressSession('direct-review', 'running');
+    const completedSession = createProgressSession('direct-review', 'completed');
+    flowChatSessionsMock.set('direct-review', runningSession);
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'direct-review',
+      parentSessionId: 'parent-session',
+      reviewMode: 'deep',
+    });
+    setProgressSummary(1);
+
+    await act(async () => {
+      root.render(<ReviewActionBar childSessionId="direct-review" />);
+    });
+    expect(flowChatSubscribersMock.size).toBe(1);
+    expect(container.textContent).toContain('1/2 handled');
+
+    setProgressSummary(2);
+    flowChatSessionsMock.set('direct-review', completedSession);
+    await act(async () => {
+      flowChatSubscribersMock.forEach((listener) => listener());
+    });
+    expect(container.textContent).toContain('2/2 handled');
+  });
+
+  it('keeps a scoped presentation stable when another session becomes the store root', async () => {
+    const session = createProgressSession('stable-review-a', 'running');
+    setProgressSummary(1);
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'stable-review-a',
+      parentSessionId: 'parent-session',
+      reviewMode: 'deep',
+    });
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'stable-review-b',
+      parentSessionId: 'parent-session',
+      reviewMode: 'deep',
+    });
+
+    await act(async () => {
+      root.render(
+        <ReviewActionBar
+          childSessionId="stable-review-a"
+          presentationSession={session}
+        />,
+      );
+    });
+    const initialRenderReads = translationHookMock.mock.calls.length;
+
+    await act(async () => {
+      useReviewActionBarStore.getState().setCapacityQueueState({
+        status: 'queued_for_capacity',
+        queuedReviewerCount: 1,
+      }, 'stable-review-a');
+    });
+    const ownUpdateRenderReads = translationHookMock.mock.calls.length;
+    expect(ownUpdateRenderReads).toBeGreaterThan(initialRenderReads);
+
+    await act(async () => {
+      useReviewActionBarStore.getState().setCapacityQueueState({
+        status: 'queued_for_capacity',
+        queuedReviewerCount: 2,
+      }, 'stable-review-b');
+    });
+    expect(translationHookMock.mock.calls.length).toBe(ownUpdateRenderReads);
+  });
+
+  it('does not borrow another session state and keeps scoped deadlines isolated', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-16T00:00:00Z'));
+    try {
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'review-a',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+      useReviewActionBarStore.getState().showRunningActionBar({
+        childSessionId: 'review-b',
+        parentSessionId: 'parent-session',
+        reviewMode: 'deep',
+      });
+      notificationInfoMock.mockClear();
+
+      await act(async () => {
+        root.render(
+          <>
+            <ReviewActionBar
+              childSessionId="missing-review"
+              isActive={false}
+              presentationSession={null}
+            />
+            <ReviewActionBar
+              childSessionId="review-a"
+              isActive={false}
+              presentationSession={createProgressSession('review-a', 'running')}
+            />
+            <ReviewActionBar
+              childSessionId="review-b"
+              isActive={false}
+              presentationSession={createProgressSession('review-b', 'running')}
+            />
+          </>,
+        );
+      });
+      expect(container.querySelectorAll('.deep-review-action-bar')).toHaveLength(2);
+
+      await act(async () => {
+        useReviewActionBarStore.getState().updatePhase(
+          'review_completed',
+          undefined,
+          'review-a',
+        );
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3 * 60 * 1000);
+      });
+      expect(notificationInfoMock).toHaveBeenCalledTimes(1);
+    } finally {
+      finishFakeTimerTest();
+    }
   });
 
   it('keeps remediation in progress after submitting a fix turn', async () => {
@@ -438,18 +829,16 @@ describeWithJsdom('DeepReviewActionBar', () => {
       },
       phase: 'review_completed',
     });
-    useReviewActionBarStore.setState({
-      capacityQueueState: {
-        status: 'queued_for_capacity',
-        reason: 'provider_concurrency_limit',
-        queuedReviewerCount: 2,
-        activeReviewerCount: 1,
-        optionalReviewerCount: 1,
-        queueElapsedMs: 12_000,
-        maxQueueWaitSeconds: 60,
-        sessionConcurrencyHigh: true,
-      },
-    } as Partial<ReturnType<typeof useReviewActionBarStore.getState>>);
+    useReviewActionBarStore.getState().setCapacityQueueState({
+      status: 'queued_for_capacity',
+      reason: 'provider_concurrency_limit',
+      queuedReviewerCount: 2,
+      activeReviewerCount: 1,
+      optionalReviewerCount: 1,
+      queueElapsedMs: 12_000,
+      maxQueueWaitSeconds: 60,
+      sessionConcurrencyHigh: true,
+    }, 'child-session');
 
     await act(async () => {
       root.render(<DeepReviewActionBar />);
