@@ -50,7 +50,10 @@ import {
   recordWorkspaceMediaRefresh,
   resetWorkspaceMediaRefreshState,
 } from '@/shared/services/workspace-media/WorkspaceMediaEvents';
-import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
+import type {
+  WorkspaceMediaLibraryService,
+  WorkspaceMediaLibraryState,
+} from '@/shared/services/workspace-media/WorkspaceMediaTypes';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -272,6 +275,296 @@ describe('WorkspaceMediaGallery', () => {
     expect(container.textContent).toContain('poster.png');
     expect(container.textContent).not.toContain('clip.mp4');
     expect(container.textContent).not.toContain('voice.mp3');
+  });
+
+  it('does no presentation work while inactive and refreshes immediately on activation', async () => {
+    vi.useFakeTimers();
+    const service = readyService();
+    const listTrash = vi.fn(async () => ({ status: 'ready' as const, items: [], checkedAt: 100 }));
+    const purgeExpiredTrash = vi.fn(async () => ({ status: 'ready' as const, items: [], checkedAt: 100 }));
+    Object.assign(service, { listTrash, purgeExpiredTrash });
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive={false}
+        />
+      );
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+
+    expect(service.scanLibrary).not.toHaveBeenCalled();
+    expect(listTrash).not.toHaveBeenCalled();
+    expect(purgeExpiredTrash).toHaveBeenCalledTimes(1);
+    expect(imagePreviewResolver).not.toHaveBeenCalled();
+    expect(mediaPreviewResolver).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive
+        />
+      );
+      await Promise.resolve();
+    });
+
+    expect(service.scanLibrary).toHaveBeenCalledTimes(1);
+    expect(listTrash).toHaveBeenCalledTimes(1);
+    expect(imagePreviewResolver).toHaveBeenCalled();
+    expect(mediaPreviewResolver).toHaveBeenCalled();
+  });
+
+  it('starts a new activity epoch without waiting for a stale scan and rejects its late result', async () => {
+    let resolveFirstScan!: (state: WorkspaceMediaLibraryState) => void;
+    let resolveSecondScan!: (state: WorkspaceMediaLibraryState) => void;
+    const scanLibrary = vi.fn()
+      .mockImplementationOnce(() => new Promise<WorkspaceMediaLibraryState>((resolve) => {
+        resolveFirstScan = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise<WorkspaceMediaLibraryState>((resolve) => {
+        resolveSecondScan = resolve;
+      }));
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary,
+    };
+    const mediaState = (id: string): WorkspaceMediaLibraryState => ({
+      status: 'ready',
+      scannedAt: 100,
+      items: [{
+        id,
+        kind: 'audio',
+        source: 'input',
+        filePath: `C:/work/${id}.mp3`,
+        relativePath: `${id}.mp3`,
+        fileName: `${id}.mp3`,
+        extension: 'mp3',
+        modifiedAt: 100,
+        previewUrl: `asset://local/${id}.mp3`,
+      }],
+    });
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+    expect(scanLibrary).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive={false} />);
+    });
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+    expect(scanLibrary).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveSecondScan(mediaState('fresh'));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('fresh.mp3');
+
+    await act(async () => {
+      resolveFirstScan(mediaState('stale'));
+      await Promise.resolve();
+    });
+    expect(container.textContent).toContain('fresh.mp3');
+    expect(container.textContent).not.toContain('stale.mp3');
+  });
+
+  it('keeps the ready gallery visible while an activation refresh is pending', async () => {
+    let resolveRefresh!: (state: WorkspaceMediaLibraryState) => void;
+    const readyState: WorkspaceMediaLibraryState = {
+      status: 'ready',
+      scannedAt: 100,
+      items: [{
+        id: 'retained',
+        kind: 'audio',
+        source: 'input',
+        filePath: 'C:/work/retained.mp3',
+        relativePath: 'retained.mp3',
+        fileName: 'retained.mp3',
+        extension: 'mp3',
+        modifiedAt: 100,
+        previewUrl: 'asset://local/retained.mp3',
+      }],
+    };
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn()
+        .mockResolvedValueOnce(readyState)
+        .mockImplementationOnce(() => new Promise<WorkspaceMediaLibraryState>((resolve) => {
+          resolveRefresh = resolve;
+        })),
+    };
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+    expect(container.textContent).toContain('retained.mp3');
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive={false} />);
+    });
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+
+    expect(service.scanLibrary).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain('retained.mp3');
+    expect(container.textContent).not.toContain('Scanning media files...');
+
+    await act(async () => {
+      resolveRefresh(readyState);
+      await Promise.resolve();
+    });
+  });
+
+  it('keeps pending generation cards visible while an activation refresh is pending', async () => {
+    let resolveRefresh!: (state: WorkspaceMediaLibraryState) => void;
+    const emptyState: WorkspaceMediaLibraryState = { status: 'empty', scannedAt: 100 };
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn()
+        .mockResolvedValueOnce(emptyState)
+        .mockImplementationOnce(() => new Promise<WorkspaceMediaLibraryState>((resolve) => {
+          resolveRefresh = resolve;
+        })),
+    };
+    recordWorkspaceMediaRefresh({
+      reason: 'media-tool-event',
+      lifecycleStatus: 'started',
+      workspacePath: 'C:/work',
+      toolId: 'media-tool-before-resume',
+      toolName: 'GenerateImage',
+      kind: 'image',
+      prompt: 'retained pending request',
+      requestedAspectRatio: '1:1',
+      placeholderAspectRatio: '1 / 1',
+    });
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+    expect(container.querySelector('[data-testid^="workspace-media-card-workspace-media-pending-"]')).toBeTruthy();
+
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive={false} />);
+    });
+    await act(async () => {
+      root.render(<WorkspaceMediaGallery workspacePath="C:/work" service={service} isActive />);
+    });
+
+    expect(service.scanLibrary).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('[data-testid^="workspace-media-card-workspace-media-pending-"]')).toBeTruthy();
+    expect(container.textContent).not.toContain('Scanning media files...');
+
+    await act(async () => {
+      resolveRefresh(emptyState);
+      await Promise.resolve();
+    });
+  });
+
+  it('retries an invalidated preview after activation and pauses media without autoplay', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn(async () => ({
+        status: 'ready',
+        scannedAt: 100,
+        items: [{
+          id: 'video-retry',
+          kind: 'video',
+          source: 'generated',
+          filePath: 'C:/work/video-retry.mp4',
+          relativePath: 'video-retry.mp4',
+          fileName: 'video-retry.mp4',
+          extension: 'mp4',
+          sizeBytes: 1024,
+          modifiedAt: 100,
+          previewUrl: 'asset://local/video-retry.mp4',
+        }],
+      })),
+    };
+    let resolveFirstPreview!: (url: string) => void;
+    let resolveSecondPreview!: (url: string) => void;
+    const mediaPreviewResolver = vi.fn()
+      .mockImplementationOnce(() => new Promise<string>((resolve) => {
+        resolveFirstPreview = resolve;
+      }))
+      .mockImplementationOnce(() => new Promise<string>((resolve) => {
+        resolveSecondPreview = resolve;
+      }));
+    const pauseSpy = vi.spyOn(dom.window.HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    const playSpy = vi.spyOn(dom.window.HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive
+        />
+      );
+    });
+    expect(mediaPreviewResolver).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive={false}
+        />
+      );
+    });
+    await act(async () => {
+      resolveFirstPreview('data:video/mp4;base64,stale');
+      await Promise.resolve();
+    });
+    expect(container.querySelector('video')).toBeNull();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive
+        />
+      );
+      await Promise.resolve();
+    });
+    expect(mediaPreviewResolver).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      resolveSecondPreview('data:video/mp4;base64,fresh');
+      await Promise.resolve();
+    });
+    expect(container.querySelector('video')).toBeTruthy();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          mediaPreviewResolver={mediaPreviewResolver}
+          isActive={false}
+        />
+      );
+    });
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(playSpy).not.toHaveBeenCalled();
   });
 
   it('searches by path and sorts by name', async () => {

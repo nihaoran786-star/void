@@ -76,7 +76,7 @@ import { ContentCanvas } from './ContentCanvas';
 import { useAgentCanvasStore } from './stores';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
-import type { WorkspaceMediaLibraryService } from '@/shared/services/workspace-media';
+import type { WorkspaceMediaAvailability, WorkspaceMediaLibraryService } from '@/shared/services/workspace-media';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -132,6 +132,7 @@ describe('ContentCanvas workspace media opening', () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    vi.useRealTimers();
     container.remove();
     useAgentCanvasStore.getState().reset();
     flowChatStore.setState(() => ({ sessions: new Map(), activeSessionId: null }));
@@ -159,6 +160,75 @@ describe('ContentCanvas workspace media opening', () => {
     });
 
     expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+  });
+
+  it('pauses media discovery while hidden, restarts immediately, and ignores the previous visible period', async () => {
+    vi.useFakeTimers();
+    let resolveFirstCheck!: (value: WorkspaceMediaAvailability) => void;
+    const checkAvailability = vi.fn()
+      .mockImplementationOnce(() => new Promise<WorkspaceMediaAvailability>((resolve) => {
+        resolveFirstCheck = resolve;
+      }))
+      .mockResolvedValue({ status: 'unavailable', checkedAt: 200 });
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability,
+      scanLibrary: vi.fn(),
+    };
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive={false}
+        />
+      );
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(checkAvailability).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive
+        />
+      );
+    });
+    expect(checkAvailability).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000);
+    });
+    expect(checkAvailability).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive={false}
+        />
+      );
+    });
+    await act(async () => {
+      resolveFirstCheck({ status: 'available', firstDetectedAt: 100 });
+      await Promise.resolve();
+    });
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive
+        />
+      );
+      await Promise.resolve();
+    });
+    expect(checkAvailability).toHaveBeenCalledTimes(2);
   });
 
   it('opens the workspace media tab from the global media event without duplicating existing media tab', async () => {

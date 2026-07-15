@@ -3,7 +3,7 @@
  * Core component for the right panel, aggregating submodules.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditorArea } from './editor-area';
 import { AnchorZone } from './anchor-zone';
@@ -125,10 +125,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   ]);
 
   // Check if primary group has visible tabs
-  const hasPrimaryVisibleTabs = useMemo(() => {
-    const primaryVisible = primaryGroup.tabs.filter(t => !t.isHidden).length;
-    return primaryVisible > 0;
-  }, [primaryGroup.tabs]);
+  const hasPrimaryVisibleTabs = primaryGroup.tabs.some(tab => !tab.isHidden);
 
   useEffect(() => (
     flowChatStore.subscribe(nextState => {
@@ -219,29 +216,22 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   }, [addTab, findTabByMetadata, switchToTab, t, workspacePath]);
 
   useEffect(() => {
-    const handler = () => {
-      handleOpenWorkspaceMedia();
-    };
-
-    window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handler);
-    return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handler);
+    window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
+    return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
   }, [handleOpenWorkspaceMedia]);
 
   useEffect(() => {
-    const handler = () => {
-      handleOpenShortDramaCenter();
-    };
-
-    window.addEventListener(SHORT_DRAMA_OPEN_EVENT, handler);
-    return () => window.removeEventListener(SHORT_DRAMA_OPEN_EVENT, handler);
+    window.addEventListener(SHORT_DRAMA_OPEN_EVENT, handleOpenShortDramaCenter);
+    return () => window.removeEventListener(SHORT_DRAMA_OPEN_EVENT, handleOpenShortDramaCenter);
   }, [handleOpenShortDramaCenter]);
 
   useEffect(() => {
-    if (!workspacePath || hasPrimaryVisibleTabs) {
+    if (!workspacePath || hasPrimaryVisibleTabs || !isSceneActive) {
       return;
     }
 
     let cancelled = false;
+    let isChecking = false;
     const workspaceKey = workspacePath.trim();
     if (!workspaceKey || autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)) {
       return;
@@ -251,21 +241,26 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     }
 
     const checkAndOpen = async () => {
-      let availability;
+      if (isChecking) {
+        return;
+      }
+      isChecking = true;
       try {
-        availability = await workspaceMediaService.checkAvailability(workspaceKey);
+        const availability = await workspaceMediaService.checkAvailability(workspaceKey);
+        if (
+          cancelled ||
+          availability.status !== 'available' ||
+          autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)
+        ) {
+          return;
+        }
+        autoOpenedMediaWorkspacePathsRef.current.add(workspaceKey);
+        handleOpenWorkspaceMedia();
       } catch {
         return;
+      } finally {
+        isChecking = false;
       }
-      if (
-        cancelled ||
-        availability.status !== 'available' ||
-        autoOpenedMediaWorkspacePathsRef.current.has(workspaceKey)
-      ) {
-        return;
-      }
-      autoOpenedMediaWorkspacePathsRef.current.add(workspaceKey);
-      handleOpenWorkspaceMedia();
     };
 
     void checkAndOpen();
@@ -281,6 +276,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     canOpenShortDramaCenter,
     handleOpenWorkspaceMedia,
     hasPrimaryVisibleTabs,
+    isSceneActive,
     shortDramaRestoreCheckedWorkspace,
     workspaceMediaService,
     workspacePath,

@@ -891,7 +891,10 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       case 'workspace-media-gallery':
         return (
           <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading media...</div>}>
-            <WorkspaceMediaGallery workspacePath={content.data?.workspacePath || workspacePath} />
+            <WorkspaceMediaGallery
+              workspacePath={content.data?.workspacePath || workspacePath}
+              isActive={isActive}
+            />
           </React.Suspense>
         );
 
@@ -902,6 +905,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
               workspacePath={content.data?.workspacePath || workspacePath}
               sourceSessionId={content.data?.sourceSessionId}
               staticFixtureEpisodeCount={content.data?.staticFixtureEpisodeCount}
+              isActive={isActive}
             />
           </React.Suspense>
         );

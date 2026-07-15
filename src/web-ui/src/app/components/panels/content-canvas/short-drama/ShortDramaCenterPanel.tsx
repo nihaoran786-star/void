@@ -89,6 +89,7 @@ interface ShortDramaCenterPanelProps {
   sourceSessionId?: string;
   service?: ShortDramaPanelLibraryService;
   staticFixtureEpisodeCount?: number;
+  isActive?: boolean;
 }
 
 type ShortDramaPanelLibraryService = ShortDramaLibraryService & {
@@ -103,6 +104,7 @@ export function ShortDramaCenterPanel({
   sourceSessionId,
   service,
   staticFixtureEpisodeCount,
+  isActive = true,
 }: ShortDramaCenterPanelProps) {
   const { t } = useI18n('components');
   const { isLight } = useTheme();
@@ -118,6 +120,9 @@ export function ShortDramaCenterPanel({
   const addContext = useContextStore(state => state.addContext);
   const updateContext = useContextStore(state => state.updateContext);
   const staticFixtureVersion = getShortDramaStaticProjectFixtureVersion();
+  const panelRootRef = useRef<HTMLElement | null>(null);
+  const isActiveRef = useRef(isActive);
+  const presentationEpochRef = useRef(0);
   const scrollContainerRef = useRef<HTMLElement | null>(null);
   const episodeSectionRefs = useRef(new Map<string, HTMLElement>());
   const scriptEditorRef = useRef<EditorInstance>(null);
@@ -142,6 +147,20 @@ export function ShortDramaCenterPanel({
           )
         : staticShortDramaLibraryService)
   ), [service, shortDramaAgentTaskSessionSender, staticFixtureEpisodeCount, workspaceManifestAdapter]);
+
+  useEffect(() => {
+    isActiveRef.current = isActive;
+    presentationEpochRef.current += 1;
+    if (!isActive) {
+      panelRootRef.current
+        ?.querySelectorAll<HTMLMediaElement>('video, audio')
+        .forEach(media => media.pause());
+    }
+    return () => {
+      isActiveRef.current = false;
+      presentationEpochRef.current += 1;
+    };
+  }, [isActive, workspacePath]);
 
   useEffect(() => connectShortDramaProjectChangedEventsToToolRunBus(), []);
 
@@ -365,15 +384,26 @@ export function ShortDramaCenterPanel({
   }, [libraryService, t, workspacePath]);
 
   useEffect(() => {
-    if (state.status !== 'empty' || !workspacePath) {
+    if (!isActive || state.status !== 'empty' || !workspacePath) {
       return undefined;
     }
 
     let cancelled = false;
+    let refreshInFlight = false;
+    const requestEpoch = presentationEpochRef.current;
     const refreshFromWorkspace = () => {
+      if (refreshInFlight) {
+        return;
+      }
+      refreshInFlight = true;
       libraryService.loadProject(workspacePath)
         .then(nextState => {
-          if (cancelled || nextState.status !== 'ready') {
+          if (
+            cancelled
+            || !isActiveRef.current
+            || presentationEpochRef.current !== requestEpoch
+            || nextState.status !== 'ready'
+          ) {
             return;
           }
 
@@ -386,6 +416,9 @@ export function ShortDramaCenterPanel({
         })
         .catch(() => {
           // Empty workspace refresh is opportunistic; the main load path owns visible errors.
+        })
+        .finally(() => {
+          refreshInFlight = false;
         });
     };
 
@@ -397,7 +430,7 @@ export function ShortDramaCenterPanel({
       window.clearTimeout(firstRefresh);
       window.clearInterval(refreshInterval);
     };
-  }, [libraryService, state.status, workspacePath]);
+  }, [isActive, libraryService, state.status, workspacePath]);
 
   useEffect(() => {
     if (state.status !== 'ready') {
@@ -420,21 +453,33 @@ export function ShortDramaCenterPanel({
   const mediaRefreshToken = useWorkspaceMediaRefreshStore(state => state.token);
 
   useEffect(() => {
+    if (!isActive) {
+      return undefined;
+    }
     if (!workspacePath || state.status !== 'ready') {
       setWorkspaceMediaItems([]);
       return undefined;
     }
 
     let cancelled = false;
+    const requestEpoch = presentationEpochRef.current;
     workspaceMediaLibraryService.scanLibrary(workspacePath)
       .then(mediaState => {
-        if (cancelled) {
+        if (
+          cancelled
+          || !isActiveRef.current
+          || presentationEpochRef.current !== requestEpoch
+        ) {
           return;
         }
         setWorkspaceMediaItems(mediaState.status === 'ready' ? mediaState.items : []);
       })
       .catch(() => {
-        if (!cancelled) {
+        if (
+          !cancelled
+          && isActiveRef.current
+          && presentationEpochRef.current === requestEpoch
+        ) {
           setWorkspaceMediaItems([]);
         }
       });
@@ -442,7 +487,7 @@ export function ShortDramaCenterPanel({
     return () => {
       cancelled = true;
     };
-  }, [mediaRefreshToken, state.status, workspacePath]);
+  }, [isActive, mediaRefreshToken, state.status, workspacePath]);
 
   const recoveredProject = useMemo(() => (
     state.status === 'ready'
@@ -637,7 +682,7 @@ export function ShortDramaCenterPanel({
   }, [activeEpisodeId]);
 
   const updateActiveEpisodeFromScroll = useCallback(() => {
-    if (!shouldUpdateShortDramaEpisodeFromScroll({
+    if (!isActive || !shouldUpdateShortDramaEpisodeFromScroll({
       isProgrammaticScrollPending: pendingEpisodeScrollRef.current,
     })) {
       return;
@@ -672,14 +717,14 @@ export function ShortDramaCenterPanel({
       activeEpisodeIdRef.current = nextEpisodeId;
       setActiveEpisodeId(nextEpisodeId);
     }
-  }, [scriptDocument, selectedStage]);
+  }, [isActive, scriptDocument, selectedStage]);
 
   useEffect(() => {
     const targetEpisodeId = resolveShortDramaEpisodeTargetId({
       refEpisodeId: activeEpisodeIdRef.current,
       stateEpisodeId: activeEpisodeId,
     });
-    if (!targetEpisodeId || state.status !== 'ready') {
+    if (!isActive || !targetEpisodeId || state.status !== 'ready') {
       return;
     }
     if (!pendingEpisodeScrollRef.current) {
@@ -712,18 +757,24 @@ export function ShortDramaCenterPanel({
       });
     };
 
+    let retryTimeout: number | undefined;
     const firstFrame = window.requestAnimationFrame(() => {
       scrollToCurrentStageEpisode();
-      window.setTimeout(() => {
+      retryTimeout = window.setTimeout(() => {
         scrollToCurrentStageEpisode();
         pendingEpisodeScrollRef.current = false;
       }, 0);
     });
-    return () => window.cancelAnimationFrame(firstFrame);
-  }, [activeEpisodeId, scriptDocument, selectedStage, state.status]);
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (retryTimeout !== undefined) {
+        window.clearTimeout(retryTimeout);
+      }
+    };
+  }, [activeEpisodeId, isActive, scriptDocument, selectedStage, state.status]);
 
   useEffect(() => {
-    if (selectedStage !== 'script') {
+    if (!isActive || selectedStage !== 'script') {
       return;
     }
 
@@ -737,7 +788,7 @@ export function ShortDramaCenterPanel({
     return () => {
       scriptScrollContainer.removeEventListener('scroll', updateActiveEpisodeFromScroll);
     };
-  }, [selectedStage, updateActiveEpisodeFromScroll]);
+  }, [isActive, selectedStage, updateActiveEpisodeFromScroll]);
 
   const handleArtifactFocus = useCallback((artifact: ShortDramaArtifact) => {
     const focusKey = artifact.handle ?? artifact.id;
@@ -754,7 +805,7 @@ export function ShortDramaCenterPanel({
 
   if (state.status === 'empty') {
     return (
-      <section className="short-drama-center" aria-label={t('shortDrama.ariaLabel')} data-testid="short-drama-center">
+      <section ref={panelRootRef} className="short-drama-center" aria-label={t('shortDrama.ariaLabel')} data-testid="short-drama-center">
         <ShortDramaTopBar
           selectedStage={selectedStage}
           onStageSelect={setSelectedStage}
@@ -871,7 +922,7 @@ export function ShortDramaCenterPanel({
       }));
 
   return (
-    <section className="short-drama-center" aria-label={t('shortDrama.ariaLabel')} data-testid="short-drama-center">
+    <section ref={panelRootRef} className="short-drama-center" aria-label={t('shortDrama.ariaLabel')} data-testid="short-drama-center">
       <ShortDramaTopBar
         selectedStage={selectedStage}
         onStageSelect={handleStageSelect}

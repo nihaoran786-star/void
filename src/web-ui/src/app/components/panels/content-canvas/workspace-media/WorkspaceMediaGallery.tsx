@@ -40,6 +40,7 @@ type MediaPreviewState =
 
 export interface WorkspaceMediaGalleryProps {
   workspacePath?: string;
+  isActive?: boolean;
   service?: WorkspaceMediaLibraryService;
   imagePreviewResolver?: WorkspaceMediaImagePreviewResolver;
   mediaPreviewResolver?: WorkspaceMediaPreviewResolver;
@@ -453,6 +454,7 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
 
 export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   workspacePath,
+  isActive = true,
   service = workspaceMediaLibraryService,
   imagePreviewResolver = resolveWorkspaceMediaImagePreviewUrl,
   mediaPreviewResolver,
@@ -469,8 +471,11 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   const [failedTileIds, setFailedTileIds] = React.useState<Set<string>>(() => new Set());
   const [loadedImageAspectRatios, setLoadedImageAspectRatios] = React.useState<Record<string, string>>({});
   const [mediaPreviewStates, setMediaPreviewStates] = React.useState<Record<string, MediaPreviewState>>({});
+  const rootRef = React.useRef<HTMLElement | null>(null);
   const isMountedRef = React.useRef(false);
-  const isScanningRef = React.useRef(false);
+  const isActiveRef = React.useRef(isActive);
+  const activityEpochRef = React.useRef(0);
+  const scanningEpochRef = React.useRef<number | undefined>(undefined);
   const refreshToken = useWorkspaceMediaRefreshStore(state => state.token);
   const latestRefreshSignal = useWorkspaceMediaRefreshStore(state => state.lastSignal);
 
@@ -478,55 +483,106 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      isActiveRef.current = false;
+      activityEpochRef.current += 1;
     };
   }, []);
 
+  React.useEffect(() => {
+    isActiveRef.current = isActive;
+    activityEpochRef.current += 1;
+    setMediaPreviewStates((current) => {
+      const entries = Object.entries(current);
+      if (!entries.some(([, previewState]) => previewState.status === 'loading')) {
+        return current;
+      }
+      return Object.fromEntries(
+        entries.filter(([, previewState]) => previewState.status !== 'loading')
+      );
+    });
+    if (!isActive) {
+      rootRef.current
+        ?.querySelectorAll<HTMLMediaElement>('video, audio')
+        .forEach(media => media.pause());
+    }
+  }, [isActive, workspacePath]);
+
   const scan = React.useCallback(async (showScanning = true) => {
-    if (isScanningRef.current) {
+    if (!isActiveRef.current) {
       return;
     }
-    isScanningRef.current = true;
+    const requestEpoch = activityEpochRef.current;
+    if (scanningEpochRef.current === requestEpoch) {
+      return;
+    }
+    scanningEpochRef.current = requestEpoch;
     if (showScanning) {
       setState({ status: 'scanning' });
     }
     try {
       const nextState = await service.scanLibrary(workspacePath);
-      if (isMountedRef.current) {
+      if (
+        isMountedRef.current
+        && isActiveRef.current
+        && activityEpochRef.current === requestEpoch
+      ) {
         setState(nextState);
       }
     } finally {
-      isScanningRef.current = false;
+      if (scanningEpochRef.current === requestEpoch) {
+        scanningEpochRef.current = undefined;
+      }
     }
   }, [service, workspacePath]);
 
-  const refreshTrash = React.useCallback(async () => {
-    if (!service.listTrash) {
-      setTrashState({ status: 'ready', items: [], checkedAt: Date.now() });
+  React.useEffect(() => {
+    if (!service.purgeExpiredTrash) {
       return;
     }
-    if (service.purgeExpiredTrash) {
-      await service.purgeExpiredTrash(workspacePath);
+    void service.purgeExpiredTrash(workspacePath).catch(() => undefined);
+  }, [service, workspacePath]);
+
+  const refreshTrash = React.useCallback(async () => {
+    if (!isActiveRef.current) {
+      return;
+    }
+    const requestEpoch = activityEpochRef.current;
+    if (!service.listTrash) {
+      if (isMountedRef.current && isActiveRef.current && activityEpochRef.current === requestEpoch) {
+        setTrashState({ status: 'ready', items: [], checkedAt: Date.now() });
+      }
+      return;
     }
     const nextTrashState = await service.listTrash(workspacePath);
-    if (isMountedRef.current) {
+    if (
+      isMountedRef.current
+      && isActiveRef.current
+      && activityEpochRef.current === requestEpoch
+    ) {
       setTrashState(nextTrashState);
     }
   }, [service, workspacePath]);
 
   React.useEffect(() => {
-    void scan();
+    if (!isActive) {
+      return;
+    }
+    void scan(false);
     void refreshTrash();
-  }, [refreshTrash, scan]);
+  }, [isActive, refreshTrash, scan]);
 
   React.useEffect(() => {
+    if (!isActive) {
+      return;
+    }
     const intervalId = window.setInterval(() => {
       void scan(false);
     }, WORKSPACE_MEDIA_GALLERY_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
-  }, [scan]);
+  }, [isActive, scan]);
 
   React.useEffect(() => {
-    if (refreshToken <= 0) {
+    if (!isActive || refreshToken <= 0) {
       return;
     }
     const mismatch = getWorkspaceMediaPathMismatch(workspacePath);
@@ -550,7 +606,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
       }
       retryTimeoutIds.clear();
     };
-  }, [latestRefreshSignal?.token, refreshToken, scan, workspacePath]);
+  }, [isActive, latestRefreshSignal?.token, refreshToken, scan, workspacePath]);
 
   const pendingGenerations = React.useMemo(() => (
     mergeWorkspaceMediaPendingGenerationsForWorkspace(
@@ -588,6 +644,9 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   }, [mediaPreviewResolver]);
 
   React.useEffect(() => {
+    if (!isActive) {
+      return;
+    }
     const loadingCount = Object.values(mediaPreviewStates)
       .filter(state => state.status === 'loading')
       .length;
@@ -612,6 +671,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     });
 
     for (const tile of tilesToLoad) {
+      const requestEpoch = activityEpochRef.current;
       const cacheKey = mediaPreviewCacheKey(tile);
       const resolver = tile.kind === 'image' ? imagePreviewResolver : effectiveMediaPreviewResolver;
       void resolver({
@@ -621,7 +681,11 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
         modifiedAt: tile.modifiedAt,
       })
         .then((resolvedUrl) => {
-          if (!isMountedRef.current) {
+          if (
+            !isMountedRef.current
+            || !isActiveRef.current
+            || activityEpochRef.current !== requestEpoch
+          ) {
             return;
           }
           setMediaPreviewStates((current) => ({
@@ -640,7 +704,11 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
           }
         })
         .catch(() => {
-          if (!isMountedRef.current) {
+          if (
+            !isMountedRef.current
+            || !isActiveRef.current
+            || activityEpochRef.current !== requestEpoch
+          ) {
             return;
           }
           setMediaPreviewStates((current) => ({
@@ -649,7 +717,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
           }));
         });
     }
-  }, [effectiveMediaPreviewResolver, imagePreviewResolver, mediaPreviewStates, tileModels]);
+  }, [effectiveMediaPreviewResolver, imagePreviewResolver, isActive, mediaPreviewStates, tileModels]);
 
   const deletedItems = React.useMemo(
     () => trashState.status === 'ready' ? trashState.items : [],
@@ -679,7 +747,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   }, [deletedItems, filter, query, sort]);
 
   React.useEffect(() => {
-    if (view !== 'deleted') {
+    if (!isActive || view !== 'deleted') {
       return;
     }
     const loadingCount = Object.values(mediaPreviewStates)
@@ -706,6 +774,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
     });
 
     for (const item of itemsToLoad) {
+      const requestEpoch = activityEpochRef.current;
       const cacheKey = trashPreviewCacheKey(item);
       const resolver = item.kind === 'image' ? imagePreviewResolver : effectiveMediaPreviewResolver;
       void resolver({
@@ -715,7 +784,11 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
         modifiedAt: item.deletedAt,
       })
         .then((resolvedUrl) => {
-          if (!isMountedRef.current) {
+          if (
+            !isMountedRef.current
+            || !isActiveRef.current
+            || activityEpochRef.current !== requestEpoch
+          ) {
             return;
           }
           setMediaPreviewStates((current) => ({
@@ -724,7 +797,11 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
           }));
         })
         .catch(() => {
-          if (!isMountedRef.current) {
+          if (
+            !isMountedRef.current
+            || !isActiveRef.current
+            || activityEpochRef.current !== requestEpoch
+          ) {
             return;
           }
           setMediaPreviewStates((current) => ({
@@ -733,7 +810,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
           }));
         });
     }
-  }, [effectiveMediaPreviewResolver, filteredDeletedItems, imagePreviewResolver, mediaPreviewStates, view]);
+  }, [effectiveMediaPreviewResolver, filteredDeletedItems, imagePreviewResolver, isActive, mediaPreviewStates, view]);
 
   const counts = React.useMemo(() => {
     if (view === 'deleted') {
@@ -978,7 +1055,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   }, []);
 
   return (
-    <section className="workspace-media-gallery" aria-label={t('workspaceMedia.ariaLabel')}>
+    <section ref={rootRef} className="workspace-media-gallery" aria-label={t('workspaceMedia.ariaLabel')}>
       <div className="workspace-media-gallery__toolbar">
         <div className="workspace-media-gallery__search-row">
           <label className="workspace-media-gallery__search">
