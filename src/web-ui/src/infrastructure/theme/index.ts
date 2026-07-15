@@ -11,9 +11,6 @@ export * from './presets';
 // Core service
 export { ThemeService, themeService } from './core/ThemeService';
 
-// Integrations
-export { monacoThemeSync } from './integrations/MonacoThemeSync';
-
 // State
 export { useThemeStore } from './store/themeStore';
 

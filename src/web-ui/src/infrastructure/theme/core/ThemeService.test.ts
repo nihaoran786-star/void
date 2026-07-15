@@ -14,12 +14,6 @@ vi.mock('@/infrastructure/api', () => ({
   },
 }));
 
-vi.mock('../integrations/MonacoThemeSync', () => ({
-  monacoThemeSync: {
-    syncTheme: vi.fn(),
-  },
-}));
-
 vi.mock('@/shared/utils/logger', () => ({
   createLogger: () => ({
     debug: vi.fn(),

@@ -13,6 +13,7 @@ import type * as Monaco from 'monaco-editor';
 import { registerMermaidLanguage } from '../languages/mermaid.language';
 import { registerTomlLanguage } from '../languages/toml.language';
 import { themeManager } from './ThemeManager';
+import { configureMonacoRuntime } from './MonacoRuntimeBootstrap';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('MonacoInitManager');
@@ -51,11 +52,12 @@ class MonacoInitManager {
   private async doInitialize(): Promise<typeof Monaco> {
     try {
       log.info('Initializing Monaco Editor');
-      
+
+      configureMonacoRuntime();
       const monaco = await loader.init();
       
       this.configureTypeScriptLanguage(monaco);
-      themeManager.initialize();
+      await themeManager.initialize();
       this.registerCustomLanguages(monaco);
       this.registerEditorOpener(monaco);
       this.overrideEditorService(monaco);

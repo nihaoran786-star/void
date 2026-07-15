@@ -23,6 +23,7 @@ class ThemeManager {
   private currentThemeId: string = VoidDarkThemeMetadata.id;
   private listeners: ThemeChangeListener[] = [];
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
   
   private constructor() {}
   
@@ -36,15 +37,23 @@ class ThemeManager {
   /**
    * Initialize theme system (idempotent).
    */
-  public initialize(): void {
+  public async initialize(): Promise<void> {
     if (this.initialized) {
       return;
     }
-    
-    this.registerTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
-    this.syncWithThemeService();
-    
-    this.initialized = true;
+
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        this.registerTheme(VoidDarkThemeMetadata.id, VoidDarkTheme);
+        await this.syncWithThemeService();
+        this.initialized = true;
+      })().catch((error) => {
+        this.initPromise = null;
+        throw error;
+      });
+    }
+
+    await this.initPromise;
   }
   
   /**
@@ -134,7 +143,8 @@ class ThemeManager {
   
   private async syncWithThemeService(): Promise<void> {
     try {
-      const { themeService } = await import('@/infrastructure/theme');
+      const { themeService } = await import('@/infrastructure/theme/core/ThemeService');
+      const { monacoThemeSync } = await import('@/infrastructure/theme/integrations/MonacoThemeSync');
       const currentTheme = themeService.getCurrentTheme();
       
       if (currentTheme) {
@@ -142,18 +152,14 @@ class ThemeManager {
           ? currentTheme.id 
           : (currentTheme.type === 'dark' ? this.getDefaultThemeId() : 'vs');
         
-        this.currentThemeId = themeId;
-        const { monacoThemeSync } = await import('@/infrastructure/theme/integrations/MonacoThemeSync');
         monacoThemeSync.syncTheme(currentTheme);
+        this.currentThemeId = monacoThemeSync.getTargetMonacoThemeId(currentTheme) ?? themeId;
       }
       
       themeService.on('theme:after-change', (event) => {
         if (event.theme) {
-          const newThemeId = event.theme.monaco 
-            ? event.theme.id 
-            : (event.theme.type === 'dark' ? this.getDefaultThemeId() : 'vs');
-          
-          this.setTheme(newThemeId);
+          monacoThemeSync.syncTheme(event.theme);
+          this.currentThemeId = monacoThemeSync.getTargetMonacoThemeId(event.theme);
         }
       });
       

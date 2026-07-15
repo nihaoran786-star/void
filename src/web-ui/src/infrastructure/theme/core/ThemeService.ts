@@ -15,7 +15,6 @@ import {
 } from '../types';
 import { builtinThemes, getSystemPreferredDefaultThemeId } from '../presets';
 import { configAPI } from '@/infrastructure/api';
-import { monacoThemeSync } from '../integrations/MonacoThemeSync';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('ThemeService');
@@ -319,12 +318,6 @@ export class ThemeService {
       this.resolvedThemeId = resolvedId;
 
       this.injectCSSVariables(theme);
-
-      try {
-        monacoThemeSync.syncTheme(theme);
-      } catch (error) {
-        log.warn('Monaco Editor theme sync failed', error);
-      }
 
       if (this.hooks.afterChange) {
         await this.hooks.afterChange(theme, oldTheme);

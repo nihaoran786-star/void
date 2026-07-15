@@ -6,17 +6,11 @@ import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
 import "./app/styles/index.scss";
 
-// Manually import Monaco Editor CSS.
-// This ensures the CSS loads correctly in Tauri production.
-import 'monaco-editor/min/vs/editor/editor.main.css';
-
 // Font: Noto Sans SC is loaded via a <link> tag in index.html.
 // File path: public/fonts/fonts.css, served as /fonts/fonts.css.
 
 import { initializeAllTools } from "./tools/initializeTools";
 import { initContextMenuSystem } from "./shared/context-menu-system";
-import { loader } from '@monaco-editor/react';
-import { getMonacoPath, getMonacoWorkerPath, logMonacoResourceCheck } from './tools/editor/utils/monacoPathHelper';
 import { bootstrapLogger, createLogger, initLogger } from './shared/utils/logger';
 import { elapsedMs, logElapsed, measureAsyncAndLog, nowMs } from './shared/utils/timing';
 import { startupTrace } from './shared/utils/startupTrace';
@@ -179,53 +173,6 @@ document.addEventListener(
   true
 );
 
-// Configure Monaco Editor loader - use local files (offline-ready).
-const isDev = import.meta.env.DEV;
-const monacoPath = getMonacoPath();
-
-loader.config({
-  paths: {
-    vs: monacoPath
-  }
-});
-
-// Debug: check resource availability in production.
-if (!isDev) {
-  // Delay checks to avoid blocking startup.
-  setTimeout(() => {
-    logMonacoResourceCheck().catch(err => {
-      log.error('Monaco resource check failed', err);
-    });
-  }, 2000);
-}
-
-// Optimization: Monaco Editor worker mapping.
-const MONACO_WORKER_MAP: Record<string, string> = {
-  json: 'language/json/jsonWorker.js',
-  css: 'language/css/cssWorker.js',
-  scss: 'language/css/cssWorker.js',
-  less: 'language/css/cssWorker.js',
-  html: 'language/html/htmlWorker.js',
-  handlebars: 'language/html/htmlWorker.js',
-  razor: 'language/html/htmlWorker.js',
-  typescript: 'language/typescript/tsWorker.js',
-  javascript: 'language/typescript/tsWorker.js',
-};
-
-const DEFAULT_WORKER = 'base/worker/workerMain.js';
-
-(window as any).MonacoEnvironment = {
-  getWorker(_workerId: string, label: string) {
-    const workerFile = MONACO_WORKER_MAP[label] || DEFAULT_WORKER;
-    const workerPath = getMonacoWorkerPath(workerFile);
-    
-    return new Worker(workerPath, {
-      type: 'classic',
-      name: `monaco-${label}-worker`
-    });
-  }
-};
-
 /** Logger, theme, and minimal deps — must finish before first React paint (F5 / webview reload does not re-run Tauri init script). */
 async function initializeBeforeRender(): Promise<void> {
   const phaseStartedAt = nowMs();
@@ -241,7 +188,6 @@ async function initializeBeforeRender(): Promise<void> {
     data: { step: 'initializeFrontendLogLevelSync' },
   });
 
-  log.debug('Monaco loader configured', { vs: monacoPath, isDev });
   log.info('Initializing void');
 
   await measureAsyncAndLog(log, 'Startup step completed', async () => {
