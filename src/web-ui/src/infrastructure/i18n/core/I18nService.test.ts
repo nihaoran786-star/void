@@ -1,12 +1,63 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { I18nService } from './I18nService';
 import { DEFAULT_LOCALE, WEB_UI_BOOTSTRAP_NAMESPACES } from '../presets';
+import { i18nAPI } from '@/infrastructure/api/service-api/I18nAPI';
+
+const BOOTSTRAP_JSON_NAMESPACES = WEB_UI_BOOTSTRAP_NAMESPACES.filter(
+  (namespace) => namespace !== 'shared',
+);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 describe('I18nService shared namespace contract', () => {
-  it('keeps bootstrap translations available synchronously after construction', () => {
+  it('keeps default-locale bootstrap translations available synchronously after construction', () => {
     const service = new I18nService();
+    const i18n = service.getI18nInstance();
 
+    expect(service.getCurrentLocale()).toBe(DEFAULT_LOCALE);
+    for (const namespace of WEB_UI_BOOTSTRAP_NAMESPACES) {
+      expect(i18n.hasResourceBundle(DEFAULT_LOCALE, namespace)).toBe(true);
+    }
+
+    expect(service.t('common:actions.copy')).not.toBe('common:actions.copy');
+  });
+
+  it('keeps the en-US fallback bootstrap translations available synchronously', () => {
+    const service = new I18nService();
+    const i18n = service.getI18nInstance();
+
+    for (const namespace of WEB_UI_BOOTSTRAP_NAMESPACES) {
+      expect(i18n.hasResourceBundle('en-US', namespace)).toBe(true);
+    }
+
+    i18n.addResource('en-US', 'common', 'englishFallbackProbe', 'english fallback');
+    expect(service.t('common:englishFallbackProbe')).toBe('english fallback');
+  });
+
+  it('loads zh-TW bootstrap JSON only when switching to zh-TW', async () => {
+    const service = new I18nService();
+    const i18n = service.getI18nInstance();
+    vi.stubGlobal('document', {
+      documentElement: {
+        setAttribute: vi.fn(),
+      },
+    });
+    vi.spyOn(i18nAPI, 'setLanguage').mockResolvedValue('ok');
+
+    for (const namespace of BOOTSTRAP_JSON_NAMESPACES) {
+      expect(i18n.hasResourceBundle('zh-TW', namespace)).toBe(false);
+    }
+
+    await service.changeLanguage('zh-TW');
+
+    expect(service.getCurrentLocale()).toBe('zh-TW');
+    for (const namespace of BOOTSTRAP_JSON_NAMESPACES) {
+      expect(i18n.hasResourceBundle('zh-TW', namespace)).toBe(true);
+    }
     expect(service.t('common:actions.copy')).not.toBe('common:actions.copy');
   });
 

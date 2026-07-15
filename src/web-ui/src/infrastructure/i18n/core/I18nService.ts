@@ -35,22 +35,51 @@ import { logDuration, measureSync, nowMs, elapsedMs } from '@/shared/utils/timin
 
 const log = createLogger('I18nService');
 
-const lazyLocaleModules = import.meta.glob('../../../locales/**/*.json', {
+const lazyLocaleModules = import.meta.glob([
+  '../../../locales/**/*.json',
+  '!../../../locales/zh-CN/common.json',
+  '!../../../locales/zh-CN/components.json',
+  '!../../../locales/zh-CN/errors.json',
+  '!../../../locales/zh-CN/flow-chat.json',
+  '!../../../locales/zh-CN/panels/files.json',
+  '!../../../locales/zh-CN/panels/git.json',
+  '!../../../locales/zh-CN/settings/ai-model.json',
+  '!../../../locales/zh-CN/settings/lsp.json',
+  '!../../../locales/zh-CN/tools.json',
+  '!../../../locales/en-US/common.json',
+  '!../../../locales/en-US/components.json',
+  '!../../../locales/en-US/errors.json',
+  '!../../../locales/en-US/flow-chat.json',
+  '!../../../locales/en-US/panels/files.json',
+  '!../../../locales/en-US/panels/git.json',
+  '!../../../locales/en-US/settings/ai-model.json',
+  '!../../../locales/en-US/settings/lsp.json',
+  '!../../../locales/en-US/tools.json',
+], {
   import: 'default',
 }) as Record<string, () => Promise<Record<string, unknown>>>;
 
 // Keep the bootstrap set explicit because these namespaces are used by
 // synchronous i18nService.t(...) call sites during module initialization.
 const bootstrapLocaleModules = import.meta.glob([
-  '../../../locales/*/common.json',
-  '../../../locales/*/components.json',
-  '../../../locales/*/errors.json',
-  '../../../locales/*/flow-chat.json',
-  '../../../locales/*/panels/files.json',
-  '../../../locales/*/panels/git.json',
-  '../../../locales/*/settings/ai-model.json',
-  '../../../locales/*/settings/lsp.json',
-  '../../../locales/*/tools.json',
+  '../../../locales/zh-CN/common.json',
+  '../../../locales/zh-CN/components.json',
+  '../../../locales/zh-CN/errors.json',
+  '../../../locales/zh-CN/flow-chat.json',
+  '../../../locales/zh-CN/panels/files.json',
+  '../../../locales/zh-CN/panels/git.json',
+  '../../../locales/zh-CN/settings/ai-model.json',
+  '../../../locales/zh-CN/settings/lsp.json',
+  '../../../locales/zh-CN/tools.json',
+  '../../../locales/en-US/common.json',
+  '../../../locales/en-US/components.json',
+  '../../../locales/en-US/errors.json',
+  '../../../locales/en-US/flow-chat.json',
+  '../../../locales/en-US/panels/files.json',
+  '../../../locales/en-US/panels/git.json',
+  '../../../locales/en-US/settings/ai-model.json',
+  '../../../locales/en-US/settings/lsp.json',
+  '../../../locales/en-US/tools.json',
 ], {
   eager: true,
   import: 'default',

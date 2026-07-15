@@ -4,8 +4,8 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2596598,
-		"referenceGzipBytes": 767850,
+		"maxRawBytes": 2399468,
+		"referenceGzipBytes": 698817,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]
@@ -46,6 +46,15 @@
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 		"src/app/scenes/settings/SettingsScene.tsx",
+		"src/locales/zh-TW/common.json",
+		"src/locales/zh-TW/components.json",
+		"src/locales/zh-TW/errors.json",
+		"src/locales/zh-TW/flow-chat.json",
+		"src/locales/zh-TW/panels/files.json",
+		"src/locales/zh-TW/panels/git.json",
+		"src/locales/zh-TW/settings/ai-model.json",
+		"src/locales/zh-TW/settings/lsp.json",
+		"src/locales/zh-TW/tools.json",
 		"src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.tsx",
 		"src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.tsx",
 		"src/component-library/components/CodeEditor/CodeEditor.tsx",

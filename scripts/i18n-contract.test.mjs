@@ -56,6 +56,34 @@ function extractStringArrayConstant(source, exportName) {
   return [...body.slice(0, end).matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
 }
 
+function extractImportMetaGlobPatterns(source, constantName) {
+  const marker = `const ${constantName} = import.meta.glob(`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `missing ${constantName} import.meta.glob`);
+
+  const argumentStart = start + marker.length;
+  const remaining = source.slice(argumentStart);
+  const leadingWhitespace = remaining.match(/^\s*/)?.[0].length ?? 0;
+  const literalStart = argumentStart + leadingWhitespace;
+
+  if (source[literalStart] === "'") {
+    const literalEnd = source.indexOf("'", literalStart + 1);
+    assert.notEqual(literalEnd, -1, `${constantName} has an unterminated glob literal`);
+    return [source.slice(literalStart + 1, literalEnd)];
+  }
+
+  assert.equal(source[literalStart], '[', `${constantName} glob patterns must be string literals or a string array`);
+  const literalEnd = source.indexOf(']', literalStart + 1);
+  assert.notEqual(literalEnd, -1, `${constantName} has an unterminated glob pattern array`);
+
+  const body = source.slice(literalStart + 1, literalEnd);
+  const patterns = [...body.matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
+  const nonLiteralSource = body.replace(/'[^']+'/g, '').replace(/[\s,]/g, '');
+  assert.equal(nonLiteralSource, '', `${constantName} glob patterns must remain literal strings`);
+  assert.ok(patterns.length > 0, `${constantName} must contain at least one glob pattern`);
+  return patterns;
+}
+
 test('i18n contract generated files are in sync with the canonical contract', () => {
   assert.ok(fs.existsSync(contractPath), 'missing shared i18n locale contract');
 
@@ -154,17 +182,67 @@ test('frontend runtimes use generated locale defaults and fallback chains', () =
   assert.match(installerI18nSource, /getInstallerUiFallbackChain/, 'installer i18next should use the generated locale fallback chain');
 });
 
-test('web-ui runtime keeps locale namespaces lazy outside its bootstrap set', () => {
+test('web-ui runtime glob contract keeps only default and fallback bootstrap JSON eager', () => {
   const webI18nSource = readText('src/web-ui/src/infrastructure/i18n/core/I18nService.ts');
+  const registrySource = readText('src/web-ui/src/infrastructure/i18n/presets/namespaceRegistry.ts');
+  const contract = readJson('src/shared/i18n/contract/locales.json');
+  const performanceBudget = readJson('scripts/web-performance-budget.json');
+  const bootstrapJsonNamespaces = extractStringArrayConstant(registrySource, 'WEB_UI_BOOTSTRAP_NAMESPACES')
+    .filter((namespace) => namespace !== 'shared');
+  const eagerLocaleIds = [contract.surfaceDefaults['web-ui'], contract.fallbackLocale];
+  const dynamicBootstrapLocaleIds = contract.surfaceOrders['web-ui']
+    .filter((localeId) => !eagerLocaleIds.includes(localeId));
+  const expectedEagerPatterns = eagerLocaleIds.flatMap((localeId) =>
+    bootstrapJsonNamespaces.map((namespace) => `../../../locales/${localeId}/${namespace}.json`));
+  const expectedDynamicBootstrapPatterns = dynamicBootstrapLocaleIds.flatMap((localeId) =>
+    bootstrapJsonNamespaces.map((namespace) => `../../../locales/${localeId}/${namespace}.json`));
+  const expectedDynamicManifestEntries = dynamicBootstrapLocaleIds.flatMap((localeId) =>
+    bootstrapJsonNamespaces.map((namespace) => `src/locales/${localeId}/${namespace}.json`));
+  const eagerPatterns = extractImportMetaGlobPatterns(webI18nSource, 'bootstrapLocaleModules');
+  const lazyPatterns = extractImportMetaGlobPatterns(webI18nSource, 'lazyLocaleModules');
+  const lazyPositivePatterns = lazyPatterns.filter((pattern) => !pattern.startsWith('!'));
+  const lazyNegativePatterns = lazyPatterns
+    .filter((pattern) => pattern.startsWith('!'))
+    .map((pattern) => pattern.slice(1));
 
   assert.match(webI18nSource, /WEB_UI_BOOTSTRAP_NAMESPACES/, 'Web UI should declare the small eager namespace set');
-  assert.match(webI18nSource, /import\.meta\.glob\('\.\.\/\.\.\/\.\.\/locales\/\*\*\/\*\.json'/, 'Web UI should keep a lazy namespace glob for non-bootstrap resources');
+  assert.equal(bootstrapJsonNamespaces.length, 9, 'Web UI should keep exactly nine JSON bootstrap namespaces');
+  assert.deepEqual(eagerLocaleIds, ['zh-CN', 'en-US'], 'only the default and global fallback locales should be eager');
+  assert.deepEqual(dynamicBootstrapLocaleIds, ['zh-TW'], 'zh-TW bootstrap JSON should remain dynamic');
+  assert.deepEqual(
+    [...eagerPatterns].sort(),
+    [...expectedEagerPatterns].sort(),
+    'the eager glob positive set must equal zh-CN/en-US bootstrap JSON exactly',
+  );
+  assert.deepEqual(
+    lazyPositivePatterns,
+    ['../../../locales/**/*.json'],
+    'the lazy glob should positively include the complete locale JSON tree',
+  );
+  assert.deepEqual(
+    [...lazyNegativePatterns].sort(),
+    [...expectedEagerPatterns].sort(),
+    'the lazy glob negative set must exclude every eager module exactly once',
+  );
+  for (const dynamicPattern of expectedDynamicBootstrapPatterns) {
+    assert.ok(!lazyNegativePatterns.includes(dynamicPattern), `${dynamicPattern} must remain dynamically importable`);
+  }
+  assert.deepEqual(
+    performanceBudget.requiredDynamicEntries
+      .filter((entry) => entry.startsWith('src/locales/'))
+      .sort(),
+    expectedDynamicManifestEntries.sort(),
+    'the performance manifest gate should require all nine zh-TW bootstrap JSON entries',
+  );
+
   const lazyGlobBlock = webI18nSource.match(/const lazyLocaleModules = import\.meta\.glob\([\s\S]*?\) as/)?.[0] ?? '';
+  const eagerGlobBlock = webI18nSource.match(/const bootstrapLocaleModules = import\.meta\.glob\([\s\S]*?\) as/)?.[0] ?? '';
   assert.doesNotMatch(
     lazyGlobBlock,
     /eager:\s*true/,
     'Web UI must not eagerly import every locale namespace',
   );
+  assert.match(eagerGlobBlock, /eager:\s*true/, 'bootstrap locale modules must remain eager');
 });
 
 test('web-ui synchronous i18nService.t namespaces stay in the bootstrap set', () => {
