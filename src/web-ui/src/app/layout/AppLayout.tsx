@@ -44,7 +44,6 @@ import {
   openCompactChatFloatingWindow,
   closeCompactChatFloatingWindow,
 } from '@/infrastructure/config/services/CompactChatWindowService';
-import { emitCompactChatPresentation } from '@/flow_chat/services/CompactChatPresentationBridge';
 import { MediaPreviewOverlay } from '@/shared/services/preview/MediaPreviewOverlay';
 import { setPreviewFirstLayout } from './previewFirstController';
 import './AppLayout.scss';
@@ -538,11 +537,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     void setPreviewFirstLayout(enabled, {
       isSupported: isTauriRuntime,
       updateLayout: (layout) => appManager.updateLayout(layout),
-      openFloatingChat: async () => {
-        await openCompactChatFloatingWindow();
-        await emitCompactChatPresentation();
+      openFloatingChat: openCompactChatFloatingWindow,
+      closeFloatingChat: async () => {
+        try {
+          const { suspendCompactChatPresentationPublishing } = await import(
+            '@/flow_chat/services/CompactChatPresentationPublisher'
+          );
+          suspendCompactChatPresentationPublishing();
+        } finally {
+          await closeCompactChatFloatingWindow();
+        }
       },
-      closeFloatingChat: closeCompactChatFloatingWindow,
     });
   }, []);
 

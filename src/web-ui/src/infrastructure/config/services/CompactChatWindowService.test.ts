@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   closeCompactChatFloatingWindow,
   getCompactChatFloatingWindowStatus,
+  listenCompactChatFloatingWindowActivity,
+  listenCompactChatFloatingWindowCloseRequest,
   minimizeCompactChatFloatingWindow,
   openCompactChatFloatingWindow,
   revealCompactChatFloatingWindow,
@@ -104,6 +106,79 @@ describe('CompactChatWindowService', () => {
 
     expect(minimize).toHaveBeenCalledTimes(1);
     expect(tauriCore.invoke).not.toHaveBeenCalled();
+  });
+
+  it('reports focus restoration and only treats an actual minimize as suspension', async () => {
+    let focusHandler: ((event: { payload: boolean }) => void) | undefined;
+    const unlisten = vi.fn();
+    const isMinimized = vi.fn().mockResolvedValue(true);
+    tauriWindow.getCurrentWindow.mockReturnValue({
+      isMinimized,
+      onFocusChanged: vi.fn((handler) => {
+        focusHandler = handler;
+        return Promise.resolve(unlisten);
+      }),
+    });
+    const activityHandler = vi.fn();
+
+    const remove = await listenCompactChatFloatingWindowActivity(activityHandler);
+    focusHandler?.({ payload: true });
+    focusHandler?.({ payload: false });
+    await vi.waitFor(() => expect(activityHandler).toHaveBeenLastCalledWith('minimized'));
+
+    expect(activityHandler).toHaveBeenNthCalledWith(1, 'focused');
+    expect(isMinimized).toHaveBeenCalledTimes(1);
+    remove();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a stale minimized check after the window regains focus', async () => {
+    let focusHandler: ((event: { payload: boolean }) => void) | undefined;
+    let resolveMinimized!: (value: boolean) => void;
+    const minimized = new Promise<boolean>(resolve => {
+      resolveMinimized = resolve;
+    });
+    tauriWindow.getCurrentWindow.mockReturnValue({
+      isMinimized: vi.fn(() => minimized),
+      onFocusChanged: vi.fn((handler) => {
+        focusHandler = handler;
+        return Promise.resolve(vi.fn());
+      }),
+    });
+    const activityHandler = vi.fn();
+
+    await listenCompactChatFloatingWindowActivity(activityHandler);
+    focusHandler?.({ payload: false });
+    focusHandler?.({ payload: true });
+    resolveMinimized(true);
+    await Promise.resolve();
+
+    expect(activityHandler).toHaveBeenCalledTimes(1);
+    expect(activityHandler).toHaveBeenCalledWith('focused');
+  });
+
+  it('intercepts native close requests and delegates suspension-safe closing', async () => {
+    let closeHandler: ((event: { preventDefault: () => void }) => void) | undefined;
+    const unlisten = vi.fn();
+    tauriWindow.getCurrentWindow.mockReturnValue({
+      onCloseRequested: vi.fn((handler) => {
+        closeHandler = handler;
+        return Promise.resolve(unlisten);
+      }),
+    });
+    const handler = vi.fn().mockResolvedValue(undefined);
+    const preventDefault = vi.fn();
+
+    const remove = await listenCompactChatFloatingWindowCloseRequest(handler);
+    closeHandler?.({ preventDefault });
+    await vi.waitFor(() => expect(handler).toHaveBeenCalledTimes(1));
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    remove();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+
+    closeHandler?.({ preventDefault });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it('starts native resize dragging for a specific borderless window edge', async () => {

@@ -13,11 +13,14 @@ const bridgeMock = vi.hoisted(() => ({
   requestCompactChatCancelTask: vi.fn(),
   requestCompactChatClose: vi.fn(),
   requestCompactChatPresentation: vi.fn(),
+  requestCompactChatPresentationSuspension: vi.fn(),
   sendCompactChatMessage: vi.fn(),
 }));
 
 const windowServiceMock = vi.hoisted(() => ({
   closeCompactChatFloatingWindow: vi.fn(),
+  listenCompactChatFloatingWindowActivity: vi.fn(),
+  listenCompactChatFloatingWindowCloseRequest: vi.fn(),
   minimizeCompactChatFloatingWindow: vi.fn(),
   revealCompactChatFloatingWindow: vi.fn(),
   resizeCompactChatFloatingWindow: vi.fn(),
@@ -121,6 +124,9 @@ describe('CompactChatDesktopWindow', () => {
       handler(createReadyPresentation());
       return Promise.resolve(() => undefined);
     });
+    bridgeMock.requestCompactChatPresentationSuspension.mockResolvedValue(undefined);
+    windowServiceMock.listenCompactChatFloatingWindowActivity.mockResolvedValue(() => undefined);
+    windowServiceMock.listenCompactChatFloatingWindowCloseRequest.mockResolvedValue(() => undefined);
   });
 
   afterEach(() => {
@@ -132,8 +138,11 @@ describe('CompactChatDesktopWindow', () => {
     bridgeMock.requestCompactChatCancelTask.mockReset();
     bridgeMock.requestCompactChatClose.mockReset();
     bridgeMock.requestCompactChatPresentation.mockReset();
+    bridgeMock.requestCompactChatPresentationSuspension.mockReset();
     bridgeMock.sendCompactChatMessage.mockReset();
     windowServiceMock.closeCompactChatFloatingWindow.mockReset();
+    windowServiceMock.listenCompactChatFloatingWindowActivity.mockReset();
+    windowServiceMock.listenCompactChatFloatingWindowCloseRequest.mockReset();
     windowServiceMock.minimizeCompactChatFloatingWindow.mockReset();
     windowServiceMock.revealCompactChatFloatingWindow.mockReset();
     windowServiceMock.resizeCompactChatFloatingWindow.mockReset();
@@ -169,6 +178,7 @@ describe('CompactChatDesktopWindow', () => {
     expect(container.querySelector('[data-testid="compact-chat-surface"]')).toBeNull();
     expect(container.textContent).not.toContain('compactChat.unavailable.title');
     expect(presentationHandler).toBeTypeOf('function');
+    expect(bridgeMock.requestCompactChatPresentation).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       presentationHandler?.(createReadyPresentation());
@@ -368,13 +378,14 @@ describe('CompactChatDesktopWindow', () => {
     expect(windowServiceMock.closeCompactChatFloatingWindow).not.toHaveBeenCalled();
   });
 
-  it('minimizes from the header button without starting window drag', () => {
-    act(() => {
+  it('suspends presentation before minimizing without starting window drag', async () => {
+    await act(async () => {
       root.render(<CompactChatDesktopWindow />);
+      await Promise.resolve();
     });
 
     const minimizeButton = container.querySelector('[data-testid="compact-chat-minimize"]') as HTMLElement;
-    act(() => {
+    await act(async () => {
       minimizeButton.dispatchEvent(new PointerEvent('pointerdown', {
         bubbles: true,
         button: 0,
@@ -383,10 +394,61 @@ describe('CompactChatDesktopWindow', () => {
         clientY: 10,
       }));
       minimizeButton.click();
+      await Promise.resolve();
     });
 
     expect(windowServiceMock.startCompactChatFloatingWindowDrag).not.toHaveBeenCalled();
+    expect(bridgeMock.requestCompactChatPresentationSuspension).toHaveBeenCalledTimes(1);
     expect(windowServiceMock.minimizeCompactChatFloatingWindow).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.requestCompactChatPresentationSuspension.mock.invocationCallOrder[0])
+      .toBeLessThan(windowServiceMock.minimizeCompactChatFloatingWindow.mock.invocationCallOrder[0]);
+  });
+
+  it('requests current state on focus restore and suspends after native minimize', async () => {
+    let activityHandler: ((activity: 'focused' | 'minimized') => void) | undefined;
+    windowServiceMock.listenCompactChatFloatingWindowActivity.mockImplementation(async handler => {
+      activityHandler = handler;
+      return () => undefined;
+    });
+
+    await act(async () => {
+      root.render(<CompactChatDesktopWindow />);
+      await Promise.resolve();
+    });
+    bridgeMock.requestCompactChatPresentation.mockClear();
+    bridgeMock.requestCompactChatPresentationSuspension.mockClear();
+
+    act(() => {
+      activityHandler?.('focused');
+      activityHandler?.('minimized');
+    });
+
+    expect(bridgeMock.requestCompactChatPresentation).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.requestCompactChatPresentationSuspension).toHaveBeenCalledTimes(1);
+  });
+
+  it('suspends presentation before routing a native close request to the main window', async () => {
+    let closeHandler: (() => Promise<void> | void) | undefined;
+    windowServiceMock.listenCompactChatFloatingWindowCloseRequest.mockImplementation(async handler => {
+      closeHandler = handler;
+      return () => undefined;
+    });
+
+    await act(async () => {
+      root.render(<CompactChatDesktopWindow />);
+      await Promise.resolve();
+    });
+    bridgeMock.requestCompactChatPresentationSuspension.mockClear();
+    bridgeMock.requestCompactChatClose.mockClear();
+
+    await act(async () => {
+      await closeHandler?.();
+    });
+
+    expect(bridgeMock.requestCompactChatPresentationSuspension).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.requestCompactChatClose).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.requestCompactChatPresentationSuspension.mock.invocationCallOrder[0])
+      .toBeLessThan(bridgeMock.requestCompactChatClose.mock.invocationCallOrder[0]);
   });
 
   it('starts native resize dragging from borderless edge handles', () => {

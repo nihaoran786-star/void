@@ -7,6 +7,7 @@ const log = createLogger('CompactChatPresentationBridge');
 const COMPACT_CHAT_MAX_PRESENTATION_TURNS = 12;
 const PRESENTATION_UPDATED_EVENT = 'compact-chat://presentation-updated';
 const REQUEST_PRESENTATION_EVENT = 'compact-chat://request-presentation';
+const SUSPEND_PRESENTATION_EVENT = 'compact-chat://suspend-presentation';
 const SEND_MESSAGE_EVENT = 'compact-chat://send-message';
 const CANCEL_TASK_EVENT = 'compact-chat://cancel-task';
 const CLOSE_REQUEST_EVENT = 'compact-chat://close-request';
@@ -115,11 +116,14 @@ export function buildCompactChatPresentation(): CompactChatPresentation {
   return buildCompactChatPresentationFromSession(activeSession);
 }
 
-export async function emitCompactChatPresentation(): Promise<void> {
+export async function emitCompactChatPresentation(
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
   if (!isTauriRuntime()) return;
 
   try {
     const presentation = await buildCompactChatPresentationAsync();
+    if (!isCurrent()) return;
     const sequencedPresentation = {
       ...presentation,
       sequence: presentationSequence += 1,
@@ -141,6 +145,16 @@ export async function requestCompactChatPresentation(): Promise<void> {
   }
 }
 
+export async function requestCompactChatPresentationSuspension(): Promise<void> {
+  if (!isTauriRuntime()) return;
+
+  try {
+    await emitCompactChatEvent(SUSPEND_PRESENTATION_EVENT, {});
+  } catch (error) {
+    log.warn('Failed to suspend compact chat presentation updates', error);
+  }
+}
+
 export async function listenCompactChatPresentationRequests(
   handler: () => void | Promise<void>,
 ): Promise<() => void> {
@@ -155,6 +169,24 @@ export async function listenCompactChatPresentationRequests(
     });
   } catch (error) {
     log.warn('Failed to listen for compact chat presentation requests', error);
+    return () => undefined;
+  }
+}
+
+export async function listenCompactChatPresentationSuspensionRequests(
+  handler: () => void | Promise<void>,
+): Promise<() => void> {
+  if (!isTauriRuntime()) {
+    return () => undefined;
+  }
+
+  try {
+    const { listen } = await import('@tauri-apps/api/event');
+    return await listen(SUSPEND_PRESENTATION_EVENT, () => {
+      void handler();
+    });
+  } catch (error) {
+    log.warn('Failed to listen for compact chat presentation suspension', error);
     return () => undefined;
   }
 }

@@ -1,7 +1,6 @@
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import AgentCompanionDesktopPet from "./app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet";
-import CompactChatDesktopWindow from "./app/components/CompactChatDesktopWindow/CompactChatDesktopWindow";
 import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
 import "./app/styles/index.scss";
@@ -318,6 +317,9 @@ async function startApplication(): Promise<void> {
   }
 
   if (isCompactChatWindow) {
+    const { default: CompactChatDesktopWindow } = await import(
+      './app/components/CompactChatDesktopWindow/CompactChatDesktopWindow'
+    );
     ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <AppErrorBoundary>
         <I18nProvider>

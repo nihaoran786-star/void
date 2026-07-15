@@ -7,9 +7,11 @@ import {
   listenCompactChatCancelTaskRequests,
   listenCompactChatCloseRequests,
   listenCompactChatPresentationRequests,
+  listenCompactChatPresentationSuspensionRequests,
   requestCompactChatCancelTask,
   requestCompactChatClose,
   requestCompactChatPresentation,
+  requestCompactChatPresentationSuspension,
   sendCompactChatMessage,
   subscribeCompactChatPresentationSources,
 } from './CompactChatPresentationBridge';
@@ -155,6 +157,12 @@ describe('CompactChatPresentationBridge', () => {
     expect(tauriEvent.emitTo).not.toHaveBeenCalled();
   });
 
+  it('allows the compact window to suspend presentation work before minimizing', async () => {
+    await requestCompactChatPresentationSuspension();
+
+    expect(tauriEvent.emit).toHaveBeenCalledWith('compact-chat://suspend-presentation', {});
+  });
+
   it('sends messages by asking the main window to use the active session path', async () => {
     await sendCompactChatMessage('hello', 'session-1');
 
@@ -195,6 +203,34 @@ describe('CompactChatPresentationBridge', () => {
     expect(handler).toHaveBeenCalledTimes(1);
     remove();
     expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it('listens for presentation suspension at the main window boundary', async () => {
+    const unlisten = vi.fn();
+    tauriEvent.listen.mockImplementation((_eventName: string, handler: () => void) => {
+      handler();
+      return Promise.resolve(unlisten);
+    });
+    const handler = vi.fn();
+
+    const remove = await listenCompactChatPresentationSuspensionRequests(handler);
+
+    expect(tauriEvent.listen).toHaveBeenCalledWith('compact-chat://suspend-presentation', expect.any(Function));
+    expect(handler).toHaveBeenCalledTimes(1);
+    remove();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not emit a snapshot invalidated while its async source is resolving', async () => {
+    const active = createSession();
+    flowChatStore.setState(() => ({
+      sessions: new Map([[active.sessionId, active]]),
+      activeSessionId: active.sessionId,
+    }));
+
+    await emitCompactChatPresentation(() => false);
+
+    expect(tauriEvent.emit).not.toHaveBeenCalled();
   });
 
   it('listens for cancel requests at the main window boundary', async () => {

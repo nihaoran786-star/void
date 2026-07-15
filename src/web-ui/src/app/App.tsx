@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { lazy, Suspense, useEffect, useCallback, useState, useRef } from 'react';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { useHasDismissibleLayer } from '@/infrastructure/hooks/useDismissibleLayer';
 import { dismissibleLayerManager } from '@/infrastructure/services/DismissibleLayerManager';
@@ -22,7 +22,6 @@ import { emitAgentCompanionActivity } from '@/flow_chat/services/AgentCompanionA
 import { BackgroundTaskCancelledError } from '@/shared/utils/backgroundTaskScheduler';
 import { useWorkspaceContext } from '../infrastructure/contexts/WorkspaceContext';
 import SplashScreen from './components/SplashScreen/SplashScreen';
-import { CompactChatDesktopBridge } from './components/CompactChatDesktopWindow/CompactChatDesktopBridge';
 import { useGlobalSceneShortcuts } from './hooks/useGlobalSceneShortcuts';
 import { useDebugInspector } from '@/infrastructure/debug/useDebugInspector';
 import { openAgentCompanionSession } from './services/openAgentCompanionSession';
@@ -33,6 +32,9 @@ import { scheduleDeferredStartupSystems } from './startup/deferredStartupSystems
 import { ToolbarModeProvider } from '../flow_chat';
 
 const log = createLogger('App');
+const CompactChatDesktopBridge = lazy(
+  () => import('./components/CompactChatDesktopWindow/CompactChatDesktopBridge'),
+);
 /**
  * void main application component.
  *
@@ -420,7 +422,11 @@ function App() {
       <ViewModeProvider defaultMode="coder">
         <SSHRemoteProvider>
           <ToolbarModeProvider>
-            <CompactChatDesktopBridge />
+            {isTauriRuntime() && (
+              <Suspense fallback={null}>
+                <CompactChatDesktopBridge />
+              </Suspense>
+            )}
 
             {/* Unified app layout with startup/workspace modes */}
             <AppLayout />

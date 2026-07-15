@@ -9,12 +9,15 @@ import {
   requestCompactChatCancelTask,
   requestCompactChatClose,
   requestCompactChatPresentation,
+  requestCompactChatPresentationSuspension,
   sendCompactChatMessage,
   type CompactChatPresentation,
 } from '@/flow_chat/services/CompactChatPresentationBridge';
 import { ModelThinkingDisplay } from '@/flow_chat/tool-cards/ModelThinkingDisplay';
 import type { AnyFlowItem, FlowTextItem, FlowThinkingItem, FlowToolItem } from '@/flow_chat/types/flow-chat';
 import {
+  listenCompactChatFloatingWindowActivity,
+  listenCompactChatFloatingWindowCloseRequest,
   minimizeCompactChatFloatingWindow,
   revealCompactChatFloatingWindow,
   resizeCompactChatFloatingWindow,
@@ -90,6 +93,7 @@ export const CompactChatDesktopWindow: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const shellRef = useRef<HTMLDivElement>(null);
   const lastPresentationSequenceRef = useRef(0);
+  const hasReceivedPresentationRef = useRef(false);
   const { isImeEnter, handleCompositionStart, handleCompositionEnd } = useImeEnterGuard();
 
   useEffect(() => {
@@ -98,6 +102,7 @@ export const CompactChatDesktopWindow: React.FC = () => {
     void resizeCompactChatFloatingWindow(DEFAULT_WINDOW_SIZE);
 
     let removeListener: (() => void) | null = null;
+    let requestRetryTimer: number | null = null;
     let disposed = false;
     void listenCompactChatPresentation(nextPresentation => {
       if (disposed) return;
@@ -108,6 +113,11 @@ export const CompactChatDesktopWindow: React.FC = () => {
         }
         lastPresentationSequenceRef.current = sequence;
       }
+      hasReceivedPresentationRef.current = true;
+      if (requestRetryTimer !== null) {
+        window.clearTimeout(requestRetryTimer);
+        requestRetryTimer = null;
+      }
       setHasReceivedPresentation(true);
       setPresentation(nextPresentation);
     }).then(unlisten => {
@@ -115,15 +125,65 @@ export const CompactChatDesktopWindow: React.FC = () => {
         unlisten();
       } else {
         removeListener = unlisten;
-        void requestCompactChatPresentation();
+        const requestUntilReady = () => {
+          if (disposed || hasReceivedPresentationRef.current) return;
+          void requestCompactChatPresentation();
+          requestRetryTimer = window.setTimeout(requestUntilReady, 500);
+        };
+        requestUntilReady();
       }
     });
 
     return () => {
       disposed = true;
       removeListener?.();
+      if (requestRetryTimer !== null) window.clearTimeout(requestRetryTimer);
       document.documentElement.classList.remove('void-compact-chat-window-root');
       document.body.classList.remove('void-compact-chat-window-body');
+    };
+  }, []);
+
+  useEffect(() => {
+    let removeListener: (() => void) | null = null;
+    let disposed = false;
+    void listenCompactChatFloatingWindowActivity(activity => {
+      if (disposed) return;
+      if (activity === 'focused') {
+        void requestCompactChatPresentation();
+      } else {
+        void requestCompactChatPresentationSuspension();
+      }
+    }).then(unlisten => {
+      if (disposed) {
+        unlisten();
+      } else {
+        removeListener = unlisten;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      removeListener?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let removeListener: (() => void) | null = null;
+    let disposed = false;
+    void listenCompactChatFloatingWindowCloseRequest(async () => {
+      await requestCompactChatPresentationSuspension();
+      await requestCompactChatClose();
+    }).then(unlisten => {
+      if (disposed) {
+        unlisten();
+      } else {
+        removeListener = unlisten;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      removeListener?.();
     };
   }, []);
 
@@ -164,6 +224,11 @@ export const CompactChatDesktopWindow: React.FC = () => {
     if (!activeSessionId) return;
     void requestCompactChatCancelTask(activeSessionId);
   }, [activeSessionId]);
+
+  const handleMinimize = useCallback(async () => {
+    await requestCompactChatPresentationSuspension();
+    await minimizeCompactChatFloatingWindow();
+  }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
@@ -228,7 +293,7 @@ export const CompactChatDesktopWindow: React.FC = () => {
             className="void-compact-chat-window__icon-button"
             data-testid="compact-chat-minimize"
             onPointerDown={(event) => event.stopPropagation()}
-            onClick={() => void minimizeCompactChatFloatingWindow()}
+            onClick={() => void handleMinimize()}
             aria-label={t('compactChat.minimize')}
             title={t('compactChat.minimize')}
           >

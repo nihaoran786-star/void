@@ -23,6 +23,8 @@ export type CompactChatResizeDirection =
   | 'SouthWest'
   | 'West';
 
+export type CompactChatWindowActivity = 'focused' | 'minimized';
+
 let compactChatWindowChain: Promise<void> = Promise.resolve();
 
 export async function getCompactChatFloatingWindowStatus(): Promise<CompactChatFloatingWindowStatus> {
@@ -73,6 +75,74 @@ export async function minimizeCompactChatFloatingWindow(): Promise<void> {
     await getCurrentWindow().minimize();
   } catch (error) {
     log.warn('Failed to minimize compact chat floating window', error);
+  }
+}
+
+export async function listenCompactChatFloatingWindowActivity(
+  handler: (activity: CompactChatWindowActivity) => void,
+): Promise<() => void> {
+  if (!isTauriRuntime()) return () => undefined;
+
+  let disposed = false;
+  let focusGeneration = 0;
+  try {
+    const currentWindow = getCurrentWindow();
+    const unlisten = await currentWindow.onFocusChanged(({ payload: focused }) => {
+      if (disposed) return;
+      const generation = ++focusGeneration;
+      if (focused) {
+        handler('focused');
+        return;
+      }
+
+      void currentWindow.isMinimized()
+        .then(minimized => {
+          if (!disposed && generation === focusGeneration && minimized) {
+            handler('minimized');
+          }
+        })
+        .catch(error => {
+          log.warn('Failed to read compact chat minimized state', error);
+        });
+    });
+
+    return () => {
+      disposed = true;
+      focusGeneration += 1;
+      unlisten();
+    };
+  } catch (error) {
+    log.warn('Failed to listen for compact chat window activity', error);
+    return () => {
+      disposed = true;
+    };
+  }
+}
+
+export async function listenCompactChatFloatingWindowCloseRequest(
+  handler: () => Promise<void> | void,
+): Promise<() => void> {
+  if (!isTauriRuntime()) return () => undefined;
+
+  let disposed = false;
+  try {
+    const unlisten = await getCurrentWindow().onCloseRequested(event => {
+      if (disposed) return;
+      event.preventDefault();
+      void Promise.resolve(handler()).catch(error => {
+        log.warn('Failed to handle compact chat window close request', error);
+      });
+    });
+
+    return () => {
+      disposed = true;
+      unlisten();
+    };
+  } catch (error) {
+    log.warn('Failed to listen for compact chat window close request', error);
+    return () => {
+      disposed = true;
+    };
   }
 }
 
