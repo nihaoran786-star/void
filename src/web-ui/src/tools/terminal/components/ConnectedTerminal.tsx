@@ -28,10 +28,24 @@ type TerminalOutputQueueItem =
   | { type: 'data'; data: string }
   | { type: 'resize'; cols: number; rows: number };
 
+type HiddenLiveOutputQueueItem = {
+  data: string;
+  containsRealContent: boolean;
+};
+
+const HIDDEN_OUTPUT_DRAIN_THRESHOLD = 1024 * 1024;
+const HIDDEN_OUTPUT_DRAIN_ITEM_THRESHOLD = 2048;
+
+function getOutputQueueItemSize(item: TerminalOutputQueueItem): number {
+  return item.type === 'data' ? item.data.length : 0;
+}
+
 export interface ConnectedTerminalProps {
   sessionId: string;
   className?: string;
   autoFocus?: boolean;
+  /** Whether this mounted terminal is currently presented to the user. */
+  isActive?: boolean;
   showToolbar?: boolean;
   showStatusBar?: boolean;
   /** Optional session data; fetched when omitted. */
@@ -45,6 +59,7 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   sessionId,
   className = '',
   autoFocus = true,
+  isActive = true,
   showToolbar = false,
   showStatusBar = false,
   session: initialSession,
@@ -57,19 +72,30 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const [exitCode, setExitCode] = useState<number | null>(null);
   const [isExited, setIsExited] = useState(false);
   const isExitedRef = useRef(false);
+  const isActiveRef = useRef(isActive);
+  isActiveRef.current = isActive;
+  const inputQueueRef = useRef<TerminalInputQueue | null>(null);
 
   const lastSentSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 
-  // Buffer output until the terminal is ready.
-  // Use a ref (not state) to avoid stale closure issues with isTerminalReady.
+  // History replay and presentation-deferred live output have different semantics:
+  // only a history flush may establish the post-history cursor guard.
   const isTerminalReadyRef = useRef(false);
-  const outputQueueRef = useRef<TerminalOutputQueueItem[]>([]);
+  const historyOutputQueueRef = useRef<TerminalOutputQueueItem[]>([]);
+  const historyOutputSizeRef = useRef(0);
+  const hiddenLiveOutputQueueRef = useRef<HiddenLiveOutputQueueItem[]>([]);
+  const hiddenLiveOutputSizeRef = useRef(0);
+  const activationFrameRef = useRef<number | null>(null);
+  const activationGenerationRef = useRef(0);
+  const presentationRefreshVersionRef = useRef(0);
 
   // After history replay, ConPTY sends absolute cursor-position commands (ESC[R;CH)
   // that reference its own coordinate system, which diverges from xterm.js after replay.
   // We let those commands pass through (to avoid side effects from redirecting them) and
   // instead restore the correct cursor position via write callbacks after each one.
   const postHistoryCursorRef = useRef<{ row: number; col: number; ignoreCount: number } | null>(null);
+  const postHistoryCursorGenerationRef = useRef(0);
+  const pendingPostHistoryCursorGenerationsRef = useRef(new Set<number>());
 
   // PTY dimensions stored with the history snapshot.
   // Used to resize xterm.js to the correct size before replaying history, so that
@@ -85,61 +111,46 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const preventShrinkBelowColsRef = useRef<number>(0);
   const resizeRepaintGuardRef = useRef(createResizeRepaintGuard());
 
-  const handleOutput = useCallback((data: string) => {
-    // Post-history cursor restoration:
-    // ConPTY sends standalone cursor-position commands after resize in its own coordinate
-    // system. We let them pass through unmodified (redirecting them caused content side
-    // effects) and instead snap the cursor back to the saved correct position via a
-    // write callback after each one is processed by xterm.js.
-    if (postHistoryCursorRef.current && postHistoryCursorRef.current.ignoreCount > 0) {
-      const isCursorOnly = isStandaloneCursorPosition(data);
-      if (isCursorOnly) {
-        const cursor = postHistoryCursorRef.current;
-        cursor.ignoreCount--;
-        if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
-          return;
-        }
-        const restoreSeq = `\x1b[${cursor.row};${cursor.col}H`;
-        if (!isTerminalReadyRef.current || !terminalRef.current) {
-          outputQueueRef.current.push({ type: 'data', data });
-          outputQueueRef.current.push({ type: 'data', data: restoreSeq });
-          return;
-        }
-        const xterm = terminalRef.current.getTerminal?.();
-        if (xterm) {
-          // Write the original cursor move, then immediately queue the restore so
-          // the visible cursor always lands at the correct history-end position.
-          xterm.write(data, () => {
-            xterm.write(restoreSeq);
-          });
-        } else {
-          terminalRef.current.write(data);
-          terminalRef.current.write(restoreSeq);
-        }
-        return;
-      } else {
-        // Real content arrived — cursor is already at correct position from last restore.
-        postHistoryCursorRef.current = null;
-        preventShrinkBelowColsRef.current = 0;
-      }
-    }
-
-    if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
+  const refreshActiveTerminalPresentation = useCallback(() => {
+    if (!isActiveRef.current || !terminalRef.current) {
       return;
     }
+    presentationRefreshVersionRef.current += 1;
+    terminalRef.current.fit();
+    terminalRef.current.forceRedraw();
+  }, []);
 
+  const releaseReplayWidthGuard = useCallback(() => {
+    if (preventShrinkBelowColsRef.current <= 0) {
+      return;
+    }
+    preventShrinkBelowColsRef.current = 0;
+    refreshActiveTerminalPresentation();
+  }, [refreshActiveTerminalPresentation]);
+
+  const invalidatePostHistoryCursor = useCallback(() => {
+    postHistoryCursorGenerationRef.current += 1;
+    postHistoryCursorRef.current = null;
+    if (pendingPostHistoryCursorGenerationsRef.current.size === 0) {
+      releaseReplayWidthGuard();
+    }
+  }, [releaseReplayWidthGuard]);
+
+  const flushHistoryQueue = useCallback(() => {
     if (!isTerminalReadyRef.current || !terminalRef.current) {
-      outputQueueRef.current.push({ type: 'data', data });
       return;
     }
-    terminalRef.current.write(data);
-  }, []); // No state deps - reads from refs which are always current
 
-  const flushOutputQueue = useCallback(() => {
-    const queue = outputQueueRef.current;
+    const queue = historyOutputQueueRef.current;
     if (queue.length === 0) return;
-    // Clear first to prevent orphaned items if new data arrives during flush
-    outputQueueRef.current = [];
+
+    // Atomically detach this batch. Replay that arrives during the drain belongs to
+    // the next batch and cannot be lost or appended to an in-flight iteration.
+    historyOutputQueueRef.current = [];
+    historyOutputSizeRef.current = 0;
+    const cursorGeneration = postHistoryCursorGenerationRef.current + 1;
+    postHistoryCursorGenerationRef.current = cursorGeneration;
+    postHistoryCursorRef.current = null;
     const shouldProtectReplayWidth = terminalReplayHasScreenText(
       queue.filter((item): item is Extract<TerminalOutputQueueItem, { type: 'data' }> => item.type === 'data'),
     );
@@ -194,7 +205,18 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     // ConPTY cursor-only updates can be redirected to this correct position.
     const xterm = terminalRef.current?.getTerminal?.();
     if (xterm) {
+      pendingPostHistoryCursorGenerationsRef.current.add(cursorGeneration);
       xterm.write('', () => {
+        pendingPostHistoryCursorGenerationsRef.current.delete(cursorGeneration);
+        if (postHistoryCursorGenerationRef.current !== cursorGeneration) {
+          if (
+            pendingPostHistoryCursorGenerationsRef.current.size === 0 &&
+            postHistoryCursorRef.current === null
+          ) {
+            releaseReplayWidthGuard();
+          }
+          return;
+        }
         const cursorY = xterm.buffer.active.cursorY; // 0-indexed
         const cursorRow = cursorY + 1; // 1-indexed for ANSI
         if (cursorRow > 0) {
@@ -203,7 +225,119 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
         }
       });
     }
-  }, []);
+  }, [releaseReplayWidthGuard]);
+
+  const flushHiddenLiveQueue = useCallback(() => {
+    if (!isTerminalReadyRef.current || !terminalRef.current) {
+      return;
+    }
+
+    const queue = hiddenLiveOutputQueueRef.current;
+    if (queue.length === 0) {
+      return;
+    }
+
+    // Atomically detach and coalesce the batch. Live-only drains intentionally do
+    // not update postHistoryCursorRef: that semantic belongs to replay only.
+    hiddenLiveOutputQueueRef.current = [];
+    hiddenLiveOutputSizeRef.current = 0;
+    if (queue.some(item => item.containsRealContent)) {
+      // A pending history marker callback must not reinstall an obsolete cursor
+      // after later live content has already advanced the terminal.
+      invalidatePostHistoryCursor();
+    }
+    terminalRef.current.write(
+      queue.length === 1 ? queue[0].data : queue.map(item => item.data).join(''),
+    );
+  }, [invalidatePostHistoryCursor]);
+
+  const drainPendingOutput = useCallback(() => {
+    // Ordering is deliberate: history establishes the xterm state before live data.
+    flushHistoryQueue();
+    flushHiddenLiveQueue();
+  }, [flushHiddenLiveQueue, flushHistoryQueue]);
+
+  const maybeDrainHiddenOutput = useCallback(() => {
+    if (
+      isActiveRef.current ||
+      !isTerminalReadyRef.current ||
+      !terminalRef.current ||
+      (
+        historyOutputSizeRef.current + hiddenLiveOutputSizeRef.current < HIDDEN_OUTPUT_DRAIN_THRESHOLD &&
+        historyOutputQueueRef.current.length + hiddenLiveOutputQueueRef.current.length < HIDDEN_OUTPUT_DRAIN_ITEM_THRESHOLD
+      )
+    ) {
+      return;
+    }
+
+    drainPendingOutput();
+  }, [drainPendingOutput]);
+
+  const enqueueHiddenLiveOutput = useCallback((
+    data: string,
+    containsRealContent: boolean,
+  ) => {
+    if (!data) {
+      return;
+    }
+    if (containsRealContent) {
+      invalidatePostHistoryCursor();
+    }
+    hiddenLiveOutputQueueRef.current.push({ data, containsRealContent });
+    hiddenLiveOutputSizeRef.current += data.length;
+    maybeDrainHiddenOutput();
+  }, [invalidatePostHistoryCursor, maybeDrainHiddenOutput]);
+
+  const handleOutput = useCallback((data: string) => {
+    const isCursorOnly = isStandaloneCursorPosition(data);
+    // Post-history cursor restoration:
+    // ConPTY sends standalone cursor-position commands after resize in its own coordinate
+    // system. We let them pass through unmodified (redirecting them caused content side
+    // effects) and instead snap the cursor back to the saved correct position via a
+    // write callback after each one is processed by xterm.js.
+    if (postHistoryCursorRef.current && postHistoryCursorRef.current.ignoreCount > 0) {
+      if (isCursorOnly) {
+        const cursor = postHistoryCursorRef.current;
+        cursor.ignoreCount--;
+        if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
+          return;
+        }
+        const restoreSeq = `\x1b[${cursor.row};${cursor.col}H`;
+        if (!isTerminalReadyRef.current || !terminalRef.current || !isActiveRef.current) {
+          enqueueHiddenLiveOutput(data + restoreSeq, false);
+          return;
+        }
+        drainPendingOutput();
+        const xterm = terminalRef.current.getTerminal?.();
+        if (xterm) {
+          // Write the original cursor move, then immediately queue the restore so
+          // the visible cursor always lands at the correct history-end position.
+          xterm.write(data, () => {
+            xterm.write(restoreSeq);
+          });
+        } else {
+          terminalRef.current.write(data);
+          terminalRef.current.write(restoreSeq);
+        }
+        return;
+      }
+    }
+
+    if (resizeRepaintGuardRef.current.shouldSkipOutput(data)) {
+      return;
+    }
+
+    if (!isTerminalReadyRef.current || !terminalRef.current || !isActiveRef.current) {
+      enqueueHiddenLiveOutput(data, !isCursorOnly);
+      return;
+    }
+
+    drainPendingOutput();
+    if (!isCursorOnly) {
+      invalidatePostHistoryCursor();
+    }
+    terminalRef.current.write(data);
+  }, [drainPendingOutput, enqueueHiddenLiveOutput, invalidatePostHistoryCursor]);
 
   const handleReady = useCallback(() => {
     // Backend ready event - terminal UI is already ready via handleTerminalReady
@@ -235,16 +369,26 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
     resizeRepaintGuardRef.current.clear();
 
     events.forEach((event) => {
-      outputQueueRef.current.push({ type: 'resize', cols: event.cols, rows: event.rows });
+      const resizeItem: TerminalOutputQueueItem = {
+        type: 'resize',
+        cols: event.cols,
+        rows: event.rows,
+      };
+      historyOutputQueueRef.current.push(resizeItem);
+      historyOutputSizeRef.current += getOutputQueueItemSize(resizeItem);
       if (event.data) {
-        outputQueueRef.current.push({ type: 'data', data: event.data });
+        const dataItem: TerminalOutputQueueItem = { type: 'data', data: event.data };
+        historyOutputQueueRef.current.push(dataItem);
+        historyOutputSizeRef.current += getOutputQueueItemSize(dataItem);
       }
     });
 
-    if (isTerminalReadyRef.current) {
-      flushOutputQueue();
+    if (isTerminalReadyRef.current && isActiveRef.current) {
+      drainPendingOutput();
+    } else {
+      maybeDrainHiddenOutput();
     }
-  }, [flushOutputQueue]);
+  }, [drainPendingOutput, maybeDrainHiddenOutput]);
 
   const {
     session,
@@ -269,7 +413,6 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const writeRef = useRef(write);
   writeRef.current = write;
 
-  const inputQueueRef = useRef<TerminalInputQueue | null>(null);
   if (!inputQueueRef.current) {
     inputQueueRef.current = new TerminalInputQueue(
       (data) => {
@@ -289,6 +432,10 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   }, []);
 
   const handleResize = useCallback((cols: number, rows: number) => {
+    if (!isActiveRef.current) {
+      return;
+    }
+
     const lastSize = lastSentSizeRef.current;
     if (lastSize && lastSize.cols === cols && lastSize.rows === rows) {
       return;
@@ -324,11 +471,49 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
   const handleTerminalReady = useCallback(() => {
     // Set the ref synchronously first so handleOutput immediately writes directly
     // instead of queuing. This eliminates the stale-closure window where new data
-    // would be queued after flushOutputQueue() cleared the queue but before React
+    // would be queued after drainPendingOutput() cleared a queue but before React
     // re-rendered and updated onOutputRef.current.
     isTerminalReadyRef.current = true;
-    flushOutputQueue();
-  }, [flushOutputQueue]);
+    if (isActiveRef.current) {
+      drainPendingOutput();
+    } else {
+      maybeDrainHiddenOutput();
+    }
+  }, [drainPendingOutput, maybeDrainHiddenOutput]);
+
+  useEffect(() => {
+    activationGenerationRef.current += 1;
+    const generation = activationGenerationRef.current;
+
+    if (activationFrameRef.current !== null) {
+      cancelAnimationFrame(activationFrameRef.current);
+      activationFrameRef.current = null;
+    }
+
+    if (!isActive || !isTerminalReadyRef.current) {
+      return;
+    }
+
+    const scheduledRefreshVersion = presentationRefreshVersionRef.current;
+    activationFrameRef.current = requestAnimationFrame(() => {
+      activationFrameRef.current = null;
+      if (!isActiveRef.current || activationGenerationRef.current !== generation) {
+        return;
+      }
+
+      drainPendingOutput();
+      if (presentationRefreshVersionRef.current === scheduledRefreshVersion) {
+        refreshActiveTerminalPresentation();
+      }
+    });
+
+    return () => {
+      if (activationFrameRef.current !== null) {
+        cancelAnimationFrame(activationFrameRef.current);
+        activationFrameRef.current = null;
+      }
+    };
+  }, [drainPendingOutput, isActive, refreshActiveTerminalPresentation]);
 
   const handlePasteShortcut = useCallback(async (): Promise<boolean> => {
     if (isExitedRef.current || !shouldUsePowerShellReadlinePaste(session?.shellType ?? initialSession?.shellType)) {
@@ -482,9 +667,9 @@ const ConnectedTerminal: React.FC<ConnectedTerminalProps> = memo(({
         ref={terminalRef}
         terminalId={terminalId}
         sessionId={sessionId}
-        autoFocus={autoFocus}
+        autoFocus={autoFocus && isActive}
         onData={handleData}
-        onResize={handleResize}
+        onResize={isActive ? handleResize : undefined}
         onTitleChange={handleTitleChange}
         onReady={handleTerminalReady}
         onPasteShortcut={handlePasteShortcut}

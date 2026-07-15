@@ -748,6 +748,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
                 key={sessionId}
                 sessionId={sessionId}
                 autoFocus={true}
+                isActive={isActive}
               />
             </div>
           </React.Suspense>
