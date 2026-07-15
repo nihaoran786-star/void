@@ -1,0 +1,70 @@
+{
+	"version": 1,
+	"entry": {
+		"manifestKey": "index.html"
+	},
+	"javascript": {
+		"maxRawBytes": 2992158,
+		"referenceGzipBytes": 866140,
+		"forbiddenMarkers": [
+			"MonacoEnvironment"
+		]
+	},
+	"css": {
+		"maxRawBytes": 851180,
+		"referenceGzipBytes": 118617,
+		"forbiddenMarkers": [
+			".monaco-editor",
+			".xterm-helper-textarea",
+			".katex",
+			".void-ai-model-config",
+			".workspace-media-gallery",
+			".short-drama-center"
+		]
+	},
+	"requiredDynamicEntries": [
+		"src/app/scenes/settings/SettingsScene.tsx",
+		"src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.tsx",
+		"src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.tsx",
+		"src/component-library/components/CodeEditor/CodeEditor.tsx",
+		"src/component-library/components/Markdown/Markdown.tsx",
+		"src/tools/editor/components/MarkdownEditor.tsx",
+		"src/tools/terminal/components/ConnectedTerminal.tsx",
+		"src/tools/terminal/components/TerminalOutputRenderer.tsx"
+	],
+	"staticGraph": {
+		"externalUnreachable": [
+			"monaco-editor",
+			"@monaco-editor/react",
+			"@xterm/xterm",
+			"@xterm/addon-fit",
+			"@xterm/addon-web-links",
+			"@xterm/addon-webgl",
+			"mermaid",
+			"react-syntax-highlighter",
+			"react-markdown",
+			"remark-gfm",
+			"remark-math",
+			"rehype-katex",
+			"rehype-raw",
+			"rehype-sanitize",
+			"katex",
+			"@tiptap/core",
+			"@tiptap/react",
+			"@tiptap/starter-kit",
+			"@tiptap/pm"
+		],
+		"localUnreachable": [
+			"src/web-ui/src/app/scenes/settings/SettingsScene.tsx",
+			"src/web-ui/src/infrastructure/config/components/AIModelConfig.tsx",
+			"src/web-ui/src/component-library/components/CodeEditor/CodeEditor.tsx",
+			"src/web-ui/src/component-library/components/Markdown/Markdown.tsx",
+			"src/web-ui/src/tools/editor/components/MarkdownEditor.tsx",
+			"src/web-ui/src/tools/terminal/components/ConnectedTerminal.tsx",
+			"src/web-ui/src/tools/terminal/components/TerminalOutputRenderer.tsx",
+			"src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.tsx",
+			"src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.tsx",
+			"src/web-ui/src/infrastructure/index.ts"
+		]
+	}
+}
