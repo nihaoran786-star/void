@@ -34,8 +34,9 @@ export * from './Card';
 export * from './FilterPill';
 export * from './ConfigPage';
 
-// Heavy editors stay behind direct feature imports so the shared component barrel
-// cannot pull Monaco into every application entry that imports a basic control.
+// The public export resolves to a lightweight lazy facade. Do not re-export the
+// Monaco-backed implementation directly from this shared barrel.
+export * from './CodeEditor';
 
 export * from './StreamText';
 export * from './TextStrokeEffect';

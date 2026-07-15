@@ -22,13 +22,19 @@ describe('Web UI startup import boundaries', () => {
 
   it('keeps application theme state editor agnostic', () => {
     const source = readSource('../../infrastructure/theme/core/ThemeService.ts');
+    const themeBarrel = readSource('../../infrastructure/theme/index.ts');
     expect(source).not.toContain('MonacoThemeSync');
     expect(source).not.toContain('monacoThemeSync');
+    expect(themeBarrel).not.toContain('MonacoThemeSync');
+    expect(themeBarrel).not.toContain('monacoThemeSync');
   });
 
   it('loads optional panel implementations from concrete module boundaries', () => {
     const source = readSource('../components/panels/base/FlexiblePanel.tsx');
     const componentLibraryBarrel = readSource('../../component-library/components/index.ts');
+    const componentLibraryCodeEditor = readSource(
+      '../../component-library/components/CodeEditor/index.ts',
+    );
 
     expect(source).not.toContain("from '@/tools/editor'");
     expect(source).not.toContain(
@@ -48,7 +54,12 @@ describe('Web UI startup import boundaries', () => {
     expect(source).toMatch(
       /<React\.Suspense\s+fallback=\{<div className="void-flexible-panel__loading">\{t\('loading\.text'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
     );
-    expect(componentLibraryBarrel).not.toContain("export * from './CodeEditor'");
+    expect(componentLibraryBarrel).toContain("export * from './CodeEditor'");
+    expect(componentLibraryCodeEditor).toContain("lazy(() => import('./CodeEditor'))");
+    expect(componentLibraryCodeEditor).toContain("export type { CodeEditorProps }");
+    expect(componentLibraryCodeEditor).not.toContain(
+      "export { CodeEditor } from './CodeEditor'",
+    );
   });
 
   it('keeps lightweight short-drama entries independent of the feature barrel', () => {
