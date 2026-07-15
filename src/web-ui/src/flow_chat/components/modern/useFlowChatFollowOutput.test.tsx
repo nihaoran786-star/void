@@ -24,15 +24,18 @@ function Harness({
   scroller,
   onController,
   performAutoFollowScroll,
+  isActive = true,
 }: {
   scroller: HTMLElement;
   onController: (controller: FollowOutputController) => void;
   performAutoFollowScroll: () => void;
+  isActive?: boolean;
 }) {
   const scrollerRef = React.useRef<HTMLElement | null>(scroller);
   scrollerRef.current = scroller;
 
   const controller = useFlowChatFollowOutput({
+    isActive,
     activeSessionId: 'session-1',
     latestTurnId: 'turn-2',
     virtualItemCount: 20,
@@ -187,5 +190,63 @@ describe('useFlowChatFollowOutput', () => {
 
     expect(activated).toBe(false);
     expect(controller?.isFollowingOutput).toBe(false);
+  });
+
+  it('cancels scheduled and continuous animation frames when the presentation becomes inactive', () => {
+    const scroller = document.createElement('div');
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1500,
+      clientHeight: 500,
+      scrollTop: 600,
+    });
+    const performAutoFollowScroll = vi.fn();
+    const queuedFrames = new Map<number, FrameRequestCallback>();
+    let nextFrameId = 0;
+    const requestFrame = vi.fn((callback: FrameRequestCallback) => {
+      nextFrameId += 1;
+      queuedFrames.set(nextFrameId, callback);
+      return nextFrameId;
+    });
+    const cancelFrame = vi.fn((frameId: number) => {
+      queuedFrames.delete(frameId);
+    });
+    vi.stubGlobal('requestAnimationFrame', requestFrame);
+    vi.stubGlobal('cancelAnimationFrame', cancelFrame);
+
+    const renderHarness = (isActive: boolean) => {
+      root.render(
+        <Harness
+          scroller={scroller}
+          onController={nextController => {
+            controller = nextController;
+          }}
+          performAutoFollowScroll={performAutoFollowScroll}
+          isActive={isActive}
+        />,
+      );
+    };
+
+    act(() => {
+      renderHarness(true);
+    });
+    act(() => {
+      controller?.enterFollowOutput('auto-follow');
+    });
+
+    expect(queuedFrames.size).toBeGreaterThan(0);
+    const queuedBeforeHide = Array.from(queuedFrames.values());
+    const scrollCallsBeforeHide = performAutoFollowScroll.mock.calls.length;
+
+    act(() => {
+      renderHarness(false);
+    });
+
+    expect(cancelFrame).toHaveBeenCalled();
+    expect(queuedFrames.size).toBe(0);
+
+    act(() => {
+      queuedBeforeHide.forEach(callback => callback(performance.now()));
+    });
+    expect(performAutoFollowScroll).toHaveBeenCalledTimes(scrollCallsBeforeHide);
   });
 });

@@ -64,8 +64,14 @@ vi.mock('../../store/modernFlowChatStore', () => {
   };
 });
 
-vi.mock('../../hooks/useActiveSessionState', () => ({
-  useActiveSessionState: () => ({
+vi.mock('./useFlowChatPresentationStore', () => ({
+  usePresentationActiveSession: () => stateMocks.activeSession,
+  usePresentationVirtualItems: () => stateMocks.virtualItems,
+  usePresentationVisibleTurnInfo: () => stateMocks.visibleTurnInfo,
+}));
+
+vi.mock('./useFlowChatPresentationSessionState', () => ({
+  useFlowChatPresentationSessionState: () => ({
     isProcessing: false,
     processingPhase: null,
   }),

@@ -23,27 +23,36 @@ import { resolveFlowChatFocusTarget, type ResolvedFocusTarget } from './flowChat
 const log = createLogger('useFlowChatNavigation');
 
 interface UseFlowChatNavigationOptions {
+  isActive?: boolean;
   activeSessionId?: string;
   virtualItems: VirtualItem[];
   virtualListRef: RefObject<VirtualMessageListRef | null>;
   onExpandExploreGroup?: (groupId: string) => void;
 }
 
-async function waitForCondition(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
+async function waitForCondition(
+  predicate: () => boolean,
+  timeoutMs: number,
+  shouldContinue: () => boolean = () => true,
+): Promise<boolean> {
   const start = performance.now();
-  while (performance.now() - start < timeoutMs) {
+  while (shouldContinue() && performance.now() - start < timeoutMs) {
     if (predicate()) return true;
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
   }
-  return predicate();
+  return shouldContinue() && predicate();
 }
 
-async function waitForAnimationFrames(frameCount: number): Promise<void> {
+async function waitForAnimationFrames(
+  frameCount: number,
+  shouldContinue: () => boolean = () => true,
+): Promise<boolean> {
   let remaining = Math.max(0, frameCount);
-  while (remaining > 0) {
+  while (shouldContinue() && remaining > 0) {
     await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
     remaining -= 1;
   }
+  return shouldContinue();
 }
 
 function navigateToResolvedTarget(
@@ -69,6 +78,7 @@ function navigateToResolvedTarget(
 }
 
 export function useFlowChatNavigation({
+  isActive = true,
   activeSessionId,
   virtualItems,
   virtualListRef,
@@ -77,6 +87,7 @@ export function useFlowChatNavigation({
   const [pendingTurnPinRequest, setPendingTurnPinRequest] = useState<FlowChatPinTurnToTopRequest | null>(null);
 
   useEffect(() => {
+    if (!isActive) return;
     const unsubscribe = globalEventBus.on<FlowChatPinTurnToTopRequest>(FLOWCHAT_PIN_TURN_TO_TOP_EVENT, (request) => {
       if (!request || request.sessionId !== activeSessionId) {
         return;
@@ -86,9 +97,13 @@ export function useFlowChatNavigation({
     });
 
     return unsubscribe;
-  }, [activeSessionId]);
+  }, [activeSessionId, isActive]);
 
   useEffect(() => {
+    if (!isActive) {
+      setPendingTurnPinRequest(null);
+      return;
+    }
     if (!pendingTurnPinRequest) return;
     if (pendingTurnPinRequest.sessionId !== activeSessionId) {
       setPendingTurnPinRequest(null);
@@ -102,26 +117,32 @@ export function useFlowChatNavigation({
     if (accepted) {
       setPendingTurnPinRequest(null);
     }
-  }, [activeSessionId, pendingTurnPinRequest, virtualItems, virtualListRef]);
+  }, [activeSessionId, isActive, pendingTurnPinRequest, virtualItems, virtualListRef]);
 
   useEffect(() => {
+    if (!isActive) return;
+    let disposed = false;
+    const shouldContinue = () => !disposed;
     const unsubscribe = globalEventBus.on<FlowChatFocusItemRequest>(FLOWCHAT_FOCUS_ITEM_EVENT, async (request) => {
       const { sessionId, itemId } = request;
-      if (!sessionId) return;
+      if (!sessionId || disposed) return;
 
       if (activeSessionId !== sessionId) {
         try {
           await flowChatManager.switchChatSession(sessionId);
+          if (disposed) return;
         } catch (error) {
+          if (disposed) return;
           log.warn('Failed to switch session for focus request', { sessionId, error });
           return;
         }
       }
 
-      await waitForCondition(() => {
+      const isReady = await waitForCondition(() => {
         const modernActiveSessionId = useModernFlowChatStore.getState().activeSession?.sessionId;
         return modernActiveSessionId === sessionId && !!virtualListRef.current;
-      }, 1500);
+      }, 1500, shouldContinue);
+      if (!isReady) return;
 
       const targetSession = flowChatStore.getState().sessions.get(sessionId);
       const resolvedTarget = resolveFlowChatFocusTarget(
@@ -138,11 +159,13 @@ export function useFlowChatNavigation({
 
       if (!itemId) return;
 
-      await waitForAnimationFrames(2);
+      const framesCompleted = await waitForAnimationFrames(2, shouldContinue);
+      if (!framesCompleted) return;
 
       const maxAttempts = 120;
       let attempts = 0;
       const tryFocus = () => {
+        if (disposed) return;
         attempts += 1;
         const focusItemId = resolvedTarget.focusItemId ?? itemId;
         const element = document.querySelector(`[data-flow-item-id="${CSS.escape(focusItemId)}"]`) as HTMLElement | null;
@@ -164,6 +187,9 @@ export function useFlowChatNavigation({
       requestAnimationFrame(tryFocus);
     });
 
-    return unsubscribe;
-  }, [activeSessionId, onExpandExploreGroup, virtualListRef]);
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [activeSessionId, isActive, onExpandExploreGroup, virtualListRef]);
 }

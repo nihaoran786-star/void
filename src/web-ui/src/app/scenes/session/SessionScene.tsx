@@ -222,6 +222,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             width={0}
             isFullscreen={false}
             isDragging={false}
+            isPresentationActive={isActive}
             workspacePath={workspacePath}
             showChatInput
             showPreviewFirstToggle={canUsePreviewFirstFloatingChat}

@@ -23,6 +23,7 @@ import {
   type MediaToolGroup,
 } from '../../tool-cards/mediaToolGrouping';
 import { useFlowChatContext } from './FlowChatContext';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import { FlowChatStore } from '../../store/FlowChatStore';
 import { taskCollapseStateManager } from '../../store/TaskCollapseStateManager';
 import { ExportImageButton } from './ExportImageButton';
@@ -52,11 +53,13 @@ interface ModelRoundItemProps {
 }
 
 function useTaskCollapsed(toolId: string): boolean {
+  const isPresentationActive = useFlowChatPresentationActive();
   const [isCollapsed, setIsCollapsed] = useState(() =>
     taskCollapseStateManager.isCollapsed(toolId)
   );
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     setIsCollapsed(taskCollapseStateManager.isCollapsed(toolId));
 
     const unsubscribe = taskCollapseStateManager.addListener((changedToolId, collapsed) => {
@@ -66,7 +69,7 @@ function useTaskCollapsed(toolId: string): boolean {
     });
 
     return unsubscribe;
-  }, [toolId]);
+  }, [isPresentationActive, toolId]);
 
   return isCollapsed;
 }
@@ -96,6 +99,11 @@ const TaskWithSubagentWrapper: React.FC<TaskWithSubagentWrapperProps> = React.me
     !isCollapsed && 'task-with-subagent-wrapper--expanded',
     hasPrompt && 'task-with-subagent-wrapper--has-prompt',
   ].filter(Boolean).join(' ');
+  const taskToolCallId = (taskItem as FlowToolItem).toolCall?.id;
+  const parentToolIds = useMemo(() => new Set<string>([
+    parentTaskToolId,
+    taskToolCallId,
+  ].filter(Boolean) as string[]), [parentTaskToolId, taskToolCallId]);
 
   return (
     <div className={className}>
@@ -108,9 +116,8 @@ const TaskWithSubagentWrapper: React.FC<TaskWithSubagentWrapperProps> = React.me
         parentTaskToolId={parentTaskToolId}
         parentSessionId={parentSessionId}
         directSubagentSessionId={directSubagentSessionId}
-        parentToolIds={new Set<string>([parentTaskToolId, (taskItem as FlowToolItem).toolCall?.id].filter(Boolean) as string[])}
-        isRunning
-        ={taskItem.status === 'preparing' || taskItem.status === 'streaming' || taskItem.status === 'running'}
+        parentToolIds={parentToolIds}
+        isRunning={taskItem.status === 'preparing' || taskItem.status === 'streaming' || taskItem.status === 'running'}
         turnId={turnId}
       />
     </div>
@@ -121,11 +128,12 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
   ({ round, turnId, isLastRound = false, isTurnComplete = false }) => {
     const { t } = useTranslation('flow-chat');
     const { sessionId } = useFlowChatContext();
+    const isPresentationActive = useFlowChatPresentationActive();
     const [copied, setCopied] = useState(false);
     const copyButtonRef = useRef<HTMLButtonElement>(null);
     
     useEffect(() => {
-      if (!copied) return;
+      if (!isPresentationActive || !copied) return;
       
       const handleClickOutside = (event: MouseEvent) => {
         if (copyButtonRef.current && !copyButtonRef.current.contains(event.target as Node)) {
@@ -137,7 +145,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
-    }, [copied]);
+    }, [copied, isPresentationActive]);
     
     // Keep the recorded round order; FlowChatStore already applies immutable updates.
     const sortedItems = useMemo(
@@ -155,7 +163,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
     const [transientNowMs, setTransientNowMs] = useState(() => Date.now());
 
     useEffect(() => {
-      if (latestCompletedToolEndTime <= 0) return;
+      if (!isPresentationActive || latestCompletedToolEndTime <= 0) return;
 
       const remainingMs = latestCompletedToolEndTime + COMPLETED_TOOL_TRANSIENT_MS - Date.now();
       if (remainingMs <= 0) {
@@ -169,7 +177,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       }, remainingMs);
 
       return () => window.clearTimeout(timeoutId);
-    }, [latestCompletedToolEndTime]);
+    }, [isPresentationActive, latestCompletedToolEndTime]);
 
     // Group items in two passes:
     // 1) group subagent items
@@ -247,6 +255,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
 
     useEffect(() => {
       if (
+        !isPresentationActive ||
         progressiveRenderIsStreaming ||
         renderedGroupCount >= mediaGroupedItems.length
       ) {
@@ -272,6 +281,7 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
       return () => window.clearTimeout(timeoutId);
     }, [
       initialGroupRenderCount,
+      isPresentationActive,
       mediaGroupedItems.length,
       progressiveRenderIsStreaming,
       renderedGroupCount,

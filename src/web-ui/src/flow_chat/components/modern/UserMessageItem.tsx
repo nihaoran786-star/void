@@ -9,7 +9,6 @@ import { Copy, Check, RotateCcw, Loader2, ArrowDownToLine, X, CircleUser, Pencil
 import type { DialogTurn, FlowUserSteeringItem } from '../../types/flow-chat';
 import { flowChatManager } from '../../services/FlowChatManager';
 import { useFlowChatContext } from './FlowChatContext';
-import { useActiveSession } from '../../store/modernFlowChatStore';
 import { flowChatStore } from '../../store/FlowChatStore';
 import { useMessageEditStore } from '../../store/messageEditStore';
 import { snapshotAPI } from '@/infrastructure/api';
@@ -28,6 +27,8 @@ import { SessionUsageReportCard } from '../usage/SessionUsageReportCard';
 import type { SessionUsagePanelTab } from '../usage/sessionUsagePanelTypes';
 import { coerceSessionUsageReport } from '../usage/usageReportUtils';
 import { resolveSessionRelationship } from '../../utils/sessionMetadata';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
+import { usePresentationActiveSession } from './useFlowChatPresentationStore';
 import './UserMessageItem.scss';
 
 const log = createLogger('UserMessageItem');
@@ -49,7 +50,8 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       allowUserMessageEdit = true,
       onFillUserMessageInput,
     } = useFlowChatContext();
-    const activeSessionFromStore = useActiveSession();
+    const isPresentationActive = useFlowChatPresentationActive();
+    const activeSessionFromStore = usePresentationActiveSession();
     const activeSession = activeSessionOverride ?? activeSessionFromStore;
     const [copied, setCopied] = useState(false);
     const [expanded, setExpanded] = useState(false);
@@ -140,6 +142,8 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     
     // Check whether content overflows.
     useEffect(() => {
+      if (!isPresentationActive) return;
+
       const checkOverflow = () => {
         if (contentRef.current && !expanded) {
           const element = contentRef.current;
@@ -159,7 +163,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       return () => {
         window.removeEventListener('resize', checkOverflow);
       };
-    }, [displayText, expanded]);
+    }, [displayText, expanded, isPresentationActive]);
     
     // Copy the user message.
     const handleCopy = useCallback(async (e: React.MouseEvent) => {
@@ -334,7 +338,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     
     // Collapse when clicking outside.
     useEffect(() => {
-      if (!expanded) return;
+      if (!isPresentationActive || !expanded) return;
       
       const handleClickOutside = (e: MouseEvent) => {
         if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -346,7 +350,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
       };
-    }, [expanded]);
+    }, [expanded, isPresentationActive]);
 
     // Avoid zero-size errors by rendering a placeholder instead of null.
     if (!message) {

@@ -20,7 +20,7 @@ import { useFlowChatCopyDialog } from './useFlowChatCopyDialog';
 import { useFlowChatSync } from './useFlowChatSync';
 import { useFlowChatToolActions } from './useFlowChatToolActions';
 import { useFlowChatSearch } from './useFlowChatSearch';
-import { useVirtualItems, useActiveSession, useVisibleTurnInfo, type VisibleTurnInfo } from '../../store/modernFlowChatStore';
+import type { VisibleTurnInfo } from '../../store/modernFlowChatStore';
 import type { FlowChatConfig, FlowToolItem, Session, DialogTurn } from '../../types/flow-chat';
 import type { LineRange } from '@/component-library';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
@@ -31,6 +31,12 @@ import { flowChatStore } from '../../store/FlowChatStore';
 import { openBtwSessionInAuxPane } from '../../services/openBtwSession';
 import { resolveSessionOpenIntent } from '../../services/sessionOpenIntent';
 import { isChatPopupActive, subscribeChatPopupChange } from '../chatPopupState';
+import { FlowChatPresentationActivityProvider } from './FlowChatPresentationActivity';
+import {
+  usePresentationActiveSession,
+  usePresentationVirtualItems,
+  usePresentationVisibleTurnInfo,
+} from './useFlowChatPresentationStore';
 import './ModernFlowChatContainer.scss';
 
 const HEADER_TURN_PIN_RETRY_MAX_ATTEMPTS = 120;
@@ -38,6 +44,7 @@ const HEADER_TURN_PIN_RETRY_MAX_ATTEMPTS = 120;
 interface ModernFlowChatContainerProps {
   className?: string;
   config?: Partial<FlowChatConfig>;
+  isPresentationActive?: boolean;
 
   // Callbacks compatible with the legacy version.
   onFileViewRequest?: (filePath: string, fileName: string, lineRange?: LineRange) => void;
@@ -165,6 +172,7 @@ function collectRunningBackgroundSubagents(parentSessionId: string | undefined):
 export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = ({
   className = '',
   config,
+  isPresentationActive = true,
   onFileViewRequest,
   onTabOpen,
   onOpenVisualization,
@@ -175,9 +183,9 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   onOpenWorkspaceMedia,
 }) => {
   const { t } = useTranslation('flow-chat');
-  const virtualItems = useVirtualItems();
-  const activeSession = useActiveSession();
-  const visibleTurnInfo = useVisibleTurnInfo();
+  const virtualItems = usePresentationVirtualItems(isPresentationActive);
+  const activeSession = usePresentationActiveSession(isPresentationActive);
+  const visibleTurnInfo = usePresentationVisibleTurnInfo(isPresentationActive);
   const [pendingHeaderTurnId, setPendingHeaderTurnId] = useState<string | null>(null);
   const [searchOpenRequest, setSearchOpenRequest] = useState(0);
   const [backgroundSubagents, setBackgroundSubagents] = useState<BackgroundSubagentSummary[]>([]);
@@ -248,10 +256,11 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     clearSearch,
   } = useFlowChatSearch(virtualItems);
 
-  useFlowChatSync();
-  useFlowChatCopyDialog();
+  useFlowChatSync(isPresentationActive);
+  useFlowChatCopyDialog(isPresentationActive);
 
   useFlowChatNavigation({
+    isActive: isPresentationActive,
     activeSessionId: activeSession?.sessionId,
     virtualItems,
     virtualListRef,
@@ -345,6 +354,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   }, []);
 
   const scheduleHeaderTurnPinRetry = useCallback((turnId: string, options: HeaderTurnPinOptions) => {
+    if (!isPresentationActive) return;
     const requestSessionId = activeSessionIdRef.current;
 
     if (headerTurnPinFrameRef.current !== null) {
@@ -355,7 +365,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     const retry = () => {
       headerTurnPinFrameRef.current = null;
 
-      if (activeSessionIdRef.current !== requestSessionId) {
+      if (!isPresentationActive || activeSessionIdRef.current !== requestSessionId) {
         headerTurnPinAttemptsRef.current = 0;
         setPendingHeaderTurnId(null);
         return;
@@ -389,9 +399,10 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     };
 
     headerTurnPinFrameRef.current = requestAnimationFrame(retry);
-  }, []);
+  }, [isPresentationActive]);
 
   const requestHeaderTurnPin = useCallback((turnId: string, options: HeaderTurnPinOptions) => {
+    if (!isPresentationActive) return false;
     if (headerTurnPinFrameRef.current !== null) {
       cancelAnimationFrame(headerTurnPinFrameRef.current);
       headerTurnPinFrameRef.current = null;
@@ -408,7 +419,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     setPendingHeaderTurnId(turnId);
     scheduleHeaderTurnPinRetry(turnId, options);
     return true;
-  }, [scheduleHeaderTurnPinRetry]);
+  }, [isPresentationActive, scheduleHeaderTurnPinRetry]);
 
   const effectiveVisibleTurnInfo = useMemo<VisibleTurnInfo | null>(() => {
     return visibleTurnInfo;
@@ -428,6 +439,10 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   }, [activeSession?.dialogTurns, effectiveVisibleTurnInfo?.turnId, effectiveVisibleTurnInfo?.userMessage, resolveLocalCommandHeaderTitle]);
 
   useEffect(() => {
+    if (!isPresentationActive) {
+      cancelHeaderTurnPinRequest();
+      return;
+    }
     if (!pendingHeaderTurnId) return;
 
     if (visibleTurnInfo?.turnId === pendingHeaderTurnId) {
@@ -439,7 +454,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     if (!targetStillExists) {
       cancelHeaderTurnPinRequest();
     }
-  }, [cancelHeaderTurnPinRequest, pendingHeaderTurnId, turnSummaries, visibleTurnInfo?.turnId]);
+  }, [cancelHeaderTurnPinRequest, isPresentationActive, pendingHeaderTurnId, turnSummaries, visibleTurnInfo?.turnId]);
 
   useEffect(() => {
     autoPinnedSessionIdRef.current = null;
@@ -453,6 +468,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   }, [cancelHeaderTurnPinRequest]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const sessionId = activeSession?.sessionId;
     const latestTurnId = turnSummaries[turnSummaries.length - 1]?.turnId;
     if (!sessionId || !latestTurnId || autoPinnedSessionIdRef.current === sessionId) {
@@ -479,17 +495,17 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [activeSession?.sessionId, requestHeaderTurnPin, turnSummaries]);
+  }, [activeSession?.sessionId, isPresentationActive, requestHeaderTurnPin, turnSummaries]);
 
   useEffect(() => {
-    if (searchCurrentMatchVirtualIndex < 0) return;
+    if (!isPresentationActive || searchCurrentMatchVirtualIndex < 0) return;
     const frameId = requestAnimationFrame(() => {
       virtualListRef.current?.scrollToIndex(searchCurrentMatchVirtualIndex);
     });
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [searchCurrentMatchVirtualIndex]);
+  }, [isPresentationActive, searchCurrentMatchVirtualIndex]);
 
   const handleJumpToTurn = useCallback((turnId: string) => {
     if (!turnId) return false;
@@ -523,13 +539,14 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   }, [activeSession?.sessionId]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const syncBackgroundSubagents = () => {
       setBackgroundSubagents(collectRunningBackgroundSubagents(activeSession?.sessionId));
     };
 
     syncBackgroundSubagents();
     return flowChatStore.subscribe(syncBackgroundSubagents);
-  }, [activeSession?.sessionId]);
+  }, [activeSession?.sessionId, isPresentationActive]);
 
   const handleOpenBackgroundSubagent = useCallback((childSessionId: string) => {
     const subagent = backgroundSubagents.find(item => item.sessionId === childSessionId);
@@ -558,14 +575,20 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     () => {
       void FlowChatManager.getInstance().cancelCurrentTask();
     },
-    { priority: 20, description: 'keyboard.shortcuts.chat.stopGeneration', enabled: !chatPopupActive }
+    {
+      priority: 20,
+      description: 'keyboard.shortcuts.chat.stopGeneration',
+      enabled: isPresentationActive && !chatPopupActive,
+    }
   );
 
   useEffect(() => {
+    if (!isPresentationActive) return;
+    setChatPopupActiveState(isChatPopupActive());
     return subscribeChatPopupChange(() => {
       setChatPopupActiveState(isChatPopupActive());
     });
-  }, []);
+  }, [isPresentationActive]);
 
   useShortcut(
     'chat.newSession',
@@ -580,7 +603,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
         }
       })();
     },
-    { priority: 10, description: 'keyboard.shortcuts.chat.newSession' }
+    { priority: 10, description: 'keyboard.shortcuts.chat.newSession', enabled: isPresentationActive }
   );
 
   useShortcut(
@@ -591,7 +614,7 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
       const message = selected ? `/btw Explain this:\n\n${selected}` : '/btw ';
       window.dispatchEvent(new CustomEvent('fill-chat-input', { detail: { message } }));
     },
-    { priority: 20, description: 'keyboard.shortcuts.chat.btwFill' }
+    { priority: 20, description: 'keyboard.shortcuts.chat.btwFill', enabled: isPresentationActive }
   );
 
   useShortcut(
@@ -600,16 +623,17 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
     () => {
       setSearchOpenRequest(prev => prev + 1);
     },
-    { priority: 15, description: 'keyboard.shortcuts.chat.search' }
+    { priority: 15, description: 'keyboard.shortcuts.chat.search', enabled: isPresentationActive }
   );
 
   return (
-    <FlowChatContext.Provider value={contextValue}>
-      <div
-        ref={chatScopeRef}
-        className={`modern-flowchat-container flow-chat-typography ${className}`}
-        data-shortcut-scope="chat"
-      >
+    <FlowChatPresentationActivityProvider isActive={isPresentationActive}>
+      <FlowChatContext.Provider value={contextValue}>
+        <div
+          ref={chatScopeRef}
+          className={`modern-flowchat-container flow-chat-typography ${className}`}
+          data-shortcut-scope="chat"
+        >
         <FlowChatHeader
           currentTurn={effectiveVisibleTurnInfo?.turnIndex ?? 0}
           totalTurns={effectiveVisibleTurnInfo?.totalTurns ?? 0}
@@ -667,8 +691,9 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
             />
           )}
         </div>
-      </div>
-    </FlowChatContext.Provider>
+        </div>
+      </FlowChatContext.Provider>
+    </FlowChatPresentationActivityProvider>
   );
 };
 

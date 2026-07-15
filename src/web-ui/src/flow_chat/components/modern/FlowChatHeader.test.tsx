@@ -4,6 +4,7 @@ import React, { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { FlowChatHeader, type FlowChatHeaderProps } from './FlowChatHeader';
+import { FlowChatPresentationActivityProvider } from './FlowChatPresentationActivity';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -203,5 +204,30 @@ describe('FlowChatHeader', () => {
 
     expect(onJumpToTurn).toHaveBeenCalledWith('turn-2');
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it('unmounts the session files badge while hidden and restores it when active again', () => {
+    const renderHeader = (isActive: boolean) => {
+      root.render(
+        <FlowChatPresentationActivityProvider isActive={isActive}>
+          <FlowChatHeader {...createProps({ sessionId: 'session-1' })} />
+        </FlowChatPresentationActivityProvider>,
+      );
+    };
+
+    act(() => {
+      renderHeader(true);
+    });
+    expect(container.querySelector('[data-testid="session-files-badge"]')).not.toBeNull();
+
+    act(() => {
+      renderHeader(false);
+    });
+    expect(container.querySelector('[data-testid="session-files-badge"]')).toBeNull();
+
+    act(() => {
+      renderHeader(true);
+    });
+    expect(container.querySelector('[data-testid="session-files-badge"]')).not.toBeNull();
   });
 });

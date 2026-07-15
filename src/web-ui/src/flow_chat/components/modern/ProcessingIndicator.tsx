@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DotMatrixLoader } from '@/component-library';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import './ProcessingIndicator.scss';
 
 interface ProcessingIndicatorProps {
@@ -17,6 +18,8 @@ interface ProcessingIndicatorProps {
 }
 
 export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visible, reserveSpace = false }) => {
+  const isPresentationActive = useFlowChatPresentationActive();
+  const isEffectivelyVisible = visible && isPresentationActive;
   const { t } = useTranslation('flow-chat/processing-hints');
   const rawHints = t('items', { returnObjects: true });
   const hints = Array.isArray(rawHints)
@@ -30,7 +33,7 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
   const rotateTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (visible && hints.length > 0) {
+    if (isEffectivelyVisible && hints.length > 0) {
       const initialIndex = Math.floor(Math.random() * hints.length);
       setHintIndex(initialIndex);
 
@@ -56,16 +59,16 @@ export const ProcessingIndicator: React.FC<ProcessingIndicatorProps> = ({ visibl
       if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
       if (rotateTimerRef.current) clearInterval(rotateTimerRef.current);
     };
-  }, [visible, hints.length]);
+  }, [hints.length, isEffectivelyVisible]);
 
-  const shouldRender = visible || reserveSpace;
+  const shouldRender = isEffectivelyVisible || reserveSpace;
   if (!shouldRender) return null;
 
   return (
-    <div className="processing-indicator" aria-hidden={!visible}>
+    <div className="processing-indicator" aria-hidden={!isEffectivelyVisible}>
       <div
         className="processing-indicator__content"
-        style={visible ? undefined : { visibility: 'hidden' as const }}
+        style={isEffectivelyVisible ? undefined : { visibility: 'hidden' as const }}
       >
         {showHint && hints.length > 0 && (
           <>

@@ -26,6 +26,7 @@ interface ChatPaneProps {
   isFullscreen: boolean;
   workspacePath?: string;
   isDragging?: boolean;
+  isPresentationActive?: boolean;
   showChatInput?: boolean;
   showPreviewFirstToggle?: boolean;
   isPreviewFirstActive?: boolean;
@@ -38,6 +39,7 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
   isFullscreen,
   workspacePath,
   isDragging: _isDragging = false,
+  isPresentationActive = true,
   showChatInput = false,
   showPreviewFirstToggle = false,
   isPreviewFirstActive = false,
@@ -152,6 +154,7 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
     >
       <FlowChatContainer
         className="void-chat-pane__chat-container"
+        isPresentationActive={isPresentationActive}
         onOpenVisualization={(type, data) => {
           log.info('Opening visualization', { type, data });
         }}

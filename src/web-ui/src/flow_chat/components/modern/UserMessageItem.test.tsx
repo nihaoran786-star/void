@@ -37,6 +37,10 @@ vi.mock('../../store/modernFlowChatStore', () => ({
   useActiveSession: () => activeSessionRef.current,
 }));
 
+vi.mock('./useFlowChatPresentationStore', () => ({
+  usePresentationActiveSession: () => activeSessionRef.current,
+}));
+
 const flowChatStoreMock = vi.hoisted(() => ({
   getState: vi.fn(() => ({
     sessions: new Map(),

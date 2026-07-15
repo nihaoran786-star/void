@@ -1,4 +1,5 @@
 import React, { ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 
 interface SmoothHeightCollapseProps {
   isOpen: boolean;
@@ -19,13 +20,17 @@ export const SmoothHeightCollapse: React.FC<SmoothHeightCollapseProps> = ({
   durationMs = 260,
   disableAnimation = false,
 }) => {
+  const isPresentationActive = useFlowChatPresentationActive();
   const innerRef = useRef<HTMLDivElement>(null);
+  const wasPresentationActiveRef = useRef(isPresentationActive);
   const [phase, setPhase] = useState<CollapsePhase>(() => (isOpen ? 'open' : 'closed'));
   const [height, setHeight] = useState<string>(() => (isOpen ? 'auto' : '0px'));
   const shouldRender = isOpen || phase !== 'closed';
-  const shouldAnimate = !disableAnimation && !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+  const shouldAnimate = isPresentationActive && !disableAnimation && !(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
 
   useLayoutEffect(() => {
+    const isResuming = isPresentationActive && !wasPresentationActiveRef.current;
+    wasPresentationActiveRef.current = isPresentationActive;
     const inner = innerRef.current;
     if (!inner) {
       return;
@@ -34,7 +39,7 @@ export const SmoothHeightCollapse: React.FC<SmoothHeightCollapseProps> = ({
     let frameId = 0;
     let timeoutId = 0;
 
-    if (!shouldAnimate) {
+    if (!isPresentationActive || isResuming || !shouldAnimate) {
       setPhase(isOpen ? 'open' : 'closed');
       setHeight(isOpen ? 'auto' : '0px');
       return;
@@ -66,11 +71,11 @@ export const SmoothHeightCollapse: React.FC<SmoothHeightCollapseProps> = ({
       window.cancelAnimationFrame(frameId);
       window.clearTimeout(timeoutId);
     };
-  }, [disableAnimation, durationMs, isOpen, shouldAnimate]);
+  }, [disableAnimation, durationMs, isOpen, isPresentationActive, shouldAnimate]);
 
   useLayoutEffect(() => {
     const inner = innerRef.current;
-    if (!inner || phase !== 'open' || !shouldAnimate) {
+    if (!isPresentationActive || !inner || phase !== 'open' || !shouldAnimate) {
       return;
     }
 
@@ -79,7 +84,7 @@ export const SmoothHeightCollapse: React.FC<SmoothHeightCollapseProps> = ({
     });
     observer.observe(inner);
     return () => observer.disconnect();
-  }, [phase, shouldAnimate, children]);
+  }, [phase, shouldAnimate, children, isPresentationActive]);
 
   return (
     <div

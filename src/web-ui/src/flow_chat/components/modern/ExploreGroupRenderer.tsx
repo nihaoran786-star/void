@@ -17,6 +17,7 @@ import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
 import { useToolCardHeightContract } from '../../tool-cards/useToolCardHeightContract';
 import { useFlowChatContext } from './FlowChatContext';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import { SmoothHeightCollapse } from './SmoothHeightCollapse';
 import './ExploreRegion.scss';
 
@@ -30,6 +31,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   turnId,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const isPresentationActive = useFlowChatPresentationActive();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollState, setScrollState] = useState({ hasScroll: false, atTop: true, atBottom: true });
   
@@ -100,7 +102,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     const justGotCut = wasCutByCritical && !prevWasCutRef.current;
     prevWasCutRef.current = wasCutByCritical;
 
-    if (!justGotCut) return;
+    if (!isPresentationActive || !justGotCut) return;
 
     const wasExpanded = !hasExplicitState || explicitExpanded;
     log.debug('explore group cut by critical', { groupId, wasExpanded, hasExplicitState });
@@ -117,6 +119,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
     explicitExpanded,
     groupId,
     hasExplicitState,
+    isPresentationActive,
     wasCutByCritical,
     onCollapseGroup,
   ]);
@@ -125,20 +128,26 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
   // Use double requestAnimationFrame to ensure the browser has completed
   // layout of newly added content before we measure scrollHeight.
   useEffect(() => {
-    if (!isCollapsed && isLastGroupInTurn && !wasCutByCritical && containerRef.current) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+    if (isPresentationActive && !isCollapsed && isLastGroupInTurn && !wasCutByCritical && containerRef.current) {
+      let innerFrameId: number | null = null;
+      const outerFrameId = requestAnimationFrame(() => {
+        innerFrameId = requestAnimationFrame(() => {
           if (containerRef.current) {
             containerRef.current.scrollTop = containerRef.current.scrollHeight;
             checkScrollState();
           }
         });
       });
+
+      return () => {
+        cancelAnimationFrame(outerFrameId);
+        if (innerFrameId !== null) cancelAnimationFrame(innerFrameId);
+      };
     }
-  }, [allItems, checkScrollState, isCollapsed, isLastGroupInTurn, wasCutByCritical]);
+  }, [allItems, checkScrollState, isCollapsed, isLastGroupInTurn, isPresentationActive, wasCutByCritical]);
 
   useEffect(() => {
-    if (!isExpanded) {
+    if (!isPresentationActive || !isExpanded) {
       setScrollState({ hasScroll: false, atTop: true, atBottom: true });
       return;
     }
@@ -163,7 +172,7 @@ export const ExploreGroupRenderer: React.FC<ExploreGroupRendererProps> = React.m
       cancelAnimationFrame(frameId);
       observer.disconnect();
     };
-  }, [allItems, checkScrollState, isExpanded]);
+  }, [allItems, checkScrollState, isExpanded, isPresentationActive]);
   
   // Build summary text with i18n.
   const displaySummary = useMemo(() => {

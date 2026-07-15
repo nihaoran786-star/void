@@ -13,7 +13,6 @@
 
 import React, { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { useActiveSessionState } from '../../hooks/useActiveSessionState';
 import { VirtualItemRenderer } from './VirtualItemRenderer';
 import { ScrollToLatestBar } from '../ScrollToLatestBar';
 import { ScrollToTurnHeaderButton } from '../ScrollToTurnHeaderButton';
@@ -38,9 +37,16 @@ import {
   type HistoryProjectionHandoffSnapshot,
 } from './historyProjectionHandoff';
 import type { FlowChatPinTurnToTopMode } from '../../events/flowchatNavigation';
-import { useVirtualItems, useActiveSession, useModernFlowChatStore, type VirtualItem, type VisibleTurnInfo } from '../../store/modernFlowChatStore';
+import { useModernFlowChatStore, type VirtualItem, type VisibleTurnInfo } from '../../store/modernFlowChatStore';
 import { useChatInputState } from '../../store/chatInputStateStore';
 import { computeFlowChatInputStackFooterPx } from '../../utils/flowChatScrollLayout';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
+import {
+  usePresentationActiveSession,
+  usePresentationVirtualItems,
+  usePresentationVisibleTurnInfo,
+} from './useFlowChatPresentationStore';
+import { useFlowChatPresentationSessionState } from './useFlowChatPresentationSessionState';
 import './VirtualMessageList.scss';
 
 const COMPENSATION_EPSILON_PX = 0.5;
@@ -267,9 +273,10 @@ function computeVirtualMessageItemKey(sessionId: string | null, item: VirtualIte
 }
 
 export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessageListProps>(({ onUserScrollIntent }, ref) => {
+  const isPresentationActive = useFlowChatPresentationActive();
   const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const virtualItems = useVirtualItems();
-  const activeSession = useActiveSession();
+  const virtualItems = usePresentationVirtualItems();
+  const activeSession = usePresentationActiveSession();
   const activeSessionId = activeSession?.sessionId ?? null;
   const activeSessionIdForFollow = activeSession?.sessionId;
   const virtualListSessionKey = activeSessionId ?? 'no-active-session';
@@ -285,6 +292,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const [historyProjectionHandoff, setHistoryProjectionHandoff] = useState<HistoryProjectionHandoffSnapshot | null>(null);
 
   const scrollerElementRef = useRef<HTMLElement | null>(null);
+  const inactiveScrollerRef = useRef<HTMLElement | null>(null);
+  const presentationScrollerRef = isPresentationActive
+    ? scrollerElementRef
+    : inactiveScrollerRef;
   const footerElementRef = useRef<HTMLDivElement | null>(null);
   const bottomReservationStateRef = useRef<BottomReservationState>(createInitialBottomReservationState());
   const previousMeasuredHeightRef = useRef<number | null>(null);
@@ -292,6 +303,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const measureFrameRef = useRef<number | null>(null);
   const visibleTurnMeasureFrameRef = useRef<number | null>(null);
   const pinReservationReconcileFrameRef = useRef<number | null>(null);
+  const pinAlignmentOuterFrameRef = useRef<number | null>(null);
+  const pinAlignmentInnerFrameRef = useRef<number | null>(null);
+  const isPresentationActiveRef = useRef(isPresentationActive);
+  isPresentationActiveRef.current = isPresentationActive;
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const mutationObserverRef = useRef<MutationObserver | null>(null);
   const pendingStaticTurnScrollRef = useRef<PendingStaticTurnScroll | null>(null);
@@ -357,7 +372,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const inputStackFooterPx = computeFlowChatInputStackFooterPx(inputHeight, isInputActive);
   inputStackFooterPxRef.current = inputStackFooterPx;
 
-  const activeSessionState = useActiveSessionState();
+  const activeSessionState = useFlowChatPresentationSessionState();
   const isProcessing = activeSessionState.isProcessing;
   const processingPhase = activeSessionState.processingPhase;
 
@@ -642,6 +657,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   ]);
 
   const scheduleHeightMeasure = useCallback((frames: number = 1) => {
+    if (!isPresentationActiveRef.current) return;
     if (measureFrameRef.current !== null) {
       cancelAnimationFrame(measureFrameRef.current);
       measureFrameRef.current = null;
@@ -649,6 +665,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     const run = (remainingFrames: number) => {
       measureFrameRef.current = requestAnimationFrame(() => {
+        if (!isPresentationActiveRef.current) {
+          measureFrameRef.current = null;
+          return;
+        }
         if (remainingFrames > 1) {
           run(remainingFrames - 1);
           return;
@@ -794,6 +814,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [userMessageItems, visibleTurnInfoByTurnId]);
 
   const scheduleVisibleTurnMeasure = useCallback((frames: number = 1) => {
+    if (!isPresentationActiveRef.current) return;
     if (visibleTurnMeasureFrameRef.current !== null) {
       cancelAnimationFrame(visibleTurnMeasureFrameRef.current);
       visibleTurnMeasureFrameRef.current = null;
@@ -801,6 +822,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     const run = (remainingFrames: number) => {
       visibleTurnMeasureFrameRef.current = requestAnimationFrame(() => {
+        if (!isPresentationActiveRef.current) {
+          visibleTurnMeasureFrameRef.current = null;
+          return;
+        }
         if (remainingFrames > 1) {
           run(remainingFrames - 1);
           return;
@@ -1007,6 +1032,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   ]);
 
   const schedulePinReservationReconcile = useCallback((frames: number = 1) => {
+    if (!isPresentationActiveRef.current) return;
     if (pinReservationReconcileFrameRef.current !== null) {
       cancelAnimationFrame(pinReservationReconcileFrameRef.current);
       pinReservationReconcileFrameRef.current = null;
@@ -1014,6 +1040,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     const run = (remainingFrames: number) => {
       pinReservationReconcileFrameRef.current = requestAnimationFrame(() => {
+        if (!isPresentationActiveRef.current) {
+          pinReservationReconcileFrameRef.current = null;
+          return;
+        }
         if (remainingFrames > 1) {
           run(remainingFrames - 1);
           return;
@@ -1156,9 +1186,20 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     verifyPinAlignment('immediate');
     // The observed drift lands after the initial alignment, so sample two
     // follow-up frames and realign only if the target actually shifts.
-    requestAnimationFrame(() => {
+    if (pinAlignmentOuterFrameRef.current !== null) {
+      cancelAnimationFrame(pinAlignmentOuterFrameRef.current);
+    }
+    if (pinAlignmentInnerFrameRef.current !== null) {
+      cancelAnimationFrame(pinAlignmentInnerFrameRef.current);
+      pinAlignmentInnerFrameRef.current = null;
+    }
+    pinAlignmentOuterFrameRef.current = requestAnimationFrame(() => {
+      pinAlignmentOuterFrameRef.current = null;
+      if (!isPresentationActiveRef.current) return;
       verifyPinAlignment('raf-1');
-      requestAnimationFrame(() => {
+      pinAlignmentInnerFrameRef.current = requestAnimationFrame(() => {
+        pinAlignmentInnerFrameRef.current = null;
+        if (!isPresentationActiveRef.current) return;
         verifyPinAlignment('raf-2');
       });
     });
@@ -1243,7 +1284,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [virtualItems.length, resetBottomReservations]);
 
   useEffect(() => {
-    if (!scrollerElement) {
+    if (!isPresentationActive || !scrollerElement) {
       previousMeasuredHeightRef.current = null;
       return;
     }
@@ -1267,6 +1308,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     mutationObserverRef.current?.disconnect();
     let mutationPending = false;
+    let mutationFrame: number | null = null;
     mutationObserverRef.current = new MutationObserver((mutations) => {
       if (mutationPending) return;
       if (!isProcessing) {
@@ -1282,7 +1324,8 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
         return;
       }
       mutationPending = true;
-      requestAnimationFrame(() => {
+      mutationFrame = requestAnimationFrame(() => {
+        mutationFrame = null;
         mutationPending = false;
         scheduleHeightMeasure(2);
         scheduleVisibleTurnMeasure(2);
@@ -1608,6 +1651,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       resizeObserverRef.current = null;
       mutationObserverRef.current?.disconnect();
       mutationObserverRef.current = null;
+      if (mutationFrame !== null) {
+        cancelAnimationFrame(mutationFrame);
+        mutationFrame = null;
+      }
       touchScrollIntentStartYRef.current = null;
       scrollbarPointerInteractionActiveRef.current = false;
 
@@ -1644,18 +1691,21 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     shouldSuspendAutoFollow,
     snapshotMeasuredContentHeight,
     isProcessing,
+    isPresentationActive,
     updateBottomReservationState,
   ]);
 
   // `rangeChanged` is affected by overscan/increaseViewportBy, so treat it as a
   // "rendered DOM changed" signal and derive the pinned turn from real DOM visibility.
   const handleRangeChanged = useCallback(() => {
+    if (!isPresentationActive) return;
     scheduleVisibleTurnMeasure(2);
     schedulePinReservationReconcile(2);
     scheduleFollowToLatestWithViewportState('range-changed');
-  }, [scheduleFollowToLatestWithViewportState, schedulePinReservationReconcile, scheduleVisibleTurnMeasure]);
+  }, [isPresentationActive, scheduleFollowToLatestWithViewportState, schedulePinReservationReconcile, scheduleVisibleTurnMeasure]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     if (userMessageItems.length === 0) {
       const setVisibleTurnInfo = useModernFlowChatStore.getState().setVisibleTurnInfo;
       setVisibleTurnInfo(null);
@@ -1664,10 +1714,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     scheduleVisibleTurnMeasure(2);
     schedulePinReservationReconcile(2);
-  }, [activeSession?.sessionId, schedulePinReservationReconcile, scheduleVisibleTurnMeasure, scrollerElement, userMessageItems, virtualItems.length]);
+  }, [activeSession?.sessionId, isPresentationActive, schedulePinReservationReconcile, scheduleVisibleTurnMeasure, scrollerElement, userMessageItems, virtualItems.length]);
 
   useEffect(() => {
-    if (!pendingTurnPin) return;
+    if (!isPresentationActive || !pendingTurnPin) return;
 
     if (performance.now() > pendingTurnPin.expiresAtMs) {
       setPendingTurnPin(null);
@@ -1698,7 +1748,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [pendingTurnPin, scheduleVisibleTurnMeasure, tryResolvePendingTurnPin]);
+  }, [isPresentationActive, pendingTurnPin, scheduleVisibleTurnMeasure, tryResolvePendingTurnPin]);
 
   // ── Navigation helpers ────────────────────────────────────────────────
   const clearAllBottomReservationsForUserNavigation = useCallback(() => {
@@ -1910,11 +1960,12 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     handleUserScrollIntent,
     handleScroll: handleFollowOutputScroll,
   } = useFlowChatFollowOutput({
+    isActive: isPresentationActive,
     activeSessionId: activeSessionIdForFollow,
     latestTurnId,
     virtualItemCount: virtualItems.length,
     isStreaming: isStreamingOutput,
-    scrollerRef: scrollerElementRef,
+    scrollerRef: presentationScrollerRef,
     performUserFollowScroll: () => {
       scrollToLatestEndPositionInternal('smooth');
     },
@@ -1949,6 +2000,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   });
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     if (hasPrimedMountedStreamingTurnFollowRef.current) {
       return;
     }
@@ -1966,12 +2018,14 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [
     activeSessionIdForFollow,
     armFollowOutputForNewTurn,
+    isPresentationActive,
     isStreamingOutput,
     latestTurnId,
     virtualItems.length,
   ]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const previousSessionId = previousSessionIdForFollowRef.current;
     if (previousSessionId !== activeSessionIdForFollow) {
       previousSessionIdForFollowRef.current = activeSessionIdForFollow;
@@ -1995,9 +2049,14 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
           });
         };
         // Allow two frames for virtual items to settle before scrolling.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(scrollToBottom);
+        let innerFrameId: number | null = null;
+        const outerFrameId = requestAnimationFrame(() => {
+          innerFrameId = requestAnimationFrame(scrollToBottom);
         });
+        return () => {
+          cancelAnimationFrame(outerFrameId);
+          if (innerFrameId !== null) cancelAnimationFrame(innerFrameId);
+        };
       }
 
       return;
@@ -2025,12 +2084,14 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     activeSession?.hasUnreadCompletion,
     armFollowOutputForNewTurn,
     cancelPendingAutoFollowArm,
+    isPresentationActive,
     isStreamingOutput,
     latestTurnId,
     virtualItems.length,
   ]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const trackingState = latestTurnAutoFollowStateRef.current;
     if (
       !latestTurnId ||
@@ -2073,6 +2134,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     bottomReservationState.pin.mode,
     bottomReservationState.pin.targetTurnId,
     isFollowingOutput,
+    isPresentationActive,
     isStreamingOutput,
     latestTurnId,
     pendingTurnPin?.pinMode,
@@ -2134,6 +2196,21 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     userMessageItems,
   ]);
 
+  useEffect(() => {
+    if (!isPresentationActive) return;
+
+    return () => {
+      if (pinAlignmentOuterFrameRef.current !== null) {
+        cancelAnimationFrame(pinAlignmentOuterFrameRef.current);
+        pinAlignmentOuterFrameRef.current = null;
+      }
+      if (pinAlignmentInnerFrameRef.current !== null) {
+        cancelAnimationFrame(pinAlignmentInnerFrameRef.current);
+        pinAlignmentInnerFrameRef.current = null;
+      }
+    };
+  }, [isPresentationActive]);
+
   const scrollToIndex = useCallback((index: number) => {
     if (index < 0 || index >= virtualItems.length) return;
 
@@ -2194,7 +2271,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     return requestTurnPinToTop(turnId, options);
   }, [clearPinReservationForUserNavigation, exitFollowOutput, latestTurnId, requestTurnPinToTop]);
 
-  const visibleTurnInfo = useModernFlowChatStore(state => state.visibleTurnInfo);
+  const visibleTurnInfo = usePresentationVisibleTurnInfo();
 
   const handleJumpToCurrentTurn = useCallback(() => {
     const currentTurnId = visibleTurnInfo?.turnId;
@@ -2203,7 +2280,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [visibleTurnInfo?.turnId, pinTurnToTop]);
 
   const { shouldShowButton: shouldShowTurnHeaderButton, handleClick: handleTurnHeaderClick } = useScrollToTurnHeader({
-    scrollerRef: scrollerElementRef,
+    scrollerRef: presentationScrollerRef,
     currentTurnId: visibleTurnInfo?.turnId ?? null,
     currentTurnIndex: visibleTurnInfo?.turnIndex ?? 0,
     visibleTurnInfo,
@@ -2211,7 +2288,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   });
 
   const { visibleTaskInfo, scrollToTask } = useVisibleTaskInfo({
-    scrollerRef: scrollerElementRef,
+    scrollerRef: presentationScrollerRef,
     virtualItems,
   });
 
@@ -2275,6 +2352,13 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const contentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (!isPresentationActive) {
+      if (contentTimeoutRef.current) {
+        clearTimeout(contentTimeoutRef.current);
+        contentTimeoutRef.current = null;
+      }
+      return;
+    }
     const currentContent = lastItemInfo.content;
 
     if (currentContent !== lastContentRef.current) {
@@ -2295,7 +2379,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
         clearTimeout(contentTimeoutRef.current);
       }
     };
-  }, [lastItemInfo.content]);
+  }, [isPresentationActive, lastItemInfo.content]);
 
   useEffect(() => {
     if (!lastItemInfo.isTurnProcessing && !isProcessing) {
@@ -2420,6 +2504,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   };
 
   React.useLayoutEffect(() => {
+    if (!isPresentationActive) return;
     if (!useStaticInitialHistoryWindow || isInitialHistoryRenderWindowExpanded) {
       return;
     }
@@ -2440,11 +2525,13 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, [
     getEffectiveBottomScrollTop,
     initialHistoryRenderKey,
+    isPresentationActive,
     isInitialHistoryRenderWindowExpanded,
     useStaticInitialHistoryWindow,
   ]);
 
   React.useLayoutEffect(() => {
+    if (!isPresentationActive) return;
     const pendingScroll = pendingStaticTurnScrollRef.current;
     if (!pendingScroll) {
       return;
@@ -2463,6 +2550,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       pendingStaticTurnScrollRef.current = null;
     }
   }, [
+    isPresentationActive,
     isInitialHistoryRenderWindowExpanded,
     renderedInitialHistoryItems,
     scrollStaticTurnIntoView,
@@ -2503,6 +2591,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, []);
 
   const scheduleHistoryProjectionHandoffRelease = useCallback(() => {
+    if (!isPresentationActive) return;
     if (historyProjectionHandoffReleaseFrameRef.current !== null) {
       cancelAnimationFrame(historyProjectionHandoffReleaseFrameRef.current);
       historyProjectionHandoffReleaseFrameRef.current = null;
@@ -2510,6 +2599,10 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
 
     const run = () => {
       historyProjectionHandoffReleaseFrameRef.current = requestAnimationFrame(() => {
+        if (!isPresentationActive) {
+          historyProjectionHandoffReleaseFrameRef.current = null;
+          return;
+        }
         const snapshot = historyProjectionHandoffRef.current;
         if (!snapshot) {
           historyProjectionHandoffReleaseFrameRef.current = null;
@@ -2539,10 +2632,18 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     activeSession?.isPartial,
     activeSessionId,
     clearHistoryProjectionHandoff,
+    isPresentationActive,
     isHistoryProjectionHandoffTargetRendered,
     useStaticInitialHistoryWindow,
     virtualItems.length,
   ]);
+
+  useEffect(() => {
+    if (!isPresentationActive && historyProjectionHandoffReleaseFrameRef.current !== null) {
+      cancelAnimationFrame(historyProjectionHandoffReleaseFrameRef.current);
+      historyProjectionHandoffReleaseFrameRef.current = null;
+    }
+  }, [isPresentationActive]);
 
   useEffect(() => {
     return () => {
@@ -2554,6 +2655,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   }, []);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const previousActiveSessionId = previousActiveSessionIdForHandoffRef.current;
     const snapshot = selectSessionOpenHistoryProjectionHandoff({
       activeSessionId,
@@ -2589,6 +2691,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
     activeSessionId,
     clearHistoryProjectionHandoff,
     footerHeightPx,
+    isPresentationActive,
     latestTurnId,
     latestUserMessageIndex,
     scheduleHistoryProjectionHandoffRelease,
@@ -2740,7 +2843,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
         onAnchorNavigate={(turnId) => {
           pinTurnToTop(turnId, { behavior: 'smooth' });
         }}
-        scrollerRef={scrollerElementRef}
+        scrollerRef={presentationScrollerRef}
       />
 
       <ScrollToTurnHeaderButton

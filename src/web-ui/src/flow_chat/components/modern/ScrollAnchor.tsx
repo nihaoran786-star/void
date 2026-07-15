@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useVirtualItems } from '../../store/modernFlowChatStore';
 import { i18nService } from '@/infrastructure/i18n';
+import { usePresentationVirtualItems } from './useFlowChatPresentationStore';
 import './ScrollAnchor.scss';
 
 interface ScrollAnchorProps {
@@ -28,7 +28,7 @@ export const ScrollAnchor: React.FC<ScrollAnchorProps> = ({
   onAnchorNavigate,
   scrollerRef,
 }) => {
-  const virtualItems = useVirtualItems();
+  const virtualItems = usePresentationVirtualItems();
   const [hoveredAnchor, setHoveredAnchor] = useState<AnchorPoint | null>(null);
   const [previewPosition, setPreviewPosition] = useState({ x: 0, y: 0 });
   const [isScrolling, setIsScrolling] = useState(false);

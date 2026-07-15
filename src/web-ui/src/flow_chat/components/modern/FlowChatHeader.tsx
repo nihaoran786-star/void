@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { SessionFilesBadge } from './SessionFilesBadge';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { createReviewPlatformTab } from '@/shared/utils/tabUtils';
+import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import './FlowChatHeader.scss';
 
 export interface FlowChatHeaderTurnSummary {
@@ -105,6 +106,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const { t } = useTranslation('flow-chat');
   const { t: tComponents } = useTranslation('components');
   const { currentWorkspace } = useWorkspaceContext();
+  const isPresentationActive = useFlowChatPresentationActive();
   const [isTurnListOpen, setIsTurnListOpen] = useState(false);
   const [isSubagentListOpen, setIsSubagentListOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -151,7 +153,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const hasNoResults = searchQuery.trim().length > 0 && searchMatchCount === 0;
 
   useEffect(() => {
-    if (!isTurnListOpen && !isSubagentListOpen) return;
+    if (!isPresentationActive || (!isTurnListOpen && !isSubagentListOpen)) return;
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
@@ -178,15 +180,23 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isSubagentListOpen, isTurnListOpen]);
+  }, [isPresentationActive, isSubagentListOpen, isTurnListOpen]);
+
+  useEffect(() => {
+    if (isPresentationActive) return;
+    setIsTurnListOpen(false);
+    setIsSubagentListOpen(false);
+    setIsSearchOpen(false);
+  }, [isPresentationActive]);
 
   const prevSearchOpenRequestRef = useRef(0);
   useEffect(() => {
+    if (!isPresentationActive) return;
     if (searchOpenRequest > 0 && searchOpenRequest !== prevSearchOpenRequestRef.current) {
       prevSearchOpenRequestRef.current = searchOpenRequest;
       setIsSearchOpen(true);
     }
-  }, [searchOpenRequest]);
+  }, [isPresentationActive, searchOpenRequest]);
 
   useEffect(() => {
     setIsTurnListOpen(false);
@@ -199,7 +209,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   }, [hasBackgroundSubagents]);
 
   useEffect(() => {
-    if (!isSearchOpen) return;
+    if (!isPresentationActive || !isSearchOpen) return;
 
     const frameId = requestAnimationFrame(() => {
       searchInputRef.current?.focus();
@@ -209,10 +219,10 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [isSearchOpen]);
+  }, [isPresentationActive, isSearchOpen]);
 
   useEffect(() => {
-    if (!isTurnListOpen) return;
+    if (!isPresentationActive || !isTurnListOpen) return;
 
     const frameId = requestAnimationFrame(() => {
       activeTurnItemRef.current?.scrollIntoView({
@@ -224,7 +234,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [currentTurn, displayTurns.length, isTurnListOpen]);
+  }, [currentTurn, displayTurns.length, isPresentationActive, isTurnListOpen]);
 
   const handleOpenSearch = useCallback(() => {
     setIsSearchOpen(true);
@@ -292,7 +302,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   return (
     <div className="flowchat-header">
       <div className="flowchat-header__actions flowchat-header__actions--left">
-        <SessionFilesBadge sessionId={sessionId} />
+        {isPresentationActive && <SessionFilesBadge sessionId={sessionId} />}
       </div>
 
       <Tooltip content={currentUserMessage} placement="bottom">

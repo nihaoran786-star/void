@@ -8,6 +8,7 @@ import { taskCollapseStateManager } from '../../store/TaskCollapseStateManager';
 import { SmoothHeightCollapse } from '../modern/SmoothHeightCollapse';
 import { FlowChatStore } from '../../store/FlowChatStore';
 import { getSubagentProjectionState } from '../../utils/subagentProjection';
+import { useFlowChatPresentationActive } from '../modern/FlowChatPresentationActivity';
 import './SubagentProjectionView.scss';
 
 interface SubagentProjectionViewProps {
@@ -133,6 +134,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   className = '',
   compactText = true,
 }) => {
+  const isPresentationActive = useFlowChatPresentationActive();
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const userScrolledUpRef = useRef(false);
@@ -146,7 +148,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   );
   const [heightFloorPx, setHeightFloorPx] = useState(0);
   const [projectionState, setProjectionState] = useState(() => {
-    if (!parentToolIds || parentToolIds.size === 0) {
+    if (!isPresentationActive || !parentToolIds || parentToolIds.size === 0) {
       return null;
     }
 
@@ -162,6 +164,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   });
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     setIsCollapsed(taskCollapseStateManager.isCollapsed(parentTaskToolId));
 
     const unsubscribe = taskCollapseStateManager.addListener((toolId, collapsed) => {
@@ -171,9 +174,10 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
     });
 
     return unsubscribe;
-  }, [parentTaskToolId]);
+  }, [isPresentationActive, parentTaskToolId]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     if (!parentToolIds || parentToolIds.size === 0) {
       setProjectionState(null);
       return;
@@ -212,7 +216,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
     });
 
     return unsubscribe;
-  }, [directSubagentSessionId, parentSessionId, parentToolIds]);
+  }, [directSubagentSessionId, isPresentationActive, parentSessionId, parentToolIds]);
 
   const liveItems = useMemo(
     () => itemsProp ?? projectionState?.items ?? [],
@@ -244,6 +248,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   const effectiveHeightFloorPx = Math.max(heightFloorPx, pendingRoundSwitchBridgePx);
 
   useLayoutEffect(() => {
+    if (!isPresentationActive) return;
     const currentRoundId = projectedRoundId;
     const previousRoundId = previousRoundIdRef.current;
 
@@ -264,7 +269,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
     }
 
     previousRoundIdRef.current = currentRoundId;
-  }, [heightFloorPx, isRunning, liveItems.length, parentTaskToolId, projectedRoundId]);
+  }, [heightFloorPx, isPresentationActive, isRunning, liveItems.length, parentTaskToolId, projectedRoundId]);
 
   const items = useMemo(() => {
     if (liveItems.length > 0) {
@@ -300,6 +305,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   }, [items]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const content = contentRef.current;
     if (!content) {
       return;
@@ -336,9 +342,10 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
     observer.observe(content);
 
     return () => observer.disconnect();
-  }, [heightFloorPx, isRunning, items, liveItems.length, parentTaskToolId, projectedRoundId]);
+  }, [heightFloorPx, isPresentationActive, isRunning, items, liveItems.length, parentTaskToolId, projectedRoundId]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -361,7 +368,7 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
 
     container.addEventListener('scroll', handleScroll, { passive: true });
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [isCollapsed]);
+  }, [isCollapsed, isPresentationActive]);
 
   const scrollSignal = useMemo(() => {
     return items.map((item) => {
@@ -373,11 +380,13 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
   }, [items]);
 
   useEffect(() => {
+    if (!isPresentationActive) return;
     const container = containerRef.current;
     if (!container || isCollapsed) return;
 
+    let innerRafId: number | null = null;
     const rafId = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+      innerRafId = requestAnimationFrame(() => {
         if (!userScrolledUpRef.current) {
           container.scrollTop = container.scrollHeight;
           lastScrollTopRef.current = container.scrollTop;
@@ -385,8 +394,11 @@ export const SubagentProjectionView: React.FC<SubagentProjectionViewProps> = ({
       });
     });
 
-    return () => cancelAnimationFrame(rafId);
-  }, [isCollapsed, scrollSignal]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (innerRafId !== null) cancelAnimationFrame(innerRafId);
+    };
+  }, [isCollapsed, isPresentationActive, scrollSignal]);
 
   const shouldRenderProjection =
     Boolean(resolvedSubagentSessionId) &&

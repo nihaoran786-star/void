@@ -77,8 +77,9 @@ function extractDialogTurnContent(turnId: string): string {
   return contentParts.join('\n\n---\n\n');
 }
 
-export function useFlowChatCopyDialog(): void {
+export function useFlowChatCopyDialog(isActive: boolean = true): void {
   useEffect(() => {
+    if (!isActive) return;
     const unsubscribe = globalEventBus.on('flowchat:copy-dialog', ({ dialogTurn }) => {
       if (!dialogTurn) {
         log.warn('Copy failed: dialog element not provided');
@@ -110,5 +111,5 @@ export function useFlowChatCopyDialog(): void {
     });
 
     return unsubscribe;
-  }, []);
+  }, [isActive]);
 }

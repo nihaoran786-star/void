@@ -89,6 +89,12 @@ vi.mock('../../store/modernFlowChatStore', () => ({
   useVisibleTurnInfo: () => stateMocks.visibleTurnInfo,
 }));
 
+vi.mock('./useFlowChatPresentationStore', () => ({
+  usePresentationVirtualItems: () => stateMocks.virtualItems,
+  usePresentationActiveSession: () => stateMocks.activeSession,
+  usePresentationVisibleTurnInfo: () => stateMocks.visibleTurnInfo,
+}));
+
 vi.mock('./VirtualMessageList', () => ({
   VirtualMessageList: React.forwardRef((props: { onUserScrollIntent?: () => void }, ref) => {
     virtualListMock.latestProps = props;

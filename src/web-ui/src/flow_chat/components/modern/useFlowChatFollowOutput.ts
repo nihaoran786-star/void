@@ -21,6 +21,7 @@ export type FollowOutputExitReason =
   | 'pin-turn-to-top';
 
 interface UseFlowChatFollowOutputOptions {
+  isActive?: boolean;
   activeSessionId?: string;
   latestTurnId: string | null;
   virtualItemCount: number;
@@ -66,6 +67,7 @@ function getDistanceFromBottom(scroller: HTMLElement): number {
 }
 
 export function useFlowChatFollowOutput({
+  isActive = true,
   activeSessionId,
   latestTurnId,
   virtualItemCount,
@@ -88,12 +90,14 @@ export function useFlowChatFollowOutput({
   const previousSessionIdRef = useRef<string | undefined>(activeSessionId);
   const armedAutoFollowTurnIdRef = useRef<string | null>(null);
   const continuousFollowFrameRef = useRef<number | null>(null);
+  const isActiveRef = useRef(isActive);
   const isStreamingRef = useRef(isStreaming);
   const performAutoFollowScrollRef = useRef(performAutoFollowScroll);
   const onContinuousFollowFrameRef = useRef(onContinuousFollowFrame);
   const getAutoFollowDistanceFromBottomRef = useRef(getAutoFollowDistanceFromBottom);
   const shouldSuspendAutoFollowRef = useRef(shouldSuspendAutoFollow);
 
+  isActiveRef.current = isActive;
   isStreamingRef.current = isStreaming;
   performAutoFollowScrollRef.current = performAutoFollowScroll;
   onContinuousFollowFrameRef.current = onContinuousFollowFrame;
@@ -145,7 +149,7 @@ export function useFlowChatFollowOutput({
   const runContinuousFollowFrame = useCallback(() => {
     continuousFollowFrameRef.current = null;
 
-    if (!isFollowingOutputRef.current || !isStreamingRef.current) {
+    if (!isActiveRef.current || !isFollowingOutputRef.current || !isStreamingRef.current) {
       return;
     }
 
@@ -172,7 +176,7 @@ export function useFlowChatFollowOutput({
       lastObservedScrollTopRef.current = scroller.scrollTop;
     }
 
-    if (!isFollowingOutputRef.current || !isStreamingRef.current) {
+    if (!isActiveRef.current || !isFollowingOutputRef.current || !isStreamingRef.current) {
       return;
     }
 
@@ -183,7 +187,7 @@ export function useFlowChatFollowOutput({
     if (continuousFollowFrameRef.current !== null) {
       return;
     }
-    if (!isFollowingOutputRef.current || !isStreamingRef.current) {
+    if (!isActiveRef.current || !isFollowingOutputRef.current || !isStreamingRef.current) {
       return;
     }
     continuousFollowFrameRef.current = requestAnimationFrame(runContinuousFollowFrame);
@@ -204,6 +208,7 @@ export function useFlowChatFollowOutput({
   }, [scrollerRef]);
 
   const enterFollowOutput = useCallback((reason: FollowOutputEnterReason) => {
+    if (!isActiveRef.current) return;
     cancelPendingAutoFollowArm();
     cancelScheduledFollow();
     explicitUserScrollIntentUntilMsRef.current = 0;
@@ -233,6 +238,7 @@ export function useFlowChatFollowOutput({
   }, [cancelPendingAutoFollowArm, cancelScheduledFollow, scrollerRef, setFollowingOutput]);
 
   const armFollowOutputForNewTurn = useCallback(() => {
+    if (!isActiveRef.current) return;
     if (!latestTurnId) {
       cancelPendingAutoFollowArm();
       return;
@@ -252,6 +258,7 @@ export function useFlowChatFollowOutput({
   ]);
 
   const activateArmedFollowOutput = useCallback(() => {
+    if (!isActiveRef.current) return false;
     const armedTurnId = armedAutoFollowTurnIdRef.current;
     const isAlreadyFollowing = isFollowingOutputRef.current;
     const isArmedForLatestTurn = Boolean(latestTurnId && armedTurnId === latestTurnId);
@@ -298,6 +305,7 @@ export function useFlowChatFollowOutput({
 
   const scheduleFollowToLatest = useCallback((_reason: string) => {
     if (
+      !isActiveRef.current ||
       !isFollowingOutputRef.current ||
       !isStreaming ||
       virtualItemCount === 0 ||
@@ -313,7 +321,7 @@ export function useFlowChatFollowOutput({
     followFrameRef.current = requestAnimationFrame(() => {
       followFrameRef.current = null;
 
-      if (!isFollowingOutputRef.current || !isStreaming || virtualItemCount === 0) {
+      if (!isActiveRef.current || !isFollowingOutputRef.current || !isStreaming || virtualItemCount === 0) {
         return;
       }
 
@@ -423,14 +431,15 @@ export function useFlowChatFollowOutput({
   ]);
 
   useEffect(() => {
-    if (!isFollowingOutput || !isStreaming) {
+    if (!isActive || !isFollowingOutput || !isStreaming) {
       stopContinuousFollowLoop();
+      if (!isActive) cancelScheduledFollow();
       return;
     }
 
     scheduleFollowToLatest('streaming-started');
     startContinuousFollowLoop();
-  }, [isFollowingOutput, isStreaming, scheduleFollowToLatest, startContinuousFollowLoop, stopContinuousFollowLoop]);
+  }, [cancelScheduledFollow, isActive, isFollowingOutput, isStreaming, scheduleFollowToLatest, startContinuousFollowLoop, stopContinuousFollowLoop]);
 
   useEffect(() => {
     return () => {
