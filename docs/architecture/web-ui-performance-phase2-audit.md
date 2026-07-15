@@ -1,7 +1,7 @@
 # Web UI 性能第二阶段审计与实施边界
 
 本文记录第二阶段的可复现基线、依赖闭包、运行时风险与实施边界。
-本文是审计设计，不表示问题已经修复；第一阶段结果见 [阶段一结果](web-ui-performance-phase1-results.md)。
+本文保留实施前审计设计与基线；第二阶段已经完成，最终数据、Release 空闲实测与剩余风险见 [阶段二结果](web-ui-performance-phase2-results.md)。第一阶段结果见 [阶段一结果](web-ui-performance-phase1-results.md)。
 
 ## 1. 目标与基线
 
@@ -152,7 +152,8 @@ scripts/check-web-performance-budget.test.mjs
 
 ## 10. 当前结论
 
+- 本节是实施前结论，完成后的权威状态以 [阶段二结果](web-ui-performance-phase2-results.md) 为准。
 - 首屏 `4,509,649 B` JavaScript 仍过大，P0–P2 是收益高且边界清晰的优先切片。
 - 运行时优化核心是停止不可见展示层重复工作，而不是停止业务。
 - P3 i18n 应在低风险切片验证后处理；三文件 Gate 防止收益回退。
-- 截至本文生成时，以上第二阶段修复尚未宣称完成。
+- 上述内容描述审计时状态，不再代表当前分支状态。
