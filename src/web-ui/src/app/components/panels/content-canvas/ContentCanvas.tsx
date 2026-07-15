@@ -83,7 +83,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   const [shortDramaRestoreCheckedWorkspace, setShortDramaRestoreCheckedWorkspace] = useState<string>();
   // Initialize hooks
   const { handleCloseWithDirtyCheck, handleCloseAllWithDirtyCheck } = useTabLifecycle({ mode });
-  useKeyboardShortcuts({ enabled: true, handleCloseWithDirtyCheck });
+  useKeyboardShortcuts({ enabled: isSceneActive, handleCloseWithDirtyCheck });
   // Panel/tab state coordinator (auto manage expand/collapse)
   const { collapsePanel } = usePanelTabCoordinator({
     autoCollapseOnEmpty: true,
@@ -91,6 +91,10 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   });
 
   useEffect(() => {
+    if (!isSceneActive) {
+      return;
+    }
+
     if (mode !== 'agent' || !activeBtwSessionTab?.id || !activeBtwSessionData?.parentSessionId) {
       lastSyncedBtwTabIdRef.current = null;
       return;
@@ -101,7 +105,10 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
       return;
     }
 
-    if (lastSyncedBtwTabIdRef.current === activeBtwSessionTab.id) {
+    if (
+      lastSyncedBtwTabIdRef.current === activeBtwSessionTab.id
+      && flowChatStore.getState().activeSessionId === activeBtwSessionData.parentSessionId
+    ) {
       return;
     }
 
@@ -120,6 +127,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     activeBtwSessionData?.workspacePath,
     activeBtwSessionShortDramaStage,
     activeBtwSessionTab?.id,
+    isSceneActive,
     mode,
     workspacePath,
   ]);
@@ -127,11 +135,18 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   // Check if primary group has visible tabs
   const hasPrimaryVisibleTabs = primaryGroup.tabs.some(tab => !tab.isHidden);
 
-  useEffect(() => (
-    flowChatStore.subscribe(nextState => {
+  useEffect(() => {
+    if (!isSceneActive) {
+      return;
+    }
+
+    const syncActiveSession = (nextState = flowChatStore.getState()) => {
       setActiveSession(nextState.activeSessionId ? nextState.sessions.get(nextState.activeSessionId) : undefined);
-    })
-  ), []);
+    };
+
+    syncActiveSession();
+    return flowChatStore.subscribe(syncActiveSession);
+  }, [isSceneActive]);
 
   const canOpenShortDramaCenter = isShortDramaMediaSession(activeSession);
 
@@ -216,14 +231,20 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   }, [addTab, findTabByMetadata, switchToTab, t, workspacePath]);
 
   useEffect(() => {
+    if (!isSceneActive) {
+      return;
+    }
     window.addEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
     return () => window.removeEventListener(WORKSPACE_MEDIA_OPEN_EVENT, handleOpenWorkspaceMedia);
-  }, [handleOpenWorkspaceMedia]);
+  }, [handleOpenWorkspaceMedia, isSceneActive]);
 
   useEffect(() => {
+    if (!isSceneActive) {
+      return;
+    }
     window.addEventListener(SHORT_DRAMA_OPEN_EVENT, handleOpenShortDramaCenter);
     return () => window.removeEventListener(SHORT_DRAMA_OPEN_EVENT, handleOpenShortDramaCenter);
-  }, [handleOpenShortDramaCenter]);
+  }, [handleOpenShortDramaCenter, isSceneActive]);
 
   useEffect(() => {
     if (!workspacePath || hasPrimaryVisibleTabs || !isSceneActive) {
@@ -283,7 +304,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   ]);
 
   useEffect(() => {
-    if (!workspacePath || hasPrimaryVisibleTabs || !canOpenShortDramaCenter) {
+    if (!workspacePath || hasPrimaryVisibleTabs || !canOpenShortDramaCenter || !isSceneActive) {
       return;
     }
 
@@ -326,7 +347,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [canOpenShortDramaCenter, handleOpenShortDramaCenter, hasPrimaryVisibleTabs, workspacePath]);
+  }, [canOpenShortDramaCenter, handleOpenShortDramaCenter, hasPrimaryVisibleTabs, isSceneActive, workspacePath]);
 
   // Render content
   const renderContent = () => {

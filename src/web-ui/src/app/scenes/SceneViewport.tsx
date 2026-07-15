@@ -13,6 +13,7 @@ import type { SceneTabId } from '../components/SceneBar/types';
 import { useSceneManager } from '../hooks/useSceneManager';
 import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import { useDialogCompletionNotify } from '../hooks/useDialogCompletionNotify';
+import { useDocumentVisibilityState } from '../hooks/useDocumentVisibilityState';
 import { ProcessingIndicator } from '@/flow_chat/components/modern/ProcessingIndicator';
 import AssistantScene from './assistant/AssistantScene';
 import SessionScene from './session/SessionScene';
@@ -45,6 +46,7 @@ interface SceneViewportProps {
 const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering = false }) => {
   const { openTabs, activeTabId } = useSceneManager();
   const { t } = useI18n('common');
+  const isDocumentVisible = useDocumentVisibilityState();
   useDialogCompletionNotify();
 
   // All tabs closed — show empty state
@@ -63,6 +65,7 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
       <div className="void-scene-viewport__clip">
         {openTabs.map(tab => {
           const isActive = tab.id === activeTabId;
+          const isPresentationActive = isActive && isDocumentVisible;
           return (
             <div
               key={tab.id}
@@ -86,7 +89,7 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
                   ) : null
                 }
               >
-                {renderScene(tab.id, workspacePath, isEntering, isActive)}
+                {renderScene(tab.id, workspacePath, isEntering, isPresentationActive)}
               </Suspense>
             </div>
           );
@@ -114,7 +117,7 @@ function renderScene(
     case 'settings':
       return <SettingsScene />;
     case 'file-viewer':
-      return <FileViewerScene workspacePath={workspacePath} />;
+      return <FileViewerScene workspacePath={workspacePath} isActive={isActive} />;
     case 'profile':
       return <ProfileScene />;
     case 'agents':
@@ -134,7 +137,7 @@ function renderScene(
     case 'shell':
       return <ShellScene isActive={isActive} />;
     case 'panel-view':
-      return <PanelViewScene workspacePath={workspacePath} />;
+      return <PanelViewScene workspacePath={workspacePath} isActive={isActive} />;
     default:
       if (typeof id === 'string' && id.startsWith('miniapp:')) {
         return <MiniAppScene appId={id.slice('miniapp:'.length)} />;

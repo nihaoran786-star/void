@@ -12,9 +12,10 @@ import './PanelViewScene.scss';
 
 interface PanelViewSceneProps {
   workspacePath?: string;
+  isActive?: boolean;
 }
 
-const PanelViewScene: React.FC<PanelViewSceneProps> = ({ workspacePath }) => {
+const PanelViewScene: React.FC<PanelViewSceneProps> = ({ workspacePath, isActive = true }) => {
   const handleInteraction = useCallback(async (_itemId: string, _userInput: string) => {
     // no-op
   }, []);
@@ -25,6 +26,7 @@ const PanelViewScene: React.FC<PanelViewSceneProps> = ({ workspacePath }) => {
         <ContentCanvas
           workspacePath={workspacePath}
           mode="agent"
+          isSceneActive={isActive}
           onInteraction={handleInteraction}
           disablePopOut={true}
         />

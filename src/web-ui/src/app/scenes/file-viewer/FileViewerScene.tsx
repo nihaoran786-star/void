@@ -12,13 +12,14 @@ import './FileViewerScene.scss';
 
 interface FileViewerSceneProps {
   workspacePath?: string;
+  isActive?: boolean;
 }
 
-const FileViewerScene: React.FC<FileViewerSceneProps> = ({ workspacePath }) => {
+const FileViewerScene: React.FC<FileViewerSceneProps> = ({ workspacePath, isActive = true }) => {
   return (
     <CanvasStoreModeContext.Provider value="project">
       <div className="void-file-viewer-scene">
-        <ContentCanvas workspacePath={workspacePath} mode="project" />
+        <ContentCanvas workspacePath={workspacePath} mode="project" isSceneActive={isActive} />
       </div>
     </CanvasStoreModeContext.Provider>
   );

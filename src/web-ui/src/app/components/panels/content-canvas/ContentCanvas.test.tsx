@@ -41,6 +41,7 @@ const flowChatStoreMock = vi.hoisted(() => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    getListenerCount: () => listeners.size,
     addExternalSession: (
       sessionId: string,
       title: string,
@@ -73,6 +74,7 @@ const flowChatStoreMock = vi.hoisted(() => {
 });
 
 import { ContentCanvas } from './ContentCanvas';
+import { useKeyboardShortcuts } from './hooks';
 import { useAgentCanvasStore } from './stores';
 import { openMainSession, selectActiveBtwSessionTab } from '@/flow_chat/services/openBtwSession';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
@@ -123,6 +125,7 @@ describe('ContentCanvas workspace media opening', () => {
   beforeEach(() => {
     vi.mocked(openMainSession).mockClear();
     vi.mocked(selectActiveBtwSessionTab).mockReturnValue(null);
+    vi.mocked(useKeyboardShortcuts).mockClear();
     useAgentCanvasStore.getState().reset();
     flowChatStore.setState(() => ({ sessions: new Map(), activeSessionId: null }));
     container = document.createElement('div');
@@ -229,6 +232,122 @@ describe('ContentCanvas workspace media opening', () => {
       await Promise.resolve();
     });
     expect(checkAvailability).toHaveBeenCalledTimes(2);
+  });
+
+  it('releases hidden presentation listeners and resyncs the latest FlowChat state once on resume', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive={false}
+        />
+      );
+    });
+
+    expect(flowChatStoreMock.getListenerCount()).toBe(0);
+    expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
+    act(() => window.dispatchEvent(new CustomEvent('void:open-workspace-media')));
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(0);
+
+    flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+    flowChatStore.switchSession('media-session');
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive
+        />
+      );
+    });
+
+    expect(flowChatStoreMock.getListenerCount()).toBe(1);
+    expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true }));
+    act(() => window.dispatchEvent(new CustomEvent('void:open-short-drama-center')));
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+
+    await act(async () => {
+      root.render(
+        <ContentCanvas
+          workspacePath="C:/work"
+          workspaceMediaService={service}
+          isSceneActive={false}
+        />
+      );
+    });
+    expect(flowChatStoreMock.getListenerCount()).toBe(0);
+  });
+
+  it('defers BTW main-session navigation while hidden and performs it on resume', async () => {
+    vi.mocked(selectActiveBtwSessionTab).mockReturnValue({
+      id: 'btw-tab',
+      content: {
+        data: {
+          childSessionId: 'child-session',
+          parentSessionId: 'parent-session',
+          workspacePath: 'C:/work',
+        },
+        metadata: {},
+      },
+    } as any);
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive={false} />);
+    });
+    expect(openMainSession).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive />);
+    });
+    expect(openMainSession).toHaveBeenCalledTimes(1);
+    expect(openMainSession).toHaveBeenCalledWith('parent-session');
+  });
+
+  it('resyncs an already-open BTW tab only when its parent session changed while hidden', async () => {
+    vi.mocked(selectActiveBtwSessionTab).mockReturnValue({
+      id: 'btw-tab',
+      content: {
+        data: {
+          childSessionId: 'child-session',
+          parentSessionId: 'parent-session',
+          workspacePath: 'C:/work',
+        },
+        metadata: {},
+      },
+    } as any);
+    flowChatStore.addExternalSession('parent-session', 'Parent', 'agentic', 'C:/work');
+    flowChatStore.addExternalSession('other-session', 'Other', 'agentic', 'C:/work');
+    flowChatStore.switchSession('parent-session');
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive />);
+    });
+    expect(openMainSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive={false} />);
+    });
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive />);
+    });
+    expect(openMainSession).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive={false} />);
+      flowChatStore.switchSession('other-session');
+    });
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" isSceneActive />);
+    });
+    expect(openMainSession).toHaveBeenCalledTimes(2);
+    expect(openMainSession).toHaveBeenLastCalledWith('parent-session');
   });
 
   it('opens the workspace media tab from the global media event without duplicating existing media tab', async () => {
