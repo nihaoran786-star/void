@@ -6,6 +6,7 @@ import { createLogger } from '@/shared/utils/logger';
 import { useSceneStore } from '@/app/stores/sceneStore';
 import { BLANK_TARGET_INTERCEPT_SCRIPT } from './browserInspectorScript';
 import { validateUrl, checkConnectivity } from './browserUrlCheck';
+import { createLatestBrowserTaskGate } from './browserTaskGate';
 import { startBrowserUrlPolling } from './browserUrlPolling';
 import './BrowserScene.scss';
 
@@ -149,6 +150,10 @@ const BrowserScene: React.FC = () => {
   const webviewLabelRef = useRef<string>('');
   const webviewGenerationRef = useRef(0);
   const isMountedRef = useRef(true);
+  const isActiveRef = useRef(isActive);
+  const loadRequestGateRef = useRef(createLatestBrowserTaskGate());
+  const presentationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  isActiveRef.current = isActive;
 
   const [inputValue, setInputValue] = useState(DEFAULT_URL);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_URL);
@@ -157,16 +162,25 @@ const BrowserScene: React.FC = () => {
   const [pollingLabel, setPollingLabel] = useState<string | null>(null);
 
   useEffect(() => {
+    const loadRequestGate = loadRequestGateRef.current;
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       webviewGenerationRef.current += 1;
+      loadRequestGate.invalidate();
     };
   }, []);
 
+  useEffect(() => {
+    if (!isActive) {
+      loadRequestGateRef.current.invalidate();
+      setIsLoading(false);
+    }
+  }, [isActive]);
+
   const syncWebviewBounds = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
-    if (!isTauri || !isActive || !viewportRef.current || !target) {
+    if (!isTauri || !isActiveRef.current || !viewportRef.current || !target) {
       return;
     }
 
@@ -183,7 +197,7 @@ const BrowserScene: React.FC = () => {
       target.setPosition(new LogicalPosition(rect.left, rect.top)),
       target.setSize(new LogicalSize(rect.width, rect.height)),
     ]);
-  }, [isActive, isTauri]);
+  }, [isTauri]);
 
   const closeWebview = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
@@ -208,7 +222,7 @@ const BrowserScene: React.FC = () => {
     }
   }, []);
 
-  const ensureHolderWindow = useCallback(async (): Promise<BrowserHolderWindowHandle> => {
+  const ensureHolderWindow = useCallback(async (): Promise<BrowserHolderWindowHandle | null> => {
     if (holderWindowRef.current) {
       return holderWindowRef.current;
     }
@@ -216,6 +230,10 @@ const BrowserScene: React.FC = () => {
     const { Window } = await import('@tauri-apps/api/window');
     const existing = (await Window.getByLabel(BROWSER_HOLDER_WINDOW_LABEL)) as BrowserHolderWindowHandle | null;
     if (existing) {
+      if (!isMountedRef.current) {
+        await existing.close().catch(() => {});
+        return null;
+      }
       holderWindowRef.current = existing;
       return existing;
     }
@@ -234,18 +252,26 @@ const BrowserScene: React.FC = () => {
 
     await waitForWindowCreated(holder);
     await holder.hide().catch(() => {});
+    if (!isMountedRef.current) {
+      await holder.close().catch(() => {});
+      return null;
+    }
     holderWindowRef.current = holder;
     return holder;
   }, []);
 
-  const recreateWebview = useCallback(async (url: string) => {
+  const recreateWebview = useCallback(async (url: string, requestToken: number) => {
     const generation = ++webviewGenerationRef.current;
+    const isCurrentRequest = () =>
+      isMountedRef.current &&
+      isActiveRef.current &&
+      loadRequestGateRef.current.isCurrent(requestToken);
     const previous = webviewRef.current;
     if (previous) {
       await closeWebview(previous);
     }
 
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       return null;
     }
 
@@ -254,7 +280,7 @@ const BrowserScene: React.FC = () => {
       import('@tauri-apps/api/window'),
     ]);
 
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       return null;
     }
 
@@ -268,7 +294,7 @@ const BrowserScene: React.FC = () => {
     }) as unknown as BrowserWebviewHandle;
 
     await waitForWebviewCreated(handle);
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       await closeWebview(handle);
       return null;
     }
@@ -298,10 +324,13 @@ const BrowserScene: React.FC = () => {
   }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
-    if (!isMountedRef.current) {
+    if (!isMountedRef.current || !isActiveRef.current) {
       return;
     }
 
+    const requestToken = loadRequestGateRef.current.start();
+    const isCurrentRequest = () =>
+      isMountedRef.current && loadRequestGateRef.current.isCurrent(requestToken);
     const nextUrl = normalizeUrl(rawUrl);
     setInputValue(nextUrl);
     setCurrentUrl(nextUrl);
@@ -317,32 +346,43 @@ const BrowserScene: React.FC = () => {
     try {
       validateUrl(nextUrl);
       await checkConnectivity(nextUrl);
+      if (!isCurrentRequest() || !isActiveRef.current) {
+        return;
+      }
 
-      const handle = await recreateWebview(nextUrl);
+      const handle = await recreateWebview(nextUrl, requestToken);
       if (!handle) {
         return;
       }
 
+      if (!isCurrentRequest() || !isActiveRef.current || handle !== webviewRef.current) {
+        await closeWebview(handle);
+        return;
+      }
       await syncWebviewBounds(handle);
-      if (!isMountedRef.current || handle !== webviewRef.current) {
+      if (!isCurrentRequest() || !isActiveRef.current || handle !== webviewRef.current) {
+        await closeWebview(handle);
         return;
       }
 
-      if (isActive) {
-        await handle.show();
-        if (!isMountedRef.current || handle !== webviewRef.current) {
-          return;
-        }
-        await handle.setFocus();
+      await handle.show();
+      if (!isCurrentRequest() || !isActiveRef.current || handle !== webviewRef.current) {
+        await handle.hide().catch(() => {});
+        return;
+      }
+      await handle.setFocus();
+      if (!isCurrentRequest() || !isActiveRef.current || handle !== webviewRef.current) {
+        await handle.hide().catch(() => {});
+        return;
       }
 
       const label = webviewLabelRef.current;
-      if (!isMountedRef.current || handle !== webviewRef.current || !label) {
+      if (!isCurrentRequest() || !isActiveRef.current || handle !== webviewRef.current || !label) {
         return;
       }
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
     } catch (loadError) {
-      if (!isMountedRef.current) {
+      if (!isCurrentRequest()) {
         return;
       }
 
@@ -350,11 +390,11 @@ const BrowserScene: React.FC = () => {
       log.error('Load browser url failed', loadError);
       setError(message);
     } finally {
-      if (isMountedRef.current) {
+      if (isCurrentRequest()) {
         setIsLoading(false);
       }
     }
-  }, [isActive, isTauri, recreateWebview, syncWebviewBounds]);
+  }, [closeWebview, isTauri, recreateWebview, syncWebviewBounds]);
 
   const queueSync = useCallback(() => {
     if (resizeFrameRef.current !== null) {
@@ -391,33 +431,72 @@ const BrowserScene: React.FC = () => {
         });
         return;
       }
+    }
 
-      void (async () => {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        await webviewRef.current?.reparent(getCurrentWindow());
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        await syncWebviewBounds();
-      })()
-        .then(() => webviewRef.current?.show())
-        .then(() => webviewRef.current?.setFocus())
-        .catch((syncError) => {
-          log.warn('Activate browser webview failed', syncError);
-        });
+    const handle = webviewRef.current;
+    if (!handle) {
       return;
     }
 
-    if (webviewRef.current) {
-      void ensureHolderWindow()
-        .then((holderWindow) => webviewRef.current?.reparent(holderWindow))
-        .then(() => holderWindowRef.current?.hide())
-        .catch((reparentError) => {
-          log.warn('Reparent browser webview to holder window failed', reparentError);
-          return closeWebview();
-        })
-        .catch((closeError) => {
-          log.warn('Close browser webview on tab switch failed', closeError);
-        });
-    }
+    const shouldPresent = isActive;
+    presentationQueueRef.current = presentationQueueRef.current
+      .catch(() => {})
+      .then(async () => {
+        const isCurrentTransition = () =>
+          isMountedRef.current &&
+          isActiveRef.current === shouldPresent &&
+          handle === webviewRef.current;
+
+        if (!isCurrentTransition()) {
+          return;
+        }
+
+        if (!shouldPresent) {
+          await handle.hide().catch(() => {});
+          if (!isCurrentTransition()) {
+            return;
+          }
+          const holderWindow = await ensureHolderWindow();
+          if (!holderWindow || !isCurrentTransition()) {
+            return;
+          }
+          await handle.reparent(holderWindow);
+          await holderWindow.hide().catch(() => {});
+          return;
+        }
+
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await handle.reparent(getCurrentWindow());
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await syncWebviewBounds(handle);
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await handle.show();
+        if (!isCurrentTransition()) {
+          await handle.hide().catch(() => {});
+          return;
+        }
+        await handle.setFocus();
+        if (!isCurrentTransition()) {
+          await handle.hide().catch(() => {});
+        }
+      })
+      .catch((transitionError) => {
+        log.warn('Transition browser webview visibility failed', transitionError);
+        if (!isActiveRef.current && handle === webviewRef.current) {
+          return closeWebview(handle);
+        }
+      });
   }, [closeWebview, ensureHolderWindow, isActive, isTauri, loadUrl, syncWebviewBounds]);
 
   useEffect(() => () => {
@@ -477,9 +556,14 @@ const BrowserScene: React.FC = () => {
         void webviewRef.current?.hide().catch(() => {});
       } else if (!hasOverlay && hiddenByOverlay) {
         hiddenByOverlay = false;
-        if (isActive) {
-          void syncWebviewBounds()
-            .then(() => webviewRef.current?.show())
+        const handle = webviewRef.current;
+        if (isActiveRef.current && handle) {
+          void syncWebviewBounds(handle)
+            .then(() => {
+              if (isMountedRef.current && isActiveRef.current && handle === webviewRef.current) {
+                return handle.show();
+              }
+            })
             .catch(() => {});
         }
       }
@@ -497,7 +581,7 @@ const BrowserScene: React.FC = () => {
       observer.disconnect();
       window.removeEventListener('toolbar-mode-activating', handleToolbarActivating);
     };
-  }, [isActive, isTauri, syncWebviewBounds]);
+  }, [isTauri, syncWebviewBounds]);
 
   const handleSubmit = useCallback((event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

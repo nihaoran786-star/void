@@ -16,6 +16,7 @@ import { useContextStore } from '@/shared/context-system';
 import type { WebElementContext } from '@/shared/types/context';
 import { createInspectorScript, CANCEL_INSPECTOR_SCRIPT, BLANK_TARGET_INTERCEPT_SCRIPT } from './browserInspectorScript';
 import { validateUrl, checkConnectivity } from './browserUrlCheck';
+import { createLatestBrowserTaskGate } from './browserTaskGate';
 import { startBrowserUrlPolling } from './browserUrlPolling';
 import { createBrowserPanelWebviewLabel } from './browserWebviewLabels';
 import './BrowserPanel.scss';
@@ -131,6 +132,10 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const inspectorUnlistenRef = useRef<(() => void) | null>(null);
   const webviewGenerationRef = useRef(0);
   const isMountedRef = useRef(true);
+  const shouldShowWebviewRef = useRef(shouldShowWebview);
+  const loadRequestGateRef = useRef(createLatestBrowserTaskGate());
+  const presentationQueueRef = useRef<Promise<void>>(Promise.resolve());
+  shouldShowWebviewRef.current = shouldShowWebview;
 
   const [inputValue, setInputValue] = useState(startUrl);
   const [currentUrl, setCurrentUrl] = useState(startUrl);
@@ -140,12 +145,21 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const [pollingLabel, setPollingLabel] = useState<string | null>(null);
 
   useEffect(() => {
+    const loadRequestGate = loadRequestGateRef.current;
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       webviewGenerationRef.current += 1;
+      loadRequestGate.invalidate();
     };
   }, []);
+
+  useEffect(() => {
+    if (!shouldShowWebview) {
+      loadRequestGateRef.current.invalidate();
+      setIsLoading(false);
+    }
+  }, [shouldShowWebview]);
 
   const addContext = useContextStore((s) => s.addContext);
 
@@ -168,10 +182,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       target.setPosition(new LogicalPosition(rect.left, rect.top)),
       target.setSize(new LogicalSize(rect.width, rect.height)),
     ]);
-    if (shouldShowWebview) {
-      await target.show().catch(() => {});
-    }
-  }, [isTauri, shouldShowWebview]);
+  }, [isTauri]);
 
   const closeWebview = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
@@ -192,12 +203,16 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     }
   }, []);
 
-  const ensureHolderWindow = useCallback(async (): Promise<BrowserHolderWindowHandle> => {
+  const ensureHolderWindow = useCallback(async (): Promise<BrowserHolderWindowHandle | null> => {
     if (holderWindowRef.current) return holderWindowRef.current;
 
     const { Window } = await import('@tauri-apps/api/window');
     const existing = (await Window.getByLabel(PANEL_HOLDER_WINDOW_LABEL)) as BrowserHolderWindowHandle | null;
     if (existing) {
+      if (!isMountedRef.current) {
+        await existing.close().catch(() => {});
+        return null;
+      }
       holderWindowRef.current = existing;
       return existing;
     }
@@ -216,16 +231,24 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
 
     await waitForWindowCreated(holder);
     await holder.hide().catch(() => {});
+    if (!isMountedRef.current) {
+      await holder.close().catch(() => {});
+      return null;
+    }
     holderWindowRef.current = holder;
     return holder;
   }, []);
 
-  const recreateWebview = useCallback(async (url: string) => {
+  const recreateWebview = useCallback(async (url: string, requestToken: number) => {
     const generation = ++webviewGenerationRef.current;
+    const isCurrentRequest = () =>
+      isMountedRef.current &&
+      shouldShowWebviewRef.current &&
+      loadRequestGateRef.current.isCurrent(requestToken);
     const previous = webviewRef.current;
     if (previous) await closeWebview(previous);
 
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       return null;
     }
 
@@ -234,7 +257,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       import('@tauri-apps/api/window'),
     ]);
 
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       return null;
     }
 
@@ -248,7 +271,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     }) as unknown as BrowserWebviewHandle;
 
     await waitForWebviewCreated(handle);
-    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+    if (!isCurrentRequest() || generation !== webviewGenerationRef.current) {
       await closeWebview(handle);
       return null;
     }
@@ -278,10 +301,13 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
-    if (!isMountedRef.current) {
+    if (!isMountedRef.current || !shouldShowWebviewRef.current) {
       return;
     }
 
+    const requestToken = loadRequestGateRef.current.start();
+    const isCurrentRequest = () =>
+      isMountedRef.current && loadRequestGateRef.current.isCurrent(requestToken);
     const nextUrl = normalizeUrl(rawUrl);
     setInputValue(nextUrl);
     setCurrentUrl(nextUrl);
@@ -303,32 +329,43 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     try {
       validateUrl(nextUrl);
       await checkConnectivity(nextUrl, { skipLoopbackCheck: true });
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current) {
+        return;
+      }
 
-      const handle = await recreateWebview(nextUrl);
+      const handle = await recreateWebview(nextUrl, requestToken);
       if (!handle) {
         return;
       }
 
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current || handle !== webviewRef.current) {
+        await closeWebview(handle);
+        return;
+      }
       await syncWebviewBounds(handle);
-      if (!isMountedRef.current || handle !== webviewRef.current) {
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current || handle !== webviewRef.current) {
+        await closeWebview(handle);
         return;
       }
 
-      if (shouldShowWebview) {
-        await handle.show();
-        if (!isMountedRef.current || handle !== webviewRef.current) {
-          return;
-        }
-        await handle.setFocus();
+      await handle.show();
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current || handle !== webviewRef.current) {
+        await handle.hide().catch(() => {});
+        return;
+      }
+      await handle.setFocus();
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current || handle !== webviewRef.current) {
+        await handle.hide().catch(() => {});
+        return;
       }
 
       const label = webviewLabelRef.current;
-      if (!isMountedRef.current || handle !== webviewRef.current || !label) {
+      if (!isCurrentRequest() || !shouldShowWebviewRef.current || handle !== webviewRef.current || !label) {
         return;
       }
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
     } catch (loadError) {
-      if (!isMountedRef.current) {
+      if (!isCurrentRequest()) {
         return;
       }
 
@@ -336,11 +373,11 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       log.error('Load browser panel url failed', loadError);
       setError(message);
     } finally {
-      if (isMountedRef.current) {
+      if (isCurrentRequest()) {
         setIsLoading(false);
       }
     }
-  }, [isTauri, recreateWebview, shouldShowWebview, syncWebviewBounds]);
+  }, [closeWebview, isTauri, recreateWebview, syncWebviewBounds]);
 
   const queueSync = useCallback(() => {
     if (resizeFrameRef.current !== null) window.cancelAnimationFrame(resizeFrameRef.current);
@@ -370,29 +407,72 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
         void loadUrl(currentUrlRef.current).catch((e) => log.warn('Restore browser panel webview failed', e));
         return;
       }
+    }
 
-      void (async () => {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        await webviewRef.current?.reparent(getCurrentWindow());
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        await syncWebviewBounds();
-      })()
-        .then(() => webviewRef.current?.show())
-        .then(() => webviewRef.current?.setFocus())
-        .catch((e) => log.warn('Activate browser panel webview failed', e));
+    const handle = webviewRef.current;
+    if (!handle) {
       return;
     }
 
-    if (webviewRef.current) {
-      void ensureHolderWindow()
-        .then((holder) => webviewRef.current?.reparent(holder))
-        .then(() => holderWindowRef.current?.hide())
-        .catch((e) => {
-          log.warn('Reparent browser panel webview to holder failed', e);
-          return closeWebview();
-        })
-        .catch((e) => log.warn('Close browser panel webview on deactivate failed', e));
-    }
+    const shouldPresent = shouldShowWebview;
+    presentationQueueRef.current = presentationQueueRef.current
+      .catch(() => {})
+      .then(async () => {
+        const isCurrentTransition = () =>
+          isMountedRef.current &&
+          shouldShowWebviewRef.current === shouldPresent &&
+          handle === webviewRef.current;
+
+        if (!isCurrentTransition()) {
+          return;
+        }
+
+        if (!shouldPresent) {
+          await handle.hide().catch(() => {});
+          if (!isCurrentTransition()) {
+            return;
+          }
+          const holder = await ensureHolderWindow();
+          if (!holder || !isCurrentTransition()) {
+            return;
+          }
+          await handle.reparent(holder);
+          await holder.hide().catch(() => {});
+          return;
+        }
+
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await handle.reparent(getCurrentWindow());
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await syncWebviewBounds(handle);
+        if (!isCurrentTransition()) {
+          return;
+        }
+        await handle.show();
+        if (!isCurrentTransition()) {
+          await handle.hide().catch(() => {});
+          return;
+        }
+        await handle.setFocus();
+        if (!isCurrentTransition()) {
+          await handle.hide().catch(() => {});
+        }
+      })
+      .catch((transitionError) => {
+        log.warn('Transition browser panel webview visibility failed', transitionError);
+        if (!shouldShowWebviewRef.current && handle === webviewRef.current) {
+          return closeWebview(handle);
+        }
+      });
   }, [closeWebview, ensureHolderWindow, loadUrl, shouldShowWebview, syncWebviewBounds, isTauri]);
 
   // ResizeObserver + window resize → sync bounds
@@ -446,9 +526,18 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
         void webviewRef.current?.hide().catch(() => {});
       } else if (!hasOverlay && hiddenByOverlay) {
         hiddenByOverlay = false;
-        if (shouldShowWebview) {
-          void syncWebviewBounds()
-            .then(() => webviewRef.current?.show())
+        const handle = webviewRef.current;
+        if (shouldShowWebviewRef.current && handle) {
+          void syncWebviewBounds(handle)
+            .then(() => {
+              if (
+                isMountedRef.current &&
+                shouldShowWebviewRef.current &&
+                handle === webviewRef.current
+              ) {
+                return handle.show();
+              }
+            })
             .catch(() => {});
         }
       }
@@ -466,7 +555,7 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       observer.disconnect();
       window.removeEventListener('toolbar-mode-activating', handleToolbarActivating);
     };
-  }, [isTauri, shouldShowWebview, syncWebviewBounds]);
+  }, [isTauri, syncWebviewBounds]);
 
   useEffect(() => () => {
     if (holderWindowRef.current) {

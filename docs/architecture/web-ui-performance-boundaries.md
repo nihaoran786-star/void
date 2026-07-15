@@ -5,8 +5,9 @@
 ## 依赖边界
 
 - 应用 bootstrap（例如 `main.tsx`）不得静态导入 Monaco、终端、短剧中心等可选功能 runtime。可选 runtime 只能由所属 feature 在首次使用时加载。
-- 共享组件总入口不得再导出依赖 Monaco 等大型 runtime 的组件。重型组件应通过专用路径按需导入；组件预览等明确消费者也必须走该专用路径。
+- 共享组件总入口不得静态导出依赖 Monaco 等大型 runtime 的实现。若必须保留公共 API，应导出只依赖轻量 runtime 的 lazy facade；明确消费者也可以通过专用路径按需导入。
 - 空状态、标签栏和其他轻量入口不得导入完整 feature barrel。入口应直接引用轻量组件文件；重型面板应使用指向具体实现文件的动态导入。
+- Monaco 主题同步属于编辑器集成，不是通用主题入口能力。编辑器只能从 `infrastructure/theme/integrations/MonacoThemeSync` 在首次启动时动态加载；`infrastructure/theme` 总入口不得重新导出该实例。
 - UI、route 和应用入口只负责组合与渲染。文件系统、Tauri、网络等外部系统访问必须经过所属 feature 的 adapter 或 service。
 - 类型依赖必须使用 type-only import。只有实际需要 registry fallback 时，才允许动态加载对应 runtime。
 
@@ -16,9 +17,15 @@
 UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 ```
 
+### 已登记的遗留例外
+
+`BrowserScene.tsx` 与 `BrowserPanel.tsx` 目前仍在 UI 内动态调用 Tauri window/webview/dpi/core，并重复编排原生 WebView 生命周期，不满足上面的目标依赖方向。第一阶段为控制回归范围，只把 URL 轮询和“最后一次任务生效”闸门隔离为可单测模块，并收紧现有异步生命周期；不得继续向这两个组件增加新的外部系统判断。下一阶段应先补齐行为测试，再提取统一的 browser feature controller/adapter。
+
 ## 生命周期边界
 
 已挂载但非活动的场景必须停止定时器、observer、stream 和媒体工作。重新激活时可以恢复；卸载或停止后，迟到的异步结果不得继续更新 UI。
+
+浏览器 WebView 的 URL 加载遵循“最后一次请求生效”：每次加载取得新 token，切换为非活动或卸载时立即使 token 失效；连接检查、创建、定位、显示和聚焦的每个异步边界都必须复核 token、活动状态和当前 handle。显示/隐藏切换必须串行化，迟到的 holder window 必须关闭，不能在卸载后遗留原生窗口。
 
 ## 构建 Gate
 
@@ -28,7 +35,7 @@ UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 
 ```powershell
 pnpm --dir src/web-ui test:run src/app/performance/performanceImportBoundaries.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaMediaPreviewLayout.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts
-pnpm --dir src/web-ui test:run src/app/scenes/browser/browserUrlPolling.test.ts
+pnpm --dir src/web-ui test:run src/app/scenes/browser/browserTaskGate.test.ts src/app/scenes/browser/browserUrlPolling.test.ts
 pnpm --dir src/web-ui run type-check
 pnpm --dir src/web-ui exec vite build --outDir D:\codex\void-source\.void\perf-phase1-after --emptyOutDir --manifest
 ```
