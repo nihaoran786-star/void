@@ -25,6 +25,7 @@ use super::command_router::{
     parse_command, welcome_message, BotChatState, BotInteractionHandler, BotInteractiveRequest,
     BotMessageSender, HandleResult,
 };
+use super::retry::{remaining_until_ms, sleep_or_stop, RetryBackoff};
 use super::{load_bot_persistence, save_bot_persistence, BotConfig, SavedBotConnection};
 use crate::service::remote_connect::remote_server::ImageAttachment;
 
@@ -623,6 +624,7 @@ struct PendingPairing {
 
 pub struct WeixinBot {
     config: WeixinConfig,
+    http_client: reqwest::Client,
     pending_pairings: Arc<RwLock<HashMap<String, PendingPairing>>>,
     chat_states: Arc<RwLock<HashMap<String, BotChatState>>>,
     context_tokens: Arc<RwLock<HashMap<String, String>>>,
@@ -698,6 +700,7 @@ impl WeixinBot {
     pub fn new(config: WeixinConfig) -> Self {
         Self {
             config,
+            http_client: reqwest::Client::new(),
             pending_pairings: Arc::new(RwLock::new(HashMap::new())),
             chat_states: Arc::new(RwLock::new(HashMap::new())),
             context_tokens: Arc::new(RwLock::new(HashMap::new())),
@@ -717,18 +720,18 @@ impl WeixinBot {
         ensure_trailing_slash(&self.config.base_url)
     }
 
-    async fn is_session_paused(&self) -> bool {
+    async fn session_pause_remaining(&self) -> Option<Duration> {
         let id = &self.config.bot_account_id;
         let mut m = self.session_pause_until_ms.write().await;
         let now = now_ms();
         if let Some(until) = m.get(id).copied() {
-            if now >= until {
+            let remaining = remaining_until_ms(until, now);
+            if remaining.is_none() {
                 m.remove(id);
-                return false;
             }
-            return true;
+            return remaining;
         }
-        false
+        None
     }
 
     async fn pause_session(&self) {
@@ -773,9 +776,10 @@ impl WeixinBot {
     async fn post_ilink(&self, endpoint: &str, body: Value, timeout: Duration) -> Result<String> {
         let url = format!("{}{}", self.base_url(), endpoint.trim_start_matches('/'));
         let body_str = serde_json::to_string(&body)?;
-        let client = reqwest::Client::builder().timeout(timeout).build()?;
-        let resp = client
+        let resp = self
+            .http_client
             .post(&url)
+            .timeout(timeout)
             .headers(self.build_auth_headers(&body_str))
             .body(body_str)
             .send()
@@ -831,10 +835,12 @@ impl WeixinBot {
             Some(u) => u.to_string(),
             None => build_cdn_download_url(self.cdn_base_url(), encrypted_query_param),
         };
-        let client = reqwest::Client::builder()
+        let resp = self
+            .http_client
+            .get(&url)
             .timeout(Duration::from_secs(120))
-            .build()?;
-        let resp = client.get(&url).send().await?;
+            .send()
+            .await?;
         let status = resp.status();
         if !status.is_success() {
             let body = resp.text().await.unwrap_or_default();
@@ -992,13 +998,12 @@ impl WeixinBot {
     }
 
     async fn post_weixin_cdn_upload(&self, cdn_url: &str, ciphertext: &[u8]) -> Result<String> {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(120))
-            .build()?;
         let mut last_err: Option<anyhow::Error> = None;
         for attempt in 1..=CDN_UPLOAD_MAX_RETRIES {
-            let resp = client
+            let resp = self
+                .http_client
                 .post(cdn_url)
+                .timeout(Duration::from_secs(120))
                 .header("Content-Type", "application/octet-stream")
                 .body(ciphertext.to_vec())
                 .send()
@@ -1218,15 +1223,6 @@ impl WeixinBot {
     }
 
     async fn get_updates_once(&self, buf: &str, timeout: Duration) -> Result<Value> {
-        if self.is_session_paused().await {
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            return Ok(json!({
-                "ret": 0,
-                "msgs": [],
-                "get_updates_buf": buf
-            }));
-        }
-
         let body = json!({
             "get_updates_buf": buf,
             "base_info": { "channel_version": CHANNEL_VERSION }
@@ -1682,10 +1678,22 @@ impl WeixinBot {
     ) -> Result<String> {
         info!("Weixin bot waiting for pairing code (getupdates)...");
         let mut buf = load_sync_buf(&self.config.bot_account_id);
+        let mut retry_backoff = RetryBackoff::default();
 
         loop {
             if *stop_rx.borrow() {
                 return Err(anyhow!("bot stop requested"));
+            }
+
+            if let Some(pause_duration) = self.session_pause_remaining().await {
+                debug!(
+                    "weixin: pairing poll paused for {}s after session expiry",
+                    pause_duration.as_secs()
+                );
+                if sleep_or_stop(stop_rx, pause_duration).await {
+                    return Err(anyhow!("bot stop requested"));
+                }
+                continue;
             }
 
             let poll = tokio::select! {
@@ -1701,25 +1709,37 @@ impl WeixinBot {
             let resp = match poll {
                 Ok(v) => v,
                 Err(e) => {
-                    error!("weixin getupdates: {e}");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    let retry_delay = retry_backoff.next_delay();
+                    error!(
+                        "weixin getupdates: {e}; retrying in {}s",
+                        retry_delay.as_secs()
+                    );
+                    if sleep_or_stop(stop_rx, retry_delay).await {
+                        return Err(anyhow!("bot stop requested"));
+                    }
                     continue;
                 }
             };
 
             let ret = resp["ret"].as_i64().unwrap_or(0);
             let errcode = resp["errcode"].as_i64().unwrap_or(0);
-            if (ret != 0 && ret != SESSION_EXPIRED_ERRCODE)
-                || (errcode != 0 && errcode != SESSION_EXPIRED_ERRCODE)
-            {
-                if errcode == SESSION_EXPIRED_ERRCODE || ret == SESSION_EXPIRED_ERRCODE {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-                warn!("weixin getupdates ret={ret} errcode={errcode}");
-                tokio::time::sleep(Duration::from_secs(2)).await;
+            if errcode == SESSION_EXPIRED_ERRCODE || ret == SESSION_EXPIRED_ERRCODE {
+                // `get_updates_once` recorded the one-hour pause. The next
+                // iteration sleeps once until that deadline (or stop).
                 continue;
             }
+            if ret != 0 || errcode != 0 {
+                let retry_delay = retry_backoff.next_delay();
+                warn!(
+                    "weixin getupdates ret={ret} errcode={errcode}; retrying in {}s",
+                    retry_delay.as_secs()
+                );
+                if sleep_or_stop(stop_rx, retry_delay).await {
+                    return Err(anyhow!("bot stop requested"));
+                }
+                continue;
+            }
+            retry_backoff.reset();
 
             if let Some(new_buf) = resp["get_updates_buf"].as_str() {
                 buf = new_buf.to_string();
@@ -1791,10 +1811,22 @@ impl WeixinBot {
         info!("Weixin message loop started");
         let mut stop = stop_rx;
         let mut buf = load_sync_buf(&self.config.bot_account_id);
+        let mut retry_backoff = RetryBackoff::default();
 
         loop {
             if *stop.borrow() {
                 break;
+            }
+
+            if let Some(pause_duration) = self.session_pause_remaining().await {
+                debug!(
+                    "weixin: message poll paused for {}s after session expiry",
+                    pause_duration.as_secs()
+                );
+                if sleep_or_stop(&mut stop, pause_duration).await {
+                    break;
+                }
+                continue;
             }
 
             let poll = tokio::select! {
@@ -1808,24 +1840,35 @@ impl WeixinBot {
             let resp = match poll {
                 Ok(v) => v,
                 Err(e) => {
-                    error!("weixin getupdates (loop): {e}");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    let retry_delay = retry_backoff.next_delay();
+                    error!(
+                        "weixin getupdates (loop): {e}; retrying in {}s",
+                        retry_delay.as_secs()
+                    );
+                    if sleep_or_stop(&mut stop, retry_delay).await {
+                        break;
+                    }
                     continue;
                 }
             };
 
             let ret = resp["ret"].as_i64().unwrap_or(0);
             let errcode = resp["errcode"].as_i64().unwrap_or(0);
-            if (ret != 0 && ret != SESSION_EXPIRED_ERRCODE)
-                || (errcode != 0 && errcode != SESSION_EXPIRED_ERRCODE)
-            {
-                if errcode == SESSION_EXPIRED_ERRCODE || ret == SESSION_EXPIRED_ERRCODE {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-                tokio::time::sleep(Duration::from_secs(2)).await;
+            if errcode == SESSION_EXPIRED_ERRCODE || ret == SESSION_EXPIRED_ERRCODE {
                 continue;
             }
+            if ret != 0 || errcode != 0 {
+                let retry_delay = retry_backoff.next_delay();
+                warn!(
+                    "weixin getupdates (loop) ret={ret} errcode={errcode}; retrying in {}s",
+                    retry_delay.as_secs()
+                );
+                if sleep_or_stop(&mut stop, retry_delay).await {
+                    break;
+                }
+                continue;
+            }
+            retry_backoff.reset();
 
             if let Some(new_buf) = resp["get_updates_buf"].as_str() {
                 buf = new_buf.to_string();

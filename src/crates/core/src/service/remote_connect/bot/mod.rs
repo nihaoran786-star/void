@@ -11,6 +11,8 @@ pub mod menu;
 pub mod telegram;
 pub mod weixin;
 
+mod retry;
+
 use serde::{Deserialize, Serialize};
 
 pub use command_router::{BotChatState, ForwardRequest, ForwardedTurnResult, HandleResult};
