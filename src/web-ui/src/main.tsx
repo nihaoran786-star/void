@@ -1,6 +1,5 @@
 import ReactDOM from "react-dom/client";
 import App from "./app/App";
-import AgentCompanionDesktopPet from "./app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet";
 import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
 import "./app/styles/index.scss";
@@ -296,6 +295,9 @@ async function startApplication(): Promise<void> {
 
   const renderStartedAt = nowMs();
   if (isAgentCompanionWindow) {
+    const { default: AgentCompanionDesktopPet } = await import(
+      './app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet'
+    );
     ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <AppErrorBoundary>
         <I18nProvider>

@@ -4,19 +4,20 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2399468,
-		"referenceGzipBytes": 698817,
+		"maxRawBytes": 2385481,
+		"referenceGzipBytes": 694377,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]
 	},
 	"css": {
-		"maxRawBytes": 703657,
-		"referenceGzipBytes": 99742,
+		"maxRawBytes": 687948,
+		"referenceGzipBytes": 96942,
 		"forbiddenMarkers": [
 			".monaco-editor",
 			".xterm-helper-textarea",
 			".katex",
+			".void-agent-companion-window",
 			".void-ai-model-config",
 			".workspace-media-gallery",
 			".short-drama-center",
@@ -43,6 +44,7 @@
 		]
 	},
 	"requiredDynamicEntries": [
+		"src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 		"src/app/scenes/settings/SettingsScene.tsx",
@@ -112,6 +114,7 @@
 			"@tiptap/pm"
 		],
 		"localUnreachable": [
+			"src/web-ui/src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
 			"src/web-ui/src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 			"src/web-ui/src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 			"src/web-ui/src/flow_chat/services/CompactChatPresentationPublisher.ts",
