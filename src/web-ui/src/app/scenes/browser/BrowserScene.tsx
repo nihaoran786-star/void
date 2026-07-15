@@ -6,6 +6,7 @@ import { createLogger } from '@/shared/utils/logger';
 import { useSceneStore } from '@/app/stores/sceneStore';
 import { BLANK_TARGET_INTERCEPT_SCRIPT } from './browserInspectorScript';
 import { validateUrl, checkConnectivity } from './browserUrlCheck';
+import { startBrowserUrlPolling } from './browserUrlPolling';
 import './BrowserScene.scss';
 
 const log = createLogger('BrowserScene');
@@ -146,12 +147,12 @@ const BrowserScene: React.FC = () => {
   const currentUrlRef = useRef<string>(DEFAULT_URL);
   const resizeFrameRef = useRef<number | null>(null);
   const webviewLabelRef = useRef<string>('');
-  const urlPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [inputValue, setInputValue] = useState(DEFAULT_URL);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_URL);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pollingLabel, setPollingLabel] = useState<string | null>(null);
 
   const syncWebviewBounds = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
@@ -189,6 +190,8 @@ const BrowserScene: React.FC = () => {
     } finally {
       if (!handle || target === webviewRef.current) {
         webviewRef.current = null;
+        webviewLabelRef.current = '';
+        setPollingLabel(null);
       }
     }
   }, []);
@@ -234,7 +237,6 @@ const BrowserScene: React.FC = () => {
       import('@tauri-apps/api/window'),
     ]);
     const nextLabel = `embedded-browser-view-${webviewSequenceRef.current++}`;
-    webviewLabelRef.current = nextLabel;
     const handle = new Webview(getCurrentWindow(), nextLabel, {
       url,
       x: 0,
@@ -245,8 +247,26 @@ const BrowserScene: React.FC = () => {
 
     await waitForWebviewCreated(handle);
     webviewRef.current = handle;
+    webviewLabelRef.current = nextLabel;
+    setPollingLabel(nextLabel);
     return handle;
   }, [closeWebview]);
+
+  const handlePolledUrl = useCallback((url: string) => {
+    if (!url || url === currentUrlRef.current) {
+      return;
+    }
+
+    currentUrlRef.current = url;
+    setInputValue(url);
+    setCurrentUrl(url);
+    setError(null);
+
+    const label = webviewLabelRef.current;
+    if (label) {
+      void evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
+    }
+  }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
     const nextUrl = normalizeUrl(rawUrl);
@@ -265,11 +285,6 @@ const BrowserScene: React.FC = () => {
       validateUrl(nextUrl);
       await checkConnectivity(nextUrl);
 
-      if (urlPollTimerRef.current) {
-        clearInterval(urlPollTimerRef.current);
-        urlPollTimerRef.current = null;
-      }
-
       const handle = await recreateWebview(nextUrl);
       await syncWebviewBounds(handle);
       if (isActive) {
@@ -279,21 +294,6 @@ const BrowserScene: React.FC = () => {
 
       const label = webviewLabelRef.current;
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
-
-      const { invoke } = await import('@tauri-apps/api/core');
-      urlPollTimerRef.current = setInterval(() => {
-        invoke<string>('browser_get_url', { request: { label } })
-          .then((url) => {
-            if (url && url !== currentUrlRef.current) {
-              currentUrlRef.current = url;
-              setInputValue(url);
-              setCurrentUrl(url);
-              setError(null);
-              evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
-            }
-          })
-          .catch(() => {});
-      }, 500);
     } catch (loadError) {
       const message = formatUnknownError(loadError);
       log.error('Load browser url failed', loadError);
@@ -314,6 +314,17 @@ const BrowserScene: React.FC = () => {
       });
     });
   }, [syncWebviewBounds]);
+
+  useEffect(() => {
+    if (!isTauri || !isActive || !pollingLabel) {
+      return;
+    }
+
+    return startBrowserUrlPolling({
+      label: pollingLabel,
+      onUrl: handlePolledUrl,
+    });
+  }, [handlePolledUrl, isActive, isTauri, pollingLabel]);
 
   useEffect(() => {
     if (!isTauri) {
@@ -397,10 +408,6 @@ const BrowserScene: React.FC = () => {
   }, [isActive, isTauri, queueSync]);
 
   useEffect(() => () => {
-    if (urlPollTimerRef.current) {
-      clearInterval(urlPollTimerRef.current);
-      urlPollTimerRef.current = null;
-    }
     void closeWebview();
   }, [closeWebview]);
 

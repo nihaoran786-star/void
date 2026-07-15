@@ -16,6 +16,7 @@ import { useContextStore } from '@/shared/context-system';
 import type { WebElementContext } from '@/shared/types/context';
 import { createInspectorScript, CANCEL_INSPECTOR_SCRIPT, BLANK_TARGET_INTERCEPT_SCRIPT } from './browserInspectorScript';
 import { validateUrl, checkConnectivity } from './browserUrlCheck';
+import { startBrowserUrlPolling } from './browserUrlPolling';
 import { createBrowserPanelWebviewLabel } from './browserWebviewLabels';
 import './BrowserPanel.scss';
 
@@ -128,13 +129,13 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const resizeFrameRef = useRef<number | null>(null);
   const webviewLabelRef = useRef<string>('');
   const inspectorUnlistenRef = useRef<(() => void) | null>(null);
-  const urlPollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [inputValue, setInputValue] = useState(startUrl);
   const [currentUrl, setCurrentUrl] = useState(startUrl);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInspectorActive, setIsInspectorActive] = useState(false);
+  const [pollingLabel, setPollingLabel] = useState<string | null>(null);
 
   const addContext = useContextStore((s) => s.addContext);
 
@@ -170,7 +171,11 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     } catch (e) {
       if (!isWebviewNotFoundError(e)) log.warn('Close browser panel webview failed', e);
     } finally {
-      if (!handle || target === webviewRef.current) webviewRef.current = null;
+      if (!handle || target === webviewRef.current) {
+        webviewRef.current = null;
+        webviewLabelRef.current = '';
+        setPollingLabel(null);
+      }
     }
   }, []);
 
@@ -211,7 +216,6 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       import('@tauri-apps/api/window'),
     ]);
     const label = createBrowserPanelWebviewLabel();
-    webviewLabelRef.current = label;
     const handle = new Webview(getCurrentWindow(), label, {
       url,
       x: 0,
@@ -222,8 +226,26 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
 
     await waitForWebviewCreated(handle);
     webviewRef.current = handle;
+    webviewLabelRef.current = label;
+    setPollingLabel(label);
     return handle;
   }, [closeWebview]);
+
+  const handlePolledUrl = useCallback((url: string) => {
+    if (!url || url === currentUrlRef.current) {
+      return;
+    }
+
+    currentUrlRef.current = url;
+    setInputValue(url);
+    setCurrentUrl(url);
+    setError(null);
+
+    const label = webviewLabelRef.current;
+    if (label) {
+      void evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
+    }
+  }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
     const nextUrl = normalizeUrl(rawUrl);
@@ -248,11 +270,6 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       validateUrl(nextUrl);
       await checkConnectivity(nextUrl, { skipLoopbackCheck: true });
 
-      if (urlPollTimerRef.current) {
-        clearInterval(urlPollTimerRef.current);
-        urlPollTimerRef.current = null;
-      }
-
       const handle = await recreateWebview(nextUrl);
       await syncWebviewBounds(handle);
       if (shouldShowWebview) {
@@ -262,21 +279,6 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
 
       const label = webviewLabelRef.current;
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
-
-      const { invoke } = await import('@tauri-apps/api/core');
-      urlPollTimerRef.current = setInterval(() => {
-        invoke<string>('browser_get_url', { request: { label } })
-          .then((url) => {
-            if (url && url !== currentUrlRef.current) {
-              currentUrlRef.current = url;
-              setInputValue(url);
-              setCurrentUrl(url);
-              setError(null);
-              evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
-            }
-          })
-          .catch(() => {});
-      }, 500);
     } catch (loadError) {
       const message = formatUnknownError(loadError);
       log.error('Load browser panel url failed', loadError);
@@ -293,6 +295,17 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       void syncWebviewBounds().catch((e) => log.warn('Sync browser panel webview bounds failed', e));
     });
   }, [syncWebviewBounds]);
+
+  useEffect(() => {
+    if (!isTauri || !shouldShowWebview || !pollingLabel) {
+      return;
+    }
+
+    return startBrowserUrlPolling({
+      label: pollingLabel,
+      onUrl: handlePolledUrl,
+    });
+  }, [handlePolledUrl, isTauri, pollingLabel, shouldShowWebview]);
 
   // Activate / deactivate webview based on shouldShowWebview
   useEffect(() => {
@@ -353,10 +366,6 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
 
   // Cleanup on unmount
   useEffect(() => () => {
-    if (urlPollTimerRef.current) {
-      clearInterval(urlPollTimerRef.current);
-      urlPollTimerRef.current = null;
-    }
     if (inspectorUnlistenRef.current) {
       inspectorUnlistenRef.current();
       inspectorUnlistenRef.current = null;
