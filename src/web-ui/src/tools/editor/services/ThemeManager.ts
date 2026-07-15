@@ -3,7 +3,7 @@
  * Handles theme registration, switching, and change event subscription.
  */
 
-import * as monaco from 'monaco-editor';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { VoidDarkTheme, VoidDarkThemeMetadata } from '../themes/void-dark.theme';
 import { createLogger } from '@/shared/utils/logger';
 
@@ -158,14 +158,20 @@ class ThemeManager {
       
       themeService.on('theme:after-change', (event) => {
         if (event.theme) {
+          const previousThemeId = this.currentThemeId;
           monacoThemeSync.syncTheme(event.theme);
-          this.currentThemeId = monacoThemeSync.getTargetMonacoThemeId(event.theme);
+          const currentThemeId = monacoThemeSync.getTargetMonacoThemeId(event.theme);
+          if (currentThemeId !== previousThemeId) {
+            this.currentThemeId = currentThemeId;
+            this.notifyListeners({ previousThemeId, currentThemeId });
+          }
         }
       });
       
     } catch (error) {
       log.warn('Could not sync with ThemeService', error);
       monaco.editor.setTheme(this.getDefaultThemeId());
+      throw error;
     }
   }
   
