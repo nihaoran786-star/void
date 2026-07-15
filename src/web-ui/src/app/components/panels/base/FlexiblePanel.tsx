@@ -102,7 +102,7 @@ const GenerativeWidgetPanel = React.lazy(() =>
 );
 
 const WorkspaceMediaGallery = React.lazy(() =>
-  import('@/app/components/panels/content-canvas/workspace-media').then(module => ({
+  import('@/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery').then(module => ({
     default: module.WorkspaceMediaGallery,
   }))
 );

@@ -139,6 +139,66 @@ describe('Web UI startup import boundaries', () => {
     expect(tabBar).toContain("from '../short-drama/ShortDramaEntry'");
   });
 
+  it('keeps startup config and workspace-media consumers on concrete module boundaries', () => {
+    const configConsumers = [
+      readSource('../layout/AppLayout.tsx'),
+      readSource('../hooks/useDialogCompletionNotify.ts'),
+      readSource('../../infrastructure/update/DailyAppUpdateGate.tsx'),
+    ];
+    const workspaceMediaEntryConsumers = [
+      readSource(
+        '../components/panels/content-canvas/empty-state/EmptyState.tsx',
+      ),
+      readSource('../components/panels/content-canvas/tab-bar/TabBar.tsx'),
+    ];
+    const flexiblePanel = readSource(
+      '../components/panels/base/FlexiblePanel.tsx',
+    );
+    const app = readSource('../App.tsx');
+    const chatInput = readSource('../../flow_chat/components/ChatInput.tsx');
+    const gitEventService = readSource(
+      '../../tools/git/services/GitEventService.ts',
+    );
+
+    for (const consumer of configConsumers) {
+      expect(consumer).toContain(
+        "from '@/infrastructure/config/services/ConfigManager'",
+      );
+      expect(consumer).not.toContain("from '@/infrastructure/config'");
+    }
+
+    for (const consumer of workspaceMediaEntryConsumers) {
+      expect(consumer).toContain(
+        "from '../workspace-media/WorkspaceMediaEntry'",
+      );
+      expect(consumer).not.toContain("from '../workspace-media'");
+    }
+
+    expect(flexiblePanel).toContain(
+      "import('@/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery')",
+    );
+    expect(flexiblePanel).not.toContain(
+      "import('@/app/components/panels/content-canvas/workspace-media')",
+    );
+    expect(chatInput).toContain("from '@/infrastructure/event-bus'");
+    expect(chatInput).not.toMatch(/from ['"]@\/infrastructure['"]/);
+    expect(app).toContain(
+      "from '@/infrastructure/contexts/ChatProvider'",
+    );
+    expect(app).toContain(
+      "from '@/infrastructure/hooks/useAIInitialization'",
+    );
+    expect(app).not.toMatch(
+      /from ['"](?:@\/infrastructure|\.\.\/infrastructure)['"]/,
+    );
+    expect(gitEventService).toContain(
+      "from '@/infrastructure/event-bus'",
+    );
+    expect(gitEventService).not.toMatch(
+      /from ['"](?:@\/infrastructure|\.\.\/\.\.\/\.\.\/infrastructure)['"]/,
+    );
+  });
+
   it('defers Monaco registry lookup until the DOM fast path misses', () => {
     const activeEditTargetService = readSource(
       '../../tools/editor/services/ActiveEditTargetService.ts',

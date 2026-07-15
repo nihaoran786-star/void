@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
-import { WorkspaceMediaEntry } from '../workspace-media';
+import { WorkspaceMediaEntry } from '../workspace-media/WorkspaceMediaEntry';
 import { ShortDramaEntry } from '../short-drama/ShortDramaEntry';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
