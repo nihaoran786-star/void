@@ -4,8 +4,8 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2596145,
-		"referenceGzipBytes": 767721,
+		"maxRawBytes": 2596598,
+		"referenceGzipBytes": 767850,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]

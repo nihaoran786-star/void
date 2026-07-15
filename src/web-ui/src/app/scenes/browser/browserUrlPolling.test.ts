@@ -73,27 +73,34 @@ function createDeferred<T>(): {
 }
 
 describe('startBrowserUrlPolling', () => {
-  it('stops while the document is hidden and resumes when it becomes visible', () => {
+  it('stops while hidden and immediately resumes with a single scheduler', () => {
     const visibility = new TestVisibility();
     const timers = new TestTimers();
+    const readUrl = vi.fn(async () => 'https://example.com');
 
     const stop = startBrowserUrlPolling({
       label: 'browser-1',
       intervalMs: 500,
       visibility,
       timers,
-      readUrl: vi.fn(async () => 'https://example.com'),
+      readUrl,
       onUrl: vi.fn(),
     });
 
     expect(timers.activeCount()).toBe(1);
     expect(visibility.listenerCount()).toBe(1);
+    expect(readUrl).toHaveBeenCalledTimes(1);
 
     visibility.setHidden(true);
     expect(timers.activeCount()).toBe(0);
 
     visibility.setHidden(false);
     expect(timers.activeCount()).toBe(1);
+    expect(readUrl).toHaveBeenCalledTimes(2);
+
+    visibility.setHidden(false);
+    expect(timers.activeCount()).toBe(1);
+    expect(readUrl).toHaveBeenCalledTimes(2);
 
     stop();
     expect(timers.activeCount()).toBe(0);
@@ -140,6 +147,78 @@ describe('startBrowserUrlPolling', () => {
 
     expect(readUrl).toHaveBeenCalledTimes(1);
     expect(readUrl).toHaveBeenCalledWith('browser-2');
+
+    stop();
+  });
+
+  it('drops a pending URL result when the document becomes hidden', async () => {
+    const visibility = new TestVisibility();
+    const timers = new TestTimers();
+    const deferred = createDeferred<string>();
+    const onUrl = vi.fn();
+
+    const stop = startBrowserUrlPolling({
+      label: 'browser-hidden',
+      visibility,
+      timers,
+      readUrl: () => deferred.promise,
+      onUrl,
+    });
+
+    expect(timers.activeCount()).toBe(1);
+    visibility.setHidden(true);
+
+    deferred.resolve('https://hidden-result.example.com');
+    await deferred.promise;
+    await Promise.resolve();
+
+    expect(onUrl).not.toHaveBeenCalled();
+    expect(timers.activeCount()).toBe(0);
+
+    stop();
+  });
+
+  it('does not let an old read block or unlock the resumed visible cycle', async () => {
+    const visibility = new TestVisibility();
+    const timers = new TestTimers();
+    const oldRead = createDeferred<string>();
+    const currentRead = createDeferred<string>();
+    const onUrl = vi.fn();
+    const readUrl = vi.fn()
+      .mockImplementationOnce(() => oldRead.promise)
+      .mockImplementationOnce(() => currentRead.promise);
+
+    const stop = startBrowserUrlPolling({
+      label: 'browser-resumed',
+      visibility,
+      timers,
+      readUrl,
+      onUrl,
+    });
+
+    visibility.setHidden(true);
+    visibility.setHidden(false);
+
+    expect(readUrl).toHaveBeenCalledTimes(2);
+    expect(timers.activeCount()).toBe(1);
+
+    oldRead.resolve('https://old-cycle.example.com');
+    await oldRead.promise;
+    await Promise.resolve();
+
+    timers.tick();
+    expect(readUrl).toHaveBeenCalledTimes(2);
+    expect(onUrl).not.toHaveBeenCalled();
+
+    currentRead.resolve('https://current-cycle.example.com');
+    await currentRead.promise;
+    await Promise.resolve();
+
+    expect(onUrl).toHaveBeenCalledTimes(1);
+    expect(onUrl).toHaveBeenCalledWith(
+      'browser-resumed',
+      'https://current-cycle.example.com',
+    );
 
     stop();
   });

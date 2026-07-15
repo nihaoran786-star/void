@@ -10,6 +10,7 @@ import { DropZone } from './DropZone';
 import FlexiblePanel from '../../base/FlexiblePanel';
 import { usePanelViewCanvasStore } from '../stores';
 import { useSceneStore } from '../../../../stores/sceneStore';
+import { selectRetainedTabs } from './browserTabRetention';
 import type { 
   EditorGroupId, 
   EditorGroupState, 
@@ -79,43 +80,20 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
 }) => {
   const { t } = useTranslation('components');
   const visibleTabs = useMemo(() => group.tabs.filter(t => !t.isHidden), [group.tabs]);
-  
-  // Cache recently visited tabs (max 5) for instant switching
-  const cachedTabsRef = useRef<Set<string>>(new Set());
-  
-  // Update cache: keep active tab and 4 most recent tabs
+
+  const retainedNonBrowserTabIdsRef = useRef<ReadonlySet<string>>(new Set());
+  const tabRetention = useMemo(
+    () => selectRetainedTabs(
+      group.tabs,
+      group.activeTabId,
+      retainedNonBrowserTabIdsRef.current,
+    ),
+    [group.activeTabId, group.tabs],
+  );
+
   useEffect(() => {
-    // Remove closed tabs
-    const validTabIds = new Set(group.tabs.filter(t => !t.isHidden).map(t => t.id));
-    cachedTabsRef.current = new Set(
-      Array.from(cachedTabsRef.current).filter(id => validTabIds.has(id))
-    );
-    
-    // Add active tab
-    if (group.activeTabId && validTabIds.has(group.activeTabId)) {
-      cachedTabsRef.current.add(group.activeTabId);
-      
-      // If cache exceeds 5, keep active and 4 most recent
-      if (cachedTabsRef.current.size > 5) {
-        const sortedTabs = [...group.tabs]
-          .filter(t => !t.isHidden && t.id !== group.activeTabId)
-          .sort((a, b) => (b.lastAccessedAt || 0) - (a.lastAccessedAt || 0))
-          .slice(0, 4)
-          .map(t => t.id);
-        
-        cachedTabsRef.current = new Set([group.activeTabId, ...sortedTabs]);
-      }
-    }
-  }, [group.activeTabId, group.tabs]);
-  
-  // Tabs to render (active + cached)
-  const tabsToRender = useMemo(() => {
-    const result = group.tabs.filter(t => 
-      !t.isHidden && 
-      (t.id === group.activeTabId || cachedTabsRef.current.has(t.id))
-    );
-    return result;
-  }, [group.tabs, group.activeTabId]);
+    retainedNonBrowserTabIdsRef.current = tabRetention.retainedNonBrowserTabIds;
+  }, [tabRetention.retainedNonBrowserTabIds]);
 
   const handleContentChange = useCallback((content: PanelContent | null) => {
     if (content && group.activeTabId) {
@@ -173,9 +151,9 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
         onDrop={onDrop}
       >
         <div className="canvas-editor-group__content">
-          {/* Render cached tabs (active shown, others hidden) for instant switching */}
-          {tabsToRender.length > 0 ? (
-            tabsToRender.map((tab) => (
+          {/* Keep open browsers and the bounded recent cache mounted; show only the active tab. */}
+          {tabRetention.tabsToRender.length > 0 ? (
+            tabRetention.tabsToRender.map((tab) => (
               <div
                 key={tab.id}
                 className="canvas-editor-group__tab-content"

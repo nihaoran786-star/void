@@ -43,24 +43,39 @@ export function startBrowserUrlPolling(options: StartBrowserUrlPollingOptions): 
   } = options;
 
   let disposed = false;
-  let inFlight = false;
+  let generation = 0;
+  let inFlightGeneration: number | null = null;
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
+  let isHidden = visibility.hidden;
 
   const poll = async () => {
-    if (disposed || inFlight || visibility.hidden) {
+    const pollGeneration = generation;
+    if (
+      disposed
+      || isHidden
+      || visibility.hidden
+      || inFlightGeneration === pollGeneration
+    ) {
       return;
     }
 
-    inFlight = true;
+    inFlightGeneration = pollGeneration;
     try {
       const url = await readUrl(label);
-      if (!disposed) {
+      if (
+        !disposed
+        && !isHidden
+        && !visibility.hidden
+        && generation === pollGeneration
+      ) {
         onUrl(label, url);
       }
     } catch {
       // URL polling is best-effort; the next interval can retry.
     } finally {
-      inFlight = false;
+      if (inFlightGeneration === pollGeneration) {
+        inFlightGeneration = null;
+      }
     }
   };
 
@@ -74,7 +89,7 @@ export function startBrowserUrlPolling(options: StartBrowserUrlPollingOptions): 
   };
 
   const startInterval = () => {
-    if (disposed || visibility.hidden || intervalHandle !== null) {
+    if (disposed || isHidden || visibility.hidden || intervalHandle !== null) {
       return;
     }
 
@@ -83,16 +98,36 @@ export function startBrowserUrlPolling(options: StartBrowserUrlPollingOptions): 
     }, intervalMs);
   };
 
+  const invalidatePendingRead = () => {
+    generation += 1;
+    inFlightGeneration = null;
+  };
+
+  const startVisibleCycle = () => {
+    invalidatePendingRead();
+    void poll();
+    startInterval();
+  };
+
   const handleVisibilityChange = () => {
-    if (visibility.hidden) {
+    const nextHidden = visibility.hidden;
+    if (nextHidden === isHidden) {
+      return;
+    }
+
+    isHidden = nextHidden;
+    if (isHidden) {
+      invalidatePendingRead();
       stopInterval();
     } else {
-      startInterval();
+      startVisibleCycle();
     }
   };
 
   visibility.addEventListener('visibilitychange', handleVisibilityChange);
-  startInterval();
+  if (!isHidden) {
+    startVisibleCycle();
+  }
 
   return () => {
     if (disposed) {
@@ -100,6 +135,7 @@ export function startBrowserUrlPolling(options: StartBrowserUrlPollingOptions): 
     }
 
     disposed = true;
+    invalidatePendingRead();
     stopInterval();
     visibility.removeEventListener('visibilitychange', handleVisibilityChange);
   };

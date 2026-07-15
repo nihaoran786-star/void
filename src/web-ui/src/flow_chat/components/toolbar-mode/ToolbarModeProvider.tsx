@@ -1,6 +1,10 @@
 import React, { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
+import {
+  TOOLBAR_MODE_ACTIVATING_EVENT,
+  TOOLBAR_MODE_ACTIVATION_FAILED_EVENT,
+} from '@/shared/constants/toolbarModeEvents';
 import { createLogger } from '@/shared/utils/logger';
 import {
   TOOLBAR_COMPACT_MIN,
@@ -36,10 +40,25 @@ export const ToolbarModeProvider: React.FC<ToolbarModeProviderProps> = ({ childr
   });
 
   const savedWindowStateRef = useRef<SavedWindowState | null>(null);
+  const transitionPromiseRef = useRef<Promise<void> | null>(null);
 
-  const enableToolbarMode = useCallback(async () => {
+  const startToolbarTransition = useCallback((operation: () => Promise<void>): Promise<void> => {
+    if (transitionPromiseRef.current) {
+      return transitionPromiseRef.current;
+    }
+
+    const transition = operation().finally(() => {
+      if (transitionPromiseRef.current === transition) {
+        transitionPromiseRef.current = null;
+      }
+    });
+    transitionPromiseRef.current = transition;
+    return transition;
+  }, []);
+
+  const enableToolbarMode = useCallback(() => startToolbarTransition(async () => {
     try {
-      window.dispatchEvent(new CustomEvent('toolbar-mode-activating'));
+      window.dispatchEvent(new CustomEvent(TOOLBAR_MODE_ACTIVATING_EVENT));
 
       const win = getCurrentWindow();
       const isMacOS =
@@ -73,9 +92,6 @@ export const ToolbarModeProvider: React.FC<ToolbarModeProviderProps> = ({ childr
         isDecorated,
       };
 
-      setIsToolbarMode(true);
-      setIsExpanded(true);
-
       if (isMaximized) {
         await win.unmaximize();
       }
@@ -108,20 +124,25 @@ export const ToolbarModeProvider: React.FC<ToolbarModeProviderProps> = ({ childr
         } catch {
         }
       }
-      await Promise.all(toolbarWindowOps);
+      const toolbarWindowResults = await Promise.allSettled(toolbarWindowOps);
+      for (const result of toolbarWindowResults) {
+        if (result.status === 'rejected') {
+          throw result.reason;
+        }
+      }
 
       await win.setMinSize(new PhysicalSize(TOOLBAR_EXPANDED_MIN.width, TOOLBAR_EXPANDED_MIN.height));
+      setIsToolbarMode(true);
+      setIsExpanded(true);
     } catch (error) {
       log.error('Failed to enable toolbar mode', error);
       setIsToolbarMode(false);
+      window.dispatchEvent(new CustomEvent(TOOLBAR_MODE_ACTIVATION_FAILED_EVENT));
     }
-  }, []);
+  }), [startToolbarTransition]);
 
-  const disableToolbarMode = useCallback(async () => {
+  const disableToolbarMode = useCallback(() => startToolbarTransition(async () => {
     try {
-      setIsToolbarMode(false);
-      setIsExpanded(false);
-
       const win = getCurrentWindow();
       const isMacOS =
         typeof window !== 'undefined' &&
@@ -148,11 +169,16 @@ export const ToolbarModeProvider: React.FC<ToolbarModeProviderProps> = ({ childr
         }
       }
 
-      await Promise.all([
+      const restoreWindowResults = await Promise.allSettled([
         win.setAlwaysOnTop(false),
         win.setResizable(true),
         win.setSkipTaskbar(false),
       ]);
+      for (const result of restoreWindowResults) {
+        if (result.status === 'rejected') {
+          throw result.reason;
+        }
+      }
 
       if (saved) {
         await win.setSize(new PhysicalSize(saved.width, saved.height));
@@ -179,8 +205,11 @@ export const ToolbarModeProvider: React.FC<ToolbarModeProviderProps> = ({ childr
       await win.setFocus();
     } catch (error) {
       log.error('Failed to disable toolbar mode', error);
+    } finally {
+      setIsToolbarMode(false);
+      setIsExpanded(false);
     }
-  }, []);
+  }), [startToolbarTransition]);
 
   const toggleToolbarMode = useCallback(async () => {
     if (isToolbarMode) {

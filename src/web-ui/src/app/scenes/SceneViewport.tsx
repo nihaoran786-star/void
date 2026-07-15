@@ -127,7 +127,7 @@ function renderScene(
     case 'miniapps':
       return <MiniAppGalleryScene />;
     case 'browser':
-      return <BrowserScene />;
+      return <BrowserScene isActive={isActive} />;
     case 'assistant':
       return <AssistantScene workspacePath={workspacePath} />;
     case 'insights':
