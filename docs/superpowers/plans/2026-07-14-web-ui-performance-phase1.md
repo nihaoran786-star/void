@@ -27,6 +27,11 @@
 - Modify `src/web-ui/src/app/components/panels/base/FlexiblePanel.tsx`: lazy-load concrete editor, diff, and short-drama implementations.
 - Modify `src/web-ui/src/app/components/panels/content-canvas/empty-state/EmptyState.tsx`: import only the lightweight short-drama entry.
 - Modify `src/web-ui/src/app/components/panels/content-canvas/tab-bar/TabBar.tsx`: import only the lightweight short-drama entry.
+- Modify `src/web-ui/src/tools/editor/services/ActiveEditTargetService.ts`: make its Monaco-only type dependency type-only.
+- Modify `src/web-ui/src/shared/helpers/MonacoHelper.ts`: defer the fallback Monaco editor-registry lookup until an editor command executes.
+- Modify `src/web-ui/src/shared/context-menu-system/commands/builtin/CutCommand.ts`: await the deferred editor lookup.
+- Modify `src/web-ui/src/shared/context-menu-system/commands/builtin/PasteCommand.ts`: await the deferred editor lookup.
+- Modify `src/web-ui/src/shared/context-menu-system/commands/builtin/SelectAllCommand.ts`: await the deferred editor lookup.
 - Create `src/web-ui/src/app/performance/performanceImportBoundaries.test.ts`: source-level regression checks for startup boundaries.
 - Create `docs/architecture/web-ui-performance-boundaries.md`: durable dependency and lifecycle rules.
 
@@ -232,6 +237,11 @@ git commit -m "perf(editor): defer Monaco runtime bootstrap"
 - Modify: `src/web-ui/src/app/components/panels/base/FlexiblePanel.tsx`
 - Modify: `src/web-ui/src/app/components/panels/content-canvas/empty-state/EmptyState.tsx`
 - Modify: `src/web-ui/src/app/components/panels/content-canvas/tab-bar/TabBar.tsx`
+- Modify: `src/web-ui/src/tools/editor/services/ActiveEditTargetService.ts`
+- Modify: `src/web-ui/src/shared/helpers/MonacoHelper.ts`
+- Modify: `src/web-ui/src/shared/context-menu-system/commands/builtin/CutCommand.ts`
+- Modify: `src/web-ui/src/shared/context-menu-system/commands/builtin/PasteCommand.ts`
+- Modify: `src/web-ui/src/shared/context-menu-system/commands/builtin/SelectAllCommand.ts`
 - Modify: `src/web-ui/src/app/performance/performanceImportBoundaries.test.ts`
 - Create: `docs/architecture/web-ui-performance-boundaries.md`
 
@@ -244,6 +254,8 @@ expect(flexiblePanel).not.toContain("from '@/tools/editor'");
 expect(flexiblePanel).not.toContain("content-canvas/short-drama').then");
 expect(emptyState).toContain("from '../short-drama/ShortDramaEntry'");
 expect(tabBar).toContain("from '../short-drama/ShortDramaEntry'");
+expect(activeEditTargetService).toContain("import type * as monaco from 'monaco-editor'");
+expect(monacoHelper).not.toContain("import * as monaco from 'monaco-editor'");
 ```
 
 Run:
@@ -278,6 +290,8 @@ const ShortDramaCenterPanel = React.lazy(() =>
 Remove static editor and GitDiffEditor imports. Wrap `renderContent()` in a local `React.Suspense` using the existing panel loading class and translated loading copy.
 
 Import `ShortDramaEntry` directly in `EmptyState` and `TabBar`. Do not modify the short-drama feature barrel or any short-drama business file.
+
+The editor menu path is a second startup edge. Convert the `ActiveEditTargetService` dependency to `import type`, change `MonacoHelper.getEditorFromElement` to an asynchronous lookup that dynamically imports `monaco-editor` only for its registry fallback, and await it from the already-asynchronous cut, paste, and select-all commands. Preserve the DOM fast path, registry fallback, command behavior, and error logging.
 
 - [ ] **Step 3: Add durable architecture documentation**
 

@@ -83,6 +83,8 @@ Owner: `src/web-ui/src/tools/editor`.
 
 `ThemeService` continues to own application theme state and emits `theme:after-change`. It must not import `MonacoThemeSync`. The already editor-owned `ThemeManager` consumes theme events and applies Monaco-specific theme behavior after the editor module exists.
 
+The startup boundary applies to the complete static import closure, not only `main.tsx`. Shared commands and services may use Monaco types through `import type`, but they may not import the Monaco runtime eagerly. The context-menu commands are already asynchronous, so their `MonacoHelper` lookup loads the runtime only when an editor command actually needs the fallback editor registry. This preserves cut, paste, and select-all behavior without making the global command registry a Monaco startup dependency.
+
 ```text
 main.tsx -> ThemeService -> CSS variables + theme event
 
@@ -145,6 +147,7 @@ The component owns `enabled` and `label`. The polling service owns the remaining
    - `ThemeService` has no Monaco integration import;
    - `FlexiblePanel` has no editor or short-drama barrel import;
    - lightweight short-drama entry surfaces import `ShortDramaEntry` directly.
+   - shared services use type-only Monaco imports and the global context-menu path does not statically import the Monaco runtime.
 3. Run existing theme, browser, Monaco warmup, and short-drama tests.
 4. Run Web UI type checking.
 5. Run a production build and compare entry JS/CSS, chunk graph, and Vite static/dynamic-import warnings against the baseline.
