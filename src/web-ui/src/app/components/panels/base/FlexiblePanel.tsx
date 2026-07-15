@@ -691,7 +691,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
         const taskDetailData = content.data || {};
         return (
           <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.taskDetail')}</div>}>
-            <TaskDetailPanel data={taskDetailData} />
+            <TaskDetailPanel data={taskDetailData} isActive={isActive} />
           </React.Suspense>
         );
       }

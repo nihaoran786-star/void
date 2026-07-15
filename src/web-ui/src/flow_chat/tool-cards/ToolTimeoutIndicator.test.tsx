@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { createInstance, type i18n as I18nInstance } from 'i18next';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FlowChatPresentationActivityProvider } from '../components/modern/FlowChatPresentationActivity';
 import { ToolTimeoutIndicator } from './ToolTimeoutIndicator';
 
 const setSubagentTimeoutMock = vi.hoisted(() => vi.fn());
@@ -94,8 +95,10 @@ describe('ToolTimeoutIndicator', () => {
     }
     container?.remove();
     dom?.window.close();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     root = null;
     container = null;
     dom = null;
@@ -166,5 +169,117 @@ describe('ToolTimeoutIndicator', () => {
     });
 
     expect(setSubagentTimeoutMock).toHaveBeenCalledWith('subagent-session', { type: 'disable' });
+  });
+
+  it('uses the FlowChat presentation signal to suspend and resume its live interval', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(20_000);
+
+    const renderAtActivity = async (isActive: boolean) => {
+      await act(async () => {
+        root!.render(withI18n(
+          <FlowChatPresentationActivityProvider isActive={isActive}>
+            <ToolTimeoutIndicator
+              startTime={10_000}
+              isRunning
+              timeoutMs={60_000}
+            />
+          </FlowChatPresentationActivityProvider>,
+        ));
+      });
+    };
+
+    await renderAtActivity(false);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await renderAtActivity(true);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(container!.querySelector('.duration-elapsed')?.textContent).toBe('10s');
+
+    await renderAtActivity(false);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.setSystemTime(25_000);
+    await renderAtActivity(true);
+    expect(vi.getTimerCount()).toBe(1);
+    expect(container!.querySelector('.duration-elapsed')?.textContent).toBe('15s');
+
+    await renderAtActivity(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('adopts a goal-mode timeout default that becomes known after mount', async () => {
+    const renderWithDefault = async (defaultTimeoutDisabled: boolean) => {
+      await act(async () => {
+        root!.render(withI18n(
+          <ToolTimeoutIndicator
+            startTime={10_000}
+            isRunning
+            timeoutMs={60_000}
+            showControls
+            subagentSessionId="subagent-session"
+            defaultTimeoutDisabled={defaultTimeoutDisabled}
+          />,
+        ));
+      });
+    };
+
+    await renderWithDefault(false);
+    expect(container!.querySelector('.timeout-ignore-btn')?.classList.contains('is-active')).toBe(false);
+
+    await renderWithDefault(true);
+    expect(container!.querySelector('.timeout-ignore-btn')?.classList.contains('is-active')).toBe(true);
+    expect(setSubagentTimeoutMock).not.toHaveBeenCalled();
+  });
+
+  it('removes timeout popover document listeners while presentation is inactive', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(20_000);
+    const addEventListener = vi.spyOn(document, 'addEventListener');
+    const removeEventListener = vi.spyOn(document, 'removeEventListener');
+
+    await act(async () => {
+      root!.render(withI18n(
+        <FlowChatPresentationActivityProvider isActive>
+          <ToolTimeoutIndicator
+            startTime={10_000}
+            isRunning
+            timeoutMs={60_000}
+            showControls
+            subagentSessionId="subagent-session"
+            defaultTimeoutDisabled
+          />
+        </FlowChatPresentationActivityProvider>,
+      ));
+    });
+
+    const button = container!.querySelector<HTMLButtonElement>('.timeout-ignore-btn');
+    await act(async () => {
+      button!.click();
+    });
+
+    expect(addEventListener).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+
+    await act(async () => {
+      root!.render(withI18n(
+        <FlowChatPresentationActivityProvider isActive={false}>
+          <ToolTimeoutIndicator
+            startTime={10_000}
+            isRunning
+            timeoutMs={60_000}
+            showControls
+            subagentSessionId="subagent-session"
+            defaultTimeoutDisabled
+          />
+        </FlowChatPresentationActivityProvider>,
+      ));
+    });
+
+    expect(removeEventListener).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(removeEventListener).toHaveBeenCalledWith('keydown', expect.any(Function));
+
+    addEventListener.mockRestore();
+    removeEventListener.mockRestore();
   });
 });

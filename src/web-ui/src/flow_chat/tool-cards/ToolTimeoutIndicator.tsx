@@ -6,6 +6,7 @@ import {
   Infinity as InfinityIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useFlowChatPresentationActive } from '../components/modern/FlowChatPresentationActivity';
 import { useLiveElapsedTime } from '../hooks/useLiveElapsedTime';
 import { useSubagentTimeoutControl } from '../hooks/useSubagentTimeoutControl';
 import './ToolTimeoutIndicator.scss';
@@ -69,6 +70,7 @@ export const ToolTimeoutIndicator: React.FC<ToolTimeoutIndicatorProps> = ({
   defaultTimeoutDisabled = false,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const isPresentationActive = useFlowChatPresentationActive();
   const remainingMsRef = useRef<number | null>(null);
 
   const {
@@ -92,6 +94,7 @@ export const ToolTimeoutIndicator: React.FC<ToolTimeoutIndicatorProps> = ({
     isRunning,
     timeoutMs,
     isTimeoutDisabled,
+    isPresentationActive,
   );
   remainingMsRef.current = remainingMs;
 
@@ -99,7 +102,7 @@ export const ToolTimeoutIndicator: React.FC<ToolTimeoutIndicatorProps> = ({
 
   // Close popover on outside click.
   useEffect(() => {
-    if (!isPopoverOpen) return;
+    if (!isPresentationActive || !isPopoverOpen) return;
     const handleClick = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         closePopover();
@@ -107,17 +110,17 @@ export const ToolTimeoutIndicator: React.FC<ToolTimeoutIndicatorProps> = ({
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [isPopoverOpen, closePopover]);
+  }, [isPopoverOpen, closePopover, isPresentationActive]);
 
   // Close popover on Escape.
   useEffect(() => {
-    if (!isPopoverOpen) return;
+    if (!isPresentationActive || !isPopoverOpen) return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closePopover();
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [isPopoverOpen, closePopover]);
+  }, [isPopoverOpen, closePopover, isPresentationActive]);
 
   // Completed state: show precise duration only.
   if (!isRunning && completedDurationMs != null) {

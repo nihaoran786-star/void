@@ -12,49 +12,30 @@ export interface UseLiveElapsedTimeResult {
  * @param isRunning - Whether the tool is currently running.
  * @param timeoutMs - Current effective timeout in ms. 0 or undefined = no timeout.
  * @param isTimeoutDisabled - Whether the timeout has been disabled by user.
+ * @param presentationActive - Whether the mounted timer is currently visible.
  */
 export function useLiveElapsedTime(
   startTime: number | undefined,
   isRunning: boolean,
   timeoutMs: number | undefined,
   isTimeoutDisabled: boolean,
+  presentationActive = true,
 ): UseLiveElapsedTimeResult {
   const [elapsedMs, setElapsedMs] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef(startTime);
-  const isRunningRef = useRef(isRunning);
-  const timeoutMsRef = useRef(timeoutMs);
-  const isTimeoutDisabledRef = useRef(isTimeoutDisabled);
 
   const computeElapsed = useCallback(() => {
-    const start = startTimeRef.current;
-    if (!start) return 0;
-    return Math.max(0, Date.now() - start);
-  }, []);
-
-  const computeRemaining = useCallback((elapsed: number) => {
-    if (isTimeoutDisabledRef.current) return null;
-    const timeout = timeoutMsRef.current;
-    if (!timeout || timeout <= 0) return null;
-    return Math.max(0, timeout - elapsed);
-  }, []);
+    if (!startTime) return 0;
+    return Math.max(0, Date.now() - startTime);
+  }, [startTime]);
 
   useEffect(() => {
-    startTimeRef.current = startTime;
-    timeoutMsRef.current = timeoutMs;
-    isTimeoutDisabledRef.current = isTimeoutDisabled;
-  });
+    if (!presentationActive) {
+      return;
+    }
 
-  useEffect(() => {
-    isRunningRef.current = isRunning;
     if (!isRunning) {
-      // Final update when stopping, then clear interval.
-      const finalElapsed = computeElapsed();
-      setElapsedMs(finalElapsed);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      setElapsedMs(computeElapsed());
       return;
     }
 
@@ -72,9 +53,11 @@ export function useLiveElapsedTime(
         intervalRef.current = null;
       }
     };
-  }, [isRunning, computeElapsed]);
+  }, [computeElapsed, isRunning, presentationActive]);
 
-  const remainingMs = computeRemaining(elapsedMs);
+  const remainingMs = isTimeoutDisabled || !timeoutMs || timeoutMs <= 0
+    ? null
+    : Math.max(0, timeoutMs - elapsedMs);
 
   return { elapsedMs, remainingMs };
 }

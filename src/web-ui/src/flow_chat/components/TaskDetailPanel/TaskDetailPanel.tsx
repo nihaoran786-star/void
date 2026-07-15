@@ -17,6 +17,7 @@ import { Button, DotMatrixLoader } from '@/component-library';
 import { createLogger } from '@/shared/utils/logger';
 import { agentAPI } from '@/infrastructure/api/service-api/AgentAPI';
 import type { ReviewerContext } from '@/shared/services/reviewTeamService';
+import { FlowChatPresentationActivityProvider } from '../modern/FlowChatPresentationActivity';
 import { SubagentProjectionView } from '../subagent/SubagentProjectionView';
 import { getSubagentProjectionState } from '../../utils/subagentProjection';
 import { useSessionGoalModeActive } from '../../hooks/useSessionGoalModeActive';
@@ -166,13 +167,20 @@ export interface TaskDetailData {
 
 export interface TaskDetailPanelProps {
   data: TaskDetailData;
+  /** Whether this mounted panel is currently visible to the user. */
+  isActive?: boolean;
 }
 
-export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
+interface TaskDetailPanelContentProps {
+  data: TaskDetailData;
+  isActive: boolean;
+}
+
+const TaskDetailPanelContent: React.FC<TaskDetailPanelContentProps> = ({ data, isActive }) => {
   const { t } = useTranslation('flow-chat');
   const { t: tAgents } = useTranslation('scenes/agents');
   const { toolItem: initialToolItem, taskInput, sessionId } = data || {};
-  const defaultTimeoutDisabled = useSessionGoalModeActive(sessionId);
+  const defaultTimeoutDisabled = useSessionGoalModeActive(sessionId, isActive);
   const parentTaskToolId = initialToolItem?.id;
   const parentTaskToolCallId = initialToolItem?.toolCall?.id;
   const directSubagentSessionId = initialToolItem?.subagentSessionId;
@@ -199,18 +207,17 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
   // Collect only the state this detail panel cares about, and avoid re-rendering
   // when unrelated flow-chat updates arrive.
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     if (parentTaskToolIds.size === 0 && !directSubagentSessionId) {
       setIsSnapshotHydrated(true);
       return;
     }
     
     const flowChatStore = FlowChatStore.getInstance();
-    let previousSnapshot: TaskDetailSnapshot = {
-      toolItem: initialToolItem ?? null,
-      subagentItems: [],
-      subagentSessionId: initialToolItem?.subagentSessionId,
-      isSubagentRunning: false,
-    };
+    let previousSnapshot: TaskDetailSnapshot | null = null;
     let hydrationFrameId: number | null = null;
     let frameId: number | null = null;
     let latestState: FlowChatState | null = null;
@@ -218,7 +225,6 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
     let disposed = false;
 
     setIsSnapshotHydrated(false);
-    setTaskSnapshot(current => areSnapshotsEqual(current, previousSnapshot) ? current : previousSnapshot);
 
     const updateTaskSnapshot = (state: FlowChatState) => {
       latestState = state;
@@ -239,7 +245,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
           directSubagentSessionId,
         );
 
-        if (!areSnapshotsEqual(previousSnapshot, nextSnapshot)) {
+        if (!previousSnapshot || !areSnapshotsEqual(previousSnapshot, nextSnapshot)) {
           previousSnapshot = nextSnapshot;
           setTaskSnapshot(nextSnapshot);
         }
@@ -256,28 +262,31 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
         return;
       }
 
-      previousSnapshot = collectTaskDetailSnapshot(
+      const nextSnapshot = collectTaskDetailSnapshot(
         flowChatStore.getState(),
         sessionId,
         parentTaskToolIds,
         directSubagentSessionId,
       );
-
-      setTaskSnapshot(current => areSnapshotsEqual(current, previousSnapshot) ? current : previousSnapshot);
+      previousSnapshot = nextSnapshot;
+      setTaskSnapshot(current => areSnapshotsEqual(current, nextSnapshot) ? current : nextSnapshot);
       setIsSnapshotHydrated(true);
 
       // Completed/cancelled/error task details are static. Avoid keeping a global
       // FlowChatStore subscription alive, because streaming elsewhere would still
       // force this panel to scan the conversation tree on every store update.
-      if (isRunningStatus(previousSnapshot.toolItem?.status ?? initialToolItem?.status)) {
+      if (isRunningStatus(nextSnapshot.toolItem?.status ?? initialToolItem?.status)) {
         unsubscribe = flowChatStore.subscribe(updateTaskSnapshot);
       }
     };
 
     // Let the panel chrome paint before scanning and rendering a potentially
-    // large subagent transcript.
+    // large subagent transcript. Hidden panels never schedule these frames.
     hydrationFrameId = requestAnimationFrame(() => {
-      hydrationFrameId = requestAnimationFrame(hydrateSnapshot);
+      hydrationFrameId = requestAnimationFrame(() => {
+        hydrationFrameId = null;
+        hydrateSnapshot();
+      });
     });
 
     return () => {
@@ -290,7 +299,14 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
       }
       unsubscribe?.();
     };
-  }, [sessionId, parentTaskToolIds, directSubagentSessionId, initialToolItem, initialToolItem?.status]);
+  }, [
+    directSubagentSessionId,
+    initialToolItem,
+    initialToolItem?.status,
+    isActive,
+    parentTaskToolIds,
+    sessionId,
+  ]);
 
   const toolItem = taskSnapshot.toolItem || initialToolItem;
   const status = toolItem?.status;
@@ -316,6 +332,10 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
   const hasPendingSubagentRender = visibleSubagentCount < subagentItems.length;
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     const total = subagentItems.length;
 
     if (total === 0) {
@@ -338,9 +358,13 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
 
       return current;
     });
-  }, [isRunning, subagentItems.length]);
+  }, [isActive, isRunning, subagentItems.length]);
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     if (visibleSubagentCount >= subagentItems.length) {
       return;
     }
@@ -354,7 +378,7 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [visibleSubagentCount, subagentItems.length]);
+  }, [isActive, visibleSubagentCount, subagentItems.length]);
 
   const getErrorMessage = () => {
     if (toolResult && 'error' in toolResult) {
@@ -365,6 +389,8 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
 
   // Detect user-initiated scroll to pause auto-scroll.
   useEffect(() => {
+    if (!isActive) return;
+
     const container = contentRef.current;
     if (!container) return;
     
@@ -384,26 +410,30 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
     
     container.addEventListener('wheel', handleWheel, { passive: true });
     return () => container.removeEventListener('wheel', handleWheel);
-  }, []);
+  }, [isActive]);
 
   // Auto-scroll during streaming output.
   useEffect(() => {
+    if (!isActive) return;
+
     const container = contentRef.current;
     if (!container || !isRunning) return;
     
     if (shouldAutoScrollRef.current) {
-      requestAnimationFrame(() => {
+      const frameId = requestAnimationFrame(() => {
         container.scrollTop = container.scrollHeight - container.clientHeight;
       });
+
+      return () => cancelAnimationFrame(frameId);
     }
-  }, [isRunning, subagentItems]);
+  }, [isActive, isRunning, subagentItems]);
   
   // Reset auto-scroll when a run starts.
   useEffect(() => {
-    if (isRunning) {
+    if (isActive && isRunning) {
       shouldAutoScrollRef.current = true;
     }
-  }, [isRunning]);
+  }, [isActive, isRunning]);
 
   useEffect(() => {
     if (!isRunning) {
@@ -609,5 +639,14 @@ export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({ data }) => {
     </div>
   );
 };
+
+export const TaskDetailPanel: React.FC<TaskDetailPanelProps> = ({
+  data,
+  isActive = true,
+}) => (
+  <FlowChatPresentationActivityProvider isActive={isActive}>
+    <TaskDetailPanelContent data={data} isActive={isActive} />
+  </FlowChatPresentationActivityProvider>
+);
 
 export default TaskDetailPanel;

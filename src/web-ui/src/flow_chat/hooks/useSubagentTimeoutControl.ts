@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { agentAPI } from '@/infrastructure/api/service-api/AgentAPI';
 import { createLogger } from '@/shared/utils/logger';
 
@@ -47,6 +47,16 @@ export function useSubagentTimeoutControl(
   const [remainingAtDisable, setRemainingAtDisable] = useState(0);
   const isRunningRef = useRef(isRunning);
   isRunningRef.current = isRunning;
+
+  // Goal mode can become visible to this mounted control after a hidden panel
+  // resumes. Treat a rising default as authoritative without undoing a user's
+  // explicit choice when the default later becomes false.
+  useEffect(() => {
+    if (defaultTimeoutDisabled) {
+      setIsTimeoutDisabled(true);
+      setIsPopoverOpen(false);
+    }
+  }, [defaultTimeoutDisabled]);
 
   const closePopover = useCallback(() => {
     setIsPopoverOpen(false);
