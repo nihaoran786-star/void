@@ -10,7 +10,7 @@ import { Tooltip } from '@/component-library';
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
 import { WorkspaceMediaEntry } from '../workspace-media';
-import { ShortDramaEntry } from '../short-drama';
+import { ShortDramaEntry } from '../short-drama/ShortDramaEntry';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
 import './TabBar.scss';

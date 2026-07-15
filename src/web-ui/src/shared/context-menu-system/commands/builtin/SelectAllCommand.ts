@@ -64,7 +64,7 @@ export class SelectAllCommand extends BaseCommand {
     try {
       const t = i18nService.getT();
       
-      const editor = MonacoHelper.getEditorFromElement(context.targetElement);
+      const editor = await MonacoHelper.getEditorFromElement(context.targetElement);
       
       if (!editor) {
         log.warn('Editor instance not found, using fallback method');

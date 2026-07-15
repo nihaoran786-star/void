@@ -25,4 +25,65 @@ describe('Web UI startup import boundaries', () => {
     expect(source).not.toContain('MonacoThemeSync');
     expect(source).not.toContain('monacoThemeSync');
   });
+
+  it('loads optional panel implementations from concrete module boundaries', () => {
+    const source = readSource('../components/panels/base/FlexiblePanel.tsx');
+
+    expect(source).not.toContain("from '@/tools/editor'");
+    expect(source).not.toContain(
+      "from '@/tools/git/components/GitDiffEditor/GitDiffEditor'",
+    );
+    expect(source).toContain("import('@/tools/editor/components/CodeEditor')");
+    expect(source).toContain("import('@/tools/editor/components/MarkdownEditor')");
+    expect(source).toContain("import('@/tools/editor/components/ImageViewer')");
+    expect(source).toContain("import('@/tools/editor/components/DiffEditor')");
+    expect(source).toContain(
+      "import('@/tools/git/components/GitDiffEditor/GitDiffEditor')",
+    );
+    expect(source).toContain(
+      "import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel')",
+    );
+    expect(source).toContain('default: module.ShortDramaCenterPanel');
+    expect(source).toMatch(
+      /<React\.Suspense\s+fallback=\{<div className="void-flexible-panel__loading">\{t\('loading'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
+    );
+  });
+
+  it('keeps lightweight short-drama entries independent of the feature barrel', () => {
+    const emptyState = readSource(
+      '../components/panels/content-canvas/empty-state/EmptyState.tsx',
+    );
+    const tabBar = readSource(
+      '../components/panels/content-canvas/tab-bar/TabBar.tsx',
+    );
+
+    expect(emptyState).toContain("from '../short-drama/ShortDramaEntry'");
+    expect(tabBar).toContain("from '../short-drama/ShortDramaEntry'");
+  });
+
+  it('defers Monaco registry lookup until the DOM fast path misses', () => {
+    const activeEditTargetService = readSource(
+      '../../tools/editor/services/ActiveEditTargetService.ts',
+    );
+    const monacoHelper = readSource('../../shared/helpers/MonacoHelper.ts');
+    const commands = [
+      readSource('../../shared/context-menu-system/commands/builtin/CutCommand.ts'),
+      readSource('../../shared/context-menu-system/commands/builtin/PasteCommand.ts'),
+      readSource('../../shared/context-menu-system/commands/builtin/SelectAllCommand.ts'),
+    ];
+
+    expect(activeEditTargetService).toContain(
+      "import type * as monaco from 'monaco-editor'",
+    );
+    expect(monacoHelper).toContain("import type * as monaco from 'monaco-editor'");
+    expect(monacoHelper).not.toContain("import * as monaco from 'monaco-editor'");
+    expect(monacoHelper).toContain("await import('monaco-editor')");
+    expect(monacoHelper.indexOf("['__monaco_editor__']")).toBeLessThan(
+      monacoHelper.indexOf("await import('monaco-editor')"),
+    );
+
+    for (const command of commands) {
+      expect(command).toContain('await MonacoHelper.getEditorFromElement');
+    }
+  });
 });

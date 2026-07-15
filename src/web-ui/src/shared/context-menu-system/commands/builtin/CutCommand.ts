@@ -96,7 +96,7 @@ export class CutCommand extends BaseCommand {
       }
       
       
-      const editor = MonacoHelper.getEditorFromElement(context.targetElement);
+      const editor = await MonacoHelper.getEditorFromElement(context.targetElement);
       
       if (!editor) {
         log.warn('Editor instance not found, using fallback method');

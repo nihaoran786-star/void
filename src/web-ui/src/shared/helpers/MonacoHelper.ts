@@ -1,6 +1,6 @@
  
 
-import * as monaco from 'monaco-editor';
+import type * as monaco from 'monaco-editor';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('MonacoHelper');
@@ -50,7 +50,7 @@ export interface EditorContextInfo {
 
 export class MonacoHelper {
    
-  static getEditorFromElement(element: HTMLElement): monaco.editor.IStandaloneCodeEditor | null {
+  static async getEditorFromElement(element: HTMLElement): Promise<monaco.editor.IStandaloneCodeEditor | null> {
     try {
       
       let current: HTMLElement | null = element;
@@ -67,7 +67,8 @@ export class MonacoHelper {
       }
 
       
-      const allEditors = monaco.editor.getEditors();
+      const monacoRuntime = await import('monaco-editor');
+      const allEditors = monacoRuntime.editor.getEditors();
 
       for (const editor of allEditors) {
         const domNode = editor.getDomNode();

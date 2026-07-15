@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { WorkspaceMediaEntry } from '../workspace-media';
-import { ShortDramaEntry } from '../short-drama';
+import { ShortDramaEntry } from '../short-drama/ShortDramaEntry';
 import './EmptyState.scss';
 
 export interface EmptyStateProps {

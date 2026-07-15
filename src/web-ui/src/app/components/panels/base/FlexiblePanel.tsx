@@ -1,7 +1,6 @@
 import React, { useCallback, memo } from 'react';
 import { Download, Copy, X, AlertCircle } from 'lucide-react';
 import { MarkdownRenderer, IconButton } from '@/component-library';
-import { CodeEditor, MarkdownEditor, ImageViewer, DiffEditor } from '@/tools/editor';
 import { useI18n } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
 import { globalEventBus } from '@/infrastructure/event-bus';
@@ -38,6 +37,24 @@ function updateGenerativeWidgetResultCode(result: unknown, widgetCode: string): 
 }
 
 // Stable lazy components at module level to avoid re-creation on each render
+const CodeEditor = React.lazy(() =>
+  import('@/tools/editor/components/CodeEditor')
+);
+
+const MarkdownEditor = React.lazy(() =>
+  import('@/tools/editor/components/MarkdownEditor')
+);
+
+const ImageViewer = React.lazy(() =>
+  import('@/tools/editor/components/ImageViewer')
+);
+
+const DiffEditor = React.lazy(() =>
+  import('@/tools/editor/components/DiffEditor').then(module => ({
+    default: module.DiffEditor,
+  }))
+);
+
 const GitDiffView = React.lazy(() =>
   import('@/tools/git/components/GitDiffView/GitDiffView')
 );
@@ -46,8 +63,11 @@ const GitSettingsView = React.lazy(() =>
   import('@/tools/git/components/GitSettingsView/GitSettingsView')
 );
 
-// Directly imported (not lazy-loaded) to avoid loading delay in frequently used Git panel
-import { GitDiffEditor } from '@/tools/git/components/GitDiffEditor/GitDiffEditor';
+const GitDiffEditor = React.lazy(() =>
+  import('@/tools/git/components/GitDiffEditor/GitDiffEditor').then(module => ({
+    default: module.GitDiffEditor,
+  }))
+);
 
 const GitGraphView = React.lazy(() => 
   import('@/tools/git/components/GitGraphView/GitGraphView').then(module => ({ 
@@ -90,7 +110,7 @@ const WorkspaceMediaGallery = React.lazy(() =>
 );
 
 const ShortDramaCenterPanel = React.lazy(() =>
-  import('@/app/components/panels/content-canvas/short-drama').then(module => ({
+  import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel').then(module => ({
     default: module.ShortDramaCenterPanel,
   }))
 );
@@ -958,7 +978,9 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       )}
 
       <div className="void-flexible-panel__content">
-        {renderContent()}
+        <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('loading')}</div>}>
+          {renderContent()}
+        </React.Suspense>
       </div>
     </div>
   );
