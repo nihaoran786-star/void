@@ -287,12 +287,21 @@ pub fn deep_review_capacity_skip_count(parent_dialog_turn_id: &str) -> usize {
     GLOBAL_DEEP_REVIEW_BUDGET_TRACKER.capacity_skip_count(parent_dialog_turn_id)
 }
 
+pub(crate) fn subscribe_deep_review_queue_changes(
+    parent_dialog_turn_id: &str,
+) -> tokio::sync::watch::Receiver<u64> {
+    GLOBAL_DEEP_REVIEW_BUDGET_TRACKER.subscribe_queue_changes(parent_dialog_turn_id)
+}
+
 pub fn apply_deep_review_queue_control(
     parent_dialog_turn_id: &str,
     tool_id: &str,
     action: DeepReviewQueueControlAction,
 ) -> DeepReviewQueueControlSnapshot {
-    GLOBAL_DEEP_REVIEW_QUEUE_CONTROL_TRACKER.apply(parent_dialog_turn_id, tool_id, action)
+    let snapshot =
+        GLOBAL_DEEP_REVIEW_QUEUE_CONTROL_TRACKER.apply(parent_dialog_turn_id, tool_id, action);
+    GLOBAL_DEEP_REVIEW_BUDGET_TRACKER.notify_queue_change(parent_dialog_turn_id);
+    snapshot
 }
 
 pub fn deep_review_queue_control_snapshot(

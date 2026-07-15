@@ -11,17 +11,17 @@ use crate::agentic::deep_review::queue::extract_retry_after_seconds;
 use crate::agentic::deep_review_policy::{
     classify_deep_review_capacity_error, clear_deep_review_queue_control_for_tool,
     deep_review_active_reviewer_count, deep_review_effective_concurrency_snapshot,
-    deep_review_effective_parallel_instances, deep_review_max_retries_per_role,
-    deep_review_queue_control_snapshot, record_deep_review_capacity_skip_for_reason,
+    deep_review_max_retries_per_role, deep_review_queue_control_snapshot,
+    record_deep_review_capacity_skip_for_reason,
     record_deep_review_effective_concurrency_capacity_error,
     record_deep_review_runtime_provider_capacity_queue,
     record_deep_review_runtime_provider_capacity_retry,
     record_deep_review_runtime_provider_capacity_retry_success,
-    record_deep_review_runtime_queue_wait, try_begin_deep_review_active_reviewer,
-    try_begin_deep_review_active_reviewer_for_launch_batch, DeepReviewActiveReviewerGuard,
-    DeepReviewCapacityFailFastReason, DeepReviewCapacityQueueDecision,
-    DeepReviewCapacityQueueReason, DeepReviewConcurrencyPolicy, DeepReviewExecutionPolicy,
-    DeepReviewPolicyViolation,
+    record_deep_review_runtime_queue_wait, subscribe_deep_review_queue_changes,
+    try_begin_deep_review_active_reviewer, try_begin_deep_review_active_reviewer_for_launch_batch,
+    DeepReviewActiveReviewerGuard, DeepReviewCapacityFailFastReason,
+    DeepReviewCapacityQueueDecision, DeepReviewCapacityQueueReason, DeepReviewConcurrencyPolicy,
+    DeepReviewExecutionPolicy, DeepReviewPolicyViolation,
 };
 use crate::agentic::events::{
     DeepReviewQueueReason, DeepReviewQueueState, DeepReviewQueueStatus, ErrorCategory,
@@ -31,12 +31,9 @@ use crate::util::errors::{VoidError, VoidResult};
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
-use tokio::time::sleep;
+use tokio::sync::watch;
+use tokio::time::timeout;
 
-#[cfg(test)]
-const DEEP_REVIEW_QUEUE_POLL_INTERVAL: Duration = Duration::from_millis(10);
-#[cfg(not(test))]
-const DEEP_REVIEW_QUEUE_POLL_INTERVAL: Duration = Duration::from_secs(1);
 pub(crate) const DEEP_REVIEW_PROVIDER_CAPACITY_MAX_RETRY_ATTEMPTS: usize = 3;
 const DEEP_REVIEW_PROVIDER_CAPACITY_BACKOFF_MULTIPLIER: u64 = 3;
 const DEEP_REVIEW_PROVIDER_CAPACITY_MAX_BACKOFF_SECONDS: u64 = 600;
@@ -730,6 +727,34 @@ pub(crate) async fn emit_queue_state(
     }
 }
 
+async fn wait_for_queue_change(
+    dialog_turn_id: &str,
+    queue_changes: &mut watch::Receiver<u64>,
+    deadline: Option<Duration>,
+) {
+    let changed = match deadline {
+        Some(duration) => timeout(duration, queue_changes.changed()).await.ok(),
+        None => Some(queue_changes.changed().await),
+    };
+
+    if matches!(changed, Some(Err(_))) {
+        *queue_changes = subscribe_deep_review_queue_changes(dialog_turn_id);
+    }
+}
+
+fn earliest_queue_deadline(
+    queue_remaining: Option<Duration>,
+    retry_after_remaining_ms: Option<u64>,
+) -> Option<Duration> {
+    [
+        queue_remaining,
+        retry_after_remaining_ms.map(|millis| Duration::from_millis(millis.max(1))),
+    ]
+    .into_iter()
+    .flatten()
+    .min()
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn wait_for_provider_capacity_retry(
     session_id: &str,
@@ -744,6 +769,7 @@ pub(crate) async fn wait_for_provider_capacity_retry(
     let mut queue_timer = QueueWaitTimer::start(Instant::now());
     let max_wait = Duration::from_secs(max_wait_seconds);
     let optional_reviewer_count = is_optional_reviewer.then_some(1);
+    let mut queue_changes = subscribe_deep_review_queue_changes(dialog_turn_id);
     let initial_active_reviewers = deep_review_active_reviewer_count(dialog_turn_id);
     let can_wake_on_active_reviewer_release =
         provider_capacity_wait_can_wake_on_active_reviewer_release(reason);
@@ -756,10 +782,11 @@ pub(crate) async fn wait_for_provider_capacity_retry(
         let queue_elapsed = queue_snapshot.queue_elapsed;
         let queue_elapsed_ms = queue_snapshot.queue_elapsed_ms;
         let active_reviewers = deep_review_active_reviewer_count(dialog_turn_id);
-        let effective_parallel_instances = deep_review_effective_parallel_instances(
+        let effective_parallel_instances = deep_review_effective_concurrency_snapshot(
             dialog_turn_id,
             conc_policy.max_parallel_instances,
-        );
+        )
+        .effective_parallel_instances;
         let control_snapshot = deep_review_queue_control_snapshot(dialog_turn_id, tool_id);
 
         if control_snapshot.cancelled || (is_optional_reviewer && control_snapshot.skip_optional) {
@@ -807,7 +834,7 @@ pub(crate) async fn wait_for_provider_capacity_retry(
                 max_wait_seconds,
             )
             .await;
-            sleep(DEEP_REVIEW_QUEUE_POLL_INTERVAL).await;
+            wait_for_queue_change(dialog_turn_id, &mut queue_changes, None).await;
             continue;
         }
 
@@ -881,7 +908,7 @@ pub(crate) async fn wait_for_provider_capacity_retry(
         .await;
 
         let remaining = max_wait.saturating_sub(queue_elapsed);
-        sleep(DEEP_REVIEW_QUEUE_POLL_INTERVAL.min(remaining)).await;
+        wait_for_queue_change(dialog_turn_id, &mut queue_changes, Some(remaining)).await;
     }
 }
 
@@ -935,6 +962,7 @@ pub(crate) async fn wait_for_reviewer_admission(
     let local_capacity_reason = decision
         .reason
         .unwrap_or(DeepReviewCapacityQueueReason::LocalConcurrencyCap);
+    let mut queue_changes = subscribe_deep_review_queue_changes(dialog_turn_id);
     let mut queue_timer = QueueWaitTimer::start(Instant::now());
     let max_wait = Duration::from_secs(conc_policy.max_queue_wait_seconds);
     let optional_reviewer_count = is_optional_reviewer.then_some(1);
@@ -946,10 +974,11 @@ pub(crate) async fn wait_for_reviewer_admission(
         let queue_elapsed = queue_snapshot.queue_elapsed;
         let queue_elapsed_ms = queue_snapshot.queue_elapsed_ms;
         let active_reviewers = deep_review_active_reviewer_count(dialog_turn_id);
-        let effective_parallel_instances = deep_review_effective_parallel_instances(
+        let effective_snapshot = deep_review_effective_concurrency_snapshot(
             dialog_turn_id,
             conc_policy.max_parallel_instances,
         );
+        let effective_parallel_instances = effective_snapshot.effective_parallel_instances;
         let mut current_reason = last_wait_reason;
 
         let control_snapshot = deep_review_queue_control_snapshot(dialog_turn_id, tool_id);
@@ -1000,7 +1029,7 @@ pub(crate) async fn wait_for_reviewer_admission(
                 conc_policy.max_queue_wait_seconds,
             )
             .await;
-            sleep(DEEP_REVIEW_QUEUE_POLL_INTERVAL).await;
+            wait_for_queue_change(dialog_turn_id, &mut queue_changes, None).await;
             continue;
         }
 
@@ -1047,6 +1076,20 @@ pub(crate) async fn wait_for_reviewer_admission(
         }
         last_wait_reason = current_reason;
 
+        // Admission is atomic, but the count sampled before it can become stale
+        // when another waiter wins the same released slot. Re-read after a
+        // failed admission so an expired waiter parks behind the new active
+        // reviewer instead of being incorrectly marked capacity-skipped.
+        let active_reviewers = deep_review_active_reviewer_count(dialog_turn_id);
+        if current_reason == DeepReviewCapacityQueueReason::LocalConcurrencyCap
+            && active_reviewers == 0
+        {
+            // The competing winner may have released its guard between our
+            // failed atomic admission and this authoritative re-read. Retry
+            // admission immediately while the slot is known to be free;
+            // launch-batch blocking keeps its normal expiry semantics.
+            continue;
+        }
         let queue_expired_without_active_reviewer =
             queue_snapshot.is_expired(max_wait) && active_reviewers == 0;
 
@@ -1104,11 +1147,355 @@ pub(crate) async fn wait_for_reviewer_admission(
         )
         .await;
 
-        let sleep_duration = if queue_snapshot.is_expired(max_wait) {
-            DEEP_REVIEW_QUEUE_POLL_INTERVAL
-        } else {
-            DEEP_REVIEW_QUEUE_POLL_INTERVAL.min(max_wait.saturating_sub(queue_elapsed))
+        let queue_remaining =
+            (!queue_snapshot.is_expired(max_wait)).then(|| max_wait.saturating_sub(queue_elapsed));
+        let deadline =
+            earliest_queue_deadline(queue_remaining, effective_snapshot.retry_after_remaining_ms);
+        wait_for_queue_change(dialog_turn_id, &mut queue_changes, deadline).await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agentic::deep_review_policy::{
+        apply_deep_review_queue_control, DeepReviewQueueControlAction,
+    };
+
+    fn queue_policy(
+        max_parallel_instances: usize,
+        max_queue_wait_seconds: u64,
+    ) -> DeepReviewConcurrencyPolicy {
+        DeepReviewConcurrencyPolicy {
+            max_parallel_instances,
+            max_queue_wait_seconds,
+            ..DeepReviewConcurrencyPolicy::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn event_driven_queue_wakes_immediately_when_cancelled() {
+        let turn_id = "turn-event-driven-cancel";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 1)
+            .expect("the first reviewer should occupy the slot");
+        let policy = queue_policy(1, 60);
+        let waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-cancel",
+                turn_id,
+                "tool-event-driven-cancel",
+                "reviewer_frontend",
+                &policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::task::yield_now().await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!waiter.is_finished(), "the waiter should be parked");
+        apply_deep_review_queue_control(
+            turn_id,
+            "tool-event-driven-cancel",
+            DeepReviewQueueControlAction::Cancel,
+        );
+
+        let outcome = timeout(Duration::from_millis(500), waiter)
+            .await
+            .expect("cancel should wake the waiter without a polling delay")
+            .expect("waiter task should not panic")
+            .expect("queue wait should succeed");
+        assert!(matches!(
+            outcome,
+            DeepReviewQueueWaitOutcome::Skipped {
+                skip_reason: DeepReviewQueueWaitSkipReason::UserCancelled,
+                ..
+            }
+        ));
+        drop(occupied);
+    }
+
+    #[tokio::test]
+    async fn event_driven_queue_broadcast_preserves_single_slot_admission() {
+        let turn_id = "turn-event-driven-single-slot";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 1)
+            .expect("the first reviewer should occupy the slot");
+        let first_policy = queue_policy(1, 60);
+        let second_policy = first_policy.clone();
+        let mut first_waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-single-slot",
+                turn_id,
+                "tool-event-driven-single-slot-a",
+                "reviewer_architecture",
+                &first_policy,
+                false,
+                None,
+            )
+            .await
+        });
+        let mut second_waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-single-slot",
+                turn_id,
+                "tool-event-driven-single-slot-b",
+                "reviewer_business_logic",
+                &second_policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!first_waiter.is_finished() && !second_waiter.is_finished());
+        drop(occupied);
+
+        let (first_result, remaining_waiter) = tokio::select! {
+            result = &mut first_waiter => (result, &mut second_waiter),
+            result = &mut second_waiter => (result, &mut first_waiter),
         };
-        sleep(sleep_duration).await;
+        let first_outcome = first_result
+            .expect("first waiter task should not panic")
+            .expect("first queue wait should succeed");
+        let first_guard = match first_outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => guard,
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("one waiter should acquire the released slot")
+            }
+        };
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !remaining_waiter.is_finished(),
+            "the broadcast must not grant the same slot to both waiters"
+        );
+        drop(first_guard);
+
+        let second_outcome = timeout(Duration::from_millis(500), remaining_waiter)
+            .await
+            .expect("releasing the first admitted waiter should wake the second")
+            .expect("second waiter task should not panic")
+            .expect("second queue wait should succeed");
+        match second_outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => drop(guard),
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("second waiter should acquire the next released slot")
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn event_driven_expired_waiters_preserve_single_slot_admission() {
+        let turn_id = "turn-event-driven-expired-single-slot";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 1)
+            .expect("the first reviewer should occupy the slot");
+        let first_policy = queue_policy(1, 0);
+        let second_policy = first_policy.clone();
+        let mut first_waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-expired-single-slot",
+                turn_id,
+                "tool-event-driven-expired-single-slot-a",
+                "reviewer_architecture",
+                &first_policy,
+                false,
+                None,
+            )
+            .await
+        });
+        let mut second_waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-expired-single-slot",
+                turn_id,
+                "tool-event-driven-expired-single-slot-b",
+                "reviewer_business_logic",
+                &second_policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!first_waiter.is_finished() && !second_waiter.is_finished());
+        drop(occupied);
+
+        let (first_result, remaining_waiter) = tokio::select! {
+            result = &mut first_waiter => (result, &mut second_waiter),
+            result = &mut second_waiter => (result, &mut first_waiter),
+        };
+        let first_outcome = first_result
+            .expect("first waiter task should not panic")
+            .expect("first expired queue wait should succeed");
+        let first_guard = match first_outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => guard,
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("one expired waiter should acquire the released slot")
+            }
+        };
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !remaining_waiter.is_finished(),
+            "the losing expired waiter must park behind the newly active reviewer"
+        );
+        drop(first_guard);
+
+        let second_outcome = timeout(Duration::from_millis(500), remaining_waiter)
+            .await
+            .expect("releasing the first admitted waiter should wake the second")
+            .expect("second waiter task should not panic")
+            .expect("second expired queue wait should succeed");
+        match second_outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => drop(guard),
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("the losing expired waiter should acquire the next released slot")
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn event_driven_queue_wakes_when_retry_after_capacity_recovers() {
+        let turn_id = "turn-event-driven-retry-after";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 3)
+            .expect("the first reviewer should occupy one slot");
+        record_deep_review_effective_concurrency_capacity_error(
+            turn_id,
+            3,
+            DeepReviewCapacityQueueReason::RetryAfter,
+            Some(Duration::from_millis(80)),
+        );
+        let policy = queue_policy(3, 60);
+        let waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-retry-after",
+                turn_id,
+                "tool-event-driven-retry-after",
+                "reviewer_performance",
+                &policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !waiter.is_finished(),
+            "retry-after should initially cap effective concurrency at one"
+        );
+        let outcome = timeout(Duration::from_millis(750), waiter)
+            .await
+            .expect("retry-after deadline should wake the waiter")
+            .expect("waiter task should not panic")
+            .expect("queue wait should succeed");
+        match outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => drop(guard),
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("reviewer should start after retry-after capacity recovers")
+            }
+        }
+        drop(occupied);
+    }
+
+    #[tokio::test]
+    async fn event_driven_queue_stays_parked_while_paused_past_recovery() {
+        let turn_id = "turn-event-driven-paused-recovery";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 3)
+            .expect("the first reviewer should occupy one slot");
+        record_deep_review_effective_concurrency_capacity_error(
+            turn_id,
+            3,
+            DeepReviewCapacityQueueReason::RetryAfter,
+            Some(Duration::from_millis(60)),
+        );
+        apply_deep_review_queue_control(
+            turn_id,
+            "tool-event-driven-paused-recovery",
+            DeepReviewQueueControlAction::Pause,
+        );
+        let policy = queue_policy(3, 60);
+        let waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-paused-recovery",
+                turn_id,
+                "tool-event-driven-paused-recovery",
+                "reviewer_performance",
+                &policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(120)).await;
+        assert!(
+            !waiter.is_finished(),
+            "capacity recovery must not bypass a user pause"
+        );
+        apply_deep_review_queue_control(
+            turn_id,
+            "tool-event-driven-paused-recovery",
+            DeepReviewQueueControlAction::Continue,
+        );
+
+        let outcome = timeout(Duration::from_millis(500), waiter)
+            .await
+            .expect("continue should wake the paused waiter")
+            .expect("waiter task should not panic")
+            .expect("queue wait should succeed");
+        match outcome {
+            DeepReviewQueueWaitOutcome::Ready { guard } => drop(guard),
+            DeepReviewQueueWaitOutcome::Skipped { .. } => {
+                panic!("reviewer should start after the user continues")
+            }
+        }
+        drop(occupied);
+    }
+
+    #[tokio::test]
+    async fn event_driven_expired_queue_with_active_reviewer_waits_for_signal() {
+        let turn_id = "turn-event-driven-expired-active";
+        let occupied = try_begin_deep_review_active_reviewer(turn_id, 1)
+            .expect("the first reviewer should occupy the slot");
+        let policy = queue_policy(1, 0);
+        let waiter = tokio::spawn(async move {
+            wait_for_reviewer_admission(
+                "session-event-driven-expired-active",
+                turn_id,
+                "tool-event-driven-expired-active",
+                "reviewer_security",
+                &policy,
+                false,
+                None,
+            )
+            .await
+        });
+
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(
+            !waiter.is_finished(),
+            "an expired queue with an active reviewer should park instead of spinning"
+        );
+        apply_deep_review_queue_control(
+            turn_id,
+            "tool-event-driven-expired-active",
+            DeepReviewQueueControlAction::Cancel,
+        );
+        let outcome = timeout(Duration::from_millis(500), waiter)
+            .await
+            .expect("control signal should wake an expired parked queue")
+            .expect("waiter task should not panic")
+            .expect("queue wait should succeed");
+        assert!(matches!(
+            outcome,
+            DeepReviewQueueWaitOutcome::Skipped {
+                skip_reason: DeepReviewQueueWaitSkipReason::UserCancelled,
+                ..
+            }
+        ));
+        drop(occupied);
     }
 }

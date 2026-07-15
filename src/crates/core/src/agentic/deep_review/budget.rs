@@ -24,6 +24,7 @@ use dashmap::DashMap;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
+use tokio::sync::watch;
 
 const BUDGET_TTL: Duration = Duration::from_secs(60 * 60);
 const PRUNE_INTERVAL: Duration = Duration::from_secs(300);
@@ -45,12 +46,14 @@ struct DeepReviewTurnBudget {
     shared_context_uses: HashMap<DeepReviewSharedContextKey, DeepReviewSharedContextUseRecord>,
     effective_concurrency: Option<DeepReviewEffectiveConcurrencyState>,
     runtime_diagnostics: DeepReviewRuntimeDiagnostics,
+    queue_change_tx: watch::Sender<u64>,
     created_at: Instant,
     updated_at: Instant,
 }
 
 impl DeepReviewTurnBudget {
     fn new(now: Instant) -> Self {
+        let (queue_change_tx, _) = watch::channel(0);
         Self {
             judge_calls: 0,
             reviewer_calls: 0,
@@ -63,6 +66,7 @@ impl DeepReviewTurnBudget {
             shared_context_uses: HashMap::new(),
             effective_concurrency: None,
             runtime_diagnostics: DeepReviewRuntimeDiagnostics::default(),
+            queue_change_tx,
             created_at: now,
             updated_at: now,
         }
@@ -112,6 +116,38 @@ impl Default for DeepReviewBudgetTracker {
 }
 
 impl DeepReviewBudgetTracker {
+    fn bump_queue_change(sender: &watch::Sender<u64>) {
+        sender.send_modify(|epoch| *epoch = epoch.wrapping_add(1));
+    }
+
+    pub(crate) fn subscribe_queue_changes(
+        &self,
+        parent_dialog_turn_id: &str,
+    ) -> watch::Receiver<u64> {
+        let parent_dialog_turn_id = parent_dialog_turn_id.trim();
+        let now = Instant::now();
+        let mut budget = self
+            .turns
+            .entry(parent_dialog_turn_id.to_string())
+            .or_insert_with(|| DeepReviewTurnBudget::new(now));
+        budget.updated_at = now;
+        budget.queue_change_tx.subscribe()
+    }
+
+    pub(crate) fn notify_queue_change(&self, parent_dialog_turn_id: &str) {
+        let parent_dialog_turn_id = parent_dialog_turn_id.trim();
+        let now = Instant::now();
+        let sender = {
+            let mut budget = self
+                .turns
+                .entry(parent_dialog_turn_id.to_string())
+                .or_insert_with(|| DeepReviewTurnBudget::new(now));
+            budget.updated_at = now;
+            budget.queue_change_tx.clone()
+        };
+        Self::bump_queue_change(&sender);
+    }
+
     fn record_reason_count(
         counts: &mut std::collections::BTreeMap<String, usize>,
         reason: DeepReviewCapacityQueueReason,
@@ -583,28 +619,39 @@ impl DeepReviewBudgetTracker {
     }
 
     fn finish_active_reviewer(&self, parent_dialog_turn_id: &str, launch_batch: Option<u64>) {
-        if let Some(mut budget) = self.turns.get_mut(parent_dialog_turn_id) {
-            budget.active_reviewers = budget.active_reviewers.saturating_sub(1);
-            if let Some(launch_batch) = launch_batch {
-                let should_remove_batch = if let Some(count) =
-                    budget.active_reviewer_launch_batches.get_mut(&launch_batch)
-                {
-                    *count = (*count).saturating_sub(1);
-                    *count == 0
-                } else {
-                    false
-                };
-                if should_remove_batch {
-                    budget.active_reviewer_launch_batches.remove(&launch_batch);
+        let sender = {
+            let mut sender = None;
+            if let Some(mut budget) = self.turns.get_mut(parent_dialog_turn_id) {
+                budget.active_reviewers = budget.active_reviewers.saturating_sub(1);
+                if let Some(launch_batch) = launch_batch {
+                    let should_remove_batch = if let Some(count) =
+                        budget.active_reviewer_launch_batches.get_mut(&launch_batch)
+                    {
+                        *count = (*count).saturating_sub(1);
+                        *count == 0
+                    } else {
+                        false
+                    };
+                    if should_remove_batch {
+                        budget.active_reviewer_launch_batches.remove(&launch_batch);
+                    }
                 }
+                budget.updated_at = Instant::now();
+                sender = Some(budget.queue_change_tx.clone());
             }
-            budget.updated_at = Instant::now();
+            sender
+        };
+        if let Some(sender) = sender {
+            Self::bump_queue_change(&sender);
         }
     }
 
     fn prune_stale(&self, now: Instant) {
-        self.turns
-            .retain(|_, budget| now.saturating_duration_since(budget.updated_at) <= BUDGET_TTL);
+        self.turns.retain(|_, budget| {
+            budget.active_reviewers > 0
+                || budget.queue_change_tx.receiver_count() > 0
+                || now.saturating_duration_since(budget.updated_at) <= BUDGET_TTL
+        });
         if let Ok(mut last_pruned) = self.last_pruned_at.lock() {
             *last_pruned = now;
         }
@@ -709,23 +756,27 @@ impl DeepReviewBudgetTracker {
         }
 
         let now = Instant::now();
-        let mut budget = self
-            .turns
-            .entry(parent_dialog_turn_id.to_string())
-            .or_insert_with(|| DeepReviewTurnBudget::new(now));
-        budget.updated_at = now;
-        let snapshot = {
-            let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
-            state.record_capacity_error(
-                matches!(reason, DeepReviewCapacityQueueReason::RetryAfter),
-                retry_after,
-                now,
-            );
-            state.snapshot(now)
+        let (snapshot, sender) = {
+            let mut budget = self
+                .turns
+                .entry(parent_dialog_turn_id.to_string())
+                .or_insert_with(|| DeepReviewTurnBudget::new(now));
+            budget.updated_at = now;
+            let snapshot = {
+                let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
+                state.record_capacity_error(
+                    matches!(reason, DeepReviewCapacityQueueReason::RetryAfter),
+                    retry_after,
+                    now,
+                );
+                state.snapshot(now)
+            };
+            budget
+                .runtime_diagnostics
+                .observe_effective_parallel(snapshot.effective_parallel_instances);
+            (snapshot, budget.queue_change_tx.clone())
         };
-        budget
-            .runtime_diagnostics
-            .observe_effective_parallel(snapshot.effective_parallel_instances);
+        Self::bump_queue_change(&sender);
         snapshot
     }
 
@@ -740,19 +791,23 @@ impl DeepReviewBudgetTracker {
         }
 
         let now = Instant::now();
-        let mut budget = self
-            .turns
-            .entry(parent_dialog_turn_id.to_string())
-            .or_insert_with(|| DeepReviewTurnBudget::new(now));
-        budget.updated_at = now;
-        let snapshot = {
-            let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
-            state.record_success(now);
-            state.snapshot(now)
+        let (snapshot, sender) = {
+            let mut budget = self
+                .turns
+                .entry(parent_dialog_turn_id.to_string())
+                .or_insert_with(|| DeepReviewTurnBudget::new(now));
+            budget.updated_at = now;
+            let snapshot = {
+                let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
+                state.record_success(now);
+                state.snapshot(now)
+            };
+            budget
+                .runtime_diagnostics
+                .observe_effective_parallel(snapshot.effective_parallel_instances);
+            (snapshot, budget.queue_change_tx.clone())
         };
-        budget
-            .runtime_diagnostics
-            .observe_effective_parallel(snapshot.effective_parallel_instances);
+        Self::bump_queue_change(&sender);
         snapshot
     }
 
@@ -768,19 +823,23 @@ impl DeepReviewBudgetTracker {
         }
 
         let now = Instant::now();
-        let mut budget = self
-            .turns
-            .entry(parent_dialog_turn_id.to_string())
-            .or_insert_with(|| DeepReviewTurnBudget::new(now));
-        budget.updated_at = now;
-        let snapshot = {
-            let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
-            state.set_user_override(user_override_parallel_instances);
-            state.snapshot(now)
+        let (snapshot, sender) = {
+            let mut budget = self
+                .turns
+                .entry(parent_dialog_turn_id.to_string())
+                .or_insert_with(|| DeepReviewTurnBudget::new(now));
+            budget.updated_at = now;
+            let snapshot = {
+                let state = budget.effective_concurrency_mut(configured_max_parallel_instances);
+                state.set_user_override(user_override_parallel_instances);
+                state.snapshot(now)
+            };
+            budget
+                .runtime_diagnostics
+                .observe_effective_parallel(snapshot.effective_parallel_instances);
+            (snapshot, budget.queue_change_tx.clone())
         };
-        budget
-            .runtime_diagnostics
-            .observe_effective_parallel(snapshot.effective_parallel_instances);
+        Self::bump_queue_change(&sender);
         snapshot
     }
 }
@@ -849,5 +908,73 @@ mod tests {
             .try_begin_active_reviewer_for_launch_batch(turn_id, 2, 2, Some("packet-c"))
             .expect("next batch should start after the previous batch releases")
             .is_some());
+    }
+
+    #[tokio::test]
+    async fn queue_changes_broadcast_within_turn_and_isolate_other_turns() {
+        let tracker = DeepReviewBudgetTracker::default();
+        let mut first = tracker.subscribe_queue_changes("turn-queue-broadcast");
+        let mut second = tracker.subscribe_queue_changes("turn-queue-broadcast");
+        let mut other = tracker.subscribe_queue_changes("turn-queue-isolated");
+
+        tracker.notify_queue_change("turn-queue-broadcast");
+
+        tokio::time::timeout(Duration::from_millis(100), first.changed())
+            .await
+            .expect("first same-turn waiter should wake")
+            .expect("same-turn queue channel should remain open");
+        tokio::time::timeout(Duration::from_millis(100), second.changed())
+            .await
+            .expect("second same-turn waiter should wake")
+            .expect("same-turn queue channel should remain open");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(25), other.changed())
+                .await
+                .is_err(),
+            "an unrelated turn must not wake"
+        );
+    }
+
+    #[tokio::test]
+    async fn active_reviewer_release_updates_count_before_waking_waiters() {
+        let tracker = DeepReviewBudgetTracker::default();
+        let turn_id = "turn-release-wakeup-order";
+        let guard = tracker
+            .try_begin_active_reviewer(turn_id, 1)
+            .expect("reviewer should acquire the only slot");
+        let mut queue_changes = tracker.subscribe_queue_changes(turn_id);
+
+        drop(guard);
+
+        tokio::time::timeout(Duration::from_millis(100), queue_changes.changed())
+            .await
+            .expect("slot release should wake the waiter")
+            .expect("queue channel should remain open");
+        assert_eq!(tracker.active_reviewer_count(turn_id), 0);
+    }
+
+    #[test]
+    fn prune_stale_keeps_turns_with_live_queue_receivers() {
+        let tracker = DeepReviewBudgetTracker::default();
+        let turn_id = "turn-live-receiver-prune";
+        let receiver = tracker.subscribe_queue_changes(turn_id);
+        let now = Instant::now();
+
+        tracker
+            .turns
+            .get_mut(turn_id)
+            .expect("subscribing should create the turn budget")
+            .updated_at = now - BUDGET_TTL - Duration::from_secs(1);
+        tracker.prune_stale(now);
+        assert!(tracker.turns.contains_key(turn_id));
+
+        drop(receiver);
+        tracker
+            .turns
+            .get_mut(turn_id)
+            .expect("turn should still exist until the next prune")
+            .updated_at = now - BUDGET_TTL - Duration::from_secs(1);
+        tracker.prune_stale(now);
+        assert!(!tracker.turns.contains_key(turn_id));
     }
 }
