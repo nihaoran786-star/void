@@ -77,8 +77,8 @@ vi.mock('./useFlowChatPresentationSessionState', () => ({
   }),
 }));
 
-vi.mock('../../store/chatInputStateStore', () => ({
-  useChatInputState: (selector: (state: any) => unknown) => selector(stateMocks.chatInput),
+vi.mock('./useFlowChatPresentationChatInputState', () => ({
+  useFlowChatPresentationChatInputState: () => stateMocks.chatInput,
 }));
 
 vi.mock('./VirtualItemRenderer', () => ({

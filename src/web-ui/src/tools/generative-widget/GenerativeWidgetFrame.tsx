@@ -77,6 +77,8 @@ export interface GenerativeWidgetFrameProps {
   onWidgetEvent?: (event: WidgetMessage) => void;
   onHeightChange?: (height: number) => void;
   selectionRevision?: number;
+  /** Presentation lifecycle only. Hidden frames release their sandbox and listeners. */
+  isActive?: boolean;
 }
 
 export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
@@ -874,6 +876,7 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
   onWidgetEvent,
   onHeightChange,
   selectionRevision = 0,
+  isActive = true,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -886,6 +889,14 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
   const normalizedCode = useMemo(() => widgetCode || '', [widgetCode]);
 
   useEffect(() => {
+    if (isActive) return;
+    setIsLoaded(false);
+    lastExecutedHtmlRef.current = '';
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) return;
+
     const handleMessage = (event: MessageEvent<WidgetMessage>) => {
       const data = event.data;
       if (event.source !== iframeRef.current?.contentWindow) return;
@@ -919,9 +930,11 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, [onHeightChange, onWidgetEvent, widgetId]);
+  }, [isActive, onHeightChange, onWidgetEvent, widgetId]);
 
   useEffect(() => {
+    if (!isActive) return;
+
     const updateTheme = () => {
       setThemePayload(readWidgetThemePayload());
     };
@@ -931,10 +944,10 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
     return () => {
       unsubscribe?.();
     };
-  }, []);
+  }, [isActive]);
 
   useEffect(() => {
-    if (!isLoaded || !iframeRef.current?.contentWindow) return;
+    if (!isActive || !isLoaded || !iframeRef.current?.contentWindow) return;
 
     const shouldRunScripts =
       Boolean(executeScripts) && lastExecutedHtmlRef.current !== normalizedCode;
@@ -954,10 +967,10 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
     if (shouldRunScripts) {
       lastExecutedHtmlRef.current = normalizedCode;
     }
-  }, [executeScripts, isLoaded, normalizedCode, themePayload, title, widgetId]);
+  }, [executeScripts, isActive, isLoaded, normalizedCode, themePayload, title, widgetId]);
 
   useEffect(() => {
-    if (!isLoaded || !iframeRef.current?.contentWindow) {
+    if (!isActive || !isLoaded || !iframeRef.current?.contentWindow) {
       return;
     }
 
@@ -968,22 +981,27 @@ export const GenerativeWidgetFrame: React.FC<GenerativeWidgetFrameProps> = ({
       },
       '*',
     );
-  }, [isLoaded, selectionRevision, widgetId]);
+  }, [isActive, isLoaded, selectionRevision, widgetId]);
 
   return (
     <div
       className={`void-generative-widget-frame ${className}`.trim()}
       style={{ height: `${frameHeight}px` }}
     >
-      <iframe
-        ref={iframeRef}
-        title={title || 'Generative widget'}
-        className="void-generative-widget-frame__iframe"
-        style={{ width: '100%', minWidth: '100%' }}
-        sandbox="allow-scripts allow-forms allow-modals allow-popups"
-        srcDoc={GENERATIVE_WIDGET_SHELL_HTML}
-        onLoad={() => setIsLoaded(true)}
-      />
+      {isActive ? (
+        <iframe
+          ref={iframeRef}
+          title={title || 'Generative widget'}
+          className="void-generative-widget-frame__iframe"
+          style={{ width: '100%', minWidth: '100%' }}
+          sandbox="allow-scripts allow-forms allow-modals allow-popups"
+          srcDoc={GENERATIVE_WIDGET_SHELL_HTML}
+          onLoad={() => {
+            lastExecutedHtmlRef.current = '';
+            setIsLoaded(true);
+          }}
+        />
+      ) : null}
     </div>
   );
 };

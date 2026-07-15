@@ -38,7 +38,6 @@ import {
 } from './historyProjectionHandoff';
 import type { FlowChatPinTurnToTopMode } from '../../events/flowchatNavigation';
 import { useModernFlowChatStore, type VirtualItem, type VisibleTurnInfo } from '../../store/modernFlowChatStore';
-import { useChatInputState } from '../../store/chatInputStateStore';
 import { computeFlowChatInputStackFooterPx } from '../../utils/flowChatScrollLayout';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import {
@@ -47,6 +46,7 @@ import {
   usePresentationVisibleTurnInfo,
 } from './useFlowChatPresentationStore';
 import { useFlowChatPresentationSessionState } from './useFlowChatPresentationSessionState';
+import { useFlowChatPresentationChatInputState } from './useFlowChatPresentationChatInputState';
 import './VirtualMessageList.scss';
 
 const COMPENSATION_EPSILON_PX = 0.5;
@@ -364,9 +364,11 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
   const isFollowingOutputRef = useRef(false);
   const isStreamingOutputRef = useRef(false);
 
-  const isInputActive = useChatInputState(state => state.isActive);
-  const isInputExpanded = useChatInputState(state => state.isExpanded);
-  const inputHeight = useChatInputState(state => state.inputHeight);
+  const {
+    isActive: isInputActive,
+    isExpanded: isInputExpanded,
+    inputHeight,
+  } = useFlowChatPresentationChatInputState();
 
   const inputStackFooterPxRef = useRef(0);
   const inputStackFooterPx = computeFlowChatInputStackFooterPx(inputHeight, isInputActive);
@@ -1943,7 +1945,7 @@ export const VirtualMessageList = forwardRef<VirtualMessageListRef, VirtualMessa
       attempts: 0,
     });
     return true;
-  }, [expandInitialHistoryRenderWindowForNavigation, scrollStaticTurnIntoView, userMessageItems]);
+  }, [scrollStaticTurnIntoView, userMessageItems]);
 
   const performAutoFollowSync = useCallback(() => {
     scrollToLatestEndPositionInternal('auto');

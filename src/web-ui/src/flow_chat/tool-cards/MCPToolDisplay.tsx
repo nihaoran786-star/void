@@ -3,7 +3,7 @@
  * Supports MCP Apps: when tool result contains ui:// resource, renders interactive UI in sandboxed iframe.
  */
 
-import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { ChevronDown, ChevronUp, Package, Check, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { CubeLoading, IconButton } from '../../component-library';
@@ -19,6 +19,7 @@ import type { ToolInfo } from '@/shared/types/agent-api';
 import { useToolCardHeightContract } from './useToolCardHeightContract';
 import { hasAcpPermissionOptions } from './AcpPermissionActions.utils';
 import { AcpPermissionActions } from './AcpPermissionActions';
+import { useFlowChatPresentationActive } from '../components/modern/FlowChatPresentationActivity';
 import './MCPToolDisplay.scss';
 
 const log = createLogger('MCPToolDisplay');
@@ -59,6 +60,62 @@ interface MCPToolResult {
   content?: MCPToolResultContent[];
   is_error?: boolean;
 }
+
+interface McpAppState {
+  resourceKey: string;
+  uri: string;
+  html: string | null;
+  meta: McpUiResourceMeta | null;
+  loading: boolean;
+  error: string | null;
+}
+
+type LoadedMcpAppResource = Pick<
+  McpAppState,
+  'resourceKey' | 'uri' | 'html' | 'meta'
+>;
+
+interface CachedMcpAppResource extends LoadedMcpAppResource {
+  cachedAt: number;
+}
+
+const MCP_APP_RESOURCE_CACHE_LIMIT = 16;
+const MCP_APP_RESOURCE_CACHE_TTL_MS = 5 * 60 * 1000;
+const mcpAppResourceCache = new Map<string, CachedMcpAppResource>();
+const mcpAppResourceInflight = new Map<string, Promise<LoadedMcpAppResource>>();
+
+const readCachedMcpAppResource = (resourceKey: string): LoadedMcpAppResource | null => {
+  const cached = mcpAppResourceCache.get(resourceKey);
+  if (!cached) return null;
+
+  if (Date.now() - cached.cachedAt > MCP_APP_RESOURCE_CACHE_TTL_MS) {
+    mcpAppResourceCache.delete(resourceKey);
+    return null;
+  }
+
+  // Refresh insertion order so the fixed-size map behaves as a small LRU cache.
+  mcpAppResourceCache.delete(resourceKey);
+  mcpAppResourceCache.set(resourceKey, cached);
+  return {
+    resourceKey: cached.resourceKey,
+    uri: cached.uri,
+    html: cached.html,
+    meta: cached.meta,
+  };
+};
+
+const cacheMcpAppResource = (resource: LoadedMcpAppResource): void => {
+  mcpAppResourceCache.delete(resource.resourceKey);
+  mcpAppResourceCache.set(resource.resourceKey, {
+    ...resource,
+    cachedAt: Date.now(),
+  });
+  while (mcpAppResourceCache.size > MCP_APP_RESOURCE_CACHE_LIMIT) {
+    const oldestKey = mcpAppResourceCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    mcpAppResourceCache.delete(oldestKey);
+  }
+};
 
 /** Clean and escape domains for CSP injection (prevent HTML injection). */
 const cleanDomains = (domains: string[] | undefined): string => {
@@ -147,6 +204,42 @@ const injectPreamble = (html: string, csp?: McpUiResourceCsp): string => {
   return `<!DOCTYPE html><html><head>${content}</head><body>${html}</body></html>`;
 };
 
+const loadMcpAppResource = (
+  serverId: string,
+  resourceUri: string,
+  resourceKey: string,
+): Promise<LoadedMcpAppResource> => {
+  const cached = readCachedMcpAppResource(resourceKey);
+  if (cached) return Promise.resolve(cached);
+
+  const pending = mcpAppResourceInflight.get(resourceKey);
+  if (pending) return pending;
+
+  const request = MCPAPI.fetchMCPAppResource({ serverId, resourceUri })
+    .then((res): LoadedMcpAppResource => {
+      const htmlContent = res.contents.find((content) => content.uri === resourceUri) ?? res.contents[0];
+      const rawHtml = htmlContent?.content ?? '';
+      const meta: McpUiResourceMeta = {
+        csp: (htmlContent as unknown as { csp?: McpUiResourceCsp })?.csp,
+        permissions: (htmlContent as unknown as { permissions?: McpUiResourcePermissions })?.permissions,
+      };
+      const resource = {
+        resourceKey,
+        uri: resourceUri,
+        html: injectPreamble(rawHtml, meta.csp),
+        meta,
+      };
+      cacheMcpAppResource(resource);
+      return resource;
+    })
+    .finally(() => {
+      mcpAppResourceInflight.delete(resourceKey);
+    });
+
+  mcpAppResourceInflight.set(resourceKey, request);
+  return request;
+};
+
 export const MCPToolDisplay: React.FC<ToolCardProps> = ({
   toolItem,
   config,
@@ -154,6 +247,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
   onReject
 }) => {
   const { t } = useTranslation('flow-chat');
+  const isPresentationActive = useFlowChatPresentationActive();
   const { status, toolCall, toolResult, requiresConfirmation, userConfirmed } = toolItem;
   const [isExpanded, setIsExpanded] = useState(false);
   const toolId = toolItem.id ?? toolCall?.id;
@@ -163,9 +257,9 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
   });
   const [resolvedToolInfo, setResolvedToolInfo] = useState<ToolInfo | null>(null);
 
-  const getResultData = (): MCPToolResult | null => {
+  const resultData = useMemo<MCPToolResult | null>(() => {
     if (!toolResult?.result) return null;
-    
+
     try {
       if (typeof toolResult.result === 'string') {
         return JSON.parse(toolResult.result);
@@ -175,9 +269,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
       log.error('Failed to parse MCP tool result', e);
       return null;
     }
-  };
-
-  const resultData = getResultData();
+  }, [toolResult?.result]);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,29 +307,26 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
   bridgeDataRef.current = { config, toolCall, resultData, status, isFailed };
 
   // MCP Apps: ui:// resource to fetch and render in iframe
-  const [mcpAppState, setMcpAppState] = useState<{
-    uri: string;
-    html: string | null;
-    rawHtml: string | null;
-    meta: McpUiResourceMeta | null;
-    loading: boolean;
-    error: string | null;
-  } | null>(null);
+  const [mcpAppState, setMcpAppState] = useState<McpAppState | null>(null);
+  const retainedMcpAppResourceRef = useRef<LoadedMcpAppResource | null>(null);
 
   // Latest CSP for hostCapabilities (updated when MCP App loads)
   const latestCspRef = useRef<McpUiResourceCsp | undefined>(undefined);
 
   // Find first ui:// resource in result for MCP App rendering
   // Fallback: MCP Apps declare UI in tool metadata (_meta.ui.resourceUri), not in result
-  const uiResourceUriFromResult = resultData?.content
-    ?.find((item): item is MCPToolResultContent & { resource: { uri: string } } =>
-      item.type === 'resource' && !!(item.resource?.uri?.startsWith('ui://'))
-    )
-    ?.resource?.uri;
+  const uiResourceUriFromResult = useMemo(() => (
+    resultData?.content
+      ?.find((item): item is MCPToolResultContent & { resource: { uri: string } } =>
+        item.type === 'resource' && !!(item.resource?.uri?.startsWith('ui://'))
+      )
+      ?.resource?.uri
+  ), [resultData]);
 
   const [toolMetaUiUri, setToolMetaUiUri] = useState<string | null>(null);
 
   useEffect(() => {
+    let disposed = false;
     if (
       uiResourceUriFromResult ||
       !isMcpToolName(config.toolName) ||
@@ -248,24 +337,53 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
       return;
     }
     MCPAPI.getMCPToolUiUri(config.toolName)
-      .then((uri) => setToolMetaUiUri(uri))
-      .catch(() => setToolMetaUiUri(null));
+      .then((uri) => {
+        if (!disposed) setToolMetaUiUri(uri);
+      })
+      .catch(() => {
+        if (!disposed) setToolMetaUiUri(null);
+      });
+
+    return () => {
+      disposed = true;
+    };
   }, [config.toolName, uiResourceUriFromResult, status, isFailed, toolId]);
+
+  const uiResourceUri = uiResourceUriFromResult ?? toolMetaUiUri;
+  const resourceKey = useMemo(
+    () => serverId && uiResourceUri ? `${serverId}\0${uiResourceUri}` : null,
+    [serverId, uiResourceUri],
+  );
 
   // Auto-expand when MCP App UI is ready so user sees the interactive UI immediately
   useEffect(() => {
-    if (mcpAppState?.html && !isExpanded) {
+    if (
+      isPresentationActive &&
+      mcpAppState?.resourceKey === resourceKey &&
+      mcpAppState.html &&
+      !isExpanded
+    ) {
       applyExpandedState(isExpanded, true, setIsExpanded, {
         reason: 'auto',
       });
     }
-  }, [applyExpandedState, isExpanded, mcpAppState?.html]);
+  }, [applyExpandedState, isExpanded, isPresentationActive, mcpAppState, resourceKey]);
 
   // Iframe <-> parent postMessage bridge (MCP App protocol). Register in useLayoutEffect so listener is attached before iframe script runs.
   useLayoutEffect(() => {
-    if (!mcpAppState?.html || !serverId) return;
+    if (
+      !isPresentationActive ||
+      !mcpAppState?.html ||
+      mcpAppState.resourceKey !== resourceKey ||
+      !serverId
+    ) return;
+
+    let disposed = false;
+    const initializationTimers = new Set<number>();
+    const pendingMessageCleanups = new Set<() => void>();
 
     const postToIframe = (payload: Record<string, unknown>) => {
+      if (disposed) return;
       const win = mcpAppIframeRef.current?.contentWindow;
       try {
         if (win) win.postMessage(payload, '*');
@@ -333,7 +451,9 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
               }
             };
             postToIframe(initResult);
-            setTimeout(() => {
+            const initializationTimer = window.setTimeout(() => {
+              initializationTimers.delete(initializationTimer);
+              if (disposed) return;
               postToIframe({
                 jsonrpc: '2.0',
                 method: 'ui/notifications/tool-input',
@@ -348,18 +468,20 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
                 });
               }
             }, 0);
+            initializationTimers.add(initializationTimer);
             break;
           }
           case 'tools/call':
           case 'resources/read':
           case 'ping': {
             const response = await MCPAPI.sendMCPAppMessage({ serverId, ...data });
+            if (disposed) return;
             postToIframe(response);
             break;
           }
           case 'ui/notifications/size-changed': {
             const height = params?.height as number | undefined;
-            if (typeof height === 'number') setMcpAppHeight(height);
+            if (!disposed && typeof height === 'number') setMcpAppHeight(height);
             break;
           }
           case 'ui/notifications/sandbox-wheel': {
@@ -388,10 +510,12 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
             if (typeof url === 'string' && url) {
               try {
                 await systemAPI.openExternal(url);
+                if (disposed) return;
                 if (id !== undefined) {
                   postToIframe({ jsonrpc: '2.0', id, result: {} });
                 }
               } catch (err) {
+                if (disposed) return;
                 log.error('Failed to open external link from MCP App', { url, err });
                 if (id !== undefined) {
                   postToIframe({
@@ -422,25 +546,32 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
 
             // Set up response listener before emitting
             const responsePromise = new Promise<McpUiMessageResult>((resolve) => {
+              let settled = false;
+              let timeout: number | null = null;
+              let cancelPending: () => void = () => undefined;
               let handleResponse: ((response: McpAppMessageResponseEvent) => void) | null = null;
-              const timeout = setTimeout(() => {
+
+              const finish = (result: McpUiMessageResult) => {
+                if (settled) return;
+                settled = true;
+                if (timeout !== null) window.clearTimeout(timeout);
                 if (handleResponse) {
                   globalEventBus.off('mcp-app:message-response', handleResponse);
                 }
-                resolve({ isError: true });
-              }, 5000); // 5 second timeout
+                pendingMessageCleanups.delete(cancelPending);
+                resolve(result);
+              };
 
               handleResponse = (response: McpAppMessageResponseEvent) => {
                 if (response.requestId === requestId) {
-                  clearTimeout(timeout);
-                  if (handleResponse) {
-                    globalEventBus.off('mcp-app:message-response', handleResponse);
-                  }
-                  resolve(response.result);
+                  finish(response.result);
                 }
               };
 
+              cancelPending = () => finish({ isError: true });
+              pendingMessageCleanups.add(cancelPending);
               globalEventBus.on('mcp-app:message-response', handleResponse);
+              timeout = window.setTimeout(cancelPending, 5000);
             });
 
             // Emit event for ChatInput to handle
@@ -448,11 +579,12 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
               requestId,
               params: messageParams
             };
-            globalEventBus.emit('mcp-app:message', eventPayload);
+            if (!disposed) globalEventBus.emit('mcp-app:message', eventPayload);
 
             // Wait for response and return to iframe
             try {
               const result = await responsePromise;
+              if (disposed) return;
               if (id !== undefined) {
                 postToIframe({
                   jsonrpc: '2.0',
@@ -461,6 +593,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
                 });
               }
             } catch (err) {
+              if (disposed) return;
               log.error('Failed to handle MCP App ui/message', { err });
               if (id !== undefined) {
                 postToIframe({
@@ -482,6 +615,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
             }
         }
       } catch (err) {
+        if (disposed) return;
         log.error('MCP App message handling failed', { method, err });
         if (id !== undefined) {
           postToIframe({
@@ -494,64 +628,76 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [mcpAppState?.html, serverId, resolvedMcpToolName]);
+    return () => {
+      disposed = true;
+      window.removeEventListener('message', handleMessage);
+      initializationTimers.forEach((timer) => window.clearTimeout(timer));
+      initializationTimers.clear();
+      Array.from(pendingMessageCleanups).forEach((cleanup) => cleanup());
+      pendingMessageCleanups.clear();
+    };
+  }, [isPresentationActive, mcpAppState?.html, mcpAppState?.resourceKey, resourceKey, serverId, resolvedMcpToolName]);
 
   const handleIframeLoad = useCallback(() => {
     /* iframe loaded, ref is ready for postMessage bridge */
   }, []);
 
-  const uiResourceUri = uiResourceUriFromResult ?? toolMetaUiUri;
-
   useEffect(() => {
-    if (!uiResourceUri || !serverId || status !== 'completed' || isFailed) {
+    if (!resourceKey || !uiResourceUri || !serverId || status !== 'completed' || isFailed) {
       setMcpAppState(null);
       return;
     }
-    let cancelled = false;
+
+    if (!isPresentationActive) return;
+
+    let disposed = false;
+    const retained = retainedMcpAppResourceRef.current;
+    if (retained?.resourceKey === resourceKey) {
+      latestCspRef.current = retained.meta?.csp;
+      setMcpAppState({ ...retained, loading: false, error: retained.html ? null : 'No content' });
+      return;
+    }
+
+    const cached = readCachedMcpAppResource(resourceKey);
+    if (cached) {
+      retainedMcpAppResourceRef.current = cached;
+      latestCspRef.current = cached.meta?.csp;
+      setMcpAppState({ ...cached, loading: false, error: cached.html ? null : 'No content' });
+      return;
+    }
+
     setMcpAppState({
+      resourceKey,
       uri: uiResourceUri,
       html: null,
-      rawHtml: null,
       meta: null,
       loading: true,
-      error: null
+      error: null,
     });
-    MCPAPI.fetchMCPAppResource({ serverId, resourceUri: uiResourceUri })
-      .then((res) => {
-        if (cancelled) return;
-        const htmlContent = res.contents.find((c) => c.uri === uiResourceUri) ?? res.contents[0];
-        const rawHtml = htmlContent?.content ?? '';
-        // Extract CSP and permissions from response if available
-        const meta: McpUiResourceMeta = {
-          csp: (htmlContent as unknown as { csp?: McpUiResourceCsp })?.csp,
-          permissions: (htmlContent as unknown as { permissions?: McpUiResourcePermissions })?.permissions,
-        };
-        // Inject CSP preamble into HTML
-        const html = injectPreamble(rawHtml, meta.csp);
-        // Update latest CSP ref for hostCapabilities
-        latestCspRef.current = meta.csp;
-        setMcpAppState((s) => s ? { ...s, html, rawHtml, meta, loading: false, error: html ? null : 'No content' } : null);
+
+    loadMcpAppResource(serverId, uiResourceUri, resourceKey)
+      .then((resource) => {
+        if (disposed) return;
+        retainedMcpAppResourceRef.current = resource;
+        latestCspRef.current = resource.meta?.csp;
+        setMcpAppState({
+          ...resource,
+          loading: false,
+          error: resource.html ? null : 'No content',
+        });
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (disposed) return;
         log.error('Failed to fetch MCP App resource', { uiResourceUri, serverId, err });
-        setMcpAppState((s) =>
-          s ? { ...s, loading: false, error: err?.message ?? String(err) } : null
-        );
+        setMcpAppState((current) => current?.resourceKey === resourceKey
+          ? { ...current, loading: false, error: err?.message ?? String(err) }
+          : current);
       });
-    return () => { cancelled = true; };
-  }, [
-    config.toolName,
-    isFailed,
-    resultData,
-    serverId,
-    status,
-    toolId,
-    toolMetaUiUri,
-    uiResourceUri,
-    uiResourceUriFromResult,
-  ]);
+
+    return () => {
+      disposed = true;
+    };
+  }, [isFailed, isPresentationActive, resourceKey, serverId, status, uiResourceUri]);
 
   const getContentSummary = () => {
     if (!resultData?.content && !uiResourceUri) return null;
@@ -714,7 +860,8 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
 
   const renderExpandedContent = () => {
     const hasResultContent = resultData?.content && resultData.content.length > 0;
-    const hasMcpApp = mcpAppState?.html;
+    const renderedMcpAppState = mcpAppState?.resourceKey === resourceKey ? mcpAppState : null;
+    const hasMcpApp = renderedMcpAppState?.html;
     if (!hasResultContent && !hasMcpApp) {
       return null;
     }
@@ -722,26 +869,26 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
     return (
       <div className="mcp-expanded-content">
         {/* MCP App: sandboxed iframe for ui:// resources */}
-        {mcpAppState && (
+        {renderedMcpAppState && (
           <div className="content-item content-item-mcp-app">
-            {mcpAppState.loading && (
+            {renderedMcpAppState.loading && (
               <div className="mcp-app-loading">
                 <CubeLoading size="small" />
                 <span>{t('toolCards.mcp.loadingApp')}</span>
               </div>
             )}
-            {mcpAppState.error && (
+            {renderedMcpAppState.error && (
               <div className="mcp-app-error">
-                <span>{t('toolCards.mcp.appLoadError')}: {mcpAppState.error}</span>
+                <span>{t('toolCards.mcp.appLoadError')}: {renderedMcpAppState.error}</span>
               </div>
             )}
-            {mcpAppState.html && !mcpAppState.loading && (
+            {isPresentationActive && renderedMcpAppState.html && !renderedMcpAppState.loading && (
               <iframe
                 ref={mcpAppIframeRef}
                 className="mcp-app-iframe"
                 sandbox="allow-scripts allow-forms"
                 title="MCP App"
-                srcDoc={mcpAppState.html}
+                srcDoc={renderedMcpAppState.html}
                 style={mcpAppHeight !== undefined ? { minHeight: mcpAppHeight } : undefined}
                 onLoad={handleIframeLoad}
               />
@@ -751,7 +898,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
         {/* Text, image, and non-ui resources */}
         {(resultData?.content ?? []).map((item, index) => {
           const isUiResource = item.type === 'resource' && item.resource?.uri?.startsWith('ui://');
-          if (isUiResource && mcpAppState) return null;
+          if (isUiResource && renderedMcpAppState) return null;
           return (
             <div key={index} className={`content-item content-item-${item.type}`}>
               {item.type === 'text' && (

@@ -87,8 +87,8 @@ vi.mock('./useFlowChatPresentationSessionState', () => ({
   }),
 }));
 
-vi.mock('../../store/chatInputStateStore', () => ({
-  useChatInputState: (selector: (state: any) => unknown) => selector({
+vi.mock('./useFlowChatPresentationChatInputState', () => ({
+  useFlowChatPresentationChatInputState: () => ({
     isActive: false,
     isExpanded: false,
     inputHeight: 0,

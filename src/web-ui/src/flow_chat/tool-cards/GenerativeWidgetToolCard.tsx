@@ -15,6 +15,7 @@ import { useContextMenuStore } from '@/shared/context-menu-system';
 import { captureElementToDownloadsPng } from '../utils/captureElementToDownloadsPng';
 import { createLogger } from '@/shared/utils/logger';
 import { notificationService } from '@/shared/notification-system';
+import { useFlowChatPresentationActive } from '../components/modern/FlowChatPresentationActivity';
 import './GenerativeWidgetToolCard.scss';
 
 const log = createLogger('GenerativeWidgetToolCard');
@@ -45,9 +46,11 @@ function parseWidgetResult(raw: unknown): WidgetResult | null {
 
 export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, sessionId }) => {
   const { t } = useTranslation('flow-chat');
+  const isPresentationActive = useFlowChatPresentationActive();
   const { status, toolCall, toolResult, partialParams, isParamsStreaming } = toolItem;
   const previewRef = useRef<HTMLDivElement | null>(null);
   const captureRootRef = useRef<HTMLDivElement | null>(null);
+  const openPanelTimerRef = useRef<number | null>(null);
   const exportPreviewRef = useRef<HTMLDivElement | null>(null);
   const resultData = useMemo(() => parseWidgetResult(toolResult?.result), [toolResult?.result]);
   const openPromptMenu = useGenerativeWidgetPromptMenu('tool-card');
@@ -143,7 +146,11 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
 
     window.dispatchEvent(new CustomEvent('expand-right-panel'));
 
-    setTimeout(() => {
+    if (openPanelTimerRef.current !== null) {
+      window.clearTimeout(openPanelTimerRef.current);
+    }
+    openPanelTimerRef.current = window.setTimeout(() => {
+      openPanelTimerRef.current = null;
       window.dispatchEvent(new CustomEvent('agent-create-tab', {
         detail: eventData,
       }));
@@ -184,7 +191,7 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
   }, [hideMenu, openPromptMenu]);
 
   useEffect(() => {
-    if (!menuSelectionActive) {
+    if (!isPresentationActive || !menuSelectionActive) {
       return;
     }
 
@@ -201,7 +208,27 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
     return () => {
       document.removeEventListener('keydown', handleEscape, true);
     };
-  }, [hideMenu, menuSelectionActive]);
+  }, [hideMenu, isPresentationActive, menuSelectionActive]);
+
+  useEffect(() => {
+    if (isPresentationActive || !menuSelectionActive) return;
+    setMenuSelectionActive(false);
+    hideMenu();
+    setSelectionRevision((value) => value + 1);
+  }, [hideMenu, isPresentationActive, menuSelectionActive]);
+
+  useEffect(() => {
+    if (isPresentationActive || openPanelTimerRef.current === null) return;
+    window.clearTimeout(openPanelTimerRef.current);
+    openPanelTimerRef.current = null;
+  }, [isPresentationActive]);
+
+  useEffect(() => () => {
+    if (openPanelTimerRef.current !== null) {
+      window.clearTimeout(openPanelTimerRef.current);
+      openPanelTimerRef.current = null;
+    }
+  }, []);
 
   const handleExportImage = useCallback(
     async (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -294,6 +321,7 @@ export const GenerativeWidgetToolCard: React.FC<ToolCardProps> = ({ toolItem, se
         title={title}
         widgetCode={widgetCode}
         executeScripts={status === 'completed'}
+        isActive={isPresentationActive}
         selectionRevision={selectionRevision}
         onWidgetEvent={handleWidgetEvent}
       />
