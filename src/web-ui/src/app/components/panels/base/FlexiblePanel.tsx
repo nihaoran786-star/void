@@ -6,6 +6,7 @@ import { createLogger } from '@/shared/utils/logger';
 import { globalEventBus } from '@/infrastructure/event-bus';
 
 const log = createLogger('FlexiblePanel');
+const PANEL_LOADING_CLASS = 'void-flexible-panel__loading';
 
 function updateGenerativeWidgetResultCode(result: unknown, widgetCode: string): unknown {
   if (!result) {
@@ -690,7 +691,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       case 'task-detail': {
         const taskDetailData = content.data || {};
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.taskDetail')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.taskDetail')}</div>}>
             <TaskDetailPanel data={taskDetailData} isActive={isActive} />
           </React.Suspense>
         );
@@ -714,7 +715,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
         }
         
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.planViewer')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.planViewer')}</div>}>
             <PlanViewer
               filePath={planFilePath}
               fileName={planFileName}
@@ -741,7 +742,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
         }
         
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.terminal')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.terminal')}</div>}>
             <div className="void-flexible-panel__terminal-container">
               <TerminalTabPanel
                 key={sessionId}
@@ -755,18 +756,19 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'btw-session':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.taskDetail')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.taskDetail')}</div>}>
             <BtwSessionPanel
               childSessionId={content.data?.childSessionId}
               parentSessionId={content.data?.parentSessionId}
               workspacePath={content.data?.workspacePath || workspacePath}
+              isActive={isActive}
             />
           </React.Suspense>
         );
 
       case 'session-usage':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.taskDetail')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.taskDetail')}</div>}>
             <SessionUsagePanel
               report={content.data?.report}
               markdown={content.data?.markdown}
@@ -779,14 +781,14 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'review-platform':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading pull requests...</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading pull requests...</div>}>
             <ReviewPlatformPanel workspacePath={content.data?.workspacePath || workspacePath} />
           </React.Suspense>
         );
 
       case 'review-platform-pr-detail':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading pull request...</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading pull request...</div>}>
             <ReviewPlatformPanel
               workspacePath={content.data?.workspacePath || workspacePath}
               initialRemoteId={content.data?.remoteId}
@@ -799,7 +801,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'browser':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.terminal')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.terminal')}</div>}>
             <BrowserPanel
               isActive={isActive}
               initialUrl={content.data?.url}
@@ -809,7 +811,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'generative-widget':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading widget preview...</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading widget preview...</div>}>
             <GenerativeWidgetPanel
               title={content.title}
               widgetId={content.data?.widgetId}
@@ -890,7 +892,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'workspace-media-gallery':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">Loading media...</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading media...</div>}>
             <WorkspaceMediaGallery
               workspacePath={content.data?.workspacePath || workspacePath}
               isActive={isActive}
@@ -900,7 +902,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
 
       case 'short-drama-center':
         return (
-          <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('flexiblePanel.loading.shortDrama')}</div>}>
+          <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.shortDrama')}</div>}>
             <ShortDramaCenterPanel
               workspacePath={content.data?.workspacePath || workspacePath}
               sourceSessionId={content.data?.sourceSessionId}
@@ -980,7 +982,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       )}
 
       <div className="void-flexible-panel__content">
-        <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('loading.text')}</div>}>
+        <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('loading.text')}</div>}>
           {renderContent()}
         </React.Suspense>
       </div>

@@ -3,6 +3,7 @@ import {useTranslation} from 'react-i18next';
 import path from 'path-browserify';
 import {CornerUpLeft, Image as ImageIcon, Link2, Loader2, Send, Square, Sparkles, X} from 'lucide-react';
 import {FlowChatContext} from '../modern/FlowChatContext';
+import {FlowChatPresentationActivityProvider} from '../modern/FlowChatPresentationActivity';
 import {VirtualItemRenderer} from '../modern/VirtualItemRenderer';
 import {ProcessingIndicator} from '../modern/ProcessingIndicator';
 import {
@@ -12,7 +13,7 @@ import {
 import {useExploreGroupState} from '../modern/useExploreGroupState';
 import {ScrollToBottomButton} from '@/flow_chat';
 import {flowChatStore} from '../../store/FlowChatStore';
-import type {DialogTurn, FlowChatConfig, FlowChatState, Session} from '../../types/flow-chat';
+import type {DialogTurn, FlowChatConfig, Session} from '../../types/flow-chat';
 import {sessionToVirtualItems} from '../../store/modernFlowChatStore';
 import {FLOWCHAT_FOCUS_ITEM_EVENT, type FlowChatFocusItemRequest} from '../../events/flowchatNavigation';
 import {fileTabManager} from '@/shared/services/FileTabManager';
@@ -50,12 +51,14 @@ import {
 } from '../../store/deepReviewActionBarStore';
 import {loadPersistedReviewState} from '../../services/ReviewActionBarPersistenceService';
 import type {ReviewActionPersistedState} from '@/shared/types/session-history';
+import {useBtwSessionSnapshots} from './useBtwSessionSnapshots';
 import './BtwSessionPanel.scss';
 
 export interface BtwSessionPanelProps {
   childSessionId?: string;
   parentSessionId?: string;
   workspacePath?: string;
+  isActive?: boolean;
 }
 
 const PANEL_CONFIG: FlowChatConfig = {
@@ -124,9 +127,18 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   childSessionId,
   parentSessionId,
   workspacePath,
+  isActive = true,
 }) => {
   const { t } = useTranslation('flow-chat');
-  const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => flowChatStore.getState());
+  const {
+    childSession,
+    parentSession,
+    reviewSession,
+  } = useBtwSessionSnapshots({
+    childSessionId,
+    parentSessionId,
+    isActive,
+  });
   const [stoppingReview, setStoppingReview] = useState(false);
   const [composerValue, setComposerValue] = useState('');
   const [composerImageContexts, setComposerImageContexts] = useState<ImageContext[]>([]);
@@ -151,14 +163,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const composerFileInputRef = useRef<HTMLInputElement>(null);
   const [actionBarHeight, setActionBarHeight] = useState(0);
   const shouldAutoScrollRef = useRef(true);
+  const autoScrollFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
-    return flowChatStore.subscribe(setFlowChatState);
-  }, []);
-
-  useEffect(() => {
-    if (!childSessionId) {
-      setChildExecutionState(SessionExecutionState.IDLE);
+    if (!isActive || !childSessionId) {
+      if (isActive) {
+        setChildExecutionState(SessionExecutionState.IDLE);
+      }
       return;
     }
 
@@ -168,10 +179,8 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         setChildExecutionState(machine.currentState);
       }
     });
-  }, [childSessionId]);
+  }, [childSessionId, isActive]);
 
-  const childSession = childSessionId ? flowChatState.sessions.get(childSessionId) : undefined;
-  const parentSession = parentSessionId ? flowChatState.sessions.get(parentSessionId) : undefined;
   const childAgentType = childSession?.mode || childSession?.config?.agentType || 'agentic';
   const childRelationship = resolveSessionRelationship(childSession);
   const childKind = childRelationship.kind === 'review' ||
@@ -209,12 +218,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   // Load history for historical sessions that have not yet had their turns loaded.
   const isLoadingRef = useRef(false);
+  const historySession = childSession ?? reviewSession;
   useEffect(() => {
-    if (!childSessionId || !childSession) return;
-    if (!childSession.isHistorical) return;
+    if (!childSessionId || !historySession) return;
+    if (!historySession.isHistorical) return;
     if (isLoadingRef.current) return;
 
-    const path = workspacePath ?? childSession.workspacePath;
+    const path = workspacePath ?? historySession.workspacePath;
     if (!path) return;
 
     isLoadingRef.current = true;
@@ -222,13 +232,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       childSessionId,
       path,
       undefined,
-      childSession.remoteConnectionId,
-      childSession.remoteSshHost,
-      { includeInternal: childSession.sessionKind === 'subagent' },
+      historySession.remoteConnectionId,
+      historySession.remoteSshHost,
+      { includeInternal: historySession.sessionKind === 'subagent' },
     ).finally(() => {
       isLoadingRef.current = false;
     });
-  }, [childSessionId, childSession, workspacePath]);
+  }, [childSessionId, historySession, workspacePath]);
 
   const updateScrollAffordance = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -241,6 +251,8 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!isActive) return;
+
     const container = scrollContainerRef.current;
     if (!container) return;
     const handleWheel = (e: WheelEvent) => {
@@ -262,16 +274,30 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       container.removeEventListener('wheel', handleWheel);
       container.removeEventListener('scroll', updateScrollAffordance);
     };
-  }, [updateScrollAffordance]);
+  }, [isActive, updateScrollAffordance]);
 
   useEffect(() => {
+    if (autoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(autoScrollFrameRef.current);
+      autoScrollFrameRef.current = null;
+    }
+    if (!isActive) return;
+
     const container = scrollContainerRef.current;
     if (!container || !shouldAutoScrollRef.current) return;
-    requestAnimationFrame(() => {
+    autoScrollFrameRef.current = window.requestAnimationFrame(() => {
+      autoScrollFrameRef.current = null;
       container.scrollTop = container.scrollHeight;
       setShowScrollToBottom(false);
     });
-  }, [virtualItems]);
+
+    return () => {
+      if (autoScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(autoScrollFrameRef.current);
+        autoScrollFrameRef.current = null;
+      }
+    };
+  }, [isActive, virtualItems]);
 
   const handleScrollToBottom = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -354,33 +380,42 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const lastItem = lastModelRound?.items[lastModelRound.items.length - 1];
   const lastItemContent = lastItem && 'content' in lastItem ? String((lastItem as any).content || '') : '';
   const isTurnProcessing = isActiveReviewTurnStatus(lastDialogTurn?.status);
-  const isChildSessionProcessing = isTurnProcessing || isProcessingState(childExecutionState);
+  const effectiveChildExecutionState = isActive && childSessionId
+    ? stateMachineManager.getCurrentState(childSessionId)
+    : childExecutionState;
+  const isChildSessionProcessing =
+    isTurnProcessing || isProcessingState(effectiveChildExecutionState);
   const [isContentGrowing, setIsContentGrowing] = useState(true);
-  const lastContentRef = useRef(lastItemContent);
   const contentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (lastItemContent !== lastContentRef.current) {
-      lastContentRef.current = lastItemContent;
-      setIsContentGrowing(true);
-      if (contentTimeoutRef.current) clearTimeout(contentTimeoutRef.current);
-      contentTimeoutRef.current = setTimeout(() => {
-        setIsContentGrowing(false);
-      }, 500);
+    if (contentTimeoutRef.current) {
+      clearTimeout(contentTimeoutRef.current);
+      contentTimeoutRef.current = null;
     }
+
+    if (!isActive) {
+      return;
+    }
+
+    if (!isTurnProcessing) {
+      setIsContentGrowing(false);
+      return;
+    }
+
+    setIsContentGrowing(true);
+    contentTimeoutRef.current = setTimeout(() => {
+      contentTimeoutRef.current = null;
+      setIsContentGrowing(false);
+    }, 500);
 
     return () => {
       if (contentTimeoutRef.current) {
         clearTimeout(contentTimeoutRef.current);
+        contentTimeoutRef.current = null;
       }
     };
-  }, [lastItemContent]);
-
-  useEffect(() => {
-    if (!isTurnProcessing) {
-      setIsContentGrowing(false);
-    }
-  }, [isTurnProcessing]);
+  }, [isActive, isTurnProcessing, lastItemContent]);
 
   const showProcessingIndicator = useMemo(() => {
     return shouldShowProcessingIndicator({
@@ -453,6 +488,10 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     !isChildSessionProcessing;
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     if (childKind !== 'subagent') {
       setComposerSkills([]);
       setIsLoadingComposerSkills(false);
@@ -488,7 +527,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [childAgentType, childKind, childSession?.workspacePath, childSessionId, workspacePath]);
+  }, [childAgentType, childKind, childSession?.workspacePath, childSessionId, isActive, workspacePath]);
 
   // ---- Review action bar integration ----
   const actionBarState = useReviewActionBarStore((s) =>
@@ -502,8 +541,10 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const actionBarSelectedIds = actionBarState?.selectedRemediationIds ?? EMPTY_ACTION_ID_SET;
   const actionBarFixingIds = actionBarState?.fixingRemediationIds ?? EMPTY_ACTION_ID_SET;
   const actionBarLastSubmittedAction = actionBarState?.lastSubmittedAction ?? null;
-  const isDeepReview = childKind === 'deep_review';
-  const isReviewSession = childKind === 'review' || childKind === 'deep_review';
+  const reviewRelationship = resolveSessionRelationship(reviewSession);
+  const isDeepReview = reviewRelationship.kind === 'deep_review';
+  const isReviewSession =
+    reviewRelationship.kind === 'review' || reviewRelationship.kind === 'deep_review';
   const canReturnToParentSession = isReviewSession && Boolean(parentSessionId);
   const btwOrigin = childSession?.btwOrigin;
   const showReviewActionBar =
@@ -595,21 +636,21 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   // Detect when a review completes with a remediation plan and auto-show the action bar.
   useEffect(() => {
-    if (!isReviewSession || !childSessionId || !childSession) return;
+    if (!isReviewSession || !childSessionId || !reviewSession) return;
 
-    const latestReviewResultState = findLatestCodeReviewResultState(childSession);
+    const latestReviewResultState = findLatestCodeReviewResultState(reviewSession);
     const latestReviewData = latestReviewResultState.status === 'valid'
       ? latestReviewResultState.result as DeepReviewActionData
       : null;
     const reviewMode: ReviewActionMode = isDeepReview ? 'deep' : 'standard';
     const latestReviewMode = latestReviewData?.review_mode ?? 'standard';
-    const lastTurn = childSession.dialogTurns[childSession.dialogTurns.length - 1];
+    const lastTurn = reviewSession.dialogTurns[reviewSession.dialogTurns.length - 1];
     const turnStatus = lastTurn?.status;
     const isComplete = turnStatus === 'completed';
-    const isError = turnStatus === 'error' || Boolean(childSession.error);
+    const isError = turnStatus === 'error' || Boolean(reviewSession.error);
     const isReviewRunning = isActiveReviewTurnStatus(turnStatus);
     const deepReviewInterruption = isDeepReview
-      ? deriveDeepReviewInterruption(childSession)
+      ? deriveDeepReviewInterruption(reviewSession)
       : null;
     const resultRecoveryReason: DeepReviewResultRecoveryReason | null =
       isDeepReview && isComplete
@@ -622,7 +663,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
               : null
         : null;
     const resultRecoveryInterruption = resultRecoveryReason
-      ? deriveDeepReviewResultRecoveryInterruption(childSession, resultRecoveryReason)
+      ? deriveDeepReviewResultRecoveryInterruption(reviewSession, resultRecoveryReason)
       : null;
 
     const store = useReviewActionBarStore.getState();
@@ -639,7 +680,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       }
 
       if (turnStatus === 'error') {
-        store.updatePhase('resume_failed', lastTurn?.error ?? childSession.error ?? undefined, childSessionId);
+        store.updatePhase('resume_failed', lastTurn?.error ?? reviewSession.error ?? undefined, childSessionId);
         store.restore(childSessionId);
         return;
       }
@@ -729,7 +770,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         store.updatePhase('fix_interrupted', undefined, childSessionId);
         store.restore(childSessionId);
       } else if (isError && currentActionState.phase === 'resume_running') {
-        store.updatePhase('resume_failed', childSession.error ?? undefined, childSessionId);
+        store.updatePhase('resume_failed', reviewSession.error ?? undefined, childSessionId);
       } else if (
         isError &&
         currentActionState.phase !== 'fix_failed' &&
@@ -738,7 +779,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       ) {
         store.updatePhase(
           currentActionState.phase === 'fix_running' ? 'fix_failed' : 'review_error',
-          childSession.error ?? undefined,
+          reviewSession.error ?? undefined,
           childSessionId,
         );
       } else if (isComplete && currentActionState.phase === 'fix_running') {
@@ -807,7 +848,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       phase: 'review_completed',
     });
   }, [
-    childSession,
+    reviewSession,
     childSessionId,
     parentSessionId,
     isReviewSession,
@@ -818,7 +859,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   // Restore persisted review action state on mount
   useEffect(() => {
-    if (!isReviewSession || !childSessionId || !childSession) return;
+    if (!isReviewSession || !childSessionId || !reviewSession) return;
 
     const store = useReviewActionBarStore.getState();
     const currentActionState = store.getSessionState(childSessionId);
@@ -828,7 +869,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     // is waiting for a more specific persisted action state for this session.
     if (!canReplaceRunningPlaceholder && currentActionState && currentActionState.phase !== 'idle') return;
 
-    const workspacePath = childSession.workspacePath;
+    const workspacePath = reviewSession.workspacePath;
     if (!workspacePath) return;
 
     let cancelled = false;
@@ -836,12 +877,12 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     loadPersistedReviewState(
       childSessionId,
       workspacePath,
-      childSession.remoteConnectionId,
-      childSession.remoteSshHost,
+      reviewSession.remoteConnectionId,
+      reviewSession.remoteSshHost,
     ).then((persisted: ReviewActionPersistedState | null) => {
       if (cancelled || !persisted) return;
 
-      const latestReviewData = findLatestCodeReviewResult(childSession) as DeepReviewActionData | null;
+      const latestReviewData = findLatestCodeReviewResult(reviewSession) as DeepReviewActionData | null;
       const reviewMode: ReviewActionMode = isDeepReview ? 'deep' : 'standard';
 
       // Detect fix interruption
@@ -849,7 +890,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       let remainingFixIds: string[] = [];
 
       if (persisted.phase === 'fix_running') {
-        const lastTurn = childSession.dialogTurns[childSession.dialogTurns.length - 1];
+        const lastTurn = reviewSession.dialogTurns[reviewSession.dialogTurns.length - 1];
         const isStillRunning = isActiveReviewTurnStatus(lastTurn?.status);
 
         if (!isStillRunning) {
@@ -886,10 +927,14 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [childSession, childSessionId, parentSessionId, isReviewSession, isDeepReview]);
+  }, [reviewSession, childSessionId, parentSessionId, isReviewSession, isDeepReview]);
 
   // Observe action bar height to adjust body padding dynamically
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     if (!showReviewActionBar) {
       setActionBarHeight(0);
       return;
@@ -914,7 +959,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     return () => {
       observer.disconnect();
     };
-  }, [showReviewActionBar]);
+  }, [isActive, showReviewActionBar]);
 
   const handleStopReviewSession = useCallback(async () => {
     if (!childSessionId || stoppingReview || !isTurnProcessing) {
@@ -1253,34 +1298,36 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
           </div>
         </div>
 
-        <div
-          ref={scrollContainerRef}
-          className="btw-session-panel__body"
-          style={reviewActionBottomPadding > 0 ? { paddingBottom: `${reviewActionBottomPadding}px` } : undefined}
-        >
-          {virtualItems.length === 0 ? (
-            <div className="btw-session-panel__empty-state">{t('session.empty')}</div>
-          ) : (
-            <>
-              {virtualItems.map((item, index) => (
-                <VirtualItemRenderer
-                  key={`${item.turnId}-${item.type}-${index}`}
-                  item={item}
-                  index={index}
+        <FlowChatPresentationActivityProvider isActive={isActive}>
+          <div
+            ref={scrollContainerRef}
+            className="btw-session-panel__body"
+            style={reviewActionBottomPadding > 0 ? { paddingBottom: `${reviewActionBottomPadding}px` } : undefined}
+          >
+            {virtualItems.length === 0 ? (
+              <div className="btw-session-panel__empty-state">{t('session.empty')}</div>
+            ) : (
+              <>
+                {virtualItems.map((item, index) => (
+                  <VirtualItemRenderer
+                    key={`${item.turnId}-${item.type}-${index}`}
+                    item={item}
+                    index={index}
+                  />
+                ))}
+                <ProcessingIndicator
+                  visible={showProcessingIndicator}
+                  reserveSpace={reserveProcessingIndicatorSpace}
                 />
-              ))}
-              <ProcessingIndicator
-                visible={showProcessingIndicator}
-                reserveSpace={reserveProcessingIndicatorSpace}
-              />
-            </>
-          )}
-        </div>
-        <ScrollToBottomButton
-          visible={showScrollToBottom}
-          onClick={handleScrollToBottom}
-          className="btw-session-panel__scroll-to-bottom"
-        />
+              </>
+            )}
+          </div>
+          <ScrollToBottomButton
+            visible={showScrollToBottom}
+            onClick={handleScrollToBottom}
+            className="btw-session-panel__scroll-to-bottom"
+          />
+        </FlowChatPresentationActivityProvider>
         {showMinimizedIndicator && (
           <div className="btw-session-panel__minimized-indicator">
             <button

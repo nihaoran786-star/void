@@ -10,6 +10,7 @@ import type { FlowChatState, Session } from '../../types/flow-chat';
 import type { ModeSkillInfo } from '@/infrastructure/config/types';
 
 let flowChatState: FlowChatState;
+const flowChatListeners = new Set<(state: FlowChatState) => void>();
 const mockSendMessage = vi.fn();
 const mockCancelSession = vi.fn();
 const mockBtwCancel = vi.fn();
@@ -153,13 +154,19 @@ vi.mock('../../store/FlowChatStore', () => ({
   FlowChatStore: {
     getInstance: () => ({
       getState: () => flowChatState,
-      subscribe: () => () => {},
+      subscribe: (listener: (state: FlowChatState) => void) => {
+        flowChatListeners.add(listener);
+        return () => flowChatListeners.delete(listener);
+      },
       loadSessionHistory: (...args: unknown[]) => mockLoadSessionHistory(...args),
     }),
   },
   flowChatStore: {
     getState: () => flowChatState,
-    subscribe: () => () => {},
+    subscribe: (listener: (state: FlowChatState) => void) => {
+      flowChatListeners.add(listener);
+      return () => flowChatListeners.delete(listener);
+    },
     loadSessionHistory: (...args: unknown[]) => mockLoadSessionHistory(...args),
   },
 }));
@@ -493,6 +500,7 @@ describe('BtwSessionPanel review action bar integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    flowChatListeners.clear();
     mockGetModeSkillConfigs.mockResolvedValue([]);
     mockExecutionState = 'idle';
     mockCreateImageContextFromFile.mockResolvedValue({
@@ -549,7 +557,50 @@ describe('BtwSessionPanel review action bar integration', () => {
       root.unmount();
     });
     container.remove();
+    flowChatListeners.clear();
     useReviewActionBarStore.getState().reset();
+  });
+
+  it('keeps terminal Review lifecycle coordination active while presentation is hidden', async () => {
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        ['deep-review-child', createRunningDeepReviewSession()],
+        ['parent-session', flowChatState.sessions.get('parent-session')!],
+      ]),
+    } as FlowChatState;
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="deep-review-child"
+          parentSessionId="parent-session"
+          workspacePath="D:/workspace/project"
+          isActive={false}
+        />,
+      );
+    });
+
+    expect(useReviewActionBarStore.getState().phase).toBe('review_running');
+    expect(flowChatListeners.size).toBe(1);
+
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        ['deep-review-child', createReviewSession()],
+        ['parent-session', flowChatState.sessions.get('parent-session')!],
+      ]),
+    } as FlowChatState;
+    await act(async () => {
+      flowChatListeners.forEach(listener => listener(flowChatState));
+    });
+
+    expect(useReviewActionBarStore.getState()).toMatchObject({
+      childSessionId: 'deep-review-child',
+      phase: 'review_completed',
+    });
+    expect(mockCancelSession).not.toHaveBeenCalled();
+    expect(mockBtwCancel).not.toHaveBeenCalled();
   });
 
   it('shows the completed Deep Review action bar even when the report has no remediation items', async () => {

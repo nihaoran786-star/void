@@ -1,0 +1,387 @@
+// @vitest-environment jsdom
+
+import React, { act } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createRoot, type Root } from 'react-dom/client';
+import type { FlowChatState, Session } from '../../types/flow-chat';
+
+let flowChatState: FlowChatState;
+const flowChatListeners = new Set<(state: FlowChatState) => void>();
+const machineListeners = new Set<(sessionId: string, machine: { currentState: string }) => void>();
+const mockCancelSession = vi.fn();
+const mockBtwCancel = vi.fn();
+const mockGetModeSkillConfigs = vi.fn();
+const mockLoadSessionHistory = vi.fn();
+let mockExecutionState = 'processing';
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: vi.fn() },
+  useTranslation: () => ({
+    t: (key: string, options?: { defaultValue?: string }) => options?.defaultValue ?? key,
+  }),
+}));
+
+vi.mock('../modern/VirtualItemRenderer', async () => {
+  const activity = await vi.importActual<typeof import('../modern/FlowChatPresentationActivity')>(
+    '../modern/FlowChatPresentationActivity'
+  );
+  return {
+    VirtualItemRenderer: () => (
+      <div
+        data-testid="virtual-presentation-activity"
+        data-active={String(activity.useFlowChatPresentationActive())}
+      />
+    ),
+  };
+});
+
+vi.mock('./DeepReviewActionBar', async () => {
+  const activity = await vi.importActual<typeof import('../modern/FlowChatPresentationActivity')>(
+    '../modern/FlowChatPresentationActivity'
+  );
+  return {
+    ReviewActionBar: () => (
+      <div
+        data-testid="review-action-presentation-activity"
+        data-active={String(activity.useFlowChatPresentationActive())}
+      />
+    ),
+  };
+});
+
+vi.mock('../modern/ProcessingIndicator', () => ({
+  ProcessingIndicator: () => <div />,
+}));
+
+vi.mock('../modern/processingIndicatorVisibility', () => ({
+  shouldReserveProcessingIndicatorSpace: () => false,
+  shouldShowProcessingIndicator: () => false,
+}));
+
+vi.mock('../modern/useExploreGroupState', () => ({
+  useExploreGroupState: () => ({
+    exploreGroupStates: {},
+    onExploreGroupToggle: vi.fn(),
+    onExpandGroup: vi.fn(),
+    onExpandAllInTurn: vi.fn(),
+    onCollapseGroup: vi.fn(),
+  }),
+}));
+
+vi.mock('@/flow_chat', () => ({
+  ScrollToBottomButton: () => <div />,
+}));
+
+vi.mock('@/component-library', () => ({
+  IconButton: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
+}));
+
+vi.mock('@/shared/services/FileTabManager', () => ({
+  fileTabManager: { openFile: vi.fn() },
+}));
+
+vi.mock('@/shared/utils/tabUtils', () => ({ createTab: vi.fn() }));
+
+vi.mock('@/infrastructure/api', () => ({
+  agentAPI: { cancelSession: (...args: unknown[]) => mockCancelSession(...args) },
+  btwAPI: { cancel: (...args: unknown[]) => mockBtwCancel(...args) },
+  configAPI: { getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args) },
+}));
+
+vi.mock('@/infrastructure/event-bus', () => ({
+  globalEventBus: { emit: vi.fn() },
+}));
+
+vi.mock('@/shared/notification-system', () => ({
+  notificationService: { error: vi.fn() },
+}));
+
+vi.mock('@/shared/utils/logger', () => ({
+  createLogger: () => ({
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  }),
+}));
+
+vi.mock('../../services/FlowChatManager', () => ({
+  FlowChatManager: { getInstance: () => ({ sendMessage: vi.fn() }) },
+}));
+
+vi.mock('../../utils/imageUtils', () => ({ createImageContextFromFile: vi.fn() }));
+vi.mock('../../utils/imageContextForBackend', () => ({ buildImageContextsForBackend: vi.fn() }));
+
+vi.mock('../../state-machine', () => ({
+  SessionExecutionState: {
+    IDLE: 'idle',
+    PROCESSING: 'processing',
+    FINISHING: 'finishing',
+    ERROR: 'error',
+  },
+  stateMachineManager: {
+    getCurrentState: () => mockExecutionState,
+    subscribeGlobal: (listener: (sessionId: string, machine: { currentState: string }) => void) => {
+      machineListeners.add(listener);
+      return () => machineListeners.delete(listener);
+    },
+  },
+}));
+
+vi.mock('../../store/FlowChatStore', () => ({
+  flowChatStore: {
+    getState: () => flowChatState,
+    subscribe: (listener: (state: FlowChatState) => void) => {
+      flowChatListeners.add(listener);
+      return () => flowChatListeners.delete(listener);
+    },
+    loadSessionHistory: (...args: unknown[]) => mockLoadSessionHistory(...args),
+  },
+}));
+
+vi.mock('../../store/modernFlowChatStore', () => ({
+  sessionToVirtualItems: () => [{ turnId: 'turn-1', type: 'model-round' }],
+}));
+
+vi.mock('../../utils/reviewSessionStop', () => ({
+  settleStoppedReviewSessionState: vi.fn(),
+}));
+
+vi.mock('../../services/ReviewActionBarPersistenceService', () => ({
+  loadPersistedReviewState: vi.fn(() => Promise.resolve(null)),
+}));
+
+import { BtwSessionPanel } from './BtwSessionPanel';
+import { useReviewActionBarStore } from '../../store/deepReviewActionBarStore';
+
+function createDeepReviewSession(): Session {
+  return {
+    sessionId: 'review-child',
+    title: 'Review child',
+    dialogTurns: [{
+      id: 'turn-1',
+      sessionId: 'review-child',
+      userMessage: { id: 'user-1', content: 'review', timestamp: 1 },
+      modelRounds: [{
+        id: 'round-1',
+        index: 0,
+        items: [{
+          id: 'text-1',
+          type: 'text',
+          content: 'streaming',
+          isStreaming: true,
+          timestamp: 2,
+          status: 'streaming',
+        }],
+        isStreaming: true,
+        isComplete: false,
+        status: 'streaming',
+        startTime: 1,
+      }],
+      status: 'processing',
+      startTime: 1,
+    }],
+    status: 'idle',
+    config: {},
+    createdAt: 1,
+    lastActiveAt: 1,
+    error: null,
+    sessionKind: 'deep_review',
+    parentSessionId: 'parent',
+    workspacePath: 'D:/workspace/project',
+  } as Session;
+}
+
+function createParentSession(): Session {
+  return {
+    ...createDeepReviewSession(),
+    sessionId: 'parent',
+    dialogTurns: [],
+    sessionKind: undefined,
+    parentSessionId: undefined,
+  } as Session;
+}
+
+describe('BtwSessionPanel presentation lifecycle', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  let resizeObserverCount: number;
+  let resizeObserverDisconnect: ReturnType<typeof vi.fn>;
+  let requestFrame: ReturnType<typeof vi.fn>;
+  let cancelFrame: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    flowChatListeners.clear();
+    machineListeners.clear();
+    useReviewActionBarStore.getState().reset();
+    mockExecutionState = 'processing';
+    mockGetModeSkillConfigs.mockResolvedValue([]);
+    mockLoadSessionHistory.mockResolvedValue(undefined);
+    flowChatState = {
+      sessions: new Map([
+        ['review-child', createDeepReviewSession()],
+        ['parent', createParentSession()],
+      ]),
+      activeSessionId: 'parent',
+    };
+
+    requestFrame = vi.fn(() => 41);
+    cancelFrame = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', requestFrame);
+    vi.stubGlobal('cancelAnimationFrame', cancelFrame);
+
+    resizeObserverCount = 0;
+    resizeObserverDisconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class {
+      constructor() {
+        resizeObserverCount += 1;
+      }
+      observe() {}
+      disconnect() {
+        resizeObserverDisconnect();
+      }
+    });
+
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+      .IS_REACT_ACT_ENVIRONMENT = true;
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    flowChatListeners.clear();
+    machineListeners.clear();
+    useReviewActionBarStore.getState().reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('pauses the message presentation subtree while ReviewActionBar stays live', async () => {
+    useReviewActionBarStore.getState().showRunningActionBar({
+      childSessionId: 'review-child',
+      parentSessionId: 'parent',
+      reviewMode: 'deep',
+    });
+    useReviewActionBarStore.getState().restore('review-child');
+    const scheduleTimeout = vi.spyOn(globalThis, 'setTimeout');
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive={false}
+        />,
+      );
+    });
+
+    expect(flowChatListeners.size).toBe(1);
+    expect(machineListeners.size).toBe(0);
+    expect(requestFrame).not.toHaveBeenCalled();
+    expect(scheduleTimeout).not.toHaveBeenCalled();
+    expect(resizeObserverCount).toBe(0);
+    expect(mockGetModeSkillConfigs).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="virtual-presentation-activity"]')?.getAttribute('data-active'))
+      .toBe('false');
+    expect(container.querySelector('[data-testid="review-action-presentation-activity"]')?.getAttribute('data-active'))
+      .toBe('true');
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+
+    expect(flowChatListeners.size).toBe(2);
+    expect(machineListeners.size).toBe(1);
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    expect(scheduleTimeout).toHaveBeenCalledWith(expect.any(Function), 500);
+    expect(resizeObserverCount).toBe(1);
+    expect(container.querySelector('[data-testid="virtual-presentation-activity"]')?.getAttribute('data-active'))
+      .toBe('true');
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive={false}
+        />,
+      );
+    });
+
+    expect(flowChatListeners.size).toBe(1);
+    expect(machineListeners.size).toBe(0);
+    expect(cancelFrame).toHaveBeenCalledWith(41);
+    expect(resizeObserverDisconnect).toHaveBeenCalled();
+
+    act(() => root.unmount());
+    root = createRoot(container);
+    expect(mockCancelSession).not.toHaveBeenCalled();
+    expect(mockBtwCancel).not.toHaveBeenCalled();
+  });
+
+  it('starts history hydration when a hidden child session appears without cancelling it', async () => {
+    flowChatState = {
+      sessions: new Map([['parent', createParentSession()]]),
+      activeSessionId: 'parent',
+    };
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="historical-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive={false}
+        />,
+      );
+    });
+    expect(mockLoadSessionHistory).not.toHaveBeenCalled();
+
+    const historicalSession = {
+      ...createDeepReviewSession(),
+      sessionId: 'historical-child',
+      title: 'Historical subagent',
+      dialogTurns: [],
+      sessionKind: 'subagent',
+      parentSessionId: 'parent',
+      parentToolCallId: 'task-1',
+      subagentType: 'Researcher',
+      isHistorical: true,
+    } as Session;
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        ['parent', createParentSession()],
+        ['historical-child', historicalSession],
+      ]),
+    };
+
+    await act(async () => {
+      flowChatListeners.forEach(listener => listener(flowChatState));
+      await Promise.resolve();
+    });
+
+    expect(mockLoadSessionHistory).toHaveBeenCalledWith(
+      'historical-child',
+      'D:/workspace/project',
+      undefined,
+      undefined,
+      undefined,
+      { includeInternal: true },
+    );
+    expect(mockCancelSession).not.toHaveBeenCalled();
+    expect(mockBtwCancel).not.toHaveBeenCalled();
+  });
+});
