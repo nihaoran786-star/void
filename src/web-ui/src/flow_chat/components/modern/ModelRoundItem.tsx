@@ -14,13 +14,12 @@ import type { ModelRound, FlowItem, FlowTextItem, FlowToolItem, FlowThinkingItem
 import { FlowTextBlock } from '../FlowTextBlock';
 import { FlowToolCard } from '../FlowToolCard';
 import { ModelThinkingDisplay } from '../../tool-cards/ModelThinkingDisplay';
-import { isCollapsibleTool } from '../../tool-cards';
-import { MediaGenerationToolGroupCard } from '../../tool-cards/MediaGenerationToolGroupCard';
+import { isCollapsibleTool } from '../../tool-cards/toolCardClassification';
+import { MediaGenerationToolGroupRenderer as FlowMediaToolGroupRenderer } from '../../tool-cards/MediaGenerationToolGroupRenderer';
 import {
   groupMediaToolsInModelRoundGroups,
   isMediaToolGroupRenderableItem,
   type MediaRenderableItem,
-  type MediaToolGroup,
 } from '../../tool-cards/mediaToolGrouping';
 import { useFlowChatContext } from './FlowChatContext';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
@@ -512,14 +511,6 @@ const RenderableItemRenderer: React.FC<RenderableItemRendererProps> = ({ item, s
       turnId={turnId}
       isLastItem={isLastItem}
     />
-  );
-};
-
-const FlowMediaToolGroupRenderer: React.FC<{ group: MediaToolGroup; sessionId?: string }> = ({ group, sessionId }) => {
-  return (
-    <div className="flowchat-flow-item" data-flow-item-id={group.id} data-flow-item-type="tool">
-      <MediaGenerationToolGroupCard group={group} sessionId={sessionId} />
-    </div>
   );
 };
 

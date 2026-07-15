@@ -224,4 +224,60 @@ describe('Web UI startup import boundaries', () => {
       expect(command).toContain('await MonacoHelper.getEditorFromElement');
     }
   });
+
+  it('keeps concrete Flow Chat tool cards outside the startup graph', () => {
+    const flowToolCard = readSource('../../flow_chat/components/FlowToolCard.tsx');
+    const flowToolCardErrorBoundary = readSource(
+      '../../flow_chat/components/FlowToolCardErrorBoundary.tsx',
+    );
+    const registry = readSource('../../flow_chat/tool-cards/toolCardRegistry.tsx');
+    const barrel = readSource('../../flow_chat/tool-cards/index.ts');
+    const classification = readSource('../../flow_chat/tool-cards/toolCardClassification.ts');
+    const modelRound = readSource('../../flow_chat/components/modern/ModelRoundItem.tsx');
+    const store = readSource('../../flow_chat/store/modernFlowChatStore.ts');
+    const mediaGroup = readSource('../../flow_chat/tool-cards/MediaGenerationToolGroupCard.tsx');
+    const mediaGroupRenderer = readSource(
+      '../../flow_chat/tool-cards/MediaGenerationToolGroupRenderer.tsx',
+    );
+    const componentRegistry = readSource('../../component-library/components/registry.tsx');
+
+    expect(flowToolCard).toContain("from '../tool-cards/toolCardMetadata'");
+    expect(flowToolCard).toContain("from '../tool-cards/toolCardRegistry'");
+    expect(flowToolCard).not.toContain("from '../tool-cards'");
+    expect(flowToolCard).toContain('<React.Suspense');
+    expect(flowToolCardErrorBoundary).toContain('isChunkLoadError(this.state.error)');
+    expect(flowToolCardErrorBoundary).toContain('reloadApplication()');
+
+    for (const moduleName of [
+      'ReadFileDisplay',
+      'FileOperationToolCard',
+      'TaskToolDisplay',
+      'CreatePlanDisplay',
+      'TerminalToolCard',
+      'MCPToolDisplay',
+      'DefaultToolCard',
+      'MediaGenerationToolCard',
+    ]) {
+      expect(registry).toContain(`import('./${moduleName}')`);
+      expect(registry).not.toMatch(new RegExp(`from ['"]\\./${moduleName}['"]`));
+    }
+
+    expect(barrel).not.toContain("export { PlanDisplay } from './CreatePlanDisplay'");
+    expect(classification).not.toContain("from 'react'");
+    expect(classification).not.toContain('toolCardRegistry');
+    expect(modelRound).toContain("from '../../tool-cards/toolCardClassification'");
+    expect(modelRound).toContain(
+      "from '../../tool-cards/MediaGenerationToolGroupRenderer'",
+    );
+    expect(modelRound).not.toContain(
+      "from '../../tool-cards/MediaGenerationToolGroupCard'",
+    );
+    expect(mediaGroupRenderer).toContain("import('./MediaGenerationToolGroupCard')");
+    expect(mediaGroupRenderer).toContain('<FlowToolCardErrorBoundary');
+    expect(store).toContain("from '../tool-cards/toolCardClassification'");
+    expect(mediaGroup).toContain("from './MediaGenerationToolCard'");
+    expect(componentRegistry).toContain(
+      "from '@/flow_chat/tool-cards/toolCardMetadata'",
+    );
+  });
 });

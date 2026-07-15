@@ -8,7 +8,12 @@ import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
 import { immer } from 'zustand/middleware/immer';
 import type { Session, DialogTurn, ModelRound, FlowItem, FlowToolItem, FlowUserSteeringItem } from '../types/flow-chat';
-import { isCollapsibleTool, READ_TOOL_NAMES, SEARCH_TOOL_NAMES, COMMAND_TOOL_NAMES } from '../tool-cards';
+import {
+  isCollapsibleTool,
+  READ_TOOL_NAMES,
+  SEARCH_TOOL_NAMES,
+  COMMAND_TOOL_NAMES,
+} from '../tool-cards/toolCardClassification';
 import { COMPLETED_TOOL_TRANSIENT_MS } from '../components/modern/modelRoundItemGrouping';
 import { flowChatStore } from './FlowChatStore';
 import { createLogger } from '@/shared/utils/logger';

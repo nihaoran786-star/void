@@ -1,6 +1,10 @@
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Component, type ReactNode } from 'react';
 import { CompactToolCard, CompactToolCardHeader } from '../tool-cards/CompactToolCard';
+import {
+  isChunkLoadError,
+  reloadApplication,
+} from '../tool-cards/chunkLoadRecovery';
 import type { FlowToolItem } from '../types/flow-chat';
 import { createLogger } from '@/shared/utils/logger';
 import {
@@ -64,6 +68,7 @@ function RenderFallback({
 }) {
   const componentStack = safeReactErrorInfo(errorInfo).componentStack;
   const toolId = toolItem.id ?? toolItem.toolCall?.id ?? 'unknown-tool-id';
+  const requiresReload = isChunkLoadError(error);
 
   return (
     <div data-tool-card-id={toolId} role="alert">
@@ -111,7 +116,7 @@ function RenderFallback({
                 type="button"
               >
                 <RefreshCw size={12} />
-                Retry render
+                {requiresReload ? 'Reload application' : 'Retry render'}
               </button>
             </div>
 
@@ -188,8 +193,18 @@ export class FlowToolCardErrorBoundary extends Component<Props, State> {
       return;
     }
 
-    const shouldReset =
+    const toolIdentityChanged =
       prevProps.toolItem.id !== this.props.toolItem.id ||
+      prevProps.toolItem.toolName !== this.props.toolItem.toolName;
+
+    // React.lazy and the browser module map cache rejected chunk loads. Keep a
+    // stable reload card while the same tool streams status/result updates.
+    if (isChunkLoadError(this.state.error) && !toolIdentityChanged) {
+      return;
+    }
+
+    const shouldReset =
+      toolIdentityChanged ||
       prevProps.toolItem.status !== this.props.toolItem.status ||
       prevProps.toolItem.toolResult !== this.props.toolItem.toolResult ||
       prevProps.toolItem.partialParams !== this.props.toolItem.partialParams ||
@@ -205,6 +220,11 @@ export class FlowToolCardErrorBoundary extends Component<Props, State> {
   }
 
   private handleRetry = () => {
+    if (isChunkLoadError(this.state.error)) {
+      reloadApplication();
+      return;
+    }
+
     this.setState({
       hasError: false,
       error: undefined,

@@ -4,7 +4,9 @@
  */
 
 import React from 'react';
-import { getToolCardConfig, getToolCardComponent } from '../tool-cards';
+import { getToolCardConfig } from '../tool-cards/toolCardMetadata';
+import { getToolCardComponent } from '../tool-cards/toolCardRegistry';
+import { CompactToolCard, CompactToolCardHeader } from '../tool-cards/CompactToolCard';
 import type { FlowToolItem, ToolCardDisplayContext } from '../types/flow-chat';
 import { createLogger } from '@/shared/utils/logger';
 import { FlowToolCardErrorBoundary } from './FlowToolCardErrorBoundary';
@@ -70,18 +72,32 @@ export const FlowToolCard: React.FC<FlowToolCardProps> = React.memo(({
         displayName={config.displayName}
         sessionId={sessionId}
       >
-        <CardComponent
-          toolItem={toolItem}
-          config={config}
-          interruptionNote={interruptionNote}
-          onConfirm={handleConfirm}
-          onReject={handleReject}
-          onOpenInEditor={onOpenInEditor}
-          onOpenInPanel={onOpenInPanel}
-          onExpand={handleExpand}
-          sessionId={sessionId}
-          displayContext={displayContext}
-        />
+        <React.Suspense
+          fallback={(
+            <CompactToolCard
+              status={toolItem.status}
+              header={(
+                <CompactToolCardHeader
+                  action={config.displayName}
+                  content={t('toolCards.common.loading', { defaultValue: 'Loading…' })}
+                />
+              )}
+            />
+          )}
+        >
+          <CardComponent
+            toolItem={toolItem}
+            config={config}
+            interruptionNote={interruptionNote}
+            onConfirm={handleConfirm}
+            onReject={handleReject}
+            onOpenInEditor={onOpenInEditor}
+            onOpenInPanel={onOpenInPanel}
+            onExpand={handleExpand}
+            sessionId={sessionId}
+            displayContext={displayContext}
+          />
+        </React.Suspense>
       </FlowToolCardErrorBoundary>
       {interruptionNote && !cardHandlesInterruptionNote && (
         <div className="flow-tool-card-note" role="note">

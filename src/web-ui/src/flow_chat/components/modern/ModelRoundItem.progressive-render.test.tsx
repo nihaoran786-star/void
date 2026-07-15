@@ -247,8 +247,8 @@ describe('ModelRoundItem progressive rendering', () => {
     expect(renderedItems[0]?.textContent).toBe('assistant text 0');
   });
 
-  it('keeps media tool groups visible by rendering media rounds fully', () => {
-    act(() => {
+  it('keeps media tool groups visible by rendering media rounds fully', async () => {
+    await act(async () => {
       root.render(
         <FlowChatContext.Provider value={{ sessionId: 'session-1' }}>
           <ModelRoundItem
@@ -264,6 +264,7 @@ describe('ModelRoundItem progressive rendering', () => {
           />
         </FlowChatContext.Provider>,
       );
+      await Promise.resolve();
     });
 
     const renderedTextItems = Array.from(container.querySelectorAll('.mock-flow-text-block'));

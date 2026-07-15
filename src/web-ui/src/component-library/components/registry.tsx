@@ -37,7 +37,7 @@ import { GitToolDisplay } from '@/flow_chat/tool-cards/GitToolDisplay';
 import { CreatePlanDisplay } from '@/flow_chat/tool-cards/CreatePlanDisplay';
 import { InitMiniAppDisplay } from '@/flow_chat/tool-cards/MiniAppToolDisplay';
 import type { FlowToolItem, FlowThinkingItem } from '@/flow_chat/types/flow-chat';
-import { TOOL_CARD_CONFIGS } from '@/flow_chat/tool-cards';
+import { TOOL_CARD_CONFIGS } from '@/flow_chat/tool-cards/toolCardMetadata';
 import { ModelThinkingDisplay } from '@/flow_chat/tool-cards/ModelThinkingDisplay';
 import { ReproductionStepsBlock } from '@components/Markdown/ReproductionStepsBlock';
 
