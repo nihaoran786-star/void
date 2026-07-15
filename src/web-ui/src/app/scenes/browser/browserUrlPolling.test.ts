@@ -100,6 +100,27 @@ describe('startBrowserUrlPolling', () => {
     expect(visibility.listenerCount()).toBe(0);
   });
 
+  it('reports the source label with each URL result', async () => {
+    const visibility = new TestVisibility();
+    const timers = new TestTimers();
+    const onUrl = vi.fn();
+
+    const stop = startBrowserUrlPolling({
+      label: 'browser-source',
+      visibility,
+      timers,
+      readUrl: vi.fn(async () => 'https://source.example.com'),
+      onUrl,
+    });
+
+    timers.tick();
+    await Promise.resolve();
+
+    expect(onUrl).toHaveBeenCalledWith('browser-source', 'https://source.example.com');
+
+    stop();
+  });
+
   it('does not start another URL read while the previous read is pending', () => {
     const visibility = new TestVisibility();
     const timers = new TestTimers();
@@ -147,5 +168,48 @@ describe('startBrowserUrlPolling', () => {
     expect(onUrl).not.toHaveBeenCalled();
     expect(timers.activeCount()).toBe(0);
     expect(visibility.listenerCount()).toBe(0);
+  });
+
+  it('does not deliver an old result after a replacement poller starts', async () => {
+    const visibility = new TestVisibility();
+    const timers = new TestTimers();
+    const oldRead = createDeferred<string>();
+    const onUrl = vi.fn();
+
+    const stopOld = startBrowserUrlPolling({
+      label: 'browser-old',
+      visibility,
+      timers,
+      readUrl: () => oldRead.promise,
+      onUrl,
+    });
+
+    timers.tick();
+    stopOld();
+
+    const stopCurrent = startBrowserUrlPolling({
+      label: 'browser-current',
+      visibility,
+      timers,
+      readUrl: vi.fn(async () => 'https://current.example.com'),
+      onUrl,
+    });
+
+    timers.tick();
+    await Promise.resolve();
+
+    expect(onUrl).toHaveBeenCalledTimes(1);
+    expect(onUrl).toHaveBeenLastCalledWith(
+      'browser-current',
+      'https://current.example.com',
+    );
+
+    oldRead.resolve('https://old.example.com');
+    await oldRead.promise;
+    await Promise.resolve();
+
+    expect(onUrl).toHaveBeenCalledTimes(1);
+
+    stopCurrent();
   });
 });

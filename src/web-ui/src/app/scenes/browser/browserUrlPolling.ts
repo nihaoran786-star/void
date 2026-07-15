@@ -15,7 +15,7 @@ export interface StartBrowserUrlPollingOptions {
   visibility?: BrowserPollingVisibility;
   timers?: BrowserPollingTimers;
   readUrl?: (label: string) => Promise<string>;
-  onUrl: (url: string) => void;
+  onUrl: (sourceLabel: string, url: string) => void;
 }
 
 const defaultTimers: BrowserPollingTimers = {
@@ -55,7 +55,7 @@ export function startBrowserUrlPolling(options: StartBrowserUrlPollingOptions): 
     try {
       const url = await readUrl(label);
       if (!disposed) {
-        onUrl(url);
+        onUrl(label, url);
       }
     } catch {
       // URL polling is best-effort; the next interval can retry.

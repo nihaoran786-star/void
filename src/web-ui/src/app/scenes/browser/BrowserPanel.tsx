@@ -129,6 +129,8 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const resizeFrameRef = useRef<number | null>(null);
   const webviewLabelRef = useRef<string>('');
   const inspectorUnlistenRef = useRef<(() => void) | null>(null);
+  const webviewGenerationRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   const [inputValue, setInputValue] = useState(startUrl);
   const [currentUrl, setCurrentUrl] = useState(startUrl);
@@ -136,6 +138,14 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const [error, setError] = useState<string | null>(null);
   const [isInspectorActive, setIsInspectorActive] = useState(false);
   const [pollingLabel, setPollingLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      webviewGenerationRef.current += 1;
+    };
+  }, []);
 
   const addContext = useContextStore((s) => s.addContext);
 
@@ -166,16 +176,19 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   const closeWebview = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
     if (!target) return;
+
+    if (target === webviewRef.current) {
+      webviewRef.current = null;
+      webviewLabelRef.current = '';
+      if (isMountedRef.current) {
+        setPollingLabel(null);
+      }
+    }
+
     try {
       await target.close();
     } catch (e) {
       if (!isWebviewNotFoundError(e)) log.warn('Close browser panel webview failed', e);
-    } finally {
-      if (!handle || target === webviewRef.current) {
-        webviewRef.current = null;
-        webviewLabelRef.current = '';
-        setPollingLabel(null);
-      }
     }
   }, []);
 
@@ -208,13 +221,23 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
   }, []);
 
   const recreateWebview = useCallback(async (url: string) => {
+    const generation = ++webviewGenerationRef.current;
     const previous = webviewRef.current;
     if (previous) await closeWebview(previous);
+
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      return null;
+    }
 
     const [{ Webview }, { getCurrentWindow }] = await Promise.all([
       import('@tauri-apps/api/webview'),
       import('@tauri-apps/api/window'),
     ]);
+
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      return null;
+    }
+
     const label = createBrowserPanelWebviewLabel();
     const handle = new Webview(getCurrentWindow(), label, {
       url,
@@ -225,14 +248,24 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     }) as unknown as BrowserWebviewHandle;
 
     await waitForWebviewCreated(handle);
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      await closeWebview(handle);
+      return null;
+    }
+
     webviewRef.current = handle;
     webviewLabelRef.current = label;
     setPollingLabel(label);
     return handle;
   }, [closeWebview]);
 
-  const handlePolledUrl = useCallback((url: string) => {
-    if (!url || url === currentUrlRef.current) {
+  const handlePolledUrl = useCallback((sourceLabel: string, url: string) => {
+    if (
+      !isMountedRef.current ||
+      sourceLabel !== webviewLabelRef.current ||
+      !url ||
+      url === currentUrlRef.current
+    ) {
       return;
     }
 
@@ -241,13 +274,14 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
     setCurrentUrl(url);
     setError(null);
 
-    const label = webviewLabelRef.current;
-    if (label) {
-      void evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
-    }
+    void evalWebview(sourceLabel, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
   }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     const nextUrl = normalizeUrl(rawUrl);
     setInputValue(nextUrl);
     setCurrentUrl(nextUrl);
@@ -271,20 +305,40 @@ const BrowserPanel: React.FC<BrowserPanelProps> = ({ isActive, initialUrl }) => 
       await checkConnectivity(nextUrl, { skipLoopbackCheck: true });
 
       const handle = await recreateWebview(nextUrl);
+      if (!handle) {
+        return;
+      }
+
       await syncWebviewBounds(handle);
+      if (!isMountedRef.current || handle !== webviewRef.current) {
+        return;
+      }
+
       if (shouldShowWebview) {
         await handle.show();
+        if (!isMountedRef.current || handle !== webviewRef.current) {
+          return;
+        }
         await handle.setFocus();
       }
 
       const label = webviewLabelRef.current;
+      if (!isMountedRef.current || handle !== webviewRef.current || !label) {
+        return;
+      }
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
     } catch (loadError) {
+      if (!isMountedRef.current) {
+        return;
+      }
+
       const message = formatUnknownError(loadError);
       log.error('Load browser panel url failed', loadError);
       setError(message);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [isTauri, recreateWebview, shouldShowWebview, syncWebviewBounds]);
 

@@ -147,12 +147,22 @@ const BrowserScene: React.FC = () => {
   const currentUrlRef = useRef<string>(DEFAULT_URL);
   const resizeFrameRef = useRef<number | null>(null);
   const webviewLabelRef = useRef<string>('');
+  const webviewGenerationRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   const [inputValue, setInputValue] = useState(DEFAULT_URL);
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_URL);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollingLabel, setPollingLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      webviewGenerationRef.current += 1;
+    };
+  }, []);
 
   const syncWebviewBounds = useCallback(async (handle?: BrowserWebviewHandle | null) => {
     const target = handle ?? webviewRef.current;
@@ -181,17 +191,19 @@ const BrowserScene: React.FC = () => {
       return;
     }
 
+    if (target === webviewRef.current) {
+      webviewRef.current = null;
+      webviewLabelRef.current = '';
+      if (isMountedRef.current) {
+        setPollingLabel(null);
+      }
+    }
+
     try {
       await target.close();
     } catch (closeError) {
       if (!isWebviewNotFoundError(closeError)) {
         log.warn('Close browser webview failed', closeError);
-      }
-    } finally {
-      if (!handle || target === webviewRef.current) {
-        webviewRef.current = null;
-        webviewLabelRef.current = '';
-        setPollingLabel(null);
       }
     }
   }, []);
@@ -227,15 +239,25 @@ const BrowserScene: React.FC = () => {
   }, []);
 
   const recreateWebview = useCallback(async (url: string) => {
+    const generation = ++webviewGenerationRef.current;
     const previous = webviewRef.current;
     if (previous) {
       await closeWebview(previous);
+    }
+
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      return null;
     }
 
     const [{ Webview }, { getCurrentWindow }] = await Promise.all([
       import('@tauri-apps/api/webview'),
       import('@tauri-apps/api/window'),
     ]);
+
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      return null;
+    }
+
     const nextLabel = `embedded-browser-view-${webviewSequenceRef.current++}`;
     const handle = new Webview(getCurrentWindow(), nextLabel, {
       url,
@@ -246,14 +268,24 @@ const BrowserScene: React.FC = () => {
     }) as unknown as BrowserWebviewHandle;
 
     await waitForWebviewCreated(handle);
+    if (!isMountedRef.current || generation !== webviewGenerationRef.current) {
+      await closeWebview(handle);
+      return null;
+    }
+
     webviewRef.current = handle;
     webviewLabelRef.current = nextLabel;
     setPollingLabel(nextLabel);
     return handle;
   }, [closeWebview]);
 
-  const handlePolledUrl = useCallback((url: string) => {
-    if (!url || url === currentUrlRef.current) {
+  const handlePolledUrl = useCallback((sourceLabel: string, url: string) => {
+    if (
+      !isMountedRef.current ||
+      sourceLabel !== webviewLabelRef.current ||
+      !url ||
+      url === currentUrlRef.current
+    ) {
       return;
     }
 
@@ -262,13 +294,14 @@ const BrowserScene: React.FC = () => {
     setCurrentUrl(url);
     setError(null);
 
-    const label = webviewLabelRef.current;
-    if (label) {
-      void evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
-    }
+    void evalWebview(sourceLabel, BLANK_TARGET_INTERCEPT_SCRIPT).catch(() => {});
   }, []);
 
   const loadUrl = useCallback(async (rawUrl: string) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
     const nextUrl = normalizeUrl(rawUrl);
     setInputValue(nextUrl);
     setCurrentUrl(nextUrl);
@@ -286,20 +319,40 @@ const BrowserScene: React.FC = () => {
       await checkConnectivity(nextUrl);
 
       const handle = await recreateWebview(nextUrl);
+      if (!handle) {
+        return;
+      }
+
       await syncWebviewBounds(handle);
+      if (!isMountedRef.current || handle !== webviewRef.current) {
+        return;
+      }
+
       if (isActive) {
         await handle.show();
+        if (!isMountedRef.current || handle !== webviewRef.current) {
+          return;
+        }
         await handle.setFocus();
       }
 
       const label = webviewLabelRef.current;
+      if (!isMountedRef.current || handle !== webviewRef.current || !label) {
+        return;
+      }
       await evalWebview(label, BLANK_TARGET_INTERCEPT_SCRIPT);
     } catch (loadError) {
+      if (!isMountedRef.current) {
+        return;
+      }
+
       const message = formatUnknownError(loadError);
       log.error('Load browser url failed', loadError);
       setError(message);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [isActive, isTauri, recreateWebview, syncWebviewBounds]);
 
