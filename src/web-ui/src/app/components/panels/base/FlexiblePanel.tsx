@@ -978,7 +978,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       )}
 
       <div className="void-flexible-panel__content">
-        <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('loading')}</div>}>
+        <React.Suspense fallback={<div className="void-flexible-panel__loading">{t('loading.text')}</div>}>
           {renderContent()}
         </React.Suspense>
       </div>

@@ -28,6 +28,7 @@ describe('Web UI startup import boundaries', () => {
 
   it('loads optional panel implementations from concrete module boundaries', () => {
     const source = readSource('../components/panels/base/FlexiblePanel.tsx');
+    const componentLibraryBarrel = readSource('../../component-library/components/index.ts');
 
     expect(source).not.toContain("from '@/tools/editor'");
     expect(source).not.toContain(
@@ -45,8 +46,9 @@ describe('Web UI startup import boundaries', () => {
     );
     expect(source).toContain('default: module.ShortDramaCenterPanel');
     expect(source).toMatch(
-      /<React\.Suspense\s+fallback=\{<div className="void-flexible-panel__loading">\{t\('loading'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
+      /<React\.Suspense\s+fallback=\{<div className="void-flexible-panel__loading">\{t\('loading\.text'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
     );
+    expect(componentLibraryBarrel).not.toContain("export * from './CodeEditor'");
   });
 
   it('keeps lightweight short-drama entries independent of the feature barrel', () => {

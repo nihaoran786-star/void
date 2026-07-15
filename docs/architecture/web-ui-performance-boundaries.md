@@ -5,6 +5,7 @@
 ## 依赖边界
 
 - 应用 bootstrap（例如 `main.tsx`）不得静态导入 Monaco、终端、短剧中心等可选功能 runtime。可选 runtime 只能由所属 feature 在首次使用时加载。
+- 共享组件总入口不得再导出依赖 Monaco 等大型 runtime 的组件。重型组件应通过专用路径按需导入；组件预览等明确消费者也必须走该专用路径。
 - 空状态、标签栏和其他轻量入口不得导入完整 feature barrel。入口应直接引用轻量组件文件；重型面板应使用指向具体实现文件的动态导入。
 - UI、route 和应用入口只负责组合与渲染。文件系统、Tauri、网络等外部系统访问必须经过所属 feature 的 adapter 或 service。
 - 类型依赖必须使用 type-only import。只有实际需要 registry fallback 时，才允许动态加载对应 runtime。
