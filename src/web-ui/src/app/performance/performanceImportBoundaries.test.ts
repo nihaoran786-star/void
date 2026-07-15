@@ -29,6 +29,14 @@ describe('Web UI startup import boundaries', () => {
     expect(themeBarrel).not.toContain('monacoThemeSync');
   });
 
+  it('keeps settings outside the primary session scene bundle', () => {
+    const source = readSource('../scenes/SceneViewport.tsx');
+
+    expect(source).toContain("import SessionScene from './session/SessionScene'");
+    expect(source).toContain("lazy(() => import('./settings/SettingsScene'))");
+    expect(source).not.toContain("import SettingsScene from './settings/SettingsScene'");
+  });
+
   it('loads optional panel implementations from concrete module boundaries', () => {
     const source = readSource('../components/panels/base/FlexiblePanel.tsx');
     const componentLibraryBarrel = readSource('../../component-library/components/index.ts');
@@ -59,6 +67,63 @@ describe('Web UI startup import boundaries', () => {
     expect(componentLibraryCodeEditor).toContain("export type { CodeEditorProps }");
     expect(componentLibraryCodeEditor).not.toContain(
       "export { CodeEditor } from './CodeEditor'",
+    );
+  });
+
+  it('loads terminal implementations from concrete module boundaries', () => {
+    const terminalToolCard = readSource(
+      '../../flow_chat/tool-cards/TerminalToolCard.tsx',
+    );
+    const flexiblePanel = readSource('../components/panels/base/FlexiblePanel.tsx');
+    const shellNav = readSource('../scenes/shell/ShellNav.tsx');
+    const terminalSessions = readSource(
+      '../scenes/shell/hooks/useTerminalSessions.ts',
+    );
+    const basicsConfig = readSource(
+      '../../infrastructure/config/components/BasicsConfig.tsx',
+    );
+
+    expect(terminalToolCard).toContain(
+      "from '@/tools/terminal/components/LazyTerminalOutputRenderer'",
+    );
+    expect(terminalToolCard).not.toContain("from '@/tools/terminal/components'");
+    expect(flexiblePanel).toContain(
+      "import('@/tools/terminal/components/ConnectedTerminal')",
+    );
+    expect(flexiblePanel).not.toContain("import('@/tools/terminal')");
+    expect(shellNav).toContain(
+      "from '@/tools/terminal/services/TerminalService'",
+    );
+    expect(shellNav).toContain("from '@/tools/terminal/types/session'");
+    expect(terminalSessions).toContain(
+      "from '@/tools/terminal/services/TerminalService'",
+    );
+    expect(basicsConfig).toContain(
+      "from '@/tools/terminal/services/TerminalService'",
+    );
+  });
+
+  it('keeps the Markdown facade lightweight while preserving call sites', () => {
+    const markdownFacade = readSource(
+      '../../component-library/components/Markdown/index.ts',
+    );
+    const modelThinkingDisplay = readSource(
+      '../../flow_chat/tool-cards/ModelThinkingDisplay.tsx',
+    );
+    const taskToolDisplay = readSource(
+      '../../flow_chat/tool-cards/TaskToolDisplay.tsx',
+    );
+
+    expect(markdownFacade).toContain("import('./Markdown')");
+    expect(markdownFacade).toContain("lazy(() =>");
+    expect(markdownFacade).toContain("String(content ?? '')");
+    expect(markdownFacade).toContain("whiteSpace: 'pre-wrap'");
+    expect(markdownFacade).not.toContain("export { Markdown } from './Markdown'");
+    expect(modelThinkingDisplay).toContain(
+      "from '@/component-library/components/Markdown'",
+    );
+    expect(taskToolDisplay).toContain(
+      "from '@/component-library/components/Markdown'",
     );
   });
 

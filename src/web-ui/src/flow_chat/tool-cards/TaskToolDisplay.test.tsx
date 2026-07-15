@@ -31,7 +31,7 @@ vi.mock('../../component-library', () => ({
   CubeLoading: () => <span data-testid="cube-loading" />,
 }));
 
-vi.mock('@/component-library/components/Markdown/Markdown', () => ({
+vi.mock('@/component-library/components/Markdown', () => ({
   Markdown: ({ content }: { content: string }) => <div>{content}</div>,
 }));
 

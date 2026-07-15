@@ -11,7 +11,7 @@ import {
 
 import { useTranslation } from 'react-i18next';
 import { CubeLoading, Button } from '../../component-library';
-import { Markdown } from '@/component-library/components/Markdown/Markdown';
+import { Markdown } from '@/component-library/components/Markdown';
 import type { FlowToolItem, ToolCardProps } from '../types/flow-chat';
 import { BaseToolCard } from './BaseToolCard';
 import { ToolCardIconSlot } from './ToolCardIconSlot';

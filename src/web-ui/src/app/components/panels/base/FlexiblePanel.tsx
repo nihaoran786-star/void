@@ -90,9 +90,7 @@ const PlanViewer = React.lazy(() =>
 
 // Uses ConnectedTerminal to auto-connect backend
 const TerminalTabPanel = React.lazy(() => 
-  import('@/tools/terminal').then(module => ({ 
-    default: module.ConnectedTerminal 
-  }))
+  import('@/tools/terminal/components/ConnectedTerminal')
 );
 
 const BrowserPanel = React.lazy(() =>

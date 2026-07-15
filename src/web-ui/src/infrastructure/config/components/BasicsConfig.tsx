@@ -13,7 +13,7 @@ import {
 import { configAPI, workspaceAPI } from '@/infrastructure/api';
 import { systemAPI } from '@/infrastructure/api/service-api/SystemAPI';
 import type { CloseBehavior } from '@/infrastructure/api/service-api/SystemAPI';
-import { getTerminalService } from '@/tools/terminal';
+import { getTerminalService } from '@/tools/terminal/services/TerminalService';
 import type { ShellInfo } from '@/tools/terminal/types/session';
 import {
   ConfigPageContent,

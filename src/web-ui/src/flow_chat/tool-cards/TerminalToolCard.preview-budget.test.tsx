@@ -37,7 +37,7 @@ vi.mock('../../component-library', () => ({
   ),
 }));
 
-vi.mock('@/tools/terminal/components', () => ({
+vi.mock('@/tools/terminal/components/LazyTerminalOutputRenderer', () => ({
   LazyTerminalOutputRenderer: ({ content, maxHeight }: { content: string; maxHeight?: number }) => {
     mocks.renderedTerminalOutputs.push({ content, maxHeight });
     return <pre data-testid="terminal-output-preview">{content}</pre>;
