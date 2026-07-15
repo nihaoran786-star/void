@@ -10,9 +10,10 @@ const ProfileScene = lazy(() => import('../profile/ProfileScene'));
 
 interface AssistantSceneProps {
   workspacePath?: string;
+  isActive?: boolean;
 }
 
-const AssistantScene: React.FC<AssistantSceneProps> = ({ workspacePath }) => {
+const AssistantScene: React.FC<AssistantSceneProps> = ({ workspacePath, isActive = true }) => {
   const { t } = useI18n('common');
   const selectedAssistantWorkspaceId = useMyAgentStore((s) => s.selectedAssistantWorkspaceId);
   const setSelectedAssistantWorkspaceId = useMyAgentStore((s) => s.setSelectedAssistantWorkspaceId);
@@ -85,6 +86,7 @@ const AssistantScene: React.FC<AssistantSceneProps> = ({ workspacePath }) => {
         <ProfileScene
           key={resolvedAssistantWorkspace?.id ?? 'default-assistant-workspace'}
           workspacePath={resolvedAssistantWorkspace?.rootPath ?? workspacePath}
+          isActive={isActive}
         />
       </Suspense>
     </div>

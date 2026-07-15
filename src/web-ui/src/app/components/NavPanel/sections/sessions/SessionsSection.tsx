@@ -36,9 +36,11 @@ import {
   resolveSessionNavListState,
 } from './sessionNavSelection';
 import {
-  deriveSessionReviewActivity,
+  deriveSessionReviewActivities,
   isReviewActivityBlocking,
 } from '@/flow_chat/utils/sessionReviewActivity';
+import { useSessionNavProjection } from './sessionNavProjection';
+import { useSessionRunningPresentation } from './sessionRunningPresentation';
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { sessionAPI } from '@/infrastructure/api/service-api/SessionAPI';
 import { confirmWarning } from '@/component-library/components/ConfirmDialog/confirmService';
@@ -96,7 +98,7 @@ const getReviewActivityBadge = (kind: 'review' | 'deep_review'): string =>
     },
   );
 
-interface SessionsSectionProps {
+export interface SessionsSectionProps {
   workspaceId?: string;
   workspacePath?: string;
   /** Remote SSH: same `workspacePath` on different hosts must filter by this (see Session.remoteConnectionId). */
@@ -118,7 +120,6 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
   workspacePath,
   remoteConnectionId = null,
   remoteSshHost = null,
-  isActiveWorkspace: _isActiveWorkspace = true,
   assistantLabel,
   showSessionModeIcon = true,
   isVisible = true,
@@ -131,9 +132,35 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
   const activeBtwSessionData = activeBtwSessionTab?.content.data as
     | { childSessionId: string; parentSessionId: string; workspacePath?: string }
     | undefined;
-  const [flowChatState, setFlowChatState] = useState<FlowChatState>(() =>
-    flowChatStore.getState()
+  const presentedFlowChatState = useSessionNavProjection(isVisible);
+  const sessions = useMemo(
+    () =>
+      Array.from(presentedFlowChatState.sessions.values())
+        .filter((session: Session) => {
+          if (session.isTransient || session.sessionKind === 'subagent') {
+            return false;
+          }
+          if (workspacePath) {
+            return sessionBelongsToWorkspaceNavRow(
+              session,
+              workspacePath,
+              remoteConnectionId,
+              remoteSshHost,
+            );
+          }
+          return !session.workspacePath;
+        })
+        .sort(compareSessionsForNavStable),
+    [presentedFlowChatState.sessions, workspacePath, remoteConnectionId, remoteSshHost],
   );
+  const sectionSessions = useMemo(
+    () => new Map(sessions.map(session => [session.sessionId, session])),
+    [sessions],
+  );
+  const sectionFlowChatState = useMemo<FlowChatState>(() => ({
+    activeSessionId: presentedFlowChatState.activeSessionId,
+    sessions: sectionSessions,
+  }), [presentedFlowChatState.activeSessionId, sectionSessions]);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [expandLevel, setExpandLevel] = useState<0 | 1 | 2>(0);
@@ -150,40 +177,23 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
   });
   const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null);
   const [sessionMenuPosition, setSessionMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const [runningSessionIds, setRunningSessionIds] = useState<Set<string>>(new Set());
+  const runningSessionIds = useSessionRunningPresentation(
+    sectionSessions,
+    isVisible,
+  );
+  const reviewActivitiesByParent = useMemo(
+    () => deriveSessionReviewActivities(
+      sectionFlowChatState,
+      id => runningSessionIds.has(id)
+        ? SessionExecutionState.PROCESSING
+        : stateMachineManager.getCurrentState(id),
+    ),
+    [runningSessionIds, sectionFlowChatState],
+  );
   const editInputRef = useRef<HTMLInputElement>(null);
   const sessionMenuPopoverRef = useRef<HTMLDivElement>(null);
   const sessionMenuAnchorRef = useRef<HTMLButtonElement>(null);
   const metadataLoadRequestIdRef = useRef(0);
-
-  // Subscribe to state machine changes for running status
-  useEffect(() => {
-    const updateRunningSessions = () => {
-      const running = new Set<string>();
-      for (const session of flowChatState.sessions.values()) {
-        const machine = stateMachineManager.get(session.sessionId);
-        if (
-          machine &&
-          (machine.getCurrentState() === SessionExecutionState.PROCESSING ||
-            machine.getCurrentState() === SessionExecutionState.FINISHING)
-        ) {
-          running.add(session.sessionId);
-        }
-      }
-      setRunningSessionIds(running);
-    };
-
-    updateRunningSessions();
-    const unsubscribe = stateMachineManager.subscribeGlobal(() => {
-      updateRunningSessions();
-    });
-    return () => unsubscribe();
-  }, [flowChatState.sessions]);
-
-  useEffect(() => {
-    const unsub = flowChatStore.subscribe(s => setFlowChatState(s));
-    return () => unsub();
-  }, []);
 
   useEffect(() => {
     if (editingSessionId && editInputRef.current) {
@@ -314,25 +324,6 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
     return () => window.removeEventListener('void:session-switched', handleSessionSwitched);
   }, []);
 
-  const sessions = useMemo(
-    () =>
-      Array.from(flowChatState.sessions.values())
-        .filter((s: Session) => {
-          if (s.isTransient) {
-            return false;
-          }
-          if (s.sessionKind === 'subagent') {
-            return false;
-          }
-          if (workspacePath) {
-            return sessionBelongsToWorkspaceNavRow(s, workspacePath, remoteConnectionId, remoteSshHost);
-          }
-          return !s.workspacePath;
-        })
-        .sort(compareSessionsForNavStable),
-    [flowChatState.sessions, workspacePath, remoteConnectionId, remoteSshHost]
-  );
-
   const { topLevelSessions, childrenByParent } = useMemo(() => {
     const childMap = new Map<string, Session[]>();
     const parents: Session[] = [];
@@ -350,12 +341,8 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
       }
     }
 
-    for (const [pid, list] of childMap) {
-      childMap.set(pid, [...list].sort(compareSessionsForNavStable));
-    }
-
     return {
-      topLevelSessions: [...parents].sort(compareSessionsForNavStable),
+      topLevelSessions: parents,
       childrenByParent: childMap,
     };
   }, [sessions]);
@@ -388,7 +375,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
     return out;
   }, [childrenByParent, sessionDisplayLimit, topLevelSessions]);
 
-  const activeSessionId = flowChatState.activeSessionId;
+  const activeSessionId = presentedFlowChatState.activeSessionId;
 
   const handleSwitch = useCallback(
     async (sessionId: string) => {
@@ -639,11 +626,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           const relationship = resolveSessionRelationship(session);
           const isChildSession = level === 1 && relationship.displayAsChild;
           const childSessionBadge = getChildSessionBadge(relationship.kind);
-          const parentReviewActivity = deriveSessionReviewActivity(
-            flowChatState,
-            session.sessionId,
-            id => stateMachineManager.getCurrentState(id),
-          );
+          const parentReviewActivity = reviewActivitiesByParent.get(session.sessionId);
           const showParentReviewActivity = !isChildSession && isReviewActivityBlocking(parentReviewActivity);
           const showChildReviewActivity =
             isChildSession && relationship.isReview && runningSessionIds.has(session.sessionId);
@@ -658,7 +641,7 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
           const isAutomationSession =
             session.isAutomationSession === true || isAutomationSessionTitle(sessionTitle);
           const parentSessionId = relationship.parentSessionId;
-          const parentSession = parentSessionId ? flowChatState.sessions.get(parentSessionId) : undefined;
+          const parentSession = parentSessionId ? sectionSessions.get(parentSessionId) : undefined;
           const parentTitle = parentSession ? resolveSessionTitle(parentSession) : '';
           const parentTurnIndex = relationship.origin?.parentTurnIndex;
           const trimmedAssistant = assistantLabel?.trim() ?? '';

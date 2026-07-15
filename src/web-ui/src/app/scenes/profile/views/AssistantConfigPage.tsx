@@ -22,7 +22,7 @@ import { useMyAgentStore } from '@/app/scenes/my-agent/myAgentStore';
 import { useAgentIdentityDocument } from '@/app/scenes/my-agent/useAgentIdentityDocument';
 import { useTheme } from '@/infrastructure/theme/hooks/useTheme';
 import { MEditor } from '@/tools/editor/meditor';
-import SessionsSection from '@/app/components/NavPanel/sections/sessions/SessionsSection';
+import DeferredSessionsSection from '@/app/components/NavPanel/sections/sessions/DeferredSessionsSection';
 import AssistantQuickInput from './AssistantQuickInput';
 import { useNurseryStore } from '../nurseryStore';
 import { useSceneManager } from '@/app/hooks/useSceneManager';
@@ -52,7 +52,11 @@ interface PersonaDocState {
   error: string | null;
 }
 
-const AssistantConfigPage: React.FC = () => {
+interface AssistantConfigPageProps {
+  isActive?: boolean;
+}
+
+const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = true }) => {
   const { t } = useTranslation('scenes/profile');
   const { openScene } = useSceneManager();
   const { isLight } = useTheme();
@@ -453,11 +457,12 @@ const AssistantConfigPage: React.FC = () => {
           />
           <div className="acp-sessions-area">
             <h2 className="acp-sessions-area__title">{t('nursery.assistant.sessionsSectionTitle')}</h2>
-            <SessionsSection
+            <DeferredSessionsSection
               workspaceId={workspace?.id}
               workspacePath={workspacePath}
               assistantLabel={identityName}
               isActiveWorkspace
+              isVisible={isActive}
               showSessionModeIcon={false}
             />
           </div>

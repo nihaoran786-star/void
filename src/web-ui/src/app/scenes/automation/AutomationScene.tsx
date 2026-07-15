@@ -9,7 +9,7 @@ import { i18nService } from '@/infrastructure/i18n';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import { flowChatManager } from '@/flow_chat/services/FlowChatManager';
-import type { FlowChatState, Session } from '@/flow_chat/types/flow-chat';
+import type { Session } from '@/flow_chat/types/flow-chat';
 import { compareSessionsForDisplay } from '@/flow_chat/utils/sessionOrdering';
 import { resolveSessionTitle } from '@/flow_chat/utils/sessionTitle';
 import { notificationService } from '@/shared/notification-system/services/NotificationService';
@@ -33,6 +33,7 @@ import { DayView } from './DayView';
 import { ListView } from './ListView';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { CreateTaskDialog } from './CreateTaskDialog';
+import { useAutomationFlowChatState } from './useAutomationFlowChatState';
 import './AutomationScene.scss';
 
 const log = createLogger('AutomationScene');
@@ -59,7 +60,11 @@ function backfillAutomationSessionMarkers(jobs: CronJob[]): void {
   });
 }
 
-const AutomationScene: React.FC = () => {
+interface AutomationSceneProps {
+  isActive?: boolean;
+}
+
+const AutomationScene: React.FC<AutomationSceneProps> = ({ isActive = true }) => {
   const { t } = useI18n('common');
   const { t: tAutomation } = useI18n('scenes/automation');
   const {
@@ -67,14 +72,9 @@ const AutomationScene: React.FC = () => {
     openedWorkspacesList,
     openWorkspace,
   } = useWorkspaceContext();
-  const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => flowChatStore.getState());
+  const flowChatState = useAutomationFlowChatState(isActive);
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = flowChatStore.subscribe((state) => setFlowChatState(state));
-    return unsubscribe;
-  }, []);
 
   const workspaceOptions = useMemo(
     () => buildAutomationWorkspaces(openedWorkspacesList),

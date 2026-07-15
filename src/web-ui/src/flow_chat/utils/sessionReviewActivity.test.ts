@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  deriveSessionReviewActivities,
   deriveSessionReviewActivity,
   isReviewActivityBlocking,
 } from './sessionReviewActivity';
@@ -250,6 +251,29 @@ describe('deriveSessionReviewActivity selection', () => {
       'parent-1',
     );
     expect(activity?.childSessionId).toBe('child-2');
+  });
+
+  it('derives selected activities for multiple parents in one pass', () => {
+    const state = createMockState([
+      createMockSession({
+        sessionId: 'review-running',
+        parentSessionId: 'parent-1',
+        sessionKind: 'review',
+        lastActiveAt: 3000,
+        dialogTurns: [{ status: 'processing' } as any],
+      }),
+      createMockSession({
+        sessionId: 'deep-running',
+        parentSessionId: 'parent-2',
+        sessionKind: 'deep_review',
+        lastActiveAt: 4000,
+        dialogTurns: [{ status: 'processing' } as any],
+      }),
+    ]);
+
+    const activities = deriveSessionReviewActivities(state);
+    expect(activities.get('parent-1')?.childSessionId).toBe('review-running');
+    expect(activities.get('parent-2')?.childSessionId).toBe('deep-running');
   });
 });
 

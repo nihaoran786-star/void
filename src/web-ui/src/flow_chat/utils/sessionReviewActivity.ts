@@ -20,6 +20,11 @@ export interface SessionReviewActivity {
   updatedAt: number;
 }
 
+interface ReviewActivitySelection {
+  latest: SessionReviewActivity | null;
+  latestBlocking: SessionReviewActivity | null;
+}
+
 export type SessionExecutionStateResolver = (
   sessionId: string,
 ) => SessionExecutionState | undefined;
@@ -112,6 +117,41 @@ function toReviewActivity(
   };
 }
 
+function isNewerReviewActivity(
+  candidate: SessionReviewActivity,
+  current: SessionReviewActivity | null,
+): boolean {
+  return (
+    current === null ||
+    candidate.updatedAt > current.updatedAt ||
+    (
+      candidate.updatedAt === current.updatedAt &&
+      candidate.startedAt > current.startedAt
+    )
+  );
+}
+
+function addReviewActivity(
+  selection: ReviewActivitySelection,
+  activity: SessionReviewActivity,
+): void {
+  if (isNewerReviewActivity(activity, selection.latest)) {
+    selection.latest = activity;
+  }
+  if (
+    activity.isBlocking &&
+    isNewerReviewActivity(activity, selection.latestBlocking)
+  ) {
+    selection.latestBlocking = activity;
+  }
+}
+
+function selectedReviewActivity(
+  selection?: ReviewActivitySelection,
+): SessionReviewActivity | null {
+  return selection?.latestBlocking ?? selection?.latest ?? null;
+}
+
 export function isReviewActivityBlocking(
   activity?: SessionReviewActivity | null,
 ): boolean {
@@ -127,15 +167,58 @@ export function deriveSessionReviewActivity(
     return null;
   }
 
-  const activities = Array.from(state.sessions.values())
-    .map(session => toReviewActivity(session, parentSessionId, resolveExecutionState))
-    .filter((activity): activity is SessionReviewActivity => Boolean(activity));
+  const selection: ReviewActivitySelection = {
+    latest: null,
+    latestBlocking: null,
+  };
+  for (const session of state.sessions.values()) {
+    const activity = toReviewActivity(
+      session,
+      parentSessionId,
+      resolveExecutionState,
+    );
+    if (activity) {
+      addReviewActivity(selection, activity);
+    }
+  }
+  return selectedReviewActivity(selection);
+}
 
-  const blockingActivities = activities.filter(activity => activity.isBlocking);
-  const candidates = blockingActivities.length > 0 ? blockingActivities : activities;
+/** Derives every parent badge in one pass for list projections. */
+export function deriveSessionReviewActivities(
+  state: FlowChatState,
+  resolveExecutionState?: SessionExecutionStateResolver,
+): ReadonlyMap<string, SessionReviewActivity> {
+  const selections = new Map<string, ReviewActivitySelection>();
 
-  return candidates.sort((left, right) => {
-    const updatedDelta = right.updatedAt - left.updatedAt;
-    return updatedDelta !== 0 ? updatedDelta : right.startedAt - left.startedAt;
-  })[0] ?? null;
+  for (const session of state.sessions.values()) {
+    const parentSessionId = session.parentSessionId;
+    if (!parentSessionId) {
+      continue;
+    }
+    const activity = toReviewActivity(
+      session,
+      parentSessionId,
+      resolveExecutionState,
+    );
+    if (!activity) {
+      continue;
+    }
+
+    let selection = selections.get(parentSessionId);
+    if (!selection) {
+      selection = { latest: null, latestBlocking: null };
+      selections.set(parentSessionId, selection);
+    }
+    addReviewActivity(selection, activity);
+  }
+
+  const selected = new Map<string, SessionReviewActivity>();
+  for (const [parentSessionId, selection] of selections) {
+    const activity = selectedReviewActivity(selection);
+    if (activity) {
+      selected.set(parentSessionId, activity);
+    }
+  }
+  return selected;
 }

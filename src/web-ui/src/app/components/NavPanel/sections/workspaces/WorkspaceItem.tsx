@@ -23,7 +23,7 @@ import { findReusableEmptySessionId } from '@/app/utils/projectSessionWorkspace'
 import type { AcpClientInfo } from '@/infrastructure/api/service-api/ACPClientAPI';
 import { loadWorkspaceAcpMenuClients } from './workspaceAcpMenuClients';
 import { BranchSelectModal, type BranchSelectResult } from '../../../panels/BranchSelectModal';
-import SessionsSection from '../sessions/SessionsSection';
+import SessionsSection from '../sessions/DeferredSessionsSection';
 import {
   WorkspaceKind,
   isLinkedWorktreeWorkspace,

@@ -22,7 +22,7 @@ import type { SceneTabId } from '../SceneBar/types';
 import SectionHeader from './components/SectionHeader';
 import MiniAppEntry from './components/MiniAppEntry';
 import WorkspaceListSection from './sections/workspaces/WorkspaceListSection';
-import SessionsSection from './sections/sessions/SessionsSection';
+import SessionsSection from './sections/sessions/DeferredSessionsSection';
 import { useSceneStore } from '../../stores/sceneStore';
 import { useMyAgentStore } from '../../scenes/my-agent/myAgentStore';
 import { useMiniAppCatalogSync } from '../../scenes/miniapps/hooks/useMiniAppCatalogSync';

@@ -5,7 +5,11 @@ import TemplateConfigPage from './TemplateConfigPage';
 import AssistantConfigPage from './AssistantConfigPage';
 import './NurseryView.scss';
 
-const NurseryView: React.FC = () => {
+interface NurseryViewProps {
+  isActive?: boolean;
+}
+
+const NurseryView: React.FC<NurseryViewProps> = ({ isActive = true }) => {
   const { page } = useNurseryStore();
 
   if (page === 'template') {
@@ -13,7 +17,7 @@ const NurseryView: React.FC = () => {
   }
 
   if (page === 'assistant') {
-    return <AssistantConfigPage />;
+    return <AssistantConfigPage isActive={isActive} />;
   }
 
   return <NurseryGallery />;

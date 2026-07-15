@@ -4,15 +4,15 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2385481,
-		"referenceGzipBytes": 694377,
+		"maxRawBytes": 2372359,
+		"referenceGzipBytes": 690642,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]
 	},
 	"css": {
-		"maxRawBytes": 687948,
-		"referenceGzipBytes": 96942,
+		"maxRawBytes": 672720,
+		"referenceGzipBytes": 95403,
 		"forbiddenMarkers": [
 			".monaco-editor",
 			".xterm-helper-textarea",
@@ -45,6 +45,7 @@
 	},
 	"requiredDynamicEntries": [
 		"src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
+		"src/app/components/NavPanel/sections/sessions/SessionsSection.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 		"src/app/scenes/settings/SettingsScene.tsx",
@@ -115,6 +116,9 @@
 		],
 		"localUnreachable": [
 			"src/web-ui/src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
+			"src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx",
+			"src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavProjection.ts",
+			"src/web-ui/src/app/components/NavPanel/sections/sessions/sessionRunningPresentation.ts",
 			"src/web-ui/src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 			"src/web-ui/src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 			"src/web-ui/src/flow_chat/services/CompactChatPresentationPublisher.ts",

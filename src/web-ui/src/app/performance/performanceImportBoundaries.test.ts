@@ -59,8 +59,11 @@ describe('Web UI startup import boundaries', () => {
       "import('@/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel')",
     );
     expect(source).toContain('default: module.ShortDramaCenterPanel');
+    expect(source).toContain(
+      "const PANEL_LOADING_CLASS = 'void-flexible-panel__loading'",
+    );
     expect(source).toMatch(
-      /<React\.Suspense\s+fallback=\{<div className="void-flexible-panel__loading">\{t\('loading\.text'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
+      /<React\.Suspense\s+fallback=\{<div className=\{PANEL_LOADING_CLASS\}>\{t\('loading\.text'\)\}<\/div>\}>\s*\{renderContent\(\)\}\s*<\/React\.Suspense>/,
     );
     expect(componentLibraryBarrel).toContain("export * from './CodeEditor'");
     expect(componentLibraryCodeEditor).toContain("lazy(() => import('./CodeEditor'))");
@@ -159,6 +162,22 @@ describe('Web UI startup import boundaries', () => {
     const gitEventService = readSource(
       '../../tools/git/services/GitEventService.ts',
     );
+    const sessionsSection = readSource(
+      '../components/NavPanel/sections/sessions/SessionsSection.tsx',
+    );
+    const deferredSessionsSection = readSource(
+      '../components/NavPanel/sections/sessions/DeferredSessionsSection.tsx',
+    );
+    const mainNav = readSource('../components/NavPanel/MainNav.tsx');
+    const workspaceItem = readSource(
+      '../components/NavPanel/sections/workspaces/WorkspaceItem.tsx',
+    );
+    const profileScene = readSource('../scenes/profile/ProfileScene.tsx');
+    const assistantScene = readSource('../scenes/assistant/AssistantScene.tsx');
+    const nurseryView = readSource('../scenes/profile/views/NurseryView.tsx');
+    const assistantConfigPage = readSource(
+      '../scenes/profile/views/AssistantConfigPage.tsx',
+    );
 
     for (const consumer of configConsumers) {
       expect(consumer).toContain(
@@ -197,6 +216,29 @@ describe('Web UI startup import boundaries', () => {
     expect(gitEventService).not.toMatch(
       /from ['"](?:@\/infrastructure|\.\.\/\.\.\/\.\.\/infrastructure)['"]/,
     );
+    expect(deferredSessionsSection).toContain("lazy(() => import('./SessionsSection'))");
+    expect(mainNav).toContain("from './sections/sessions/DeferredSessionsSection'");
+    expect(workspaceItem).toContain("from '../sessions/DeferredSessionsSection'");
+    expect(sessionsSection).toContain(
+      "from './sessionNavProjection'",
+    );
+    expect(sessionsSection).toContain('useSessionNavProjection(isVisible)');
+    expect(sessionsSection).toContain(
+      'useSessionRunningPresentation(',
+    );
+    expect(sessionsSection).toContain(
+      'useSessionRunningPresentation(\n    sectionSessions,',
+    );
+    expect(profileScene).toContain('<NurseryView isActive={isActive} />');
+    expect(assistantScene).toContain('isActive={isActive}');
+    expect(nurseryView).toContain('<AssistantConfigPage isActive={isActive} />');
+    expect(assistantConfigPage).toContain(
+      "from '@/app/components/NavPanel/sections/sessions/DeferredSessionsSection'",
+    );
+    expect(assistantConfigPage).not.toContain(
+      "from '@/app/components/NavPanel/sections/sessions/SessionsSection'",
+    );
+    expect(assistantConfigPage).toContain('isVisible={isActive}');
   });
 
   it('defers Monaco registry lookup until the DOM fast path misses', () => {

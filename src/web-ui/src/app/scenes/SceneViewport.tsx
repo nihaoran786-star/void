@@ -119,7 +119,7 @@ function renderScene(
     case 'file-viewer':
       return <FileViewerScene workspacePath={workspacePath} isActive={isActive} />;
     case 'profile':
-      return <ProfileScene />;
+      return <ProfileScene isActive={isActive} />;
     case 'agents':
       return <AgentsScene />;
     case 'skills':
@@ -129,11 +129,11 @@ function renderScene(
     case 'browser':
       return <BrowserScene isActive={isActive} />;
     case 'assistant':
-      return <AssistantScene workspacePath={workspacePath} />;
+      return <AssistantScene workspacePath={workspacePath} isActive={isActive} />;
     case 'insights':
       return <InsightsScene />;
     case 'automation':
-      return <AutomationScene />;
+      return <AutomationScene isActive={isActive} />;
     case 'shell':
       return <ShellScene isActive={isActive} />;
     case 'panel-view':

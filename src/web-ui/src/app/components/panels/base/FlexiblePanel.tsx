@@ -783,7 +783,10 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
       case 'review-platform':
         return (
           <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>Loading pull requests...</div>}>
-            <ReviewPlatformPanel workspacePath={content.data?.workspacePath || workspacePath} />
+            <ReviewPlatformPanel
+              workspacePath={content.data?.workspacePath || workspacePath}
+              isActive={isActive}
+            />
           </React.Suspense>
         );
 
@@ -796,6 +799,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
               initialPullRequestId={content.data?.pullRequestId}
               initialPullRequestUrl={content.data?.pullRequestUrl}
               detailOnly
+              isActive={isActive}
             />
           </React.Suspense>
         );

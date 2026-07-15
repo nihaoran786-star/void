@@ -27,12 +27,12 @@ import { reviewPlatformAPI, systemAPI, type ReviewPlatformAccount, type ReviewPl
 import { createLogger } from '@/shared/utils/logger';
 import { notificationService } from '@/shared/notification-system';
 import { openMainSession } from '@/flow_chat/services/openBtwSession';
-import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import type { FlowToolItem, Session } from '@/flow_chat/types/flow-chat';
 import { findLatestCodeReviewResult, summarizeCodeReviewResult } from '@/flow_chat/utils/reviewSessionSummary';
 import { parsePullRequestUrl, remoteMatchesPullRequestLink } from '@/shared/utils/pullRequestLinks';
 import { useContextStore } from '@/shared/stores/contextStore';
 import type { PullRequestContext } from '@/shared/types/context';
+import { useReviewPlatformFlowPresentation } from './useReviewPlatformFlowPresentation';
 import './ReviewPlatformPanel.scss';
 
 const log = createLogger('ReviewPlatformPanel');
@@ -43,6 +43,8 @@ interface ReviewPlatformPanelProps {
   initialPullRequestId?: string;
   initialPullRequestUrl?: string;
   detailOnly?: boolean;
+  /** Whether this retained panel is currently presented to the user. */
+  isActive?: boolean;
 }
 
 type DetailTab = 'overview' | 'ci' | 'changes' | 'commits' | 'reviews';
@@ -622,6 +624,7 @@ export const ReviewPlatformPanel: React.FC<ReviewPlatformPanelProps> = ({
   initialPullRequestId,
   initialPullRequestUrl,
   detailOnly = false,
+  isActive = true,
 }) => {
   const snapshotRequestSeq = useRef(0);
   const detailRequestSeq = useRef(0);
@@ -630,7 +633,7 @@ export const ReviewPlatformPanel: React.FC<ReviewPlatformPanelProps> = ({
   const [selectedRemoteId, setSelectedRemoteId] = useState<string | null>(null);
   const [selectedPrId, setSelectedPrId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ReviewPlatformPullRequestDetail | null>(null);
-  const [flowState, setFlowState] = useState(() => flowChatStore.getState());
+  const flowState = useReviewPlatformFlowPresentation(isActive);
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -896,8 +899,6 @@ export const ReviewPlatformPanel: React.FC<ReviewPlatformPanelProps> = ({
   useEffect(() => {
     void loadSnapshot(detailOnly && initialRemoteId ? initialRemoteId : undefined);
   }, [detailOnly, initialRemoteId, loadSnapshot]);
-
-  useEffect(() => flowChatStore.subscribe(setFlowState), []);
 
   useEffect(() => {
     if (!selectedRemoteId) {
