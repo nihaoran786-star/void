@@ -973,48 +973,22 @@ pub async fn test_ai_connection(state: State<'_, AppState>) -> Result<bool, Stri
 
 #[tauri::command]
 pub async fn initialize_ai(state: State<'_, AppState>) -> Result<String, String> {
-    let config_service = &state.config_service;
-    let global_config: void_core::service::config::GlobalConfig = config_service
-        .get_config(None)
+    let ai_client = state
+        .ai_client_factory
+        .get_client_resolved("primary")
         .await
-        .map_err(|e| format!("Failed to get configuration: {}", e))?;
-    let primary_model_id = global_config
-        .ai
-        .default_models
-        .primary
-        .clone()
-        .ok_or_else(|| {
-        "Primary model not configured, please configure it in settings".to_string()
-    })?;
-    let model_config = global_config
-        .ai
-        .models
-        .iter()
-        .find(|m| m.id == primary_model_id)
-        .ok_or_else(|| format!("Primary model '{}' does not exist", primary_model_id))?;
-    let stream_options =
-        void_core::infrastructure::ai::build_stream_options_for_model(
-            &global_config.ai,
-            Some(model_config),
-        );
-
-    let ai_config = void_core::util::types::AIConfig::try_from(model_config.clone())
-        .map_err(|e| format!("Failed to convert AI configuration: {}", e))?;
-    let ai_client = void_core::infrastructure::ai::AIClient::new_with_runtime_options(
-        ai_config,
-        None,
-        stream_options,
-    );
+        .map_err(|e| format!("Failed to initialize primary AI client: {}", e))?;
+    let model_name = ai_client.config.model.clone();
 
     {
         let mut ai_client_guard = state.ai_client.write().await;
-        *ai_client_guard = Some(ai_client);
+        *ai_client_guard = Some((*ai_client).clone());
     }
 
-    info!("AI client initialized: model={}", model_config.name);
+    info!("AI client initialized: model={}", model_name);
     Ok(format!(
         "AI client initialized successfully: {}",
-        model_config.name
+        model_name
     ))
 }
 

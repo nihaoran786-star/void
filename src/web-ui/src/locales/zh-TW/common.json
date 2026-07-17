@@ -591,6 +591,7 @@
     "checkForUpdates": "檢查更新",
     "checking": "正在檢查…",
     "noUpdate": "目前已是最新版本。",
+    "unavailable": "此版本暫不支援應用內更新，請從官方發佈頁下載並安裝最新版本。",
     "checkFailed": "檢查更新失敗。",
     "availableTitle": "發現新版本",
     "availableSubtitle": "有新版本可供安裝。",

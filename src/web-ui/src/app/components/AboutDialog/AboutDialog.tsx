@@ -24,7 +24,7 @@ import './AboutDialog.scss';
 
 const log = createLogger('AboutDialog');
 
-interface AboutDialogProps {
+export interface AboutDialogProps {
   /** Whether visible */
   isOpen: boolean;
   /** Close callback */
@@ -38,7 +38,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
   const { t } = useI18n('common');
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const [manualCheckBusy, setManualCheckBusy] = useState(false);
-  const [manualCheckStatus, setManualCheckStatus] = useState<'idle' | 'latest' | 'error'>('idle');
+  const [manualCheckStatus, setManualCheckStatus] = useState<
+    'idle' | 'latest' | 'unavailable' | 'error'
+  >('idle');
   const [manualCheckErrorMessage, setManualCheckErrorMessage] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualData, setManualData] = useState<CheckForUpdatesResponse | null>(null);
@@ -67,10 +69,14 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
     }
     setManualCheckStatus('idle');
     setManualCheckErrorMessage(null);
+    setManualOpen(false);
+    setManualData(null);
     setManualCheckBusy(true);
     try {
       const res = await systemAPI.checkForUpdates();
-      if (!res.updateAvailable) {
+      if (res.updaterStatus === 'unconfigured') {
+        setManualCheckStatus('unavailable');
+      } else if (!res.updateAvailable) {
         setManualCheckStatus('latest');
       } else {
         setManualData(res);
@@ -168,6 +174,14 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
                         <CheckCircle2 size={14} aria-hidden />
                         <span>{t('update.noUpdate')}</span>
                       </div>
+                    ) : null}
+                    {manualCheckStatus === 'unavailable' ? (
+                      <Alert
+                        type="info"
+                        message={t('update.unavailable')}
+                        showIcon
+                        className="void-about-dialog__update-alert"
+                      />
                     ) : null}
                     {manualCheckStatus === 'error' && manualCheckErrorMessage ? (
                       <Alert

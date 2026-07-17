@@ -5,10 +5,8 @@
 //! incorrectly. Remote sessions must use POSIX path semantics for tool arguments.
 
 use crate::util::errors::{VoidError, VoidResult};
-pub use void_agent_tools::{
-    is_void_runtime_uri, ParsedVoidRuntimeUri, VOID_RUNTIME_URI_PREFIX,
-};
 use std::path::Path;
+pub use void_agent_tools::{is_void_runtime_uri, ParsedVoidRuntimeUri, VOID_RUNTIME_URI_PREFIX};
 
 pub fn normalize_path(path: &str) -> String {
     void_agent_tools::normalize_host_path(path)
@@ -23,8 +21,7 @@ pub fn resolve_path_with_workspace(
 }
 
 pub fn resolve_path(path: &str) -> VoidResult<String> {
-    void_agent_tools::resolve_host_path(path)
-        .map_err(|error| VoidError::tool(error.to_string()))
+    void_agent_tools::resolve_host_path(path).map_err(|error| VoidError::tool(error.to_string()))
 }
 
 pub fn normalize_runtime_relative_path(path: &str) -> VoidResult<String> {
@@ -37,10 +34,7 @@ pub fn parse_void_runtime_uri(path: &str) -> VoidResult<ParsedVoidRuntimeUri> {
         .map_err(|error| VoidError::tool(error.to_string()))
 }
 
-pub fn build_void_runtime_uri(
-    workspace_scope: &str,
-    relative_path: &str,
-) -> VoidResult<String> {
+pub fn build_void_runtime_uri(workspace_scope: &str, relative_path: &str) -> VoidResult<String> {
     void_agent_tools::build_void_runtime_uri(workspace_scope, relative_path)
         .map_err(|error| VoidError::tool(error.to_string()))
 }

@@ -21,10 +21,10 @@ function rootBlock(style) {
 
 function stageCardSection(style) {
   const start = style.indexOf('.short-drama-card {');
-  const end = style.indexOf('.short-drama-center__stage h3');
+  const end = style.indexOf('.short-drama-center__stage {');
   assert.notEqual(start, -1, 'Short drama card styles must exist');
-  assert.notEqual(end, -1, 'Short drama stage heading styles must exist');
-  assert.ok(end > start, 'Stage card section must be before stage heading');
+  assert.notEqual(end, -1, 'Short drama stage styles must exist');
+  assert.ok(end > start, 'Stage card section must be before stage styles');
   return style.slice(start, end);
 }
 

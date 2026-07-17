@@ -31,8 +31,6 @@ use crate::service::git::{GitDiffParams, GitService};
 use crate::service::remote_ssh::workspace_state::remote_workspace_runtime_root;
 use crate::service::{get_workspace_runtime_service_arc, WorkspaceRuntimeContext};
 use crate::util::errors::{VoidError, VoidResult};
-use void_agent_tools::{PortableToolContextProvider, ToolContextFacts, ToolWorkspaceKind};
-use void_runtime_ports::DelegationPolicy;
 use log::warn;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -40,6 +38,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
+use void_agent_tools::{PortableToolContextProvider, ToolContextFacts, ToolWorkspaceKind};
+use void_runtime_ports::DelegationPolicy;
 
 /// Core-owned tool use context.
 #[derive(Debug, Clone)]
@@ -1127,10 +1127,7 @@ mod path_resolution_tests {
             .build_runtime_artifact_reference(r"plans\demo.plan.md")
             .expect("remote runtime artifacts should use URI references");
 
-        assert_eq!(
-            reference,
-            "void://runtime/workspace-123/plans/demo.plan.md"
-        );
+        assert_eq!(reference, "void://runtime/workspace-123/plans/demo.plan.md");
     }
 
     #[test]
@@ -1171,10 +1168,8 @@ mod path_resolution_tests {
 
     #[test]
     fn path_policy_allows_only_configured_local_roots() {
-        let temp_root = std::env::temp_dir().join(format!(
-            "void-tool-context-policy-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let temp_root =
+            std::env::temp_dir().join(format!("void-tool-context-policy-{}", uuid::Uuid::new_v4()));
         let allowed_root = temp_root.join("allowed");
         std::fs::create_dir_all(&allowed_root).expect("create allowed root");
         let context = context_with_restrictions(
@@ -1450,10 +1445,10 @@ mod task_context_tests {
         SubagentParentInfo, ToolExecutionContext, ToolExecutionOptions, ToolTask,
     };
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use void_runtime_ports::DelegationPolicy;
     use serde_json::json;
     use std::collections::{BTreeSet, HashMap};
     use tokio_util::sync::CancellationToken;
+    use void_runtime_ports::DelegationPolicy;
 
     fn task_with_context_vars() -> ToolTask {
         let mut context_vars = HashMap::new();

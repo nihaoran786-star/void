@@ -56,6 +56,32 @@ describe('ConfigManager', () => {
     expect(configApiMocks.getConfig).toHaveBeenCalledTimes(1);
   });
 
+  it('reads optional config without retrying or treating a missing path as an error', async () => {
+    configApiMocks.getConfig.mockResolvedValueOnce(undefined);
+
+    await expect(
+      configManager.getOptionalConfig('app.keybindings')
+    ).resolves.toBeUndefined();
+
+    expect(configApiMocks.getConfig).toHaveBeenCalledWith('app.keybindings', {
+      skipRetryOnNotFound: true,
+    });
+  });
+
+  it('preserves real errors while disabling retries for optional config', async () => {
+    const readError = new Error('config backend unavailable');
+    configApiMocks.getConfig.mockRejectedValueOnce(readError);
+
+    await expect(
+      configManager.getOptionalConfig('app.keybindings')
+    ).rejects.toBe(readError);
+
+    expect(configApiMocks.getConfig).toHaveBeenCalledTimes(1);
+    expect(configApiMocks.getConfig).toHaveBeenCalledWith('app.keybindings', {
+      skipRetryOnNotFound: true,
+    });
+  });
+
   it('reloads startup config paths through one batch call', async () => {
     configApiMocks.getConfigs.mockResolvedValueOnce({
       'ai.models': [],

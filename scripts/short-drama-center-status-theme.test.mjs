@@ -68,7 +68,16 @@ test('short drama status pill indicators use local status tokens', () => {
     assert.doesNotMatch(block, /#[0-9a-fA-F]{3,8}/, `${selectors.join(', ')} must not use raw hex colors`);
   }
 
-  for (const globalToken of ['--color-success', '--color-warning', '--color-accent-500', '--color-error']) {
-    assert.match(root, new RegExp(globalToken), `status local tokens must map to ${globalToken}`);
+  for (const [localToken, sharedToken] of [
+    ['--short-drama-status-ready', '--status-success-text'],
+    ['--short-drama-status-generating', '--status-warning-text'],
+    ['--short-drama-status-stale', '--status-info-text'],
+    ['--short-drama-status-error', '--status-error-text'],
+  ]) {
+    assert.match(
+      root,
+      new RegExp(`${localToken}\\s*:\\s*var\\(${sharedToken}\\);`),
+      `${localToken} must map to ${sharedToken}`,
+    );
   }
 });

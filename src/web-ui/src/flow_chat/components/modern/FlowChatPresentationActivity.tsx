@@ -23,6 +23,7 @@ export const FlowChatPresentationActivityProvider: React.FC<FlowChatPresentation
   </FlowChatPresentationActivityContext.Provider>
 );
 
+// eslint-disable-next-line react-refresh/only-export-components -- The provider hook is intentionally colocated with its context.
 export function useFlowChatPresentationActive(): boolean {
   return useContext(FlowChatPresentationActivityContext);
 }

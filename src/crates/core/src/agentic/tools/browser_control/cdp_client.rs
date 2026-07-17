@@ -1,5 +1,6 @@
 //! Lightweight CDP (Chrome DevTools Protocol) client over WebSocket.
 
+use crate::agentic::tools::loopback_http::client_builder_for_url;
 use crate::util::errors::{VoidError, VoidResult};
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -62,7 +63,10 @@ impl CdpClient {
     /// Discover browser version on the given debug port.
     pub async fn get_version(port: u16) -> VoidResult<CdpVersionInfo> {
         let url = format!("http://127.0.0.1:{}/json/version", port);
-        let resp = reqwest::get(&url).await.map_err(|e| {
+        let client = client_builder_for_url(&url).build().map_err(|e| {
+            VoidError::tool(format!("Cannot reach browser CDP on port {}: {}", port, e))
+        })?;
+        let resp = client.get(&url).send().await.map_err(|e| {
             VoidError::tool(format!("Cannot reach browser CDP on port {}: {}", port, e))
         })?;
         let info: CdpVersionInfo = resp
@@ -75,7 +79,10 @@ impl CdpClient {
     /// List all pages/tabs on the given debug port.
     pub async fn list_pages(port: u16) -> VoidResult<Vec<CdpPageInfo>> {
         let url = format!("http://127.0.0.1:{}/json", port);
-        let resp = reqwest::get(&url).await.map_err(|e| {
+        let client = client_builder_for_url(&url).build().map_err(|e| {
+            VoidError::tool(format!("Cannot list CDP pages on port {}: {}", port, e))
+        })?;
+        let resp = client.get(&url).send().await.map_err(|e| {
             VoidError::tool(format!("Cannot list CDP pages on port {}: {}", port, e))
         })?;
         let pages: Vec<CdpPageInfo> = resp

@@ -1,10 +1,10 @@
 .workspace-media-entry {
-  --workspace-media-entry-border: var(--border-base, rgba(148, 163, 184, 0.28));
-  --workspace-media-entry-surface: color-mix(in srgb, var(--color-bg-primary, #ffffff) 88%, #eef2f7);
-  --workspace-media-entry-text: var(--color-text-secondary, #64748b);
-  --workspace-media-entry-hover-text: var(--color-text-primary, #1f2937);
-  --workspace-media-entry-hover-border: color-mix(in srgb, var(--border-base, #94a3b8) 60%, #64748b);
-  --workspace-media-entry-hover-surface: color-mix(in srgb, var(--color-bg-primary, #ffffff) 78%, #e8edf5);
+  --workspace-media-entry-surface: var(--control-bg);
+  --workspace-media-entry-border: var(--control-border);
+  --workspace-media-entry-text: var(--control-text);
+  --workspace-media-entry-hover-surface: var(--control-bg-hover);
+  --workspace-media-entry-hover-border: var(--control-border-hover);
+  --workspace-media-entry-hover-text: var(--control-text-hover);
 
   display: inline-flex;
   align-items: center;

@@ -37,12 +37,20 @@ test('short drama center styles map local tokens to global theme tokens', () => 
     assert.match(style, new RegExp(`var\\(${token}`), `CenterPanel styles must consume ${token}`);
   }
 
-  for (const globalToken of [
-    '--color-text-primary',
-    '--color-text-secondary',
-    '--border-base',
-    '--color-bg-primary',
+  for (const [localToken, expectedValue] of [
+    ['--short-drama-ink', String.raw`var\(--control-text-hover\)`],
+    ['--short-drama-muted', String.raw`var\(--control-text-muted\)`],
+    ['--short-drama-border', String.raw`var\(--control-border\)`],
+    ['--short-drama-surface', String.raw`var\(--color-bg-primary\)`],
+    [
+      '--short-drama-band',
+      String.raw`color-mix\(in srgb,\s*var\(--control-bg\)\s+92%,\s*var\(--color-bg-elevated\)\)`,
+    ],
   ]) {
-    assert.match(root, new RegExp(globalToken), `CenterPanel local tokens must map to ${globalToken}`);
+    assert.match(
+      root,
+      new RegExp(`${localToken}\\s*:\\s*${expectedValue};`),
+      `${localToken} must map to the shared theme contract`,
+    );
   }
 });

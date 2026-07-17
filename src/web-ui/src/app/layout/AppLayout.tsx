@@ -141,13 +141,13 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   useEffect(() => {
     const load = async () => {
       try {
-        const raw = await configManager.getConfig('app.keybindings');
+        const raw = await configManager.getOptionalConfig('app.keybindings');
         const overrides = parseStoredKeybindings(raw);
         if (Object.keys(overrides).length > 0) {
           shortcutManager.loadUserOverrides(overrides);
         }
-      } catch {
-        // No overrides stored yet — that's fine
+      } catch (error) {
+        log.warn('Failed to load keybinding overrides', { error });
       }
     };
 

@@ -10,6 +10,7 @@ pub mod file_tool_guidance;
 pub mod framework;
 pub mod image_context;
 pub mod implementations;
+mod loopback_http;
 pub mod manifest_resolver;
 pub mod pipeline;
 pub(crate) mod post_call_hooks;

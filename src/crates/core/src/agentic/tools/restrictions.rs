@@ -1,9 +1,9 @@
 use crate::util::errors::{VoidError, VoidResult};
+use std::path::{Path, PathBuf};
 pub use void_agent_tools::{
     is_remote_posix_path_within_root, ToolPathOperation, ToolPathPolicy, ToolRestrictionError,
     ToolRuntimeRestrictions,
 };
-use std::path::{Path, PathBuf};
 
 impl From<ToolRestrictionError> for VoidError {
     fn from(error: ToolRestrictionError) -> Self {
@@ -117,8 +117,7 @@ mod tests {
         let error: VoidError = ToolRestrictionError::Denied {
             tool_name: "Task".to_string(),
             message: Some(
-                "Recursive subagent delegation is blocked. Use direct tools instead."
-                    .to_string(),
+                "Recursive subagent delegation is blocked. Use direct tools instead.".to_string(),
             ),
         }
         .into();
@@ -148,8 +147,7 @@ mod tests {
 
     #[test]
     fn local_path_containment_handles_missing_children() {
-        let root =
-            std::env::temp_dir().join(format!("void-restrictions-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("void-restrictions-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("allowed")).expect("create temp root");
 
         let allowed_child = root.join("allowed").join("nested").join("file.txt");

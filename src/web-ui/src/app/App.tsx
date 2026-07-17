@@ -3,7 +3,10 @@ import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { useHasDismissibleLayer } from '@/infrastructure/hooks/useDismissibleLayer';
 import { dismissibleLayerManager } from '@/infrastructure/services/DismissibleLayerManager';
 import { ChatProvider } from '@/infrastructure/contexts/ChatProvider';
-import { useAIInitialization } from '@/infrastructure/hooks/useAIInitialization';
+import {
+  getAIInitializationReadiness,
+  useAIInitialization,
+} from '@/infrastructure/hooks/useAIInitialization';
 import { ViewModeProvider } from '../infrastructure/contexts/ViewModeProvider';
 import { SSHRemoteProvider } from '../features/ssh-remote';
 import AppLayout from './layout/AppLayout';
@@ -301,18 +304,20 @@ function App() {
 
   // Observe AI initialization state
   useEffect(() => {
+    const readiness = getAIInitializationReadiness(currentConfig);
+
     if (aiError) {
       log.error('AI initialization failed', aiError);
     } else if (aiInitialized) {
       log.debug('AI client initialized successfully');
-    } else if (!aiInitializing && !currentConfig) {
-      log.warn('AI not initialized: waiting for model config');
-    } else if (!aiInitializing && currentConfig && !currentConfig.apiKey) {
-      log.warn('AI not initialized: missing API key');
-    } else if (!aiInitializing && currentConfig && !currentConfig.modelName) {
-      log.warn('AI not initialized: missing model name');
-    } else if (!aiInitializing && currentConfig && !currentConfig.baseUrl) {
-      log.warn('AI not initialized: missing base URL');
+    } else if (!aiInitializing && !readiness.ready) {
+      const warningByReason = {
+        missing_config: 'AI not initialized: waiting for model config',
+        missing_model_name: 'AI not initialized: missing model name',
+        missing_base_url: 'AI not initialized: missing base URL',
+        missing_api_key: 'AI not initialized: missing API key',
+      };
+      log.warn(warningByReason[readiness.reason]);
     }
   }, [aiInitialized, aiInitializing, aiError, currentConfig]);
 

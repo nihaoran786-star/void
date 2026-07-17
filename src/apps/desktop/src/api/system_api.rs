@@ -3,10 +3,10 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::api::app_state::AppState;
-use void_core::service::system;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Position, Size, State};
 use tauri_plugin_updater::UpdaterExt;
+use void_core::service::system;
 
 /// Emitted during `install_update` download; matches `installUpdateWithProgress` / frontend listener.
 const UPDATE_PROGRESS_EVENT: &str = "void-update-progress";
@@ -55,14 +55,78 @@ pub async fn get_app_version(
 #[serde(rename_all = "camelCase")]
 pub struct CheckForUpdatesRequest {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdaterStatus {
+    Ready,
+    Unconfigured,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdaterUnavailableReason {
+    MissingConfiguration,
+    MissingEndpoint,
+    MissingPublicKey,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckForUpdatesResponse {
+    pub updater_status: UpdaterStatus,
+    pub unavailable_reason: Option<UpdaterUnavailableReason>,
     pub update_available: bool,
     pub current_version: String,
     pub latest_version: Option<String>,
     pub release_notes: Option<String>,
     pub release_date: Option<String>,
+}
+
+fn updater_unavailable_reason(
+    plugin_config: Option<&serde_json::Value>,
+) -> Option<UpdaterUnavailableReason> {
+    let Some(config) = plugin_config.and_then(serde_json::Value::as_object) else {
+        return Some(UpdaterUnavailableReason::MissingConfiguration);
+    };
+
+    let has_endpoint = config
+        .get("endpoints")
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|endpoints| {
+            endpoints.iter().any(|endpoint| {
+                endpoint
+                    .as_str()
+                    .is_some_and(|endpoint| !endpoint.trim().is_empty())
+            })
+        });
+    if !has_endpoint {
+        return Some(UpdaterUnavailableReason::MissingEndpoint);
+    }
+
+    let has_public_key = config
+        .get("pubkey")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|pubkey| !pubkey.trim().is_empty());
+    if !has_public_key {
+        return Some(UpdaterUnavailableReason::MissingPublicKey);
+    }
+
+    None
+}
+
+fn unconfigured_update_response(
+    current_version: String,
+    reason: UpdaterUnavailableReason,
+) -> CheckForUpdatesResponse {
+    CheckForUpdatesResponse {
+        updater_status: UpdaterStatus::Unconfigured,
+        unavailable_reason: Some(reason),
+        update_available: false,
+        current_version,
+        latest_version: None,
+        release_notes: None,
+        release_date: None,
+    }
 }
 
 /// Checks the remote updater endpoint for a newer signed release (no download).
@@ -72,10 +136,19 @@ pub async fn check_for_updates(
     request: CheckForUpdatesRequest,
 ) -> Result<CheckForUpdatesResponse, String> {
     let _ = request;
+    if let Some(reason) = updater_unavailable_reason(app.config().plugins.0.get("updater")) {
+        return Ok(unconfigured_update_response(
+            app.package_info().version.to_string(),
+            reason,
+        ));
+    }
+
     let updater = app.updater().map_err(|e| e.to_string())?;
     let update = updater.check().await.map_err(|e| e.to_string())?;
     match update {
         Some(u) => Ok(CheckForUpdatesResponse {
+            updater_status: UpdaterStatus::Ready,
+            unavailable_reason: None,
             update_available: true,
             current_version: u.current_version.clone(),
             latest_version: Some(u.version.clone()),
@@ -83,6 +156,8 @@ pub async fn check_for_updates(
             release_date: u.date.map(|d| d.to_string()),
         }),
         None => Ok(CheckForUpdatesResponse {
+            updater_status: UpdaterStatus::Ready,
+            unavailable_reason: None,
             update_available: false,
             current_version: app.package_info().version.to_string(),
             latest_version: None,
@@ -100,6 +175,9 @@ pub struct InstallUpdateRequest {}
 #[tauri::command]
 pub async fn install_update(app: AppHandle, request: InstallUpdateRequest) -> Result<(), String> {
     let _ = request;
+    if let Some(reason) = updater_unavailable_reason(app.config().plugins.0.get("updater")) {
+        return Err(format!("Updater is not configured: {:?}", reason));
+    }
     let updater = app.updater().map_err(|e| e.to_string())?;
     let update = updater.check().await.map_err(|e| e.to_string())?;
     let Some(update) = update else {
@@ -538,6 +616,52 @@ pub async fn send_system_notification(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn updater_configuration_requires_endpoint_and_public_key() {
+        let missing_config = updater_unavailable_reason(None);
+        let missing_endpoint = updater_unavailable_reason(Some(&serde_json::json!({
+            "endpoints": ["", "  "],
+            "pubkey": ""
+        })));
+        let missing_public_key = updater_unavailable_reason(Some(&serde_json::json!({
+            "endpoints": ["https://updates.example.com/{{target}}/{{arch}}/{{current_version}}"],
+            "pubkey": "  "
+        })));
+        let ready = updater_unavailable_reason(Some(&serde_json::json!({
+            "endpoints": ["https://updates.example.com/{{target}}/{{arch}}/{{current_version}}"],
+            "pubkey": "public-key"
+        })));
+
+        assert_eq!(
+            missing_config,
+            Some(UpdaterUnavailableReason::MissingConfiguration)
+        );
+        assert_eq!(
+            missing_endpoint,
+            Some(UpdaterUnavailableReason::MissingEndpoint)
+        );
+        assert_eq!(
+            missing_public_key,
+            Some(UpdaterUnavailableReason::MissingPublicKey)
+        );
+        assert_eq!(ready, None);
+    }
+
+    #[test]
+    fn unconfigured_updater_response_is_structured_for_frontend_consumers() {
+        let response = unconfigured_update_response(
+            "0.2.8".to_string(),
+            UpdaterUnavailableReason::MissingEndpoint,
+        );
+        let value = serde_json::to_value(response).expect("response should serialize");
+
+        assert_eq!(value["updaterStatus"], "unconfigured");
+        assert_eq!(value["unavailableReason"], "missing_endpoint");
+        assert_eq!(value["updateAvailable"], false);
+        assert_eq!(value["currentVersion"], "0.2.8");
+        assert!(value["latestVersion"].is_null());
+    }
 
     #[test]
     fn main_window_fullscreen_transition_enters_from_maximized_without_reusing_maximize_state() {

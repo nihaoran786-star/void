@@ -33,19 +33,31 @@ test('workspace media gallery styles use local theme tokens instead of void ifra
     '--workspace-media-gallery-surface',
     '--workspace-media-gallery-accent',
     '--workspace-media-gallery-error-text',
+    '--workspace-media-gallery-error-border',
     '--workspace-media-gallery-error-bg',
   ]) {
     assert.match(root, new RegExp(`${token}:`), `Gallery root must define ${token}`);
     assert.match(style, new RegExp(`var\\(${token}`), `Gallery styles must consume ${token}`);
   }
 
-  for (const globalToken of [
-    '--color-bg-primary',
-    '--color-text-primary',
-    '--color-text-secondary',
-    '--border-base',
-    '--color-error',
+  for (const [localToken, expectedValue] of [
+    ['--workspace-media-gallery-bg', String.raw`var\(--color-bg-primary\)`],
+    ['--workspace-media-gallery-text', String.raw`var\(--control-text-hover\)`],
+    ['--workspace-media-gallery-muted', String.raw`var\(--control-text-muted\)`],
+    ['--workspace-media-gallery-border', String.raw`var\(--control-border\)`],
+    [
+      '--workspace-media-gallery-surface',
+      String.raw`color-mix\(in srgb,\s*var\(--control-bg\)\s+88%,\s*var\(--color-bg-elevated\)\)`,
+    ],
+    ['--workspace-media-gallery-accent', String.raw`var\(--color-accent-500\)`],
+    ['--workspace-media-gallery-error-text', String.raw`var\(--status-error-text\)`],
+    ['--workspace-media-gallery-error-border', String.raw`var\(--status-error-border\)`],
+    ['--workspace-media-gallery-error-bg', String.raw`var\(--status-error-bg\)`],
   ]) {
-    assert.match(root, new RegExp(globalToken), `Gallery local tokens must map to ${globalToken}`);
+    assert.match(
+      root,
+      new RegExp(`${localToken}\\s*:\\s*${expectedValue};`),
+      `${localToken} must map to the shared theme contract`,
+    );
   }
 });

@@ -1,4 +1,4 @@
-import { ModelConfig, ProviderTemplate, ApiFormat } from '../../../shared/types';
+import { ModelConfig, ProviderTemplate, ApiFormat, ModelAuthConfig } from '../../../shared/types';
 import { configManager } from './ConfigManager';
 import { i18nService } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
@@ -12,6 +12,48 @@ type ProviderConfigLike = {
   model_name?: string;
   base_url?: string;
 };
+
+export interface BackendModelConfig extends ProviderConfigLike {
+  id: string;
+  provider: ApiFormat;
+  api_key?: string;
+  description?: string;
+  context_window?: number;
+  max_tokens?: number;
+  auth?: ModelAuthConfig;
+}
+
+export function mapBackendModelConfig(model: BackendModelConfig): ModelConfig {
+  return {
+    id: model.id,
+    name: model.name || '',
+    baseUrl: model.base_url || '',
+    apiKey: model.api_key,
+    modelName: model.model_name || '',
+    format: model.provider,
+    description: model.description || t('settings/ai-model:messages.defaultDescription', { name: model.name }),
+    isBuiltIn: false,
+    contextWindow: model.context_window,
+    maxTokens: model.max_tokens,
+    auth: model.auth || { type: 'api_key' },
+  };
+}
+
+export function mapModelConfigToBackend(config: ModelConfig) {
+  return {
+    id: config.id,
+    name: config.name,
+    model_name: config.modelName,
+    provider: config.format,
+    base_url: config.baseUrl,
+    api_key: config.apiKey || '',
+    enabled: true,
+    description: config.description,
+    context_window: config.contextWindow,
+    max_tokens: config.maxTokens,
+    auth: config.auth || { type: 'api_key' as const },
+  };
+}
 
 function inferProviderTemplate(config: ProviderConfigLike): ProviderTemplate | undefined {
   const matchedCatalogItem = matchProviderCatalogItemByBaseUrl(config.base_url);
@@ -264,18 +306,7 @@ class ModelConfigManager {
       
       if (aiModels && aiModels.length > 0) {
         // Convert backend shape -> frontend shape.
-        this.configs = aiModels.map(model => ({
-          id: model.id,
-          name: model.name,
-          baseUrl: model.base_url,
-          apiKey: model.api_key,
-          modelName: model.model_name,
-          format: model.provider as ApiFormat,
-          description: model.description || t('settings/ai-model:messages.defaultDescription', { name: model.name }),
-          isBuiltIn: false,
-          contextWindow: model.context_window,
-          maxTokens: model.max_tokens
-        }));
+        this.configs = aiModels.map(model => mapBackendModelConfig(model));
       } else {
         // No config available from backend.
         this.configs = [];
@@ -293,18 +324,7 @@ class ModelConfigManager {
   private async saveConfigs(): Promise<void> {
     try {
       // Convert to backend shape.
-      const backendConfigs = this.configs.map(config => ({
-        id: config.id,
-        name: config.name,
-        model_name: config.modelName,
-        provider: config.format,
-        base_url: config.baseUrl,
-        api_key: config.apiKey || '',
-        enabled: true,
-        description: config.description,
-        context_window: config.contextWindow,
-        max_tokens: config.maxTokens
-      }));
+      const backendConfigs = this.configs.map(mapModelConfigToBackend);
       
       // Save to the unified config system.
       await configManager.setConfig('ai.models', backendConfigs);

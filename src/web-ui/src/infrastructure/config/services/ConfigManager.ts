@@ -122,8 +122,13 @@ class ConfigManagerImpl implements IConfigManager {
     return path ?? '<root>';
   }
 
-  private async readConfig<T = any>(path?: string): Promise<T> {
-    const config = await configAPI.getConfig(path);
+  private async readConfig<T = any>(
+    path?: string,
+    options?: { skipRetryOnNotFound?: boolean }
+  ): Promise<T> {
+    const config = options
+      ? await configAPI.getConfig(path, options)
+      : await configAPI.getConfig(path);
     const resolvedConfig = path === 'ai.models'
       ? await this.migrateLegacyAiModelsIfNeeded(config)
       : config;
@@ -191,6 +196,35 @@ class ConfigManagerImpl implements IConfigManager {
       if (path === 'ai.default_models') {
         return {} as T;
       }
+      throw error;
+    }
+  }
+
+  async getOptionalConfig<T = any>(path: string): Promise<T | undefined> {
+    try {
+      if (this.configCache.has(path)) {
+        return this.configCache.get(path);
+      }
+
+      const readKey = `optional:${this.getReadKey(path)}`;
+      const existingRead = this.inFlightReads.get(readKey);
+      if (existingRead) {
+        return (await existingRead) as T | undefined;
+      }
+
+      const readPromise = this.readConfig<T | undefined>(path, {
+        skipRetryOnNotFound: true,
+      });
+      this.inFlightReads.set(readKey, readPromise);
+      try {
+        return await readPromise;
+      } finally {
+        if (this.inFlightReads.get(readKey) === readPromise) {
+          this.inFlightReads.delete(readKey);
+        }
+      }
+    } catch (error) {
+      log.error('Failed to get optional config', { path, error });
       throw error;
     }
   }

@@ -149,6 +149,7 @@ function resolveDialogTurnDisplayContent(
 export const __test_only__ = {
   resolveDialogTurnDisplayContent,
   shouldAllowLateMediaToolEvent,
+  ensureSubagentSession,
 };
 
 function shouldMarkUnreadCompletion(sessionId: string): boolean {
@@ -440,19 +441,11 @@ function ensureSubagentSession(
   const existing = store.getState().sessions.get(subagentSessionId);
   const subagentType = resolveSubagentType(parentInfo, explicitSubagentType);
   if (existing) {
-    if (
-      existing.sessionKind !== 'subagent' ||
-      existing.parentSessionId !== parentInfo.sessionId ||
-      existing.parentToolCallId !== parentInfo.toolCallId ||
-      existing.subagentType !== (subagentType || existing.subagentType)
-    ) {
-      store.updateSessionRelationship(subagentSessionId, {
-        parentSessionId: parentInfo.sessionId,
-        sessionKind: 'subagent',
-        parentToolCallId: parentInfo.toolCallId,
-        subagentType: subagentType || undefined,
-      });
-    }
+    store.syncSubagentSessionIdentity(subagentSessionId, {
+      parentSessionId: parentInfo.sessionId,
+      parentToolCallId: parentInfo.toolCallId,
+      subagentType,
+    });
     return;
   }
 

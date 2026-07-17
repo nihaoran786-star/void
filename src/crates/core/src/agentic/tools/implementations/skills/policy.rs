@@ -75,6 +75,7 @@ pub struct ModeSkillPolicy {
 pub const ASSET_AI_SKILL_ALLOWLIST: &[&str] =
     &["short-drama-character-board", "cinematic-style-repair"];
 pub const SPLIT_AI_SKILL_ALLOWLIST: &[&str] = &["cinematic-style-repair"];
+const EMPTY_SHORT_DRAMA_SKILL_ALLOWLIST: &[&str] = &[];
 
 pub fn fixed_skill_allowlist_for_agent(agent_type: &str) -> Option<&'static [&'static str]> {
     let agent_type = agent_type.trim();
@@ -82,6 +83,11 @@ pub fn fixed_skill_allowlist_for_agent(agent_type: &str) -> Option<&'static [&'s
         Some(ASSET_AI_SKILL_ALLOWLIST)
     } else if agent_type.eq_ignore_ascii_case("SplitAI") {
         Some(SPLIT_AI_SKILL_ALLOWLIST)
+    } else if ["ScriptAI", "VideoAI", "EditorAI"]
+        .iter()
+        .any(|name| agent_type.eq_ignore_ascii_case(name))
+    {
+        Some(EMPTY_SHORT_DRAMA_SKILL_ALLOWLIST)
     } else {
         None
     }
@@ -199,7 +205,10 @@ mod tests {
             fixed_skill_allowlist_for_agent("assetai"),
             Some(ASSET_AI_SKILL_ALLOWLIST)
         );
-        assert_eq!(fixed_skill_allowlist_for_agent("ScriptAI"), None);
+        assert_eq!(
+            fixed_skill_allowlist_for_agent("ScriptAI"),
+            Some(&[] as &[&str])
+        );
     }
 
     #[test]
@@ -212,6 +221,17 @@ mod tests {
             fixed_skill_allowlist_for_agent("splitai"),
             Some(SPLIT_AI_SKILL_ALLOWLIST)
         );
+    }
+
+    #[test]
+    fn non_skill_short_drama_agents_have_fixed_empty_allowlists() {
+        for agent_type in ["ScriptAI", "VideoAI", "EditorAI"] {
+            assert_eq!(
+                fixed_skill_allowlist_for_agent(agent_type),
+                Some(&[] as &[&str])
+            );
+        }
+        assert_eq!(fixed_skill_allowlist_for_agent("ResearchAI"), None);
     }
 
     #[test]

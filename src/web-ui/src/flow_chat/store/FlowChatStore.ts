@@ -151,8 +151,16 @@ function restoreCommandSupportKey(
   ]);
 }
 
-function isValidPersistedAgentType(agentType: string): boolean {
-  return VALID_AGENT_TYPES.has(agentType) || agentType.startsWith('acp:');
+function isValidPersistedAgentType(
+  agentType: string,
+  relationship?: Pick<Session, 'sessionKind' | 'subagentType'>,
+): boolean {
+  if (VALID_AGENT_TYPES.has(agentType) || agentType.startsWith('acp:')) {
+    return true;
+  }
+
+  return relationship?.sessionKind === 'subagent' &&
+    relationship.subagentType?.toLowerCase() === agentType.toLowerCase();
 }
 
 export class FlowChatStore {
@@ -476,6 +484,7 @@ export class FlowChatStore {
       }
 
       const relationship = normalizeSessionRelationship(meta);
+      const normalizedMode = mode?.trim() || 'agentic';
       const timestamp = Date.now();
       const session: Session = {
         sessionId,
@@ -486,13 +495,18 @@ export class FlowChatStore {
         titleStatus: 'generated',
         dialogTurns: [],
         status: 'idle',
-        config: { maxContextTokens: 128128, autoCompact: true, enableTools: true } as any,
+        config: {
+          agentType: normalizedMode,
+          maxContextTokens: 128128,
+          autoCompact: true,
+          enableTools: true,
+        } as any,
         createdAt: meta?.createdAt ?? timestamp,
         lastActiveAt: meta?.lastActiveAt ?? timestamp,
         lastFinishedAt: undefined,
         error: null,
         maxContextTokens: 128128,
-        mode: mode || 'agentic',
+        mode: normalizedMode,
         lastUserDialogMode: undefined,
         lastSubmittedMode: undefined,
         isHistorical: meta?.isHistorical ?? false,
@@ -702,6 +716,65 @@ export class FlowChatStore {
       const newSessions = new Map(prev.sessions);
       newSessions.set(sessionId, next);
 
+      return { ...prev, sessions: newSessions };
+    });
+  }
+
+  /**
+   * Reconcile a runtime-confirmed subagent identity in one state update.
+   * A confirmed type owns both the UI mode and backend-facing config agent type.
+   */
+  public syncSubagentSessionIdentity(
+    sessionId: string,
+    updates: {
+      parentSessionId: string;
+      parentToolCallId: string;
+      subagentType?: string;
+    },
+  ): void {
+    this.setState(prev => {
+      const session = prev.sessions.get(sessionId);
+      if (!session) return prev;
+
+      const confirmedSubagentType =
+        updates.subagentType?.trim() || session.subagentType?.trim() || undefined;
+      const relationship = normalizeSessionRelationship({
+        sessionKind: 'subagent',
+        parentSessionId: updates.parentSessionId,
+        parentToolCallId: updates.parentToolCallId,
+        subagentType: confirmedSubagentType,
+        btwOrigin: session.btwOrigin,
+      });
+      const nextMode = confirmedSubagentType || session.mode;
+      const nextAgentType = confirmedSubagentType || session.config.agentType;
+
+      if (
+        session.sessionKind === relationship.sessionKind &&
+        session.parentSessionId === relationship.parentSessionId &&
+        session.parentToolCallId === relationship.parentToolCallId &&
+        session.subagentType === relationship.subagentType &&
+        session.mode === nextMode &&
+        session.config.agentType === nextAgentType
+      ) {
+        return prev;
+      }
+
+      const next: Session = {
+        ...session,
+        parentSessionId: relationship.parentSessionId,
+        sessionKind: relationship.sessionKind,
+        parentToolCallId: relationship.parentToolCallId,
+        subagentType: relationship.subagentType,
+        btwOrigin: relationship.btwOrigin,
+        mode: nextMode,
+        config: {
+          ...session.config,
+          agentType: nextAgentType,
+        },
+      };
+
+      const newSessions = new Map(prev.sessions);
+      newSessions.set(sessionId, next);
       return { ...prev, sessions: newSessions };
     });
   }
@@ -2275,8 +2348,10 @@ export class FlowChatStore {
             return prev;
           }
 
-          const rawAgentType = metadata.agentType || 'agentic';
-          const validatedAgentType = isValidPersistedAgentType(rawAgentType) ? rawAgentType : 'agentic';
+          const rawAgentType = metadata.agentType?.trim() || 'agentic';
+          const validatedAgentType = isValidPersistedAgentType(rawAgentType, relationship)
+            ? rawAgentType
+            : 'agentic';
 
           if (rawAgentType !== validatedAgentType) {
             log.warn('Invalid agentType, falling back to agentic', { sessionId: metadata.sessionId, rawAgentType, validatedAgentType });
@@ -2587,8 +2662,10 @@ export class FlowChatStore {
               return prev;
             }
 
-            const rawAgentType = metadata.agentType || 'agentic';
-            const validatedAgentType = isValidPersistedAgentType(rawAgentType) ? rawAgentType : 'agentic';
+            const rawAgentType = metadata.agentType?.trim() || 'agentic';
+            const validatedAgentType = isValidPersistedAgentType(rawAgentType, relationship)
+              ? rawAgentType
+              : 'agentic';
 
             if (rawAgentType !== validatedAgentType) {
               log.warn('Invalid agentType, falling back to agentic', { sessionId: metadata.sessionId, rawAgentType, validatedAgentType });
@@ -2774,6 +2851,7 @@ export class FlowChatStore {
     }
 
     let promise!: Promise<void>;
+    // eslint-disable-next-line prefer-const -- The promise is referenced by its own finally callback.
     promise = (async () => {
       try {
         const { agentAPI } = await import('@/infrastructure/api');

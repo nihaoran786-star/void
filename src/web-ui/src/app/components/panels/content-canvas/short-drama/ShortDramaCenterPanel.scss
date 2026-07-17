@@ -515,7 +515,7 @@
   min-width: 0;
   border-top: 1px solid color-mix(in srgb, var(--short-drama-border) 66%, transparent);
   padding: 7px 8px;
-  background: var(--short-drama-band);
+  background: var(--short-drama-preview-caption-bg);
 }
 
 .short-drama-media-preview__meta {
@@ -531,7 +531,7 @@
 .short-drama-media-preview__meta span,
 .short-drama-media-preview__meta em {
   overflow: hidden;
-  color: var(--short-drama-muted);
+  color: var(--short-drama-preview-caption-muted);
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;

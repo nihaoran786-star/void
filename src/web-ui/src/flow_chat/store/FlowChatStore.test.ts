@@ -349,6 +349,70 @@ describe('FlowChatStore ACP context usage', () => {
   });
 });
 
+describe('FlowChatStore subagent identity', () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it('keeps a new external VideoAI session mode and config in sync', () => {
+    flowChatStore.addExternalSession(
+      'video-session',
+      'VideoAI',
+      '  VideoAI  ',
+      'D:/workspace/void',
+      {
+        parentSessionId: 'short-drama-parent',
+        sessionKind: 'subagent',
+        parentToolCallId: 'video-task',
+        subagentType: 'VideoAI',
+      },
+    );
+
+    expect(flowChatStore.getState().sessions.get('video-session')).toMatchObject({
+      sessionKind: 'subagent',
+      parentSessionId: 'short-drama-parent',
+      parentToolCallId: 'video-task',
+      subagentType: 'VideoAI',
+      mode: 'VideoAI',
+      config: expect.objectContaining({ agentType: 'VideoAI' }),
+    });
+  });
+
+  it.each(['ScriptAI', 'AssetAI', 'SplitAI', 'VideoAI', 'EditorAI'])(
+    'atomically backfills an existing agentic session as %s',
+    subagentType => {
+      const session = createSession({
+        sessionId: `${subagentType}-session`,
+        mode: 'agentic',
+        config: { agentType: 'agentic', modelName: 'auto' },
+        sessionKind: 'normal',
+      });
+      flowChatStore.setState(() => ({
+        sessions: new Map([[session.sessionId, session]]),
+        activeSessionId: null,
+      }));
+
+      flowChatStore.syncSubagentSessionIdentity(session.sessionId, {
+        parentSessionId: 'short-drama-parent',
+        parentToolCallId: `${subagentType}-task`,
+        subagentType,
+      });
+
+      expect(flowChatStore.getState().sessions.get(session.sessionId)).toMatchObject({
+        sessionKind: 'subagent',
+        parentSessionId: 'short-drama-parent',
+        parentToolCallId: `${subagentType}-task`,
+        subagentType,
+        mode: subagentType,
+        config: expect.objectContaining({
+          agentType: subagentType,
+          modelName: 'auto',
+        }),
+      });
+    },
+  );
+});
+
 describe('FlowChatStore historical session hydration state', () => {
   afterEach(() => {
     resetStore();
@@ -432,6 +496,90 @@ describe('FlowChatStore historical session hydration state', () => {
       mode: 'Media',
       config: expect.objectContaining({ agentType: 'Media' }),
       historyState: 'metadata-only',
+    });
+  });
+
+  it.each(['ScriptAI', 'AssetAI', 'SplitAI', 'VideoAI', 'EditorAI'])(
+    'preserves trusted persisted %s subagent metadata on full-list hydration',
+    async agentType => {
+      apiMocks.listSessions.mockResolvedValueOnce([
+        {
+          sessionId: `${agentType}-history`,
+          title: `${agentType} session`,
+          agentType,
+          modelName: 'auto',
+          createdAt: 10,
+          lastActiveAt: 20,
+          relationship: {
+            kind: 'subagent',
+            parentSessionId: 'short-drama-parent',
+            subagentType: agentType,
+          },
+        },
+      ]);
+
+      await flowChatStore.initializeFromDisk('D:/workspace/void');
+
+      expect(flowChatStore.getState().sessions.get(`${agentType}-history`)).toMatchObject({
+        sessionKind: 'subagent',
+        parentSessionId: 'short-drama-parent',
+        subagentType: agentType,
+        mode: agentType,
+        config: expect.objectContaining({ agentType }),
+      });
+    },
+  );
+
+  it('preserves a trusted persisted short-drama subagent type on paged hydration', async () => {
+    apiMocks.listSessionsPage.mockResolvedValueOnce({
+      sessions: [
+        {
+          sessionId: 'paged-asset-history',
+          title: 'AssetAI session',
+          agentType: 'AssetAI',
+          modelName: 'auto',
+          createdAt: 10,
+          lastActiveAt: 20,
+          relationship: {
+            kind: 'subagent',
+            parentSessionId: 'short-drama-parent',
+            subagentType: 'AssetAI',
+          },
+        },
+      ],
+      totalTopLevelCount: 1,
+      loadedTopLevelCount: 1,
+      hasMore: false,
+    });
+
+    await flowChatStore.loadSessionMetadataPage('D:/workspace/void', 5);
+
+    expect(flowChatStore.getState().sessions.get('paged-asset-history')).toMatchObject({
+      sessionKind: 'subagent',
+      subagentType: 'AssetAI',
+      mode: 'AssetAI',
+      config: expect.objectContaining({ agentType: 'AssetAI' }),
+    });
+  });
+
+  it('still rejects an unknown persisted root agent type', async () => {
+    apiMocks.listSessions.mockResolvedValueOnce([
+      {
+        sessionId: 'unknown-root-history',
+        title: 'Unknown root',
+        agentType: 'UnknownAI',
+        modelName: 'auto',
+        createdAt: 10,
+        lastActiveAt: 20,
+      },
+    ]);
+
+    await flowChatStore.initializeFromDisk('D:/workspace/void');
+
+    expect(flowChatStore.getState().sessions.get('unknown-root-history')).toMatchObject({
+      sessionKind: 'normal',
+      mode: 'agentic',
+      config: expect.objectContaining({ agentType: 'agentic' }),
     });
   });
 

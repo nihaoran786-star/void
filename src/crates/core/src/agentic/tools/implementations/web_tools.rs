@@ -3,6 +3,7 @@
 use crate::agentic::tools::framework::{
     Tool, ToolExposure, ToolResult, ToolUseContext, ValidationResult,
 };
+use crate::agentic::tools::loopback_http::{client_builder_for_url, should_bypass_proxy};
 use crate::util::errors::{VoidError, VoidResult};
 use crate::util::truncate_at_char_boundary;
 use async_trait::async_trait;
@@ -14,6 +15,110 @@ use std::time::Duration;
 const EXA_URL: &str = "https://mcp.exa.ai/mcp";
 const EXA_RESULTS: u64 = 5;
 const EXA_CONTEXT: u64 = 8_000;
+const WEB_FETCH_TIMEOUT: Duration = Duration::from_secs(30);
+const WEB_FETCH_MAX_REDIRECTS: usize = 10;
+
+fn is_web_redirect(status: reqwest::StatusCode) -> bool {
+    matches!(
+        status,
+        reqwest::StatusCode::MOVED_PERMANENTLY
+            | reqwest::StatusCode::FOUND
+            | reqwest::StatusCode::SEE_OTHER
+            | reqwest::StatusCode::TEMPORARY_REDIRECT
+            | reqwest::StatusCode::PERMANENT_REDIRECT
+    )
+}
+
+fn validate_web_url(url: &reqwest::Url) -> VoidResult<()> {
+    if matches!(url.scheme(), "http" | "https") {
+        Ok(())
+    } else {
+        Err(VoidError::tool(format!(
+            "WebFetch redirect target must use http or https: {url}"
+        )))
+    }
+}
+
+fn redirect_referer(
+    previous: &reqwest::Url,
+    next: &reqwest::Url,
+) -> Option<reqwest::header::HeaderValue> {
+    if previous.scheme() == "https" && next.scheme() == "http" {
+        return None;
+    }
+
+    let mut referer = previous.clone();
+    let _ = referer.set_username("");
+    let _ = referer.set_password(None);
+    referer.set_fragment(None);
+    referer.as_str().parse().ok()
+}
+
+async fn fetch_with_redirects(
+    initial_url: reqwest::Url,
+    loopback_client: &reqwest::Client,
+    public_client: &reqwest::Client,
+    deadline: tokio::time::Instant,
+) -> VoidResult<reqwest::Response> {
+    validate_web_url(&initial_url)?;
+    let mut current_url = initial_url;
+    let mut previous_url = None;
+
+    for redirect_count in 0..=WEB_FETCH_MAX_REDIRECTS {
+        let client = if should_bypass_proxy(current_url.as_str()) {
+            loopback_client
+        } else {
+            public_client
+        };
+        let mut request = client.get(current_url.clone());
+        if let Some(previous) = previous_url.as_ref() {
+            if let Some(referer) = redirect_referer(previous, &current_url) {
+                request = request.header(reqwest::header::REFERER, referer);
+            }
+        }
+
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(VoidError::tool(
+                "Timed out while fetching URL (30-second redirect deadline exceeded)".to_string(),
+            ));
+        }
+        let response = tokio::time::timeout(remaining, request.send())
+            .await
+            .map_err(|_| {
+                VoidError::tool(
+                    "Timed out while fetching URL (30-second redirect deadline exceeded)"
+                        .to_string(),
+                )
+            })?
+            .map_err(|error| VoidError::tool(format!("Failed to fetch URL: {error}")))?;
+
+        if !is_web_redirect(response.status()) {
+            return Ok(response);
+        }
+
+        let Some(location) = response.headers().get(reqwest::header::LOCATION) else {
+            return Ok(response);
+        };
+        if redirect_count == WEB_FETCH_MAX_REDIRECTS {
+            return Err(VoidError::tool(format!(
+                "Failed to fetch URL: too many redirects (maximum {WEB_FETCH_MAX_REDIRECTS})"
+            )));
+        }
+
+        let location = location.to_str().map_err(|error| {
+            VoidError::tool(format!("Invalid redirect Location header: {error}"))
+        })?;
+        let next_url = current_url.join(location).map_err(|error| {
+            VoidError::tool(format!("Invalid redirect target {location:?}: {error}"))
+        })?;
+        validate_web_url(&next_url)?;
+        previous_url = Some(current_url);
+        current_url = next_url;
+    }
+
+    unreachable!("redirect loop always returns or advances within the bounded range")
+}
 
 #[derive(Debug, Deserialize)]
 struct ExaRes {
@@ -571,18 +676,31 @@ Example usage:
             .and_then(|v| v.as_str())
             .unwrap_or("text");
 
-        // Use reqwest to fetch URL content
-        let client = reqwest::Client::builder()
-            .user_agent("Void/1.0")
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .map_err(|e| VoidError::tool(format!("Failed to create HTTP client: {}", e)))?;
+        let initial_url = reqwest::Url::parse(url)
+            .map_err(|error| VoidError::tool(format!("Invalid URL: {error}")))?;
+        validate_web_url(&initial_url)?;
 
-        let response = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| VoidError::tool(format!("Failed to fetch URL: {}", e)))?;
+        // Redirects are handled explicitly so every hop can choose the correct
+        // proxy policy instead of inheriting the initial request's policy.
+        let loopback_client = client_builder_for_url("http://127.0.0.1/")
+            .user_agent("Void/1.0")
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|error| {
+                VoidError::tool(format!("Failed to create loopback HTTP client: {error}"))
+            })?;
+        let public_client = reqwest::Client::builder()
+            .user_agent("Void/1.0")
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|error| {
+                VoidError::tool(format!(
+                    "Failed to create system-proxy HTTP client: {error}"
+                ))
+            })?;
+        let deadline = tokio::time::Instant::now() + WEB_FETCH_TIMEOUT;
+        let response =
+            fetch_with_redirects(initial_url, &loopback_client, &public_client, deadline).await?;
 
         if !response.status().is_success() {
             return Err(VoidError::tool(format!(
@@ -601,10 +719,22 @@ Example usage:
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
 
-        let content = response
-            .text()
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(VoidError::tool(
+                "Timed out while reading URL response (30-second redirect deadline exceeded)"
+                    .to_string(),
+            ));
+        }
+        let content = tokio::time::timeout(remaining, response.text())
             .await
-            .map_err(|e| VoidError::tool(format!("Failed to read response: {}", e)))?;
+            .map_err(|_| {
+                VoidError::tool(
+                    "Timed out while reading URL response (30-second redirect deadline exceeded)"
+                        .to_string(),
+                )
+            })?
+            .map_err(|error| VoidError::tool(format!("Failed to read response: {error}")))?;
 
         let processed_content = match format {
             "raw" => content,
@@ -650,10 +780,12 @@ Example usage:
 
 #[cfg(test)]
 mod tests {
-    use super::{WebFetchTool, WebSearchTool};
+    use super::{fetch_with_redirects, WebFetchTool, WebSearchTool, WEB_FETCH_TIMEOUT};
     use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
     use serde_json::json;
     use std::io::ErrorKind;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
@@ -671,6 +803,120 @@ mod tests {
             runtime_tool_restrictions: Default::default(),
             workspace_services: None,
         }
+    }
+
+    async fn fake_proxy_client() -> (
+        reqwest::Client,
+        Arc<AtomicUsize>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind fake proxy");
+        let address = listener.local_addr().expect("fake proxy address");
+        let hits = Arc::new(AtomicUsize::new(0));
+        let server_hits = hits.clone();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept proxy request");
+            let mut request = [0_u8; 4096];
+            let bytes = stream.read(&mut request).await.expect("read proxy request");
+            let request = String::from_utf8_lossy(&request[..bytes]);
+            assert!(
+                request.starts_with("GET http://public.invalid/"),
+                "public request should use the injected proxy: {request}"
+            );
+            server_hits.fetch_add(1, Ordering::SeqCst);
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\nConnection: close\r\n\r\nproxy reached",
+                )
+                .await
+                .expect("write proxy response");
+        });
+
+        let client = reqwest::Client::builder()
+            .proxy(
+                reqwest::Proxy::all(format!("http://{address}")).expect("construct explicit proxy"),
+            )
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("build proxied client");
+        (client, hits, server)
+    }
+
+    fn loopback_client_without_redirects() -> reqwest::Client {
+        reqwest::Client::builder()
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .expect("build loopback client")
+    }
+
+    #[tokio::test]
+    async fn webfetch_redirect_from_loopback_reselects_public_proxy_client() {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind redirect server");
+        let address = listener.local_addr().expect("redirect server address");
+        let redirect_server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept redirect request");
+            let mut request = [0_u8; 2048];
+            let _ = stream
+                .read(&mut request)
+                .await
+                .expect("read redirect request");
+            stream
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: http://public.invalid/final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .expect("write redirect response");
+        });
+        let (public_client, proxy_hits, proxy_server) = fake_proxy_client().await;
+        let initial_url =
+            reqwest::Url::parse(&format!("http://{address}/start")).expect("parse initial URL");
+
+        let response = fetch_with_redirects(
+            initial_url,
+            &loopback_client_without_redirects(),
+            &public_client,
+            tokio::time::Instant::now() + WEB_FETCH_TIMEOUT,
+        )
+        .await
+        .expect("follow redirect through public proxy client");
+
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(
+            response.text().await.expect("read response"),
+            "proxy reached"
+        );
+        assert_eq!(proxy_hits.load(Ordering::SeqCst), 1);
+        redirect_server.await.expect("redirect server task");
+        proxy_server.await.expect("proxy server task");
+    }
+
+    #[tokio::test]
+    async fn webfetch_initial_public_url_uses_public_proxy_client() {
+        let (public_client, proxy_hits, proxy_server) = fake_proxy_client().await;
+        let initial_url =
+            reqwest::Url::parse("http://public.invalid/direct").expect("parse initial URL");
+
+        let response = fetch_with_redirects(
+            initial_url,
+            &loopback_client_without_redirects(),
+            &public_client,
+            tokio::time::Instant::now() + WEB_FETCH_TIMEOUT,
+        )
+        .await
+        .expect("fetch public URL through proxy client");
+
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(
+            response.text().await.expect("read response"),
+            "proxy reached"
+        );
+        assert_eq!(proxy_hits.load(Ordering::SeqCst), 1);
+        proxy_server.await.expect("proxy server task");
     }
 
     #[tokio::test]

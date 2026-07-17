@@ -170,11 +170,19 @@ impl CustomSubagent {
             .any(|name| self.name.eq_ignore_ascii_case(name))
     }
 
+    fn has_short_drama_skill_access(&self) -> bool {
+        self.name.eq_ignore_ascii_case("AssetAI") || self.name.eq_ignore_ascii_case("SplitAI")
+    }
+
     fn runtime_tools(&self) -> Vec<String> {
         let mut tools = self.tools.clone();
         if self.is_short_drama_stage_agent() && self.has_short_drama_project_tool() {
-            if !tools.iter().any(|current| current == "Skill") {
+            if self.has_short_drama_skill_access()
+                && !tools.iter().any(|current| current == "Skill")
+            {
                 tools.push("Skill".to_string());
+            } else if !self.has_short_drama_skill_access() {
+                tools.retain(|current| current != "Skill");
             }
             for tool in self.short_drama_media_tools() {
                 if !tools.iter().any(|current| current == tool) {
@@ -503,7 +511,7 @@ mod tests {
         let video_agent = CustomSubagent::new(
             "VideoAI".to_string(),
             "Video specialist".to_string(),
-            vec!["ShortDramaProject".to_string()],
+            vec!["ShortDramaProject".to_string(), "Skill".to_string()],
             "You are VideoAI.".to_string(),
             true,
             dir.join("video-ai.md"),
@@ -512,7 +520,7 @@ mod tests {
         let editor_agent = CustomSubagent::new(
             "EditorAI".to_string(),
             "Post specialist".to_string(),
-            vec!["ShortDramaProject".to_string()],
+            vec!["ShortDramaProject".to_string(), "Skill".to_string()],
             "You are EditorAI.".to_string(),
             true,
             dir.join("editor-ai.md"),
@@ -521,7 +529,7 @@ mod tests {
         let script_agent = CustomSubagent::new(
             "ScriptAI".to_string(),
             "Script specialist".to_string(),
-            vec!["ShortDramaProject".to_string()],
+            vec!["ShortDramaProject".to_string(), "Skill".to_string()],
             "You are ScriptAI.".to_string(),
             true,
             dir.join("script-ai.md"),
@@ -547,20 +555,20 @@ mod tests {
         assert!(!split_tools.contains(&"GenerateVideo".to_string()));
 
         assert!(video_tools.contains(&"GenerateVideo".to_string()));
-        assert!(video_tools.contains(&"Skill".to_string()));
+        assert!(!video_tools.contains(&"Skill".to_string()));
         assert!(video_tools.contains(&"GetMediaTaskStatus".to_string()));
         assert!(!video_tools.contains(&"GenerateImage".to_string()));
         assert!(!video_tools.contains(&"TranscribeAudio".to_string()));
 
         assert!(editor_tools.contains(&"GenerateSpeech".to_string()));
-        assert!(editor_tools.contains(&"Skill".to_string()));
+        assert!(!editor_tools.contains(&"Skill".to_string()));
         assert!(editor_tools.contains(&"TranscribeAudio".to_string()));
         assert!(editor_tools.contains(&"GetMediaTaskStatus".to_string()));
         assert!(!editor_tools.contains(&"GenerateImage".to_string()));
         assert!(!editor_tools.contains(&"GenerateVideo".to_string()));
 
         assert!(script_tools.contains(&"ShortDramaProject".to_string()));
-        assert!(script_tools.contains(&"Skill".to_string()));
+        assert!(!script_tools.contains(&"Skill".to_string()));
     }
 
     #[test]

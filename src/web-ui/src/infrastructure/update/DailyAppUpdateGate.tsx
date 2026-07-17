@@ -59,6 +59,9 @@ export function DailyAppUpdateGate(): ReactElement | null {
             if (cancelled) {
               return;
             }
+            if (res.updaterStatus !== 'ready') {
+              return;
+            }
             if (!res.updateAvailable || !res.latestVersion) {
               return;
             }

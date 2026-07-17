@@ -5,11 +5,11 @@ use crate::agentic::tools::product_runtime::{
 };
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::util::types::ToolDefinition;
+use std::sync::Arc;
 use void_agent_tools::{
     ContextualToolManifest, ContextualVisibleTools, GetToolSpecCollapsedToolSummary,
     ToolManifestDefinition,
 };
-use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct ResolvedToolManifest {
@@ -93,9 +93,9 @@ mod tests {
     use crate::agentic::tools::framework::ToolExposure;
     use crate::agentic::tools::tool_context_runtime::ToolUseContext;
     use crate::agentic::tools::ToolRuntimeRestrictions;
-    use void_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
     use serde_json::json;
     use std::collections::HashMap;
+    use void_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
 
     fn tool_context() -> ToolUseContext {
         ToolUseContext {

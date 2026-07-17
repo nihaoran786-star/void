@@ -366,13 +366,8 @@ const KeyboardShortcutsTab: React.FC = () => {
     setSaveError(null);
     try {
       // 1. Read existing stored overrides so previous sessions' changes are not lost
-      let existingOverrides: KeybindingOverrides = {};
-      try {
-        const raw = await configManager.getConfig('app.keybindings');
-        existingOverrides = parseStoredKeybindings(raw);
-      } catch {
-        // First use — no stored overrides yet
-      }
+      const raw = await configManager.getOptionalConfig('app.keybindings');
+      const existingOverrides = parseStoredKeybindings(raw);
 
       // 2. Build overrides map from this session's pending changes
       const pendingOverrides: KeybindingOverrides = {};

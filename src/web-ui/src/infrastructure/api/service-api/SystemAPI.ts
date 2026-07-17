@@ -10,7 +10,16 @@ import { createLogger } from '@/shared/utils/logger';
 const log = createLogger('SystemAPI');
 
 /** Matches `check_for_updates` / `CheckForUpdatesResponse` from desktop `system_api.rs` (camelCase). */
+export type UpdaterStatus = 'ready' | 'unconfigured';
+
+export type UpdaterUnavailableReason =
+  | 'missing_configuration'
+  | 'missing_endpoint'
+  | 'missing_public_key';
+
 export interface CheckForUpdatesResponse {
+  updaterStatus: UpdaterStatus;
+  unavailableReason: UpdaterUnavailableReason | null;
   updateAvailable: boolean;
   currentVersion: string;
   latestVersion: string | null;

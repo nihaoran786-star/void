@@ -1,5 +1,6 @@
 //! Detect and launch the user's default browser with CDP debug port enabled.
 
+use crate::agentic::tools::loopback_http::client_builder_for_url;
 use crate::infrastructure::app_paths::get_path_manager_arc;
 use crate::util::{
     errors::{VoidError, VoidResult},
@@ -67,7 +68,10 @@ impl BrowserLauncher {
     /// Check if a CDP debug port is already listening.
     pub async fn is_cdp_available(port: u16) -> bool {
         let url = format!("http://127.0.0.1:{}/json/version", port);
-        reqwest::Client::new()
+        let Ok(client) = client_builder_for_url(&url).build() else {
+            return false;
+        };
+        client
             .get(&url)
             .timeout(std::time::Duration::from_secs(2))
             .send()

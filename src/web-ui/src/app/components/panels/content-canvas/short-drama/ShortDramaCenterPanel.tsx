@@ -509,9 +509,10 @@ export function ShortDramaCenterPanel({
       ? createShortDramaAssetAnchorViewModel(viewModel.project)
       : []
   ), [viewModel]);
-  const workspacePendingGenerations = useMemo(() => (
-    getWorkspaceMediaPendingGenerationsForWorkspace(workspacePath)
-  ), [mediaRefreshToken, workspacePath]);
+  const workspacePendingGenerations = useMemo(() => {
+    void mediaRefreshToken;
+    return getWorkspaceMediaPendingGenerationsForWorkspace(workspacePath);
+  }, [mediaRefreshToken, workspacePath]);
   const mediaEntriesByArtifactId = useMemo(() => {
     if (!viewModel?.project || viewModel.state.status !== 'ready') {
       return new Map<string, ShortDramaMediaArtifactIndexEntry>();
@@ -550,8 +551,9 @@ export function ShortDramaCenterPanel({
   const stageWorkspaceProject = useMemo(() => (
     viewModel?.project ?? (state.status === 'empty' ? createEmptyShortDramaWorkspaceProject() : undefined)
   ), [state.status, viewModel?.project]);
-  const stageWorkspaces = useMemo(() => (
-    stageWorkspaceProject
+  const stageWorkspaces = useMemo(() => {
+    void flowSessionRevision;
+    return stageWorkspaceProject
       ? createShortDramaStageWorkspaces(stageWorkspaceProject, {
           selectedStage,
           activeEpisodeId: currentActiveEpisodeId(activeEpisodeId, viewModel?.selectedEpisode?.id),
@@ -561,8 +563,8 @@ export function ShortDramaCenterPanel({
           stageAgentBindings,
           workspacePath,
         })
-      : []
-  ), [activeArtifactFocusByStage, activeEpisodeId, flowSessionRevision, selectedStage, stageAgentBindings, stageWorkspaceProject, viewModel?.selectedEpisode?.id, workspacePath]);
+      : [];
+  }, [activeArtifactFocusByStage, activeEpisodeId, flowSessionRevision, selectedStage, stageAgentBindings, stageWorkspaceProject, viewModel?.selectedEpisode?.id, workspacePath]);
   const activeStageWorkspace = stageWorkspaces.find(workspace => workspace.stage === selectedStage);
 
   const openNativeStageAgentTab = useCallback((workspace: NonNullable<typeof activeStageWorkspace>) => (
@@ -1840,6 +1842,10 @@ function MediaPreview({
   const readyPosterPreview = posterPreview?.status === 'ready' && posterPreview.kind === 'image'
     ? posterPreview
     : undefined;
+  const isPreviewReady = readyPreview !== undefined;
+  const isPosterPreviewReady = readyPosterPreview !== undefined;
+  const readyPreviewKind = readyPreview?.kind;
+  const readyPosterPreviewKind = readyPosterPreview?.kind;
   const readyPreviewLocalPath = readyPreview?.localPath ?? readyPreview?.filePath;
   const readyPosterPreviewLocalPath = readyPosterPreview?.localPath ?? readyPosterPreview?.filePath;
   const readyPreviewDirectUrl = readyPreview && isDirectRenderableMediaUrl(readyPreview.previewUrl)
@@ -1867,7 +1873,7 @@ function MediaPreview({
 
   useEffect(() => {
     let cancelled = false;
-    if (!readyPreview) {
+    if (!isPreviewReady) {
       setResolvedPreviewUrl(undefined);
       setResolvedThumbnailUrl(undefined);
       return undefined;
@@ -1885,7 +1891,7 @@ function MediaPreview({
     resolveWorkspaceMediaPreviewUrl({
       filePath: readyPreviewLocalPath,
       extension: extensionFromPath(readyPreviewLocalPath),
-      kind: readyPreview.kind,
+      kind: readyPreviewKind,
     })
       .then(url => {
         if (!cancelled && url) {
@@ -1904,7 +1910,8 @@ function MediaPreview({
       cancelled = true;
     };
   }, [
-    readyPreview?.kind,
+    isPreviewReady,
+    readyPreviewKind,
     readyPreview?.mediaItemId,
     readyPreview?.previewUrl,
     readyPreview?.thumbnailUrl,
@@ -1915,7 +1922,7 @@ function MediaPreview({
 
   useEffect(() => {
     let cancelled = false;
-    if (!readyPosterPreview) {
+    if (!isPosterPreviewReady) {
       setResolvedPosterUrl(undefined);
       return undefined;
     }
@@ -1931,7 +1938,7 @@ function MediaPreview({
     resolveWorkspaceMediaPreviewUrl({
       filePath: readyPosterPreviewLocalPath,
       extension: extensionFromPath(readyPosterPreviewLocalPath),
-      kind: readyPosterPreview.kind,
+      kind: readyPosterPreviewKind,
     })
       .then(url => {
         if (!cancelled && url) {
@@ -1948,7 +1955,8 @@ function MediaPreview({
       cancelled = true;
     };
   }, [
-    readyPosterPreview?.kind,
+    isPosterPreviewReady,
+    readyPosterPreviewKind,
     readyPosterPreview?.mediaItemId,
     readyPosterPreview?.previewUrl,
     readyPosterPreviewDirectUrl,

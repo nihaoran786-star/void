@@ -1,10 +1,10 @@
 .short-drama-entry {
-  --short-drama-entry-border: var(--control-border);
   --short-drama-entry-surface: var(--control-bg);
-  --short-drama-entry-text: var(--control-text-muted);
-  --short-drama-entry-hover-text: var(--control-text);
-  --short-drama-entry-hover-border: var(--control-border-hover);
+  --short-drama-entry-border: var(--control-border);
+  --short-drama-entry-text: var(--control-text);
   --short-drama-entry-hover-surface: var(--control-bg-hover);
+  --short-drama-entry-hover-border: var(--control-border-hover);
+  --short-drama-entry-hover-text: var(--control-text-hover);
 
   display: inline-flex;
   align-items: center;

@@ -6,8 +6,8 @@
 
 use crate::agentic::tools::framework::{DynamicToolInfo, Tool, ToolExposure};
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
-use void_agent_tools::{ContextualToolManifestItem, ToolRegistryItem};
 use serde_json::Value;
+use void_agent_tools::{ContextualToolManifestItem, ToolRegistryItem};
 
 #[async_trait::async_trait]
 impl ToolRegistryItem for dyn Tool {

@@ -4,6 +4,7 @@ use anyhow::Result;
 use common::fixture_loader::load_fixture_bytes;
 use common::sse_fixture_server::{FixtureSseServer, FixtureSseServerOptions};
 use serde_json::Value;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use void_ai_adapters::stream::{
@@ -23,13 +24,28 @@ struct CapturedToolCall {
     is_error: bool,
 }
 
+fn fixture_http_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("fixture HTTP client should build")
+    })
+}
+
+async fn fetch_fixture(server: &FixtureSseServer) -> Result<reqwest::Response> {
+    Ok(fixture_http_client().get(server.url()).send().await?)
+}
+
 async fn replay_openai_fixture(
     fixture_path: &str,
     inline_think_in_text: bool,
 ) -> Result<Vec<UnifiedResponse>> {
     let payload = load_fixture_bytes(fixture_path);
     let server = FixtureSseServer::spawn(payload, FixtureSseServerOptions::default()).await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     handle_openai_stream(
@@ -58,7 +74,7 @@ fn openai_text_chunk(content: &str, created: u64) -> String {
 async fn replay_responses_fixture(fixture_path: &str) -> Result<Vec<UnifiedResponse>> {
     let payload = load_fixture_bytes(fixture_path);
     let server = FixtureSseServer::spawn(payload, FixtureSseServerOptions::default()).await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     handle_responses_stream(response, tx_event, None, None, Some(Duration::from_secs(2))).await;
@@ -73,7 +89,7 @@ async fn replay_responses_fixture(fixture_path: &str) -> Result<Vec<UnifiedRespo
 async fn replay_anthropic_fixture(fixture_path: &str) -> Result<Vec<UnifiedResponse>> {
     let payload = load_fixture_bytes(fixture_path);
     let server = FixtureSseServer::spawn(payload, FixtureSseServerOptions::default()).await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     handle_anthropic_stream(response, tx_event, None, false, None, Some(Duration::from_secs(2)))
@@ -89,7 +105,7 @@ async fn replay_anthropic_fixture(fixture_path: &str) -> Result<Vec<UnifiedRespo
 async fn replay_gemini_fixture(fixture_path: &str) -> Result<Vec<UnifiedResponse>> {
     let payload = load_fixture_bytes(fixture_path);
     let server = FixtureSseServer::spawn(payload, FixtureSseServerOptions::default()).await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     handle_gemini_stream(response, tx_event, None, None, Some(Duration::from_secs(2))).await;
@@ -191,7 +207,7 @@ async fn openai_ttft_timeout_waits_for_first_effective_stream_output_not_http_20
         },
     )
     .await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     handle_openai_stream(
@@ -232,7 +248,7 @@ async fn openai_handler_stops_when_event_receiver_is_dropped() -> Result<()> {
         },
     )
     .await;
-    let response = reqwest::get(server.url()).await?;
+    let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
     let handler_task = tokio::spawn(handle_openai_stream(

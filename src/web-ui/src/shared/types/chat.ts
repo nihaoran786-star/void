@@ -14,6 +14,12 @@ export type ConversationStatus = 'pending' | 'completed' | 'failed' | 'cancelled
 export type ApiFormat = 'openai' | 'responses' | 'anthropic' | 'gemini';
 
 
+export type ModelAuthConfig =
+  | { type: 'api_key' }
+  | { type: 'codex_cli' }
+  | { type: 'gemini_cli' };
+
+
 export interface ToolExecution {
   id: string;
   tool: string;
@@ -47,6 +53,7 @@ export interface ModelConfig {
   isBuiltIn?: boolean;
   contextWindow?: number; 
   maxTokens?: number; 
+  auth?: ModelAuthConfig;
 }
 
 

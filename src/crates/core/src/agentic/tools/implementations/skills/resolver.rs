@@ -178,7 +178,10 @@ mod tests {
 
     #[test]
     fn asset_ai_uses_only_fixed_short_drama_image_skills() {
-        let user_overrides = UserModeSkillOverrides::default();
+        let user_overrides = UserModeSkillOverrides {
+            disabled_skills: Vec::new(),
+            enabled_skills: vec!["user::void::using-superpowers".to_string()],
+        };
         let disabled_project = HashSet::new();
         let character_board = builtin_skill("short-drama-character-board");
         let cinematic = builtin_skill("cinematic-style-repair");
@@ -215,18 +218,28 @@ mod tests {
             ModeSkillStateReason::DisabledByAgentAllowlist
         );
 
-        let script_ai = resolve_skill_state_for_mode(
-            &custom_user_skill("using-superpowers"),
-            "ScriptAI",
-            &user_overrides,
-            &disabled_project,
-        );
-        assert!(script_ai.effective_enabled);
+        for agent_type in ["ScriptAI", "VideoAI", "EditorAI"] {
+            let state = resolve_skill_state_for_mode(
+                &custom_user_skill("using-superpowers"),
+                agent_type,
+                &user_overrides,
+                &disabled_project,
+            );
+            assert!(!state.default_enabled);
+            assert!(!state.effective_enabled);
+            assert_eq!(state.reason, ModeSkillStateReason::DisabledByAgentAllowlist);
+        }
     }
 
     #[test]
     fn split_ai_uses_only_the_builtin_cinematic_skill() {
-        let user_overrides = UserModeSkillOverrides::default();
+        let user_overrides = UserModeSkillOverrides {
+            disabled_skills: Vec::new(),
+            enabled_skills: vec![
+                "user::void-system::short-drama-character-board".to_string(),
+                "user::void::using-superpowers".to_string(),
+            ],
+        };
         let disabled_project = HashSet::new();
 
         let cinematic = resolve_skill_state_for_mode(

@@ -271,7 +271,7 @@ impl Default for SkillTool {
 #[cfg(test)]
 mod tests {
     use super::SkillTool;
-    use crate::agentic::tools::framework::{Tool, ToolResult};
+    use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
     use crate::agentic::tools::implementations::skills::{registry::SkillRegistry, SkillLocation};
     use crate::agentic::workspace::{
         WorkspaceCommandOptions, WorkspaceCommandResult, WorkspaceDirEntry, WorkspaceFileSystem,
@@ -360,6 +360,137 @@ Use the remote project skill.
                 timed_out: false,
             })
         }
+    }
+
+    fn local_context(agent_type: &str) -> ToolUseContext {
+        ToolUseContext {
+            tool_call_id: None,
+            agent_type: Some(agent_type.to_string()),
+            session_id: None,
+            dialog_turn_id: None,
+            workspace: None,
+            unlocked_collapsed_tools: Vec::new(),
+            custom_data: Default::default(),
+            computer_use_host: None,
+            cancellation_token: None,
+            runtime_tool_restrictions: Default::default(),
+            workspace_services: None,
+        }
+    }
+
+    fn remote_context(agent_type: &str) -> ToolUseContext {
+        let identity =
+            workspace_session_identity("/remote/project", Some("conn-1"), Some("remote-host"))
+                .expect("remote identity");
+        let workspace = WorkspaceBinding::new_remote(
+            Some("remote-workspace".to_string()),
+            PathBuf::from("/remote/project"),
+            "conn-1".to_string(),
+            "Remote".to_string(),
+            identity,
+        );
+
+        ToolUseContext {
+            tool_call_id: None,
+            agent_type: Some(agent_type.to_string()),
+            session_id: None,
+            dialog_turn_id: None,
+            workspace: Some(workspace),
+            unlocked_collapsed_tools: Vec::new(),
+            custom_data: Default::default(),
+            computer_use_host: None,
+            cancellation_token: None,
+            runtime_tool_restrictions: Default::default(),
+            workspace_services: Some(WorkspaceServices {
+                fs: Arc::new(FakeRemoteFs),
+                shell: Arc::new(FakeShell),
+            }),
+        }
+    }
+
+    async fn assert_explicit_skill_denied(context: &ToolUseContext, skill_name: &str) {
+        let error = match SkillTool::new()
+            .call_impl(&json!({ "command": skill_name }), context)
+            .await
+        {
+            Ok(_) => {
+                panic!("skill '{skill_name}' must not bypass the agent's fixed skill allowlist")
+            }
+            Err(error) => error,
+        };
+        let message = error.to_string();
+        assert!(
+            message.contains("fixed skill allowlist"),
+            "denial must identify the fixed skill allowlist boundary: {message}"
+        );
+    }
+
+    async fn assert_explicit_skill_loaded(context: &ToolUseContext, skill_name: &str) {
+        let results = SkillTool::new()
+            .call_impl(&json!({ "command": skill_name }), context)
+            .await
+            .unwrap_or_else(|error| panic!("skill '{skill_name}' should load: {error}"));
+
+        let ToolResult::Result { data, .. } = &results[0] else {
+            panic!("expected result payload for skill '{skill_name}'");
+        };
+        assert_eq!(data["skill_name"], skill_name);
+        assert_eq!(data["success"], true);
+    }
+
+    async fn assert_unknown_skill_not_found(context: &ToolUseContext) {
+        let skill_name = "unknown-short-drama-skill-for-test";
+        let error = match SkillTool::new()
+            .call_impl(&json!({ "command": skill_name }), context)
+            .await
+        {
+            Ok(_) => panic!("unknown skill '{skill_name}' must not load"),
+            Err(error) => error,
+        };
+        let message = error.to_string();
+        assert!(
+            message.contains("not found"),
+            "unknown skill must preserve the not-found result: {message}"
+        );
+        assert!(
+            !message.contains("fixed skill allowlist"),
+            "unknown skill must not be misreported as an allowlist denial: {message}"
+        );
+    }
+
+    async fn assert_fixed_short_drama_allowlists(context_for: impl Fn(&str) -> ToolUseContext) {
+        for agent_type in ["AssetAI", "SplitAI", "ScriptAI", "VideoAI", "EditorAI"] {
+            assert_explicit_skill_denied(&context_for(agent_type), "cso").await;
+        }
+
+        let asset = context_for("AssetAI");
+        assert_explicit_skill_loaded(&asset, "short-drama-character-board").await;
+        assert_explicit_skill_loaded(&asset, "cinematic-style-repair").await;
+
+        let split = context_for("SplitAI");
+        assert_explicit_skill_loaded(&split, "cinematic-style-repair").await;
+        assert_explicit_skill_denied(&split, "short-drama-character-board").await;
+
+        for agent_type in ["ScriptAI", "VideoAI", "EditorAI"] {
+            assert_explicit_skill_denied(&context_for(agent_type), "cinematic-style-repair").await;
+        }
+
+        assert_unknown_skill_not_found(&context_for("AssetAI")).await;
+    }
+
+    #[tokio::test]
+    async fn local_explicit_skill_invocation_enforces_fixed_short_drama_allowlists() {
+        assert_fixed_short_drama_allowlists(local_context).await;
+    }
+
+    #[tokio::test]
+    async fn remote_explicit_skill_invocation_enforces_fixed_short_drama_allowlists() {
+        assert_fixed_short_drama_allowlists(remote_context).await;
+    }
+
+    #[tokio::test]
+    async fn local_explicit_skill_invocation_keeps_default_hidden_gstack_available_for_agentic() {
+        assert_explicit_skill_loaded(&local_context("agentic"), "cso").await;
     }
 
     #[tokio::test]

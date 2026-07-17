@@ -2,6 +2,7 @@
 pub use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::util::errors::VoidResult;
 use async_trait::async_trait;
+use serde_json::Value;
 pub use void_agent_tools::{
     build_tool_path_policy_denial_message, build_tool_runtime_artifact_reference,
     build_tool_session_runtime_artifact_reference, is_tool_path_allowed_by_resolved_roots,
@@ -9,7 +10,6 @@ pub use void_agent_tools::{
     DynamicToolInfo, PortableToolContextProvider, ToolContextFacts, ToolExposure, ToolPathBackend,
     ToolPathResolution, ToolRenderOptions, ToolResult, ToolWorkspaceKind, ValidationResult,
 };
-use serde_json::Value;
 
 /// Tool trait
 #[async_trait]

@@ -200,6 +200,7 @@ export function AutomationProvider(props: AutomationProviderProps) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- The provider hook is intentionally colocated with its context.
 export function useAutomation(): AutomationContextValue {
   const ctx = useContext(AutomationContext);
   if (!ctx) {

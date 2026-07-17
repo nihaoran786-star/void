@@ -591,6 +591,7 @@
     "checkForUpdates": "Check for updates",
     "checking": "Checking…",
     "noUpdate": "You are on the latest version.",
+    "unavailable": "In-app updates are not available in this build. Get the latest installer from the official release page.",
     "checkFailed": "Update check failed.",
     "availableTitle": "Update available",
     "availableSubtitle": "A newer release is ready to install.",

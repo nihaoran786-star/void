@@ -75,6 +75,108 @@ describe('emitSubagentSessionLinkedEventForObservers', () => {
   });
 });
 
+describe('subagent session identity reconciliation', () => {
+  beforeEach(() => {
+    resetFlowChatStore();
+  });
+
+  afterEach(() => {
+    resetFlowChatStore();
+  });
+
+  it('prefers the explicit linked-event type over the parent Task input', () => {
+    putParentTaskSessionInStore('AssetAI');
+
+    __test_only__.ensureSubagentSession(
+      createFlowChatContext(),
+      { sessionId: 'parent-session', dialogTurnId: 'parent-turn', toolCallId: 'parent-task' },
+      'child-session',
+      undefined,
+      'VideoAI',
+    );
+
+    expect(getSession('child-session')).toMatchObject({
+      sessionKind: 'subagent',
+      subagentType: 'VideoAI',
+      mode: 'VideoAI',
+      config: expect.objectContaining({ agentType: 'VideoAI' }),
+    });
+  });
+
+  it('uses the parent Task input when the linked event omits its type', () => {
+    putParentTaskSessionInStore('AssetAI');
+
+    __test_only__.ensureSubagentSession(
+      createFlowChatContext(),
+      { sessionId: 'parent-session', dialogTurnId: 'parent-turn', toolCallId: 'parent-task' },
+      'child-session',
+    );
+
+    expect(getSession('child-session')).toMatchObject({
+      subagentType: 'AssetAI',
+      mode: 'AssetAI',
+      config: expect.objectContaining({ agentType: 'AssetAI' }),
+    });
+  });
+
+  it('backfills an existing agentic child when a later event confirms AssetAI', () => {
+    putParentTaskSessionInStore();
+    const store = FlowChatStore.getInstance();
+    store.addExternalSession('child-session', 'Child', 'agentic');
+
+    __test_only__.ensureSubagentSession(
+      createFlowChatContext(),
+      { sessionId: 'parent-session', dialogTurnId: 'parent-turn', toolCallId: 'parent-task' },
+      'child-session',
+      undefined,
+      'AssetAI',
+    );
+
+    expect(getSession('child-session')).toMatchObject({
+      sessionKind: 'subagent',
+      parentSessionId: 'parent-session',
+      parentToolCallId: 'parent-task',
+      subagentType: 'AssetAI',
+      mode: 'AssetAI',
+      config: expect.objectContaining({ agentType: 'AssetAI' }),
+    });
+  });
+
+  it('keeps the parent mode fallback when no type is available', () => {
+    putParentTaskSessionInStore(undefined, 'Plan');
+
+    __test_only__.ensureSubagentSession(
+      createFlowChatContext(),
+      { sessionId: 'parent-session', dialogTurnId: 'parent-turn', toolCallId: 'parent-task' },
+      'child-session',
+    );
+
+    expect(getSession('child-session')).toMatchObject({
+      sessionKind: 'subagent',
+      parentSessionId: 'parent-session',
+      subagentType: undefined,
+      mode: 'Plan',
+      config: expect.objectContaining({ agentType: 'Plan' }),
+    });
+  });
+
+  it('falls back to agentic when neither a type nor parent session is available', () => {
+    __test_only__.ensureSubagentSession(
+      createFlowChatContext(),
+      { sessionId: 'missing-parent', dialogTurnId: 'missing-turn', toolCallId: 'missing-task' },
+      'child-session',
+    );
+
+    expect(getSession('child-session')).toMatchObject({
+      sessionKind: 'subagent',
+      parentSessionId: 'missing-parent',
+      subagentType: undefined,
+      mode: 'agentic',
+      config: expect.objectContaining({ agentType: 'agentic' }),
+    });
+  });
+});
+
 describe('emitAgentToolRunEventForObservers', () => {
   afterEach(() => {
     globalEventBus.removeAllListeners('agent:tool-run-event');
@@ -530,6 +632,49 @@ function resetFlowChatStore(): void {
   FlowChatStore.getInstance().setState(() => ({
     sessions: new Map(),
     activeSessionId: null,
+  }));
+}
+
+function getSession(sessionId: string): Session | undefined {
+  return FlowChatStore.getInstance().getState().sessions.get(sessionId);
+}
+
+function putParentTaskSessionInStore(
+  taskSubagentType?: string,
+  mode = 'agentic',
+): void {
+  const taskInput = taskSubagentType ? { subagent_type: taskSubagentType } : {};
+  const parent = {
+    sessionId: 'parent-session',
+    title: 'Parent',
+    dialogTurns: [{
+      id: 'parent-turn',
+      sessionId: 'parent-session',
+      userMessage: { id: 'parent-user', content: 'Create child', timestamp: 1 },
+      modelRounds: [makeRound('parent-round', [{
+        id: 'parent-task',
+        type: 'tool',
+        toolName: 'Task',
+        timestamp: 2,
+        status: 'running',
+        toolCall: { id: 'parent-task', input: taskInput },
+      } as any])],
+      status: 'processing',
+      startTime: 1,
+    }],
+    status: 'idle',
+    config: { agentType: mode },
+    createdAt: 1,
+    lastActiveAt: 1,
+    error: null,
+    mode,
+    workspacePath: 'D:/workspace/void',
+    sessionKind: 'normal',
+  } as Session;
+
+  FlowChatStore.getInstance().setState(() => ({
+    sessions: new Map([[parent.sessionId, parent]]),
+    activeSessionId: parent.sessionId,
   }));
 }
 

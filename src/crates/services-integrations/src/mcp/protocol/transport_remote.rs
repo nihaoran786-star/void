@@ -39,6 +39,7 @@ use rmcp::RoleClient;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::future::Future;
+use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc as StdArc;
@@ -47,6 +48,49 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 
 use sse_stream::{Sse, SseStream};
+
+fn remote_http_client_builder(target_url: &str) -> reqwest::ClientBuilder {
+    let builder = reqwest::Client::builder();
+    if should_bypass_proxy(target_url) {
+        builder
+            .no_proxy()
+            .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                if attempt.previous().len() > 10 {
+                    attempt.error("too many redirects")
+                } else if !should_bypass_proxy(attempt.url().as_str()) {
+                    attempt.error(
+                        "loopback Remote MCP client refused redirect to non-loopback URL; configure the remote MCP URL directly so the system proxy can be used",
+                    )
+                } else {
+                    attempt.follow()
+                }
+            }))
+    } else {
+        builder
+    }
+}
+
+fn should_bypass_proxy(target_url: &str) -> bool {
+    let Ok(url) = reqwest::Url::parse(target_url) else {
+        return false;
+    };
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+
+    let normalized_host = host
+        .strip_prefix('[')
+        .and_then(|host| host.strip_suffix(']'))
+        .unwrap_or(host)
+        .to_ascii_lowercase();
+    if normalized_host == "localhost" || normalized_host.ends_with(".localhost") {
+        return true;
+    }
+
+    normalized_host
+        .parse::<IpAddr>()
+        .is_ok_and(|address| address.is_loopback())
+}
 
 #[derive(Clone)]
 struct VoidRmcpClientHandler {
@@ -383,16 +427,18 @@ impl RemoteMCPTransport {
             None
         };
 
-        let http_client = reqwest::Client::builder()
+        let http_client = remote_http_client_builder(&url)
             .connect_timeout(Duration::from_secs(10))
             .danger_accept_invalid_certs(false)
             .use_rustls_tls()
             .default_headers(default_headers.clone())
             .build()
-            .unwrap_or_else(|e| {
-                warn!("Failed to create HTTP client, using default config: {}", e);
-                reqwest::Client::new()
-            });
+            .map_err(|error| {
+                MCPRuntimeError::mcp(format!(
+                    "Failed to create Remote MCP HTTP client for {}: {}",
+                    url, error
+                ))
+            })?;
 
         let transport = StreamableHttpClientTransport::with_client(
             VoidStreamableHttpClient {
@@ -696,10 +742,132 @@ impl RemoteMCPTransport {
 
 #[cfg(test)]
 mod tests {
-    use super::RemoteMCPTransport;
+    use super::{remote_http_client_builder, should_bypass_proxy, RemoteMCPTransport};
     use crate::mcp::MCPRuntimeErrorKind;
+    use std::error::Error as _;
     use std::future::pending;
     use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    #[test]
+    fn remote_mcp_bypasses_proxy_only_for_loopback_hosts() {
+        for url in [
+            "http://localhost:3333/mcp",
+            "http://LOCALHOST:3333/mcp",
+            "http://app.localhost:3333/mcp",
+            "http://127.0.0.1:3333/mcp",
+            "http://127.10.20.30:3333/mcp",
+            "http://[::1]:3333/mcp",
+        ] {
+            assert!(
+                should_bypass_proxy(url),
+                "loopback URL should bypass proxies: {url}"
+            );
+        }
+
+        for url in [
+            "http://localhost.example.com/mcp",
+            "http://evil-localhost.com/mcp",
+            "http://192.168.1.1/mcp",
+            "https://example.com/mcp",
+            "not a valid URL",
+        ] {
+            assert!(
+                !should_bypass_proxy(url),
+                "non-loopback URL should keep system proxy behavior: {url}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn remote_mcp_loopback_client_rejects_redirect_to_non_loopback() {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind redirect server");
+        let address = listener.local_addr().expect("redirect server address");
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept request");
+            let mut request = [0_u8; 2048];
+            let _ = stream.read(&mut request).await.expect("read request");
+            stream
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: http://public.invalid/mcp\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .expect("write redirect response");
+        });
+
+        let url = format!("http://{address}/mcp");
+        let client = remote_http_client_builder(&url)
+            .timeout(Duration::from_secs(3))
+            .build()
+            .expect("build Remote MCP client");
+        let error = client
+            .get(&url)
+            .send()
+            .await
+            .expect_err("cross-boundary redirect must be rejected");
+
+        assert!(error.is_redirect(), "expected redirect error, got: {error}");
+        let mut diagnostic = error.to_string();
+        let mut source = error.source();
+        while let Some(cause) = source {
+            diagnostic.push_str(": ");
+            diagnostic.push_str(&cause.to_string());
+            source = cause.source();
+        }
+        assert!(
+            diagnostic.contains("loopback Remote MCP client refused redirect to non-loopback URL"),
+            "redirect error chain should explain the proxy boundary: {diagnostic}"
+        );
+        server.await.expect("redirect server task");
+    }
+
+    #[tokio::test]
+    async fn remote_mcp_loopback_client_follows_loopback_redirect() {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind redirect server");
+        let address = listener.local_addr().expect("redirect server address");
+        let server = tokio::spawn(async move {
+            for request_index in 0..2 {
+                let (mut stream, _) = listener.accept().await.expect("accept request");
+                let mut request = [0_u8; 2048];
+                let bytes = stream.read(&mut request).await.expect("read request");
+                let request = String::from_utf8_lossy(&request[..bytes]);
+                if request_index == 0 {
+                    assert!(request.starts_with("GET /mcp "));
+                    let response = format!(
+                        "HTTP/1.1 302 Found\r\nLocation: http://{address}/final\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    );
+                    stream
+                        .write_all(response.as_bytes())
+                        .await
+                        .expect("write redirect response");
+                } else {
+                    assert!(request.starts_with("GET /final "));
+                    stream
+                        .write_all(
+                            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+                        )
+                        .await
+                        .expect("write final response");
+                }
+            }
+        });
+
+        let url = format!("http://{address}/mcp");
+        let client = remote_http_client_builder(&url)
+            .timeout(Duration::from_secs(3))
+            .build()
+            .expect("build Remote MCP client");
+        let response = client.get(&url).send().await.expect("follow redirect");
+
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        assert_eq!(response.text().await.expect("read response"), "ok");
+        server.await.expect("redirect server task");
+    }
 
     #[tokio::test]
     async fn remote_mcp_request_timeout_helper_allows_unbounded_future() {

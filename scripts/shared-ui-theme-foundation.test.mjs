@@ -163,10 +163,24 @@ test('short drama surfaces consume shared theme contracts and cap raw colors', (
     ['ShortDramaEntry', 2],
   ]);
 
+  const shortDramaCenter = shortDramaSurfaces.get('ShortDramaCenterPanel');
+  for (const token of ['--control-bg', '--control-border', '--control-text', '--control-text-muted']) {
+    assert.match(shortDramaCenter, new RegExp(`var\\(${token}\\)`), `ShortDramaCenterPanel must consume ${token}`);
+  }
+
+  const shortDramaEntry = shortDramaSurfaces.get('ShortDramaEntry');
+  for (const token of [
+    '--control-bg',
+    '--control-bg-hover',
+    '--control-border',
+    '--control-border-hover',
+    '--control-text',
+    '--control-text-hover',
+  ]) {
+    assert.match(shortDramaEntry, new RegExp(`var\\(${token}\\)`), `ShortDramaEntry must consume ${token}`);
+  }
+
   for (const [name, styles] of shortDramaSurfaces) {
-    for (const token of ['--control-bg', '--control-border', '--control-text', '--control-text-muted']) {
-      assert.match(styles, new RegExp(`var\\(${token}\\)`), `${name} must consume ${token}`);
-    }
     assert.ok(countRawColors(styles) <= limits.get(name), `${name} raw color count must be <= ${limits.get(name)}`);
   }
 });

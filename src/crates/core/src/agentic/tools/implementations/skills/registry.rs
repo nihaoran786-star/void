@@ -8,6 +8,7 @@ use super::mode_overrides::{
     load_disabled_mode_skills_local, load_disabled_mode_skills_remote,
     load_user_mode_skill_overrides, UserModeSkillOverrides,
 };
+use super::policy::fixed_skill_allowlist_for_agent;
 use super::resolver::{resolve_skill_default_enabled_for_mode, resolve_skill_state_for_mode};
 use super::types::{ModeSkillInfo, SkillData, SkillInfo, SkillLocation};
 use crate::agentic::workspace::WorkspaceFileSystem;
@@ -646,6 +647,13 @@ impl SkillRegistry {
             .into_iter()
             .find(|skill| skill.name == skill_name)
             .ok_or_else(|| VoidError::tool(format!("Skill '{}' not found", skill_name)))?;
+
+        if fixed_skill_allowlist_for_agent(mode_id).is_some() {
+            return Err(VoidError::tool(format!(
+                "Skill '{}' is outside the fixed skill allowlist for agent '{}'. Explicit invocation cannot expand fixed skill permissions.",
+                skill_name, mode_id
+            )));
+        }
 
         if info.level == SkillLocation::User
             && info.is_builtin

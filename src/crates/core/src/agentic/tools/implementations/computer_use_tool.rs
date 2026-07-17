@@ -1272,12 +1272,14 @@ fn parse_ocr_region_native(
                 .to_string(),
         )
     })?;
-    let x0 = o.get("x0").and_then(|x| x.as_i64()).ok_or_else(|| {
-        VoidError::tool("ocr_region_native.x0 (integer) is required.".to_string())
-    })? as i32;
-    let y0 = o.get("y0").and_then(|x| x.as_i64()).ok_or_else(|| {
-        VoidError::tool("ocr_region_native.y0 (integer) is required.".to_string())
-    })? as i32;
+    let x0 =
+        o.get("x0").and_then(|x| x.as_i64()).ok_or_else(|| {
+            VoidError::tool("ocr_region_native.x0 (integer) is required.".to_string())
+        })? as i32;
+    let y0 =
+        o.get("y0").and_then(|x| x.as_i64()).ok_or_else(|| {
+            VoidError::tool("ocr_region_native.y0 (integer) is required.".to_string())
+        })? as i32;
     let width = o.get("width").and_then(|x| x.as_u64()).ok_or_else(|| {
         VoidError::tool("ocr_region_native.width (positive integer) is required.".to_string())
     })? as u32;
@@ -1517,9 +1519,7 @@ impl Tool for ComputerUseTool {
         }
 
         let host = context.computer_use_host.as_ref().ok_or_else(|| {
-            VoidError::tool(
-                "Computer use is only available in the Void desktop app.".to_string(),
-            )
+            VoidError::tool("Computer use is only available in the Void desktop app.".to_string())
         })?;
 
         let host_ref = host.as_ref();
@@ -2258,9 +2258,7 @@ impl Tool for ComputerUseTool {
                     .get("script")
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| {
-                        VoidError::tool(
-                            "run_apple_script requires `script` parameter.".to_string(),
-                        )
+                        VoidError::tool("run_apple_script requires `script` parameter.".to_string())
                     })?;
                 #[cfg(not(target_os = "macos"))]
                 {
@@ -2368,8 +2366,8 @@ mod tests {
     use serde_json::json;
     use std::collections::HashMap;
     use std::sync::{
-        Arc,
         atomic::{AtomicUsize, Ordering},
+        Arc,
     };
     use void_agent_tools::ToolRuntimeRestrictions;
 
@@ -2534,11 +2532,9 @@ mod tests {
         let text_actions = action_enum(&text_schema);
         assert!(text_actions.iter().any(|a| a == "describe_screen"));
         assert!(!text_actions.iter().any(|a| a == "screenshot"));
-        assert!(
-            action_enum(&multimodal_schema)
-                .iter()
-                .any(|a| a == "describe_screen")
-        );
+        assert!(action_enum(&multimodal_schema)
+            .iter()
+            .any(|a| a == "describe_screen"));
     }
 
     #[tokio::test]
@@ -2566,12 +2562,10 @@ mod tests {
         assert_eq!(data["source"], "none");
         assert_eq!(data["scope"], "current_session");
         assert_eq!(data["error_code"], "DESKTOP_HOST_UNAVAILABLE");
-        assert!(
-            data["error"]
-                .as_str()
-                .unwrap_or_default()
-                .contains("Void desktop")
-        );
+        assert!(data["error"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("Void desktop"));
         assert_eq!(image_attachments, &None);
     }
 

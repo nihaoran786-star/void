@@ -15,6 +15,26 @@ export interface AIInitializationState {
   currentConfig: ModelConfig | null;
 }
 
+export type AIInitializationReadiness =
+  | { ready: true }
+  | {
+      ready: false;
+      reason: 'missing_config' | 'missing_model_name' | 'missing_base_url' | 'missing_api_key';
+    };
+
+export function getAIInitializationReadiness(
+  config?: ModelConfig | null,
+): AIInitializationReadiness {
+  if (!config) return { ready: false, reason: 'missing_config' };
+  if (!config.modelName) return { ready: false, reason: 'missing_model_name' };
+  if (!config.baseUrl) return { ready: false, reason: 'missing_base_url' };
+  if ((!config.auth || config.auth.type === 'api_key') && !config.apiKey) {
+    return { ready: false, reason: 'missing_api_key' };
+  }
+
+  return { ready: true };
+}
+
  
 export const useAIInitialization = (currentConfig?: ModelConfig | null) => {
   const { t } = useI18n('errors');
@@ -71,7 +91,8 @@ export const useAIInitialization = (currentConfig?: ModelConfig | null) => {
 
   
   useEffect(() => {
-    if (currentConfig && currentConfig.modelName && currentConfig.baseUrl && currentConfig.apiKey) {
+    const readiness = getAIInitializationReadiness(currentConfig);
+    if (currentConfig && readiness.ready) {
       
       const needsInitialization = !state.isInitialized || 
                                  state.currentConfig?.id !== currentConfig.id;
@@ -96,9 +117,8 @@ export const useAIInitialization = (currentConfig?: ModelConfig | null) => {
     } else if (currentConfig) {
       log.warn('Model configuration incomplete', {
         configName: currentConfig.name,
-        hasModelName: !!currentConfig.modelName,
-        hasBaseUrl: !!currentConfig.baseUrl,
-        hasApiKey: !!currentConfig.apiKey
+        reason: readiness.ready ? undefined : readiness.reason,
+        authType: currentConfig.auth?.type || 'api_key',
       });
     }
   }, [currentConfig, state.isInitialized, state.isInitializing, state.currentConfig?.id]);

@@ -5,13 +5,13 @@ use crate::agentic::session::FileReadState;
 use crate::agentic::tools::framework::ToolPathResolution;
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::util::errors::VoidResult;
-use void_agent_tools::{
-    file_read_facts_are_fresh, file_read_facts_content_matches, FileReadFreshnessFacts,
-};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tool_runtime::fs::read_file::ReadFileResult;
 use tool_runtime::util::read_line_prefix::read_tool_output_to_file_content;
+use void_agent_tools::{
+    file_read_facts_are_fresh, file_read_facts_content_matches, FileReadFreshnessFacts,
+};
 
 pub const FILE_UNEXPECTEDLY_MODIFIED_ERROR: &str =
     "File has been unexpectedly modified. Read it again before attempting to write it.";

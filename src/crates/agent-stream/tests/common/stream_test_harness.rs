@@ -97,7 +97,12 @@ pub async fn run_stream_fixture_with_options(
 
     let response = tokio::time::timeout(
         options.request_timeout,
-        reqwest::Client::new().get(fixture_server.url()).send(),
+        reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("fixture SSE client should build")
+            .get(fixture_server.url())
+            .send(),
     )
     .await
     .unwrap_or_else(|_| {
