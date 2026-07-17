@@ -20,6 +20,7 @@ const {
   printBlank,
 } = require('./console-style.cjs');
 const { buildMobileWeb } = require('./mobile-web-build.cjs');
+const { createLocalDevEnvironment } = require('./local-dev-environment.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DEV_SERVER_PORT = 1422;
@@ -480,11 +481,17 @@ async function startDesktopPreview() {
     printInfo(`Reusing web UI dev server on http://localhost:${DEV_SERVER_PORT}`);
   } else {
     printInfo(`Starting web UI dev server on http://localhost:${DEV_SERVER_PORT}`);
-    const viteArgs = ['--dir', 'src/web-ui', 'exec', 'vite', '--host', 'localhost', '--port', String(DEV_SERVER_PORT)];
-    const viteEnv = {
-      ...process.env,
-      TAURI_DEV_HOST: 'localhost',
-    };
+    const viteEnv = createLocalDevEnvironment(process.env);
+    const viteArgs = [
+      '--dir',
+      'src/web-ui',
+      'exec',
+      'vite',
+      '--host',
+      viteEnv.TAURI_DEV_HOST,
+      '--port',
+      String(DEV_SERVER_PORT),
+    ];
 
     devServerProcess = process.platform === 'win32'
       ? spawnWindowsCommand(`pnpm ${viteArgs.join(' ')}`, ROOT_DIR, viteEnv)
@@ -522,9 +529,12 @@ async function startDesktopPreview() {
 
   printInfo(`Launching debug desktop binary: ${desktopBinary}`);
 
-  appProcess = spawnBackgroundCommand(desktopBinary, [], ROOT_DIR, {
-    ...process.env,
-  });
+  appProcess = spawnBackgroundCommand(
+    desktopBinary,
+    [],
+    ROOT_DIR,
+    createLocalDevEnvironment(process.env),
+  );
 
   appProcess.on('error', (error) => {
     printError(`Desktop preview failed to start: ${error.message || String(error)}`);
@@ -709,15 +719,26 @@ async function main() {
       await ensureDesktopOpenSslIfNeeded();
       const desktopDir = path.join(ROOT_DIR, 'src/apps/desktop');
       const tauriConfig = path.join(desktopDir, 'tauri.dev.conf.json');
+      const desktopDevEnvironment = createLocalDevEnvironment(process.env);
       if (process.platform === 'win32') {
         // Running the generated .cmd shim directly via spawn is flaky on Windows.
         // Use cmd.exe with an explicit args array so the desktop app directory
         // stays the Tauri project root without pnpm workspace path rewriting.
         const tauriBin = path.join(ROOT_DIR, 'node_modules', '.bin', 'tauri.cmd');
-        await runWindowsCommandArgs(tauriBin, ['dev', '--config', tauriConfig], desktopDir, process.env);
+        await runWindowsCommandArgs(
+          tauriBin,
+          ['dev', '--config', tauriConfig],
+          desktopDir,
+          desktopDevEnvironment,
+        );
       } else {
         const tauriBin = path.join(ROOT_DIR, 'node_modules', '.bin', 'tauri');
-        await spawnCommand(tauriBin, ['dev', '--config', tauriConfig], desktopDir);
+        await spawnCommand(
+          tauriBin,
+          ['dev', '--config', tauriConfig],
+          desktopDir,
+          desktopDevEnvironment,
+        );
       }
     } else if (mode === 'desktop-preview') {
       await ensureDesktopDebugBinaryForPreview(forceDesktopPreviewRebuild);
