@@ -1,4 +1,5 @@
 import type { CanvasTab, EditorGroupState, SplitMode } from '../types';
+import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 
 export type ShortDramaTeamPanelMode = 'closed' | 'rail' | 'open';
 
@@ -8,6 +9,7 @@ export type ShortDramaTeamPanelPresentation =
       mode: 'closed';
       reason:
         | 'unsupported-layout'
+        | 'classic-presentation'
         | 'primary-is-not-short-drama'
         | 'secondary-is-empty'
         | 'secondary-has-mixed-content'
@@ -22,6 +24,7 @@ export type ShortDramaTeamPanelPresentation =
     };
 
 export interface ShortDramaTeamPanelPresentationInput {
+  presentation: WorkspacePresentation;
   splitMode: SplitMode;
   primaryGroup: EditorGroupState;
   secondaryGroup: EditorGroupState;
@@ -36,11 +39,21 @@ const isShortDramaStageAgentTab = (tab: CanvasTab): boolean =>
   && typeof tab.content.metadata?.shortDramaStage === 'string';
 
 export function selectShortDramaTeamPanelPresentation({
+  presentation,
   splitMode,
   primaryGroup,
   secondaryGroup,
   expanded,
 }: ShortDramaTeamPanelPresentationInput): ShortDramaTeamPanelPresentation {
+  if (presentation !== 'minimal') {
+    return {
+      status: 'inactive',
+      mode: 'closed',
+      reason: 'classic-presentation',
+      tabs: [],
+    };
+  }
+
   if (splitMode !== 'horizontal') {
     return {
       status: 'inactive',

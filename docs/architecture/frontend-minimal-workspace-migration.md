@@ -309,9 +309,10 @@ Keep the existing session graph and Skill/runtime policy unchanged.
 The first Slice 3 sub-slice is a presentation projection over the existing
 canvas groups:
 
-- a pure selector activates only for a horizontal layout whose primary tab is
-  the short-drama center and whose visible secondary tabs are all real
-  `btw-session` stage-agent tabs carrying `shortDramaStage` metadata;
+- a pure selector activates only when the resolved workspace presentation is
+  `minimal`, the layout is horizontal, the primary tab is the short-drama
+  center, and every visible secondary tab is a real `btw-session` stage-agent
+  tab carrying `shortDramaStage` metadata;
 - mixed secondary content, non-short-drama primary tabs, vertical/grid layouts,
   and classic presentation fall back to the unchanged editor layout;
 - the default 44px rail reuses the five native stage-agent tab IDs. Selecting a
@@ -334,6 +335,14 @@ canvas groups:
 The generic badge in the nested session header is hidden only in this open
 presentation because it duplicates the surrounding agent tab. The real agent
 title and every interactive header/tab action remain present.
+
+The final parity cycle found and fixed a missing mode gate: scoped CSS kept the
+classic layout visually unchanged, but the presentation selector still entered
+rail mode and passed `isSceneActive={false}` to its visible native agent panel.
+`WorkspacePresentation` is now an explicit selector input. Classic mode returns
+`classic-presentation`, mounts no custom controls, and preserves the original
+secondary panel lifecycle. The same real-desktop short-drama test now runs in
+both classic and minimal modes so this isolation cannot regress silently.
 
 Allowed product areas:
 

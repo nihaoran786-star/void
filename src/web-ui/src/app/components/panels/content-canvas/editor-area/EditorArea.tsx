@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useState } from 'react';
+import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
 import { selectShortDramaTeamPanelPresentation } from './shortDramaTeamPanelPresentation';
@@ -40,6 +41,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
+  const workspacePresentation = React.useMemo(readWorkspacePresentation, []);
   const [isShortDramaTeamExpanded, setIsShortDramaTeamExpanded] = useState(false);
 
   const {
@@ -134,6 +136,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   );
 
   const shortDramaTeamPresentation = selectShortDramaTeamPanelPresentation({
+    presentation: workspacePresentation,
     splitMode: layout.splitMode,
     primaryGroup,
     secondaryGroup,

@@ -37,6 +37,8 @@ test('slice-three team layout is an additive minimal-presentation layer', () => 
 
 test('team selector reads canvas state without importing runtime services', () => {
   assert.match(teamSelector, /'closed' \| 'rail' \| 'open'/);
+  assert.match(teamSelector, /presentation !== 'minimal'/);
+  assert.match(editorArea, /presentation:\s*workspacePresentation/);
   assert.match(teamSelector, /tab\.content\.type === 'btw-session'/);
   assert.match(teamSelector, /shortDramaStage/);
   assert.match(teamSelector, /secondary-has-mixed-content/);

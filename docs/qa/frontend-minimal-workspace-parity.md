@@ -53,12 +53,12 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   and kept the 30px episode rail free of horizontal overflow.
 - [x] Real desktop E2E verified the lightweight media overlay receives focus,
   remains independent from BrowserPanel, captures a screenshot, and closes.
-- [x] Full Web suite passed: 313 test files, 1779 tests.
+- [x] Full Web suite passed: 313 test files, 1780 tests.
 - [x] Script contracts passed: 121 tests.
 - [x] TypeScript, ESLint, theme color/visual contracts, and core boundaries
   passed.
 - [x] Manifest production build and entry performance Gate passed: entry JS
-  2,371,289 / 2,372,359 bytes (gzip 690,964); entry CSS
+  2,371,436 / 2,372,359 bytes (gzip 691,039); entry CSS
   665,090 / 672,720 bytes (gzip 94,272).
 - [x] Slice 3 real-desktop E2E passed 2/2: the fixed five-agent rail measured
   44px collapsed and 298.5px open, while media preview and episode 10/100
@@ -66,6 +66,12 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Slice 3 screenshots captured the collapsed rail, open native session
   panel, and media preview; the dedicated visual specialist reported no P0/P1
   issue, clipping, or horizontal overflow.
+- [x] Classic and minimal desktop L0 smoke each passed 9/9 with one controlled
+  application window and no browser JavaScript error.
+- [x] The full short-drama desktop fixture passed 2/2 in both classic and
+  minimal presentations. Classic mode kept the native secondary agent panel
+  visible and active; minimal mode kept the 44px/300px projection.
+- [x] Desktop `release-fast` Rust check passed for `void-desktop`.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
@@ -199,10 +205,12 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 - [x] The collapsed team panel passes `isSceneActive={false}` into the hidden
   native session view, activating its existing subscription/timer guards.
-- [ ] Classic and minimal controllers are not mounted simultaneously.
+- [x] Classic mode returns an explicit inactive projection before the minimal
+  controls can mount or pause the native secondary session lifecycle.
 - [x] Media remains lazy-loaded.
 - [ ] Long lists remain virtualized where previously virtualized.
-- [ ] No new broad Store selector causes whole-app rerenders.
+- [x] No new broad Store selector was added; the drawer consumes the existing
+  canvas-group snapshot through a pure selector.
 - [ ] Vite watcher idle CPU remains within the optimized baseline.
 - [x] Web test suite passes.
 - [x] Script contract suite passes.
@@ -210,17 +218,18 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Theme and i18n gates pass.
 - [x] Web production build passes.
 - [x] Vite JS/CSS performance budget passes.
-- [ ] Desktop Release build/check passes.
+- [x] Desktop Release-fast Rust check passes.
 - [x] Desktop application launches and completes the short-drama and media
   preview smoke paths.
 
 ## Cleanup Gate
 
 - [ ] Minimal presentation is the verified default.
-- [ ] Classic rollback has completed one final parity cycle.
+- [x] Classic rollback completed the same L0 and short-drama desktop parity
+  paths as minimal presentation.
 - [ ] Removed selectors have zero consumers.
 - [ ] Removed components have no imports or dynamic registry references.
 - [ ] Removed tokens have zero consumers and pass the CSS variable contract.
-- [ ] Protected-file hashes remain unchanged.
-- [ ] Final diff contains no unrelated runtime, Skill, API, persistence, or
+- [x] Protected-file hashes remain unchanged.
+- [x] Final diff contains no unrelated runtime, Skill, API, persistence, or
   generated-version changes.

@@ -127,78 +127,110 @@ describe('Short drama center smoke', () => {
     await scriptTab.click();
     await expectActiveStageAgent('script', 'ScriptAI');
 
+    const isMinimalPresentation = await browser.execute(() => (
+      document.querySelector('[data-ui-presentation]')
+        ?.getAttribute('data-ui-presentation') === 'minimal'
+    ));
     const teamPanel = await $('.canvas-editor-area[data-short-drama-team-mode]');
     await teamPanel.waitForExist({ timeout: 5000 });
-    await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
-    await browser.waitUntil(async () => (
-      (await $$('[data-testid="short-drama-team-agent"]')).length === 5
-    ), {
-      timeout: 5000,
-      interval: 100,
-      timeoutMsg: 'short drama team controls did not load on demand',
-    });
-    const teamAgentButtons = await $$('[data-testid="short-drama-team-agent"]');
-    await expect(teamAgentButtons.length).toBe(5);
-    expect(await teamAgentButtons[0].getAttribute('aria-label')).toBeTruthy();
-    expect(await teamAgentButtons[0].getAttribute('aria-pressed')).toMatch(/true|false/);
-    const keyboardFocusEvidence = await browser.execute(() => {
-      const firstAgent = document.querySelector<HTMLButtonElement>(
-        '[data-testid="short-drama-team-agent"]',
-      );
-      firstAgent?.focus();
-      return document.activeElement === firstAgent;
-    });
-    expect(keyboardFocusEvidence).toBe(true);
 
-    const railLayout = await browser.execute(() => {
-      const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="rail"]');
-      const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
-      const secondary = area?.querySelector(':scope > .canvas-editor-area__secondary');
-      const hiddenAgentContent = secondary?.querySelector(':scope > .canvas-editor-group');
-      if (
-        !(area instanceof HTMLElement)
-        || !(primary instanceof HTMLElement)
-        || !(secondary instanceof HTMLElement)
-        || !(hiddenAgentContent instanceof HTMLElement)
-      ) {
-        return null;
-      }
-      return {
-        areaWidth: area.getBoundingClientRect().width,
-        primaryWidth: primary.getBoundingClientRect().width,
-        secondaryWidth: secondary.getBoundingClientRect().width,
-        hiddenAgentVisibility: getComputedStyle(hiddenAgentContent).visibility,
-      };
-    });
-    expect(railLayout?.secondaryWidth).toBeLessThanOrEqual(46);
-    expect(railLayout?.primaryWidth).toBeGreaterThanOrEqual((railLayout?.areaWidth ?? 0) * 0.9);
-    expect(railLayout?.hiddenAgentVisibility).toBe('hidden');
+    if (isMinimalPresentation) {
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+      await browser.waitUntil(async () => (
+        (await $$('[data-testid="short-drama-team-agent"]')).length === 5
+      ), {
+        timeout: 5000,
+        interval: 100,
+        timeoutMsg: 'short drama team controls did not load on demand',
+      });
+      const teamAgentButtons = await $$('[data-testid="short-drama-team-agent"]');
+      await expect(teamAgentButtons.length).toBe(5);
+      expect(await teamAgentButtons[0].getAttribute('aria-label')).toBeTruthy();
+      expect(await teamAgentButtons[0].getAttribute('aria-pressed')).toMatch(/true|false/);
+      const keyboardFocusEvidence = await browser.execute(() => {
+        const firstAgent = document.querySelector<HTMLButtonElement>(
+          '[data-testid="short-drama-team-agent"]',
+        );
+        firstAgent?.focus();
+        return document.activeElement === firstAgent;
+      });
+      expect(keyboardFocusEvidence).toBe(true);
 
-    const scriptAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="script"]');
-    await scriptAgentRailButton.click();
-    await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
-    const openLayout = await browser.execute(() => {
-      const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="open"]');
-      const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
-      const secondary = area?.querySelector(':scope > .canvas-editor-area__secondary');
-      if (
-        !(area instanceof HTMLElement)
-        || !(primary instanceof HTMLElement)
-        || !(secondary instanceof HTMLElement)
-      ) {
-        return null;
-      }
-      return {
-        areaWidth: area.getBoundingClientRect().width,
-        primaryWidth: primary.getBoundingClientRect().width,
-        secondaryWidth: secondary.getBoundingClientRect().width,
-      };
-    });
-    expect(openLayout?.secondaryWidth).toBeLessThanOrEqual(302);
-    expect(openLayout?.primaryWidth).toBeGreaterThanOrEqual((openLayout?.areaWidth ?? 0) * 0.68);
-    const teamToggle = await $('[data-testid="short-drama-team-panel-toggle"]');
-    await teamToggle.click();
-    await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+      const railLayout = await browser.execute(() => {
+        const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="rail"]');
+        const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
+        const secondary = area?.querySelector(':scope > .canvas-editor-area__secondary');
+        const hiddenAgentContent = secondary?.querySelector(':scope > .canvas-editor-group');
+        if (
+          !(area instanceof HTMLElement)
+          || !(primary instanceof HTMLElement)
+          || !(secondary instanceof HTMLElement)
+          || !(hiddenAgentContent instanceof HTMLElement)
+        ) {
+          return null;
+        }
+        return {
+          areaWidth: area.getBoundingClientRect().width,
+          primaryWidth: primary.getBoundingClientRect().width,
+          secondaryWidth: secondary.getBoundingClientRect().width,
+          hiddenAgentVisibility: getComputedStyle(hiddenAgentContent).visibility,
+        };
+      });
+      expect(railLayout?.secondaryWidth).toBeLessThanOrEqual(46);
+      expect(railLayout?.primaryWidth).toBeGreaterThanOrEqual((railLayout?.areaWidth ?? 0) * 0.9);
+      expect(railLayout?.hiddenAgentVisibility).toBe('hidden');
+
+      const scriptAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="script"]');
+      await scriptAgentRailButton.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
+      const openLayout = await browser.execute(() => {
+        const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="open"]');
+        const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
+        const secondary = area?.querySelector(':scope > .canvas-editor-area__secondary');
+        if (
+          !(area instanceof HTMLElement)
+          || !(primary instanceof HTMLElement)
+          || !(secondary instanceof HTMLElement)
+        ) {
+          return null;
+        }
+        return {
+          areaWidth: area.getBoundingClientRect().width,
+          primaryWidth: primary.getBoundingClientRect().width,
+          secondaryWidth: secondary.getBoundingClientRect().width,
+        };
+      });
+      expect(openLayout?.secondaryWidth).toBeLessThanOrEqual(302);
+      expect(openLayout?.primaryWidth).toBeGreaterThanOrEqual((openLayout?.areaWidth ?? 0) * 0.68);
+      const teamToggle = await $('[data-testid="short-drama-team-panel-toggle"]');
+      await teamToggle.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+    } else {
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'closed');
+      await expect((await $$('[data-testid="short-drama-team-agent"]')).length).toBe(0);
+      const classicLayout = await browser.execute(() => {
+        const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="closed"]');
+        const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
+        const secondary = area?.querySelector(':scope > .canvas-editor-area__secondary');
+        const agentContent = secondary?.querySelector(':scope > .canvas-editor-group');
+        if (
+          !(area instanceof HTMLElement)
+          || !(primary instanceof HTMLElement)
+          || !(secondary instanceof HTMLElement)
+          || !(agentContent instanceof HTMLElement)
+        ) {
+          return null;
+        }
+        return {
+          primaryWidth: primary.getBoundingClientRect().width,
+          secondaryWidth: secondary.getBoundingClientRect().width,
+          agentVisibility: getComputedStyle(agentContent).visibility,
+        };
+      });
+      expect(classicLayout?.primaryWidth).toBeGreaterThan(100);
+      expect(classicLayout?.secondaryWidth).toBeGreaterThan(100);
+      expect(classicLayout?.agentVisibility).toBe('visible');
+    }
 
     const assetsTab = await $('[data-testid="short-drama-stage-tab"][data-short-drama-stage="assets"]');
     await assetsTab.click();
@@ -313,13 +345,18 @@ describe('Short drama center smoke', () => {
     await expect(emptyFinalPreviewVideos.length).toBe(0);
 
     mkdirSync('reports', { recursive: true });
-    await browser.saveScreenshot('reports/short-drama-team-rail.png');
-    const postAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="post"]');
-    await postAgentRailButton.click();
-    await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
-    await browser.saveScreenshot('reports/short-drama-team-open.png');
-    await teamToggle.click();
-    await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+    if (isMinimalPresentation) {
+      await browser.saveScreenshot('reports/short-drama-team-rail.png');
+      const postAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="post"]');
+      await postAgentRailButton.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
+      await browser.saveScreenshot('reports/short-drama-team-open.png');
+      const teamToggle = await $('[data-testid="short-drama-team-panel-toggle"]');
+      await teamToggle.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+    } else {
+      await browser.saveScreenshot('reports/short-drama-classic-layout.png');
+    }
     await browser.saveScreenshot('reports/short-drama-media-preview.png');
 
     const dimensions = await browser.execute(() => {

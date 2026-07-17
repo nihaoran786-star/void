@@ -30,6 +30,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
 
   it('presents only a horizontal short-drama plus real stage-agent split as a team rail', () => {
     expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
       splitMode: 'horizontal',
       primaryGroup: shortDramaGroup,
       secondaryGroup: createGroup(stageAgentTabs),
@@ -44,6 +45,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
 
   it('keeps the same real tabs and active session when the presentation expands', () => {
     expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
       splitMode: 'horizontal',
       primaryGroup: shortDramaGroup,
       secondaryGroup: createGroup(stageAgentTabs, 'asset-agent'),
@@ -58,6 +60,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
 
   it('falls back to the unchanged editor layout when another secondary tool is present', () => {
     expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
       splitMode: 'horizontal',
       primaryGroup: shortDramaGroup,
       secondaryGroup: createGroup([
@@ -75,6 +78,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
 
   it('does not reinterpret non-short-drama layouts', () => {
     expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
       splitMode: 'horizontal',
       primaryGroup: createGroup([createTab('file', 'text-viewer')]),
       secondaryGroup: createGroup(stageAgentTabs),
@@ -83,6 +87,21 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       status: 'inactive',
       mode: 'closed',
       reason: 'primary-is-not-short-drama',
+    });
+  });
+
+  it('leaves the classic presentation and its visible agent lifecycle unchanged', () => {
+    expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'classic',
+      splitMode: 'horizontal',
+      primaryGroup: shortDramaGroup,
+      secondaryGroup: createGroup(stageAgentTabs),
+      expanded: false,
+    })).toEqual({
+      status: 'inactive',
+      mode: 'closed',
+      reason: 'classic-presentation',
+      tabs: [],
     });
   });
 });
