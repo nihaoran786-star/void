@@ -76,6 +76,21 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   agent controls. Classic presentation and Monaco/xterm exceptions retain
   their existing keyboard policy.
 - [x] Desktop `release-fast` Rust check passed for `void-desktop`.
+- [x] Current-branch Vite watcher recheck returned HTTP 200 and, after a
+  30-second dependency-prebundle stabilization window, recorded 0.000 seconds
+  CPU time across the Vite/esbuild process tree during an 8-second sample
+  (0% single-core CPU, 394.7 MB working set, no new process). The isolated
+  diagnostic process tree stopped cleanly and released its port.
+- [x] Minimal desktop settings L0 passed 5/5 and captured workspace, menu, and
+  settings-scene screenshots without changing configuration; the settings
+  scene remained responsive with 864 rendered elements.
+- [x] Dedicated visual review of the settings path reported no P0/P1 issue,
+  clipping, or horizontal overflow. The footer entry already has localized
+  Tooltip/ARIA text, expanded state, and visible focus styling.
+- [x] Focused no-side-effect module contracts passed: workspace media 4 files /
+  65 tests; short-drama identity, recovery, and runtime state 9 files / 116
+  tests; subagent Skill UI and bounded conversation rendering 5 files / 55
+  tests; fixed short-drama Rust Skill policy 3/3 tests.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
@@ -86,7 +101,8 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Switch workspaces.
 - [ ] Create and switch sessions.
 - [ ] Restore historical sessions after restart.
-- [ ] Open settings, About, update, and workspace status surfaces.
+- [x] Open the settings surface and keep the UI responsive.
+- [ ] Open About, update, and workspace status surfaces.
 - [ ] Preserve window close/save behavior.
 - [ ] Preserve fullscreen and window-mode behavior.
 - [ ] Preserve current scene/tab state.
@@ -103,7 +119,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Create Code, Cowork, Media, and agentic sessions.
 - [ ] Select model and reasoning/effort options.
 - [ ] Select modes and allowed Skills.
-- [ ] Preserve fixed short-drama subagent Skill isolation.
+- [x] Preserve fixed short-drama subagent Skill isolation.
 - [ ] Preserve permission/access controls.
 - [ ] Attach files and images.
 - [ ] Drag and drop supported context.
@@ -128,7 +144,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Open the short-drama entry from the expected project context.
 - [ ] Recover an existing short-drama project.
 - [x] Create or hydrate stage-agent sessions.
-- [ ] Preserve `workspaceId`, `workspacePath`, `sessionId`,
+- [x] Preserve `workspaceId`, `workspacePath`, `sessionId`,
   `parentSessionId`, and `agentRole`.
 - [ ] Select and navigate script episodes.
 - [ ] Display global and per-episode script content.
@@ -150,23 +166,23 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 ## Media Library and Preview
 
-- [ ] Scan and refresh workspace media.
-- [ ] Show pending generations.
+- [x] Scan and refresh workspace media.
+- [x] Show pending generations.
 - [ ] Filter by media type/status.
-- [ ] Search by supported text fields.
-- [ ] Sort by supported order.
-- [ ] Select one, many, and all visible items.
+- [x] Search by supported text fields.
+- [x] Sort by supported order.
+- [x] Select one, many, and all visible items.
 - [x] Preview images.
 - [ ] Preview videos with poster/thumbnail fallback.
-- [ ] Resolve media URLs through the existing resolver.
-- [ ] Handle missing/failed previews.
-- [ ] Reference media back into chat/context.
-- [ ] Delete selected media.
-- [ ] Open trash.
-- [ ] Select trash items.
-- [ ] Restore trash items.
-- [ ] Permanently purge trash items.
-- [ ] Preserve path-mismatch and operation-error feedback.
+- [x] Resolve media URLs through the existing resolver.
+- [x] Handle missing/failed previews.
+- [x] Reference media back into chat/context.
+- [x] Delete selected media.
+- [x] Open trash.
+- [x] Select trash items.
+- [x] Restore trash items.
+- [x] Permanently purge trash items.
+- [x] Preserve path-mismatch and operation-error feedback.
 - [ ] Preserve lazy loading, virtualization, and thumbnail efficiency.
 
 ## Subagent Team
@@ -181,10 +197,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Navigate to the real agent session.
 - [x] Keep native close, reorder, pin, drag, overflow, and pop-out tab actions
   available in the 300px open panel.
-- [ ] Preserve parent/child session relationships.
-- [ ] Preserve workspace and artifact association.
-- [ ] Preserve AssetAI and SplitAI fixed Skill policies.
-- [ ] Preserve empty Skill lists for agents that must not inherit global Skills.
+- [x] Preserve parent/child session relationships.
+- [x] Preserve workspace and artifact association.
+- [x] Preserve AssetAI and SplitAI fixed Skill policies.
+- [x] Preserve empty Skill lists for agents that must not inherit global Skills.
 - [ ] Preserve media/image/video/upload/status tool availability.
 - [x] Pause the hidden `BtwSessionPanel` active lifecycle while the drawer is
   collapsed; no session UI is unmounted or recreated by the rail.
@@ -198,8 +214,9 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Navigation/control text uses the compact 11/12/13/14/16px hierarchy.
 - [ ] Script and conversation text remains readable.
 - [ ] Text contrast meets the existing theme contract in dark mode.
-- [ ] Light/system themes do not become unreadable even while dark minimal is
-  the primary target.
+- [x] Light-theme workspace, short-drama, media, menu, and settings surfaces
+  remain readable in real-desktop screenshots.
+- [ ] System theme remains readable across the same surfaces.
 - [ ] Hover, active, selected, focus, disabled, loading, success, warning, and
   error states remain distinguishable.
 - [ ] No critical state relies only on color.
@@ -215,10 +232,12 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Classic mode returns an explicit inactive projection before the minimal
   controls can mount or pause the native secondary session lifecycle.
 - [x] Media remains lazy-loaded.
-- [ ] Long lists remain virtualized where previously virtualized.
+- [x] Long conversation histories retain their bounded initial render window and
+  progressive round rendering.
+- [ ] Other long lists remain virtualized where previously virtualized.
 - [x] No new broad Store selector was added; the drawer consumes the existing
   canvas-group snapshot through a pure selector.
-- [ ] Vite watcher idle CPU remains within the optimized baseline.
+- [x] Vite watcher idle CPU remains within the optimized baseline.
 - [x] Web test suite passes.
 - [x] Script contract suite passes.
 - [x] TypeScript and ESLint pass.
