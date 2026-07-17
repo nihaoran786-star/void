@@ -312,6 +312,7 @@
     }
   },
   "modal": {
+    "dialog": "对话框",
     "close": "关闭",
     "confirm": "确认",
     "cancel": "取消"
@@ -341,6 +342,7 @@
     "collapse": "收起"
   },
   "tabs": {
+    "openTabs": "已打开的标签",
     "close": "关闭标签",
     "popOut": "弹出为独立场景",
     "closeOthers": "关闭其他标签",
@@ -576,6 +578,25 @@
     "shortDramaTeamAgents": "阶段代理",
     "expandShortDramaTeam": "展开代理团队",
     "collapseShortDramaTeam": "收起代理团队",
+    "shortDramaTeamStatus": {
+      "waiting": "等待中",
+      "live": "工作中",
+      "attention": "需要处理",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "failed": "失败",
+      "currentAction": "当前：{{action}}"
+    },
+    "shortDramaTeamActivity": {
+      "waiting_model": "等待模型",
+      "streaming": "正在撰写",
+      "waiting_tool": "等待工具",
+      "running_tool": "正在使用工具",
+      "waiting_permission": "等待批准",
+      "saving": "正在保存",
+      "recovering": "正在恢复",
+      "needs_attention": "需要输入"
+    },
     "terminal": "终端",
     "dropLeft": "左",
     "dropRight": "右",
@@ -633,6 +654,11 @@
     "ariaLabel": "AI 短剧中心",
     "kicker": "AI 短剧",
     "subtitle": "以产物为中心的生产协作台，用于管理剧本、资产、分镜、视频和后期 agent 工作。",
+    "accessibility": {
+      "focusArtifact": "定位到 {{title}}",
+      "storyboardReferences": "分镜参考",
+      "openArtifact": "打开 {{title}}"
+    },
     "stats": {
       "label": "短剧状态汇总",
       "ready": "就绪",

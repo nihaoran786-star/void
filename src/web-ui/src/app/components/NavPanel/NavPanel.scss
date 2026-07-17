@@ -984,6 +984,14 @@ $_section-header-height: 24px;
       background: var(--element-bg-soft);
     }
 
+    &:focus,
+    &[data-keyboard-focus='true'] {
+      color: var(--color-text-primary);
+      background: var(--element-bg-soft);
+      outline: 2px solid var(--control-focus-ring, var(--color-accent-500));
+      outline-offset: -2px;
+    }
+
     &.is-disabled,
     &:disabled {
       opacity: 0.45;

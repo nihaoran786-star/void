@@ -6,14 +6,19 @@ import { Modal } from '@/component-library';
 import { i18nService, useI18n } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
 import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDisplay';
+import {
+  workspacePresentationClassName,
+  type WorkspacePresentation,
+} from '@/app/presentation/workspacePresentation';
 import './WorkspaceManager.css';
 
 const log = createLogger('WorkspaceManager');
 
-interface WorkspaceManagerProps {
+export interface WorkspaceManagerProps {
   isVisible: boolean;
   onClose: () => void;
   onWorkspaceSelect?: (workspace: WorkspaceInfo) => void;
+  presentation?: WorkspacePresentation;
 }
 
 /**
@@ -23,7 +28,8 @@ interface WorkspaceManagerProps {
 const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
   isVisible,
   onClose,
-  onWorkspaceSelect
+  onWorkspaceSelect,
+  presentation = 'classic',
 }) => {
   const { t } = useI18n('common');
   const {
@@ -46,8 +52,12 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
 
   const renderIdentityDetails = (workspace: WorkspaceInfo) => {
     const entries = [
-      workspace.identity?.creature ? { label: 'Creature', value: workspace.identity.creature } : null,
-      workspace.identity?.vibe ? { label: 'Vibe', value: workspace.identity.vibe } : null,
+      workspace.identity?.creature
+        ? { label: t('workspaceManager.identity.creature'), value: workspace.identity.creature }
+        : null,
+      workspace.identity?.vibe
+        ? { label: t('workspaceManager.identity.vibe'), value: workspace.identity.vibe }
+        : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
 
     if (entries.length === 0) {
@@ -143,6 +153,19 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
     }
   };
 
+  const getWorkspaceTypeLabel = (workspaceType: WorkspaceType) => {
+    switch (workspaceType) {
+      case WorkspaceType.SingleProject:
+        return t('workspaceManager.types.singleProject');
+      case WorkspaceType.MultiProject:
+        return t('workspaceManager.types.multiProject');
+      case WorkspaceType.Documentation:
+        return t('workspaceManager.types.documentation');
+      default:
+        return t('workspaceManager.types.other');
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       return i18nService.formatDate(new Date(dateStr), {
@@ -165,18 +188,19 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
     <Modal
       isOpen={isVisible}
       onClose={onClose}
-      title="Workspace Status"
+      title={t('workspaceManager.title')}
       size="medium"
+      overlayClassName={workspacePresentationClassName(presentation)}
     >
       <div className="workspace-manager">
         {error && (
-          <div className="error-message">
-            <span>Error: {error}</span>
+          <div className="error-message" role="alert">
+            <span>{t('workspaceManager.error', { error })}</span>
           </div>
         )}
 
         <div className="current-workspace-section">
-          <h3>Current Workspace</h3>
+          <h3>{t('workspaceManager.currentWorkspace')}</h3>
           {currentWorkspace ? (
             <div className="workspace-card current">
               <div className="workspace-header">
@@ -187,7 +211,9 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                   <div className="workspace-name">{getWorkspaceDisplayName(currentWorkspace)}</div>
                   <div className="workspace-path">{currentWorkspace.rootPath}</div>
                   <div className="workspace-meta">
-                    <span className="workspace-type">{currentWorkspace.workspaceType}</span>
+                    <span className="workspace-type">
+                      {getWorkspaceTypeLabel(currentWorkspace.workspaceType)}
+                    </span>
                     {currentWorkspace.lastAccessed && (
                       <span className="workspace-time">
                         <Clock size={12} />
@@ -205,30 +231,34 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                   className="btn btn-secondary btn-small"
                   onClick={handleScanWorkspace}
                   disabled={scanning}
+                  type="button"
                 >
-                  {scanning ? 'Scanning...' : 'Rescan'}
+                  {scanning
+                    ? t('workspaceManager.actions.scanning')
+                    : t('workspaceManager.actions.rescan')}
                 </button>
                 <button
                   className="btn btn-danger btn-small"
                   onClick={handleCloseWorkspace}
                   disabled={loading}
+                  type="button"
                 >
-                  Close Workspace
+                  {t('workspaceManager.actions.close')}
                 </button>
               </div>
 
               {currentWorkspace.statistics && (
                 <div className="workspace-stats">
                   <div className="stat-item">
-                    <span className="stat-label">Files:</span>
+                    <span className="stat-label">{t('workspaceManager.stats.files')}</span>
                     <span className="stat-value">{currentWorkspace.statistics.totalFiles}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Lines:</span>
+                    <span className="stat-label">{t('workspaceManager.stats.lines')}</span>
                     <span className="stat-value">{currentWorkspace.statistics.totalLines?.toLocaleString()}</span>
                   </div>
                   <div className="stat-item">
-                    <span className="stat-label">Total Size:</span>
+                    <span className="stat-label">{t('workspaceManager.stats.totalSize')}</span>
                     <span className="stat-value">{(currentWorkspace.statistics.totalSize / 1024 / 1024).toFixed(2)} MB</span>
                   </div>
                 </div>
@@ -236,20 +266,21 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
             </div>
           ) : (
             <div className="no-workspace">
-              <FolderOpen size={48} />
-              <p>No workspace is currently open</p>
+              <FolderOpen size={32} />
+              <p>{t('workspaceManager.empty.current')}</p>
             </div>
           )}
         </div>
 
         <div className="recent-workspaces-section">
-          <h3>Recent Workspaces</h3>
+          <h3>{t('workspaceManager.recentWorkspaces')}</h3>
           {recentWorkspaces.length > 0 ? (
             <div className="workspace-list">
               {recentWorkspaces.map((workspace) => (
-                <div
+                <button
                   key={workspace.id}
                   className="workspace-card recent"
+                  type="button"
                   onClick={() => handleWorkspaceSelect(workspace)}
                 >
                   <div className="workspace-header">
@@ -272,7 +303,9 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                       </div>
                       <div className="workspace-path">{workspace.rootPath}</div>
                       <div className="workspace-meta">
-                        <span className="workspace-type">{workspace.workspaceType}</span>
+                        <span className="workspace-type">
+                          {getWorkspaceTypeLabel(workspace.workspaceType)}
+                        </span>
                         {workspace.lastAccessed && (
                           <span className="workspace-time">
                             <Clock size={12} />
@@ -284,24 +317,25 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                       {renderRelatedPaths(workspace)}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
             <div className="no-recent">
-              <p>No recent workspaces</p>
+              <p>{t('workspaceManager.empty.recent')}</p>
             </div>
           )}
         </div>
 
         <div className="recent-workspaces-section">
-          <h3>Personal Assistants</h3>
+          <h3>{t('workspaceManager.personalAssistants')}</h3>
           {otherAssistantWorkspaces.length > 0 ? (
             <div className="workspace-list">
               {otherAssistantWorkspaces.map((workspace) => (
-                <div
+                <button
                   key={workspace.id}
                   className="workspace-card recent"
+                  type="button"
                   onClick={() => handleWorkspaceSelect(workspace)}
                 >
                   <div className="workspace-header">
@@ -312,7 +346,7 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                       <div className="workspace-name">{getWorkspaceDisplayName(workspace)}</div>
                       <div className="workspace-path">{workspace.rootPath}</div>
                       <div className="workspace-meta">
-                        <span className="workspace-type">assistant</span>
+                        <span className="workspace-type">{t('workspaceManager.assistantType')}</span>
                         {workspace.lastAccessed && (
                           <span className="workspace-time">
                             <Clock size={12} />
@@ -324,12 +358,12 @@ const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                       {renderRelatedPaths(workspace)}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
             <div className="no-recent">
-              <p>No personal assistants</p>
+              <p>{t('workspaceManager.empty.assistants')}</p>
             </div>
           )}
         </div>

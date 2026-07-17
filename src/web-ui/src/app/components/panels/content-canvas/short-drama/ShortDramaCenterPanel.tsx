@@ -73,6 +73,7 @@ import {
   resolveShortDramaEpisodeTargetId,
   shouldUpdateShortDramaEpisodeFromScroll,
 } from './ShortDramaEpisodeNavigationState';
+import { getNextShortDramaRovingTabIndex } from './ShortDramaKeyboardNavigation';
 import { openShortDramaRealStageAgentTab } from './ShortDramaStageAgentTabOrchestrator';
 import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootstrap';
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
@@ -1523,6 +1524,7 @@ function StoryboardGrid({
           data-testid="short-drama-artifact-card"
           onClick={() => onArtifactFocus(artifact)}
         >
+          <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
           <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} />
           <div className="short-drama-card__body">
             <h3>{t('shortDrama.storyboards.cardTitle', { scene: index + 1, shot: index + 1 })}</h3>
@@ -1531,6 +1533,7 @@ function StoryboardGrid({
               artifact={artifact}
               projectArtifacts={projectArtifacts}
               storyboardReferencePlans={storyboardReferencePlans}
+              t={t}
             />
             <div className="short-drama-card__meta">
               <StatusPill status={artifact.status} t={t} />
@@ -1547,10 +1550,12 @@ function StoryboardReferenceChips({
   artifact,
   projectArtifacts,
   storyboardReferencePlans,
+  t,
 }: {
   artifact: ShortDramaArtifact;
   projectArtifacts: ShortDramaArtifact[];
   storyboardReferencePlans: ShortDramaStoryboardReferencePlan[];
+  t: Translate;
 }) {
   const items = createShortDramaStoryboardReferenceViewItems({
     artifact,
@@ -1563,7 +1568,10 @@ function StoryboardReferenceChips({
   }
 
   return (
-    <div className="short-drama-card__references" aria-label="Storyboard references">
+    <div
+      className="short-drama-card__references"
+      aria-label={t('shortDrama.accessibility.storyboardReferences')}
+    >
       {items.slice(0, 6).map(item => (
         <span key={item.key}>
           {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" aria-hidden="true" />}
@@ -1603,6 +1611,29 @@ function VideoStage({
     }
   }, [activeVideo, selectedVideoId]);
 
+  const handleVideoRailKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentTab = event.target;
+    if (!(currentTab instanceof HTMLButtonElement) || currentTab.getAttribute('role') !== 'tab') {
+      return;
+    }
+
+    const tabs = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    );
+    const nextIndex = getNextShortDramaRovingTabIndex(
+      tabs.indexOf(currentTab),
+      event.key,
+      tabs.length,
+    );
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  }, []);
+
   return (
     <div className="short-drama-center__video" data-testid="short-drama-video-stage">
       <article
@@ -1615,6 +1646,9 @@ function VideoStage({
           }
         }}
       >
+        {activeVideo && (
+          <ArtifactFocusButton artifact={activeVideo} onArtifactFocus={onArtifactFocus} t={t} />
+        )}
         <div className="short-drama-center__scene-marker">
           <span>
             {activeVideoIndex >= 0
@@ -1642,6 +1676,8 @@ function VideoStage({
         className="short-drama-center__rail"
         role="tablist"
         aria-label={t('shortDrama.tabs.video')}
+        aria-orientation="horizontal"
+        onKeyDown={handleVideoRailKeyDown}
       >
         {artifacts.map((artifact, index) => {
           const posterArtifact = selectVideoPosterArtifact(artifact, episodeArtifacts);
@@ -1720,6 +1756,7 @@ function PostStage({
             data-testid="short-drama-post-row"
             onClick={() => onArtifactFocus(artifact)}
           >
+            <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
             <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} variant="row" />
             <strong>{artifact.title}</strong>
             <span className="short-drama-center__post-media-ref">
@@ -1757,6 +1794,9 @@ function FinalVideoPreview({
         }
       }}
     >
+      {artifact && (
+        <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+      )}
       {artifact ? (
         <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="final" />
       ) : (
@@ -1800,6 +1840,7 @@ function ArtifactCard({
       data-testid="short-drama-artifact-card"
       onClick={() => onArtifactFocus?.(artifact)}
     >
+      <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
       <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} />
       <div className="short-drama-card__body">
         <h3>{artifact.title}</h3>
@@ -1823,6 +1864,32 @@ function ArtifactCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function ArtifactFocusButton({
+  artifact,
+  onArtifactFocus,
+  t,
+}: {
+  artifact: ShortDramaArtifact;
+  onArtifactFocus?: (artifact: ShortDramaArtifact) => void;
+  t: Translate;
+}) {
+  if (!onArtifactFocus) {
+    return null;
+  }
+
+  return (
+    <button
+      type="button"
+      className="sr-only short-drama-artifact-activation"
+      aria-label={t('shortDrama.accessibility.focusArtifact', { title: artifact.title })}
+      onClick={(event) => {
+        event.stopPropagation();
+        onArtifactFocus(artifact);
+      }}
+    />
   );
 }
 
@@ -2063,8 +2130,8 @@ function MediaPreview({
               <button
                 type="button"
                 className="short-drama-media-preview__open"
-                aria-label={`Open ${artifact.title}`}
-                title={`Open ${artifact.title}`}
+                aria-label={t('shortDrama.accessibility.openArtifact', { title: artifact.title })}
+                title={t('shortDrama.accessibility.openArtifact', { title: artifact.title })}
                 onClick={(event) => {
                   event.stopPropagation();
                   handleOpenPreview();

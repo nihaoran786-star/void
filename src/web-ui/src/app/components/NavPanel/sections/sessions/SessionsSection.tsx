@@ -707,8 +707,16 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
               ]
                 .filter(Boolean)
                 .join(' ')}
-              onClick={() => handleSwitch(session.sessionId)}
             >
+              {!isEditing ? (
+                <button
+                  type="button"
+                  className="void-nav-panel__inline-item-activation"
+                  aria-label={sessionTitle}
+                  aria-current={isRowActive ? 'page' : undefined}
+                  onClick={() => handleSwitch(session.sessionId)}
+                />
+              ) : null}
               {showSessionModeIcon ? (
                 <span className="void-nav-panel__inline-item-icon-slot">
                   {isRunning ? (
@@ -829,6 +837,9 @@ const SessionsSection: React.FC<SessionsSectionProps> = ({
                       type="button"
                       ref={openMenuSessionId === session.sessionId ? sessionMenuAnchorRef : undefined}
                       className={`void-nav-panel__inline-item-action-btn${openMenuSessionId === session.sessionId ? ' is-open' : ''}`}
+                      aria-label={t('nav.sessions.moreActionsFor', { title: sessionTitle })}
+                      aria-haspopup="menu"
+                      aria-expanded={openMenuSessionId === session.sessionId}
                       onClick={e => handleMenuOpen(e, session.sessionId)}
                     >
                       <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />

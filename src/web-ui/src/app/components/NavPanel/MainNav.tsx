@@ -44,6 +44,10 @@ import { useSessionModeStore } from '../../stores/sessionModeStore';
 import NavSearchDialog from './NavSearchDialog';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
+import {
+  readWorkspacePresentation,
+  workspacePresentationClassName,
+} from '@/app/presentation/workspacePresentation';
 
 import './NavPanel.scss';
 
@@ -102,11 +106,14 @@ const MainNav: React.FC<MainNavProps> = ({
 
   const workspaceMenuButtonRef = useRef<HTMLButtonElement | null>(null);
   const workspaceMenuRef = useRef<HTMLDivElement | null>(null);
+  const workspaceMenuCloseTimerRef = useRef<number | undefined>(undefined);
+  const workspaceMenuInitialFocusRef = useRef<'first' | 'last'>('first');
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [workspaceMenuClosing, setWorkspaceMenuClosing] = useState(false);
   const [workspaceMenuPos, setWorkspaceMenuPos] = useState({ top: 0, left: 0 });
   const [isExtensionsOpen, setIsExtensionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const workspacePresentation = useMemo(readWorkspacePresentation, []);
 
   const toggleSection = useCallback((id: string) => {
     setExpandedSections(prev => {
@@ -120,12 +127,25 @@ const MainNav: React.FC<MainNavProps> = ({
     });
   }, []);
 
-  const closeWorkspaceMenu = useCallback(() => {
+  const closeWorkspaceMenu = useCallback((restoreFocus = false) => {
+    if (workspaceMenuCloseTimerRef.current !== undefined) {
+      window.clearTimeout(workspaceMenuCloseTimerRef.current);
+    }
     setWorkspaceMenuClosing(true);
-    window.setTimeout(() => {
+    workspaceMenuCloseTimerRef.current = window.setTimeout(() => {
       setWorkspaceMenuOpen(false);
       setWorkspaceMenuClosing(false);
+      workspaceMenuCloseTimerRef.current = undefined;
+      if (restoreFocus) {
+        window.requestAnimationFrame(() => workspaceMenuButtonRef.current?.focus());
+      }
     }, 150);
+  }, []);
+
+  useEffect(() => () => {
+    if (workspaceMenuCloseTimerRef.current !== undefined) {
+      window.clearTimeout(workspaceMenuCloseTimerRef.current);
+    }
   }, []);
 
   const updateWorkspaceMenuPos = useCallback(() => {
@@ -148,7 +168,7 @@ const MainNav: React.FC<MainNavProps> = ({
     requestAnimationFrame(apply);
   }, [workspaceMenuOpen]);
 
-  const openWorkspaceMenu = useCallback(async () => {
+  const openWorkspaceMenu = useCallback(async (initialFocus: 'first' | 'last' = 'first') => {
     try {
       await workspaceManager.cleanupInvalidWorkspaces();
     } catch (error) {
@@ -156,15 +176,82 @@ const MainNav: React.FC<MainNavProps> = ({
     }
     const rect = workspaceMenuButtonRef.current?.getBoundingClientRect();
     if (!rect) return;
+    if (workspaceMenuCloseTimerRef.current !== undefined) {
+      window.clearTimeout(workspaceMenuCloseTimerRef.current);
+      workspaceMenuCloseTimerRef.current = undefined;
+    }
+    workspaceMenuInitialFocusRef.current = initialFocus;
     setWorkspaceMenuPos(computeFixedPopoverPosition(rect, 300, 420, 6, 8));
     setWorkspaceMenuOpen(true);
     setWorkspaceMenuClosing(false);
   }, []);
 
   const toggleWorkspaceMenu = useCallback(() => {
-    if (workspaceMenuOpen) { closeWorkspaceMenu(); return; }
+    if (workspaceMenuOpen) { closeWorkspaceMenu(true); return; }
     void openWorkspaceMenu();
   }, [closeWorkspaceMenu, openWorkspaceMenu, workspaceMenuOpen]);
+
+  const handleWorkspaceMenuTriggerKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+      return;
+    }
+    event.preventDefault();
+    void openWorkspaceMenu(event.key === 'ArrowUp' ? 'last' : 'first');
+  }, [openWorkspaceMenu]);
+
+  const markWorkspaceMenuItem = useCallback((target: HTMLButtonElement | null) => {
+    const items = workspaceMenuRef.current?.querySelectorAll<HTMLButtonElement>(
+      '[role="menuitem"]',
+    ) ?? [];
+    items.forEach(item => item.removeAttribute('data-keyboard-focus'));
+    target?.setAttribute('data-keyboard-focus', 'true');
+  }, []);
+
+  const focusWorkspaceMenuItem = useCallback((target: HTMLButtonElement | null) => {
+    markWorkspaceMenuItem(target);
+    target?.focus();
+  }, [markWorkspaceMenuItem]);
+
+  const handleWorkspaceMenuFocusCapture = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLButtonElement
+      && target.getAttribute('role') === 'menuitem'
+    ) {
+      markWorkspaceMenuItem(target);
+    }
+  }, [markWorkspaceMenuItem]);
+
+  const handleWorkspaceMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'),
+    );
+    if (items.length === 0) {
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      closeWorkspaceMenu();
+      return;
+    }
+
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    let nextIndex: number | undefined;
+    if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = items.length - 1;
+    } else if (event.key === 'ArrowDown') {
+      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
+    }
+
+    if (nextIndex !== undefined) {
+      event.preventDefault();
+      focusWorkspaceMenuItem(items[nextIndex] ?? null);
+    }
+  }, [closeWorkspaceMenu, focusWorkspaceMenuItem]);
 
   const selectedSessionMode = useSessionModeStore(s => s.mode);
   const setSessionMode = useSessionModeStore(s => s.setMode);
@@ -313,7 +400,10 @@ const MainNav: React.FC<MainNavProps> = ({
       closeWorkspaceMenu();
     };
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeWorkspaceMenu();
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeWorkspaceMenu(true);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
@@ -322,6 +412,20 @@ const MainNav: React.FC<MainNavProps> = ({
       document.removeEventListener('keydown', handleEscape);
     };
   }, [closeWorkspaceMenu, workspaceMenuOpen]);
+
+  useEffect(() => {
+    if (!workspaceMenuOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      const items = Array.from(
+        workspaceMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [],
+      );
+      const target = workspaceMenuInitialFocusRef.current === 'last'
+        ? items[items.length - 1]
+        : items[0];
+      focusWorkspaceMenuItem(target ?? null);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusWorkspaceMenuItem, workspaceMenuOpen]);
 
   useEffect(() => {
     if (!workspaceMenuOpen) return;
@@ -389,8 +493,15 @@ const MainNav: React.FC<MainNavProps> = ({
   const workspaceMenuPortal = workspaceMenuOpen ? createPortal(
     <div
       ref={workspaceMenuRef}
-      className={`void-nav-panel__workspace-menu${workspaceMenuClosing ? ' is-closing' : ''}`}
+      id="void-workspace-menu"
+      className={[
+        'void-nav-panel__workspace-menu',
+        workspacePresentationClassName(workspacePresentation),
+        workspaceMenuClosing ? 'is-closing' : '',
+      ].filter(Boolean).join(' ')}
       role="menu"
+      onKeyDown={handleWorkspaceMenuKeyDown}
+      onFocusCapture={handleWorkspaceMenuFocusCapture}
       style={{ top: workspaceMenuPos.top, left: workspaceMenuPos.left }}
     >
       <button
@@ -732,8 +843,11 @@ const MainNav: React.FC<MainNavProps> = ({
                     type="button"
                     className={`void-nav-panel__section-action${workspaceMenuOpen ? ' is-active' : ''}`}
                     aria-label={addWorkspaceTooltip}
+                    aria-controls="void-workspace-menu"
                     aria-expanded={workspaceMenuOpen}
+                    aria-haspopup="menu"
                     onClick={toggleWorkspaceMenu}
+                    onKeyDown={handleWorkspaceMenuTriggerKeyDown}
                   >
                     <Plus size="var(--void-nav-row-action-icon-size)" />
                   </button>

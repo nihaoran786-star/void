@@ -670,3 +670,21 @@
     padding: 12px 24px 14px;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .void-about-dialog__download-fill--indeterminate,
+  .void-about-dialog__title,
+  .void-about-dialog__version-badge,
+  .void-about-dialog__divider,
+  .void-about-dialog__dots,
+  .void-about-dialog__info-section,
+  .void-about-dialog__dependencies-section,
+  .void-about-dialog__dependencies-list,
+  .void-about-dialog__footer {
+    animation: none;
+  }
+
+  .void-about-dialog__download-fill {
+    transition: none;
+  }
+}

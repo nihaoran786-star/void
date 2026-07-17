@@ -13,7 +13,7 @@ import type {
 import './EditorArea.scss';
 
 const ShortDramaTeamPanelControls = React.lazy(
-  () => import('./ShortDramaTeamPanelControls'),
+  () => import('./ShortDramaTeamPanelControlsContainer'),
 );
 
 export interface EditorAreaProps {
@@ -135,14 +135,22 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     [setTabFileDeletedFromDisk]
   );
 
-  const shortDramaTeamPresentation = selectShortDramaTeamPanelPresentation({
-    presentation: workspacePresentation,
-    splitMode: layout.splitMode,
-    primaryGroup,
-    secondaryGroup,
-    expanded: isShortDramaTeamExpanded,
-  });
-
+  const shortDramaTeamPresentation = React.useMemo(
+    () => selectShortDramaTeamPanelPresentation({
+      presentation: workspacePresentation,
+      splitMode: layout.splitMode,
+      primaryGroup,
+      secondaryGroup,
+      expanded: isShortDramaTeamExpanded,
+    }),
+    [
+      isShortDramaTeamExpanded,
+      layout.splitMode,
+      primaryGroup,
+      secondaryGroup,
+      workspacePresentation,
+    ],
+  );
   const ensureShortDramaTeamOpenRatio = useCallback(() => {
     if (layout.splitRatio < 0.68) {
       setSplitRatio(0.7);

@@ -87,7 +87,18 @@
 }
 
 .workspace-card.recent {
+  display: block;
+  width: 100%;
+  appearance: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
   cursor: pointer;
+}
+
+.workspace-card.recent:focus-visible {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 2px;
 }
 
 .workspace-card.recent:hover {

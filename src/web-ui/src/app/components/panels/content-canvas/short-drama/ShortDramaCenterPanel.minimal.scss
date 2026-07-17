@@ -60,6 +60,13 @@
     outline-offset: 1px;
   }
 
+  .void-ui--minimal .short-drama-card:has(> .short-drama-artifact-activation:focus-visible),
+  .void-ui--minimal .short-drama-center__stage:has(> .short-drama-artifact-activation:focus-visible),
+  .void-ui--minimal .short-drama-center__post-row:has(> .short-drama-artifact-activation:focus-visible),
+  .void-ui--minimal .short-drama-center__final-preview:has(> .short-drama-artifact-activation:focus-visible) {
+    outline-color: var(--workspace-focus-ring);
+  }
+
   .void-ui--minimal .short-drama-center__body {
     grid-template-columns: minmax(0, 1fr) 30px;
     gap: var(--workspace-space-2);

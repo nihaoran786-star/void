@@ -6,7 +6,7 @@
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { ArrowUp, Image, RotateCcw, Plus, X, Sparkles, Loader2, ChevronRight, Files, MessageSquarePlus } from 'lucide-react';
+import { ArrowUp, Image, RotateCcw, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
 import { ContextDropZone, useContextStore } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import { RichTextInput, type MentionState } from './RichTextInput';
@@ -80,6 +80,7 @@ import { setChatPopupActive } from './chatPopupState';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
+const BoostSkillsSubmenu = React.lazy(() => import('./BoostSkillsSubmenu'));
 
 export interface ChatInputProps {
   className?: string;
@@ -433,38 +434,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [boostPanelSkills, setBoostPanelSkills] = useState<ModeSkillInfo[]>([]);
   const [boostSkillsLoading, setBoostSkillsLoading] = useState(false);
 
-  const [skillsFlyoutOpen, setSkillsFlyoutOpen] = useState(false);
-  const [skillsFlyoutLeft, setSkillsFlyoutLeft] = useState(false);
-  const [skillsFlyoutUp, setSkillsFlyoutUp] = useState(false);
-  const skillsHostRef = useRef<HTMLDivElement>(null);
-  const skillsTimerRef = useRef<number | null>(null);
-
-  const clearSkillsTimer = useCallback(() => {
-    if (skillsTimerRef.current !== null) {
-      window.clearTimeout(skillsTimerRef.current);
-      skillsTimerRef.current = null;
-    }
-  }, []);
-
-  const openSkillsFlyout = useCallback(() => {
-    clearSkillsTimer();
-    const host = skillsHostRef.current;
-    if (host) {
-      const r = host.getBoundingClientRect();
-      setSkillsFlyoutLeft(r.right + 260 > window.innerWidth - 8);
-      setSkillsFlyoutUp(r.top + 200 > window.innerHeight - 8);
-    }
-    setSkillsFlyoutOpen(true);
-  }, [clearSkillsTimer]);
-
-  const closeSkillsFlyout = useCallback(() => {
-    clearSkillsTimer();
-    skillsTimerRef.current = window.setTimeout(() => {
-      skillsTimerRef.current = null;
-      setSkillsFlyoutOpen(false);
-    }, 150);
-  }, [clearSkillsTimer]);
-  
   const setChatInputActive = useChatInputState(state => state.setActive);
   const setChatInputExpanded = useChatInputState(state => state.setExpanded);
   const setChatInputHeight = useChatInputState(state => state.setInputHeight);
@@ -1077,20 +1046,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       cancelled = true;
     };
   }, [currentMode, isModeDropdownOpen, workspacePath]);
-
-  useEffect(() => {
-    if (!modeState.dropdownOpen) {
-      clearSkillsTimer();
-      setSkillsFlyoutOpen(false);
-    }
-  }, [clearSkillsTimer, modeState.dropdownOpen]);
-
-  useEffect(
-    () => () => {
-      clearSkillsTimer();
-    },
-    [clearSkillsTimer]
-  );
 
   useEffect(() => {
     const handleMediaReference = (event: Event) => {
@@ -2647,12 +2602,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const cur = inputState.value;
       const next = cur.trim() ? `${cur.trimEnd()}\n\n${line}` : line;
       dispatchInput({ type: 'SET_VALUE', payload: next });
-      clearSkillsTimer();
-      setSkillsFlyoutOpen(false);
       dispatchMode({ type: 'CLOSE_DROPDOWN' });
       focusRichTextInputSoon();
     },
-    [clearSkillsTimer, focusRichTextInputSoon, inputState.value, t]
+    [focusRichTextInputSoon, inputState.value, t]
   );
 
   const handleBoostPickImage = useCallback(
@@ -2678,16 +2631,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     });
   }, []);
 
-  const handleOpenSkillsLibrary = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      clearSkillsTimer();
-      setSkillsFlyoutOpen(false);
-      dispatchMode({ type: 'CLOSE_DROPDOWN' });
-      openScene('skills' as SceneTabId);
-    },
-    [clearSkillsTimer, openScene]
-  );
+  const handleOpenSkillsLibrary = useCallback(() => {
+    dispatchMode({ type: 'CLOSE_DROPDOWN' });
+    openScene('skills' as SceneTabId);
+  }, [openScene]);
   useEffect(() => {
     const dropZone = containerRef.current?.closest('.void-chat-input-drop-zone') as HTMLElement | null;
     const el = dropZone ?? containerRef.current;
@@ -2710,14 +2657,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (sendButtonMode === 'cancel') {
       return (
         <Tooltip content={t('input.stopGeneration')}>
-          <div
+          <button
+            type="button"
+            aria-label={t('input.stopGeneration')}
             className="void-chat-input__send-button void-chat-input__send-button--breathing"
             onClick={handleSendOrCancel}
             data-testid="chat-input-cancel-btn"
           >
             <div className="void-chat-input__breathing-circle" />
             {hasQueuedInput && <span className="void-chat-input__queued-badge">1</span>}
-          </div>
+          </button>
         </Tooltip>
       );
     }
@@ -2739,7 +2688,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return (
         <div className="void-chat-input__split-actions">
           <Tooltip content={t('input.stopGeneration')}>
-            <div
+            <button
+              type="button"
+              aria-label={t('input.stopGeneration')}
               className="void-chat-input__send-button void-chat-input__send-button--breathing"
               onClick={() => {
                 void handleCancelCurrentTask();
@@ -2747,7 +2698,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               data-testid="chat-input-cancel-btn"
             >
               <div className="void-chat-input__breathing-circle" />
-            </div>
+            </button>
           </Tooltip>
           <IconButton
             className="void-chat-input__send-button"
@@ -2873,6 +2824,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 onCompositionStart={handleImeCompositionStart}
                 onCompositionEnd={handleImeCompositionEnd}
                 placeholder=""
+                aria-label={t('input.placeholder')}
                 disabled={false}
                 contexts={contexts}
                 onRemoveContext={removeContext}
@@ -3125,76 +3077,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           <span>{t('input.addImage')}</span>
                         </div>
 
-                        <div
-                          ref={skillsHostRef}
-                          className="void-chat-input__boost-submenu-host"
-                          onMouseEnter={openSkillsFlyout}
-                          onMouseLeave={closeSkillsFlyout}
-                        >
-                          <div
-                            role="button"
-                            tabIndex={0}
-                            className="void-chat-input__boost-submenu-trigger"
-                            aria-haspopup="menu"
-                            aria-expanded={skillsFlyoutOpen}
-                          >
-                            <span className="void-chat-input__boost-submenu-trigger-main">
-                              <Sparkles size={14} className="void-chat-input__boost-context-icon" aria-hidden />
-                              <span>{t('chatInput.boostSkills')}</span>
-                            </span>
-                            <ChevronRight size={14} className="void-chat-input__boost-submenu-chevron" aria-hidden />
-                          </div>
-                          <div
-                            className={[
-                              'void-chat-input__boost-submenu-shell',
-                              skillsFlyoutOpen ? 'void-chat-input__boost-submenu-shell--open' : '',
-                              skillsFlyoutLeft ? 'void-chat-input__boost-submenu-shell--left' : '',
-                              skillsFlyoutUp ? 'void-chat-input__boost-submenu-shell--up' : '',
-                            ].filter(Boolean).join(' ')}
-                            onMouseEnter={openSkillsFlyout}
-                            onMouseLeave={closeSkillsFlyout}
-                          >
-                            <div className="void-chat-input__boost-submenu-panel">
-                              {boostSkillsLoading ? (
-                                <div className="void-chat-input__boost-submenu-loading">
-                                  <Loader2 size={14} className="void-chat-input__boost-submenu-spinner" aria-hidden />
-                                  <span>{t('chatInput.boostSkillsLoading')}</span>
-                                </div>
-                              ) : runtimeBoostSkills.length === 0 ? (
-                                <div className="void-chat-input__boost-submenu-empty">{t('chatInput.boostSkillsEmpty')}</div>
-                              ) : (
-                                <div className="void-chat-input__boost-submenu-list">
-                                  {runtimeBoostSkills.map(skill => (
-                                    <div
-                                      key={skill.key}
-                                      role="button"
-                                      tabIndex={0}
-                                      className="void-chat-input__boost-submenu-item"
-                                      title={skill.description || skill.name}
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        insertSkillIntoInput(skill.name);
-                                      }}
-                                      onKeyDown={e => e.key === 'Enter' && insertSkillIntoInput(skill.name)}
-                                    >
-                                      <Sparkles size={12} className="void-chat-input__boost-submenu-item-icon" aria-hidden />
-                                      <span className="void-chat-input__boost-submenu-item-name">{skill.name}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              <div
-                                role="button"
-                                tabIndex={0}
-                                className="void-chat-input__boost-submenu-manage"
-                                onClick={handleOpenSkillsLibrary}
-                                onKeyDown={e => e.key === 'Enter' && handleOpenSkillsLibrary(e as any)}
-                              >
-                                {t('chatInput.openSkillsLibrary')}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                        <React.Suspense fallback={null}>
+                          <BoostSkillsSubmenu
+                            skills={runtimeBoostSkills}
+                            loading={boostSkillsLoading}
+                            onSelectSkill={insertSkillIntoInput}
+                            onOpenLibrary={handleOpenSkillsLibrary}
+                          />
+                        </React.Suspense>
 
                         {!!currentSessionId && !isBtwSession && (
                           <>

@@ -10,6 +10,7 @@ import {
   Globe,
   ExternalLink,
   BarChart3,
+  Activity,
   ChevronUp,
 } from 'lucide-react';
 import { Tooltip, Modal } from '@/component-library';
@@ -107,6 +108,11 @@ const PersistentFooterActions: React.FC = () => {
     openScene('insights');
   }, [closeMenu, openScene]);
 
+  const handleShowWorkspaceStatus = useCallback(() => {
+    closeMenu();
+    window.dispatchEvent(new Event('nav:workspace-status'));
+  }, [closeMenu]);
+
   const handleShowAbout = () => {
     closeMenu();
     setShowAbout(true);
@@ -195,6 +201,16 @@ const PersistentFooterActions: React.FC = () => {
                     </button>
                   </Tooltip>
                   <div className="void-nav-panel__footer-menu-divider" />
+                  <button
+                    type="button"
+                    className="void-nav-panel__footer-menu-item"
+                    role="menuitem"
+                    data-testid="workspace-status-menu-item"
+                    onClick={handleShowWorkspaceStatus}
+                  >
+                    <Activity size={14} />
+                    <span>{t('nav.workspaceStatus')}</span>
+                  </button>
                   <button
                     type="button"
                     className="void-nav-panel__footer-menu-item"

@@ -18,4 +18,10 @@ describe('minimal AppLayout presentation contract', () => {
       /@media \(max-width: 480px\)\s*\{\s*\.void-app-layout\.void-ui--minimal ~ \.notification-container\s*\{[^}]*left:\s*12px;[^}]*right:\s*12px;[^}]*width:\s*auto;/s,
     );
   });
+
+  it('keeps persistent notifications mounted but visually paused behind modal focus', () => {
+    expect(stylesheet).toMatch(
+      /body:has\(\.void-app-layout\.void-ui--minimal\):has\(\.modal-overlay\) \.notification-container\s*\{[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/s,
+    );
+  });
 });

@@ -418,9 +418,31 @@ Exit gate:
 - `parentSessionId`, role, workspace, and artifact association remain intact;
 - hidden drawer does not create high-frequency rendering or polling.
 
-Collapsed status projection remains a separate, unchecked exit item until it
-can consume an explicit feature-local status model without importing
-`FlowChatStore`, agent services, or Skill configuration into the UI control.
+Collapsed status projection now consumes the explicit
+`ShortDramaTeamAgentStatusProjection` model. The editor-area Hook maps retained
+tabs to `{ tabId, sessionId }`; a flow-chat service adapter is the only layer
+allowed to read `FlowChatStore`, and it publishes changes only when the
+semantic status projection changes. The UI control imports neither
+`FlowChatStore`, session internals, agent services, nor Skill configuration.
+Raw tool names and streamed content are intentionally excluded from the
+presentation contract.
+
+### Slice 1 remediation notes: portal focus and modal ownership
+
+Portal menus use a single roving-focus marker in addition to DOM focus. The
+marker is presentation evidence for the active menu item when the embedded
+desktop WebDriver cannot retain operating-system document focus; it does not
+change menu selection or workspace behavior. Arrow, Home, End, and focus
+capture update the same marker, while Escape still closes the menu and returns
+focus to its trigger.
+
+When a modal is open in minimal presentation, the existing notification
+container stays mounted but is hidden and non-interactive. The modal therefore
+owns the visible focus layer without deleting, dismissing, or mutating queued
+notifications; notification visibility returns after the modal closes. The
+real-desktop gate captures both normal and 200% Workspace Status states after
+the entry animation settles, and verifies the critical current-workspace
+actions remain reachable.
 
 ### Slice 4: Default switch and debt cleanup
 

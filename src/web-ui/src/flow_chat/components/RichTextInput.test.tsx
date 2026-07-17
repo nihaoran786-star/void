@@ -212,6 +212,9 @@ describeWithJsdom('RichTextInput external sync', () => {
     expect(editor).toBeInstanceOf(HTMLDivElement);
     expect(editor?.getAttribute('data-testid')).toBe('composer-input');
     expect(editor?.getAttribute('aria-label')).toBe('Composer input');
+    expect(editor?.getAttribute('role')).toBe('textbox');
+    expect(editor?.getAttribute('aria-multiline')).toBe('true');
+    expect(editor?.getAttribute('aria-disabled')).toBe('false');
     expect(editor?.getAttribute('spellcheck')).toBe('false');
   });
 

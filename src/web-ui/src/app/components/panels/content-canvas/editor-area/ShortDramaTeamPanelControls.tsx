@@ -3,11 +3,17 @@ import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import type { CanvasTab } from '../types';
 import type { ShortDramaTeamPanelMode } from './shortDramaTeamPanelPresentation';
+import type {
+  ShortDramaTeamAgentActivity,
+  ShortDramaTeamAgentStatus,
+  ShortDramaTeamAgentStatusProjection,
+} from '@/flow_chat/types/short-drama-team-status';
 
 export interface ShortDramaTeamPanelControlsProps {
   mode: Exclude<ShortDramaTeamPanelMode, 'closed'>;
   tabs: readonly CanvasTab[];
   activeTabId: string;
+  statuses: readonly ShortDramaTeamAgentStatusProjection[];
   onToggle: () => void;
   onSelectTab: (tabId: string) => void;
 }
@@ -25,10 +31,20 @@ const stageOf = (tab: CanvasTab): string =>
     ? tab.content.metadata.shortDramaStage
     : '';
 
+const statusGlyphs: Record<ShortDramaTeamAgentStatus, string> = {
+  waiting: '·',
+  live: '•',
+  attention: '!',
+  completed: '✓',
+  cancelled: '–',
+  failed: '×',
+};
+
 export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsProps> = ({
   mode,
   tabs,
   activeTabId,
+  statuses,
   onToggle,
   onSelectTab,
 }) => {
@@ -37,6 +53,10 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
   const toggleLabel = isOpen
     ? t('canvas.collapseShortDramaTeam')
     : t('canvas.expandShortDramaTeam');
+  const statusByTabId = React.useMemo(
+    () => new Map(statuses.map(status => [status.tabId, status])),
+    [statuses],
+  );
 
   return (
     <aside
@@ -66,19 +86,40 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
         {tabs.map(tab => {
           const stage = stageOf(tab);
           const isActive = tab.id === activeTabId;
+          const projection = statusByTabId.get(tab.id)
+            ?? { tabId: tab.id, status: 'waiting' as const };
+          const statusLabel = t(`canvas.shortDramaTeamStatus.${projection.status}`);
+          const activityLabel = formatActivityLabel(
+            projection.activity,
+            t,
+          );
+          const agentLabel = [tab.title, statusLabel, activityLabel]
+            .filter(Boolean)
+            .join(' · ');
           return (
-            <Tooltip key={tab.id} content={tab.title} placement="right">
+            <Tooltip key={tab.id} content={agentLabel} placement="right">
               <button
                 type="button"
-                className={`short-drama-team-panel-controls__agent ${isActive ? 'is-active' : ''}`}
+                className={[
+                  'short-drama-team-panel-controls__agent',
+                  `is-status-${projection.status}`,
+                  isActive ? 'is-active' : '',
+                ].filter(Boolean).join(' ')}
                 aria-pressed={isActive}
-                aria-label={tab.title}
+                aria-label={agentLabel}
                 data-testid="short-drama-team-agent"
                 data-short-drama-stage={stage}
+                data-short-drama-agent-status={projection.status}
                 onClick={() => onSelectTab(tab.id)}
               >
                 <span className="short-drama-team-panel-controls__stage-glyph" aria-hidden="true">
                   {stageGlyphs[stage] ?? 'A'}
+                </span>
+                <span
+                  className="short-drama-team-panel-controls__status-glyph"
+                  aria-hidden="true"
+                >
+                  {statusGlyphs[projection.status]}
                 </span>
               </button>
             </Tooltip>
@@ -92,3 +133,10 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
 ShortDramaTeamPanelControls.displayName = 'ShortDramaTeamPanelControls';
 
 export default ShortDramaTeamPanelControls;
+
+function formatActivityLabel(
+  activity: ShortDramaTeamAgentActivity | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  return activity ? t(`canvas.shortDramaTeamActivity.${activity}`) : '';
+}

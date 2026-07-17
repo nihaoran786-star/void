@@ -78,11 +78,22 @@ describe('short drama media preview layout', () => {
 
     expect(videoStage).toContain('role="tablist"');
     expect(videoStage).toContain('role="tab"');
+    expect(videoStage).toContain('aria-orientation="horizontal"');
     expect(videoStage).toContain('aria-selected={activeVideo?.id === artifact.id}');
+    expect(videoStage).toContain('onKeyDown={handleVideoRailKeyDown}');
     expect(videoStage.indexOf('className="short-drama-center__stage"'))
       .toBeLessThan(videoStage.indexOf('className="short-drama-center__rail"'));
     expect(videoLayout).toContain('grid-template-columns: minmax(0, 1fr);');
     expect(filmstrip).toContain('grid-auto-flow: column;');
     expect(filmstrip).toContain('overflow-x: auto;');
+  });
+
+  it('adds keyboard activation without nesting the media controls inside a button', () => {
+    const source = readSibling('./ShortDramaCenterPanel.tsx');
+
+    expect(source).toContain('function ArtifactFocusButton');
+    expect(source).toContain('className="sr-only short-drama-artifact-activation"');
+    expect(source).toContain("event.stopPropagation();\n        onArtifactFocus(artifact);");
+    expect(source).not.toContain('<button className="short-drama-card"');
   });
 });

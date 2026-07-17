@@ -178,6 +178,7 @@
       "delete": "Delete",
       "confirmEdit": "Confirm",
       "cancelEdit": "Cancel",
+      "moreActionsFor": "More options for {{title}}",
       "loading": "Loading...",
       "showMore": "{{count}} more sessions",
       "showAll": "{{count}} more (show all)",
@@ -413,6 +414,7 @@
       "customize": "Customize"
     },
     "moreOptions": "More options",
+    "workspaceStatus": "Workspace status",
     "multimodalTools": "Multimodal Tools",
     "notifications": "Notifications"
   },
@@ -443,6 +445,39 @@
     "errorSelectParent": "Please select a parent directory",
     "errorEnterName": "Please enter a project name",
     "errorCreateFailed": "Failed to create project"
+  },
+  "workspaceManager": {
+    "title": "Workspace status",
+    "currentWorkspace": "Current workspace",
+    "recentWorkspaces": "Recent workspaces",
+    "personalAssistants": "Personal assistants",
+    "assistantType": "Assistant",
+    "error": "Workspace status error: {{error}}",
+    "types": {
+      "singleProject": "Single project",
+      "multiProject": "Multi-project",
+      "documentation": "Documentation",
+      "other": "Other"
+    },
+    "identity": {
+      "creature": "Creature",
+      "vibe": "Vibe"
+    },
+    "actions": {
+      "scanning": "Scanning…",
+      "rescan": "Rescan",
+      "close": "Close workspace"
+    },
+    "stats": {
+      "files": "Files",
+      "lines": "Lines",
+      "totalSize": "Total size"
+    },
+    "empty": {
+      "current": "No workspace is currently open",
+      "recent": "No recent workspaces",
+      "assistants": "No personal assistants"
+    }
   },
   "automation": {
     "eyebrow": "Automation",
@@ -987,7 +1022,7 @@
       "message1": "Welcome back. Let's turn another idea into something real.",
       "message2": "Hi. Feels like a good day to build something fun.",
       "message3": "Your creative partner is online and ready to work.",
-      "message4": "Welcome to void. Let's make something interesting."
+      "message4": "Let's make something interesting."
     },
     "features": {
       "workspace": {

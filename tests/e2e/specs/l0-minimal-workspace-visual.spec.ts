@@ -162,6 +162,158 @@ describe('L0 minimal workspace visual capture', () => {
     }
   });
 
+  it('keeps portal menus, the composer, and workspace status keyboard-reachable', async () => {
+    const composerContract = await browser.execute(() => {
+      const textbox = document.querySelector<HTMLElement>(
+        '.void-chat-input [contenteditable="true"]',
+      );
+      if (!textbox) return null;
+      return {
+        role: textbox.getAttribute('role'),
+        multiline: textbox.getAttribute('aria-multiline'),
+        label: textbox.getAttribute('aria-label'),
+      };
+    });
+    if (composerContract) {
+      expect(composerContract.role).toBe('textbox');
+      expect(composerContract.multiline).toBe('true');
+      expect(composerContract.label?.trim().length ?? 0).toBeGreaterThan(0);
+    }
+
+    await browser.execute(async () => {
+      type TauriInternals = {
+        invoke<T>(command: string, args?: unknown): Promise<T>;
+      };
+      const internals = (
+        window as Window & { __TAURI_INTERNALS__?: TauriInternals }
+      ).__TAURI_INTERNALS__;
+      if (!internals) {
+        throw new Error('Tauri internals are unavailable while focusing the desktop window');
+      }
+      await internals.invoke('show_main_window');
+      window.focus();
+    });
+    await browser.pause(200);
+
+    const workspaceMenuTrigger = await $('[aria-controls="void-workspace-menu"]');
+    expect(await workspaceMenuTrigger.isExisting()).toBe(true);
+    await workspaceMenuTrigger.scrollIntoView();
+    await browser.execute(() => {
+      document.querySelector<HTMLElement>(
+        '[aria-controls="void-workspace-menu"]',
+      )?.focus();
+    });
+    await browser.keys(['ArrowDown']);
+    await browser.waitUntil(async () => browser.execute(() => (
+      document.activeElement?.getAttribute('role') === 'menuitem'
+      && Boolean(document.getElementById('void-workspace-menu'))
+    )), {
+      timeout: 5_000,
+      interval: 100,
+      timeoutMsg: 'Workspace menu did not move focus to its first item',
+    });
+
+    const firstFocusedMenuItem = await browser.execute(() => (
+      document.activeElement?.textContent?.trim() ?? ''
+    ));
+    const firstFocusStyle = await browser.execute(() => {
+      const active = document.activeElement as HTMLElement | null;
+      if (!active) return null;
+      const style = getComputedStyle(active);
+      return {
+        hasDocumentFocus: document.hasFocus(),
+        keyboardFocus: active.getAttribute('data-keyboard-focus'),
+        outlineStyle: style.outlineStyle,
+        outlineWidth: style.outlineWidth,
+      };
+    });
+    expect(firstFocusStyle?.keyboardFocus).toBe('true');
+    expect(firstFocusStyle?.outlineStyle).not.toBe('none');
+    expect(firstFocusStyle?.outlineWidth).not.toBe('0px');
+    await saveScreenshot('keyboard-workspace-menu-first-focus', {
+      directory: screenshotDirectory,
+      includeTimestamp: false,
+      prefix: 'slice1-minimal',
+    });
+
+    await browser.keys(['ArrowDown']);
+    await browser.waitUntil(async () => browser.execute((previousText) => (
+      document.activeElement?.getAttribute('role') === 'menuitem'
+      && document.activeElement?.textContent?.trim() !== previousText
+    ), firstFocusedMenuItem), {
+      timeout: 2_000,
+      interval: 50,
+      timeoutMsg: 'Workspace menu ArrowDown did not move focus',
+    });
+
+    await saveScreenshot('keyboard-workspace-menu-second-focus', {
+      directory: screenshotDirectory,
+      includeTimestamp: false,
+      prefix: 'slice1-minimal',
+    });
+
+    await browser.keys(['Escape']);
+    await browser.waitUntil(async () => browser.execute(() => (
+      document.activeElement?.getAttribute('aria-controls') === 'void-workspace-menu'
+      && !document.getElementById('void-workspace-menu')
+    )), {
+      timeout: 5_000,
+      interval: 100,
+      timeoutMsg: 'Workspace menu did not restore focus to its trigger',
+    });
+
+    const footerMenuTrigger = await $(
+      '.void-nav-panel__footer-more-wrap .void-nav-panel__footer-btn--icon',
+    );
+    expect(await footerMenuTrigger.isExisting()).toBe(true);
+    await footerMenuTrigger.click();
+    const workspaceStatusItem = await $('[data-testid="workspace-status-menu-item"]');
+    await workspaceStatusItem.waitForDisplayed({ timeout: 5_000 });
+    await workspaceStatusItem.click();
+    await browser.waitUntil(async () => browser.execute(() => (
+      Boolean(document.querySelector('[role="dialog"]'))
+    )), {
+      timeout: 5_000,
+      interval: 100,
+      timeoutMsg: 'Workspace status dialog did not open from the navigation menu',
+    });
+    await browser.pause(350);
+
+    const workspaceDialogPresentation = await browser.execute(() => {
+      const overlay = document.querySelector('.modal-overlay');
+      const dialog = document.querySelector('[role="dialog"]');
+      return {
+        isMinimal: overlay?.classList.contains('void-ui--minimal') ?? false,
+        title: dialog?.querySelector('.modal__title')?.textContent?.trim() ?? '',
+        recentButtons: dialog?.querySelectorAll('button.workspace-card.recent').length ?? 0,
+      };
+    });
+    expect(workspaceDialogPresentation.isMinimal).toBe(true);
+    expect(workspaceDialogPresentation.title.length).toBeGreaterThan(0);
+    expect(workspaceDialogPresentation.recentButtons).toBeGreaterThan(0);
+    const modalNotificationVisibility = await browser.execute(() => {
+      const notification = document.querySelector<HTMLElement>('.notification-container');
+      return notification ? getComputedStyle(notification).visibility : null;
+    });
+    if (modalNotificationVisibility !== null) {
+      expect(modalNotificationVisibility).toBe('hidden');
+    }
+
+    await saveScreenshot('workspace-status-dialog', {
+      directory: screenshotDirectory,
+      includeTimestamp: false,
+      prefix: 'slice1-minimal',
+    });
+    await browser.keys(['Escape']);
+    await browser.waitUntil(async () => browser.execute(() => (
+      !document.querySelector('[role="dialog"]')
+    )), {
+      timeout: 5_000,
+      interval: 100,
+      timeoutMsg: 'Workspace status dialog did not close with Escape',
+    });
+  });
+
   it('keeps critical shell actions visible at a narrow desktop size', async () => {
     try {
       await browser.setWindowSize(1024, 720);
@@ -401,6 +553,31 @@ describe('L0 minimal workspace visual capture', () => {
           includeTimestamp: false,
           prefix: 'slice1-minimal',
         });
+
+        if (step.level === 200) {
+          const footerMenuTrigger = await $(
+            '.void-nav-panel__footer-more-wrap .void-nav-panel__footer-btn--icon',
+          );
+          await footerMenuTrigger.click();
+          const workspaceStatusItem = await $('[data-testid="workspace-status-menu-item"]');
+          await workspaceStatusItem.waitForDisplayed({ timeout: 5_000 });
+          await workspaceStatusItem.click();
+          await browser.waitUntil(async () => browser.execute(() => (
+            Boolean(document.querySelector('[role="dialog"]'))
+          )), {
+            timeout: 5_000,
+            interval: 100,
+            timeoutMsg: 'Workspace status dialog did not open at 200% zoom',
+          });
+          // Capture the settled surface instead of a translucent animation frame.
+          await browser.pause(350);
+          await saveScreenshot('zoom-200-workspace-status-dialog', {
+            directory: screenshotDirectory,
+            includeTimestamp: false,
+            prefix: 'slice1-minimal',
+          });
+          await browser.keys(['Escape']);
+        }
 
         previousViewportWidth = evidence.viewport.width;
       }

@@ -763,10 +763,13 @@
     width: 100%;
     margin: 0;
     padding: var(--flowchat-card-expanded-pad-y, 0.5rem) var(--flowchat-card-expanded-pad-x, 0.625rem);
+    border: 0;
     background: transparent;
+    font-family: inherit;
     font-size: var(--flowchat-font-size-2xs);
     color: var(--color-text-secondary);
     cursor: pointer;
+    text-align: left;
     user-select: none;
     transition: color 0.15s ease;
   }
@@ -880,11 +883,14 @@
     gap: var(--flowchat-control-gap, 0.5rem);
     width: 100%;
     padding: 0.32rem var(--flowchat-card-expanded-pad-y, 0.5rem);
+    border: 0;
     border-radius: 4px;
     background: transparent;
+    font-family: inherit;
     font-size: var(--flowchat-font-size-xs);
     color: var(--color-text-primary);
     cursor: pointer;
+    text-align: left;
     user-select: none;
     transition: background 0.15s ease, color 0.15s ease;
 
@@ -913,8 +919,11 @@
     width: 100%;
     margin: 0;
     padding: var(--flowchat-card-expanded-pad-y, 0.5rem) var(--flowchat-card-expanded-pad-x, 0.625rem) var(--flowchat-card-expanded-pad-x, 0.625rem);
+    border-inline: 0;
+    border-bottom: 0;
     border-top: 1px solid var(--border-subtle);
     background: transparent;
+    font-family: inherit;
     font-size: var(--flowchat-font-size-xxs);
     font-weight: 500;
     color: rgba(120, 160, 255, 0.95);
@@ -927,6 +936,14 @@
       background: var(--element-bg-medium);
       color: rgba(150, 185, 255, 1);
     }
+  }
+
+  &__boost-submenu-trigger:focus-visible,
+  &__boost-submenu-item:focus-visible,
+  &__boost-submenu-manage:focus-visible,
+  &__send-button:focus-visible {
+    outline: 2px solid var(--focus-ring-color, var(--color-accent));
+    outline-offset: 1px;
   }
 
   @keyframes mentionPickerSlideUp {

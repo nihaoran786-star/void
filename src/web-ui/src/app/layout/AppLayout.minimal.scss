@@ -33,6 +33,15 @@
     }
   }
 
+  // Modal focus must remain exclusive. Keep persistent notifications mounted
+  // so their timers/actions are preserved, but pause their presentation until
+  // the modal closes instead of letting two body-level stacking contexts
+  // partially paint through each other.
+  body:has(.void-app-layout.void-ui--minimal):has(.modal-overlay) .notification-container {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   @media (max-width: 480px) {
     .void-app-layout.void-ui--minimal ~ .notification-container {
       left: 12px;

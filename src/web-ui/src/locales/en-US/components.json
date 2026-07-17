@@ -312,6 +312,7 @@
     }
   },
   "modal": {
+    "dialog": "Dialog",
     "close": "Close",
     "confirm": "Confirm",
     "cancel": "Cancel"
@@ -341,6 +342,7 @@
     "collapse": "Collapse"
   },
   "tabs": {
+    "openTabs": "Open tabs",
     "close": "Close Tab",
     "popOut": "Pop out as scene",
     "closeOthers": "Close Other Tabs",
@@ -576,6 +578,25 @@
     "shortDramaTeamAgents": "Stage agents",
     "expandShortDramaTeam": "Open agent team",
     "collapseShortDramaTeam": "Collapse agent team",
+    "shortDramaTeamStatus": {
+      "waiting": "Waiting",
+      "live": "Working",
+      "attention": "Needs attention",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "failed": "Failed",
+      "currentAction": "Current: {{action}}"
+    },
+    "shortDramaTeamActivity": {
+      "waiting_model": "Waiting for model",
+      "streaming": "Writing",
+      "waiting_tool": "Waiting for tool",
+      "running_tool": "Using tool",
+      "waiting_permission": "Waiting for approval",
+      "saving": "Saving",
+      "recovering": "Recovering",
+      "needs_attention": "Needs input"
+    },
     "terminal": "Terminal",
     "dropLeft": "Left",
     "dropRight": "Right",
@@ -633,6 +654,11 @@
     "ariaLabel": "AI short drama center",
     "kicker": "AI short drama",
     "subtitle": "Artifact-centered production hub for script, assets, storyboards, video, and post-production agent work.",
+    "accessibility": {
+      "focusArtifact": "Focus {{title}}",
+      "storyboardReferences": "Storyboard references",
+      "openArtifact": "Open {{title}}"
+    },
     "stats": {
       "label": "Short drama status summary",
       "ready": "Ready",

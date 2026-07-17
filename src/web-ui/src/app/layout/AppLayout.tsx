@@ -252,11 +252,14 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   useEffect(() => {
     const onOpenProject = () => { void handleOpenProject(); };
     const onNewProject = () => handleNewProject();
+    const onShowWorkspaceStatus = () => setShowWorkspaceStatus(true);
     window.addEventListener('nav:open-project', onOpenProject);
     window.addEventListener('nav:new-project', onNewProject);
+    window.addEventListener('nav:workspace-status', onShowWorkspaceStatus);
     return () => {
       window.removeEventListener('nav:open-project', onOpenProject);
       window.removeEventListener('nav:new-project', onNewProject);
+      window.removeEventListener('nav:workspace-status', onShowWorkspaceStatus);
     };
   }, [handleNewProject, handleOpenProject]);
 
@@ -767,6 +770,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         isVisible={showWorkspaceStatus}
         onClose={() => setShowWorkspaceStatus(false)}
         onWorkspaceSelect={() => {}}
+        presentation={workspacePresentation}
       />
       <MCPInteractionDialog />
       <MediaPreviewOverlay className={workspacePresentationClassName(workspacePresentation)} />

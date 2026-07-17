@@ -8,7 +8,7 @@ const log = createLogger('Workspace');
 
 export * from './types';
 
-export { default as WorkspaceManager } from './components/WorkspaceManager';
+export { default as WorkspaceManager } from './components/LazyWorkspaceManager';
 
 export async function initializeWorkspaceFeature(): Promise<void> {
   // No special initialization; components load on demand.

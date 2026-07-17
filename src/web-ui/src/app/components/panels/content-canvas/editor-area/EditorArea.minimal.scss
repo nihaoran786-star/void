@@ -69,6 +69,7 @@
       color: var(--workspace-text-secondary);
 
       button {
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -147,6 +148,53 @@
       font-weight: 650;
       line-height: 1;
       letter-spacing: 0.01em;
+    }
+
+    .short-drama-team-panel-controls__status-glyph {
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      display: inline-grid;
+      box-sizing: border-box;
+      width: 12px;
+      height: 12px;
+      place-items: center;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      background: var(--workspace-surface-panel);
+      font-size: 10px;
+      font-weight: 750;
+      line-height: 1;
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-waiting
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-neutral-text);
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-live
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-info-text);
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-attention
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-warning-text);
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-completed
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-success-text);
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-cancelled
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-neutral-text);
+    }
+
+    .short-drama-team-panel-controls__agent.is-status-failed
+      .short-drama-team-panel-controls__status-glyph {
+      color: var(--workspace-status-error-text);
     }
   }
 

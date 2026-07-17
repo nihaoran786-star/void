@@ -30,6 +30,8 @@ export interface TabProps {
   onDragEnd: () => void;
   /** Whether being dragged */
   isDragging?: boolean;
+  /** Whether this tab participates in the tab-list roving tab stop */
+  isKeyboardTabStop?: boolean;
   /** Pop out as independent scene */
   onPopOut?: () => void;
 }
@@ -59,10 +61,12 @@ export const Tab: React.FC<TabProps> = ({
   onDragStart,
   onDragEnd,
   isDragging = false,
+  isKeyboardTabStop = isActive,
   onPopOut,
 }) => {
   const { t } = useTranslation('components');
   const [isHovered, setIsHovered] = useState(false);
+  const [hasFocusWithin, setHasFocusWithin] = useState(false);
 
   // Build tooltip text
   const unsavedSuffix = tab.isDirty ? ` (${t('tabs.unsaved')})` : '';
@@ -152,28 +156,45 @@ export const Tab: React.FC<TabProps> = ({
   ].filter(Boolean).join(' ');
 
   // Show close button only while hovering to avoid reserving layout space.
-  const showCloseButton = isHovered;
+  const showCloseButton = isHovered || hasFocusWithin;
 
   return (
     <Tooltip content={tooltipText} placement="bottom">
       <div
         className={classNames}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
         onMouseDown={handleMiddleMouseDown}
         onAuxClick={handleAuxClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onFocusCapture={() => setHasFocusWithin(true)}
+        onBlurCapture={event => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setHasFocusWithin(false);
+          }
+        }}
         draggable
         onDragStart={handleDragStart}
         onDragEnd={onDragEnd}
       >
+        <button
+          type="button"
+          role="tab"
+          className="canvas-tab__activation"
+          aria-label={titleDisplay}
+          aria-selected={isActive}
+          tabIndex={isKeyboardTabStop ? 0 : -1}
+          onClick={handleClick}
+          onDoubleClick={handleDoubleClick}
+        />
+
         {/* Pin icon */}
         {tab.state === 'pinned' && (
           <Tooltip content={t('tabs.unpin')}>
             <button
+              type="button"
               className="canvas-tab__pin-icon"
+              aria-label={t('tabs.unpin')}
               onClick={handlePinClick}
             >
               <Pin size={12} />
@@ -202,7 +223,9 @@ export const Tab: React.FC<TabProps> = ({
         {showCloseButton && onPopOut && (
           <Tooltip content={t('tabs.popOut')}>
             <button
+              type="button"
               className="canvas-tab__popout-btn"
+              aria-label={t('tabs.popOut')}
               onClick={handlePopOutClick}
             >
               <ExternalLink size={12} />
@@ -214,7 +237,9 @@ export const Tab: React.FC<TabProps> = ({
         {showCloseButton && (
           <Tooltip content={t('tabs.close')}>
             <button
+              type="button"
               className="canvas-tab__close-btn"
+              aria-label={t('tabs.close')}
               onClick={handleCloseClick}
             >
               <X size={12} />

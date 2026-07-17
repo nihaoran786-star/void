@@ -307,13 +307,52 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
   }, [draggingTabId]);
 
+  const handleTabListKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (!target.classList.contains('canvas-tab__activation')) {
+      return;
+    }
+
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    const tabButtons = Array.from(
+      tabsListRef.current?.querySelectorAll<HTMLButtonElement>('.canvas-tab__activation') ?? [],
+    );
+    if (tabButtons.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const currentIndex = tabButtons.indexOf(target as HTMLButtonElement);
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabButtons.length - 1
+        : event.key === 'ArrowRight'
+          ? (currentIndex + 1) % tabButtons.length
+          : (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+    const nextTab = tabButtons[nextIndex];
+    nextTab?.focus();
+    nextTab?.click();
+  }, []);
+
+  const hasDisplayedActiveTab = displayedTabs.some(tab => tab.id === activeTabId);
+
   return (
     <div
       ref={containerRef}
       className={`canvas-tab-bar ${isActiveGroup ? 'is-active-group' : ''}`}
     >
       {/* Tab list */}
-      <div ref={tabsListRef} className="canvas-tab-bar__tabs">
+      <div
+        ref={tabsListRef}
+        className="canvas-tab-bar__tabs"
+        role="tablist"
+        aria-label={t('tabs.openTabs')}
+        onKeyDown={handleTabListKeyDown}
+      >
         {displayedTabs.map((tab, index) => (
           <div
             key={tab.id}
@@ -338,6 +377,9 @@ export const TabBar: React.FC<TabBarProps> = ({
               onDragStart={handleTabDragStart(tab)}
               onDragEnd={onDragEnd}
               isDragging={draggingTabId === tab.id}
+              isKeyboardTabStop={
+                activeTabId === tab.id || (!hasDisplayedActiveTab && index === 0)
+              }
               onPopOut={onTabPopOut ? () => onTabPopOut(tab.id) : undefined}
             />
           </div>
@@ -370,7 +412,9 @@ export const TabBar: React.FC<TabBarProps> = ({
         {onCloseAllTabs && visibleTabs.length > 0 && (
           <Tooltip content={t('tabs.closeAll')} placement="bottom">
             <button
+              type="button"
               className="canvas-tab-bar__action-btn canvas-tab-bar__action-btn--close-all"
+              aria-label={t('tabs.closeAll')}
               onClick={async (e) => {
                 e.stopPropagation();
                 await onCloseAllTabs();

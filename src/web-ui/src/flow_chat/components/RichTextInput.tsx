@@ -826,6 +826,9 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
       {...restProps}
       ref={internalRef}
       className={`rich-text-input ${isFocused ? 'rich-text-input--focused' : ''} ${className}`}
+      role="textbox"
+      aria-multiline="true"
+      aria-disabled={disabled}
       contentEditable={!disabled}
       onBeforeInput={handleBeforeInput}
       onInput={handleInput}
