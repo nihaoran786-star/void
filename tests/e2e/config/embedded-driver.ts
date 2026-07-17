@@ -13,13 +13,32 @@ const DRIVER_HOST = '127.0.0.1';
 const DRIVER_PORT = Number(process.env.VOID_E2E_WEBDRIVER_PORT || 4445);
 const DEV_SERVER_HOST = '127.0.0.1';
 const DEV_SERVER_PORT = 1422;
+const LOCAL_NO_PROXY_HOSTS = ['127.0.0.1', 'localhost', '::1'];
 
 let voidApp: ChildProcess | null = null;
 let devServerProcess: ChildProcess | null = null;
 let ownsDevServer = false;
 
+function ensureLocalNoProxy(): void {
+  const configuredHosts = (process.env.NO_PROXY || process.env.no_proxy || '')
+    .split(/[\s,;]+/)
+    .map(host => host.trim())
+    .filter(Boolean);
+  const mergedHosts = [...new Set([...configuredHosts, ...LOCAL_NO_PROXY_HOSTS])].join(',');
+
+  // WebDriverIO reads NO_PROXY when its worker loads. Keep both variants in
+  // sync before the worker is spawned so local driver traffic never reaches a
+  // user-configured HTTP proxy.
+  process.env.NO_PROXY = mergedHosts;
+  process.env.no_proxy = mergedHosts;
+}
+
 function projectRoot(): string {
   return path.resolve(__dirname, '..', '..', '..');
+}
+
+function viteCliPath(): string {
+  return path.join(projectRoot(), 'src', 'web-ui', 'node_modules', 'vite', 'bin', 'vite.js');
 }
 
 type BrowserLogEntry = {
@@ -97,75 +116,6 @@ async function fetchDriverStatus(): Promise<boolean> {
   }
 }
 
-async function createProbeSession(): Promise<string> {
-  const response = await fetch(`http://${DRIVER_HOST}:${DRIVER_PORT}/session`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: '{}',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create probe session: ${response.status} ${await response.text()}`);
-  }
-
-  const body = await response.json() as { value?: { sessionId?: string } };
-  const sessionId = body.value?.sessionId;
-  if (!sessionId) {
-    throw new Error('Probe session did not return a session id');
-  }
-  return sessionId;
-}
-
-async function deleteProbeSession(sessionId: string): Promise<void> {
-  await fetch(`http://${DRIVER_HOST}:${DRIVER_PORT}/session/${sessionId}`, {
-    method: 'DELETE',
-  }).catch(() => undefined);
-}
-
-async function probeDocumentReady(sessionId: string): Promise<boolean> {
-  const response = await fetch(`http://${DRIVER_HOST}:${DRIVER_PORT}/session/${sessionId}/execute/sync`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      script: `() => {
-        const root = document.getElementById('root');
-        const appLayout = document.querySelector('[data-testid="app-layout"], .void-app-layout');
-        const mainContent = document.querySelector('[data-testid="app-main-content"], .void-app-main-workspace');
-        const shell = document.querySelector(
-          '.void-nav-panel, .void-scene-bar, .void-nav-bar, .welcome-scene'
-        );
-        const splashVisible = Boolean(document.querySelector('.splash-screen'));
-        const tauriReady =
-          typeof window.__TAURI__ !== 'undefined' ||
-          typeof window.__TAURI_INTERNALS__ !== 'undefined';
-
-        return Boolean(
-          document?.body &&
-          root &&
-          root.childElementCount > 0 &&
-          appLayout &&
-          mainContent &&
-          shell &&
-          tauriReady &&
-          !splashVisible
-        );
-      }`,
-      args: [],
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Document ready probe failed: ${response.status} ${await response.text()}`);
-  }
-
-  const body = await response.json() as { value?: boolean };
-  return body.value === true;
-}
-
 async function waitForEmbeddedDriverReady(timeoutMs: number = 30000): Promise<void> {
   const startedAt = Date.now();
 
@@ -179,33 +129,36 @@ async function waitForEmbeddedDriverReady(timeoutMs: number = 30000): Promise<vo
   throw new Error(`Embedded WebDriver did not become ready within ${timeoutMs}ms`);
 }
 
-async function waitForWebviewDocumentReady(timeoutMs: number = 30000): Promise<void> {
-  const startedAt = Date.now();
-  let lastError = 'void app shell is not ready';
+async function waitForActiveSessionDocumentReady(timeoutMs: number = 30000): Promise<void> {
+  await browser.waitUntil(async () => browser.execute(() => {
+    const root = document.getElementById('root');
+    const appLayout = document.querySelector('[data-testid="app-layout"], .void-app-layout');
+    const mainContent = document.querySelector(
+      '[data-testid="app-main-content"], .void-app-main-workspace',
+    );
+    const shell = document.querySelector(
+      '.void-nav-panel, .void-scene-bar, .void-nav-bar, .welcome-scene',
+    );
+    const splashVisible = Boolean(document.querySelector('.splash-screen'));
+    const tauriReady =
+      typeof window.__TAURI__ !== 'undefined' ||
+      typeof window.__TAURI_INTERNALS__ !== 'undefined';
 
-  while (Date.now() - startedAt < timeoutMs) {
-    let sessionId: string | null = null;
-
-    try {
-      sessionId = await createProbeSession();
-      const ready = await probeDocumentReady(sessionId);
-      if (ready) {
-        await deleteProbeSession(sessionId);
-        return;
-      }
-      lastError = 'void app shell is not ready';
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-    } finally {
-      if (sessionId) {
-        await deleteProbeSession(sessionId);
-      }
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 250));
-  }
-
-  throw new Error(`Webview document did not become ready within ${timeoutMs}ms: ${lastError}`);
+    return Boolean(
+      document.body &&
+      root &&
+      root.childElementCount > 0 &&
+      appLayout &&
+      mainContent &&
+      shell &&
+      tauriReady &&
+      !splashVisible
+    );
+  }), {
+    timeout: timeoutMs,
+    interval: 250,
+    timeoutMsg: `Webview document did not become ready within ${timeoutMs}ms`,
+  });
 }
 
 async function fetchSessionLogs(
@@ -290,7 +243,7 @@ async function startDevServer(): Promise<void> {
   console.log(`Starting dev server on http://${DEV_SERVER_HOST}:${DEV_SERVER_PORT}`);
 
   const spawnOptions = {
-    cwd: projectRoot(),
+    cwd: path.join(projectRoot(), 'src', 'web-ui'),
     stdio: ['ignore', 'pipe', 'pipe'] as const,
     env: {
       ...process.env,
@@ -298,42 +251,25 @@ async function startDevServer(): Promise<void> {
     },
   };
 
-  if (process.platform === 'win32') {
-    const commandLine = [
-      'pnpm',
-      '--dir',
-      'src/web-ui',
-      'exec',
-      'vite',
+  const viteEntry = viteCliPath();
+  if (!fs.existsSync(viteEntry)) {
+    throw new Error(`Vite CLI not found at: ${viteEntry}. Run pnpm install first.`);
+  }
+
+  // Spawn Vite's Node entry directly. A cmd.exe wrapper leaves the actual
+  // Vite child alive on Windows after the E2E runner exits.
+  devServerProcess = spawn(
+    process.execPath,
+    [
+      viteEntry,
       '--force',
       '--host',
       DEV_SERVER_HOST,
       '--port',
       String(DEV_SERVER_PORT),
-    ].join(' ');
-
-    devServerProcess = spawn(
-      process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe',
-      ['/d', '/s', '/c', commandLine],
-      spawnOptions,
-    );
-  } else {
-    devServerProcess = spawn(
-      'pnpm',
-      [
-        '--dir',
-        'src/web-ui',
-        'exec',
-        'vite',
-        '--force',
-        '--host',
-        DEV_SERVER_HOST,
-        '--port',
-        String(DEV_SERVER_PORT),
-      ],
-      spawnOptions,
-    );
-  }
+    ],
+    spawnOptions,
+  );
   ownsDevServer = true;
 
   devServerProcess.stdout?.on('data', (data: Buffer) => {
@@ -398,8 +334,7 @@ async function startvoidApp(): Promise<void> {
   });
 
   await waitForEmbeddedDriverReady();
-  await waitForWebviewDocumentReady();
-  console.log(`Embedded WebDriver is ready on http://${DRIVER_HOST}:${DRIVER_PORT}`);
+  console.log(`Embedded WebDriver transport is ready on http://${DRIVER_HOST}:${DRIVER_PORT}`);
 }
 
 function sharedAfterTest(): Options.Testrunner['afterTest'] {
@@ -428,6 +363,8 @@ function sharedAfterTest(): Options.Testrunner['afterTest'] {
 }
 
 export function createEmbeddedConfig(specs: string[], label: string): Options.Testrunner {
+  ensureLocalNoProxy();
+
   return {
     runner: 'local',
     autoCompileOpts: {
@@ -489,6 +426,11 @@ export function createEmbeddedConfig(specs: string[], label: string): Options.Te
     },
 
     before: async function before() {
+      // The embedded driver supports one active session. Wait for the shell only
+      // after WebDriverIO has created that session; a disposable probe session
+      // would prevent the real test session from being created.
+      await waitForActiveSessionDocumentReady();
+
       const browserWithLogs = browser as WebdriverIO.Browser & {
         getLogs?: (logType: string) => Promise<BrowserLogEntry[]>;
       };
