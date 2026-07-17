@@ -15,4 +15,29 @@
       outline-color: var(--workspace-focus-ring);
     }
   }
+
+  // App-level notices are siblings of AppLayout. Keep them aligned to the
+  // content edge in the minimal workspace so they never straddle navigation.
+  .void-app-layout.void-ui--minimal ~ .notification-container {
+    left: auto;
+    right: 12px;
+    width: min(320px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+
+    .notification-item,
+    .progress-notification {
+      box-sizing: border-box;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .void-app-layout.void-ui--minimal ~ .notification-container {
+      left: 12px;
+      right: 12px;
+      width: auto;
+    }
+  }
 }

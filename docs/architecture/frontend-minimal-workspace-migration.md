@@ -143,6 +143,36 @@ presentation selector do not read the platform or infer zoom. Browser builds
 skip the adapter. Desktop visual tests must snapshot and restore the original
 zoom preference so accessibility verification never changes user data.
 
+Debug desktop builds load the Web UI from the fixed Vite origin instead of a
+bundled local URL. The dedicated `desktop-dev-zoom` capability grants only
+`core:webview:allow-set-webview-zoom` to the `main` window at
+`localhost:1422` / `127.0.0.1:1422`; the default capability is not exposed to
+remote content.
+
+### Desktop E2E lifecycle boundary
+
+Desktop E2E ownership belongs to the WDIO launcher process, not an individual
+worker. Before any application process starts, the launcher atomically acquires
+a cross-process lock. The launcher starts exactly one desktop child, workers
+connect to its embedded driver, and completion waits for that exact child to
+exit before releasing the lock. A second runner fails at the lock instead of
+opening another desktop window.
+
+### Minimal overlay and navigation overflow boundary
+
+Global notifications remain owned by the shared notification system and stay
+outside `AppLayout`. The minimal presentation stylesheet may position that
+sibling container against the content edge, but it must not interpret
+notification type, source, recovery action, or runtime state. Classic
+presentation keeps its existing positioning.
+
+The navigation sections rail is the single vertical scroll owner between the
+fixed top actions and bottom bar. It must use `min-height: 0` with
+`overflow-y: auto`; workspace and session components continue to render their
+existing data without viewport-specific business branches. Desktop L0 proves
+reachability by scrolling a real workspace card into the rail viewport and
+restoring the original scroll position afterward.
+
 ## State Contracts
 
 New state contracts describe presentation facts. They do not create a second

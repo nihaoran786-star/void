@@ -11,11 +11,21 @@ const screenshotDirectory = path.resolve(
 );
 const desktopPrimaryModifier: 'Meta' | 'Control' =
   process.platform === 'darwin' ? 'Meta' : 'Control';
-
-type ZoomPreferenceSnapshot = {
-  exists: boolean;
-  value: number;
-};
+const desktopZoomLevels = [
+  0.5,
+  0.67,
+  0.75,
+  0.8,
+  0.9,
+  1,
+  1.1,
+  1.25,
+  1.5,
+  1.75,
+  2,
+  2.5,
+  3,
+] as const;
 
 const readZoomPreference = () => browser.execute(async () => {
   type TauriInternals = {
@@ -28,62 +38,66 @@ const readZoomPreference = () => browser.execute(async () => {
     throw new Error('Tauri internals are unavailable while reading desktop zoom');
   }
 
-  let value: unknown;
-  try {
-    value = await internals.invoke('get_config', {
-      request: {
-        path: 'app.zoom_level',
-        skipRetryOnNotFound: true,
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!message.toLowerCase().includes('not found')) throw error;
+  const value = await internals.invoke<unknown>('get_config', {
+    request: {
+      path: 'app.zoom_level',
+      skipRetryOnNotFound: true,
+    },
+  });
+  if (typeof value !== 'number') {
+    throw new Error('Desktop zoom preference is not numeric');
   }
-
-  return {
-    exists: typeof value === 'number',
-    value: typeof value === 'number' ? value : 1,
-  };
+  return value;
 });
 
-const restoreZoomPreference = (snapshot: ZoomPreferenceSnapshot) =>
-  browser.execute(async (savedPreference) => {
-    type TauriInternals = {
-      invoke<T>(command: string, args?: unknown): Promise<T>;
-      metadata?: {
-        currentWebview?: {
-          label?: string;
-        };
-      };
-    };
-    const internals = (
-      window as Window & { __TAURI_INTERNALS__?: TauriInternals }
-    ).__TAURI_INTERNALS__;
-    const webviewLabel = internals?.metadata?.currentWebview?.label;
-    if (!internals || !webviewLabel) {
-      throw new Error('Tauri internals are unavailable while restoring desktop zoom');
-    }
+const normalizeZoomLevel = (value: number): number =>
+  desktopZoomLevels.reduce((nearest, candidate) =>
+    Math.abs(candidate - value) < Math.abs(nearest - value) ? candidate : nearest,
+  1);
 
-    await internals.invoke('plugin:webview|set_webview_zoom', {
-      label: webviewLabel,
-      value: savedPreference.value,
+const restoreZoomPreference = async (savedPreference: number) => {
+  const visualLevel = normalizeZoomLevel(savedPreference);
+  const defaultIndex = desktopZoomLevels.indexOf(1);
+  const targetIndex = desktopZoomLevels.indexOf(
+    visualLevel as (typeof desktopZoomLevels)[number],
+  );
+  const direction = targetIndex >= defaultIndex ? '=' : '-';
+  const steps = Math.abs(targetIndex - defaultIndex);
+
+  for (let step = 0; step < steps; step += 1) {
+    await browser.keys([desktopPrimaryModifier, direction]);
+  }
+
+  if (steps > 0) {
+    await browser.waitUntil(async () => (
+      (await readZoomPreference()) === visualLevel
+    ), {
+      timeout: 5_000,
+      interval: 100,
+      timeoutMsg: 'Desktop visual test did not restore the original visual zoom',
     });
-    if (savedPreference.exists) {
+  }
+
+  if (savedPreference !== visualLevel) {
+    await browser.execute(async (value) => {
+      type TauriInternals = {
+        invoke<T>(command: string, args?: unknown): Promise<T>;
+      };
+      const internals = (
+        window as Window & { __TAURI_INTERNALS__?: TauriInternals }
+      ).__TAURI_INTERNALS__;
+      if (!internals) {
+        throw new Error('Tauri internals are unavailable while restoring desktop zoom');
+      }
       await internals.invoke('set_config', {
         request: {
           path: 'app.zoom_level',
-          value: savedPreference.value,
+          value,
         },
       });
-    } else {
-      await internals.invoke('reset_config', {
-        request: {
-          path: 'app.zoom_level',
-        },
-      });
-    }
-  }, snapshot);
+    }, savedPreference);
+  }
+};
 
 describe('L0 minimal workspace visual capture', () => {
   it('captures the real desktop shell without changing application data', async () => {
@@ -111,6 +125,30 @@ describe('L0 minimal workspace visual capture', () => {
         directory: screenshotDirectory,
         includeTimestamp: false,
         prefix: 'slice1-minimal',
+      });
+    }
+
+    const emptyWorkspace = await $('.void-nav-panel__workspace-list-empty');
+    if (await emptyWorkspace.isExisting()) {
+      const emptyWorkspaceStyles = await browser.execute(() => {
+        const element = document.querySelector<HTMLElement>(
+          '.void-nav-panel__workspace-list-empty',
+        );
+        if (!element) return null;
+        const style = getComputedStyle(element);
+        return {
+          backgroundColor: style.backgroundColor,
+          borderRadius: style.borderRadius,
+          fontSize: style.fontSize,
+          minHeight: style.minHeight,
+        };
+      });
+
+      expect(emptyWorkspaceStyles).toEqual({
+        backgroundColor: 'rgba(0, 0, 0, 0)',
+        borderRadius: '0px',
+        fontSize: '11px',
+        minHeight: '28px',
       });
     }
 
@@ -189,7 +227,70 @@ describe('L0 minimal workspace visual capture', () => {
         includeTimestamp: false,
         prefix: 'slice1-minimal',
       });
+
+      const workspaceReachability = await browser.execute(() => {
+        const sections = document.querySelector<HTMLElement>(
+          '.void-nav-panel__sections',
+        );
+        const workspaceItems = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            '.void-nav-panel__workspace-item-card',
+          ),
+        );
+        if (!sections) {
+          return {
+            sectionExists: false,
+            workspaceItemCount: workspaceItems.length,
+            overflow: 0,
+            scrollTop: 0,
+            workspaceItemVisible: false,
+          };
+        }
+
+        const overflow = sections.scrollHeight - sections.clientHeight;
+        const targetWorkspaceItem = workspaceItems.at(-1) ?? null;
+        targetWorkspaceItem?.scrollIntoView({
+          block: 'nearest',
+          inline: 'nearest',
+        });
+        const sectionRect = sections.getBoundingClientRect();
+        const workspaceItemVisible = workspaceItems.some((item) => {
+          const itemRect = item.getBoundingClientRect();
+          return (
+            itemRect.bottom > sectionRect.top
+            && itemRect.top < sectionRect.bottom
+            && itemRect.height > 0
+          );
+        });
+
+        return {
+          sectionExists: true,
+          workspaceItemCount: workspaceItems.length,
+          overflow,
+          scrollTop: sections.scrollTop,
+          workspaceItemVisible,
+        };
+      });
+
+      await saveScreenshot('desktop-narrow-workspace-reachable', {
+        directory: screenshotDirectory,
+        includeTimestamp: false,
+        prefix: 'slice1-minimal',
+      });
+
+      expect(workspaceReachability.sectionExists).toBe(true);
+      expect(workspaceReachability.workspaceItemCount).toBeGreaterThan(0);
+      if (workspaceReachability.overflow > 1) {
+        expect(workspaceReachability.scrollTop).toBeGreaterThan(0);
+      }
+      expect(workspaceReachability.workspaceItemVisible).toBe(true);
     } finally {
+      await browser.execute(() => {
+        const sections = document.querySelector<HTMLElement>(
+          '.void-nav-panel__sections',
+        );
+        if (sections) sections.scrollTop = 0;
+      });
       await browser.maximizeWindow();
     }
   });
@@ -234,8 +335,7 @@ describe('L0 minimal workspace visual capture', () => {
     });
 
     let baselineViewportWidth: number | null = null;
-    let originalZoomPreference: ZoomPreferenceSnapshot | null = null;
-
+    let originalZoomPreference: number | null = null;
     try {
       await browser.maximizeWindow();
       await browser.waitUntil(async () => browser.execute(() => (
@@ -249,7 +349,7 @@ describe('L0 minimal workspace visual capture', () => {
       originalZoomPreference = await readZoomPreference();
       await browser.keys([desktopPrimaryModifier, '0']);
       await browser.waitUntil(async () => (
-        (await readZoomPreference()).value === 1
+        (await readZoomPreference()) === 1
       ), {
         timeout: 5_000,
         interval: 100,
@@ -288,7 +388,7 @@ describe('L0 minimal workspace visual capture', () => {
           .toBeLessThanOrEqual(evidence.viewport.height + 1);
         expect(evidence.documentScrollWidth)
           .toBeLessThanOrEqual(evidence.viewport.width + 1);
-        if (evidence.notification && evidence.viewport.width <= 1024) {
+        if (evidence.notification) {
           expect(evidence.notification.width).toBeLessThanOrEqual(321);
           expect(evidence.notification.left)
             .toBeGreaterThanOrEqual((evidence.navigation?.right ?? 0) - 1);
@@ -305,10 +405,8 @@ describe('L0 minimal workspace visual capture', () => {
         previousViewportWidth = evidence.viewport.width;
       }
     } finally {
-      if (originalZoomPreference !== null) {
-        await browser.keys([desktopPrimaryModifier, '0']);
-      }
-      if (originalZoomPreference !== null && baselineViewportWidth !== null) {
+      await browser.keys([desktopPrimaryModifier, '0']);
+      if (baselineViewportWidth !== null) {
         await browser.waitUntil(async () => {
           const evidence = await readShellEvidence();
           return evidence.viewport.width >= baselineViewportWidth! - 1;
@@ -319,23 +417,14 @@ describe('L0 minimal workspace visual capture', () => {
         });
       }
       if (originalZoomPreference !== null) {
+        await restoreZoomPreference(originalZoomPreference);
         await browser.waitUntil(async () => (
-          (await readZoomPreference()).value === 1
+          (await readZoomPreference()) === originalZoomPreference
         ), {
           timeout: 5_000,
           interval: 100,
-          timeoutMsg: 'Desktop zoom controller did not finish its cleanup reset',
+          timeoutMsg: 'Desktop visual test did not restore the original zoom preference',
         });
-        await restoreZoomPreference(originalZoomPreference);
-        if (originalZoomPreference.exists) {
-          await browser.waitUntil(async () => (
-            (await readZoomPreference()).value === originalZoomPreference!.value
-          ), {
-            timeout: 5_000,
-            interval: 100,
-            timeoutMsg: 'Desktop visual test did not restore the original zoom preference',
-          });
-        }
       }
       await browser.maximizeWindow();
     }

@@ -2,6 +2,7 @@ import type { Options } from '@wdio/types';
 import { spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as net from 'net';
+import * as os from 'os';
 import * as path from 'path';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -14,10 +15,121 @@ const DRIVER_PORT = Number(process.env.VOID_E2E_WEBDRIVER_PORT || 4445);
 const DEV_SERVER_HOST = '127.0.0.1';
 const DEV_SERVER_PORT = 1422;
 const LOCAL_NO_PROXY_HOSTS = ['127.0.0.1', 'localhost', '::1'];
+const E2E_RUNTIME_PARENT = path.resolve(os.tmpdir(), 'void-e2e');
+const E2E_RUN_LOCK_PATH = path.join(E2E_RUNTIME_PARENT, 'desktop-run.lock');
 
 let voidApp: ChildProcess | null = null;
 let devServerProcess: ChildProcess | null = null;
 let ownsDevServer = false;
+let runLockDescriptor: number | null = null;
+let runtimeRoot: string | null = null;
+
+type RunLockRecord = {
+  createdAt: string;
+  pid: number;
+  runtimeRoot: string;
+};
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readRunLock(): RunLockRecord | null {
+  try {
+    return JSON.parse(fs.readFileSync(E2E_RUN_LOCK_PATH, 'utf8')) as RunLockRecord;
+  } catch {
+    return null;
+  }
+}
+
+function removeStaleRunLock(): void {
+  const record = readRunLock();
+  if (record && isProcessRunning(record.pid)) {
+    throw new Error(
+      `Another Void desktop E2E run is active (PID ${record.pid}). ` +
+      'Wait for it to finish instead of starting another desktop window.',
+    );
+  }
+
+  if (!record) {
+    const ageMs = Date.now() - fs.statSync(E2E_RUN_LOCK_PATH).mtimeMs;
+    if (ageMs < 30_000) {
+      throw new Error(
+        'Another Void desktop E2E run is acquiring the single-instance lock.',
+      );
+    }
+  }
+
+  fs.unlinkSync(E2E_RUN_LOCK_PATH);
+}
+
+function acquireRunLock(): void {
+  fs.mkdirSync(E2E_RUNTIME_PARENT, { recursive: true });
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      runLockDescriptor = fs.openSync(E2E_RUN_LOCK_PATH, 'wx');
+      runtimeRoot = path.join(
+        E2E_RUNTIME_PARENT,
+        `run-${process.pid}-${Date.now()}`,
+      );
+      fs.mkdirSync(runtimeRoot, { recursive: true });
+      const record: RunLockRecord = {
+        createdAt: new Date().toISOString(),
+        pid: process.pid,
+        runtimeRoot,
+      };
+      fs.writeFileSync(runLockDescriptor, JSON.stringify(record), 'utf8');
+      process.env.VOID_E2E_RUNTIME_ROOT = runtimeRoot;
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EEXIST' || attempt > 0) throw error;
+      removeStaleRunLock();
+    }
+  }
+}
+
+function assertSafeRuntimeRoot(candidate: string): void {
+  const resolved = path.resolve(candidate);
+  if (
+    path.dirname(resolved) !== E2E_RUNTIME_PARENT ||
+    !path.basename(resolved).startsWith('run-')
+  ) {
+    throw new Error(`Refusing to clean unsafe E2E runtime path: ${resolved}`);
+  }
+}
+
+function releaseRunLock(): void {
+  const ownedRuntimeRoot = runtimeRoot;
+  runtimeRoot = null;
+  delete process.env.VOID_E2E_RUNTIME_ROOT;
+
+  if (runLockDescriptor !== null) {
+    fs.closeSync(runLockDescriptor);
+    runLockDescriptor = null;
+  }
+
+  const record = readRunLock();
+  if (record?.pid === process.pid) {
+    fs.unlinkSync(E2E_RUN_LOCK_PATH);
+  }
+
+  if (ownedRuntimeRoot) {
+    assertSafeRuntimeRoot(ownedRuntimeRoot);
+    fs.rmSync(ownedRuntimeRoot, {
+      force: true,
+      maxRetries: 3,
+      recursive: true,
+      retryDelay: 100,
+    });
+  }
+}
 
 function ensureLocalNoProxy(): void {
   const configuredHosts = (process.env.NO_PROXY || process.env.no_proxy || '')
@@ -182,13 +294,28 @@ async function fetchSessionLogs(
   return payload.value ?? [];
 }
 
-function stopvoidApp(): void {
+async function stopvoidApp(): Promise<void> {
   if (!voidApp) {
     return;
   }
 
-  voidApp.kill();
+  const child = voidApp;
   voidApp = null;
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error('Void desktop did not exit within 10 seconds')),
+      10_000,
+    );
+    child.once('exit', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.kill();
+  });
 }
 
 function stopDevServer(): void {
@@ -306,7 +433,7 @@ async function startvoidApp(): Promise<void> {
 
   await waitForDevServerIfNeeded(appPath);
 
-  stopvoidApp();
+  await stopvoidApp();
 
   console.log(`Starting void with embedded WebDriver on port ${DRIVER_PORT}`);
   console.log(`Application: ${appPath}`);
@@ -408,21 +535,29 @@ export function createEmbeddedConfig(specs: string[], label: string): Options.Te
 
     onPrepare: async function onPrepare() {
       console.log(`Preparing ${label} E2E test run...`);
-      const appPath = getApplicationPath();
+      acquireRunLock();
+      try {
+        const appPath = getApplicationPath();
 
-      if (!fs.existsSync(appPath)) {
-        console.error(`Application not found at: ${appPath}`);
-        console.error('Please build the debug application first with:');
-        console.error('cargo build -p void-desktop');
-        throw new Error('Application not built');
+        if (!fs.existsSync(appPath)) {
+          console.error(`Application not found at: ${appPath}`);
+          console.error('Please build the debug application first with:');
+          console.error('cargo build -p void-desktop');
+          throw new Error('Application not built');
+        }
+
+        console.log(`application: ${appPath}`);
+        await waitForDevServerIfNeeded(appPath);
+        await startvoidApp();
+      } catch (error) {
+        await stopvoidApp();
+        releaseRunLock();
+        throw error;
       }
-
-      console.log(`application: ${appPath}`);
-      await waitForDevServerIfNeeded(appPath);
     },
 
     beforeSession: async function beforeSession() {
-      await startvoidApp();
+      await waitForEmbeddedDriverReady();
     },
 
     before: async function before() {
@@ -442,17 +577,16 @@ export function createEmbeddedConfig(specs: string[], label: string): Options.Te
       }
     },
 
-    afterSession: function afterSession() {
-      console.log('Stopping void app...');
-      stopvoidApp();
-    },
-
     afterTest: sharedAfterTest(),
 
-    onComplete: function onComplete() {
+    onComplete: async function onComplete() {
       console.log(`${label} E2E test run completed`);
-      stopvoidApp();
-      stopDevServer();
+      try {
+        await stopvoidApp();
+        stopDevServer();
+      } finally {
+        releaseRunLock();
+      }
     },
   };
 }

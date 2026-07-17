@@ -99,22 +99,41 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   the existing `app.zoom_level` preference. Real desktop L0 passed 3/3 at
   100%, 125%, 150%, and 200%; the viewport narrowed from 1707 to 853 CSS px
   without document-level horizontal overflow or loss of critical shell
-  actions, then returned to 100%. Dedicated visual review found no P0/P1.
+  actions, then restored the original preference. Dedicated visual review
+  found no P0/P1.
+- [x] The desktop E2E launcher now owns the application process behind an
+  atomic cross-process lock, waits for the exact child PID to exit, and releases
+  the lock only after cleanup. Parallel test commands fail before application
+  startup instead of opening overlapping windows.
+- [x] Development-origin zoom permission is limited to the `main` window,
+  fixed local port 1422, and `core:webview:allow-set-webview-zoom`; no file,
+  configuration, process, or general default capability is exposed remotely.
 - [x] Zoom controller tests passed 5/5; Web TypeScript, ESLint, desktop Rust
   build, and the production performance Gate passed. Entry JS remained within
   budget at 2,371,672 / 2,372,359 bytes; all 47 required dynamic entries were
   preserved with zero unresolved static-graph imports.
 - [x] Actionable global notifications remain inside the content edge at compact
-  and zoomed desktop widths. A real 668x472 CSS-pixel WebView kept the 320px
-  crash-recovery notice between x=336 and x=656, clear of the 248px navigation
-  edge, with both actions visible and no document-level horizontal overflow.
-  The theme-aware primary action measured 21:1 contrast and remained reachable
-  by Shift+Tab. Focused layout tests passed 3/3 and dedicated visual review
-  found no P0/P1.
+  and zoomed desktop widths. Real 100%, 125%, 150%, and 200% captures kept the
+  320px crash-recovery notice to the right of the 248px navigation edge, with
+  both actions visible and no document-level horizontal overflow. The
+  theme-aware primary action measured 21:1 contrast and remained reachable by
+  Shift+Tab. Focused layout tests passed and dedicated visual review found no
+  P0/P1/P2.
 - [x] The minimal navigation renders an empty workspace list as transparent,
   muted metadata rather than a selected row. A real 1804x1204 physical-pixel
   single-window capture preserved the compact indent and row height with no
   clipping or overflow; dedicated visual review found no P0/P1/P2.
+- [x] The navigation sections rail can shrink inside a 1024x720 outer window
+  and owns vertical scrolling between fixed top and bottom controls. Desktop L0
+  scrolled a real workspace card into view, captured the reachable workspace
+  and session content, and restored scroll position. The full visual suite
+  passed 3/3; dedicated review closed the prior narrow-window discoverability
+  P2 and reported P0/P1/P2 all zero.
+- [x] Final manifest production build and performance Gate passed at
+  2,371,672 / 2,372,359 raw entry JS bytes and 666,125 / 672,720 raw entry CSS
+  bytes. All 47 required dynamic entries remained dynamic with zero unresolved
+  static-graph imports. JS gzip was 437 bytes above its reference warning line
+  but raw hard limits passed; entry CSS gzip stayed 1,015 bytes below reference.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation

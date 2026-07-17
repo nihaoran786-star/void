@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-dev-zoom",
+  "description": "Allow the main desktop WebView served by the fixed local Vite development origin to apply workspace zoom.",
+  "windows": ["main"],
+  "remote": {
+    "urls": [
+      "http://localhost:1422/*",
+      "http://127.0.0.1:1422/*"
+    ]
+  },
+  "permissions": [
+    "core:webview:allow-set-webview-zoom"
+  ]
+}

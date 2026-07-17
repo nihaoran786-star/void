@@ -63,6 +63,15 @@ describe('NavPanel layout styles', () => {
     expect(sectionHeaderBlock).toContain('margin: 0 $size-gap-1;');
   });
 
+  it('lets the sections rail shrink and scroll inside short windows', () => {
+    const stylesheet = readNavPanelStylesheet();
+    const sectionsBlock = extractBlock(stylesheet, '&__sections');
+
+    expect(sectionsBlock).toContain('flex: 1 1 auto;');
+    expect(sectionsBlock).toContain('min-height: 0;');
+    expect(sectionsBlock).toContain('overflow-y: auto;');
+  });
+
   it('clips collapsible content so expanded rows cannot overlap following sections', () => {
     const stylesheet = readNavPanelStylesheet();
     const collapsibleBlock = extractBlock(stylesheet, '&__collapsible');
