@@ -147,14 +147,23 @@ describe('Short drama center smoke', () => {
       await expect(teamAgentButtons.length).toBe(5);
       expect(await teamAgentButtons[0].getAttribute('aria-label')).toBeTruthy();
       expect(await teamAgentButtons[0].getAttribute('aria-pressed')).toMatch(/true|false/);
-      const keyboardFocusEvidence = await browser.execute(() => {
-        const firstAgent = document.querySelector<HTMLButtonElement>(
+      const keyboardTraversalEvidence = await browser.execute(() => {
+        const agents = Array.from(document.querySelectorAll<HTMLButtonElement>(
           '[data-testid="short-drama-team-agent"]',
-        );
-        firstAgent?.focus();
-        return document.activeElement === firstAgent;
+        ));
+        agents[0]?.focus();
+        return {
+          focused: document.activeElement === agents[0],
+          nextStage: agents[1]?.getAttribute('data-short-drama-stage'),
+        };
       });
-      expect(keyboardFocusEvidence).toBe(true);
+      expect(keyboardTraversalEvidence.focused).toBe(true);
+      expect(keyboardTraversalEvidence.nextStage).toBeTruthy();
+      await browser.keys(['Tab']);
+      const keyboardTabStage = await browser.execute(() => (
+        document.activeElement?.getAttribute('data-short-drama-stage')
+      ));
+      expect(keyboardTabStage).toBe(keyboardTraversalEvidence.nextStage);
 
       const railLayout = await browser.execute(() => {
         const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="rail"]');
@@ -208,6 +217,26 @@ describe('Short drama center smoke', () => {
     } else {
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'closed');
       await expect((await $$('[data-testid="short-drama-team-agent"]')).length).toBe(0);
+      const classicKeyboardPolicyEvidence = await browser.execute(() => {
+        const stageTab = document.querySelector<HTMLButtonElement>(
+          '[data-testid="short-drama-stage-tab"][data-short-drama-stage="script"]',
+        );
+        stageTab?.focus();
+        const tabEvent = new KeyboardEvent('keydown', {
+          key: 'Tab',
+          bubbles: true,
+          cancelable: true,
+        });
+        const dispatchResult = stageTab?.dispatchEvent(tabEvent);
+        return {
+          focused: document.activeElement === stageTab,
+          defaultPrevented: tabEvent.defaultPrevented,
+          dispatchResult,
+        };
+      });
+      expect(classicKeyboardPolicyEvidence.focused).toBe(true);
+      expect(classicKeyboardPolicyEvidence.defaultPrevented).toBe(true);
+      expect(classicKeyboardPolicyEvidence.dispatchResult).toBe(false);
       const classicLayout = await browser.execute(() => {
         const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="closed"]');
         const primary = area?.querySelector(':scope > .canvas-editor-area__primary');

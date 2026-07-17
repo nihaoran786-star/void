@@ -58,7 +58,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] TypeScript, ESLint, theme color/visual contracts, and core boundaries
   passed.
 - [x] Manifest production build and entry performance Gate passed: entry JS
-  2,371,436 / 2,372,359 bytes (gzip 691,039); entry CSS
+  2,371,464 / 2,372,359 bytes (gzip 691,043); entry CSS
   665,090 / 672,720 bytes (gzip 94,272).
 - [x] Slice 3 real-desktop E2E passed 2/2: the fixed five-agent rail measured
   44px collapsed and 298.5px open, while media preview and episode 10/100
@@ -71,6 +71,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] The full short-drama desktop fixture passed 2/2 in both classic and
   minimal presentations. Classic mode kept the native secondary agent panel
   visible and active; minimal mode kept the 44px/300px projection.
+- [x] Minimal presentation restored native Tab traversal, and a single-window
+  real-desktop short-drama run verified focus advances between adjacent team
+  agent controls. Classic presentation and Monaco/xterm exceptions retain
+  their existing keyboard policy.
 - [x] Desktop `release-fast` Rust check passed for `void-desktop`.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
@@ -184,6 +188,9 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Preserve media/image/video/upload/status tool availability.
 - [x] Pause the hidden `BtwSessionPanel` active lifecycle while the drawer is
   collapsed; no session UI is unmounted or recreated by the rail.
+- [x] Navigate between adjacent fixed-agent controls with native Tab order;
+  agent controls expose role labels and pressed state, while the drawer toggle
+  exposes its expanded state.
 
 ## Theme, Typography, and Accessibility
 

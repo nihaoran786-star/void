@@ -68,7 +68,10 @@ test('minimal presentation chrome is loaded before first paint but outside the e
     /import\('\.\/minimalWorkspacePresentation\.scss'\)/,
   );
   assert.match(main, /loadWorkspacePresentationStyles/);
-  assert.match(main, /\(\) => loadWorkspacePresentationStyles\(\)/);
+  assert.match(
+    main,
+    /\(\) => loadWorkspacePresentationStyles\(initialWorkspacePresentation\)/,
+  );
 
   for (const [path, stylesheet] of staticBaseStyles) {
     assert.doesNotMatch(
@@ -93,6 +96,12 @@ test('existing navigation and composer controllers are not duplicated', () => {
   assert.equal((appLayout.match(/<WorkspaceBody/g) ?? []).length, 1);
   assert.equal((appLayout.match(/<FloatingMiniChat/g) ?? []).length, 1);
   assert.doesNotMatch(presentation, /useEffect|subscribe|addEventListener/);
+});
+
+test('minimal presentation restores native keyboard traversal without changing classic behavior', () => {
+  assert.match(main, /initialWorkspacePresentation === 'minimal'/);
+  assert.match(main, /if \(e\.key !== 'Tab'\) return;/);
+  assert.match(main, /target\?\.closest\('\.monaco-editor, \.xterm'\)/);
 });
 
 test('scoped descendant state selectors do not duplicate the presentation ancestor', () => {

@@ -3,6 +3,7 @@ import App from "./app/App";
 import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
 import { loadWorkspacePresentationStyles } from "./app/presentation/workspacePresentationStyles";
+import { readWorkspacePresentation } from "./app/presentation/workspacePresentation";
 import "./app/styles/index.scss";
 
 // Font: Noto Sans SC is loaded via a <link> tag in index.html.
@@ -23,6 +24,7 @@ import {
 bootstrapLogger();
 
 const log = createLogger('App');
+const initialWorkspacePresentation = readWorkspacePresentation();
 startupTrace.markPhase('first_script_eval');
 
 /** Dedupe only for white-screen heuristic (empty #root), not for Error Boundary logs. */
@@ -159,12 +161,13 @@ function registerGlobalErrorHandlers() {
 
 registerGlobalErrorHandlers();
 
-// Disable Tab-key focus traversal globally.
-// Tab still works inside Monaco Editor and xterm terminal where it has semantic meaning.
+// Preserve the classic keyboard policy while the minimal workspace restores
+// native Tab traversal. Monaco and xterm keep their own semantic Tab handling.
 document.addEventListener(
   'keydown',
   (e: KeyboardEvent) => {
     if (e.key !== 'Tab') return;
+    if (initialWorkspacePresentation === 'minimal') return;
     const target = e.target as Element | null;
     if (target?.closest('.monaco-editor, .xterm')) return;
     e.preventDefault();
@@ -200,7 +203,7 @@ async function initializeBeforeRender(): Promise<void> {
   await measureAsyncAndLog(
     log,
     'Startup step completed',
-    () => loadWorkspacePresentationStyles(),
+    () => loadWorkspacePresentationStyles(initialWorkspacePresentation),
     { data: { step: 'loadWorkspacePresentationStyles' } },
   );
 

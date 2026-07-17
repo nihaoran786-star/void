@@ -116,6 +116,13 @@ inactive presentation rules without introducing a second component tree or a
 runtime subscription. Feature-local styles for already-lazy short-drama and
 media chunks remain with those chunks.
 
+The presentation preference is resolved once during startup and the same value
+is supplied to both the stylesheet loader and the startup keyboard policy.
+Classic presentation preserves the existing application-wide Tab suppression,
+including Monaco/xterm exceptions. Minimal presentation restores native browser
+Tab traversal without adding feature-specific focus state or keyboard business
+logic.
+
 ## State Contracts
 
 New state contracts describe presentation facts. They do not create a second
@@ -329,6 +336,9 @@ canvas groups:
   `isSceneActive={false}`. Existing `BtwSessionPanel` lifecycle guards then
   pause execution-state subscriptions, scrolling frames, ResizeObserver work,
   and Skill-picker loading without unmounting the real session UI;
+- the rail uses native buttons with role labels, pressed state, and normal DOM
+  focus order; a real-desktop test verifies that Tab advances between adjacent
+  agent controls rather than being intercepted by the classic keyboard policy;
 - widths below 760px use a presentation-only overlay so the short-drama canvas
   does not collapse below a usable width.
 
