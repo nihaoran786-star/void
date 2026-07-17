@@ -108,6 +108,31 @@
         "--flowchat-link-color",
         "--flowchat-link-hover-color"
       ]
+    },
+    {
+      "domain": "minimal-workspace",
+      "requiredVars": [
+        "--workspace-surface-canvas",
+        "--workspace-surface-panel",
+        "--workspace-surface-raised",
+        "--workspace-text-primary",
+        "--workspace-text-secondary",
+        "--workspace-text-muted",
+        "--workspace-border-subtle",
+        "--workspace-border-strong",
+        "--workspace-accent",
+        "--workspace-focus-ring",
+        "--workspace-font-size-meta",
+        "--workspace-font-size-label",
+        "--workspace-font-size-control",
+        "--workspace-font-size-body",
+        "--workspace-font-size-title",
+        "--workspace-status-neutral-text",
+        "--workspace-status-info-text",
+        "--workspace-status-success-text",
+        "--workspace-status-warning-text",
+        "--workspace-status-error-text"
+      ]
     }
   ],
   "allowedDynamicPrefixes": [
@@ -123,7 +148,8 @@
     "--nav-font-size-",
     "--radius-",
     "--shadow-",
-    "--spacing-"
+    "--spacing-",
+    "--workspace-"
   ],
   "ownedColorDomains": [
     {

@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { test } from 'node:test';
+
+const repoRoot = process.cwd();
+const read = relativePath => readFileSync(join(repoRoot, relativePath), 'utf8');
+const tokens = read('src/web-ui/src/component-library/styles/tokens.scss');
+const cssVarContract = JSON.parse(read('scripts/theme-css-var-contract.json'));
+
+const extractFlatBlock = (source, selector) => {
+  const start = source.indexOf(`${selector} {`);
+  assert.notEqual(start, -1, `Missing ${selector} token scope`);
+  const bodyStart = source.indexOf('{', start) + 1;
+  const bodyEnd = source.indexOf('}', bodyStart);
+  assert.notEqual(bodyEnd, -1, `Unclosed ${selector} token scope`);
+  return source.slice(bodyStart, bodyEnd);
+};
+
+const minimalTokens = extractFlatBlock(tokens, '.void-ui--minimal');
+
+test('minimal workspace tokens stay scoped and derive from existing theme contracts', () => {
+  const expectedMappings = new Map([
+    ['--workspace-surface-canvas', '--color-bg-scene'],
+    ['--workspace-surface-panel', '--color-bg-secondary'],
+    ['--workspace-surface-raised', '--color-bg-elevated'],
+    ['--workspace-surface-hover', '--control-bg-hover'],
+    ['--workspace-surface-active', '--control-bg-active'],
+    ['--workspace-text-primary', '--color-text-primary'],
+    ['--workspace-text-secondary', '--color-text-secondary'],
+    ['--workspace-text-muted', '--color-text-muted'],
+    ['--workspace-border-subtle', '--border-subtle'],
+    ['--workspace-border-strong', '--border-medium'],
+    ['--workspace-accent', '--color-accent-400'],
+    ['--workspace-focus-ring', '--control-focus-ring'],
+    ['--workspace-shadow-raised', '--shadow-xs'],
+  ]);
+
+  for (const [alias, source] of expectedMappings) {
+    assert.match(
+      minimalTokens,
+      new RegExp(`${alias}:\\s*var\\(${source}\\)`),
+      `${alias} must derive from ${source}`,
+    );
+  }
+
+  assert.doesNotMatch(minimalTokens, /rgba?\(|#[0-9a-f]{3,8}\b/i);
+  assert.doesNotMatch(minimalTokens, /--(?:glass|glow|blur|color-purple)-/);
+});
+
+test('minimal workspace typography matches the compact Codex reference scale', () => {
+  const expectedTypography = new Map([
+    ['--workspace-font-family', '--font-family-sans'],
+    ['--workspace-font-size-meta', '--font-size-2xs'],
+    ['--workspace-font-size-label', '--font-size-xs'],
+    ['--workspace-font-size-control', '--font-size-sm'],
+    ['--workspace-font-size-body', '--font-size-base'],
+    ['--workspace-font-size-title', '--font-size-xl'],
+    ['--workspace-font-weight-regular', '--font-weight-normal'],
+    ['--workspace-font-weight-medium', '--font-weight-medium'],
+    ['--workspace-font-weight-strong', '--font-weight-semibold'],
+  ]);
+
+  for (const [alias, source] of expectedTypography) {
+    assert.match(minimalTokens, new RegExp(`${alias}:\\s*var\\(${source}\\)`));
+  }
+
+  for (const [token, value] of [
+    ['--workspace-line-height-meta', '1.35'],
+    ['--workspace-line-height-control', '1.4'],
+    ['--workspace-line-height-body', '1.55'],
+    ['--workspace-line-height-title', '1.3'],
+  ]) {
+    assert.match(minimalTokens, new RegExp(`${token}:\\s*${value};`));
+  }
+});
+
+test('minimal workspace exposes compact spacing, controls, motion, and status tokens', () => {
+  for (const token of [
+    '--workspace-space-1',
+    '--workspace-space-2',
+    '--workspace-space-3',
+    '--workspace-space-4',
+    '--workspace-space-6',
+    '--workspace-space-8',
+    '--workspace-radius-control',
+    '--workspace-radius-panel',
+    '--workspace-control-height',
+    '--workspace-control-height-primary',
+    '--workspace-icon-target',
+    '--workspace-motion-fast',
+    '--workspace-easing-standard',
+  ]) {
+    assert.match(minimalTokens, new RegExp(`${token}:\\s*var\\(`), `Missing ${token}`);
+  }
+
+  for (const tone of ['neutral', 'info', 'success', 'warning', 'error']) {
+    for (const role of ['bg', 'border', 'text']) {
+      assert.match(
+        minimalTokens,
+        new RegExp(`--workspace-status-${tone}-${role}:\\s*var\\(--status-${tone}-${role}\\)`),
+      );
+    }
+  }
+});
+
+test('theme governance records the scoped minimal workspace token family', () => {
+  const domain = cssVarContract.requiredTokenDomains.find(
+    candidate => candidate.domain === 'minimal-workspace',
+  );
+  assert.ok(domain, 'Missing minimal-workspace CSS variable domain');
+
+  for (const token of [
+    '--workspace-surface-canvas',
+    '--workspace-text-primary',
+    '--workspace-font-size-control',
+    '--workspace-focus-ring',
+    '--workspace-status-error-text',
+  ]) {
+    assert.ok(domain.requiredVars.includes(token), `Missing governed token ${token}`);
+  }
+
+  assert.ok(cssVarContract.allowedDynamicPrefixes.includes('--workspace-'));
+});

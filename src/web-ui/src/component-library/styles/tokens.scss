@@ -1085,6 +1085,69 @@ $badge-info-text: $color-info;
   --card-bg-purple-hover: #{$card-bg-purple-hover};
 }
 
+// Compact workspace presentation. This is an additive semantic projection over
+// ThemeService-owned tokens: classic presentation values remain untouched.
+.void-ui--minimal {
+  --workspace-font-family: var(--font-family-sans);
+  --workspace-font-size-meta: var(--font-size-2xs);
+  --workspace-font-size-label: var(--font-size-xs);
+  --workspace-font-size-control: var(--font-size-sm);
+  --workspace-font-size-body: var(--font-size-base);
+  --workspace-font-size-title: var(--font-size-xl);
+  --workspace-font-weight-regular: var(--font-weight-normal);
+  --workspace-font-weight-medium: var(--font-weight-medium);
+  --workspace-font-weight-strong: var(--font-weight-semibold);
+  --workspace-line-height-meta: 1.35;
+  --workspace-line-height-control: 1.4;
+  --workspace-line-height-body: 1.55;
+  --workspace-line-height-title: 1.3;
+
+  --workspace-surface-canvas: var(--color-bg-scene);
+  --workspace-surface-panel: var(--color-bg-secondary);
+  --workspace-surface-raised: var(--color-bg-elevated);
+  --workspace-surface-hover: var(--control-bg-hover);
+  --workspace-surface-active: var(--control-bg-active);
+  --workspace-text-primary: var(--color-text-primary);
+  --workspace-text-secondary: var(--color-text-secondary);
+  --workspace-text-muted: var(--color-text-muted);
+  --workspace-text-disabled: var(--color-text-disabled);
+  --workspace-border-subtle: var(--border-subtle);
+  --workspace-border-strong: var(--border-medium);
+  --workspace-accent: var(--color-accent-400);
+  --workspace-focus-ring: var(--control-focus-ring);
+  --workspace-shadow-raised: var(--shadow-xs);
+
+  --workspace-space-1: var(--size-gap-1);
+  --workspace-space-2: var(--size-gap-2);
+  --workspace-space-3: var(--size-gap-3);
+  --workspace-space-4: var(--size-gap-4);
+  --workspace-space-6: var(--size-gap-6);
+  --workspace-space-8: var(--size-gap-8);
+  --workspace-radius-control: var(--size-radius-sm);
+  --workspace-radius-panel: var(--size-radius-base);
+  --workspace-control-height: var(--control-height-sm);
+  --workspace-control-height-primary: var(--control-height-md);
+  --workspace-icon-target: var(--control-square-sm);
+  --workspace-motion-fast: var(--motion-fast);
+  --workspace-easing-standard: var(--easing-standard);
+
+  --workspace-status-neutral-bg: var(--status-neutral-bg);
+  --workspace-status-neutral-border: var(--status-neutral-border);
+  --workspace-status-neutral-text: var(--status-neutral-text);
+  --workspace-status-info-bg: var(--status-info-bg);
+  --workspace-status-info-border: var(--status-info-border);
+  --workspace-status-info-text: var(--status-info-text);
+  --workspace-status-success-bg: var(--status-success-bg);
+  --workspace-status-success-border: var(--status-success-border);
+  --workspace-status-success-text: var(--status-success-text);
+  --workspace-status-warning-bg: var(--status-warning-bg);
+  --workspace-status-warning-border: var(--status-warning-border);
+  --workspace-status-warning-text: var(--status-warning-text);
+  --workspace-status-error-bg: var(--status-error-bg);
+  --workspace-status-error-border: var(--status-error-border);
+  --workspace-status-error-text: var(--status-error-text);
+}
+
 :root[data-theme="light"],
 :root[data-theme-type="light"],
 [data-theme-type="light"] {
