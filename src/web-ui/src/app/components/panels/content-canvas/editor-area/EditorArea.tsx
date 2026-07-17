@@ -1,6 +1,7 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
+import { selectShortDramaTeamPanelPresentation } from './shortDramaTeamPanelPresentation';
 import { useCanvasStore } from '../stores';
 import type { 
   EditorGroupId, 
@@ -9,6 +10,11 @@ import type {
   PanelContent,
 } from '../types';
 import './EditorArea.scss';
+
+const ShortDramaTeamPanelControls = React.lazy(
+  () => import('./ShortDramaTeamPanelControls'),
+);
+
 export interface EditorAreaProps {
   workspacePath?: string;
   isSceneActive?: boolean;
@@ -34,6 +40,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
+  const [isShortDramaTeamExpanded, setIsShortDramaTeamExpanded] = useState(false);
 
   const {
     primaryGroup,
@@ -126,12 +133,43 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     [setTabFileDeletedFromDisk]
   );
 
-  const renderEditorGroup = (groupId: EditorGroupId, group: typeof primaryGroup) => (
+  const shortDramaTeamPresentation = selectShortDramaTeamPanelPresentation({
+    splitMode: layout.splitMode,
+    primaryGroup,
+    secondaryGroup,
+    expanded: isShortDramaTeamExpanded,
+  });
+
+  const ensureShortDramaTeamOpenRatio = useCallback(() => {
+    if (layout.splitRatio < 0.68) {
+      setSplitRatio(0.7);
+    }
+  }, [layout.splitRatio, setSplitRatio]);
+
+  const handleShortDramaTeamToggle = useCallback(() => {
+    if (!isShortDramaTeamExpanded) {
+      ensureShortDramaTeamOpenRatio();
+    }
+    setIsShortDramaTeamExpanded(previous => !previous);
+  }, [ensureShortDramaTeamOpenRatio, isShortDramaTeamExpanded]);
+
+  const handleShortDramaTeamAgentSelect = useCallback((tabId: string) => {
+    switchToTab(tabId, 'secondary');
+    setActiveGroup('secondary');
+    ensureShortDramaTeamOpenRatio();
+    setIsShortDramaTeamExpanded(true);
+  }, [ensureShortDramaTeamOpenRatio, setActiveGroup, switchToTab]);
+
+  const renderEditorGroup = (
+    groupId: EditorGroupId,
+    group: typeof primaryGroup,
+    groupSceneActive = isSceneActive,
+  ) => (
     <EditorGroup
       groupId={groupId}
       group={group}
       isActive={activeGroupId === groupId}
-      isSceneActive={isSceneActive}
+      isSceneActive={groupSceneActive}
       draggingTabId={draggingTabId}
       draggingFromGroupId={draggingFromGroupId}
       splitMode={layout.splitMode}
@@ -170,8 +208,26 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   }
 
   if (splitMode === 'horizontal') {
+    const shortDramaTeamMode = shortDramaTeamPresentation.mode;
+    const isSecondarySceneActive = isSceneActive && (
+      shortDramaTeamPresentation.status !== 'ready' || shortDramaTeamMode !== 'rail'
+    );
+    const editorAreaStyle = {
+      '--short-drama-team-primary-ratio': `${splitRatio * 100}%`,
+      '--short-drama-team-secondary-ratio': `${(1 - splitRatio) * 100}%`,
+    } as React.CSSProperties;
+
     return (
-      <div ref={containerRef} className="canvas-editor-area is-split is-horizontal">
+      <div
+        ref={containerRef}
+        className={[
+          'canvas-editor-area is-split is-horizontal',
+          shortDramaTeamPresentation.status === 'ready' ? 'is-short-drama-team' : '',
+          `is-short-drama-team-${shortDramaTeamMode}`,
+        ].filter(Boolean).join(' ')}
+        data-short-drama-team-mode={shortDramaTeamMode}
+        style={editorAreaStyle}
+      >
         <div className="canvas-editor-area__primary" style={{ width: `${splitRatio * 100}%` }}>
           {renderEditorGroup('primary', primaryGroup)}
         </div>
@@ -182,7 +238,18 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
           containerRef={containerRef}
         />
         <div className="canvas-editor-area__secondary" style={{ width: `${(1 - splitRatio) * 100}%` }}>
-          {renderEditorGroup('secondary', secondaryGroup)}
+          {renderEditorGroup('secondary', secondaryGroup, isSecondarySceneActive)}
+          {shortDramaTeamPresentation.status === 'ready' && (
+            <React.Suspense fallback={null}>
+              <ShortDramaTeamPanelControls
+                mode={shortDramaTeamPresentation.mode}
+                tabs={shortDramaTeamPresentation.tabs}
+                activeTabId={shortDramaTeamPresentation.activeTabId}
+                onToggle={handleShortDramaTeamToggle}
+                onSelectTab={handleShortDramaTeamAgentSelect}
+              />
+            </React.Suspense>
+          )}
         </div>
       </div>
     );

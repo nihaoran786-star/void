@@ -1,0 +1,173 @@
+@mixin styles {
+  .void-ui--minimal .canvas-editor-area.is-short-drama-team {
+    position: relative;
+    container-name: short-drama-editor-area;
+    container-type: inline-size;
+
+    > .canvas-editor-area__primary,
+    > .canvas-editor-area__secondary {
+      min-width: 0;
+    }
+
+    > .canvas-editor-area__secondary {
+      background: var(--workspace-surface-panel);
+    }
+
+    &.is-short-drama-team-rail {
+      > .canvas-editor-area__primary {
+        width: calc(100% - 44px) !important;
+      }
+
+      > .canvas-split-handle {
+        display: none;
+      }
+
+      > .canvas-editor-area__secondary {
+        width: 44px !important;
+        min-width: 44px;
+        max-width: 44px;
+        border-left: 1px solid var(--workspace-border-subtle);
+
+        > .canvas-editor-group {
+          visibility: hidden;
+          pointer-events: none;
+        }
+      }
+    }
+
+    &.is-short-drama-team-open {
+      > .canvas-editor-area__primary {
+        width: max(
+          var(--short-drama-team-primary-ratio),
+          calc(100% - 300px)
+        ) !important;
+      }
+
+      > .canvas-editor-area__secondary {
+        width: min(
+          var(--short-drama-team-secondary-ratio),
+          300px
+        ) !important;
+        overflow: visible;
+        border-left: 1px solid var(--workspace-border-subtle);
+      }
+
+      .btw-session-panel__header {
+        gap: 6px;
+        min-height: 32px;
+        padding: 7px 10px;
+        border-bottom-style: solid;
+      }
+
+      .btw-session-panel__header-left {
+        display: none;
+      }
+    }
+
+    .short-drama-team-panel-controls {
+      z-index: 8;
+      color: var(--workspace-text-secondary);
+
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+
+        &:hover {
+          background: var(--workspace-surface-hover);
+          color: var(--workspace-text-primary);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--workspace-focus-ring);
+          outline-offset: 1px;
+        }
+      }
+
+      &.is-rail {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 5px;
+        background: var(--workspace-surface-panel);
+      }
+
+      &.is-open {
+        position: absolute;
+        top: 4px;
+        left: -15px;
+        display: flex;
+
+        .short-drama-team-panel-controls__toggle {
+          width: 28px;
+          height: 28px;
+          border: 1px solid var(--workspace-border-subtle);
+          border-radius: 7px;
+          background: var(--workspace-surface-raised);
+        }
+
+        .short-drama-team-panel-controls__agents {
+          display: none;
+        }
+      }
+    }
+
+    .short-drama-team-panel-controls__agents {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .short-drama-team-panel-controls__agent.is-active {
+      background: var(--workspace-surface-active);
+      color: var(--workspace-text-primary);
+    }
+
+    .short-drama-team-panel-controls__toggle-glyph {
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1;
+      transform: translateY(-1px);
+    }
+
+    .short-drama-team-panel-controls__stage-glyph {
+      font-size: 10px;
+      font-weight: 650;
+      line-height: 1;
+      letter-spacing: 0.01em;
+    }
+  }
+
+  @container short-drama-editor-area (max-width: 760px) {
+    .void-ui--minimal .canvas-editor-area.is-short-drama-team-open {
+      > .canvas-editor-area__primary {
+        width: 100% !important;
+      }
+
+      > .canvas-split-handle {
+        display: none;
+      }
+
+      > .canvas-editor-area__secondary {
+        position: absolute;
+        inset-block: 0;
+        right: 0;
+        width: min(300px, calc(100% - 48px)) !important;
+        min-width: 0;
+        z-index: 7;
+      }
+    }
+  }
+}

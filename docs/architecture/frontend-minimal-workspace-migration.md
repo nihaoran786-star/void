@@ -306,10 +306,40 @@ Exit gate:
 Move subagent presentation behind a quiet, collapsed-by-default team entry.
 Keep the existing session graph and Skill/runtime policy unchanged.
 
+The first Slice 3 sub-slice is a presentation projection over the existing
+canvas groups:
+
+- a pure selector activates only for a horizontal layout whose primary tab is
+  the short-drama center and whose visible secondary tabs are all real
+  `btw-session` stage-agent tabs carrying `shortDramaStage` metadata;
+- mixed secondary content, non-short-drama primary tabs, vertical/grid layouts,
+  and classic presentation fall back to the unchanged editor layout;
+- the default 44px rail reuses the five native stage-agent tab IDs. Selecting a
+  role calls the existing `switchToTab` and `setActiveGroup` actions; it does
+  not create sessions, send messages, read Skill policy, or own agent state;
+- the 300px open panel keeps the original `EditorGroup` and tab bar mounted.
+  This deliberately preserves close, reorder, pin, drag, overflow, and pop-out
+  operations instead of replacing them with a visually cleaner but incomplete
+  custom tab implementation;
+- the control strip is dynamically imported only after the short-drama team
+  projection becomes eligible, keeping the normal workspace entry bundle
+  inside the frozen performance budget;
+- while collapsed, the hidden native agent panel receives
+  `isSceneActive={false}`. Existing `BtwSessionPanel` lifecycle guards then
+  pause execution-state subscriptions, scrolling frames, ResizeObserver work,
+  and Skill-picker loading without unmounting the real session UI;
+- widths below 760px use a presentation-only overlay so the short-drama canvas
+  does not collapse below a usable width.
+
+The generic badge in the nested session header is hidden only in this open
+presentation because it duplicates the surrounding agent tab. The real agent
+title and every interactive header/tab action remain present.
+
 Allowed product areas:
 
 - `src/web-ui/src/flow_chat/components/subagent`
-- a feature-local projection selector/controller and tests
+- `src/web-ui/src/app/components/panels/content-canvas/editor-area`, limited to
+  the pure projection, controls, scoped minimal styles, and focused tests
 - shell composition needed to mount the drawer presentation
 
 Exit gate:
@@ -318,6 +348,10 @@ Exit gate:
 - logs, output, and session navigation remain reachable;
 - `parentSessionId`, role, workspace, and artifact association remain intact;
 - hidden drawer does not create high-frequency rendering or polling.
+
+Collapsed status projection remains a separate, unchecked exit item until it
+can consume an explicit feature-local status model without importing
+`FlowChatStore`, agent services, or Skill configuration into the UI control.
 
 ### Slice 4: Default switch and debt cleanup
 

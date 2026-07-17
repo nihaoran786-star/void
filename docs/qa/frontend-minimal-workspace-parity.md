@@ -53,13 +53,19 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   and kept the 30px episode rail free of horizontal overflow.
 - [x] Real desktop E2E verified the lightweight media overlay receives focus,
   remains independent from BrowserPanel, captures a screenshot, and closes.
-- [x] Full Web suite passed: 312 test files, 1775 tests.
-- [x] Script contracts passed: 116 tests.
+- [x] Full Web suite passed: 313 test files, 1779 tests.
+- [x] Script contracts passed: 121 tests.
 - [x] TypeScript, ESLint, theme color/visual contracts, and core boundaries
   passed.
 - [x] Manifest production build and entry performance Gate passed: entry JS
-  2,369,238 / 2,372,359 bytes (gzip 690,286); entry CSS
-  665,044 / 672,720 bytes (gzip 94,255).
+  2,371,289 / 2,372,359 bytes (gzip 690,964); entry CSS
+  665,090 / 672,720 bytes (gzip 94,272).
+- [x] Slice 3 real-desktop E2E passed 2/2: the fixed five-agent rail measured
+  44px collapsed and 298.5px open, while media preview and episode 10/100
+  navigation remained functional.
+- [x] Slice 3 screenshots captured the collapsed rail, open native session
+  panel, and media preview; the dedicated visual specialist reported no P0/P1
+  issue, clipping, or horizontal overflow.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
@@ -155,19 +161,23 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 ## Subagent Team
 
-- [ ] Open and close the team drawer.
+- [x] Open and close the team drawer through the real desktop application.
 - [ ] Keep the drawer collapsed by default without hiding active failure state.
-- [ ] Show each fixed short-drama agent by role.
+- [x] Keep the drawer collapsed by default at a measured 44px width.
+- [x] Show each fixed short-drama agent by role.
 - [ ] Show live, waiting, completed, cancelled, and failed status.
 - [ ] Show current action without exposing unnecessary internal noise.
 - [ ] Open detailed output/logs on demand.
-- [ ] Navigate to the real agent session.
+- [x] Navigate to the real agent session.
+- [x] Keep native close, reorder, pin, drag, overflow, and pop-out tab actions
+  available in the 300px open panel.
 - [ ] Preserve parent/child session relationships.
 - [ ] Preserve workspace and artifact association.
 - [ ] Preserve AssetAI and SplitAI fixed Skill policies.
 - [ ] Preserve empty Skill lists for agents that must not inherit global Skills.
 - [ ] Preserve media/image/video/upload/status tool availability.
-- [ ] Avoid polling or repeated rendering while the drawer is hidden.
+- [x] Pause the hidden `BtwSessionPanel` active lifecycle while the drawer is
+  collapsed; no session UI is unmounted or recreated by the rail.
 
 ## Theme, Typography, and Accessibility
 
@@ -187,7 +197,8 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 ## Performance and Build
 
-- [ ] Hidden views do not keep high-frequency subscriptions or timers active.
+- [x] The collapsed team panel passes `isSceneActive={false}` into the hidden
+  native session view, activating its existing subscription/timer guards.
 - [ ] Classic and minimal controllers are not mounted simultaneously.
 - [x] Media remains lazy-loaded.
 - [ ] Long lists remain virtualized where previously virtualized.
@@ -196,7 +207,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Web test suite passes.
 - [x] Script contract suite passes.
 - [x] TypeScript and ESLint pass.
-- [ ] Theme and i18n gates pass.
+- [x] Theme and i18n gates pass.
 - [x] Web production build passes.
 - [x] Vite JS/CSS performance budget passes.
 - [ ] Desktop Release build/check passes.

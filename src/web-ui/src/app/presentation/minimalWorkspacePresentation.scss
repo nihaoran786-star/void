@@ -3,9 +3,11 @@
 @use '../../flow_chat/components/ChatInput.minimal.scss' as chat-input;
 @use '../../flow_chat/components/ModelSelector.minimal.scss' as model-selector;
 @use '../../shared/services/preview/MediaPreviewOverlay.minimal.scss' as media-preview;
+@use '../components/panels/content-canvas/editor-area/EditorArea.minimal.scss' as editor-area;
 
 @include app-layout.styles;
 @include nav-panel.styles;
 @include chat-input.styles;
 @include model-selector.styles;
 @include media-preview.styles;
+@include editor-area.styles;
