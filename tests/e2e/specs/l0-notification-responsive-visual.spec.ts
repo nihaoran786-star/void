@@ -10,6 +10,33 @@ const screenshotDirectory = path.resolve(
   'minimal-workspace',
 );
 
+const parseRgb = (cssColor: string): [number, number, number] => {
+  const channels = cssColor.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
+  if (!channels || channels.length !== 3) {
+    throw new Error(`Expected an RGB color, received "${cssColor}"`);
+  }
+  return channels as [number, number, number];
+};
+
+const relativeLuminance = (cssColor: string): number => {
+  const channels = parseRgb(cssColor).map(channel => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+};
+
+const contrastRatio = (foreground: string, background: string): number => {
+  const foregroundLuminance = relativeLuminance(foreground);
+  const backgroundLuminance = relativeLuminance(background);
+  const lighter = Math.max(foregroundLuminance, backgroundLuminance);
+  const darker = Math.min(foregroundLuminance, backgroundLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
 describe('L0 responsive notification visual capture', () => {
   it('keeps an actionable global notice inside one content edge', async () => {
     try {
@@ -87,6 +114,13 @@ describe('L0 responsive notification visual capture', () => {
           container: rectOf(container),
           item: rectOf(item),
           actionLabels: actions.map(action => action.textContent?.trim() ?? ''),
+          actionStyles: actions.map(action => {
+            const style = getComputedStyle(action);
+            return {
+              backgroundColor: style.backgroundColor,
+              color: style.color,
+            };
+          }),
         };
       });
 
@@ -103,6 +137,29 @@ describe('L0 responsive notification visual capture', () => {
       expect(evidence.documentScrollWidth)
         .toBeLessThanOrEqual(evidence.viewport.width + 1);
       expect(evidence.actionLabels).toEqual(['导出诊断包', '打开日志设置']);
+      expect(contrastRatio(
+        evidence.actionStyles[0].color,
+        evidence.actionStyles[0].backgroundColor,
+      )).toBeGreaterThanOrEqual(4.5);
+
+      await browser.execute(() => {
+        document.querySelector<HTMLElement>('.notification-item__close')?.focus();
+      });
+      await browser.keys(['Shift', 'Tab']);
+      await browser.keys(['Shift', 'Tab']);
+
+      const focusedAction = await browser.execute(() => {
+        const activeElement = document.activeElement as HTMLElement | null;
+        return {
+          isPrimaryAction: activeElement?.classList.contains(
+            'notification-item__action--primary',
+          ) ?? false,
+          label: activeElement?.textContent?.trim() ?? '',
+        };
+      });
+
+      expect(focusedAction.isPrimaryAction).toBe(true);
+      expect(focusedAction.label).toBe('导出诊断包');
 
       await saveScreenshot('toast-responsive-desktop-narrow', {
         directory: screenshotDirectory,

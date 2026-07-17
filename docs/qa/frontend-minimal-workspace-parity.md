@@ -108,7 +108,9 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   and zoomed desktop widths. A real 668x472 CSS-pixel WebView kept the 320px
   crash-recovery notice between x=336 and x=656, clear of the 248px navigation
   edge, with both actions visible and no document-level horizontal overflow.
-  Focused layout tests passed 3/3 and dedicated visual review found no P0/P1.
+  The theme-aware primary action measured 21:1 contrast and remained reachable
+  by Shift+Tab. Focused layout tests passed 3/3 and dedicated visual review
+  found no P0/P1.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
