@@ -138,6 +138,9 @@ describe('L0 minimal workspace visual capture', () => {
         const moreButton = document.querySelector<HTMLElement>(
           '.void-nav-panel__footer-btn--icon',
         );
+        const notification = document.querySelector<HTMLElement>(
+          '.notification-container',
+        );
         const rectOf = (element: HTMLElement | null) => {
           if (!element) return null;
           const rect = element.getBoundingClientRect();
@@ -161,6 +164,7 @@ describe('L0 minimal workspace visual capture', () => {
           navigation: rectOf(navigation),
           main: rectOf(main),
           moreButton: rectOf(moreButton),
+          notification: rectOf(notification),
         };
       });
 
@@ -172,6 +176,13 @@ describe('L0 minimal workspace visual capture', () => {
         .toBeLessThanOrEqual(layoutEvidence.viewport.height + 1);
       expect(layoutEvidence.documentScrollWidth)
         .toBeLessThanOrEqual(layoutEvidence.viewport.width + 1);
+      if (layoutEvidence.notification) {
+        expect(layoutEvidence.notification.width).toBeLessThanOrEqual(321);
+        expect(layoutEvidence.notification.left)
+          .toBeGreaterThanOrEqual((layoutEvidence.navigation?.right ?? 0) - 1);
+        expect(layoutEvidence.notification.right)
+          .toBeLessThanOrEqual(layoutEvidence.viewport.width + 1);
+      }
 
       await saveScreenshot('desktop-narrow', {
         directory: screenshotDirectory,
@@ -191,6 +202,9 @@ describe('L0 minimal workspace visual capture', () => {
       );
       const moreButton = document.querySelector<HTMLElement>(
         '.void-nav-panel__footer-btn--icon',
+      );
+      const notification = document.querySelector<HTMLElement>(
+        '.notification-container',
       );
       const rectOf = (element: HTMLElement | null) => {
         if (!element) return null;
@@ -215,6 +229,7 @@ describe('L0 minimal workspace visual capture', () => {
         navigation: rectOf(navigation),
         main: rectOf(main),
         moreButton: rectOf(moreButton),
+        notification: rectOf(notification),
       };
     });
 
@@ -273,6 +288,13 @@ describe('L0 minimal workspace visual capture', () => {
           .toBeLessThanOrEqual(evidence.viewport.height + 1);
         expect(evidence.documentScrollWidth)
           .toBeLessThanOrEqual(evidence.viewport.width + 1);
+        if (evidence.notification && evidence.viewport.width <= 1024) {
+          expect(evidence.notification.width).toBeLessThanOrEqual(321);
+          expect(evidence.notification.left)
+            .toBeGreaterThanOrEqual((evidence.navigation?.right ?? 0) - 1);
+          expect(evidence.notification.right)
+            .toBeLessThanOrEqual(evidence.viewport.width + 1);
+        }
 
         await saveScreenshot(`zoom-${step.level}`, {
           directory: screenshotDirectory,

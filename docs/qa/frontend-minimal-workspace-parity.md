@@ -104,6 +104,11 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   build, and the production performance Gate passed. Entry JS remained within
   budget at 2,371,672 / 2,372,359 bytes; all 47 required dynamic entries were
   preserved with zero unresolved static-graph imports.
+- [x] Actionable global notifications remain inside the content edge at compact
+  and zoomed desktop widths. A real 668x472 CSS-pixel WebView kept the 320px
+  crash-recovery notice between x=336 and x=656, clear of the 248px navigation
+  edge, with both actions visible and no document-level horizontal overflow.
+  Focused layout tests passed 3/3 and dedicated visual review found no P0/P1.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
