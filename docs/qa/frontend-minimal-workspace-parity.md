@@ -91,6 +91,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   65 tests; short-drama identity, recovery, and runtime state 9 files / 116
   tests; subagent Skill UI and bounded conversation rendering 5 files / 55
   tests; fixed short-drama Rust Skill policy 3/3 tests.
+- [x] Minimal desktop narrow-window visual L0 passed 2/2. At an outer
+  1024x720 window (668x472 WebView under system scaling), the 240px navigation,
+  main workspace, and footer actions remained inside the viewport with no
+  document-level horizontal overflow. Dedicated visual review found no P0/P1.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
@@ -108,7 +112,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Preserve current scene/tab state.
 - [ ] Navigate with keyboard only.
 - [ ] Show visible focus for every interactive control.
-- [ ] Operate at narrow desktop width without losing critical actions.
+- [x] Operate at narrow desktop width without losing critical actions.
 - [ ] Operate at 100%, 125%, 150%, and 200% zoom.
 
 ## Composer and Conversation
