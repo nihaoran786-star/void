@@ -1,4 +1,5 @@
 import { browser, expect, $ } from '@wdio/globals';
+import { mkdirSync } from 'node:fs';
 
 describe('Media preview smoke', () => {
   it('opens pure media in the lightweight overlay instead of BrowserPanel', async () => {
@@ -22,9 +23,19 @@ describe('Media preview smoke', () => {
     const browserPanel = await $('.browser-panel');
     await expect(browserPanel).not.toBeExisting();
 
+    const focusIsInsideDialog = await browser.execute(() => {
+      const dialog = document.querySelector('[role="dialog"][aria-label="Image Smoke"]');
+      return Boolean(dialog?.contains(document.activeElement));
+    });
+    expect(focusIsInsideDialog).toBe(true);
+
+    mkdirSync('reports', { recursive: true });
+    await browser.saveScreenshot('reports/media-preview-overlay.png');
+
     await browser.execute(() => {
       const dialog = document.querySelector('[role="dialog"][aria-label="Image Smoke"]');
-      const button = dialog?.querySelector<HTMLButtonElement>('button[aria-label="关闭"]');
+      const button = Array.from(dialog?.querySelectorAll<HTMLButtonElement>('button') ?? [])
+        .find((candidate) => candidate.getAttribute('aria-label')?.includes('关闭'));
       button?.click();
     });
     await browser.waitUntil(

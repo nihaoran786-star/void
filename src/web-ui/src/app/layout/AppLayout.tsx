@@ -769,7 +769,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
         onWorkspaceSelect={() => {}}
       />
       <MCPInteractionDialog />
-      <MediaPreviewOverlay />
+      <MediaPreviewOverlay className={workspacePresentationClassName(workspacePresentation)} />
     </>
   );
 };

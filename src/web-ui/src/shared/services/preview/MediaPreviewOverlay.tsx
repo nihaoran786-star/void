@@ -5,10 +5,29 @@ import { resolveWorkspaceMediaPreviewUrl } from '@/shared/services/workspace-med
 import { MEDIA_PREVIEW_EVENT, type MediaPreviewOpenRequest } from './MediaPreviewService';
 import './MediaPreviewOverlay.scss';
 
-export const MediaPreviewOverlay: React.FC = () => {
+interface MediaPreviewOverlayProps {
+  className?: string;
+}
+
+const MEDIA_PREVIEW_FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  'a[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  'video[controls]',
+  'audio[controls]',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+export const MediaPreviewOverlay: React.FC<MediaPreviewOverlayProps> = ({ className }) => {
   const { t } = useI18n('flow-chat');
   const [preview, setPreview] = React.useState<MediaPreviewOpenRequest | null>(null);
   const [activeUrl, setActiveUrl] = React.useState('');
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const previouslyFocusedElementRef = React.useRef<HTMLElement | null>(null);
+  const isOpen = preview !== null;
 
   React.useEffect(() => {
     const handleOpen = (event: Event) => {
@@ -23,15 +42,63 @@ export const MediaPreviewOverlay: React.FC = () => {
   }, []);
 
   React.useEffect(() => {
-    if (!preview) return undefined;
+    if (!isOpen) return undefined;
+
+    previouslyFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         setPreview(null);
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      const focusableElements = dialog
+        ? Array.from(dialog.querySelectorAll<HTMLElement>(MEDIA_PREVIEW_FOCUSABLE_SELECTOR))
+        : [];
+      if (!dialog || focusableElements.length === 0) {
+        event.preventDefault();
+        dialog?.focus();
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      const activeIndex = activeElement instanceof HTMLElement
+        ? focusableElements.indexOf(activeElement)
+        : -1;
+      const nextIndex = activeIndex < 0
+        ? (event.shiftKey ? focusableElements.length - 1 : 0)
+        : (
+          activeIndex
+          + (event.shiftKey ? -1 : 1)
+          + focusableElements.length
+        ) % focusableElements.length;
+
+      event.preventDefault();
+      focusableElements[nextIndex]?.focus();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener('keydown', handleKeyDown);
+      const previouslyFocusedElement = previouslyFocusedElementRef.current;
+      previouslyFocusedElementRef.current = null;
+      if (previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [preview]);
+  }, [isOpen]);
 
   if (!preview) {
     return null;
@@ -67,7 +134,14 @@ export const MediaPreviewOverlay: React.FC = () => {
   };
 
   return (
-    <div className="media-preview-overlay" role="dialog" aria-modal="true" aria-label={title}>
+    <div
+      ref={dialogRef}
+      className={['media-preview-overlay', className].filter(Boolean).join(' ')}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      tabIndex={-1}
+    >
       <div className="media-preview-overlay__backdrop" onClick={() => setPreview(null)} />
       <section className="media-preview-overlay__panel">
         <header className="media-preview-overlay__header">
@@ -86,7 +160,13 @@ export const MediaPreviewOverlay: React.FC = () => {
             >
               <Copy size={16} />
             </button>
-            <button type="button" onClick={() => setPreview(null)} title={t('mediaPreview.close')} aria-label={t('mediaPreview.close')}>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={() => setPreview(null)}
+              title={t('mediaPreview.close')}
+              aria-label={t('mediaPreview.close')}
+            >
               <X size={16} />
             </button>
           </div>

@@ -108,6 +108,14 @@ The final implementation should scope new visual rules under
 `.void-ui--minimal` (or an equivalent root data attribute). Existing global
 tokens must not be remapped during migration.
 
+Minimal presentation chrome is bundled in
+`app/presentation/minimalWorkspacePresentation.scss` and loaded by
+`workspacePresentationStyles.ts` before the first React paint only when the
+resolved preference is `minimal`. This keeps classic startup CSS free of
+inactive presentation rules without introducing a second component tree or a
+runtime subscription. Feature-local styles for already-lazy short-drama and
+media chunks remain with those chunks.
+
 ## State Contracts
 
 New state contracts describe presentation facts. They do not create a second
@@ -221,6 +229,8 @@ Allowed product files:
 - `src/web-ui/src/app/components/NavPanel/**/*.scss`
 - `src/web-ui/src/flow_chat/components/ChatInput.scss`
 - focused presentation selector/module and tests
+- `src/web-ui/src/main.tsx`, limited to awaiting the presentation stylesheet
+  loader in the existing pre-render initialization phase
 
 `AppLayout.tsx` may receive only the minimal root class/data attribute or a
 pure presentation choice. Existing effects and event handlers may not change.
@@ -237,6 +247,44 @@ Exit gate:
 Extract view-state derivation and actions before changing structural markup.
 Keep stage bootstrap, project recovery, generation, preview URL resolution, and
 workspace media operations in the existing module/service layer.
+
+The first Slice 2 change is intentionally presentation-only. The existing
+short-drama and media-gallery markup already exposes stable semantic selectors,
+so extracting runtime state solely to restyle those selectors would increase
+risk without reducing coupling. This sub-slice therefore:
+
+- adds only `.void-ui--minimal` SCSS layers for the short-drama center and
+  workspace media gallery;
+- keeps `ShortDramaCenterPanel.tsx` and `WorkspaceMediaGallery.tsx` free of
+  presentation-mode branches;
+- gives the sibling media-preview overlay one optional `className` presentation
+  input, selected by the existing application-shell resolver;
+- preserves the classic styles and all controller, Store, service, event,
+  media-resolver, and native player behavior;
+- removes decorative gradients, blur, glow, lift, and continuous generator
+  animation only in minimal presentation.
+- keeps the shared overlay's minimal chrome in the presentation-only CSS chunk
+  so the static entry remains inside the frozen JS/CSS performance budget.
+
+Structural gaps discovered by visual review are not patched with CSS-generated
+copy or runtime conditions. In particular, the empty storyboard explanation
+requires an explicit view state and localized recovery copy, while the
+four-column short-drama layout and competing agent tabs belong to the Slice 3
+team-drawer boundary.
+
+Real-desktop parity testing found two pre-existing short-drama UI-state races
+inside the already-owned module. They are fixed as isolated correctness changes,
+not presentation branches:
+
+- after hydrating all five native stage-agent tabs, the controller explicitly
+  reactivates the agent for the currently selected stage;
+- programmatic episode scrolling remains guarded until the WebView scroll event
+  settles, so episode 100 cannot be overwritten by episode 99 during a stage
+  switch.
+
+The static E2E fixture also opts into demo media explicitly. Production project
+loading, generation, Skill policy, session creation, media resolution, and
+message sending remain unchanged.
 
 Allowed product areas:
 

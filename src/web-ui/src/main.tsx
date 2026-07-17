@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 import App from "./app/App";
 import AppErrorBoundary from "./app/components/AppErrorBoundary";
 import { WorkspaceProvider } from "./infrastructure/contexts/WorkspaceProvider";
+import { loadWorkspacePresentationStyles } from "./app/presentation/workspacePresentationStyles";
 import "./app/styles/index.scss";
 
 // Font: Noto Sans SC is loaded via a <link> tag in index.html.
@@ -195,6 +196,14 @@ async function initializeBeforeRender(): Promise<void> {
     data: { step: 'themeService.initialize' },
   });
   log.info('Theme system initialized');
+
+  await measureAsyncAndLog(
+    log,
+    'Startup step completed',
+    () => loadWorkspacePresentationStyles(),
+    { data: { step: 'loadWorkspacePresentationStyles' } },
+  );
+
   logElapsed(log, 'Startup phase completed', phaseStartedAt, {
     data: { phase: 'initializeBeforeRender' },
   });

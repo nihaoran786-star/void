@@ -29,10 +29,43 @@ Verified on 2026-07-17:
 - [x] Rust workspace `cargo check --workspace` passed.
 - [x] Protected files matched their recorded SHA-256 hashes.
 
+Slice 2 additive-presentation evidence on 2026-07-17:
+
+- [x] Short-drama presentation lifecycle and media-layout tests passed.
+- [x] Workspace media gallery behavior tests passed.
+- [x] Media preview image, video, audio, close, and URL fallback tests passed.
+- [x] Minimal Slice 2 source contracts passed: scoped styles, no runtime view
+  fork, one overlay mount, token-only colors, and no decorative GPU effects.
+- [x] Web TypeScript check, ESLint, theme checks, core boundary check, and Web
+  production build passed.
+- [x] Real desktop baseline screenshots captured script, assets, storyboard,
+  media gallery, and media preview without sending AI requests or generating
+  assets.
+- [x] Real desktop post-change screenshots captured the same five surfaces,
+  plus keyboard focus on a media card.
+- [x] Dedicated visual specialist sign-off reported zero P0 regressions and
+  verified narrow-container rendering without clipping or horizontal overflow.
+- [x] Media preview autofocus, Tab/Shift+Tab focus trap, close, and trigger
+  focus restoration are covered by a focused regression test.
+- [x] Real desktop E2E switched through ScriptAI, AssetAI, SplitAI, VideoAI,
+  and EditorAI using their native session tabs.
+- [x] Real desktop E2E preserved episode 100 when switching from post to video
+  and kept the 30px episode rail free of horizontal overflow.
+- [x] Real desktop E2E verified the lightweight media overlay receives focus,
+  remains independent from BrowserPanel, captures a screenshot, and closes.
+- [x] Full Web suite passed: 312 test files, 1775 tests.
+- [x] Script contracts passed: 116 tests.
+- [x] TypeScript, ESLint, theme color/visual contracts, and core boundaries
+  passed.
+- [x] Manifest production build and entry performance Gate passed: entry JS
+  2,369,238 / 2,372,359 bytes (gzip 690,286); entry CSS
+  665,044 / 672,720 bytes (gzip 94,255).
+- [ ] The remaining interactive/manual items below still gate default switch.
+
 ## Application Shell and Navigation
 
-- [ ] Launch desktop application to a usable shell.
-- [ ] Open an existing project.
+- [x] Launch desktop application to a usable shell.
+- [x] Open an existing project.
 - [ ] Create a new project.
 - [ ] Switch workspaces.
 - [ ] Create and switch sessions.
@@ -76,9 +109,9 @@ Verified on 2026-07-17:
 
 ## Short-Drama Workspace
 
-- [ ] Open the short-drama entry from the expected project context.
+- [x] Open the short-drama entry from the expected project context.
 - [ ] Recover an existing short-drama project.
-- [ ] Create or hydrate stage-agent sessions.
+- [x] Create or hydrate stage-agent sessions.
 - [ ] Preserve `workspaceId`, `workspacePath`, `sessionId`,
   `parentSessionId`, and `agentRole`.
 - [ ] Select and navigate script episodes.
@@ -90,14 +123,14 @@ Verified on 2026-07-17:
   cinematic Skill.
 - [ ] Generate video through the existing VideoAI path.
 - [ ] Open EditorAI/editing flow.
-- [ ] Open every stage agent in its real native session/tab.
+- [x] Open every stage agent in its real native session/tab.
 - [ ] Show pending generation placeholders.
 - [ ] Refresh when generation artifacts arrive.
 - [ ] Select artifacts and connect them to the correct stage/episode.
 - [ ] Preserve generation errors and recovery actions.
 - [ ] Preserve empty, loading, ready, restricted, unsupported, and error states.
 - [ ] Preserve stage completion/progress/status indicators.
-- [ ] Preserve long-project scrolling and episode synchronization.
+- [x] Preserve long-project scrolling and episode synchronization.
 
 ## Media Library and Preview
 
@@ -107,7 +140,7 @@ Verified on 2026-07-17:
 - [ ] Search by supported text fields.
 - [ ] Sort by supported order.
 - [ ] Select one, many, and all visible items.
-- [ ] Preview images.
+- [x] Preview images.
 - [ ] Preview videos with poster/thumbnail fallback.
 - [ ] Resolve media URLs through the existing resolver.
 - [ ] Handle missing/failed previews.
@@ -138,8 +171,8 @@ Verified on 2026-07-17:
 
 ## Theme, Typography, and Accessibility
 
-- [ ] Minimal styling is scoped and does not change classic presentation.
-- [ ] Navigation/control text uses the compact 11/12/13/14/16px hierarchy.
+- [x] Minimal styling is scoped and does not change classic presentation.
+- [x] Navigation/control text uses the compact 11/12/13/14/16px hierarchy.
 - [ ] Script and conversation text remains readable.
 - [ ] Text contrast meets the existing theme contract in dark mode.
 - [ ] Light/system themes do not become unreadable even while dark minimal is
@@ -148,26 +181,27 @@ Verified on 2026-07-17:
   error states remain distinguishable.
 - [ ] No critical state relies only on color.
 - [ ] Reduced-motion disables non-essential motion.
-- [ ] No permanent glow, backdrop blur, or infinite decorative animation.
+- [x] No permanent glow, backdrop blur, or infinite decorative animation.
 - [ ] Screen-reader names exist for icon-only actions.
-- [ ] Focus is trapped/restored correctly in drawers and menus.
+- [x] Media preview focus is trapped and restored correctly.
 
 ## Performance and Build
 
 - [ ] Hidden views do not keep high-frequency subscriptions or timers active.
 - [ ] Classic and minimal controllers are not mounted simultaneously.
-- [ ] Media remains lazy-loaded.
+- [x] Media remains lazy-loaded.
 - [ ] Long lists remain virtualized where previously virtualized.
 - [ ] No new broad Store selector causes whole-app rerenders.
 - [ ] Vite watcher idle CPU remains within the optimized baseline.
-- [ ] Web test suite passes.
-- [ ] Script contract suite passes.
-- [ ] TypeScript and ESLint pass.
+- [x] Web test suite passes.
+- [x] Script contract suite passes.
+- [x] TypeScript and ESLint pass.
 - [ ] Theme and i18n gates pass.
-- [ ] Web production build passes.
-- [ ] Vite JS/CSS performance budget passes.
+- [x] Web production build passes.
+- [x] Vite JS/CSS performance budget passes.
 - [ ] Desktop Release build/check passes.
-- [ ] Desktop application launches and completes the critical smoke path.
+- [x] Desktop application launches and completes the short-drama and media
+  preview smoke paths.
 
 ## Cleanup Gate
 

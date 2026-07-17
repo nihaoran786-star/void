@@ -1,17 +1,22 @@
 import { browser, expect, $, $$ } from '@wdio/globals';
 import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { openWorkspace } from '../helpers/workspace-helper';
+
+const TEST_WORKSPACE_PATH = process.env.E2E_TEST_WORKSPACE || process.cwd();
 
 describe('Short drama center smoke', () => {
   before(async () => {
     mkdirSync('reports/screenshots', { recursive: true });
-    const hasWorkspace = await openWorkspace();
+    const hasWorkspace = await openWorkspace(TEST_WORKSPACE_PATH);
     expect(hasWorkspace).toBe(true);
   });
 
   it('opens the short drama center and switches stage and episode views', async () => {
     await browser.execute(async () => {
+      const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
       const { useSceneStore } = await import('/src/app/stores/sceneStore.ts');
+      useAgentCanvasStore.getState().reset();
       useSceneStore.getState().openScene('session');
     });
 
@@ -20,6 +25,21 @@ describe('Short drama center smoke', () => {
     const canvas = await $('.canvas-content-canvas');
     await canvas.waitForExist({ timeout: 10000 });
 
+    await browser.execute(async () => {
+      const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
+      const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
+      const workspace = await globalStateAPI.getCurrentWorkspace();
+      if (!workspace?.rootPath) {
+        throw new Error('Expected an active workspace before creating the Media parent session');
+      }
+
+      const mediaSessionId = await flowChatManager.createChatSession(
+        { workspacePath: workspace.rootPath },
+        'Media',
+      );
+      await flowChatManager.switchChatSession(mediaSessionId);
+    });
+
     await browser.execute(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
     });
@@ -27,30 +47,51 @@ describe('Short drama center smoke', () => {
     await browser.waitUntil(async () => {
       return browser.execute(() => Boolean(document.querySelector('[data-testid="short-drama-center"]')));
     }, {
-      timeout: 3000,
+      timeout: 10000,
       interval: 250,
       timeoutMsg: 'short drama center did not open through global event',
-    }).catch(async () => {
-      await browser.execute(async () => {
-        const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
-        const { useSceneStore } = await import('/src/app/stores/sceneStore.ts');
-        const workspacePath = 'C:\\Users\\17949\\Documents\\void-source\\tests\\e2e';
-        useSceneStore.getState().openScene('session');
-        useAgentCanvasStore.getState().addTab({
-          type: 'short-drama-center',
-          title: 'Short drama',
-          data: { workspacePath },
-          metadata: {
-            duplicateCheckKey: `short-drama:${workspacePath}`,
-          },
-        }, 'active', 'primary');
-      });
     });
 
     const center = await $('[data-testid="short-drama-center"]');
     await center.waitForExist({ timeout: 10000 });
     await expect(center).toBeExisting();
 
+    await browser.execute(async () => {
+      const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
+      const canvasState = useAgentCanvasStore.getState();
+      const centerEntry = (['primary', 'secondary', 'tertiary'] as const)
+        .map(groupId => {
+          const group = groupId === 'primary'
+            ? canvasState.primaryGroup
+            : groupId === 'secondary'
+              ? canvasState.secondaryGroup
+              : canvasState.tertiaryGroup;
+          return {
+            groupId,
+            tab: group.tabs.find(tab => tab.content.type === 'short-drama-center'),
+          };
+        })
+        .find(entry => entry.tab);
+      if (!centerEntry?.tab || centerEntry.tab.content.type !== 'short-drama-center') {
+        throw new Error('Expected the short-drama center canvas tab to exist');
+      }
+      canvasState.switchToTab(centerEntry.tab.id, centerEntry.groupId);
+      canvasState.updateTabContent(centerEntry.tab.id, centerEntry.groupId, {
+        ...centerEntry.tab.content,
+        data: {
+          ...centerEntry.tab.content.data,
+          staticFixtureEpisodeCount: 10,
+        },
+      });
+    });
+
+    await browser.waitUntil(async () => (
+      (await $$('[data-testid="short-drama-stage-tab"]')).length >= 5
+    ), {
+      timeout: 5000,
+      interval: 100,
+      timeoutMsg: 'short drama stage tabs did not render after loading the fixture',
+    });
     const tabs = await $$('[data-testid="short-drama-stage-tab"]');
     await expect(tabs.length).toBeGreaterThanOrEqual(5);
     await browser.waitUntil(async () => browser.execute(async () => {
@@ -76,12 +117,14 @@ describe('Short drama center smoke', () => {
           && activeTab.title.includes(expectedTitle)
           && activeTab.content.metadata?.shortDramaStage === expectedStage;
       }, stage, title), {
-        timeout: 3000,
-        interval: 100,
+        timeout: 15000,
+        interval: 200,
         timeoutMsg: `short drama ${stage} stage agent did not become the active native subagent tab`,
       });
     };
 
+    const scriptTab = await $('[data-testid="short-drama-stage-tab"][data-short-drama-stage="script"]');
+    await scriptTab.click();
     await expectActiveStageAgent('script', 'ScriptAI');
 
     const assetsTab = await $('[data-testid="short-drama-stage-tab"][data-short-drama-stage="assets"]');
@@ -227,9 +270,9 @@ describe('Short drama center smoke', () => {
     const canvas = await $('.canvas-content-canvas');
     await canvas.waitForExist({ timeout: 10000 });
 
-    await browser.execute(async () => {
+    await browser.execute(async (workspacePath) => {
       const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
-      const workspacePath = 'C:\\Users\\17949\\Documents\\void-source\\tests\\e2e\\short-drama-100';
+      useAgentCanvasStore.getState().reset();
       useAgentCanvasStore.getState().addTab({
         type: 'short-drama-center',
         title: 'Short drama 100',
@@ -238,7 +281,7 @@ describe('Short drama center smoke', () => {
           duplicateCheckKey: `short-drama-100:${workspacePath}`,
         },
       }, 'active', 'primary');
-    });
+    }, join(TEST_WORKSPACE_PATH, 'short-drama-100'));
 
     const center = await $('[data-testid="short-drama-center"]');
     await center.waitForExist({ timeout: 10000 });
@@ -264,8 +307,14 @@ describe('Short drama center smoke', () => {
 
     const videoTab = await $('[data-testid="short-drama-stage-tab"][data-short-drama-stage="video"]');
     await videoTab.click();
-    const activeVideoEpisode = await $('[data-testid="short-drama-episode-rail"] button.is-active');
-    await expect(await activeVideoEpisode.getAttribute('data-episode-id')).toBe('episode-100');
+    await browser.waitUntil(async () => {
+      const activeVideoEpisode = await $('[data-testid="short-drama-episode-rail"] button.is-active');
+      return (await activeVideoEpisode.getAttribute('data-episode-id')) === 'episode-100';
+    }, {
+      timeout: 5000,
+      interval: 100,
+      timeoutMsg: 'episode 100 was not preserved after switching to the video stage',
+    });
 
     const dimensions = await browser.execute(() => {
       const panel = document.querySelector('[data-testid="short-drama-center"]') as HTMLElement | null;

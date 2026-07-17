@@ -83,6 +83,7 @@ import './ShortDramaCenterPanel.scss';
 const log = createLogger('ShortDramaCenterPanel');
 
 const STAGES: ShortDramaStage[] = ['script', 'assets', 'storyboards', 'video', 'post'];
+const PROGRAMMATIC_EPISODE_SCROLL_SETTLE_MS = 120;
 
 interface ShortDramaCenterPanelProps {
   workspacePath?: string;
@@ -141,6 +142,7 @@ export function ShortDramaCenterPanel({
             workspaceManifestAdapter,
             'static_short_drama_001',
             {
+              demoMode: staticFixtureEpisodeCount !== undefined,
               staticEpisodeCount: staticFixtureEpisodeCount,
               sessionSender: shortDramaAgentTaskSessionSender,
             },
@@ -667,6 +669,11 @@ export function ShortDramaCenterPanel({
       openedStageAgentTabsRef.current.add(key);
       openNativeStageAgentTab(workspace);
     });
+
+    const selectedWorkspace = readyWorkspaces.find(workspace => workspace.stage === selectedStage);
+    if (selectedWorkspace) {
+      openNativeStageAgentTab(selectedWorkspace);
+    }
   }, [openNativeStageAgentTab, selectedStage, stageWorkspaces, state.status]);
 
   useEffect(() => {
@@ -765,7 +772,7 @@ export function ShortDramaCenterPanel({
       retryTimeout = window.setTimeout(() => {
         scrollToCurrentStageEpisode();
         pendingEpisodeScrollRef.current = false;
-      }, 0);
+      }, PROGRAMMATIC_EPISODE_SCROLL_SETTLE_MS);
     });
     return () => {
       window.cancelAnimationFrame(firstFrame);

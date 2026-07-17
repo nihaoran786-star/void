@@ -9,7 +9,6 @@
 @use '../../../component-library/styles/tokens.scss' as *;
 @use '../../../component-library/styles/nav-panel-font-scope.scss' as nav-font;
 @use '../../../component-library/styles/btn-primary-tokens.scss' as btn-primary;
-@use './NavPanel.minimal.scss' as minimal;
 
 $_nav-width: 240px;
 // Scene-inner fade: used when switching between different SceneNav components
@@ -2288,5 +2287,3 @@ $_section-header-height: 24px;
     transform: scale(0.86);
   }
 }
-
-@include minimal.styles;

@@ -1,3 +1,5 @@
+@use './WorkspaceMediaGallery.minimal' as minimal;
+
 .workspace-media-gallery {
   --workspace-media-gallery-bg: var(--color-bg-primary);
   --workspace-media-gallery-text: var(--control-text-hover);
@@ -772,6 +774,8 @@
     transform: translate(-50%, -50%) rotate(360deg) scale(0.88);
   }
 }
+
+@include minimal.styles;
 
 @media (prefers-reduced-motion: reduce) {
   .workspace-media-card,

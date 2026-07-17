@@ -7,9 +7,23 @@ const repoRoot = process.cwd();
 const read = relativePath => readFileSync(join(repoRoot, relativePath), 'utf8');
 
 const presentation = read('src/web-ui/src/app/presentation/workspacePresentation.ts');
+const presentationStyles = read(
+  'src/web-ui/src/app/presentation/workspacePresentationStyles.ts',
+);
+const presentationBundle = read(
+  'src/web-ui/src/app/presentation/minimalWorkspacePresentation.scss',
+);
+const main = read('src/web-ui/src/main.tsx');
 const appLayout = read('src/web-ui/src/app/layout/AppLayout.tsx');
 const chatInput = read('src/web-ui/src/flow_chat/components/ChatInput.tsx');
 const embeddedDriver = read('tests/e2e/config/embedded-driver.ts');
+const staticBaseStyles = [
+  'src/web-ui/src/app/layout/AppLayout.scss',
+  'src/web-ui/src/app/components/NavPanel/NavPanel.scss',
+  'src/web-ui/src/flow_chat/components/ChatInput.scss',
+  'src/web-ui/src/flow_chat/components/ModelSelector.scss',
+  'src/web-ui/src/shared/services/preview/MediaPreviewOverlay.scss',
+].map(path => [path, read(path)]);
 const scopedStyles = [
   'src/web-ui/src/app/layout/AppLayout.minimal.scss',
   'src/web-ui/src/app/components/NavPanel/NavPanel.minimal.scss',
@@ -44,6 +58,34 @@ test('slice-one styles stay scoped and token driven', () => {
       assert.equal(match[1].trim(), 'none', `${path} enables a backdrop filter`);
     }
     assert.match(stylesheet, /--workspace-/);
+  }
+});
+
+test('minimal presentation chrome is loaded before first paint but outside the entry CSS', () => {
+  assert.match(presentationStyles, /presentation !== 'minimal'/);
+  assert.match(
+    presentationStyles,
+    /import\('\.\/minimalWorkspacePresentation\.scss'\)/,
+  );
+  assert.match(main, /loadWorkspacePresentationStyles/);
+  assert.match(main, /\(\) => loadWorkspacePresentationStyles\(\)/);
+
+  for (const [path, stylesheet] of staticBaseStyles) {
+    assert.doesNotMatch(
+      stylesheet,
+      /@use ['"].*\.minimal(?:\.scss)?['"]|@include minimal\.styles/,
+      `${path} statically includes minimal presentation CSS`,
+    );
+  }
+
+  for (const mixin of [
+    'app-layout',
+    'nav-panel',
+    'chat-input',
+    'model-selector',
+    'media-preview',
+  ]) {
+    assert.match(presentationBundle, new RegExp(`@include ${mixin}\\.styles;`));
   }
 });
 

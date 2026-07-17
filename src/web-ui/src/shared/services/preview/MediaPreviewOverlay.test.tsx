@@ -46,7 +46,7 @@ describe('MediaPreviewOverlay', () => {
 
   it('renders image previews from media preview events and closes on click', () => {
     act(() => {
-      root.render(<MediaPreviewOverlay />);
+      root.render(<MediaPreviewOverlay className="void-ui--minimal" />);
     });
 
     act(() => {
@@ -60,6 +60,7 @@ describe('MediaPreviewOverlay', () => {
     const dialog = container.querySelector('[role="dialog"]');
     const image = container.querySelector('img') as HTMLImageElement | null;
     expect(dialog).toBeTruthy();
+    expect(dialog?.classList.contains('void-ui--minimal')).toBe(true);
     expect(image?.src).toBe('https://cdn.example.com/generated-1.png');
     expect(image?.className).toBe('media-preview-overlay__media');
 
@@ -91,6 +92,66 @@ describe('MediaPreviewOverlay', () => {
     expect(video?.src).toBe('https://cdn.example.com/generated-1.mp4');
     expect(video?.className).toBe('media-preview-overlay__media');
     expect(video?.hasAttribute('controls')).toBe(true);
+  });
+
+  it('traps keyboard focus while open and restores the trigger after closing', async () => {
+    const trigger = dom.window.document.createElement('button');
+    trigger.textContent = 'Open preview';
+    dom.window.document.body.appendChild(trigger);
+    trigger.focus();
+
+    act(() => {
+      root.render(<MediaPreviewOverlay className="void-ui--minimal" />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'https://cdn.example.com/focus-preview.png',
+        title: 'Focus Preview',
+      });
+    });
+
+    await act(async () => {
+      await new Promise(resolve => dom.window.setTimeout(resolve, 24));
+    });
+
+    const dialog = container.querySelector('[role="dialog"]') as HTMLDivElement;
+    const buttons = Array.from(dialog.querySelectorAll('button'));
+    const copyButton = buttons.find(button => button.getAttribute('aria-label')?.includes('复制'))!;
+    const closeButton = buttons.find(button => button.getAttribute('aria-label')?.includes('关闭'))!;
+    expect(dom.window.document.activeElement).toBe(closeButton);
+
+    act(() => {
+      closeButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+      }));
+    });
+    expect(dom.window.document.activeElement).toBe(copyButton);
+
+    act(() => {
+      copyButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+      }));
+    });
+    expect(dom.window.document.activeElement).toBe(closeButton);
+
+    act(() => {
+      closeButton.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+      }));
+    });
+    expect(dom.window.document.activeElement).toBe(copyButton);
+
+    act(() => {
+      closeButton.click();
+    });
+    expect(dom.window.document.activeElement).toBe(trigger);
+    trigger.remove();
   });
 
   it('does not apply the contain media class to audio previews', () => {

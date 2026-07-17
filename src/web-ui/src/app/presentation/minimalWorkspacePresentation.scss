@@ -1,0 +1,11 @@
+@use '../layout/AppLayout.minimal.scss' as app-layout;
+@use '../components/NavPanel/NavPanel.minimal.scss' as nav-panel;
+@use '../../flow_chat/components/ChatInput.minimal.scss' as chat-input;
+@use '../../flow_chat/components/ModelSelector.minimal.scss' as model-selector;
+@use '../../shared/services/preview/MediaPreviewOverlay.minimal.scss' as media-preview;
+
+@include app-layout.styles;
+@include nav-panel.styles;
+@include chat-input.styles;
+@include model-selector.styles;
+@include media-preview.styles;
