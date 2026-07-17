@@ -111,6 +111,7 @@
     },
     {
       "domain": "minimal-workspace",
+      "runtimeInjected": false,
       "requiredVars": [
         "--workspace-surface-canvas",
         "--workspace-surface-panel",

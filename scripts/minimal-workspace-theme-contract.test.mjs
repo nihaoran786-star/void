@@ -121,6 +121,11 @@ test('theme governance records the scoped minimal workspace token family', () =>
     candidate => candidate.domain === 'minimal-workspace',
   );
   assert.ok(domain, 'Missing minimal-workspace CSS variable domain');
+  assert.equal(
+    domain.runtimeInjected,
+    false,
+    'Minimal workspace aliases must remain scoped instead of polluting every theme root',
+  );
 
   for (const token of [
     '--workspace-surface-canvas',

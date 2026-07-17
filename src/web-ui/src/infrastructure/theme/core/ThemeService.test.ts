@@ -127,9 +127,13 @@ describe('ThemeService runtime token whitelist', () => {
   it('keeps built-in themes injecting required CSS variable contract tokens', async () => {
     const contractPath = path.resolve(process.cwd(), '../../scripts/theme-css-var-contract.json');
     const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8')) as {
-      requiredTokenDomains: Array<{ requiredVars: string[] }>;
+      requiredTokenDomains: Array<{
+        requiredVars: string[];
+        runtimeInjected?: boolean;
+      }>;
     };
     const requiredConcreteVars = contract.requiredTokenDomains
+      .filter(domain => domain.runtimeInjected !== false)
       .flatMap(domain => domain.requiredVars)
       .filter(name => !name.endsWith('-'));
 
