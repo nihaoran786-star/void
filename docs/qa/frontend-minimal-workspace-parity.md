@@ -95,6 +95,15 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   1024x720 window (668x472 WebView under system scaling), the 240px navigation,
   main workspace, and footer actions remained inside the viewport with no
   document-level horizontal overflow. Dedicated visual review found no P0/P1.
+- [x] Desktop zoom is connected through an isolated Tauri WebView adapter and
+  the existing `app.zoom_level` preference. Real desktop L0 passed 3/3 at
+  100%, 125%, 150%, and 200%; the viewport narrowed from 1707 to 853 CSS px
+  without document-level horizontal overflow or loss of critical shell
+  actions, then returned to 100%. Dedicated visual review found no P0/P1.
+- [x] Zoom controller tests passed 5/5; Web TypeScript, ESLint, desktop Rust
+  build, and the production performance Gate passed. Entry JS remained within
+  budget at 2,371,672 / 2,372,359 bytes; all 47 required dynamic entries were
+  preserved with zero unresolved static-graph imports.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation
@@ -113,7 +122,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Navigate with keyboard only.
 - [ ] Show visible focus for every interactive control.
 - [x] Operate at narrow desktop width without losing critical actions.
-- [ ] Operate at 100%, 125%, 150%, and 200% zoom.
+- [x] Operate at 100%, 125%, 150%, and 200% zoom.
 
 ## Composer and Conversation
 

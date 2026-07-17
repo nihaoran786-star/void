@@ -123,6 +123,26 @@ including Monaco/xterm exceptions. Minimal presentation restores native browser
 Tab traversal without adding feature-specific focus state or keyboard business
 logic.
 
+### Desktop zoom boundary
+
+Desktop zoom is application capability, not presentation state. The main
+bootstrap only schedules `initializeDesktopZoom()` after the first shell paint.
+The isolated runtime controller owns keyboard interpretation and bounded zoom
+levels, then calls a narrow Tauri WebView adapter. It persists the selected
+scale through the existing `app.zoom_level` configuration path.
+
+```text
+Desktop key event
+  -> DesktopZoomController
+  -> DesktopZoomAdapter
+  -> Tauri WebView.setZoom
+```
+
+React pages, short-drama components, media views, and the minimal/classic
+presentation selector do not read the platform or infer zoom. Browser builds
+skip the adapter. Desktop visual tests must snapshot and restore the original
+zoom preference so accessibility verification never changes user data.
+
 ## State Contracts
 
 New state contracts describe presentation facts. They do not create a second

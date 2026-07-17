@@ -241,6 +241,10 @@ async function initializeAfterRender(): Promise<void> {
       await installFrontendLogLevelConfigWatcher();
     })(),
     (async () => {
+      const { initializeDesktopZoom } = await import('./infrastructure/runtime/desktopZoom');
+      await initializeDesktopZoom();
+    })(),
+    (async () => {
       const { registerDefaultContextTypes } = await import('./shared/context-system/core/registerDefaultTypes');
       registerDefaultContextTypes();
     })(),
@@ -265,6 +269,7 @@ async function initializeAfterRender(): Promise<void> {
     const names = [
       'EditorConfigPreload',
       'LogLevelConfigWatcher',
+      'DesktopZoom',
       'DefaultContextTypes',
       'RecommendationProviders',
       'Tools',
