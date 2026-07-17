@@ -10,6 +10,14 @@ function readNavPanelStylesheet(): string {
   return stylesheet.replace(/\r\n/g, '\n');
 }
 
+function readMinimalNavPanelStylesheet(): string {
+  const stylesheet = readFileSync(
+    fileURLToPath(new URL('./NavPanel.minimal.scss', import.meta.url)),
+    'utf8',
+  );
+  return stylesheet.replace(/\r\n/g, '\n');
+}
+
 function readMainNavSource(): string {
   return readFileSync(
     fileURLToPath(new URL('./MainNav.tsx', import.meta.url)),
@@ -134,5 +142,17 @@ describe('NavPanel layout styles', () => {
     expect(stylesheet).toContain('&.is-active {\n    color: var(--color-text-primary);');
     expect(stylesheet).toContain('max-width: 48px;');
     expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
+  it('renders the minimal empty workspace message as quiet metadata, not a selected row', () => {
+    const stylesheet = readMinimalNavPanelStylesheet();
+    const emptyStateBlock = extractBlock(stylesheet, '&__workspace-list-empty');
+
+    expect(emptyStateBlock).toContain('min-height: 28px;');
+    expect(emptyStateBlock).toContain('background: transparent;');
+    expect(emptyStateBlock).toContain('color: var(--workspace-text-muted);');
+    expect(emptyStateBlock).toContain('font-size: var(--workspace-font-size-meta);');
+    expect(emptyStateBlock).toContain('font-weight: var(--workspace-font-weight-regular);');
+    expect(emptyStateBlock).not.toContain('var(--workspace-surface-active)');
   });
 });

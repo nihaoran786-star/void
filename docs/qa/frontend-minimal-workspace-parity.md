@@ -111,6 +111,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   The theme-aware primary action measured 21:1 contrast and remained reachable
   by Shift+Tab. Focused layout tests passed 3/3 and dedicated visual review
   found no P0/P1.
+- [x] The minimal navigation renders an empty workspace list as transparent,
+  muted metadata rather than a selected row. A real 1804x1204 physical-pixel
+  single-window capture preserved the compact indent and row height with no
+  clipping or overflow; dedicated visual review found no P0/P1/P2.
 - [ ] The remaining interactive/manual items below still gate default switch.
 
 ## Application Shell and Navigation

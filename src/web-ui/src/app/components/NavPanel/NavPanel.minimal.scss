@@ -91,6 +91,20 @@
       line-height: var(--workspace-line-height-meta);
     }
 
+    &__workspace-list-empty {
+      display: flex;
+      align-items: center;
+      min-height: 28px;
+      margin: 0 var(--workspace-space-2);
+      padding: 0 var(--workspace-space-1);
+      border-radius: 0;
+      color: var(--workspace-text-muted);
+      background: transparent;
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-regular);
+      line-height: var(--workspace-line-height-meta);
+    }
+
     &__top-action-icon-circle {
       color: var(--workspace-text-primary);
       background: var(--workspace-surface-active);
