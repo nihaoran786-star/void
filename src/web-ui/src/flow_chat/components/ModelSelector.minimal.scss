@@ -1,0 +1,139 @@
+@mixin styles {
+  .void-ui--minimal .void-model-selector {
+    color: var(--workspace-text-secondary);
+    font-family: var(--workspace-font-family);
+
+    &__trigger {
+      height: var(--workspace-control-height);
+      color: var(--workspace-text-secondary);
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      box-shadow: none;
+      font-size: var(--workspace-font-size-control);
+      font-weight: var(--workspace-font-weight-regular);
+      line-height: var(--workspace-line-height-control);
+      letter-spacing: 0;
+      opacity: 1;
+      transition:
+        color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    &__trigger:hover {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
+    }
+
+    &__trigger--open {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-active);
+    }
+
+    &__trigger:disabled {
+      color: var(--workspace-text-disabled);
+      opacity: 1;
+    }
+
+    &__thinking-icon,
+    &__chevron,
+    &__dropdown-hint,
+    &__option-desc,
+    &__option-provider,
+    &__option-subdesc,
+    &__option-thinking {
+      color: var(--workspace-text-muted);
+    }
+
+    &__badge {
+      color: var(--workspace-status-info-text);
+      background: var(--workspace-status-info-bg);
+    }
+
+    &__effort-badge {
+      color: var(--workspace-status-success-text);
+      background: var(--workspace-status-success-bg);
+    }
+
+    &__ctx-usage {
+      color: var(--workspace-text-muted);
+      opacity: 1;
+    }
+
+    &__ctx-usage--warning {
+      color: var(--workspace-status-warning-text);
+    }
+
+    &__ctx-usage--critical {
+      color: var(--workspace-status-error-text);
+    }
+
+    &__dropdown {
+      color: var(--workspace-text-secondary);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    &__dropdown-header {
+      color: var(--workspace-text-muted);
+      border-bottom-color: var(--workspace-border-subtle);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-medium);
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    &__divider {
+      background: var(--workspace-border-subtle);
+    }
+
+    &__list::-webkit-scrollbar-thumb {
+      background: var(--workspace-border-strong);
+    }
+
+    &__option {
+      color: var(--workspace-text-secondary);
+      background: transparent;
+      font-size: var(--workspace-font-size-label);
+      transition:
+        color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    &__option:hover,
+    &__option--selected:hover,
+    &__option--primary:hover {
+      background: var(--workspace-surface-hover);
+    }
+
+    &__option--selected {
+      background: var(--workspace-surface-active);
+    }
+
+    &__option-name {
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    &__option-check {
+      color: var(--workspace-accent);
+    }
+  }
+
+  .void-ui--minimal .void-model-selector__option--selected .void-model-selector__option-name,
+  .void-ui--minimal .void-model-selector__option--primary .void-model-selector__option-name {
+    color: var(--workspace-text-primary);
+  }
+
+  :root[data-theme='light'] .void-ui--minimal .void-model-selector__dropdown,
+  :root[data-theme-type='light'] .void-ui--minimal .void-model-selector__dropdown {
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-raised);
+    box-shadow: var(--workspace-shadow-raised);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}

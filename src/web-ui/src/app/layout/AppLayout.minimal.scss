@@ -1,0 +1,18 @@
+@mixin styles {
+  .void-app-layout.void-ui--minimal {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-canvas);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-control);
+    font-weight: var(--workspace-font-weight-regular);
+    line-height: var(--workspace-line-height-control);
+
+    :where(button, input, textarea, select) {
+      font: inherit;
+    }
+
+    :where(button, [role='button'], a, input, textarea, select):focus-visible {
+      outline-color: var(--workspace-focus-ring);
+    }
+  }
+}

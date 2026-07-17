@@ -4,6 +4,7 @@
 
 @use '../../component-library/styles/tokens' as *;
 @use '../../component-library/styles/_extended-mixins' as mixins;
+@use './ChatInput.minimal.scss' as minimal;
 
 .void-chat-input-drop-zone {
   position: absolute;
@@ -1731,3 +1732,5 @@
     transform: translateY(0);
   }
 }
+
+@include minimal.styles;

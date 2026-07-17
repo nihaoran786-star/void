@@ -1,0 +1,144 @@
+@mixin styles {
+  .void-ui--minimal .void-nav-panel {
+    color: var(--workspace-text-secondary);
+    background: var(--workspace-surface-panel);
+    border-right-color: var(--workspace-border-subtle);
+    box-shadow: none;
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-control);
+    line-height: var(--workspace-line-height-control);
+
+    &__brand-header {
+      padding-inline: var(--workspace-space-2);
+    }
+
+    &__search-trigger,
+    &__top-action-btn,
+    &__section-header,
+    &__inline-item,
+    &__workspace-item-card,
+    &__assistant-item-card,
+    &__footer-btn,
+    &__session-create-action {
+      color: var(--workspace-text-secondary);
+      border-color: transparent;
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      box-shadow: none;
+      font-size: var(--workspace-font-size-control);
+      font-weight: var(--workspace-font-weight-regular);
+    }
+
+    &__search-trigger:hover,
+    &__top-action-btn:hover,
+    &__section-header:hover,
+    &__inline-item:hover,
+    &__footer-btn:hover,
+    &__session-create-action:hover {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
+      box-shadow: none;
+      transform: none;
+    }
+
+    &__top-action-btn.is-active,
+    &__inline-item.is-active {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-active);
+      box-shadow: none;
+    }
+
+    &__top-actions {
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-2) var(--workspace-space-2) var(--workspace-space-3);
+    }
+
+    &__session-create {
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: transparent;
+      box-shadow: none;
+    }
+
+    &__session-mode-switch {
+      border-bottom-color: var(--workspace-border-subtle);
+    }
+
+    &__session-mode-indicator {
+      background: var(--workspace-surface-active);
+      box-shadow: none;
+    }
+
+    &__session-mode-option {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    &__session-mode-option:hover,
+    &__session-mode-option.is-active {
+      color: var(--workspace-text-primary);
+      transform: none;
+    }
+
+    &__section-label,
+    &__session-create-action-mode,
+    &__workspace-item-path,
+    &__inline-item-meta {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-medium);
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    &__top-action-icon-circle {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-active);
+      box-shadow: none;
+    }
+
+    &__bottom-bar,
+    &__footer {
+      border-top-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+      box-shadow: none;
+    }
+
+    &__footer-menu,
+    &__footer-multimodal-menu,
+    &__workspace-menu,
+    &__popover {
+      color: var(--workspace-text-secondary);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+    }
+
+    :where(button, [role='button'], a):focus-visible {
+      outline-color: var(--workspace-focus-ring);
+    }
+  }
+
+  .void-ui--minimal .void-nav-panel__workspace-item:hover .void-nav-panel__workspace-item-card,
+  .void-ui--minimal .void-nav-panel__assistant-item:hover .void-nav-panel__assistant-item-card {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-hover);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .void-ui--minimal .void-nav-panel__workspace-item.is-active .void-nav-panel__workspace-item-card,
+  .void-ui--minimal .void-nav-panel__assistant-item.is-active .void-nav-panel__assistant-item-card {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-active);
+    box-shadow: none;
+  }
+
+  .void-ui--minimal .void-nav-panel__top-action-btn:hover .void-nav-panel__top-action-icon-circle,
+  .void-ui--minimal .void-nav-panel__top-action-btn:active .void-nav-panel__top-action-icon-circle {
+    background: var(--workspace-surface-active);
+    box-shadow: none;
+    transform: none;
+  }
+}

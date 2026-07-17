@@ -46,6 +46,10 @@ import {
 } from '@/infrastructure/config/services/CompactChatWindowService';
 import { MediaPreviewOverlay } from '@/shared/services/preview/MediaPreviewOverlay';
 import { setPreviewFirstLayout } from './previewFirstController';
+import {
+  readWorkspacePresentation,
+  workspacePresentationClassName,
+} from '../presentation/workspacePresentation';
 import './AppLayout.scss';
 
 type TransitionDirection = 'entering' | 'returning' | null;
@@ -679,8 +683,10 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
     };
   }, []);
 
+  const workspacePresentation = useMemo(readWorkspacePresentation, []);
   const containerClassName = [
     'void-app-layout',
+    workspacePresentationClassName(workspacePresentation),
     isMacOS ? 'void-app-layout--macos' : '',
     className,
     isFullscreen ? 'void-app-layout--window-fullscreen' : '',
@@ -699,7 +705,11 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   return (
     <>
       <DailyAppUpdateGate />
-      <div className={containerClassName} data-testid="app-layout">
+      <div
+        className={containerClassName}
+        data-testid="app-layout"
+        data-ui-presentation={workspacePresentation}
+      >
         {windowModeHint && (
           <div
             key={windowModeHint.id}

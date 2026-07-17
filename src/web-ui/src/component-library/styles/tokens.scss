@@ -1089,11 +1089,13 @@ $badge-info-text: $color-info;
 // ThemeService-owned tokens: classic presentation values remain untouched.
 .void-ui--minimal {
   --workspace-font-family: var(--font-family-sans);
-  --workspace-font-size-meta: var(--font-size-2xs);
-  --workspace-font-size-label: var(--font-size-xs);
-  --workspace-font-size-control: var(--font-size-sm);
-  --workspace-font-size-body: var(--font-size-base);
-  --workspace-font-size-title: var(--font-size-xl);
+  // Compile from the primitive Sass scale so local legacy CSS-variable remaps
+  // cannot silently inflate the scoped minimal workspace typography.
+  --workspace-font-size-meta: #{$font-size-2xs};
+  --workspace-font-size-label: #{$font-size-xs};
+  --workspace-font-size-control: #{$font-size-sm};
+  --workspace-font-size-body: #{$font-size-base};
+  --workspace-font-size-title: #{$font-size-xl};
   --workspace-font-weight-regular: var(--font-weight-normal);
   --workspace-font-weight-medium: var(--font-weight-medium);
   --workspace-font-weight-strong: var(--font-weight-semibold);
@@ -1125,6 +1127,7 @@ $badge-info-text: $color-info;
   --workspace-space-8: var(--size-gap-8);
   --workspace-radius-control: var(--size-radius-sm);
   --workspace-radius-panel: var(--size-radius-base);
+  --workspace-radius-composer: var(--size-radius-xl);
   --workspace-control-height: var(--control-height-sm);
   --workspace-control-height-primary: var(--control-height-md);
   --workspace-icon-target: var(--control-square-sm);

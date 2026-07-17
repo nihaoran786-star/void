@@ -10,6 +10,7 @@
  */
 
 @use '../../component-library/styles/tokens' as *;
+@use './ModelSelector.minimal.scss' as minimal;
 
 .void-model-selector {
   position: relative;
@@ -344,3 +345,5 @@
   0%, 100% { opacity: 0.8; }
   50%       { opacity: 1; }
 }
+
+@include minimal.styles;

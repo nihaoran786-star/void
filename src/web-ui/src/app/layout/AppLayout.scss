@@ -5,6 +5,7 @@
  */
 
 @use '../../component-library/styles/tokens.scss' as *;
+@use './AppLayout.minimal.scss' as minimal;
 
 // ==================== CSS reset ====================
 // Note: keep box-sizing !important for global consistency.
@@ -306,3 +307,5 @@ html, body {
     opacity: 0;
   }
 }
+
+@include minimal.styles;

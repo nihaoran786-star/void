@@ -12,9 +12,15 @@ const extractFlatBlock = (source, selector) => {
   const start = source.indexOf(`${selector} {`);
   assert.notEqual(start, -1, `Missing ${selector} token scope`);
   const bodyStart = source.indexOf('{', start) + 1;
-  const bodyEnd = source.indexOf('}', bodyStart);
-  assert.notEqual(bodyEnd, -1, `Unclosed ${selector} token scope`);
-  return source.slice(bodyStart, bodyEnd);
+  let depth = 1;
+
+  for (let index = bodyStart; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1;
+    if (source[index] === '}') depth -= 1;
+    if (depth === 0) return source.slice(bodyStart, index);
+  }
+
+  assert.fail(`Unclosed ${selector} token scope`);
 };
 
 const minimalTokens = extractFlatBlock(tokens, '.void-ui--minimal');
@@ -51,11 +57,6 @@ test('minimal workspace tokens stay scoped and derive from existing theme contra
 test('minimal workspace typography matches the compact Codex reference scale', () => {
   const expectedTypography = new Map([
     ['--workspace-font-family', '--font-family-sans'],
-    ['--workspace-font-size-meta', '--font-size-2xs'],
-    ['--workspace-font-size-label', '--font-size-xs'],
-    ['--workspace-font-size-control', '--font-size-sm'],
-    ['--workspace-font-size-body', '--font-size-base'],
-    ['--workspace-font-size-title', '--font-size-xl'],
     ['--workspace-font-weight-regular', '--font-weight-normal'],
     ['--workspace-font-weight-medium', '--font-weight-medium'],
     ['--workspace-font-weight-strong', '--font-weight-semibold'],
@@ -63,6 +64,16 @@ test('minimal workspace typography matches the compact Codex reference scale', (
 
   for (const [alias, source] of expectedTypography) {
     assert.match(minimalTokens, new RegExp(`${alias}:\\s*var\\(${source}\\)`));
+  }
+
+  for (const [token, primitive] of [
+    ['--workspace-font-size-meta', 'font-size-2xs'],
+    ['--workspace-font-size-label', 'font-size-xs'],
+    ['--workspace-font-size-control', 'font-size-sm'],
+    ['--workspace-font-size-body', 'font-size-base'],
+    ['--workspace-font-size-title', 'font-size-xl'],
+  ]) {
+    assert.match(minimalTokens, new RegExp(`${token}:\\s*#\\{\\$${primitive}\\}`));
   }
 
   for (const [token, value] of [
@@ -85,6 +96,7 @@ test('minimal workspace exposes compact spacing, controls, motion, and status to
     '--workspace-space-8',
     '--workspace-radius-control',
     '--workspace-radius-panel',
+    '--workspace-radius-composer',
     '--workspace-control-height',
     '--workspace-control-height-primary',
     '--workspace-icon-target',
