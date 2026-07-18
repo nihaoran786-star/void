@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
@@ -42,6 +43,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   onOpenWorkspaceMedia,
   onOpenShortDramaCenter,
 }) => {
+  const { t } = useTranslation('components');
   const containerRef = useRef<HTMLDivElement>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
   const workspacePresentation = React.useMemo(readWorkspacePresentation, []);
@@ -215,6 +217,10 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     ));
   }, [shortDramaTeamPresentation]);
 
+  const handleShortDramaTeamCollapse = useCallback(() => {
+    setExpandedShortDramaPrimarySurfaceKey(null);
+  }, []);
+
   const handleShortDramaTeamAgentSelect = useCallback((tabId: string) => {
     if (shortDramaTeamPresentation.status !== 'ready') {
       return;
@@ -234,8 +240,14 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     groupId: EditorGroupId,
     group: typeof primaryGroup,
     groupSceneActive = isSceneActive,
-  ) => (
-    <EditorGroup
+  ) => {
+    const closesShortDramaTeam = (
+      groupId === 'secondary'
+      && shortDramaTeamPresentation.status === 'ready'
+    );
+
+    return (
+      <EditorGroup
       groupId={groupId}
       group={group}
       isActive={activeGroupId === groupId}
@@ -257,13 +269,23 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
       onDirtyStateChange={handleDirtyStateChange(groupId)}
       onTabFileDeletedFromDiskChange={handleTabFileDeletedFromDiskChange(groupId)}
       onOpenMissionControl={groupId === 'primary' ? onOpenMissionControl : undefined}
-      onCloseAllTabs={handleCloseAllTabs(groupId)}
+      onCloseAllTabs={
+        closesShortDramaTeam
+          ? handleShortDramaTeamCollapse
+          : handleCloseAllTabs(groupId)
+      }
+      closeAllTabsLabel={
+        closesShortDramaTeam
+          ? t('canvas.collapseShortDramaTeam')
+          : undefined
+      }
       onInteraction={onInteraction}
       disablePopOut={disablePopOut}
       onOpenWorkspaceMedia={groupId === 'primary' ? onOpenWorkspaceMedia : undefined}
       onOpenShortDramaCenter={groupId === 'primary' ? onOpenShortDramaCenter : undefined}
     />
-  );
+    );
+  };
 
   const { splitMode, splitRatio, splitRatio2 } = layout;
 

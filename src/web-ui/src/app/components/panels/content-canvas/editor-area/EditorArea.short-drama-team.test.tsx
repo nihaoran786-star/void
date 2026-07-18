@@ -44,8 +44,27 @@ vi.mock('../stores', () => ({
 }));
 
 vi.mock('./EditorGroup', () => ({
-  EditorGroup: ({ groupId }: { groupId: string }) => (
-    <div data-testid={`editor-group-${groupId}`} />
+  EditorGroup: ({
+    groupId,
+    onCloseAllTabs,
+    closeAllTabsLabel,
+  }: {
+    groupId: string;
+    onCloseAllTabs?: () => void;
+    closeAllTabsLabel?: string;
+  }) => (
+    <div data-testid={`editor-group-${groupId}`}>
+      {onCloseAllTabs && (
+        <button
+          data-testid={`group-close-all-${groupId}`}
+          aria-label={closeAllTabsLabel}
+          type="button"
+          onClick={onCloseAllTabs}
+        >
+          close
+        </button>
+      )}
+    </div>
   ),
 }));
 
@@ -174,6 +193,36 @@ describe('EditorArea short-drama team presentation', () => {
     expect(canvasState.switchToTab).toHaveBeenCalledWith('asset-agent', 'secondary');
     expect(canvasState.setActiveGroup).toHaveBeenCalledWith('secondary');
     expect(canvasState.setSplitRatio).not.toHaveBeenCalled();
+  });
+
+  it('treats the short-drama team close action as a reversible collapse', async () => {
+    await renderArea();
+
+    act(() => {
+      (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
+      .toBe('open');
+
+    act(() => {
+      (container.querySelector(
+        '[data-testid="group-close-all-secondary"]',
+      ) as HTMLButtonElement).click();
+    });
+
+    expect(canvasState.closeAllTabs).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
+      .toBe('rail');
+    expect(container.querySelector('[data-testid="team-toggle"]')).not.toBeNull();
+    expect(container.querySelector(
+      '[data-testid="group-close-all-secondary"]',
+    )?.getAttribute('aria-label')).toBe('canvas.collapseShortDramaTeam');
+
+    act(() => {
+      (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
+      .toBe('open');
   });
 
   it('returns to the compact rail after leaving and revisiting a surface', async () => {

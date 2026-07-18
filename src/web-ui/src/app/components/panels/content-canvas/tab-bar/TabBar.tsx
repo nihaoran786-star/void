@@ -46,6 +46,8 @@ export interface TabBarProps {
   onOpenMissionControl?: () => void;
   /** Close all tabs */
   onCloseAllTabs?: () => Promise<void> | void;
+  /** Optional label when the group action has presentation-specific semantics. */
+  closeAllTabsLabel?: string;
   /** Pop out tab as independent scene */
   onTabPopOut?: (tabId: string) => void;
   workspacePath?: string;
@@ -103,6 +105,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   onReorderTab,
   onOpenMissionControl,
   onCloseAllTabs,
+  closeAllTabsLabel,
   onTabPopOut,
   workspacePath,
   onOpenWorkspaceMedia,
@@ -410,11 +413,11 @@ export const TabBar: React.FC<TabBarProps> = ({
 
         {/* Close all tabs button */}
         {onCloseAllTabs && visibleTabs.length > 0 && (
-          <Tooltip content={t('tabs.closeAll')} placement="bottom">
+          <Tooltip content={closeAllTabsLabel ?? t('tabs.closeAll')} placement="bottom">
             <button
               type="button"
               className="canvas-tab-bar__action-btn canvas-tab-bar__action-btn--close-all"
-              aria-label={t('tabs.closeAll')}
+              aria-label={closeAllTabsLabel ?? t('tabs.closeAll')}
               onClick={async (e) => {
                 e.stopPropagation();
                 await onCloseAllTabs();

@@ -44,6 +44,7 @@ export interface EditorGroupProps {
   onTabFileDeletedFromDiskChange?: (tabId: string, missing: boolean) => void;
   onOpenMissionControl?: () => void;
   onCloseAllTabs?: () => Promise<void> | void;
+  closeAllTabsLabel?: string;
   onInteraction?: (itemId: string, userInput: string) => Promise<void>;
   disablePopOut?: boolean;
   onOpenWorkspaceMedia?: () => void;
@@ -73,6 +74,7 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
   onTabFileDeletedFromDiskChange,
   onOpenMissionControl,
   onCloseAllTabs,
+  closeAllTabsLabel,
   onInteraction,
   disablePopOut = false,
   onOpenWorkspaceMedia,
@@ -137,6 +139,7 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
         onReorderTab={onReorderTab}
         onOpenMissionControl={onOpenMissionControl}
         onCloseAllTabs={onCloseAllTabs}
+        closeAllTabsLabel={closeAllTabsLabel}
         onTabPopOut={disablePopOut ? undefined : handleTabPopOut}
         workspacePath={workspacePath}
         onOpenWorkspaceMedia={onOpenWorkspaceMedia}
