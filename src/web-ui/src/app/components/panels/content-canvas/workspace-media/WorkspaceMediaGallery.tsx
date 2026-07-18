@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, FileAudio, Image as ImageIcon, Play, RefreshCw, RotateCcw, Search, Trash2, Video, X } from 'lucide-react';
+import { AlertTriangle, FileAudio, Image as ImageIcon, Play, RotateCcw, Trash2, Video, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { openMediaPreviewPanel } from '@/shared/services/preview/MediaPreviewService';
 import { dispatchMediaReference } from '@/shared/services/media-reference';
@@ -41,10 +41,12 @@ import {
 import {
   shouldVirtualizeWorkspaceMediaList,
 } from './WorkspaceMediaVirtualMasonryModel';
+import {
+  WorkspaceMediaGalleryToolbar,
+  type WorkspaceMediaFilter,
+  type WorkspaceMediaView,
+} from './WorkspaceMediaGalleryToolbar';
 import './WorkspaceMediaGallery.scss';
-
-type WorkspaceMediaFilter = 'all' | WorkspaceMediaKind;
-type WorkspaceMediaView = 'active' | 'deleted';
 
 export interface WorkspaceMediaGalleryProps {
   workspacePath?: string;
@@ -53,27 +55,6 @@ export interface WorkspaceMediaGalleryProps {
   imagePreviewResolver?: WorkspaceMediaImagePreviewResolver;
   mediaPreviewResolver?: WorkspaceMediaPreviewResolver;
 }
-
-const FILTERS: Array<{ id: WorkspaceMediaFilter; labelKey: string }> = [
-  { id: 'all', labelKey: 'workspaceMedia.filters.all' },
-  { id: 'image', labelKey: 'workspaceMedia.filters.images' },
-  { id: 'video', labelKey: 'workspaceMedia.filters.videos' },
-  { id: 'audio', labelKey: 'workspaceMedia.filters.audio' },
-];
-
-const SORTS: Array<{ id: WorkspaceMediaSortKey; labelKey: string }> = [
-  { id: 'recent', labelKey: 'workspaceMedia.sort.recent' },
-  { id: 'name', labelKey: 'workspaceMedia.sort.name' },
-  { id: 'size', labelKey: 'workspaceMedia.sort.size' },
-];
-
-const STATUS_FILTERS: Array<{ id: WorkspaceMediaStatusFilter; labelKey: string }> = [
-  { id: 'all', labelKey: 'workspaceMedia.statusFilters.all' },
-  { id: 'ready', labelKey: 'workspaceMedia.statusFilters.ready' },
-  { id: 'pending', labelKey: 'workspaceMedia.statusFilters.pending' },
-  { id: 'failed', labelKey: 'workspaceMedia.statusFilters.failed' },
-  { id: 'unpreviewable', labelKey: 'workspaceMedia.statusFilters.unpreviewable' },
-];
 
 const MAX_VIDEO_THUMBNAIL_BYTES = 25 * 1024 * 1024;
 const WORKSPACE_MEDIA_ACTIVE_REFRESH_INTERVAL_MS = 5000;
@@ -1208,127 +1189,40 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
   return (
     <section ref={rootRef} className="workspace-media-gallery" aria-label={t('workspaceMedia.ariaLabel')}>
       <div className="workspace-media-gallery__toolbar">
-        <div className="workspace-media-gallery__search-row">
-          <label className="workspace-media-gallery__search">
-            <Search size={16} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('workspaceMedia.searchPlaceholder')}
-            />
-            {query && (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onClick={() => setQuery('')}
-              >
-                <X size={13} />
-              </button>
-            )}
-          </label>
-          <button
-            type="button"
-            className="workspace-media-gallery__refresh"
-            onClick={() => void scan()}
-            aria-label={t('workspaceMedia.refresh')}
-            title={t('workspaceMedia.refresh')}
-          >
-            <RefreshCw size={14} />
-          </button>
-        </div>
-
-        <div className="workspace-media-gallery__controls-row">
-          <div className="workspace-media-gallery__views" aria-label="Media view">
-            <button
-              type="button"
-              className={view === 'active' ? 'is-active' : ''}
-              onClick={() => setView('active')}
-            >
-              {t('workspaceMedia.views.active')}
-            </button>
-            <button
-              type="button"
-              className={view === 'deleted' ? 'is-active' : ''}
-              onClick={() => {
-                setView('deleted');
+        <WorkspaceMediaGalleryToolbar
+          state={{
+            query,
+            view,
+            filter,
+            statusFilter,
+            sort,
+            counts,
+            statusCounts,
+            deletedCount: deletedItems.length,
+            visibleSelectionAvailable: view === 'active'
+              ? visibleSelectableTileIds.length > 0
+              : visibleSelectableTrashIds.length > 0,
+            areVisibleItemsSelected: view === 'active'
+              ? areVisibleTilesSelected
+              : areVisibleTrashItemsSelected,
+          }}
+          actions={{
+            onQueryChange: setQuery,
+            onRefresh: () => void scan(),
+            onViewChange: (nextView) => {
+              setView(nextView);
+              if (nextView === 'deleted') {
                 void refreshTrash();
-              }}
-            >
-              {t('workspaceMedia.views.deleted')}
-              {deletedItems.length > 0 && <small>{deletedItems.length}</small>}
-            </button>
-          </div>
-          {view === 'active' && visibleSelectableTileIds.length > 0 && (
-            <button
-              type="button"
-              className="workspace-media-gallery__select-visible"
-              aria-pressed={areVisibleTilesSelected}
-              onClick={toggleVisibleTileSelection}
-            >
-              {t(areVisibleTilesSelected
-                ? 'workspaceMedia.actions.clearVisibleSelection'
-                : 'workspaceMedia.actions.selectVisible')}
-            </button>
-          )}
-          {view === 'deleted' && visibleSelectableTrashIds.length > 0 && (
-            <button
-              type="button"
-              className="workspace-media-gallery__select-visible"
-              aria-pressed={areVisibleTrashItemsSelected}
-              onClick={toggleVisibleTrashSelection}
-            >
-              {t(areVisibleTrashItemsSelected
-                ? 'workspaceMedia.actions.clearVisibleSelection'
-                : 'workspaceMedia.actions.selectVisible')}
-            </button>
-          )}
-          <div className="workspace-media-gallery__filters" role="tablist" aria-label={t('workspaceMedia.filters.ariaLabel')}>
-            {FILTERS.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                className={filter === item.id ? 'is-active' : ''}
-                onClick={() => setFilter(item.id)}
-              >
-                <span>{t(item.labelKey)}</span>
-                <small>{counts[item.id]}</small>
-              </button>
-            ))}
-          </div>
-
-          {view === 'active' && (
-            <label className="workspace-media-gallery__status-filter">
-              <span>{t('workspaceMedia.statusFilters.label')}</span>
-              <select
-                value={statusFilter}
-                onChange={event => setStatusFilter(
-                  event.target.value as WorkspaceMediaStatusFilter,
-                )}
-                aria-label={t('workspaceMedia.statusFilters.label')}
-              >
-                {STATUS_FILTERS.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {t(item.labelKey)} ({statusCounts[item.id]})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          <div className="workspace-media-gallery__sort" aria-label={t('workspaceMedia.sort.label')}>
-            <span>{t('workspaceMedia.sort.label')}</span>
-            {SORTS.map(item => (
-              <button
-                key={item.id}
-                type="button"
-                className={sort === item.id ? 'is-active' : ''}
-                onClick={() => setSort(item.id)}
-              >
-                {t(item.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
+              }
+            },
+            onFilterChange: setFilter,
+            onStatusFilterChange: setStatusFilter,
+            onSortChange: setSort,
+            onToggleVisibleSelection: view === 'active'
+              ? toggleVisibleTileSelection
+              : toggleVisibleTrashSelection,
+          }}
+        />
         {view === 'active' && selectedTiles.length > 0 && (
           <div className="workspace-media-gallery__selection-bar">
             <span>{selectedTiles.length}</span>

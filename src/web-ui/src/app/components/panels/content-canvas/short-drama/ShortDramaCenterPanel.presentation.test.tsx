@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const panelSource = readFileSync(new URL('./ShortDramaCenterPanel.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const panelStyles = readFileSync(new URL('./ShortDramaCenterPanel.scss', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const minimalPanelStyles = readFileSync(new URL('./ShortDramaCenterPanel.minimal.scss', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const flexiblePanelSource = readFileSync(new URL('../../base/FlexiblePanel.tsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
 function sourceBetween(source: string, startMarker: string, endMarker: string): string {
@@ -74,5 +76,273 @@ describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
     expect(runtimeFocusEffect).toContain('writeShortDramaRuntimeFocus');
     expect(stageAgentTabEffects).not.toContain('!isActive');
     expect(stageAgentTabEffects).toContain('openNativeStageAgentTab');
+  });
+
+  it('keeps an empty project compact without removing the ready-project scroll anchor', () => {
+    const emptyProjectBranch = sourceBetween(
+      panelSource,
+      "if (state.status === 'empty') {",
+      "if (state.status === 'unsupported') {"
+    );
+
+    expect(emptyProjectBranch).toContain('<ShortDramaState');
+    expect(emptyProjectBranch).toContain('compact');
+    expect(emptyProjectBranch).not.toContain('short-drama-center__scroll-spacer');
+    expect(panelSource.match(/short-drama-center__scroll-spacer/g)).toHaveLength(1);
+    expect(panelStyles).toMatch(
+      /\.short-drama-center__state\.is-compact \{[\s\S]*?min-height: 0;[\s\S]*?align-content: start;[\s\S]*?justify-items: start;/,
+    );
+    expect(minimalPanelStyles).toMatch(
+      /\.void-ui--minimal \.short-drama-center__state\.is-compact \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/,
+    );
+  });
+});
+
+describe('ShortDramaCenterPanel storyboard disclosure contract', () => {
+  const storyboardGrid = sourceBetween(
+    panelSource,
+    'function StoryboardGrid({',
+    'function StoryboardReferenceChips({'
+  );
+
+  it('owns one storyboard-only expansion id above every episode section', () => {
+    expect(panelSource).toContain(
+      'const [expandedStoryboardArtifactId, setExpandedStoryboardArtifactId] = useState<string>();'
+    );
+    expect(panelSource).toContain('expandedStoryboardArtifactId={expandedStoryboardArtifactId}');
+    expect(panelSource).toContain('onStoryboardExpandedChange={setExpandedStoryboardArtifactId}');
+    expect(storyboardGrid).toContain('expandedArtifactId?: string;');
+    expect(storyboardGrid).not.toContain('activeArtifactFocusByStage');
+  });
+
+  it('renders exactly one media presentation beside the native disclosure button', () => {
+    expect(storyboardGrid).toMatch(
+      /\{isExpanded \? \(\s*<MediaPreview[^>]+\/>\s*\) : \(\s*<MediaPreview[^>]+variant="row" \/>\s*\)\}\s*<button/
+    );
+    expect(storyboardGrid).toContain('type="button"');
+    expect(storyboardGrid).toContain('aria-expanded={isExpanded}');
+    expect(storyboardGrid).toContain('aria-controls={detailsId}');
+    expect(storyboardGrid).toContain(
+      '<ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />'
+    );
+    expect(storyboardGrid).toMatch(
+      /<article[\s\S]*?onClick=\{\(\) => onArtifactFocus\(artifact\)\}\s*>\s*<ArtifactFocusButton/
+    );
+
+    const toggle = sourceBetween(
+      storyboardGrid,
+      '<button\n              type="button"',
+      '</button>'
+    );
+    expect(toggle).not.toContain('<MediaPreview');
+    expect(toggle).not.toContain('<StoryboardReferenceChips');
+  });
+
+  it('focuses once, switches the expansion id, and keeps compact status metadata visible', () => {
+    const toggle = sourceBetween(
+      storyboardGrid,
+      '<button\n              type="button"',
+      '</button>'
+    );
+    expect(toggle).toContain(
+      'event.stopPropagation();\n                onArtifactFocus(artifact);\n                onExpandedArtifactChange(isExpanded ? undefined : artifact.id);'
+    );
+    expect(toggle.match(/onArtifactFocus\(artifact\)/g)).toHaveLength(1);
+    expect(toggle).toContain('<StatusPill status={artifact.status} t={t} />');
+    expect(toggle).toContain("t('shortDrama.accessibility.storyboardReferences')");
+    expect(toggle).toContain('{referenceCount}');
+    expect(toggle).toContain("t('shortDrama.storyboards.setupCount'");
+    expect(storyboardGrid).toContain('data-status={artifact.status}');
+    expect(storyboardGrid).toContain('<StoryboardReferenceChips');
+    expect(storyboardGrid).toMatch(
+      /<div\s+id=\{detailsId\}\s+className="short-drama-storyboard-row__details"\s+hidden=\{!isExpanded\}\s*>/
+    );
+  });
+
+  it('keeps the disclosure focus ring explicit in base and minimal themes', () => {
+    expect(panelStyles).toMatch(
+      /\.short-drama-storyboard-row__toggle:focus-visible \{[\s\S]*?outline: 2px solid/
+    );
+    expect(minimalPanelStyles).toMatch(
+      /\.void-ui--minimal \.short-drama-storyboard-row__toggle:focus-visible,[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\)/
+    );
+  });
+
+  it('overrides the later base card minimum height with a specific compact-row rule', () => {
+    const baseCardRuleIndex = panelStyles.indexOf('.short-drama-card {');
+    const compactRowRuleIndex = panelStyles.indexOf(
+      '.short-drama-card.short-drama-storyboard-row {'
+    );
+    const compactRowRule = sourceBetween(
+      panelStyles,
+      '.short-drama-card.short-drama-storyboard-row {',
+      '}'
+    );
+
+    expect(baseCardRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(compactRowRuleIndex).toBeGreaterThan(baseCardRuleIndex);
+    expect(compactRowRule).toContain('min-height: 0;');
+  });
+});
+
+describe('ShortDramaCenterPanel asset disclosure contract', () => {
+  const assetStage = sourceBetween(
+    panelSource,
+    'function AssetStage({',
+    'function PendingStageGenerationGrid({'
+  );
+  const pendingAssetCard = sourceBetween(
+    panelSource,
+    'function PendingAssetGenerationCard({',
+    'function AssetAnchorCard({'
+  );
+  const assetAnchorCard = sourceBetween(
+    panelSource,
+    'function AssetAnchorCard({',
+    'function ArtifactGrid({'
+  );
+  const artifactGrid = sourceBetween(
+    panelSource,
+    'function ArtifactGrid({',
+    'function StoryboardGrid({'
+  );
+  const artifactCard = sourceBetween(
+    panelSource,
+    'function ArtifactCard({',
+    'function ArtifactCardBody({'
+  );
+  const artifactCardBody = sourceBetween(
+    panelSource,
+    'function ArtifactCardBody({',
+    'function ArtifactFocusButton({'
+  );
+
+  it('owns one asset-only expansion id and passes it through both AssetStage render paths', () => {
+    expect(panelSource).toContain(
+      'const [expandedAssetArtifactId, setExpandedAssetArtifactId] = useState<string>();'
+    );
+    const assetStageCalls = panelSource.match(/<AssetStage\b[\s\S]*?\/>/g) ?? [];
+    expect(assetStageCalls).toHaveLength(2);
+    assetStageCalls.forEach(call => {
+      expect(call).toContain('expandedArtifactId={expandedAssetArtifactId}');
+      expect(call).toContain('onExpandedArtifactChange={setExpandedAssetArtifactId}');
+    });
+    expect(assetStage).toContain('expandedArtifactId?: string;');
+    expect(assetStage).not.toContain('activeArtifactFocusByStage');
+    expect(assetStage).not.toContain('expandedStoryboardArtifactId');
+    expect(assetAnchorCard).not.toContain('activeArtifactFocusByStage');
+    expect(assetAnchorCard).not.toContain('expandedStoryboardArtifactId');
+  });
+
+  it('uses a dedicated single-column asset list and passes the localized category title to each row', () => {
+    expect(assetStage).toContain(
+      'const assetTypeLabel = t(`shortDrama.assets.${category.id}`);'
+    );
+    expect(assetStage).toContain('className="short-drama-center__asset-list"');
+    expect(assetStage).toContain('assetTypeLabel={assetTypeLabel}');
+    expect(assetStage).not.toContain('short-drama-center__grid');
+    expect(artifactGrid).toContain('className="short-drama-center__grid"');
+    expect(artifactGrid).not.toContain('short-drama-asset-row');
+  });
+
+  it('renders one media presentation beside direct focus, toggle, and stable details siblings', () => {
+    expect(assetAnchorCard).toMatch(
+      /<ArtifactFocusButton[\s\S]*?\{isExpanded \? \(\s*<MediaPreview[^>]+\/>\s*\) : \(\s*<MediaPreview[^>]+variant="row" \/>\s*\)\}\s*<button/
+    );
+    expect(assetAnchorCard).toContain('type="button"');
+    expect(assetAnchorCard).toContain('aria-expanded={isExpanded}');
+    expect(assetAnchorCard).toContain('aria-controls={detailsId}');
+    expect(assetAnchorCard).toMatch(
+      /<div\s+id=\{detailsId\}\s+className="short-drama-asset-row__details"\s+hidden=\{!isExpanded\}\s*>/
+    );
+
+    const toggle = sourceBetween(
+      assetAnchorCard,
+      '<button\n        type="button"',
+      '</button>'
+    );
+    expect(toggle).not.toContain('<MediaPreview');
+    expect(toggle).not.toContain('<ArtifactCardBody');
+    expect(toggle).toContain('{artifact.title}');
+    expect(toggle).toContain('{assetTypeLabel}');
+    expect(toggle).toContain('<StatusPill status={artifact.status} t={t} />');
+    expect(toggle).not.toContain('artifact.summary');
+  });
+
+  it('focuses exactly once before switching the shared asset expansion id', () => {
+    const toggle = sourceBetween(
+      assetAnchorCard,
+      '<button\n        type="button"',
+      '</button>'
+    );
+    expect(toggle).toContain(
+      'event.stopPropagation();\n          onArtifactFocus(artifact);\n          onExpandedArtifactChange(isExpanded ? undefined : artifact.id);'
+    );
+    expect(toggle.match(/onArtifactFocus\(artifact\)/g)).toHaveLength(1);
+    expect(assetAnchorCard).toContain('onClick={() => onArtifactFocus(artifact)}');
+    expect(assetAnchorCard).toContain(
+      '<ArtifactCardBody artifact={artifact} t={t} showStatus={false} />'
+    );
+    expect(assetAnchorCard).toContain('short-drama-center__asset-usage');
+  });
+
+  it('extracts the original complete card body without changing ArtifactGrid or ArtifactCard structure', () => {
+    expect(artifactCard).toContain(
+      '<ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />'
+    );
+    expect(artifactCard).toContain(
+      '<MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} />'
+    );
+    expect(artifactCard).toContain('<ArtifactCardBody artifact={artifact} t={t} />');
+    expect(artifactCardBody).toContain('createShortDramaArtifactCardViewModel(artifact)');
+    expect(artifactCardBody).toContain('{artifact.summary}');
+    expect(artifactCardBody).toContain("t('shortDrama.card.mediaReference')");
+    expect(artifactCardBody).toContain('artifact.failureReason || artifact.statusReason');
+    expect(artifactCardBody).toContain("t('shortDrama.card.revisions'");
+    expect(artifactCardBody).toContain("t('shortDrama.card.attempts'");
+  });
+
+  it('keeps pending generations non-interactive while preserving every existing field', () => {
+    expect(pendingAssetCard).toContain('short-drama-pending-row__preview is-generating');
+    expect(pendingAssetCard).toContain("t('shortDrama.assets.pendingTitle'");
+    expect(pendingAssetCard).toContain(
+      "item.model ?? t('shortDrama.assets.pendingModelUnknown')"
+    );
+    expect(pendingAssetCard).toContain('{item.prompt ?? item.batchId}');
+    expect(pendingAssetCard).toContain('<StatusPill status="generating" t={t} />');
+    expect(pendingAssetCard).toContain('{item.requestedAspectRatio}');
+    expect(pendingAssetCard).not.toContain('<button');
+    expect(pendingAssetCard).not.toContain('<ArtifactFocusButton');
+    expect(pendingAssetCard).not.toContain('aria-expanded');
+  });
+
+  it('overrides the base card height later and responds at the 420px container boundary', () => {
+    const baseCardRuleIndex = panelStyles.indexOf('.short-drama-card {');
+    const compactAssetRuleIndex = panelStyles.indexOf(
+      '.short-drama-card.short-drama-asset-row,'
+    );
+    const compactAssetRule = sourceBetween(
+      panelStyles,
+      '.short-drama-card.short-drama-asset-row,',
+      '}'
+    );
+    const narrowContainer = panelStyles.slice(
+      panelStyles.indexOf('@container short-drama-panel (max-width: 420px)')
+    );
+
+    expect(baseCardRuleIndex).toBeGreaterThanOrEqual(0);
+    expect(compactAssetRuleIndex).toBeGreaterThan(baseCardRuleIndex);
+    expect(compactAssetRule).toContain('.short-drama-card.short-drama-pending-row');
+    expect(compactAssetRule).toContain('min-height: 0;');
+    expect(panelStyles).toContain('grid-template-columns: 112px minmax(0, 1fr);');
+    expect(narrowContainer).toContain('.short-drama-asset-row,');
+    expect(narrowContainer).toContain('.short-drama-pending-row');
+    expect(narrowContainer).toContain('grid-template-columns: 88px minmax(0, 1fr);');
+    expect(panelStyles).toMatch(
+      /\.short-drama-asset-row__toggle:focus-visible \{[\s\S]*?outline: 2px solid/
+    );
+    expect(minimalPanelStyles).toMatch(
+      /\.void-ui--minimal \.short-drama-asset-row__toggle:focus-visible,[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\)/
+    );
   });
 });

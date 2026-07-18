@@ -956,6 +956,7 @@
     }
   },
   "flowChatHeader": {
+    "moreActions": "更多操作",
     "turnList": "輪次列表",
     "untitledTurn": "未命名輪次",
     "previousTurn": "上一輪對話",

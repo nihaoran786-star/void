@@ -315,6 +315,32 @@ describe('MediaGenerationToolCard', () => {
     }));
   });
 
+  it('opens expanded assets with the keyboard', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createToolItem()} config={config} />);
+    });
+
+    const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    act(() => {
+      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    const asset = container.querySelector('.media-generation-card__asset') as HTMLElement;
+    act(() => {
+      asset.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        bubbles: true,
+        key: 'Enter',
+      }));
+    });
+
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'void-media-preview-open',
+      detail: expect.objectContaining({
+        url: 'https://cdn.example.com/generated-1.png',
+      }),
+    }));
+  });
+
   it('renders polling media jobs as a compact collapsed row by default', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
@@ -323,6 +349,23 @@ describe('MediaGenerationToolCard', () => {
     expect(container.textContent).toContain('生成中 0/1');
     expect(container.querySelector('.media-generation-card__generating')).toBeNull();
     expect(container.textContent).not.toContain('task-1');
+  });
+
+  it('uses a quiet accessible progress row when a polling job is expanded', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
+    });
+
+    const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    act(() => {
+      header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    const progress = container.querySelector('[role="status"]');
+    expect(progress).toBeTruthy();
+    expect(progress?.textContent).toContain('生成中 0/1');
+    expect(container.querySelector('.media-generation-card__progress-dot')).toBeTruthy();
+    expect(container.querySelector('.media-generation-card__loader')).toBeNull();
   });
 
   it('records workspace media pending state from the polling tool card model', () => {
@@ -398,7 +441,7 @@ describe('MediaGenerationToolCard', () => {
     });
   });
 
-  it('keeps completed polling results collapsed while showing a preview strip', () => {
+  it('keeps completed polling results collapsed with one inline representative preview', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createPollingToolItem()} config={config} />);
     });
@@ -409,18 +452,43 @@ describe('MediaGenerationToolCard', () => {
     });
 
     expect(container.querySelector('.media-generation-card__asset')).toBeNull();
-    expect(container.querySelector('.media-generation-card__preview-asset')).toBeTruthy();
+    expect(container.querySelector('.media-generation-card__inline-preview')).toBeTruthy();
+    expect(container.querySelector('.media-generation-card__preview-strip')).toBeNull();
   });
 
-  it('keeps completed batches collapsed with a bounded preview strip', () => {
+  it('keeps completed batches in one compact result row', () => {
     act(() => {
       root.render(<MediaGenerationToolCard toolItem={createManyImageToolItem(100)} config={config} />);
     });
 
     expect(container.textContent).toContain('生成完成 100/100');
     expect(container.querySelector('.media-generation-card__grid')).toBeNull();
-    expect(container.querySelectorAll('.media-generation-card__preview-asset')).toHaveLength(6);
-    expect(container.textContent).toContain('+94');
+    expect(container.querySelectorAll('.media-generation-card__inline-preview')).toHaveLength(1);
+    expect(container.querySelector('.media-generation-card__preview-strip')).toBeNull();
+    expect(container.textContent).not.toContain('+99');
+  });
+
+  it('opens the representative preview without expanding the completed batch', () => {
+    act(() => {
+      root.render(<MediaGenerationToolCard toolItem={createManyImageToolItem(100)} config={config} />);
+    });
+
+    const preview = container.querySelector('.media-generation-card__inline-preview') as HTMLButtonElement;
+    expect(preview).toBeTruthy();
+
+    act(() => {
+      preview.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.querySelector('.media-generation-card__grid')).toBeNull();
+    expect(container.querySelectorAll('.media-generation-card__inline-preview')).toHaveLength(1);
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'void-media-preview-open',
+      detail: expect.objectContaining({
+        kind: 'image',
+        url: 'https://cdn.example.com/generated-1.png',
+      }),
+    }));
   });
 
   it('renders expanded media grids in fixed-size pages', () => {
@@ -429,6 +497,8 @@ describe('MediaGenerationToolCard', () => {
     });
 
     const header = container.querySelector('.compact-tool-card') as HTMLElement;
+    expect(header).toBeTruthy();
+
     act(() => {
       header.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
@@ -459,14 +529,14 @@ describe('MediaGenerationToolCard', () => {
       root.render(<MediaGenerationToolCard toolItem={createLocalImageToolItem()} config={config} />);
     });
 
-    const image = container.querySelector('.media-generation-card__preview-asset img') as HTMLImageElement;
+    const image = container.querySelector('.media-generation-card__inline-preview img') as HTMLImageElement;
     expect(image.src).toBe('asset://local/C%3A%2Frepo%2Fmedia%2Fgenerated%2Fimage-001.png');
 
     act(() => {
       image.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
     });
 
-    expect((container.querySelector('.media-generation-card__preview-asset img') as HTMLImageElement).src)
+    expect((container.querySelector('.media-generation-card__inline-preview img') as HTMLImageElement).src)
       .toBe('https://cdn.example.com/generated-local.png');
   });
 
@@ -483,6 +553,8 @@ describe('MediaGenerationToolCard', () => {
     const referenceButton = Array.from(container.querySelectorAll('button'))
       .find(button => button.textContent?.includes('引用')) as HTMLButtonElement | undefined;
     expect(referenceButton).toBeTruthy();
+    expect(container.querySelector('.media-generation-card__asset-preview-hint')).toBeNull();
+    expect(container.querySelectorAll('.media-generation-card__asset-actions')).toHaveLength(1);
 
     act(() => {
       referenceButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
@@ -565,7 +637,8 @@ describe('MediaGenerationToolCard', () => {
     });
 
     expect(container.textContent).toContain('生成完成 2/2');
-    expect(container.querySelectorAll('.media-generation-card__preview-asset')).toHaveLength(2);
+    expect(container.querySelectorAll('.media-generation-card__inline-preview')).toHaveLength(1);
+    expect(container.textContent).not.toContain('+1');
   });
 
   it('renders grouped video tools without image reference actions', () => {

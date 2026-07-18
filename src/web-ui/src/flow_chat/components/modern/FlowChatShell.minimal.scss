@@ -1,0 +1,89 @@
+@mixin styles {
+  .void-ui--minimal .modern-flowchat-container.flow-chat-typography {
+    --flowchat-font-size-base: 13px;
+    --flowchat-font-size-sm: 12px;
+    --flowchat-font-size-xs: 11px;
+    --flowchat-text-line-height: 1.5;
+    --flowchat-support-line-height: 1.42;
+    --flowchat-flow-item-gap: 0.34rem;
+    --flowchat-turn-gap: 0.38rem;
+    --flowchat-markdown-block-gap: 0.46em;
+    --flowchat-markdown-paragraph-gap: 0.2em;
+  }
+
+  .void-ui--minimal .virtual-message-list {
+    .message-list-header {
+      // Keep the existing virtual-scroll offset contract. The visual header is
+      // compact, but scroll anchoring still reserves the pinned 57px viewport.
+      height: 57px;
+      min-height: 57px;
+    }
+
+    :where(.model-round-item, .user-message-item) {
+      box-sizing: border-box;
+      width: min(760px, calc(100% - 32px));
+      max-width: 760px;
+      margin-inline: auto;
+    }
+
+    .model-round-item {
+      padding-inline: 0;
+      animation: none;
+    }
+
+    .user-message-item {
+      margin-top: 2px;
+      margin-bottom: var(--flowchat-turn-gap);
+      padding: 5px 8px;
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-card);
+      background: var(--workspace-surface-subtle);
+      box-shadow: none;
+      animation: none;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+
+    .user-message-item:hover {
+      border-color: var(--workspace-border-strong);
+      background: var(--workspace-surface-subtle);
+    }
+
+    .user-message-item__content,
+    .flow-text-block,
+    .flow-text-block .markdown-renderer,
+    .flow-text-block .text-content {
+      line-height: 1.5;
+    }
+
+    .user-message-item__actions,
+    .model-round-item__footer {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 100ms ease;
+    }
+
+    .user-message-item:hover .user-message-item__actions,
+    .user-message-item:focus-within .user-message-item__actions,
+    .user-message-item__actions:has(.copied, .user-message-item__rollback-spinner),
+    .model-round-item:hover .model-round-item__footer,
+    .model-round-item:focus-within .model-round-item__footer,
+    .model-round-item__footer:has(.copied, .spinning) {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .user-message-item__copy-btn:focus-visible,
+    .user-message-item__edit-btn:focus-visible,
+    .user-message-item__rollback-btn:focus-visible,
+    .model-round-item__action-btn:focus-visible {
+      outline: 1px solid var(--workspace-focus-ring);
+      outline-offset: -1px;
+    }
+
+    @media (max-width: 768px) {
+      :where(.model-round-item, .user-message-item) {
+        width: calc(100% - 20px);
+      }
+    }
+  }
+}

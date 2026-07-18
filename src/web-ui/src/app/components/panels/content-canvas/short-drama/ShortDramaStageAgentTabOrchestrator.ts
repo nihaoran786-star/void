@@ -16,7 +16,7 @@ export interface ShortDramaStageAgentCanvasGateway {
   primaryGroup: EditorGroupState;
   secondaryGroup: EditorGroupState;
   tertiaryGroup: EditorGroupState;
-  layout: { splitMode: SplitMode };
+  getSplitMode(): SplitMode;
   findTabByMetadata(metadata: Record<string, unknown>): { tab: CanvasTab; groupId: EditorGroupId } | null;
   addTab(content: PanelContent, state: 'active', groupId: EditorGroupId): void;
   updateTabContent(tabId: string, groupId: EditorGroupId, content: PanelContent): void;
@@ -75,7 +75,7 @@ export function openShortDramaRealStageAgentTab(
   );
 
   closeLegacyStageAgentTabs(canvas, workspace, openRequest.childSessionId, openRequest.workspacePath);
-  if (canvas.layout.splitMode === 'none') {
+  if (canvas.getSplitMode() === 'none') {
     canvas.setSplitMode('horizontal');
   }
 

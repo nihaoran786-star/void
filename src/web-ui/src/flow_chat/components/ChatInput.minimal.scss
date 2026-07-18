@@ -1,6 +1,7 @@
 @mixin styles {
   .void-ui--minimal .void-chat-input-drop-zone {
-    max-width: 900px;
+    width: 100%;
+    max-width: 760px;
     padding-inline: var(--workspace-space-2);
   }
 
@@ -29,9 +30,9 @@
     }
 
     &__box--capsule {
-      min-height: var(--workspace-control-height-primary);
-      max-height: var(--workspace-control-height-primary);
-      padding-inline: var(--workspace-space-1);
+      min-height: 40px;
+      max-height: min(240px, 38vh);
+      padding: 3px var(--workspace-space-1);
     }
 
     &__placeholder,

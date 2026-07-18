@@ -209,6 +209,67 @@ describe('ShortDramaStageAgentTabOrchestrator', () => {
     }
   });
 
+  it('recreates the split after closing the only legacy secondary tab instead of adding the new ScriptAI to primary', () => {
+    const shortDramaTab: CanvasTab = {
+      id: 'short-drama',
+      title: 'AI短剧',
+      state: 'active',
+      content: {
+        type: 'short-drama-center',
+        title: 'AI短剧',
+        data: { workspacePath: 'C:/work' },
+        metadata: { workspacePath: 'C:/work' },
+      } as PanelContent,
+      createdAt: 1,
+      lastAccessedAt: 1,
+    };
+    const legacyScriptTab = createBtwTab({
+      id: 'legacy-script',
+      childSessionId: 'script-old-session',
+      parentSessionId: 'main-session',
+      duplicateCheckKey: 'btw-session-script-old-session',
+      title: 'ScriptAI: old',
+      shortDramaStage: 'script',
+      shortDramaWorkspacePath: 'C:/work',
+    });
+    const canvas = createCanvasGateway({
+      primaryTabs: [shortDramaTab],
+      secondaryTabs: [legacyScriptTab],
+      splitMode: 'horizontal',
+    });
+
+    const result = openShortDramaRealStageAgentTab({
+      projectId: 'project-1',
+      stage: 'script',
+      specialistAgentRole: 'director',
+      specialistSessionId: 'script-new-session',
+      parentSessionId: 'main-session',
+      panelState: 'open',
+      lastFocusSource: 'initial',
+    }, 'C:/work', canvas);
+
+    expect(result).toEqual({
+      status: 'ready',
+      source: 'short-drama-stage-agent-tab',
+      childSessionId: 'script-new-session',
+      groupId: 'secondary',
+    });
+    expect(canvas.closeTab).toHaveBeenCalledWith('legacy-script', 'secondary', { forceRemove: true });
+    expect(canvas.layout.splitMode).toBe('horizontal');
+    expect(canvas.getSplitMode).toHaveReturnedWith('none');
+    expect(canvas.setSplitMode).toHaveBeenCalledWith('horizontal');
+    expect(canvas.addTab).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          childSessionId: 'script-new-session',
+          shortDramaStage: 'script',
+        }),
+      }),
+      'active',
+      'secondary',
+    );
+  });
+
   it('does not close a stage agent tab from another workspace', () => {
     const otherWorkspaceTab = createBtwTab({
       id: 'asset-other-workspace',
@@ -292,11 +353,13 @@ function createCanvasGateway(input: {
   const primaryGroup = createGroup(input.primaryTabs);
   const secondaryGroup = createGroup(input.secondaryTabs);
   const tertiaryGroup = createGroup([]);
+  let currentSplitMode = input.splitMode;
   const canvas = {
     primaryGroup,
     secondaryGroup,
     tertiaryGroup,
     layout: { splitMode: input.splitMode },
+    getSplitMode: vi.fn(() => currentSplitMode),
     findTabByMetadata: vi.fn((metadata: Record<string, unknown>) => {
       for (const [groupId, group] of [
         ['primary', primaryGroup],
@@ -313,8 +376,20 @@ function createCanvasGateway(input: {
     updateTabContent: vi.fn(),
     switchToTab: vi.fn(),
     moveTabToGroup: vi.fn(),
-    closeTab: vi.fn(),
-    setSplitMode: vi.fn(),
+    closeTab: vi.fn((tabId: string, groupId: 'primary' | 'secondary' | 'tertiary') => {
+      const group = groupId === 'primary'
+        ? primaryGroup
+        : groupId === 'secondary'
+          ? secondaryGroup
+          : tertiaryGroup;
+      group.tabs = group.tabs.filter(tab => tab.id !== tabId);
+      if (currentSplitMode !== 'none' && secondaryGroup.tabs.length === 0 && tertiaryGroup.tabs.length === 0) {
+        currentSplitMode = 'none';
+      }
+    }),
+    setSplitMode: vi.fn((mode: Extract<SplitMode, 'horizontal' | 'vertical'>) => {
+      currentSplitMode = mode;
+    }),
   };
   return canvas;
 }

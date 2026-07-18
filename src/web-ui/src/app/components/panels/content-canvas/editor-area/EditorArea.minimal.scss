@@ -30,7 +30,11 @@
 
     &.is-short-drama-team-rail {
       > .canvas-editor-area__primary {
-        width: calc(100% - 44px) !important;
+        width: 100% !important;
+
+        > .canvas-editor-group > .canvas-tab-bar {
+          padding-right: 92px;
+        }
       }
 
       > .canvas-split-handle {
@@ -38,10 +42,14 @@
       }
 
       > .canvas-editor-area__secondary {
-        width: 44px !important;
-        min-width: 44px;
-        max-width: 44px;
-        border-left: 1px solid var(--workspace-border-subtle);
+        position: absolute;
+        inset-block: 0;
+        right: 0;
+        width: 0 !important;
+        min-width: 0;
+        max-width: 0;
+        overflow: visible;
+        border-left: 0;
 
         > .canvas-editor-group {
           visibility: hidden;
@@ -115,8 +123,8 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        min-width: 28px;
+        height: 28px;
         padding: 0;
         border: 0;
         border-radius: 7px;
@@ -137,13 +145,11 @@
 
       &.is-rail {
         position: absolute;
-        inset: 0;
+        top: 4px;
+        right: 8px;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 8px;
-        padding: 6px 5px;
-        background: var(--workspace-surface-panel);
+        pointer-events: auto;
       }
 
       &.is-open {
@@ -159,94 +165,90 @@
           border-radius: 7px;
           background: var(--workspace-surface-raised);
         }
-
-        .short-drama-team-panel-controls__agents {
-          display: none;
-        }
       }
     }
 
-    .short-drama-team-panel-controls__agents {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
+    .short-drama-team-panel-controls__summary {
+      gap: 6px;
+      width: auto;
+      padding-inline: 8px 6px;
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: 8px;
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+      font-size: 12px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .short-drama-team-panel-controls__summary-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .short-drama-team-panel-controls__summary-label {
+      color: var(--workspace-text-secondary);
+    }
+
+    .short-drama-team-panel-controls__summary-count {
+      min-width: 1ch;
+      color: var(--workspace-text-primary);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
     }
 
     .short-drama-team-panel-controls__preparing {
       display: inline-grid;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       place-items: center;
       color: var(--workspace-text-muted);
       font-size: 16px;
       line-height: 1;
     }
 
-    .short-drama-team-panel-controls__agent.is-active {
-      background: var(--workspace-surface-active);
-      color: var(--workspace-text-primary);
-    }
-
     .short-drama-team-panel-controls__toggle-glyph {
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 300;
       line-height: 1;
       transform: translateY(-1px);
     }
 
-    .short-drama-team-panel-controls__stage-glyph {
-      font-size: 10px;
-      font-weight: 650;
-      line-height: 1;
-      letter-spacing: 0.01em;
-    }
-
-    .short-drama-team-panel-controls__status-glyph {
-      position: absolute;
-      right: 2px;
-      bottom: 2px;
-      display: inline-grid;
-      box-sizing: border-box;
-      width: 12px;
-      height: 12px;
-      place-items: center;
-      border: 1px solid currentColor;
-      border-radius: 999px;
-      background: var(--workspace-surface-panel);
-      font-size: 10px;
-      font-weight: 750;
-      line-height: 1;
-    }
-
-    .short-drama-team-panel-controls__agent.is-status-waiting
-      .short-drama-team-panel-controls__status-glyph {
+    .short-drama-team-panel-controls__summary.is-status-waiting,
+    .short-drama-team-panel-controls__summary.is-status-cancelled {
       color: var(--workspace-status-neutral-text);
     }
 
-    .short-drama-team-panel-controls__agent.is-status-live
-      .short-drama-team-panel-controls__status-glyph {
+    .short-drama-team-panel-controls__summary.is-status-live {
       color: var(--workspace-status-info-text);
     }
 
-    .short-drama-team-panel-controls__agent.is-status-attention
-      .short-drama-team-panel-controls__status-glyph {
+    .short-drama-team-panel-controls__summary.is-status-attention {
       color: var(--workspace-status-warning-text);
     }
 
-    .short-drama-team-panel-controls__agent.is-status-completed
-      .short-drama-team-panel-controls__status-glyph {
+    .short-drama-team-panel-controls__summary.is-status-completed {
       color: var(--workspace-status-success-text);
     }
 
-    .short-drama-team-panel-controls__agent.is-status-cancelled
-      .short-drama-team-panel-controls__status-glyph {
-      color: var(--workspace-status-neutral-text);
+    .short-drama-team-panel-controls__summary.is-status-failed {
+      color: var(--workspace-status-error-text);
     }
 
-    .short-drama-team-panel-controls__agent.is-status-failed
-      .short-drama-team-panel-controls__status-glyph {
-      color: var(--workspace-status-error-text);
+    @container short-drama-editor-area (max-width: 560px) {
+      &.is-short-drama-team-rail
+        > .canvas-editor-area__primary
+        > .canvas-editor-group
+        > .canvas-tab-bar {
+        padding-right: 68px;
+      }
+
+      .short-drama-team-panel-controls__summary-label {
+        display: none;
+      }
     }
   }
 }

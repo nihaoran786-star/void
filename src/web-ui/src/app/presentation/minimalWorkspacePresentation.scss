@@ -2,6 +2,8 @@
 @use '../components/NavPanel/NavPanel.minimal.scss' as nav-panel;
 @use '../../flow_chat/components/ChatInput.minimal.scss' as chat-input;
 @use '../../flow_chat/components/ModelSelector.minimal.scss' as model-selector;
+@use '../../flow_chat/components/modern/FlowChatHeader.minimal.scss' as flow-chat-header;
+@use '../../flow_chat/components/modern/FlowChatShell.minimal.scss' as flow-chat-shell;
 @use '../../shared/services/preview/MediaPreviewOverlay.minimal.scss' as media-preview;
 @use '../components/panels/content-canvas/editor-area/EditorArea.minimal.scss' as editor-area;
 @use '../../tools/workspace/components/WorkspaceManager.minimal.scss' as workspace-manager;
@@ -10,6 +12,8 @@
 @include nav-panel.styles;
 @include chat-input.styles;
 @include model-selector.styles;
+@include flow-chat-header.styles;
+@include flow-chat-shell.styles;
 @include media-preview.styles;
 @include editor-area.styles;
 @include workspace-manager.styles;

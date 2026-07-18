@@ -34,6 +34,24 @@ export interface ShortDramaTeamPanelPresentationInput {
   expandedPrimarySurfaceKey: string | null;
 }
 
+export interface ShortDramaTeamLayoutRecoveryInput {
+  presentation: WorkspacePresentation;
+  splitMode: SplitMode;
+  primaryGroup: EditorGroupState;
+  secondaryGroup: EditorGroupState;
+}
+
+export type ShortDramaTeamLayoutRecovery =
+  | { status: 'stable' }
+  | {
+      status: 'recoverable';
+      primarySurfaceTabId: string;
+      misplacedTabs: ReadonlyArray<{
+        tabId: string;
+        fromGroupId: 'primary';
+      }>;
+    };
+
 const activeTab = (group: EditorGroupState): CanvasTab | undefined =>
   group.tabs.find(tab => tab.id === group.activeTabId);
 
@@ -89,6 +107,65 @@ const teamIdentityFor = (
   primarySurfaceKey,
   ...tabs.map(tab => tab.id).sort(),
 ]);
+
+/**
+ * Detects the persisted layout shown by the duplicate-team-pane bug:
+ * a short-drama surface still exists in primary, but one or more of its real
+ * stage-agent tabs were restored beside it while the remaining team is in
+ * secondary. This selector is intentionally conservative and never mutates
+ * tabs; EditorArea executes the returned move plan through existing store
+ * actions.
+ */
+export function selectShortDramaTeamLayoutRecovery({
+  presentation,
+  splitMode,
+  primaryGroup,
+  secondaryGroup,
+}: ShortDramaTeamLayoutRecoveryInput): ShortDramaTeamLayoutRecovery {
+  if (presentation !== 'minimal' || splitMode !== 'horizontal') {
+    return { status: 'stable' };
+  }
+
+  const visiblePrimaryTabs = primaryGroup.tabs.filter(tab => !tab.isHidden);
+  const primarySurfaceTab = visiblePrimaryTabs.find(tab => (
+    isShortDramaWorkspaceTab(tab)
+    && typeof workspacePathForTab(tab) === 'string'
+    && workspacePathForTab(tab)!.length > 0
+  ));
+  if (!primarySurfaceTab) {
+    return { status: 'stable' };
+  }
+
+  const workspacePath = workspacePathForTab(primarySurfaceTab);
+  const visibleSecondaryTabs = secondaryGroup.tabs.filter(tab => !tab.isHidden);
+  if (!visibleSecondaryTabs.every(tab => (
+    isShortDramaStageAgentTab(tab)
+    && stageAgentMatchesWorkspace(tab, workspacePath, true)
+  ))) {
+    return { status: 'stable' };
+  }
+
+  const misplacedTabs = visiblePrimaryTabs
+    .filter(tab => (
+      tab.id !== primarySurfaceTab.id
+      && isShortDramaStageAgentTab(tab)
+      && stageAgentMatchesWorkspace(tab, workspacePath, true)
+    ))
+    .map(tab => ({
+      tabId: tab.id,
+      fromGroupId: 'primary' as const,
+    }));
+
+  if (misplacedTabs.length === 0) {
+    return { status: 'stable' };
+  }
+
+  return {
+    status: 'recoverable',
+    primarySurfaceTabId: primarySurfaceTab.id,
+    misplacedTabs,
+  };
+}
 
 export function selectShortDramaTeamPanelPresentation({
   presentation,

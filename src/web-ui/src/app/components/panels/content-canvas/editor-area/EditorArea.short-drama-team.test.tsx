@@ -26,6 +26,7 @@ const canvasState = vi.hoisted(() => ({
   endDrag: vi.fn(),
   reorderTab: vi.fn(),
   handleDrop: vi.fn(),
+  moveTabToGroup: vi.fn(),
   setSplitRatio: vi.fn(),
   setSplitRatio2: vi.fn(),
   setActiveGroup: vi.fn(),
@@ -206,5 +207,37 @@ describe('EditorArea short-drama team presentation', () => {
     await renderArea();
     expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
       .toBe('open');
+  });
+
+  it('recovers one misplaced primary stage agent into the existing secondary team without deleting sessions', async () => {
+    const misplacedScriptTab = createTab(
+      'script-agent',
+      'btw-session',
+      {},
+      {
+        shortDramaStage: 'script',
+        shortDramaWorkspacePath: 'C:/work',
+      },
+    );
+    canvasState.primaryGroup = createGroup(
+      [misplacedScriptTab, ...centerGroup.tabs],
+      misplacedScriptTab.id,
+    );
+    canvasState.secondaryGroup = teamGroup;
+
+    await renderArea();
+
+    expect(canvasState.moveTabToGroup).toHaveBeenCalledWith(
+      misplacedScriptTab.id,
+      'primary',
+      'secondary',
+      0,
+    );
+    expect(canvasState.switchToTab).toHaveBeenCalledWith(
+      'short-drama',
+      'primary',
+    );
+    expect(canvasState.closeTab).not.toHaveBeenCalled();
+    expect(canvasState.setSplitRatio).not.toHaveBeenCalled();
   });
 });

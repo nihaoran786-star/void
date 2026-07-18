@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasTab, EditorGroupState } from '../types';
-import { selectShortDramaTeamPanelPresentation } from './shortDramaTeamPanelPresentation';
+import {
+  selectShortDramaTeamLayoutRecovery,
+  selectShortDramaTeamPanelPresentation,
+} from './shortDramaTeamPanelPresentation';
 
 const createTab = (
   id: string,
@@ -325,5 +328,102 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       : null).toBe(
       original.status === 'ready' ? original.teamIdentity : null,
     );
+  });
+});
+
+describe('selectShortDramaTeamLayoutRecovery', () => {
+  const shortDramaTab = createTab(
+    'short-drama',
+    'short-drama-center',
+    undefined,
+    { workspacePath: 'C:/work' },
+  );
+  const misplacedScriptTab = createTab('script-agent', 'btw-session', {
+    shortDramaStage: 'script',
+    shortDramaWorkspacePath: 'C:/work',
+  });
+  const secondaryAssetTab = createTab('asset-agent', 'btw-session', {
+    shortDramaStage: 'assets',
+    shortDramaWorkspacePath: 'C:/work',
+  });
+
+  it('recovers the screenshot state by moving a misplaced primary stage agent into the existing team group', () => {
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: createGroup(
+        [misplacedScriptTab, shortDramaTab],
+        misplacedScriptTab.id,
+      ),
+      secondaryGroup: createGroup([secondaryAssetTab]),
+    })).toEqual({
+      status: 'recoverable',
+      primarySurfaceTabId: shortDramaTab.id,
+      misplacedTabs: [
+        {
+          tabId: misplacedScriptTab.id,
+          fromGroupId: 'primary',
+        },
+      ],
+    });
+  });
+
+  it('does not move sessions when the workspace identity differs or the team group contains unrelated content', () => {
+    const foreignScriptTab = createTab('foreign-script-agent', 'btw-session', {
+      shortDramaStage: 'script',
+      shortDramaWorkspacePath: 'C:/other-workspace',
+    });
+
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: createGroup([foreignScriptTab, shortDramaTab], foreignScriptTab.id),
+      secondaryGroup: createGroup([secondaryAssetTab]),
+    })).toEqual({ status: 'stable' });
+
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: createGroup(
+        [misplacedScriptTab, shortDramaTab],
+        misplacedScriptTab.id,
+      ),
+      secondaryGroup: createGroup([
+        secondaryAssetTab,
+        createTab('browser', 'browser'),
+      ]),
+    })).toEqual({ status: 'stable' });
+  });
+
+  it('leaves classic, non-horizontal, and already canonical layouts untouched', () => {
+    const canonicalPrimary = createGroup([shortDramaTab]);
+    const canonicalSecondary = createGroup([secondaryAssetTab]);
+
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'classic',
+      splitMode: 'horizontal',
+      primaryGroup: createGroup(
+        [misplacedScriptTab, shortDramaTab],
+        misplacedScriptTab.id,
+      ),
+      secondaryGroup: canonicalSecondary,
+    })).toEqual({ status: 'stable' });
+
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'minimal',
+      splitMode: 'grid',
+      primaryGroup: createGroup(
+        [misplacedScriptTab, shortDramaTab],
+        misplacedScriptTab.id,
+      ),
+      secondaryGroup: canonicalSecondary,
+    })).toEqual({ status: 'stable' });
+
+    expect(selectShortDramaTeamLayoutRecovery({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: canonicalPrimary,
+      secondaryGroup: canonicalSecondary,
+    })).toEqual({ status: 'stable' });
   });
 });

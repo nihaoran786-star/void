@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ImageIcon, Video, Clock3, CheckCircle2, AlertTriangle, Upload, AudioLines, ListChecks, CornerUpLeft, Eye } from 'lucide-react';
+import { ImageIcon, Video, Clock3, AlertTriangle, Upload, AudioLines, ListChecks, CornerUpLeft } from 'lucide-react';
 import { useI18n } from '@/infrastructure/i18n';
 import type { ToolCardProps } from '../types/flow-chat';
 import { CompactToolCard, CompactToolCardHeader } from './CompactToolCard';
@@ -12,7 +12,6 @@ import {
 import { useWorkspaceMediaToolRefreshBridge } from './useWorkspaceMediaToolRefreshBridge';
 import './MediaGenerationToolCard.scss';
 
-const COLLAPSED_PREVIEW_LIMIT = 6;
 const EXPANDED_INITIAL_LIMIT = 24;
 const EXPANDED_PAGE_SIZE = 24;
 
@@ -97,7 +96,6 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
   const { t } = useI18n('flow-chat');
   const model = getMediaToolViewModel(toolItem);
   useWorkspaceMediaToolRefreshBridge(toolItem, model, sessionId);
-  const hasAssets = Boolean(model?.assets.length);
   const isWorking = model?.status === 'polling';
   const isFailed = model?.status === 'failed' || model?.status === 'timeout' || model?.status === 'error';
   const [isExpanded, setIsExpanded] = useState(isFailed);
@@ -130,9 +128,8 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
           total: total || model?.assets.length || 1,
         });
   const assets = model?.assets ?? [];
-  const collapsedAssets = assets.slice(0, COLLAPSED_PREVIEW_LIMIT);
+  const representativeAsset = assets[0];
   const visibleAssets = assets.slice(0, visibleAssetLimit);
-  const hiddenCollapsedCount = Math.max(assets.length - COLLAPSED_PREVIEW_LIMIT, 0);
   const hiddenExpandedCount = Math.max(assets.length - visibleAssetLimit, 0);
 
   return (
@@ -150,15 +147,29 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
             isExpanded={isExpanded}
             action={config.displayName}
             content={summary}
-            rightStatusIcon={isWorking ? <Clock3 size={14} /> : isFailed ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+            extra={!isExpanded && representativeAsset ? (
+              <button
+                type="button"
+                className="media-generation-card__inline-preview"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openMediaPreview(representativeAsset);
+                }}
+                title={t('mediaToolCard.previewTitle')}
+                aria-label={t('mediaToolCard.previewStripLabel')}
+              >
+                <LazyMediaThumbnail asset={representativeAsset} alt={`Generated media ${representativeAsset.itemIndex ?? 1}`} />
+              </button>
+            ) : undefined}
+            rightStatusIcon={isWorking ? <Clock3 size={14} /> : isFailed ? <AlertTriangle size={14} /> : undefined}
           />
         )}
         expandedContent={(
           <div className="media-generation-card__body">
             {isWorking && (
-              <div className="media-generation-card__generating" aria-label="Media generation in progress">
-                <div className="media-generation-card__loader" aria-hidden="true" />
-                <span>G</span><span>e</span><span>n</span><span>e</span><span>r</span><span>a</span><span>t</span><span>i</span><span>n</span><span>g</span>
+              <div className="media-generation-card__generating" role="status" aria-live="polite">
+                <span className="media-generation-card__progress-dot" aria-hidden="true" />
+                <span>{summary}</span>
                 <small>{t('mediaToolCard.pollEverySeconds', { seconds: model?.pollIntervalSeconds ?? 5 })}</small>
               </div>
             )}
@@ -190,17 +201,9 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
                       title={t('mediaToolCard.previewTitle')}
                     >
                       <span className="media-generation-card__badge">#{asset.itemIndex ?? index + 1}</span>
-                      <span className="media-generation-card__asset-preview-hint">
-                        <Eye size={13} />
-                        {t('mediaToolCard.preview')}
-                      </span>
                       <LazyMediaThumbnail asset={asset} alt={`Generated media ${asset.itemIndex ?? index + 1}`} />
-                      <span className="media-generation-card__asset-actions">
-                        <span className="media-generation-card__asset-action" aria-hidden="true">
-                          <Eye size={12} />
-                          {t('mediaToolCard.open')}
-                        </span>
-                        {canUseMediaAssetAsImageReference(asset) && (
+                      {canUseMediaAssetAsImageReference(asset) && (
+                        <span className="media-generation-card__asset-actions">
                           <button
                             type="button"
                             className="media-generation-card__asset-action"
@@ -212,8 +215,8 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
                             <CornerUpLeft size={12} />
                             {t('mediaToolCard.reference')}
                           </button>
-                        )}
-                      </span>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -264,38 +267,6 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
           </div>
         )}
       />
-      {!isExpanded && hasAssets && (
-        <div className="media-generation-card__preview-strip" aria-label={t('mediaToolCard.previewStripLabel')}>
-          {collapsedAssets.map((asset, index) => (
-            <button
-              key={`${asset.taskId ?? asset.url}-${index}`}
-              type="button"
-              className="media-generation-card__preview-asset"
-              onClick={(event) => {
-                event.stopPropagation();
-                openMediaPreview(asset);
-              }}
-              title={t('mediaToolCard.previewTitle')}
-            >
-              <span className="media-generation-card__badge">#{asset.itemIndex ?? index + 1}</span>
-              <LazyMediaThumbnail asset={asset} alt={`Generated media ${asset.itemIndex ?? index + 1}`} />
-            </button>
-          ))}
-          {hiddenCollapsedCount > 0 && (
-            <button
-              type="button"
-              className="media-generation-card__preview-more"
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsExpanded(true);
-              }}
-              aria-label={t('mediaToolCard.expandRemaining', { count: hiddenCollapsedCount })}
-            >
-              +{hiddenCollapsedCount}
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 };

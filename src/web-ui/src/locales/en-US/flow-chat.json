@@ -956,6 +956,7 @@
     }
   },
   "flowChatHeader": {
+    "moreActions": "More actions",
     "turnList": "Turn list",
     "untitledTurn": "Untitled turn",
     "previousTurn": "Previous turn",

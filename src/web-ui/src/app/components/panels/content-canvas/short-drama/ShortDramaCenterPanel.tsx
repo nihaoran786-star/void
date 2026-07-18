@@ -115,6 +115,8 @@ export function ShortDramaCenterPanel({
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>();
   const [scriptContent, setScriptContent] = useState<string>();
   const [activeArtifactFocusByStage, setActiveArtifactFocusByStage] = useState<Partial<Record<ShortDramaStage, string>>>({});
+  const [expandedAssetArtifactId, setExpandedAssetArtifactId] = useState<string>();
+  const [expandedStoryboardArtifactId, setExpandedStoryboardArtifactId] = useState<string>();
   const [stageAgentBindings, setStageAgentBindings] = useState<ShortDramaStageAgentBinding[]>([]);
   const [workspaceMediaItems, setWorkspaceMediaItems] = useState<WorkspaceMediaItem[]>([]);
   const [isStageAgentBootstrapping, setIsStageAgentBootstrapping] = useState(false);
@@ -570,11 +572,15 @@ export function ShortDramaCenterPanel({
   }, [activeArtifactFocusByStage, activeEpisodeId, flowSessionRevision, selectedStage, stageAgentBindings, stageWorkspaceProject, viewModel?.selectedEpisode?.id, workspacePath]);
   const activeStageWorkspace = stageWorkspaces.find(workspace => workspace.stage === selectedStage);
 
-  const openNativeStageAgentTab = useCallback((workspace: NonNullable<typeof activeStageWorkspace>) => (
-    openShortDramaRealStageAgentTab(workspace, workspacePath, useAgentCanvasStore.getState(), {
+  const openNativeStageAgentTab = useCallback((workspace: NonNullable<typeof activeStageWorkspace>) => {
+    const canvas = useAgentCanvasStore.getState();
+    return openShortDramaRealStageAgentTab(workspace, workspacePath, {
+      ...canvas,
+      getSplitMode: () => useAgentCanvasStore.getState().layout.splitMode,
+    }, {
       expandRightPanel: () => window.dispatchEvent(new CustomEvent(TAB_EVENTS.EXPAND_RIGHT_PANEL)),
-    })
-  ), [workspacePath]);
+    });
+  }, [workspacePath]);
 
   useEffect(() => {
     if (state.status !== 'ready') {
@@ -836,7 +842,9 @@ export function ShortDramaCenterPanel({
                 categories={createEmptyAssetAnchorCategories()}
                 pendingGenerations={selectedStage === 'assets' ? selectedStagePendingGenerations : []}
                 mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+                expandedArtifactId={expandedAssetArtifactId}
                 onArtifactFocus={handleArtifactFocus}
+                onExpandedArtifactChange={setExpandedAssetArtifactId}
                 t={t}
               />
             ) : (
@@ -844,9 +852,9 @@ export function ShortDramaCenterPanel({
                 message={t('shortDrama.states.emptyStage')}
                 guidance={createShortDramaRecoveryGuidance()}
                 t={t}
+                compact
               />
             )}
-            <div className="short-drama-center__scroll-spacer" aria-hidden="true" />
           </section>
         </main>
       </section>
@@ -954,7 +962,15 @@ export function ShortDramaCenterPanel({
               t={t}
             />
           ) : selectedStage === 'assets' ? (
-            <AssetStage categories={assetCategories} pendingGenerations={selectedStagePendingGenerations} mediaEntriesByArtifactId={mediaEntriesByArtifactId} onArtifactFocus={handleArtifactFocus} t={t} />
+            <AssetStage
+              categories={assetCategories}
+              pendingGenerations={selectedStagePendingGenerations}
+              mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+              expandedArtifactId={expandedAssetArtifactId}
+              onArtifactFocus={handleArtifactFocus}
+              onExpandedArtifactChange={setExpandedAssetArtifactId}
+              t={t}
+            />
           ) : (
             stageTimeline.map(section => (
               <EpisodeStageSection
@@ -968,7 +984,9 @@ export function ShortDramaCenterPanel({
                 mediaEntriesByArtifactId={mediaEntriesByArtifactId}
                 selectedStage={selectedStage}
                 pendingGenerations={selectedStagePendingGenerations}
+                expandedStoryboardArtifactId={expandedStoryboardArtifactId}
                 onArtifactFocus={handleArtifactFocus}
+                onStoryboardExpandedChange={setExpandedStoryboardArtifactId}
                 setSectionRef={(element) => {
                   if (element) {
                     episodeSectionRefs.current.set(section.episode.id, element);
@@ -1005,7 +1023,9 @@ function EpisodeStageSection({
   mediaEntriesByArtifactId,
   selectedStage,
   pendingGenerations,
+  expandedStoryboardArtifactId,
   onArtifactFocus,
+  onStoryboardExpandedChange,
   setSectionRef,
   t,
 }: {
@@ -1018,7 +1038,9 @@ function EpisodeStageSection({
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
   selectedStage: ShortDramaStage;
   pendingGenerations: WorkspaceMediaPendingGeneration[];
+  expandedStoryboardArtifactId?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
+  onStoryboardExpandedChange: (artifactId?: string) => void;
   setSectionRef: (element: HTMLElement | null) => void;
   t: Translate;
 }) {
@@ -1058,7 +1080,9 @@ function EpisodeStageSection({
           projectArtifacts={projectArtifacts}
           storyboardReferencePlans={storyboardReferencePlans}
           mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+          expandedArtifactId={expandedStoryboardArtifactId}
           onArtifactFocus={onArtifactFocus}
+          onExpandedArtifactChange={onStoryboardExpandedChange}
           t={t}
         />
       )}
@@ -1089,15 +1113,20 @@ function ShortDramaState({
   guidance,
   details,
   t,
+  compact = false,
 }: {
   message: string;
   guidance?: ShortDramaRecoveryGuidance;
   details?: string[];
   t?: Translate;
+  compact?: boolean;
 }) {
   return (
-    <div className="short-drama-center" data-testid="short-drama-center-state">
-      <div className="short-drama-center__state">
+    <div
+      className={compact ? 'short-drama-center__stage-empty' : 'short-drama-center'}
+      data-testid="short-drama-center-state"
+    >
+      <div className={`short-drama-center__state ${compact ? 'is-compact' : ''}`}>
         {guidance && t ? (
           <>
             <h2>{t(guidance.titleKey)}</h2>
@@ -1358,13 +1387,17 @@ function AssetStage({
   categories,
   pendingGenerations,
   mediaEntriesByArtifactId,
+  expandedArtifactId,
   onArtifactFocus,
+  onExpandedArtifactChange,
   t,
 }: {
   categories: ShortDramaAssetAnchorCategory[];
   pendingGenerations: WorkspaceMediaPendingGeneration[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
+  expandedArtifactId?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
+  onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
 }) {
   return (
@@ -1375,32 +1408,45 @@ function AssetStage({
             <h3>{t('shortDrama.assets.generating')}</h3>
             <span>{t('shortDrama.assets.pendingCount', { count: pendingGenerations.length })}</span>
           </header>
-          <div className="short-drama-center__grid">
+          <div className="short-drama-center__asset-list">
             {pendingGenerations.map(item => (
               <PendingAssetGenerationCard key={item.id} item={item} t={t} />
             ))}
           </div>
         </section>
       )}
-      {categories.map(category => (
-        <section key={category.id} className="short-drama-center__asset-section">
-          <header className="short-drama-center__asset-header">
-            <h3>{t(`shortDrama.assets.${category.id}`)}</h3>
-            <span>{t('shortDrama.assets.count', { count: category.items.length })}</span>
-          </header>
-          {category.items.length ? (
-            <div className="short-drama-center__grid">
-              {category.items.map(item => (
-                <AssetAnchorCard key={item.artifact.id} item={item} mediaEntriesByArtifactId={mediaEntriesByArtifactId} onArtifactFocus={onArtifactFocus} t={t} />
-              ))}
-            </div>
-          ) : (
-            <div className="short-drama-center__asset-empty">
-              {t('shortDrama.assets.empty')}
-            </div>
-          )}
-        </section>
-      ))}
+      {categories.map(category => {
+        const assetTypeLabel = t(`shortDrama.assets.${category.id}`);
+
+        return (
+          <section key={category.id} className="short-drama-center__asset-section">
+            <header className="short-drama-center__asset-header">
+              <h3>{assetTypeLabel}</h3>
+              <span>{t('shortDrama.assets.count', { count: category.items.length })}</span>
+            </header>
+            {category.items.length ? (
+              <div className="short-drama-center__asset-list">
+                {category.items.map(item => (
+                  <AssetAnchorCard
+                    key={item.artifact.id}
+                    item={item}
+                    assetTypeLabel={assetTypeLabel}
+                    mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+                    expandedArtifactId={expandedArtifactId}
+                    onArtifactFocus={onArtifactFocus}
+                    onExpandedArtifactChange={onExpandedArtifactChange}
+                    t={t}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="short-drama-center__asset-empty">
+                {t('shortDrama.assets.empty')}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -1433,20 +1479,20 @@ function PendingAssetGenerationCard({
   t: Translate;
 }) {
   return (
-    <article className="short-drama-card short-drama-card--pending" data-testid="short-drama-pending-asset-card">
-      <div className="short-drama-media-preview is-generating" style={{ aspectRatio: item.placeholderAspectRatio }}>
+    <article
+      className="short-drama-card short-drama-card--pending short-drama-pending-row"
+      data-testid="short-drama-pending-asset-card"
+    >
+      <div className="short-drama-media-preview short-drama-pending-row__preview is-generating">
         <div className="short-drama-media-preview__empty">
           <span className="short-drama-center__play-mark" aria-hidden="true" />
-          <div>
-            <strong>{t('shortDrama.assets.pendingTitle', { index: item.itemIndex })}</strong>
-            <p>{item.prompt ?? item.batchId}</p>
-          </div>
         </div>
       </div>
-      <div className="short-drama-card__body">
-        <h3>{t('shortDrama.assets.pendingTitle', { index: item.itemIndex })}</h3>
-        <p>{item.model ?? t('shortDrama.assets.pendingModelUnknown')}</p>
-        <div className="short-drama-card__meta">
+      <div className="short-drama-pending-row__content">
+        <strong>{t('shortDrama.assets.pendingTitle', { index: item.itemIndex })}</strong>
+        <span>{item.model ?? t('shortDrama.assets.pendingModelUnknown')}</span>
+        <p>{item.prompt ?? item.batchId}</p>
+        <div className="short-drama-pending-row__meta">
           <StatusPill status="generating" t={t} />
           <span className="short-drama-pill">{item.requestedAspectRatio}</span>
         </div>
@@ -1457,25 +1503,74 @@ function PendingAssetGenerationCard({
 
 function AssetAnchorCard({
   item,
+  assetTypeLabel,
   mediaEntriesByArtifactId,
+  expandedArtifactId,
   onArtifactFocus,
+  onExpandedArtifactChange,
   t,
 }: {
   item: ShortDramaAssetAnchorCategory['items'][number];
+  assetTypeLabel: string;
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
+  expandedArtifactId?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
+  onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
 }) {
+  const artifact = item.artifact;
+  const isExpanded = expandedArtifactId === artifact.id;
+  const detailsId = `${getShortDramaArtifactDomId(artifact.id)}-asset-details`;
+  const mediaEntry = mediaEntriesByArtifactId.get(artifact.id);
+
   return (
-    <div className="short-drama-center__asset-card">
-      <ArtifactCard artifact={item.artifact} mediaEntry={mediaEntriesByArtifactId.get(item.artifact.id)} onArtifactFocus={onArtifactFocus} t={t} />
-      <div className="short-drama-center__asset-usage">
-        <span>{t('shortDrama.assets.usedBy', { count: item.usedBy.length })}</span>
-        {item.usedBy.slice(0, 3).map(usage => (
-          <code key={`${usage.artifactId}-${usage.usageType}`}>{usage.artifactHandle}</code>
-        ))}
+    <article
+      id={getShortDramaArtifactDomId(artifact.id)}
+      className={`short-drama-card short-drama-asset-row ${isExpanded ? 'is-expanded' : ''}`}
+      data-testid="short-drama-artifact-card"
+      data-status={artifact.status}
+      onClick={() => onArtifactFocus(artifact)}
+    >
+      <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+      {isExpanded ? (
+        <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} />
+      ) : (
+        <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="row" />
+      )}
+      <button
+        type="button"
+        className="short-drama-asset-row__toggle"
+        aria-expanded={isExpanded}
+        aria-controls={detailsId}
+        onClick={(event) => {
+          event.stopPropagation();
+          onArtifactFocus(artifact);
+          onExpandedArtifactChange(isExpanded ? undefined : artifact.id);
+        }}
+      >
+        <span className="short-drama-asset-row__heading">
+          <strong>{artifact.title}</strong>
+          <span>{assetTypeLabel}</span>
+        </span>
+        <StatusPill status={artifact.status} t={t} />
+        <span className="short-drama-asset-row__disclosure" aria-hidden="true">
+          {isExpanded ? '−' : '+'}
+        </span>
+      </button>
+      <div
+        id={detailsId}
+        className="short-drama-asset-row__details"
+        hidden={!isExpanded}
+      >
+        <ArtifactCardBody artifact={artifact} t={t} showStatus={false} />
+        <div className="short-drama-center__asset-usage">
+          <span>{t('shortDrama.assets.usedBy', { count: item.usedBy.length })}</span>
+          {item.usedBy.slice(0, 3).map(usage => (
+            <code key={`${usage.artifactId}-${usage.usageType}`}>{usage.artifactHandle}</code>
+          ))}
+        </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -1504,44 +1599,85 @@ function StoryboardGrid({
   projectArtifacts,
   storyboardReferencePlans,
   mediaEntriesByArtifactId,
+  expandedArtifactId,
   onArtifactFocus,
+  onExpandedArtifactChange,
   t,
 }: {
   artifacts: ShortDramaArtifact[];
   projectArtifacts: ShortDramaArtifact[];
   storyboardReferencePlans: ShortDramaStoryboardReferencePlan[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
+  expandedArtifactId?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
+  onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
 }) {
   return (
-    <div className="short-drama-center__grid">
-      {artifacts.map((artifact, index) => (
-        <article
-          key={artifact.id}
-          id={getShortDramaArtifactDomId(artifact.id)}
-          className="short-drama-card"
-          data-testid="short-drama-artifact-card"
-          onClick={() => onArtifactFocus(artifact)}
-        >
-          <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
-          <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} />
-          <div className="short-drama-card__body">
-            <h3>{t('shortDrama.storyboards.cardTitle', { scene: index + 1, shot: index + 1 })}</h3>
-            <p>{artifact.summary}</p>
-            <StoryboardReferenceChips
-              artifact={artifact}
-              projectArtifacts={projectArtifacts}
-              storyboardReferencePlans={storyboardReferencePlans}
-              t={t}
-            />
-            <div className="short-drama-card__meta">
-              <StatusPill status={artifact.status} t={t} />
-              <span className="short-drama-pill">{t('shortDrama.storyboards.setupCount', { count: artifact.attemptCount })}</span>
+    <div className="short-drama-center__storyboard-list">
+      {artifacts.map((artifact, index) => {
+        const isExpanded = expandedArtifactId === artifact.id;
+        const detailsId = `${getShortDramaArtifactDomId(artifact.id)}-details`;
+        const referenceCount = createShortDramaStoryboardReferenceViewItems({
+          artifact,
+          projectArtifacts,
+          storyboardReferencePlans,
+        }).length;
+
+        return (
+          <article
+            key={artifact.id}
+            id={getShortDramaArtifactDomId(artifact.id)}
+            className={`short-drama-card short-drama-storyboard-row ${isExpanded ? 'is-expanded' : ''}`}
+            data-testid="short-drama-artifact-card"
+            data-status={artifact.status}
+            onClick={() => onArtifactFocus(artifact)}
+          >
+            <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
+            {isExpanded ? (
+              <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} />
+            ) : (
+              <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} variant="row" />
+            )}
+            <button
+              type="button"
+              className="short-drama-storyboard-row__toggle"
+              aria-expanded={isExpanded}
+              aria-controls={detailsId}
+              onClick={(event) => {
+                event.stopPropagation();
+                onArtifactFocus(artifact);
+                onExpandedArtifactChange(isExpanded ? undefined : artifact.id);
+              }}
+            >
+              <span className="short-drama-storyboard-row__heading">
+                <strong>{t('shortDrama.storyboards.cardTitle', { scene: index + 1, shot: index + 1 })}</strong>
+                <span aria-hidden="true">{isExpanded ? '−' : '+'}</span>
+              </span>
+              <span className="short-drama-storyboard-row__summary">{artifact.summary}</span>
+              <span className="short-drama-storyboard-row__meta">
+                <StatusPill status={artifact.status} t={t} />
+                <span className="short-drama-pill">
+                  {t('shortDrama.accessibility.storyboardReferences')} · {referenceCount}
+                </span>
+                <span className="short-drama-pill">{t('shortDrama.storyboards.setupCount', { count: artifact.attemptCount })}</span>
+              </span>
+            </button>
+            <div
+              id={detailsId}
+              className="short-drama-storyboard-row__details"
+              hidden={!isExpanded}
+            >
+              <StoryboardReferenceChips
+                artifact={artifact}
+                projectArtifacts={projectArtifacts}
+                storyboardReferencePlans={storyboardReferencePlans}
+                t={t}
+              />
             </div>
-          </div>
-        </article>
-      ))}
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -1831,8 +1967,6 @@ function ArtifactCard({
   onArtifactFocus?: (artifact: ShortDramaArtifact) => void;
   t: Translate;
 }) {
-  const card = createShortDramaArtifactCardViewModel(artifact);
-
   return (
     <article
       id={getShortDramaArtifactDomId(artifact.id)}
@@ -1842,28 +1976,44 @@ function ArtifactCard({
     >
       <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
       <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} />
-      <div className="short-drama-card__body">
-        <h3>{artifact.title}</h3>
-        <p>{artifact.summary}</p>
-        {card.media.status === 'referenced' && (
-          <div className="short-drama-card__media-ref">
-            <span>{t('shortDrama.card.mediaReference')}</span>
-            <strong>{card.media.label ?? card.media.mediaItemId}</strong>
-            <em>{t(`shortDrama.mediaKind.${card.media.kind}`)}</em>
-          </div>
-        )}
-        {(artifact.failureReason || artifact.statusReason) && (
-          <p className="short-drama-card__notice">
-            {artifact.failureReason || artifact.statusReason}
-          </p>
-        )}
-        <div className="short-drama-card__meta">
-          <StatusPill status={artifact.status} t={t} />
-          <span className="short-drama-pill">{t('shortDrama.card.revisions', { count: artifact.revisionCount })}</span>
-          <span className="short-drama-pill">{t('shortDrama.card.attempts', { count: artifact.attemptCount })}</span>
-        </div>
-      </div>
+      <ArtifactCardBody artifact={artifact} t={t} />
     </article>
+  );
+}
+
+function ArtifactCardBody({
+  artifact,
+  t,
+  showStatus = true,
+}: {
+  artifact: ShortDramaArtifact;
+  t: Translate;
+  showStatus?: boolean;
+}) {
+  const card = createShortDramaArtifactCardViewModel(artifact);
+
+  return (
+    <div className="short-drama-card__body">
+      <h3>{artifact.title}</h3>
+      <p>{artifact.summary}</p>
+      {card.media.status === 'referenced' && (
+        <div className="short-drama-card__media-ref">
+          <span>{t('shortDrama.card.mediaReference')}</span>
+          <strong>{card.media.label ?? card.media.mediaItemId}</strong>
+          <em>{t(`shortDrama.mediaKind.${card.media.kind}`)}</em>
+        </div>
+      )}
+      {(artifact.failureReason || artifact.statusReason) && (
+        <p className="short-drama-card__notice">
+          {artifact.failureReason || artifact.statusReason}
+        </p>
+      )}
+      <div className="short-drama-card__meta">
+        {showStatus && <StatusPill status={artifact.status} t={t} />}
+        <span className="short-drama-pill">{t('shortDrama.card.revisions', { count: artifact.revisionCount })}</span>
+        <span className="short-drama-pill">{t('shortDrama.card.attempts', { count: artifact.attemptCount })}</span>
+      </div>
+    </div>
   );
 }
 

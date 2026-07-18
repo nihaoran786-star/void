@@ -5,7 +5,18 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Bot, ChevronDown, ChevronUp, GitPullRequest, Image, List, PictureInPicture2, Search, X } from 'lucide-react';
+import {
+  Bot,
+  ChevronDown,
+  ChevronUp,
+  GitPullRequest,
+  Image,
+  List,
+  MoreHorizontal,
+  PictureInPicture2,
+  Search,
+  X,
+} from 'lucide-react';
 import { Tooltip, IconButton, Input } from '@/component-library';
 import { useTranslation } from 'react-i18next';
 import { SessionFilesBadge } from './SessionFilesBadge';
@@ -110,8 +121,13 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const [isTurnListOpen, setIsTurnListOpen] = useState(false);
   const [isSubagentListOpen, setIsSubagentListOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const turnListRef = useRef<HTMLDivElement | null>(null);
   const subagentListRef = useRef<HTMLDivElement | null>(null);
+  const subagentButtonRef = useRef<HTMLButtonElement | null>(null);
+  const moreActionsRef = useRef<HTMLDivElement | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTurnItemRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -131,6 +147,9 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   });
   const workspaceMediaLabel = tComponents('workspaceMedia.entry', {
     defaultValue: 'Open media gallery',
+  });
+  const moreActionsLabel = t('flowChatHeader.moreActions', {
+    defaultValue: 'More actions',
   });
   const previousTurnDisabled = currentTurn <= 1;
   const nextTurnDisabled = currentTurn <= 0 || currentTurn >= totalTurns;
@@ -153,16 +172,24 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const hasNoResults = searchQuery.trim().length > 0 && searchMatchCount === 0;
 
   useEffect(() => {
-    if (!isPresentationActive || (!isTurnListOpen && !isSubagentListOpen)) return;
+    if (
+      !isPresentationActive
+      || (!isTurnListOpen && !isSubagentListOpen && !isMoreMenuOpen)
+    ) return;
 
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
+      const clickedOutsideMore = !moreActionsRef.current?.contains(target);
       if (
         !turnListRef.current?.contains(target) &&
-        !subagentListRef.current?.contains(target)
+        !subagentListRef.current?.contains(target) &&
+        clickedOutsideMore
       ) {
         setIsTurnListOpen(false);
         setIsSubagentListOpen(false);
+      }
+      if (isMoreMenuOpen && clickedOutsideMore) {
+        setIsMoreMenuOpen(false);
       }
     };
 
@@ -170,6 +197,16 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       if (event.key === 'Escape') {
         setIsTurnListOpen(false);
         setIsSubagentListOpen(false);
+        if (isTurnListOpen) {
+          requestAnimationFrame(() => moreButtonRef.current?.focus());
+        }
+        if (isSubagentListOpen) {
+          requestAnimationFrame(() => subagentButtonRef.current?.focus());
+        }
+        if (isMoreMenuOpen) {
+          setIsMoreMenuOpen(false);
+          requestAnimationFrame(() => moreButtonRef.current?.focus());
+        }
       }
     };
 
@@ -180,13 +217,14 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isPresentationActive, isSubagentListOpen, isTurnListOpen]);
+  }, [isMoreMenuOpen, isPresentationActive, isSubagentListOpen, isTurnListOpen]);
 
   useEffect(() => {
     if (isPresentationActive) return;
     setIsTurnListOpen(false);
     setIsSubagentListOpen(false);
     setIsSearchOpen(false);
+    setIsMoreMenuOpen(false);
   }, [isPresentationActive]);
 
   const prevSearchOpenRequestRef = useRef(0);
@@ -225,6 +263,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     if (!isPresentationActive || !isTurnListOpen) return;
 
     const frameId = requestAnimationFrame(() => {
+      activeTurnItemRef.current?.focus({ preventScroll: true });
       activeTurnItemRef.current?.scrollIntoView({
         block: 'center',
         inline: 'nearest',
@@ -235,6 +274,21 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       cancelAnimationFrame(frameId);
     };
   }, [currentTurn, displayTurns.length, isPresentationActive, isTurnListOpen]);
+
+  useEffect(() => {
+    if (!isPresentationActive || !isMoreMenuOpen) return;
+
+    const frameId = requestAnimationFrame(() => {
+      const firstEnabledItem = moreMenuRef.current?.querySelector<HTMLButtonElement>(
+        '[role="menuitem"]:not(:disabled)',
+      );
+      firstEnabledItem?.focus();
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [isMoreMenuOpen, isPresentationActive]);
 
   const handleOpenSearch = useCallback(() => {
     setIsSearchOpen(true);
@@ -265,17 +319,69 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     [handleCloseSearch, onSearchNext, onSearchPrev],
   );
 
-  const handleToggleTurnList = () => {
-    if (!hasTurnNavigation) return;
-    setIsSubagentListOpen(false);
-    setIsTurnListOpen(prev => !prev);
-  };
-
   const handleToggleSubagentList = () => {
     if (!hasBackgroundSubagents) return;
     setIsTurnListOpen(false);
+    setIsMoreMenuOpen(false);
     setIsSubagentListOpen(prev => !prev);
   };
+
+  const closeMoreMenu = useCallback((restoreFocus = false) => {
+    setIsMoreMenuOpen(false);
+    if (restoreFocus) {
+      requestAnimationFrame(() => moreButtonRef.current?.focus());
+    }
+  }, []);
+
+  const handleToggleMoreMenu = useCallback(() => {
+    setIsTurnListOpen(false);
+    setIsSubagentListOpen(false);
+    setIsMoreMenuOpen(prev => !prev);
+  }, []);
+
+  const handleMoreMenuKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const enabledItems = Array.from(
+      moreMenuRef.current?.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]:not(:disabled)',
+      ) ?? [],
+    );
+    if (enabledItems.length === 0) return;
+
+    const currentIndex = enabledItems.indexOf(document.activeElement as HTMLButtonElement);
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowDown') {
+      nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % enabledItems.length;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = currentIndex < 0
+        ? enabledItems.length - 1
+        : (currentIndex - 1 + enabledItems.length) % enabledItems.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = enabledItems.length - 1;
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMoreMenu(true);
+      return;
+    }
+
+    if (nextIndex !== null) {
+      event.preventDefault();
+      enabledItems[nextIndex]?.focus();
+    }
+  }, [closeMoreMenu]);
+
+  const handleOpenTurnListFromMenu = useCallback(() => {
+    if (!hasTurnNavigation) return;
+    closeMoreMenu();
+    setIsSubagentListOpen(false);
+    setIsTurnListOpen(true);
+  }, [closeMoreMenu, hasTurnNavigation]);
+
+  const runMoreMenuAction = useCallback((action?: () => void, restoreFocus = true) => {
+    closeMoreMenu(restoreFocus);
+    action?.();
+  }, [closeMoreMenu]);
 
   const handleOpenPullRequests = useCallback(() => {
     createReviewPlatformTab(currentWorkspace?.rootPath);
@@ -288,6 +394,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       return;
     }
     setIsTurnListOpen(false);
+    closeMoreMenu(true);
   };
 
   const handleSubagentSelect = (sessionId: string) => {
@@ -332,96 +439,85 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
       </Tooltip>
 
       <div className="flowchat-header__actions">
-        <div className="flowchat-header__subagent-nav" ref={subagentListRef}>
-          <IconButton
-            className={`flowchat-header__subagent-nav-button${isSubagentListOpen ? ' flowchat-header__subagent-nav-button--active' : ''}`}
-            variant="ghost"
-            size="xs"
-            onClick={handleToggleSubagentList}
-            tooltip={t('flowChatHeader.backgroundSubagents', {
-              count: backgroundSubagents.length,
-              defaultValue: 'Running background subagents',
-            })}
-            disabled={!hasBackgroundSubagents}
-            aria-label={t('flowChatHeader.backgroundSubagents', {
-              count: backgroundSubagents.length,
-              defaultValue: 'Running background subagents',
-            })}
-            aria-expanded={isSubagentListOpen}
-            aria-haspopup="dialog"
-            data-testid="flowchat-header-background-subagents"
-          >
-            <span className="flowchat-header__subagent-nav-button-inner">
-              <Bot size={14} />
-              {hasBackgroundSubagents ? (
-                <span
-                  className="flowchat-header__subagent-status-dot"
-                  aria-hidden="true"
-                />
-              ) : null}
-            </span>
-          </IconButton>
-
-          {isSubagentListOpen && hasBackgroundSubagents && (
-            <div
-              className="flowchat-header__subagent-list-panel"
-              role="dialog"
+        {hasBackgroundSubagents && (
+          <div className="flowchat-header__subagent-nav" ref={subagentListRef}>
+            <IconButton
+              ref={subagentButtonRef}
+              className={`flowchat-header__subagent-nav-button${isSubagentListOpen ? ' flowchat-header__subagent-nav-button--active' : ''}`}
+              variant="ghost"
+              size="xs"
+              onClick={handleToggleSubagentList}
+              tooltip={t('flowChatHeader.backgroundSubagents', {
+                count: backgroundSubagents.length,
+                defaultValue: 'Running background subagents',
+              })}
               aria-label={t('flowChatHeader.backgroundSubagents', {
                 count: backgroundSubagents.length,
                 defaultValue: 'Running background subagents',
               })}
+              aria-expanded={isSubagentListOpen}
+              aria-haspopup="dialog"
+              data-testid="flowchat-header-background-subagents"
             >
-              <div className="flowchat-header__subagent-list-header">
-                <span>
-                  {t('flowChatHeader.backgroundSubagents', {
-                    count: backgroundSubagents.length,
-                    defaultValue: 'Running background subagents',
-                  })}
-                </span>
-                <span>{backgroundSubagents.length}</span>
-              </div>
-              <div className="flowchat-header__subagent-list">
-                {displayBackgroundSubagents.map((subagent) => (
-                  <button
-                    key={subagent.sessionId}
-                    type="button"
-                    className="flowchat-header__subagent-list-item"
-                    onClick={() => handleSubagentSelect(subagent.sessionId)}
-                  >
-                    <span className="flowchat-header__subagent-list-title">
-                      {subagent.title}
-                    </span>
-                    <span className="flowchat-header__subagent-list-meta">
-                      {[
-                        subagent.agentType,
-                        subagent.status === 'finishing'
-                          ? t('flowChatHeader.subagentStatusFinishing', {
-                              defaultValue: 'Finishing',
-                            })
-                          : t('flowChatHeader.subagentStatusProcessing', {
-                              defaultValue: 'Running',
-                            }),
-                      ].filter(Boolean).join(' · ')}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+              <span className="flowchat-header__subagent-nav-button-inner">
+                <Bot size={14} />
+                <span
+                  className="flowchat-header__subagent-status-dot"
+                  aria-hidden="true"
+                />
+              </span>
+            </IconButton>
 
-        <IconButton
-          className="flowchat-header__review-platform-btn"
-          variant="ghost"
-          size="xs"
-          onClick={handleOpenPullRequests}
-          tooltip={t('flowChatHeader.pullRequests', { defaultValue: 'Pull requests' })}
-          aria-label={t('flowChatHeader.pullRequests', { defaultValue: 'Pull requests' })}
-          data-testid="flowchat-header-pull-requests"
-        >
-          <GitPullRequest size={14} />
-        </IconButton>
-        {isSearchOpen ? (
+            {isSubagentListOpen && (
+              <div
+                className="flowchat-header__subagent-list-panel"
+                role="dialog"
+                aria-label={t('flowChatHeader.backgroundSubagents', {
+                  count: backgroundSubagents.length,
+                  defaultValue: 'Running background subagents',
+                })}
+              >
+                <div className="flowchat-header__subagent-list-header">
+                  <span>
+                    {t('flowChatHeader.backgroundSubagents', {
+                      count: backgroundSubagents.length,
+                      defaultValue: 'Running background subagents',
+                    })}
+                  </span>
+                  <span>{backgroundSubagents.length}</span>
+                </div>
+                <div className="flowchat-header__subagent-list">
+                  {displayBackgroundSubagents.map((subagent) => (
+                    <button
+                      key={subagent.sessionId}
+                      type="button"
+                      className="flowchat-header__subagent-list-item"
+                      onClick={() => handleSubagentSelect(subagent.sessionId)}
+                    >
+                      <span className="flowchat-header__subagent-list-title">
+                        {subagent.title}
+                      </span>
+                      <span className="flowchat-header__subagent-list-meta">
+                        {[
+                          subagent.agentType,
+                          subagent.status === 'finishing'
+                            ? t('flowChatHeader.subagentStatusFinishing', {
+                                defaultValue: 'Finishing',
+                              })
+                            : t('flowChatHeader.subagentStatusProcessing', {
+                                defaultValue: 'Running',
+                              }),
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isSearchOpen && (
           <div className="flowchat-header__search" role="search" data-testid="flowchat-header-search-bar">
             <Input
               ref={searchInputRef}
@@ -485,59 +581,9 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
               <X size={14} />
             </IconButton>
           </div>
-        ) : (
-          <IconButton
-            className="flowchat-header__search-btn"
-            variant="ghost"
-            size="xs"
-            onClick={handleOpenSearch}
-            tooltip={t('flowChatHeader.searchOpen', { defaultValue: 'Search messages' })}
-            aria-label={t('flowChatHeader.searchOpen', { defaultValue: 'Search messages' })}
-            data-testid="flowchat-header-search"
-          >
-            <Search size={14} />
-          </IconButton>
         )}
-        <div className="flowchat-header__turn-nav" ref={turnListRef}>
-          <IconButton
-            className={`flowchat-header__turn-nav-button${isTurnListOpen ? ' flowchat-header__turn-nav-button--active' : ''}`}
-            variant="ghost"
-            size="xs"
-            onClick={handleToggleTurnList}
-            tooltip={turnListTooltip}
-            disabled={!hasTurnNavigation}
-            aria-label={turnListTooltip}
-            aria-expanded={isTurnListOpen}
-            aria-haspopup="dialog"
-            data-testid="flowchat-header-turn-list"
-          >
-            <List size={14} />
-          </IconButton>
-          <IconButton
-            className="flowchat-header__turn-nav-button"
-            variant="ghost"
-            size="xs"
-            onClick={onJumpToPreviousTurn}
-            tooltip={t('flowChatHeader.previousTurn', { defaultValue: 'Previous turn' })}
-            disabled={previousTurnDisabled || !onJumpToPreviousTurn}
-            aria-label={t('flowChatHeader.previousTurn', { defaultValue: 'Previous turn' })}
-            data-testid="flowchat-header-turn-prev"
-          >
-            <ChevronUp size={14} />
-          </IconButton>
-          <IconButton
-            className="flowchat-header__turn-nav-button"
-            variant="ghost"
-            size="xs"
-            onClick={onJumpToNextTurn}
-            tooltip={t('flowChatHeader.nextTurn', { defaultValue: 'Next turn' })}
-            disabled={nextTurnDisabled || !onJumpToNextTurn}
-            aria-label={t('flowChatHeader.nextTurn', { defaultValue: 'Next turn' })}
-            data-testid="flowchat-header-turn-next"
-          >
-            <ChevronDown size={14} />
-          </IconButton>
 
+        <div className="flowchat-header__turn-nav" ref={turnListRef}>
           {isTurnListOpen && hasTurnNavigation && (
             <div className="flowchat-header__turn-list-panel" role="dialog" aria-label={turnListTooltip}>
               <div className="flowchat-header__turn-list-header">
@@ -566,32 +612,113 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
             </div>
           )}
         </div>
-        {showPreviewFirstToggle && onOpenWorkspaceMedia && (
+
+        <div className="flowchat-header__more-actions" ref={moreActionsRef}>
           <IconButton
-            className="flowchat-header__workspace-media-btn"
+            ref={moreButtonRef}
+            className={`flowchat-header__more-button${isMoreMenuOpen ? ' flowchat-header__more-button--active' : ''}`}
             variant="ghost"
             size="xs"
-            onClick={onOpenWorkspaceMedia}
-            tooltip={workspaceMediaLabel}
-            aria-label={workspaceMediaLabel}
-            data-testid="flowchat-header-workspace-media"
+            onClick={handleToggleMoreMenu}
+            tooltip={moreActionsLabel}
+            aria-label={moreActionsLabel}
+            aria-haspopup="menu"
+            aria-expanded={isMoreMenuOpen}
+            data-testid="flowchat-header-more-actions"
           >
-            <Image size={14} />
+            <MoreHorizontal size={14} />
           </IconButton>
-        )}
-        {showPreviewFirstToggle && (
-          <IconButton
-            className={`flowchat-header__preview-first-btn${isPreviewFirstActive ? ' flowchat-header__preview-first-btn--active' : ''}`}
-            variant="ghost"
-            size="xs"
-            onClick={onPreviewFirstToggle}
-            tooltip={t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}
-            aria-label={t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}
-            data-testid="flowchat-header-preview-first-toggle"
-          >
-            <PictureInPicture2 size={14} />
-          </IconButton>
-        )}
+
+          {isMoreMenuOpen && (
+            <div
+              ref={moreMenuRef}
+              className="flowchat-header__more-menu"
+              role="menu"
+              aria-label={moreActionsLabel}
+              onKeyDown={handleMoreMenuKeyDown}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={() => runMoreMenuAction(handleOpenPullRequests)}
+                data-testid="flowchat-header-pull-requests"
+              >
+                <GitPullRequest size={14} aria-hidden="true" />
+                <span>{t('flowChatHeader.pullRequests', { defaultValue: 'Pull requests' })}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={() => runMoreMenuAction(handleOpenSearch, false)}
+                data-testid="flowchat-header-search"
+              >
+                <Search size={14} aria-hidden="true" />
+                <span>{t('flowChatHeader.searchOpen', { defaultValue: 'Search messages' })}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={handleOpenTurnListFromMenu}
+                disabled={!hasTurnNavigation}
+                data-testid="flowchat-header-turn-list"
+              >
+                <List size={14} aria-hidden="true" />
+                <span>{turnListTooltip}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={() => runMoreMenuAction(onJumpToPreviousTurn)}
+                disabled={previousTurnDisabled || !onJumpToPreviousTurn}
+                data-testid="flowchat-header-turn-prev"
+              >
+                <ChevronUp size={14} aria-hidden="true" />
+                <span>{t('flowChatHeader.previousTurn', { defaultValue: 'Previous turn' })}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flowchat-header__more-menu-item"
+                onClick={() => runMoreMenuAction(onJumpToNextTurn)}
+                disabled={nextTurnDisabled || !onJumpToNextTurn}
+                data-testid="flowchat-header-turn-next"
+              >
+                <ChevronDown size={14} aria-hidden="true" />
+                <span>{t('flowChatHeader.nextTurn', { defaultValue: 'Next turn' })}</span>
+              </button>
+              {showPreviewFirstToggle && onOpenWorkspaceMedia && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flowchat-header__more-menu-item"
+                  onClick={() => runMoreMenuAction(onOpenWorkspaceMedia)}
+                  data-testid="flowchat-header-workspace-media"
+                >
+                  <Image size={14} aria-hidden="true" />
+                  <span>{workspaceMediaLabel}</span>
+                </button>
+              )}
+              {showPreviewFirstToggle && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`flowchat-header__more-menu-item${isPreviewFirstActive ? ' flowchat-header__more-menu-item--active' : ''}`}
+                  onClick={() => runMoreMenuAction(onPreviewFirstToggle)}
+                  disabled={!onPreviewFirstToggle}
+                  aria-pressed={isPreviewFirstActive}
+                  data-testid="flowchat-header-preview-first-toggle"
+                >
+                  <PictureInPicture2 size={14} aria-hidden="true" />
+                  <span>{t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

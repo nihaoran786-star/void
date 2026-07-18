@@ -27,6 +27,22 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     expect(source).not.toContain('--short-drama-team-secondary-ratio');
   });
 
+  it('anchors one compact rail control without reserving a permanent side rail', () => {
+    expect(source).toMatch(
+      /&\.is-short-drama-team-rail[\s\S]*?> \.canvas-editor-area__primary \{[\s\S]*?width: 100% !important;/,
+    );
+    expect(source).toMatch(
+      /&\.is-short-drama-team-rail[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?right: 0;[\s\S]*?width: 0 !important;[\s\S]*?max-width: 0;[\s\S]*?overflow: visible;/,
+    );
+    expect(source).toMatch(
+      /\.short-drama-team-panel-controls__summary \{[\s\S]*?width: auto;[\s\S]*?border: 1px solid var\(--workspace-border-subtle\);/,
+    );
+    expect(source).toMatch(
+      /@container short-drama-editor-area \(max-width: 560px\)[\s\S]*?\.short-drama-team-panel-controls__summary-label \{[\s\S]*?display: none;/,
+    );
+    expect(source).not.toContain('44px');
+  });
+
   it('gives short-drama and media surfaces a readable compact-panel floor', () => {
     expect(source).toMatch(
       /\.void-ui--minimal[\s\S]*?\.void-session-scene__aux-pane:not\([\s\S]*?:has\(\.short-drama-center, \.workspace-media-gallery\)[\s\S]*?min-width: min\(420px, 36vw\);/,

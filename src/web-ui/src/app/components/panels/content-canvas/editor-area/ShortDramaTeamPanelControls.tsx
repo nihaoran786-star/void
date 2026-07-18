@@ -18,46 +18,71 @@ export interface ShortDramaTeamPanelControlsProps {
   onSelectTab: (tabId: string) => void;
 }
 
-const stageGlyphs: Record<string, string> = {
-  script: 'S',
-  assets: 'A',
-  storyboards: 'F',
-  video: 'V',
-  post: 'E',
-};
-
-const stageOf = (tab: CanvasTab): string =>
-  typeof tab.content.metadata?.shortDramaStage === 'string'
-    ? tab.content.metadata.shortDramaStage
-    : '';
-
-const statusGlyphs: Record<ShortDramaTeamAgentStatus, string> = {
-  waiting: '·',
-  live: '•',
-  attention: '!',
-  completed: '✓',
-  cancelled: '–',
-  failed: '×',
-};
+const statusPriority: readonly ShortDramaTeamAgentStatus[] = [
+  'failed',
+  'attention',
+  'live',
+  'completed',
+  'waiting',
+  'cancelled',
+];
 
 export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsProps> = ({
   mode,
   tabs,
-  activeTabId,
   statuses,
   onToggle,
-  onSelectTab,
 }) => {
   const { t } = useTranslation('components');
   const isOpen = mode === 'open';
   const toggleLabel = isOpen
     ? t('canvas.collapseShortDramaTeam')
     : t('canvas.expandShortDramaTeam');
+  const compactLabel = t('canvas.shortDramaTeamCompact');
   const statusByTabId = React.useMemo(
     () => new Map(statuses.map(status => [status.tabId, status])),
     [statuses],
   );
   const isPreparing = tabs.length === 0;
+  const statusCounts = React.useMemo(() => {
+    const counts: Record<ShortDramaTeamAgentStatus, number> = {
+      waiting: 0,
+      live: 0,
+      attention: 0,
+      completed: 0,
+      cancelled: 0,
+      failed: 0,
+    };
+
+    tabs.forEach(tab => {
+      const status = statusByTabId.get(tab.id)?.status ?? 'waiting';
+      counts[status] += 1;
+    });
+
+    return counts;
+  }, [statusByTabId, tabs]);
+  const summaryStatus = statusPriority.find(status => statusCounts[status] > 0)
+    ?? 'waiting';
+  const statusSummary = statusPriority
+    .map(status => `${t(`canvas.shortDramaTeamStatus.${status}`)} ${statusCounts[status]}`)
+    .join(' · ');
+  const agentStatusSummary = tabs
+    .map(tab => {
+      const projection = statusByTabId.get(tab.id)
+        ?? { tabId: tab.id, status: 'waiting' as const };
+      const statusLabel = t(`canvas.shortDramaTeamStatus.${projection.status}`);
+      const activityLabel = formatActivityLabel(projection.activity, t);
+      return [tab.title, statusLabel, activityLabel]
+        .filter(Boolean)
+        .join(' · ');
+    })
+    .join('；');
+  const accessibleToggleLabel = [
+    toggleLabel,
+    `${compactLabel} ${tabs.length}`,
+    statusSummary,
+    agentStatusSummary,
+  ].join(' · ');
 
   return (
     <aside
@@ -74,69 +99,40 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
           <span aria-hidden="true">…</span>
         </span>
       ) : (
-        <Tooltip content={toggleLabel} placement="right">
+        <Tooltip content={accessibleToggleLabel} placement="right">
           <button
             type="button"
-            className="short-drama-team-panel-controls__toggle"
+            className={[
+              'short-drama-team-panel-controls__toggle',
+              isOpen ? '' : 'short-drama-team-panel-controls__summary',
+              `is-status-${summaryStatus}`,
+            ].filter(Boolean).join(' ')}
             data-testid="short-drama-team-panel-toggle"
-            aria-label={toggleLabel}
+            data-short-drama-team-summary-status={summaryStatus}
+            aria-label={accessibleToggleLabel}
             aria-expanded={isOpen}
             onClick={onToggle}
           >
+            {!isOpen && (
+              <>
+                <span
+                  className="short-drama-team-panel-controls__summary-dot"
+                  aria-hidden="true"
+                />
+                <span className="short-drama-team-panel-controls__summary-label">
+                  {compactLabel}
+                </span>
+                <span className="short-drama-team-panel-controls__summary-count">
+                  {tabs.length}
+                </span>
+              </>
+            )}
             <span className="short-drama-team-panel-controls__toggle-glyph" aria-hidden="true">
               {isOpen ? '›' : '‹'}
             </span>
           </button>
         </Tooltip>
       )}
-
-      <div
-        className="short-drama-team-panel-controls__agents"
-        aria-label={t('canvas.shortDramaTeamAgents')}
-      >
-        {tabs.map(tab => {
-          const stage = stageOf(tab);
-          const isActive = tab.id === activeTabId;
-          const projection = statusByTabId.get(tab.id)
-            ?? { tabId: tab.id, status: 'waiting' as const };
-          const statusLabel = t(`canvas.shortDramaTeamStatus.${projection.status}`);
-          const activityLabel = formatActivityLabel(
-            projection.activity,
-            t,
-          );
-          const agentLabel = [tab.title, statusLabel, activityLabel]
-            .filter(Boolean)
-            .join(' · ');
-          return (
-            <Tooltip key={tab.id} content={agentLabel} placement="right">
-              <button
-                type="button"
-                className={[
-                  'short-drama-team-panel-controls__agent',
-                  `is-status-${projection.status}`,
-                  isActive ? 'is-active' : '',
-                ].filter(Boolean).join(' ')}
-                aria-pressed={isActive}
-                aria-label={agentLabel}
-                data-testid="short-drama-team-agent"
-                data-short-drama-stage={stage}
-                data-short-drama-agent-status={projection.status}
-                onClick={() => onSelectTab(tab.id)}
-              >
-                <span className="short-drama-team-panel-controls__stage-glyph" aria-hidden="true">
-                  {stageGlyphs[stage] ?? 'A'}
-                </span>
-                <span
-                  className="short-drama-team-panel-controls__status-glyph"
-                  aria-hidden="true"
-                >
-                  {statusGlyphs[projection.status]}
-                </span>
-              </button>
-            </Tooltip>
-          );
-        })}
-      </div>
     </aside>
   );
 };

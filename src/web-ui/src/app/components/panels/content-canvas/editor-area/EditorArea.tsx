@@ -2,7 +2,10 @@ import React, { useRef, useCallback, useState } from 'react';
 import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
-import { selectShortDramaTeamPanelPresentation } from './shortDramaTeamPanelPresentation';
+import {
+  selectShortDramaTeamLayoutRecovery,
+  selectShortDramaTeamPanelPresentation,
+} from './shortDramaTeamPanelPresentation';
 import { useCanvasStore } from '../stores';
 import type { 
   EditorGroupId, 
@@ -64,6 +67,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     endDrag,
     reorderTab,
     handleDrop,
+    moveTabToGroup,
     setSplitRatio,
     setSplitRatio2,
     setActiveGroup,
@@ -154,6 +158,42 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
       workspacePresentation,
     ],
   );
+  const shortDramaTeamLayoutRecovery = React.useMemo(
+    () => selectShortDramaTeamLayoutRecovery({
+      presentation: workspacePresentation,
+      splitMode: layout.splitMode,
+      primaryGroup,
+      secondaryGroup,
+    }),
+    [
+      layout.splitMode,
+      primaryGroup,
+      secondaryGroup,
+      workspacePresentation,
+    ],
+  );
+  React.useLayoutEffect(() => {
+    if (shortDramaTeamLayoutRecovery.status !== 'recoverable') {
+      return;
+    }
+
+    const activePrimaryTabWasMisplaced = shortDramaTeamLayoutRecovery.misplacedTabs
+      .some(tab => tab.tabId === primaryGroup.activeTabId);
+    shortDramaTeamLayoutRecovery.misplacedTabs.forEach((tab, index) => {
+      moveTabToGroup(tab.tabId, tab.fromGroupId, 'secondary', index);
+    });
+    if (activePrimaryTabWasMisplaced) {
+      switchToTab(
+        shortDramaTeamLayoutRecovery.primarySurfaceTabId,
+        'primary',
+      );
+    }
+  }, [
+    moveTabToGroup,
+    primaryGroup.activeTabId,
+    shortDramaTeamLayoutRecovery,
+    switchToTab,
+  ]);
   const shortDramaTeamIdentity = shortDramaTeamPresentation.status === 'ready'
     ? shortDramaTeamPresentation.teamIdentity
     : null;
