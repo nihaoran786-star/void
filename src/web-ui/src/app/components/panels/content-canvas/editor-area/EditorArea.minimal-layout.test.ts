@@ -20,6 +20,9 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     expect(source).toContain(
       '.btw-session-panel__composer-input::placeholder',
     );
+    expect(source).toMatch(
+      /\.btw-session-panel__composer-box \{[\s\S]*?border-color: color-mix\([\s\S]*?var\(--workspace-text-muted\) 75%,[\s\S]*?var\(--workspace-surface-panel\)[\s\S]*?&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring\);/,
+    );
     expect(source).not.toContain('--short-drama-team-primary-ratio');
     expect(source).not.toContain('--short-drama-team-secondary-ratio');
   });
@@ -33,6 +36,9 @@ describe('EditorArea minimal short-drama team layout contract', () => {
   it('keeps all team layout overrides scoped to the minimal presentation', () => {
     expect(source).toMatch(
       /\.void-ui--minimal \.canvas-editor-area\.is-short-drama-team/,
+    );
+    expect(source).toMatch(
+      /\.void-ui--minimal \.thinking-collapsed-header \{[\s\S]*?\.thinking-label,[\s\S]*?\.thinking-chevron \{[\s\S]*?color: var\(--workspace-text-muted\);[\s\S]*?opacity: 1;/,
     );
   });
 });

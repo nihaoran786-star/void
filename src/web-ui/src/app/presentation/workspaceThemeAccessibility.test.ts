@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { voidDarkTheme, voidLightTheme } from '@/infrastructure/theme/presets';
+import {
+  builtinThemes,
+  voidDarkTheme,
+  voidLightTheme,
+} from '@/infrastructure/theme/presets';
 import type { ThemeConfig } from '@/infrastructure/theme/types';
 
 type Rgb = [number, number, number];
 type Rgba = [number, number, number, number];
 
 const STATUS_TEXT_WEIGHT = 0.6;
+const DEFAULT_MUTED_TEXT_WEIGHT = 0.85;
+const COMPOSER_BORDER_TEXT_WEIGHT = 0.75;
+
+function mutedTextWeight(theme: ThemeConfig): number {
+  if (theme.id === 'void-midnight') return 0.25;
+  if (theme.id === 'void-tokyo-night') return 0.75;
+  return DEFAULT_MUTED_TEXT_WEIGHT;
+}
 
 function parseColor(value: string): Rgba {
   const hex = value.match(/^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i);
@@ -79,6 +91,54 @@ function statusFixture(theme: ThemeConfig) {
     ['error', semantic.error, semantic.errorBg],
   ] as const;
 }
+
+describe.each(builtinThemes)(
+  'minimal workspace $id text fixture',
+  theme => {
+    it('keeps scoped muted metadata AA-readable on workspace surfaces', () => {
+      const mutedText = mix(
+        parseColor(theme.colors.text.muted),
+        parseColor(theme.colors.text.secondary),
+        mutedTextWeight(theme),
+      );
+      const surfaces = [
+        theme.colors.background.primary,
+        theme.colors.background.secondary,
+        theme.colors.background.scene,
+        theme.colors.background.elevated,
+      ];
+
+      for (const surface of surfaces) {
+        expect(
+          contrastRatio(mutedText, parseColor(surface).slice(0, 3) as Rgb),
+          `${theme.id} scoped muted text on ${surface}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('keeps the scoped child-agent composer boundary perceivable at rest', () => {
+      const composerSurface = parseColor(theme.colors.background.secondary);
+      const mutedText = mix(
+        parseColor(theme.colors.text.muted),
+        parseColor(theme.colors.text.secondary),
+        mutedTextWeight(theme),
+      );
+      const border = mix(
+        [...mutedText, 1],
+        composerSurface,
+        COMPOSER_BORDER_TEXT_WEIGHT,
+      );
+
+      expect(
+        contrastRatio(
+          border,
+          composerSurface.slice(0, 3) as Rgb,
+        ),
+        `${theme.id} child-agent composer boundary`,
+      ).toBeGreaterThanOrEqual(3);
+    });
+  },
+);
 
 describe.each([
   ['light', voidLightTheme],

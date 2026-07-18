@@ -258,7 +258,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   themes, then restored the original light theme and collapsed state.
 - [x] Headless Chromium emulated reduced motion and verified real computed
   styles for About progress, short-drama, workspace media, and media preview.
-- [x] Final Web suite passed: 336 test files, 1870 tests. TypeScript, ESLint,
+- [x] Final Web suite passed: 336 test files, 1886 tests. TypeScript, ESLint,
   theme, i18n, core-boundary, repository-hygiene, production build, Rust
   `release-fast`, protected hashes, and idle CPU checks passed.
 
@@ -267,7 +267,13 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Minimal styling is scoped and does not change classic presentation.
 - [x] Navigation/control text uses the compact 11/12/13/14/16px hierarchy.
 - [x] Script and conversation text remains readable.
-- [ ] Text contrast meets the existing theme contract in dark mode.
+- [x] Scoped muted metadata meets `4.5:1` on all eight built-in theme surface
+  fixtures; the child-agent composer boundary meets `3:1`. Global theme
+  primitives and classic presentation remain unchanged.
+- [x] Final dark desktop retest measured collapsed-thinking text/chevron at
+  `4.61:1`-`4.99:1` and the resting child-agent composer boundary at `3.43:1`,
+  then restored light theme, the original session, collapsed team state, and
+  scroll position without creating or sending data.
 - [x] Light-theme workspace, short-drama, media, menu, and settings surfaces
   remain readable in real-desktop screenshots.
 - [x] System theme remains readable across the same surfaces.

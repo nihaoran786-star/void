@@ -1111,7 +1111,15 @@ $badge-info-text: $color-info;
   --workspace-surface-active: var(--control-bg-active);
   --workspace-text-primary: var(--color-text-primary);
   --workspace-text-secondary: var(--color-text-secondary);
-  --workspace-text-muted: var(--color-text-muted);
+  // Keep metadata visually quiet while raising built-in themes that sit just
+  // below the WCAG AA normal-text threshold. This projection is intentionally
+  // minimal-only so classic presentation and the owning theme presets do not
+  // change.
+  --workspace-text-muted: color-mix(
+    in srgb,
+    var(--color-text-muted) 85%,
+    var(--color-text-secondary)
+  );
   --workspace-text-disabled: var(--color-text-disabled);
   --workspace-border-subtle: var(--border-subtle);
   --workspace-border-strong: var(--border-medium);
@@ -1164,6 +1172,24 @@ $badge-info-text: $color-info;
     in srgb,
     var(--status-error-text) 60%,
     var(--workspace-text-primary)
+  );
+}
+
+:root[data-theme="void-midnight"] .void-ui--minimal {
+  // Midnight's legacy muted primitive is substantially dimmer than its other
+  // text roles, so its scoped projection needs a stronger lift.
+  --workspace-text-muted: color-mix(
+    in srgb,
+    var(--color-text-muted) 25%,
+    var(--color-text-secondary)
+  );
+}
+
+:root[data-theme="void-tokyo-night"] .void-ui--minimal {
+  --workspace-text-muted: color-mix(
+    in srgb,
+    var(--color-text-muted) 75%,
+    var(--color-text-secondary)
   );
 }
 

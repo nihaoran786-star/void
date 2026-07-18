@@ -30,6 +30,13 @@ cycle.
 - The dedicated visual reviewer passed keyboard focus, normal/200% Workspace
   Status, and light/dark/system short-drama/team captures with
   **P0 0 / P1 0**.
+- The follow-up contrast pass measured the scoped muted-text and child-agent
+  composer boundaries, raised only the minimal presentation aliases, and left
+  every global theme primitive and classic style unchanged.
+- The post-HMR dark-theme retest measured collapsed-thinking text/chevron at
+  `4.61:1`-`4.99:1` and the resting child-agent composer boundary at `3.43:1`;
+  the dedicated reviewer reported **P1 0 / P2 0 / P3 0** for this slice and
+  restored the original light-theme session state.
 - The 200% dialog keeps its title, close action, current workspace, and current
   workspace actions visible; recent workspaces correctly continue in the
   internal scroll region.
@@ -53,8 +60,6 @@ Current non-blocking P2 inventory:
 - slash, MCP, and file suggestion popovers still need complete
   listbox/option/active-descendant semantics;
 - workspace drag reordering has no keyboard-equivalent move command;
-- dark-theme tertiary/muted metadata remains visually low contrast and needs a
-  dedicated WCAG measurement before changing the global muted token;
 - generation events still schedule immediate, 250 ms, 1 s, and 2.5 s
   compatibility rescans, and the library keeps traversing directories after
   reaching its 500-result return limit;
@@ -350,14 +355,17 @@ Two minor tells remain:
 - **Category:** Theming
 - **Remediation:** Added light/dark/system single-window short-drama and team
   captures, system-theme listener tests, automated semantic-state contrast
-  fixtures, and a computed-style reduced-motion runtime test.
-- **Remaining P2:** Dark tertiary/muted metadata is visually low contrast. Any
-  change must be based on measured WCAG results because the token is global.
+  fixtures, and a computed-style reduced-motion runtime test. A follow-up
+  fixture now covers muted metadata on all eight built-in themes at `>= 4.5:1`
+  and the child-agent composer boundary at `>= 3:1`. The fix is confined to
+  `.void-ui--minimal`; the owning theme primitives and classic presentation
+  remain unchanged. The real desktop retest measured `4.61:1`-`4.99:1` for
+  collapsed-thinking text/chevron and `3.43:1` for the resting composer
+  boundary without making either role visually dominant.
 - **Standard:** WCAG 1.4.3 Contrast; theme contract.
 - **Recommendation:** Keep the deterministic captures and automated state
-  checks in the release gate; measure the remaining dark tertiary text before
-  changing its global token.
-- **Suggested command:** `$normalize`
+  checks in the release gate.
+- **Suggested command:** `$polish`
 
 #### [P2] Media status filtering and long-list preview work — resolved
 
@@ -470,11 +478,9 @@ Two minor tells remain:
 
 1. **[P2] `$adapt`** — finish keyboard-equivalent reorder and composite
    control navigation.
-2. **[P2] `$normalize`** — measure dark tertiary text and adjust the owning
-   global token only if the result fails the chosen WCAG threshold.
-3. **[P2] `$optimize`** — design an adapter-owned incremental media index or
+2. **[P2] `$optimize`** — design an adapter-owned incremental media index or
    watcher before changing the exact newest-first 500-item contract.
-4. **[P3] `$polish`** — keep the three-theme visual pass after functional gates
+3. **[P3] `$polish`** — keep the three-theme visual pass after functional gates
    are green.
 
 Re-run `$audit` after each isolated P2 slice before deleting any classic

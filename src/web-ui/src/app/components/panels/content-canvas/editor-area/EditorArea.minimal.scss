@@ -1,4 +1,12 @@
 @mixin styles {
+  .void-ui--minimal .thinking-collapsed-header {
+    .thinking-label,
+    .thinking-chevron {
+      color: var(--workspace-text-muted);
+      opacity: 1;
+    }
+  }
+
   .void-ui--minimal
     .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed):not(
       .void-session-scene__aux-pane--editor-mode
@@ -83,6 +91,18 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .btw-session-panel__composer-box {
+        border-color: color-mix(
+          in srgb,
+          var(--workspace-text-muted) 75%,
+          var(--workspace-surface-panel)
+        );
+
+        &:focus-within {
+          border-color: var(--workspace-focus-ring);
+        }
       }
     }
 

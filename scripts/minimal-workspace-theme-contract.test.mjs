@@ -46,7 +46,6 @@ test('minimal workspace tokens stay scoped and derive from existing theme contra
     ['--workspace-surface-active', '--control-bg-active'],
     ['--workspace-text-primary', '--color-text-primary'],
     ['--workspace-text-secondary', '--color-text-secondary'],
-    ['--workspace-text-muted', '--color-text-muted'],
     ['--workspace-border-subtle', '--border-subtle'],
     ['--workspace-border-strong', '--border-medium'],
     ['--workspace-accent', '--color-accent-400'],
@@ -64,6 +63,26 @@ test('minimal workspace tokens stay scoped and derive from existing theme contra
 
   assert.doesNotMatch(minimalTokens, /rgba?\(|#[0-9a-f]{3,8}\b/i);
   assert.doesNotMatch(minimalTokens, /--(?:glass|glow|blur|color-purple)-/);
+});
+
+test('minimal workspace raises muted text contrast without changing global theme primitives', () => {
+  assert.match(
+    minimalTokens,
+    /--workspace-text-muted:\s*color-mix\(\s*in srgb,\s*var\(--color-text-muted\) 85%,\s*var\(--color-text-secondary\)\s*\)/,
+  );
+  assert.match(
+    tokens,
+    /:root\[data-theme="void-midnight"\] \.void-ui--minimal\s*\{[\s\S]*?--workspace-text-muted:\s*color-mix\(\s*in srgb,\s*var\(--color-text-muted\) 25%,\s*var\(--color-text-secondary\)\s*\)/,
+  );
+  assert.match(
+    tokens,
+    /:root\[data-theme="void-tokyo-night"\] \.void-ui--minimal\s*\{[\s\S]*?--workspace-text-muted:\s*color-mix\(\s*in srgb,\s*var\(--color-text-muted\) 75%,\s*var\(--color-text-secondary\)\s*\)/,
+  );
+  assert.doesNotMatch(
+    tokens,
+    /:root\s*\{[\s\S]*?--color-text-muted:\s*color-mix\(/,
+    'The shared theme primitive must remain untouched',
+  );
 });
 
 test('minimal workspace typography matches the compact Codex reference scale', () => {
