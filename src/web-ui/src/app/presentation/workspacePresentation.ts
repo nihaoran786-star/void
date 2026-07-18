@@ -2,6 +2,7 @@ export const WORKSPACE_PRESENTATION_STORAGE_KEY = 'void.ui.workspace-presentatio
 export const WORKSPACE_PRESENTATION_QUERY_KEY = 'void-ui';
 
 export type WorkspacePresentation = 'classic' | 'minimal';
+export const DEFAULT_WORKSPACE_PRESENTATION: WorkspacePresentation = 'minimal';
 
 interface WorkspacePresentationInput {
   configured?: string | null;
@@ -25,12 +26,12 @@ export function resolveWorkspacePresentation({
   return queryValue
     ?? parseWorkspacePresentation(configured)
     ?? parseWorkspacePresentation(stored)
-    ?? 'classic';
+    ?? DEFAULT_WORKSPACE_PRESENTATION;
 }
 
 export function readWorkspacePresentation(): WorkspacePresentation {
   if (typeof window === 'undefined') {
-    return 'classic';
+    return DEFAULT_WORKSPACE_PRESENTATION;
   }
 
   let stored: string | null = null;

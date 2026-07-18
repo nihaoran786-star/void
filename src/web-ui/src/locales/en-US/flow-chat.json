@@ -650,6 +650,9 @@
     "stopReview": "Stop review",
     "stoppingReview": "Stopping review...",
     "stopReviewFailed": "Failed to stop the review session.",
+    "composerPlaceholderAgent": "Message this agent...",
+    "composerPlaceholderFollowup": "Ask a follow-up...",
+    "composerAriaLabel": "Message child session",
     "kinds": {
       "btw": {
         "short": "Side",

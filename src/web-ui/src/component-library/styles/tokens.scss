@@ -1116,7 +1116,7 @@ $badge-info-text: $color-info;
   --workspace-border-subtle: var(--border-subtle);
   --workspace-border-strong: var(--border-medium);
   --workspace-accent: var(--color-accent-400);
-  --workspace-focus-ring: var(--control-focus-ring);
+  --workspace-focus-ring: var(--color-accent-600);
   --workspace-shadow-raised: var(--shadow-xs);
 
   --workspace-space-1: var(--size-gap-1);
@@ -1139,16 +1139,32 @@ $badge-info-text: $color-info;
   --workspace-status-neutral-text: var(--status-neutral-text);
   --workspace-status-info-bg: var(--status-info-bg);
   --workspace-status-info-border: var(--status-info-border);
-  --workspace-status-info-text: var(--status-info-text);
+  --workspace-status-info-text: color-mix(
+    in srgb,
+    var(--status-info-text) 60%,
+    var(--workspace-text-primary)
+  );
   --workspace-status-success-bg: var(--status-success-bg);
   --workspace-status-success-border: var(--status-success-border);
-  --workspace-status-success-text: var(--status-success-text);
+  --workspace-status-success-text: color-mix(
+    in srgb,
+    var(--status-success-text) 60%,
+    var(--workspace-text-primary)
+  );
   --workspace-status-warning-bg: var(--status-warning-bg);
   --workspace-status-warning-border: var(--status-warning-border);
-  --workspace-status-warning-text: var(--status-warning-text);
+  --workspace-status-warning-text: color-mix(
+    in srgb,
+    var(--status-warning-text) 60%,
+    var(--workspace-text-primary)
+  );
   --workspace-status-error-bg: var(--status-error-bg);
   --workspace-status-error-border: var(--status-error-border);
-  --workspace-status-error-text: var(--status-error-text);
+  --workspace-status-error-text: color-mix(
+    in srgb,
+    var(--status-error-text) 60%,
+    var(--workspace-text-primary)
+  );
 }
 
 :root[data-theme="light"],

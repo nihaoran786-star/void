@@ -344,9 +344,9 @@
     .void-ui--minimal .workspace-media-gallery *,
     .void-ui--minimal .workspace-media-gallery *::before,
     .void-ui--minimal .workspace-media-gallery *::after {
-      transition-duration: 0.01ms;
-      animation-duration: 0.01ms;
-      animation-iteration-count: 1;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 }

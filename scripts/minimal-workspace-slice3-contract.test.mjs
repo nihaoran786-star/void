@@ -94,7 +94,11 @@ test('team styling is token driven, quiet, and responsive', () => {
   );
   assert.match(
     teamStyles,
-    /is-short-drama-team-open[\s\S]*?canvas-editor-area__secondary[\s\S]*?position:\s*absolute[\s\S]*?max-width:\s*300px/,
+    /is-short-drama-team-open[\s\S]*?canvas-editor-area__secondary[\s\S]*?position:\s*absolute[\s\S]*?width:\s*min\([\s\S]*?420px,[\s\S]*?100%[\s\S]*?\)\s*!important[\s\S]*?max-width:\s*420px/,
+  );
+  assert.match(
+    teamStyles,
+    /:has\(\.short-drama-center,\s*\.workspace-media-gallery\)[\s\S]*?min-width:\s*min\(420px,\s*36vw\)/,
   );
   assert.doesNotMatch(teamStyles, /--short-drama-team-(?:primary|secondary)-ratio/);
   assert.doesNotMatch(editorArea, /setSplitRatio\(0\.7\)/);

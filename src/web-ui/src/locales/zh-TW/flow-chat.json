@@ -650,6 +650,9 @@
     "stopReview": "中止審核",
     "stoppingReview": "正在中止審核...",
     "stopReviewFailed": "中止審核會話失敗。",
+    "composerPlaceholderAgent": "給這個代理傳送訊息...",
+    "composerPlaceholderFollowup": "繼續追問...",
+    "composerAriaLabel": "給子會話傳送訊息",
     "kinds": {
       "btw": {
         "short": "側問",

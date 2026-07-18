@@ -1550,11 +1550,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
                   onKeyDown={handleComposerKeyDown}
                   disabled={isSubmittingMessage || isChildSessionProcessing}
                   rows={1}
-                  placeholder={t('childSession.composerPlaceholder', {
-                    defaultValue: childKind === 'subagent'
-                      ? 'Message this agent...'
-                      : 'Ask a follow-up...',
-                  })}
+                  placeholder={childKind === 'subagent'
+                    ? t('childSession.composerPlaceholderAgent', {
+                      defaultValue: 'Message this agent...',
+                    })
+                    : t('childSession.composerPlaceholderFollowup', {
+                      defaultValue: 'Ask a follow-up...',
+                    })}
                   aria-label={t('childSession.composerAriaLabel', {
                     defaultValue: 'Message child session',
                   })}

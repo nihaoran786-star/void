@@ -37,10 +37,15 @@ test('presentation preference stays pure and provides an explicit rollback', () 
     /@tauri-apps|FlowChatManager|FlowChatStore|workspaceAPI|Manager|Service/,
   );
   assert.match(presentation, /'classic' \| 'minimal'/);
+  assert.match(
+    presentation,
+    /DEFAULT_WORKSPACE_PRESENTATION:\s*WorkspacePresentation\s*=\s*'minimal'/,
+  );
   assert.match(presentation, /parseWorkspacePresentation\(configured\)/);
   assert.match(presentation, /parseWorkspacePresentation\(stored\)/);
-  assert.match(presentation, /\?\? 'classic'/);
+  assert.match(presentation, /\?\? DEFAULT_WORKSPACE_PRESENTATION/);
   assert.match(presentation, /WORKSPACE_PRESENTATION_QUERY_KEY = 'void-ui'/);
+  assert.match(presentation, /value === 'classic' \|\| value === 'minimal'/);
 });
 
 test('only the application shell selects the presentation', () => {

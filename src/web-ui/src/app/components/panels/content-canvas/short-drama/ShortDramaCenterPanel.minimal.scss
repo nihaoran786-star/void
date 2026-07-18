@@ -58,6 +58,7 @@
   .void-ui--minimal .short-drama-media-preview__open:focus-visible {
     outline: 2px solid var(--workspace-focus-ring);
     outline-offset: 1px;
+    box-shadow: inset 0 0 0 2px var(--workspace-focus-ring);
   }
 
   .void-ui--minimal .short-drama-card:has(> .short-drama-artifact-activation:focus-visible),
@@ -364,11 +365,12 @@
 
   @container short-drama-panel (max-width: 620px) {
     .void-ui--minimal .short-drama-center__body {
-      padding: var(--workspace-space-3);
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-3) var(--workspace-space-2);
     }
 
     .void-ui--minimal .short-drama-center__script-editor .ProseMirror {
-      padding: var(--workspace-space-6) var(--workspace-space-4);
+      padding: var(--workspace-space-6) var(--workspace-space-3);
     }
   }
 
@@ -376,10 +378,10 @@
     .void-ui--minimal .short-drama-center *,
     .void-ui--minimal .short-drama-center *::before,
     .void-ui--minimal .short-drama-center *::after {
-      scroll-behavior: auto;
-      transition-duration: 0.01ms;
-      animation-duration: 0.01ms;
-      animation-iteration-count: 1;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
     }
   }
 }

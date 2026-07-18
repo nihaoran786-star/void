@@ -650,6 +650,9 @@
     "stopReview": "中止审核",
     "stoppingReview": "正在中止审核...",
     "stopReviewFailed": "中止审核会话失败。",
+    "composerPlaceholderAgent": "给这个代理发送消息...",
+    "composerPlaceholderFollowup": "继续追问...",
+    "composerAriaLabel": "给子会话发送消息",
     "kinds": {
       "btw": {
         "short": "侧问",

@@ -2,9 +2,10 @@
 
 ## Status
 
-Active. The migration must preserve every existing product capability and keep
-the classic presentation available until the minimal presentation passes the
-same verification gates.
+Default-switch slice complete on 2026-07-18. Minimal is now the clean-profile
+default, while classic remains an explicit rollback presentation. The
+migration stays active only for the separately recorded P2 debt; no remaining
+P0/P1 release blocker is known.
 
 Baseline checkpoint:
 
@@ -94,14 +95,16 @@ minimal presentation exists.
 
 ### Presentation variant
 
-The migration may add one frontend-only presentation selector with these
-properties:
+The frontend-only presentation selector has these properties:
 
 - values: `classic | minimal`;
-- default: `classic` until the relevant slice passes its gates;
+- clean-profile default: `minimal`;
 - storage: frontend presentation preference only;
 - no backend, workspace, session, or project persistence changes;
 - no duplicate mounting of classic and minimal controllers;
+- rollback priority: `?void-ui=classic`, then configured presentation, then
+  stored presentation; an explicit classic value never falls through to the
+  minimal default;
 - test override available without changing runtime configuration.
 
 The final implementation should scope new visual rules under
@@ -485,6 +488,28 @@ For final completion also run:
 
 Failure of any required gate keeps the classic presentation as default and
 blocks deletion of the corresponding legacy code.
+
+### Default-switch release evidence — 2026-07-18
+
+- Browser-startup tests cover a clean profile, denied storage, stored classic,
+  configured classic, and query-string classic rollback.
+- The dedicated single-window visual reviewer captured the same historical
+  short-drama workspace in light, dark, and system themes, including the
+  expanded five-agent drawer, then restored the original light theme and
+  collapsed state.
+- Automated semantic-state fixtures enforce 4.5:1 text contrast for loading,
+  success, warning, and error states across primary, secondary, scene, and
+  elevated surfaces. Focus rings enforce 3:1.
+- A cached headless Chromium runtime test emulates
+  `prefers-reduced-motion: reduce` and reads computed styles. It proves the
+  About update indicator stops its infinite animation and short-drama, media
+  gallery, and media-preview motion is reduced to one 0.01 ms iteration.
+- The final front-end suite, TypeScript, ESLint, theme, i18n, core-boundary,
+  repository-hygiene, production build, Rust `release-fast` check, entry
+  performance budget, protected hashes, and five-second idle sample pass.
+- Classic remains available and previously completed the same L0 and
+  short-drama desktop parity paths. No classic stylesheet or runtime
+  controller was deleted in the default-switch slice.
 
 ## Protected Files
 

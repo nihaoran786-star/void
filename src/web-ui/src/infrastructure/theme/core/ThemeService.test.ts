@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ThemeService, THEME_SERVICE_DYNAMIC_CSS_VAR_PREFIXES } from './ThemeService';
 import { builtinThemes, voidLightTheme } from '../presets';
-import type { ThemeConfig } from '../types';
+import { SYSTEM_THEME_ID, type ThemeConfig } from '../types';
 
 vi.mock('@/infrastructure/api', () => ({
   configAPI: {
@@ -65,6 +65,48 @@ describe('ThemeService flow chat link tokens', () => {
     expect(rootStyle.getPropertyValue('--color-accent-500')).toBe('#94a3b8');
     expect(rootStyle.getPropertyValue('--flowchat-link-color')).toBe('#60a5fa');
     expect(rootStyle.getPropertyValue('--flowchat-link-hover-color')).toBe('#93c5fd');
+  });
+
+  it('tracks system light and dark appearance without changing the user selection', async () => {
+    let prefersDark = false;
+    let changeListener: (() => void) | null = null;
+    const mediaQuery = {
+      get matches() {
+        return prefersDark;
+      },
+      addEventListener: vi.fn((_type: string, listener: () => void) => {
+        changeListener = listener;
+      }),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(dom.window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockReturnValue(mediaQuery),
+    });
+    const service = new ThemeService();
+
+    await service.applyTheme(SYSTEM_THEME_ID);
+
+    expect(service.getCurrentThemeId()).toBe(SYSTEM_THEME_ID);
+    expect(service.getResolvedThemeId()).toBe('void-light');
+    expect(document.documentElement.dataset.theme).toBe('void-light');
+    expect(document.documentElement.dataset.themeType).toBe('light');
+
+    prefersDark = true;
+    changeListener?.();
+    await vi.waitFor(() => {
+      expect(service.getResolvedThemeId()).toBe('void-dark');
+    });
+
+    expect(service.getCurrentThemeId()).toBe(SYSTEM_THEME_ID);
+    expect(document.documentElement.dataset.theme).toBe('void-dark');
+    expect(document.documentElement.dataset.themeType).toBe('dark');
+
+    await service.applyTheme('void-light');
+    expect(mediaQuery.removeEventListener).toHaveBeenCalledWith(
+      'change',
+      expect.any(Function),
+    );
   });
 });
 

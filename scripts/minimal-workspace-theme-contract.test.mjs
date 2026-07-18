@@ -6,6 +6,18 @@ import { test } from 'node:test';
 const repoRoot = process.cwd();
 const read = relativePath => readFileSync(join(repoRoot, relativePath), 'utf8');
 const tokens = read('src/web-ui/src/component-library/styles/tokens.scss');
+const aboutDialog = read(
+  'src/web-ui/src/app/components/AboutDialog/AboutDialog.scss',
+);
+const shortDramaMinimal = read(
+  'src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.minimal.scss',
+);
+const workspaceMediaMinimal = read(
+  'src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.minimal.scss',
+);
+const mediaPreviewMinimal = read(
+  'src/web-ui/src/shared/services/preview/MediaPreviewOverlay.minimal.scss',
+);
 const cssVarContract = JSON.parse(read('scripts/theme-css-var-contract.json'));
 
 const extractFlatBlock = (source, selector) => {
@@ -38,7 +50,7 @@ test('minimal workspace tokens stay scoped and derive from existing theme contra
     ['--workspace-border-subtle', '--border-subtle'],
     ['--workspace-border-strong', '--border-medium'],
     ['--workspace-accent', '--color-accent-400'],
-    ['--workspace-focus-ring', '--control-focus-ring'],
+    ['--workspace-focus-ring', '--color-accent-600'],
     ['--workspace-shadow-raised', '--shadow-xs'],
   ]);
 
@@ -107,12 +119,27 @@ test('minimal workspace exposes compact spacing, controls, motion, and status to
   }
 
   for (const tone of ['neutral', 'info', 'success', 'warning', 'error']) {
-    for (const role of ['bg', 'border', 'text']) {
+    for (const role of ['bg', 'border']) {
       assert.match(
         minimalTokens,
         new RegExp(`--workspace-status-${tone}-${role}:\\s*var\\(--status-${tone}-${role}\\)`),
       );
     }
+  }
+
+  assert.match(
+    minimalTokens,
+    /--workspace-status-neutral-text:\s*var\(--status-neutral-text\)/,
+  );
+  for (const tone of ['info', 'success', 'warning', 'error']) {
+    assert.match(
+      minimalTokens,
+      new RegExp(
+        `--workspace-status-${tone}-text:\\s*color-mix\\(\\s*in srgb,\\s*`
+        + `var\\(--status-${tone}-text\\) 60%,\\s*`
+        + 'var\\(--workspace-text-primary\\)\\s*\\)',
+      ),
+    );
   }
 });
 
@@ -138,4 +165,34 @@ test('theme governance records the scoped minimal workspace token family', () =>
   }
 
   assert.ok(cssVarContract.allowedDynamicPrefixes.includes('--workspace-'));
+});
+
+test('reduced-motion contracts stop indefinite and decorative workspace motion', () => {
+  assert.match(
+    aboutDialog,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.void-about-dialog__download-fill--indeterminate[\s\S]*?animation:\s*none;/,
+  );
+  assert.match(
+    aboutDialog,
+    /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.void-about-dialog__download-fill\s*\{[\s\S]*?transition:\s*none;/,
+  );
+
+  for (const [name, source, rootSelector] of [
+    ['short drama', shortDramaMinimal, '.void-ui--minimal .short-drama-center'],
+    ['workspace media', workspaceMediaMinimal, '.void-ui--minimal .workspace-media-gallery'],
+    ['media preview', mediaPreviewMinimal, '.media-preview-overlay.void-ui--minimal'],
+  ]) {
+    assert.match(
+      source,
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)/,
+      `${name} must respond to reduced motion`,
+    );
+    assert.ok(
+      source.includes(`${rootSelector} *`),
+      `${name} must scope reduced motion to the minimal surface`,
+    );
+    assert.match(source, /transition-duration:\s*0\.01ms\s*!important;/);
+    assert.match(source, /animation-duration:\s*0\.01ms\s*!important;/);
+    assert.match(source, /animation-iteration-count:\s*1\s*!important;/);
+  }
 });

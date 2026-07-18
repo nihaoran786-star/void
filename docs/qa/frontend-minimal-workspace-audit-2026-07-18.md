@@ -21,14 +21,15 @@ authoritative current status after the 2026-07-18 remediation and verification
 cycle.
 
 - Current product defects: **P0 0, P1 0**.
-- Current release-gate blockers: **P1 1**. The clean-profile fallback in
-  `workspacePresentation.ts` is still `classic`, and the final default-switch
-  slice has not started.
-- Current health: **17/20 (Good)**.
-- Minimal remains opt-in while the remaining P2 inventory and the later
-  default-switch/debt-cleanup slice are incomplete.
-- The dedicated visual reviewer passed the latest keyboard-focus, normal
-  Workspace Status, and 200% Workspace Status captures with **P0 0 / P1 0**.
+- Current release-gate blockers: **P1 0**. Clean-profile startup now resolves
+  to `minimal`; explicit classic query/config/storage values remain rollback
+  paths.
+- Current health: **18/20 (Good)**.
+- Minimal is the default. Classic remains available; remaining work is tracked
+  as P2 debt and does not authorize deleting the classic runtime or styles.
+- The dedicated visual reviewer passed keyboard focus, normal/200% Workspace
+  Status, and light/dark/system short-drama/team captures with
+  **P0 0 / P1 0**.
 - The 200% dialog keeps its title, close action, current workspace, and current
   workspace actions visible; recent workspaces correctly continue in the
   internal scroll region.
@@ -52,8 +53,8 @@ Current non-blocking P2 inventory:
 - slash, MCP, and file suggestion popovers still need complete
   listbox/option/active-descendant semantics;
 - workspace drag reordering has no keyboard-equivalent move command;
-- the system-theme and full semantic-state contrast matrix is not yet
-  exhaustively captured;
+- dark-theme tertiary/muted metadata remains visually low contrast and needs a
+  dedicated WCAG measurement before changing the global muted token;
 - generation events still schedule immediate, 250 ms, 1 s, and 2.5 s
   compatibility rescans, and the library keeps traversing directories after
   reaching its 500-result return limit;
@@ -64,15 +65,17 @@ Current non-blocking P2 inventory:
 - at 200% zoom, the Workspace Status scroll region works but could expose a
   more discoverable subtle scroll affordance.
 
-Required evidence before the default switch:
+Completed default-switch evidence:
 
 - clean-profile startup resolves to `minimal` without query, environment, or
-  stored overrides, with a `?void-ui=classic` rollback smoke;
-- deterministic minimal light, dark, and system-theme captures;
-- a light/dark semantic-state fixture covering hover, selected, focus,
-  disabled, loading, success, warning, and error;
-- reduced-motion runtime verification;
-- a 200% Workspace Status check that scrolls to the last actionable item and
+  stored overrides; browser tests cover `?void-ui=classic`, configured classic,
+  and stored classic rollback;
+- deterministic minimal light, dark, and system-theme captures cover the
+  short-drama reading surface and expanded team drawer;
+- an automated light/dark semantic-state fixture covers hover, selected,
+  focus, disabled, loading, success, warning, and error;
+- headless Chromium reduced-motion verification reads real computed styles;
+- the 200% Workspace Status check scrolls to the last actionable item and
   proves it remains reachable without horizontal overflow.
 
 Verification evidence:
@@ -106,7 +109,7 @@ Verification evidence:
   surface returns to the compact rail. The open state is a bounded overlay,
   preserving the primary surface at full width instead of compressing media or
   Chinese short-drama copy into an unusable narrow column.
-- Web unit/component suite: **333 files, 1,854 tests passed**.
+- Web unit/component suite: **336 files, 1,870 tests passed**.
 - Five-second post-build idle sample: Vite **0.00% raw CPU** and the desktop
   shell **0.93% raw / 0.03% normalized CPU**; exactly one responsive
   `void-desktop` process/window remained.
@@ -117,11 +120,12 @@ Verification evidence:
   portal focus, narrow desktop, and 100%/125%/150%/200% zoom.
 - TypeScript, core boundary, theme visual contract, theme color audit, and
   three-locale i18n contract/audit all passed.
-- Web and desktop Vite builds each transformed **7,447 modules** successfully.
-- Frozen Web entry budget passed: JavaScript raw
-  **2,370,683 / 2,372,359 bytes**, CSS raw
-  **661,571 / 672,720 bytes**, **47** required dynamic entries, and
-  **0** unresolved static imports. JavaScript gzip is 870 bytes above its
+- The final Web Vite build transformed **7,450 modules** successfully; desktop
+  Rust `release-fast` check passed.
+- Frozen Web entry budget passed after the default switch: JavaScript raw
+  **2,371,995 / 2,372,359 bytes**, CSS raw
+  **661,797 / 672,720 bytes**, **47** required dynamic entries, and **0**
+  unresolved static imports. JavaScript gzip is 1,338 bytes above its
   comparison reference but below the enforced raw release budget.
 - The four protected user-owned files listed in the migration architecture
   document retained their recorded SHA-256 values and remain excluded from
@@ -134,9 +138,9 @@ Verification evidence:
 | 1 | Accessibility | 3/4 | All initial P1 keyboard/name/focus blockers are closed; secondary composite controls remain P2. |
 | 2 | Performance | 3/4 | Idle CPU, preview demand/concurrency, 500-item DOM bounds, scan backoff, and frozen entry budgets pass; the adapter still traverses beyond the return limit. |
 | 3 | Responsive Design | 4/4 | Real desktop checks pass at narrow width and 100%-200% zoom, including the Workspace Status dialog. |
-| 4 | Theming | 3/4 | Minimal uses semantic workspace tokens and preserves classic; system-theme and full state contrast remain unverified. |
+| 4 | Theming | 4/4 | Minimal uses semantic workspace tokens, preserves classic, passes automated state contrast, and has light/dark/system desktop captures. |
 | 5 | Anti-Patterns | 4/4 | The interface remains restrained, additive, and free of decorative gradients, glow, and glass effects. |
-| **Total** |  | **17/20** | **Good — no current P0/P1 product defect; one P1 release gate and the remaining P2 work still block the default switch.** |
+| **Total** |  | **18/20** | **Good — no current P0/P1 product defect or release blocker; remaining work is scoped P2 debt.** |
 
 ## Anti-Patterns Verdict
 
@@ -154,15 +158,15 @@ Two minor tells remain:
 
 ## Executive Summary
 
-- Current audit health: **17/20 (Good)**.
+- Current audit health: **18/20 (Good)**.
 - Current product defects: **P0 0, P1 0**. The ten initial P1 findings below
   are resolved and retained only as historical findings.
-- Current release gate: **P1 1** because a clean profile still selects
-  `classic`; no default-switch evidence exists yet.
+- Current release gate: **P1 0**. A clean profile selects `minimal`, while
+  query/config/storage classic values remain explicit rollback paths.
 - No crash, data-loss, short-drama runtime, media resolver, Skill isolation, or
   classic rollback regression was found.
-- Minimal remains opt-in until the outstanding P2 evidence/performance
-  inventory and the final default-switch gate are complete.
+- Minimal is the default; outstanding performance and composite-control work
+  remains P2.
 - The collapsed team status now uses an explicit feature-local projection; its
   control strip imports no `FlowChatStore`, agent service, or Skill policy.
 
@@ -340,16 +344,19 @@ Two minor tells remain:
   changing update behavior.
 - **Suggested command:** `$harden`
 
-#### [P2] Full theme/state matrix remains unverified
+#### [P2] Full theme/state matrix — release evidence resolved
 
 - **Location:** Minimal workspace release gate.
 - **Category:** Theming
-- **Impact:** Light screenshots and token contracts pass, but system theme and
-  all hover/selected/disabled/loading/success/warning/error combinations do
-  not yet have complete evidence.
+- **Remediation:** Added light/dark/system single-window short-drama and team
+  captures, system-theme listener tests, automated semantic-state contrast
+  fixtures, and a computed-style reduced-motion runtime test.
+- **Remaining P2:** Dark tertiary/muted metadata is visually low contrast. Any
+  change must be based on measured WCAG results because the token is global.
 - **Standard:** WCAG 1.4.3 Contrast; theme contract.
-- **Recommendation:** Add deterministic system-theme captures and automated
-  state contrast/semantic checks before the default switch.
+- **Recommendation:** Keep the deterministic captures and automated state
+  checks in the release gate; measure the remaining dark tertiary text before
+  changing its global token.
 - **Suggested command:** `$normalize`
 
 #### [P2] Media status filtering and long-list preview work — resolved
@@ -457,18 +464,18 @@ Two minor tells remain:
 - Short-drama Skill isolation and stage-scoped media tool availability have
   focused policy tests.
 - The latest desktop screenshots show no clipping, overflow, unreadable
-  typography, or P0-P2 visual defect.
+  typography, or P0/P1 visual defect.
 
 ## Recommended Next Actions
 
 1. **[P2] `$adapt`** — finish keyboard-equivalent reorder and composite
    control navigation.
-2. **[P2] `$normalize`** — close system-theme and semantic state evidence.
+2. **[P2] `$normalize`** — measure dark tertiary text and adjust the owning
+   global token only if the result fails the chosen WCAG threshold.
 3. **[P2] `$optimize`** — design an adapter-owned incremental media index or
    watcher before changing the exact newest-first 500-item contract.
-4. **[P3] `$clarify`** — remove redundant welcome copy and localize the
-   remaining ARIA text.
-5. **[P3] `$polish`** — perform the final visual pass after functional gates
+4. **[P3] `$polish`** — keep the three-theme visual pass after functional gates
    are green.
 
-Re-run `$audit` after each isolated P2 slice before making minimal the default.
+Re-run `$audit` after each isolated P2 slice before deleting any classic
+rollback code or changing a shared theme token.

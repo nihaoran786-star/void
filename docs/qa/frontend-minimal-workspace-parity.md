@@ -250,20 +250,31 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Navigate between adjacent fixed-agent controls with native Tab order;
   agent controls expose role labels and pressed state, while the drawer toggle
   exposes its expanded state.
+- [x] Default-switch browser tests cover clean profile, denied storage,
+  explicit classic query/config/storage rollback, and persistence of both
+  presentation values.
+- [x] The final single-window visual pass captured the same historical
+  short-drama workspace and expanded team drawer in light, dark, and system
+  themes, then restored the original light theme and collapsed state.
+- [x] Headless Chromium emulated reduced motion and verified real computed
+  styles for About progress, short-drama, workspace media, and media preview.
+- [x] Final Web suite passed: 336 test files, 1870 tests. TypeScript, ESLint,
+  theme, i18n, core-boundary, repository-hygiene, production build, Rust
+  `release-fast`, protected hashes, and idle CPU checks passed.
 
 ## Theme, Typography, and Accessibility
 
 - [x] Minimal styling is scoped and does not change classic presentation.
 - [x] Navigation/control text uses the compact 11/12/13/14/16px hierarchy.
-- [ ] Script and conversation text remains readable.
+- [x] Script and conversation text remains readable.
 - [ ] Text contrast meets the existing theme contract in dark mode.
 - [x] Light-theme workspace, short-drama, media, menu, and settings surfaces
   remain readable in real-desktop screenshots.
-- [ ] System theme remains readable across the same surfaces.
-- [ ] Hover, active, selected, focus, disabled, loading, success, warning, and
+- [x] System theme remains readable across the same surfaces.
+- [x] Hover, active, selected, focus, disabled, loading, success, warning, and
   error states remain distinguishable.
-- [ ] No critical state relies only on color.
-- [ ] Reduced-motion disables non-essential motion.
+- [x] No critical state relies only on color.
+- [x] Reduced-motion disables non-essential motion.
 - [x] No permanent glow, backdrop blur, or infinite decorative animation.
 - [ ] Screen-reader names exist for icon-only actions.
 - [x] Media preview focus is trapped and restored correctly.
@@ -293,7 +304,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 ## Cleanup Gate
 
-- [ ] Minimal presentation is the verified default.
+- [x] Minimal presentation is the verified default.
 - [x] Classic rollback completed the same L0 and short-drama desktop parity
   paths as minimal presentation.
 - [ ] Removed selectors have zero consumers.

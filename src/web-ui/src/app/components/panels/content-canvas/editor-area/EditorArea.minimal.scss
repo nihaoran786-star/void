@@ -1,4 +1,11 @@
 @mixin styles {
+  .void-ui--minimal
+    .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed):not(
+      .void-session-scene__aux-pane--editor-mode
+    ):has(.short-drama-center, .workspace-media-gallery) {
+    min-width: min(420px, 36vw);
+  }
+
   .void-ui--minimal .canvas-editor-area.is-short-drama-team {
     position: relative;
     container-name: short-drama-editor-area;
@@ -49,11 +56,12 @@
         inset-block: 0;
         right: 0;
         width: min(
-          300px,
-          calc(100% - 48px)
+          420px,
+          100%
         ) !important;
         min-width: 0;
-        max-width: 300px;
+        max-width: 420px;
+        box-sizing: border-box;
         z-index: 7;
         overflow: visible;
         border-left: 1px solid var(--workspace-border-subtle);
@@ -69,6 +77,12 @@
 
       .btw-session-panel__header-left {
         display: none;
+      }
+
+      .btw-session-panel__composer-input::placeholder {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
 
