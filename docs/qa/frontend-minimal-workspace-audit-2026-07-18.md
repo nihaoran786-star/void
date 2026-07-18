@@ -94,10 +94,25 @@ Verification evidence:
 - Current incremental TypeScript and product-code ESLint checks pass. A
   desktop production build transformed **7,450 modules** successfully; the
   media gallery chunk is **31.61 kB raw / 9.11 kB gzip**.
-- Web unit/component suite: **330 files, 1,839 tests passed**.
+- Short-drama team presentation: **4 focused files, 20 tests passed**. The
+  minimal-only selector now covers the short-drama center and workspace media
+  surface without changing the real secondary `EditorGroup`; the media surface
+  requires real stage-agent tabs from the same workspace, mixed layouts fall
+  back to the native split, and an empty center team exposes only a
+  non-interactive preparing rail.
+- Team expansion is scoped to the current primary surface and visible agent
+  identity. Toggle/select no longer writes the shared `splitRatio`, missing
+  active tabs are not visually fabricated, and leaving then revisiting a
+  surface returns to the compact rail. The open state is a bounded overlay,
+  preserving the primary surface at full width instead of compressing media or
+  Chinese short-drama copy into an unusable narrow column.
+- Web unit/component suite: **333 files, 1,854 tests passed**.
 - Five-second post-build idle sample: Vite **0.00% raw CPU** and the desktop
   shell **0.93% raw / 0.03% normalized CPU**; exactly one responsive
   `void-desktop` process/window remained.
+- Five-second post-team-drawer sample: Vite **0.00% raw CPU** and the desktop
+  shell **0.31% raw / 0.01% normalized CPU** with **96.7 MB** working set;
+  exactly one responsive `void-desktop` process/window remained.
 - Real-desktop minimal workspace gate: **4/4 passed**, including keyboard
   portal focus, narrow desktop, and 100%/125%/150%/200% zoom.
 - TypeScript, core boundary, theme visual contract, theme color audit, and

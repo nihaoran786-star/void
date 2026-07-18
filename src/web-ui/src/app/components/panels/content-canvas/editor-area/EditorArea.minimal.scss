@@ -37,19 +37,27 @@
 
     &.is-short-drama-team-open {
       > .canvas-editor-area__primary {
-        width: max(
-          var(--short-drama-team-primary-ratio),
-          calc(100% - 300px)
-        ) !important;
+        width: 100% !important;
+      }
+
+      > .canvas-split-handle {
+        display: none;
       }
 
       > .canvas-editor-area__secondary {
+        position: absolute;
+        inset-block: 0;
+        right: 0;
         width: min(
-          var(--short-drama-team-secondary-ratio),
-          300px
+          300px,
+          calc(100% - 48px)
         ) !important;
+        min-width: 0;
+        max-width: 300px;
+        z-index: 7;
         overflow: visible;
         border-left: 1px solid var(--workspace-border-subtle);
+        box-shadow: var(--workspace-shadow-raised);
       }
 
       .btw-session-panel__header {
@@ -131,6 +139,16 @@
       gap: 4px;
     }
 
+    .short-drama-team-panel-controls__preparing {
+      display: inline-grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: var(--workspace-text-muted);
+      font-size: 16px;
+      line-height: 1;
+    }
+
     .short-drama-team-panel-controls__agent.is-active {
       background: var(--workspace-surface-active);
       color: var(--workspace-text-primary);
@@ -195,27 +213,6 @@
     .short-drama-team-panel-controls__agent.is-status-failed
       .short-drama-team-panel-controls__status-glyph {
       color: var(--workspace-status-error-text);
-    }
-  }
-
-  @container short-drama-editor-area (max-width: 760px) {
-    .void-ui--minimal .canvas-editor-area.is-short-drama-team-open {
-      > .canvas-editor-area__primary {
-        width: 100% !important;
-      }
-
-      > .canvas-split-handle {
-        display: none;
-      }
-
-      > .canvas-editor-area__secondary {
-        position: absolute;
-        inset-block: 0;
-        right: 0;
-        width: min(300px, calc(100% - 48px)) !important;
-        min-width: 0;
-        z-index: 7;
-      }
     }
   }
 }

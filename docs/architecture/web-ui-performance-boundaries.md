@@ -38,6 +38,14 @@ UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 - 文档隐藏时不得保留媒体扫描 timeout；重新可见时立即扫描并恢复 5 秒生成中 / 30 秒空闲节奏。
 - 当前 `workspaceAPI.readFileContent` 不支持 `AbortSignal`。UI 负责拒绝迟到结果并将不可取消的遗留读取限制在最多 2 个；真正取消文件读取属于 adapter 能力扩展，不能在展示组件中伪造。
 
+### 极简短剧团队展示边界
+
+- 团队轨道只属于 `minimal` 展示层。真实子代理标签、会话生命周期、关闭/重排/pin/popout、状态投影和媒体调用继续由原 `EditorGroup` 与现有 runtime 负责；`classic` 必须始终回退到原生分栏。
+- `short-drama-center` 可以在阶段代理创建期间以 44px 准备中轨道替代空白半屏；`workspace-media-gallery` 只有在 secondary 至少包含一个真实短剧阶段代理、没有混入其他工具，且已登记的工作区路径一致时才允许进入团队轨道。
+- 展开/收起只使用 `EditorArea` 的展示态，不得写入共享 `splitRatio`。展开面板由 minimal CSS 作为覆盖式抽屉限制为最多 300px，primary surface 保持 100% 宽度；抽屉打开时只隐藏无效的 SplitHandle，不得重写 Canvas 布局状态。
+- 展示态必须绑定当前 primary surface 和可见阶段代理集合。离开工作面、团队集合改变或 selector 失效时立即清空展开态，返回原工作面时默认恢复为轨道。
+- secondary 没有真实活动标签时不得伪造第一个标签为选中；零代理准备态不得提供可打开空面板的 toggle。
+
 ## 构建 Gate
 
 合并前必须检查生产构建 manifest、静态/动态 import 警告和 entry 预算。新增可选功能不得进入启动 entry；entry JS 或 CSS 增长时，必须先定位依赖路径并记录原因。预算阈值应由 CI gate 执行，不能只依赖人工观察。
@@ -48,6 +56,7 @@ UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 pnpm --dir src/web-ui test:run src/app/performance/performanceImportBoundaries.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaMediaPreviewLayout.test.ts src/app/components/panels/content-canvas/short-drama/ShortDramaEpisodeNavigationState.test.ts
 pnpm --dir src/web-ui test:run src/app/scenes/browser/browserTaskGate.test.ts src/app/scenes/browser/browserUrlPolling.test.ts
 pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/useWorkspaceMediaPreviewQueue.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaVirtualMasonry.test.tsx
+pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/editor-area/shortDramaTeamPanelPresentation.test.ts src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControls.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.short-drama-team.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.minimal-layout.test.ts
 pnpm --dir src/web-ui run type-check
 pnpm --dir src/web-ui exec vite build --outDir D:\codex\void-source\.void\perf-phase1-after --emptyOutDir --manifest
 ```

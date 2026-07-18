@@ -57,6 +57,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
     () => new Map(statuses.map(status => [status.tabId, status])),
     [statuses],
   );
+  const isPreparing = tabs.length === 0;
 
   return (
     <aside
@@ -64,20 +65,30 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
       data-testid="short-drama-team-panel-controls"
       aria-label={t('canvas.shortDramaTeam')}
     >
-      <Tooltip content={toggleLabel} placement="right">
-        <button
-          type="button"
-          className="short-drama-team-panel-controls__toggle"
-          data-testid="short-drama-team-panel-toggle"
-          aria-label={toggleLabel}
-          aria-expanded={isOpen}
-          onClick={onToggle}
+      {isPreparing ? (
+        <span
+          className="short-drama-team-panel-controls__preparing"
+          role="status"
+          aria-label={t('canvas.shortDramaTeamStatus.waiting')}
         >
-          <span className="short-drama-team-panel-controls__toggle-glyph" aria-hidden="true">
-            {isOpen ? '›' : '‹'}
-          </span>
-        </button>
-      </Tooltip>
+          <span aria-hidden="true">…</span>
+        </span>
+      ) : (
+        <Tooltip content={toggleLabel} placement="right">
+          <button
+            type="button"
+            className="short-drama-team-panel-controls__toggle"
+            data-testid="short-drama-team-panel-toggle"
+            aria-label={toggleLabel}
+            aria-expanded={isOpen}
+            onClick={onToggle}
+          >
+            <span className="short-drama-team-panel-controls__toggle-glyph" aria-hidden="true">
+              {isOpen ? '›' : '‹'}
+            </span>
+          </button>
+        </Tooltip>
+      )}
 
       <div
         className="short-drama-team-panel-controls__agents"

@@ -1,5 +1,6 @@
 import type { CanvasTab, EditorGroupState, SplitMode } from '../types';
 import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
+import { areShortDramaWorkspacePathsEqual } from '@/shared/services/short-drama/ShortDramaWorkspaceBinding';
 
 export type ShortDramaTeamPanelMode = 'closed' | 'rail' | 'open';
 
@@ -13,7 +14,7 @@ export type ShortDramaTeamPanelPresentation =
         | 'primary-is-not-short-drama'
         | 'secondary-is-empty'
         | 'secondary-has-mixed-content'
-        | 'secondary-agent-is-not-active';
+        | 'secondary-workspace-mismatch';
       tabs: readonly [];
     }
   | {
@@ -21,6 +22,8 @@ export type ShortDramaTeamPanelPresentation =
       mode: 'rail' | 'open';
       tabs: readonly CanvasTab[];
       activeTabId: string;
+      primarySurfaceKey: string;
+      teamIdentity: string;
     };
 
 export interface ShortDramaTeamPanelPresentationInput {
@@ -28,7 +31,7 @@ export interface ShortDramaTeamPanelPresentationInput {
   splitMode: SplitMode;
   primaryGroup: EditorGroupState;
   secondaryGroup: EditorGroupState;
-  expanded: boolean;
+  expandedPrimarySurfaceKey: string | null;
 }
 
 const activeTab = (group: EditorGroupState): CanvasTab | undefined =>
@@ -38,12 +41,61 @@ const isShortDramaStageAgentTab = (tab: CanvasTab): boolean =>
   tab.content.type === 'btw-session'
   && typeof tab.content.metadata?.shortDramaStage === 'string';
 
+const isShortDramaWorkspaceTab = (tab: CanvasTab): boolean =>
+  tab.content.type === 'short-drama-center'
+  || tab.content.type === 'workspace-media-gallery';
+
+const primarySurfaceKeyForTab = (tab: CanvasTab): string =>
+  `${tab.id}:${tab.content.type}`;
+
+const workspacePathForTab = (tab: CanvasTab): string | undefined => {
+  const data = tab.content.data;
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+  return typeof data.workspacePath === 'string' ? data.workspacePath : undefined;
+};
+
+const stageAgentMatchesWorkspace = (
+  tab: CanvasTab,
+  workspacePath: string | undefined,
+  requireExplicitWorkspace: boolean,
+): boolean => {
+  const stageWorkspacePath = tab.content.metadata?.shortDramaWorkspacePath;
+  if (
+    requireExplicitWorkspace
+    && (
+      !workspacePath
+      || typeof stageWorkspacePath !== 'string'
+      || stageWorkspacePath.length === 0
+    )
+  ) {
+    return false;
+  }
+  if (
+    !workspacePath
+    || typeof stageWorkspacePath !== 'string'
+    || stageWorkspacePath.length === 0
+  ) {
+    return true;
+  }
+  return areShortDramaWorkspacePathsEqual(stageWorkspacePath, workspacePath);
+};
+
+const teamIdentityFor = (
+  primarySurfaceKey: string,
+  tabs: readonly CanvasTab[],
+): string => JSON.stringify([
+  primarySurfaceKey,
+  ...tabs.map(tab => tab.id).sort(),
+]);
+
 export function selectShortDramaTeamPanelPresentation({
   presentation,
   splitMode,
   primaryGroup,
   secondaryGroup,
-  expanded,
+  expandedPrimarySurfaceKey,
 }: ShortDramaTeamPanelPresentationInput): ShortDramaTeamPanelPresentation {
   if (presentation !== 'minimal') {
     return {
@@ -63,7 +115,8 @@ export function selectShortDramaTeamPanelPresentation({
     };
   }
 
-  if (activeTab(primaryGroup)?.content.type !== 'short-drama-center') {
+  const activePrimaryTab = activeTab(primaryGroup);
+  if (!activePrimaryTab || !isShortDramaWorkspaceTab(activePrimaryTab)) {
     return {
       status: 'inactive',
       mode: 'closed',
@@ -73,7 +126,10 @@ export function selectShortDramaTeamPanelPresentation({
   }
 
   const visibleSecondaryTabs = secondaryGroup.tabs.filter(tab => !tab.isHidden);
-  if (visibleSecondaryTabs.length === 0) {
+  if (
+    activePrimaryTab.content.type === 'workspace-media-gallery'
+    && visibleSecondaryTabs.length === 0
+  ) {
     return {
       status: 'inactive',
       mode: 'closed',
@@ -81,7 +137,6 @@ export function selectShortDramaTeamPanelPresentation({
       tabs: [],
     };
   }
-
   if (!visibleSecondaryTabs.every(isShortDramaStageAgentTab)) {
     return {
       status: 'inactive',
@@ -90,21 +145,40 @@ export function selectShortDramaTeamPanelPresentation({
       tabs: [],
     };
   }
-
-  const activeSecondaryTab = activeTab(secondaryGroup);
-  if (!activeSecondaryTab || !isShortDramaStageAgentTab(activeSecondaryTab)) {
+  const primaryWorkspacePath = workspacePathForTab(activePrimaryTab);
+  const requireExplicitWorkspace = (
+    activePrimaryTab.content.type === 'workspace-media-gallery'
+  );
+  if (!visibleSecondaryTabs.every(
+    tab => stageAgentMatchesWorkspace(
+      tab,
+      primaryWorkspacePath,
+      requireExplicitWorkspace,
+    ),
+  )) {
     return {
       status: 'inactive',
       mode: 'closed',
-      reason: 'secondary-agent-is-not-active',
+      reason: 'secondary-workspace-mismatch',
       tabs: [],
     };
   }
 
+  const activeSecondaryTab = visibleSecondaryTabs.find(
+    tab => tab.id === secondaryGroup.activeTabId,
+  );
+  const primarySurfaceKey = primarySurfaceKeyForTab(activePrimaryTab);
+  const teamIdentity = teamIdentityFor(primarySurfaceKey, visibleSecondaryTabs);
+
   return {
     status: 'ready',
-    mode: expanded ? 'open' : 'rail',
+    mode: visibleSecondaryTabs.length > 0
+      && expandedPrimarySurfaceKey === primarySurfaceKey
+      ? 'open'
+      : 'rail',
     tabs: visibleSecondaryTabs,
-    activeTabId: activeSecondaryTab.id,
+    activeTabId: activeSecondaryTab?.id ?? '',
+    primarySurfaceKey,
+    teamIdentity,
   };
 }

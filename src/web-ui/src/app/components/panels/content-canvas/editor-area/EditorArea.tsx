@@ -42,7 +42,10 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
   const workspacePresentation = React.useMemo(readWorkspacePresentation, []);
-  const [isShortDramaTeamExpanded, setIsShortDramaTeamExpanded] = useState(false);
+  const [
+    expandedShortDramaPrimarySurfaceKey,
+    setExpandedShortDramaPrimarySurfaceKey,
+  ] = useState<string | null>(null);
 
   const {
     primaryGroup,
@@ -141,35 +144,51 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
       splitMode: layout.splitMode,
       primaryGroup,
       secondaryGroup,
-      expanded: isShortDramaTeamExpanded,
+      expandedPrimarySurfaceKey: expandedShortDramaPrimarySurfaceKey,
     }),
     [
-      isShortDramaTeamExpanded,
+      expandedShortDramaPrimarySurfaceKey,
       layout.splitMode,
       primaryGroup,
       secondaryGroup,
       workspacePresentation,
     ],
   );
-  const ensureShortDramaTeamOpenRatio = useCallback(() => {
-    if (layout.splitRatio < 0.68) {
-      setSplitRatio(0.7);
-    }
-  }, [layout.splitRatio, setSplitRatio]);
+  const shortDramaTeamIdentity = shortDramaTeamPresentation.status === 'ready'
+    ? shortDramaTeamPresentation.teamIdentity
+    : null;
+  React.useLayoutEffect(() => {
+    setExpandedShortDramaPrimarySurfaceKey(null);
+  }, [shortDramaTeamIdentity]);
 
   const handleShortDramaTeamToggle = useCallback(() => {
-    if (!isShortDramaTeamExpanded) {
-      ensureShortDramaTeamOpenRatio();
+    if (
+      shortDramaTeamPresentation.status !== 'ready'
+      || shortDramaTeamPresentation.tabs.length === 0
+    ) {
+      return;
     }
-    setIsShortDramaTeamExpanded(previous => !previous);
-  }, [ensureShortDramaTeamOpenRatio, isShortDramaTeamExpanded]);
+    setExpandedShortDramaPrimarySurfaceKey(current => (
+      current === shortDramaTeamPresentation.primarySurfaceKey
+        ? null
+        : shortDramaTeamPresentation.primarySurfaceKey
+    ));
+  }, [shortDramaTeamPresentation]);
 
   const handleShortDramaTeamAgentSelect = useCallback((tabId: string) => {
+    if (shortDramaTeamPresentation.status !== 'ready') {
+      return;
+    }
     switchToTab(tabId, 'secondary');
     setActiveGroup('secondary');
-    ensureShortDramaTeamOpenRatio();
-    setIsShortDramaTeamExpanded(true);
-  }, [ensureShortDramaTeamOpenRatio, setActiveGroup, switchToTab]);
+    setExpandedShortDramaPrimarySurfaceKey(
+      shortDramaTeamPresentation.primarySurfaceKey,
+    );
+  }, [
+    setActiveGroup,
+    shortDramaTeamPresentation,
+    switchToTab,
+  ]);
 
   const renderEditorGroup = (
     groupId: EditorGroupId,
@@ -223,10 +242,6 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     const isSecondarySceneActive = isSceneActive && (
       shortDramaTeamPresentation.status !== 'ready' || shortDramaTeamMode !== 'rail'
     );
-    const editorAreaStyle = {
-      '--short-drama-team-primary-ratio': `${splitRatio * 100}%`,
-      '--short-drama-team-secondary-ratio': `${(1 - splitRatio) * 100}%`,
-    } as React.CSSProperties;
 
     return (
       <div
@@ -237,7 +252,6 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
           `is-short-drama-team-${shortDramaTeamMode}`,
         ].filter(Boolean).join(' ')}
         data-short-drama-team-mode={shortDramaTeamMode}
-        style={editorAreaStyle}
       >
         <div className="canvas-editor-area__primary" style={{ width: `${splitRatio * 100}%` }}>
           {renderEditorGroup('primary', primaryGroup)}

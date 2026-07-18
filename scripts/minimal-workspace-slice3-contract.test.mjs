@@ -12,6 +12,9 @@ const editorArea = read(
 const teamControls = read(
   'src/web-ui/src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControls.tsx',
 );
+const teamControlsContainer = read(
+  'src/web-ui/src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControlsContainer.tsx',
+);
 const teamSelector = read(
   'src/web-ui/src/app/components/panels/content-canvas/editor-area/shortDramaTeamPanelPresentation.ts',
 );
@@ -49,19 +52,27 @@ test('team selector reads canvas state without importing runtime services', () =
 });
 
 test('team controls reuse real secondary tabs and do not own agent lifecycle', () => {
-  assert.match(editorArea, /React\.lazy\(\s*\(\) => import\('\.\/ShortDramaTeamPanelControls'\)/);
+  assert.match(
+    editorArea,
+    /React\.lazy\(\s*\(\) => import\('\.\/ShortDramaTeamPanelControlsContainer'\)/,
+  );
+  assert.match(
+    teamControlsContainer,
+    /<ShortDramaTeamPanelControls \{\.\.\.props\} statuses=\{statuses\} \/>/,
+  );
   assert.match(editorArea, /switchToTab\(tabId, 'secondary'\)/);
   assert.match(editorArea, /setActiveGroup\('secondary'\)/);
   assert.match(editorArea, /data-short-drama-team-mode=\{shortDramaTeamMode\}/);
   assert.doesNotMatch(
-    `${editorArea}\n${teamControls}`,
-    /createChatSession|sendMessage|cancel|pause|resume|skill|agentConfig|FlowChatStore|FlowChatManager/,
+    `${editorArea}\n${teamControls}\n${teamControlsContainer}`,
+    /createChatSession|sendMessage|cancelSession|pauseSession|resumeSession|skillPolicy|agentConfig|FlowChatStore|FlowChatManager/,
   );
 });
 
 test('rail remains keyboard-visible while hidden agent content is non-interactive', () => {
   assert.match(teamControls, /type="button"/);
-  assert.match(teamControls, /aria-label=\{tab\.title\}/);
+  assert.match(teamControls, /const agentLabel = \[tab\.title, statusLabel, activityLabel\]/);
+  assert.match(teamControls, /aria-label=\{agentLabel\}/);
   assert.match(teamControls, /aria-pressed=\{isActive\}/);
   assert.match(teamControls, /aria-expanded=\{isOpen\}/);
   assert.match(teamStyles, /visibility:\s*hidden;/);
@@ -76,9 +87,17 @@ test('rail remains keyboard-visible while hidden agent content is non-interactiv
 
 test('team styling is token driven, quiet, and responsive', () => {
   assert.match(teamStyles, /--workspace-/);
-  assert.match(teamStyles, /@container short-drama-editor-area \(max-width: 760px\)/);
   assert.match(teamStyles, /width:\s*44px !important/);
-  assert.match(teamStyles, /300px/);
+  assert.match(
+    teamStyles,
+    /is-short-drama-team-open[\s\S]*?canvas-editor-area__primary[\s\S]*?width:\s*100% !important/,
+  );
+  assert.match(
+    teamStyles,
+    /is-short-drama-team-open[\s\S]*?canvas-editor-area__secondary[\s\S]*?position:\s*absolute[\s\S]*?max-width:\s*300px/,
+  );
+  assert.doesNotMatch(teamStyles, /--short-drama-team-(?:primary|secondary)-ratio/);
+  assert.doesNotMatch(editorArea, /setSplitRatio\(0\.7\)/);
   assert.doesNotMatch(teamControls, /lucide-react/);
   assert.doesNotMatch(teamStyles, /#[0-9a-f]{3,8}\b|rgba?\(/i);
   assert.doesNotMatch(
