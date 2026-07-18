@@ -1,11 +1,14 @@
-# Current Project State
+# Historical Project State Snapshot
 
 Date: 2026-06-02
+
+> This file records the state observed on 2026-06-02. It is not the current
+> branch or working-tree status. See [the repository context](../../CONTEXT.md).
 
 ## Branch
 
 - Repository: `void-source`
-- Current branch: `codex/void-media-integration`
+- Branch at this snapshot: `codex/void-media-integration`
 - Working tree was clean before this knowledge-base setup.
 - Upstream reference: legacy upstream main at `09bf6d1f`.
 

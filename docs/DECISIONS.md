@@ -2,6 +2,10 @@
 
 Date: 2026-07-02
 
+> Historical decision ledger for the completed upstream migration program.
+> These decisions remain evidence for migrated contracts; current project state
+> is indexed from [the repository context](../CONTEXT.md).
+
 ## DEC-001: Targeted Migration Only
 
 Decision: Upstream changes must be migrated as targeted issues, never by whole-repository merge.

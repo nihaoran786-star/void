@@ -2,6 +2,11 @@
 
 Date: 2026-07-02
 
+> Historical program architecture with still-valid protected contracts. Use
+> [the repository context](../CONTEXT.md) and [documentation index](README.md)
+> for current ownership and status; change a contract here only through an
+> explicit architecture decision.
+
 ## Migration Principle
 
 Upstream code is a reference implementation, not the source of truth. Void module contracts are the source of truth. Accepted upstream behavior must be adapted through existing Void interfaces.

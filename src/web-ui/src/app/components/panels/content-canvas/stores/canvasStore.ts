@@ -712,16 +712,26 @@ const createCanvasStoreHook = () => create<CanvasStore>()(
         set((draft) => {
           const record = draft.closedTabs.shift();
           if (record) {
-            const group = getGroup(draft, record.groupId);
+            // Closing the last tab in a split auto-merges the canvas. Restore
+            // into a group that is visible in the current layout instead of
+            // reviving an unreachable secondary/tertiary group.
+            const targetGroupId: EditorGroupId = draft.layout.splitMode === 'none'
+              ? 'primary'
+              : draft.layout.splitMode === 'grid'
+                ? record.groupId
+                : record.groupId === 'tertiary'
+                  ? 'secondary'
+                  : record.groupId;
+            const group = getGroup(draft, targetGroupId);
             
-            // Restore tab to its original position
+            // Preserve the historical index inside the visible target group.
             const insertIndex = Math.min(record.index, group.tabs.length);
             group.tabs.splice(insertIndex, 0, {
               ...record.tab,
               lastAccessedAt: Date.now(),
             });
             group.activeTabId = record.tab.id;
-            draft.activeGroupId = record.groupId;
+            draft.activeGroupId = targetGroupId;
           }
         });
       },
@@ -774,8 +784,8 @@ const createCanvasStoreHook = () => create<CanvasStore>()(
         if (fromGroupId === toGroupId) return;
         
         set((draft) => {
-          const fromGroup = fromGroupId === 'primary' ? draft.primaryGroup : draft.secondaryGroup;
-          const toGroup = toGroupId === 'primary' ? draft.primaryGroup : draft.secondaryGroup;
+          const fromGroup = getGroup(draft, fromGroupId);
+          const toGroup = getGroup(draft, toGroupId);
           
           const tabIndex = fromGroup.tabs.findIndex(t => t.id === tabId);
           if (tabIndex === -1) return;
@@ -793,8 +803,10 @@ const createCanvasStoreHook = () => create<CanvasStore>()(
             fromGroup.activeTabId = visibleTabs[Math.min(tabIndex, visibleTabs.length - 1)]?.id || null;
           }
           
-          // If single-column, enable split
-          if (draft.layout.splitMode === 'none') {
+          // Keep the target group reachable in the resulting layout.
+          if (toGroupId === 'tertiary' && draft.layout.splitMode !== 'grid') {
+            draft.layout.splitMode = 'grid';
+          } else if (toGroupId === 'secondary' && draft.layout.splitMode === 'none') {
             draft.layout.splitMode = 'horizontal';
           }
           
@@ -1222,18 +1234,14 @@ export function useCanvasStore<T>(selector?: (state: CanvasStore) => T): T | Can
  * Get tabs for a specific editor group.
  */
 export const useGroupTabs = (groupId: EditorGroupId) => {
-  return useCanvasStore((state) => 
-    groupId === 'primary' ? state.primaryGroup.tabs : state.secondaryGroup.tabs
-  );
+  return useCanvasStore((state) => getGroup(state, groupId).tabs);
 };
 
 /**
  * Get active tab ID for a specific editor group.
  */
 export const useActiveTabId = (groupId: EditorGroupId) => {
-  return useCanvasStore((state) => 
-    groupId === 'primary' ? state.primaryGroup.activeTabId : state.secondaryGroup.activeTabId
-  );
+  return useCanvasStore((state) => getGroup(state, groupId).activeTabId);
 };
 
 /**

@@ -162,8 +162,8 @@ SessionManager → Session → DialogTurn → ModelRound
 Narrower rules already exist:
 
 - `src/crates/ai-adapters/AGENTS.md`
-- `src/agentic/execution/AGENTS.md`
-- `src/agentic/deep_review/AGENTS.md`
+- `src/crates/core/src/agentic/execution/AGENTS.md`
+- `src/crates/core/src/agentic/deep_review/AGENTS.md`
 
 ## DeepReview notes
 

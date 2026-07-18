@@ -53,8 +53,8 @@ SessionManager → Session → DialogTurn → ModelRound
 这里已经有更细粒度规则：
 
 - `src/crates/ai-adapters/AGENTS.md`
-- `src/agentic/execution/AGENTS.md`
-- `src/agentic/deep_review/AGENTS.md`
+- `src/crates/core/src/agentic/execution/AGENTS.md`
+- `src/crates/core/src/agentic/deep_review/AGENTS.md`
 
 ## 命令
 

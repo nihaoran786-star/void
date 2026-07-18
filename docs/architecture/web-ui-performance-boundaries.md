@@ -41,8 +41,8 @@ UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 ### 极简短剧团队展示边界
 
 - 团队轨道只属于 `minimal` 展示层。真实子代理标签、会话生命周期、关闭/重排/pin/popout、状态投影和媒体调用继续由原 `EditorGroup` 与现有 runtime 负责；`classic` 必须始终回退到原生分栏。
-- `short-drama-center` 可以在阶段代理创建期间以 44px 准备中轨道替代空白半屏；`workspace-media-gallery` 只有在 secondary 至少包含一个真实短剧阶段代理、没有混入其他工具，且已登记的工作区路径一致时才允许进入团队轨道。
-- 展开/收起只使用 `EditorArea` 的展示态，不得写入共享 `splitRatio`。展开面板由 minimal CSS 作为覆盖式抽屉限制为最多 300px，primary surface 保持 100% 宽度；抽屉打开时只隐藏无效的 SplitHandle，不得重写 Canvas 布局状态。
+- `short-drama-center` 可以在阶段代理创建期间用不占画布宽度的按需团队入口替代空白半屏；`workspace-media-gallery` 只有在 secondary 至少包含一个真实短剧阶段代理、没有混入其他工具，且已登记的工作区路径一致时才允许进入团队展示。
+- 展开/收起只使用 `EditorArea` 的展示态，不得写入共享 `splitRatio`。展开面板由 minimal CSS 作为覆盖式抽屉限制为最多 420px，收起时 secondary 容器宽度为 0 且只保留一个可命中的打开入口；primary surface 始终保持 100% 宽度。抽屉打开时只隐藏无效的 SplitHandle，不得重写 Canvas 布局状态。
 - 展示态必须绑定当前 primary surface 和可见阶段代理集合。离开工作面、团队集合改变或 selector 失效时立即清空展开态，返回原工作面时默认恢复为轨道。
 - secondary 没有真实活动标签时不得伪造第一个标签为选中；零代理准备态不得提供可打开空面板的 toggle。
 
@@ -58,7 +58,7 @@ pnpm --dir src/web-ui test:run src/app/scenes/browser/browserTaskGate.test.ts sr
 pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/useWorkspaceMediaPreviewQueue.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaVirtualMasonry.test.tsx
 pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/editor-area/shortDramaTeamPanelPresentation.test.ts src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControls.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.short-drama-team.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.minimal-layout.test.ts
 pnpm --dir src/web-ui run type-check
-pnpm --dir src/web-ui exec vite build --outDir D:\codex\void-source\.void\perf-phase1-after --emptyOutDir --manifest
+pnpm --dir src/web-ui exec vite build --outDir .void/perf-phase1-after --emptyOutDir --manifest
 ```
 
 构建后比较 `.void/perf-phase1-before/.vite/manifest.json` 与 `.void/perf-phase1-after/.vite/manifest.json`，检查 entry JS/CSS、总 JS、chunk 关系和 Vite 静态/动态 import 警告。

@@ -2,6 +2,10 @@
 
 Date: 2026-07-02
 
+> Frozen verification ledger for the completed upstream migration program.
+> Current quality Gates and known baseline failures are tracked in
+> [the repository audit](qa/repository-audit-2026-07-19.md).
+
 ## Verification Strategy
 
 Run the smallest useful checks per issue, then broader checks before final completion.

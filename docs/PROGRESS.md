@@ -2,7 +2,10 @@
 
 Date: 2026-07-02
 
-## Current Goal
+> Frozen progress ledger for the completed upstream migration program. Use
+> [the repository context](../CONTEXT.md) for current project status.
+
+## Historical Goal
 
 Inventory every upstream `GCWing/BitFun` fix and optimization, classify it, and migrate accepted items into the current Void branch without breaking protected local capabilities.
 

@@ -134,7 +134,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   bytes. All 47 required dynamic entries remained dynamic with zero unresolved
   static-graph imports. JS gzip was 437 bytes above its reference warning line
   but raw hard limits passed; entry CSS gzip stayed 1,015 bytes below reference.
-- [ ] The remaining interactive/manual items below still gate default switch.
+- [x] The recorded release-blocking subset passed and minimal became the
+  verified default. Remaining unchecked items below are follow-up parity debt;
+  they still require verification before deleting or replacing the
+  corresponding classic capability.
 
 ## Application Shell and Navigation
 
@@ -232,14 +235,15 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 
 - [x] Open and close the team drawer through the real desktop application.
 - [ ] Keep the drawer collapsed by default without hiding active failure state.
-- [x] Keep the drawer collapsed by default at a measured 44px width.
+- [x] Keep the drawer collapsed by default without reserving permanent canvas
+  width; one compact on-demand control remains reachable.
 - [x] Show each fixed short-drama agent by role.
 - [ ] Show live, waiting, completed, cancelled, and failed status.
 - [ ] Show current action without exposing unnecessary internal noise.
 - [ ] Open detailed output/logs on demand.
 - [x] Navigate to the real agent session.
 - [x] Keep native close, reorder, pin, drag, overflow, and pop-out tab actions
-  available in the 300px open panel.
+  available in the bounded 420px open overlay.
 - [x] Preserve parent/child session relationships.
 - [x] Preserve workspace and artifact association.
 - [x] Preserve AssetAI and SplitAI fixed Skill policies.
@@ -261,6 +265,10 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] Final Web suite passed: 336 test files, 1886 tests. TypeScript, ESLint,
   theme, i18n, core-boundary, repository-hygiene, production build, Rust
   `release-fast`, protected hashes, and idle CPU checks passed.
+- [x] Post-default short-drama stabilization (`0a4080d47`, `ef33d736f`)
+  replaced the permanent icon rail with one on-demand control, kept the native
+  agent `EditorGroup`, and verified close -> compact control -> reopen without
+  deleting child sessions or creating closed-tab history.
 
 ## Theme, Typography, and Accessibility
 

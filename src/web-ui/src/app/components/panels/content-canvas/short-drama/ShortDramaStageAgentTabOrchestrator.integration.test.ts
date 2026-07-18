@@ -82,4 +82,62 @@ describe('ShortDramaStageAgentTabOrchestrator canvas integration', () => {
       (tab.content.data as { childSessionId?: string } | undefined)?.childSessionId === 'script-new-session'
     ))).toBe(false);
   });
+
+  it('moves an existing stage-agent tab from tertiary into the real secondary group', () => {
+    const store = useAgentCanvasStore.getState();
+    store.addTab({
+      type: 'short-drama-center',
+      title: 'AI短剧',
+      data: { workspacePath: 'C:/work' },
+      metadata: {
+        duplicateCheckKey: 'short-drama-center:C:/work',
+        workspacePath: 'C:/work',
+      },
+    } as PanelContent, 'active', 'primary');
+    store.setSplitMode('grid');
+    store.addTab({
+      type: 'btw-session',
+      title: 'ScriptAI',
+      data: {
+        childSessionId: 'script-new-session',
+        parentSessionId: 'main-session',
+        workspacePath: 'C:/work',
+      },
+      metadata: {
+        duplicateCheckKey: 'btw-session-script-new-session',
+        childSessionId: 'script-new-session',
+        parentSessionId: 'main-session',
+        shortDramaProjectId: 'project-1',
+        shortDramaWorkspacePath: 'C:/work',
+        shortDramaStage: 'script',
+      },
+    } as PanelContent, 'active', 'tertiary');
+
+    const snapshot = useAgentCanvasStore.getState();
+    const result = openShortDramaRealStageAgentTab({
+      projectId: 'project-1',
+      stage: 'script',
+      specialistAgentRole: 'director',
+      specialistSessionId: 'script-new-session',
+      parentSessionId: 'main-session',
+      panelState: 'open',
+      lastFocusSource: 'initial',
+    }, 'C:/work', {
+      ...snapshot,
+      getSplitMode: () => useAgentCanvasStore.getState().layout.splitMode,
+    });
+
+    const next = useAgentCanvasStore.getState();
+    expect(result).toEqual(expect.objectContaining({
+      status: 'ready',
+      groupId: 'secondary',
+    }));
+    expect(next.secondaryGroup.tabs).toHaveLength(1);
+    expect(next.secondaryGroup.tabs[0]?.content.metadata).toEqual(expect.objectContaining({
+      childSessionId: 'script-new-session',
+      shortDramaStage: 'script',
+    }));
+    expect(next.tertiaryGroup.tabs).toHaveLength(0);
+    expect(next.activeGroupId).toBe('secondary');
+  });
 });

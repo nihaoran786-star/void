@@ -2,6 +2,10 @@
 
 Date: 2026-07-02
 
+> Frozen historical issue ledger for the completed upstream migration program.
+> New general project work must not be appended here; use
+> [the repository context](../CONTEXT.md) and the current task tracker.
+
 Each issue must be independently implementable and independently testable. Only one implementation issue may be active at a time.
 
 ## Issue Template

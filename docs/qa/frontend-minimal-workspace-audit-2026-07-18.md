@@ -16,9 +16,10 @@ were not replaced.
 
 ## Post-remediation release status
 
-The initial findings are retained below as an audit trail. This section is the
-authoritative current status after the 2026-07-18 remediation and verification
-cycle.
+The initial findings are retained below as an audit trail. This section records
+the status at the end of the 2026-07-18 remediation and verification cycle.
+For the current repository-wide checkpoint, see
+[Repository quality and coupling audit — 2026-07-19](repository-audit-2026-07-19.md).
 
 - Current product defects: **P0 0, P1 0**.
 - Current release-gate blockers: **P1 0**. Clean-profile startup now resolves

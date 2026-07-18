@@ -36,8 +36,8 @@
       margin-bottom: var(--flowchat-turn-gap);
       padding: 5px 8px;
       border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-card);
-      background: var(--workspace-surface-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-panel);
       box-shadow: none;
       animation: none;
       transition: border-color 120ms ease, background 120ms ease;
@@ -45,7 +45,7 @@
 
     .user-message-item:hover {
       border-color: var(--workspace-border-strong);
-      background: var(--workspace-surface-subtle);
+      background: var(--workspace-surface-panel);
     }
 
     .user-message-item__content,

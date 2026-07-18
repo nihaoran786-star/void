@@ -7,6 +7,11 @@ default, while classic remains an explicit rollback presentation. The
 migration stays active only for the separately recorded P2 debt; no remaining
 P0/P1 release blocker is known.
 
+Post-default stabilization on 2026-07-18 added the compact short-drama team
+projection (`0a4080d47`) and preserved an explicit reopen control after collapse
+(`ef33d736f`). The current presentation reserves no permanent rail width and
+opens the existing secondary `EditorGroup` in a bounded 420px overlay.
+
 Baseline checkpoint:
 
 - Branch before the UI migration: `codex/performance-phase2`
@@ -375,13 +380,19 @@ canvas groups:
   tab carrying `shortDramaStage` metadata;
 - mixed secondary content, non-short-drama primary tabs, vertical/grid layouts,
   and classic presentation fall back to the unchanged editor layout;
-- the default 44px rail reuses the five native stage-agent tab IDs. Selecting a
-  role calls the existing `switchToTab` and `setActiveGroup` actions; it does
-  not create sessions, send messages, read Skill policy, or own agent state;
-- the 300px open panel keeps the original `EditorGroup` and tab bar mounted.
+- the collapsed presentation reserves zero canvas width and exposes one compact
+  on-demand team control. Opening it reveals the native stage-agent tabs;
+  selecting a role calls the existing `switchToTab` and `setActiveGroup`
+  actions and does not create sessions, send messages, read Skill policy, or
+  own agent state;
+- the bounded 420px open overlay keeps the original `EditorGroup` and tab bar
+  mounted.
   This deliberately preserves close, reorder, pin, drag, overflow, and pop-out
   operations instead of replacing them with a visually cleaner but incomplete
   custom tab implementation;
+- collapsing the team is presentation-only: child sessions and native tabs
+  remain mounted, and the compact team control remains available to reopen the
+  overlay;
 - the control strip is dynamically imported only after the short-drama team
   projection becomes eligible, keeping the normal workspace entry bundle
   inside the frozen performance budget;

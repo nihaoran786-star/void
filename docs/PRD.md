@@ -2,6 +2,10 @@
 
 Date: 2026-07-02
 
+> Historical program ledger: the upstream migration program is closed. Retain
+> this document for scope and acceptance evidence; use
+> [the repository context](../CONTEXT.md) for current project state.
+
 ## Goal
 
 Inventory every upstream `GCWing/BitFun` fix, optimization, stability improvement, observability improvement, compatibility improvement, and feature-adjacent repair, then migrate accepted items into this Void branch while preserving all current Void-only capabilities.

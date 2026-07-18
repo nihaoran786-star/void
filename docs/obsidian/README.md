@@ -1,27 +1,19 @@
-# Void Obsidian Knowledge Base
+# Void Obsidian Historical Snapshot
 
-This folder is the repository mirror/index for the project Obsidian knowledge
-base. The primary vault currently opened in Obsidian is:
+This folder preserves the repository's 2026-06 Obsidian collaboration snapshot.
+It is historical context for the completed targeted-migration work, not the
+live source of current project state.
 
-`D:\obsidian\ryan\ryan\void-source`
+For current work, read the tracked repository documents first:
 
-Use the primary vault for live notes. Keep this repository mirror aligned when
-the migration scope or protected capabilities change.
-
-Before any architecture-sensitive migration, read these files in the primary
-vault first:
-
-1. `00-index.md`
-2. `01-current-project-state.md`
-3. `02-upstream-targeted-migration.md`
-4. `03-protected-capabilities.md`
-5. The issue file for the current slice under `issues/` in the primary vault
-   or under `docs/issues/upstream-targeted-migration/` in the repository mirror
+1. `../../AGENTS.md`
+2. `../../CONTEXT.md`
+3. `../README.md`
+4. The closest Module-specific `AGENTS.md`
 
 Rules:
 
-- Treat this vault as the source of migration context, not as scratch notes.
-- Keep notes concise and update them when migration scope or risk changes.
+- Treat this directory as dated evidence, not as current collaboration state.
+- Do not append current progress or decisions here.
 - Do not store secrets, API keys, local-only absolute paths, or transient logs.
-- Keep implementation details in issues and code comments only when they are
-  still current.
+- Keep historical links stable unless the snapshot is formally archived.

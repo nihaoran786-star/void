@@ -62,9 +62,9 @@ If you modify uninstall flow, also validate the uninstall mode entry points desc
 ## Codex 项目标记
 
 - 标记：`MAIN-VOID-INSTALLER`
-- 路径：`D:\codex\void-source\Void-Installer`
+- 路径：仓库根目录下的 `Void-Installer/`
 - 类型：Node/Tauri installer 子项目。
-- Git 状态：父级 `D:\codex\void-source` 的 Git 状态异常；本目录本身作为可开发子项目识别。
+- Git 状态：本目录由父级 Void 仓库统一管理。
 - 识别依据：存在 `package.json`、`README.md`、`src-tauri\Cargo.toml`。
 - 常用脚本：`dev`、`build`、`tauri:dev`、`tauri:build`、`installer:build`、`type-check`。
-- 开发提醒：这是 `void-source` 下真正明确的 installer 入口，开发前不要依赖父级空壳 Git 状态。
+- 开发提醒：安装器改动应从仓库根目录检查 Git 状态，并同时遵守根 `AGENTS.md`。
