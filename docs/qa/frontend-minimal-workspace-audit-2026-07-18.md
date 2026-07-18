@@ -20,7 +20,10 @@ The initial findings are retained below as an audit trail. This section is the
 authoritative current status after the 2026-07-18 remediation and verification
 cycle.
 
-- Current blockers: **P0 0, P1 0**.
+- Current product defects: **P0 0, P1 0**.
+- Current release-gate blockers: **P1 1**. The clean-profile fallback in
+  `workspacePresentation.ts` is still `classic`, and the final default-switch
+  slice has not started.
 - Current health: **17/20 (Good)**.
 - Minimal remains opt-in while the remaining P2 inventory and the later
   default-switch/debt-cleanup slice are incomplete.
@@ -51,15 +54,50 @@ Current non-blocking P2 inventory:
 - workspace drag reordering has no keyboard-equivalent move command;
 - the system-theme and full semantic-state contrast matrix is not yet
   exhaustively captured;
-- media status filtering, the remaining long-list virtualization inventory,
-  offscreen video metadata reads, and aggressive media scans require a
-  separate media-owned slice;
+- generation events still schedule immediate, 250 ms, 1 s, and 2.5 s
+  compatibility rescans, and the library keeps traversing directories after
+  reaching its 500-result return limit;
+- the workspace file adapter does not expose `AbortSignal`, so leaving a media
+  surface can suppress stale state writes and bound stale work to the two
+  active slots, but cannot cancel a file read already inside
+  `workspaceAPI.readFileContent`;
 - at 200% zoom, the Workspace Status scroll region works but could expose a
   more discoverable subtle scroll affordance.
 
+Required evidence before the default switch:
+
+- clean-profile startup resolves to `minimal` without query, environment, or
+  stored overrides, with a `?void-ui=classic` rollback smoke;
+- deterministic minimal light, dark, and system-theme captures;
+- a light/dark semantic-state fixture covering hover, selected, focus,
+  disabled, loading, success, warning, and error;
+- reduced-motion runtime verification;
+- a 200% Workspace Status check that scrolls to the last actionable item and
+  proves it remains reachable without horizontal overflow.
+
 Verification evidence:
 
-- Web unit/component suite: **327 files, 1,819 tests passed**.
+- Media performance slice: **8 files, 86 tests passed**, covering the library
+  adapter, generation event bridge, status filtering, visibility-driven
+  preview reads, the shared two-slot concurrency budget, order-only scope
+  changes without duplicate reads, virtual-window mount/unmount, the
+  no-IntersectionObserver fallback, a 48-ready-preview LRU, same-ID file
+  version replacement, a 500-item bounded-DOM wall, idle scan backoff,
+  active-generation cadence, and zero hidden-document timers.
+- The media wall now keeps small lists on the original CSS masonry path and
+  uses a measured TanStack virtual masonry only above 60 items. The 500-item
+  contract renders fewer than 100 cards at once; an unrelated parent render
+  no longer re-keys the full 500-item collection.
+- Idle scanning preserves one 5-second compatibility refresh, then backs off
+  to 30 seconds; active generation remains at 5 seconds. Hidden documents
+  retain no periodic timeout and refresh immediately when visible.
+- Current incremental TypeScript and product-code ESLint checks pass. A
+  desktop production build transformed **7,450 modules** successfully; the
+  media gallery chunk is **31.61 kB raw / 9.11 kB gzip**.
+- Web unit/component suite: **330 files, 1,839 tests passed**.
+- Five-second post-build idle sample: Vite **0.00% raw CPU** and the desktop
+  shell **0.93% raw / 0.03% normalized CPU**; exactly one responsive
+  `void-desktop` process/window remained.
 - Real-desktop minimal workspace gate: **4/4 passed**, including keyboard
   portal focus, narrow desktop, and 100%/125%/150%/200% zoom.
 - TypeScript, core boundary, theme visual contract, theme color audit, and
@@ -79,11 +117,11 @@ Verification evidence:
 | # | Dimension | Score | Key finding |
 |---|---|---:|---|
 | 1 | Accessibility | 3/4 | All initial P1 keyboard/name/focus blockers are closed; secondary composite controls remain P2. |
-| 2 | Performance | 3/4 | Idle CPU and frozen entry budgets pass; the remaining media long-list inventory is incomplete. |
+| 2 | Performance | 3/4 | Idle CPU, preview demand/concurrency, 500-item DOM bounds, scan backoff, and frozen entry budgets pass; the adapter still traverses beyond the return limit. |
 | 3 | Responsive Design | 4/4 | Real desktop checks pass at narrow width and 100%-200% zoom, including the Workspace Status dialog. |
 | 4 | Theming | 3/4 | Minimal uses semantic workspace tokens and preserves classic; system-theme and full state contrast remain unverified. |
 | 5 | Anti-Patterns | 4/4 | The interface remains restrained, additive, and free of decorative gradients, glow, and glass effects. |
-| **Total** |  | **17/20** | **Good — no P0/P1 blocker; remaining P2 work still gates the default switch.** |
+| **Total** |  | **17/20** | **Good — no current P0/P1 product defect; one P1 release gate and the remaining P2 work still block the default switch.** |
 
 ## Anti-Patterns Verdict
 
@@ -102,8 +140,10 @@ Two minor tells remain:
 ## Executive Summary
 
 - Current audit health: **17/20 (Good)**.
-- Current blockers: **P0 0, P1 0**. The ten initial P1 findings below are
-  resolved and retained only as historical findings.
+- Current product defects: **P0 0, P1 0**. The ten initial P1 findings below
+  are resolved and retained only as historical findings.
+- Current release gate: **P1 1** because a clean profile still selects
+  `classic`; no default-switch evidence exists yet.
 - No crash, data-loss, short-drama runtime, media resolver, Skill isolation, or
   classic rollback regression was found.
 - Minimal remains opt-in until the outstanding P2 evidence/performance
@@ -272,15 +312,17 @@ Two minor tells remain:
   mode with live announcements.
 - **Suggested command:** `$adapt`
 
-#### [P2] About progress animation lacks a reduced-motion override
+#### [P2] About reduced-motion runtime evidence is missing
 
 - **Location:** `src/web-ui/src/app/components/AboutDialog/AboutDialog.scss`
 - **Category:** Accessibility
-- **Impact:** Users who request reduced motion can still receive an infinite
-  non-essential progress animation.
+- **Impact:** The stylesheet now contains a reduced-motion override, but no
+  runtime test proves the infinite progress animation is disabled while the
+  update flow remains usable.
 - **Standard:** WCAG 2.3.3 Animation from Interactions.
-- **Recommendation:** Disable the decorative animation under
-  `prefers-reduced-motion: reduce` without changing update state.
+- **Recommendation:** Emulate `prefers-reduced-motion: reduce`, exercise the
+  About/update state, and assert the decorative animation is disabled without
+  changing update behavior.
 - **Suggested command:** `$harden`
 
 #### [P2] Full theme/state matrix remains unverified
@@ -295,16 +337,41 @@ Two minor tells remain:
   state contrast/semantic checks before the default switch.
 - **Suggested command:** `$normalize`
 
-#### [P2] Status filtering and long-list preservation remain incomplete gates
+#### [P2] Media status filtering and long-list preview work — resolved
 
 - **Location:** Workspace media gallery and the remaining long-list inventory.
 - **Category:** Performance / Functional parity
-- **Impact:** Media type filtering and lazy thumbnail behavior are covered,
-  but status filtering and preservation of every formerly virtualized list
-  are not yet proven.
+- **Remediation:** Added explicit ready/generating/failed/unavailable status
+  filtering; one active-scope, IntersectionObserver-driven preview queue with
+  a shared concurrency budget of two; mutation tracking for virtual-card
+  mount/unmount; a 60-item virtualization threshold; and adaptive
+  visible-document scan scheduling. Ready data URLs are retained by a
+  48-entry LRU, offscreen and unmounted cards leave the eligible set,
+  order-only sort changes preserve in-flight reads, the compatibility fallback
+  follows the mounted virtual window, and failure/aspect caches are keyed by
+  media ID, path, and modification version.
+- **Compatibility:** Preview/open/reference/delete/restore/purge callbacks,
+  pending placeholders, media event retries, the first 5-second external-job
+  discovery window, small-list CSS masonry, classic presentation, and media
+  resolver interfaces remain unchanged.
 - **Standard:** Minimal-workspace parity and performance gates.
-- **Recommendation:** Inventory prior virtualized lists and add a
-  no-provider, fixture-driven media status-filter check.
+- **Verification:** 86 focused tests, 1,839 full-suite tests, TypeScript,
+  product-code ESLint, core-boundary/i18n/theme governance, a 500-item
+  bounded-DOM contract, a stable-key rerender contract, a 48-ready-preview
+  memory contract, a zero-Vite-CPU five-second idle sample, and desktop
+  production build.
+
+#### [P2] Media adapter still traverses beyond the return limit
+
+- **Location:** `WorkspaceMediaLibrary.ts`, managed-root traversal.
+- **Category:** Performance
+- **Impact:** The UI returns at most 500 items, but exact newest-first
+  semantics require the adapter to continue visiting managed directories and
+  enrich generated manifest timestamps before selecting the newest records.
+- **Recommendation:** Treat this as an adapter-level incremental-index or
+  filesystem-watcher project. Do not stop traversal at item 500 unless the
+  adapter can prove directory ordering and manifest timestamps preserve the
+  same newest-first result.
 - **Suggested command:** `$optimize`
 
 ### P3 — Polish
@@ -348,10 +415,9 @@ Two minor tells remain:
    adding more local key handlers.
 2. Portal menus are implemented independently, so focus entry, arrow
    navigation, Escape, and focus return are inconsistent.
-3. The collapsed team rail correctly avoids owning runtime state, but its
-   feature-local status projection has not been implemented yet. This is an
-   intentional architecture boundary, not permission to read global stores
-   directly from the control.
+3. The collapsed team rail correctly avoids owning runtime state. Its
+   feature-local status projection is implemented, and one adapter remains the
+   only Store-to-view conversion boundary.
 4. Automated parity evidence is strong at L0, visual, performance, and focused
    module levels, but provider-free restart/history and several Composer
    interaction paths still need real-desktop coverage.
@@ -365,8 +431,10 @@ Two minor tells remain:
   without document-level horizontal overflow.
 - Entry JS/CSS raw budgets pass, all required dynamic entries remain dynamic,
   and stabilized Vite idle CPU is effectively zero.
-- Media stays lazy-loaded and conversations keep bounded progressive history
-  rendering.
+- Conversations keep bounded progressive history rendering. Media preview
+  reads are visibility-driven with a global concurrency budget of two and a
+  48-ready-preview memory bound, and lists above 60 items use a bounded virtual
+  window without full-list re-keying on ordinary preview updates.
 - The short-drama team rail uses native named buttons, preserves the real
   session panel, and pauses hidden presentation work without unmounting it.
 - Composer IME handling and attachment selection, drag/drop, paste, and removal
@@ -381,8 +449,8 @@ Two minor tells remain:
 1. **[P2] `$adapt`** — finish keyboard-equivalent reorder and composite
    control navigation.
 2. **[P2] `$normalize`** — close system-theme and semantic state evidence.
-3. **[P2] `$optimize`** — inventory retained virtualization, verify media
-   status filtering, and stop offscreen video metadata work.
+3. **[P2] `$optimize`** — design an adapter-owned incremental media index or
+   watcher before changing the exact newest-first 500-item contract.
 4. **[P3] `$clarify`** — remove redundant welcome copy and localize the
    remaining ARIA text.
 5. **[P3] `$polish`** — perform the final visual pass after functional gates

@@ -2,6 +2,7 @@ import type { WorkspaceMediaItem, WorkspaceMediaKind, WorkspaceMediaPendingGener
 
 export type WorkspaceMediaTileRenderStatus = 'ready' | 'unpreviewable' | 'failed' | 'pending';
 export type WorkspaceMediaSortKey = 'recent' | 'name' | 'size';
+export type WorkspaceMediaStatusFilter = 'all' | WorkspaceMediaTileRenderStatus;
 
 export interface WorkspaceMediaTileViewModel {
   id: string;
@@ -56,7 +57,7 @@ function aspectRatioForItem(item: WorkspaceMediaItem): string {
 }
 
 function renderStatusForItem(item: WorkspaceMediaItem): WorkspaceMediaTileRenderStatus {
-  if (item.kind === 'image' && !item.filePath) {
+  if (!item.filePath && !item.previewUrl && !item.thumbnailUrl) {
     return 'unpreviewable';
   }
   return 'ready';
@@ -157,11 +158,19 @@ export function filterWorkspaceMediaTiles(
   options: {
     filter: 'all' | WorkspaceMediaKind;
     query: string;
+    status?: WorkspaceMediaStatusFilter;
   }
 ): WorkspaceMediaTileViewModel[] {
   const normalizedQuery = options.query.trim().toLowerCase();
   return tiles.filter((tile) => {
     if (options.filter !== 'all' && tile.kind !== options.filter) {
+      return false;
+    }
+    if (
+      options.status
+      && options.status !== 'all'
+      && tile.renderStatus !== options.status
+    ) {
       return false;
     }
     if (!normalizedQuery) {

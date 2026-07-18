@@ -634,6 +634,14 @@
       "videos": "影片",
       "audio": "音訊"
     },
+    "statusFilters": {
+      "label": "狀態",
+      "all": "全部",
+      "ready": "就緒",
+      "pending": "生成中",
+      "failed": "失敗",
+      "unpreviewable": "無法預覽"
+    },
     "sort": {
       "label": "排序",
       "recent": "最近",

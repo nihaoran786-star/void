@@ -634,6 +634,14 @@
       "videos": "视频",
       "audio": "音频"
     },
+    "statusFilters": {
+      "label": "状态",
+      "all": "全部",
+      "ready": "就绪",
+      "pending": "生成中",
+      "failed": "失败",
+      "unpreviewable": "无法预览"
+    },
     "sort": {
       "label": "排序",
       "recent": "最近",

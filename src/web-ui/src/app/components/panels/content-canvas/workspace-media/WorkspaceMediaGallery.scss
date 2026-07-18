@@ -200,6 +200,32 @@
   color: color-mix(in srgb, var(--workspace-media-gallery-muted) 62%, transparent);
 }
 
+.workspace-media-gallery__status-filter {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  color: var(--workspace-media-gallery-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.workspace-media-gallery__status-filter select {
+  height: 24px;
+  border: 1px solid var(--workspace-media-gallery-border);
+  border-radius: 5px;
+  outline: 0;
+  background: var(--workspace-media-gallery-bg);
+  color: var(--workspace-media-gallery-text);
+  font: inherit;
+  padding: 0 20px 0 6px;
+}
+
+.workspace-media-gallery__status-filter select:focus-visible {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
+}
+
 .workspace-media-gallery__state,
 .workspace-media-gallery__notice {
   margin: 10px 14px;
@@ -257,11 +283,33 @@
   line-height: 0;
 }
 
+.workspace-media-gallery__masonry--virtual {
+  position: relative;
+  columns: auto;
+  padding: 0;
+  line-height: normal;
+}
+
+.workspace-media-gallery__virtual-canvas {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+
 .workspace-media-gallery__masonry-item {
   display: block;
   break-inside: avoid;
   margin: 0 0 10px;
   line-height: normal;
+}
+
+.workspace-media-gallery__masonry-item--virtual {
+  position: absolute;
+  top: 0;
+  left: 0;
+  break-inside: auto;
+  contain: layout paint style;
+  margin: 0;
 }
 
 .workspace-media-card-shell {

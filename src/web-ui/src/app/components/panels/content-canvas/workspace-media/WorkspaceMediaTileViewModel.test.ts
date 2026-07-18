@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { mapWorkspaceMediaTiles, sortWorkspaceMediaTiles } from './WorkspaceMediaTileViewModel';
+import {
+  filterWorkspaceMediaTiles,
+  mapWorkspaceMediaTiles,
+  sortWorkspaceMediaTiles,
+} from './WorkspaceMediaTileViewModel';
 import type { WorkspaceMediaItem, WorkspaceMediaPendingGeneration } from '@/shared/services/workspace-media';
 
 const item = (overrides: Partial<WorkspaceMediaItem>): WorkspaceMediaItem => ({
@@ -52,6 +56,41 @@ describe('WorkspaceMediaTileViewModel', () => {
     expect(tiles.map(tile => tile.renderStatus)).toEqual(['ready', 'ready']);
     expect(tiles.map(tile => tile.isPrimaryWallRenderable)).toEqual([true, true]);
     expect(tiles.map(tile => tile.aspectRatio)).toEqual(['16 / 9', '5 / 2']);
+  });
+
+  it('projects missing preview sources consistently for image video and audio', () => {
+    const unavailableTiles = mapWorkspaceMediaTiles([
+      item({ id: 'image-missing', filePath: '', previewUrl: undefined }),
+      item({
+        id: 'video-missing',
+        kind: 'video',
+        filePath: '',
+        previewUrl: undefined,
+      }),
+      item({
+        id: 'audio-missing',
+        kind: 'audio',
+        filePath: '',
+        previewUrl: undefined,
+      }),
+    ]);
+    const [remoteOnlyTile] = mapWorkspaceMediaTiles([
+      item({
+        id: 'remote-only',
+        filePath: '',
+        previewUrl: 'https://example.test/remote.png',
+      }),
+    ]);
+
+    expect(unavailableTiles.map(tile => tile.renderStatus)).toEqual([
+      'unpreviewable',
+      'unpreviewable',
+      'unpreviewable',
+    ]);
+    expect(unavailableTiles.map(tile => tile.isPrimaryWallRenderable))
+      .toEqual([false, false, false]);
+    expect(remoteOnlyTile.renderStatus).toBe('ready');
+    expect(remoteOnlyTile.isPrimaryWallRenderable).toBe(true);
   });
 
   it('derives stable display metadata and aspect ratio fallbacks', () => {
@@ -168,5 +207,45 @@ describe('WorkspaceMediaTileViewModel', () => {
       aspectRatio: '9 / 16',
       sortAt: 5000,
     });
+  });
+
+  it('filters explicit render states without changing kind or search behavior', () => {
+    const tiles = mapWorkspaceMediaTiles([
+      item({ id: 'ready-image', fileName: 'ready.png' }),
+      item({
+        id: 'unavailable-image',
+        filePath: '',
+        fileName: 'unavailable.png',
+      }),
+    ], [{
+      id: 'pending-image',
+      batchId: 'batch-pending',
+      itemIndex: 1,
+      kind: 'image',
+      source: 'generated',
+      requestedAspectRatio: '1:1',
+      placeholderAspectRatio: '1 / 1',
+    }]);
+    const failedTiles = tiles.map(tile => (
+      tile.id === 'ready-image'
+        ? { ...tile, renderStatus: 'failed' as const }
+        : tile
+    ));
+
+    expect(filterWorkspaceMediaTiles(failedTiles, {
+      filter: 'all',
+      query: '',
+      status: 'failed',
+    }).map(tile => tile.id)).toEqual(['ready-image']);
+    expect(filterWorkspaceMediaTiles(failedTiles, {
+      filter: 'image',
+      query: 'pending',
+      status: 'pending',
+    }).map(tile => tile.id)).toEqual(['pending-image']);
+    expect(filterWorkspaceMediaTiles(failedTiles, {
+      filter: 'all',
+      query: '',
+      status: 'unpreviewable',
+    }).map(tile => tile.id)).toEqual(['unavailable-image']);
   });
 });

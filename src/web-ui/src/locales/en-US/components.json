@@ -634,6 +634,14 @@
       "videos": "Videos",
       "audio": "Audio"
     },
+    "statusFilters": {
+      "label": "Status",
+      "all": "All",
+      "ready": "Ready",
+      "pending": "Generating",
+      "failed": "Failed",
+      "unpreviewable": "Unavailable"
+    },
     "sort": {
       "label": "Sort",
       "recent": "Recent",

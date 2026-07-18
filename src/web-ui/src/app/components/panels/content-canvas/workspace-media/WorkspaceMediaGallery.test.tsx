@@ -26,6 +26,12 @@ vi.mock('react-i18next', () => ({
       'workspaceMedia.filters.images': 'Images',
       'workspaceMedia.filters.videos': 'Videos',
       'workspaceMedia.filters.audio': 'Audio',
+      'workspaceMedia.statusFilters.label': 'Status',
+      'workspaceMedia.statusFilters.all': 'All',
+      'workspaceMedia.statusFilters.ready': 'Ready',
+      'workspaceMedia.statusFilters.pending': 'Generating',
+      'workspaceMedia.statusFilters.failed': 'Failed',
+      'workspaceMedia.statusFilters.unpreviewable': 'Unavailable',
       'workspaceMedia.sort.label': 'Sort',
       'workspaceMedia.sort.recent': 'Recent',
       'workspaceMedia.sort.name': 'Name',
@@ -56,6 +62,122 @@ import type {
 } from '@/shared/services/workspace-media/WorkspaceMediaTypes';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+function installControlledIntersectionObserver(targetWindow: Window) {
+  const instances: Array<{
+    targets: Set<Element>;
+    callback: IntersectionObserverCallback;
+  }> = [];
+
+  class ControlledIntersectionObserver {
+    readonly root = null;
+    readonly rootMargin = '320px 0px';
+    readonly thresholds = [0.01];
+    readonly targets = new Set<Element>();
+
+    constructor(readonly callback: IntersectionObserverCallback) {
+      instances.push({ targets: this.targets, callback });
+    }
+
+    observe(target: Element) {
+      this.targets.add(target);
+    }
+
+    unobserve(target: Element) {
+      this.targets.delete(target);
+    }
+
+    disconnect() {
+      this.targets.clear();
+    }
+
+    takeRecords() {
+      return [];
+    }
+  }
+
+  Object.defineProperty(targetWindow, 'IntersectionObserver', {
+    configurable: true,
+    value: ControlledIntersectionObserver,
+  });
+
+  return {
+    triggerLatest(keys: string[]) {
+      const instance = instances.at(-1);
+      if (!instance) {
+        throw new Error('IntersectionObserver was not created');
+      }
+      const keySet = new Set(keys);
+      const entries = Array.from(instance.targets)
+        .filter(target => keySet.has(
+          (target as HTMLElement).dataset.workspaceMediaPreviewKey ?? '',
+        ))
+        .map(target => ({
+          boundingClientRect: target.getBoundingClientRect(),
+          intersectionRatio: 1,
+          intersectionRect: target.getBoundingClientRect(),
+          isIntersecting: true,
+          rootBounds: null,
+          target,
+          time: 0,
+        } satisfies IntersectionObserverEntry));
+      instance.callback(
+        entries,
+        {} as IntersectionObserver,
+      );
+    },
+  };
+}
+
+function installVirtualLayoutMetrics(
+  targetWindow: Window & typeof globalThis,
+): void {
+  const prototype = targetWindow.HTMLElement.prototype;
+  Object.defineProperty(prototype, 'clientWidth', {
+    configurable: true,
+    get: () => 720,
+  });
+  Object.defineProperty(prototype, 'clientHeight', {
+    configurable: true,
+    get: () => 720,
+  });
+  Object.defineProperty(prototype, 'offsetWidth', {
+    configurable: true,
+    get: () => 720,
+  });
+  Object.defineProperty(prototype, 'offsetHeight', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return this.hasAttribute('data-index') ? 220 : 720;
+    },
+  });
+  Object.defineProperty(prototype, 'scrollTo', {
+    configurable: true,
+    value(this: HTMLElement, optionsOrX: ScrollToOptions | number, y?: number) {
+      const nextTop = typeof optionsOrX === 'number'
+        ? y ?? 0
+        : optionsOrX.top ?? 0;
+      this.scrollTop = nextTop;
+    },
+  });
+  Object.defineProperty(prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value(this: HTMLElement) {
+      const height = this.hasAttribute('data-index') ? 220 : 720;
+      return {
+        bottom: height,
+        height,
+        left: 0,
+        right: 720,
+        top: 0,
+        width: 720,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      };
+    },
+  });
+}
 
 const readyService = (): WorkspaceMediaLibraryService => ({
   checkAvailability: vi.fn(),
@@ -155,6 +277,29 @@ const threeImagesService = (): WorkspaceMediaLibraryService => ({
       extension: 'png',
       sizeBytes: 1200 + index,
       modifiedAt: 3000 - index,
+    })),
+  })),
+});
+
+const largeImageService = (itemCount = 500): WorkspaceMediaLibraryService => ({
+  checkAvailability: vi.fn(),
+  scanLibrary: vi.fn(async () => ({
+    status: 'ready',
+    scannedAt: 100,
+    items: Array.from({ length: itemCount }, (_, index) => ({
+      id: `large-image-${index}`,
+      kind: 'image' as const,
+      source: 'generated' as const,
+      filePath: `C:/work/media/generated/large-image-${index}.png`,
+      relativePath: `media/generated/large-image-${index}.png`,
+      fileName: `large-image-${index}.png`,
+      extension: 'png',
+      sizeBytes: 1200 + index,
+      modifiedAt: 10_000 - index,
+      width: index % 2 === 0 ? 900 : 1600,
+      height: index % 2 === 0 ? 1600 : 900,
+      previewUrl: `asset://local/large-image-${index}.png`,
+      thumbnailUrl: `asset://local/large-image-${index}.png`,
     })),
   })),
 });
@@ -277,6 +422,409 @@ describe('WorkspaceMediaGallery', () => {
     expect(container.textContent).not.toContain('voice.mp3');
   });
 
+  it('keeps a 500-item media wall inside a bounded DOM window', async () => {
+    installVirtualLayoutMetrics(
+      dom.window as unknown as Window & typeof globalThis,
+    );
+    const imagePreviewResolver = vi.fn(
+      async () => 'data:image/png;base64,preview-image',
+    );
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={largeImageService()}
+          imagePreviewResolver={imagePreviewResolver}
+        />,
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    const virtualMasonry = container.querySelector(
+      '[data-testid="workspace-media-virtual-masonry"]',
+    );
+    const renderedCards = container.querySelectorAll(
+      '[data-testid^="workspace-media-card-large-image-"]',
+    );
+    expect(virtualMasonry).toBeTruthy();
+    expect(renderedCards.length).toBeGreaterThan(0);
+    expect(renderedCards.length).toBeLessThan(100);
+  });
+
+  it('keeps preview reference and delete actions working past item 60', async () => {
+    installVirtualLayoutMetrics(
+      dom.window as unknown as Window & typeof globalThis,
+    );
+    const service = largeImageService(80);
+    Object.assign(service, {
+      listTrash: vi.fn(async () => ({
+        status: 'ready',
+        items: [],
+        checkedAt: 100,
+      })),
+      deleteItems: vi.fn(async () => ({
+        status: 'ready',
+        items: [],
+        checkedAt: 200,
+      })),
+    });
+    const previewListener = vi.fn();
+    const referenceListener = vi.fn();
+    window.addEventListener(MEDIA_PREVIEW_EVENT, previewListener);
+    window.addEventListener(MEDIA_REFERENCE_EVENT, referenceListener);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    const virtualMasonry = container.querySelector(
+      '[data-testid="workspace-media-virtual-masonry"]',
+    ) as HTMLDivElement;
+    const virtualCanvas = virtualMasonry.querySelector(
+      '.workspace-media-gallery__virtual-canvas',
+    ) as HTMLDivElement;
+    virtualMasonry.scrollTop = Math.max(
+      0,
+      Number.parseFloat(virtualCanvas.style.height) - 720,
+    );
+    await act(async () => {
+      virtualMasonry.dispatchEvent(new dom.window.Event('scroll'));
+      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    const targetCard = container.querySelector(
+      '[data-testid="workspace-media-card-large-image-79"]',
+    ) as HTMLButtonElement;
+    expect(targetCard).toBeTruthy();
+    await act(async () => {
+      (container.querySelector(
+        '[aria-label="Reference large-image-79.png"]',
+      ) as HTMLButtonElement).click();
+      targetCard.click();
+      (container.querySelector(
+        '[aria-label="Delete large-image-79.png"]',
+      ) as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(referenceListener).toHaveBeenCalledTimes(1);
+    expect(previewListener).toHaveBeenCalledTimes(1);
+    expect(service.deleteItems).toHaveBeenCalledWith('C:/work', [
+      expect.objectContaining({
+        id: 'large-image-79',
+        filePath: 'C:/work/media/generated/large-image-79.png',
+      }),
+    ]);
+  });
+
+  it('reuses the virtual slot when a pending item becomes ready in a large wall', async () => {
+    installVirtualLayoutMetrics(
+      dom.window as unknown as Window & typeof globalThis,
+    );
+    const baseItems = Array.from({ length: 60 }, (_, index) => ({
+      id: `slot-base-${index}`,
+      kind: 'image' as const,
+      source: 'generated' as const,
+      filePath: `C:/work/media/generated/slot-base-${index}.png`,
+      relativePath: `media/generated/slot-base-${index}.png`,
+      fileName: `slot-base-${index}.png`,
+      extension: 'png',
+      modifiedAt: 10_000 - index,
+      previewUrl: `asset://local/slot-base-${index}.png`,
+    }));
+    let scanCount = 0;
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn(async () => {
+        scanCount += 1;
+        if (scanCount === 1) {
+          return {
+            status: 'ready',
+            scannedAt: 100,
+            items: baseItems,
+            pendingGenerations: [{
+              id: 'workspace-media-pending-large-batch-1',
+              batchId: 'large-batch',
+              itemIndex: 1,
+              kind: 'image',
+              source: 'generated',
+              requestedAspectRatio: '9:16',
+              placeholderAspectRatio: '9 / 16',
+              updatedAt: 20_000,
+            }],
+          };
+        }
+        return {
+          status: 'ready',
+          scannedAt: 200,
+          items: [{
+            id: 'large-batch-ready-1',
+            kind: 'image',
+            source: 'generated',
+            filePath: 'C:/work/media/generated/large-batch/image-001.png',
+            relativePath: 'media/generated/large-batch/image-001.png',
+            fileName: 'image-001.png',
+            extension: 'png',
+            modifiedAt: 20_000,
+            sortAt: 20_000,
+            previewUrl: 'asset://local/large-batch/image-001.png',
+            generatedIdentity: {
+              batchId: 'large-batch',
+              itemIndex: 1,
+            },
+          }, ...baseItems],
+          pendingGenerations: [],
+        };
+      }),
+    };
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    const pendingCard = container.querySelector(
+      '[data-testid="workspace-media-card-workspace-media-pending-large-batch-1"]',
+    ) as HTMLButtonElement;
+    const pendingSlot = pendingCard.closest(
+      '[data-testid="workspace-media-virtual-item"]',
+    );
+    expect(pendingSlot).toBeTruthy();
+
+    await act(async () => {
+      dispatchWorkspaceMediaRefresh({
+        reason: 'media-tool-event',
+        lifecycleStatus: 'completed',
+        workspacePath: 'C:/work',
+        toolId: 'large-batch-tool',
+        toolName: 'GenerateImage',
+        batchId: 'large-batch',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const readyCard = container.querySelector(
+      '[data-testid="workspace-media-card-large-batch-ready-1"]',
+    ) as HTMLButtonElement;
+    expect(readyCard).toBeTruthy();
+    expect(readyCard.closest('[data-testid="workspace-media-virtual-item"]'))
+      .toBe(pendingSlot);
+    expect(readyCard.disabled).toBe(false);
+  });
+
+  it('does not read filtered-out video previews when image cards enter the viewport', async () => {
+    const observer = installControlledIntersectionObserver(
+      dom.window as unknown as Window,
+    );
+    const service = readyService();
+    const imagePreviewResolver = vi.fn(async () => 'data:image/png;base64,preview-image');
+    const mediaPreviewResolver = vi.fn(async () => 'data:video/mp4;base64,preview-video');
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={mediaPreviewResolver}
+        />,
+      );
+    });
+
+    expect(imagePreviewResolver).not.toHaveBeenCalled();
+    expect(mediaPreviewResolver).not.toHaveBeenCalled();
+
+    const imageFilter = Array.from(container.querySelectorAll('button'))
+      .find(button => button.textContent?.includes('Images')) as HTMLButtonElement;
+    await act(async () => {
+      imageFilter.click();
+    });
+    await act(async () => {
+      observer.triggerLatest([
+        'image:C:/work/assets/poster.png:3000',
+        'unpreviewable:C:/work/assets/broken.png:4000',
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(imagePreviewResolver).toHaveBeenCalledTimes(2);
+    expect(mediaPreviewResolver).not.toHaveBeenCalled();
+  });
+
+  it('retries a failed preview when the same media ID receives a new file version', async () => {
+    const observer = installControlledIntersectionObserver(
+      dom.window as unknown as Window,
+    );
+    let scanCount = 0;
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn(async () => {
+        scanCount += 1;
+        return {
+          status: 'ready' as const,
+          scannedAt: 100 + scanCount,
+          items: [{
+            id: 'versioned-image',
+            kind: 'image' as const,
+            source: 'generated' as const,
+            filePath: 'C:/work/versioned-image.png',
+            relativePath: 'versioned-image.png',
+            fileName: 'versioned-image.png',
+            extension: 'png',
+            modifiedAt: scanCount === 1 ? 100 : 200,
+          }],
+        };
+      }),
+    };
+    const imagePreviewResolver = vi.fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce('data:image/png;base64,repaired');
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+          mediaPreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+    });
+    await act(async () => {
+      observer.triggerLatest([
+        'versioned-image:C:/work/versioned-image.png:100',
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector(
+      '[data-testid="workspace-media-card-versioned-image"]',
+    )?.className).toContain('is-failed');
+
+    const refreshButton = container.querySelector(
+      'button[aria-label="Refresh"]',
+    ) as HTMLButtonElement;
+    await act(async () => {
+      refreshButton.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      observer.triggerLatest([
+        'versioned-image:C:/work/versioned-image.png:200',
+      ]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(imagePreviewResolver).toHaveBeenCalledTimes(2);
+    const repairedCard = container.querySelector(
+      '[data-testid="workspace-media-card-versioned-image"]',
+    ) as HTMLButtonElement;
+    expect(repairedCard.className).not.toContain('is-failed');
+    expect(repairedCard.querySelector('img')?.src)
+      .toBe('data:image/png;base64,repaired');
+  });
+
+  it('filters ready, generating, failed, and unavailable media by explicit status', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(),
+      scanLibrary: vi.fn(async () => ({
+        status: 'ready',
+        scannedAt: 100,
+        items: [
+          {
+            id: 'status-ready',
+            kind: 'image',
+            source: 'generated',
+            filePath: 'C:/work/ready.png',
+            relativePath: 'ready.png',
+            fileName: 'ready.png',
+            extension: 'png',
+            modifiedAt: 300,
+          },
+          {
+            id: 'status-unavailable',
+            kind: 'image',
+            source: 'generated',
+            filePath: '',
+            relativePath: 'unavailable.png',
+            fileName: 'unavailable.png',
+            extension: 'png',
+            modifiedAt: 200,
+          },
+        ],
+        pendingGenerations: [{
+          id: 'status-pending',
+          batchId: 'status-batch',
+          itemIndex: 1,
+          kind: 'image',
+          source: 'generated',
+          requestedAspectRatio: '1:1',
+          placeholderAspectRatio: '1 / 1',
+          updatedAt: 400,
+        }],
+      })),
+    };
+    const imagePreviewResolver = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={imagePreviewResolver}
+        />,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const statusSelect = container.querySelector(
+      'select[aria-label="Status"]',
+    ) as HTMLSelectElement;
+    expect(statusSelect).toBeTruthy();
+
+    await act(async () => {
+      Simulate.change(statusSelect, { target: { value: 'pending' } });
+    });
+    expect(container.textContent).toContain('Generating image #1');
+    expect(container.textContent).not.toContain('ready.png');
+
+    await act(async () => {
+      Simulate.change(statusSelect, { target: { value: 'unpreviewable' } });
+    });
+    expect(container.textContent).toContain('unavailable.png');
+    expect(container.textContent).not.toContain('Generating image #1');
+
+    await act(async () => {
+      Simulate.change(statusSelect, { target: { value: 'failed' } });
+    });
+    expect(container.textContent).toContain('ready.png');
+    expect(container.querySelector('[data-testid="workspace-media-card-status-ready"]')?.className)
+      .toContain('is-failed');
+  });
+
   it('does no presentation work while inactive and refreshes immediately on activation', async () => {
     vi.useFakeTimers();
     const service = readyService();
@@ -322,6 +870,99 @@ describe('WorkspaceMediaGallery', () => {
     expect(listTrash).toHaveBeenCalledTimes(1);
     expect(imagePreviewResolver).toHaveBeenCalled();
     expect(mediaPreviewResolver).toHaveBeenCalled();
+  });
+
+  it('backs idle scans off after one compatibility refresh and stays fast for active generation', async () => {
+    vi.useFakeTimers();
+    const idleService = readyService();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={idleService}
+          imagePreviewResolver={vi.fn(async () => undefined)}
+          mediaPreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+      await Promise.resolve();
+    });
+    expect(idleService.scanLibrary).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(idleService.scanLibrary).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(25_000);
+    });
+    expect(idleService.scanLibrary).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(idleService.scanLibrary).toHaveBeenCalledTimes(3);
+
+    const activeService = pendingGenerationService();
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={activeService}
+          imagePreviewResolver={vi.fn(async () => undefined)}
+          mediaPreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+      await Promise.resolve();
+    });
+    const callsAfterServiceSwitch = vi.mocked(activeService.scanLibrary)
+      .mock.calls.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(activeService.scanLibrary)
+      .toHaveBeenCalledTimes(callsAfterServiceSwitch + 1);
+  });
+
+  it('pauses periodic scans while hidden and refreshes on visibility return', async () => {
+    vi.useFakeTimers();
+    let visibilityState: DocumentVisibilityState = 'hidden';
+    Object.defineProperty(dom.window.document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+    const service = readyService();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaGallery
+          workspacePath="C:/work"
+          service={service}
+          imagePreviewResolver={vi.fn(async () => undefined)}
+          mediaPreviewResolver={vi.fn(async () => undefined)}
+        />,
+      );
+      await Promise.resolve();
+    });
+    expect(service.scanLibrary).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(service.scanLibrary).toHaveBeenCalledTimes(1);
+
+    visibilityState = 'visible';
+    await act(async () => {
+      dom.window.document.dispatchEvent(new dom.window.Event(
+        'visibilitychange',
+      ));
+      await Promise.resolve();
+    });
+    expect(service.scanLibrary).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it('starts a new activity epoch without waiting for a stale scan and rejects its late result', async () => {
