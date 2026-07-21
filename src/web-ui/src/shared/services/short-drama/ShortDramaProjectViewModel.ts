@@ -251,7 +251,12 @@ export function createShortDramaAssetAnchorViewModel(project: ShortDramaProject)
   ];
 
   return categories.map(category => {
-    const artifacts = assetArtifacts.filter(artifact => artifact.type === category.artifactType);
+    const artifacts = assetArtifacts.filter(artifact => {
+      if (artifact.type === category.artifactType) return true;
+      if (category.id !== 'characters') return false;
+      // Catch-all: unclassified types go to characters so nothing is silently dropped
+      return !['character', 'location', 'prop'].includes(artifact.type);
+    });
     return {
       ...category,
       artifacts,

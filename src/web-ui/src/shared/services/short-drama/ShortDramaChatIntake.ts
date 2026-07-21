@@ -232,18 +232,21 @@ function isVideoInput(extension: string, mimeType: string) {
 
 function inferAssetArtifactType(instruction: string, fileName: string): ShortDramaArtifactType {
   const text = `${instruction} ${fileName.toLowerCase()}`;
-  if (/(\u89d2\u8272|\u5973\u4e3b|\u7537\u4e3b|\u4eba\u7269|character|hero|lead)/i.test(text)) {
-    return 'character';
-  }
-  if (/(\u573a\u666f|\u5730\u70b9|\u8857\u5934|\u5bab\u5899|location|scene|street|palace)/i.test(text)) {
+  // Check location first — more specific keywords, fewer false positives
+  if (/(场景|地点|街头|宫墙|大殿|庭院|卧室|书房|花园|走廊|广场|城门|客栈|酒楼|山林|market|location|scene|street|palace|hall|garden|courtyard|room|corridor|square|gate|inn|forest|river|lake)/i.test(text)) {
     return 'location';
   }
-  if (/(\u9053\u5177|\u7269\u4ef6|prop|object)/i.test(text)) {
+  if (/(角色|女主|男主|人物|主角|女主角|男主角|配角|反派|character|hero|heroine|protagonist|antagonist|villain)/i.test(text)) {
+    return 'character';
+  }
+  if (/(道具|物件|器物|武器|书信|令牌|卷轴|茶杯|烛台|prop|object|weapon|sword|letter|token|scroll|potion)/i.test(text)) {
     return 'prop';
   }
-  return 'image';
+  // Fallback: use filename hints before defaulting
+  if (/\b(scene|location|bg|background|env|environment)\b/i.test(fileName)) return 'location';
+  if (/\b(char|character|role|portrait|face|avatar)\b/i.test(fileName)) return 'character';
+  return 'prop';
 }
-
 function isPostInstruction(instruction: string, fileName: string) {
   const text = `${instruction} ${fileName.toLowerCase()}`;
   return /(\u540e\u671f|\u6210\u7247|\u6700\u7ec8|final|post|cut|export)/i.test(text);
@@ -259,7 +262,7 @@ function assetFolderForType(type: ShortDramaArtifactType) {
   if (type === 'prop') {
     return 'props';
   }
-  return 'references';
+  return 'characters';
 }
 
 function summarizeScriptInput(text?: string) {
@@ -291,6 +294,9 @@ function createArtifactDraft(project: ShortDramaProject, route: ShortDramaChatIn
   if (patch.action !== 'createArtifactDraft') {
     throw new Error('Expected createArtifactDraft patch.');
   }
+  const artifactType = ['character', 'location', 'prop'].includes(patch.artifactDraft.type)
+    ? patch.artifactDraft.type
+    : 'character';
 
   const id = `chat-intake-asset-${draftIdFromLabel(patch.artifactDraft.mediaReference?.label ?? patch.artifactDraft.title)}`;
   return {
@@ -299,7 +305,7 @@ function createArtifactDraft(project: ShortDramaProject, route: ShortDramaChatIn
     displayName: patch.artifactDraft.title,
     episodeId: project.activeEpisodeId ?? project.episodes[0]?.id ?? 'episode-01',
     stage: patch.artifactDraft.stage,
-    type: patch.artifactDraft.type,
+    type: artifactType,
     title: patch.artifactDraft.title,
     summary: patch.artifactDraft.summary,
     agentRole: 'image',

@@ -151,7 +151,7 @@ export function filterShortDramaSessionsByWorkspace(
     return scopedSessions;
   }
 
-  return sessions.filter(session => !session.workspacePath);
+  return [];
 }
 
 function trimPath(path?: string) {

@@ -49,11 +49,11 @@ export function openShortDramaRealStageAgentTab(
 ): ShortDramaStageAgentTabOpenResult {
   const context = createShortDramaStageAgentContext(workspace, workspacePath);
   if (context.status === 'pending') {
-    closeStaleStageAgentTabs(canvas, workspace, workspacePath);
+    closeLegacyStageAgentTabs(canvas, workspace, '', workspacePath);
+    closeOtherStageAgentTabs(canvas, workspace);
     return { status: 'pending', source: 'short-drama-stage-agent-tab', reason: context.reason };
   }
   if (context.status !== 'ready') {
-    closeStaleStageAgentTabs(canvas, workspace, workspacePath);
     return { status: 'unsupported', source: 'short-drama-stage-agent-tab', context };
   }
 
@@ -75,6 +75,7 @@ export function openShortDramaRealStageAgentTab(
   );
 
   closeLegacyStageAgentTabs(canvas, workspace, openRequest.childSessionId, openRequest.workspacePath);
+  closeOtherStageAgentTabs(canvas, workspace);
   if (canvas.getSplitMode() === 'none') {
     canvas.setSplitMode('horizontal');
   }
@@ -129,7 +130,7 @@ function closeLegacyStageAgentTabs(
   realChildSessionId: string,
   workspacePath: string | undefined,
 ) {
-  for (const { groupId, group } of getGroups(canvas)) {
+  for (const { groupId, group } of [{ groupId: 'secondary' as const, group: canvas.secondaryGroup }, { groupId: 'tertiary' as const, group: canvas.tertiaryGroup }]) {
     const legacyTabs = group.tabs.filter(tab => (
       isLegacyShortDramaStageAgentTab(tab, workspace, realChildSessionId, workspacePath)
     ));
@@ -137,33 +138,22 @@ function closeLegacyStageAgentTabs(
   }
 }
 
-function closeStaleStageAgentTabs(
+function closeOtherStageAgentTabs(
   canvas: ShortDramaStageAgentCanvasGateway,
   workspace: ShortDramaStageWorkspace,
-  workspacePath: string | undefined,
 ) {
-  for (const { groupId, group } of getGroups(canvas)) {
-    const staleTabs = group.tabs.filter(tab => isShortDramaStageAgentTab(tab, workspace, workspacePath));
-    staleTabs.forEach(tab => canvas.closeTab(tab.id, groupId, { forceRemove: true }));
+  for (const { groupId, group } of [{ groupId: 'secondary', group: canvas.secondaryGroup }, { groupId: 'tertiary', group: canvas.tertiaryGroup }]) {
+    const otherTabs = group.tabs.filter(function(tab) {
+      if (tab.content.type !== 'btw-session') return false;
+      const metadata = tab.content.metadata ?? {};
+      const tabProjectId = typeof metadata.shortDramaProjectId === 'string' ? metadata.shortDramaProjectId : undefined;
+      const tabStage = typeof metadata.shortDramaStage === 'string' ? metadata.shortDramaStage : undefined;
+      if (tabProjectId === workspace.projectId && tabStage && tabStage !== workspace.stage) return true;
+      if (!tabStage) return true;
+      return false;
+    });
+    otherTabs.forEach(function(t) { canvas.closeTab(t.id, groupId as EditorGroupId, { forceRemove: true }); });
   }
-}
-
-function isShortDramaStageAgentTab(
-  tab: CanvasTab,
-  workspace: ShortDramaStageWorkspace,
-  workspacePath: string | undefined,
-) {
-  if (tab.content.type !== 'btw-session') return false;
-  const metadata = tab.content.metadata ?? {};
-  const tabWorkspacePath = typeof metadata.shortDramaWorkspacePath === 'string'
-    ? metadata.shortDramaWorkspacePath
-    : undefined;
-  const matchesWorkspace = !tabWorkspacePath
-    || !workspacePath
-    || areShortDramaWorkspacePathsEqual(tabWorkspacePath, workspacePath);
-  return metadata.shortDramaProjectId === workspace.projectId
-    && metadata.shortDramaStage === workspace.stage
-    && matchesWorkspace;
 }
 
 function isLegacyShortDramaStageAgentTab(
@@ -190,13 +180,6 @@ function isLegacyShortDramaStageAgentTab(
   return (matchesStage || isOldSyntheticKey) && data?.childSessionId !== realChildSessionId;
 }
 
-function getGroups(canvas: ShortDramaStageAgentCanvasGateway) {
-  return [
-    { groupId: 'primary' as const, group: canvas.primaryGroup },
-    { groupId: 'secondary' as const, group: canvas.secondaryGroup },
-    { groupId: 'tertiary' as const, group: canvas.tertiaryGroup },
-  ];
-}
 
 function buildBtwSessionPanelContent(
   childSessionId: string,
