@@ -1087,6 +1087,7 @@ function selectRecoveredMediaReferenceMatch(
   const scored = mediaItems
     .filter(item => !usedMediaIds.has(item.id))
     .filter(item => item.kind === expectedKind)
+    .filter(item => recoveredMediaMatchesArtifactType(artifact, item))
     .map(item => ({
       item,
       score: scoreRecoveredMediaReferenceMatch(artifact, item),
@@ -1107,8 +1108,8 @@ function scoreRecoveredMediaReferenceMatch(artifact: ShortDramaArtifact, item: W
   }
 
   let score = 0;
-  const typeCue = recoveredMediaTypeCue(artifact.type);
-  if (typeCue && prompt.includes(typeCue)) {
+  const typeCues = recoveredMediaTypeCues(artifact.type);
+  if (typeCues.some(cue => prompt.includes(cue))) {
     score += 2;
   }
 
@@ -1133,14 +1134,31 @@ function scoreRecoveredMediaReferenceMatch(artifact: ShortDramaArtifact, item: W
   return score;
 }
 
-function recoveredMediaTypeCue(type: ShortDramaArtifact['type']): string | undefined {
-  if (type === 'character') return '角色';
-  if (type === 'location') return '场景';
-  if (type === 'prop') return '道具';
-  if (type === 'storyboard') return '分镜';
-  if (type === 'video') return '视频';
-  if (type === 'final') return '成片';
-  return undefined;
+function recoveredMediaMatchesArtifactType(
+  artifact: ShortDramaArtifact,
+  item: WorkspaceMediaItem,
+): boolean {
+  if (artifact.stage !== 'assets') {
+    return true;
+  }
+  const prompt = normalizeShortDramaMediaMatchText(item.generationPrompt ?? '');
+  return recoveredMediaTypeCues(artifact.type).some(cue => prompt.includes(cue));
+}
+
+function recoveredMediaTypeCues(type: ShortDramaArtifact['type']): string[] {
+  if (type === 'character') {
+    return ['角色资产', '角色图', '角色设定', '角色板', '人物资产', '人物设定', '人物肖像', 'character', 'portrait'];
+  }
+  if (type === 'location') {
+    return ['场景资产', '场景图', '场景设定', '环境资产', '环境概念', '空间设定', 'location', 'environment'];
+  }
+  if (type === 'prop') {
+    return ['道具资产', '道具图', '道具设定', '物件资产', '器物设定', 'prop', 'object'];
+  }
+  if (type === 'storyboard') return ['分镜', 'storyboard'];
+  if (type === 'video') return ['视频', 'video'];
+  if (type === 'final') return ['成片', 'final'];
+  return [];
 }
 
 function recoveredMediaMinimumScore(artifact: ShortDramaArtifact): number {

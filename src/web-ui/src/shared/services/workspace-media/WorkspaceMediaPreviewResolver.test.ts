@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 import { workspaceAPI } from '@/infrastructure/api/service-api/WorkspaceAPI';
 import {
@@ -12,12 +13,23 @@ vi.mock('@/infrastructure/api/service-api/WorkspaceAPI', () => ({
   },
 }));
 
+vi.mock('@tauri-apps/api/core', () => ({
+  convertFileSrc: vi.fn(),
+}));
+
 const readFileContent = vi.mocked(workspaceAPI.readFileContent);
+const convertFileSrcMock = vi.mocked(convertFileSrc);
 
 describe('WorkspaceMediaPreviewResolver', () => {
   beforeEach(() => {
+    vi.unstubAllGlobals();
     clearWorkspaceMediaPreviewUrlCache();
     readFileContent.mockReset();
+    convertFileSrcMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('does not retain completed base64 data urls in the module cache', async () => {
@@ -93,5 +105,29 @@ describe('WorkspaceMediaPreviewResolver', () => {
     expect(failed).toBeUndefined();
     expect(recovered).toBe('data:image/png;base64,QUJD');
     expect(readFileContent).toHaveBeenCalledTimes(2);
+  });
+
+  it('bypasses a failed Tauri stream when a data URL is explicitly requested', async () => {
+    vi.stubGlobal('window', { __TAURI__: {} });
+    convertFileSrcMock.mockReturnValue('asset://localhost/image.png');
+    readFileContent.mockResolvedValue('QUJD');
+
+    const streamed = await resolveWorkspaceMediaPreviewUrl({
+      filePath: 'C:/work/e.png',
+      extension: 'png',
+      kind: 'image',
+    });
+    const recovered = await resolveWorkspaceMediaPreviewUrl({
+      filePath: 'C:/work/e.png',
+      extension: 'png',
+      kind: 'image',
+      forceDataUrl: true,
+    });
+
+    expect(streamed).toBe('asset://localhost/image.png');
+    expect(recovered).toBe('data:image/png;base64,QUJD');
+    expect(convertFileSrcMock).toHaveBeenCalledTimes(1);
+    expect(readFileContent).toHaveBeenCalledTimes(1);
+
   });
 });

@@ -64,7 +64,8 @@ describe('ShortDramaTopBar', () => {
     const button = container.querySelector<HTMLButtonElement>(
       '[data-testid="short-drama-team-reopen"]',
     );
-    expect(button?.textContent).toContain('5');
+    expect(button?.textContent).toBe('canvas.shortDramaTeamCompact5');
+    expect(button?.getAttribute('aria-label')).toBe('canvas.shortDramaTeam');
     act(() => button?.click());
     expect(onTeamOpen).toHaveBeenCalledTimes(1);
   });

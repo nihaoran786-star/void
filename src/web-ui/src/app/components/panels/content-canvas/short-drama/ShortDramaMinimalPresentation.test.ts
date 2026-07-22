@@ -29,6 +29,7 @@ describe('ShortDramaCenter minimal presentation contract', () => {
 
     expect(consumers).toEqual([
       '--short-drama-font-size-ui-label',
+      '--short-drama-font-size-ui-label',
       '--short-drama-font-size-ui-meta',
       '--short-drama-font-size-ui-control',
       '--short-drama-font-size-ui-meta',

@@ -178,6 +178,46 @@ describe('ShortDramaProjectViewModel', () => {
     }));
   });
 
+  it('does not attach location or prop images to character assets that only share story terms', () => {
+    const project: ShortDramaProject = {
+      ...createShortDramaStaticProject(),
+      artifacts: [{
+        id: 'CHAR-001',
+        handle: 'CHAR-001',
+        displayName: '林舟｜地球黄昏·离别状态',
+        episodeId: 'episode-01',
+        stage: 'assets',
+        type: 'character',
+        title: '林舟｜地球黄昏·离别状态',
+        summary: '航天员林舟任务出发前身份板。',
+        agentRole: 'image',
+        status: 'ready',
+        revisionCount: 0,
+        attemptCount: 0,
+        revisions: [],
+        attempts: [],
+      }],
+    };
+    const mediaItems: WorkspaceMediaItem[] = [
+      generatedMediaItem(
+        'media-earth-dusk',
+        'C:/work/media/generated/earth/image-001.png',
+        'media/generated/earth/image-001.png',
+        '写实电影环境资产图，地球黄昏，最后一片麦田正在被沙暴吞没，不要人物。',
+      ),
+      generatedMediaItem(
+        'media-watch-projection',
+        'C:/work/media/generated/watch/image-001.png',
+        'media/generated/watch/image-001.png',
+        '写实科幻电影道具资产图，旧怀表玻璃内浮现成年女性通讯者的低强度轮廓。',
+      ),
+    ];
+
+    const recovered = createShortDramaProjectWithRecoveredMediaReferences(project, mediaItems);
+
+    expect(recovered.artifacts[0]?.mediaReference).toBeUndefined();
+  });
+
   it('recovers generated storyboard and video media references from workspace media items', () => {
     const project: ShortDramaProject = {
       ...createShortDramaStaticProject(),

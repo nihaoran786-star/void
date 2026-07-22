@@ -43,6 +43,7 @@ export interface WorkspaceMediaPreviewRequest {
   extension?: string;
   kind?: 'image' | 'video' | 'audio' | 'media';
   modifiedAt?: number;
+  forceDataUrl?: boolean;
 }
 
 export type WorkspaceMediaImagePreviewRequest = WorkspaceMediaPreviewRequest;
@@ -67,7 +68,12 @@ function mimeTypeForMediaRequest(request: WorkspaceMediaPreviewRequest): string 
 }
 
 function cacheKeyForMediaRequest(request: WorkspaceMediaPreviewRequest): string {
-  return [request.kind ?? 'media', request.filePath, request.modifiedAt ?? ''].join('|');
+  return [
+    request.kind ?? 'media',
+    request.filePath,
+    request.modifiedAt ?? '',
+    request.forceDataUrl ? 'data' : 'stream',
+  ].join('|');
 }
 
 function isTauriEnvironment(): boolean {
@@ -118,7 +124,7 @@ export async function resolveWorkspaceMediaPreviewUrl(
 
   const resolutionEpoch = cacheEpoch;
   const resolution = (async (): Promise<WorkspaceMediaPreviewResolution> => {
-    if (isTauriEnvironment()) {
+    if (isTauriEnvironment() && !request.forceDataUrl) {
       try {
         let streamingUrl = convertFileSrc(filePath);
         if (streamingUrl && request.modifiedAt) {

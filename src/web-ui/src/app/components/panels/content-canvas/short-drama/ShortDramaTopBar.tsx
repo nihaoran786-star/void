@@ -90,7 +90,7 @@ export function ShortDramaTopBar({
           aria-label={t('canvas.shortDramaTeam')}
           onClick={onTeamOpen}
         >
-          <span>{t('canvas.shortDramaTeam')}</span>
+          <span>{t('canvas.shortDramaTeamCompact')}</span>
           {teamMemberCount > 0 && <span aria-hidden="true">{teamMemberCount}</span>}
         </button>
       )}

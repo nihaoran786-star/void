@@ -79,6 +79,7 @@ import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootst
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
 import { ShortDramaTopBar } from './ShortDramaTopBar';
+import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
 
 import './ShortDramaCenterPanel.scss';
 
@@ -2144,8 +2145,6 @@ function MediaPreview({
   const readyPosterPreview = posterPreview?.status === 'ready' && posterPreview.kind === 'image'
     ? posterPreview
     : undefined;
-  const isPreviewReady = readyPreview !== undefined;
-  const isPosterPreviewReady = readyPosterPreview !== undefined;
   const readyPreviewKind = readyPreview?.kind;
   const readyPosterPreviewKind = readyPosterPreview?.kind;
   const readyPreviewLocalPath = readyPreview?.localPath ?? readyPreview?.filePath;
@@ -2153,19 +2152,23 @@ function MediaPreview({
   const readyPreviewDirectUrl = readyPreview && isDirectRenderableMediaUrl(readyPreview.previewUrl)
     ? readyPreview.previewUrl
     : undefined;
-  const readyPreviewDirectThumbnailUrl = readyPreview?.thumbnailUrl && isDirectRenderableMediaUrl(readyPreview.thumbnailUrl)
-    ? readyPreview.thumbnailUrl
-    : readyPreviewDirectUrl;
   const readyPosterPreviewDirectUrl = readyPosterPreview && isDirectRenderableMediaUrl(readyPosterPreview.previewUrl)
     ? readyPosterPreview.previewUrl
     : undefined;
-  const [resolvedPreviewUrl, setResolvedPreviewUrl] = useState<string>();
-  const [resolvedThumbnailUrl, setResolvedThumbnailUrl] = useState<string>();
-  const [resolvedPosterUrl, setResolvedPosterUrl] = useState<string>();
   const isRail = variant === 'rail';
-  const mediaUrl = preview.status === 'ready'
-    ? resolvedPreviewUrl ?? (isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined)
-    : undefined;
+  const previewMediaSource = useRecoverableWorkspaceMediaUrl({
+    directUrl: readyPreviewDirectUrl,
+    localPath: readyPreviewLocalPath,
+    kind: readyPreviewKind,
+    modifiedAt: readyPreview?.modifiedAt,
+  });
+  const posterMediaSource = useRecoverableWorkspaceMediaUrl({
+    directUrl: readyPosterPreviewDirectUrl,
+    localPath: readyPosterPreviewLocalPath,
+    kind: readyPosterPreviewKind,
+    modifiedAt: readyPosterPreview?.modifiedAt,
+  });
+  const mediaUrl = preview.status === 'ready' ? previewMediaSource.url : undefined;
   const className = [
     'short-drama-media-preview',
     `short-drama-media-preview--${variant}`,
@@ -2173,118 +2176,14 @@ function MediaPreview({
     preview.kind ? `is-${preview.kind}` : '',
   ].filter(Boolean).join(' ');
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!isPreviewReady) {
-      setResolvedPreviewUrl(undefined);
-      setResolvedThumbnailUrl(undefined);
-      return undefined;
-    }
-
-    if (readyPreviewDirectUrl || !readyPreviewLocalPath) {
-      setResolvedPreviewUrl(readyPreviewDirectUrl);
-      setResolvedThumbnailUrl(readyPreviewDirectThumbnailUrl);
-    }
-
-    if (readyPreviewDirectUrl) {
-      return undefined;
-    }
-
-    if (!readyPreviewLocalPath) {
-      return undefined;
-    }
-
-    resolveWorkspaceMediaPreviewUrl({
-      filePath: readyPreviewLocalPath,
-      extension: extensionFromPath(readyPreviewLocalPath),
-      kind: readyPreviewKind,
-      modifiedAt: readyPreview?.modifiedAt,
-    })
-      .then(url => {
-        if (!cancelled && url) {
-          setResolvedPreviewUrl(url);
-          setResolvedThumbnailUrl(url);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResolvedPreviewUrl(readyPreviewDirectUrl);
-          setResolvedThumbnailUrl(readyPreviewDirectThumbnailUrl);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isPreviewReady,
-    readyPreviewKind,
-    readyPreview?.mediaItemId,
-    readyPreview?.modifiedAt,
-    readyPreview?.previewUrl,
-    readyPreview?.thumbnailUrl,
-    readyPreviewDirectThumbnailUrl,
-    readyPreviewDirectUrl,
-    readyPreviewLocalPath,
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!isPosterPreviewReady) {
-      setResolvedPosterUrl(undefined);
-      return undefined;
-    }
-
-    if (readyPosterPreviewDirectUrl || !readyPosterPreviewLocalPath) {
-      setResolvedPosterUrl(readyPosterPreviewDirectUrl);
-    }
-
-    if (readyPosterPreviewDirectUrl) {
-      return undefined;
-    }
-
-    if (!readyPosterPreviewLocalPath) {
-      return undefined;
-    }
-
-    resolveWorkspaceMediaPreviewUrl({
-      filePath: readyPosterPreviewLocalPath,
-      extension: extensionFromPath(readyPosterPreviewLocalPath),
-      kind: readyPosterPreviewKind,
-      modifiedAt: readyPosterPreview?.modifiedAt,
-    })
-      .then(url => {
-        if (!cancelled && url) {
-          setResolvedPosterUrl(url);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResolvedPosterUrl(readyPosterPreviewDirectUrl);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isPosterPreviewReady,
-    readyPosterPreviewKind,
-    readyPosterPreview?.mediaItemId,
-    readyPosterPreview?.modifiedAt,
-    readyPosterPreview?.previewUrl,
-    readyPosterPreviewDirectUrl,
-    readyPosterPreviewLocalPath,
-  ]);
-
   if (preview.status === 'ready') {
     const directThumbnailUrl = preview.thumbnailUrl && isDirectRenderableMediaUrl(preview.thumbnailUrl)
       ? preview.thumbnailUrl
       : undefined;
     const thumbnailUrl = preview.kind === 'video'
-      ? directThumbnailUrl ?? resolvedPosterUrl
-      : resolvedThumbnailUrl ?? directThumbnailUrl ?? mediaUrl;
-    const railThumbnailUrl = preview.kind === 'video' ? directThumbnailUrl ?? resolvedPosterUrl : thumbnailUrl;
+      ? directThumbnailUrl ?? posterMediaSource.url
+      : directThumbnailUrl ?? mediaUrl;
+    const railThumbnailUrl = preview.kind === 'video' ? directThumbnailUrl ?? posterMediaSource.url : thumbnailUrl;
     const handleOpenPreview = () => {
       if (isRail || !mediaUrl) {
         return;
@@ -2310,6 +2209,7 @@ function MediaPreview({
                 src={mediaUrl}
                 alt={artifact.title}
                 loading="lazy"
+                onError={previewMediaSource.onError}
               />
             ) : (
               <div className="short-drama-media-preview__empty">
@@ -2339,6 +2239,7 @@ function MediaPreview({
                   controls
                   playsInline
                   preload="metadata"
+                  onError={previewMediaSource.onError}
                 />
               </div>
             ) : (
@@ -2352,7 +2253,7 @@ function MediaPreview({
             )
           ) : (
             mediaUrl ? (
-              <audio src={mediaUrl} controls preload="metadata" />
+              <audio src={mediaUrl} controls preload="metadata" onError={previewMediaSource.onError} />
             ) : (
               <div className="short-drama-media-preview__empty">
                 <MediaPlaceholderMark kind="audio" />
