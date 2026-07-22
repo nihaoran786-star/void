@@ -9,6 +9,7 @@ import { IconButton, MarkdownRenderer, ToolProcessingDots, Tooltip } from '@/com
 import type { SessionUsageReport } from '@/infrastructure/api/service-api/SessionAPI';
 import {
   buildSessionUsageExportMarkdown,
+  calculateShare,
   formatHitRateSuffix,
   formatUsageDuration,
   formatUsageNumber,
@@ -34,6 +35,8 @@ import type { SessionUsagePanelTab } from './sessionUsagePanelTypes';
 import './SessionUsageReportCard.scss';
 
 const SUMMARY_LIST_LIMIT = 3;
+const CARD_GAUGE_RADIUS = 29;
+const CARD_GAUGE_CIRCUMFERENCE = 2 * Math.PI * CARD_GAUGE_RADIUS;
 
 interface SessionUsageReportCardProps {
   report?: SessionUsageReport;
@@ -160,6 +163,18 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
       ? t('usage.help.cachedTokensPartial')
     : undefined;
   const fileMetricHelp = getFileScopeHelp(report, t);
+  const activeShare = calculateShare(report.time.activeTurnMs, report.time.wallTimeMs);
+  const hitRate = report.tokens.cacheHitRate;
+  const hasHitRate = typeof hitRate === 'number' && Number.isFinite(hitRate);
+  const gaugePercent = hasHitRate
+    ? Math.round(hitRate * 100)
+    : activeShare !== undefined
+      ? Math.round(activeShare)
+      : undefined;
+  const gaugeLabel = hasHitRate ? t('usage.metrics.cached') : t('usage.metrics.active');
+  const gaugeDash = gaugePercent !== undefined
+    ? `${(Math.min(100, Math.max(0, gaugePercent)) / 100) * CARD_GAUGE_CIRCUMFERENCE} ${CARD_GAUGE_CIRCUMFERENCE}`
+    : undefined;
   const workspacePathLabel = getUsageDisplayPathLabel(report.workspace.pathLabel, t, {
     redactPaths: redactExportPaths,
   });
@@ -269,7 +284,41 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
         </div>
       </div>
 
-      <div className="session-usage-report-card__metrics">
+      <div className="session-usage-report-card__main">
+        <div
+          className="session-usage-report-card__gauge"
+          role="img"
+          aria-label={gaugePercent !== undefined
+            ? `${gaugeLabel} ${t('usage.percent', { value: gaugePercent })}`
+            : gaugeLabel}
+        >
+          <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden>
+            <circle
+              className="session-usage-report-card__gauge-track"
+              cx="36"
+              cy="36"
+              r={CARD_GAUGE_RADIUS}
+            />
+            {gaugeDash && (
+              <circle
+                className="session-usage-report-card__gauge-fill"
+                cx="36"
+                cy="36"
+                r={CARD_GAUGE_RADIUS}
+                strokeDasharray={gaugeDash}
+                transform="rotate(-90 36 36)"
+              />
+            )}
+          </svg>
+          <div className="session-usage-report-card__gauge-center">
+            <strong>
+              {gaugePercent !== undefined
+                ? t('usage.percent', { value: gaugePercent })
+                : t('usage.unavailable')}
+            </strong>
+          </div>
+        </div>
+        <div className="session-usage-report-card__metrics">
         {metrics.map(metric => (
           <div
             className={`session-usage-report-card__metric${metric.tone ? ` session-usage-report-card__metric--${metric.tone}` : ''}`}
@@ -279,6 +328,7 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
             <UsageMetricValue value={metric.value} help={metric.help} />
           </div>
         ))}
+        </div>
       </div>
 
       <div className="session-usage-report-card__lists">

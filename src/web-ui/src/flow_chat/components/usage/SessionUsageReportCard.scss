@@ -238,12 +238,62 @@
     }
   }
 
+  &__main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
+  }
+
+  &__gauge {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    flex: 0 0 auto;
+
+    svg {
+      display: block;
+    }
+  }
+
+  &__gauge-track,
+  &__gauge-fill {
+    fill: none;
+    stroke-width: 7;
+  }
+
+  &__gauge-track {
+    stroke: color-mix(in srgb, var(--element-bg-soft) 70%, transparent);
+  }
+
+  &__gauge-fill {
+    stroke: var(--accent-primary);
+    stroke-linecap: round;
+  }
+
+  &__gauge-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    strong {
+      color: var(--color-text-primary);
+      font-size: var(--flowchat-font-size-sm);
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
   &__metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(116px, 1fr));
+    flex: 1 1 auto;
+    min-width: 0;
     gap: 10px 16px;
-    padding-top: 12px;
-    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
   }
 
   &__metric {
@@ -448,6 +498,10 @@
 
     &__header {
       flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    &__main {
       align-items: flex-start;
     }
 

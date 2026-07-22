@@ -242,36 +242,90 @@
     }
   }
 
-  &__overview-grid {
+  &__monitor {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px 12px;
+    grid-template-columns: 172px minmax(0, 1fr);
+    gap: 12px 24px;
+    align-items: center;
   }
 
-  &__overview-metric {
+  &__gauge {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+
+    svg {
+      display: block;
+    }
+  }
+
+  &__gauge-track,
+  &__gauge-fill {
+    fill: none;
+    stroke-width: 7;
+  }
+
+  &__gauge-track {
+    stroke: color-mix(in srgb, var(--element-bg-soft) 70%, transparent);
+  }
+
+  &__gauge-fill {
+    stroke: var(--accent-primary);
+    stroke-linecap: round;
+  }
+
+  &__gauge-center {
+    position: absolute;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-align: center;
+
+    strong {
+      color: var(--color-text-primary);
+      font-size: var(--font-size-4xl);
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+
+    span {
+      max-width: 112px;
+      color: var(--color-text-muted);
+      font-size: var(--flowchat-font-size-xs);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
+  }
+
+  &__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
     min-width: 0;
 
     strong {
       color: var(--color-text-primary);
-      font-size: var(--font-size-3xl);
+      font-size: var(--font-size-2xl);
       font-weight: 300;
       font-variant-numeric: tabular-nums;
       line-height: 1.2;
       white-space: nowrap;
     }
-
-    em {
-      color: var(--color-text-muted);
-      font-size: var(--flowchat-font-size-xs);
-      font-style: normal;
-      font-variant-numeric: tabular-nums;
-    }
   }
 
-  &__overview-metric-label {
+  &__stat-label {
     color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
     overflow: hidden;
@@ -279,65 +333,75 @@
     white-space: nowrap;
   }
 
-  &__share {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-  }
-
-  &__share-track {
-    display: flex;
-    height: 4px;
+  &__stat-bar {
+    display: block;
+    height: 3px;
+    margin-top: 3px;
     overflow: hidden;
     border-radius: 2px;
     background: color-mix(in srgb, var(--element-bg-soft) 70%, transparent);
   }
 
-  &__share-segment {
+  &__stat-bar-fill {
     display: block;
     height: 100%;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--color-text-primary) 78%, transparent);
 
-    &--model {
-      background: var(--accent-primary);
-    }
-
-    &--tool {
+    &--soft {
       background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
     }
   }
 
-  &__share-legend {
+  &__pulse {
     display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 3px;
+    height: 40px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
   }
 
-  &__share-legend-item {
-    display: inline-flex;
+  &__pulse-label {
+    margin-right: auto;
+    align-self: center;
+    color: var(--color-text-muted);
+    font-size: var(--flowchat-font-size-xs);
+    white-space: nowrap;
+  }
+
+  &__pulse-bar {
+    flex: 0 1 6px;
+    width: 6px;
+    min-height: 2px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
+
+    &--hot {
+      background: color-mix(in srgb, var(--color-text-primary) 78%, transparent);
+    }
+  }
+
+  &__fact-row {
+    display: flex;
     align-items: center;
+    gap: 8px 24px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
+  }
+
+  &__fact {
+    display: inline-flex;
+    align-items: baseline;
     gap: 6px;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
 
     b {
       color: var(--color-text-primary);
       font-weight: 500;
       font-variant-numeric: tabular-nums;
-    }
-  }
-
-  &__share-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-
-    &--model {
-      background: var(--accent-primary);
-    }
-
-    &--tool {
-      background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
     }
   }
 
@@ -713,8 +777,8 @@
       max-width: 52vw;
     }
 
-    &__overview-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    &__monitor {
+      grid-template-columns: 1fr;
     }
 
     &__definition-list {

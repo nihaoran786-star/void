@@ -806,19 +806,59 @@ describe('Session usage report UI components', () => {
     expect(container.querySelector('.session-usage-panel__title-wrap .session-usage-panel__badge')).toBeNull();
   });
 
-  it('renders a bounded model and tool time share without metric icons', () => {
+  it('renders the monitor overview with a gauge and bounded stat bars', () => {
     render(<SessionUsagePanel report={usageReport()} markdown="## Session Usage" />);
 
-    const share = container.querySelector('.session-usage-panel__share');
-    const model = container.querySelector<HTMLElement>('.session-usage-panel__share-segment--model');
-    const tool = container.querySelector<HTMLElement>('.session-usage-panel__share-segment--tool');
+    const gauge = container.querySelector('.session-usage-panel__gauge');
+    expect(gauge?.getAttribute('role')).toBe('img');
+    expect(gauge?.getAttribute('aria-label')).toContain('Recorded turn time 67%');
 
-    expect(share?.getAttribute('role')).toBe('img');
-    expect(share?.getAttribute('aria-label')).toContain('Model round time 50%');
-    expect(share?.getAttribute('aria-label')).toContain('Tool call time 25%');
-    expect(model?.style.width).toBe('50%');
-    expect(tool?.style.width).toBe('25%');
-    expect(container.querySelector('.session-usage-panel__overview-metric svg')).toBeNull();
+    const wallBar = container.querySelector<HTMLElement>('.session-usage-panel__stat-bar-fill--wall');
+    const modelBar = container.querySelector<HTMLElement>('.session-usage-panel__stat-bar-fill--model');
+    const toolBar = container.querySelector<HTMLElement>('.session-usage-panel__stat-bar-fill--tool');
+    expect(wallBar?.style.width).toBe('100%');
+    expect(modelBar?.style.width).toBe('50%');
+    expect(toolBar?.style.width).toBe('25%');
+    expect(container.querySelector('.session-usage-panel__overview-metric')).toBeNull();
+  });
+
+  it('shows the cache hit rate in the gauge when the provider reports it', () => {
+    const base = usageReport();
+    render(
+      <SessionUsagePanel
+        report={usageReport({
+          tokens: {
+            ...base.tokens,
+            cacheCoverage: 'available',
+            cachedTokens: 600,
+            cacheHitRate: 0.4,
+          },
+        })}
+        markdown="## Session Usage"
+      />
+    );
+
+    const gauge = container.querySelector('.session-usage-panel__gauge');
+    expect(gauge?.getAttribute('aria-label')).toContain('Cached 40%');
+  });
+
+  it('renders the slowest-span pulse strip only when spans exist', () => {
+    render(
+      <SessionUsagePanel
+        report={usageReport({
+          slowest: [
+            { label: 'model round', kind: 'model', durationMs: 9000, redacted: false },
+            { label: 'shell call', kind: 'tool', durationMs: 3000, redacted: false },
+          ],
+        })}
+        markdown="## Session Usage"
+      />
+    );
+
+    const pulse = container.querySelector('.session-usage-panel__pulse');
+    expect(pulse?.getAttribute('role')).toBe('img');
+    expect(container.querySelectorAll('.session-usage-panel__pulse-bar')).toHaveLength(2);
+    expect(container.querySelectorAll('.session-usage-panel__pulse-bar--hot')).toHaveLength(1);
   });
 
   it('marks usage table numbers for stable right alignment', () => {

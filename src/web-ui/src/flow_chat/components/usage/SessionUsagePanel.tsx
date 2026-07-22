@@ -23,9 +23,9 @@ import {
   calculateShare,
   buildSessionUsageExportMarkdown,
   formatHitRatePercent,
+  formatHitRateSuffix,
   formatUsageDuration,
   formatUsageNumber,
-  formatUsagePercent,
   formatUsageTimestamp,
   getAccountingLabel,
   getCoverageLabel,
@@ -58,6 +58,9 @@ interface SessionUsagePanelProps {
 
 const TABS: SessionUsagePanelTab[] = ['overview', 'models', 'tools', 'files', 'errors', 'slowest'];
 const MAX_USAGE_TABLE_ROWS = 50;
+const MAX_PULSE_SPANS = 18;
+const USAGE_GAUGE_RADIUS = 64;
+const USAGE_GAUGE_CIRCUMFERENCE = 2 * Math.PI * USAGE_GAUGE_RADIUS;
 
 function tabId(tab: SessionUsagePanelTab): string {
   return `session-usage-tab-${tab}`;
@@ -554,60 +557,83 @@ function getCompactFilePathLabel(pathLabel: string): string {
 
 function UsageOverview({ report }: { report: SessionUsageReport }) {
   const { t } = useTranslation('flow-chat');
-  const denominator = report.time.activeTurnMs ?? report.time.wallTimeMs;
-  const fileScopeHelp = getFileScopeHelp(report, t);
   const cacheCoverageHelp = report.tokens.cacheCoverage === 'unavailable'
     ? t('usage.help.cachedTokens')
     : report.tokens.cacheCoverage === 'partial'
       ? t('usage.help.cachedTokensPartial')
       : undefined;
-  const metrics = [
+
+  const wallMs = report.time.wallTimeMs;
+  const activeMs = report.time.activeTurnMs;
+  const denominator = activeMs ?? wallMs;
+  const activeShare = calculateShare(activeMs, wallMs);
+  const modelShare = calculateShare(report.time.modelMs, denominator);
+  const toolShareRaw = calculateShare(report.time.toolMs, denominator);
+  const toolShare = toolShareRaw !== undefined && modelShare !== undefined
+    ? Math.min(toolShareRaw, Math.max(0, 100 - modelShare))
+    : toolShareRaw;
+
+  const hitRate = report.tokens.cacheHitRate;
+  const hasHitRate = typeof hitRate === 'number' && Number.isFinite(hitRate);
+  const gaugePercent = hasHitRate
+    ? Math.round(hitRate * 100)
+    : activeShare !== undefined
+      ? Math.round(activeShare)
+      : undefined;
+  const gaugeLabel = hasHitRate ? t('usage.metrics.cached') : t('usage.metrics.active');
+  const gaugeDash = gaugePercent !== undefined
+    ? `${(Math.min(100, Math.max(0, gaugePercent)) / 100) * USAGE_GAUGE_CIRCUMFERENCE} ${USAGE_GAUGE_CIRCUMFERENCE}`
+    : undefined;
+
+  const stats = [
     {
       key: 'wall',
       label: t('usage.metrics.wall'),
-      value: formatUsageDuration(report.time.wallTimeMs, t),
+      value: formatUsageDuration(wallMs, t),
+      bar: wallMs !== undefined ? 100 : undefined,
+      soft: false,
       help: t('usage.help.wall'),
     },
     {
       key: 'active',
       label: t('usage.metrics.active'),
-      value: formatUsageDuration(report.time.activeTurnMs, t),
+      value: formatUsageDuration(activeMs, t),
+      bar: activeShare,
+      soft: false,
       help: t('usage.help.active'),
     },
     {
       key: 'model',
       label: t('usage.metrics.modelTime'),
       value: formatUsageDuration(report.time.modelMs, t),
-      detail: formatUsagePercent(calculateShare(report.time.modelMs, denominator), t),
+      bar: modelShare,
+      soft: false,
       help: t('usage.help.modelRoundTime'),
     },
     {
       key: 'tool',
       label: t('usage.metrics.toolTime'),
       value: formatUsageDuration(report.time.toolMs, t),
-      detail: formatUsagePercent(calculateShare(report.time.toolMs, denominator), t),
+      bar: toolShare,
+      soft: true,
       help: t('usage.help.toolTime'),
-    },
-    {
-      key: 'tokens',
-      label: t('usage.metrics.tokens'),
-      value: formatUsageNumber(report.tokens.totalTokens, t),
-    },
-    {
-      key: 'files',
-      label: t('usage.metrics.files'),
-      value: getFileSummaryLabel(report, t),
-      detail: getFileScopeLabel(report.files.scope, t),
-      help: fileScopeHelp,
     },
   ];
 
-  const modelShare = calculateShare(report.time.modelMs, denominator);
-  const toolShareRaw = calculateShare(report.time.toolMs, denominator);
-  const toolShare = toolShareRaw !== undefined && modelShare !== undefined
-    ? Math.min(toolShareRaw, Math.max(0, 100 - modelShare))
-    : toolShareRaw;
-  const hasShareBar = (modelShare ?? 0) > 0 || (toolShare ?? 0) > 0;
+  const pulseSpans = report.slowest
+    .filter(span => typeof span.durationMs === 'number' && Number.isFinite(span.durationMs))
+    .slice(0, MAX_PULSE_SPANS);
+  const pulseMax = pulseSpans.reduce((max, span) => Math.max(max, span.durationMs), 0);
+
+  const cachedFact = report.tokens.cacheCoverage === 'unavailable'
+    ? t('usage.status.cacheNotReported')
+    : `${formatUsageNumber(report.tokens.cachedTokens, t)}${formatHitRateSuffix(report.tokens.cacheHitRate, t)}`;
+  const facts = [
+    { key: 'tokens', label: t('usage.metrics.tokens'), value: formatUsageNumber(report.tokens.totalTokens, t) },
+    { key: 'cached', label: t('usage.metrics.cached'), value: cachedFact },
+    { key: 'files', label: t('usage.metrics.files'), value: getFileSummaryLabel(report, t) },
+    { key: 'errors', label: t('usage.metrics.errors'), value: formatUsageNumber(report.errors.totalErrors, t) },
+  ];
 
   return (
     <section className="session-usage-panel__section">
@@ -618,50 +644,87 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
         </div>
       )}
 
-      <div className="session-usage-panel__overview-grid">
-        {metrics.map(metric => (
-          <div className="session-usage-panel__overview-metric" key={metric.key}>
-            <span className="session-usage-panel__overview-metric-label">{metric.label}</span>
-            <UsageValue value={metric.value} help={metric.help} strong />
-            {metric.detail && <em>{metric.detail}</em>}
-          </div>
-        ))}
-      </div>
-
-      {hasShareBar && (
+      <div className="session-usage-panel__monitor">
         <div
-          className="session-usage-panel__share"
+          className="session-usage-panel__gauge"
           role="img"
-          aria-label={`${t('usage.metrics.modelTime')} ${formatUsagePercent(modelShare, t)} · ${t('usage.metrics.toolTime')} ${formatUsagePercent(toolShare, t)}`}
+          aria-label={gaugePercent !== undefined
+            ? `${gaugeLabel} ${t('usage.percent', { value: gaugePercent })}`
+            : gaugeLabel}
         >
-          <div className="session-usage-panel__share-track">
-            {(modelShare ?? 0) > 0 && (
-              <span
-                className="session-usage-panel__share-segment session-usage-panel__share-segment--model"
-                style={{ width: `${modelShare}%` }}
+          <svg width="150" height="150" viewBox="0 0 150 150" aria-hidden>
+            <circle
+              className="session-usage-panel__gauge-track"
+              cx="75"
+              cy="75"
+              r={USAGE_GAUGE_RADIUS}
+            />
+            {gaugeDash && (
+              <circle
+                className="session-usage-panel__gauge-fill"
+                cx="75"
+                cy="75"
+                r={USAGE_GAUGE_RADIUS}
+                strokeDasharray={gaugeDash}
+                transform="rotate(-90 75 75)"
               />
             )}
-            {(toolShare ?? 0) > 0 && (
-              <span
-                className="session-usage-panel__share-segment session-usage-panel__share-segment--tool"
-                style={{ width: `${toolShare}%` }}
-              />
-            )}
-          </div>
-          <div className="session-usage-panel__share-legend">
-            <span className="session-usage-panel__share-legend-item">
-              <i className="session-usage-panel__share-dot session-usage-panel__share-dot--model" aria-hidden />
-              {t('usage.metrics.modelTime')}
-              <b>{formatUsagePercent(modelShare, t)}</b>
-            </span>
-            <span className="session-usage-panel__share-legend-item">
-              <i className="session-usage-panel__share-dot session-usage-panel__share-dot--tool" aria-hidden />
-              {t('usage.metrics.toolTime')}
-              <b>{formatUsagePercent(toolShare, t)}</b>
-            </span>
+          </svg>
+          <div className="session-usage-panel__gauge-center">
+            <strong>
+              {gaugePercent !== undefined
+                ? t('usage.percent', { value: gaugePercent })
+                : t('usage.unavailable')}
+            </strong>
+            <span>{gaugeLabel}</span>
           </div>
         </div>
+
+        <div className="session-usage-panel__stat-grid">
+          {stats.map(stat => (
+            <div className="session-usage-panel__stat" key={stat.key}>
+              <span className="session-usage-panel__stat-label">{stat.label}</span>
+              <UsageValue value={stat.value} help={stat.help} strong />
+              <span className="session-usage-panel__stat-bar" aria-hidden>
+                <i
+                  className={`session-usage-panel__stat-bar-fill session-usage-panel__stat-bar-fill--${stat.key}${stat.soft ? ' session-usage-panel__stat-bar-fill--soft' : ''}`}
+                  style={{ width: `${Math.min(100, Math.max(0, Math.round(stat.bar ?? 0)))}%` }}
+                />
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {pulseSpans.length > 0 && pulseMax > 0 && (
+        <div
+          className="session-usage-panel__pulse"
+          role="img"
+          aria-label={t('usage.sections.slowest')}
+        >
+          <span className="session-usage-panel__pulse-label">{t('usage.sections.slowest')}</span>
+          {pulseSpans.map((span, index) => {
+            const height = Math.max(12, Math.round((span.durationMs / pulseMax) * 100));
+            const hot = span.durationMs >= pulseMax * 0.66;
+            return (
+              <i
+                key={`pulse-${index}-${span.kind}`}
+                className={`session-usage-panel__pulse-bar${hot ? ' session-usage-panel__pulse-bar--hot' : ''}`}
+                style={{ height: `${height}%` }}
+              />
+            );
+          })}
+        </div>
       )}
+
+      <div className="session-usage-panel__fact-row">
+        {facts.map(fact => (
+          <span className="session-usage-panel__fact" key={fact.key}>
+            {fact.label}
+            <b>{fact.value}</b>
+          </span>
+        ))}
+      </div>
 
       <dl className="session-usage-panel__definition-list">
         <div>
@@ -688,7 +751,7 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
       </dl>
 
       <div className="session-usage-panel__privacy">
-        <ShieldCheck size={16} aria-hidden />
+        <ShieldCheck size={14} aria-hidden />
         <div>
           <strong>{t('usage.privacy.title')}</strong>
           <span>{t('usage.privacy.summary')}</span>
