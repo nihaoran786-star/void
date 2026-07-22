@@ -243,6 +243,41 @@ describe('ShortDramaTeamPanelControls', () => {
     expect(onToggle).toHaveBeenCalledOnce();
   });
 
+  it('keeps the focused asset handle out of the agent selector label', async () => {
+    const focusedAssetTab = makeStageTab(
+      'asset-agent',
+      'AssetAI · LOC-012',
+      'assets',
+    );
+
+    await act(async () => {
+      root.render(
+        <ShortDramaTeamPanelControls
+          mode="open"
+          tabs={[focusedAssetTab]}
+          activeTabId="asset-agent"
+          statuses={[]}
+          onToggle={vi.fn()}
+          onSelectTab={vi.fn()}
+        />,
+      );
+    });
+
+    const trigger = container.querySelector(
+      '[data-testid="short-drama-team-agent-trigger"]',
+    ) as HTMLButtonElement;
+    expect(trigger.textContent).toContain('AssetAI');
+    expect(trigger.textContent).not.toContain('LOC-012');
+    expect(trigger.getAttribute('aria-label')).not.toContain('LOC-012');
+
+    await act(async () => trigger.click());
+    const option = container.querySelector(
+      '[data-testid="short-drama-team-agent"]',
+    ) as HTMLButtonElement;
+    expect(option.textContent).toContain('AssetAI');
+    expect(option.textContent).not.toContain('LOC-012');
+  });
+
   it('closes the open-panel agent menu with Escape and restores focus', async () => {
     await act(async () => {
       root.render(

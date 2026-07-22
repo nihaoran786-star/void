@@ -2,6 +2,10 @@ import React from 'react';
 import { Check, ChevronDown, PanelRightClose } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
+import {
+  getShortDramaNativeStageAgentName,
+  type ShortDramaStage,
+} from '@/shared/services/short-drama';
 import type { CanvasTab } from '../types';
 import type { ShortDramaTeamPanelMode } from './shortDramaTeamPanelPresentation';
 import type {
@@ -76,6 +80,9 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
   );
   const [highlightedIndex, setHighlightedIndex] = React.useState(activeTabIndex);
   const activeTab = tabs[activeTabIndex] ?? null;
+  const activeAgentName = activeTab
+    ? getTeamAgentDisplayName(activeTab)
+    : compactLabel;
   const activeProjection = activeTab
     ? statusByTabId.get(activeTab.id)
       ?? { tabId: activeTab.id, status: 'waiting' as const }
@@ -93,7 +100,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
         ?? { tabId: tab.id, status: 'waiting' as const };
       const statusLabel = t(`canvas.shortDramaTeamStatus.${projection.status}`);
       const activityLabel = formatActivityLabel(projection.activity, t);
-      return [tab.title, statusLabel, activityLabel]
+      return [getTeamAgentDisplayName(tab), statusLabel, activityLabel]
         .filter(Boolean)
         .join(' · ');
     })
@@ -191,7 +198,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
             aria-expanded={isAgentMenuOpen}
             aria-label={[
               compactLabel,
-              activeTab?.title,
+              activeAgentName,
               activeProjection
                 ? t(`canvas.shortDramaTeamStatus.${activeProjection.status}`)
                 : '',
@@ -225,7 +232,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
             )}
             <span className="short-drama-team-panel-controls__agent-text">
               <span className="short-drama-team-panel-controls__agent-name">
-                {activeTab?.title ?? compactLabel}
+                {activeAgentName}
               </span>
               {activeStageLabel ? (
                 <span className="short-drama-team-panel-controls__agent-meta">
@@ -284,7 +291,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
                     />
                     <span className="short-drama-team-panel-controls__agent-text">
                       <span className="short-drama-team-panel-controls__agent-name">
-                        {tab.title}
+                        {getTeamAgentDisplayName(tab)}
                       </span>
                       {metaLabel ? (
                         <span className="short-drama-team-panel-controls__agent-meta">
@@ -373,4 +380,19 @@ function formatActivityLabel(
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
   return activity ? t(`canvas.shortDramaTeamActivity.${activity}`) : '';
+}
+
+function getTeamAgentDisplayName(tab: CanvasTab): string {
+  const stage = tab.content.metadata?.shortDramaStage;
+  return isShortDramaStage(stage)
+    ? getShortDramaNativeStageAgentName(stage)
+    : tab.title;
+}
+
+function isShortDramaStage(value: unknown): value is ShortDramaStage {
+  return value === 'script'
+    || value === 'assets'
+    || value === 'storyboards'
+    || value === 'video'
+    || value === 'post';
 }

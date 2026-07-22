@@ -1516,7 +1516,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
               <div className="btw-session-panel__composer-row">
                 <button
                   type="button"
-                  className="btw-session-panel__composer-attach-button"
+                  className="btw-session-panel__composer-attach-button btw-session-panel__composer-attach-button--image"
                   onClick={() => composerImageInputRef.current?.click()}
                   disabled={isSubmittingMessage || isChildSessionProcessing || isAddingComposerImage}
                   aria-label={t('childSession.attachImage', { defaultValue: 'Attach image' })}
@@ -1530,7 +1530,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="btw-session-panel__composer-attach-button"
+                  className="btw-session-panel__composer-attach-button btw-session-panel__composer-attach-button--file"
                   onClick={() => composerFileInputRef.current?.click()}
                   disabled={isSubmittingMessage || isChildSessionProcessing || isAddingComposerTextFile}
                   aria-label={t('childSession.attachFile', { defaultValue: 'Attach text file' })}
