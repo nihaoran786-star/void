@@ -234,27 +234,27 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     expect(assetAnchorCard).not.toContain('expandedStoryboardArtifactId');
   });
 
-  it('uses a dedicated single-column asset list and passes the localized category title to each row', () => {
+  it('uses a dedicated responsive asset grid and keeps the category title on the group header', () => {
     expect(assetStage).toContain(
       'const assetTypeLabel = t(`shortDrama.assets.${category.id}`);'
     );
     expect(assetStage).toContain('className="short-drama-center__asset-list"');
-    expect(assetStage).toContain('assetTypeLabel={assetTypeLabel}');
+    expect(assetStage).not.toContain('assetTypeLabel={assetTypeLabel}');
     expect(assetStage).not.toContain('short-drama-center__grid');
     expect(artifactGrid).toContain('className="short-drama-center__grid"');
     expect(artifactGrid).not.toContain('short-drama-asset-row');
+    expect(panelStyles).toContain('grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));');
   });
 
-  it('renders one media presentation beside direct focus, toggle, and stable details siblings', () => {
-    expect(assetAnchorCard).toMatch(
-      /<ArtifactFocusButton[\s\S]*?\{isExpanded \? \(\s*<MediaPreview[^>]+\/>\s*\) : \(\s*<MediaPreview[^>]+variant="row" \/>\s*\)\}\s*<button/
+  it('renders one tile media preview behind a full-tile toggle and a text overlay', () => {
+    expect(assetAnchorCard).toContain(
+      '<MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="tile" />'
     );
     expect(assetAnchorCard).toContain('type="button"');
-    expect(assetAnchorCard).toContain('aria-expanded={isExpanded}');
-    expect(assetAnchorCard).toContain('aria-controls={detailsId}');
-    expect(assetAnchorCard).toMatch(
-      /<div\s+id=\{detailsId\}\s+className="short-drama-asset-row__details"\s+hidden=\{!isExpanded\}\s*>/
-    );
+    expect(assetAnchorCard).toContain('aria-pressed={isSelected}');
+    expect(assetAnchorCard).toContain('className="short-drama-asset-row__overlay"');
+    expect(assetAnchorCard).not.toContain('<StatusPill');
+    expect(assetAnchorCard).not.toContain('<ArtifactRevisionStrip');
 
     const toggle = sourceBetween(
       assetAnchorCard,
@@ -264,26 +264,31 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     expect(toggle).not.toContain('<MediaPreview');
     expect(toggle).not.toContain('<ArtifactCardBody');
     expect(toggle).toContain('{artifact.title}');
-    expect(toggle).toContain('{assetTypeLabel}');
-    expect(toggle).toContain('<StatusPill status={artifact.status} t={t} />');
+    expect(toggle).not.toContain('{assetTypeLabel}');
+    expect(toggle).not.toContain('<StatusPill');
     expect(toggle).not.toContain('artifact.summary');
   });
 
-  it('focuses exactly once before switching the shared asset expansion id', () => {
+  it('focuses once, then selects on first tap and opens the lightbox on second tap', () => {
     const toggle = sourceBetween(
       assetAnchorCard,
       '<button\n        type="button"',
       '</button>'
     );
     expect(toggle).toContain(
-      'event.stopPropagation();\n          onArtifactFocus(artifact);\n          onExpandedArtifactChange(isExpanded ? undefined : artifact.id);'
+      'event.stopPropagation();\n          handleTileActivate();'
     );
-    expect(toggle.match(/onArtifactFocus\(artifact\)/g)).toHaveLength(1);
-    expect(assetAnchorCard).toContain('onClick={() => onArtifactFocus(artifact)}');
+    const activate = sourceBetween(
+      assetAnchorCard,
+      'const handleTileActivate = () => {',
+      '};'
+    );
+    expect(activate.match(/onArtifactFocus\(artifact\)/g)).toHaveLength(1);
     expect(assetAnchorCard).toContain(
-      '<ArtifactCardBody artifact={artifact} t={t} showStatus={false} />'
+      "const handleTileActivate = () => {\n    onArtifactFocus(artifact);\n    if (isSelected) {\n      handleOpenPreview();\n    } else {\n      onExpandedArtifactChange(artifact.id);\n    }\n  };"
     );
-    expect(assetAnchorCard).toContain('short-drama-center__asset-usage');
+    expect(assetAnchorCard).toContain('openMediaPreviewPanel({');
+    expect(assetAnchorCard).toContain('resolveWorkspaceMediaPreviewUrl({');
   });
 
   it('extracts the original complete card body without changing ArtifactGrid or ArtifactCard structure', () => {
@@ -334,15 +339,54 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     expect(compactAssetRuleIndex).toBeGreaterThan(baseCardRuleIndex);
     expect(compactAssetRule).toContain('.short-drama-card.short-drama-pending-row');
     expect(compactAssetRule).toContain('min-height: 0;');
-    expect(panelStyles).toContain('grid-template-columns: 112px minmax(0, 1fr);');
-    expect(narrowContainer).toContain('.short-drama-asset-row,');
-    expect(narrowContainer).toContain('.short-drama-pending-row');
-    expect(narrowContainer).toContain('grid-template-columns: 88px minmax(0, 1fr);');
+    expect(panelStyles).toContain('grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));');
+    expect(narrowContainer).toContain('.short-drama-center__asset-list {');
+    expect(narrowContainer).toContain('grid-template-columns: minmax(0, 1fr);');
     expect(panelStyles).toMatch(
       /\.short-drama-asset-row__toggle:focus-visible \{[\s\S]*?outline: 2px solid/
     );
     expect(minimalPanelStyles).toMatch(
       /\.void-ui--minimal \.short-drama-asset-row__toggle:focus-visible,[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\)/
+    );
+  });
+
+  it('keeps asset tiles image-only with a selection and hover text overlay', () => {
+    expect(panelStyles).toContain('.short-drama-asset-row__overlay {');
+    expect(panelStyles).toContain(
+      '.short-drama-asset-row.is-selected .short-drama-asset-row__overlay'
+    );
+    expect(panelStyles).toContain(
+      '.short-drama-asset-row__toggle:focus-visible ~ .short-drama-asset-row__overlay'
+    );
+    expect(panelStyles).toContain('clip-path: inset(50%);');
+    expect(minimalPanelStyles).toContain(
+      '.void-ui--minimal .short-drama-asset-row__overlay {'
+    );
+  });
+
+  it('enlarges the selected tile across two grid tracks and exposes a zoom shortcut', () => {
+    expect(assetAnchorCard).toContain("{preview.status === 'ready' && (");
+    expect(assetAnchorCard).toContain('className="short-drama-asset-row__zoom"');
+    expect(assetAnchorCard).toContain(
+      "t('shortDrama.accessibility.openArtifact', { title: artifact.title })"
+    );
+    const zoom = sourceBetween(
+      assetAnchorCard,
+      'className="short-drama-asset-row__zoom"',
+      '</button>'
+    );
+    expect(zoom).toContain('event.stopPropagation();');
+    expect(zoom).toContain('handleOpenPreview();');
+    expect(panelStyles).toContain('grid-auto-flow: dense;');
+    expect(panelStyles).toMatch(
+      /\.short-drama-asset-row\.is-selected \{[\s\S]*?grid-column: span 2;/
+    );
+    expect(panelStyles).toContain('.short-drama-asset-row__zoom {');
+    const narrowContainer = panelStyles.slice(
+      panelStyles.indexOf('@container short-drama-panel (max-width: 420px)')
+    );
+    expect(narrowContainer).toMatch(
+      /\.short-drama-asset-row\.is-selected \{\s*grid-column: auto;/
     );
   });
 });
@@ -419,6 +463,92 @@ describe('ShortDramaCenterPanel artifact focus follow contract', () => {
     expect(minimalPanelStyles).toContain('.void-ui--minimal .short-drama-card.is-focused {');
     expect(minimalPanelStyles).toContain(
       '.void-ui--minimal .short-drama-center__post-row.is-focused {'
+    );
+  });
+});
+
+describe('ShortDramaCenterPanel revision strip contract', () => {
+  const assetAnchorCard = sourceBetween(
+    panelSource,
+    'function AssetAnchorCard({',
+    'function ArtifactGrid({'
+  );
+  const storyboardGrid = sourceBetween(
+    panelSource,
+    'function StoryboardGrid({',
+    'function StoryboardReferenceChips({'
+  );
+  const revisionStrip = sourceBetween(
+    panelSource,
+    'function ArtifactRevisionStrip({',
+    'function VideoStage({'
+  );
+
+  it('threads the revision selection map into the storyboard stage only', () => {
+    expect(panelSource).toContain(
+      'const [selectedRevisionIds, setSelectedRevisionIds] = useState<Record<string, string | undefined>>({});'
+    );
+    const assetStageCalls = panelSource.match(/<AssetStage\b[\s\S]*?\/>/g) ?? [];
+    expect(assetStageCalls).toHaveLength(2);
+    assetStageCalls.forEach(call => {
+      expect(call).not.toContain('selectedRevisionIds');
+      expect(call).not.toContain('revisionMediaItemsById');
+      expect(call).not.toContain('onRevisionSelect');
+    });
+    expect(storyboardGrid).toContain('selectedRevisionIds: Record<string, string | undefined>;');
+    expect(storyboardGrid).toContain('revisionMediaItemsById: Map<string, WorkspaceMediaItem>;');
+    expect(storyboardGrid).toContain('onRevisionSelect: (artifactId: string, revisionId?: string) => void;');
+  });
+
+  it('keeps asset tiles on the current media while storyboard previews the selected revision', () => {
+    expect(assetAnchorCard).not.toContain('createRevisionPreviewArtifact');
+    expect(assetAnchorCard).toContain(
+      '<MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="tile" />'
+    );
+    expect(storyboardGrid).toContain(
+      'const previewArtifact = createRevisionPreviewArtifact(artifact, selectedRevisionId, revisionMediaItemsById);'
+    );
+    expect(storyboardGrid).toContain(
+      '<MediaPreview artifact={previewArtifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} />'
+    );
+    expect(storyboardGrid).toContain(
+      '<MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} variant="row" />'
+    );
+  });
+
+  it('renders the strip inside storyboard details only', () => {
+    expect(assetAnchorCard).not.toContain('<ArtifactRevisionStrip');
+    expect(storyboardGrid.indexOf('<ArtifactRevisionStrip')).toBeGreaterThanOrEqual(0);
+    expect(storyboardGrid.indexOf('<ArtifactRevisionStrip')).toBeLessThan(
+      storyboardGrid.indexOf('<StoryboardReferenceChips')
+    );
+    expect(storyboardGrid).toContain('short-drama-storyboard-row__details');
+  });
+
+  it('keeps revision chips as pressed-state buttons that never bubble to card focus', () => {
+    expect(revisionStrip).toContain('type="button"');
+    expect(revisionStrip.match(/aria-pressed=/g)).toHaveLength(2);
+    expect(revisionStrip.match(/event.stopPropagation\(\);/g)).toHaveLength(2);
+    expect(revisionStrip).toContain("t('shortDrama.revisions.current')");
+    expect(revisionStrip).toContain("t('shortDrama.revisions.viewVersion'");
+    expect(revisionStrip).toContain("t('shortDrama.revisions.versionDetail'");
+    expect(revisionStrip).toContain('onRevisionSelect(artifact.id, undefined);');
+    expect(revisionStrip).toContain('onRevisionSelect(artifact.id, revision.id);');
+    expect(revisionStrip).toContain('if (artifact.revisions.length === 0) {');
+  });
+
+  it('resolves revision media through workspace items only and styles chips in both themes', () => {
+    expect(panelSource).toContain(
+      'new Map(workspaceMediaItems.map(item => [item.id, item]))'
+    );
+    expect(panelStyles).toContain('.short-drama-revision-strip {');
+    expect(panelStyles).toContain('.short-drama-revision-chip.is-selected {');
+    expect(panelStyles).toMatch(
+      /\.short-drama-revision-chip:focus-visible \{[\s\S]*?outline: 2px solid/
+    );
+    expect(minimalPanelStyles).toContain('.void-ui--minimal .short-drama-revision-chip.is-selected {');
+    expect(minimalPanelStyles).toMatch(
+      /\.void-ui--minimal \.short-drama-revision-chip:focus-visible \{[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\)/
     );
   });
 });

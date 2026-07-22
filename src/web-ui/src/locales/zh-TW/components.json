@@ -753,6 +753,12 @@
       "subtitle": "字幕",
       "color": "調色"
     },
+    "revisions": {
+      "label": "版本",
+      "current": "目前",
+      "viewVersion": "檢視版本 v{{version}}",
+      "versionDetail": "v{{version}} · {{date}} · {{summary}}"
+    },
     "card": {
       "revisions": "{{count}} 版",
       "attempts": "{{count}} 次",

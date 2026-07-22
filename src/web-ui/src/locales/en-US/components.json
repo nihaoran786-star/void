@@ -753,6 +753,12 @@
       "subtitle": "Subtitle",
       "color": "Color"
     },
+    "revisions": {
+      "label": "Versions",
+      "current": "Current",
+      "viewVersion": "View version v{{version}}",
+      "versionDetail": "v{{version}} · {{date}} · {{summary}}"
+    },
     "card": {
       "revisions": "{{count}} rev",
       "attempts": "{{count}} try",

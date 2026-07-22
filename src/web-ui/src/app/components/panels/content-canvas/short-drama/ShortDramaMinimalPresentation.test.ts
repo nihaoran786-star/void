@@ -40,9 +40,6 @@ describe('ShortDramaCenter minimal presentation contract', () => {
       '--short-drama-font-size-ui-label',
       '--short-drama-font-size-ui-control',
       '--short-drama-font-size-ui-micro',
-      '--short-drama-font-size-glyph',
-      '--short-drama-font-size-ui-micro',
-      '--short-drama-font-size-ui-meta',
       '--short-drama-font-size-ui-label',
       '--short-drama-font-size-ui-control',
       '--short-drama-font-size-editor-title',
@@ -99,14 +96,13 @@ describe('ShortDramaCenter minimal presentation contract', () => {
     expect(source).not.toMatch(/font-size\s*:\s*\d+(?:\.\d+)?px/);
 
     expect(baseSource).toMatch(
-      /\.short-drama-asset-row__disclosure \{[\s\S]*?font-size: var\(--short-drama-font-size-glyph\);[\s\S]*?line-height: 1;/,
+      /\.short-drama-pending-row__content > strong \{[\s\S]*?font-size: var\(--short-drama-font-size-ui-control\);/,
     );
-    expect(source).toMatch(
-      /\.short-drama-asset-row__disclosure \{[\s\S]*?font-size: var\(--short-drama-font-size-glyph\);/,
+    expect(baseSource).toMatch(
+      /\.short-drama-pending-row__content > span \{[\s\S]*?font-size: var\(--short-drama-font-size-ui-micro\);/,
     );
-    expect(source).not.toMatch(
-      /\.short-drama-asset-row__heading span,\s*[\s\S]*?\.short-drama-asset-row__disclosure,\s*[\s\S]*?\{[\s\S]*?font-size:/,
-    );
+    expect(baseSource).not.toContain('.short-drama-asset-row__disclosure');
+    expect(source).not.toContain('.short-drama-asset-row__disclosure');
   });
 
   it('keeps keyboard focus visible inside clipped tab and rail containers', () => {

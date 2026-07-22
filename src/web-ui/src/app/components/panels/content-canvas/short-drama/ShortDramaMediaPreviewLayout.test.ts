@@ -36,11 +36,11 @@ describe('short drama media preview layout', () => {
     const stylesheet = readSibling('./ShortDramaCenterPanel.scss');
     const mainMedia = extractBlock(
       stylesheet,
-      '.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row) .short-drama-media-preview__canvas > img,\n.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row) .short-drama-media-preview__canvas video',
+      '.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row):not(.short-drama-media-preview--tile) .short-drama-media-preview__canvas > img,\n.short-drama-media-preview:not(.short-drama-media-preview--rail):not(.short-drama-media-preview--row):not(.short-drama-media-preview--tile) .short-drama-media-preview__canvas video',
     );
     const thumbnailMedia = extractBlock(
       stylesheet,
-      '.short-drama-media-preview--rail .short-drama-media-preview__canvas > img,\n.short-drama-media-preview--rail .short-drama-media-preview__canvas video,\n.short-drama-media-preview--row .short-drama-media-preview__canvas > img,\n.short-drama-media-preview--row .short-drama-media-preview__canvas video',
+      '.short-drama-media-preview--rail .short-drama-media-preview__canvas > img,\n.short-drama-media-preview--rail .short-drama-media-preview__canvas video,\n.short-drama-media-preview--row .short-drama-media-preview__canvas > img,\n.short-drama-media-preview--row .short-drama-media-preview__canvas video,\n.short-drama-media-preview--tile .short-drama-media-preview__canvas > img,\n.short-drama-media-preview--tile .short-drama-media-preview__canvas video',
     );
 
     expect(mainMedia).toContain('object-fit: contain;');
