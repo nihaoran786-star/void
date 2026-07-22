@@ -1,0 +1,21 @@
+{
+  "scope": {
+    "mode": "all",
+    "names": [],
+    "group_reply": false,
+    "quiet_hours": "23:00-07:00"
+  },
+  "rules": {
+    "typing": false,
+    "reply_delay_ms": [400, 1200],
+    "max_replies_per_hour": 60,
+    "context_window": 20
+  },
+  "llm": {
+    "base_url": "https://api.moonshot.cn/v1",
+    "api_key": "在此填入你的 API Key",
+    "model": "kimi-k2"
+  },
+  "own_name": "在此填入你的微信昵称",
+  "poll_interval": 3.0
+}

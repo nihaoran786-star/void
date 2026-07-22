@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+# Runtime state and per-contact conversations are local and may contain secrets.
+customer_service/config.json
+customer_service/status.json
+customer_service/state.json
+customer_service/contexts/
