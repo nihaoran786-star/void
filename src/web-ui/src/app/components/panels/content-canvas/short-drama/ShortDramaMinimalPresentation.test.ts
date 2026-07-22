@@ -50,8 +50,7 @@ describe('ShortDramaCenter minimal presentation contract', () => {
       '--short-drama-font-size-ui-label',
       '--short-drama-font-size-ui-meta',
       '--short-drama-font-size-ui-micro',
-      '--short-drama-font-size-ui-meta',
-      '--short-drama-font-size-ui-meta',
+      '--short-drama-font-size-ui-micro',
       '--short-drama-font-size-ui-label',
       '--short-drama-font-size-ui-body',
       '--short-drama-font-size-ui-label',
@@ -166,10 +165,7 @@ describe('ShortDramaCenter minimal presentation contract', () => {
       /\.short-drama-center__post-row \{[\s\S]*?grid-template-columns: 80px minmax\(0, 1fr\) auto;[\s\S]*?padding: var\(--workspace-space-2\) 0;/,
     );
     expect(source).toMatch(
-      /\.short-drama-center__post-row > \.short-drama-pill \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 1;/,
-    );
-    expect(source).toMatch(
-      /\.short-drama-center__post-row > \.short-drama-center__progress \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 2;/,
+      /\.short-drama-center__post-row > \.short-drama-pill \{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 1 \/ -1;/,
     );
     expect(source).toMatch(
       /@container short-drama-panel \(max-width: 420px\)[\s\S]*?\.short-drama-media-preview--final[\s\S]*?\.short-drama-media-preview__meta \{[\s\S]*?grid-template-areas:[\s\S]*?"title duration"[\s\S]*?"label label";/,

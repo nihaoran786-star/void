@@ -1898,6 +1898,7 @@ function VideoStage({
               className={activeVideo?.id === artifact.id ? 'is-active' : ''}
               role="tab"
               aria-selected={activeVideo?.id === artifact.id}
+              aria-label={t('shortDrama.video.sceneRef', { scene: index + 1 })}
               tabIndex={activeVideo?.id === artifact.id ? 0 : -1}
               onClick={() => {
                 setSelectedVideoId(artifact.id);
@@ -1912,7 +1913,7 @@ function VideoStage({
                 t={t}
                 variant="rail"
               />
-              <span>{t('shortDrama.video.sceneRef', { scene: index + 1 })}</span>
+              <span className="short-drama-center__rail-badge" aria-hidden="true">{index + 1}</span>
             </button>
           );
         })}
@@ -1976,9 +1977,6 @@ function PostStage({
             <span className="short-drama-center__post-media-ref">
               {artifact.mediaReference?.label ?? artifact.mediaReference?.mediaItemId ?? ''}
             </span>
-            <div className="short-drama-center__progress">
-              <span style={{ width: `${artifact.status === 'ready' ? 100 : artifact.status === 'generating' ? 55 : 18}%` }} />
-            </div>
             <StatusPill status={artifact.status} t={t} />
           </article>
           );

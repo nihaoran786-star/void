@@ -390,30 +390,15 @@
     border-color: var(--workspace-border-subtle);
     border-radius: var(--workspace-radius-panel);
     background: var(--workspace-surface-panel);
-    color: var(--workspace-text-secondary);
-    font-size: var(--short-drama-font-size-ui-meta);
-    font-weight: var(--workspace-font-weight-medium);
   }
 
   .void-ui--minimal .short-drama-center__rail button:hover {
     border-color: var(--workspace-border-strong);
-    background: var(--workspace-surface-hover);
   }
 
   .void-ui--minimal .short-drama-center__rail button.is-active {
     border-color: var(--workspace-border-strong);
-    background: var(--workspace-surface-active);
-    color: var(--workspace-text-primary);
-  }
-
-  .void-ui--minimal .short-drama-center__scene-marker {
-    color: var(--workspace-text-primary);
-    font-size: var(--short-drama-font-size-ui-meta);
-    font-weight: var(--workspace-font-weight-medium);
-  }
-
-  .void-ui--minimal .short-drama-center__scene-marker em {
-    color: var(--workspace-text-muted);
+    box-shadow: inset 0 0 0 1px var(--workspace-border-strong);
   }
 
   .void-ui--minimal .short-drama-center__final-preview-frame,
@@ -483,18 +468,11 @@
     font-size: var(--short-drama-font-size-ui-meta);
   }
 
-  .void-ui--minimal .short-drama-center__post-row > .short-drama-center__progress {
-    grid-column: 3;
-    grid-row: 2;
-    width: 44px;
-    align-self: center;
-  }
-
   .void-ui--minimal .short-drama-center__post-row > .short-drama-pill {
     grid-column: 3;
-    grid-row: 1;
+    grid-row: 1 / -1;
     justify-self: end;
-    align-self: end;
+    align-self: center;
   }
 
   .void-ui--minimal .short-drama-center__post-row:hover {
@@ -503,14 +481,6 @@
 
   .void-ui--minimal .short-drama-center__post-row.is-focused {
     background: var(--workspace-surface-active);
-  }
-
-  .void-ui--minimal .short-drama-center__progress {
-    background: var(--workspace-surface-active);
-  }
-
-  .void-ui--minimal .short-drama-center__progress span {
-    background: var(--workspace-text-secondary);
   }
 
   .void-ui--minimal .short-drama-center__episode-rail {

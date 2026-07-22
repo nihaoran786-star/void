@@ -195,7 +195,8 @@
   gap: 10px;
 }
 
-.short-drama-storyboard-row__badge {
+.short-drama-storyboard-row__badge,
+.short-drama-center__rail-badge {
   position: absolute;
   top: 8px;
   left: 8px;
@@ -208,6 +209,14 @@
   letter-spacing: 0.04em;
   line-height: 1.5;
   pointer-events: none;
+}
+
+.short-drama-center__rail-badge {
+  top: 6px;
+  left: 6px;
+  min-width: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .short-drama-storyboard-row__references {
@@ -948,34 +957,38 @@
 }
 
 .short-drama-center__rail button {
-  display: grid;
-  gap: 5px;
+  position: relative;
+  display: block;
+  overflow: hidden;
   border: 1px solid var(--short-drama-border);
   border-radius: 8px;
-  padding: 4px;
+  padding: 0;
   background: var(--short-drama-stage-rail-surface);
   color: var(--short-drama-ink);
-  font-size: var(--short-drama-font-size-ui-meta);
-  font-weight: 700;
   scroll-snap-align: start;
-  text-align: left;
   cursor: pointer;
+}
+
+.short-drama-center__rail button .short-drama-media-preview {
+  height: 100%;
+  opacity: 0.62;
+  transition: opacity 140ms ease;
+}
+
+.short-drama-center__rail button:hover .short-drama-media-preview,
+.short-drama-center__rail button:focus-visible .short-drama-media-preview,
+.short-drama-center__rail button.is-active .short-drama-media-preview {
+  opacity: 1;
 }
 
 .short-drama-center__rail button.is-active {
   border-color: color-mix(in srgb, var(--short-drama-ink) 42%, var(--short-drama-border));
-  background: color-mix(in srgb, var(--short-drama-stage-rail-surface) 88%, var(--short-drama-ink));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--short-drama-ink) 42%, var(--short-drama-border));
 }
 
 .short-drama-center__rail button:hover,
 .short-drama-center__rail button:focus-visible {
   border-color: color-mix(in srgb, var(--short-drama-ink) 32%, var(--short-drama-border));
-}
-
-.short-drama-center__rail button > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .short-drama-center__stage {
@@ -992,13 +1005,22 @@
 }
 
 .short-drama-center__scene-marker {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  color: var(--short-drama-ink);
-  font-size: var(--short-drama-font-size-ui-meta);
-  font-weight: 700;
+  gap: 8px;
+  max-width: calc(100% - 20px);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: color-mix(in srgb, black 48%, transparent);
+  color: white;
+  font-size: var(--short-drama-font-size-ui-micro);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  pointer-events: none;
 }
 
 .short-drama-center__scene-marker span {
@@ -1009,10 +1031,9 @@
 
 .short-drama-center__scene-marker em {
   flex: 0 0 auto;
-  color: var(--short-drama-muted);
+  color: color-mix(in srgb, white 72%, transparent);
   font-style: normal;
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
 }
 
 .short-drama-center__prompt {
@@ -1156,8 +1177,9 @@
 .short-drama-center__post-row {
   position: relative;
   display: grid;
-  grid-template-columns: 112px minmax(120px, 1.1fr) minmax(84px, 0.7fr) minmax(0, 2fr) auto;
-  gap: 12px;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--short-drama-border);
@@ -1171,14 +1193,25 @@
   background: color-mix(in srgb, var(--short-drama-stage-rail-surface) 88%, var(--short-drama-ink));
 }
 
-.short-drama-center__post-row strong {
+.short-drama-center__post-row > .short-drama-media-preview--row {
+  grid-column: 1;
+  grid-row: 1 / -1;
+}
+
+.short-drama-center__post-row > strong {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--short-drama-font-size-ui-label);
 }
 
-.short-drama-center__post-media-ref {
+.short-drama-center__post-row > .short-drama-center__post-media-ref {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
   overflow: hidden;
   color: var(--short-drama-muted);
   font-size: var(--short-drama-font-size-ui-meta);
@@ -1186,17 +1219,9 @@
   white-space: nowrap;
 }
 
-.short-drama-center__progress {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--short-drama-muted) 20%, transparent);
-}
-
-.short-drama-center__progress span {
-  display: block;
-  height: 100%;
-  background: var(--short-drama-ink);
+.short-drama-center__post-row > .short-drama-pill {
+  grid-column: 3;
+  grid-row: 1 / -1;
 }
 
 .short-drama-center__state {
