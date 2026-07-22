@@ -11,6 +11,15 @@ function readWorkspaceStripStylesheet(): string {
 }
 
 describe('ChatInputWorkspaceStrip layout styles', () => {
+  it('keeps the environment row inside the composer flow', () => {
+    const stylesheet = readWorkspaceStripStylesheet();
+
+    expect(stylesheet).toContain('position: relative;');
+    expect(stylesheet).toContain('min-height: 20px;');
+    expect(stylesheet).not.toContain('position: absolute;');
+    expect(stylesheet).not.toContain('bottom: 0;');
+  });
+
   it('keeps the session usage action visible without overpowering the strip', () => {
     const stylesheet = readWorkspaceStripStylesheet();
 

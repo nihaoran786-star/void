@@ -41,9 +41,9 @@
       .void-chat-input__box--capsule {
         display: grid;
         grid-template-areas:
-          'input input'
-          'tools status';
-        grid-template-columns: minmax(0, 1fr) auto;
+          'input input input'
+          'tools meta status';
+        grid-template-columns: auto minmax(0, 1fr) auto;
         align-items: center;
         column-gap: var(--workspace-space-2);
         row-gap: var(--workspace-space-1);
@@ -97,6 +97,11 @@
           gap: var(--workspace-space-1);
           min-width: 0;
           padding: 0;
+        }
+
+        .void-chat-input-workspace-strip {
+          grid-area: meta;
+          align-self: stretch;
         }
 
         .void-chat-input__agent-boost-add {

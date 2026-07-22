@@ -18,11 +18,6 @@
   padding: 0 $size-gap-2;
   pointer-events: auto !important;
 
-  /* Reserve the band between the input card bottom edge and workspace strip (larger = more gap above strip text). */
-  &:has(.void-chat-input-workspace-strip) {
-    padding-bottom: 32px;
-  }
-  
   &.void-context-drop-zone--can-accept {
     .void-chat-input__box {
       border-color: rgba(255, 255, 255, 0.22);

@@ -28,6 +28,18 @@ describe('ChatInput accessibility contract', () => {
     expect(source).toContain("aria-label={t('input.placeholder')}");
   });
 
+  it('keeps workspace and usage controls inside the primary composer box', () => {
+    const source = readSource();
+    const stripIndex = source.lastIndexOf('<ChatInputWorkspaceStrip');
+    const boxCloseIndex = source.indexOf(
+      '          </div>\n        </div>\n      </div>\n    </ContextDropZone>',
+      stripIndex,
+    );
+
+    expect(stripIndex).toBeGreaterThan(0);
+    expect(boxCloseIndex).toBeGreaterThan(stripIndex);
+  });
+
   it('names every icon-only send, retry, and boost action', () => {
     const source = readSource();
 

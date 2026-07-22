@@ -1,9 +1,8 @@
 @mixin styles {
   .void-ui--minimal .void-chat-input-workspace-strip {
     gap: var(--workspace-space-1);
-    padding:
-      var(--workspace-space-1)
-      calc(var(--workspace-space-2) + var(--workspace-space-1));
+    min-height: 20px;
+    padding: 0 var(--workspace-space-1);
     color: var(--workspace-text-muted);
     font-family: var(--workspace-font-family);
     font-size: var(--workspace-font-size-meta);

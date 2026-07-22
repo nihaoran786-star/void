@@ -3135,21 +3135,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 {renderActionButton()}
               </div>
             </div>
+            {((chatStripRepositoryPath || chatStripWorkspaceLabel) ||
+              (effectiveTargetSessionId && effectiveTargetSession)) && (
+              <ChatInputWorkspaceStrip
+                repositoryPath={chatStripRepositoryPath}
+                workspaceLabel={chatStripWorkspaceLabel}
+                usageReport={
+                  effectiveTargetSessionId && effectiveTargetSession
+                    ? { visible: true, onOpen: handleToolbarUsageReport }
+                    : undefined
+                }
+              />
+            )}
           </div>
         </div>
       </div>
-      {((chatStripRepositoryPath || chatStripWorkspaceLabel) ||
-        (effectiveTargetSessionId && effectiveTargetSession)) && (
-        <ChatInputWorkspaceStrip
-          repositoryPath={chatStripRepositoryPath}
-          workspaceLabel={chatStripWorkspaceLabel}
-          usageReport={
-            effectiveTargetSessionId && effectiveTargetSession
-              ? { visible: true, onOpen: handleToolbarUsageReport }
-              : undefined
-          }
-        />
-      )}
     </ContextDropZone>
     </>
   );
