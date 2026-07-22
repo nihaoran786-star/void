@@ -1,16 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity,
   AlertTriangle,
   Check,
   Copy,
-  Clock3,
-  Database,
-  FileText,
   GitCompare,
   ShieldCheck,
-  Wrench,
 } from 'lucide-react';
 import { IconButton, MarkdownRenderer, Tooltip } from '@/component-library';
 import { snapshotAPI } from '@/infrastructure/api';
@@ -569,21 +564,18 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
   const metrics = [
     {
       key: 'wall',
-      icon: Clock3,
       label: t('usage.metrics.wall'),
       value: formatUsageDuration(report.time.wallTimeMs, t),
       help: t('usage.help.wall'),
     },
     {
       key: 'active',
-      icon: Activity,
       label: t('usage.metrics.active'),
       value: formatUsageDuration(report.time.activeTurnMs, t),
       help: t('usage.help.active'),
     },
     {
       key: 'model',
-      icon: Database,
       label: t('usage.metrics.modelTime'),
       value: formatUsageDuration(report.time.modelMs, t),
       detail: formatUsagePercent(calculateShare(report.time.modelMs, denominator), t),
@@ -591,7 +583,6 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
     },
     {
       key: 'tool',
-      icon: Wrench,
       label: t('usage.metrics.toolTime'),
       value: formatUsageDuration(report.time.toolMs, t),
       detail: formatUsagePercent(calculateShare(report.time.toolMs, denominator), t),
@@ -599,19 +590,24 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
     },
     {
       key: 'tokens',
-      icon: Database,
       label: t('usage.metrics.tokens'),
       value: formatUsageNumber(report.tokens.totalTokens, t),
     },
     {
       key: 'files',
-      icon: FileText,
       label: t('usage.metrics.files'),
       value: getFileSummaryLabel(report, t),
       detail: getFileScopeLabel(report.files.scope, t),
       help: fileScopeHelp,
     },
   ];
+
+  const modelShare = calculateShare(report.time.modelMs, denominator);
+  const toolShareRaw = calculateShare(report.time.toolMs, denominator);
+  const toolShare = toolShareRaw !== undefined && modelShare !== undefined
+    ? Math.min(toolShareRaw, Math.max(0, 100 - modelShare))
+    : toolShareRaw;
+  const hasShareBar = (modelShare ?? 0) > 0 || (toolShare ?? 0) > 0;
 
   return (
     <section className="session-usage-panel__section">
@@ -623,20 +619,49 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
       )}
 
       <div className="session-usage-panel__overview-grid">
-        {metrics.map(metric => {
-          const Icon = metric.icon;
-          return (
-            <div className="session-usage-panel__overview-metric" key={metric.key}>
-              <Icon size={16} aria-hidden />
-              <div>
-                <span>{metric.label}</span>
-                <UsageValue value={metric.value} help={metric.help} strong />
-                {metric.detail && <em>{metric.detail}</em>}
-              </div>
-            </div>
-          );
-        })}
+        {metrics.map(metric => (
+          <div className="session-usage-panel__overview-metric" key={metric.key}>
+            <span className="session-usage-panel__overview-metric-label">{metric.label}</span>
+            <UsageValue value={metric.value} help={metric.help} strong />
+            {metric.detail && <em>{metric.detail}</em>}
+          </div>
+        ))}
       </div>
+
+      {hasShareBar && (
+        <div
+          className="session-usage-panel__share"
+          role="img"
+          aria-label={`${t('usage.metrics.modelTime')} ${formatUsagePercent(modelShare, t)} · ${t('usage.metrics.toolTime')} ${formatUsagePercent(toolShare, t)}`}
+        >
+          <div className="session-usage-panel__share-track">
+            {(modelShare ?? 0) > 0 && (
+              <span
+                className="session-usage-panel__share-segment session-usage-panel__share-segment--model"
+                style={{ width: `${modelShare}%` }}
+              />
+            )}
+            {(toolShare ?? 0) > 0 && (
+              <span
+                className="session-usage-panel__share-segment session-usage-panel__share-segment--tool"
+                style={{ width: `${toolShare}%` }}
+              />
+            )}
+          </div>
+          <div className="session-usage-panel__share-legend">
+            <span className="session-usage-panel__share-legend-item">
+              <i className="session-usage-panel__share-dot session-usage-panel__share-dot--model" aria-hidden />
+              {t('usage.metrics.modelTime')}
+              <b>{formatUsagePercent(modelShare, t)}</b>
+            </span>
+            <span className="session-usage-panel__share-legend-item">
+              <i className="session-usage-panel__share-dot session-usage-panel__share-dot--tool" aria-hidden />
+              {t('usage.metrics.toolTime')}
+              <b>{formatUsagePercent(toolShare, t)}</b>
+            </span>
+          </div>
+        </div>
+      )}
 
       <dl className="session-usage-panel__definition-list">
         <div>
@@ -691,6 +716,7 @@ function UsageModels({ report, sessionId }: { report: SessionUsageReport; sessio
       emptyLabel={t('usage.empty.models')}
       emptyDescription={t('usage.empty.modelsDescription')}
       headers={headers}
+      numericColumns={['calls', 'duration', 'input', 'output', 'cached', 'hitRate']}
       rows={report.models.map((model, index) => {
         const cached = formatUsageNumber(model.cachedTokens, t);
         const source = model.modelIdSource ?? (model.modelId === 'unknown_model' ? 'legacy_missing' : undefined);
@@ -754,6 +780,7 @@ function UsageTools({ report, sessionId }: { report: SessionUsageReport; session
       emptyLabel={t('usage.empty.tools')}
       emptyDescription={t('usage.empty.toolsDescription')}
       headers={headers}
+      numericColumns={['calls', 'success', 'errors', 'duration', 'p95', 'execution']}
       rows={report.tools.map((tool, index) => {
         const duration = formatUsageDuration(tool.durationMs, t);
         const p95 = formatUsageDuration(tool.p95DurationMs, t);
@@ -966,6 +993,7 @@ function UsageFiles({
           { id: 'turns', label: t('usage.table.turns') },
           { id: 'actions', label: t('usage.table.actions') },
         ]}
+        numericColumns={['operations', 'added', 'deleted']}
         rows={rows}
         tableClassName="session-usage-panel__table--files"
       />
@@ -1024,6 +1052,7 @@ function UsageErrors({ report, sessionId }: { report: SessionUsageReport; sessio
           { id: 'label', label: t('usage.table.label') },
           { id: 'count', label: t('usage.table.count') },
         ]}
+        numericColumns={['count']}
         rows={report.errors.examples.map((example, index) => ({
           id: example.redacted
             ? `error-${index}-redacted-${example.count}`
@@ -1110,6 +1139,7 @@ function UsageSlowest({ report, sessionId }: { report: SessionUsageReport; sessi
           { id: 'kind', label: t('usage.table.kind') },
           { id: 'duration', label: t('usage.table.duration') },
         ]}
+        numericColumns={['duration']}
         rows={report.slowest.map((span, index) => {
           const spanHelp = getSlowSpanHelp(span, t);
           const spanLabel = getSlowSpanLabel(span, t);
@@ -1155,9 +1185,10 @@ interface UsageTableProps {
   headers: UsageTableHeader[];
   rows: UsageTableRow[];
   tableClassName?: string;
+  numericColumns?: ReadonlyArray<string>;
 }
 
-function UsageTable({ empty, emptyLabel, emptyDescription, emptyHelp, headers, rows, tableClassName }: UsageTableProps) {
+function UsageTable({ empty, emptyLabel, emptyDescription, emptyHelp, headers, rows, tableClassName, numericColumns }: UsageTableProps) {
   const { t } = useTranslation('flow-chat');
   const [expanded, setExpanded] = useState(false);
 
@@ -1170,6 +1201,9 @@ function UsageTable({ empty, emptyLabel, emptyDescription, emptyHelp, headers, r
     );
   }
 
+  const numericSet = numericColumns && numericColumns.length > 0
+    ? new Set(numericColumns)
+    : undefined;
   const shouldLimitRows = rows.length > MAX_USAGE_TABLE_ROWS;
   const visibleRows = shouldLimitRows && !expanded
     ? rows.slice(0, MAX_USAGE_TABLE_ROWS)
@@ -1182,7 +1216,10 @@ function UsageTable({ empty, emptyLabel, emptyDescription, emptyHelp, headers, r
           <thead>
             <tr>
               {headers.map(header => (
-                <th key={header.id}>
+                <th
+                  key={header.id}
+                  className={numericSet?.has(header.id) ? 'session-usage-panel__cell--numeric' : undefined}
+                >
                   <UsageTableHeaderLabel header={header} />
                 </th>
               ))}
@@ -1191,18 +1228,25 @@ function UsageTable({ empty, emptyLabel, emptyDescription, emptyHelp, headers, r
           <tbody>
             {visibleRows.map(row => (
               <tr key={row.id}>
-                {row.cells.map((cell, cellIndex) => (
-                  <td
-                    key={`${row.id}-${headers[cellIndex]?.id ?? cellIndex}`}
-                    className={typeof cell === 'string' ? undefined : cell.className}
-                  >
-                    {typeof cell === 'string'
-                      ? <span>{cell}</span>
-                      : 'node' in cell
-                        ? cell.node
-                        : <UsageValue value={cell.value} help={cell.help} />}
-                  </td>
-                ))}
+                {row.cells.map((cell, cellIndex) => {
+                  const cellClassName = typeof cell === 'string' ? undefined : cell.className;
+                  const numericClassName = numericSet?.has(headers[cellIndex]?.id ?? '')
+                    ? 'session-usage-panel__cell--numeric'
+                    : undefined;
+                  const combinedClassName = [cellClassName, numericClassName].filter(Boolean).join(' ') || undefined;
+                  return (
+                    <td
+                      key={`${row.id}-${headers[cellIndex]?.id ?? cellIndex}`}
+                      className={combinedClassName}
+                    >
+                      {typeof cell === 'string'
+                        ? <span>{cell}</span>
+                        : 'node' in cell
+                          ? cell.node
+                          : <UsageValue value={cell.value} help={cell.help} />}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

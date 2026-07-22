@@ -799,6 +799,34 @@ describe('Session usage report UI components', () => {
     expect(container.querySelector('.session-usage-panel__title-wrap .session-usage-panel__badge')).toBeNull();
   });
 
+  it('renders a bounded model and tool time share without metric icons', () => {
+    render(<SessionUsagePanel report={usageReport()} markdown="## Session Usage" />);
+
+    const share = container.querySelector('.session-usage-panel__share');
+    const model = container.querySelector<HTMLElement>('.session-usage-panel__share-segment--model');
+    const tool = container.querySelector<HTMLElement>('.session-usage-panel__share-segment--tool');
+
+    expect(share?.getAttribute('role')).toBe('img');
+    expect(share?.getAttribute('aria-label')).toContain('Model round time 50%');
+    expect(share?.getAttribute('aria-label')).toContain('Tool call time 25%');
+    expect(model?.style.width).toBe('50%');
+    expect(tool?.style.width).toBe('25%');
+    expect(container.querySelector('.session-usage-panel__overview-metric svg')).toBeNull();
+  });
+
+  it('marks usage table numbers for stable right alignment', () => {
+    render(<SessionUsagePanel report={usageReport()} markdown="## Session Usage" />);
+
+    const modelsTab = Array.from(container.querySelectorAll('.session-usage-panel__tab'))
+      .find(button => button.textContent === 'Models');
+    act(() => {
+      modelsTab?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.querySelectorAll('th.session-usage-panel__cell--numeric').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('td.session-usage-panel__cell--numeric').length).toBeGreaterThan(0);
+  });
+
   it('explains error examples on the detail panel', () => {
     const report = usageReport({
       errors: {

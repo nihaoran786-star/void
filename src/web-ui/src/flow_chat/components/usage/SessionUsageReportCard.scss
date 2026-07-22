@@ -3,16 +3,15 @@
 .session-usage-report-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   box-sizing: border-box;
   width: auto;
   max-width: none;
   margin: 0.12rem 3rem var(--flowchat-turn-gap, 0.4rem) 3rem;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--border-base) 68%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-bg-secondary) 82%, var(--color-bg-flowchat, transparent));
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--color-text-primary) 4%, transparent) inset;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--border-base) 55%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 60%, var(--color-bg-flowchat, transparent));
   color: var(--color-text-primary);
   animation: slideInUp 0.3s ease;
 
@@ -43,7 +42,7 @@
     margin: 0;
     color: var(--color-text-primary);
     font-size: var(--flowchat-font-size-sm);
-    font-weight: 650;
+    font-weight: 600;
     line-height: var(--flowchat-compact-line-height, 1.32);
   }
 
@@ -98,8 +97,8 @@
     flex: 0 0 auto;
     margin: 0;
     color: var(--color-text-primary);
-    font-size: var(--flowchat-font-size-lg);
-    font-weight: 650;
+    font-size: var(--flowchat-font-size-sm);
+    font-weight: 600;
     line-height: var(--flowchat-compact-line-height, 1.32);
     white-space: nowrap;
   }
@@ -167,7 +166,7 @@
     background: transparent;
     color: var(--color-text-secondary);
     font-size: var(--flowchat-font-size-xs);
-    font-weight: 650;
+    font-weight: 500;
     line-height: 1;
     white-space: nowrap;
     cursor: pointer;
@@ -227,7 +226,7 @@
     flex-wrap: nowrap;
     gap: 6px 10px;
     min-width: 0;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
 
     span {
@@ -242,24 +241,17 @@
   &__metrics {
     display: grid;
     grid-template-columns: repeat(3, minmax(116px, 1fr));
-    gap: 6px;
+    gap: 10px 16px;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
   }
 
   &__metric {
-    gap: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
     min-width: 0;
-    min-height: 34px;
-    padding: 6px 8px;
-    border: 1px solid color-mix(in srgb, var(--border-base) 54%, transparent);
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--element-bg-soft) 58%, transparent);
 
-    svg {
-      flex: 0 0 auto;
-      color: var(--color-text-secondary);
-    }
-
-    &--warning svg,
     &--warning .session-usage-report-card__metric-value {
       color: var(--color-warning);
     }
@@ -267,7 +259,8 @@
 
   &__metric-label {
     min-width: 0;
-    color: var(--color-text-secondary);
+    max-width: 100%;
+    color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -275,10 +268,11 @@
   }
 
   &__metric-value {
-    margin-left: auto;
     color: var(--color-text-primary);
-    font-size: var(--flowchat-font-size-sm);
-    font-weight: 600;
+    font-size: var(--font-size-lg);
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.35;
     white-space: nowrap;
 
     &--help {
@@ -293,15 +287,13 @@
   &__lists {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: 8px 16px;
   }
 
   &__mini-list {
     min-width: 0;
-    padding: 8px;
-    border: 1px solid color-mix(in srgb, var(--border-base) 58%, transparent);
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--element-bg-soft) 42%, transparent);
+    padding-top: 8px;
+    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
   }
 
   &__mini-list-header {
@@ -309,13 +301,13 @@
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    color: var(--color-text-secondary);
+    color: var(--color-text-muted);
   }
 
   &__mini-list-title {
     min-width: 0;
     font-size: var(--flowchat-font-size-xs);
-    font-weight: 600;
+    font-weight: 500;
   }
 
   &__mini-list-more {
@@ -357,12 +349,13 @@
     flex-direction: column;
     gap: 2px;
     min-height: 28px;
+    padding-top: 4px;
     color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
 
     strong {
       color: var(--color-text-secondary);
-      font-weight: 600;
+      font-weight: 500;
     }
 
     span {
@@ -376,14 +369,13 @@
     grid-template-areas:
       "label value"
       "detail detail";
-    gap: 2px 8px;
-    min-height: 34px;
+    gap: 1px 8px;
     min-width: 0;
-    padding: 6px 0;
+    padding: 5px 0;
     font-size: var(--flowchat-font-size-xs);
 
     & + & {
-      border-top: 1px dashed color-mix(in srgb, var(--border-base) 64%, transparent);
+      border-top: 1px solid color-mix(in srgb, var(--border-base) 38%, transparent);
     }
   }
 
@@ -409,7 +401,6 @@
     min-width: 0;
     overflow: hidden;
     color: var(--color-text-primary);
-    font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -417,6 +408,7 @@
   &__mini-list-value {
     grid-area: value;
     color: var(--color-text-secondary);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
@@ -482,7 +474,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+    font-variant-numeric: tabular-nums;
   }
 
   &__file-stat--added {
