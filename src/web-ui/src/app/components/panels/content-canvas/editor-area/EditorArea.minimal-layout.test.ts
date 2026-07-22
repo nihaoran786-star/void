@@ -21,6 +21,9 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /@container short-drama-editor-area \(max-width: 720px\)[\s\S]*?&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?width: min\(360px, calc\(100% - 48px\)\) !important;[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
     );
     expect(source).toMatch(
+      /\.btw-session-panel__composer \{[\s\S]*?border: 0;[\s\S]*?background: var\(--workspace-surface-panel\);/,
+    );
+    expect(source).toMatch(
       /\.btw-session-panel__composer-box \{[\s\S]*?min-height: 64px;[\s\S]*?max-height: min\(240px, 38vh\);[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border-radius: var\(--workspace-radius-composer\);[\s\S]*?background: var\(--workspace-surface-raised\);[\s\S]*?&:focus-within \{[\s\S]*?box-shadow: inset 0 0 0 1px var\(--workspace-focus-ring\);/,
     );
     expect(source).toMatch(
