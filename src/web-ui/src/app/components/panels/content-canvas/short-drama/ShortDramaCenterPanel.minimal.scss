@@ -240,55 +240,14 @@
     background: var(--workspace-surface-raised);
   }
 
-  .void-ui--minimal .short-drama-center__storyboard-list {
-    gap: var(--workspace-space-2);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row {
-    border-radius: var(--workspace-radius-control);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__toggle {
-    gap: var(--workspace-space-1);
-    padding: var(--workspace-space-2) 30px var(--workspace-space-2) var(--workspace-space-3);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__toggle:hover {
-    background: var(--workspace-surface-hover);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__heading strong {
-    font-size: var(--short-drama-font-size-ui-control);
-    font-weight: var(--workspace-font-weight-strong);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__heading > span {
-    color: var(--workspace-text-muted);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__summary {
-    color: var(--workspace-text-secondary);
-    font-size: var(--short-drama-font-size-ui-meta);
-    line-height: var(--workspace-line-height-control);
-  }
-
-  .void-ui--minimal .short-drama-storyboard-row__details {
-    padding: 0 var(--workspace-space-3) var(--workspace-space-3);
-  }
-
   .void-ui--minimal .short-drama-storyboard-row > .short-drama-media-preview {
     border: 0;
-    border-right: 1px solid var(--workspace-border-subtle);
     border-radius: 0;
   }
 
-  .void-ui--minimal .short-drama-storyboard-row.is-expanded > .short-drama-media-preview {
-    border-right: 0;
-    border-bottom: 1px solid var(--workspace-border-subtle);
-  }
-
   .void-ui--minimal .short-drama-asset-row,
-  .void-ui--minimal .short-drama-pending-row {
+  .void-ui--minimal .short-drama-pending-row,
+  .void-ui--minimal .short-drama-storyboard-row {
     border-radius: var(--workspace-radius-control);
   }
 
@@ -304,7 +263,8 @@
     font-size: var(--short-drama-font-size-ui-micro);
   }
 
-  .void-ui--minimal .short-drama-asset-row__overlay {
+  .void-ui--minimal .short-drama-asset-row__overlay,
+  .void-ui--minimal .short-drama-storyboard-row__overlay {
     background: color-mix(in srgb, black 42%, transparent);
   }
 
@@ -356,29 +316,12 @@
     line-height: var(--workspace-line-height-body);
   }
 
-  .void-ui--minimal .short-drama-card__references span,
   .void-ui--minimal .short-drama-card__media-ref,
   .void-ui--minimal .short-drama-pill {
     border-color: var(--workspace-border-subtle);
     background: var(--workspace-surface-raised);
     color: var(--workspace-text-secondary);
     font-weight: var(--workspace-font-weight-medium);
-  }
-
-  .void-ui--minimal .short-drama-revision-chip {
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .void-ui--minimal .short-drama-revision-chip.is-selected {
-    background: var(--workspace-surface-active);
-    color: var(--workspace-text-primary);
-  }
-
-  .void-ui--minimal .short-drama-revision-chip:focus-visible {
-    outline: 2px solid var(--workspace-focus-ring);
-    outline-offset: 1px;
-    box-shadow: none;
   }
 
   .void-ui--minimal .short-drama-media-preview,

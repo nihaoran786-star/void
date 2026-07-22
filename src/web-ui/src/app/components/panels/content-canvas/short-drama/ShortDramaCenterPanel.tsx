@@ -51,7 +51,6 @@ import {
   type ShortDramaManifestState,
   type ShortDramaMediaArtifactIndexEntry,
   type ShortDramaMediaPreviewViewModel,
-  type ShortDramaMediaReference,
   type ShortDramaProject,
   type ShortDramaRecoveryGuidance,
   type ShortDramaScriptDocumentViewModel,
@@ -118,7 +117,6 @@ export function ShortDramaCenterPanel({
   const [activeArtifactFocusByStage, setActiveArtifactFocusByStage] = useState<Partial<Record<ShortDramaStage, string>>>({});
   const [expandedAssetArtifactId, setExpandedAssetArtifactId] = useState<string>();
   const [expandedStoryboardArtifactId, setExpandedStoryboardArtifactId] = useState<string>();
-  const [selectedRevisionIds, setSelectedRevisionIds] = useState<Record<string, string | undefined>>({});
   const [stageAgentBindings, setStageAgentBindings] = useState<ShortDramaStageAgentBinding[]>([]);
   const [workspaceMediaItems, setWorkspaceMediaItems] = useState<WorkspaceMediaItem[]>([]);
   const [isStageAgentBootstrapping, setIsStageAgentBootstrapping] = useState(false);
@@ -495,14 +493,6 @@ export function ShortDramaCenterPanel({
       cancelled = true;
     };
   }, [isActive, mediaRefreshToken, state.status, workspacePath]);
-
-  const workspaceMediaItemsById = useMemo(() => (
-    new Map(workspaceMediaItems.map(item => [item.id, item]))
-  ), [workspaceMediaItems]);
-
-  const handleRevisionSelect = useCallback((artifactId: string, revisionId?: string) => {
-    setSelectedRevisionIds(current => ({ ...current, [artifactId]: revisionId }));
-  }, []);
 
   const recoveredProject = useMemo(() => (
     state.status === 'ready'
@@ -1021,9 +1011,6 @@ export function ShortDramaCenterPanel({
                 focusedArtifactIdOrHandle={activeArtifactFocusByStage[selectedStage]}
                 onArtifactFocus={handleArtifactFocus}
                 onStoryboardExpandedChange={setExpandedStoryboardArtifactId}
-                selectedRevisionIds={selectedRevisionIds}
-                revisionMediaItemsById={workspaceMediaItemsById}
-                onRevisionSelect={handleRevisionSelect}
                 setSectionRef={(element) => {
                   if (element) {
                     episodeSectionRefs.current.set(section.episode.id, element);
@@ -1064,9 +1051,6 @@ function EpisodeStageSection({
   focusedArtifactIdOrHandle,
   onArtifactFocus,
   onStoryboardExpandedChange,
-  selectedRevisionIds,
-  revisionMediaItemsById,
-  onRevisionSelect,
   setSectionRef,
   t,
 }: {
@@ -1083,9 +1067,6 @@ function EpisodeStageSection({
   focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onStoryboardExpandedChange: (artifactId?: string) => void;
-  selectedRevisionIds: Record<string, string | undefined>;
-  revisionMediaItemsById: Map<string, WorkspaceMediaItem>;
-  onRevisionSelect: (artifactId: string, revisionId?: string) => void;
   setSectionRef: (element: HTMLElement | null) => void;
   t: Translate;
 }) {
@@ -1129,9 +1110,6 @@ function EpisodeStageSection({
           focusedArtifactIdOrHandle={focusedArtifactIdOrHandle}
           onArtifactFocus={onArtifactFocus}
           onExpandedArtifactChange={onStoryboardExpandedChange}
-          selectedRevisionIds={selectedRevisionIds}
-          revisionMediaItemsById={revisionMediaItemsById}
-          onRevisionSelect={onRevisionSelect}
           t={t}
         />
       )}
@@ -1583,36 +1561,7 @@ function AssetAnchorCard({
     || focusedArtifactIdOrHandle === artifact.handle;
   const mediaEntry = mediaEntriesByArtifactId.get(artifact.id);
   const preview = createShortDramaMediaPreviewViewModel(artifact, undefined, mediaEntry);
-  const handleOpenPreview = () => {
-    if (preview.status !== 'ready') {
-      return;
-    }
-    const localPath = preview.localPath ?? preview.filePath;
-    const openWithUrl = (url?: string) => {
-      if (!url) {
-        return;
-      }
-      openMediaPreviewPanel({
-        kind: preview.kind ?? 'media',
-        url,
-        localPath,
-        title: artifact.title,
-      });
-    };
-    const directUrl = isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined;
-    if (directUrl) {
-      openWithUrl(directUrl);
-      return;
-    }
-    if (!localPath) {
-      return;
-    }
-    void resolveWorkspaceMediaPreviewUrl({
-      filePath: localPath,
-      extension: extensionFromPath(localPath),
-      kind: preview.kind,
-    }).then(resolvedUrl => openWithUrl(resolvedUrl ?? undefined));
-  };
+  const handleOpenPreview = () => openShortDramaArtifactPreview(artifact, preview);
   const handleTileActivate = () => {
     onArtifactFocus(artifact);
     if (isSelected) {
@@ -1700,9 +1649,6 @@ function StoryboardGrid({
   focusedArtifactIdOrHandle,
   onArtifactFocus,
   onExpandedArtifactChange,
-  selectedRevisionIds,
-  revisionMediaItemsById,
-  onRevisionSelect,
   t,
 }: {
   artifacts: ShortDramaArtifact[];
@@ -1713,82 +1659,87 @@ function StoryboardGrid({
   focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onExpandedArtifactChange: (artifactId?: string) => void;
-  selectedRevisionIds: Record<string, string | undefined>;
-  revisionMediaItemsById: Map<string, WorkspaceMediaItem>;
-  onRevisionSelect: (artifactId: string, revisionId?: string) => void;
   t: Translate;
 }) {
   return (
     <div className="short-drama-center__storyboard-list">
       {artifacts.map((artifact, index) => {
-        const isExpanded = expandedArtifactId === artifact.id;
+        const isSelected = expandedArtifactId === artifact.id;
         const isFocused = focusedArtifactIdOrHandle === artifact.id
           || focusedArtifactIdOrHandle === artifact.handle;
-        const detailsId = `${getShortDramaArtifactDomId(artifact.id)}-details`;
-        const selectedRevisionId = selectedRevisionIds[artifact.id];
-        const previewArtifact = createRevisionPreviewArtifact(artifact, selectedRevisionId, revisionMediaItemsById);
-        const referenceCount = createShortDramaStoryboardReferenceViewItems({
+        const mediaEntry = mediaEntriesByArtifactId.get(artifact.id);
+        const preview = createShortDramaMediaPreviewViewModel(artifact, undefined, mediaEntry);
+        const cardTitle = t('shortDrama.storyboards.cardTitle', { scene: index + 1, shot: index + 1 });
+        const references = createShortDramaStoryboardReferenceViewItems({
           artifact,
           projectArtifacts,
           storyboardReferencePlans,
-        }).length;
+        });
+        const handleOpenPreview = () => openShortDramaArtifactPreview(artifact, preview);
+        const handleTileActivate = () => {
+          onArtifactFocus(artifact);
+          if (isSelected) {
+            handleOpenPreview();
+          } else {
+            onExpandedArtifactChange(artifact.id);
+          }
+        };
 
         return (
           <article
             key={artifact.id}
             id={getShortDramaArtifactDomId(artifact.id)}
-            className={`short-drama-card short-drama-storyboard-row ${isExpanded ? 'is-expanded' : ''} ${isFocused ? 'is-focused' : ''}`}
+            className={`short-drama-card short-drama-storyboard-row ${isSelected ? 'is-selected' : ''} ${isFocused ? 'is-focused' : ''}`}
             data-testid="short-drama-artifact-card"
             data-status={artifact.status}
-            onClick={() => onArtifactFocus(artifact)}
           >
             <ArtifactFocusButton artifact={artifact} onArtifactFocus={onArtifactFocus} t={t} />
-            {isExpanded ? (
-              <MediaPreview artifact={previewArtifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} />
-            ) : (
-              <MediaPreview artifact={artifact} mediaEntry={mediaEntriesByArtifactId.get(artifact.id)} t={t} variant="row" />
-            )}
+            <MediaPreview artifact={artifact} mediaEntry={mediaEntry} t={t} variant="tile" />
+            <span className="short-drama-storyboard-row__badge" aria-hidden="true">{cardTitle}</span>
             <button
               type="button"
               className="short-drama-storyboard-row__toggle"
-              aria-expanded={isExpanded}
-              aria-controls={detailsId}
+              aria-pressed={isSelected}
               onClick={(event) => {
                 event.stopPropagation();
-                onArtifactFocus(artifact);
-                onExpandedArtifactChange(isExpanded ? undefined : artifact.id);
+                handleTileActivate();
               }}
             >
               <span className="short-drama-storyboard-row__heading">
-                <strong>{t('shortDrama.storyboards.cardTitle', { scene: index + 1, shot: index + 1 })}</strong>
-                <span aria-hidden="true">{isExpanded ? '−' : '+'}</span>
-              </span>
-              <span className="short-drama-storyboard-row__summary">{artifact.summary}</span>
-              <span className="short-drama-storyboard-row__meta">
-                <StatusPill status={artifact.status} t={t} />
-                <span className="short-drama-pill">
-                  {t('shortDrama.accessibility.storyboardReferences')} · {referenceCount}
-                </span>
-                <span className="short-drama-pill">{t('shortDrama.storyboards.setupCount', { count: artifact.attemptCount })}</span>
+                <strong>{cardTitle}</strong>
               </span>
             </button>
-            <div
-              id={detailsId}
-              className="short-drama-storyboard-row__details"
-              hidden={!isExpanded}
-            >
-              <ArtifactRevisionStrip
-                artifact={artifact}
-                selectedRevisionId={selectedRevisionId}
-                onRevisionSelect={onRevisionSelect}
-                t={t}
-              />
-              <StoryboardReferenceChips
-                artifact={artifact}
-                projectArtifacts={projectArtifacts}
-                storyboardReferencePlans={storyboardReferencePlans}
-                t={t}
-              />
+            <div className="short-drama-storyboard-row__overlay">
+              {preview.status === 'ready' && (
+                <button
+                  type="button"
+                  className="short-drama-storyboard-row__zoom"
+                  aria-label={t('shortDrama.accessibility.openArtifact', { title: artifact.title })}
+                  title={t('shortDrama.accessibility.openArtifact', { title: artifact.title })}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onArtifactFocus(artifact);
+                    handleOpenPreview();
+                  }}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M10.5 10.5 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+              <div className="short-drama-storyboard-row__overlay-body">
+                <strong aria-hidden="true">{artifact.summary}</strong>
+                {isSelected && references.length > 0 && (
+                  <span className="short-drama-storyboard-row__references">
+                    {references.slice(0, 6).map(item => (
+                      item.thumbnailUrl
+                        ? <img key={item.key} src={item.thumbnailUrl} alt={item.label} title={item.label} />
+                        : null
+                    ))}
+                  </span>
+                )}
+              </div>
             </div>
           </article>
         );
@@ -1797,141 +1748,38 @@ function StoryboardGrid({
   );
 }
 
-function StoryboardReferenceChips({
-  artifact,
-  projectArtifacts,
-  storyboardReferencePlans,
-  t,
-}: {
-  artifact: ShortDramaArtifact;
-  projectArtifacts: ShortDramaArtifact[];
-  storyboardReferencePlans: ShortDramaStoryboardReferencePlan[];
-  t: Translate;
-}) {
-  const items = createShortDramaStoryboardReferenceViewItems({
-    artifact,
-    projectArtifacts,
-    storyboardReferencePlans,
-  });
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div
-      className="short-drama-card__references"
-      aria-label={t('shortDrama.accessibility.storyboardReferences')}
-    >
-      {items.slice(0, 6).map(item => (
-        <span key={item.key}>
-          {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" aria-hidden="true" />}
-          <strong>{item.kindLabel}</strong>
-          {item.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function formatShortDramaRevisionDate(timestamp: number): string {
-  return new Intl.DateTimeFormat(undefined, { month: 'numeric', day: 'numeric' }).format(new Date(timestamp));
-}
-
-function createRevisionPreviewArtifact(
+function openShortDramaArtifactPreview(
   artifact: ShortDramaArtifact,
-  selectedRevisionId: string | undefined,
-  revisionMediaItemsById: Map<string, WorkspaceMediaItem>,
-): ShortDramaArtifact {
-  if (!selectedRevisionId) {
-    return artifact;
+  preview: ReturnType<typeof createShortDramaMediaPreviewViewModel>,
+) {
+  if (preview.status !== 'ready') {
+    return;
   }
-  const revision = artifact.revisions.find(item => item.id === selectedRevisionId);
-  if (!revision) {
-    return artifact;
+  const localPath = preview.localPath ?? preview.filePath;
+  const openWithUrl = (url?: string) => {
+    if (!url) {
+      return;
+    }
+    openMediaPreviewPanel({
+      kind: preview.kind ?? 'media',
+      url,
+      localPath,
+      title: artifact.title,
+    });
+  };
+  const directUrl = isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined;
+  if (directUrl) {
+    openWithUrl(directUrl);
+    return;
   }
-  const mediaItem = revision.mediaItemId ? revisionMediaItemsById.get(revision.mediaItemId) : undefined;
-  const mediaReference: ShortDramaMediaReference | undefined = mediaItem
-    ? {
-        mediaItemId: mediaItem.id,
-        kind: mediaItem.kind,
-        label: revision.summary || artifact.title,
-        localPath: mediaItem.filePath,
-        filePath: mediaItem.filePath,
-        relativePath: mediaItem.relativePath,
-        previewUrl: mediaItem.previewUrl ?? mediaItem.generationResultUrl,
-        thumbnailUrl: mediaItem.thumbnailUrl ?? mediaItem.previewUrl ?? mediaItem.generationResultUrl,
-        durationMs: mediaItem.durationMs,
-        source: 'generated',
-      }
-    : undefined;
-  return { ...artifact, mediaReference };
-}
-
-function ArtifactRevisionStrip({
-  artifact,
-  selectedRevisionId,
-  onRevisionSelect,
-  t,
-}: {
-  artifact: ShortDramaArtifact;
-  selectedRevisionId?: string;
-  onRevisionSelect: (artifactId: string, revisionId?: string) => void;
-  t: Translate;
-}) {
-  if (artifact.revisions.length === 0) {
-    return null;
+  if (!localPath) {
+    return;
   }
-  const orderedRevisions = [...artifact.revisions].sort((left, right) => right.version - left.version);
-  const selectedRevision = selectedRevisionId
-    ? artifact.revisions.find(item => item.id === selectedRevisionId)
-    : undefined;
-
-  return (
-    <div className="short-drama-revision-strip" aria-label={t('shortDrama.revisions.label')}>
-      <div className="short-drama-revision-strip__track" role="group">
-        <button
-          type="button"
-          className={`short-drama-pill short-drama-revision-chip${selectedRevision ? '' : ' is-selected'}`}
-          aria-pressed={!selectedRevision}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRevisionSelect(artifact.id, undefined);
-          }}
-        >
-          {t('shortDrama.revisions.current')}
-        </button>
-        {orderedRevisions.map(revision => {
-          const isSelected = selectedRevision?.id === revision.id;
-          return (
-            <button
-              key={revision.id}
-              type="button"
-              className={`short-drama-pill short-drama-revision-chip${isSelected ? ' is-selected' : ''}`}
-              aria-pressed={isSelected}
-              aria-label={t('shortDrama.revisions.viewVersion', { version: revision.version })}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRevisionSelect(artifact.id, revision.id);
-              }}
-            >
-              <strong>v{revision.version}</strong>
-              <span>{formatShortDramaRevisionDate(revision.createdAt)}</span>
-            </button>
-          );
-        })}
-      </div>
-      {selectedRevision && (
-        <p className="short-drama-revision-strip__detail">
-          {t('shortDrama.revisions.versionDetail', {
-            version: selectedRevision.version,
-            date: formatShortDramaRevisionDate(selectedRevision.createdAt),
-            summary: selectedRevision.summary,
-          })}
-        </p>
-      )}
-    </div>
-  );
+  void resolveWorkspaceMediaPreviewUrl({
+    filePath: localPath,
+    extension: extensionFromPath(localPath),
+    kind: preview.kind,
+  }).then(resolvedUrl => openWithUrl(resolvedUrl ?? undefined));
 }
 
 function VideoStage({
