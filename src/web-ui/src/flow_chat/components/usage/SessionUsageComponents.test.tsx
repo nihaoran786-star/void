@@ -791,6 +791,13 @@ describe('Session usage report UI components', () => {
     expect(container.textContent).not.toContain('Unavailable Token');
   });
 
+  it('keeps the compact usage card metrics text-only', () => {
+    render(<SessionUsageReportCard report={usageReport()} markdown="## Session Usage" />);
+
+    expect(container.querySelectorAll('.session-usage-report-card__metric')).toHaveLength(6);
+    expect(container.querySelector('.session-usage-report-card__metric svg')).toBeNull();
+  });
+
   it('keeps the detail coverage badge in the header action area', () => {
     render(<SessionUsagePanel report={usageReport()} markdown="## Session Usage" />);
 

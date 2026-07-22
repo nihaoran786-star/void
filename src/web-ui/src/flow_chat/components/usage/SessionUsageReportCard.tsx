@@ -1,14 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Activity,
-  AlertTriangle,
   Check,
   ChevronRight,
   Copy,
-  Clock3,
-  Database,
-  FileText,
 } from 'lucide-react';
 import { IconButton, MarkdownRenderer, ToolProcessingDots, Tooltip } from '@/component-library';
 import type { SessionUsageReport } from '@/infrastructure/api/service-api/SessionAPI';
@@ -174,41 +169,35 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
       key: 'wall',
       label: t('usage.metrics.wall'),
       value: formatUsageDuration(report.time.wallTimeMs, t),
-      icon: Clock3,
       help: t('usage.help.wall'),
     },
     {
       key: 'active',
       label: t('usage.metrics.active'),
       value: formatUsageDuration(report.time.activeTurnMs, t),
-      icon: Activity,
       help: t('usage.help.active'),
     },
     {
       key: 'tokens',
       label: t('usage.metrics.tokens'),
       value: formatUsageNumber(tokenTotal, t),
-      icon: Database,
     },
     {
       key: 'cached',
       label: t('usage.metrics.cached'),
       value: cachedTokenText,
-      icon: Database,
       help: cachedTokenHelp,
     },
     {
       key: 'files',
       label: t('usage.metrics.files'),
       value: getFileSummaryLabel(report, t),
-      icon: FileText,
       help: fileMetricHelp,
     },
     {
       key: 'errors',
       label: t('usage.metrics.errors'),
       value: formatUsageNumber(report.errors.totalErrors, t),
-      icon: AlertTriangle,
       tone: report.errors.totalErrors > 0 ? 'warning' : undefined,
       help: t('usage.help.errors'),
     },
@@ -281,19 +270,15 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
       </div>
 
       <div className="session-usage-report-card__metrics">
-        {metrics.map(metric => {
-          const Icon = metric.icon;
-          return (
-            <div
-              className={`session-usage-report-card__metric${metric.tone ? ` session-usage-report-card__metric--${metric.tone}` : ''}`}
-              key={metric.key}
-            >
-              <Icon size={14} aria-hidden />
-              <span className="session-usage-report-card__metric-label">{metric.label}</span>
-              <UsageMetricValue value={metric.value} help={metric.help} />
-            </div>
-          );
-        })}
+        {metrics.map(metric => (
+          <div
+            className={`session-usage-report-card__metric${metric.tone ? ` session-usage-report-card__metric--${metric.tone}` : ''}`}
+            key={metric.key}
+          >
+            <span className="session-usage-report-card__metric-label">{metric.label}</span>
+            <UsageMetricValue value={metric.value} help={metric.help} />
+          </div>
+        ))}
       </div>
 
       <div className="session-usage-report-card__lists">
