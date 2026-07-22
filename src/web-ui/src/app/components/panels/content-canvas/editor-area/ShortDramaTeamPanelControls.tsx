@@ -80,6 +80,10 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
     ? statusByTabId.get(activeTab.id)
       ?? { tabId: activeTab.id, status: 'waiting' as const }
     : null;
+  const activeStage = activeTab?.content.metadata?.shortDramaStage;
+  const activeStageLabel = typeof activeStage === 'string' && activeStage
+    ? t(`shortDrama.tabs.${activeStage}`)
+    : '';
   const statusSummary = statusPriority
     .map(status => `${t(`canvas.shortDramaTeamStatus.${status}`)} ${statusCounts[status]}`)
     .join(' · ');
@@ -210,10 +214,6 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
               }
             }}
           >
-            <span className="short-drama-team-panel-controls__agent-prefix">
-              {compactLabel}
-            </span>
-            <span aria-hidden="true">/</span>
             {activeProjection && (
               <span
                 className={[
@@ -223,8 +223,15 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
                 aria-hidden="true"
               />
             )}
-            <span className="short-drama-team-panel-controls__agent-name">
-              {activeTab?.title ?? compactLabel}
+            <span className="short-drama-team-panel-controls__agent-text">
+              <span className="short-drama-team-panel-controls__agent-name">
+                {activeTab?.title ?? compactLabel}
+              </span>
+              {activeStageLabel ? (
+                <span className="short-drama-team-panel-controls__agent-meta">
+                  {activeStageLabel}
+                </span>
+              ) : null}
             </span>
             <ChevronDown size={13} aria-hidden="true" />
           </button>

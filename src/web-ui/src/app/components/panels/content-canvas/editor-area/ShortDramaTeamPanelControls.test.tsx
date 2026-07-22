@@ -218,8 +218,9 @@ describe('ShortDramaTeamPanelControls', () => {
     ) as HTMLButtonElement;
 
     expect(controls).not.toBeNull();
-    expect(trigger.textContent).toContain('canvas.shortDramaTeamCompact');
     expect(trigger.textContent).toContain('AssetAI');
+    expect(trigger.textContent).toContain('shortDrama.tabs.assets');
+    expect(trigger.textContent).not.toContain('canvas.shortDramaTeamCompact');
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     expect(collapse.getAttribute('aria-label'))
       .toBe('canvas.collapseShortDramaTeam');

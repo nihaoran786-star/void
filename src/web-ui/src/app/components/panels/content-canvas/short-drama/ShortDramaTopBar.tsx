@@ -15,16 +15,12 @@ interface ShortDramaTopBarProps {
   selectedStage: ShortDramaStage;
   onStageSelect: (stage: ShortDramaStage) => void;
   t: (key: string, values?: Record<string, unknown>) => string;
-  onTeamOpen?: () => void;
-  teamMemberCount?: number;
 }
 
 export function ShortDramaTopBar({
   selectedStage,
   onStageSelect,
   t,
-  onTeamOpen,
-  teamMemberCount = 0,
 }: ShortDramaTopBarProps) {
   const handleKeyDown = (
     event: React.KeyboardEvent<HTMLButtonElement>,
@@ -82,18 +78,6 @@ export function ShortDramaTopBar({
           );
         })}
       </nav>
-      {onTeamOpen && (
-        <button
-          type="button"
-          className="short-drama-center__team-reopen"
-          data-testid="short-drama-team-reopen"
-          aria-label={t('canvas.shortDramaTeam')}
-          onClick={onTeamOpen}
-        >
-          <span>{t('canvas.shortDramaTeamCompact')}</span>
-          {teamMemberCount > 0 && <span aria-hidden="true">{teamMemberCount}</span>}
-        </button>
-      )}
     </header>
   );
 }

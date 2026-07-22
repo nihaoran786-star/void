@@ -46,28 +46,6 @@
     display: none;
   }
 
-  .void-ui--minimal .short-drama-center__team-reopen {
-    min-height: var(--workspace-icon-target);
-    flex: 0 0 auto;
-    gap: var(--workspace-space-1);
-    margin-inline-start: var(--workspace-space-1);
-    padding: 0 var(--workspace-space-2);
-    border-color: var(--workspace-border-subtle);
-    border-radius: var(--workspace-radius-control);
-    color: var(--workspace-text-secondary);
-    font-weight: var(--workspace-font-weight-medium);
-  }
-
-  .void-ui--minimal .short-drama-center__team-reopen:hover {
-    background: var(--workspace-surface-hover);
-    color: var(--workspace-text-primary);
-  }
-
-  .void-ui--minimal .short-drama-center__team-reopen:focus-visible {
-    outline: 2px solid var(--workspace-focus-ring);
-    outline-offset: 1px;
-  }
-
   .void-ui--minimal .short-drama-center__tab {
     min-height: var(--workspace-icon-target);
     flex: 0 0 auto;

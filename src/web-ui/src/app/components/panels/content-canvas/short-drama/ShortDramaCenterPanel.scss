@@ -86,26 +86,6 @@
   overflow: hidden;
 }
 
-.short-drama-center__team-reopen {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  margin-left: auto;
-  padding: 0 9px;
-  border: 1px solid var(--short-drama-border);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--short-drama-muted);
-  font-size: var(--short-drama-font-size-ui-label);
-  cursor: pointer;
-}
-
-.short-drama-center__team-reopen:hover {
-  background: var(--short-drama-band);
-  color: var(--short-drama-ink);
-}
-
 .short-drama-center__tab {
   position: relative;
   display: inline-flex;

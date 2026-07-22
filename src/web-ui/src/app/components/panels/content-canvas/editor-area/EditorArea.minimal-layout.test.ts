@@ -20,11 +20,17 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     expect(source).toMatch(
       /@container short-drama-editor-area \(max-width: 720px\)[\s\S]*?&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?width: min\(360px, calc\(100% - 48px\)\) !important;[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
     );
-    expect(source).toContain(
-      '.btw-session-panel__composer-input::placeholder',
+    expect(source).toMatch(
+      /\.btw-session-panel__composer-box \{[\s\S]*?border-color: var\(--workspace-border-subtle\);[\s\S]*?border-radius: var\(--workspace-radius-composer\);[\s\S]*?box-shadow: none;[\s\S]*?&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring\);/,
     );
     expect(source).toMatch(
-      /\.btw-session-panel__composer-box \{[\s\S]*?border-color: color-mix\([\s\S]*?var\(--workspace-text-muted\) 75%,[\s\S]*?var\(--workspace-surface-panel\)[\s\S]*?&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring\);/,
+      /\.btw-session-panel__composer-row \{[\s\S]*?flex-wrap: wrap;[\s\S]*?gap: var\(--workspace-space-1\);/,
+    );
+    expect(source).toMatch(
+      /\.btw-session-panel__composer-input \{[\s\S]*?order: 1;[\s\S]*?flex: 1 0 100%;[\s\S]*?font-family: var\(--workspace-font-family\);[\s\S]*?&::placeholder \{[\s\S]*?color: var\(--workspace-text-muted\);/,
+    );
+    expect(source).toMatch(
+      /\.btw-session-panel__composer-attach-button \{[\s\S]*?order: 2;[\s\S]*?\.btw-session-panel__composer-button \{[\s\S]*?order: 3;[\s\S]*?margin-left: auto;/,
     );
     expect(source).not.toContain('--short-drama-team-primary-ratio');
     expect(source).not.toContain('--short-drama-team-secondary-ratio');

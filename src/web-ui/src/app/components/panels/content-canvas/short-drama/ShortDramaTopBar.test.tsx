@@ -47,27 +47,20 @@ describe('ShortDramaTopBar', () => {
     expect(onStageSelect).toHaveBeenCalledWith('storyboards');
   });
 
-  it('keeps a compact team reopen action on the primary surface', () => {
-    const onTeamOpen = vi.fn();
+  it('does not duplicate the team control inside the stage navigation', () => {
     act(() => {
       root.render(
         <ShortDramaTopBar
           selectedStage="script"
           onStageSelect={() => undefined}
-          onTeamOpen={onTeamOpen}
-          teamMemberCount={5}
           t={key => key}
         />,
       );
     });
 
-    const button = container.querySelector<HTMLButtonElement>(
-      '[data-testid="short-drama-team-reopen"]',
-    );
-    expect(button?.textContent).toBe('canvas.shortDramaTeamCompact5');
-    expect(button?.getAttribute('aria-label')).toBe('canvas.shortDramaTeam');
-    act(() => button?.click());
-    expect(onTeamOpen).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="short-drama-team-reopen"]'))
+      .toBeNull();
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(5);
   });
 
 });

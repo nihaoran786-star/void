@@ -586,17 +586,6 @@ export function ShortDramaCenterPanel({
       expandRightPanel: () => window.dispatchEvent(new CustomEvent(TAB_EVENTS.EXPAND_RIGHT_PANEL)),
     });
   }, [workspacePath]);
-  const readyStageWorkspaces = useMemo(() => stageWorkspaces.filter(workspace => (
-    Boolean(workspace.specialistSessionId) && Boolean(workspace.parentSessionId)
-  )), [stageWorkspaces]);
-  const handleTeamOpen = useCallback(() => {
-    const target = readyStageWorkspaces.find(workspace => workspace.stage === selectedStage)
-      ?? readyStageWorkspaces[0];
-    if (target) {
-      openNativeStageAgentTab(target);
-    }
-  }, [openNativeStageAgentTab, readyStageWorkspaces, selectedStage]);
-
   useEffect(() => {
     if (state.status !== 'ready') {
       return;
@@ -981,8 +970,6 @@ export function ShortDramaCenterPanel({
       <ShortDramaTopBar
         selectedStage={selectedStage}
         onStageSelect={handleStageSelect}
-        onTeamOpen={readyStageWorkspaces.length > 0 ? handleTeamOpen : undefined}
-        teamMemberCount={readyStageWorkspaces.length}
         t={t}
       />
 
