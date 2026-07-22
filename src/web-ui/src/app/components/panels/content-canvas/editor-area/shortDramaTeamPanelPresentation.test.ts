@@ -57,8 +57,8 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       mode: 'rail',
       activeTabId: 'script-agent',
       tabs: stageAgentTabs,
-      primarySurfaceKey: 'short-drama:short-drama-center',
-      teamIdentity: '["short-drama:short-drama-center","asset-agent","script-agent"]',
+      primarySurfaceKey: 'short-drama-workspace:C:/work',
+      teamIdentity: '["short-drama-workspace:C:/work","asset-agent","script-agent"]',
     });
   });
 
@@ -68,7 +68,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       splitMode: 'horizontal',
       primaryGroup: shortDramaGroup,
       secondaryGroup: createGroup(stageAgentTabs, 'asset-agent'),
-      expandedPrimarySurfaceKey: 'short-drama:short-drama-center',
+      expandedPrimarySurfaceKey: 'short-drama-workspace:C:/work',
     })).toMatchObject({
       status: 'ready',
       mode: 'open',
@@ -124,7 +124,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
     });
   });
 
-  it('uses the compact team rail while the short-drama media wall is active', () => {
+  it('keeps the team open while the same-workspace media wall is active', () => {
     const mediaGroup = createGroup([
       createTab(
         'short-drama-media',
@@ -139,47 +139,70 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       splitMode: 'horizontal',
       primaryGroup: mediaGroup,
       secondaryGroup: createGroup(stageAgentTabs),
-      expandedPrimarySurfaceKey: 'short-drama:short-drama-center',
-    })).toMatchObject({
-      status: 'ready',
-      mode: 'rail',
-      activeTabId: 'script-agent',
-      primarySurfaceKey: 'short-drama-media:workspace-media-gallery',
-    });
-  });
-
-  it('scopes an explicit expansion to the active primary workspace surface', () => {
-    const mediaGroup = createGroup([
-      createTab(
-        'short-drama-media',
-        'workspace-media-gallery',
-        undefined,
-        { workspacePath: 'C:/work' },
-      ),
-    ]);
-    const mediaSurfaceKey = 'short-drama-media:workspace-media-gallery';
-
-    expect(selectShortDramaTeamPanelPresentation({
-      presentation: 'minimal',
-      splitMode: 'horizontal',
-      primaryGroup: mediaGroup,
-      secondaryGroup: createGroup(stageAgentTabs),
-      expandedPrimarySurfaceKey: mediaSurfaceKey,
+      expandedPrimarySurfaceKey: 'short-drama-workspace:C:/work',
     })).toMatchObject({
       status: 'ready',
       mode: 'open',
-      primarySurfaceKey: mediaSurfaceKey,
+      activeTabId: 'script-agent',
+      primarySurfaceKey: 'short-drama-workspace:C:/work',
+    });
+  });
+
+  it('shares one expansion across same-workspace surfaces and drops it across workspaces', () => {
+    const mediaGroup = createGroup([
+      createTab(
+        'short-drama-media',
+        'workspace-media-gallery',
+        undefined,
+        { workspacePath: 'C:/work' },
+      ),
+    ]);
+    const workspaceSurfaceKey = 'short-drama-workspace:C:/work';
+
+    expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: mediaGroup,
+      secondaryGroup: createGroup(stageAgentTabs),
+      expandedPrimarySurfaceKey: workspaceSurfaceKey,
+    })).toMatchObject({
+      status: 'ready',
+      mode: 'open',
+      primarySurfaceKey: workspaceSurfaceKey,
     });
     expect(selectShortDramaTeamPanelPresentation({
       presentation: 'minimal',
       splitMode: 'horizontal',
       primaryGroup: shortDramaGroup,
       secondaryGroup: createGroup(stageAgentTabs),
-      expandedPrimarySurfaceKey: mediaSurfaceKey,
+      expandedPrimarySurfaceKey: workspaceSurfaceKey,
+    })).toMatchObject({
+      status: 'ready',
+      mode: 'open',
+      primarySurfaceKey: workspaceSurfaceKey,
+    });
+    expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: createGroup([
+        createTab(
+          'other-short-drama',
+          'short-drama-center',
+          undefined,
+          { workspacePath: 'C:/other-workspace' },
+        ),
+      ]),
+      secondaryGroup: createGroup([
+        createTab('other-script-agent', 'btw-session', {
+          shortDramaStage: 'script',
+          shortDramaWorkspacePath: 'C:/other-workspace',
+        }),
+      ]),
+      expandedPrimarySurfaceKey: workspaceSurfaceKey,
     })).toMatchObject({
       status: 'ready',
       mode: 'rail',
-      primarySurfaceKey: 'short-drama:short-drama-center',
+      primarySurfaceKey: 'short-drama-workspace:C:/other-workspace',
     });
   });
 
@@ -310,7 +333,7 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       presentation: 'minimal' as const,
       splitMode: 'horizontal' as const,
       primaryGroup: shortDramaGroup,
-      expandedPrimarySurfaceKey: 'short-drama:short-drama-center',
+      expandedPrimarySurfaceKey: 'short-drama-workspace:C:/work',
     };
     const original = selectShortDramaTeamPanelPresentation({
       ...input,

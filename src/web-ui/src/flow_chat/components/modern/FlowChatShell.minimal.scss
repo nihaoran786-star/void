@@ -1,5 +1,5 @@
 @mixin styles {
-  .void-ui--minimal .modern-flowchat-container.flow-chat-typography {
+  .void-ui--minimal :is(.modern-flowchat-container.flow-chat-typography, .btw-session-panel) {
     --flowchat-font-size-base: 13px;
     --flowchat-font-size-sm: 12px;
     --flowchat-font-size-xs: 11px;
@@ -11,7 +11,7 @@
     --flowchat-markdown-paragraph-gap: 0.2em;
   }
 
-  .void-ui--minimal .virtual-message-list {
+  .void-ui--minimal :is(.virtual-message-list, .btw-session-panel__body) {
     .message-list-header {
       // Keep the existing virtual-scroll offset contract. The visual header is
       // compact, but scroll anchoring still reserves the pinned 57px viewport.

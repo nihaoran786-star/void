@@ -1,5 +1,5 @@
 @mixin styles {
-  .void-ui--minimal .virtual-message-list {
+  .void-ui--minimal :is(.virtual-message-list, .btw-session-panel__body) {
     .user-message-item:not(.user-message-item--failed) {
       width: fit-content;
       min-width: 0;

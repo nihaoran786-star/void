@@ -226,7 +226,7 @@ describe('EditorArea short-drama team presentation', () => {
       .toBe('open');
   });
 
-  it('returns to the compact rail after leaving and revisiting a surface', async () => {
+  it('keeps the team open when switching between the center and its media wall', async () => {
     await renderArea();
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
@@ -237,12 +237,12 @@ describe('EditorArea short-drama team presentation', () => {
     canvasState.primaryGroup = mediaGroup;
     await renderArea();
     expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
-      .toBe('rail');
+      .toBe('open');
 
     canvasState.primaryGroup = centerGroup;
     await renderArea();
     expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
-      .toBe('rail');
+      .toBe('open');
   });
 
   it('does not collapse an open team when real stage tabs are only reordered', async () => {

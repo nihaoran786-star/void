@@ -10,6 +10,7 @@
   height: 100%;
   background: var(--color-bg-flowchat);
   color: var(--color-text-primary);
+  container-type: inline-size;
 
   &--empty {
     align-items: center;
@@ -472,5 +473,29 @@
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+// Narrow hosts (aux team pane, compact windows): reclaim the wide-chat gutters
+// so messages and the composer keep comfortable reading and input room.
+@container (max-width: 480px) {
+  .btw-session-panel__body {
+    --flowchat-content-inline-pad: 12px;
+    padding: 8px 10px 14px;
+  }
+
+  .btw-session-panel__composer {
+    gap: 8px;
+    padding: 10px 12px 12px;
+  }
+
+  .btw-session-panel__composer-box {
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .btw-session-panel__composer-input {
+    min-height: 44px;
+    padding: 8px;
   }
 }

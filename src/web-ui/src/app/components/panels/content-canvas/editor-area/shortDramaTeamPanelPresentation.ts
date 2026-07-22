@@ -63,8 +63,15 @@ const isShortDramaWorkspaceTab = (tab: CanvasTab): boolean =>
   tab.content.type === 'short-drama-center'
   || tab.content.type === 'workspace-media-gallery';
 
-const primarySurfaceKeyForTab = (tab: CanvasTab): string =>
-  `${tab.id}:${tab.content.type}`;
+const primarySurfaceKeyForTab = (tab: CanvasTab): string => {
+  if (isShortDramaWorkspaceTab(tab)) {
+    const workspacePath = workspacePathForTab(tab);
+    if (workspacePath) {
+      return `short-drama-workspace:${workspacePath}`;
+    }
+  }
+  return `${tab.id}:${tab.content.type}`;
+};
 
 const workspacePathForTab = (tab: CanvasTab): string | undefined => {
   const data = tab.content.data;
