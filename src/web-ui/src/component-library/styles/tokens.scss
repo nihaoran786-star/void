@@ -1154,6 +1154,11 @@ $badge-info-text: $color-info;
   --workspace-border-strong: var(--border-medium);
   --workspace-accent: var(--color-accent-400);
   --workspace-focus-ring: var(--color-accent-600);
+  --workspace-focus-ring-subtle: color-mix(
+    in srgb,
+    var(--workspace-focus-ring) 42%,
+    var(--workspace-border-subtle)
+  );
   --workspace-shadow-raised: var(--shadow-xs);
 
   --workspace-space-1: var(--size-gap-1);
@@ -1165,6 +1170,7 @@ $badge-info-text: $color-info;
   --workspace-radius-control: var(--size-radius-sm);
   --workspace-radius-panel: var(--size-radius-base);
   --workspace-radius-composer: var(--size-radius-xl);
+  --workspace-composer-min-height: 76px;
   --workspace-control-height: var(--control-height-sm);
   --workspace-control-height-primary: var(--control-height-md);
   --workspace-icon-target: var(--control-square-sm);

@@ -21,16 +21,16 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /@container short-drama-editor-area \(max-width: 720px\)[\s\S]*?&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?width: min\(360px, calc\(100% - 48px\)\) !important;[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
     );
     expect(source).toMatch(
-      /\.btw-session-panel__composer \{[\s\S]*?border: 0;[\s\S]*?background: var\(--workspace-surface-panel\);/,
+      /\.btw-session-panel__composer \{[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border: 0;[\s\S]*?background: var\(--workspace-surface-panel\);/,
     );
     expect(source).toMatch(
-      /\.btw-session-panel__composer-box \{[\s\S]*?min-height: 64px;[\s\S]*?max-height: min\(240px, 38vh\);[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border-radius: var\(--workspace-radius-composer\);[\s\S]*?background: var\(--workspace-surface-raised\);[\s\S]*?&:focus-within \{[\s\S]*?box-shadow: inset 0 0 0 1px var\(--workspace-focus-ring\);/,
+      /\.btw-session-panel__composer-box \{[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(240px, 38vh\);[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border-radius: var\(--workspace-radius-composer\);[\s\S]*?background: var\(--workspace-surface-raised\);[\s\S]*?transition: none;[\s\S]*?&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring-subtle\);[\s\S]*?box-shadow: none;/,
     );
     expect(source).toMatch(
-      /\.btw-session-panel__composer-row \{[\s\S]*?display: grid;[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'image file send';[\s\S]*?grid-template-columns: auto auto minmax\(0, 1fr\);/,
+      /\.btw-session-panel__composer-row \{[\s\S]*?display: grid;[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'image file send';[\s\S]*?grid-template-columns: auto auto minmax\(0, 1fr\);[\s\S]*?row-gap: var\(--workspace-space-2\);/,
     );
     expect(source).toMatch(
-      /\.btw-session-panel__composer-input \{[\s\S]*?grid-area: input;[\s\S]*?min-height: 22px;[\s\S]*?font-family: var\(--workspace-font-family\);[\s\S]*?font-size: var\(--workspace-font-size-body\);[\s\S]*?&::placeholder \{[\s\S]*?color: var\(--workspace-text-muted\);/,
+      /\.btw-session-panel__composer-input \{[\s\S]*?grid-area: input;[\s\S]*?min-height: 22px;[\s\S]*?font-family: var\(--workspace-font-family\);[\s\S]*?font-size: var\(--workspace-font-size-body\);[\s\S]*?&:focus,[\s\S]*?&:focus-visible \{[\s\S]*?outline: none;[\s\S]*?box-shadow: none;[\s\S]*?&::placeholder \{[\s\S]*?color: var\(--workspace-text-muted\);/,
     );
     expect(source).toMatch(
       /\.btw-session-panel__composer-attach-button \{[\s\S]*?&--image \{[\s\S]*?grid-area: image;[\s\S]*?&--file \{[\s\S]*?grid-area: file;[\s\S]*?\.btw-session-panel__composer-button \{[\s\S]*?grid-area: send;[\s\S]*?justify-self: end;/,

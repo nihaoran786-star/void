@@ -100,15 +100,18 @@ describe('FlowChat minimal presentation contract', () => {
 
   it('aligns the composer to the same readable width with one bounded two-level layout', () => {
     expect(inputMinimalSource).toMatch(
-      /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?max-width: 760px;/,
+      /\.void-ui--minimal \.void-chat-input-drop-zone \{[\s\S]*?bottom: var\(--workspace-space-2\);[\s\S]*?max-width: 760px;[\s\S]*?padding-inline: var\(--workspace-space-2\);/,
     );
     expect(inputMinimalSource).toMatch(
-      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?min-height: 64px;[\s\S]*?max-height: min\(240px, 38vh\);/,
+      /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-2\);[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(240px, 38vh\);/,
     );
     expect(inputMinimalSource).toMatch(
       /\.void-chat-input-workspace-strip \{[\s\S]*?grid-area: meta;[\s\S]*?align-self: stretch;/,
     );
-    expect(inputMinimalSource).toContain('box-shadow: inset 0 0 0 1px var(--workspace-focus-ring);');
+    expect(inputMinimalSource).toMatch(
+      /&__box:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring-subtle\);[\s\S]*?box-shadow: none;/,
+    );
+    expect(inputMinimalSource).not.toContain('box-shadow: inset 0 0 0 1px var(--workspace-focus-ring);');
     expect(inputMinimalSource).not.toMatch(/rgba?\(|#[0-9a-f]{3,8}\b/i);
     expect(compiledPresentationCss).toMatch(
       /\.void-ui--minimal \.void-chat-input--capsule \.void-chat-input__box--capsule \{[\s\S]*?display: grid;/,

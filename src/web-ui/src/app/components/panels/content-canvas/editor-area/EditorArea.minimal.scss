@@ -135,15 +135,14 @@
 
       .btw-session-panel__composer {
         gap: var(--workspace-space-2);
-        padding: var(--workspace-space-2) var(--workspace-space-3)
-          var(--workspace-space-3);
+        padding: var(--workspace-space-2);
         border: 0;
         background: var(--workspace-surface-panel);
       }
 
       .btw-session-panel__composer-box {
         gap: var(--workspace-space-1);
-        min-height: 64px;
+        min-height: var(--workspace-composer-min-height);
         max-height: min(240px, 38vh);
         padding: var(--workspace-space-2);
         border-color: var(--workspace-border-subtle);
@@ -152,10 +151,11 @@
         box-shadow: none;
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
+        transition: none;
 
         &:focus-within {
-          border-color: var(--workspace-focus-ring);
-          box-shadow: inset 0 0 0 1px var(--workspace-focus-ring);
+          border-color: var(--workspace-focus-ring-subtle);
+          box-shadow: none;
         }
       }
 
@@ -167,7 +167,7 @@
         grid-template-columns: auto auto minmax(0, 1fr);
         align-items: center;
         column-gap: var(--workspace-space-1);
-        row-gap: var(--workspace-space-1);
+        row-gap: var(--workspace-space-2);
       }
 
       .btw-session-panel__composer-input {
@@ -180,6 +180,12 @@
         font-family: var(--workspace-font-family);
         font-size: var(--workspace-font-size-body);
         line-height: var(--workspace-line-height-body);
+
+        &:focus,
+        &:focus-visible {
+          outline: none;
+          box-shadow: none;
+        }
 
         &::placeholder {
           overflow: hidden;
