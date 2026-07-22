@@ -54,6 +54,8 @@ export function openShortDramaRealStageAgentTab(
     return { status: 'pending', source: 'short-drama-stage-agent-tab', reason: context.reason };
   }
   if (context.status !== 'ready') {
+    closeLegacyStageAgentTabs(canvas, workspace, '', workspacePath);
+    closeStagelessProjectTabs(canvas, workspace);
     return { status: 'unsupported', source: 'short-drama-stage-agent-tab', context };
   }
 

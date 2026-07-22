@@ -381,6 +381,12 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     expect(panelStyles).toContain(
       '.short-drama-asset-row__toggle:focus-visible ~ .short-drama-asset-row__overlay'
     );
+    expect(panelStyles).toContain(
+      '.short-drama-asset-row:focus-within .short-drama-asset-row__overlay'
+    );
+    expect(panelStyles).toContain(
+      '.short-drama-storyboard-row:focus-within .short-drama-storyboard-row__overlay'
+    );
     expect(panelStyles).toContain('clip-path: inset(50%);');
     expect(minimalPanelStyles).toMatch(
       /\.void-ui--minimal \.short-drama-asset-row__overlay,[\s\S]*?\.void-ui--minimal \.short-drama-storyboard-row__overlay \{/

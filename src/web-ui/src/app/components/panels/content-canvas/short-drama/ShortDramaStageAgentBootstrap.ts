@@ -62,7 +62,9 @@ export async function ensureShortDramaStageAgentSessions(input: {
     const adoptable = sessions.some(session => (
       isRealStageAgentSessionCandidate(session)
       && matchesNativeAgent(session, agentName)
-      && (!session.workspacePath || areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot))
+      && Boolean(session.parentSessionId)
+      && Boolean(session.workspacePath)
+      && areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot)
     ));
     if (adoptable) {
       continue;

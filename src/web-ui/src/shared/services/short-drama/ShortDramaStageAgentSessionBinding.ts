@@ -334,24 +334,22 @@ function createBindingFromSessionCandidates(
   const candidates = sessions
     .filter(session => isRealStageAgentSessionCandidate(session))
     .filter(session => matchesNativeAgent(session, agentName))
-    .filter(session => !session.workspacePath || areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot));
+    .filter(session => Boolean(session.workspacePath) && areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot));
 
   const boundCandidate = existing?.childSessionId
     ? candidates.find(session => session.childSessionId === existing.childSessionId)
     : undefined;
-  if (boundCandidate) {
-    const parentSessionId = boundCandidate.parentSessionId ?? existing?.parentSessionId;
+  const boundParentSessionId = boundCandidate?.parentSessionId ?? existing?.parentSessionId;
+  if (boundCandidate && boundParentSessionId) {
     return {
       ...createBaseBinding(stage, agentName, workspaceRoot, timestamp, existing),
       childSessionId: boundCandidate.childSessionId,
-      parentSessionId,
+      parentSessionId: boundParentSessionId,
       parentToolCallId: boundCandidate.parentToolCallId ?? existing?.parentToolCallId,
-      status: parentSessionId ? 'ready' : 'missing',
+      status: 'ready',
       source: existing?.source ?? 'restored_binding',
       createdAt: existing?.createdAt ?? timestamp,
-      error: parentSessionId
-        ? undefined
-        : { code: 'parent_missing', message: `${agentName} exists but is missing its parent main session.` },
+      error: undefined,
     };
   }
 

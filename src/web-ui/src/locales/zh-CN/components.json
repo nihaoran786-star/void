@@ -668,7 +668,6 @@
     "subtitle": "以产物为中心的生产协作台，用于管理剧本、资产、分镜、视频和后期 agent 工作。",
     "accessibility": {
       "focusArtifact": "定位到 {{title}}",
-      "storyboardReferences": "分镜参考",
       "openArtifact": "打开 {{title}}"
     },
     "stats": {
@@ -698,12 +697,15 @@
       "video": "视频",
       "post": "后期"
     },
+    "video": {
+      "sceneRef": "第 {{scene}} 场",
+      "noPrompt": "暂无提示词"
+    },
     "assets": {
       "characters": "角色图",
       "locations": "场景图",
       "props": "道具图",
       "count": "{{count}} 个资产",
-      "usedBy": "引用 {{count}} 处",
       "empty": "暂无资产锚点",
       "generating": "生成中",
       "pendingCount": "{{count}} 张生成中",
@@ -711,8 +713,7 @@
       "pendingModelUnknown": "等待媒体任务返回模型信息"
     },
     "storyboards": {
-      "cardTitle": "第 {{scene}} 场 第 {{shot}} 镜",
-      "setupCount": "{{count}} 次设定"
+      "cardTitle": "第 {{scene}} 场 第 {{shot}} 镜"
     },
     "agent": {
       "orchestrator": "主 AI",
@@ -797,52 +798,52 @@
       "unsupported": "未接入",
       "needs_intervention": "需要介入"
     },
-      "states": {
-        "loading": "正在加载短剧项目...",
-        "empty": "未找到短剧项目。",
-        "missingWorkspace": "请先打开一个工作区再使用短剧中心。",
-        "emptyEpisode": "未选择集数。",
-        "emptyStage": "当前集数和阶段暂无产物。",
-        "emptyScriptTitle": "从剧本开始",
-        "emptyScriptBody": "在左侧主 AI 或 ScriptAI 中描述短剧设定、上传剧本文本，AI 会写入当前工作区的短剧项目并刷新到这里。",
-        "emptyScriptPlaceholder": "等待剧本文档写入当前工作区...",
-        "loadFailed": "加载短剧项目失败。",
-        "saveFailed": "保存短剧项目失败。",
-        "dispatchFailed": "下发短剧 agent 任务失败。"
-      },
-      "recovery": {
-        "noProject": {
-          "title": "没有短剧项目",
-          "reason": "当前工作区还没有短剧 manifest，也没有可恢复的初始项目。",
-          "nextAction": "先让左侧主 AI 创建短剧计划，然后重新打开短剧中心。"
-        },
-        "missingWorkspace": {
-          "title": "需要工作区",
-          "reason": "短剧中心需要工作区才能读取 manifest 和媒体引用。",
-          "nextAction": "打开一个工作区后再重试。"
-        },
-        "remoteWorkspace": {
-          "title": "当前工作区能力受限",
-          "reason": "这个运行环境或远程工作区暂不支持本地短剧 manifest。",
-          "nextAction": "改用本地工作区，或先继续通过左侧主 AI 推进。"
-        },
-        "loadFailed": {
-          "title": "项目无法加载",
-          "reason": "manifest 可能缺失、版本不兼容、被锁定或无法读取。",
-          "nextAction": "检查工作区权限后重新加载短剧中心。"
-        },
-        "saveFailed": {
-          "title": "项目无法保存",
-          "reason": "工作区路径可能被锁定、缺失，或 manifest adapter 无法写入。",
-          "nextAction": "继续生成前先检查工作区权限。"
-        },
-        "mediaMissing": {
-          "title": "媒体引用缺失",
-          "reason": "短剧产物仍然存在，但关联的媒体项无法解析。",
-          "nextAction": "恢复媒体项，或只重做受影响的产物。"
-        }
-      }
+    "states": {
+      "loading": "正在加载短剧项目...",
+      "empty": "未找到短剧项目。",
+      "missingWorkspace": "请先打开一个工作区再使用短剧中心。",
+      "emptyEpisode": "未选择集数。",
+      "emptyStage": "当前集数和阶段暂无产物。",
+      "emptyScriptTitle": "从剧本开始",
+      "emptyScriptBody": "在左侧主 AI 或 ScriptAI 中描述短剧设定、上传剧本文本，AI 会写入当前工作区的短剧项目并刷新到这里。",
+      "emptyScriptPlaceholder": "等待剧本文档写入当前工作区...",
+      "loadFailed": "加载短剧项目失败。",
+      "saveFailed": "保存短剧项目失败。",
+      "dispatchFailed": "下发短剧 agent 任务失败。"
     },
+    "recovery": {
+      "noProject": {
+        "title": "没有短剧项目",
+        "reason": "当前工作区还没有短剧 manifest，也没有可恢复的初始项目。",
+        "nextAction": "先让左侧主 AI 创建短剧计划，然后重新打开短剧中心。"
+      },
+      "missingWorkspace": {
+        "title": "需要工作区",
+        "reason": "短剧中心需要工作区才能读取 manifest 和媒体引用。",
+        "nextAction": "打开一个工作区后再重试。"
+      },
+      "remoteWorkspace": {
+        "title": "当前工作区能力受限",
+        "reason": "这个运行环境或远程工作区暂不支持本地短剧 manifest。",
+        "nextAction": "改用本地工作区，或先继续通过左侧主 AI 推进。"
+      },
+      "loadFailed": {
+        "title": "项目无法加载",
+        "reason": "manifest 可能缺失、版本不兼容、被锁定或无法读取。",
+        "nextAction": "检查工作区权限后重新加载短剧中心。"
+      },
+      "saveFailed": {
+        "title": "项目无法保存",
+        "reason": "工作区路径可能被锁定、缺失，或 manifest adapter 无法写入。",
+        "nextAction": "继续生成前先检查工作区权限。"
+      },
+      "mediaMissing": {
+        "title": "媒体引用缺失",
+        "reason": "短剧产物仍然存在，但关联的媒体项无法解析。",
+        "nextAction": "恢复媒体项，或只重做受影响的产物。"
+      }
+    }
+  },
   "flexiblePanel": {
     "empty": {
       "title": "暂无内容",

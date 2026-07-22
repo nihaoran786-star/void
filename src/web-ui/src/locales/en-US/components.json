@@ -668,7 +668,6 @@
     "subtitle": "Artifact-centered production hub for script, assets, storyboards, video, and post-production agent work.",
     "accessibility": {
       "focusArtifact": "Focus {{title}}",
-      "storyboardReferences": "Storyboard references",
       "openArtifact": "Open {{title}}"
     },
     "stats": {
@@ -698,12 +697,15 @@
       "video": "Video",
       "post": "Post"
     },
+    "video": {
+      "sceneRef": "Scene {{scene}}",
+      "noPrompt": "No prompt yet."
+    },
     "assets": {
       "characters": "Character anchors",
       "locations": "Location anchors",
       "props": "Prop anchors",
       "count": "{{count}} assets",
-      "usedBy": "Used by {{count}}",
       "empty": "No asset anchors yet.",
       "generating": "Generating",
       "pendingCount": "{{count}} generating",
@@ -711,8 +713,7 @@
       "pendingModelUnknown": "Waiting for media task model metadata"
     },
     "storyboards": {
-      "cardTitle": "Scene {{scene}} shot {{shot}}",
-      "setupCount": "{{count}} setups"
+      "cardTitle": "Scene {{scene}} shot {{shot}}"
     },
     "agent": {
       "orchestrator": "Main AI",
@@ -797,52 +798,52 @@
       "unsupported": "Unsupported",
       "needs_intervention": "Needs input"
     },
-      "states": {
-        "loading": "Loading short drama project...",
-        "empty": "No short drama project found.",
-        "emptyEpisode": "No episode selected.",
-        "emptyStage": "No artifacts in this episode and stage.",
-        "missingWorkspace": "Open a workspace to use the short drama center.",
-        "emptyScriptTitle": "Start from the script",
-        "emptyScriptBody": "Describe the short drama or provide script text in the main AI or ScriptAI. The AI will write the project into the current workspace and refresh it here.",
-        "emptyScriptPlaceholder": "Waiting for a script document in the current workspace...",
-        "loadFailed": "Failed to load short drama project.",
-        "saveFailed": "Failed to save short drama project.",
-        "dispatchFailed": "Failed to dispatch short drama agent tasks."
-      },
-      "recovery": {
-        "noProject": {
-          "title": "No short drama project",
-          "reason": "The workspace does not have a short drama manifest or starter project yet.",
-          "nextAction": "Ask the main AI to create a short drama plan, then reopen this center."
-        },
-        "missingWorkspace": {
-          "title": "Workspace required",
-          "reason": "The short drama center needs a workspace before it can load manifests or media references.",
-          "nextAction": "Open a workspace and try again."
-        },
-        "remoteWorkspace": {
-          "title": "Limited in this workspace",
-          "reason": "Local short drama manifests are not available for this runtime or remote workspace yet.",
-          "nextAction": "Use a local workspace or keep working from the main AI until remote support is added."
-        },
-        "loadFailed": {
-          "title": "Project could not be loaded",
-          "reason": "The manifest may be missing, incompatible, locked, or unreadable.",
-          "nextAction": "Check workspace permissions and retry loading the short drama center."
-        },
-        "saveFailed": {
-          "title": "Project could not be saved",
-          "reason": "The workspace path may be locked, missing, or unavailable to the manifest adapter.",
-          "nextAction": "Check workspace permissions before continuing with generation."
-        },
-        "mediaMissing": {
-          "title": "Referenced media is missing",
-          "reason": "The short drama artifact still exists, but the linked media item cannot be resolved.",
-          "nextAction": "Restore the media item or regenerate only the affected artifact."
-        }
-      }
+    "states": {
+      "loading": "Loading short drama project...",
+      "empty": "No short drama project found.",
+      "emptyEpisode": "No episode selected.",
+      "emptyStage": "No artifacts in this episode and stage.",
+      "missingWorkspace": "Open a workspace to use the short drama center.",
+      "emptyScriptTitle": "Start from the script",
+      "emptyScriptBody": "Describe the short drama or provide script text in the main AI or ScriptAI. The AI will write the project into the current workspace and refresh it here.",
+      "emptyScriptPlaceholder": "Waiting for a script document in the current workspace...",
+      "loadFailed": "Failed to load short drama project.",
+      "saveFailed": "Failed to save short drama project.",
+      "dispatchFailed": "Failed to dispatch short drama agent tasks."
     },
+    "recovery": {
+      "noProject": {
+        "title": "No short drama project",
+        "reason": "The workspace does not have a short drama manifest or starter project yet.",
+        "nextAction": "Ask the main AI to create a short drama plan, then reopen this center."
+      },
+      "missingWorkspace": {
+        "title": "Workspace required",
+        "reason": "The short drama center needs a workspace before it can load manifests or media references.",
+        "nextAction": "Open a workspace and try again."
+      },
+      "remoteWorkspace": {
+        "title": "Limited in this workspace",
+        "reason": "Local short drama manifests are not available for this runtime or remote workspace yet.",
+        "nextAction": "Use a local workspace or keep working from the main AI until remote support is added."
+      },
+      "loadFailed": {
+        "title": "Project could not be loaded",
+        "reason": "The manifest may be missing, incompatible, locked, or unreadable.",
+        "nextAction": "Check workspace permissions and retry loading the short drama center."
+      },
+      "saveFailed": {
+        "title": "Project could not be saved",
+        "reason": "The workspace path may be locked, missing, or unavailable to the manifest adapter.",
+        "nextAction": "Check workspace permissions before continuing with generation."
+      },
+      "mediaMissing": {
+        "title": "Referenced media is missing",
+        "reason": "The short drama artifact still exists, but the linked media item cannot be resolved.",
+        "nextAction": "Restore the media item or regenerate only the affected artifact."
+      }
+    }
+  },
   "flexiblePanel": {
     "empty": {
       "title": "No Content",

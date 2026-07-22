@@ -369,9 +369,11 @@
 
 .short-drama-asset-row:hover .short-drama-asset-row__overlay,
 .short-drama-asset-row.is-selected .short-drama-asset-row__overlay,
+.short-drama-asset-row:focus-within .short-drama-asset-row__overlay,
 .short-drama-asset-row__toggle:focus-visible ~ .short-drama-asset-row__overlay,
 .short-drama-storyboard-row:hover .short-drama-storyboard-row__overlay,
 .short-drama-storyboard-row.is-selected .short-drama-storyboard-row__overlay,
+.short-drama-storyboard-row:focus-within .short-drama-storyboard-row__overlay,
 .short-drama-storyboard-row__toggle:focus-visible ~ .short-drama-storyboard-row__overlay {
   opacity: 1;
   visibility: visible;
@@ -1323,6 +1325,18 @@
   .short-drama-media-preview--large .short-drama-media-preview__canvas,
   .short-drama-media-preview--final .short-drama-media-preview__canvas {
     height: clamp(200px, 68cqi, 480px);
+  }
+}
+
+@container short-drama-panel (max-width: 469px) {
+  .short-drama-storyboard-row.is-selected {
+    grid-column: auto;
+  }
+}
+
+@container short-drama-panel (max-width: 437px) {
+  .short-drama-asset-row.is-selected {
+    grid-column: auto;
   }
 }
 

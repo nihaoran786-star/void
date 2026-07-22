@@ -1736,7 +1736,7 @@ function StoryboardGrid({
                 {isSelected && references.length > 0 && (
                   <span className="short-drama-storyboard-row__references">
                     {references.slice(0, 6).map(item => (
-                      item.thumbnailUrl
+                      item.thumbnailUrl && isDirectRenderableMediaUrl(item.thumbnailUrl)
                         ? <img key={item.key} src={item.thumbnailUrl} alt={item.label} title={item.label} />
                         : null
                     ))}
@@ -1782,7 +1782,11 @@ function openShortDramaArtifactPreview(
     filePath: localPath,
     extension: extensionFromPath(localPath),
     kind: preview.kind,
-  }).then(resolvedUrl => openWithUrl(resolvedUrl ?? undefined));
+  })
+    .then(resolvedUrl => openWithUrl(resolvedUrl ?? undefined))
+    .catch(() => {
+      // Preview resolution failures leave the tile in place without a lightbox.
+    });
 }
 
 function VideoStage({
@@ -2324,7 +2328,7 @@ function MediaPreview({
               </div>
             )
           ) : preview.kind === 'video' ? (
-            isRail ? (
+            isRail || variant === 'tile' ? (
               <VideoRailThumbnail
                 thumbnailUrl={railThumbnailUrl}
                 title={artifact.title}

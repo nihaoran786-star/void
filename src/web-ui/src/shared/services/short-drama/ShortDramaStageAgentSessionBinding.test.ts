@@ -193,6 +193,36 @@ describe('ShortDramaStageAgentSessionBinding', () => {
     const saved = JSON.parse(files['.void/short-drama/sessions/stage-agents.json']);
     expect(saved.bindings.script.childSessionId).toBe('script-history');
   });
+
+  it('does not revive a persisted binding whose session has no parent session', async () => {
+    const files: Record<string, string> = {};
+    const adapter = createMemoryAdapter(files);
+    const existing: ShortDramaStageAgentBinding = {
+      stage: 'script',
+      agentName: 'ScriptAI',
+      childSessionId: 'script-impostor',
+      workspaceRoot: 'C:/workspace/drama',
+      status: 'missing',
+      source: 'main_ai_wake',
+    };
+
+    const result = await registerShortDramaStageAgentBindingsFromSessions(
+      adapter,
+      'C:/workspace/drama',
+      [
+        { childSessionId: 'script-impostor', subagentType: 'ScriptAI', workspacePath: 'C:/workspace/drama', lastActiveAt: 100 },
+        { childSessionId: 'script-live', parentSessionId: 'main', subagentType: 'ScriptAI', workspacePath: 'C:/workspace/drama', lastActiveAt: 200 },
+      ],
+      [existing],
+      300,
+    );
+
+    expect(result.bindings.find(binding => binding.stage === 'script')).toEqual(expect.objectContaining({
+      childSessionId: 'script-live',
+      parentSessionId: 'main',
+      status: 'ready',
+    }));
+  });
 });
 
 function createMemoryAdapter(files: Record<string, string>): ShortDramaManifestAdapter {

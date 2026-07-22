@@ -139,6 +139,32 @@ describe('ShortDramaStageAgentBootstrap', () => {
       status: 'ready',
     }));
   });
+
+  it('ignores parent-less sessions that merely match the agent name when adopting', async () => {
+    const createSession = vi.fn(async (request: any) => ({
+      sessionId: `${request.agentType.toLowerCase()}-session`,
+      sessionName: request.sessionName,
+      agentType: request.agentType,
+    }));
+
+    const result = await ensureShortDramaStageAgentSessions({
+      adapter: createMemoryAdapter({}),
+      workspaceRoot: 'C:/work',
+      parentSession: createParentSession(),
+      sessions: [
+        { childSessionId: 'main-impostor', subagentType: 'ScriptAI', workspacePath: 'C:/work', lastActiveAt: 99 },
+      ],
+      existingBindings: [],
+      createSession,
+      addSessionToStore: vi.fn(),
+    });
+
+    expect(createSession).toHaveBeenCalledTimes(5);
+    expect(result.bindings.find(binding => binding.stage === 'script')).toEqual(expect.objectContaining({
+      childSessionId: 'scriptai-session',
+      status: 'ready',
+    }));
+  });
 });
 
 function createParentSession(): Session {
