@@ -78,6 +78,17 @@ describe('ShortDramaCenterPanel presentation lifecycle contract', () => {
     expect(stageAgentTabEffects).toContain('openNativeStageAgentTab');
   });
 
+  it('waits for persisted stage-agent bindings before bootstrapping new sessions', () => {
+    expect(panelSource).toContain(
+      'const [stageAgentBindingsLoaded, setStageAgentBindingsLoaded] = useState(false);'
+    );
+    expect(panelSource).toContain(
+      'if (!workspacePath || !workspaceManifestAdapter || !stageAgentBindingsLoaded || isStageAgentBootstrapping)'
+    );
+    expect(panelSource).toContain('setStageAgentBindingsLoaded(true);');
+    expect(panelSource).toContain('.finally(() => {\n        setIsStageAgentBootstrapping(false);\n      });');
+  });
+
   it('keeps an empty project compact without removing the ready-project scroll anchor', () => {
     const emptyProjectBranch = sourceBetween(
       panelSource,

@@ -335,6 +335,26 @@ function createBindingFromSessionCandidates(
     .filter(session => isRealStageAgentSessionCandidate(session))
     .filter(session => matchesNativeAgent(session, agentName))
     .filter(session => !session.workspacePath || areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot));
+
+  const boundCandidate = existing?.childSessionId
+    ? candidates.find(session => session.childSessionId === existing.childSessionId)
+    : undefined;
+  if (boundCandidate) {
+    const parentSessionId = boundCandidate.parentSessionId ?? existing?.parentSessionId;
+    return {
+      ...createBaseBinding(stage, agentName, workspaceRoot, timestamp, existing),
+      childSessionId: boundCandidate.childSessionId,
+      parentSessionId,
+      parentToolCallId: boundCandidate.parentToolCallId ?? existing?.parentToolCallId,
+      status: parentSessionId ? 'ready' : 'missing',
+      source: existing?.source ?? 'restored_binding',
+      createdAt: existing?.createdAt ?? timestamp,
+      error: parentSessionId
+        ? undefined
+        : { code: 'parent_missing', message: `${agentName} exists but is missing its parent main session.` },
+    };
+  }
+
   const recent = chooseMostRecent(candidates);
 
   if (recent.status === 'conflict') {
@@ -489,7 +509,7 @@ function chooseMostRecent(sessions: ShortDramaStageAgentSessionCandidate[]) {
   return { status: 'conflict' as const };
 }
 
-function isRealStageAgentSessionCandidate(session: ShortDramaStageAgentSessionCandidate) {
+export function isRealStageAgentSessionCandidate(session: ShortDramaStageAgentSessionCandidate) {
   if (session.isTransient && !session.agentBackedTransient) {
     return false;
   }
@@ -501,7 +521,7 @@ function isRealStageAgentSessionCandidate(session: ShortDramaStageAgentSessionCa
   return !/^short drama .+ agent$/.test(title);
 }
 
-function matchesNativeAgent(session: ShortDramaStageAgentSessionCandidate, nativeAgentName: string) {
+export function matchesNativeAgent(session: ShortDramaStageAgentSessionCandidate, nativeAgentName: string) {
   const normalized = normalize(nativeAgentName);
   return [
     session.subagentType,

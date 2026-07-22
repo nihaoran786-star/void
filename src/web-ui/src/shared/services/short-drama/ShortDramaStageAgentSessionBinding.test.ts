@@ -159,6 +159,40 @@ describe('ShortDramaStageAgentSessionBinding', () => {
       error: expect.objectContaining({ code: 'workspace_mismatch' }),
     }));
   });
+
+  it('keeps the persisted binding when its session coexists with a newer same-agent session', async () => {
+    const files: Record<string, string> = {};
+    const adapter = createMemoryAdapter(files);
+    const existing: ShortDramaStageAgentBinding = {
+      stage: 'script',
+      agentName: 'ScriptAI',
+      childSessionId: 'script-history',
+      parentSessionId: 'main',
+      workspaceRoot: 'C:/workspace/drama',
+      status: 'ready',
+      source: 'main_ai_wake',
+      createdAt: 50,
+    };
+
+    const result = await registerShortDramaStageAgentBindingsFromSessions(
+      adapter,
+      'C:/workspace/drama',
+      [
+        { childSessionId: 'script-history', parentSessionId: 'main', subagentType: 'ScriptAI', workspacePath: 'C:/workspace/drama', lastActiveAt: 100 },
+        { childSessionId: 'script-fresh', parentSessionId: 'main', subagentType: 'ScriptAI', workspacePath: 'C:/workspace/drama', lastActiveAt: 200 },
+      ],
+      [existing],
+      300,
+    );
+
+    expect(result.bindings.find(binding => binding.stage === 'script')).toEqual(expect.objectContaining({
+      childSessionId: 'script-history',
+      status: 'ready',
+      createdAt: 50,
+    }));
+    const saved = JSON.parse(files['.void/short-drama/sessions/stage-agents.json']);
+    expect(saved.bindings.script.childSessionId).toBe('script-history');
+  });
 });
 
 function createMemoryAdapter(files: Record<string, string>): ShortDramaManifestAdapter {

@@ -7,7 +7,10 @@ import type {
 } from '@/shared/services/short-drama';
 import {
   SHORT_DRAMA_STAGE_AGENT_BINDING_STAGES,
+  areShortDramaWorkspacePathsEqual,
   getShortDramaNativeStageAgentName,
+  isRealStageAgentSessionCandidate,
+  matchesNativeAgent,
   registerShortDramaStageAgentBindingsFromSessions,
   validateShortDramaStageAgentBindingsAgainstSessions,
   type ShortDramaStageAgentBinding,
@@ -56,6 +59,14 @@ export async function ensureShortDramaStageAgentSessions(input: {
     }
 
     const agentName = getShortDramaNativeStageAgentName(stage);
+    const adoptable = sessions.some(session => (
+      isRealStageAgentSessionCandidate(session)
+      && matchesNativeAgent(session, agentName)
+      && (!session.workspacePath || areShortDramaWorkspacePathsEqual(session.workspacePath, workspaceRoot))
+    ));
+    if (adoptable) {
+      continue;
+    }
     try {
       const title = createShortDramaStageAgentSessionTitle(agentName);
       const response = await input.createSession({

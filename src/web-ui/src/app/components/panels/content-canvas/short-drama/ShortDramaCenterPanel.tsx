@@ -118,6 +118,7 @@ export function ShortDramaCenterPanel({
   const [expandedAssetArtifactId, setExpandedAssetArtifactId] = useState<string>();
   const [expandedStoryboardArtifactId, setExpandedStoryboardArtifactId] = useState<string>();
   const [stageAgentBindings, setStageAgentBindings] = useState<ShortDramaStageAgentBinding[]>([]);
+  const [stageAgentBindingsLoaded, setStageAgentBindingsLoaded] = useState(false);
   const [workspaceMediaItems, setWorkspaceMediaItems] = useState<WorkspaceMediaItem[]>([]);
   const [isStageAgentBootstrapping, setIsStageAgentBootstrapping] = useState(false);
   const [flowSessionRevision, setFlowSessionRevision] = useState(0);
@@ -184,10 +185,12 @@ export function ShortDramaCenterPanel({
   useEffect(() => {
     if (!workspacePath || !workspaceManifestAdapter) {
       setStageAgentBindings([]);
+      setStageAgentBindingsLoaded(false);
       return undefined;
     }
 
     let cancelled = false;
+    setStageAgentBindingsLoaded(false);
     let sessions = createShortDramaStageAgentSessionCandidates(flowChatStore.getState().sessions);
 
     readShortDramaStageAgentBindings(workspaceManifestAdapter, workspacePath)
@@ -233,11 +236,13 @@ export function ShortDramaCenterPanel({
       .then(nextBindings => {
         if (!cancelled) {
           setStageAgentBindings(nextBindings);
+          setStageAgentBindingsLoaded(true);
         }
       })
       .catch(() => {
         if (!cancelled) {
           setStageAgentBindings([]);
+          setStageAgentBindingsLoaded(true);
         }
       });
 
@@ -247,7 +252,7 @@ export function ShortDramaCenterPanel({
   }, [flowSessionRevision, workspaceManifestAdapter, workspacePath]);
 
   useEffect(() => {
-    if (!workspacePath || !workspaceManifestAdapter || isStageAgentBootstrapping) {
+    if (!workspacePath || !workspaceManifestAdapter || !stageAgentBindingsLoaded || isStageAgentBootstrapping) {
       return undefined;
     }
 
@@ -312,15 +317,13 @@ export function ShortDramaCenterPanel({
         // The binding effect will keep the current partial state visible.
       })
       .finally(() => {
-        if (!cancelled) {
-          setIsStageAgentBootstrapping(false);
-        }
+        setIsStageAgentBootstrapping(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [isStageAgentBootstrapping, sourceSessionId, stageAgentBindings, workspaceManifestAdapter, workspacePath]);
+  }, [isStageAgentBootstrapping, sourceSessionId, stageAgentBindings, stageAgentBindingsLoaded, workspaceManifestAdapter, workspacePath]);
 
   useEffect(() => {
     let cancelled = false;

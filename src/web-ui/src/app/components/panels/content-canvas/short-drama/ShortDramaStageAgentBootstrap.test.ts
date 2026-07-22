@@ -112,6 +112,33 @@ describe('ShortDramaStageAgentBootstrap', () => {
       status: 'unbound',
     }));
   });
+
+  it('adopts an existing orphaned session for an unbound stage instead of creating a new one', async () => {
+    const files: Record<string, string> = {};
+    const createSession = vi.fn(async (request: any) => ({
+      sessionId: `${request.agentType.toLowerCase()}-session`,
+      sessionName: request.sessionName,
+      agentType: request.agentType,
+    }));
+
+    const result = await ensureShortDramaStageAgentSessions({
+      adapter: createMemoryAdapter(files),
+      workspaceRoot: 'C:/work',
+      parentSession: createParentSession(),
+      sessions: [
+        { childSessionId: 'script-orphan', parentSessionId: 'media-parent', subagentType: 'ScriptAI', workspacePath: 'C:/work', lastActiveAt: 42 },
+      ],
+      existingBindings: [],
+      createSession,
+      addSessionToStore: vi.fn(),
+    });
+
+    expect(createSession).toHaveBeenCalledTimes(4);
+    expect(result.bindings.find(binding => binding.stage === 'script')).toEqual(expect.objectContaining({
+      childSessionId: 'script-orphan',
+      status: 'ready',
+    }));
+  });
 });
 
 function createParentSession(): Session {
