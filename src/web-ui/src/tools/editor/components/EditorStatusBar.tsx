@@ -1,10 +1,10 @@
 /** Status bar for cursor position, language, encoding, and LSP status. */
 
 import React from 'react';
-import { 
+import {
   AlertCircle,
   Loader2,
-  Zap
+  Zap,
 } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
@@ -44,6 +44,37 @@ export interface EditorStatusBarProps {
   /** Position click callback */
   onPositionClick?: (e: React.MouseEvent) => void;
 }
+
+interface StatusBarActionProps {
+  ariaLabel: string;
+  children: React.ReactNode;
+  onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  popupType?: 'dialog' | 'listbox';
+}
+
+const StatusBarAction: React.FC<StatusBarActionProps> = ({
+  ariaLabel,
+  children,
+  onClick,
+  popupType,
+}) => (
+  <Tooltip content={ariaLabel} placement="top">
+    <button
+      type="button"
+      className={[
+        'editor-status-bar__item',
+        'editor-status-bar__action',
+        onClick ? 'editor-status-bar__item--clickable' : '',
+      ].filter(Boolean).join(' ')}
+      aria-label={ariaLabel}
+      aria-haspopup={onClick ? popupType : undefined}
+      disabled={!onClick}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  </Tooltip>
+);
 
 /** Get friendly display name for language */
 const getLanguageDisplayName = (language: string): string => {
@@ -97,20 +128,26 @@ const getLspStatusInfo = (
   switch (status) {
     case 'connected':
       return { 
-        icon: <Zap size={12} />, 
+        icon: <Zap size={12} aria-hidden="true" />,
         className: 'editor-status-bar__lsp--connected',
         title: t('editor.statusBar.lspConnected')
       };
     case 'connecting':
       return { 
-        icon: <Loader2 size={12} className="editor-status-bar__lsp-spinner" />, 
+        icon: (
+          <Loader2
+            size={12}
+            className="editor-status-bar__lsp-spinner"
+            aria-hidden="true"
+          />
+        ),
         className: 'editor-status-bar__lsp--connecting',
         title: t('editor.statusBar.lspConnecting')
       };
     case 'disconnected':
     default:
       return { 
-        icon: <AlertCircle size={12} />, 
+        icon: <AlertCircle size={12} aria-hidden="true" />,
         className: 'editor-status-bar__lsp--disconnected',
         title: t('editor.statusBar.lspDisconnected')
       };
@@ -158,57 +195,57 @@ export const EditorStatusBar: React.FC<EditorStatusBarProps> = ({
       </div>
 
       <div className="editor-status-bar__right">
-        <Tooltip content={t('editor.statusBar.goToLine')} placement="top">
-          <div 
-            className={`editor-status-bar__item ${onPositionClick ? 'editor-status-bar__item--clickable' : ''}`}
-            onClick={onPositionClick}
-          >
-            <span>{t('editor.statusBar.ln')} {line}, {t('editor.statusBar.col')} {column}</span>
-            {getSelectionText() && (
-              <span className="editor-status-bar__selection">{getSelectionText()}</span>
-            )}
-          </div>
-        </Tooltip>
+        <StatusBarAction
+          ariaLabel={t('editor.statusBar.goToLine')}
+          onClick={onPositionClick}
+          popupType="dialog"
+        >
+          <span>{t('editor.statusBar.ln')} {line}, {t('editor.statusBar.col')} {column}</span>
+          {getSelectionText() && (
+            <span className="editor-status-bar__selection">{getSelectionText()}</span>
+          )}
+        </StatusBarAction>
 
         <div className="editor-status-bar__separator" />
 
-        <Tooltip content={t('editor.statusBar.indentSettings')} placement="top">
-          <div 
-            className={`editor-status-bar__item ${onIndentClick ? 'editor-status-bar__item--clickable' : ''}`}
-            onClick={onIndentClick}
-          >
-            {insertSpaces ? t('editor.statusBar.indentSpaces', { n: tabSize }) : t('editor.statusBar.indentTab', { n: tabSize })}
-          </div>
-        </Tooltip>
+        <StatusBarAction
+          ariaLabel={t('editor.statusBar.indentSettings')}
+          onClick={onIndentClick}
+          popupType="listbox"
+        >
+          {insertSpaces
+            ? t('editor.statusBar.indentSpaces', { n: tabSize })
+            : t('editor.statusBar.indentTab', { n: tabSize })}
+        </StatusBarAction>
 
         <div className="editor-status-bar__separator" />
 
-        <Tooltip content={t('editor.statusBar.fileEncoding')} placement="top">
-          <div 
-            className={`editor-status-bar__item ${onEncodingClick ? 'editor-status-bar__item--clickable' : ''}`}
-            onClick={onEncodingClick}
-          >
-            {encoding}
-          </div>
-        </Tooltip>
+        <StatusBarAction
+          ariaLabel={t('editor.statusBar.fileEncoding')}
+          onClick={onEncodingClick}
+          popupType="listbox"
+        >
+          {encoding}
+        </StatusBarAction>
 
         <div className="editor-status-bar__separator" />
 
-        <Tooltip content={t('editor.statusBar.selectLanguageMode')} placement="top">
-          <div 
-            className={`editor-status-bar__item ${onLanguageClick ? 'editor-status-bar__item--clickable' : ''}`}
-            onClick={onLanguageClick}
-          >
-            {getLanguageDisplayName(language)}
-          </div>
-        </Tooltip>
+        <StatusBarAction
+          ariaLabel={t('editor.statusBar.selectLanguageMode')}
+          onClick={onLanguageClick}
+          popupType="listbox"
+        >
+          {getLanguageDisplayName(language)}
+        </StatusBarAction>
 
         {lspStatus && (
           <>
             <div className="editor-status-bar__separator" />
-            <div 
+            <div
               className={`editor-status-bar__item editor-status-bar__lsp ${lspInfo.className}`}
               title={lspInfo.title}
+              role="status"
+              aria-label={lspInfo.title}
             >
               {lspInfo.icon}
             </div>

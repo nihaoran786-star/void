@@ -1,0 +1,76 @@
+{
+  "batch": {
+    "asset_root": "D:/codex/void-source/tests/e2e\\media\\generated\\media_batch_cea809abbdde4316a08c8cf76af059df",
+    "assets": [
+      {
+        "item_index": 1,
+        "kind": "image",
+        "local_path": "D:/codex/void-source/tests/e2e\\media\\generated\\media_batch_cea809abbdde4316a08c8cf76af059df\\image-001.png",
+        "save_status": "saved",
+        "task_id": "task_01KY1ZBHZSST3QZJMVCCSJZ7N1",
+        "url": "https://getapib.org/f/image/3512108415183906-092114e0-e98b-4b25-8dfc-44700aaa7ad5-image_0RZQ9X8SSXB8NM27YAMVYM7DM7_0.png"
+      }
+    ],
+    "batch_id": "media_batch_cea809abbdde4316a08c8cf76af059df",
+    "completed_count": 1,
+    "failed_count": 0,
+    "items": [
+      {
+        "completed_at": "2026-07-21T09:16:54.342411900+00:00",
+        "item_index": 1,
+        "kind": "image",
+        "local_path": "D:/codex/void-source/tests/e2e\\media\\generated\\media_batch_cea809abbdde4316a08c8cf76af059df\\image-001.png",
+        "model": "gpt-image-2",
+        "prompt": "16:9写实电影环境概念图。地球黄昏，最后一片衰败麦田正被远处沙暴吞没；无人空镜，麦穗作为前景尺度，沙墙占据地平线，天空被尘埃压暗。单一低位夕阳从沙尘侧后方穿透，赭黄主色、冷灰辅色，暗部保留层次，35mm胶片响应，可信风向与空气透视。无人物、无飞船、无文字水印，不做灾难海报，不堆无来源光。",
+        "result_url": "https://getapib.org/f/image/3512108415183906-092114e0-e98b-4b25-8dfc-44700aaa7ad5-image_0RZQ9X8SSXB8NM27YAMVYM7DM7_0.png",
+        "role": "asset",
+        "save_status": "saved",
+        "status": "completed",
+        "task_id": "task_01KY1ZBHZSST3QZJMVCCSJZ7N1"
+      }
+    ],
+    "kind": "image",
+    "pending_count": 0,
+    "pending_task_ids": [],
+    "placeholder_aspect_ratio": "16 / 9",
+    "requested_aspect_ratio": "16:9",
+    "requested_count": 1,
+    "source": "apimart",
+    "status": "completed",
+    "total_count": 1,
+    "updated_at": "2026-07-21T09:16:54.342425300+00:00"
+  },
+  "kind": "image",
+  "source": "apimart",
+  "status": "completed",
+  "tasks": [
+    {
+      "response": {
+        "code": 200,
+        "data": {
+          "actual_time": 62,
+          "completed": 1784625412,
+          "cost": 0.014,
+          "created": 1784625350,
+          "credits_cost": 0.14,
+          "estimated_time": 100,
+          "id": "task_01KY1ZBHZSST3QZJMVCCSJZ7N1",
+          "progress": 100,
+          "result": {
+            "images": [
+              {
+                "expires_at": 1784711812,
+                "url": [
+                  "https://getapib.org/f/image/3512108415183906-092114e0-e98b-4b25-8dfc-44700aaa7ad5-image_0RZQ9X8SSXB8NM27YAMVYM7DM7_0.png"
+                ]
+              }
+            ]
+          },
+          "status": "completed"
+        }
+      },
+      "status": "completed",
+      "task_id": "task_01KY1ZBHZSST3QZJMVCCSJZ7N1"
+    }
+  ]
+}

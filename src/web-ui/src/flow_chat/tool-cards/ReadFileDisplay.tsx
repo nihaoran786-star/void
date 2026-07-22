@@ -208,6 +208,7 @@ export const ReadFileDisplay: React.FC<ToolCardProps> = React.memo(({
       clickable={canOpenFile}
       header={
         <CompactToolCardHeader
+          affordanceKind="open-panel-right"
           icon={<ToolCardStatusSlot status={status} toolIcon={<FileText size={16} className="read-file-card-icon" />} />}
           content={renderContent()}
           extra={renderActions()}

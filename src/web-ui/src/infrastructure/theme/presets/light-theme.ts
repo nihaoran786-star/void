@@ -1,6 +1,7 @@
  
 
 import { ThemeConfig } from '../types';
+import { BUILTIN_THEME_UI_FONT_FAMILY } from './typography';
 
 export const voidLightTheme: ThemeConfig = {
   
@@ -197,7 +198,7 @@ export const voidLightTheme: ThemeConfig = {
   
   typography: {
     font: {
-      sans: "'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+      sans: BUILTIN_THEME_UI_FONT_FAMILY,
       mono: "'JetBrains Mono', 'FiraCode', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', 'Cascadia Code', Consolas, 'Liberation Mono', 'Courier New', monospace",
     },
     

@@ -45,6 +45,7 @@ export interface EditorGroupProps {
   onOpenMissionControl?: () => void;
   onCloseAllTabs?: () => Promise<void> | void;
   closeAllTabsLabel?: string;
+  groupActionKind?: 'close-all' | 'collapse-panel';
   onInteraction?: (itemId: string, userInput: string) => Promise<void>;
   disablePopOut?: boolean;
   onOpenWorkspaceMedia?: () => void;
@@ -75,6 +76,7 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
   onOpenMissionControl,
   onCloseAllTabs,
   closeAllTabsLabel,
+  groupActionKind,
   onInteraction,
   disablePopOut = false,
   onOpenWorkspaceMedia,
@@ -140,6 +142,7 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
         onOpenMissionControl={onOpenMissionControl}
         onCloseAllTabs={onCloseAllTabs}
         closeAllTabsLabel={closeAllTabsLabel}
+        groupActionKind={groupActionKind}
         onTabPopOut={disablePopOut ? undefined : handleTabPopOut}
         workspacePath={workspacePath}
         onOpenWorkspaceMedia={onOpenWorkspaceMedia}

@@ -218,6 +218,39 @@ describeWithJsdom('RichTextInput external sync', () => {
     expect(editor?.getAttribute('spellcheck')).toBe('false');
   });
 
+  it('preserves soft line breaks represented by contenteditable br nodes', async () => {
+    const onChange = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value=""
+          onChange={onChange}
+          contexts={emptyContexts}
+          onRemoveContext={() => {}}
+        />
+      );
+    });
+
+    const editor = container.querySelector('.rich-text-input') as HTMLDivElement;
+    editor.replaceChildren(
+      document.createTextNode('Line 1'),
+      document.createElement('br'),
+      document.createTextNode('Line 2'),
+      document.createElement('br'),
+      document.createTextNode('Line 3'),
+    );
+
+    await act(async () => {
+      editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      'Line 1\nLine 2\nLine 3',
+      emptyContexts,
+    );
+  });
+
   it('opens mention with only the needed leading space', async () => {
     const onMentionStateChange = vi.fn();
 

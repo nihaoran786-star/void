@@ -77,14 +77,14 @@
   }
 
   &__label {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: #a0a0a0;
     min-width: 80px;
   }
 
   &__value {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: #e0e0e0;
     flex: 1;
   }
@@ -104,7 +104,7 @@
     border: 1px solid #1a1a1a;
     border-radius: 4px;
     color: #e0e0e0;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -142,7 +142,7 @@
   &__result-text {
     margin: 0;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: #e0e0e0;
     line-height: 1.5;
     white-space: pre-wrap;
@@ -160,7 +160,7 @@
     border: 1px solid rgba(124, 58, 237, 0.2);
     border-radius: 4px;
     color: #7c3aed;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   &__executing-icon {

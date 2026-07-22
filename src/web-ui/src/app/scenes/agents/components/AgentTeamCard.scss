@@ -56,7 +56,7 @@
 
   &__title {
     min-width: 0;
-    font-size: 1.2em;
+    font-size: var(--font-size-xl);
     font-weight: 900;
     color: var(--color-text-primary);
     line-height: $line-height-base;
@@ -87,7 +87,7 @@
 
   &__desc {
     margin: 0;
-    font-size: 0.85em;
+    font-size: var(--font-size-xs);
     font-weight: 300;
     color: var(--color-text-secondary);
     line-height: $line-height-relaxed;
@@ -129,7 +129,7 @@
     border-radius: $size-radius-full;
     border: 1px solid;
     background: rgba(255, 255, 255, 0.04);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-medium;
     white-space: nowrap;
   }

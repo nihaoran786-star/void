@@ -159,6 +159,7 @@ describe('EditorArea short-drama team presentation', () => {
     canvasState.primaryGroup = centerGroup;
     canvasState.secondaryGroup = teamGroup;
     container = document.createElement('div');
+    container.className = 'void-ui--minimal';
     document.body.appendChild(container);
     root = createRoot(container);
   });

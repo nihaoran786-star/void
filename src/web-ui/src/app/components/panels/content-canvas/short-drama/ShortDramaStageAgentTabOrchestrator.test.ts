@@ -295,6 +295,101 @@ describe('ShortDramaStageAgentTabOrchestrator', () => {
       expect.anything(),
     );
   });
+
+  it('keeps sibling stage agent tabs of the same project open so the team coexists', () => {
+    const scriptTab = createBtwTab({
+      id: 'script-tab',
+      childSessionId: 'script-live-session',
+      parentSessionId: 'main-session',
+      duplicateCheckKey: 'btw-session-script-live-session',
+      title: 'ScriptAI: live',
+      shortDramaStage: 'script',
+    });
+    const canvas = createCanvasGateway({
+      primaryTabs: [],
+      secondaryTabs: [scriptTab],
+      splitMode: 'horizontal',
+    });
+
+    const result = openShortDramaRealStageAgentTab(createWorkspace(), 'C:/work', canvas);
+
+    expect(result.status).toBe('ready');
+    expect(canvas.closeTab).not.toHaveBeenCalledWith(
+      'script-tab',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(canvas.addTab).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ shortDramaStage: 'assets' }),
+      }),
+      'active',
+      'secondary',
+    );
+  });
+
+  it('leaves ordinary btw child-session tabs without stage metadata untouched', () => {
+    const plainBtwTab = createBtwTab({
+      id: 'plain-btw-tab',
+      childSessionId: 'review-live-session',
+      parentSessionId: 'main-session',
+      duplicateCheckKey: 'btw-session-review-live-session',
+      title: 'ReviewBot: live',
+    });
+    const canvas = createCanvasGateway({
+      primaryTabs: [],
+      secondaryTabs: [plainBtwTab],
+      splitMode: 'horizontal',
+    });
+
+    const result = openShortDramaRealStageAgentTab(createWorkspace(), 'C:/work', canvas);
+
+    expect(result.status).toBe('ready');
+    expect(canvas.closeTab).not.toHaveBeenCalledWith(
+      'plain-btw-tab',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('still closes stage-less legacy tabs that belong to the same project', () => {
+    const stagelessProjectTab: CanvasTab = {
+      id: 'stageless-project-tab',
+      title: 'Legacy short drama session',
+      state: 'active',
+      content: {
+        type: 'btw-session',
+        title: 'Legacy short drama session',
+        data: {
+          childSessionId: 'legacy-project-session',
+          parentSessionId: 'main-session',
+          workspacePath: 'C:/work',
+        },
+        metadata: {
+          duplicateCheckKey: 'btw-session-legacy-project-session',
+          childSessionId: 'legacy-project-session',
+          parentSessionId: 'main-session',
+          shortDramaProjectId: 'project-1',
+        },
+      } as PanelContent,
+      createdAt: 1,
+      lastAccessedAt: 1,
+    };
+    const canvas = createCanvasGateway({
+      primaryTabs: [],
+      secondaryTabs: [stagelessProjectTab],
+      splitMode: 'horizontal',
+    });
+
+    const result = openShortDramaRealStageAgentTab(createWorkspace(), 'C:/work', canvas);
+
+    expect(result.status).toBe('ready');
+    expect(canvas.closeTab).toHaveBeenCalledWith(
+      'stageless-project-tab',
+      'secondary',
+      { forceRemove: true },
+    );
+  });
 });
 
 function createWorkspace(): ShortDramaStageWorkspace {

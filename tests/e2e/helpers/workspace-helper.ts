@@ -88,26 +88,32 @@ export async function ensureCodeSessionOpen(): Promise<void> {
     return;
   }
 
-  const selectors = [
-    '.void-nav-panel__workspace-create-main--split-left',
-    '[data-testid="chat-input-send-btn"]',
-  ];
-
-  let opened = false;
-  for (const selector of selectors) {
-    const element = await $(selector);
-    if (await element.isExisting()) {
-      if (selector !== '[data-testid="chat-input-send-btn"]') {
-        await element.click();
+  const existingCodeSession = await $(
+    '.void-nav-panel__inline-item:has(.void-nav-panel__inline-item-icon.is-code) '
+    + '.void-nav-panel__inline-item-activation',
+  );
+  if (await existingCodeSession.isExisting()) {
+    await existingCodeSession.click();
+  } else {
+    const minimalModeTrigger = await $('.void-nav-panel__session-mode-menu-trigger');
+    if (await minimalModeTrigger.isExisting()) {
+      await minimalModeTrigger.click();
+      const codeModeOption = await $(
+        '#void-session-mode-menu [role="menuitemradio"]:first-child',
+      );
+      await codeModeOption.waitForExist({ timeout: 5000 });
+      await codeModeOption.click();
+      await $('.void-nav-panel__session-create-action').click();
+    } else {
+      const classicCreateAction = await $(
+        '.void-nav-panel__workspace-create-main--split-left',
+      );
+      if (await classicCreateAction.isExisting()) {
+        await classicCreateAction.click();
+      } else {
+        throw new Error('No existing or creatable Code session action was found');
       }
-      opened = true;
-      break;
     }
-  }
-
-  if (!opened) {
-    const fallbackButton = await $('//button[contains(normalize-space(.), "Code")]');
-    await fallbackButton.click();
   }
 
   await browser.waitUntil(async () => {

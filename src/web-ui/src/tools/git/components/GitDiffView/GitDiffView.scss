@@ -12,7 +12,7 @@ $opacity-high: 0.8 !default;
   flex: 1;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
   &__header {
     display: flex;
@@ -42,7 +42,7 @@ $opacity-high: 0.8 !default;
     background: $element-bg-base;
     border: 1px solid $border-base;
     border-radius: $size-radius-xs;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-family: $font-family-mono;
     color: var(--color-text-secondary);
   }
@@ -60,7 +60,7 @@ $opacity-high: 0.8 !default;
     color: var(--color-text-secondary);
     border: none;
     font-size: var(--font-size-xs);
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
     font-weight: $font-weight-medium;
     cursor: pointer;
     transition: all $motion-base $easing-standard;
@@ -354,7 +354,7 @@ $opacity-high: 0.8 !default;
     user-select: none;
     border-right: 1px solid $border-base;
     background: $element-bg-subtle;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
   }
 
   &__line-content {
@@ -680,7 +680,7 @@ $opacity-high: 0.8 !default;
     }
 
     &__diff-content {
-      font-size: 11px;
+      font-size: var(--font-size-2xs);
     }
 
     &__line-number {

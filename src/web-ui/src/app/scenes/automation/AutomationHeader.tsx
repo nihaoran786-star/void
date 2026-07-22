@@ -1,3 +1,4 @@
+import { useRef, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Filter } from 'lucide-react';
 import { useI18n } from '@/infrastructure/i18n';
 import { useAutomation, type CalendarView } from './automation-context';
@@ -52,6 +53,20 @@ export function AutomationHeader() {
     filterPriority !== 'all' ||
     filterStatus !== 'all' ||
     filterAgentId !== 'all';
+  const filterSummaryRef = useRef<HTMLElement>(null);
+
+  const handleFilterKeyDown = (
+    event: KeyboardEvent<HTMLDetailsElement>,
+  ) => {
+    if (event.key !== 'Escape' || !event.currentTarget.open) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.open = false;
+    filterSummaryRef.current?.focus();
+  };
 
   return (
     <header className="automation-header">
@@ -71,7 +86,7 @@ export function AutomationHeader() {
             onClick={goPrev}
             aria-label={t('header.previous')}
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={16} aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -79,72 +94,106 @@ export function AutomationHeader() {
             onClick={goNext}
             aria-label={t('header.next')}
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
         <h2 className="automation-header__range">{title}</h2>
       </div>
 
       <div className="automation-header__right">
-        <div className="automation-header__filters">
-          <div className="automation-header__filter-icon">
-            <Filter size={12} />
-          </div>
-          <select
-            className="automation-header__select"
-            value={filterPriority}
-            onChange={(e) => setFilterPriority(e.target.value as Priority | 'all')}
-            aria-label={t('header.filters.priority')}
+        <details
+          className={
+            'automation-header__filter-disclosure'
+            + (hasFilter
+              ? ' automation-header__filter-disclosure--active'
+              : '')
+          }
+          onKeyDown={handleFilterKeyDown}
+        >
+          <summary
+            ref={filterSummaryRef}
+            className="automation-header__filter-trigger"
+            aria-label={
+              hasFilter
+                ? t('header.filters.activeLabel')
+                : t('header.filters.label')
+            }
+            title={
+              hasFilter
+                ? t('header.filters.activeLabel')
+                : t('header.filters.label')
+            }
           >
-            <option value="all">{t('header.filters.allPriorities')}</option>
-            {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
-              <option key={p} value={p}>
-                {p} · {t(PRIORITY_META[p].labelKey)}
-              </option>
-            ))}
-          </select>
-          <select
-            className="automation-header__select"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as TaskStatus | 'all')}
-            aria-label={t('header.filters.status')}
-          >
-            <option value="all">{t('header.filters.allStatuses')}</option>
-            {(Object.keys(STATUS_META) as TaskStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {t(STATUS_META[s].labelKey)}
-              </option>
-            ))}
-          </select>
-          <select
-            className="automation-header__select"
-            value={filterAgentId}
-            onChange={(e) => setFilterAgentId(e.target.value)}
-            aria-label={t('header.filters.agent')}
-          >
-            <option value="all">{t('header.filters.allAgents')}</option>
-            {agents
-              .filter((a) => !a.isSubAgent)
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
+            <Filter size={14} aria-hidden="true" />
+            {hasFilter && (
+              <span
+                className="automation-header__filter-status"
+                aria-hidden="true"
+              />
+            )}
+          </summary>
+
+          <div className="automation-header__filters">
+            <select
+              className="automation-header__select"
+              value={filterPriority}
+              onChange={(e) =>
+                setFilterPriority(e.target.value as Priority | 'all')
+              }
+              aria-label={t('header.filters.priority')}
+            >
+              <option value="all">{t('header.filters.allPriorities')}</option>
+              {(Object.keys(PRIORITY_META) as Priority[]).map((p) => (
+                <option key={p} value={p}>
+                  {p} · {t(PRIORITY_META[p].labelKey)}
                 </option>
               ))}
-          </select>
-          {hasFilter && (
-            <button
-              type="button"
-              className="automation-header__clear-btn"
-              onClick={() => {
-                setFilterPriority('all');
-                setFilterStatus('all');
-                setFilterAgentId('all');
-              }}
+            </select>
+            <select
+              className="automation-header__select"
+              value={filterStatus}
+              onChange={(e) =>
+                setFilterStatus(e.target.value as TaskStatus | 'all')
+              }
+              aria-label={t('header.filters.status')}
             >
-              {t('header.filters.clear')}
-            </button>
-          )}
-        </div>
+              <option value="all">{t('header.filters.allStatuses')}</option>
+              {(Object.keys(STATUS_META) as TaskStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {t(STATUS_META[s].labelKey)}
+                </option>
+              ))}
+            </select>
+            <select
+              className="automation-header__select"
+              value={filterAgentId}
+              onChange={(e) => setFilterAgentId(e.target.value)}
+              aria-label={t('header.filters.agent')}
+            >
+              <option value="all">{t('header.filters.allAgents')}</option>
+              {agents
+                .filter((a) => !a.isSubAgent)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+            </select>
+            {hasFilter && (
+              <button
+                type="button"
+                className="automation-header__clear-btn"
+                onClick={() => {
+                  setFilterPriority('all');
+                  setFilterStatus('all');
+                  setFilterAgentId('all');
+                }}
+              >
+                {t('header.filters.clear')}
+              </button>
+            )}
+          </div>
+        </details>
 
         <div className="automation-header__view-switcher">
           {VIEW_OPTIONS.map((opt) => {
@@ -158,6 +207,7 @@ export function AutomationHeader() {
                   'automation-header__view-btn' +
                   (active ? ' automation-header__view-btn--active' : '')
                 }
+                aria-pressed={active}
               >
                 {t(opt.labelKey)}
               </button>
@@ -170,7 +220,7 @@ export function AutomationHeader() {
           className="automation-header__create-btn"
           onClick={() => setCreateDialogOpen(true)}
         >
-          <Plus size={14} />
+          <Plus size={14} aria-hidden="true" />
           <span>{t('header.createTask')}</span>
         </button>
       </div>

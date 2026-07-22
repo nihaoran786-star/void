@@ -120,6 +120,7 @@
   position: relative;
 
   &.clickable:hover {
+    cursor: pointer;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
@@ -159,6 +160,15 @@
       opacity: 0.95;
     }
   }
+}
+
+.compact-tool-card:focus-within {
+  border-radius: var(--flowchat-card-radius);
+}
+
+.compact-tool-card > .tool-card-header-activation {
+  left: 1px;
+  width: 20px;
 }
 
 /* ========== Header element styles ========== */

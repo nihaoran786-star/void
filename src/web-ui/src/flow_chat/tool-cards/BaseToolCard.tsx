@@ -5,31 +5,51 @@
 import React, { ReactNode } from 'react';
 import { shouldIgnoreCardToggleClick } from '@/shared/utils/textSelection';
 import { SmoothHeightCollapse } from '../components/modern/SmoothHeightCollapse';
-import {
-  ToolCardHeaderLayoutContext,
-  useToolCardHeaderLayout,
-  type ToolCardHeaderAffordanceKind,
-  type ToolCardHeaderLayoutContextValue,
-} from './ToolCardHeaderLayoutContext';
+import type { ToolCardHeaderAffordanceKind } from './ToolCardHeaderLayoutContext';
 import { ToolCardIconSlot } from './ToolCardIconSlot';
 import { ToolCardStatusIcon } from './ToolCardStatusIcon';
 import './BaseToolCard.scss';
 
-const LOADING_SHIMMER_STATUSES = new Set([
-  'preparing',
-  'streaming',
-  'receiving',
-  'running',
-  'analyzing',
-]);
+export type ToolCardStatus =
+  | 'pending'
+  | 'preparing'
+  | 'streaming'
+  | 'receiving'
+  | 'running'
+  | 'completed'
+  | 'error'
+  | 'cancelled'
+  | 'analyzing'
+  | 'pending_confirmation'
+  | 'confirmed';
 
-function statusUsesLoadingShimmer(status: string): boolean {
-  return LOADING_SHIMMER_STATUSES.has(status);
-}
+export const statusUsesLoadingShimmer = (status: ToolCardStatus): boolean =>
+  status !== 'pending' && status.endsWith('ing');
+
+export const renderToolCardHeaderActivation = (
+  affordanceKind: ToolCardHeaderAffordanceKind,
+  isExpanded: boolean,
+  onClick: React.MouseEventHandler<HTMLButtonElement>,
+) => {
+  const expandsInline = affordanceKind === 'expand';
+  return (
+    <button
+      type="button"
+      className="tool-card-header-activation"
+      onClick={onClick}
+      aria-label={
+        expandsInline
+          ? isExpanded ? 'Collapse details' : 'Expand details'
+          : 'Open details'
+      }
+      aria-expanded={expandsInline ? isExpanded : undefined}
+    />
+  );
+};
 
 export interface BaseToolCardProps {
   /** Tool status */
-  status: 'pending' | 'preparing' | 'streaming' | 'receiving' | 'running' | 'completed' | 'error' | 'cancelled' | 'analyzing' | 'pending_confirmation' | 'confirmed';
+  status: ToolCardStatus;
   /** Whether expanded */
   isExpanded?: boolean;
   /** Card click callback */
@@ -73,11 +93,11 @@ export const BaseToolCard: React.FC<BaseToolCardProps> = ({
   headerAffordanceKind: headerAffordanceKindProp = 'expand',
 }) => {
   const handleCardClick = (event: React.MouseEvent) => {
-    if (!onClick || shouldIgnoreCardToggleClick(event)) {
+    if (shouldIgnoreCardToggleClick(event)) {
       return;
     }
 
-    onClick(event);
+    onClick!(event);
   };
 
   const hasExpandedContent = isExpanded && expandedContent && !isFailed;
@@ -92,27 +112,29 @@ export const BaseToolCard: React.FC<BaseToolCardProps> = ({
       ? headerExpandAffordanceProp
       : Boolean(onClick) && !isFailed && Boolean(expandedContent);
 
-  const headerLayoutValue: ToolCardHeaderLayoutContextValue = {
-    headerExpandAffordance: resolvedHeaderExpandAffordance,
-    headerAffordanceKind: headerAffordanceKindProp,
-    isExpanded,
-  };
+  const resolvedHeader =
+    React.isValidElement<ToolCardHeaderProps>(header) && header.type === ToolCardHeader
+      ? React.cloneElement(header, {
+          expandAffordance:
+            header.props.expandAffordance ?? resolvedHeaderExpandAffordance,
+          affordanceKind:
+            header.props.affordanceKind ?? headerAffordanceKindProp,
+          headerExpanded: header.props.headerExpanded ?? isExpanded,
+          onAffordanceClick: header.props.onAffordanceClick ?? onClick,
+        })
+      : header;
 
-  const loadingShimmer = statusUsesLoadingShimmer(status);
-  
   return (
     <div
-      className={`base-tool-card-wrapper ${showConfirmationHighlight ? 'requires-confirmation' : ''} ${loadingShimmer ? 'base-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
+      className={`base-tool-card-wrapper ${showConfirmationHighlight ? 'requires-confirmation' : ''} ${statusUsesLoadingShimmer(status) ? 'base-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
     >
       <div 
         className={`base-tool-card status-${status} ${isExpanded ? 'expanded' : ''} ${resolvedHeaderExpandAffordance ? 'base-tool-card--header-expandable' : ''}`.trim()}
-        onClick={handleCardClick}
+        onClick={onClick ? handleCardClick : undefined}
       >
-        <ToolCardHeaderLayoutContext.Provider value={headerLayoutValue}>
-          <div className="base-tool-card-header">
-            {header}
-          </div>
-        </ToolCardHeaderLayoutContext.Provider>
+        <div className="base-tool-card-header">
+          {resolvedHeader}
+        </div>
       </div>
       
       <SmoothHeightCollapse isOpen={Boolean(hasExpandedContent)} className="base-tool-card-expanded-collapse">
@@ -162,34 +184,32 @@ export interface ToolCardHeaderProps {
 export const ToolCardHeader: React.FC<ToolCardHeaderProps> = ({
   icon,
   iconClassName,
-  expandAffordance,
-  affordanceKind,
-  headerExpanded,
+  expandAffordance = false,
+  affordanceKind = 'expand',
+  headerExpanded = false,
   onAffordanceClick,
   action,
   content,
   extra,
   statusIcon,
 }) => {
-  const layout = useToolCardHeaderLayout();
-  const showExpandHint =
-    expandAffordance !== undefined ? expandAffordance : layout.headerExpandAffordance;
-  const resolvedAffordanceKind =
-    affordanceKind !== undefined ? affordanceKind : layout.headerAffordanceKind;
-  const expandedForChevron =
-    headerExpanded !== undefined ? headerExpanded : layout.isExpanded;
-
   return (
     <>
       {icon != null && icon !== false && icon !== '' && (
         <ToolCardIconSlot
           icon={icon}
           iconClassName={iconClassName}
-          expandable={showExpandHint}
-          affordanceKind={resolvedAffordanceKind}
-          isExpanded={expandedForChevron}
-          onAffordanceClick={onAffordanceClick}
+          expandable={expandAffordance}
+          affordanceKind={affordanceKind}
+          isExpanded={headerExpanded}
         />
+      )}
+      {expandAffordance && onAffordanceClick && (
+        renderToolCardHeaderActivation(
+          affordanceKind,
+          headerExpanded,
+          onAffordanceClick,
+        )
       )}
       {action && <span className="tool-card-action">{action}</span>}
       {content && <div className="tool-card-content">{content}</div>}

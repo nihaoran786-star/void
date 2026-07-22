@@ -70,7 +70,7 @@
     border: 1px dashed var(--border-base);
     color: var(--color-text-primary);
     font-family: var(--font-family-mono, Consolas, "Courier New", monospace);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     word-break: break-all;
     overflow-wrap: anywhere;
     line-height: 1.6;

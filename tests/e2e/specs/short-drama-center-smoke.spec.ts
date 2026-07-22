@@ -5,29 +5,44 @@ import { openWorkspace } from '../helpers/workspace-helper';
 
 const TEST_WORKSPACE_PATH = process.env.E2E_TEST_WORKSPACE || process.cwd();
 
+async function dismissVisibleNotifications(): Promise<void> {
+  const closeButtons = await $$('.notification-item__close');
+  for (const closeButton of closeButtons) {
+    if (await closeButton.isDisplayed()) {
+      await closeButton.click();
+    }
+  }
+}
+
 describe('Short drama center smoke', () => {
+  let createdMediaSessionId: string | null = null;
+
   before(async () => {
     mkdirSync('reports/screenshots', { recursive: true });
     const hasWorkspace = await openWorkspace(TEST_WORKSPACE_PATH);
     expect(hasWorkspace).toBe(true);
   });
 
+  afterEach(async () => {
+    if (!createdMediaSessionId) {
+      return;
+    }
+
+    const sessionId = createdMediaSessionId;
+    createdMediaSessionId = null;
+    await browser.execute(async (id) => {
+      const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
+      await flowChatManager.deleteChatSession(id);
+    }, sessionId);
+  });
+
   it('opens the short drama center and switches stage and episode views', async () => {
-    await browser.execute(async () => {
+    createdMediaSessionId = await browser.execute(async () => {
       const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
-      const { useSceneStore } = await import('/src/app/stores/sceneStore.ts');
-      useAgentCanvasStore.getState().reset();
-      useSceneStore.getState().openScene('session');
-    });
-
-    const sessionScene = await $('.void-session-scene');
-    await sessionScene.waitForExist({ timeout: 10000 });
-    const canvas = await $('.canvas-content-canvas');
-    await canvas.waitForExist({ timeout: 10000 });
-
-    await browser.execute(async () => {
       const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
       const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
+      const { openMainSession } = await import('/src/flow_chat/services/openBtwSession.ts');
+      useAgentCanvasStore.getState().reset();
       const workspace = await globalStateAPI.getCurrentWorkspace();
       if (!workspace?.rootPath) {
         throw new Error('Expected an active workspace before creating the Media parent session');
@@ -37,8 +52,14 @@ describe('Short drama center smoke', () => {
         { workspacePath: workspace.rootPath },
         'Media',
       );
-      await flowChatManager.switchChatSession(mediaSessionId);
+      await openMainSession(mediaSessionId);
+      return mediaSessionId;
     });
+
+    const sessionScene = await $('.void-session-scene');
+    await sessionScene.waitForExist({ timeout: 10000 });
+    const canvas = await $('.canvas-content-canvas');
+    await canvas.waitForExist({ timeout: 10000 });
 
     await browser.execute(() => {
       window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
@@ -136,34 +157,36 @@ describe('Short drama center smoke', () => {
 
     if (isMinimalPresentation) {
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
-      await browser.waitUntil(async () => (
-        (await $$('[data-testid="short-drama-team-agent"]')).length === 5
-      ), {
+      const teamSummary = await $('[data-testid="short-drama-team-panel-toggle"]');
+      await teamSummary.waitForExist({
         timeout: 5000,
-        interval: 100,
-        timeoutMsg: 'short drama team controls did not load on demand',
+        timeoutMsg: 'short drama team summary did not load on demand',
       });
-      const teamAgentButtons = await $$('[data-testid="short-drama-team-agent"]');
-      await expect(teamAgentButtons.length).toBe(5);
-      expect(await teamAgentButtons[0].getAttribute('aria-label')).toBeTruthy();
-      expect(await teamAgentButtons[0].getAttribute('aria-pressed')).toMatch(/true|false/);
+      expect(await teamSummary.getAttribute('aria-label')).toBeTruthy();
+      expect(await teamSummary.getAttribute('aria-expanded')).toBe('false');
+
+      const mediaSurfaceButtons = await $$(
+        '.workspace-media-entry--switcher .workspace-media-entry__option',
+      );
+      await expect(mediaSurfaceButtons.length).toBe(2);
+      await browser.saveScreenshot('reports/short-drama-header-rail-new.png');
       const keyboardTraversalEvidence = await browser.execute(() => {
-        const agents = Array.from(document.querySelectorAll<HTMLButtonElement>(
-          '[data-testid="short-drama-team-agent"]',
+        const surfaceButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(
+          '.workspace-media-entry--switcher .workspace-media-entry__option',
         ));
-        agents[0]?.focus();
+        surfaceButtons[0]?.focus();
         return {
-          focused: document.activeElement === agents[0],
-          nextStage: agents[1]?.getAttribute('data-short-drama-stage'),
+          focused: document.activeElement === surfaceButtons[0],
+          nextLabel: surfaceButtons[1]?.getAttribute('aria-label'),
         };
       });
       expect(keyboardTraversalEvidence.focused).toBe(true);
-      expect(keyboardTraversalEvidence.nextStage).toBeTruthy();
+      expect(keyboardTraversalEvidence.nextLabel).toBeTruthy();
       await browser.keys(['Tab']);
-      const keyboardTabStage = await browser.execute(() => (
-        document.activeElement?.getAttribute('data-short-drama-stage')
+      const keyboardTabLabel = await browser.execute(() => (
+        document.activeElement?.getAttribute('aria-label')
       ));
-      expect(keyboardTabStage).toBe(keyboardTraversalEvidence.nextStage);
+      expect(keyboardTabLabel).toBe(keyboardTraversalEvidence.nextLabel);
 
       const railLayout = await browser.execute(() => {
         const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="rail"]');
@@ -189,9 +212,103 @@ describe('Short drama center smoke', () => {
       expect(railLayout?.primaryWidth).toBeGreaterThanOrEqual((railLayout?.areaWidth ?? 0) * 0.9);
       expect(railLayout?.hiddenAgentVisibility).toBe('hidden');
 
-      const scriptAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="script"]');
-      await scriptAgentRailButton.click();
+      const moreActions = await $(
+        '.canvas-editor-area__primary .canvas-tab-panorama-btn',
+      );
+      await moreActions.click();
+      const moreMenu = await $('[role="menu"][aria-label="更多操作"]');
+      await moreMenu.waitForExist({ timeout: 3000 });
+      await browser.saveScreenshot('reports/short-drama-header-menu-new.png');
+      await browser.keys(['Escape']);
+      await moreMenu.waitForExist({ reverse: true, timeout: 3000 });
+      expect(await moreActions.isFocused()).toBe(true);
+
+      await teamSummary.click();
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
+      const agentChromeEvidence = await browser.execute(async () => {
+        const { useAgentCanvasStore } = await import(
+          '/src/app/components/panels/content-canvas/stores/index.ts'
+        );
+        const nativeTabBar = document.querySelector<HTMLElement>(
+          '.canvas-editor-area__secondary .canvas-tab-bar',
+        );
+        const sessionHeaderTitle = document.querySelector<HTMLElement>(
+          '.canvas-editor-area__secondary .btw-session-panel__header-title-wrap',
+        );
+        return {
+          total: useAgentCanvasStore.getState().secondaryGroup.tabs.length,
+          activeTabId: useAgentCanvasStore.getState().secondaryGroup.activeTabId,
+          nativeTabBarDisplay: nativeTabBar
+            ? getComputedStyle(nativeTabBar).display
+            : '',
+          sessionHeaderTitleDisplay: sessionHeaderTitle
+            ? getComputedStyle(sessionHeaderTitle).display
+            : '',
+        };
+      });
+      expect(agentChromeEvidence.total).toBe(5);
+      expect(agentChromeEvidence.nativeTabBarDisplay).toBe('none');
+      expect(agentChromeEvidence.sessionHeaderTitleDisplay).toBe('none');
+      await expect((await $$(
+        '[data-testid="short-drama-team-panel-toggle"]',
+      )).length).toBe(0);
+      const agentTrigger = await $(
+        '[data-testid="short-drama-team-agent-trigger"]',
+      );
+      const panelCollapse = await $(
+        '[data-testid="short-drama-team-panel-collapse"]',
+      );
+      await agentTrigger.waitForClickable({ timeout: 3000 });
+      await panelCollapse.waitForClickable({ timeout: 3000 });
+      expect(await agentTrigger.getAttribute('aria-expanded')).toBe('false');
+      expect(await panelCollapse.getAttribute('aria-label')).toBeTruthy();
+      await browser.saveScreenshot('reports/short-drama-header-team-open-new.png');
+
+      await agentTrigger.click();
+      const agentMenu = await $('[data-testid="short-drama-team-agent-menu"]');
+      await agentMenu.waitForDisplayed({ timeout: 3000 });
+      const agentOptions = await $$('[data-testid="short-drama-team-agent"]');
+      expect(agentOptions).toHaveLength(5);
+      await browser.saveScreenshot('reports/short-drama-header-team-menu-new.png');
+      await browser.keys(['ArrowDown']);
+      const focusedAgentId = await browser.execute(() => (
+        document.activeElement?.getAttribute('data-short-drama-team-agent-id')
+      ));
+      expect(focusedAgentId).toBeTruthy();
+      const focusedAgent = await $(
+        `[data-testid="short-drama-team-agent"]`
+        + `[data-short-drama-team-agent-id="${focusedAgentId}"]`,
+      );
+      await focusedAgent.click();
+      await agentMenu.waitForExist({ reverse: true, timeout: 3000 });
+      await browser.waitUntil(async () => browser.execute(async (
+        previousActiveTabId,
+      ) => {
+        const { useAgentCanvasStore } = await import(
+          '/src/app/components/panels/content-canvas/stores/index.ts'
+        );
+        return (
+          useAgentCanvasStore.getState().secondaryGroup.activeTabId
+          !== previousActiveTabId
+        );
+      }, agentChromeEvidence.activeTabId), {
+        timeout: 3000,
+        interval: 100,
+        timeoutMsg: 'single-row team selector did not switch the active agent',
+      });
+
+      const refreshedAgentTrigger = await $(
+        '[data-testid="short-drama-team-agent-trigger"]',
+      );
+      await refreshedAgentTrigger.click();
+      const reopenedAgentMenu = await $(
+        '[data-testid="short-drama-team-agent-menu"]',
+      );
+      await reopenedAgentMenu.waitForDisplayed({ timeout: 3000 });
+      await browser.keys(['Escape']);
+      await reopenedAgentMenu.waitForExist({ reverse: true, timeout: 3000 });
+      expect(await refreshedAgentTrigger.isFocused()).toBe(true);
+
       const openLayout = await browser.execute(() => {
         const area = document.querySelector('.canvas-editor-area[data-short-drama-team-mode="open"]');
         const primary = area?.querySelector(':scope > .canvas-editor-area__primary');
@@ -203,16 +320,20 @@ describe('Short drama center smoke', () => {
         ) {
           return null;
         }
+        const primaryRect = primary.getBoundingClientRect();
+        const secondaryRect = secondary.getBoundingClientRect();
         return {
           areaWidth: area.getBoundingClientRect().width,
-          primaryWidth: primary.getBoundingClientRect().width,
-          secondaryWidth: secondary.getBoundingClientRect().width,
+          primaryWidth: primaryRect.width,
+          secondaryWidth: secondaryRect.width,
+          primaryRight: primaryRect.right,
+          secondaryLeft: secondaryRect.left,
         };
       });
-      expect(openLayout?.secondaryWidth).toBeLessThanOrEqual(302);
+      expect(openLayout?.secondaryWidth).toBeLessThanOrEqual(420);
       expect(openLayout?.primaryWidth).toBeGreaterThanOrEqual((openLayout?.areaWidth ?? 0) * 0.68);
-      const teamToggle = await $('[data-testid="short-drama-team-panel-toggle"]');
-      await teamToggle.click();
+      expect(openLayout?.primaryRight).toBeLessThanOrEqual((openLayout?.secondaryLeft ?? 0) + 1);
+      await panelCollapse.click();
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
     } else {
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'closed');
@@ -357,6 +478,85 @@ describe('Short drama center smoke', () => {
     await expect(await finalPreviewVideo.getAttribute('preload')).toBe('metadata');
     const postRowPreviews = await $$('[data-testid="short-drama-post-row"] [data-testid="short-drama-media-preview"]');
     await expect(postRowPreviews.length).toBeGreaterThan(0);
+    if (isMinimalPresentation) {
+      const flattenedPostEvidence = await browser.execute(() => {
+        const finalPreview = document.querySelector<HTMLElement>(
+          '.short-drama-center__final-preview',
+        );
+        const postList = document.querySelector<HTMLElement>(
+          '.short-drama-center__post-list',
+        );
+        const postRow = document.querySelector<HTMLElement>(
+          '[data-testid="short-drama-post-row"]',
+        );
+        const rowPreview = postRow?.querySelector<HTMLElement>(
+          '.short-drama-media-preview--row',
+        );
+        const rowStatus = postRow?.querySelector<HTMLElement>(
+          ':scope > .short-drama-pill',
+        );
+        if (!finalPreview || !postList || !postRow || !rowPreview || !rowStatus) {
+          return null;
+        }
+        const finalStyle = getComputedStyle(finalPreview);
+        const listStyle = getComputedStyle(postList);
+        const rowStyle = getComputedStyle(postRow);
+        return {
+          finalBorderWidth: finalStyle.borderTopWidth,
+          finalPaddingTop: finalStyle.paddingTop,
+          listBorderWidth: listStyle.borderTopWidth,
+          listOverflow: listStyle.overflow,
+          rowColumns: rowStyle.gridTemplateColumns,
+          rowPreviewWidth: rowPreview.getBoundingClientRect().width,
+          rowStatusVisible: rowStatus.getBoundingClientRect().width > 0,
+        };
+      });
+      expect(flattenedPostEvidence?.finalBorderWidth).toBe('0px');
+      expect(flattenedPostEvidence?.finalPaddingTop).toBe('0px');
+      expect(flattenedPostEvidence?.listBorderWidth).toBe('0px');
+      expect(flattenedPostEvidence?.listOverflow).toBe('visible');
+      expect(flattenedPostEvidence?.rowColumns.split(' ')).toHaveLength(3);
+      expect(flattenedPostEvidence?.rowPreviewWidth).toBeLessThanOrEqual(82);
+      expect(flattenedPostEvidence?.rowStatusVisible).toBe(true);
+      await dismissVisibleNotifications();
+      await browser.saveScreenshot('reports/short-drama-post-ready-minimal.png');
+
+      const readyPostTeamSummary = await $(
+        '[data-testid="short-drama-team-panel-toggle"]',
+      );
+      await readyPostTeamSummary.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
+      const narrowPostEvidence = await browser.execute(() => {
+        const center = document.querySelector<HTMLElement>(
+          '[data-testid="short-drama-center"]',
+        );
+        const row = document.querySelector<HTMLElement>(
+          '[data-testid="short-drama-post-row"]',
+        );
+        if (!center || !row) {
+          return null;
+        }
+        return {
+          centerWidth: center.getBoundingClientRect().width,
+          centerScrollWidth: center.scrollWidth,
+          rowWidth: row.getBoundingClientRect().width,
+          rowScrollWidth: row.scrollWidth,
+        };
+      });
+      expect(narrowPostEvidence?.centerWidth).toBeGreaterThan(300);
+      expect(narrowPostEvidence?.centerScrollWidth)
+        .toBeLessThanOrEqual((narrowPostEvidence?.centerWidth ?? 0) + 8);
+      expect(narrowPostEvidence?.rowScrollWidth)
+        .toBeLessThanOrEqual((narrowPostEvidence?.rowWidth ?? 0) + 2);
+      await browser.saveScreenshot(
+        'reports/short-drama-post-ready-team-open-minimal.png',
+      );
+      const readyPostPanelCollapse = await $(
+        '[data-testid="short-drama-team-panel-collapse"]',
+      );
+      await readyPostPanelCollapse.click();
+      await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
+    }
     const thirdEpisodeButton = await $('[data-testid="short-drama-episode-rail"] button[data-episode-id="episode-03"]');
     await thirdEpisodeButton.click();
     await browser.waitUntil(async () => (
@@ -372,16 +572,21 @@ describe('Short drama center smoke', () => {
     await expect(emptyFinalPreview).toHaveText(expect.stringContaining('Episode 03 post placeholder'));
     const emptyFinalPreviewVideos = await $$('[data-testid="short-drama-episode-section"][data-episode-id="episode-03"] .short-drama-center__final-preview [data-testid="short-drama-media-preview"].is-empty video');
     await expect(emptyFinalPreviewVideos.length).toBe(0);
+    if (isMinimalPresentation) {
+      await browser.saveScreenshot('reports/short-drama-post-empty-minimal.png');
+    }
 
     mkdirSync('reports', { recursive: true });
     if (isMinimalPresentation) {
       await browser.saveScreenshot('reports/short-drama-team-rail.png');
-      const postAgentRailButton = await $('[data-testid="short-drama-team-agent"][data-short-drama-stage="post"]');
-      await postAgentRailButton.click();
+      const teamSummary = await $('[data-testid="short-drama-team-panel-toggle"]');
+      await teamSummary.click();
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'open');
       await browser.saveScreenshot('reports/short-drama-team-open.png');
-      const teamToggle = await $('[data-testid="short-drama-team-panel-toggle"]');
-      await teamToggle.click();
+      const panelCollapse = await $(
+        '[data-testid="short-drama-team-panel-collapse"]',
+      );
+      await panelCollapse.click();
       await expect(teamPanel).toHaveAttribute('data-short-drama-team-mode', 'rail');
     } else {
       await browser.saveScreenshot('reports/short-drama-classic-layout.png');
@@ -406,9 +611,20 @@ describe('Short drama center smoke', () => {
   });
 
   it('keeps the long-series episode rail stable for a 100 episode fixture', async () => {
-    await browser.execute(async () => {
-      const { useSceneStore } = await import('/src/app/stores/sceneStore.ts');
-      useSceneStore.getState().openScene('session');
+    createdMediaSessionId = await browser.execute(async () => {
+      const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
+      const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
+      const { openMainSession } = await import('/src/flow_chat/services/openBtwSession.ts');
+      const workspace = await globalStateAPI.getCurrentWorkspace();
+      if (!workspace?.rootPath) {
+        throw new Error('Expected an active workspace before creating the Media parent session');
+      }
+      const mediaSessionId = await flowChatManager.createChatSession(
+        { workspacePath: workspace.rootPath },
+        'Media',
+      );
+      await openMainSession(mediaSessionId);
+      return mediaSessionId;
     });
 
     const sessionScene = await $('.void-session-scene');

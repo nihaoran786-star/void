@@ -32,12 +32,17 @@ $_dropdown-width: 220px;
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    font-size: 12px;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font-size: var(--font-size-xs);
     font-family: $font-family-mono;
+    font-weight: inherit;
     color: var(--color-text-secondary);
     white-space: nowrap;
     border-radius: 3px;
     padding: 2px 4px;
+    text-align: left;
     transition: background-color 0.15s ease, color 0.15s ease;
     
     &-icon {
@@ -72,6 +77,11 @@ $_dropdown-width: 220px;
       
       &:hover {
         color: var(--color-text-primary);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-accent-500);
+        outline-offset: -1px;
       }
     }
     
@@ -128,7 +138,7 @@ $_dropdown-width: 220px;
   
   &__title {
     flex: 1;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     color: var(--color-text-secondary);
     overflow: hidden;
@@ -143,7 +153,7 @@ $_dropdown-width: 220px;
     gap: $size-gap-2;
     padding: 16px;
     color: var(--color-text-muted);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
   }
   
   &__spinner {
@@ -154,7 +164,11 @@ $_dropdown-width: 220px;
     padding: 16px;
     text-align: center;
     color: var(--color-text-muted);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
+
+    &--error {
+      color: var(--color-danger);
+    }
   }
   
   &__list {
@@ -170,7 +184,13 @@ $_dropdown-width: 220px;
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
     padding: 5px 10px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     transition: background-color 0.1s ease;
     
@@ -180,6 +200,11 @@ $_dropdown-width: 220px;
     
     &:active {
       background-color: var(--element-bg-base);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: -2px;
     }
     
     &--current {
@@ -208,7 +233,7 @@ $_dropdown-width: 220px;
     
     &-name {
       flex: 1;
-      font-size: 12px;
+      font-size: var(--font-size-xs);
       color: var(--color-text-primary);
       overflow: hidden;
       text-overflow: ellipsis;
@@ -237,4 +262,14 @@ $_dropdown-width: 220px;
 
 @keyframes breadcrumb-spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-breadcrumb__item,
+  .editor-breadcrumb-dropdown,
+  .editor-breadcrumb-dropdown__back,
+  .editor-breadcrumb-dropdown__item {
+    animation: none;
+    transition: none;
+  }
 }

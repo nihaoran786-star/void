@@ -21,7 +21,7 @@
   }
 
   &__description {
-    font-size: 14px;
+    font-size: var(--font-size-base);
     color: rgba(255, 255, 255, 0.6);
     margin-bottom: 16px;
     animation: void-empty-fade-in 0.5s ease-out 0.1s both;

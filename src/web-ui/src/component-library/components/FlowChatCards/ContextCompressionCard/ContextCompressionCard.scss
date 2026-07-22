@@ -87,7 +87,7 @@
 
 .context-compression-card__result {
   color: tokens.$color-success;
-  font-size: 10px;
+  font-size: var(--font-size-xxs);
   font-weight: tokens.$font-weight-semibold;
   margin-left: auto;
   flex-shrink: 0;

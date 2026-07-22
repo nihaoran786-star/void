@@ -7,6 +7,8 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => ({
       'workspaceMedia.entry': 'Media',
+      'shortDrama.entry': 'Short drama',
+      'shortDrama.switcher': 'Drama',
     })[key] || key,
   }),
 }));
@@ -98,5 +100,41 @@ describe('WorkspaceMediaEntry', () => {
 
     expect(service.checkAvailability).toHaveBeenCalledTimes(2);
     expect(container.querySelector('button')).toBeTruthy();
+  });
+
+  it('renders one explicit media-session switcher without scanning or exposing a separate entry', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    const onOpen = vi.fn();
+    const onOpenShortDrama = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <WorkspaceMediaEntry
+          workspacePath="C:/work"
+          service={service}
+          onOpen={onOpen}
+          onOpenShortDrama={onOpenShortDrama}
+          activeSurface="short-drama"
+        />,
+      );
+    });
+
+    const group = container.querySelector('[role="group"]') as HTMLDivElement;
+    const buttons = Array.from(group.querySelectorAll('button'));
+
+    expect(service.checkAvailability).not.toHaveBeenCalled();
+    expect(buttons.map(button => button.textContent)).toEqual(['Media', 'Drama']);
+    expect(buttons[1]?.getAttribute('aria-label')).toBe('Short drama');
+    expect(buttons[0]?.getAttribute('aria-pressed')).toBe('false');
+    expect(buttons[1]?.getAttribute('aria-pressed')).toBe('true');
+
+    act(() => buttons[0]?.click());
+    act(() => buttons[1]?.click());
+
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(onOpenShortDrama).toHaveBeenCalledOnce();
   });
 });

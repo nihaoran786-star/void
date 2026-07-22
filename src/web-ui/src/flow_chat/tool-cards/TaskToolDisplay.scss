@@ -445,7 +445,7 @@
     border: 1px solid var(--tool-card-border);
 
     &:hover:not(:disabled) {
-      background: var(--tool-card-bg-tertiary);
+      background: var(--tool-card-bg-hover);
       border-color: var(--color-error, #ef4444);
       color: var(--color-error, #ef4444);
     }

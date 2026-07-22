@@ -22,12 +22,12 @@
 
     span {
       font-weight: 500;
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
   }
 
   &__message {
-    font-size: 14px;
+    font-size: var(--font-size-base);
     color: var(--color-text-secondary);
     margin: 0 0 20px 0;
     line-height: 1.5;
@@ -42,7 +42,7 @@
       height: 28px;
       min-height: 28px;
       padding: 0 10px;
-      font-size: 11px;
+      font-size: var(--font-size-2xs);
     }
   }
 }

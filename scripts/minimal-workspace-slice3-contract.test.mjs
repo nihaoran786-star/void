@@ -69,12 +69,18 @@ test('team controls reuse real secondary tabs and do not own agent lifecycle', (
   );
 });
 
-test('rail remains keyboard-visible while hidden agent content is non-interactive', () => {
+test('rail and agent selector remain keyboard-visible while hidden content is non-interactive', () => {
   assert.match(teamControls, /type="button"/);
-  assert.match(teamControls, /const agentLabel = \[tab\.title, statusLabel, activityLabel\]/);
-  assert.match(teamControls, /aria-label=\{agentLabel\}/);
-  assert.match(teamControls, /aria-pressed=\{isActive\}/);
-  assert.match(teamControls, /aria-expanded=\{isOpen\}/);
+  assert.match(
+    teamControls,
+    /return \[tab\.title, statusLabel, activityLabel\][\s\S]*?\.join\(' · '\)/,
+  );
+  assert.match(teamControls, /aria-label=\{accessibleToggleLabel\}/);
+  assert.match(teamControls, /aria-expanded=\{isAgentMenuOpen\}/);
+  assert.match(teamControls, /role="listbox"/);
+  assert.match(teamControls, /role="option"/);
+  assert.match(teamControls, /aria-selected=\{isActive\}/);
+  assert.match(teamControls, /optionRefs\.current\[highlightedIndex\]\?\.focus\(\)/);
   assert.match(teamStyles, /visibility:\s*hidden;/);
   assert.match(teamStyles, /pointer-events:\s*none;/);
   assert.match(teamStyles, /:focus-visible/);
@@ -87,22 +93,34 @@ test('rail remains keyboard-visible while hidden agent content is non-interactiv
 
 test('team styling is token driven, quiet, and responsive', () => {
   assert.match(teamStyles, /--workspace-/);
-  assert.match(teamStyles, /width:\s*44px !important/);
   assert.match(
     teamStyles,
-    /is-short-drama-team-open[\s\S]*?canvas-editor-area__primary[\s\S]*?width:\s*100% !important/,
+    /is-short-drama-team-rail[\s\S]*?canvas-editor-area__primary[\s\S]*?width:\s*100% !important/,
   );
   assert.match(
     teamStyles,
-    /is-short-drama-team-open[\s\S]*?canvas-editor-area__secondary[\s\S]*?position:\s*absolute[\s\S]*?width:\s*min\([\s\S]*?420px,[\s\S]*?100%[\s\S]*?\)\s*!important[\s\S]*?max-width:\s*420px/,
+    /is-short-drama-team-open[\s\S]*?canvas-editor-area__secondary[\s\S]*?flex:\s*0 0 min\(360px,\s*32%\)[\s\S]*?max-width:\s*360px/,
   );
   assert.match(
     teamStyles,
-    /:has\(\.short-drama-center,\s*\.workspace-media-gallery\)[\s\S]*?min-width:\s*min\(420px,\s*36vw\)/,
+    /@container short-drama-editor-area \(max-width:\s*720px\)[\s\S]*?position:\s*absolute[\s\S]*?width:\s*min\(360px,\s*calc\(100% - 48px\)\)\s*!important[\s\S]*?max-width:\s*360px/,
+  );
+  assert.match(
+    teamStyles,
+    /void-session-scene:has\([\s\S]*?:is\(\.short-drama-center,\s*\.workspace-media-gallery\)[\s\S]*?void-session-scene__chat-pane[\s\S]*?min-width:\s*min\(400px,\s*max\(0px,\s*calc\(100% - 217px\)\)\)/,
+  );
+  assert.match(
+    teamStyles,
+    /void-session-scene__aux-pane[\s\S]*?:has\(\.short-drama-center,\s*\.workspace-media-gallery\)[\s\S]*?min-width:\s*min\(216px,\s*100%\)/,
   );
   assert.doesNotMatch(teamStyles, /--short-drama-team-(?:primary|secondary)-ratio/);
   assert.doesNotMatch(editorArea, /setSplitRatio\(0\.7\)/);
-  assert.doesNotMatch(teamControls, /lucide-react/);
+  assert.match(
+    teamControls,
+    /import \{ Check, ChevronDown, PanelRightClose \} from 'lucide-react'/,
+  );
+  assert.match(teamControls, /<ChevronDown size=\{13\} aria-hidden="true" \/>/);
+  assert.match(teamControls, /<PanelRightClose size=\{14\} aria-hidden="true" \/>/);
   assert.doesNotMatch(teamStyles, /#[0-9a-f]{3,8}\b|rgba?\(/i);
   assert.doesNotMatch(
     teamStyles,

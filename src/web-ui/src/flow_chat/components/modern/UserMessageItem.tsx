@@ -458,6 +458,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
             )}
             <div className="user-message-item__actions">
               <button
+                type="button"
                 className={`user-message-item__copy-btn ${copied ? 'copied' : ''}`}
                 onClick={handleCopy}
                 title={copied ? t('message.copyFailed') : t('message.copy')}
@@ -471,6 +472,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
                     className="user-message-item__edit-btn"
                     onClick={handleBeginEdit}
                     disabled={!canEdit}
+                    aria-label={canEdit ? t('message.edit') : editDisabledReason}
                     title={canEdit ? t('message.edit') : editDisabledReason}
                   >
                     <Pencil size={14} />
@@ -480,8 +482,10 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
               {isFailed ? (
                 <Tooltip content={t('message.fillToInput')}>
                   <button
+                    type="button"
                     className="user-message-item__copy-btn"
                     onClick={handleFillToInput}
+                    aria-label={t('message.fillToInput')}
                   >
                     <ArrowDownToLine size={14} />
                   </button>
@@ -489,9 +493,11 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
               ) : canShowRollbackAction && !steeringStatus ? (
                 <Tooltip content={canRollback ? t('message.rollbackTo', { index: turnIndex + 1 }) : t('message.cannotRollback')}>
                   <button
+                    type="button"
                     className="user-message-item__rollback-btn"
                     onClick={handleRollback}
                     disabled={!canRollback}
+                    aria-label={canRollback ? t('message.rollbackTo', { index: turnIndex + 1 }) : t('message.cannotRollback')}
                   >
                     {isRollingBack ? (
                       <Loader2 size={14} className="user-message-item__rollback-spinner" />
@@ -511,9 +517,14 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
             {message.images.map(img => {
               const src = img.dataUrl || (img.imagePath ? `https://asset.localhost/${encodeURIComponent(img.imagePath)}` : undefined);
               return src ? (
-                <div key={img.id} className="user-message-item__image-thumb" onClick={(e) => { e.stopPropagation(); setLightboxImage(src); }}>
+                <button
+                  key={img.id}
+                  type="button"
+                  className="user-message-item__image-thumb"
+                  onClick={(e) => { e.stopPropagation(); setLightboxImage(src); }}
+                >
                   <img src={src} alt={img.name} />
-                </div>
+                </button>
               ) : null;
             })}
           </div>
@@ -526,11 +537,22 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
         )}
 
         {lightboxImage && (
-          <div className="user-message-item__lightbox" onClick={() => setLightboxImage(null)}>
-            <button className="user-message-item__lightbox-close" onClick={() => setLightboxImage(null)}>
+          <div
+            className="user-message-item__lightbox"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('context.image')}
+            onClick={() => setLightboxImage(null)}
+          >
+            <button
+              type="button"
+              className="user-message-item__lightbox-close"
+              aria-label={t('session.close')}
+              onClick={() => setLightboxImage(null)}
+            >
               <X size={20} />
             </button>
-            <img src={lightboxImage} alt="Preview" onClick={(e) => e.stopPropagation()} />
+            <img src={lightboxImage} alt="" onClick={(e) => e.stopPropagation()} />
           </div>
         )}
       </div>

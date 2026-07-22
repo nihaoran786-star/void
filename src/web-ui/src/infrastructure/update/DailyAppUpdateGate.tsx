@@ -9,8 +9,8 @@ import {
   recordSkipThisVersion,
   shouldShowDailyUpdatePrompt
 } from './appUpdateStorage';
-import { UpdateAvailableDialog } from './UpdateAvailableDialog';
-import { UpdateInstallProgressModal } from './UpdateInstallProgressModal';
+import { LazyUpdateAvailableDialog as UpdateAvailableDialog } from './LazyUpdateAvailableDialog';
+import { LazyUpdateInstallProgressModal as UpdateInstallProgressModal } from './LazyUpdateInstallProgressModal';
 import { useUpdateInstallStore } from './updateInstallStore';
 
 const log = createLogger('DailyAppUpdate');
@@ -19,7 +19,13 @@ const log = createLogger('DailyAppUpdate');
  * On first launch after a short delay, checks for updates and may show the daily prompt.
  * Renders update dialogs; mount once near the app root (e.g. inside AppLayout).
  */
-export function DailyAppUpdateGate(): ReactElement | null {
+export interface DailyAppUpdateGateProps {
+  overlayClassName?: string;
+}
+
+export function DailyAppUpdateGate({
+  overlayClassName,
+}: DailyAppUpdateGateProps = {}): ReactElement | null {
   const [dailyOpen, setDailyOpen] = useState(false);
   const [dailyData, setDailyData] = useState<CheckForUpdatesResponse | null>(null);
   const dailyCheckTimerRef = useRef<number | null>(null);
@@ -146,6 +152,7 @@ export function DailyAppUpdateGate(): ReactElement | null {
         onLater={onLater}
         onSkip={onSkip}
         onInstall={onInstall}
+        overlayClassName={overlayClassName}
       />
       <UpdateInstallProgressModal
         isOpen={updateStatus === 'error' || updateStatus === 'installed'}
@@ -155,6 +162,7 @@ export function DailyAppUpdateGate(): ReactElement | null {
         onCloseError={onCloseProgressError}
         onCloseInstalled={onCloseInstalled}
         onRestart={onRestart}
+        overlayClassName={overlayClassName}
       />
     </>
   );

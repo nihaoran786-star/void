@@ -151,7 +151,7 @@
     }
 
     &:hover .welcome-scene__recent-time-btn:hover {
-      background: var(--element-bg-muted);
+      background: var(--control-bg-hover);
 
       .welcome-scene__recent-time-btn__icon svg {
         transform: scale(1.12);

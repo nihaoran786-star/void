@@ -38,6 +38,7 @@ describe('EditorArea short-drama team recovery integration', () => {
   beforeEach(() => {
     useAgentCanvasStore.getState().reset();
     container = document.createElement('div');
+    container.className = 'void-ui--minimal';
     document.body.appendChild(container);
     root = createRoot(container);
   });

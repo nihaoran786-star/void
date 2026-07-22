@@ -16,7 +16,7 @@
     background: #0a0a0a;
     border: 1px solid #1a1a1a;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     transition: all 0.2s ease;
 
     &:hover {
@@ -50,7 +50,7 @@
 
   &__count {
     color: #a0a0a0;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     margin-left: auto;
   }
 
@@ -72,14 +72,14 @@
   }
 
   &__label {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: 600;
     color: #a0a0a0;
     min-width: 80px;
   }
 
   &__value {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: #e0e0e0;
     flex: 1;
     overflow: hidden;
@@ -102,7 +102,7 @@
     border: 1px solid #1a1a1a;
     border-radius: 4px;
     color: #e0e0e0;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -161,7 +161,7 @@
 
   &__result-title {
     flex: 1;
-    font-size: 14px;
+    font-size: var(--font-size-base);
     font-weight: 600;
     color: #ffffff;
   }
@@ -181,14 +181,14 @@
   }
 
   &__result-snippet {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: #a0a0a0;
     line-height: 1.5;
     margin-bottom: 6px;
   }
 
   &__result-url {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     color: #6b7280;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     overflow: hidden;
@@ -202,7 +202,7 @@
     padding: 24px;
     text-align: center;
     color: #6b7280;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     background: var(--color-bg-primary);
     border: 1px solid #1a1a1a;
     border-radius: 4px;
@@ -219,7 +219,7 @@
     border: 1px solid rgba(14, 165, 233, 0.2);
     border-radius: 4px;
     color: #0ea5e9;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   &__searching-icon {

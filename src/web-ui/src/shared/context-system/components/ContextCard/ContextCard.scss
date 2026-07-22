@@ -139,7 +139,7 @@
     display: inline-flex;
     align-items: center;
     padding: 2px 6px;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-medium;
     color: var(--color-text-secondary);
     background: $element-bg-medium;
@@ -162,7 +162,7 @@
   
   &__code {
     font-family: $font-family-mono;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     line-height: 1.5;
     color: var(--color-text-secondary);
     white-space: pre-wrap;

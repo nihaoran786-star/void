@@ -2,6 +2,8 @@
  * TabBar component styles.
  */
 
+@use './TabBar.minimal' as minimal;
+
 .canvas-tab-bar {
   display: flex;
   align-items: center;
@@ -60,9 +62,15 @@
       color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
     }
 
-    &--close-all:hover {
-      background: rgba(239, 68, 68, 0.15);
-      color: #ef4444;
+    &--collapse-panel {
+      margin-left: 2px;
+      border-left: 1px solid var(--workspace-border-subtle, var(--border-base));
+      border-radius: 0 4px 4px 0;
+
+      &:hover {
+        background: var(--color-bg-hover, rgba(255, 255, 255, 0.1));
+        color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+      }
     }
   }
 }
@@ -79,3 +87,5 @@
   z-index: 10;
   pointer-events: none;
 }
+
+@include minimal.styles;

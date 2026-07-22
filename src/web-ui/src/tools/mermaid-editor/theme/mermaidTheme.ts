@@ -2,6 +2,8 @@
  * Mermaid theme config builder.
  * Reads CSS variables and supports live theme switching.
  */
+import { readUiFontFamily } from '@/shared/utils/uiTypography';
+
 export const MERMAID_THEME_CHANGE_EVENT = 'mermaid-theme-changed';
 
 /**
@@ -109,7 +111,7 @@ function getThemeVariables() {
     pieOpacity: '0.9',
     errorBkgColor: getCSSVar('--mermaid-error-bg', isDark ? 'rgba(232, 120, 120, 0.12)' : 'rgba(239, 68, 68, 0.15)'),
     errorTextColor: getCSSVar('--mermaid-error', isDark ? '#e87878' : '#dc2626'),
-    fontFamily: '"Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+    fontFamily: readUiFontFamily(),
   };
 }
 
@@ -159,7 +161,7 @@ export function getMermaidConfig() {
       leftPadding: 80,
       gridLineStartPadding: 40,
       fontSize: 12,
-      fontFamily: '"Inter", "Segoe UI", sans-serif',
+      fontFamily: readUiFontFamily(),
       numberSectionStyles: 4,
       useWidth: 960,
     },

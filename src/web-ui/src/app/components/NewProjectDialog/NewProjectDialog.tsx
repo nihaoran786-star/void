@@ -25,13 +25,15 @@ export interface NewProjectDialogProps {
   onClose: () => void;
   onConfirm: (parentPath: string, projectName: string) => Promise<void>;
   defaultParentPath?: string;
+  overlayClassName?: string;
 }
 
 export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
   isOpen,
   onClose,
   onConfirm,
-  defaultParentPath
+  defaultParentPath,
+  overlayClassName,
 }) => {
   const { t } = useTranslation('common');
   const [parentPath, setParentPath] = useState<string>(defaultParentPath || '');
@@ -114,6 +116,7 @@ export const NewProjectDialog: React.FC<NewProjectDialogProps> = ({
       title=""
       size="small"
       showCloseButton={true}
+      overlayClassName={overlayClassName}
     >
       <div className="new-project-dialog">
         {/* Hero section */}

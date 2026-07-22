@@ -1,0 +1,86 @@
+@mixin styles {
+  .void-ui--minimal .canvas-quick-look {
+    width: min(460px, calc(100vw - 24px));
+    max-height: min(360px, calc(100vh - 24px));
+    border-color: var(--workspace-border-strong);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-raised);
+    box-shadow: var(--workspace-shadow-raised);
+    color: var(--workspace-text-primary);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-control);
+    line-height: var(--workspace-line-height-control);
+    animation-duration: var(--workspace-motion-fast);
+
+    &:focus {
+      outline: none;
+    }
+
+    .canvas-quick-look__header {
+      min-height: 36px;
+      gap: var(--workspace-space-3);
+      padding: var(--workspace-space-2) var(--workspace-space-2)
+        var(--workspace-space-2) var(--workspace-space-3);
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+    }
+
+    .canvas-quick-look__title {
+      gap: var(--workspace-space-2);
+
+      span {
+        color: var(--workspace-text-primary);
+        font-size: var(--workspace-font-size-control);
+        font-weight: var(--workspace-font-weight-medium);
+      }
+    }
+
+    .canvas-quick-look__actions {
+      gap: var(--workspace-space-1);
+    }
+
+    .canvas-quick-look__action-btn {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      border-radius: var(--workspace-radius-control);
+      color: var(--workspace-text-muted);
+
+      &:hover,
+      &.canvas-quick-look__pin-btn:hover,
+      &.canvas-quick-look__close-btn:hover {
+        background: var(--workspace-surface-hover);
+        color: var(--workspace-text-primary);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: 1px;
+      }
+    }
+
+    .canvas-quick-look__content {
+      background: var(--workspace-surface-raised);
+
+      .void-flexible-panel,
+      .void-flexible-panel__content,
+      .void-flexible-panel__text-content pre {
+        background: var(--workspace-surface-raised);
+      }
+
+      .void-flexible-panel {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+
+    .canvas-quick-look__footer {
+      min-height: 24px;
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-1) var(--workspace-space-3);
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+    }
+  }
+}

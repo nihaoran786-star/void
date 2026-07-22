@@ -16,6 +16,7 @@ export interface UpdateAvailableDialogProps {
   onLater: () => void;
   onSkip?: () => void;
   onInstall: () => void;
+  overlayClassName?: string;
 }
 
 export const UpdateAvailableDialog: React.FC<UpdateAvailableDialogProps> = ({
@@ -24,7 +25,8 @@ export const UpdateAvailableDialog: React.FC<UpdateAvailableDialogProps> = ({
   data,
   onLater,
   onSkip,
-  onInstall
+  onInstall,
+  overlayClassName,
 }) => {
   const { t } = useI18n('common');
   if (!isOpen || !data?.updateAvailable) {
@@ -42,6 +44,7 @@ export const UpdateAvailableDialog: React.FC<UpdateAvailableDialogProps> = ({
       showCloseButton={true}
       size="medium"
       contentInset
+      overlayClassName={overlayClassName}
     >
       <div className="void-update-available">
         <div className="void-update-available__lead">

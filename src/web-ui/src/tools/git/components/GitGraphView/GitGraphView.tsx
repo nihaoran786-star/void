@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { GitBranch, ChevronUp, ChevronDown } from 'lucide-react';
 import { Search } from '@/component-library';
 import { gitAPI } from '@/infrastructure/api';
+import { themeService } from '@/infrastructure/theme';
 import type { GitGraph, GitGraphNode } from '@/infrastructure/api/service-api/GitAPI';
 import { 
   GitGraphViewProps, 
@@ -13,6 +14,7 @@ import {
   GitGraphInteractionState 
 } from '../../types/graph';
 import { i18nService } from '@/infrastructure/i18n';
+import { buildCanvasFont } from '@/shared/utils/uiTypography';
 import { createLogger } from '@/shared/utils/logger';
 import './GitGraphView.scss';
 
@@ -56,6 +58,7 @@ export const GitGraphView: React.FC<GitGraphViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  const [themeRevision, setThemeRevision] = useState(0);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +153,12 @@ export const GitGraphView: React.FC<GitGraphViewProps> = ({
     setCurrentSearchIndex(0);
   }, [debouncedSearchQuery]);
 
+  useEffect(
+    () => themeService.on('theme:after-change', () => {
+      setThemeRevision(revision => revision + 1);
+    }),
+    [],
+  );
 
   useEffect(() => {
     if (!canvasRef.current || !graphData) {
@@ -180,7 +189,7 @@ export const GitGraphView: React.FC<GitGraphViewProps> = ({
       const y = index * viewConfig.rowHeight!;
       drawNodeWithInfo(ctx, node, y, viewConfig, { isSelected: false, isHovered: false });
     });
-  }, [graphData, viewConfig]);
+  }, [graphData, themeRevision, viewConfig]);
 
 
 
@@ -581,7 +590,7 @@ function drawNodeWithInfo(
     const bgColor = ref.refType === 'branch' ? '#60a5fa' : ref.refType === 'tag' ? '#f59e0b' : '#8b5cf6';
     const text = displayName;
     
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.font = buildCanvasFont(11);
     const textWidth = ctx.measureText(text).width;
     const padding = 5;
     const refWidth = textWidth + padding * 2;
@@ -607,7 +616,7 @@ function drawNodeWithInfo(
 
     ctx.save();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.font = buildCanvasFont(11, { fontWeight: 500 });
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
     ctx.fillText(text, refX + padding, centerY);
@@ -624,7 +633,7 @@ function drawNodeWithInfo(
   
 
   ctx.fillStyle = '#d1d5db';
-  ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.font = buildCanvasFont(13);
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
   
@@ -645,7 +654,7 @@ function drawNodeWithInfo(
 
 
   ctx.fillStyle = '#6b7280';
-  ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  ctx.font = buildCanvasFont(12);
   
   let authorName = node.authorName;
   const maxAuthorWidth = 120;

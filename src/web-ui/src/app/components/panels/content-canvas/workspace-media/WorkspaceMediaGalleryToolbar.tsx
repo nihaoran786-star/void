@@ -105,18 +105,23 @@ export const WorkspaceMediaGalleryToolbar: React.FC<
 
   return (
     <div ref={rootRef} className="workspace-media-gallery__toolbar-main">
-      <div className="workspace-media-gallery__search-row">
-        <label className="workspace-media-gallery__search">
-          <Search size={16} />
+      <div
+        className={`workspace-media-gallery__search-row ${state.query ? 'has-query' : ''}`}
+      >
+        <label
+          className={`workspace-media-gallery__search ${state.query ? 'has-query' : ''}`}
+        >
+          <Search size={14} aria-hidden="true" />
           <input
             value={state.query}
             onChange={(event) => actions.onQueryChange(event.target.value)}
             placeholder={t('workspaceMedia.searchPlaceholder')}
+            aria-label={t('workspaceMedia.searchPlaceholder')}
           />
           {state.query && (
             <button
               type="button"
-              aria-label="Clear search"
+              aria-label={t('workspaceMedia.actions.clearSearch')}
               onClick={() => actions.onQueryChange('')}
             >
               <X size={13} />

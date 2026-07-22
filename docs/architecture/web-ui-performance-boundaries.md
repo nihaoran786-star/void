@@ -17,6 +17,32 @@
 UI / Route -> Feature Interface -> Feature Adapter / Service -> External System
 ```
 
+### 可选弹窗边界
+
+- `NewProjectDialog` 与 `RemoteConnectDialog` 的公共 barrel 只导出轻量 lazy facade；调用方无需知道实现是否拆包。
+- facade 在 `isOpen === false` 时必须先返回 `null`，不能创建 `Suspense`、触发动态 import 或启动弹窗内部副作用。
+- facade 只负责 `React.lazy`、`Suspense` 和 props 透传。目录选择、输入校验、连接探测、网络请求、免责声明状态与错误分类继续由原具体弹窗实现负责。
+- `AppLayout` 是 workspace presentation 的唯一 Portal 根所有者。它通过 `applyWorkspacePresentationToPortalRoot(document.body, presentation)` 把互斥的 Minimal / Classic 类同步到 `body`，所有 body portal 从该祖先继承主题；导航、footer 和具体弹窗不得重复读取 presentation。通用 `overlayClassName` 仅保留为独立挂载/兼容接口，不再是应用内主题传播主链。
+- Portal 样式使用 `.void-ui--minimal .surface` 祖先选择器，不要求每个 overlay 自身重复携带主题类。具体弹窗不得因样式模式分叉文件系统、网络或连接行为。
+- 生产 manifest 必须把两个具体实现记录为 required dynamic entry；任一实现重新进入启动静态图都视为性能 Gate 失败。
+- `AboutDialog`、`UpdateAvailableDialog` 与 `UpdateInstallProgressModal` 遵守相同边界。About 在关闭时不加载；每日更新 Gate 只保留检查定时器与 update store 订阅，提示/进度组件及其 CSS 仅在确实可见时动态加载。检查更新、下载、安装、重启和错误分类仍由原 controller/store 负责。
+- 全局媒体预览保留 `MediaPreviewOverlay` 作为同步轻量事件壳：它只监听 `MEDIA_PREVIEW_EVENT`、维护递增 request sequence，并在首次打开/关闭/卸载时保存和恢复焦点。媒体 DOM、Tab 焦点循环、复制、i18n、图标、URL fallback、resolver 与 overlay SCSS 全部属于按需加载的 `MediaPreviewOverlayContent`。
+- 内容 chunk 尚未完成时的新预览事件必须 latest-wins；关闭后迟到的 chunk 不得重新打开。每个 request sequence 重新挂载内容实例，旧媒体的异步 fallback 不能写入新预览。生产 manifest 必须把该内容实现记录为 required dynamic entry，且 `.media-preview-overlay` 不得进入启动 entry CSS。
+- Slice 34 独立生产构建验证该拆分：7,456 modules / 50.99s；entry JS 从 2,337,223 降至 2,334,851 raw bytes（减少 2,372），entry CSS 从 633,862 降至 632,070 raw bytes（减少 1,792）；gzip 分别从 682,047 降至 681,279、从 89,626 降至 89,309。55 个 required dynamic entries 保持存在，`MediaPreviewOverlayContent` 拥有独立 JS/CSS chunk，unresolved static imports 为 0，overall `PASS`。gzip 相对参考值仍为 `+1,237` / `+791` 监控 `WARN`，不得写成 gzip 无回退。
+
+### Portal 展示样式边界
+
+- 组件基础 SCSS 只保留 Classic 结构、共享语义与不依赖 presentation 的可访问性样式。Minimal 的尺寸、密度、颜色、阴影和焦点投影必须放在同目录 `*.minimal.scss` mixin 中。
+- `minimalWorkspacePresentation.scss` 是这些 mixin 的唯一应用入口。组件不得直接静态导入自己的 Minimal 文件，也不得读取 presentation store、URL 参数或 body class 来分叉业务行为。
+- Branch selection、Quick Look、editor breadcrumb、两类 fullscreen diff、remote file browser 和 editor status popover 等 Portal/浮层仍使用原 Git API、workspace API、`sshApi`、Monaco/editor service 和回调接口；展示聚合层只组合 token mixin，不得静态导入组件实现或所属 runtime。
+- 遗留 fullscreen 样式中的通用类名必须限定在各自 overlay 根节点下；Minimal 密度/颜色只进入同目录 `*.minimal.scss`。这既阻止 `.header-actions`、`.file-name` 等规则泄漏到其他模块，也避免为修复样式而在组件中增加 presentation 分支。
+- 新增 Portal 投影后必须检查 production manifest。Minimal CSS 可以进入已有按需 presentation 资源，但不得让可选组件实现或重型 runtime 回流到启动静态图。
+- Slice 10 独立生产构建已验证该边界：7,455 modules / 34.79s；entry JS 为 2,334,390 raw / 681,511 gzip bytes，entry CSS 为 627,314 raw / 88,766 gzip bytes。raw 值分别低于 2,337,259 与 633,915 的硬限制，54 个 required dynamic entries 保持存在，unresolved static imports 为 0，budget unit tests 34/34，overall `PASS`。gzip 相对参考值分别为 `+1,469` 与 `+248`，属于明确保留的监控 `WARN`，不得写成 gzip 无回退。
+- 后续深色窄窗桌面 Gate 在同一 worker/window 内依次覆盖 1280x800 `void-light` 与 1024x720 `void-dark`。它只允许挂载真实组件、临时替换并恢复 `sshApi.readDir`，不得把 fixture 或 presentation 判断写入生产组件。编辑器 23px 状态栏是有记录的高密度例外：内部 action 可保持 19px 高，但必须至少 28px 宽、可见、中心可命中且不造成横向溢出；独立 icon-only 入口仍需至少 28x28。
+- 长路径验证仅触发 `RemoteFileBrowser.minimal.scss` 的展示修复：28x28 编辑入口固定在现有工具栏旁，并用 token 背景遮住保留控制区下方的滚动路径文字。该改动不增加组件 import，也不触碰 SSH adapter/API。Slice 11 独立构建再次验证该边界：7,455 modules / 36.51s；entry JS 为 2,334,390 raw / 681,522 gzip bytes，entry CSS 为 627,314 raw / 88,766 gzip bytes；54 个 required dynamic entries、0 个 unresolved static imports、budget unit tests 34/34，overall `PASS`。gzip 相对参考值 `+1,480` / `+248` 仍为监控 `WARN`；受保护的 generated version 文件 hash 与 mtime 均未变化。
+- Automation populated/detail 的桌面 fixture 只挂载真实 `AutomationProvider` 和展示组件；不导入 `AutomationScene.tsx`，不启动 Cron/API，不写持久化，所有 create/delete/run/toggle 回调必须保持零调用。fixture 仅在测试页直接加载场景基础 SCSS，临时隐藏并 `inert` 原应用根，结束后逐项恢复 root style、`aria-hidden`、`inert`、全局 fixture key、主题、URL 和窗口尺寸。详情焦点管理使用组件本地 ref/effect，不注册 window 级键盘监听，也不引入新的 provider、store 或 runtime 订阅。
+- Slice 16 独立构建验证上述语义改动没有扩大启动边界：7,455 modules / 34.53s；entry JS 为 2,334,390 raw / 681,521 gzip bytes，entry CSS 为 627,314 raw / 88,766 gzip bytes；54 个 required dynamic entries、0 个 unresolved static imports、budget unit tests 34/34，overall `PASS`。gzip 相对参考值 `+1,479` / `+248` 仍是监控 `WARN`。构建输出位于包目录下的 `src/web-ui/.void/perf-phase1-after`；受保护文件 hash 与 mtime 均未变化。
+
 ### 已登记的遗留例外
 
 `BrowserScene.tsx` 与 `BrowserPanel.tsx` 目前仍在 UI 内动态调用 Tauri window/webview/dpi/core，并重复编排原生 WebView 生命周期，不满足上面的目标依赖方向。第一阶段为控制回归范围，只把 URL 轮询和“最后一次任务生效”闸门隔离为可单测模块，并收紧现有异步生命周期；不得继续向这两个组件增加新的外部系统判断。下一阶段应先补齐行为测试，再提取统一的 browser feature controller/adapter。
@@ -57,8 +83,13 @@ pnpm --dir src/web-ui test:run src/app/performance/performanceImportBoundaries.t
 pnpm --dir src/web-ui test:run src/app/scenes/browser/browserTaskGate.test.ts src/app/scenes/browser/browserUrlPolling.test.ts
 pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaGallery.test.tsx src/app/components/panels/content-canvas/workspace-media/useWorkspaceMediaPreviewQueue.test.tsx src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaVirtualMasonry.test.tsx
 pnpm --dir src/web-ui test:run src/app/components/panels/content-canvas/editor-area/shortDramaTeamPanelPresentation.test.ts src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControls.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.short-drama-team.test.tsx src/app/components/panels/content-canvas/editor-area/EditorArea.minimal-layout.test.ts
+pnpm --dir src/web-ui test:run src/app/components/NewProjectDialog/LazyNewProjectDialog.test.tsx src/app/components/RemoteConnectDialog/LazyRemoteConnectDialog.test.tsx src/app/performance/performanceImportBoundaries.test.ts
 pnpm --dir src/web-ui run type-check
 pnpm --dir src/web-ui exec vite build --outDir .void/perf-phase1-after --emptyOutDir --manifest
+node --test scripts/check-web-performance-budget.test.mjs
+node scripts/check-web-performance-budget.mjs --dist src/web-ui/.void/perf-phase1-after
 ```
 
-构建后比较 `.void/perf-phase1-before/.vite/manifest.json` 与 `.void/perf-phase1-after/.vite/manifest.json`，检查 entry JS/CSS、总 JS、chunk 关系和 Vite 静态/动态 import 警告。
+构建后比较 `src/web-ui/.void/perf-phase1-before/.vite/manifest.json` 与
+`src/web-ui/.void/perf-phase1-after/.vite/manifest.json`，检查 entry JS/CSS、
+总 JS、chunk 关系和 Vite 静态/动态 import 警告。

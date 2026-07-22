@@ -20,7 +20,7 @@ $modal-edge-gutter-sm: 10px;
   justify-content: center;
   padding: 24px;
   z-index: tokens.$z-modal;
-  animation: modal-overlay-fade 0.25s ease;
+  animation: modal-backdrop-enter 0.25s ease;
 
   &--bottom-left {
     align-items: flex-end;
@@ -41,6 +41,11 @@ $modal-edge-gutter-sm: 10px;
       animation: modal-dialog-enter-bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
   }
+}
+
+@keyframes modal-backdrop-enter {
+  from { background-color: rgba(0, 0, 0, 0); }
+  to { background-color: rgba(0, 0, 0, 0.55); }
 }
 
 @keyframes modal-overlay-fade {
@@ -148,7 +153,7 @@ $modal-edge-gutter-sm: 10px;
 
   &__title {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
     color: var(--color-text-secondary);
     min-width: 0;
@@ -230,22 +235,18 @@ $modal-edge-gutter-sm: 10px;
 
 @keyframes modal-dialog-enter {
   from {
-    opacity: 0;
     transform: translateY(20px) scale(0.97);
   }
   to {
-    opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
 @keyframes modal-dialog-enter-bottom {
   from {
-    opacity: 0;
     transform: translateY(16px) scale(0.97);
   }
   to {
-    opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
@@ -334,7 +335,7 @@ $modal-edge-gutter-sm: 10px;
     }
 
     &__title {
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
 
     &__content {

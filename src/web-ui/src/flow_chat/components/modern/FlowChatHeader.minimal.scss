@@ -62,7 +62,7 @@
       border-color: var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-raised);
-      box-shadow: 0 8px 24px color-mix(in srgb, #000 14%, transparent);
+      box-shadow: var(--workspace-shadow-raised);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
@@ -83,13 +83,19 @@
     }
 
     &__more-menu-item:hover:not(:disabled),
-    &__more-menu-item:focus-visible,
     &__more-menu-item--active {
       color: var(--workspace-text-primary);
       background: var(--workspace-surface-hover);
     }
 
-    &__more-menu-item:focus-visible,
+    &__more-menu-item:focus:not(:disabled) {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -2px;
+      box-shadow: none;
+    }
+
     &__message:focus-visible,
     &__more-button:focus-visible,
     &__subagent-nav-button:focus-visible,

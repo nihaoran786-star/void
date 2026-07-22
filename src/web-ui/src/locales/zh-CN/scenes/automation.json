@@ -97,11 +97,13 @@
     "title": "自动化",
     "today": "今天",
     "filters": {
+      "activeLabel": "筛选（已启用）",
       "agent": "按 Agent 筛选",
       "allAgents": "全部 Agent",
       "allPriorities": "全部优先级",
       "allStatuses": "全部状态",
       "clear": "清除",
+      "label": "筛选",
       "priority": "按优先级筛选",
       "status": "按状态筛选"
     },

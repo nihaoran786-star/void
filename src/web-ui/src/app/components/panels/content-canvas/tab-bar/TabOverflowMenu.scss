@@ -9,7 +9,7 @@
   align-items: center;
 }
 
-// Mission control button (with overflow)
+// Consistent more-actions trigger
 .canvas-tab-panorama-btn {
   position: relative;
   display: flex;
@@ -19,12 +19,15 @@
   height: 26px;
   padding: 0;
   background: transparent;
-  border: 1px dashed transparent;
+  border: 1px solid transparent;
   border-radius: 4px;
   // Use text-secondary to ensure visibility in light/dark themes
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 
   &:hover {
     border-color: var(--border-base);
@@ -32,9 +35,9 @@
   }
 
   &.is-open {
-    border-style: solid;
-    border-color: var(--color-primary, #60a5fa);
-    color: var(--color-primary, #60a5fa);
+    border-color: var(--workspace-border-subtle, var(--border-base));
+    background: var(--workspace-surface-raised, var(--color-bg-secondary));
+    color: var(--color-text-primary);
   }
 
   // Styles when overflow exists
@@ -42,17 +45,6 @@
     width: auto;
     padding: 0 6px;
     gap: 2px;
-  }
-
-  // Overflow-only mode (no mission control)
-  &.overflow-only {
-    // Ensure button visibility
-    opacity: 1;
-    
-    // When overflow exists, match mission control button styles
-    &.has-overflow {
-      // Keep consistent styling with mission control button
-    }
   }
 
   // Overflow count badge
@@ -99,14 +91,19 @@
     }
   }
 
-  // Mission control entry (fixed first item)
-  &__mission-control {
+  &__mission-control,
+  &__close-all {
+    width: 100%;
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
+    border: 0;
+    background: transparent;
     cursor: pointer;
     color: var(--color-text-primary);
+    font: inherit;
+    text-align: left;
     transition: background-color 0.15s ease;
 
     &:hover {
@@ -120,18 +117,26 @@
       font-weight: 500;
     }
 
-    kbd {
-      font-size: 10px;
-      padding: 2px 5px;
-      background: var(--color-bg-secondary);
-      border: 1px solid var(--border-base);
-      border-radius: 3px;
-      color: var(--color-text-tertiary);
-      font-family: inherit;
+    > svg {
+      color: var(--color-primary);
+    }
+  }
+
+  &__close-all {
+    color: var(--color-error, #ef4444);
+
+    &:hover {
+      background: var(--color-error-alpha, rgba(239, 68, 68, 0.12));
     }
 
-    svg {
-      color: var(--color-primary);
+    span {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    > svg {
+      color: currentColor;
     }
   }
 
@@ -166,9 +171,8 @@
   &__item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    cursor: pointer;
+    gap: 2px;
+    padding: 0 4px;
     transition: background-color 0.1s ease;
 
     &:hover {
@@ -176,9 +180,30 @@
       // Light theme: blue-gray tint; dark theme: translucent white
       background: var(--element-bg-medium, var(--element-bg-base, var(--color-bg-hover)));
 
-      .canvas-tab-overflow-menu__item-close {
+      .canvas-tab-overflow-menu__item-actions {
         opacity: 1;
       }
+    }
+
+    &:focus-within {
+      .canvas-tab-overflow-menu__item-actions {
+        opacity: 1;
+      }
+    }
+
+    &-main {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
     }
 
     &.is-active {
@@ -211,7 +236,16 @@
       color: var(--color-warning);
     }
 
-    &-close {
+    &-actions {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      margin-right: 4px;
+      opacity: 0;
+      transition: opacity 0.1s ease;
+    }
+
+    &-action {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -224,9 +258,17 @@
       cursor: pointer;
       border-radius: 3px;
       flex-shrink: 0;
-      opacity: 0;
-      transition: all 0.1s ease;
+      transition:
+        background-color 0.1s ease,
+        color 0.1s ease;
 
+      &:focus-visible {
+        outline: 2px solid var(--focus-ring-color, var(--color-accent));
+        outline-offset: 1px;
+      }
+    }
+
+    &-close {
       &:hover {
         background: var(--color-error-alpha);
         color: var(--color-error);

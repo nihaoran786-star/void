@@ -19,6 +19,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    gap: $size-gap-2;
     padding: 0 $size-gap-3;
     height: 40px;
   }
@@ -30,6 +31,39 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__search-trigger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    color: var(--workspace-text-secondary);
+    cursor: pointer;
+    transition:
+      color $motion-fast $easing-standard,
+      background-color $motion-fast $easing-standard;
+
+    &:hover {
+      background: var(--workspace-surface-hover);
+      color: var(--workspace-text-primary);
+    }
+
+    &:active {
+      background: var(--workspace-surface-active);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: -1px;
+    }
   }
 
   // ── Search ───────────────────────────────────────────────
@@ -268,9 +302,67 @@
   }
 }
 
+.void-ui--minimal .void-settings-nav {
+  &__title {
+    color: var(--workspace-text-primary);
+  }
+
+  &__sections {
+    padding: $size-gap-1 0 $size-gap-3;
+  }
+
+  &__category:not(:last-child) {
+    margin-bottom: $size-gap-4;
+  }
+
+  &__category-header {
+    height: 20px;
+  }
+
+  &__item {
+    height: 28px;
+  }
+
+  &__search-trigger {
+    display: inline-flex;
+  }
+
+  &__search {
+    display: none;
+  }
+
+  &.is-compact-search-open {
+    .void-settings-nav__search {
+      display: block;
+    }
+
+    .void-settings-nav__search-field.search .search__prefix {
+      display: none;
+    }
+  }
+
+  &__search-field.search {
+    .search__wrapper {
+      background: var(--workspace-surface-panel);
+      box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);
+    }
+
+    .search__wrapper:hover {
+      background: var(--workspace-surface-hover);
+      box-shadow: inset 0 0 0 1px var(--workspace-border-subtle);
+    }
+
+    .search__wrapper:focus-within {
+      background: var(--workspace-surface-panel);
+      box-shadow: inset 0 0 0 2px var(--workspace-focus-ring);
+    }
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .void-settings-nav {
-    &__item { transition: none; }
+    &__item,
+    &__search-trigger { transition: none; }
     &__search-field.search .search__wrapper {
       transition: none;
     }

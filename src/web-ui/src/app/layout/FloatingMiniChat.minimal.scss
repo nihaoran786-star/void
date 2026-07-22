@@ -1,0 +1,318 @@
+@mixin styles {
+  .void-app-layout.void-ui--minimal {
+    .void-fmc {
+      right: 0;
+      bottom: var(--workspace-space-6);
+
+      &--open {
+        right: var(--workspace-space-3);
+        bottom: var(--workspace-space-3);
+      }
+
+      &--miniapp-customizing {
+        right: calc(clamp(380px, 38vw, 560px) + 44px);
+      }
+    }
+
+    .void-settings-scene .void-config-page-content {
+      padding-right: calc(
+        var(--config-page-content-inline-padding)
+        + 24px
+      );
+    }
+
+    .void-fmc__button {
+      width: 25px;
+      height: 40px;
+      border: 1px solid var(--workspace-border-subtle);
+      border-right: 0;
+      border-radius:
+        var(--workspace-radius-panel)
+        0
+        0
+        var(--workspace-radius-panel);
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-panel);
+      box-shadow: none;
+      transform: none;
+      transition:
+        color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+        border-color: var(--workspace-border-strong);
+        box-shadow: none;
+        transform: none;
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
+        transform: none;
+      }
+
+      .void-fmc--open & {
+        opacity: 0;
+        transform: none;
+      }
+    }
+
+    .void-fmc__panel {
+      width: 360px;
+      height: 560px;
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 24px);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+      opacity: 0;
+      transform: translateY(4px);
+      transition:
+        opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
+        transform var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &--open {
+        opacity: 1;
+        transform: none;
+      }
+
+      &--processing,
+      &--error,
+      &--confirm {
+        animation: none;
+
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0 0 auto;
+          z-index: 10;
+          height: 2px;
+          border-radius:
+            var(--workspace-radius-panel)
+            var(--workspace-radius-panel)
+            0
+            0;
+          background-size: auto;
+          animation: none;
+        }
+      }
+
+      &--processing {
+        border-color: var(--workspace-status-info-border);
+
+        &::before {
+          background: var(--workspace-status-info-text);
+        }
+      }
+
+      &--error {
+        border-color: var(--workspace-status-error-border);
+
+        &::before {
+          background: var(--workspace-status-error-text);
+        }
+      }
+
+      &--confirm {
+        border-color: var(--workspace-status-warning-border);
+
+        &::before {
+          background: var(--workspace-status-warning-text);
+        }
+      }
+    }
+
+    .void-fmc__header {
+      border-bottom-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+    }
+
+    .void-fmc__header-btn,
+    .void-fmc__title-btn {
+      color: var(--workspace-text-secondary);
+      background: transparent;
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
+        transform: none;
+      }
+    }
+
+    .void-fmc__header-btn {
+      &--confirm {
+        color: var(--workspace-status-success-text);
+
+        &:hover {
+          background: var(--workspace-status-success-bg);
+        }
+      }
+
+      &--reject,
+      &--stop,
+      &--close:hover {
+        color: var(--workspace-status-error-text);
+      }
+
+      &--reject:hover,
+      &--stop:hover,
+      &--close:hover {
+        background: var(--workspace-status-error-bg);
+      }
+    }
+
+    .void-fmc__title-btn {
+      color: var(--workspace-text-primary);
+
+      svg {
+        color: var(--workspace-text-muted);
+      }
+    }
+
+    .void-fmc__session-dropdown {
+      border-color: var(--workspace-border-strong);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+      animation: none;
+      transform: none;
+    }
+
+    .void-fmc__session-item {
+      color: var(--workspace-text-secondary);
+      background: transparent;
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+      }
+
+      &--active {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-active);
+      }
+    }
+
+    .void-fmc__input-bar {
+      border-top-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+    }
+
+    .void-fmc__input-wrapper {
+      :where(input, textarea) {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-canvas);
+        border-color: var(--workspace-border-subtle);
+
+        &::placeholder {
+          color: var(--workspace-text-muted);
+        }
+      }
+    }
+
+    .void-fmc__input-btn {
+      transition:
+        color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &--send {
+        border-color: var(--workspace-border-strong);
+        color: var(--workspace-text-secondary);
+        background: var(--workspace-surface-hover);
+        box-shadow: none;
+
+        &:not(:disabled),
+        &:hover:not(:disabled) {
+          border-color: var(--workspace-accent);
+          color: var(--workspace-surface-canvas);
+          background: var(--workspace-accent);
+          box-shadow: none;
+          transform: none;
+        }
+
+        &:active:not(:disabled) {
+          background: var(--workspace-surface-active);
+          transform: none;
+        }
+
+        &:disabled {
+          border-color: var(--workspace-border-subtle);
+          color: var(--workspace-text-disabled);
+          background: var(--workspace-surface-panel);
+        }
+      }
+
+      &--stop {
+        color: var(--workspace-status-error-text);
+        background: var(--workspace-status-error-bg);
+
+        &:hover {
+          background: var(--workspace-status-error-bg);
+        }
+
+        &:active {
+          transform: none;
+        }
+      }
+    }
+
+    .void-fmc :where(
+      button,
+      input,
+      textarea,
+      select,
+      [role='button']
+    ):focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: 1px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .void-app-layout.void-ui--minimal
+      .void-fmc--miniapp-customizing:not(.void-fmc--open) {
+      right: 0;
+      bottom: calc(var(--workspace-space-6) + 64px);
+    }
+
+    .void-app-layout.void-ui--minimal
+      .void-fmc--miniapp-customizing.void-fmc--open {
+      right: var(--workspace-space-3);
+      bottom: var(--workspace-space-3);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .void-app-layout.void-ui--minimal .void-fmc--open {
+      right: var(--workspace-space-2);
+      bottom: var(--workspace-space-2);
+    }
+
+    .void-app-layout.void-ui--minimal .void-fmc__panel {
+      max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 16px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-app-layout.void-ui--minimal {
+      .void-fmc,
+      .void-fmc *,
+      .void-fmc *::before,
+      .void-fmc *::after {
+        animation: none;
+        transition: none;
+      }
+    }
+  }
+}

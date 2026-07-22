@@ -1,4 +1,12 @@
-import { useEffect, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 import {
   Bot,
   Calendar,
@@ -52,42 +60,121 @@ const ROLE_META = {
 
 type DetailTab = 'prompt' | 'artifacts' | 'conversation';
 
+const DETAIL_TABS: DetailTab[] = ['prompt', 'artifacts', 'conversation'];
+const FOCUSABLE_SELECTOR = [
+  'button:not([disabled])',
+  '[href]',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
 export function TaskDetailPanel() {
   const { t } = useI18n('scenes/automation');
   const { selectedTask, setSelectedTaskId, getAgent, deleteTask, toggleTaskEnabled, runTaskNow } = useAutomation();
   const open = !!selectedTask;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const wasOpenRef = useRef(false);
+  const titleId = useId();
+  const descriptionId = useId();
 
-  // Close on Escape.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedTaskId(null);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, setSelectedTaskId]);
+    if (open && !wasOpenRef.current) {
+      wasOpenRef.current = true;
+      returnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+      const frame = requestAnimationFrame(() => {
+        closeButtonRef.current?.focus();
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+
+    if (!open && wasOpenRef.current) {
+      wasOpenRef.current = false;
+      const returnTarget = returnFocusRef.current;
+      returnFocusRef.current = null;
+      const frame = requestAnimationFrame(() => {
+        if (returnTarget?.isConnected) {
+          returnTarget.focus();
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [open]);
+
+  const closePanel = useCallback(() => {
+    setSelectedTaskId(null);
+  }, [setSelectedTaskId]);
+
+  const handlePanelKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closePanel();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || !panel.contains(active))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [closePanel],
+  );
 
   if (!open || !selectedTask) return null;
 
   return (
     <div
       className="task-detail-panel__overlay"
-      role="dialog"
-      aria-modal="true"
-      onClick={() => setSelectedTaskId(null)}
+      onClick={closePanel}
     >
       <div
+        ref={panelRef}
         className="task-detail-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={handlePanelKeyDown}
       >
         <TaskDetailContent
+          key={selectedTask.id}
           task={selectedTask}
+          titleId={titleId}
+          descriptionId={descriptionId}
+          closeButtonRef={closeButtonRef}
           agentName={
             getAgent(selectedTask.agentId)?.name ??
             selectedTask.agentName ??
             t('common.unknown')
           }
-          onClose={() => setSelectedTaskId(null)}
+          onClose={closePanel}
           onDelete={() => deleteTask(selectedTask)}
           onToggleEnabled={(enabled) => toggleTaskEnabled(selectedTask, enabled)}
           onRunNow={() => runTaskNow(selectedTask)}
@@ -99,6 +186,9 @@ export function TaskDetailPanel() {
 
 interface TaskDetailContentProps {
   task: AutomationTask;
+  titleId: string;
+  descriptionId: string;
+  closeButtonRef: RefObject<HTMLButtonElement>;
   agentName: string;
   onClose: () => void;
   onDelete: () => void;
@@ -108,8 +198,53 @@ interface TaskDetailContentProps {
 
 function TaskDetailContent(props: TaskDetailContentProps) {
   const { t } = useI18n('scenes/automation');
-  const { task, agentName, onClose, onDelete, onToggleEnabled, onRunNow } = props;
+  const {
+    task,
+    titleId,
+    descriptionId,
+    closeButtonRef,
+    agentName,
+    onClose,
+    onDelete,
+    onToggleEnabled,
+    onRunNow,
+  } = props;
   const [tab, setTab] = useState<DetailTab>('prompt');
+  const tabRefs = useRef<Record<DetailTab, HTMLButtonElement | null>>({
+    prompt: null,
+    artifacts: null,
+    conversation: null,
+  });
+  const tabListId = useId();
+
+  const selectTab = useCallback((nextTab: DetailTab, focus = false) => {
+    setTab(nextTab);
+    if (focus) {
+      tabRefs.current[nextTab]?.focus();
+    }
+  }, []);
+
+  const handleTabKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, currentTab: DetailTab) => {
+      const currentIndex = DETAIL_TABS.indexOf(currentTab);
+      let nextIndex: number | null = null;
+      if (event.key === 'ArrowRight') {
+        nextIndex = (currentIndex + 1) % DETAIL_TABS.length;
+      } else if (event.key === 'ArrowLeft') {
+        nextIndex =
+          (currentIndex - 1 + DETAIL_TABS.length) % DETAIL_TABS.length;
+      } else if (event.key === 'Home') {
+        nextIndex = 0;
+      } else if (event.key === 'End') {
+        nextIndex = DETAIL_TABS.length - 1;
+      }
+
+      if (nextIndex === null) return;
+      event.preventDefault();
+      selectTab(DETAIL_TABS[nextIndex], true);
+    },
+    [selectTab],
+  );
 
   const priority = PRIORITY_META[task.priority];
   const status = STATUS_META[task.status];
@@ -121,12 +256,13 @@ function TaskDetailContent(props: TaskDetailContentProps) {
     <div className="task-detail-panel__inner">
       <div className="task-detail-panel__head">
         <button
+          ref={closeButtonRef}
           type="button"
           className="task-detail-panel__close"
           onClick={onClose}
           aria-label={t('actions.close')}
         >
-          <X size={16} />
+          <X size={16} aria-hidden="true" />
         </button>
 
         <div className="task-detail-panel__title-row">
@@ -135,6 +271,7 @@ function TaskDetailContent(props: TaskDetailContentProps) {
               'task-detail-panel__priority-dot task-detail-panel__priority-dot--' +
               priority.modifier
             }
+            aria-hidden="true"
           />
           <div className="task-detail-panel__title-col">
             <div className="task-detail-panel__badges">
@@ -151,6 +288,7 @@ function TaskDetailContent(props: TaskDetailContentProps) {
                   'task-detail-panel__badge task-detail-panel__badge--status task-detail-panel__badge--' +
                   status.modifier
                 }
+                role="status"
               >
                 <StatusIcon
                   size={12}
@@ -159,18 +297,23 @@ function TaskDetailContent(props: TaskDetailContentProps) {
                       ? 'task-detail-panel__badge-icon--spin'
                       : ''
                   }
+                  aria-hidden="true"
                 />
                 {statusLabel}
               </span>
               {task.scheduleType !== 'once' && (
                 <span className="task-detail-panel__badge task-detail-panel__badge--schedule">
-                  <Repeat size={10} />
+                  <Repeat size={10} aria-hidden="true" />
                   {t(SCHEDULE_META[task.scheduleType].labelKey)}
                 </span>
               )}
             </div>
-            <h2 className="task-detail-panel__title">{task.name}</h2>
-            <p className="task-detail-panel__desc">{task.description}</p>
+            <h2 id={titleId} className="task-detail-panel__title">
+              {task.name}
+            </h2>
+            <p id={descriptionId} className="task-detail-panel__desc">
+              {task.description}
+            </p>
           </div>
         </div>
 
@@ -223,45 +366,55 @@ function TaskDetailContent(props: TaskDetailContentProps) {
         </div>
       </div>
 
-      <div className="task-detail-panel__tabs">
-        <button
-          type="button"
-          className={
-            'task-detail-panel__tab' +
-            (tab === 'prompt' ? ' task-detail-panel__tab--active' : '')
-          }
-          onClick={() => setTab('prompt')}
-        >
-          {t('detail.tabs.prompt')}
-        </button>
-        <button
-          type="button"
-          className={
-            'task-detail-panel__tab' +
-            (tab === 'artifacts' ? ' task-detail-panel__tab--active' : '')
-          }
-          onClick={() => setTab('artifacts')}
-        >
-          {t('detail.tabs.artifacts')}
-          {task.artifacts && task.artifacts.length > 0 && (
-            <span className="task-detail-panel__tab-count">
-              {task.artifacts.length}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          className={
-            'task-detail-panel__tab' +
-            (tab === 'conversation' ? ' task-detail-panel__tab--active' : '')
-          }
-          onClick={() => setTab('conversation')}
-        >
-          {t('detail.tabs.conversation')}
-        </button>
+      <div
+        id={tabListId}
+        className="task-detail-panel__tabs"
+        role="tablist"
+        aria-labelledby={titleId}
+      >
+        {DETAIL_TABS.map((detailTab) => {
+          const active = tab === detailTab;
+          const tabId = `${tabListId}-${detailTab}-tab`;
+          const panelId = `${tabListId}-${detailTab}-panel`;
+          return (
+            <button
+              key={detailTab}
+              ref={(element) => {
+                tabRefs.current[detailTab] = element;
+              }}
+              id={tabId}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls={panelId}
+              tabIndex={active ? 0 : -1}
+              className={
+                'task-detail-panel__tab' +
+                (active ? ' task-detail-panel__tab--active' : '')
+              }
+              onClick={() => selectTab(detailTab)}
+              onKeyDown={(event) => handleTabKeyDown(event, detailTab)}
+            >
+              {t(`detail.tabs.${detailTab}`)}
+              {detailTab === 'artifacts' &&
+                task.artifacts &&
+                task.artifacts.length > 0 && (
+                  <span className="task-detail-panel__tab-count">
+                    {task.artifacts.length}
+                  </span>
+                )}
+            </button>
+          );
+        })}
       </div>
 
-      <div className="task-detail-panel__body">
+      <div
+        id={`${tabListId}-${tab}-panel`}
+        className="task-detail-panel__body"
+        role="tabpanel"
+        aria-labelledby={`${tabListId}-${tab}-tab`}
+        tabIndex={0}
+      >
         {tab === 'prompt' && (
           <div className="task-detail-panel__prompt">
             <p>{task.prompt}</p>

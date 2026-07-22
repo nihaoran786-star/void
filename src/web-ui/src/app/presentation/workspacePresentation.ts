@@ -65,3 +65,26 @@ export function workspacePresentationClassName(
 ): `void-ui--${WorkspacePresentation}` {
   return `void-ui--${presentation}`;
 }
+
+/**
+ * Projects the resolved presentation onto a DOM root shared by body portals.
+ *
+ * Most of the application is already scoped by AppLayout, but menus, tooltips,
+ * and fullscreen viewers render under document.body. Keeping the same class on
+ * that portal root lets those surfaces inherit presentation tokens without
+ * coupling every feature component to workspace presentation state.
+ */
+export function applyWorkspacePresentationToPortalRoot(
+  root: HTMLElement,
+  presentation: WorkspacePresentation,
+): () => void {
+  const className = workspacePresentationClassName(presentation);
+  const alternateClassName = workspacePresentationClassName(
+    presentation === 'minimal' ? 'classic' : 'minimal',
+  );
+
+  root.classList.remove(alternateClassName);
+  root.classList.add(className);
+
+  return () => root.classList.remove(className);
+}

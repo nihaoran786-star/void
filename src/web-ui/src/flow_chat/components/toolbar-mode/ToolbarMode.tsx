@@ -37,6 +37,9 @@ import { Tooltip } from '@/component-library';
 import { useImeEnterGuard } from '../../hooks/useImeEnterGuard';
 import './ToolbarMode.scss';
 
+const TOOLBAR_SESSION_LIST_ID = 'void-toolbar-mode-session-listbox';
+const TOOLBAR_OVERFLOW_MENU_ID = 'void-toolbar-mode-overflow-menu';
+
 export const ToolbarMode: React.FC = () => {
   const { t } = useTranslation('flow-chat');
   const { 
@@ -318,7 +321,7 @@ export const ToolbarMode: React.FC = () => {
             }}
           >
             <span className="void-toolbar-mode__session-item-icon" aria-hidden>
-              <Plus size={13} strokeWidth={2.25} />
+              <Plus size={13} strokeWidth={2.25} aria-hidden="true" />
             </span>
             <span className="void-toolbar-mode__session-item-label">
               {t('toolCards.toolbar.newCodeSessionItem')}
@@ -334,7 +337,7 @@ export const ToolbarMode: React.FC = () => {
             }}
           >
             <span className="void-toolbar-mode__session-item-icon" aria-hidden>
-              <Plus size={13} strokeWidth={2.25} />
+              <Plus size={13} strokeWidth={2.25} aria-hidden="true" />
             </span>
             <span className="void-toolbar-mode__session-item-label">
               {t('toolCards.toolbar.newCoworkSessionItem')}
@@ -343,6 +346,7 @@ export const ToolbarMode: React.FC = () => {
           <div className="void-toolbar-mode__session-list-divider" role="separator" />
         </div>
         <div
+          id={TOOLBAR_SESSION_LIST_ID}
           className="void-toolbar-mode__session-menu-scroll"
           role="listbox"
           aria-label={t('session.switchSession')}
@@ -354,6 +358,8 @@ export const ToolbarMode: React.FC = () => {
               className={`void-toolbar-mode__session-item ${
                 session.sessionId === flowChatState.activeSessionId ? 'void-toolbar-mode__session-item--active' : ''
               }`}
+              role="option"
+              aria-selected={session.sessionId === flowChatState.activeSessionId}
               onMouseDown={(e) => handleSwitchSession(e, session.sessionId)}
             >
               {resolveSessionTitle(session, (key, options) => i18nService.t(key, options))}
@@ -392,10 +398,12 @@ export const ToolbarMode: React.FC = () => {
                     showSessionPicker ? 'void-toolbar-mode__session-menu-trigger--open' : '',
                   ].filter(Boolean).join(' ')}
                   onClick={toggleSessionMenu}
+                  aria-label={t('toolCards.toolbar.openSessionMenu')}
                   aria-expanded={showSessionPicker}
                   aria-haspopup="listbox"
+                  aria-controls={TOOLBAR_SESSION_LIST_ID}
                 >
-                  <Plus size={14} />
+                  <Plus size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
               {showSessionPicker && (
@@ -427,14 +435,17 @@ export const ToolbarMode: React.FC = () => {
                     type="button"
                     className="toolbar-btn toolbar-btn--overflow void-toolbar-mode__overflow-trigger"
                     onClick={toggleHeaderOverflowMenu}
+                    aria-label={t('toolCards.toolbar.moreMenu')}
                     aria-expanded={showHeaderOverflowMenu}
                     aria-haspopup="menu"
+                    aria-controls={TOOLBAR_OVERFLOW_MENU_ID}
                   >
-                    <MoreVertical size={14} />
+                    <MoreVertical size={14} aria-hidden="true" />
                   </button>
                 </Tooltip>
                 {showHeaderOverflowMenu && (
                   <div
+                    id={TOOLBAR_OVERFLOW_MENU_ID}
                     ref={headerOverflowRef}
                     className="void-toolbar-mode__overflow-menu"
                     role="menu"
@@ -449,7 +460,7 @@ export const ToolbarMode: React.FC = () => {
                         setShowHeaderOverflowMenu(false);
                       }}
                     >
-                      <PanelTopClose size={14} />
+                      <PanelTopClose size={14} aria-hidden="true" />
                       <span>{t('toolCards.toolbar.collapseChat')}</span>
                     </button>
                     <button
@@ -461,7 +472,7 @@ export const ToolbarMode: React.FC = () => {
                         setShowHeaderOverflowMenu(false);
                       }}
                     >
-                      <Maximize2 size={14} />
+                      <Maximize2 size={14} aria-hidden="true" />
                       <span>{t('session.restoreMain')}</span>
                     </button>
                   </div>
@@ -476,7 +487,7 @@ export const ToolbarMode: React.FC = () => {
                     onClick={() => void toggleExpanded()}
                     aria-label={t('toolCards.toolbar.expandChat')}
                   >
-                    <PanelTopOpen size={14} />
+                    <PanelTopOpen size={14} aria-hidden="true" />
                   </button>
                 </Tooltip>
                 <Tooltip content={t('session.restoreMain')}>
@@ -486,7 +497,7 @@ export const ToolbarMode: React.FC = () => {
                     onClick={() => void handleExpand()}
                     aria-label={t('session.restoreMain')}
                   >
-                    <Maximize2 size={14} />
+                    <Maximize2 size={14} aria-hidden="true" />
                   </button>
                 </Tooltip>
               </div>
@@ -510,25 +521,30 @@ export const ToolbarMode: React.FC = () => {
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
               placeholder={currentStreamState.isStreaming ? t('toolCards.toolbar.aiProcessing') : t('toolCards.toolbar.inputMessage')}
+              aria-label={t('toolCards.toolbar.inputMessage')}
               disabled={currentStreamState.isStreaming}
             />
             {currentStreamState.isStreaming ? (
               <Tooltip content={t('input.stop')}>
-                <button 
+                <button
+                  type="button"
                   className="toolbar-btn toolbar-btn--cancel"
                   onClick={handleCancel}
+                  aria-label={t('input.stop')}
                 >
-                  <Square size={14} />
+                  <Square size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
             ) : (
               <Tooltip content={t('input.send')}>
-                <button 
+                <button
+                  type="button"
                   className="toolbar-btn toolbar-btn--send"
                   onClick={handleSendMessage}
+                  aria-label={t('input.send')}
                   disabled={!inputValue.trim()}
                 >
-                  <ArrowUp size={16} />
+                  <ArrowUp size={16} aria-hidden="true" />
                 </button>
               </Tooltip>
             )}
@@ -547,23 +563,28 @@ export const ToolbarMode: React.FC = () => {
                 onCompositionStart={handleCompositionStart}
                 onCompositionEnd={handleCompositionEnd}
                 placeholder={t('input.placeholder')}
+                aria-label={t('input.placeholder')}
                 autoFocus
               />
               <Tooltip content={t('input.send')}>
-                <button 
+                <button
+                  type="button"
                   className="toolbar-btn toolbar-btn--send"
                   onClick={handleSendMessage}
+                  aria-label={t('input.send')}
                   disabled={!inputValue.trim()}
                 >
-                  <ArrowUp size={16} />
+                  <ArrowUp size={16} aria-hidden="true" />
                 </button>
               </Tooltip>
-              <Tooltip content={t('planner.cancel')}>
-                <button 
+              <Tooltip content={t('input.collapseInput')}>
+                <button
+                  type="button"
                   className="toolbar-btn"
                   onClick={() => setShowInput(false)}
+                  aria-label={t('input.collapseInput')}
                 >
-                  <X size={16} />
+                  <X size={16} aria-hidden="true" />
                 </button>
               </Tooltip>
             </>
@@ -595,32 +616,49 @@ export const ToolbarMode: React.FC = () => {
                 {toolbarState.hasPendingConfirmation && (
                   <>
                     <Tooltip content={t('toolCards.common.confirm')}>
-                      <button className="toolbar-btn toolbar-btn--confirm" onClick={handleConfirm}>
-                        <Check size={16} />
+                      <button
+                        type="button"
+                        className="toolbar-btn toolbar-btn--confirm"
+                        onClick={handleConfirm}
+                        aria-label={t('toolCards.common.confirm')}
+                      >
+                        <Check size={16} aria-hidden="true" />
                       </button>
                     </Tooltip>
                     <Tooltip content={t('toolCards.common.cancel')}>
-                      <button className="toolbar-btn toolbar-btn--reject" onClick={handleReject}>
-                        <X size={16} />
+                      <button
+                        type="button"
+                        className="toolbar-btn toolbar-btn--reject"
+                        onClick={handleReject}
+                        aria-label={t('toolCards.common.cancel')}
+                      >
+                        <X size={16} aria-hidden="true" />
                       </button>
                     </Tooltip>
                   </>
                 )}
                 
                 {currentStreamState.isStreaming && !toolbarState.hasPendingConfirmation && (
-                  <Tooltip content={t('planner.cancel')}>
-                    <button className="toolbar-btn toolbar-btn--cancel-compact" onClick={handleCancel}>
-                      <Square size={12} />
+                  <Tooltip content={t('input.stop')}>
+                    <button
+                      type="button"
+                      className="toolbar-btn toolbar-btn--cancel-compact"
+                      onClick={handleCancel}
+                      aria-label={t('input.stop')}
+                    >
+                      <Square size={12} aria-hidden="true" />
                     </button>
                   </Tooltip>
                 )}
                 
-                <Tooltip content={t('input.placeholder')}>
-                  <button 
-                    className="toolbar-btn toolbar-btn--input" 
+                <Tooltip content={t('input.expandInput')}>
+                  <button
+                    type="button"
+                    className="toolbar-btn toolbar-btn--input"
                     onClick={() => setShowInput(true)}
+                    aria-label={t('input.expandInput')}
                   >
-                    <MessageSquare size={16} />
+                    <MessageSquare size={16} aria-hidden="true" />
                   </button>
                 </Tooltip>
               </div>

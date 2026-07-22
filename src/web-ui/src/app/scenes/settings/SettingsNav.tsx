@@ -20,6 +20,7 @@ import React, {
 } from 'react';
 import type { i18n as I18nApi } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { Search as SearchIcon, X } from 'lucide-react';
 import { Search, Badge } from '@/component-library';
 import { useSettingsStore } from './settingsStore';
 import { SETTINGS_CATEGORIES } from './settingsConfig';
@@ -144,8 +145,19 @@ function useSettingsNav() {
 
   const [draftQuery, setDraftQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const [isCompactSearchOpen, setIsCompactSearchOpen] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isCompactSearchOpen) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isCompactSearchOpen]);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -171,19 +183,54 @@ function useSettingsNav() {
     setHighlightedIndex(-1);
   }, [setSearchQuery]);
 
-  const clearSearch = useCallback(() => {
+  const resetSearch = useCallback(() => {
     setDraftQuery('');
     setSearchQuery('');
     setHighlightedIndex(-1);
-    searchInputRef.current?.focus();
   }, [setSearchQuery]);
+
+  const focusSearchInput = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, []);
+
+  const closeCompactSearch = useCallback(() => {
+    resetSearch();
+    setIsCompactSearchOpen(false);
+    window.requestAnimationFrame(() => {
+      searchTriggerRef.current?.focus();
+    });
+  }, [resetSearch]);
+
+  const handleCompactSearchToggle = useCallback(() => {
+    if (isCompactSearchOpen) {
+      closeCompactSearch();
+      return;
+    }
+    setIsCompactSearchOpen(true);
+  }, [closeCompactSearch, isCompactSearchOpen]);
+
+  const resetAndRefocusVisibleSearch = useCallback(() => {
+    resetSearch();
+    focusSearchInput();
+  }, [focusSearchInput, resetSearch]);
 
   const activateTab = useCallback(
     (tab: ConfigTab) => {
       setActiveTab(tab);
-      clearSearch();
+      if (isCompactSearchOpen) {
+        closeCompactSearch();
+      } else {
+        resetAndRefocusVisibleSearch();
+      }
     },
-    [setActiveTab, clearSearch]
+    [
+      closeCompactSearch,
+      isCompactSearchOpen,
+      resetAndRefocusVisibleSearch,
+      setActiveTab,
+    ]
   );
 
   const handleTabClick = useCallback(
@@ -197,7 +244,13 @@ function useSettingsNav() {
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        clearSearch();
+        if (draftQuery.length > 0) {
+          resetAndRefocusVisibleSearch();
+        } else if (isCompactSearchOpen) {
+          closeCompactSearch();
+        } else {
+          resetAndRefocusVisibleSearch();
+        }
         return;
       }
       if (e.key === 'ArrowDown' && results.length > 0) {
@@ -211,7 +264,15 @@ function useSettingsNav() {
         activateTab(results[0].tabId);
       }
     },
-    [clearSearch, results, activateTab, resultsRef]
+    [
+      activateTab,
+      closeCompactSearch,
+      draftQuery.length,
+      isCompactSearchOpen,
+      resetAndRefocusVisibleSearch,
+      results,
+      resultsRef,
+    ]
   );
 
   const handleResultsKeyDown = useCallback(
@@ -220,7 +281,7 @@ function useSettingsNav() {
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        clearSearch();
+        resetAndRefocusVisibleSearch();
         return;
       }
       if (e.key === 'ArrowDown') {
@@ -244,7 +305,13 @@ function useSettingsNav() {
         activateTab(results[highlightedIndex].tabId);
       }
     },
-    [isSearchMode, results, highlightedIndex, activateTab, clearSearch]
+    [
+      activateTab,
+      highlightedIndex,
+      isSearchMode,
+      resetAndRefocusVisibleSearch,
+      results,
+    ]
   );
 
   const displayQuery = searchQuery.trim();
@@ -256,6 +323,9 @@ function useSettingsNav() {
     draftQuery,
     setDraftQuery,
     searchInputRef,
+    searchTriggerRef,
+    isCompactSearchOpen,
+    handleCompactSearchToggle,
     resultsRef,
     results,
     isSearchMode,
@@ -277,6 +347,9 @@ const SettingsNav: React.FC = () => {
     draftQuery,
     setDraftQuery,
     searchInputRef,
+    searchTriggerRef,
+    isCompactSearchOpen,
+    handleCompactSearchToggle,
     resultsRef,
     results,
     isSearchMode,
@@ -288,16 +361,38 @@ const SettingsNav: React.FC = () => {
     handleSearchKeyDown,
     handleResultsKeyDown,
   } = useSettingsNav();
+  const searchLabel = t('configCenter.searchPlaceholder');
 
   return (
-    <div className="void-settings-nav">
+    <div
+      className={[
+        'void-settings-nav',
+        isCompactSearchOpen && 'is-compact-search-open',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className="void-settings-nav__header">
         <span className="void-settings-nav__title">
           {t('configCenter.title', { defaultValue: t('title', { defaultValue: 'Settings' }) })}
         </span>
+        <button
+          ref={searchTriggerRef}
+          type="button"
+          className="void-settings-nav__search-trigger"
+          aria-label={searchLabel}
+          title={searchLabel}
+          aria-expanded={isCompactSearchOpen}
+          aria-controls="settings-nav-search"
+          onClick={handleCompactSearchToggle}
+        >
+          {isCompactSearchOpen
+            ? <X size={14} aria-hidden="true" />
+            : <SearchIcon size={14} aria-hidden="true" />}
+        </button>
       </div>
 
-      <div className="void-settings-nav__search">
+      <div id="settings-nav-search" className="void-settings-nav__search">
         <Search
           ref={searchInputRef}
           className="void-settings-nav__search-field"
@@ -307,8 +402,8 @@ const SettingsNav: React.FC = () => {
           onClear={handleSearchComponentClear}
           onKeyDown={handleSearchKeyDown}
           enterToSearch={false}
-          placeholder={t('configCenter.searchPlaceholder')}
-          inputAriaLabel={t('configCenter.searchPlaceholder')}
+          placeholder={searchLabel}
+          inputAriaLabel={searchLabel}
           ariaControls="settings-nav-results"
           ariaExpanded={isSearchMode}
           clearable

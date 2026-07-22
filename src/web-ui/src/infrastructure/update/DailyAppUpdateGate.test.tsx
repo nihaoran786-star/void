@@ -34,14 +34,14 @@ vi.mock('./appUpdateStorage', () => ({
   shouldShowDailyUpdatePrompt: mocks.shouldShowDailyUpdatePrompt,
 }));
 
-vi.mock('./UpdateAvailableDialog', () => ({
-  UpdateAvailableDialog: ({ isOpen }: { isOpen: boolean }) => (
+vi.mock('./LazyUpdateAvailableDialog', () => ({
+  LazyUpdateAvailableDialog: ({ isOpen }: { isOpen: boolean }) => (
     isOpen ? <div data-testid="daily-update-dialog" /> : null
   ),
 }));
 
-vi.mock('./UpdateInstallProgressModal', () => ({
-  UpdateInstallProgressModal: () => null,
+vi.mock('./LazyUpdateInstallProgressModal', () => ({
+  LazyUpdateInstallProgressModal: () => null,
 }));
 
 vi.mock('./updateInstallStore', () => {

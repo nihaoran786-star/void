@@ -15,7 +15,7 @@
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Pin, ExternalLink } from 'lucide-react';
+import { X, Pin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import { useDismissibleLayer } from '@/infrastructure/hooks/useDismissibleLayer';
@@ -51,6 +51,8 @@ export const QuickLook: React.FC<QuickLookProps> = ({
 }) => {
   const { t } = useTranslation('components');
   const containerRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElementRef = useRef<HTMLElement | null>(null);
+  const pinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [adjustedPosition, setAdjustedPosition] = useState(position);
   const [hasEdited, setHasEdited] = useState(false);
 
@@ -93,8 +95,25 @@ export const QuickLook: React.FC<QuickLookProps> = ({
   }, [isOpen, position]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    containerRef.current?.focus({ preventScroll: true });
+    if (!isOpen) {
+      return;
+    }
+
+    previouslyFocusedElementRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      containerRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      const previouslyFocusedElement = previouslyFocusedElementRef.current;
+      previouslyFocusedElementRef.current = null;
+      if (previouslyFocusedElement?.isConnected) {
+        previouslyFocusedElement.focus({ preventScroll: true });
+      }
+    };
   }, [isOpen]);
 
   // Close on outside click
@@ -126,8 +145,11 @@ export const QuickLook: React.FC<QuickLookProps> = ({
       // Auto-pin if edited
       if (!hasEdited) {
         setHasEdited(true);
-        // Pin shortly after
-        setTimeout(() => {
+        if (pinTimerRef.current) {
+          clearTimeout(pinTimerRef.current);
+        }
+        pinTimerRef.current = setTimeout(() => {
+          pinTimerRef.current = null;
           onPin();
         }, 100);
       }
@@ -141,6 +163,13 @@ export const QuickLook: React.FC<QuickLookProps> = ({
     }
   }, [isOpen]);
 
+  useEffect(() => () => {
+    if (pinTimerRef.current) {
+      clearTimeout(pinTimerRef.current);
+      pinTimerRef.current = null;
+    }
+  }, []);
+
   if (!isOpen || !content) {
     return null;
   }
@@ -150,7 +179,15 @@ export const QuickLook: React.FC<QuickLookProps> = ({
       ref={containerRef}
       className="canvas-quick-look"
       data-shortcut-scope="canvas"
+      role="dialog"
+      aria-label={content.title}
       tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && event.target === event.currentTarget) {
+          event.preventDefault();
+          onPin();
+        }
+      }}
       style={{
         left: `${adjustedPosition.x}px`,
         top: `${adjustedPosition.y}px`,
@@ -160,20 +197,15 @@ export const QuickLook: React.FC<QuickLookProps> = ({
       <div className="canvas-quick-look__header">
         <div className="canvas-quick-look__title">
           <span>{content.title}</span>
-          {content.data?.filePath && (
-            <Tooltip content={t('canvas.openFileLocation')}>
-              <button className="canvas-quick-look__open-btn">
-                <ExternalLink size={12} />
-              </button>
-            </Tooltip>
-          )}
         </div>
         
         <div className="canvas-quick-look__actions">
           <Tooltip content={t('canvas.pinAsTab')}>
             <button
+              type="button"
               className="canvas-quick-look__action-btn canvas-quick-look__pin-btn"
               onClick={onPin}
+              aria-label={t('canvas.pinAsTab')}
             >
               <Pin size={14} />
             </button>
@@ -181,8 +213,10 @@ export const QuickLook: React.FC<QuickLookProps> = ({
           
           <Tooltip content={t('canvas.closeEsc')}>
             <button
+              type="button"
               className="canvas-quick-look__action-btn canvas-quick-look__close-btn"
               onClick={onClose}
+              aria-label={t('canvas.closeEsc')}
             >
               <X size={14} />
             </button>

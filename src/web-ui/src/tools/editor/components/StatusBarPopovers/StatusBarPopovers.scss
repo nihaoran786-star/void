@@ -8,8 +8,6 @@
  $popover-z: 360;
  $popover-gap: 4px;
  $popover-radius: 6px;
- $popover-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
- 
  .status-bar-popover {
    position: fixed;
    z-index: $popover-z;
@@ -18,9 +16,9 @@
    background: var(--color-bg-elevated);
    border: 1px solid var(--color-border-subtle);
    border-radius: $popover-radius;
-   box-shadow: $popover-shadow;
-   font-size: 12px;
-   font-family: $font-family-sans;
+   box-shadow: var(--shadow-lg);
+   font-size: var(--font-size-xs);
+  font-family: var(--font-family-sans);
    color: var(--color-text-primary);
    transform: translateY(-100%);
    animation: status-bar-popover-enter 0.15s cubic-bezier(0, 0, 0.2, 1) forwards;
@@ -39,7 +37,7 @@
     }
 
     .void-input {
-      font-size: 12px;
+      font-size: var(--font-size-xs);
       font-family: $font-family-mono;
     }
    }
@@ -63,22 +61,25 @@
      padding: 6px 12px;
      cursor: pointer;
      white-space: nowrap;
-     transition: background 0.1s ease;
-    font-size: 12px;
+    transition:
+      background-color var(--motion-fast) var(--easing-standard),
+      color var(--motion-fast) var(--easing-standard);
+    font-size: var(--font-size-xs);
     font-weight: 400;
     color: var(--color-text-primary);
  
      &:hover {
-       background: rgba(255, 255, 255, 0.08);
+       background: var(--control-bg-hover);
      }
 
     &:focus-visible {
-      outline: none;
-      background: rgba(255, 255, 255, 0.1);
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: -2px;
+      background: var(--control-bg-hover);
     }
 
      &--active {
-       background: rgba(255, 255, 255, 0.12);
+       background: var(--control-bg-active);
        color: var(--color-accent-400);
      }
    }
@@ -101,7 +102,7 @@
  
    &__hint {
      padding: 6px 12px;
-     font-size: 11px;
+     font-size: var(--font-size-2xs);
      color: var(--color-text-muted);
      border-bottom: 1px solid var(--color-border-subtle);
    }
@@ -117,4 +118,13 @@
      transform: translateY(-100%) scale(1);
    }
  }
- 
+
+ @media (prefers-reduced-motion: reduce) {
+   .status-bar-popover {
+     animation: none;
+
+     &__item {
+       transition: none;
+     }
+   }
+ }

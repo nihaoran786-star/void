@@ -43,7 +43,7 @@
   }
 
   &__name {
-    font-size: 1.2em;
+    font-size: var(--font-size-xl);
     font-weight: 900;
     color: var(--color-text-primary);
     line-height: $line-height-base;
@@ -73,7 +73,7 @@
 
   &__desc {
     margin: 0;
-    font-size: 0.85em;
+    font-size: var(--font-size-xs);
     font-weight: 300;
     color: rgba(var(--color-text-secondary), 0.85);
     line-height: $line-height-relaxed;
@@ -103,7 +103,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--color-text-muted);
     position: relative;
     z-index: 1;
@@ -127,7 +127,7 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--color-text-muted);
   }
 }

@@ -34,7 +34,7 @@
     }
 
     .search__input {
-      font-size: 13px;
+      font-size: var(--font-size-sm);
 
       &::placeholder {
         color: var(--color-text-tertiary);
@@ -55,7 +55,7 @@
     border-radius: 6px;
     background: var(--color-error-surface, rgba(239, 68, 68, 0.1));
     color: var(--color-error, #ef4444);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
   }
 
   &__list {
@@ -98,7 +98,7 @@
   }
 
   &__item-name {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: var(--color-text-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -106,7 +106,7 @@
   }
 
   &__item-hint {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     line-height: 1.35;
     color: var(--color-text-tertiary);
     font-weight: 400;
@@ -115,7 +115,7 @@
   }
 
   &__item-conflict-hint {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     color: var(--color-warning, #f59e0b);
   }
 
@@ -150,7 +150,7 @@
     background: var(--color-surface);
     color: var(--color-text-secondary);
     font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     cursor: pointer;
     white-space: nowrap;
     transition: border-color 0.1s, background 0.1s;
@@ -185,7 +185,7 @@
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-tertiary);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     cursor: pointer;
     padding: 0;
 
@@ -199,7 +199,7 @@
     padding: 32px;
     text-align: center;
     color: var(--color-text-tertiary);
-    font-size: 14px;
+    font-size: var(--font-size-base);
   }
 }
 

@@ -25,7 +25,7 @@
   clip-path: inset(0 round 20px);
   background: transparent;
   color: var(--color-text-primary);
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   isolation: isolate;
   contain: paint;
 }

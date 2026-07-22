@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PROTOTYPE — Void aggressive minimal workspace</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f8;
+      --panel: #ffffff;
+      --panel-soft: #f2f2f3;
+      --panel-hover: #ebebed;
+      --ink: #202124;
+      --ink-2: #5f6368;
+      --ink-3: #85888d;
+      --line: #e4e4e7;
+      --line-strong: #d4d4d8;
+      --accent: #1f2937;
+      --blue: #4f78a8;
+      --font: "Segoe UI Variable Text", "Noto Sans SC", "Microsoft YaHei UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.5;
+      text-rendering: geometricPrecision;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .screen {
+      display: none;
+      width: 100vw;
+      height: 100vh;
+      background: var(--panel);
+    }
+    .screen.is-active { display: flex; flex-direction: column; }
+
+    .topbar {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      flex: 0 0 44px;
+      min-width: 0;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 96%, var(--bg));
+    }
+    .brand {
+      border: 0;
+      background: transparent;
+      padding: 4px 8px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .crumbs {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 8px;
+      margin-left: 14px;
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+    .crumbs strong {
+      overflow: hidden;
+      color: var(--ink);
+      font-weight: 560;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+    }
+    .quiet-button, .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink-2);
+    }
+    .quiet-button:hover, .icon-button:hover { background: var(--panel-hover); color: var(--ink); }
+    .quiet-button { gap: 6px; font-size: 12px; }
+    .icon-button { width: 28px; padding: 0; font-size: 16px; }
+
+    .sidebar {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: #f5f5f6;
+    }
+    .sidebar-head { padding: 10px 10px 6px; }
+    .new-task {
+      width: 100%;
+      height: 32px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      text-align: left;
+      font-weight: 540;
+    }
+    .new-task:hover { background: var(--panel-hover); }
+    .search {
+      height: 30px;
+      margin-top: 4px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 7px;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    .search::placeholder { color: var(--ink-3); }
+    .nav-scroll { min-height: 0; overflow: hidden; padding: 3px 8px 12px; }
+    .nav-label {
+      margin: 14px 8px 5px;
+      color: var(--ink-3);
+      font-size: 11px;
+      font-weight: 580;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      height: 29px;
+      min-width: 0;
+      padding: 0 8px;
+      border-radius: 7px;
+      color: var(--ink-2);
+    }
+    .nav-item > span:first-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .nav-item .meta { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+    .nav-item.is-active { background: #e9e9eb; color: var(--ink); font-weight: 530; }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 9px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+
+    .conversation {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      background: var(--panel);
+    }
+    .conversation-head {
+      display: flex;
+      align-items: center;
+      flex: 0 0 38px;
+      padding: 0 18px;
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+      color: var(--ink-3);
+      font-size: 11px;
+    }
+    .conversation-head strong { color: var(--ink); font-size: 12px; font-weight: 570; }
+    .conversation-head .head-meta { margin-left: auto; }
+    .thread {
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      padding: 28px 28px 126px;
+    }
+    .thread-inner { width: min(720px, 100%); margin: 0 auto; }
+    .assistant-copy {
+      max-width: 67ch;
+      margin: 0 0 18px;
+      color: #2d2f33;
+      font-size: 14px;
+      line-height: 1.68;
+    }
+    .assistant-copy h3 {
+      margin: 0 0 7px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .assistant-copy p { margin: 0 0 9px; }
+    .user-row { display: flex; justify-content: flex-end; margin: 20px 0 22px; }
+    .user-bubble {
+      max-width: 76%;
+      padding: 9px 13px;
+      border-radius: 16px;
+      background: var(--panel-soft);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .result-row {
+      display: flex;
+      align-items: center;
+      min-height: 32px;
+      margin: 6px 0;
+      padding: 5px 4px;
+      border-top: 1px solid transparent;
+      border-bottom: 1px solid transparent;
+      color: var(--ink-2);
+      font-size: 12px;
+    }
+    .result-row:hover { border-color: var(--line); }
+    .result-row .chev { width: 18px; color: var(--ink-3); }
+    .result-row strong { color: var(--ink); font-weight: 540; }
+    .result-row .result-meta { margin-left: auto; color: var(--ink-3); }
+    .media-summary {
+      display: flex;
+      align-items: center;
+      min-height: 58px;
+      margin: 8px 0 18px;
+      gap: 10px;
+      padding: 6px 8px 6px 5px;
+      border-radius: 9px;
+      background: #fafafa;
+    }
+    .thumb-stack { display: flex; padding-left: 5px; }
+    .thumb {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      margin-left: -5px;
+      place-items: end start;
+      overflow: hidden;
+      padding: 4px;
+      border: 2px solid var(--panel);
+      border-radius: 7px;
+      background:
+        linear-gradient(145deg, rgba(28, 30, 35, .15), transparent 55%),
+        var(--thumb, #c7c2b7);
+      color: rgba(255,255,255,.95);
+      font-size: 9px;
+      font-weight: 650;
+    }
+    .thumb:nth-child(2) { --thumb: #8f9aa2; }
+    .thumb:nth-child(3) { --thumb: #b59c8c; }
+    .thumb:nth-child(4) { --thumb: #6f7771; }
+    .media-summary-copy { min-width: 0; }
+    .media-summary-copy strong { display: block; font-size: 12px; font-weight: 570; }
+    .media-summary-copy span { color: var(--ink-3); font-size: 11px; }
+    .media-summary .text-action { margin-left: auto; }
+    .text-action {
+      border: 0;
+      background: transparent;
+      color: var(--ink-2);
+      font-size: 11px;
+    }
+
+    .composer-wrap {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      padding: 12px 24px 18px;
+      background: linear-gradient(transparent, var(--panel) 24%);
+    }
+    .composer {
+      width: min(720px, 100%);
+      min-height: 76px;
+      margin: 0 auto;
+      padding: 12px 12px 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 4px 18px rgba(30, 30, 36, .07);
+    }
+    .composer-placeholder { padding: 0 2px 14px; color: var(--ink-3); font-size: 13px; }
+    .composer-tools { display: flex; align-items: center; gap: 4px; }
+    .model-pill {
+      margin-left: auto;
+      border: 0;
+      background: transparent;
+      color: var(--ink-2);
+      font-size: 11px;
+    }
+    .send {
+      display: grid;
+      width: 28px;
+      height: 28px;
+      margin-left: 2px;
+      place-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .stage-tabs {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      height: 36px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink-3);
+      font-size: 11px;
+    }
+    .stage-tab { position: relative; }
+    .stage-tab.is-active { color: var(--ink); font-weight: 620; }
+    .stage-tab.is-active::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: -11px;
+      left: 0;
+      height: 1px;
+      background: var(--ink);
+    }
+
+    /* A — Codex Core */
+    .variant-a .workspace { position: relative; display: flex; min-height: 0; flex: 1; }
+    .variant-a .sidebar { flex: 0 0 220px; }
+    .variant-a .conversation { padding-right: 0; }
+    .variant-a .thread { padding-right: 388px; }
+    .variant-a .composer-wrap { right: 372px; }
+    .variant-a .stage-drawer {
+      position: absolute;
+      z-index: 10;
+      top: 12px;
+      right: 12px;
+      bottom: 12px;
+      display: flex;
+      width: 348px;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.98);
+      box-shadow: 0 8px 32px rgba(30, 30, 35, .09);
+    }
+    .drawer-head {
+      display: flex;
+      align-items: center;
+      height: 42px;
+      padding: 0 12px 0 15px;
+      border-bottom: 1px solid var(--line);
+    }
+    .drawer-head strong { font-size: 13px; font-weight: 620; }
+    .drawer-head .team-link { margin-left: auto; color: var(--ink-2); font-size: 11px; }
+    .drawer-body { min-height: 0; overflow: hidden; padding: 18px 22px 22px; }
+    .script-kicker { color: var(--ink-3); font-size: 10px; }
+    .script-title { margin: 4px 0 18px; font-size: 15px; font-weight: 650; }
+    .script-block { margin: 0 0 18px; }
+    .script-block strong { display: block; margin-bottom: 5px; font-size: 12px; }
+    .script-block p { margin: 0 0 8px; color: #34363a; font-size: 12px; line-height: 1.65; }
+    .script-divider { margin: 18px 0; border: 0; border-top: 1px solid var(--line); }
+
+    /* B — Media Focus */
+    .variant-b .workspace { display: flex; min-height: 0; flex: 1; }
+    .variant-b .rail {
+      display: flex;
+      flex: 0 0 48px;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 0;
+      border-right: 1px solid var(--line);
+      background: #f5f5f6;
+    }
+    .variant-b .rail .icon-button:last-child { margin-top: auto; }
+    .variant-b .chat-narrow {
+      position: relative;
+      display: flex;
+      flex: 0 0 416px;
+      min-width: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .variant-b .chat-narrow .thread { padding: 22px 22px 118px; }
+    .variant-b .chat-narrow .assistant-copy { font-size: 13px; }
+    .variant-b .chat-narrow .composer-wrap { padding-inline: 14px; }
+    .variant-b .chat-narrow .composer { min-height: 68px; }
+    .film-workspace { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; }
+    .film-head { display: flex; align-items: center; height: 38px; border-bottom: 1px solid var(--line); }
+    .film-head .stage-tabs { flex: 1; height: 38px; border-bottom: 0; }
+    .film-head .quiet-button { margin-right: 8px; }
+    .preview-area { position: relative; display: grid; min-height: 0; flex: 1; place-items: center; background: #ececee; }
+    .preview-frame {
+      position: relative;
+      width: min(82%, 760px);
+      aspect-ratio: 16/9;
+      overflow: hidden;
+      border-radius: 5px;
+      background:
+        radial-gradient(circle at 70% 30%, rgba(203, 181, 151, .34), transparent 26%),
+        linear-gradient(120deg, #33383c 0 36%, #767b78 36% 55%, #2d3032 55%);
+      box-shadow: 0 16px 44px rgba(22, 24, 27, .18);
+    }
+    .preview-caption {
+      position: absolute;
+      right: 0;
+      bottom: 20px;
+      left: 0;
+      color: #f5f5f5;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(0,0,0,.7);
+      font-size: 15px;
+      font-weight: 620;
+    }
+    .preview-meta {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      color: rgba(255,255,255,.78);
+      font-size: 10px;
+    }
+    .filmstrip {
+      display: flex;
+      align-items: center;
+      flex: 0 0 84px;
+      gap: 7px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+    }
+    .shot {
+      position: relative;
+      width: 104px;
+      height: 58px;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      background: linear-gradient(145deg, var(--shot-a, #6d7474), var(--shot-b, #b3a68f));
+    }
+    .shot:nth-child(2) { --shot-a:#3f4650; --shot-b:#9b8c82; }
+    .shot:nth-child(3) { --shot-a:#756b64; --shot-b:#c0a984; }
+    .shot:nth-child(4) { --shot-a:#4f5955; --shot-b:#8b9290; }
+    .shot:nth-child(5) { --shot-a:#353941; --shot-b:#938a86; }
+    .shot.is-active { border-color: var(--ink); }
+    .shot span {
+      position: absolute;
+      right: 4px;
+      bottom: 3px;
+      color: rgba(255,255,255,.88);
+      font-size: 9px;
+    }
+    .filmstrip-summary { margin-left: auto; color: var(--ink-3); font-size: 11px; }
+
+    /* C — Command Stream */
+    .variant-c .workspace { display: flex; min-height: 0; flex: 1; }
+    .variant-c .sidebar { flex: 0 0 188px; }
+    .variant-c .conversation-head { justify-content: center; height: 40px; }
+    .variant-c .conversation-head .stage-tabs { height: 38px; border: 0; }
+    .variant-c .thread { padding-top: 34px; }
+    .variant-c .thread-inner { width: min(800px, 100%); }
+    .variant-c .assistant-copy { max-width: 72ch; }
+    .command-group {
+      margin: 10px 0 22px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .command-group .result-row { margin: 0; padding-inline: 2px; }
+    .command-group .result-row + .result-row { border-top-color: var(--line); }
+    .inline-stage {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin: 18px 0 8px;
+    }
+    .inline-stage strong { font-size: 13px; }
+    .inline-stage span { color: var(--ink-3); font-size: 11px; }
+    .variant-c .media-summary { background: transparent; border-top: 1px solid var(--line); border-radius: 0; }
+    .variant-c .thumb { width: 34px; height: 34px; border-radius: 5px; }
+
+    .variant-mark {
+      position: fixed;
+      z-index: 50;
+      bottom: 12px;
+      left: 12px;
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: rgba(255,255,255,.92);
+      color: var(--ink-2);
+      font-size: 10px;
+      letter-spacing: .02em;
+    }
+    .prototype-switcher {
+      position: fixed;
+      z-index: 100;
+      bottom: 16px;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px;
+      border: 1px solid #303238;
+      border-radius: 999px;
+      background: #222329;
+      box-shadow: 0 8px 28px rgba(0,0,0,.22);
+      color: #fff;
+      transform: translateX(-50%);
+    }
+    .prototype-switcher button {
+      min-width: 30px;
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: inherit;
+    }
+    .prototype-switcher button:hover { background: rgba(255,255,255,.12); }
+    .prototype-label { min-width: 150px; padding: 0 10px; text-align: center; font-size: 11px; }
+    body.is-capture .prototype-switcher { display: none; }
+
+    @media (max-width: 1100px) {
+      .variant-a .sidebar { flex-basis: 184px; }
+      .variant-a .stage-drawer { width: 316px; }
+      .variant-a .thread { padding-right: 356px; }
+      .variant-a .composer-wrap { right: 340px; }
+      .variant-b .chat-narrow { flex-basis: 350px; }
+      .variant-c .sidebar { flex-basis: 164px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- PROTOTYPE: three structural options, switch with ?variant=A|B|C. -->
+  <section class="screen variant-a" data-variant="A">
+    <header class="topbar">
+      <button class="brand">Void</button>
+      <div class="crumbs"><span>会话</span><span>/</span><strong>爱情短剧创作</strong></div>
+      <div class="top-actions">
+        <button class="quiet-button">短剧 <span>▾</span></button>
+        <button class="icon-button" aria-label="更多">···</button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <button class="new-task">＋　新建会话</button>
+          <input class="search" placeholder="搜索" />
+        </div>
+        <div class="nav-scroll">
+          <div class="nav-label">最近</div>
+          <div class="nav-item is-active"><span>爱情短剧创作</span><span class="meta">现在</span></div>
+          <div class="nav-item"><span>角色视觉统一性检查</span></div>
+          <div class="nav-item"><span>第 3 集分镜调整</span></div>
+          <div class="nav-label">工作区</div>
+          <div class="nav-item"><span>直播短剧展示</span></div>
+          <div class="nav-item"><span>媒体资产</span><span class="meta">28</span></div>
+        </div>
+        <div class="sidebar-foot">本地工作区</div>
+      </aside>
+      <main class="conversation">
+        <div class="conversation-head"><strong>爱情短剧创作</strong><span class="head-meta">已同步</span></div>
+        <div class="thread">
+          <div class="thread-inner">
+            <div class="assistant-copy">
+              <h3>资产提取完成</h3>
+              <p>已从第 1 集剧本中识别主要角色、场景与关键道具。角色命名和场景连续性已校准。</p>
+            </div>
+            <div class="result-row"><span class="chev">›</span><strong>剧本资产</strong><span>　12 项</span><span class="result-meta">已完成</span></div>
+            <div class="media-summary">
+              <div class="thumb-stack"><div class="thumb">林晚</div><div class="thumb">周屿</div><div class="thumb">医院</div><div class="thumb">婚礼</div></div>
+              <div class="media-summary-copy"><strong>角色与场景参考</strong><span>6 角色 · 4 场景 · 2 道具</span></div>
+              <button class="text-action">查看</button>
+            </div>
+            <div class="user-row"><div class="user-bubble">保持人物一致，继续生成第 1 集分镜。</div></div>
+            <div class="assistant-copy"><p>已锁定角色参考并完成 18 个镜头。媒体只在需要确认时展开。</p></div>
+            <div class="result-row"><span class="chev">›</span><strong>分镜生成</strong><span>　18 镜</span><span class="result-meta">2m 14s</span></div>
+            <div class="result-row"><span class="chev">›</span><strong>团队</strong><span>　5 个固定代理</span><span class="result-meta">全部就绪</span></div>
+          </div>
+        </div>
+        <div class="composer-wrap">
+          <div class="composer">
+            <div class="composer-placeholder">描述下一步，或引用剧本与媒体…</div>
+            <div class="composer-tools">
+              <button class="icon-button">＋</button>
+              <button class="model-pill">5.6 Sol　▾</button>
+              <button class="icon-button">⌁</button>
+              <button class="send">↑</button>
+            </div>
+          </div>
+        </div>
+      </main>
+      <aside class="stage-drawer">
+        <div class="drawer-head"><strong>AI 短剧</strong><span class="team-link">团队 5</span><button class="icon-button">×</button></div>
+        <div class="stage-tabs"><span class="stage-tab is-active">剧本</span><span class="stage-tab">资产</span><span class="stage-tab">分镜</span><span class="stage-tab">视频</span><span class="stage-tab">后期</span></div>
+        <div class="drawer-body">
+          <div class="script-kicker">第 1 集 · 03:20</div>
+          <div class="script-title">《迟到三年的婚礼》</div>
+          <div class="script-block"><strong>记忆点台词</strong><p>“那个要和你订婚的人，你爱他吗？”</p><p>“至少他会准时出现。”</p></div>
+          <hr class="script-divider" />
+          <div class="script-block"><strong>结尾画面</strong><p>林晚将摄影展名称改成《迟到三年的婚礼》。</p></div>
+          <div class="result-row"><span class="chev">›</span><strong>跳到当前镜头</strong><span class="result-meta">1:35</span></div>
+        </div>
+      </aside>
+    </div>
+    <div class="variant-mark">A · Codex Core / 推荐</div>
+  </section>
+
+  <section class="screen variant-b" data-variant="B">
+    <header class="topbar">
+      <button class="brand">V</button>
+      <div class="crumbs"><span>爱情短剧创作</span><span>/</span><strong>第 1 集 · 分镜 12</strong></div>
+      <div class="top-actions"><button class="quiet-button">团队 5</button><button class="icon-button">···</button></div>
+    </header>
+    <div class="workspace">
+      <aside class="rail">
+        <button class="icon-button">＋</button><button class="icon-button">⌕</button><button class="icon-button">会</button><button class="icon-button">资</button><button class="icon-button">⋯</button>
+      </aside>
+      <section class="chat-narrow">
+        <div class="conversation-head"><strong>创作记录</strong><span class="head-meta">18 镜</span></div>
+        <div class="thread">
+          <div class="assistant-copy"><h3>镜头 12 已更新</h3><p>人物参考保持锁定。当前只展示选中镜头，其余媒体收进底部胶片条。</p></div>
+          <div class="result-row"><span class="chev">›</span><strong>引用资产</strong><span>　林晚 / 周屿</span></div>
+          <div class="result-row"><span class="chev">›</span><strong>生成结果</strong><span>　4 张</span><span class="result-meta">已完成</span></div>
+          <div class="user-row"><div class="user-bubble">用第三张，镜头向左移动一点。</div></div>
+          <div class="assistant-copy"><p>已设为当前画面，并保留全部原图和重新生成入口。</p></div>
+        </div>
+        <div class="composer-wrap"><div class="composer"><div class="composer-placeholder">调整当前镜头…</div><div class="composer-tools"><button class="icon-button">＋</button><button class="model-pill">Sol ▾</button><button class="send">↑</button></div></div></div>
+      </section>
+      <section class="film-workspace">
+        <div class="film-head">
+          <div class="stage-tabs"><span class="stage-tab">剧本</span><span class="stage-tab">资产</span><span class="stage-tab is-active">分镜</span><span class="stage-tab">视频</span><span class="stage-tab">后期</span></div>
+          <button class="quiet-button">镜头 12 / 18　▾</button>
+        </div>
+        <div class="preview-area">
+          <div class="preview-frame"><span class="preview-meta">镜头 12 · 中景 · 4.2s</span><div class="preview-caption">“至少他会准时出现。”</div></div>
+        </div>
+        <div class="filmstrip">
+          <div class="shot"><span>09</span></div><div class="shot"><span>10</span></div><div class="shot"><span>11</span></div><div class="shot is-active"><span>12</span></div><div class="shot"><span>13</span></div>
+          <span class="filmstrip-summary">仅当前镜头进入大预览</span>
+        </div>
+      </section>
+    </div>
+    <div class="variant-mark">B · Media Focus</div>
+  </section>
+
+  <section class="screen variant-c" data-variant="C">
+    <header class="topbar">
+      <button class="brand">Void</button>
+      <div class="crumbs"><strong>爱情短剧创作</strong></div>
+      <div class="top-actions"><button class="quiet-button">预览</button><button class="icon-button">···</button></div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="sidebar-head"><button class="new-task">＋　新建</button><input class="search" placeholder="搜索会话" /></div>
+        <div class="nav-scroll">
+          <div class="nav-label">今天</div>
+          <div class="nav-item is-active"><span>爱情短剧创作</span></div>
+          <div class="nav-item"><span>角色提示词优化</span></div>
+          <div class="nav-label">工作区</div>
+          <div class="nav-item"><span>直播短剧展示</span></div>
+        </div>
+      </aside>
+      <main class="conversation">
+        <div class="conversation-head"><div class="stage-tabs"><span class="stage-tab">剧本</span><span class="stage-tab">资产</span><span class="stage-tab is-active">分镜</span><span class="stage-tab">视频</span><span class="stage-tab">后期</span></div></div>
+        <div class="thread">
+          <div class="thread-inner">
+            <div class="assistant-copy"><h3>第 1 集分镜已完成</h3><p>18 个镜头已按剧本节拍生成。角色参考、场景参考和生成参数都保留在结果中，但默认折叠。</p></div>
+            <div class="command-group">
+              <div class="result-row"><span class="chev">›</span><strong>剧本分析</strong><span>　6 个节拍</span><span class="result-meta">已完成</span></div>
+              <div class="result-row"><span class="chev">›</span><strong>资产引用</strong><span>　12 项</span><span class="result-meta">已锁定</span></div>
+              <div class="result-row"><span class="chev">›</span><strong>分镜图片</strong><span>　18 镜 / 42 张</span><span class="result-meta">查看</span></div>
+              <div class="result-row"><span class="chev">›</span><strong>代理团队</strong><span>　StoryboardAI + 4</span><span class="result-meta">就绪</span></div>
+            </div>
+            <div class="inline-stage"><strong>当前选择 · 镜头 12</strong><span>中景 · 4.2 秒 · 医院走廊</span></div>
+            <div class="media-summary">
+              <div class="thumb-stack"><div class="thumb">12A</div><div class="thumb">12B</div><div class="thumb">12C</div></div>
+              <div class="media-summary-copy"><strong>4 个候选结果</strong><span>第 3 张已选中，点击进入完整预览</span></div>
+              <button class="text-action">打开预览</button>
+            </div>
+            <div class="user-row"><div class="user-bubble">继续做视频，保留这个构图。</div></div>
+            <div class="assistant-copy"><p>可以。视频生成会沿用已选分镜、角色参考和原有媒体调用能力。</p></div>
+          </div>
+        </div>
+        <div class="composer-wrap"><div class="composer"><div class="composer-placeholder">输入下一步；输入 / 查看全部能力…</div><div class="composer-tools"><button class="icon-button">＋</button><button class="model-pill">5.6 Sol　▾</button><button class="icon-button">⌁</button><button class="send">↑</button></div></div></div>
+      </main>
+    </div>
+    <div class="variant-mark">C · Command Stream / 最激进</div>
+  </section>
+
+  <div class="prototype-switcher">
+    <button id="previous" aria-label="上一方案">←</button>
+    <div class="prototype-label" id="variant-label"></div>
+    <button id="next" aria-label="下一方案">→</button>
+  </div>
+
+  <script>
+    const variants = [
+      { key: "A", label: "A — Codex Core" },
+      { key: "B", label: "B — Media Focus" },
+      { key: "C", label: "C — Command Stream" },
+    ];
+    const params = new URLSearchParams(location.search);
+    if (params.get("capture") === "1") document.body.classList.add("is-capture");
+    let current = Math.max(0, variants.findIndex(item => item.key === (params.get("variant") || "A").toUpperCase()));
+
+    function render() {
+      document.querySelectorAll(".screen").forEach(node => {
+        node.classList.toggle("is-active", node.dataset.variant === variants[current].key);
+      });
+      document.getElementById("variant-label").textContent = variants[current].label;
+      document.title = `PROTOTYPE — ${variants[current].label}`;
+    }
+    function move(delta) {
+      current = (current + delta + variants.length) % variants.length;
+      const next = new URL(location.href);
+      next.searchParams.set("variant", variants[current].key);
+      history.replaceState(null, "", next);
+      render();
+    }
+    document.getElementById("previous").addEventListener("click", () => move(-1));
+    document.getElementById("next").addEventListener("click", () => move(1));
+    addEventListener("keydown", event => {
+      if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
+      if (event.key === "ArrowLeft") move(-1);
+      if (event.key === "ArrowRight") move(1);
+    });
+    render();
+  </script>
+</body>
+</html>

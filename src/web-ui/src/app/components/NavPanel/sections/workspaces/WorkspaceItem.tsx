@@ -287,6 +287,15 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     requestAnimationFrame(apply);
   }, []);
 
+  const closeWorktreeModal = useCallback(() => {
+    setWorktreeModalOpen(false);
+    window.requestAnimationFrame(() => {
+      menuAnchorRef.current
+        ?.querySelector<HTMLButtonElement>('button')
+        ?.focus({ preventScroll: true });
+    });
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
     const handleOutside = (event: MouseEvent) => {
@@ -1216,7 +1225,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
 
       <BranchSelectModal
         isOpen={worktreeModalOpen}
-        onClose={() => setWorktreeModalOpen(false)}
+        onClose={closeWorktreeModal}
         onSelect={(result) => { void handleCreateWorktree(result); }}
         repositoryPath={workspace.rootPath}
         title={t('nav.workspaces.actions.newWorktree')}

@@ -1,0 +1,214 @@
+@mixin styles {
+  .void-ui--minimal .virtual-message-list {
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ) {
+      margin: var(--workspace-space-1) 0;
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-panel);
+      backdrop-filter: none;
+      box-shadow: none;
+      transition:
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        background var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ):hover {
+      border-color: var(--workspace-border-strong);
+      box-shadow: none;
+    }
+
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ):active {
+      box-shadow: none;
+    }
+
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ):has(
+        > .base-tool-card-expanded-collapse:not(
+            .smooth-height-collapse--closed
+          ),
+        > .base-tool-card-error-collapse:not(.smooth-height-collapse--closed)
+      )
+      .base-tool-card-header::after {
+      background: var(--workspace-border-subtle);
+    }
+
+    :where(
+        .base-tool-card-wrapper:not(.task-tool-display):not(
+            .media-generation-card
+          ),
+        .compact-tool-card-wrapper:not(.media-generation-card)
+      ) {
+      .base-tool-card-header {
+        gap: var(--workspace-space-1);
+        padding: var(--workspace-space-1) var(--workspace-space-2);
+        background: transparent;
+        transition: background var(--workspace-motion-fast)
+          var(--workspace-easing-standard);
+      }
+
+      .base-tool-card-header::before {
+        display: none;
+      }
+
+      .base-tool-card-expanded {
+        padding: var(--workspace-space-2);
+        background: transparent;
+      }
+
+      .tool-card-icon-slot {
+        width: 26px;
+        margin-right: var(--workspace-space-1);
+      }
+
+      .tool-card-icon-slot::after,
+      .tool-card-status-icon.tool-card-status-icon--with-divider {
+        border-color: var(--workspace-border-subtle);
+      }
+
+      .tool-card-icon-affordance-hit:focus-visible {
+        border-radius: var(--workspace-radius-control);
+        outline-color: var(--workspace-focus-ring);
+      }
+
+      .tool-card-action,
+      .compact-card-action {
+        color: var(--workspace-text-secondary);
+        font-weight: var(--workspace-font-weight-medium);
+      }
+
+      .tool-card-content,
+      .compact-card-content,
+      .compact-card-extra {
+        color: var(--workspace-text-muted);
+        font-weight: var(--workspace-font-weight-regular);
+      }
+
+      .compact-tool-card,
+      .compact-card-action,
+      .compact-card-content,
+      .compact-card-extra,
+      .compact-card-content .read-file-meta,
+      .tool-card-status-icon {
+        transition:
+          color var(--workspace-motion-fast) var(--workspace-easing-standard),
+          opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
+          background var(--workspace-motion-fast)
+            var(--workspace-easing-standard);
+      }
+
+      .compact-tool-card.clickable:hover
+        :where(.tool-card-icon-marks, .compact-card-right-status-icon),
+      .compact-tool-card.clickable:active .tool-card-icon-marks {
+        transform: none;
+      }
+
+      .tool-card-status-icon .loading__spinner {
+        box-shadow: none !important;
+      }
+
+      :where(.tool-card-status-icon .icon-error, .tcss-error) {
+        color: var(--workspace-status-error-text);
+        filter: none;
+      }
+
+      :where(.tool-card-status-icon .icon-completed, .tcss-check) {
+        color: var(--workspace-status-success-text);
+      }
+
+      .compact-tool-card-wrapper--dense-command
+        .tool-card-header-action.icon-btn--xs {
+        width: 24px;
+        height: 24px;
+        border-radius: var(--workspace-radius-control);
+      }
+
+      .tool-card-header-action.icon-btn--xs:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: 1px;
+      }
+
+      :where(
+          .base-tool-card,
+          .compact-tool-card
+        ):focus-within {
+        outline-color: var(--workspace-focus-ring);
+      }
+    }
+
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ).requires-confirmation {
+      border-color: var(--workspace-status-warning-border);
+      border-width: 1px;
+      background: var(--workspace-status-warning-bg);
+      box-shadow: none;
+      animation: none;
+    }
+
+    .base-tool-card-wrapper:not(.task-tool-display):not(
+        .media-generation-card
+      ).requires-confirmation:hover {
+      border-color: var(--workspace-status-warning-border);
+      box-shadow: none;
+    }
+
+    :where(
+        .base-tool-card-wrapper:not(.task-tool-display):not(
+            .media-generation-card
+          ),
+        .compact-tool-card-wrapper:not(.media-generation-card)
+      ).default-tool-card.requires-confirmation
+      .compact-tool-card {
+      background: var(--workspace-status-warning-bg) !important;
+      box-shadow: none !important;
+      animation: none;
+    }
+
+    :where(
+        .base-tool-card-wrapper:not(.task-tool-display):not(
+            .media-generation-card
+          ),
+        .compact-tool-card-wrapper:not(.media-generation-card)
+      ).default-tool-card.requires-confirmation
+      :where(.compact-card-status-icon, .compact-card-right-icon) {
+      color: var(--workspace-status-warning-text);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .virtual-message-list
+      :where(
+        .base-tool-card-wrapper:not(.task-tool-display):not(
+            .media-generation-card
+          ),
+        .compact-tool-card-wrapper:not(.media-generation-card)
+      ),
+    .void-ui--minimal .virtual-message-list
+      :where(
+        .base-tool-card-wrapper:not(.task-tool-display):not(
+            .media-generation-card
+          ),
+        .compact-tool-card-wrapper:not(.media-generation-card)
+      )
+      :where(
+        .base-tool-card-header,
+        .compact-tool-card,
+        .compact-card-action,
+        .compact-card-content,
+        .compact-card-extra,
+        .tool-card-icon-marks,
+        .tool-card-status-icon
+      ) {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}

@@ -26,7 +26,11 @@ vi.mock('react-i18next', () => ({
         'steering.statusPending': '等待触发',
         'steering.statusInjected': '已触发',
         'message.copy': '复制',
+        'message.copied': '已复制',
         'message.copyFailed': '复制失败',
+        'message.edit': '编辑消息',
+        'message.cannotRollback': '无法回滚',
+        'message.rollbackTo': '回滚到此消息前',
       };
       return labels[key] ?? key;
     },
@@ -213,6 +217,15 @@ describe('UserMessageItem steering tag', () => {
     });
 
     expect(container.querySelector('.user-message-item__rollback-btn')).not.toBeNull();
+    expect(
+      container.querySelector('.user-message-item__copy-btn')?.getAttribute('title'),
+    ).toBe('复制');
+    expect(
+      container.querySelector('.user-message-item__edit-btn')?.getAttribute('aria-label'),
+    ).toBe('编辑消息');
+    expect(
+      container.querySelector('.user-message-item__rollback-btn')?.getAttribute('aria-label'),
+    ).toBe('回滚到此消息前');
   });
 
   it('fills the panel composer instead of the global chat input when rollback has a scoped handler', async () => {

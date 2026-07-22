@@ -42,11 +42,11 @@ $ins-r-sm: 5px;
 $ins-r-lg: 12px;
 
 // Type scale
-$ins-title:   20px;
-$ins-section: 12px;   // section headings (small caps style)
-$ins-body:    14px;
-$ins-small:   13px;
-$ins-label:   12px;
+$ins-title:   var(--font-size-2xl);
+$ins-section: var(--font-size-xs);   // section headings (small caps style)
+$ins-body:    var(--font-size-base);
+$ins-small:   var(--font-size-sm);
+$ins-label:   var(--font-size-xs);
 
 // ============================================================
 // Keyframes
@@ -75,7 +75,7 @@ $ins-label:   12px;
   height: 100%;
   overflow: hidden;
   animation: ins-fade-in 0.18s ease-out both;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   font-size: $ins-body;
   line-height: 1.6;
   color: var(--color-text-primary);
@@ -141,7 +141,7 @@ $ins-label:   12px;
 }
 
 .insights-scene__day-filter-label {
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   font-weight: $font-weight-medium;
   color: var(--color-text-muted);
   white-space: nowrap;
@@ -191,7 +191,7 @@ $ins-label:   12px;
   span { flex: 1; }
   button {
     background: none; border: none; color: inherit;
-    cursor: pointer; font-size: 14px; padding: 0; opacity: 0.6;
+    cursor: pointer; font-size: var(--font-size-base); padding: 0; opacity: 0.6;
     &:hover { opacity: 1; }
   }
 }
@@ -231,7 +231,7 @@ $ins-label:   12px;
 .insights-scene__history-hint {
   font-weight: 400;
   text-transform: none;
-  font-size: 10px;
+  font-size: var(--font-size-xxs);
   opacity: 0.55;
   letter-spacing: 0;
   margin-left: $ins-sm;
@@ -342,7 +342,7 @@ $ins-label:   12px;
   }
 
   &__tag {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 1px 6px;
     border-radius: 3px;
     background: $ins-blue-bg;
@@ -498,7 +498,7 @@ $ins-label:   12px;
 
   &__title {
     margin: 0;
-    font-size: 28px;
+    font-size: var(--font-size-4xl);
     font-weight: 700;
     letter-spacing: -0.035em;
     line-height: 1.2;
@@ -536,7 +536,7 @@ $ins-label:   12px;
 
   // Section group label (reserved) - keeps structure flexible
   &__group-label {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.6px;
@@ -617,7 +617,7 @@ $ins-label:   12px;
   display: flex;
   align-items: center;
   gap: $ins-sm;
-  font-size: 18px;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--color-text-primary);
@@ -671,7 +671,7 @@ $ins-label:   12px;
   &:hover { border-color: var(--border-medium); }
 
   &__title {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.6px;
@@ -750,7 +750,7 @@ $ins-label:   12px;
   }
 
   &__value {
-    font-size: 20px;
+    font-size: var(--font-size-2xl);
     font-weight: 600;
     color: var(--color-text-primary);
     letter-spacing: -0.03em;
@@ -758,7 +758,7 @@ $ins-label:   12px;
   }
 
   &__label {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -786,7 +786,7 @@ $ins-label:   12px;
   padding: 0;
 
   &__title {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.6px;
@@ -1069,7 +1069,7 @@ $ins-label:   12px;
   gap: 3px;
 
   &__value {
-    font-size: 17px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     letter-spacing: -0.03em;
     color: $ins-blue;
@@ -1123,7 +1123,7 @@ $ins-label:   12px;
 
   &__badge {
     display: inline-block;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     color: var(--color-text-muted);
     background: $ins-surface-soft;
@@ -1160,7 +1160,7 @@ $ins-label:   12px;
   &:first-of-type { border-top: 1px solid $ins-border; }
 
   &__index {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
     color: $ins-blue;
     line-height: 1.5;
@@ -1323,7 +1323,7 @@ $ins-label:   12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 700;
     letter-spacing: 0;
     color: $ins-blue;
@@ -1370,7 +1370,7 @@ $ins-label:   12px;
   }
 
   &__how-label {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1411,7 +1411,7 @@ $ins-label:   12px;
   }
 
   &__headline {
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
     font-weight: 600;
     color: var(--color-text-primary);
     margin: 0 0 $ins-sm;
@@ -1426,5 +1426,87 @@ $ins-label:   12px;
     margin: 0;
     max-width: none;
     text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .insights-scene,
+  .insights-scene:not(.insights-scene--report) {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .insights-scene__header {
+    padding-inline: $ins-md;
+  }
+
+  .insights-scene__error,
+  .insights-scene__progress-info {
+    margin-inline: $ins-md;
+  }
+
+  .insights-report-header {
+    height: auto;
+    min-height: 40px;
+    padding: $ins-xs $ins-md;
+    gap: $ins-sm;
+    flex-wrap: wrap;
+
+    &__back::after {
+      display: none;
+    }
+
+    &__meta {
+      order: 3;
+      width: 100%;
+      margin-left: 0;
+      flex-wrap: wrap;
+      gap: $ins-md;
+    }
+  }
+
+  .insights-report-content {
+    flex-direction: column;
+  }
+
+  .insights-report-nav {
+    order: -1;
+    position: static;
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    border-left: 0;
+    border-bottom: 1px solid $ins-border;
+    margin: 0;
+    padding: $ins-xs $ins-md;
+
+    &__item {
+      flex: 0 0 auto;
+    }
+  }
+
+  .insights-report-body {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: $ins-md;
+  }
+
+  .insights-report-body-inner {
+    min-width: 0;
+  }
+
+  .insights-report-hero__title {
+    overflow-wrap: anywhere;
+  }
+
+  .insights-charts-row {
+    grid-template-columns: 1fr;
+  }
+
+  .insights-stats__row {
+    flex-wrap: wrap;
   }
 }

@@ -11,7 +11,7 @@
 
   &__description {
     margin: 0 0 12px 0;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     line-height: 1.5;
     color: var(--color-text-muted);
   }

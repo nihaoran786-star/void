@@ -116,8 +116,60 @@ export class ChatInput extends BasePage {
             }
             // Add newline except after last line
             if (i < lines.length - 1) {
+              const htmlBeforeEnter = await browser.execute(
+                (element: HTMLElement) => element.innerHTML,
+                input,
+              );
               await browser.keys(['Shift', 'Enter']);
               await browser.pause(50);
+              const webdriverInsertedLineBreak = await browser.execute(
+                (element: HTMLElement, previousHtml: string) =>
+                  element.innerHTML !== previousHtml,
+                input,
+                htmlBeforeEnter,
+              );
+
+              // The embedded desktop WebDriver dispatches the correct keyboard
+              // event but does not apply contenteditable's browser-default DOM
+              // mutation. Mirror WebKit's soft-line-break node only when the
+              // driver left the DOM untouched; production input handling still
+              // receives the normal bubbling input event.
+              if (!webdriverInsertedLineBreak) {
+                await browser.execute((element: HTMLElement) => {
+                  element.focus();
+                  const selection = window.getSelection();
+                  const range =
+                    selection &&
+                    selection.rangeCount > 0 &&
+                    element.contains(selection.anchorNode)
+                      ? selection.getRangeAt(0)
+                      : document.createRange();
+
+                  if (!element.contains(range.startContainer)) {
+                    range.selectNodeContents(element);
+                    range.collapse(false);
+                  }
+
+                  range.deleteContents();
+                  const lineBreak = document.createElement('br');
+                  range.insertNode(lineBreak);
+                  range.setStartAfter(lineBreak);
+                  range.collapse(true);
+                  selection?.removeAllRanges();
+                  selection?.addRange(range);
+
+                  const inputEvent =
+                    typeof InputEvent !== 'undefined'
+                      ? new InputEvent('input', {
+                          bubbles: true,
+                          inputType: 'insertLineBreak',
+                          data: null,
+                        })
+                      : new Event('input', { bubbles: true });
+                  element.dispatchEvent(inputEvent);
+                }, input);
+                await browser.pause(50);
+              }
             }
           }
         } else {

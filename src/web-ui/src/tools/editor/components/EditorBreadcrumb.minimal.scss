@@ -1,0 +1,163 @@
+@mixin styles {
+  .void-ui--minimal {
+    .editor-breadcrumb {
+      height: var(--workspace-control-height);
+      gap: 0;
+      padding: 0 var(--workspace-space-2);
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+      color: var(--workspace-text-secondary);
+      font-family: var(--workspace-font-family);
+
+      &__separator {
+        color: var(--workspace-text-muted);
+        opacity: 1;
+      }
+
+      &__item {
+        min-height: 22px;
+        gap: var(--workspace-space-1);
+        padding: 1px var(--workspace-space-1);
+        border-radius: var(--workspace-radius-control);
+        color: var(--workspace-text-secondary);
+        font-family: var(--workspace-font-family);
+        font-size: var(--workspace-font-size-meta);
+        line-height: var(--workspace-line-height-meta);
+
+        &-text {
+          max-width: 112px;
+        }
+
+        &--folder .editor-breadcrumb__item-icon {
+          color: var(--workspace-status-warning-text);
+        }
+
+        &--file .editor-breadcrumb__item-icon {
+          color: var(--workspace-accent);
+        }
+
+        &--clickable:hover {
+          background: var(--workspace-surface-hover);
+          color: var(--workspace-text-primary);
+        }
+
+        &--clickable:focus-visible {
+          outline-color: var(--workspace-focus-ring);
+        }
+
+        &--active {
+          background: var(--workspace-surface-active);
+          color: var(--workspace-text-primary);
+        }
+      }
+    }
+
+    .editor-breadcrumb-dropdown {
+      width: 208px;
+      max-height: min(280px, calc(100vh - 16px));
+      border-color: var(--workspace-border-strong);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-raised);
+      box-shadow: var(--workspace-shadow-raised);
+      color: var(--workspace-text-primary);
+      font-family: var(--workspace-font-family);
+      animation-duration: var(--workspace-motion-fast);
+
+      &:focus {
+        outline: none;
+      }
+
+      &__header {
+        gap: var(--workspace-space-2);
+        min-height: 32px;
+        padding: var(--workspace-space-1) var(--workspace-space-2);
+        border-color: var(--workspace-border-subtle);
+        background: var(--workspace-surface-panel);
+      }
+
+      &__back {
+        width: var(--workspace-icon-target);
+        height: var(--workspace-icon-target);
+        border-radius: var(--workspace-radius-control);
+        color: var(--workspace-text-muted);
+
+        &:hover {
+          background: var(--workspace-surface-hover);
+          color: var(--workspace-text-primary);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--workspace-focus-ring);
+          outline-offset: 1px;
+        }
+      }
+
+      &__title {
+        color: var(--workspace-text-secondary);
+        font-size: var(--workspace-font-size-meta);
+        font-weight: var(--workspace-font-weight-medium);
+      }
+
+      &__loading,
+      &__empty {
+        padding: var(--workspace-space-4);
+        color: var(--workspace-text-muted);
+        font-size: var(--workspace-font-size-label);
+      }
+
+      &__empty--error {
+        color: var(--workspace-status-error-text);
+      }
+
+      &__list {
+        max-height: min(240px, calc(100vh - 56px));
+        padding: var(--workspace-space-1);
+      }
+
+      &__item {
+        min-height: var(--workspace-control-height);
+        gap: var(--workspace-space-2);
+        padding: var(--workspace-space-1) var(--workspace-space-3);
+        color: var(--workspace-text-primary);
+
+        &:hover {
+          background: var(--workspace-surface-hover);
+        }
+
+        &:focus-visible {
+          outline-color: var(--workspace-focus-ring);
+        }
+
+        &--current {
+          background: var(--workspace-surface-active);
+
+          .editor-breadcrumb-dropdown__item-name {
+            color: var(--workspace-text-primary);
+            font-weight: var(--workspace-font-weight-medium);
+          }
+
+          &:hover {
+            background: var(--workspace-surface-hover);
+          }
+        }
+
+        &-icon {
+          color: var(--workspace-text-muted);
+
+          .lucide-folder {
+            color: var(--workspace-status-warning-text);
+          }
+        }
+
+        &-name {
+          color: inherit;
+          font-size: var(--workspace-font-size-control);
+        }
+
+        &-arrow {
+          color: var(--workspace-text-muted);
+        }
+      }
+    }
+  }
+}

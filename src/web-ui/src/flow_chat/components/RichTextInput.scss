@@ -18,7 +18,7 @@
   min-height: 24px;
   max-height: 200px;
   overflow-y: auto;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   white-space: pre-wrap;
   word-wrap: break-word;
   word-break: break-word;
@@ -212,7 +212,7 @@
 }
 
 .rich-text-tag-pill__text--widget-ref {
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   max-width: 260px;
 }
 

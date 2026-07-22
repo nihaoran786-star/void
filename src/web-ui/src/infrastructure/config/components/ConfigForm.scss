@@ -81,7 +81,7 @@ $config-input-height: 32px;
 .void-config-form__textarea {
   width: 100%;
   padding: 0 12px !important;
-  font-size: 13px !important;
+  font-size: var(--font-size-sm) !important;
   line-height: $config-input-height !important;
   color: var(--color-text-primary) !important;
   background: transparent !important;
@@ -175,7 +175,7 @@ $config-input-height: 32px;
     background: var(--color-bg-secondary) !important;
     color: var(--color-text-primary) !important;
     padding: 6px 10px !important;
-    font-size: 13px !important;
+    font-size: var(--font-size-sm) !important;
     line-height: 1.5 !important;
   }
 }
@@ -289,14 +289,14 @@ $config-input-height: 32px;
 }
 
 .void-config-form__checkbox-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   line-height: 1.4;
 }
 
 .void-config-form__checkbox-description {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   line-height: 1.5;
 }

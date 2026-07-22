@@ -1,2 +1,3 @@
-export { RemoteConnectDialog } from './RemoteConnectDialog';
-export { RemoteConnectDialog as default } from './RemoteConnectDialog';
+export { LazyRemoteConnectDialog as RemoteConnectDialog } from './LazyRemoteConnectDialog';
+export { LazyRemoteConnectDialog as default } from './LazyRemoteConnectDialog';
+export type { RemoteConnectDialogProps } from './RemoteConnectDialog';

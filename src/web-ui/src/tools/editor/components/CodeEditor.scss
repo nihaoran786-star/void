@@ -202,21 +202,21 @@ $_editor-padding-desktop: 32px;
     
     .monaco-hover,
     .monaco-editor-hover {
-      font-size: 12px !important;
+      font-size: var(--font-size-xs) !important;
       
       .hover-row,
       .hover-contents {
-        font-size: 12px !important;
+        font-size: var(--font-size-xs) !important;
         color: #000000 !important;
       }
       
       p, span, div {
-        font-size: 12px !important;
+        font-size: var(--font-size-xs) !important;
         color: #000000 !important;
       }
       
       .markdown-string {
-        font-size: 12px !important;
+        font-size: var(--font-size-xs) !important;
         color: #000000 !important;
       }
     }
@@ -315,10 +315,10 @@ $_editor-padding-desktop: 32px;
   body > .monaco-hover,
   body > .monaco-editor-hover,
   .monaco-hover-content {
-    font-size: 12px !important;
+    font-size: var(--font-size-xs) !important;
     
     * {
-      font-size: 12px !important;
+      font-size: var(--font-size-xs) !important;
       color: #000000 !important;
     }
   }

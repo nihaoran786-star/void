@@ -44,6 +44,16 @@ export function TaskCard(props: TaskCardProps) {
   const Icon = STATUS_ICON[task.status];
   const agent = getAgent(task.agentId);
   const agentName = agent?.name ?? task.agentName ?? t('common.unknown');
+  const statusLabel = task.runStatus === 'queued'
+    ? t('status.queued')
+    : t(status.labelKey);
+  const accessibleName = [
+    task.name,
+    `${task.priority} ${t(priority.labelKey)}`,
+    statusLabel,
+    agentName,
+    formatTime(task.scheduledAt),
+  ].join(' · ');
   const isRecurring = task.scheduleType !== 'once';
   const isCompleted = task.status === 'completed';
   const isFailed = task.status === 'failed';
@@ -58,6 +68,7 @@ export function TaskCard(props: TaskCardProps) {
       <button
         type="button"
         onClick={handleClick}
+        aria-label={accessibleName}
         className={cls(
           'task-card',
           'task-card--month',
@@ -65,7 +76,7 @@ export function TaskCard(props: TaskCardProps) {
           isCompleted && 'task-card--is-completed',
         )}
       >
-        <span className="task-card__dot" />
+        <span className="task-card__dot" aria-hidden="true" />
         <span className="task-card__month-text">
           {formatTime(task.scheduledAt)} {task.name}
         </span>
@@ -78,6 +89,7 @@ export function TaskCard(props: TaskCardProps) {
       <button
         type="button"
         onClick={handleClick}
+        aria-label={accessibleName}
         className={cls(
           'task-card',
           'task-card--compact',
@@ -85,7 +97,7 @@ export function TaskCard(props: TaskCardProps) {
           isCompleted && 'task-card--is-completed',
         )}
       >
-        <span className="task-card__bar" />
+        <span className="task-card__bar" aria-hidden="true" />
         <div className="task-card__body">
           <div className="task-card__title-row">
             <Icon
@@ -95,6 +107,7 @@ export function TaskCard(props: TaskCardProps) {
                 `task-card__status-icon--${status.modifier}`,
                 task.status === 'running' && 'task-card__status-icon--spin',
               )}
+              aria-hidden="true"
             />
             <span className="task-card__title">{task.name}</span>
           </div>
@@ -113,6 +126,7 @@ export function TaskCard(props: TaskCardProps) {
     <button
       type="button"
       onClick={handleClick}
+      aria-label={accessibleName}
       className={cls(
         'task-card',
         'task-card--default',
@@ -121,7 +135,7 @@ export function TaskCard(props: TaskCardProps) {
         isFailed && 'task-card--is-failed',
       )}
     >
-      <span className="task-card__bar" />
+      <span className="task-card__bar" aria-hidden="true" />
       <div className="task-card__head">
         <div className="task-card__title-row">
           <Icon
@@ -131,11 +145,16 @@ export function TaskCard(props: TaskCardProps) {
               `task-card__status-icon--${status.modifier}`,
               task.status === 'running' && 'task-card__status-icon--spin',
             )}
+            aria-hidden="true"
           />
           <span className="task-card__title">{task.name}</span>
         </div>
         {isRecurring && (
-          <Repeat size={10} className="task-card__recurring-icon" />
+          <Repeat
+            size={10}
+            className="task-card__recurring-icon"
+            aria-hidden="true"
+          />
         )}
       </div>
       <div className="task-card__meta">

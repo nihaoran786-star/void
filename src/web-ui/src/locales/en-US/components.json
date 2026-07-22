@@ -353,6 +353,7 @@
     "unsaved": "Unsaved",
     "fileDeleted": "Deleted",
     "missionControl": "Mission Control",
+    "moreActions": "More actions",
     "hiddenTabsCount": "{{count}} hidden tabs",
     "confirmCloseWithDirty": "File \"{{title}}\" has unsaved changes.\n\nDiscard changes and close?",
     "confirmCloseAllWithDirty": "{{count}} files have unsaved changes:\n\n{{fileList}}\n\nDiscard all changes and close?"
@@ -619,6 +620,7 @@
     },
     "actions": {
       "delete": "Delete",
+      "clearSearch": "Clear search",
       "restore": "Restore",
       "purge": "Delete forever",
       "select": "Select",
@@ -660,6 +662,7 @@
   },
   "shortDrama": {
     "entry": "Short drama",
+    "switcher": "Drama",
     "ariaLabel": "AI short drama center",
     "kicker": "AI short drama",
     "subtitle": "Artifact-centered production hub for script, assets, storyboards, video, and post-production agent work.",

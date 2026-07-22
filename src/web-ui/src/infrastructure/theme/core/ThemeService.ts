@@ -513,7 +513,9 @@ export class ThemeService {
 
 
     if (typography?.font) {
+      root.style.setProperty('--font-family-sans', typography.font.sans);
       root.style.setProperty('--font-sans', typography.font.sans);
+      root.style.setProperty('--font-family-mono', typography.font.mono);
       root.style.setProperty('--font-mono', typography.font.mono);
     }
 
@@ -849,6 +851,33 @@ export class ThemeService {
     if (!theme.colors) {
       errors.push({ path: 'colors', message: 'Missing color configuration', code: 'MISSING_COLORS' });
     }
+
+    const validateFontFamily = (key: 'sans' | 'mono'): void => {
+      const path = `typography.font.${key}`;
+      const value = theme.typography?.font?.[key] as unknown;
+      if (value === undefined || value === null) {
+        errors.push({
+          path,
+          message: `Missing ${key} font family`,
+          code: 'MISSING_FONT_FAMILY',
+        });
+      } else if (typeof value !== 'string') {
+        errors.push({
+          path,
+          message: `${key} font family must be a string`,
+          code: 'INVALID_FONT_FAMILY',
+        });
+      } else if (value.trim().length === 0) {
+        errors.push({
+          path,
+          message: `${key} font family must not be empty`,
+          code: 'EMPTY_FONT_FAMILY',
+        });
+      }
+    };
+
+    validateFontFamily('sans');
+    validateFontFamily('mono');
 
     return {
       valid: errors.length === 0,

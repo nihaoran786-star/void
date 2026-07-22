@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
+import { readWorkspacePresentation, type WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
 import {
@@ -46,7 +46,16 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   const { t } = useTranslation('components');
   const containerRef = useRef<HTMLDivElement>(null);
   const topRowRef = useRef<HTMLDivElement>(null);
-  const workspacePresentation = React.useMemo(readWorkspacePresentation, []);
+  const [workspacePresentation, setWorkspacePresentation] =
+    useState<WorkspacePresentation>(readWorkspacePresentation);
+  // The team-panel styles are gated on the .void-ui--minimal ancestor class
+  // applied by the layout. Align the JS gate with that same DOM truth so a
+  // stale or divergent module read can never hide the team controls while
+  // the panel itself stays styled (or vice versa).
+  React.useLayoutEffect(() => {
+    const minimal = containerRef.current?.closest('.void-ui--minimal') != null;
+    setWorkspacePresentation(minimal ? 'minimal' : 'classic');
+  }, []);
   const [
     expandedShortDramaPrimarySurfaceKey,
     setExpandedShortDramaPrimarySurfaceKey,
@@ -279,6 +288,7 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
           ? t('canvas.collapseShortDramaTeam')
           : undefined
       }
+      groupActionKind={closesShortDramaTeam ? 'collapse-panel' : 'close-all'}
       onInteraction={onInteraction}
       disablePopOut={disablePopOut}
       onOpenWorkspaceMedia={groupId === 'primary' ? onOpenWorkspaceMedia : undefined}

@@ -1139,6 +1139,7 @@
       "passphrase": "Passphrase",
       "passphraseOptional": "Leave empty if none",
       "homeFolder": "Home folder",
+      "goToParent": "Go to parent folder",
       "clickToEditPath": "Click to edit path",
       "selectWorkspace": "Select Workspace Directory",
       "openWorkspace": "Open as Workspace",

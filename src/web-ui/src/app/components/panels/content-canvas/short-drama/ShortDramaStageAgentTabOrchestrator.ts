@@ -50,7 +50,7 @@ export function openShortDramaRealStageAgentTab(
   const context = createShortDramaStageAgentContext(workspace, workspacePath);
   if (context.status === 'pending') {
     closeLegacyStageAgentTabs(canvas, workspace, '', workspacePath);
-    closeOtherStageAgentTabs(canvas, workspace);
+    closeStagelessProjectTabs(canvas, workspace);
     return { status: 'pending', source: 'short-drama-stage-agent-tab', reason: context.reason };
   }
   if (context.status !== 'ready') {
@@ -75,7 +75,7 @@ export function openShortDramaRealStageAgentTab(
   );
 
   closeLegacyStageAgentTabs(canvas, workspace, openRequest.childSessionId, openRequest.workspacePath);
-  closeOtherStageAgentTabs(canvas, workspace);
+  closeStagelessProjectTabs(canvas, workspace);
   if (canvas.getSplitMode() === 'none') {
     canvas.setSplitMode('horizontal');
   }
@@ -138,21 +138,19 @@ function closeLegacyStageAgentTabs(
   }
 }
 
-function closeOtherStageAgentTabs(
+function closeStagelessProjectTabs(
   canvas: ShortDramaStageAgentCanvasGateway,
   workspace: ShortDramaStageWorkspace,
 ) {
   for (const { groupId, group } of [{ groupId: 'secondary', group: canvas.secondaryGroup }, { groupId: 'tertiary', group: canvas.tertiaryGroup }]) {
-    const otherTabs = group.tabs.filter(function(tab) {
+    const stagelessTabs = group.tabs.filter(function(tab) {
       if (tab.content.type !== 'btw-session') return false;
       const metadata = tab.content.metadata ?? {};
       const tabProjectId = typeof metadata.shortDramaProjectId === 'string' ? metadata.shortDramaProjectId : undefined;
       const tabStage = typeof metadata.shortDramaStage === 'string' ? metadata.shortDramaStage : undefined;
-      if (tabProjectId === workspace.projectId && tabStage && tabStage !== workspace.stage) return true;
-      if (!tabStage) return true;
-      return false;
+      return tabProjectId === workspace.projectId && !tabStage;
     });
-    otherTabs.forEach(function(t) { canvas.closeTab(t.id, groupId as EditorGroupId, { forceRemove: true }); });
+    stagelessTabs.forEach(function(t) { canvas.closeTab(t.id, groupId as EditorGroupId, { forceRemove: true }); });
   }
 }
 

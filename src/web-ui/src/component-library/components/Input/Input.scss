@@ -12,26 +12,26 @@
   &--small {
     .void-input-container {
       height: 28px;
-      font-size: 13px;
+      font-size: var(--font-size-sm);
     }
 
     .void-input-prefix,
     .void-input-suffix {
-      font-size: 13px;
+      font-size: var(--font-size-sm);
     }
   }
 
   &--medium {
     .void-input-container {
       height: 36px;
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
   }
 
   &--large {
     .void-input-container {
       height: 44px;
-      font-size: 15px;
+      font-size: var(--font-size-lg);
     }
   }
 

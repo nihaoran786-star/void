@@ -1,0 +1,91 @@
+@mixin workspaceTokens {
+  // Compatibility bridge for the Classic automation stylesheet.
+  // Keep every Minimal theme decision here; component selectors consume only
+  // the feature aliases already owned by AutomationScene.scss.
+  --as-bg: var(--workspace-surface-canvas);
+  --as-fg: var(--workspace-text-primary);
+  --as-fg-muted: var(--workspace-text-muted);
+  --as-fg-subtle: var(--workspace-text-disabled);
+  --as-card: var(--workspace-surface-panel);
+  --as-muted: var(--workspace-surface-hover);
+  --as-muted-2: var(--workspace-surface-panel);
+  --as-surface-2: var(--workspace-surface-panel);
+  --as-border: var(--workspace-border-subtle);
+  --as-border-strong: var(--workspace-border-strong);
+  --as-ring: var(--workspace-focus-ring);
+  --as-shadow-sm: none;
+  --as-shadow-md: var(--workspace-shadow-raised);
+  --as-shadow-lg: var(--workspace-shadow-raised);
+  --as-shadow-hairline: none;
+  --as-solid-hover: color-mix(
+    in srgb,
+    var(--workspace-text-primary) 86%,
+    var(--workspace-surface-canvas)
+  );
+  --as-overlay: color-mix(
+    in srgb,
+    var(--workspace-text-primary) 32%,
+    transparent
+  );
+  --as-radius-sm: var(--workspace-radius-control);
+  --as-radius: var(--workspace-radius-panel);
+  --as-radius-lg: var(--workspace-radius-panel);
+  --as-font-size-meta: var(--workspace-font-size-meta);
+  --as-font-size-label: var(--workspace-font-size-meta);
+  --as-font-size-control: var(--workspace-font-size-label);
+  --as-font-size-body: var(--workspace-font-size-control);
+  --as-font-size-title: var(--workspace-font-size-body);
+  --as-font-size-heading: var(--workspace-font-size-title);
+  --as-font-weight-medium: var(--workspace-font-weight-medium);
+  --as-font-weight-strong: var(--workspace-font-weight-strong);
+  --as-status-pending: var(
+    --workspace-status-neutral-text,
+    var(--workspace-text-muted)
+  );
+  --as-status-running: var(
+    --workspace-status-info-text,
+    var(--workspace-accent)
+  );
+  --as-status-completed: var(
+    --workspace-status-success-text,
+    var(--workspace-text-primary)
+  );
+  --as-status-failed: var(
+    --workspace-status-error-text,
+    var(--workspace-text-primary)
+  );
+  --as-p0-fg: var(--workspace-status-error-text);
+  --as-p0-bg: var(--workspace-status-error-bg);
+  --as-p0-ring: var(--workspace-status-error-border);
+  --as-p0-dot: var(--workspace-status-error-text);
+  --as-p1-fg: var(--workspace-status-warning-text);
+  --as-p1-bg: var(--workspace-status-warning-bg);
+  --as-p1-ring: var(--workspace-status-warning-border);
+  --as-p1-dot: var(--workspace-status-warning-text);
+  --as-p2-fg: color-mix(
+    in srgb,
+    var(--workspace-status-info-text) 72%,
+    var(--workspace-text-primary)
+  );
+  --as-p2-bg: color-mix(
+    in srgb,
+    var(--workspace-status-info-bg) 58%,
+    var(--workspace-surface-panel)
+  );
+  --as-p2-ring: color-mix(
+    in srgb,
+    var(--workspace-status-info-border) 72%,
+    var(--workspace-border-subtle)
+  );
+  --as-p2-dot: color-mix(
+    in srgb,
+    var(--workspace-status-info-text) 76%,
+    var(--workspace-accent)
+  );
+  --as-p2-fg-strong: var(--workspace-status-warning-text);
+  --as-p3-fg: var(--workspace-status-neutral-text);
+  --as-p3-bg: var(--workspace-status-neutral-bg);
+  --as-p3-ring: var(--workspace-status-neutral-border);
+  --as-p3-dot: var(--workspace-status-neutral-text);
+  --as-now: var(--workspace-status-error-text);
+}

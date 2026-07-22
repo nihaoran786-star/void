@@ -1,28 +1,53 @@
-.workspace-media-entry {
-  --workspace-media-entry-surface: var(--control-bg);
-  --workspace-media-entry-border: var(--control-border);
-  --workspace-media-entry-text: var(--control-text);
-  --workspace-media-entry-hover-surface: var(--control-bg-hover);
-  --workspace-media-entry-hover-border: var(--control-border-hover);
-  --workspace-media-entry-hover-text: var(--control-text-hover);
+@use './WorkspaceMediaEntry.minimal' as minimal;
 
+.workspace-media-entry {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   height: 26px;
-  width: 26px;
-  padding: 0;
-  border: 1px solid var(--workspace-media-entry-border);
+  padding: 2px;
+  border: 1px solid var(--control-border);
   border-radius: 6px;
-  background: var(--workspace-media-entry-surface);
-  color: var(--workspace-media-entry-text);
+  background: var(--control-bg);
   font-size: 12px;
   line-height: 1;
-  cursor: pointer;
+
+  &--switcher {
+    gap: 1px;
+  }
+
+  &__option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    min-width: 36px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--control-text);
+    font: inherit;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      background: var(--control-bg-hover);
+      color: var(--control-text-hover);
+    }
+
+    &.is-active {
+      background: var(--workspace-surface-raised, var(--control-bg-hover));
+      color: var(--workspace-text-primary, var(--control-text-hover));
+      box-shadow: 0 0 0 1px var(--workspace-border-subtle, var(--control-border)) inset;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring, var(--color-primary));
+      outline-offset: 1px;
+    }
+  }
 }
 
-.workspace-media-entry:hover {
-  color: var(--workspace-media-entry-hover-text);
-  border-color: var(--workspace-media-entry-hover-border);
-  background: var(--workspace-media-entry-hover-surface);
-}
+@include minimal.styles;

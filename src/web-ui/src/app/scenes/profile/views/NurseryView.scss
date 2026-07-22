@@ -85,7 +85,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   );
   position: relative;
   text-align: left;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   animation: nursery-card-in 0.22s $easing-decelerate both;
   transition:
     transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -283,7 +283,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   cursor: pointer;
   border: none;
   text-align: left;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   animation: nursery-card-in 0.22s $easing-decelerate both;
   animation-delay: calc(var(--card-index, 0) * 40ms);
   transition:
@@ -345,7 +345,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   }
 
   &__emoji {
-    font-size: 22px;
+    font-size: var(--font-size-3xl);
     line-height: 1;
   }
 
@@ -852,7 +852,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
     padding: 1px 7px;
     border-radius: $size-radius-full;
     background: var(--element-bg-medium);
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-medium;
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
@@ -1098,7 +1098,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
 .nursery-identity {
   &__name {
-    font-size: 20px;
+    font-size: var(--font-size-2xl);
     font-weight: $font-weight-semibold;
     color: var(--color-text-primary);
     cursor: pointer;
@@ -1112,7 +1112,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   }
 
   &__name-input {
-    font-size: 20px;
+    font-size: var(--font-size-2xl);
     font-weight: $font-weight-semibold;
   }
 
@@ -1397,7 +1397,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
   .nursery-identity__emoji-placeholder--page-header {
     opacity: 0.45;
-    font-size: 0.95em;
+    font-size: var(--font-size-sm);
   }
 
   .gallery-page-header__extra {
@@ -1678,7 +1678,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
   &__badge {
     align-self: flex-start;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 2px 6px;
     border-radius: $size-radius-full;
     border: 1px solid var(--border-subtle);
@@ -2125,7 +2125,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
   &__level {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 1px 6px;
     border-radius: $size-radius-full;
     border: 1px solid var(--border-subtle);
@@ -2485,7 +2485,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
   // MCP server connection status badge
   &__status {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 1px 6px;
     border-radius: $size-radius-full;
     font-weight: $font-weight-medium;
@@ -2523,7 +2523,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
   &__count {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
     padding: 1px 6px;
@@ -2702,7 +2702,7 @@ $nursery-scene-gutter: clamp(40px, 6vw, 80px);
 
   &__level {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     padding: 1px 6px;
     border-radius: $size-radius-full;
     border: 1px solid var(--border-subtle);
@@ -2831,7 +2831,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
   }
 
   &__name {
-    font-size: clamp(30px, 3.2vw, 34px);
+    font-size: var(--font-size-5xl);
     font-weight: $font-weight-semibold;
     color: var(--color-text-primary);
     letter-spacing: -0.03em;
@@ -2848,7 +2848,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
   }
 
   &__name-input {
-    font-size: clamp(30px, 3.2vw, 34px);
+    font-size: var(--font-size-5xl);
     font-weight: $font-weight-semibold;
     letter-spacing: -0.03em;
     width: 100%;
@@ -3034,7 +3034,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
   }
 
   &__emoji {
-    font-size: 22px;
+    font-size: var(--font-size-3xl);
     line-height: 1;
     cursor: pointer;
     border-radius: $size-radius-sm;
@@ -3048,7 +3048,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
 
   &__emoji-input {
     width: 38px;
-    font-size: 16px;
+    font-size: var(--font-size-xl);
     text-align: center;
   }
 
@@ -3101,7 +3101,7 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
 
   &__meta-label {
     flex-shrink: 0;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-semibold;
     text-transform: uppercase;
     letter-spacing: 0.5px;

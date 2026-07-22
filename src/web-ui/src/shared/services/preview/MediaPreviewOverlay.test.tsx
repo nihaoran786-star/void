@@ -44,7 +44,91 @@ describe('MediaPreviewOverlay', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders image previews from media preview events and closes on click', () => {
+  const flushLazyContent = async () => {
+    await act(async () => {
+      await vi.dynamicImportSettled();
+      await new Promise<void>((resolve) => {
+        dom.window.requestAnimationFrame(() => resolve());
+      });
+    });
+  };
+
+  it('keeps the latest preview request while the content chunk is loading', async () => {
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'https://cdn.example.com/old.png',
+        title: 'Old preview',
+      });
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'https://cdn.example.com/latest.png',
+        title: 'Latest preview',
+      });
+    });
+
+    await flushLazyContent();
+
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute('aria-label')).toBe('Latest preview');
+    expect(dialog?.getAttribute('data-preview-sequence')).toBe('2');
+    expect((container.querySelector('img') as HTMLImageElement).src)
+      .toBe('https://cdn.example.com/latest.png');
+  });
+
+  it('does not revive a preview closed while its content is pending', async () => {
+    const trigger = dom.window.document.createElement('button');
+    dom.window.document.body.appendChild(trigger);
+    trigger.focus();
+
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'https://cdn.example.com/pending.png',
+        title: 'Pending preview',
+      });
+      dom.window.dispatchEvent(new dom.window.KeyboardEvent('keydown', {
+        key: 'Escape',
+      }));
+    });
+
+    await flushLazyContent();
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    expect(dom.window.document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('restores the opening focus target when the event shell unmounts', () => {
+    const trigger = dom.window.document.createElement('button');
+    dom.window.document.body.appendChild(trigger);
+    trigger.focus();
+
+    act(() => {
+      root.render(<MediaPreviewOverlay />);
+    });
+    act(() => {
+      openMediaPreviewPanel({
+        kind: 'image',
+        url: 'https://cdn.example.com/unmount.png',
+        title: 'Unmount preview',
+      });
+      root.render(<div />);
+    });
+
+    expect(dom.window.document.activeElement).toBe(trigger);
+    trigger.remove();
+  });
+
+  it('renders image previews from media preview events and closes on click', async () => {
     act(() => {
       root.render(<MediaPreviewOverlay className="void-ui--minimal" />);
     });
@@ -56,6 +140,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Image #1',
       });
     });
+    await flushLazyContent();
 
     const dialog = container.querySelector('[role="dialog"]');
     const image = container.querySelector('img') as HTMLImageElement | null;
@@ -75,7 +160,7 @@ describe('MediaPreviewOverlay', () => {
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('renders video previews with the contain media class', () => {
+  it('renders video previews with the contain media class', async () => {
     act(() => {
       root.render(<MediaPreviewOverlay />);
     });
@@ -87,6 +172,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Video #1',
       });
     });
+    await flushLazyContent();
 
     const video = container.querySelector('video') as HTMLVideoElement | null;
     expect(video?.src).toBe('https://cdn.example.com/generated-1.mp4');
@@ -111,10 +197,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Focus Preview',
       });
     });
-
-    await act(async () => {
-      await new Promise(resolve => dom.window.setTimeout(resolve, 24));
-    });
+    await flushLazyContent();
 
     const dialog = container.querySelector('[role="dialog"]') as HTMLDivElement;
     const buttons = Array.from(dialog.querySelectorAll('button'));
@@ -154,7 +237,7 @@ describe('MediaPreviewOverlay', () => {
     trigger.remove();
   });
 
-  it('does not apply the contain media class to audio previews', () => {
+  it('does not apply the contain media class to audio previews', async () => {
     act(() => {
       root.render(<MediaPreviewOverlay />);
     });
@@ -166,6 +249,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Audio #1',
       });
     });
+    await flushLazyContent();
 
     const audio = container.querySelector('audio') as HTMLAudioElement | null;
     expect(audio?.src).toBe('https://cdn.example.com/generated-1.mp3');
@@ -173,7 +257,7 @@ describe('MediaPreviewOverlay', () => {
     expect(audio?.hasAttribute('controls')).toBe(true);
   });
 
-  it('falls back to the remote URL when the local preview URL cannot load', () => {
+  it('falls back to the remote URL when the local preview URL cannot load', async () => {
     act(() => {
       root.render(<MediaPreviewOverlay />);
     });
@@ -186,6 +270,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Image #1',
       });
     });
+    await flushLazyContent();
 
     const image = container.querySelector('img') as HTMLImageElement;
     expect(image.src).toBe('asset://local/generated.png');
@@ -212,6 +297,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Video #1',
       });
     });
+    await flushLazyContent();
 
     const video = container.querySelector('video') as HTMLVideoElement;
     expect(video.src).toBe('asset://local/clip.mp4');
@@ -246,6 +332,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'Old Video',
       });
     });
+    await flushLazyContent();
 
     const oldVideo = container.querySelector('video') as HTMLVideoElement;
     await act(async () => {
@@ -260,6 +347,7 @@ describe('MediaPreviewOverlay', () => {
         title: 'New Video',
       });
     });
+    await flushLazyContent();
 
     await act(async () => {
       resolveFallback('data:video/mp4;base64,old-video');

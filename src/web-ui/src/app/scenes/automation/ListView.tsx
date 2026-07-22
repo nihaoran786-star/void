@@ -80,11 +80,22 @@ export function ListView() {
                   const agent = getAgent(task.agentId);
                   const agentName = agent?.name ?? task.agentName ?? t('common.unknown');
                   const isCompleted = task.status === 'completed';
+                  const statusLabel = task.runStatus === 'queued'
+                    ? t('status.queued')
+                    : t(status.labelKey);
+                  const accessibleName = [
+                    task.name,
+                    `${task.priority} ${t(priority.labelKey)}`,
+                    statusLabel,
+                    agentName,
+                    formatTime(task.scheduledAt),
+                  ].join(' · ');
                   return (
                     <button
                       type="button"
                       key={task.id}
                       onClick={() => setSelectedTaskId(task.id)}
+                      aria-label={accessibleName}
                       className={
                         'list-view__row' +
                         (isCompleted ? ' list-view__row--completed' : '')
@@ -94,6 +105,7 @@ export function ListView() {
                         className={
                           'list-view__bar list-view__bar--' + priority.modifier
                         }
+                        aria-hidden="true"
                       />
                       <div className="list-view__time-col">
                         <span className="list-view__time">
@@ -108,14 +120,14 @@ export function ListView() {
                           <span className="list-view__title">{task.name}</span>
                           {task.scheduleType !== 'once' && (
                             <span className="list-view__schedule-tag">
-                              <Repeat size={10} />
+                              <Repeat size={10} aria-hidden="true" />
                               {t(SCHEDULE_META[task.scheduleType].labelKey)}
                             </span>
                           )}
                         </div>
                         <div className="list-view__sub">
                           <span className="list-view__agent">
-                            <Bot size={12} />
+                            <Bot size={12} aria-hidden="true" />
                             {agentName}
                           </span>
                           <span className="list-view__sep">·</span>
@@ -141,6 +153,7 @@ export function ListView() {
                         >
                           <Icon
                             size={14}
+                            aria-hidden="true"
                             className={
                               task.status === 'running'
                                 ? 'list-view__status-icon--spin'

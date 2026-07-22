@@ -3,6 +3,9 @@
 @use '../../../component-library/styles/tokens.scss' as *;
 
 .default-model-config {
+  --default-model-name-font-size: 10px;
+  --default-model-meta-font-size: 8px;
+
   padding: 0;
 
   &__optional-label {
@@ -93,7 +96,7 @@
   
   &__expand-text {
     flex-shrink: 0;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-muted);
     transition: color 0.15s ease;
     white-space: nowrap;
@@ -218,7 +221,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--color-text-primary);
-    font-size: 10px;
+    font-size: var(--default-model-name-font-size);
     font-weight: $font-weight-medium;
   }
 
@@ -230,7 +233,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--color-text-muted);
-    font-size: 8px;
+    font-size: var(--default-model-meta-font-size);
     line-height: 1.4;
   }
 
@@ -435,6 +438,11 @@
       font-size: var(--font-size-sm);
     }
   }
+}
+
+.void-ui--minimal .default-model-config {
+  --default-model-name-font-size: var(--font-size-xs);
+  --default-model-meta-font-size: var(--font-size-2xs);
 }
 
 

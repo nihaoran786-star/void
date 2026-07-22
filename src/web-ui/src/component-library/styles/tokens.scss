@@ -852,6 +852,26 @@ $badge-info-text: $color-info;
   --button-shadow-base: #{$button-shadow-base};
   --button-shadow-hover: #{$button-shadow-hover};
   --button-shadow-active: #{$button-shadow-active};
+
+  --z-base: #{$z-base};
+  --z-decoration: #{$z-decoration};
+  --z-content: #{$z-content};
+  --z-header: #{$z-header};
+  --z-sticky: #{$z-sticky};
+  --z-bottom-bar: #{$z-bottom-bar};
+  --z-floating: #{$z-floating};
+  --z-dropdown: #{$z-dropdown};
+  --z-overlay: #{$z-overlay};
+  --z-drawer: #{$z-drawer};
+  --z-modal: #{$z-modal};
+  --z-modal-active: #{$z-modal-active};
+  --z-fullscreen: #{$z-fullscreen};
+  --z-toast: #{$z-toast};
+  --z-tooltip: #{$z-tooltip};
+  --z-popover: #{$z-popover};
+  --z-notification: #{$z-notification};
+  --z-context-menu: #{$z-context-menu};
+  --z-extreme: #{$z-extreme};
   
   --glow-shadow-blue: #{$glow-shadow-blue};
   --glow-shadow-purple: #{$glow-shadow-purple};
@@ -917,6 +937,10 @@ $badge-info-text: $color-info;
   
   --font-family-sans: #{$font-family-sans};
   --font-family-mono: #{$font-family-mono};
+  // Compatibility aliases for legacy and embedded consumers. ThemeService
+  // writes both names to the same resolved value when a theme is applied.
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
   --font-weight-normal: #{$font-weight-normal};
   --font-weight-medium: #{$font-weight-medium};
   --font-weight-semibold: #{$font-weight-semibold};
@@ -1109,6 +1133,11 @@ $badge-info-text: $color-info;
   --workspace-surface-raised: var(--color-bg-elevated);
   --workspace-surface-hover: var(--control-bg-hover);
   --workspace-surface-active: var(--control-bg-active);
+  --workspace-overlay-scrim: color-mix(
+    in srgb,
+    #{$modal-backdrop} 30%,
+    transparent
+  );
   --workspace-text-primary: var(--color-text-primary);
   --workspace-text-secondary: var(--color-text-secondary);
   // Keep metadata visually quiet while raising built-in themes that sit just

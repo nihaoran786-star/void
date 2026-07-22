@@ -95,7 +95,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       min-height: 0;
       background: transparent;
       color: var(--color-text-primary, #e8e8e8);
-      font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-family: var(--font-sans, var(--font-family-sans, ui-sans-serif, system-ui, sans-serif));
       overflow-x: hidden;
       overflow-y: hidden;
     }
@@ -127,7 +127,7 @@ export const GENERATIVE_WIDGET_SHELL_HTML = `<!DOCTYPE html>
       line-height: 1.5;
     }
     body, button, input, textarea, select {
-      font-family: var(--font-sans, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      font-family: var(--font-sans, var(--font-family-sans, ui-sans-serif, system-ui, sans-serif));
     }
     button, input, textarea, select {
       font: inherit;

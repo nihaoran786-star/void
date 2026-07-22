@@ -3,13 +3,15 @@
 @use '../../../component-library/styles/tokens' as *;
 
 .void-ai-model-config {
+  --ai-model-compact-capability-font-size: 9px;
+
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   color: var(--color-text-primary);
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
   
   &__header {
@@ -110,7 +112,7 @@
     border-radius: 999px;
     background: var(--element-bg-subtle);
     color: var(--color-text-muted);
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-medium;
   }
 
@@ -226,7 +228,7 @@
     word-break: break-all;
 
     &--text {
-      font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
       line-height: $line-height-relaxed;
       color: var(--color-text-secondary);
       white-space: pre-wrap;
@@ -339,7 +341,7 @@
     display: inline-flex;
     align-items: center;
     padding: 2px 6px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-medium;
     background: var(--color-accent-500);
     color: #ffffff;
@@ -436,7 +438,7 @@
       box-shadow: none !important;
       color: var(--color-text-primary, #e8e8e8);
       font-size: var(--font-size-sm);
-      font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
       &::placeholder {
         color: var(--color-text-muted, #a0a0a0);
@@ -559,7 +561,7 @@
   }
 
   &__item-name {
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
     font-size: var(--font-size-sm);
     font-weight: $font-weight-semibold;
     color: var(--color-text-primary);
@@ -621,7 +623,7 @@
   &__capability-tag {
     padding: 2px 6px;
     border-radius: $size-radius-sm;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-medium;
     white-space: nowrap;
     
@@ -776,7 +778,7 @@
     background: transparent;
     color: var(--color-text-secondary);
     font-size: var(--font-size-sm);
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
     cursor: pointer;
     transition: all $motion-base $easing-standard;
 
@@ -943,7 +945,7 @@
       border-radius: var(--size-radius-sm, 6px);
       color: var(--color-text-primary, #e8e8e8);
       font-size: var(--font-size-sm);
-      font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
       transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
       min-height: 36px;
 
@@ -1060,8 +1062,8 @@
     .select__value-label,
     .resolved-url__value,
     .void-ai-model-config__selected-models-empty {
-      font-size: 13px;
-      font-family: $font-family-sans;
+      font-size: var(--font-size-sm);
+  font-family: var(--font-family-sans);
       line-height: 1.5;
     }
   }
@@ -1158,7 +1160,7 @@
 
         &::before {
           content: '+';
-          font-size: 16px;
+          font-size: var(--font-size-xl);
           line-height: 1;
           font-weight: 400;
         }
@@ -1211,7 +1213,7 @@
     border: none;
     border-radius: $size-radius-sm;
     color: var(--color-text-muted);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     background: var(--element-bg-subtle);
     box-sizing: border-box;
   }
@@ -1304,8 +1306,8 @@
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-primary);
-    line-height: var(--line-height-normal);
-    font-family: $font-family-sans;
+    line-height: var(--line-height-base);
+  font-family: var(--font-family-sans);
     word-break: break-word;
   }
 
@@ -1315,7 +1317,7 @@
     color: var(--color-text-muted);
     white-space: normal;
     line-height: 1.35;
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   }
 
   &__selected-model-grid {
@@ -1339,7 +1341,7 @@
     .select__placeholder,
     .select__value-label,
     .void-number-input__input {
-      font-size: 12px;
+      font-size: var(--font-size-xs);
       line-height: 1.4;
     }
   }
@@ -1353,7 +1355,7 @@
     min-width: 0;
 
     > span {
-      font-size: 11px;
+      font-size: var(--font-size-2xs);
       color: var(--color-text-secondary);
       white-space: nowrap;
       text-align: left;
@@ -1372,7 +1374,7 @@
 
     .void-number-input__input {
       text-align: left;
-      font-size: 12px;
+      font-size: var(--font-size-xs);
     }
 
     .void-ai-model-config__selected-model-category-select {
@@ -1410,7 +1412,7 @@
     gap: 2px;
 
     .resolved-url__hint {
-      font-size: 11px;
+      font-size: var(--font-size-2xs);
       color: var(--color-text-muted);
     }
   }
@@ -1687,7 +1689,7 @@
     padding: 2px 6px;
     background: var(--element-bg-subtle);
     border-radius: $size-radius-sm;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-family: $font-family-mono;
     color: var(--color-text-muted);
 
@@ -1926,12 +1928,12 @@
 
     &__badge {
       padding: 2px $size-gap-1;
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
 
     &__capability-tag {
       padding: 1px 4px;
-      font-size: 9px;
+      font-size: var(--ai-model-compact-capability-font-size);
     }
 
     &__item-details {
@@ -2015,6 +2017,10 @@
       min-width: 0;
     }
   }
+}
+
+.void-ui--minimal .void-ai-model-config {
+  --ai-model-compact-capability-font-size: var(--font-size-xxs);
 }
 
 .void-ai-model-config {

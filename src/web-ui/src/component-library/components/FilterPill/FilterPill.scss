@@ -20,7 +20,7 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   font-weight: $font-weight-medium;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   cursor: pointer;
   transition: all $motion-base $easing-standard;
   white-space: nowrap;
@@ -61,7 +61,7 @@
     padding: 1px 5px;
     background: $element-bg-base;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-semibold;
     font-family: $font-family-mono;
     color: var(--color-text-muted);

@@ -23,7 +23,10 @@ const mediaSurfaces = new Map([
 ]);
 const shortDramaSurfaces = new Map([
   ['ShortDramaCenterPanel', read('src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaCenterPanel.scss')],
-  ['ShortDramaEntry', read('src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaEntry.scss')],
+  ['MediaSessionSwitcher', [
+    read('src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.scss'),
+    read('src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.minimal.scss'),
+  ].join('\n')],
 ]);
 
 const countRawColors = styles => (styles.match(/rgba?\(|#[0-9a-f]{3,8}\b/gi) ?? []).length;
@@ -160,7 +163,7 @@ test('media preview surfaces consume shared theme contracts and cap raw colors',
 test('short drama surfaces consume shared theme contracts and cap raw colors', () => {
   const limits = new Map([
     ['ShortDramaCenterPanel', 30],
-    ['ShortDramaEntry', 2],
+    ['MediaSessionSwitcher', 0],
   ]);
 
   const shortDramaCenter = shortDramaSurfaces.get('ShortDramaCenterPanel');
@@ -168,16 +171,21 @@ test('short drama surfaces consume shared theme contracts and cap raw colors', (
     assert.match(shortDramaCenter, new RegExp(`var\\(${token}\\)`), `ShortDramaCenterPanel must consume ${token}`);
   }
 
-  const shortDramaEntry = shortDramaSurfaces.get('ShortDramaEntry');
+  const mediaSessionSwitcher = shortDramaSurfaces.get('MediaSessionSwitcher');
   for (const token of [
     '--control-bg',
     '--control-bg-hover',
     '--control-border',
-    '--control-border-hover',
     '--control-text',
     '--control-text-hover',
+    '--workspace-surface-active',
+    '--workspace-focus-ring',
   ]) {
-    assert.match(shortDramaEntry, new RegExp(`var\\(${token}\\)`), `ShortDramaEntry must consume ${token}`);
+    assert.match(
+      mediaSessionSwitcher,
+      new RegExp(`var\\(${token}\\)`),
+      `MediaSessionSwitcher must consume ${token}`,
+    );
   }
 
   for (const [name, styles] of shortDramaSurfaces) {

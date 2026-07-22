@@ -55,6 +55,43 @@ store plus short-drama integration coverage. The older `CanvasContext` and
 support there remains explicit follow-up debt rather than being silently
 claimed as complete.
 
+### Presentation debt — navigation search reserved a full Minimal row
+
+The Minimal sidebar rendered its icon-only search control inside the same
+full-width `brand-header` used by Classic. The label was hidden, but the header
+still consumed vertical space and left an isolated icon above the primary
+session card.
+
+The presentation now reuses one trigger in two explicit locations: Classic
+retains the labelled header, while Minimal places the 28px icon beside the
+existing create-session action and renders no brand header. The search dialog,
+keyboard shortcuts, mode `radiogroup`, and create-session callbacks are
+unchanged. Focused source/style contracts prevent duplicate triggers or
+dialogs. The desktop visual gate covers Minimal and Classic at wide and
+1024x720 sizes, including keyboard open/close, input focus, overlap, overflow,
+and URL/window restoration.
+
+### Presentation debt — automation typography was locally fragmented
+
+The automation scene had consistent pixels but no semantic typography
+interface: 62 size declarations and 27 weight declarations were repeated
+through consumer rules, while two remaining Minimal editor declarations still
+owned raw pixel sizes.
+
+The scene now exposes nine semantic size roles and two weight roles. Classic
+keeps its exact numeric defaults; Minimal maps those roles to the shared
+workspace hierarchy. Focused contracts reject raw consumer sizes/weights, all
+additive Minimal styles are free of hard-coded pixel font sizes, and the
+real-desktop automation suite passes wide, 1024x720, Day/Week/Month/List, dark,
+and light states. This is a presentation boundary change only.
+
+The scoped UI audit is now 19/20: accessibility 3/4, performance 4/4, theming
+4/4, responsive behavior 4/4, and anti-pattern avoidance 4/4. P0/P1 findings
+remain zero. The former startup-package P2 is closed: optional new-project and
+remote-connect implementations are required dynamic entries, raw entry budgets
+have explicit 8 KiB headroom, and gzip references are ratcheted to the verified
+production build rather than left as warnings.
+
 ## Coupling review
 
 ### High priority

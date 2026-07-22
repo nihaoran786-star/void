@@ -97,11 +97,13 @@
     "title": "Automation",
     "today": "Today",
     "filters": {
+      "activeLabel": "Filters (active)",
       "agent": "Filter by agent",
       "allAgents": "All agents",
       "allPriorities": "All priorities",
       "allStatuses": "All statuses",
       "clear": "Clear",
+      "label": "Filters",
       "priority": "Filter by priority",
       "status": "Filter by status"
     },

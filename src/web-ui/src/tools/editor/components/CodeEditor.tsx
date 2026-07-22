@@ -230,6 +230,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   const [selection, setSelection] = useState({ chars: 0, lines: 0 });
   const [statusBarPopover, setStatusBarPopover] = useState<null | 'position' | 'indent' | 'encoding' | 'language'>(null);
   const [statusBarAnchorRect, setStatusBarAnchorRect] = useState<AnchorRect | null>(null);
+  const statusBarTriggerRef = useRef<HTMLElement | null>(null);
   const [encoding, setEncoding] = useState<string>('UTF-8');
   const [largeFileMode, setLargeFileMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -409,6 +410,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       if (target.closest('.status-bar-popover') || target.closest('.editor-status-bar')) return;
       setStatusBarPopover(null);
       setStatusBarAnchorRect(null);
+      statusBarTriggerRef.current = null;
     };
     document.addEventListener('mousedown', onMouseDown, true);
     return () => document.removeEventListener('mousedown', onMouseDown, true);
@@ -1265,6 +1267,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   // Status bar popover: open and confirm
   const openStatusBarPopover = useCallback((type: 'position' | 'indent' | 'encoding' | 'language', e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    statusBarTriggerRef.current = e.currentTarget as HTMLElement;
     setStatusBarAnchorRect({
       top: rect.top,
       left: rect.left,
@@ -1276,9 +1279,14 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     setStatusBarPopover(type);
   }, []);
 
-  const closeStatusBarPopover = useCallback(() => {
+  const closeStatusBarPopover = useCallback((restoreFocus = true) => {
     setStatusBarPopover(null);
     setStatusBarAnchorRect(null);
+    const returnTarget = statusBarTriggerRef.current;
+    statusBarTriggerRef.current = null;
+    if (restoreFocus && returnTarget?.isConnected) {
+      window.requestAnimationFrame(() => returnTarget.focus());
+    }
   }, []);
 
   const handleGoToLineConfirm = useCallback((line: number, column: number) => {

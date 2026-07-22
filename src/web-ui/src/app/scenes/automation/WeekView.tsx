@@ -55,7 +55,10 @@ export function WeekView() {
                   {d.getDate()}
                 </span>
               </div>
-              <div className="week-view__day-count">
+              <div
+                className="week-view__day-count"
+                data-count={dayTasks.length}
+              >
                 {t('counts.tasks', { count: dayTasks.length })}
               </div>
             </div>

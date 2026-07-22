@@ -17,6 +17,7 @@ export interface UpdateInstallProgressModalProps {
   onCloseError?: () => void;
   onCloseInstalled?: () => void;
   onRestart?: () => void;
+  overlayClassName?: string;
 }
 
 export const UpdateInstallProgressModal: React.FC<UpdateInstallProgressModalProps> = ({
@@ -26,7 +27,8 @@ export const UpdateInstallProgressModal: React.FC<UpdateInstallProgressModalProp
   progress,
   onCloseError,
   onCloseInstalled,
-  onRestart
+  onRestart,
+  overlayClassName,
 }) => {
   const { t } = useI18n('common');
   const { downloaded, total } = progress;
@@ -117,6 +119,7 @@ export const UpdateInstallProgressModal: React.FC<UpdateInstallProgressModalProp
       title={title}
       showCloseButton={!!error || !!installed}
       size="small"
+      overlayClassName={overlayClassName}
     >
       <div className="void-update-progress">
         {body}

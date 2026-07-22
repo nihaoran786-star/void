@@ -59,6 +59,21 @@ describe('short drama media preview layout', () => {
     expect(source).not.toContain('<VideoPosterFrame');
   });
 
+  it('keeps truncated preview labels discoverable while hiding only the compact technical id', () => {
+    const source = readSibling('./ShortDramaCenterPanel.tsx');
+    const minimalStyles = readSibling('./ShortDramaCenterPanel.minimal.scss');
+
+    expect(source).toContain('<strong title={artifact.title}>{artifact.title}</strong>');
+    expect(source).toContain('title={preview.label ?? preview.mediaItemId}');
+    expect(source).toContain(
+      'className="short-drama-center__final-preview-media-id"',
+    );
+    expect(source).toContain('title={artifact.mediaReference.mediaItemId}');
+    expect(minimalStyles).toMatch(
+      /@container short-drama-panel \(max-width: 420px\)[\s\S]*?\.short-drama-center__final-preview-media-id \{[\s\S]*?display: none;/,
+    );
+  });
+
   it('keeps one stable player and never renders videos in the scene rail', () => {
     const source = readSibling('./ShortDramaCenterPanel.tsx');
     const railThumbnail = extractFunction(source, 'VideoRailThumbnail', 'extensionFromPath');

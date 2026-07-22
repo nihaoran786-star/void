@@ -29,6 +29,66 @@ export interface AnchorRect {
   height: number;
 }
 
+const POPOVER_VIEWPORT_GAP = 8;
+
+const getPopoverLeft = (anchorRect: AnchorRect, width: number) => {
+  const viewportWidth = typeof window === 'undefined' ? width : window.innerWidth;
+  return Math.max(
+    POPOVER_VIEWPORT_GAP,
+    Math.min(
+      anchorRect.right - width,
+      viewportWidth - width - POPOVER_VIEWPORT_GAP,
+    ),
+  );
+};
+
+const focusInitialListboxOption = (list: HTMLDivElement | null) => {
+  const target = list?.querySelector<HTMLElement>(
+    '[role="option"][aria-selected="true"], [role="option"]',
+  );
+  target?.focus();
+};
+
+const handleListboxKeyDown = (
+  event: React.KeyboardEvent<HTMLDivElement>,
+  onClose: () => void,
+) => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+    return;
+  }
+
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    return;
+  }
+
+  const options = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(
+      '[role="option"]:not(:disabled)',
+    ),
+  );
+  if (options.length === 0) {
+    return;
+  }
+
+  event.preventDefault();
+  const activeIndex = document.activeElement instanceof HTMLElement
+    ? options.indexOf(document.activeElement)
+    : -1;
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? options.length - 1
+      : (
+        activeIndex
+        + (event.key === 'ArrowUp' ? -1 : 1)
+        + options.length
+      ) % options.length;
+  options[nextIndex]?.focus();
+};
+
 export interface GoToLinePopoverProps {
   anchorRect: AnchorRect;
   currentLine: number;
@@ -50,10 +110,11 @@ export const GoToLinePopover: React.FC<GoToLinePopoverProps> = ({
 
   useEffect(() => {
     setValue(`${currentLine}:${currentColumn}`);
-    setTimeout(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
-    }, 50);
+    });
+    return () => window.cancelAnimationFrame(focusFrame);
   }, [currentLine, currentColumn]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -77,7 +138,7 @@ export const GoToLinePopover: React.FC<GoToLinePopoverProps> = ({
   };
 
   const top = anchorRect.top - 4;
-  const left = Math.max(8, Math.min(anchorRect.right - 200, anchorRect.left));
+  const left = getPopoverLeft(anchorRect, 200);
 
   return createPortal(
     <div
@@ -138,6 +199,7 @@ export const IndentPopover: React.FC<IndentPopoverProps> = ({
   onClose,
 }) => {
   const { t } = useI18n('tools');
+  const listRef = useRef<HTMLDivElement>(null);
   const handleSelect = useCallback(
     (opt: { tabSize: number; insertSpaces: boolean }) => {
       onConfirm(opt.tabSize, opt.insertSpaces);
@@ -146,8 +208,15 @@ export const IndentPopover: React.FC<IndentPopoverProps> = ({
     [onConfirm, onClose]
   );
 
+  useEffect(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
+      focusInitialListboxOption(listRef.current);
+    });
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, []);
+
   const top = anchorRect.top - 4;
-  const left = Math.max(8, Math.min(anchorRect.right - 160, anchorRect.left));
+  const left = getPopoverLeft(anchorRect, 200);
 
   return createPortal(
     <div
@@ -157,7 +226,13 @@ export const IndentPopover: React.FC<IndentPopoverProps> = ({
       aria-label={t('editor.statusBar.indentSettings')}
     >
       <div className="status-bar-popover__hint">{t('editor.statusBar.selectIndent')}</div>
-      <div className="status-bar-popover__list">
+      <div
+        ref={listRef}
+        className="status-bar-popover__list"
+        role="listbox"
+        aria-label={t('editor.statusBar.selectIndent')}
+        onKeyDown={(event) => handleListboxKeyDown(event, onClose)}
+      >
         {INDENT_OPTIONS.map((opt) => {
           const label = opt.insertSpaces
             ? t('editor.statusBar.indentOptionSpaces', { n: opt.tabSize })
@@ -186,7 +261,11 @@ export const IndentPopover: React.FC<IndentPopoverProps> = ({
                 if (e.key === 'Escape') onClose();
               }}
               role="option"
-              tabIndex={0}
+              aria-selected={
+                opt.tabSize === currentTabSize
+                && opt.insertSpaces === currentInsertSpaces
+              }
+              tabIndex={-1}
             >
               {label}
             </Button>
@@ -214,8 +293,16 @@ export const EncodingPopover: React.FC<EncodingPopoverProps> = ({
   onClose,
 }) => {
   const { t } = useI18n('tools');
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
+      focusInitialListboxOption(listRef.current);
+    });
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, []);
+
   const top = anchorRect.top - 4;
-  const left = Math.max(8, Math.min(anchorRect.right - 160, anchorRect.left));
+  const left = getPopoverLeft(anchorRect, 200);
 
   return createPortal(
     <div
@@ -225,7 +312,13 @@ export const EncodingPopover: React.FC<EncodingPopoverProps> = ({
       aria-label={t('editor.statusBar.fileEncoding')}
     >
       <div className="status-bar-popover__hint">{t('editor.statusBar.selectEncoding')}</div>
-      <div className="status-bar-popover__list">
+      <div
+        ref={listRef}
+        className="status-bar-popover__list"
+        role="listbox"
+        aria-label={t('editor.statusBar.selectEncoding')}
+        onKeyDown={(event) => handleListboxKeyDown(event, onClose)}
+      >
         {ENCODING_OPTIONS.map((enc) => (
           <Button
             key={enc}
@@ -243,7 +336,8 @@ export const EncodingPopover: React.FC<EncodingPopoverProps> = ({
               if (e.key === 'Escape') onClose();
             }}
             role="option"
-            tabIndex={0}
+            aria-selected={enc === currentEncoding}
+            tabIndex={-1}
           >
             {enc}
           </Button>
@@ -324,8 +418,16 @@ export const LanguagePopover: React.FC<LanguagePopoverProps> = ({
   onClose,
 }) => {
   const { t } = useI18n('tools');
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
+      focusInitialListboxOption(listRef.current);
+    });
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, []);
+
   const top = anchorRect.top - 4;
-  const left = Math.max(8, Math.min(anchorRect.right - 180, anchorRect.left));
+  const left = getPopoverLeft(anchorRect, 240);
 
   return createPortal(
     <div
@@ -335,7 +437,13 @@ export const LanguagePopover: React.FC<LanguagePopoverProps> = ({
       aria-label={t('editor.statusBar.selectLanguageMode')}
     >
       <div className="status-bar-popover__hint">{t('editor.statusBar.selectLanguageModeHint')}</div>
-      <div className="status-bar-popover__list">
+      <div
+        ref={listRef}
+        className="status-bar-popover__list"
+        role="listbox"
+        aria-label={t('editor.statusBar.selectLanguageModeHint')}
+        onKeyDown={(event) => handleListboxKeyDown(event, onClose)}
+      >
         {languages.map((lang) => {
           const Icon = getLanguageIcon(lang.id);
           return (
@@ -355,7 +463,8 @@ export const LanguagePopover: React.FC<LanguagePopoverProps> = ({
                 if (e.key === 'Escape') onClose();
               }}
               role="option"
-              tabIndex={0}
+              aria-selected={lang.id === currentLanguageId}
+              tabIndex={-1}
             >
               <span className="status-bar-popover__item-icon" aria-hidden>
                 <Icon size={14} strokeWidth={2} />

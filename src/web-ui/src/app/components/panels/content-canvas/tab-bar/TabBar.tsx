@@ -4,13 +4,17 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
-import { X } from 'lucide-react';
+import { PanelRightClose } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
+import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
+import {
+  resolveVisibleTabsCount,
+  selectTabStripTabs,
+} from './tabBarLayout';
 import { WorkspaceMediaEntry } from '../workspace-media/WorkspaceMediaEntry';
-import { ShortDramaEntry } from '../short-drama/ShortDramaEntry';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
 import './TabBar.scss';
@@ -48,6 +52,8 @@ export interface TabBarProps {
   onCloseAllTabs?: () => Promise<void> | void;
   /** Optional label when the group action has presentation-specific semantics. */
   closeAllTabsLabel?: string;
+  /** Whether the group action closes tabs or collapses a presentation panel. */
+  groupActionKind?: 'close-all' | 'collapse-panel';
   /** Pop out tab as independent scene */
   onTabPopOut?: (tabId: string) => void;
   workspacePath?: string;
@@ -106,6 +112,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   onOpenMissionControl,
   onCloseAllTabs,
   closeAllTabsLabel,
+  groupActionKind = 'close-all',
   onTabPopOut,
   workspacePath,
   onOpenWorkspaceMedia,
@@ -125,6 +132,23 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   // Filter out hidden tabs
   const visibleTabs = useMemo(() => tabs.filter(t => !t.isHidden), [tabs]);
+  const activeSurface = useMemo(() => {
+    const activeTab = visibleTabs.find(tab => tab.id === activeTabId);
+    if (activeTab?.content.type === 'workspace-media-gallery') {
+      return 'media' as const;
+    }
+    if (activeTab?.content.type === 'short-drama-center') {
+      return 'short-drama' as const;
+    }
+    return null;
+  }, [activeTabId, visibleTabs]);
+  const workspacePresentation = useMemo(readWorkspacePresentation, []);
+  const collapseWorkspaceSurfaceTabs = workspacePresentation === 'minimal'
+    && Boolean(onOpenShortDramaCenter);
+  const stripTabs = useMemo(
+    () => selectTabStripTabs(visibleTabs, collapseWorkspaceSurfaceTabs),
+    [collapseWorkspaceSurfaceTabs, visibleTabs],
+  );
   
   // Build cache key (id + title because title changes affect width)
   const getTabCacheKey = useCallback(
@@ -143,10 +167,18 @@ export const TabBar: React.FC<TabBarProps> = ({
     return estimateTabWidth(tabTitleForWidthEstimate(tab, t('tabs.fileDeleted')));
   }, [getTabCacheKey, t]);
 
+  const closeAllLivesInMenu = Boolean(onCloseAllTabs && groupActionKind === 'close-all');
+  const hasCollapsedSurfaceTabs = stripTabs.length !== visibleTabs.length;
+  const hasPersistentMenuAction = Boolean(
+    onOpenMissionControl
+    || closeAllLivesInMenu
+    || hasCollapsedSurfaceTabs,
+  );
+
   // Compute visible tab count based on DOM measurements
   const calculateVisibleTabs = useCallback(() => {
-    if (!containerRef.current || visibleTabs.length === 0) {
-      setVisibleTabsCount(visibleTabs.length);
+    if (!containerRef.current || stripTabs.length === 0) {
+      setVisibleTabsCount(stripTabs.length);
       setLayoutReady(true);
       return;
     }
@@ -157,10 +189,10 @@ export const TabBar: React.FC<TabBarProps> = ({
     if (tabsListRef.current) {
       const tabElements = tabsListRef.current.querySelectorAll('.canvas-tab-bar__tab-wrapper');
       tabElements.forEach((el, index) => {
-        if (index < visibleTabs.length) {
+        if (index < stripTabs.length) {
           const width = (el as HTMLElement).offsetWidth;
           if (width > 0) {
-            const cacheKey = getTabCacheKey(visibleTabs[index]);
+            const cacheKey = getTabCacheKey(stripTabs[index]);
             tabWidthCacheRef.current.set(cacheKey, width);
           }
         }
@@ -168,21 +200,27 @@ export const TabBar: React.FC<TabBarProps> = ({
     }
     
     // Total width of all tabs
-    const allTabWidths = visibleTabs.map(tab => getTabWidth(tab));
+    const allTabWidths = stripTabs.map(tab => getTabWidth(tab));
     const totalTabsWidth = allTabWidths.reduce((sum, w) => sum + w, 0);
     
-    // Base actions width (excluding overflow button)
-    // Close-all button: 28px + gap
-    const baseActionsWidth = (onCloseAllTabs ? 28 : 0) + (onOpenWorkspaceMedia ? 30 : 0) + (onOpenShortDramaCenter ? 30 : 0) + 4;
+    // Base actions width (excluding the overflow menu). Media sessions use one
+    // text switcher; presentation collapse remains a visible direct action.
+    const mediaEntryWidth = onOpenWorkspaceMedia
+      ? (onOpenShortDramaCenter ? 132 : 52)
+      : 0;
+    const collapseActionWidth = onCloseAllTabs && groupActionKind === 'collapse-panel'
+      ? 28
+      : 0;
+    const baseActionsWidth = mediaEntryWidth + collapseActionWidth + 4;
     // Overflow button width (~50px with badge, 28px with only mission control)
-    const overflowBtnWidth = onOpenMissionControl ? 50 : 28;
+    const overflowBtnWidth = 50;
     // Gap before actions area
     const actionsGap = 8;
     
     // Phase 1: check if all tabs fit without overflow
     // Overflow can be hidden only when mission control entry is not needed
     const availableWithoutOverflow = containerWidth - baseActionsWidth - actionsGap;
-    const canFitAll = !onOpenMissionControl && totalTabsWidth <= availableWithoutOverflow;
+    const canFitAll = !hasPersistentMenuAction && totalTabsWidth <= availableWithoutOverflow;
     
     // Compute actual available width
     const actionsWidth = canFitAll ? baseActionsWidth : (baseActionsWidth + overflowBtnWidth);
@@ -192,7 +230,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     let totalWidth = 0;
     let count = 0;
     
-    for (let i = 0; i < visibleTabs.length; i++) {
+    for (let i = 0; i < stripTabs.length; i++) {
       const tabWidth = allTabWidths[i];
       
       if (totalWidth + tabWidth <= availableWidth) {
@@ -203,26 +241,34 @@ export const TabBar: React.FC<TabBarProps> = ({
       }
     }
 
-    // Always show at least one tab
-    const finalCount = Math.max(1, Math.min(count, visibleTabs.length));
+    // A media-session surface has its own explicit Media / Drama switcher.
+    // When no complete tab fits, move every real tab into the accessible
+    // overflow menu instead of leaving one clipped keyboard target behind.
+    const finalCount = resolveVisibleTabsCount(
+      count,
+      stripTabs.length,
+      activeSurface !== null,
+    );
     setVisibleTabsCount(finalCount);
     setLayoutReady(true);
   }, [
-    visibleTabs,
+    stripTabs,
     getTabWidth,
     getTabCacheKey,
     onCloseAllTabs,
-    onOpenMissionControl,
+    groupActionKind,
+    hasPersistentMenuAction,
     onOpenWorkspaceMedia,
     onOpenShortDramaCenter,
+    activeSurface,
   ]);
 
   // Reset to render all tabs when list changes (re-measure)
   useEffect(() => {
     // Reset to show all, then let calculateVisibleTabs recompute
-    setVisibleTabsCount(visibleTabs.length);
+    setVisibleTabsCount(stripTabs.length);
     setLayoutReady(false);
-  }, [visibleTabs.length]);
+  }, [stripTabs.length]);
 
   // Use useLayoutEffect to measure right after DOM update
   useLayoutEffect(() => {
@@ -232,7 +278,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     });
     
     return () => cancelAnimationFrame(frameId);
-  }, [visibleTabs, calculateVisibleTabs]);
+  }, [stripTabs, calculateVisibleTabs]);
 
   // Observe container size changes
   useEffect(() => {
@@ -253,8 +299,12 @@ export const TabBar: React.FC<TabBarProps> = ({
   }, [calculateVisibleTabs]);
 
   // Split visible and overflow tabs
-  const displayedTabs = visibleTabs.slice(0, visibleTabsCount);
-  const overflowTabs = visibleTabs.slice(visibleTabsCount);
+  const renderedVisibleTabsCount = layoutReady || activeSurface === null
+    ? visibleTabsCount
+    : 0;
+  const displayedTabs = stripTabs.slice(0, renderedVisibleTabsCount);
+  const displayedTabIds = new Set(displayedTabs.map(tab => tab.id));
+  const overflowTabs = visibleTabs.filter(tab => !displayedTabIds.has(tab.id));
 
   // Handle tab drag start
   const handleTabDragStart = useCallback((tab: CanvasTab) => (_e: React.DragEvent) => {
@@ -356,47 +406,53 @@ export const TabBar: React.FC<TabBarProps> = ({
         aria-label={t('tabs.openTabs')}
         onKeyDown={handleTabListKeyDown}
       >
-        {displayedTabs.map((tab, index) => (
-          <div
-            key={tab.id}
-            className="canvas-tab-bar__tab-wrapper"
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, index)}
-          >
-            {/* Drop indicator */}
-            {dragOverIndex === index && draggingTabId && (
-              <div className="canvas-tab-drop-indicator" />
-            )}
-            
-            <Tab
-              tab={tab}
-              groupId={groupId}
-              isActive={activeTabId === tab.id}
-              onClick={() => onTabClick(tab.id)}
-              onDoubleClick={() => onTabDoubleClick(tab.id)}
-              onClose={() => onTabClose(tab.id)}
-              onPin={() => onTabPin(tab.id)}
-              onDragStart={handleTabDragStart(tab)}
-              onDragEnd={onDragEnd}
-              isDragging={draggingTabId === tab.id}
-              isKeyboardTabStop={
-                activeTabId === tab.id || (!hasDisplayedActiveTab && index === 0)
-              }
-              onPopOut={onTabPopOut ? () => onTabPopOut(tab.id) : undefined}
-            />
-          </div>
-        ))}
+        {displayedTabs.map((tab, index) => {
+          const targetIndex = visibleTabs.findIndex(
+            visibleTab => visibleTab.id === tab.id,
+          );
+          return (
+            <div
+              key={tab.id}
+              className="canvas-tab-bar__tab-wrapper"
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, targetIndex)}
+            >
+              {/* Drop indicator */}
+              {dragOverIndex === index && draggingTabId && (
+                <div className="canvas-tab-drop-indicator" />
+              )}
+
+              <Tab
+                tab={tab}
+                groupId={groupId}
+                isActive={activeTabId === tab.id}
+                onClick={() => onTabClick(tab.id)}
+                onDoubleClick={() => onTabDoubleClick(tab.id)}
+                onClose={() => onTabClose(tab.id)}
+                onPin={() => onTabPin(tab.id)}
+                onDragStart={handleTabDragStart(tab)}
+                onDragEnd={onDragEnd}
+                isDragging={draggingTabId === tab.id}
+                isKeyboardTabStop={
+                  activeTabId === tab.id || (!hasDisplayedActiveTab && index === 0)
+                }
+                onPopOut={onTabPopOut ? () => onTabPopOut(tab.id) : undefined}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {/* Actions area */}
       <div ref={actionsRef} className="canvas-tab-bar__actions">
-        {onOpenShortDramaCenter && (
-          <ShortDramaEntry onOpen={onOpenShortDramaCenter} />
-        )}
-
         {onOpenWorkspaceMedia && (
-          <WorkspaceMediaEntry workspacePath={workspacePath} onOpen={onOpenWorkspaceMedia} />
+          <WorkspaceMediaEntry
+            workspacePath={workspacePath}
+            onOpen={onOpenWorkspaceMedia}
+            onOpenShortDrama={onOpenShortDramaCenter}
+            activeSurface={activeSurface}
+          />
         )}
 
         {/* Overflow menu (all groups; mission control only in primary) */}
@@ -406,24 +462,28 @@ export const TabBar: React.FC<TabBarProps> = ({
             activeTabId={activeTabId}
             onTabClick={onTabClick}
             onTabClose={onTabClose}
+            onTabPin={onTabPin}
+            onTabPopOut={onTabPopOut}
             onReorderTab={onReorderTab}
             onOpenMissionControl={onOpenMissionControl}
+            onCloseAllTabs={closeAllLivesInMenu ? onCloseAllTabs : undefined}
+            closeAllTabsLabel={closeAllTabsLabel}
           />
         )}
 
-        {/* Close all tabs button */}
-        {onCloseAllTabs && visibleTabs.length > 0 && (
+        {/* Presentation collapse remains direct and visually distinct. */}
+        {onCloseAllTabs && groupActionKind === 'collapse-panel' && visibleTabs.length > 0 && (
           <Tooltip content={closeAllTabsLabel ?? t('tabs.closeAll')} placement="bottom">
             <button
               type="button"
-              className="canvas-tab-bar__action-btn canvas-tab-bar__action-btn--close-all"
+              className="canvas-tab-bar__action-btn canvas-tab-bar__action-btn--collapse-panel"
               aria-label={closeAllTabsLabel ?? t('tabs.closeAll')}
               onClick={async (e) => {
                 e.stopPropagation();
                 await onCloseAllTabs();
               }}
             >
-              <X size={14} />
+              <PanelRightClose size={14} />
             </button>
           </Tooltip>
         )}

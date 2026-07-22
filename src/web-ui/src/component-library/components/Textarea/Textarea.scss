@@ -33,7 +33,7 @@
     width: 100%;
     min-height: 100px;
     padding: 12px 14px;
-    font-size: 14px;
+    font-size: var(--font-size-base);
     line-height: 1.5;
     color: var(--color-text-primary);
     background: var(--element-bg-subtle);
@@ -87,19 +87,19 @@
   }
 
   &__hint {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-muted);
     line-height: 1.4;
   }
 
   &__error-message {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-error);
     line-height: 1.4;
   }
 
   &__count {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-muted);
     line-height: 1.4;
     white-space: nowrap;

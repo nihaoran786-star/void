@@ -90,6 +90,11 @@
   box-sizing: border-box;
 }
 
+:where(.base-tool-card, .compact-tool-card):focus-within {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: -2px;
+}
+
 /* ========== Header row styles ========== */
 .base-tool-card-header {
   display: flex;
@@ -125,6 +130,24 @@
     z-index: 1;
   }
 
+}
+
+.tool-card-header-activation {
+  position: absolute;
+  inset-block: 0;
+  left: var(--tool-card-header-pad-x);
+  z-index: 12;
+  width: var(--tool-card-header-icon-slot);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
 }
 
 /* Chevron swap: only when card opts in via headerExpandAffordance (includes status-error with collapsible details). */

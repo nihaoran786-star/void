@@ -1,6 +1,12 @@
 @use './WorkspaceMediaGallery.minimal' as minimal;
 
 .workspace-media-gallery {
+  --workspace-media-font-size-ui-micro: 10px;
+  --workspace-media-font-size-ui-meta: 11px;
+  --workspace-media-font-size-ui-label: 12px;
+  --workspace-media-font-size-ui-control: 15px;
+  --workspace-media-font-size-ui-body: 13px;
+  --workspace-media-font-size-glyph: 12px;
   --workspace-media-gallery-bg: var(--color-bg-primary);
   --workspace-media-gallery-text: var(--control-text-hover);
   --workspace-media-gallery-muted: var(--control-text-muted);
@@ -112,7 +118,7 @@
   outline: 0;
   background: transparent;
   color: var(--workspace-media-gallery-text);
-  font-size: 15px;
+  font-size: var(--workspace-media-font-size-ui-control);
   line-height: 1;
 }
 
@@ -165,7 +171,7 @@
   color: var(--workspace-media-gallery-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
 }
 
 .workspace-media-gallery__refinement-toggle:hover,
@@ -188,7 +194,7 @@
   border-radius: 999px;
   background: var(--workspace-media-gallery-hover-surface);
   color: var(--workspace-media-gallery-text);
-  font-size: 10px;
+  font-size: var(--workspace-media-font-size-ui-micro);
   font-variant-numeric: tabular-nums;
 }
 
@@ -249,7 +255,7 @@
   height: auto;
   min-height: 24px;
   padding: 3px 7px;
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
 }
 
 .workspace-media-gallery__filters,
@@ -258,7 +264,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-ui-label);
 }
 
 .workspace-media-gallery__filters button,
@@ -296,14 +302,14 @@
 .workspace-media-gallery__filters small {
   color: color-mix(in srgb, var(--workspace-media-gallery-muted) 72%, transparent);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--workspace-media-font-size-ui-micro);
 }
 
 .workspace-media-gallery__sort {
   flex: 0 0 auto;
   justify-content: flex-end;
   gap: 9px;
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
   white-space: nowrap;
 }
 
@@ -317,7 +323,7 @@
   align-items: center;
   gap: 5px;
   color: var(--workspace-media-gallery-muted);
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
   white-space: nowrap;
 }
 
@@ -345,7 +351,7 @@
   background: var(--workspace-media-gallery-surface);
   color: var(--workspace-media-gallery-muted);
   padding: 18px;
-  font-size: 13px;
+  font-size: var(--workspace-media-font-size-ui-body);
 }
 
 .workspace-media-gallery__state button {
@@ -649,7 +655,7 @@
   background: var(--workspace-media-card-chrome-glass);
   color: var(--workspace-media-card-chrome-type-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--workspace-media-font-size-ui-micro);
   font-weight: 700;
   letter-spacing: 0;
   padding: 2px 5px;
@@ -700,7 +706,7 @@
   background: var(--workspace-media-card-chrome-glass);
   color: var(--workspace-media-card-chrome-ink);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-glyph);
   font-weight: 700;
   line-height: 1;
   padding: 0 6px;
@@ -746,14 +752,14 @@
 }
 
 .workspace-media-card__overlay strong {
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-ui-label);
   font-weight: 650;
 }
 
 .workspace-media-card__overlay small,
 .workspace-media-card__meta {
   color: var(--workspace-media-card-chrome-overlay-meta);
-  font-size: 10px;
+  font-size: var(--workspace-media-font-size-ui-micro);
 }
 
 .workspace-media-card__meta {
@@ -764,7 +770,7 @@
 
 .workspace-media-card__unavailable {
   color: var(--workspace-media-card-chrome-unavailable);
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
 }
 
 .workspace-media-gallery__unpreviewable {
@@ -778,7 +784,7 @@
 .workspace-media-gallery__unpreviewable h3 {
   margin: 0;
   color: var(--workspace-media-gallery-muted);
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-ui-label);
   font-weight: 650;
 }
 
@@ -791,7 +797,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
 }
 
 .workspace-media-gallery__views button,
@@ -824,7 +830,7 @@
   border: 1px solid color-mix(in srgb, var(--workspace-media-gallery-border) 85%, transparent);
   border-radius: 6px;
   padding: 3px 7px;
-  font-size: 11px;
+  font-size: var(--workspace-media-font-size-ui-meta);
   line-height: 1.2;
 }
 
@@ -846,7 +852,7 @@
   min-height: 28px;
   border-top: 1px solid color-mix(in srgb, var(--workspace-media-gallery-border) 46%, transparent);
   color: var(--workspace-media-gallery-muted);
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-ui-label);
 }
 
 .workspace-media-gallery__selection-bar button {
@@ -867,7 +873,7 @@
 .workspace-media-gallery__operation-error {
   border-top: 1px solid var(--workspace-media-gallery-error-border);
   color: var(--workspace-media-gallery-error-text);
-  font-size: 12px;
+  font-size: var(--workspace-media-font-size-ui-label);
   line-height: 1.4;
   padding: 7px 0 0;
 }

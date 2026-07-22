@@ -1,3 +1,5 @@
+@use '../../../component-library/styles/tokens' as *;
+
 .review-config {
   .void-config-page-section__body {
     gap: 0;
@@ -6,9 +8,9 @@
 
 .review-config__strategy-options {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
-  padding: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $size-gap-2;
+  padding: $size-gap-3;
 }
 
 .review-config__overview-grid {
@@ -19,9 +21,9 @@
 .review-config__overview-item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: $size-gap-1;
   min-width: 0;
-  padding: 16px;
+  padding: $size-gap-4;
 
   & + & {
     border-left: 1px solid var(--border-subtle);
@@ -44,27 +46,32 @@
 .review-config__strategy-option {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: $size-gap-1;
   min-height: 82px;
-  padding: 12px;
+  padding: $size-gap-3;
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: var(--color-surface);
+  border-radius: $size-radius-base;
+  background: var(--control-bg);
   color: var(--color-text-primary);
   text-align: left;
   cursor: pointer;
   transition:
     border-color var(--motion-fast) var(--easing-standard),
-    background var(--motion-fast) var(--easing-standard);
+    background-color var(--motion-fast) var(--easing-standard);
 
   &:hover:not(:disabled) {
     border-color: var(--color-primary);
-    background: var(--element-bg-hover);
+    background: var(--control-bg-hover);
   }
 
   &.is-selected {
     border-color: var(--color-primary);
-    background: var(--color-primary-bg-subtle);
+    background: var(--control-bg-active);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--control-focus-ring);
+    outline-offset: 2px;
   }
 }
 
@@ -91,8 +98,8 @@
 .review-config__member-row {
   display: grid;
   grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.7fr);
-  gap: 16px;
-  padding: 16px;
+  gap: $size-gap-4;
+  padding: $size-gap-4;
   border-bottom: 1px solid var(--border-subtle);
 
   &:last-child {
@@ -108,7 +115,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: $size-gap-2;
 }
 
 .review-config__member-controls,
@@ -116,7 +123,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: $size-gap-2;
   min-width: 0;
 }
 
@@ -138,7 +145,8 @@
   overflow: visible;
 }
 
-@media (max-width: 860px) {
+@container config-panel (max-width: 640px) {
+  .review-config__strategy-options,
   .review-config__overview-grid {
     grid-template-columns: 1fr;
   }
@@ -147,7 +155,9 @@
     border-top: 1px solid var(--border-subtle);
     border-left: 0;
   }
+}
 
+@media (max-width: 860px) {
   .review-config__member-row {
     grid-template-columns: 1fr;
   }

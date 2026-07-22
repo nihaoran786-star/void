@@ -465,7 +465,7 @@
     .code-editor__wrapper {
       :global {
         .monaco-editor {
-          font-size: 12px;
+          font-size: var(--font-size-xs);
         }
       }
     }

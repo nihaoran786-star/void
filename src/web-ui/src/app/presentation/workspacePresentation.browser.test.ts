@@ -1,6 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  applyWorkspacePresentationToPortalRoot,
   persistWorkspacePresentation,
   readWorkspacePresentation,
   WORKSPACE_PRESENTATION_STORAGE_KEY,
@@ -64,5 +65,23 @@ describe('workspace presentation browser startup', () => {
     persistWorkspacePresentation('minimal');
     expect(dom.window.localStorage.getItem(WORKSPACE_PRESENTATION_STORAGE_KEY))
       .toBe('minimal');
+  });
+
+  it('projects presentation onto the shared body portal root and cleans it up', () => {
+    const dom = installWindow();
+    const root = dom.window.document.body;
+    root.classList.add('desktop-host', 'void-ui--classic');
+
+    const restore = applyWorkspacePresentationToPortalRoot(root, 'minimal');
+
+    expect(root.classList.contains('desktop-host')).toBe(true);
+    expect(root.classList.contains('void-ui--minimal')).toBe(true);
+    expect(root.classList.contains('void-ui--classic')).toBe(false);
+
+    restore();
+
+    expect(root.classList.contains('desktop-host')).toBe(true);
+    expect(root.classList.contains('void-ui--minimal')).toBe(false);
+    expect(root.classList.contains('void-ui--classic')).toBe(false);
   });
 });

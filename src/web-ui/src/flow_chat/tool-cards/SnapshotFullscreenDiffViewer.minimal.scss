@@ -1,0 +1,223 @@
+@mixin styles {
+  .void-ui--minimal .snapshot-fullscreen-overlay {
+    background: var(--workspace-overlay-scrim);
+    backdrop-filter: none;
+
+    .snapshot-fullscreen-container {
+      width: calc(100vw - 16px);
+      height: calc(100vh - 16px);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-panel);
+      box-shadow: var(--workspace-shadow-raised);
+    }
+
+    .snapshot-fullscreen-header {
+      min-height: 42px;
+      gap: var(--workspace-space-3);
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+    }
+
+    .session-icon,
+    .file-icon,
+    .header-divider {
+      display: none;
+    }
+
+    .session-info,
+    .session-details {
+      min-width: 0;
+    }
+
+    .session-details {
+      flex-direction: row;
+      align-items: baseline;
+      gap: var(--workspace-space-2);
+    }
+
+    .session-title {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-medium);
+      white-space: nowrap;
+    }
+
+    .session-stats {
+      gap: var(--workspace-space-2);
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+    }
+
+    .session-stats .additions {
+      color: var(--workspace-status-success-text);
+    }
+
+    .session-stats .deletions {
+      color: var(--workspace-status-error-text);
+    }
+
+    .header-actions,
+    .current-file-actions {
+      gap: var(--workspace-space-1);
+    }
+
+    .header-btn,
+    .file-action-btn,
+    .nav-btn {
+      min-width: 28px;
+      min-height: 28px;
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-1) var(--workspace-space-2);
+      border: 1px solid transparent;
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      box-shadow: none;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-label);
+
+      &:hover:not(:disabled),
+      &:focus-visible {
+        border-color: transparent;
+        background: var(--workspace-surface-hover);
+        box-shadow: none;
+        color: var(--workspace-text-primary);
+      }
+
+      &:focus-visible {
+        outline-color: var(--workspace-focus-ring);
+      }
+    }
+
+    .header-btn.batch-accept-btn,
+    .file-action-btn.accept-btn {
+      border-color: transparent;
+      background: transparent;
+      color: var(--workspace-status-success-text);
+    }
+
+    .header-btn.batch-reject-btn,
+    .file-action-btn.reject-btn {
+      border-color: transparent;
+      background: transparent;
+      color: var(--workspace-status-error-text);
+    }
+
+    .header-btn.close-btn {
+      border-color: transparent;
+      background: transparent;
+      color: var(--workspace-text-secondary);
+    }
+
+    .file-navigation,
+    .current-file-header {
+      min-height: 36px;
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-1) var(--workspace-space-3);
+      border-color: var(--workspace-border-subtle);
+      background: var(--workspace-surface-panel);
+    }
+
+    .file-tabs {
+      gap: var(--workspace-space-1);
+    }
+
+    .file-tab {
+      max-width: 220px;
+      min-height: 28px;
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-1) var(--workspace-space-2);
+      border-color: transparent;
+      border-radius: var(--workspace-radius-control);
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-label);
+
+      &:hover,
+      &:focus-visible {
+        background: var(--workspace-surface-hover);
+        color: var(--workspace-text-primary);
+      }
+
+      &:focus-visible {
+        outline-color: var(--workspace-focus-ring);
+      }
+
+      &.active {
+        border-color: transparent;
+        background: var(--workspace-surface-active);
+        color: var(--workspace-text-primary);
+      }
+
+      .file-name {
+        overflow: hidden;
+        font-family: var(--font-family-sans);
+        text-overflow: ellipsis;
+      }
+    }
+
+    .file-tab .file-status[data-status='pending'] {
+      color: var(--workspace-status-warning-text);
+    }
+
+    .file-tab .file-status[data-status='accepted'] {
+      color: var(--workspace-status-success-text);
+    }
+
+    .file-tab .file-status[data-status='rejected'] {
+      color: var(--workspace-status-error-text);
+    }
+
+    .file-tab .file-status[data-status='partial'] {
+      color: var(--workspace-status-neutral-text);
+    }
+
+    .file-details .file-name {
+      color: var(--workspace-text-primary);
+      font-family: var(--font-family-sans);
+      font-size: var(--workspace-font-size-label);
+    }
+
+    .file-details .file-path-full {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+    }
+
+    .snapshot-fullscreen-content {
+      background: var(--workspace-surface-canvas);
+    }
+
+    .fullscreen-loading-overlay {
+      background: var(--workspace-overlay-scrim);
+      color: var(--workspace-text-primary);
+    }
+
+    .loading-spinner {
+      border-color: var(--workspace-border-strong);
+      border-top-color: var(--workspace-text-primary);
+    }
+
+    .snapshot-fullscreen-error {
+      border-color: var(--workspace-status-error-border);
+      background: var(--workspace-status-error-bg);
+      color: var(--workspace-status-error-text);
+      font-size: var(--workspace-font-size-label);
+    }
+
+    @media (max-width: 680px) {
+      .snapshot-fullscreen-container {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+      }
+
+      .session-stats {
+        display: none;
+      }
+
+      .file-tab {
+        max-width: 150px;
+      }
+    }
+  }
+}

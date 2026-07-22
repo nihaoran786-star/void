@@ -14,7 +14,7 @@
   box-shadow: none;
   overflow: hidden;
   transition: height $motion-base $easing-standard;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   position: relative;
 
   &.is-collapsed {

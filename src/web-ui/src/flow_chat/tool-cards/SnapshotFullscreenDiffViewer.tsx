@@ -38,54 +38,102 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
 }) => {
   const { t } = useTranslation('flow-chat');
   const [selectedFileIndex, setSelectedFileIndex] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement>(null);
+  const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const titleId = React.useId();
 
-  // Close on Escape key.
+  // Keep the fullscreen viewer modal and return focus to its launcher.
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      // Prevent background scrolling while open.
-      document.body.style.overflow = 'hidden';
+    if (!isOpen) {
+      return;
     }
 
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
+    returnFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const focusFrame = window.requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
-  // Keyboard navigation across files.
-  useEffect(() => {
-    const handleKeyboard = (e: KeyboardEvent) => {
-      if (!isOpen || files.length <= 1) return;
-      
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedFileIndex(prev => prev > 0 ? prev - 1 : files.length - 1);
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedFileIndex(prev => prev < files.length - 1 ? prev + 1 : 0);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousBodyOverflow;
+      const returnTarget = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (returnTarget?.isConnected) {
+        window.requestAnimationFrame(() => returnTarget.focus());
       }
     };
+  }, [isOpen]);
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyboard);
+  const handleDialogKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const dialog = dialogRef.current;
+    if (!dialog || !dialog.contains(event.target as Node)) {
+      return;
     }
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyboard);
-    };
-  }, [isOpen, files.length]);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
+    )).filter(element => element.getClientRects().length > 0);
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  }, [onClose]);
+
+  const handleFileNavigationKeyDown = useCallback((
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    if (files.length <= 1) {
+      return;
+    }
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    setSelectedFileIndex((previous) => {
+      const current = Math.min(previous, files.length - 1);
+      if (event.key === 'Home') return 0;
+      if (event.key === 'End') return files.length - 1;
+      if (event.key === 'ArrowLeft') {
+        return current > 0 ? current - 1 : files.length - 1;
+      }
+      return current < files.length - 1 ? current + 1 : 0;
+    });
+  }, [files.length]);
 
   // Reset selection when opening.
   useEffect(() => {
     if (isOpen && files.length > 0) {
       setSelectedFileIndex(0);
+      setActionError(null);
     }
   }, [isOpen, files.length]);
 
@@ -97,9 +145,11 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
 
   // File-level actions with error logging.
   const handleFileAction = useCallback(async (action: 'accept' | 'reject') => {
-    if (selectedFileIndex >= files.length) return;
-    
-    const file = files[selectedFileIndex];
+    const currentIndex = Math.min(selectedFileIndex, files.length - 1);
+    if (currentIndex < 0) return;
+
+    const file = files[currentIndex];
+    setActionError(null);
     try {
       if (action === 'accept') {
         await onAcceptFile(file.filePath);
@@ -108,11 +158,17 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
       }
     } catch (error) {
       log.error(`File ${action} operation failed`, { filePath: file.filePath, action, error });
+      setActionError(t(
+        action === 'accept'
+          ? 'snapshotSystem.errors.acceptFileFailed'
+          : 'snapshotSystem.errors.rejectFileFailed',
+      ));
     }
-  }, [selectedFileIndex, files, onAcceptFile, onRejectFile]);
+  }, [selectedFileIndex, files, onAcceptFile, onRejectFile, t]);
 
   // Batch actions with error logging.
   const handleBatchAction = useCallback(async (action: 'accept' | 'reject') => {
+    setActionError(null);
     try {
       for (const file of files) {
         if (action === 'accept') {
@@ -123,12 +179,18 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
       }
     } catch (error) {
       log.error(`Batch ${action} operation failed`, { action, fileCount: files.length, error });
+      setActionError(t(
+        action === 'accept'
+          ? 'snapshotSystem.errors.acceptSessionFailed'
+          : 'snapshotSystem.errors.rejectSessionFailed',
+      ));
     }
-  }, [files, onAcceptFile, onRejectFile]);
+  }, [files, onAcceptFile, onRejectFile, t]);
 
   if (!isOpen || files.length === 0) return null;
 
-  const currentFile = files[selectedFileIndex];
+  const safeSelectedFileIndex = Math.min(selectedFileIndex, files.length - 1);
+  const currentFile = files[safeSelectedFileIndex];
   const fileName = currentFile?.filePath.split(/[/\\]/).pop() || '';
 
   // Aggregate change stats for the header.
@@ -146,14 +208,24 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
 
   const fullscreenContent = (
     <div className="snapshot-fullscreen-overlay" onClick={handleBackdropClick}>
-      <div className="snapshot-fullscreen-container">
+      <div
+        ref={dialogRef}
+        className="snapshot-fullscreen-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
+      >
         <div className="snapshot-fullscreen-header">
           <div className="session-info">
             <div className="session-icon">
               <FileText size={20} />
             </div>
             <div className="session-details">
-              <div className="session-title">{t('toolCards.snapshot.fileDiff')}</div>
+              <div id={titleId} className="session-title">
+                {t('toolCards.snapshot.fileDiff')}
+              </div>
               <div className="session-stats">
                 {t('toolCards.snapshot.filesCount', { count: stats.totalFiles })}
                 {stats.totalAdditions > 0 && <span className="additions">+{stats.totalAdditions}</span>}
@@ -165,6 +237,7 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
           <div className="header-actions">
             <Tooltip content={t('toolCards.snapshot.acceptAllTooltip')}>
               <button
+                type="button"
                 className="header-btn batch-accept-btn"
                 onClick={() => handleBatchAction('accept')}
                 disabled={loading}
@@ -176,6 +249,7 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
             
             <Tooltip content={t('toolCards.snapshot.rejectAllTooltip')}>
               <button
+                type="button"
                 className="header-btn batch-reject-btn"
                 onClick={() => handleBatchAction('reject')}
                 disabled={loading}
@@ -189,8 +263,11 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
 
             <Tooltip content={t('toolCards.snapshot.close')}>
               <button
+                ref={closeButtonRef}
+                type="button"
                 className="header-btn close-btn"
                 onClick={onClose}
+                aria-label={t('toolCards.snapshot.close')}
               >
                 <X size={16} />
               </button>
@@ -199,11 +276,19 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
         </div>
 
         {files.length > 1 && (
-          <div className="file-navigation">
+          <div
+            className="file-navigation"
+            aria-label={t('toolCards.snapshot.fileDiff')}
+            onKeyDown={handleFileNavigationKeyDown}
+          >
             <Tooltip content={t('toolCards.snapshot.prevFile')}>
               <button
+                type="button"
                 className="nav-btn prev-btn"
-                onClick={() => setSelectedFileIndex(prev => prev > 0 ? prev - 1 : files.length - 1)}
+                onClick={() => setSelectedFileIndex((previous) => {
+                  const current = Math.min(previous, files.length - 1);
+                  return current > 0 ? current - 1 : files.length - 1;
+                })}
                 disabled={loading}
               >
                 <ChevronLeft size={16} />
@@ -215,13 +300,19 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
                 const name = file.filePath.split(/[/\\]/).pop() || '';
                 return (
                   <button
-                    key={index}
-                    className={`file-tab ${index === selectedFileIndex ? 'active' : ''}`}
+                    key={file.filePath}
+                    type="button"
+                    className={`file-tab ${index === safeSelectedFileIndex ? 'active' : ''}`}
                     onClick={() => setSelectedFileIndex(index)}
                     title={file.filePath}
+                    aria-pressed={index === safeSelectedFileIndex}
                   >
                     <span className="file-name">{name}</span>
-                    <span className="file-status" data-status={file.fileStatus}>
+                    <span
+                      className="file-status"
+                      data-status={file.fileStatus}
+                      aria-hidden="true"
+                    >
                       {file.fileStatus === 'pending' ? '●' : 
                        file.fileStatus === 'accepted' ? '✓' : 
                        file.fileStatus === 'rejected' ? '✗' : '◐'}
@@ -233,6 +324,7 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
 
             <Tooltip content={t('toolCards.snapshot.nextFile')}>
               <button
+                type="button"
                 className="nav-btn next-btn"
                 onClick={() => setSelectedFileIndex(prev => prev < files.length - 1 ? prev + 1 : 0)}
                 disabled={loading}
@@ -260,6 +352,7 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
           <div className="current-file-actions">
             <Tooltip content={t('toolCards.snapshot.acceptFileTooltip')}>
               <button
+                type="button"
                 className="file-action-btn accept-btn"
                 onClick={() => handleFileAction('accept')}
                 disabled={loading}
@@ -271,6 +364,7 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
             
             <Tooltip content={t('toolCards.snapshot.rejectFileTooltip')}>
               <button
+                type="button"
                 className="file-action-btn reject-btn"
                 onClick={() => handleFileAction('reject')}
                 disabled={loading}
@@ -281,6 +375,19 @@ export const SnapshotFullscreenDiffViewer: React.FC<SnapshotFullscreenDiffViewer
             </Tooltip>
           </div>
         </div>
+
+        {actionError && (
+          <div className="snapshot-fullscreen-error" role="alert">
+            <span>{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              aria-label={t('toolCards.snapshot.close')}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         <div className="snapshot-fullscreen-content">
           {currentFile && (

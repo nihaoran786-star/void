@@ -8,7 +8,7 @@
   flex-direction: column;
   height: 620px;
   max-height: calc(100vh - 120px);
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   overflow: hidden;
 
   
@@ -131,7 +131,6 @@
   }
 
   &__empty-icon {
-    font-size: 32px;
     margin-bottom: $size-gap-3;
     opacity: 0.5;
   }
@@ -152,7 +151,7 @@
 
   &__group-title {
     padding: 6px $size-gap-4;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-semibold;
     color: var(--color-text-muted);
     text-transform: uppercase;
@@ -216,7 +215,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: $font-weight-semibold;
 
     &--success {
@@ -288,7 +287,7 @@
   }
 
   &__item-percentage {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-semibold;
     color: #ca8a04;
     font-variant-numeric: tabular-nums;
@@ -311,7 +310,7 @@
   }
 
   &__item-time {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--color-text-muted);
     font-family: $font-family-mono;
   }
@@ -327,7 +326,7 @@
 
   &__item-technical-title {
     margin-bottom: 4px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-semibold;
     color: var(--color-text-muted);
     text-transform: uppercase;
@@ -341,7 +340,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     font-family: $font-family-mono;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     line-height: 1.45;
     color: var(--color-text-secondary);
   }
@@ -470,7 +469,7 @@
 
   &__active-section-title {
     padding: 6px $size-gap-4;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-semibold;
     color: var(--color-accent-500);
     text-transform: uppercase;
@@ -538,7 +537,7 @@
   }
 
   &__active-task-progress-text {
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: $font-weight-semibold;
     color: var(--color-accent-500);
     font-variant-numeric: tabular-nums;

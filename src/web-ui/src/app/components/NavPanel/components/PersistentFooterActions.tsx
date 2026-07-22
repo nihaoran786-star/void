@@ -32,6 +32,7 @@ import {
   getRemoteConnectDisclaimerAgreed,
   setRemoteConnectDisclaimerAgreed,
 } from '../../RemoteConnectDialog/remoteConnectDisclaimerStorage';
+
 const PersistentFooterActions: React.FC = () => {
   const { t } = useI18n('common');
   const { openScene } = useSceneManager();
@@ -102,6 +103,16 @@ const PersistentFooterActions: React.FC = () => {
       openScene('browser');
     }
   }, [activeTabId, openScene, t]);
+
+  const handleOpenShellFromMenu = useCallback(() => {
+    closeMenu();
+    handleOpenShell();
+  }, [closeMenu, handleOpenShell]);
+
+  const handleOpenBrowserFromMenu = useCallback(() => {
+    closeMenu();
+    handleOpenBrowser();
+  }, [closeMenu, handleOpenBrowser]);
 
   const handleOpenInsights = useCallback(() => {
     closeMenu();
@@ -193,6 +204,7 @@ const PersistentFooterActions: React.FC = () => {
                       type="button"
                       className={`void-nav-panel__footer-menu-item${!hasWorkspace ? ' is-disabled' : ''}`}
                       role="menuitem"
+                      data-testid="remote-connect-menu-item"
                       aria-disabled={!hasWorkspace}
                       onClick={handleRemoteConnect}
                     >
@@ -200,6 +212,26 @@ const PersistentFooterActions: React.FC = () => {
                       <span>{t('header.remoteConnect')}</span>
                     </button>
                   </Tooltip>
+                  <button
+                    type="button"
+                    className="void-nav-panel__footer-menu-item void-nav-panel__footer-menu-item--minimal-only"
+                    role="menuitem"
+                    data-testid="minimal-footer-shell-menu-item"
+                    onClick={handleOpenShellFromMenu}
+                  >
+                    <SquareTerminal size={14} />
+                    <span>{t('scenes.shell')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="void-nav-panel__footer-menu-item void-nav-panel__footer-menu-item--minimal-only"
+                    role="menuitem"
+                    data-testid="minimal-footer-browser-menu-item"
+                    onClick={handleOpenBrowserFromMenu}
+                  >
+                    <Globe size={14} />
+                    <span>{t('scenes.browser')}</span>
+                  </button>
                   <div className="void-nav-panel__footer-menu-divider" />
                   <button
                     type="button"
@@ -243,6 +275,7 @@ const PersistentFooterActions: React.FC = () => {
                     type="button"
                     className="void-nav-panel__footer-menu-item"
                     role="menuitem"
+                    data-testid="about-menu-item"
                     onClick={handleShowAbout}
                   >
                     <Info size={14} />
@@ -256,7 +289,7 @@ const PersistentFooterActions: React.FC = () => {
           <Tooltip content={t('scenes.shell')} placement="right">
             <button
               type="button"
-              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${showSceneNav && navSceneId === 'shell' ? ' is-active' : ''}`}
+              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon void-nav-panel__footer-quick-action${showSceneNav && navSceneId === 'shell' ? ' is-active' : ''}`}
               aria-label={t('scenes.shell')}
               aria-pressed={showSceneNav && navSceneId === 'shell'}
               onClick={handleOpenShell}
@@ -271,7 +304,7 @@ const PersistentFooterActions: React.FC = () => {
           <Tooltip content={t('scenes.browser')} placement="right">
             <button
               type="button"
-              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${isBrowserActive ? ' is-active' : ''}`}
+              className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon void-nav-panel__footer-quick-action${isBrowserActive ? ' is-active' : ''}`}
               aria-label={t('scenes.browser')}
               aria-pressed={isBrowserActive}
               onClick={handleOpenBrowser}
@@ -288,8 +321,14 @@ const PersistentFooterActions: React.FC = () => {
           <NotificationButton className="void-nav-panel__footer-btn" navFooterHoverIconSwap />
         </div>
       </div>
-      <AboutDialog isOpen={showAbout} onClose={() => setShowAbout(false)} />
-      <RemoteConnectDialog isOpen={showRemoteConnect} onClose={() => setShowRemoteConnect(false)} />
+      <AboutDialog
+        isOpen={showAbout}
+        onClose={() => setShowAbout(false)}
+      />
+      <RemoteConnectDialog
+        isOpen={showRemoteConnect}
+        onClose={() => setShowRemoteConnect(false)}
+      />
       <Modal
         isOpen={showRemoteDisclaimer}
         onClose={() => setShowRemoteDisclaimer(false)}

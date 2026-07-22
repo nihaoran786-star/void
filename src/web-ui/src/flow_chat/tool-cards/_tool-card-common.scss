@@ -209,7 +209,9 @@
     width: 16px !important;
     height: 16px !important;
     border-width: 2px !important;
-    box-shadow: 0 0 8px var(--loading-color-light) !important;
+    box-shadow:
+      0 0 8px color-mix(in srgb, var(--color-accent-400) 60%, transparent)
+      !important;
   }
 
   .icon-completed {

@@ -143,5 +143,28 @@
   }
 }
 
+.void-ui--minimal .void-config-page-header {
+  padding-top: var(--size-gap-6, 24px);
+  margin-bottom: var(--size-gap-5, 20px);
+}
+
+.void-ui--minimal .void-config-page-header__title {
+  margin-bottom: 2px;
+  font-size: var(--font-size-lg);
+}
+
+.void-ui--minimal .void-config-page-header__subtitle {
+  margin-top: 0;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-base);
+}
+
+@container config-panel (max-width: 520px) {
+  .void-ui--minimal .void-config-page-header {
+    padding-top: var(--size-gap-5, 20px);
+    margin-bottom: var(--size-gap-4, 16px);
+  }
+}
+
 
 

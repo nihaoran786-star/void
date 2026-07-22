@@ -1145,7 +1145,7 @@
 
   [data-type='details'] > button::before {
     content: '▸';
-    font-size: 14px;
+    font-size: var(--font-size-base);
   }
 
   [data-type='details'].is-open > button::before {
@@ -1207,7 +1207,7 @@
     padding: 0;
     width: 20px;
     height: 20px;
-    font-size: 14px;
+    font-size: var(--font-size-base);
     line-height: 1;
   }
 

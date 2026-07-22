@@ -87,7 +87,7 @@
     gap: $size-gap-3;
     padding: $size-gap-2 $size-gap-3;
     border-bottom: 1px solid var(--border-subtle);
-    background: var(--color-bg-surface);
+    background: var(--color-bg-elevated);
 
     span,
     small {
@@ -177,9 +177,9 @@
     padding: $size-gap-2 $size-gap-3;
     border: 1px solid var(--color-success-border, var(--border-subtle));
     border-radius: $size-radius-base;
-    background: var(--color-bg-surface);
+    background: var(--color-bg-elevated);
     color: var(--color-text-primary);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-sm);
     font-size: var(--font-size-sm);
 
     svg {
@@ -412,7 +412,7 @@
     overflow: hidden;
     border: 1px solid var(--border-subtle);
     border-radius: $size-radius-base;
-    background: var(--color-bg-base);
+    background: var(--color-bg-primary);
   }
 
   &__footer {

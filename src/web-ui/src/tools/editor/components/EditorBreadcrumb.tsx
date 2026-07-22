@@ -5,7 +5,9 @@ import { createPortal } from 'react-dom';
 import { ChevronRight, File, Folder, Code, Loader2, ArrowLeft } from 'lucide-react';
 import { getFileIconType } from '@/tools/file-system/utils/fileIcons';
 import { workspaceAPI } from '@/infrastructure/api';
+import { useI18n } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
+import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { Tooltip } from '@/component-library';
 import './EditorBreadcrumb.scss';
 
@@ -83,7 +85,11 @@ interface DropdownMenuProps {
   onClose: () => void;
   anchorEl: HTMLElement | null;
   currentFilePath: string;
-  workspacePath?: string;
+  menuLabel: string;
+  goBackLabel: string;
+  loadingLabel: string;
+  emptyLabel: string;
+  errorLabel: string | null;
 }
 
 const DropdownMenu: React.FC<DropdownMenuProps> = ({
@@ -97,6 +103,11 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   onClose,
   anchorEl,
   currentFilePath,
+  menuLabel,
+  goBackLabel,
+  loadingLabel,
+  emptyLabel,
+  errorLabel,
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
@@ -104,11 +115,26 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   useEffect(() => {
     if (!isOpen || !anchorEl) return;
 
-    const rect = anchorEl.getBoundingClientRect();
-    setPosition({
-      top: rect.bottom + 2,
-      left: rect.left,
-    });
+    const updatePosition = () => {
+      const rect = anchorEl.getBoundingClientRect();
+      const menu = menuRef.current;
+      setPosition(computeFixedPopoverPosition(
+        rect,
+        menu?.offsetWidth || 220,
+        menu?.offsetHeight || Math.min(300, window.innerHeight - 16),
+        2,
+      ));
+    };
+
+    const frame = window.requestAnimationFrame(updatePosition);
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
   }, [isOpen, anchorEl]);
 
   useEffect(() => {
@@ -127,7 +153,9 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         onClose();
+        anchorEl?.focus({ preventScroll: true });
       }
     };
 
@@ -143,6 +171,19 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
     };
   }, [isOpen, onClose, anchorEl]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const focusFrame = window.requestAnimationFrame(() => {
+      const firstMenuItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]');
+      (firstMenuItem ?? menuRef.current)?.focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(focusFrame);
+  }, [isOpen, loading, items]);
+
   if (!isOpen) return null;
 
   // Sort: directories first, then by name
@@ -155,11 +196,41 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   // Check if we can go back to parent
   const canGoBack = currentDirPath !== initialDirPath;
   const currentDirName = getDirectoryName(currentDirPath);
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    const menuItems = menuRef.current
+      ? Array.from(menuRef.current.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)'))
+      : [];
+    if (menuItems.length === 0) {
+      return;
+    }
+
+    event.preventDefault();
+    const currentIndex = document.activeElement instanceof HTMLElement
+      ? menuItems.indexOf(document.activeElement)
+      : -1;
+    let nextIndex = 0;
+    if (event.key === 'End') {
+      nextIndex = menuItems.length - 1;
+    } else if (event.key === 'ArrowUp') {
+      nextIndex = currentIndex <= 0 ? menuItems.length - 1 : currentIndex - 1;
+    } else if (event.key === 'ArrowDown') {
+      nextIndex = currentIndex >= menuItems.length - 1 ? 0 : currentIndex + 1;
+    }
+    menuItems[nextIndex]?.focus();
+  };
 
   const menuContent = (
     <div 
       ref={menuRef} 
       className="editor-breadcrumb-dropdown"
+      role="menu"
+      aria-label={menuLabel}
+      tabIndex={-1}
+      onKeyDown={handleMenuKeyDown}
       style={{
         position: 'fixed',
         top: position.top,
@@ -168,9 +239,12 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
     >
       {canGoBack && (
         <div className="editor-breadcrumb-dropdown__header">
-          <Tooltip content="Go to parent directory" placement="top">
+          <Tooltip content={goBackLabel} placement="top">
             <button 
+              type="button"
               className="editor-breadcrumb-dropdown__back"
+              role="menuitem"
+              aria-label={goBackLabel}
               onClick={(e) => {
                 e.stopPropagation();
                 onGoBack();
@@ -188,40 +262,49 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       )}
       
       {loading ? (
-        <div className="editor-breadcrumb-dropdown__loading">
+        <div className="editor-breadcrumb-dropdown__loading" role="status" aria-live="polite">
           <Loader2 size={14} className="editor-breadcrumb-dropdown__spinner" />
-          <span>Loading...</span>
+          <span>{loadingLabel}</span>
+        </div>
+      ) : errorLabel ? (
+        <div className="editor-breadcrumb-dropdown__empty editor-breadcrumb-dropdown__empty--error" role="alert">
+          {errorLabel}
         </div>
       ) : sortedItems.length === 0 ? (
-        <div className="editor-breadcrumb-dropdown__empty">
-          Empty directory
+        <div className="editor-breadcrumb-dropdown__empty" role="status">
+          {emptyLabel}
         </div>
       ) : (
-        <ul className="editor-breadcrumb-dropdown__list">
+        <ul className="editor-breadcrumb-dropdown__list" role="none">
           {sortedItems.map((item) => {
             const isCurrentFile = item.path.replace(/\\/g, '/') === currentFilePath.replace(/\\/g, '/');
             return (
-              <li
-                key={item.path}
-                className={`editor-breadcrumb-dropdown__item ${isCurrentFile ? 'editor-breadcrumb-dropdown__item--current' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelect(item);
-                }}
-              >
-                <span className="editor-breadcrumb-dropdown__item-icon">
-                  {item.isDirectory ? (
-                    <Folder size={14} />
-                  ) : (
-                    getFileIconComponent(item.name, 14)
+              <li key={item.path} role="none">
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-current={isCurrentFile ? 'page' : undefined}
+                  title={item.name}
+                  className={`editor-breadcrumb-dropdown__item ${isCurrentFile ? 'editor-breadcrumb-dropdown__item--current' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelect(item);
+                  }}
+                >
+                  <span className="editor-breadcrumb-dropdown__item-icon">
+                    {item.isDirectory ? (
+                      <Folder size={14} />
+                    ) : (
+                      getFileIconComponent(item.name, 14)
+                    )}
+                  </span>
+                  <span className="editor-breadcrumb-dropdown__item-name">
+                    {item.name}
+                  </span>
+                  {item.isDirectory && (
+                    <ChevronRight size={12} className="editor-breadcrumb-dropdown__item-arrow" />
                   )}
-                </span>
-                <span className="editor-breadcrumb-dropdown__item-name">
-                  {item.name}
-                </span>
-                {item.isDirectory && (
-                  <ChevronRight size={12} className="editor-breadcrumb-dropdown__item-arrow" />
-                )}
+                </button>
               </li>
             );
           })}
@@ -237,14 +320,17 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
   workspacePath,
   className = '',
 }) => {
+  const { t } = useI18n('tools');
+  const { t: tCommon } = useI18n('common');
   // Dropdown menu state
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [dropdownItems, setDropdownItems] = useState<FileItem[]>([]);
   const [dropdownLoading, setDropdownLoading] = useState(false);
+  const [dropdownError, setDropdownError] = useState<string | null>(null);
   const [currentDirPath, setCurrentDirPath] = useState<string>('');
   const [initialDirPath, setInitialDirPath] = useState<string>('');
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const itemRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
+  const directoryRequestIdRef = useRef(0);
 
   // Parse path into segments
   const segments = useMemo<PathSegment[]>(() => {
@@ -292,10 +378,15 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
 
   // Load directory contents
   const loadDirectoryContents = useCallback(async (dirPath: string) => {
+    const requestId = ++directoryRequestIdRef.current;
     setDropdownLoading(true);
+    setDropdownError(null);
     setCurrentDirPath(dirPath);
     try {
       const fileTree = await workspaceAPI.getFileTree(dirPath, 1);
+      if (requestId !== directoryRequestIdRef.current) {
+        return;
+      }
       const rootNode = fileTree?.[0];
       const children = rootNode?.children || [];
       
@@ -314,11 +405,16 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
       setDropdownItems(items);
     } catch (error) {
       log.error('Failed to load directory', error);
-      setDropdownItems([]);
+      if (requestId === directoryRequestIdRef.current) {
+        setDropdownItems([]);
+        setDropdownError(t('editor.common.loadFailed'));
+      }
     } finally {
-      setDropdownLoading(false);
+      if (requestId === directoryRequestIdRef.current) {
+        setDropdownLoading(false);
+      }
     }
-  }, []);
+  }, [t]);
 
   // Handle segment click
   const handleSegmentClick = useCallback((segment: PathSegment, event: React.MouseEvent) => {
@@ -368,16 +464,9 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
   }, [currentDirPath, loadDirectoryContents]);
 
   const handleCloseDropdown = useCallback(() => {
+    directoryRequestIdRef.current += 1;
     setOpenDropdown(null);
     setAnchorEl(null);
-  }, []);
-
-  const setItemRef = useCallback((path: string, el: HTMLSpanElement | null) => {
-    if (el) {
-      itemRefs.current.set(path, el);
-    } else {
-      itemRefs.current.delete(path);
-    }
   }, []);
 
   if (segments.length === 0) {
@@ -396,7 +485,7 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
   }
 
   return (
-    <nav className={`editor-breadcrumb ${className}`}>
+    <nav className={`editor-breadcrumb ${className}`} aria-label={t('editor.breadcrumbs')}>
       {displaySegments.map((segment, index) => {
         const isEllipsis = 'isEllipsis' in segment && segment.isEllipsis;
         const pathSegment = segment as PathSegment;
@@ -408,23 +497,26 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
               <ChevronRight 
                 size={10} 
                 className="editor-breadcrumb__separator" 
+                aria-hidden="true"
               />
             )}
             
             {isEllipsis ? (
-              <span className="editor-breadcrumb__item editor-breadcrumb__item--ellipsis">
+              <span className="editor-breadcrumb__item editor-breadcrumb__item--ellipsis" aria-hidden="true">
                 {segment.name}
               </span>
             ) : (
               <Tooltip content={pathSegment.fullPath} placement="bottom">
-                <span
-                  ref={(el) => setItemRef(pathSegment.fullPath, el)}
+                <button
+                  type="button"
                   className={`editor-breadcrumb__item ${
                     pathSegment.isFile 
                       ? 'editor-breadcrumb__item--file' 
                       : 'editor-breadcrumb__item--folder'
                   } editor-breadcrumb__item--clickable ${isDropdownOpen ? 'editor-breadcrumb__item--active' : ''}`}
                   onClick={(e) => handleSegmentClick(pathSegment, e)}
+                  aria-haspopup="menu"
+                  aria-expanded={isDropdownOpen}
                 >
                   <span className="editor-breadcrumb__item-icon">
                     {pathSegment.isFile ? (
@@ -436,7 +528,7 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
                   <span className="editor-breadcrumb__item-text">
                     {pathSegment.name}
                   </span>
-                </span>
+                </button>
               </Tooltip>
             )}
           </React.Fragment>
@@ -454,7 +546,11 @@ export const EditorBreadcrumb: React.FC<EditorBreadcrumbProps> = ({
         onClose={handleCloseDropdown}
         anchorEl={anchorEl}
         currentFilePath={filePath}
-        workspacePath={workspacePath}
+        menuLabel={t('editor.breadcrumbs')}
+        goBackLabel={tCommon('nav.back')}
+        loadingLabel={t('editor.common.loading')}
+        emptyLabel={t('fileTree.empty')}
+        errorLabel={dropdownError}
       />
     </nav>
   );

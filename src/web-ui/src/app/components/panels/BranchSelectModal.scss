@@ -190,7 +190,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition: background 0.12s ease;
 
@@ -224,6 +230,20 @@
     .branch-select-dialog__item-name {
       color: var(--color-text-muted);
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-select-overlay,
+  .branch-select-dialog,
+  .branch-select-dialog__loading-dots span {
+    animation: none;
+  }
+
+  .branch-select-dialog__close,
+  .branch-select-dialog__item,
+  .branch-select-dialog__btn {
+    transition: none;
   }
 }
 

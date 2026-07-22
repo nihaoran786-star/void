@@ -5,43 +5,54 @@ import test from 'node:test';
 
 const root = process.cwd();
 
-const ENTRY_SCSS = [
-  {
-    file: 'src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.scss',
-    tokenPrefix: '--workspace-media-entry-',
-  },
-  {
-    file: 'src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaEntry.scss',
-    tokenPrefix: '--short-drama-entry-',
-  },
-];
+const entryPath =
+  'src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.scss';
+const minimalEntryPath =
+  'src/web-ui/src/app/components/panels/content-canvas/workspace-media/WorkspaceMediaEntry.minimal.scss';
+const legacyShortDramaEntryPath =
+  'src/web-ui/src/app/components/panels/content-canvas/short-drama/ShortDramaEntry.scss';
 
-const ENTRY_TOKEN_ALIASES = [
-  ['surface', '--control-bg'],
-  ['border', '--control-border'],
-  ['text', '--control-text'],
-  ['hover-surface', '--control-bg-hover'],
-  ['hover-border', '--control-border-hover'],
-  ['hover-text', '--control-text-hover'],
-];
+test('one media-session switcher owns the media and short-drama entry theme', () => {
+  const base = fs.readFileSync(path.join(root, entryPath), 'utf8');
+  const minimal = fs.readFileSync(path.join(root, minimalEntryPath), 'utf8');
+  const combined = `${base}\n${minimal}`;
 
-test('media and short-drama entry styles use local theme tokens instead of void iframe tokens', () => {
-  for (const entry of ENTRY_SCSS) {
-    const text = fs.readFileSync(path.join(root, entry.file), 'utf8');
+  assert.equal(
+    fs.existsSync(path.join(root, legacyShortDramaEntryPath)),
+    false,
+    'The removed standalone ShortDramaEntry must not return beside the unified switcher',
+  );
+  assert.doesNotMatch(
+    combined,
+    /--void-/,
+    'The media-session switcher must not consume MiniApp/generated-widget tokens',
+  );
 
-    assert.equal(
-      /--void-/.test(text),
-      false,
-      `${entry.file} should not depend directly on MiniApp/generated-widget --void-* tokens`,
-    );
-    for (const [localToken, sharedToken] of ENTRY_TOKEN_ALIASES) {
-      assert.match(
-        text,
-        new RegExp(`${entry.tokenPrefix}${localToken}\\s*:\\s*var\\(${sharedToken}\\);`),
-        `${entry.file} ${entry.tokenPrefix}${localToken} must map to ${sharedToken}`,
-      );
-    }
-
-    assert.match(text, new RegExp(`border:\\s*1px solid var\\(${entry.tokenPrefix}border\\)`));
+  for (const token of [
+    '--control-bg',
+    '--control-border',
+    '--control-text',
+    '--control-bg-hover',
+    '--control-text-hover',
+  ]) {
+    assert.match(base, new RegExp(`var\\(${token}\\)`), `${entryPath} must consume ${token}`);
   }
+
+  for (const token of [
+    '--workspace-icon-target',
+    '--workspace-surface-hover',
+    '--workspace-surface-active',
+    '--workspace-text-primary',
+    '--workspace-text-muted',
+    '--workspace-focus-ring',
+  ]) {
+    assert.match(
+      minimal,
+      new RegExp(`var\\(${token}\\)`),
+      `${minimalEntryPath} must consume ${token}`,
+    );
+  }
+
+  assert.doesNotMatch(minimal, /rgba?\(|#[0-9a-f]{3,8}\b/i);
+  assert.doesNotMatch(minimal, /transition:\s*all/);
 });

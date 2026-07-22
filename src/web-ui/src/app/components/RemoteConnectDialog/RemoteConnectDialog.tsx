@@ -96,14 +96,16 @@ const botInfoToBotTab = (info: string | null | undefined): BotTab | null => {
 
 // ── Component ────────────────────────────────────────────────────────
 
-interface RemoteConnectDialogProps {
+export interface RemoteConnectDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  overlayClassName?: string;
 }
 
 export const RemoteConnectDialog: React.FC<RemoteConnectDialogProps> = ({
   isOpen,
   onClose,
+  overlayClassName,
 }) => {
   const { t, currentLanguage } = useI18n('common');
 
@@ -931,6 +933,7 @@ export const RemoteConnectDialog: React.FC<RemoteConnectDialogProps> = ({
         )}
         showCloseButton
         size="large"
+        overlayClassName={overlayClassName}
       >
         <div className="void-remote-connect">
           {/* ── Group tabs ── */}
@@ -1009,6 +1012,7 @@ export const RemoteConnectDialog: React.FC<RemoteConnectDialogProps> = ({
         showCloseButton
         size="large"
         contentInset
+        overlayClassName={overlayClassName}
       >
         <RemoteConnectDisclaimerContent
           agreed={hasAgreedDisclaimer}

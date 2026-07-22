@@ -17,7 +17,9 @@ import { createLogger } from '@/shared/utils/logger';
 import { systemAPI } from '@/infrastructure/api';
 import type { CheckForUpdatesResponse } from '@/infrastructure/api/service-api/SystemAPI';
 import { isTauriRuntime } from '@/infrastructure/update/tauriEnv';
-import { UpdateAvailableDialog } from '@/infrastructure/update/UpdateAvailableDialog';
+import {
+  LazyUpdateAvailableDialog as UpdateAvailableDialog,
+} from '@/infrastructure/update/LazyUpdateAvailableDialog';
 import { useUpdateInstallStore } from '@/infrastructure/update/updateInstallStore';
 import { formatUpdateInstallError } from '@/infrastructure/update/updateErrorMessage';
 import './AboutDialog.scss';
@@ -29,11 +31,14 @@ export interface AboutDialogProps {
   isOpen: boolean;
   /** Close callback */
   onClose: () => void;
+  /** Presentation class forwarded to the body-level modal portal. */
+  overlayClassName?: string;
 }
 
 export const AboutDialog: React.FC<AboutDialogProps> = ({
   isOpen,
-  onClose
+  onClose,
+  overlayClassName,
 }) => {
   const { t } = useI18n('common');
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
@@ -130,6 +135,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
       title={t('header.about')}
       showCloseButton={true}
       size="medium"
+      overlayClassName={overlayClassName}
     >
       <div className="void-about-dialog__content">
         {/* Hero section - product info */}
@@ -321,6 +327,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
         data={manualData}
         onLater={onManualLater}
         onInstall={onManualInstall}
+        overlayClassName={overlayClassName}
       />
     </>
   );

@@ -17,7 +17,10 @@
     .canvas-editor-area__primary,
     .canvas-editor-area__secondary {
       height: 100%;
-      min-width: 200px;
+      // Cap each group's floor at 45% of the area: two 200px floors inside a
+      // narrow aux pane (min 300px) would overflow and clip the secondary
+      // (often a BTW subagent panel) behind the pane's overflow: hidden.
+      min-width: min(200px, 45%);
     }
   }
 

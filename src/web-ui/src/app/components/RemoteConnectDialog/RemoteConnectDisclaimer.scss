@@ -15,7 +15,7 @@
 
 .void-remote-disclaimer__text {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   line-height: 1.4;
   color: var(--color-text-muted);
 }
@@ -28,7 +28,7 @@
   gap: 4px;
 
   li {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     line-height: 1.45;
     color: var(--color-text-secondary);
   }
@@ -48,7 +48,7 @@
   border: 1px solid transparent;
   min-width: 112px;
   padding: 7px 16px;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   cursor: pointer;
   transition: all $motion-fast $easing-standard;
 }

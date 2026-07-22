@@ -80,7 +80,7 @@
     background: var(--color-accent-500);
     border-radius: 50%;
     color: white;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: bold;
   }
   
@@ -138,6 +138,8 @@
 
 
 .theme-card {
+  --appearance-compact-badge-font-size: 9px;
+
   position: relative;
   display: flex;
   flex-direction: column;
@@ -224,7 +226,7 @@
     display: inline-flex;
     align-items: center;
     padding: 1px 6px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: $font-weight-medium;
     background: transparent;
     border: 1px solid var(--border-base);
@@ -233,7 +235,7 @@
   }
   
   &__author {
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     color: var(--color-text-muted);
   }
   
@@ -334,7 +336,7 @@
     }
 
     &__description {
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
 
     &__meta {
@@ -342,7 +344,7 @@
     }
 
     &__badge {
-      font-size: 9px;
+      font-size: var(--appearance-compact-badge-font-size);
       padding: 0 4px;
     }
 
@@ -379,6 +381,10 @@
   }
 }
 
+.void-ui--minimal .theme-card {
+  --appearance-compact-badge-font-size: var(--font-size-xxs);
+}
+
 
 
 
@@ -393,6 +399,8 @@
 }
 
 .theme-preview-thumbnail {
+  --appearance-preview-title-font-size: 8px;
+
   width: 280px;
   height: 180px;
   border-radius: 8px;
@@ -456,7 +464,7 @@
   }
   
   &__title {
-    font-size: 8px;
+    font-size: var(--appearance-preview-title-font-size);
     font-weight: 500;
   }
   

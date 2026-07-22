@@ -8,7 +8,15 @@
  * TitleBar removed; window controls moved to NavBar, dialogs managed here.
  */
 
-import React, { useState, useCallback, useEffect, useMemo, useRef, useContext } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useContext,
+} from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { LoaderCircle } from 'lucide-react';
 import { useWorkspaceContext } from '../../infrastructure/contexts/WorkspaceContext';
@@ -47,6 +55,7 @@ import {
 import { MediaPreviewOverlay } from '@/shared/services/preview/MediaPreviewOverlay';
 import { setPreviewFirstLayout } from './previewFirstController';
 import {
+  applyWorkspacePresentationToPortalRoot,
   readWorkspacePresentation,
   workspacePresentationClassName,
 } from '../presentation/workspacePresentation';
@@ -687,6 +696,17 @@ const AppLayout: React.FC<AppLayoutProps> = ({ className = '' }) => {
   }, []);
 
   const workspacePresentation = useMemo(readWorkspacePresentation, []);
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    return applyWorkspacePresentationToPortalRoot(
+      document.body,
+      workspacePresentation,
+    );
+  }, [workspacePresentation]);
+
   const containerClassName = [
     'void-app-layout',
     workspacePresentationClassName(workspacePresentation),

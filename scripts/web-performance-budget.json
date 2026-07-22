@@ -4,15 +4,15 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2372359,
-		"referenceGzipBytes": 690642,
+		"maxRawBytes": 2337259,
+		"referenceGzipBytes": 680042,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]
 	},
 	"css": {
-		"maxRawBytes": 672720,
-		"referenceGzipBytes": 95403,
+		"maxRawBytes": 633915,
+		"referenceGzipBytes": 88518,
 		"forbiddenMarkers": [
 			".monaco-editor",
 			".xterm-helper-textarea",
@@ -34,6 +34,7 @@
 			".get-file-diff-card",
 			".git-tool-display",
 			".media-generation-card",
+			".media-preview-overlay",
 			".mcp-tool-display",
 			".miniapp-tool-display",
 			".review-session-summary-card",
@@ -45,7 +46,14 @@
 	},
 	"requiredDynamicEntries": [
 		"src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
+		"src/app/components/AboutDialog/AboutDialog.tsx",
+		"src/app/components/NavPanel/NavSearchDialog.tsx",
+		"src/app/components/NavPanel/components/SessionModeMenu.tsx",
 		"src/app/components/NavPanel/sections/sessions/SessionsSection.tsx",
+		"src/app/components/NewProjectDialog/NewProjectDialog.tsx",
+		"src/app/components/RemoteConnectDialog/RemoteConnectDialog.tsx",
+		"src/infrastructure/update/UpdateAvailableDialog.tsx",
+		"src/infrastructure/update/UpdateInstallProgressModal.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
 		"src/app/scenes/settings/SettingsScene.tsx",
@@ -88,6 +96,7 @@
 		"src/flow_chat/tool-cards/MediaGenerationToolGroupCard.tsx",
 		"src/flow_chat/tool-cards/MCPToolDisplay.tsx",
 		"src/flow_chat/tool-cards/DefaultToolCard.tsx",
+		"src/shared/services/preview/MediaPreviewOverlayContent.tsx",
 		"src/tools/editor/components/MarkdownEditor.tsx",
 		"src/tools/terminal/components/ConnectedTerminal.tsx",
 		"src/tools/terminal/components/TerminalOutputRenderer.tsx"
@@ -116,6 +125,11 @@
 		],
 		"localUnreachable": [
 			"src/web-ui/src/app/components/AgentCompanionDesktopPet/AgentCompanionDesktopPet.tsx",
+			"src/web-ui/src/app/components/AboutDialog/AboutDialog.tsx",
+			"src/web-ui/src/app/components/NavPanel/NavSearchDialog.tsx",
+			"src/web-ui/src/app/components/NavPanel/components/SessionModeMenu.tsx",
+			"src/web-ui/src/infrastructure/update/UpdateAvailableDialog.tsx",
+			"src/web-ui/src/infrastructure/update/UpdateInstallProgressModal.tsx",
 			"src/web-ui/src/app/components/NavPanel/sections/sessions/SessionsSection.tsx",
 			"src/web-ui/src/app/components/NavPanel/sections/sessions/sessionNavProjection.ts",
 			"src/web-ui/src/app/components/NavPanel/sections/sessions/sessionRunningPresentation.ts",
@@ -150,6 +164,7 @@
 			"src/web-ui/src/flow_chat/tool-cards/DefaultToolCard.tsx",
 			"src/web-ui/src/flow_chat/tool-cards/index.ts",
 			"src/web-ui/src/component-library/components/registry.tsx",
+			"src/web-ui/src/shared/services/preview/MediaPreviewOverlayContent.tsx",
 			"src/web-ui/src/app/scenes/settings/SettingsScene.tsx",
 			"src/web-ui/src/infrastructure/config/components/AIModelConfig.tsx",
 			"src/web-ui/src/component-library/components/CodeEditor/CodeEditor.tsx",

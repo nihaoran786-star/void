@@ -942,7 +942,7 @@
   &__boost-submenu-item:focus-visible,
   &__boost-submenu-manage:focus-visible,
   &__send-button:focus-visible {
-    outline: 2px solid var(--focus-ring-color, var(--color-accent));
+    outline: 2px solid var(--focus-ring-color, var(--color-accent-600));
     outline-offset: 1px;
   }
 

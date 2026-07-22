@@ -7,7 +7,6 @@
 
 // Variables
 $_statusbar-height: 22px;
-$_statusbar-font-size: 11px;
 $_statusbar-padding: 0 12px;
 $_item-gap: 4px;
 $_section-gap: 12px;
@@ -21,7 +20,7 @@ $_section-gap: 12px;
   padding: $_statusbar-padding;
   background: var(--color-bg-scene);
   border-top: 1px solid var(--color-border-subtle);
-  font-size: $_statusbar-font-size;
+  font-size: var(--font-size-2xs);
   font-family: $font-family-mono;
   color: var(--color-text-muted);
   user-select: none;
@@ -33,6 +32,7 @@ $_section-gap: 12px;
     display: flex;
     align-items: center;
     gap: $_section-gap;
+    min-width: 0;
   }
 
   // Items
@@ -42,7 +42,14 @@ $_section-gap: 12px;
     gap: $_item-gap;
     padding: 2px 6px;
     border-radius: 3px;
-    transition: all 0.15s ease;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    transition:
+      background-color var(--motion-fast) var(--easing-standard),
+      color var(--motion-fast) var(--easing-standard);
     white-space: nowrap;
     
     &--clickable {
@@ -56,7 +63,16 @@ $_section-gap: 12px;
       &:active {
         background: var(--element-bg-medium);
       }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-accent-500);
+        outline-offset: 1px;
+      }
     }
+  }
+
+  &__action:disabled {
+    cursor: default;
   }
 
   // Separator
@@ -70,17 +86,19 @@ $_section-gap: 12px;
   // Selection Info
   &__selection {
     color: var(--color-text-muted);
-    opacity: 0.7;
     margin-left: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   // Read-only Badge
   &__readonly {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
+    border: 1px solid var(--color-warning-border);
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
     padding: 1px 6px;
     border-radius: 3px;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -91,16 +109,15 @@ $_section-gap: 12px;
     padding: 2px 4px;
     
     &--connected {
-      color: #10b981;
+      color: var(--color-success);
     }
     
     &--connecting {
-      color: #f59e0b;
+      color: var(--color-warning);
     }
     
     &--disconnected {
-      color: #6b7280;
-      opacity: 0.6;
+      color: var(--color-text-muted);
     }
   }
 
@@ -122,6 +139,14 @@ $_section-gap: 12px;
 // Responsive
 @media (max-width: 640px) {
   .editor-status-bar {
+    padding-inline: 6px;
+
+    &__right {
+      gap: 3px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
     &__selection {
       display: none;
     }
@@ -142,12 +167,24 @@ $_section-gap: 12px;
     border-top-width: 2px;
     
     &__indicator--modified {
-      fill: #fbbf24;
-      color: #fbbf24;
+      fill: var(--color-warning);
+      color: var(--color-warning);
     }
     
     &__indicator--saved {
-      color: #34d399;
+      color: var(--color-success);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-status-bar {
+    &__item {
+      transition: none;
+    }
+
+    &__lsp-spinner {
+      animation: none;
     }
   }
 }

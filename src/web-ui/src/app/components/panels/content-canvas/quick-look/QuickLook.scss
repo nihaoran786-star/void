@@ -55,26 +55,6 @@
     }
   }
 
-  &__open-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    padding: 0;
-    background: none;
-    border: none;
-    color: var(--color-text-secondary, rgba(255, 255, 255, 0.5));
-    cursor: pointer;
-    border-radius: 3px;
-    flex-shrink: 0;
-
-    &:hover {
-      background: var(--color-bg-hover, rgba(255, 255, 255, 0.1));
-      color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
-    }
-  }
-
   &__actions {
     display: flex;
     align-items: center;
@@ -145,5 +125,15 @@
 
   &__separator {
     opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-quick-look {
+    animation: none;
+  }
+
+  .canvas-quick-look__action-btn {
+    transition: none;
   }
 }

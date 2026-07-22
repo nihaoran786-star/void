@@ -268,8 +268,8 @@
 .workspace-type {
   font-size: 12px;
   padding: 2px 8px;
-  background-color: var(--secondary-bg);
-  color: var(--text-secondary);
+  background-color: var(--element-bg-soft);
+  color: var(--color-text-secondary);
   border-radius: 4px;
   text-transform: capitalize;
 }

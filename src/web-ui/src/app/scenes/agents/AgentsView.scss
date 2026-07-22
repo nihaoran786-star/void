@@ -39,7 +39,7 @@
     gap: 5px;
     padding: 4px $size-gap-3;
     font-size: var(--font-size-xs);
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
     font-weight: $font-weight-medium;
     color: var(--color-text-muted);
     background: transparent;
@@ -171,7 +171,7 @@
     cursor: pointer;
     transition: all $motion-fast $easing-standard;
     text-align: left;
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
     &:hover {
       background: var(--element-bg-subtle);
@@ -242,7 +242,7 @@
     font-size: var(--font-size-xs);
     cursor: pointer;
     transition: all $motion-fast $easing-standard;
-    font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
     &:hover {
       color: var(--color-text-secondary);

@@ -2650,7 +2650,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const renderActionButton = () => {
-    if (!derivedState) return <IconButton className="void-chat-input__send-button" disabled size="small"><ArrowUp size={11} /></IconButton>;
+    if (!derivedState) {
+      return (
+        <IconButton
+          className="void-chat-input__send-button"
+          aria-label={t('input.sendShortcut')}
+          disabled
+          size="small"
+        >
+          <ArrowUp size={11} />
+        </IconButton>
+      );
+    }
 
     const { sendButtonMode, hasQueuedInput } = derivedState;
     
@@ -2675,6 +2686,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return (
         <IconButton
           className="void-chat-input__send-button void-chat-input__send-button--retry"
+          aria-label={t('input.retry')}
           onClick={handleSendOrCancel}
           tooltip={t('input.retry')}
           size="small"
@@ -2702,6 +2714,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           </Tooltip>
           <IconButton
             className="void-chat-input__send-button"
+            aria-label={t('input.sendShortcut')}
             onClick={handleSendOrCancel}
             disabled={!inputState.value.trim()}
             data-testid="chat-input-send-btn"
@@ -2717,6 +2730,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return (
       <IconButton
         className="void-chat-input__send-button"
+        aria-label={t('input.sendShortcut')}
         onClick={handleSendOrCancel}
         disabled={!inputState.value.trim()}
         data-testid="chat-input-send-btn"
@@ -2978,6 +2992,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       className="void-chat-input__agent-boost-add"
                       variant="ghost"
                       size="xs"
+                      aria-label={t('chatInput.addBoostTooltip')}
                       aria-haspopup="menu"
                       aria-expanded={modeState.dropdownOpen}
                       onClick={e => {

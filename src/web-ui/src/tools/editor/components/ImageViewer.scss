@@ -12,7 +12,7 @@
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   overflow: hidden;
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
 
   &.fullscreen {
     position: fixed;
@@ -163,7 +163,7 @@
 
     p {
       margin: 0;
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
   }
 
@@ -195,12 +195,12 @@
     p {
       margin: 0;
       color: #f48771;
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
   }
 
   &__error-path {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: #666666;
     word-break: break-all;
     max-width: 600px;

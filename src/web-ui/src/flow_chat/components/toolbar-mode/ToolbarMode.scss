@@ -6,6 +6,13 @@
 $transition-duration: 0.25s;
 $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 
+@mixin toolbar-focus-ring($offset) {
+  &:focus-visible {
+    outline: 2px solid var(--control-focus-ring, var(--color-accent-500));
+    outline-offset: $offset;
+  }
+}
+
 // Full-window container; draggable.
 .void-toolbar-mode {
   position: fixed;
@@ -131,7 +138,10 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--color-text-muted, #707070);
   border-radius: var(--radius-sm, 6px);
   cursor: pointer;
-  transition: all 0.2s $transition-timing;
+  transition:
+    background-color 0.2s $transition-timing,
+    color 0.2s $transition-timing,
+    transform 0.2s $transition-timing;
   
   &:hover:not(:disabled) {
     background: var(--color-accent-200, rgba(96, 165, 250, 0.15));
@@ -142,6 +152,8 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   &:active:not(:disabled) {
     transform: scale(0.95);
   }
+
+  @include toolbar-focus-ring(2px);
 
   &:disabled {
     cursor: not-allowed;
@@ -311,6 +323,8 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
     background: var(--element-bg-soft, rgba(255, 255, 255, 0.06));
     color: var(--color-text-primary, #e8e8e8);
   }
+
+  @include toolbar-focus-ring(-2px);
   
   &--active {
     background: var(--color-accent-200, rgba(96, 165, 250, 0.15));
@@ -402,6 +416,8 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   &:hover {
     background: var(--element-bg-soft, rgba(255, 255, 255, 0.06));
   }
+
+  @include toolbar-focus-ring(-2px);
 }
 
 
@@ -534,6 +550,8 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
     outline: none;
     box-shadow: none;
   }
+
+  @include toolbar-focus-ring(-2px);
   
   &::placeholder {
     color: var(--color-text-disabled, #454545);
@@ -546,7 +564,6 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   width: 32px;
   height: 32px;
   border: none !important;
-  outline: none !important;
   box-shadow: none;
   border-radius: var(--radius-base, 8px);
   background: var(--element-bg-base, rgba(255, 255, 255, 0.08));
@@ -555,15 +572,17 @@ $transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
   
-  &:focus {
-    outline: none !important;
-    border: none !important;
-  }
+  @include toolbar-focus-ring(2px);
   
   &:hover {
     background: var(--element-bg-strong, rgba(255, 255, 255, 0.12));

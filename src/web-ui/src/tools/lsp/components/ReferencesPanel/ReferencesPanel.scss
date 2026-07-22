@@ -35,7 +35,7 @@
   overflow: hidden;
   pointer-events: all;
   
-  font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
   font-size: var(--font-size-sm);
   line-height: $line-height-base;
   

@@ -95,18 +95,6 @@
   transition: all 0.2s ease;
   cursor: default;
   
-  &__icon {
-    flex-shrink: 0;
-    color: var(--tag-color);
-  }
-  
-  &__label {
-    color: var(--tag-color);
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
   &:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);

@@ -688,6 +688,27 @@ export function ShortDramaCenterPanel({
   }, [baseScriptDocument?.content]);
 
   useEffect(() => {
+    if (!isActive || state.status !== 'ready' || selectedStage === 'script') {
+      return;
+    }
+
+    const focusKey = activeArtifactFocusByStage[selectedStage];
+    if (!focusKey) {
+      return;
+    }
+
+    const focusedArtifact = state.project.artifacts.find(artifact => (
+      artifact.id === focusKey || artifact.handle === focusKey
+    ));
+    const element = focusedArtifact
+      ? document.getElementById(getShortDramaArtifactDomId(focusedArtifact.id))
+      : null;
+    if (element && typeof element.scrollIntoView === 'function') {
+      element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [activeArtifactFocusByStage, isActive, selectedStage, state]);
+
+  useEffect(() => {
     if (!activeEpisodeId && viewModel?.selectedEpisode) {
       setActiveEpisodeId(viewModel.selectedEpisode.id);
     }
@@ -843,6 +864,7 @@ export function ShortDramaCenterPanel({
                 pendingGenerations={selectedStage === 'assets' ? selectedStagePendingGenerations : []}
                 mediaEntriesByArtifactId={mediaEntriesByArtifactId}
                 expandedArtifactId={expandedAssetArtifactId}
+                focusedArtifactIdOrHandle={activeArtifactFocusByStage.assets}
                 onArtifactFocus={handleArtifactFocus}
                 onExpandedArtifactChange={setExpandedAssetArtifactId}
                 t={t}
@@ -967,6 +989,7 @@ export function ShortDramaCenterPanel({
               pendingGenerations={selectedStagePendingGenerations}
               mediaEntriesByArtifactId={mediaEntriesByArtifactId}
               expandedArtifactId={expandedAssetArtifactId}
+              focusedArtifactIdOrHandle={activeArtifactFocusByStage.assets}
               onArtifactFocus={handleArtifactFocus}
               onExpandedArtifactChange={setExpandedAssetArtifactId}
               t={t}
@@ -985,6 +1008,7 @@ export function ShortDramaCenterPanel({
                 selectedStage={selectedStage}
                 pendingGenerations={selectedStagePendingGenerations}
                 expandedStoryboardArtifactId={expandedStoryboardArtifactId}
+                focusedArtifactIdOrHandle={activeArtifactFocusByStage[selectedStage]}
                 onArtifactFocus={handleArtifactFocus}
                 onStoryboardExpandedChange={setExpandedStoryboardArtifactId}
                 setSectionRef={(element) => {
@@ -1024,6 +1048,7 @@ function EpisodeStageSection({
   selectedStage,
   pendingGenerations,
   expandedStoryboardArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   onStoryboardExpandedChange,
   setSectionRef,
@@ -1039,6 +1064,7 @@ function EpisodeStageSection({
   selectedStage: ShortDramaStage;
   pendingGenerations: WorkspaceMediaPendingGeneration[];
   expandedStoryboardArtifactId?: string;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onStoryboardExpandedChange: (artifactId?: string) => void;
   setSectionRef: (element: HTMLElement | null) => void;
@@ -1081,6 +1107,7 @@ function EpisodeStageSection({
           storyboardReferencePlans={storyboardReferencePlans}
           mediaEntriesByArtifactId={mediaEntriesByArtifactId}
           expandedArtifactId={expandedStoryboardArtifactId}
+          focusedArtifactIdOrHandle={focusedArtifactIdOrHandle}
           onArtifactFocus={onArtifactFocus}
           onExpandedArtifactChange={onStoryboardExpandedChange}
           t={t}
@@ -1091,6 +1118,7 @@ function EpisodeStageSection({
           artifacts={artifacts}
           episodeArtifacts={episodeArtifacts}
           mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+          focusedArtifactIdOrHandle={focusedArtifactIdOrHandle}
           onArtifactFocus={onArtifactFocus}
           t={t}
         />
@@ -1100,6 +1128,7 @@ function EpisodeStageSection({
           artifacts={artifacts}
           episodeArtifacts={episodeArtifacts}
           mediaEntriesByArtifactId={mediaEntriesByArtifactId}
+          focusedArtifactIdOrHandle={focusedArtifactIdOrHandle}
           onArtifactFocus={onArtifactFocus}
           t={t}
         />
@@ -1259,6 +1288,12 @@ function ShortDramaTopBar({
             data-testid="short-drama-stage-tab"
             data-short-drama-stage={stage}
             onClick={() => onStageSelect(stage)}
+            onFocus={(event) => {
+              event.currentTarget.scrollIntoView({
+                block: 'nearest',
+                inline: 'nearest',
+              });
+            }}
           >
             {t(`shortDrama.tabs.${stage}`)}
           </button>
@@ -1388,6 +1423,7 @@ function AssetStage({
   pendingGenerations,
   mediaEntriesByArtifactId,
   expandedArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   onExpandedArtifactChange,
   t,
@@ -1396,6 +1432,7 @@ function AssetStage({
   pendingGenerations: WorkspaceMediaPendingGeneration[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
   expandedArtifactId?: string;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
@@ -1433,6 +1470,7 @@ function AssetStage({
                     assetTypeLabel={assetTypeLabel}
                     mediaEntriesByArtifactId={mediaEntriesByArtifactId}
                     expandedArtifactId={expandedArtifactId}
+                    focusedArtifactIdOrHandle={focusedArtifactIdOrHandle}
                     onArtifactFocus={onArtifactFocus}
                     onExpandedArtifactChange={onExpandedArtifactChange}
                     t={t}
@@ -1506,6 +1544,7 @@ function AssetAnchorCard({
   assetTypeLabel,
   mediaEntriesByArtifactId,
   expandedArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   onExpandedArtifactChange,
   t,
@@ -1514,19 +1553,22 @@ function AssetAnchorCard({
   assetTypeLabel: string;
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
   expandedArtifactId?: string;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
 }) {
   const artifact = item.artifact;
   const isExpanded = expandedArtifactId === artifact.id;
+  const isFocused = focusedArtifactIdOrHandle === artifact.id
+    || focusedArtifactIdOrHandle === artifact.handle;
   const detailsId = `${getShortDramaArtifactDomId(artifact.id)}-asset-details`;
   const mediaEntry = mediaEntriesByArtifactId.get(artifact.id);
 
   return (
     <article
       id={getShortDramaArtifactDomId(artifact.id)}
-      className={`short-drama-card short-drama-asset-row ${isExpanded ? 'is-expanded' : ''}`}
+      className={`short-drama-card short-drama-asset-row ${isExpanded ? 'is-expanded' : ''} ${isFocused ? 'is-focused' : ''}`}
       data-testid="short-drama-artifact-card"
       data-status={artifact.status}
       onClick={() => onArtifactFocus(artifact)}
@@ -1600,6 +1642,7 @@ function StoryboardGrid({
   storyboardReferencePlans,
   mediaEntriesByArtifactId,
   expandedArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   onExpandedArtifactChange,
   t,
@@ -1609,6 +1652,7 @@ function StoryboardGrid({
   storyboardReferencePlans: ShortDramaStoryboardReferencePlan[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
   expandedArtifactId?: string;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   onExpandedArtifactChange: (artifactId?: string) => void;
   t: Translate;
@@ -1617,6 +1661,8 @@ function StoryboardGrid({
     <div className="short-drama-center__storyboard-list">
       {artifacts.map((artifact, index) => {
         const isExpanded = expandedArtifactId === artifact.id;
+        const isFocused = focusedArtifactIdOrHandle === artifact.id
+          || focusedArtifactIdOrHandle === artifact.handle;
         const detailsId = `${getShortDramaArtifactDomId(artifact.id)}-details`;
         const referenceCount = createShortDramaStoryboardReferenceViewItems({
           artifact,
@@ -1628,7 +1674,7 @@ function StoryboardGrid({
           <article
             key={artifact.id}
             id={getShortDramaArtifactDomId(artifact.id)}
-            className={`short-drama-card short-drama-storyboard-row ${isExpanded ? 'is-expanded' : ''}`}
+            className={`short-drama-card short-drama-storyboard-row ${isExpanded ? 'is-expanded' : ''} ${isFocused ? 'is-focused' : ''}`}
             data-testid="short-drama-artifact-card"
             data-status={artifact.status}
             onClick={() => onArtifactFocus(artifact)}
@@ -1723,17 +1769,27 @@ function VideoStage({
   artifacts,
   episodeArtifacts,
   mediaEntriesByArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   t,
 }: {
   artifacts: ShortDramaArtifact[];
   episodeArtifacts: ShortDramaArtifact[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   t: Translate;
 }) {
   const [selectedVideoId, setSelectedVideoId] = useState<string>();
-  const activeVideo = artifacts.find(artifact => artifact.id === selectedVideoId) ?? artifacts[0];
+  const focusedVideo = focusedArtifactIdOrHandle
+    ? artifacts.find(artifact => (
+        artifact.id === focusedArtifactIdOrHandle
+        || artifact.handle === focusedArtifactIdOrHandle
+      ))
+    : undefined;
+  const activeVideo = focusedVideo
+    ?? artifacts.find(artifact => artifact.id === selectedVideoId)
+    ?? artifacts[0];
   const activePosterArtifact = activeVideo
     ? selectVideoPosterArtifact(activeVideo, episodeArtifacts)
     : undefined;
@@ -1869,12 +1925,14 @@ function PostStage({
   artifacts,
   episodeArtifacts,
   mediaEntriesByArtifactId,
+  focusedArtifactIdOrHandle,
   onArtifactFocus,
   t,
 }: {
   artifacts: ShortDramaArtifact[];
   episodeArtifacts: ShortDramaArtifact[];
   mediaEntriesByArtifactId: Map<string, ShortDramaMediaArtifactIndexEntry>;
+  focusedArtifactIdOrHandle?: string;
   onArtifactFocus: (artifact: ShortDramaArtifact) => void;
   t: Translate;
 }) {
@@ -1884,11 +1942,14 @@ function PostStage({
     <div className="short-drama-center__post">
       <FinalVideoPreview artifact={finalVideo} mediaEntry={finalVideo ? mediaEntriesByArtifactId.get(finalVideo.id) : undefined} onArtifactFocus={onArtifactFocus} t={t} />
       <div className="short-drama-center__post-list">
-        {artifacts.map(artifact => (
+        {artifacts.map(artifact => {
+          const isFocused = focusedArtifactIdOrHandle === artifact.id
+            || focusedArtifactIdOrHandle === artifact.handle;
+          return (
           <article
             key={artifact.id}
             id={getShortDramaArtifactDomId(artifact.id)}
-            className="short-drama-center__post-row"
+            className={`short-drama-center__post-row ${isFocused ? 'is-focused' : ''}`}
             data-testid="short-drama-post-row"
             onClick={() => onArtifactFocus(artifact)}
           >
@@ -1903,7 +1964,8 @@ function PostStage({
             </div>
             <StatusPill status={artifact.status} t={t} />
           </article>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1948,7 +2010,12 @@ function FinalVideoPreview({
         <div className="short-drama-center__final-preview-meta">
           <StatusPill status={artifact.status} t={t} />
           {artifact.mediaReference && (
-            <span className="short-drama-pill">{artifact.mediaReference.mediaItemId}</span>
+            <span
+              className="short-drama-center__final-preview-media-id"
+              title={artifact.mediaReference.mediaItemId}
+            >
+              {artifact.mediaReference.mediaItemId}
+            </span>
           )}
         </div>
       )}
@@ -2368,8 +2435,10 @@ function MediaPreviewCaption({
 }) {
   return (
     <div className="short-drama-media-preview__meta">
-      <strong>{artifact.title}</strong>
-      <span>{preview.label ?? preview.mediaItemId}</span>
+      <strong title={artifact.title}>{artifact.title}</strong>
+      <span title={preview.label ?? preview.mediaItemId}>
+        {preview.label ?? preview.mediaItemId}
+      </span>
       {preview.durationMs && (
         <em>{t('shortDrama.mediaPreview.duration', { seconds: Math.round(preview.durationMs / 1000) })}</em>
       )}

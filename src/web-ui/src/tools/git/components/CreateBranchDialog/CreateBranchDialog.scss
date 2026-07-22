@@ -147,7 +147,7 @@
 
     &::placeholder {
       color: var(--color-text-muted);
-      font-family: $font-family-sans;
+  font-family: var(--font-family-sans);
     }
 
     &:disabled {
@@ -213,7 +213,7 @@
       border: 1px solid $border-base;
       border-radius: $size-radius-sm;
       font-family: $font-family-mono;
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
       color: var(--color-text-secondary);
     }
   }
@@ -241,7 +241,7 @@
       border-radius: $size-radius-sm;
       font-family: $font-family-mono;
       margin: 0 4px;
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
   }
 

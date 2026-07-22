@@ -10,7 +10,15 @@ export {
   type UpdateDownloadProgressPayload
 } from './installUpdateWithProgress';
 export { DailyAppUpdateGate } from './DailyAppUpdateGate';
-export { UpdateAvailableDialog } from './UpdateAvailableDialog';
-export { UpdateInstallProgressModal } from './UpdateInstallProgressModal';
+export {
+  LazyUpdateAvailableDialog as UpdateAvailableDialog,
+} from './LazyUpdateAvailableDialog';
+export type { UpdateAvailableDialogProps } from './UpdateAvailableDialog';
+export {
+  LazyUpdateInstallProgressModal as UpdateInstallProgressModal,
+} from './LazyUpdateInstallProgressModal';
+export type {
+  UpdateInstallProgressModalProps,
+} from './UpdateInstallProgressModal';
 export { useUpdateInstallStore, type UpdateInstallStatus } from './updateInstallStore';
 export { formatUpdateInstallError } from './updateErrorMessage';

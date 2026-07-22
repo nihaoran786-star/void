@@ -1,0 +1,166 @@
+@mixin styles {
+  .void-ui--minimal .virtual-message-list {
+    .user-message-item:not(.user-message-item--failed) {
+      width: fit-content;
+      min-width: 0;
+      max-width: min(620px, calc(100% - 32px));
+      margin-top: var(--workspace-space-1);
+      margin-right: max(16px, calc((100% - 760px) / 2));
+      margin-bottom: var(--flowchat-turn-gap);
+      margin-left: auto;
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+      border-color: transparent;
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-active);
+      box-shadow: none;
+      animation: none;
+      transition:
+        border-color 120ms ease,
+        background 120ms ease;
+    }
+
+    .user-message-item:not(.user-message-item--failed):hover {
+      border-color: transparent;
+      background: var(--workspace-surface-active);
+    }
+
+    .user-message-item:not(.user-message-item--failed)
+      .user-message-item__main {
+      align-items: flex-start;
+    }
+
+    .user-message-item:not(.user-message-item--failed)
+      .user-message-item__content {
+      font-weight: 400;
+      line-height: var(--flowchat-text-line-height);
+    }
+
+    .user-message-item:not(.user-message-item--failed)
+      .user-message-item__actions {
+      position: absolute;
+      top: 50%;
+      right: 100%;
+      z-index: 2;
+      gap: 0;
+      padding-right: var(--workspace-space-1);
+      transform: translateY(-50%);
+    }
+
+    .user-message-item__copy-btn,
+    .user-message-item__edit-btn,
+    .user-message-item__rollback-btn {
+      width: 26px;
+      height: 26px;
+      min-width: 26px;
+      min-height: 26px;
+      border-radius: var(--workspace-radius-control);
+      transition:
+        color 100ms ease,
+        background 100ms ease,
+        opacity 100ms ease;
+    }
+
+    .user-message-item__copy-btn:hover:not(:disabled),
+    .user-message-item__edit-btn:hover:not(:disabled),
+    .user-message-item__rollback-btn:hover:not(:disabled) {
+      background: var(--workspace-surface-hover);
+    }
+
+    .user-message-item:focus-within .user-message-item__copy-btn,
+    .user-message-item:focus-within .user-message-item__edit-btn,
+    .user-message-item:focus-within .user-message-item__rollback-btn {
+      opacity: 1;
+    }
+
+    .user-message-item__images {
+      justify-content: flex-end;
+      gap: var(--workspace-space-1);
+      margin-top: var(--workspace-space-2);
+    }
+
+    .user-message-item__image-thumb {
+      padding: 0;
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: transparent;
+      box-shadow: none;
+      transition: border-color 100ms ease;
+    }
+
+    .user-message-item__image-thumb:hover {
+      border-color: var(--workspace-border-strong);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .user-message-item__image-thumb:focus-visible {
+      outline: 2px solid var(--workspace-focus-ring);
+      outline-offset: 1px;
+    }
+
+    // Steering messages use the legacy UserMessage component inside a model
+    // round. Keep the same right-aligned, low-noise visual language without
+    // changing their delivery or confirmation lifecycle.
+    .user-message {
+      width: fit-content;
+      min-width: 0;
+      max-width: min(620px, 100%);
+      margin: var(--workspace-space-1) 0 var(--flowchat-turn-gap) auto;
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+      border-color: transparent;
+      border-radius: var(--workspace-radius-panel);
+      background: var(--workspace-surface-active);
+      box-shadow: none;
+      animation: none;
+    }
+
+    .inline-context-tag {
+      transition:
+        color 100ms ease,
+        border-color 100ms ease,
+        background 100ms ease;
+    }
+
+    .inline-context-tag:hover {
+      box-shadow: none;
+      transform: none;
+    }
+
+    @media (max-width: 768px) {
+      .user-message-item:not(.user-message-item--failed) {
+        max-width: calc(100% - 20px);
+        margin-right: 10px;
+      }
+
+      .user-message-item:not(.user-message-item--failed)
+        .user-message-item__actions {
+        top: 100%;
+        right: 0;
+        padding-top: var(--workspace-space-1);
+        padding-right: 0;
+        transform: none;
+      }
+
+      .user-message-item:not(.user-message-item--failed):is(
+          :hover,
+          :focus-within
+        ),
+      .user-message-item:not(.user-message-item--failed):has(
+          .user-message-item__actions .copied,
+          .user-message-item__rollback-spinner
+        ) {
+        margin-bottom: calc(var(--flowchat-turn-gap) + 30px);
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .user-message-item,
+    .void-ui--minimal .user-message,
+    .void-ui--minimal .inline-context-tag {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}

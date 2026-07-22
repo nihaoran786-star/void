@@ -77,7 +77,7 @@
       height: 16px;
       margin-left: 4px;
       border-radius: 3px;
-      font-size: 18px;
+      font-size: var(--font-size-2xl);
       line-height: 1;
       transition: all 0.2s;
       opacity: 1;
@@ -173,14 +173,14 @@
   &--small {
     .void-tabs__tab {
       padding: 6px 12px;
-      font-size: 12px;
+      font-size: var(--font-size-xs);
     }
   }
 
   &--large {
     .void-tabs__tab {
       padding: 10px 20px;
-      font-size: 16px;
+      font-size: var(--font-size-xl);
     }
   }
 

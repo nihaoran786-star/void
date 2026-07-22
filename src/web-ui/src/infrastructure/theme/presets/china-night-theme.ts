@@ -1,6 +1,7 @@
  
 
 import { ThemeConfig } from '../types';
+import { BUILTIN_THEME_UI_FONT_FAMILY } from './typography';
 
 export const voidChinaNightTheme: ThemeConfig = {
   
@@ -185,7 +186,7 @@ export const voidChinaNightTheme: ThemeConfig = {
   
   typography: {
     font: {
-      sans: "'Noto Sans SC', 'Source Han Sans CN', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+      sans: BUILTIN_THEME_UI_FONT_FAMILY,
       mono: "'Source Han Mono CN', 'Noto Sans Mono CJK SC', 'JetBrains Mono', 'FiraCode', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, 'Cascadia Mono', 'Cascadia Code', Consolas, 'Liberation Mono', 'Courier New', monospace",
     },
     

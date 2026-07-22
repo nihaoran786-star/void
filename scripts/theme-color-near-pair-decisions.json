@@ -5,15 +5,6 @@
     {
       "root": "src/web-ui/src",
       "domain": "componentLibrary",
-      "key": "#111114 <-> #121214",
-      "decision": "keep",
-      "owner": "src/web-ui/src/component-library/styles/tokens.scss",
-      "reason": "The pair spans the base Void application surface and slightly deeper component surfaces. Collapsing them would flatten dark-mode layering before a full component-library surface review.",
-      "reevaluateWhen": "Revisit after the component-library dark surface ramp is redesigned with visual screenshots for app shell, Flow Chat, terminal, AI media, and AI short-drama."
-    },
-    {
-      "root": "src/web-ui/src",
-      "domain": "componentLibrary",
       "key": "#121212 <-> #121214",
       "decision": "keep",
       "owner": "src/web-ui/src/component-library/styles/tokens.scss",

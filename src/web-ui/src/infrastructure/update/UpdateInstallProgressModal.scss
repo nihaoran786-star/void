@@ -8,7 +8,7 @@
 .void-update-progress__bar {
   height: 8px;
   border-radius: 4px;
-  background: var(--color-bg-muted);
+  background: var(--element-bg-base);
   overflow: hidden;
   position: relative;
 }
@@ -56,4 +56,44 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 12px;
+}
+
+// ==================== Minimal presentation projection ====================
+
+.void-ui--minimal .modal-overlay {
+  .modal:has(.void-update-progress) {
+    max-width: 360px;
+    color: var(--workspace-text-secondary);
+    border-color: var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-raised);
+    box-shadow: var(--workspace-shadow-raised);
+    font-family: var(--workspace-font-family);
+  }
+
+  .void-update-progress {
+    min-width: 0;
+    padding: var(--workspace-space-2) 0 var(--workspace-space-1);
+
+    &__bar {
+      height: 4px;
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-active);
+    }
+
+    &__fill {
+      background: var(--workspace-text-primary);
+    }
+
+    &__hint,
+    &__restart {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-label);
+    }
+
+    &__actions {
+      gap: var(--workspace-space-1);
+      margin-top: var(--workspace-space-3);
+    }
+  }
 }

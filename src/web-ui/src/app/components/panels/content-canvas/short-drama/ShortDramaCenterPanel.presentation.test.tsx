@@ -346,3 +346,79 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     );
   });
 });
+
+describe('ShortDramaCenterPanel artifact focus follow contract', () => {
+  const videoStage = sourceBetween(
+    panelSource,
+    'function VideoStage({',
+    'function selectVideoPosterArtifact('
+  );
+  const postStage = sourceBetween(
+    panelSource,
+    'function PostStage({',
+    'function FinalVideoPreview({'
+  );
+
+  it('threads the single stage focus key into every media stage render path', () => {
+    expect(panelSource).toContain(
+      'const [activeArtifactFocusByStage, setActiveArtifactFocusByStage] = useState'
+    );
+    expect(panelSource).toContain(
+      'focusedArtifactIdOrHandle={activeArtifactFocusByStage[selectedStage]}'
+    );
+
+    const assetStageCalls = panelSource.match(/<AssetStage\b[\s\S]*?\/>/g) ?? [];
+    expect(assetStageCalls).toHaveLength(2);
+    assetStageCalls.forEach(call => {
+      expect(call).toContain('focusedArtifactIdOrHandle={activeArtifactFocusByStage.assets}');
+    });
+  });
+
+  it('lets an external focus key drive the large video player before local rail selection', () => {
+    expect(videoStage).toContain('focusedArtifactIdOrHandle?: string;');
+    expect(videoStage).toContain('artifact.id === focusedArtifactIdOrHandle');
+    expect(videoStage).toContain('artifact.handle === focusedArtifactIdOrHandle');
+    expect(videoStage).toMatch(
+      /const activeVideo = focusedVideo\s*\?\?\s*artifacts\.find\(artifact => artifact\.id === selectedVideoId\)\s*\?\?\s*artifacts\[0\];/
+    );
+  });
+
+  it('marks the focused artifact card in asset, storyboard, and post stages', () => {
+    const assetAnchorCard = sourceBetween(
+      panelSource,
+      'function AssetAnchorCard({',
+      'function ArtifactGrid({'
+    );
+    const storyboardGrid = sourceBetween(
+      panelSource,
+      'function StoryboardGrid({',
+      'function StoryboardReferenceChips({'
+    );
+
+    expect(assetAnchorCard).toContain("isFocused ? 'is-focused' : ''");
+    expect(storyboardGrid).toContain("isFocused ? 'is-focused' : ''");
+    expect(postStage).toContain("isFocused ? 'is-focused' : ''");
+    expect(postStage).toContain('focusedArtifactIdOrHandle?: string;');
+  });
+
+  it('scrolls the focused card into view only while active and visible-nearest', () => {
+    expect(panelSource).toContain(
+      "if (!isActive || state.status !== 'ready' || selectedStage === 'script')"
+    );
+    expect(panelSource).toContain(
+      'document.getElementById(getShortDramaArtifactDomId(focusedArtifact.id))'
+    );
+    expect(panelSource).toContain(
+      "element.scrollIntoView({ block: 'nearest', behavior: 'smooth' })"
+    );
+  });
+
+  it('keeps the focused-card highlight themed in base and minimal styles', () => {
+    expect(panelStyles).toContain('.short-drama-card.is-focused {');
+    expect(panelStyles).toContain('.short-drama-center__post-row.is-focused {');
+    expect(minimalPanelStyles).toContain('.void-ui--minimal .short-drama-card.is-focused {');
+    expect(minimalPanelStyles).toContain(
+      '.void-ui--minimal .short-drama-center__post-row.is-focused {'
+    );
+  });
+});

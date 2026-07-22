@@ -1139,6 +1139,7 @@
       "passphrase": "密碼短語",
       "passphraseOptional": "留空表示無密碼短語",
       "homeFolder": "主目錄",
+      "goToParent": "返回上級目錄",
       "clickToEditPath": "點擊編輯路徑",
       "selectWorkspace": "選擇工作區目錄",
       "openWorkspace": "打開為工作區",

@@ -34,7 +34,7 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: var(--font-size-base);
 
       &:hover {
         opacity: 0.9;
@@ -57,7 +57,7 @@
     justify-content: space-between;
     padding: 12px 16px;
     border-bottom: 1px solid var(--color-border);
-    background: var(--color-background-secondary);
+    background: var(--color-bg-secondary);
     flex-shrink: 0;
   }
 
@@ -68,7 +68,7 @@
 
     h3 {
       margin: 0;
-      font-size: 14px;
+      font-size: var(--font-size-base);
       font-weight: 600;
     }
   }
@@ -81,7 +81,7 @@
     background: var(--color-primary);
     color: #fff;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: 500;
   }
 
@@ -98,7 +98,7 @@
   }
 
   &__search-count {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
     white-space: nowrap;
     padding: 0 8px;
@@ -124,7 +124,7 @@
     transition: all 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: var(--color-hover);
+      background: var(--element-bg-medium);
       color: var(--color-text);
     }
 
@@ -223,13 +223,13 @@
     background: var(--color-background);
 
     &:hover {
-      background: var(--color-hover);
+      background: var(--element-bg-medium);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       z-index: 1;
     }
 
     &--selected {
-      background: var(--color-selected) !important;
+      background: var(--color-accent-100) !important;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
       z-index: 2;
     }
@@ -257,7 +257,7 @@
     gap: 4px;
     padding: 2px 8px;
     border-radius: 12px;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 500;
     white-space: nowrap;
     cursor: help;
@@ -292,7 +292,7 @@
 
   &__commit-message {
     flex: 1;
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -307,7 +307,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
     flex-shrink: 0;
   }
@@ -326,7 +326,7 @@
   &__commit-hash {
     font-family: 'Courier New', monospace;
     padding: 2px 6px;
-    background: var(--color-background-tertiary);
+    background: var(--color-bg-tertiary);
     border-radius: 4px;
     white-space: nowrap;
   }
@@ -353,7 +353,7 @@
       border-radius: 4px;
 
       &:hover {
-        background: var(--color-hover);
+        background: var(--element-bg-medium);
         color: var(--color-text);
       }
     }

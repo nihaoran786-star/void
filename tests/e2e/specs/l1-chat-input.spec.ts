@@ -120,11 +120,107 @@ describe('L1 Chat Input Validation', () => {
       }
       
       const multilineMessage = 'Line 1\nLine 2\nLine 3';
+      await browser.execute(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.rich-text-input[contenteditable="true"]',
+        );
+        if (!editor) {
+          return;
+        }
+        editor.dataset.e2eEnterEvents = '[]';
+        editor.addEventListener('keydown', event => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+          const entries = JSON.parse(editor.dataset.e2eEnterEvents ?? '[]');
+          entries.push({
+            shiftKey: event.shiftKey,
+            defaultPrevented: event.defaultPrevented,
+          });
+          editor.dataset.e2eEnterEvents = JSON.stringify(entries);
+        });
+      });
       await chatInput.typeMessage(multilineMessage);
       const value = await chatInput.getValue();
       expect(value).toContain('Line 1');
       expect(value).toContain('Line 2');
       expect(value).toContain('Line 3');
+
+      const multilineLayout = await browser.execute(() => {
+        const editor = document.querySelector<HTMLElement>(
+          '.rich-text-input[contenteditable="true"]',
+        );
+        if (!editor) {
+          return null;
+        }
+
+        const textNodes: Text[] = [];
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let currentNode = walker.nextNode();
+        while (currentNode) {
+          textNodes.push(currentNode as Text);
+          currentNode = walker.nextNode();
+        }
+
+        const combinedText = textNodes.map(node => node.data).join('');
+        const boundaryAt = (
+          offset: number,
+          affinity: 'forward' | 'backward',
+        ) => {
+          let cursor = 0;
+          for (const node of textNodes) {
+            const nextCursor = cursor + node.data.length;
+            const isInside =
+              affinity === 'forward' ? offset < nextCursor : offset <= nextCursor;
+            if (isInside) {
+              return {
+                node,
+                offset: Math.max(0, Math.min(node.data.length, offset - cursor)),
+              };
+            }
+            cursor = nextCursor;
+          }
+          return null;
+        };
+
+        const lineTops = ['Line 1', 'Line 2', 'Line 3'].map(line => {
+          const start = combinedText.indexOf(line);
+          const startBoundary =
+            start >= 0 ? boundaryAt(start, 'forward') : null;
+          const endBoundary =
+            start >= 0 ? boundaryAt(start + line.length, 'backward') : null;
+          if (!startBoundary || !endBoundary) {
+            return null;
+          }
+          const range = document.createRange();
+          range.setStart(startBoundary.node, startBoundary.offset);
+          range.setEnd(endBoundary.node, endBoundary.offset);
+          return Math.round(range.getBoundingClientRect().top);
+        });
+
+        return {
+          innerHtml: editor.innerHTML,
+          innerText: editor.innerText,
+          textContent: editor.textContent ?? '',
+          whiteSpace: getComputedStyle(editor).whiteSpace,
+          lineTops,
+          enterEvents: JSON.parse(editor.dataset.e2eEnterEvents ?? '[]') as Array<{
+            shiftKey: boolean;
+            defaultPrevented: boolean;
+          }>,
+        };
+      });
+
+      expect(multilineLayout).not.toBeNull();
+      expect(multilineLayout?.enterEvents).toEqual([
+        { shiftKey: true, defaultPrevented: false },
+        { shiftKey: true, defaultPrevented: false },
+      ]);
+      expect(multilineLayout?.whiteSpace).toBe('pre-wrap');
+      expect(
+        multilineLayout?.innerText.replace(/\r\n/g, '\n').split('\n'),
+      ).toEqual(['Line 1', 'Line 2', 'Line 3']);
+      expect(new Set(multilineLayout?.lineTops).size).toBe(3);
       console.log('[L1] Multiline input works');
       await saveStepScreenshot('l1-chat-input-multiline');
     });
@@ -322,6 +418,7 @@ describe('L1 Chat Input Validation', () => {
       const isFocused = await chatInput.isFocused();
       expect(isFocused).toBe(true);
       console.log('[L1] Input can be focused');
+      await saveStepScreenshot('l1-chat-input-focused');
     });
   });
 

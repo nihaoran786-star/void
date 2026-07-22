@@ -10,6 +10,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const mocks = vi.hoisted(() => ({
   renderedTerminalOutputs: [] as Array<{ content: string; maxHeight?: number }>,
+  compactHeaderAffordanceKinds: [] as Array<string | undefined>,
   createTerminalTab: vi.fn(),
 }));
 
@@ -106,19 +107,24 @@ vi.mock('./CompactToolCard', () => ({
     action,
     content,
     extra,
+    affordanceKind,
   }: {
     icon?: React.ReactNode;
     action?: string;
     content?: React.ReactNode;
     extra?: React.ReactNode;
-  }) => (
-    <header>
-      {icon}
-      <span>{action}</span>
-      {content}
-      {extra}
-    </header>
-  ),
+    affordanceKind?: string;
+  }) => {
+    mocks.compactHeaderAffordanceKinds.push(affordanceKind);
+    return (
+      <header>
+        {icon}
+        <span>{action}</span>
+        {content}
+        {extra}
+      </header>
+    );
+  },
 }));
 
 vi.mock('./ToolCardHeaderActions', () => ({
@@ -178,6 +184,7 @@ describe('TerminalToolCard preview budget', () => {
     container = dom.window.document.getElementById('root') as HTMLDivElement;
     root = createRoot(container);
     mocks.renderedTerminalOutputs.length = 0;
+    mocks.compactHeaderAffordanceKinds.length = 0;
     mocks.createTerminalTab.mockReset();
   });
 
@@ -225,6 +232,7 @@ describe('TerminalToolCard preview budget', () => {
 
     const compactCard = container.querySelector<HTMLElement>('[data-testid="compact-tool-card"]');
     expect(compactCard).not.toBeNull();
+    expect(mocks.compactHeaderAffordanceKinds).toEqual([undefined]);
 
     act(() => {
       compactCard?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

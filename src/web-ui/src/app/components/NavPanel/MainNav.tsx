@@ -2,8 +2,8 @@
  * MainNav — default workspace navigation sidebar.
  *
  * Layout (top to bottom):
- *   1. Workspace file search
- *   2. Top: New sessions | Assistant | Extensions (expand → Agents | Skills)
+ *   1. Classic: workspace search header
+ *   2. Top: New sessions (Minimal search slot) | Assistant | Extensions
  *   3. Assistant sessions, Workspace
  *   4. Bottom: MiniApp
  *
@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, Code2, ClipboardList, ArrowRight, CalendarClock, Images } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -21,6 +21,7 @@ import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import type { SceneTabId } from '../SceneBar/types';
 import SectionHeader from './components/SectionHeader';
 import MiniAppEntry from './components/MiniAppEntry';
+import { SessionCreateLauncher } from './components/SessionCreateLauncher';
 import WorkspaceListSection from './sections/workspaces/WorkspaceListSection';
 import SessionsSection from './sections/sessions/DeferredSessionsSection';
 import { useSceneStore } from '../../stores/sceneStore';
@@ -41,15 +42,15 @@ import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDispl
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
 import { useSessionModeStore } from '../../stores/sessionModeStore';
-import NavSearchDialog from './NavSearchDialog';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
   readWorkspacePresentation,
-  workspacePresentationClassName,
 } from '@/app/presentation/workspacePresentation';
 
 import './NavPanel.scss';
+
+const NavSearchDialog = React.lazy(() => import('./NavSearchDialog'));
 
 const NAV_TOGGLE_SEARCH_DEF = ALL_SHORTCUTS.find((d) => d.id === 'nav.toggleSearch')!;
 
@@ -496,7 +497,6 @@ const MainNav: React.FC<MainNavProps> = ({
       id="void-workspace-menu"
       className={[
         'void-nav-panel__workspace-menu',
-        workspacePresentationClassName(workspacePresentation),
         workspaceMenuClosing ? 'is-closing' : '',
       ].filter(Boolean).join(' ')}
       role="menu"
@@ -577,16 +577,6 @@ const MainNav: React.FC<MainNavProps> = ({
     document.body
   ) : null;
 
-  const createSelectedTooltip = selectedSessionMode === 'cowork'
-    ? t('nav.sessions.newCoworkSession')
-    : selectedSessionMode === 'media'
-      ? t('nav.sessions.newMediaSession')
-    : t('nav.sessions.newCodeSession');
-  const createSelectedLabel = selectedSessionMode === 'cowork'
-    ? t('nav.sessions.newCoworkSessionShort')
-    : selectedSessionMode === 'media'
-      ? t('nav.sessions.newMediaSessionShort')
-    : t('nav.sessions.newCodeSessionShort');
   const assistantTooltip = t('nav.items.persona');
   const automationTooltip = t('nav.items.automation');
   const addWorkspaceTooltip = t('nav.tooltips.addWorkspace');
@@ -594,108 +584,66 @@ const MainNav: React.FC<MainNavProps> = ({
   const agentsTooltip = t('nav.tooltips.agents');
   const skillsTooltip = t('nav.tooltips.skills');
   const extensionsLabel = t('nav.sections.extensions');
+  const searchTrigger = (
+    <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
+      <button
+        type="button"
+        className="void-nav-panel__search-trigger"
+        onClick={() => setSearchOpen(true)}
+        aria-label={t('nav.search.triggerTooltip')}
+      >
+        <span className="void-nav-panel__search-trigger__icon" aria-hidden="true">
+          <span className="void-nav-panel__search-trigger__icon-inner">
+            <Search size={13} />
+          </span>
+        </span>
+        {workspacePresentation === 'classic' ? (
+          <span className="void-nav-panel__search-trigger__label">
+            {t('nav.search.triggerPlaceholder')}
+          </span>
+        ) : null}
+      </button>
+    </Tooltip>
+  );
+
   return (
     <>
       {/* ── Workspace search ───────────────────────── */}
-      <div className="void-nav-panel__brand-header">
-        <div className="void-nav-panel__brand-search">
-          <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
-            <button
-              type="button"
-              className="void-nav-panel__search-trigger"
-              onClick={() => setSearchOpen(true)}
-              aria-label={t('nav.search.triggerTooltip')}
-            >
-              <span className="void-nav-panel__search-trigger__icon" aria-hidden="true">
-                <span className="void-nav-panel__search-trigger__icon-inner">
-                  <Search size={13} />
-                </span>
-              </span>
-              <span className="void-nav-panel__search-trigger__label">
-                {t('nav.search.triggerPlaceholder')}
-              </span>
-            </button>
-          </Tooltip>
-          <NavSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {workspacePresentation === 'classic' ? (
+        <div className="void-nav-panel__brand-header">
+          <div className="void-nav-panel__brand-search">
+            {searchTrigger}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {/* ── Top action strip ────────────────────────── */}
       <div className="void-nav-panel__top-actions">
-        <div className="void-nav-panel__session-create">
-          <div
-            className={[
-              'void-nav-panel__session-mode-switch',
-              `is-mode-${selectedSessionMode}`,
-            ].join(' ')}
-            role="radiogroup"
-            aria-label={t('nav.sessions.newSession')}
-          >
-            <span className="void-nav-panel__session-mode-indicator" aria-hidden="true" />
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedSessionMode === 'code'}
-              aria-label={t('nav.sessions.newCodeSession')}
-              title={t('nav.sessions.newCodeSession')}
-              className={[
-                'void-nav-panel__session-mode-option',
-                selectedSessionMode === 'code' ? 'is-active' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => setSessionMode('code')}
-            >
-              <Code2 size={14} aria-hidden="true" />
-              <span>{t('nav.sessions.modeCode')}</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedSessionMode === 'cowork'}
-              aria-label={t('nav.sessions.newCoworkSession')}
-              title={t('nav.sessions.newCoworkSession')}
-              className={[
-                'void-nav-panel__session-mode-option',
-                selectedSessionMode === 'cowork' ? 'is-active' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => setSessionMode('cowork')}
-            >
-              <ClipboardList size={14} aria-hidden="true" />
-              <span>{t('nav.sessions.modeCowork')}</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedSessionMode === 'media'}
-              aria-label={t('nav.sessions.newMediaSession')}
-              title={t('nav.sessions.newMediaSession')}
-              className={[
-                'void-nav-panel__session-mode-option',
-                selectedSessionMode === 'media' ? 'is-active' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => setSessionMode('media')}
-            >
-              <Images size={14} aria-hidden="true" />
-              <span>{t('nav.sessions.modeMedia')}</span>
-            </button>
-          </div>
-
-          <Tooltip content={createSelectedTooltip} placement="right" followCursor>
-            <button
-              type="button"
-              className="void-nav-panel__session-create-action"
-              onClick={handleCreateSelectedSession}
-              aria-label={createSelectedTooltip}
-            >
-              <span className="void-nav-panel__session-create-action-text">
-                {t('nav.sessions.newSession')}
-              </span>
-              <span className="void-nav-panel__session-create-action-mode">
-                {createSelectedLabel}
-              </span>
-              <ArrowRight size={13} aria-hidden="true" />
-            </button>
-          </Tooltip>
-        </div>
+        <SessionCreateLauncher
+          presentation={workspacePresentation}
+          selectedMode={selectedSessionMode}
+          groupLabel={t('nav.sessions.newSession')}
+          modeLabels={{
+            code: {
+              create: t('nav.sessions.newCodeSession'),
+              mode: t('nav.sessions.modeCode'),
+              short: t('nav.sessions.newCodeSessionShort'),
+            },
+            cowork: {
+              create: t('nav.sessions.newCoworkSession'),
+              mode: t('nav.sessions.modeCowork'),
+              short: t('nav.sessions.newCoworkSessionShort'),
+            },
+            media: {
+              create: t('nav.sessions.newMediaSession'),
+              mode: t('nav.sessions.modeMedia'),
+              short: t('nav.sessions.newMediaSessionShort'),
+            },
+          }}
+          onSelectMode={setSessionMode}
+          onCreate={handleCreateSelectedSession}
+          searchTrigger={workspacePresentation === 'minimal' ? searchTrigger : undefined}
+        />
 
         <Tooltip content={assistantTooltip} placement="right" followCursor>
           <button
@@ -906,6 +854,11 @@ const MainNav: React.FC<MainNavProps> = ({
           }}
         />
       )}
+      {searchOpen ? (
+        <React.Suspense fallback={null}>
+          <NavSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
+        </React.Suspense>
+      ) : null}
     </>
   );
 };

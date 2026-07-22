@@ -18,9 +18,34 @@ function readMinimalNavPanelStylesheet(): string {
   return stylesheet.replace(/\r\n/g, '\n');
 }
 
+function readWorkspaceTokensStylesheet(): string {
+  return readFileSync(
+    fileURLToPath(new URL('../../../component-library/styles/tokens.scss', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
 function readMainNavSource(): string {
   return readFileSync(
     fileURLToPath(new URL('./MainNav.tsx', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
+function readSessionCreateLauncherSource(): string {
+  return readFileSync(
+    fileURLToPath(
+      new URL('./components/SessionCreateLauncher.tsx', import.meta.url),
+    ),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
+function readPersistentFooterActionsSource(): string {
+  return readFileSync(
+    fileURLToPath(
+      new URL('./components/PersistentFooterActions.tsx', import.meta.url),
+    ),
     'utf8',
   ).replace(/\r\n/g, '\n');
 }
@@ -103,22 +128,25 @@ describe('NavPanel layout styles', () => {
     expect(sectionActionBlock).toContain('height: var(--void-nav-row-action-icon-size);');
   });
 
-  it('keeps session mode selection separate from the single create action', () => {
-    const source = readMainNavSource();
+  it('keeps session mode selection in the segmented slider separate from the create action', () => {
+    const mainNavSource = readMainNavSource();
+    const launcherSource = readSessionCreateLauncherSource();
 
-    expect(source).toContain('void-nav-panel__session-mode-switch');
-    expect(source).toContain('role="radiogroup"');
-    expect(source).toContain('`is-mode-${selectedSessionMode}`');
-    expect(source).toContain('void-nav-panel__session-mode-indicator');
-    expect(source).toContain("onClick={() => setSessionMode('code')}");
-    expect(source).toContain("onClick={() => setSessionMode('cowork')}");
-    expect(source).toContain("onClick={() => setSessionMode('media')}");
-    expect(source).toContain("title={t('nav.sessions.newCodeSession')}");
-    expect(source).toContain("title={t('nav.sessions.newCoworkSession')}");
-    expect(source).toContain("title={t('nav.sessions.newMediaSession')}");
-    expect(source).toContain('handleCreateSelectedSession');
-    expect(source).toContain('void-nav-panel__session-create-action');
-    expect(source).not.toContain('<Plus size={12} />\n              </span>\n              <span>{t(\'nav.sessions.newSession\')}</span>');
+    expect(mainNavSource).toContain('<SessionCreateLauncher');
+    expect(mainNavSource).toContain('onSelectMode={setSessionMode}');
+    expect(mainNavSource).toContain('onCreate={handleCreateSelectedSession}');
+    expect(launcherSource).toContain("if (presentation === 'classic')");
+    expect(launcherSource.match(/role="radiogroup"/g)).toHaveLength(2);
+    expect(launcherSource.match(/void-nav-panel__session-mode-switch/g)?.length)
+      .toBeGreaterThanOrEqual(2);
+    expect(launcherSource).toContain('onClick={onCreate}');
+    expect(launcherSource).not.toContain('void-nav-panel__session-mode-menu-trigger');
+    expect(launcherSource).not.toContain("import('./SessionModeMenu')");
+    expect(launcherSource).not.toContain('const SelectedIcon');
+    expect(launcherSource).not.toContain(
+      'void-nav-panel__session-create-action-icon',
+    );
+    expect(launcherSource).not.toContain('flowChatManager');
   });
 
   it('styles the session mode switcher as a compact three-option segmented control', () => {
@@ -163,5 +191,173 @@ describe('NavPanel layout styles', () => {
     expect(emptyStateBlock).toContain('font-size: var(--workspace-font-size-meta);');
     expect(emptyStateBlock).toContain('font-weight: var(--workspace-font-weight-regular);');
     expect(emptyStateBlock).not.toContain('var(--workspace-surface-active)');
+  });
+
+  it('projects search into a compact split launcher while preserving Classic markup', () => {
+    const baseStylesheet = readNavPanelStylesheet();
+    const stylesheet = readMinimalNavPanelStylesheet();
+    const tokenStylesheet = readWorkspaceTokensStylesheet();
+    const source = readMainNavSource();
+    const launcherSource = readSessionCreateLauncherSource();
+    const footerBlock = extractBlock(baseStylesheet, '.void-nav-panel__session-create-footer');
+    const minimalCreateBlock = extractBlock(stylesheet, '&__session-create');
+    const minimalFooterBlock = extractBlock(stylesheet, '&__session-create-footer');
+    const searchSlotBlock = extractBlock(stylesheet, '&__session-search-slot');
+    const searchTriggerBlock = extractBlock(stylesheet, '&__search-trigger');
+    const topActionsBlock = extractBlock(stylesheet, '&__top-actions');
+    const topActionButtonBlock = extractBlock(stylesheet, '&__top-action-btn');
+    const inlineItemBlock = extractBlock(stylesheet, '&__inline-item');
+    const topActionIconBlock = extractBlock(stylesheet, '&__top-action-icon-slot');
+    const expandIconsBlock = extractBlock(stylesheet, '&__top-action-expand-icons');
+    const expandDefaultIconBlock = extractBlock(
+      stylesheet,
+      '&__top-action-expand-icon-default',
+    );
+    const expandChevronBlock = extractBlock(
+      stylesheet,
+      '&__top-action-expand-icon-chevron',
+    );
+
+    expect(source.match(/className="void-nav-panel__search-trigger"/g)).toHaveLength(1);
+    expect(source.match(/<NavSearchDialog open=\{searchOpen\}/g)).toHaveLength(1);
+    expect(source).toContain(
+      "const NavSearchDialog = React.lazy(() => import('./NavSearchDialog'));",
+    );
+    expect(source).not.toContain("import NavSearchDialog from './NavSearchDialog'");
+    expect(source).toContain('<React.Suspense fallback={null}>');
+    expect(source).toContain('searchOpen ? (');
+    expect(source).toContain('const searchTrigger = (');
+    expect(source).toContain(
+      "workspacePresentation === 'classic' ? (\n        <div className=\"void-nav-panel__brand-header\">",
+    );
+    expect(source).toContain(
+      "searchTrigger={workspacePresentation === 'minimal' ? searchTrigger : undefined}",
+    );
+    expect(source.lastIndexOf('<NavSearchDialog open={searchOpen}'))
+      .toBeGreaterThan(source.indexOf('{workspaceMenuPortal}'));
+    expect(source).toMatch(
+      /<button\s+type="button"\s+className="void-nav-panel__search-trigger"/,
+    );
+
+    expect(footerBlock).toContain('display: contents;');
+    expect(minimalCreateBlock).toContain('display: grid;');
+    expect(minimalCreateBlock).toContain(
+      'grid-template-columns: minmax(0, 1fr) 28px;',
+    );
+    expect(minimalCreateBlock).toContain('gap: 4px 2px;');
+    expect(minimalCreateBlock).not.toContain('height: 28px;');
+    expect(minimalCreateBlock).toContain('border: 0;');
+    expect(minimalCreateBlock).toContain('border-radius: 0;');
+    expect(minimalCreateBlock).toContain('background: transparent;');
+    expect(minimalCreateBlock).toContain('overflow: visible;');
+    expect(minimalFooterBlock).toContain('display: contents;');
+    expect(stylesheet).toContain(
+      '&__session-create-action {\n      grid-template-columns: minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 28px;',
+    );
+    expect(stylesheet).toContain(
+      '&__session-mode-switch.is-mode-code &__session-mode-indicator',
+    );
+    expect(stylesheet).toContain(
+      '&__session-mode-switch.is-mode-cowork &__session-mode-indicator',
+    );
+    expect(stylesheet).toContain(
+      '&__session-mode-switch.is-mode-media &__session-mode-indicator',
+    );
+    expect(stylesheet).toContain('transform: translateX(0);');
+    expect(stylesheet).toContain(
+      'transform: translateX(calc(100% + var(--session-mode-gap)));',
+    );
+    expect(stylesheet).toContain('grid-column: 1 / -1;');
+    expect(stylesheet).toContain(
+      'transition: transform var(--workspace-motion-fast) var(--workspace-easing-standard);',
+    );
+    expect(stylesheet).toContain(
+      '&__session-mode-option:focus-visible {\n      outline: 2px solid var(--workspace-focus-ring);',
+    );
+    expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(stylesheet).not.toContain('&__session-mode-menu-trigger');
+    expect(stylesheet).not.toContain(
+      '.void-ui--minimal .void-nav-panel__session-mode-menu',
+    );
+    expect(searchSlotBlock).toContain('width: 28px;');
+    expect(searchSlotBlock).toContain('min-width: 28px;');
+    expect(searchSlotBlock).toContain('height: 28px;');
+    expect(searchSlotBlock).toContain('border-left: 0;');
+    expect(searchTriggerBlock).toContain('width: var(--workspace-icon-target);');
+    expect(searchTriggerBlock).toContain('height: var(--workspace-icon-target);');
+    expect(searchTriggerBlock).toContain('justify-content: center;');
+    expect(searchTriggerBlock).toContain('padding: 0;');
+    expect(searchTriggerBlock).toContain('cursor: pointer;');
+    expect(stylesheet).not.toContain('&__search-trigger__label');
+    expect(source).toContain(
+      "workspacePresentation === 'classic' ? (\n          <span className=\"void-nav-panel__search-trigger__label\">",
+    );
+    expect(source.match(/className="void-nav-panel__search-trigger__label"/g))
+      .toHaveLength(1);
+    expect(topActionIconBlock).toContain('display: none;');
+    expect(expandIconsBlock).toContain('order: 2;');
+    expect(expandIconsBlock).toContain('margin-left: auto;');
+    expect(expandDefaultIconBlock).toContain('display: none;');
+    expect(expandChevronBlock).toContain('opacity: 1;');
+    expect(stylesheet).toContain('&__search-trigger:focus-visible');
+    expect(stylesheet).not.toContain('&__brand-header');
+    expect(stylesheet).not.toContain('&__brand-search');
+    expect(tokenStylesheet).toContain('--control-square-sm: 28px;');
+    expect(tokenStylesheet).toContain('--workspace-icon-target: var(--control-square-sm);');
+    expect(source).toContain('className="void-nav-panel__search-trigger"');
+    expect(source).toContain("aria-label={t('nav.search.triggerTooltip')}");
+    expect(source).toContain('<NavSearchDialog open={searchOpen}');
+    expect(source).toContain('onCreate={handleCreateSelectedSession}');
+    expect(source).toContain('onSelectMode={setSessionMode}');
+    expect(launcherSource).not.toContain('const SelectedIcon');
+    expect(launcherSource).not.toContain(
+      'void-nav-panel__session-create-action-icon',
+    );
+    expect(topActionsBlock).toContain('gap: 2px;');
+    expect(topActionsBlock).toContain(
+      'padding: 8px var(--workspace-space-2) 10px;',
+    );
+    expect(topActionButtonBlock).toContain('height: 28px;');
+    expect(topActionButtonBlock).toContain('min-height: 28px;');
+    expect(inlineItemBlock).toContain('background: transparent;');
+    expect(stylesheet).toContain(
+      '.void-nav-panel__inline-item-icon:not(.is-running) {\n    color: var(--workspace-text-muted);\n    opacity: 0.32;',
+    );
+    expect(stylesheet).toContain(
+      '.void-nav-panel__inline-item.is-active\n    .void-nav-panel__inline-item-icon:not(.is-running) {\n    color: inherit;\n    opacity: 0.82;',
+    );
+    expect(stylesheet).toContain(
+      '.void-nav-panel__inline-item-icon.is-running {\n    color: var(--workspace-text-secondary);\n    opacity: 1;',
+    );
+    expect(stylesheet).not.toContain('transition: all');
+  });
+
+  it('progressively discloses low-frequency footer actions only in Minimal', () => {
+    const baseStylesheet = readNavPanelStylesheet();
+    const minimalStylesheet = readMinimalNavPanelStylesheet();
+    const source = readPersistentFooterActionsSource();
+    const classicMenuOnlyBlock = extractBlock(
+      baseStylesheet,
+      '.void-nav-panel__footer-menu-item--minimal-only',
+    );
+    const minimalQuickActionBlock = extractBlock(
+      minimalStylesheet,
+      '&__footer-quick-action',
+    );
+    const minimalMenuOnlyBlock = extractBlock(
+      minimalStylesheet,
+      '&__footer-menu-item--minimal-only',
+    );
+
+    expect(classicMenuOnlyBlock).toContain('display: none;');
+    expect(minimalQuickActionBlock).toContain('display: none;');
+    expect(minimalMenuOnlyBlock).toContain('display: flex;');
+    expect(source.match(/void-nav-panel__footer-quick-action/g)).toHaveLength(2);
+    expect(source).toContain('data-testid="minimal-footer-shell-menu-item"');
+    expect(source).toContain('data-testid="minimal-footer-browser-menu-item"');
+    expect(source).toContain('onClick={handleOpenShellFromMenu}');
+    expect(source).toContain('onClick={handleOpenBrowserFromMenu}');
+    expect(source).toContain('handleOpenShell();');
+    expect(source).toContain('handleOpenBrowser();');
   });
 });

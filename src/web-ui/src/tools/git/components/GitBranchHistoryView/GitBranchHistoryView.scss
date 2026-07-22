@@ -27,7 +27,7 @@
     p {
       margin: 0;
       color: var(--color-text-secondary);
-      font-size: 14px;
+      font-size: var(--font-size-base);
       text-align: center;
     }
 
@@ -38,7 +38,7 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: var(--font-size-sm);
       font-weight: 500;
       transition: all 0.2s ease;
 
@@ -68,7 +68,7 @@
     justify-content: space-between;
     padding: 10px 12px;
     border-bottom: 1px solid var(--color-border);
-    background: var(--color-background-secondary);
+    background: var(--color-bg-secondary);
     flex-shrink: 0;
     gap: 12px;
   }
@@ -99,7 +99,7 @@
     flex-shrink: 0;
 
     &:hover {
-      background: var(--color-hover);
+      background: var(--element-bg-medium);
     }
   }
 
@@ -131,7 +131,7 @@
 
     &--expanded {
       .git-branch-history-view__commit-main {
-        background: var(--color-background-secondary);
+        background: var(--color-bg-secondary);
       }
     }
 
@@ -185,7 +185,7 @@
     transition: background 0.15s ease;
 
     &:hover {
-      background: var(--color-hover);
+      background: var(--element-bg-medium);
     }
   }
 
@@ -233,7 +233,7 @@
     background: rgba(96, 165, 250, 0.15);
     color: #60a5fa;
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     font-weight: 600;
     text-transform: uppercase;
     user-select: none;
@@ -257,7 +257,7 @@
   }
 
   &__commit-message {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 400;
     color: var(--color-text);
     line-height: 1.4;
@@ -270,7 +270,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     color: var(--color-text-tertiary);
   }
 
@@ -291,14 +291,14 @@
     gap: 3px;
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     padding: 1px 4px;
-    background: var(--color-background-tertiary);
+    background: var(--color-bg-tertiary);
     border-radius: 3px;
     cursor: pointer;
     transition: all 0.15s ease;
-    font-size: 10px;
+    font-size: var(--font-size-xxs);
 
     &:hover {
-      background: var(--color-hover);
+      background: var(--element-bg-medium);
       color: var(--color-text-secondary);
     }
 
@@ -339,14 +339,14 @@
 
     &:hover {
       color: var(--color-text);
-      background: var(--color-background-tertiary);
+      background: var(--color-bg-tertiary);
     }
   }
 
   &__commit-details {
     margin-left: 36px;
     padding: 10px 12px;
-    background: var(--color-background-secondary);
+    background: var(--color-bg-secondary);
     border-radius: 6px;
     margin-bottom: 4px;
   }
@@ -356,7 +356,7 @@
     align-items: flex-start;
     gap: 8px;
     margin-bottom: 6px;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
 
     &:last-child {
       margin-bottom: 0;
@@ -376,8 +376,8 @@
 
     &--mono {
       font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-      font-size: 10px;
-      background: var(--color-background-tertiary);
+      font-size: var(--font-size-xxs);
+      background: var(--color-bg-tertiary);
       padding: 2px 6px;
       border-radius: 3px;
     }
@@ -387,7 +387,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     white-space: nowrap;
     
     svg {
@@ -448,7 +448,7 @@
       
       svg,
       .git-branch-history-view__spinner--small {
-        font-size: 14px;
+        font-size: var(--font-size-base);
         width: 14px;
         height: 14px;
       }
@@ -466,7 +466,7 @@
     &__timeline-node {
       width: 20px;
       height: 20px;
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
 
     &__timeline-line {
@@ -478,13 +478,13 @@
     }
 
     &__commit-message {
-      font-size: 12px;
+      font-size: var(--font-size-xs);
       line-height: 1.3;
     }
 
     &__commit-meta {
       gap: 4px;
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
 
     &__commit-author {
@@ -501,7 +501,7 @@
     }
 
     &__detail-row {
-      font-size: 10px;
+      font-size: var(--font-size-xxs);
     }
 
     &__detail-label {

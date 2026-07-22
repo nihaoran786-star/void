@@ -13,7 +13,7 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--color-bg-base);
+  background: var(--color-bg-primary);
   color: var(--color-text-primary);
 }
 
@@ -26,7 +26,7 @@
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background: var(--color-bg-base);
+  background: var(--color-bg-primary);
 }
 
 .skills-tabs-bar__tabs {
@@ -52,7 +52,7 @@
   border-radius: 4px;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   font-weight: $font-weight-normal;
   line-height: 1.4;
   cursor: pointer;
@@ -123,7 +123,7 @@
 
 .skills-sidebar__title {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: $font-weight-semibold;
   color: var(--color-text-primary);
   letter-spacing: -0.01em;
@@ -200,7 +200,7 @@
   border-radius: 999px;
   background: var(--element-bg-medium);
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: var(--font-size-xxs);
   font-weight: $font-weight-medium;
 
   .skills-sidebar__item.is-active & {
@@ -220,7 +220,7 @@
 
 .skills-sidebar__hint {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
   opacity: 0.75;
   line-height: 1.45;
@@ -359,7 +359,7 @@
 }
 
 .skills-suite__eyebrow {
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   font-weight: $font-weight-semibold;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -368,7 +368,7 @@
 
 .skills-suite__title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-size-2xl);
   font-weight: $font-weight-semibold;
   line-height: $line-height-tight;
   color: var(--color-text-primary);
@@ -452,7 +452,7 @@
 }
 
 .skills-suite__mode-tab-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: $font-weight-semibold;
   line-height: 1.2;
 }
@@ -475,7 +475,7 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
 }
 
@@ -547,13 +547,13 @@
 }
 
 .skills-suite__group-title {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: $font-weight-semibold;
   color: var(--color-text-primary);
 }
 
 .skills-suite__group-count {
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
 }
 
@@ -573,7 +573,7 @@
   border-radius: 999px;
   background: var(--element-bg-subtle);
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-2xs);
   font-weight: $font-weight-medium;
   line-height: 1;
   cursor: pointer;
@@ -749,7 +749,7 @@
   border: none;
   background: none;
   color: var(--color-text-muted);
-  font-size: 10px;
+  font-size: var(--font-size-xxs);
   font-family: $font-family-mono;
   line-height: 1;
   opacity: 0.65;
@@ -918,7 +918,7 @@
   align-items: center;
   justify-content: center;
   padding: 40px 24px 32px;
-  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-base) 100%);
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -930,7 +930,7 @@
 
 .skills-discover__title {
   margin: 0 0 8px;
-  font-size: 24px;
+  font-size: var(--font-size-3xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -1023,7 +1023,7 @@
     background: none;
     font: inherit;
     font-family: $font-family-mono;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     line-height: $line-height-base;
     text-align: left;
     word-break: break-all;
@@ -1057,7 +1057,7 @@
   &__detail-link {
     color: var(--color-text-muted);
     font-family: $font-family-mono;
-    font-size: 11px;
+    font-size: var(--font-size-2xs);
     word-break: break-all;
   }
 
@@ -1146,7 +1146,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .skills-tabs-bar {
     padding: 10px 16px;
   }

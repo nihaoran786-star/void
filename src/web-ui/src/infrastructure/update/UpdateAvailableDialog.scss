@@ -114,7 +114,7 @@
   word-break: break-word;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
-  background: var(--color-bg-muted);
+  background: var(--element-bg-subtle);
   color: var(--color-text-secondary);
 }
 
@@ -153,6 +153,91 @@
     .btn {
       width: 100%;
       justify-content: center;
+    }
+  }
+}
+
+// ==================== Minimal presentation projection ====================
+
+.void-ui--minimal .modal-overlay {
+  .modal:has(.void-update-available) {
+    max-width: 440px;
+    color: var(--workspace-text-secondary);
+    border-color: var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-raised);
+    box-shadow: var(--workspace-shadow-raised);
+    font-family: var(--workspace-font-family);
+  }
+
+  .void-update-available {
+    gap: var(--workspace-space-3);
+    padding: 0 0 var(--workspace-space-3);
+
+    &__lead {
+      gap: 0;
+      margin-bottom: 0;
+    }
+
+    &__lead-icon {
+      display: none;
+    }
+
+    &__subtitle {
+      margin: 0;
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-label);
+      line-height: var(--workspace-line-height-body);
+    }
+
+    &__versions--card,
+    &__notes-body {
+      border-style: solid;
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
+    }
+
+    &__row {
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+      border-bottom-color: var(--workspace-border-subtle);
+      font-size: var(--workspace-font-size-label);
+
+      &--highlight {
+        background: var(--workspace-surface-active);
+
+        .void-update-available__value {
+          color: var(--workspace-text-primary);
+          font-weight: var(--workspace-font-weight-medium);
+        }
+      }
+    }
+
+    &__label,
+    &__notes-label {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-medium);
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    &__value,
+    &__notes-body {
+      color: var(--workspace-text-secondary);
+      font-family: var(--font-family-mono);
+      font-size: var(--workspace-font-size-label);
+    }
+
+    &__notes {
+      margin-top: 0;
+    }
+
+    &__actions {
+      gap: var(--workspace-space-1);
+      margin-top: 0;
+      padding-top: var(--workspace-space-3);
+      border-top-color: var(--workspace-border-subtle);
     }
   }
 }

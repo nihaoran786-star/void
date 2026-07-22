@@ -28,6 +28,14 @@ describe('ChatInput accessibility contract', () => {
     expect(source).toContain("aria-label={t('input.placeholder')}");
   });
 
+  it('names every icon-only send, retry, and boost action', () => {
+    const source = readSource();
+
+    expect(source.match(/aria-label=\{t\('input\.sendShortcut'\)\}/g)).toHaveLength(3);
+    expect(source.match(/aria-label=\{t\('input\.retry'\)\}/g)).toHaveLength(1);
+    expect(source.match(/aria-label=\{t\('chatInput\.addBoostTooltip'\)\}/g)).toHaveLength(1);
+  });
+
   it('keeps the Skills flyout reachable and navigable from the keyboard', () => {
     const source = readSkillsSubmenuSource();
 

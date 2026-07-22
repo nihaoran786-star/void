@@ -175,7 +175,7 @@
   &--small {
     .void-number-input__container {
       height: 28px;
-      font-size: 12px;
+      font-size: var(--font-size-xs);
     }
 
     .void-number-input__value-area {
@@ -196,7 +196,7 @@
   &--medium {
     .void-number-input__container {
       height: 36px;
-      font-size: 14px;
+      font-size: var(--font-size-base);
     }
 
     .void-number-input__btn {
@@ -208,7 +208,7 @@
   &--large {
     .void-number-input__container {
       height: 44px;
-      font-size: 16px;
+      font-size: var(--font-size-xl);
     }
 
     .void-number-input__value-area {

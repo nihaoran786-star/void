@@ -4,6 +4,8 @@
 @use '../../styles/tokens.scss' as tokens;
 
 .select {
+  --select-checkmark-size: var(--font-size-2xs);
+
   position: relative;
   width: 100%;
   min-width: 0;
@@ -165,7 +167,7 @@
     height: 14px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--control-icon-xs);
     line-height: 1;
     color: var(--color-text-muted, #a0a0a0);
     transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
@@ -194,7 +196,7 @@
     color: var(--color-text-muted, #a0a0a0);
     cursor: pointer;
     transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
-    font-size: 16px;
+    font-size: var(--control-icon-sm);
     line-height: 1;
 
     &:hover {
@@ -293,7 +295,7 @@
     border-radius: 50%;
     color: var(--color-text-muted, #a0a0a0);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--control-icon-xs);
     line-height: 1;
     transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     flex-shrink: 0;
@@ -444,7 +446,7 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    font-size: 11px;
+    font-size: var(--select-checkmark-size);
     transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     background: transparent;
     color: transparent;
@@ -538,68 +540,70 @@
   }
 
   &--small {
+    --select-checkmark-size: var(--font-size-xxs);
+
     .select__trigger {
       padding: 4px 10px;
       min-height: 28px;
     }
 
     .select__label {
-      font-size: 13px;
+      font-size: var(--font-size-sm);
       margin-bottom: 6px;
     }
 
     .select__value,
     .select__placeholder {
-      font-size: 13px;
+      font-size: var(--font-size-sm);
     }
 
     .select__option {
       padding: 5px 8px;
-      font-size: 13px;
+      font-size: var(--font-size-sm);
     }
 
     .select__tag {
       padding: 2px 6px;
-      font-size: 12px;
+      font-size: var(--font-size-xs);
     }
 
     .select__checkbox {
       width: 14px;
       height: 14px;
-      font-size: 10px;
     }
   }
 
   &--large {
+    --select-checkmark-size: var(--font-size-xs);
+
     .select__trigger {
       padding: 10px 14px;
       min-height: 44px;
     }
 
     .select__label {
-      font-size: 15px;
+      font-size: var(--font-size-lg);
       margin-bottom: 10px;
     }
 
     .select__value,
     .select__placeholder {
-      font-size: 15px;
+      font-size: var(--font-size-lg);
     }
 
     .select__option {
       padding: 8px 12px;
-      font-size: 15px;
+      font-size: var(--font-size-lg);
     }
 
     .select__tag {
       padding: 4px 10px;
-      font-size: 13px;
+      font-size: var(--font-size-sm);
     }
 
     .select__checkbox {
       width: 18px;
       height: 18px;
-      font-size: 12px;
     }
   }
 }

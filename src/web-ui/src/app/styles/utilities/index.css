@@ -159,7 +159,6 @@
 .text-primary { color: var(--color-text-primary); }
 .text-secondary { color: var(--color-text-secondary); }
 .text-muted { color: var(--color-text-muted); }
-.text-blue { color: var(--color-primary-500); }
 .text-success { color: var(--color-success); }
 .text-warning { color: var(--color-warning); }
 .text-error { color: var(--color-error); }
@@ -174,11 +173,6 @@
 .no-underline { text-decoration: none; }
 
 /* ========== Background utilities ========== */
-
-/* Glassmorphism background */
-.bg-glass { background: var(--glass-bg-base); }
-.bg-glass-hover { background: var(--glass-bg-hover); }
-.bg-glass-active { background: var(--glass-bg-active); }
 
 /* Solid backgrounds */
 .bg-black { background: var(--color-bg-primary); }
@@ -196,7 +190,6 @@
 .border-0 { border: none; }
 .border-glass { border: 1px solid var(--glass-border-base); }
 .border-glass-hover { border-color: var(--glass-border-hover); }
-.border-focus { border-color: var(--color-primary-400); }
 
 /* Border radius */
 .rounded-none { border-radius: 0; }
@@ -209,10 +202,6 @@
 /* ========== Shadow utilities ========== */
 
 .shadow-none { box-shadow: none; }
-.shadow-sm { box-shadow: var(--glass-shadow-sm); }
-.shadow { box-shadow: var(--glass-shadow-base); }
-.shadow-lg { box-shadow: var(--glass-shadow-lg); }
-.shadow-xl { box-shadow: var(--glass-shadow-xl); }
 
 /* ========== Opacity utilities ========== */
 
@@ -249,7 +238,7 @@
 .z-2 { z-index: var(--z-content); }
 .z-10 { z-index: var(--z-header); }
 .z-20 { z-index: var(--z-sticky); }
-.z-50 { z-index: var(--z-modal); }
+.z-50 { z-index: var(--z-floating); }
 
 /* ========== Cursor utilities ========== */
 
@@ -265,37 +254,6 @@
 .select-text { user-select: text; }
 .select-all { user-select: all; }
 .select-auto { user-select: auto; }
-
-/* ========== Glassmorphism composites ========== */
-
-.glass-panel {
-  background: var(--glass-bg-base);
-  border: 1px solid var(--glass-border-base);
-  border-radius: var(--size-radius-xl);
-  backdrop-filter: var(--glass-blur-base);
-  -webkit-backdrop-filter: var(--glass-blur-base);
-  box-shadow: var(--glass-shadow-base);
-}
-
-.glass-button {
-  background: var(--glass-bg-base);
-  border: 1px solid var(--glass-border-base);
-  border-radius: var(--size-radius-base);
-  backdrop-filter: var(--glass-blur-base);
-  -webkit-backdrop-filter: var(--glass-blur-base);
-  box-shadow: var(--glass-shadow-base);
-  transition: all var(--motion-base) var(--easing-standard);
-}
-
-.glass-input {
-  background: var(--glass-bg-base);
-  border: 1px solid var(--glass-border-base);
-  border-radius: var(--size-radius-base);
-  backdrop-filter: var(--glass-blur-sm);
-  -webkit-backdrop-filter: var(--glass-blur-sm);
-  box-shadow: var(--glass-shadow-sm);
-  transition: all var(--motion-base) var(--easing-standard);
-}
 
 /* ========== Responsive utilities ========== */
 

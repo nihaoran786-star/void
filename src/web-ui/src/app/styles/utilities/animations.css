@@ -210,13 +210,6 @@
   transform: scale(1.05);
 }
 
-.hover-glow {
-  transition: box-shadow var(--motion-fast) var(--easing-standard);
-}
-.hover-glow:hover {
-  box-shadow: var(--glass-shadow-lg);
-}
-
 /* Glow sweep effect */
 .sweep-glow {
   position: relative;
@@ -239,76 +232,6 @@
 }
 .sweep-glow:hover::before {
   animation: sweepGlow 0.5s ease;
-}
-
-/* ========== Glassmorphism composite classes ========== */
-
-/* Base glass effect */
-.glass-base {
-  background: var(--glass-bg-base);
-  border: 1px solid var(--glass-border-base);
-  backdrop-filter: var(--glass-blur-base);
-  -webkit-backdrop-filter: var(--glass-blur-base);
-  box-shadow: var(--glass-shadow-base);
-}
-
-/* Enhanced glass effect on hover */
-.glass-hover {
-  transition: all var(--motion-base) var(--easing-standard);
-}
-.glass-hover:hover {
-  background: var(--glass-bg-hover);
-  border-color: var(--glass-border-hover);
-  box-shadow: var(--glass-shadow-lg);
-  transform: translateY(-1px);
-}
-
-/* Active glass effect */
-.glass-active {
-  background: var(--glass-bg-active);
-  border-color: var(--glass-border-focus);
-  box-shadow: var(--glass-shadow-xl);
-}
-
-/* ========== Decorative effects ========== */
-
-/* Top highlight effect */
-.glass-top-shine::after {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 2px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.2) 20%,
-    rgba(255, 255, 255, 0.3) 50%,
-    rgba(255, 255, 255, 0.2) 80%,
-    transparent 100%);
-  border-radius: 2px;
-  opacity: 0.4;
-  animation: glassShine 4s ease-in-out infinite;
-  pointer-events: none;
-  z-index: var(--z-decoration);
-}
-
-/* Decorative gradient overlay */
-.glass-gradient-overlay::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg,
-    rgba(255, 255, 255, 0.02) 0%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.01) 100%);
-  pointer-events: none;
-  z-index: var(--z-decoration);
-  border-radius: inherit;
 }
 
 /* ========== Responsive animation controls ========== */
@@ -345,13 +268,7 @@
 
 /* High-performance mode - mobile optimization */
 @media (max-width: 768px) {
-  .glass-base {
-    backdrop-filter: var(--glass-blur-sm);
-    -webkit-backdrop-filter: var(--glass-blur-sm);
-  }
-  
-  .anim-glass-shine,
-  .glass-top-shine::after {
+  .anim-glass-shine {
     animation-duration: 6s; /* Slow down animation frequency */
   }
 }

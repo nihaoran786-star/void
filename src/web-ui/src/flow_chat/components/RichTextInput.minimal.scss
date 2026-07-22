@@ -1,0 +1,78 @@
+@mixin styles {
+  .void-ui--minimal .rich-text-input {
+    color: var(--workspace-text-primary);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-body);
+    line-height: var(--workspace-line-height-body);
+  }
+
+  .void-ui--minimal .rich-text-placeholder,
+  .void-ui--minimal .rich-text-tag-pill {
+    color: var(--workspace-status-info-text);
+    border-color: var(--workspace-status-info-border);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-status-info-bg);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-label);
+    font-weight: var(--workspace-font-weight-medium);
+    line-height: var(--workspace-line-height-control);
+    transition:
+      color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      background var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  .void-ui--minimal .rich-text-placeholder:hover,
+  .void-ui--minimal .rich-text-placeholder--active,
+  .void-ui--minimal .rich-text-placeholder:focus,
+  .void-ui--minimal .rich-text-tag-pill:hover,
+  .void-ui--minimal .rich-text-tag-pill[data-context-type]:hover {
+    color: var(--workspace-text-primary);
+    border-color: var(--workspace-border-strong);
+    background: var(--workspace-surface-active);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill[data-context-type] {
+    color: var(--workspace-status-info-text);
+    background: var(--workspace-status-info-bg);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill--widget-ref {
+    color: var(--workspace-status-success-text);
+    background: var(--workspace-status-success-bg);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill__text {
+    color: inherit;
+    font-size: var(--workspace-font-size-label);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill__badge {
+    color: inherit;
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-active);
+    font-size: var(--workspace-font-size-meta);
+    font-weight: var(--workspace-font-weight-strong);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill__remove {
+    color: inherit;
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    opacity: 0.72;
+    transition:
+      opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
+      background var(--workspace-motion-fast) var(--workspace-easing-standard);
+  }
+
+  .void-ui--minimal .rich-text-tag-pill__remove:hover {
+    color: var(--workspace-text-primary);
+    background: var(--workspace-surface-hover);
+    opacity: 1;
+    transform: none;
+  }
+
+  .void-ui--minimal .rich-text-tag-pill__remove:focus-visible {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: 1px;
+  }
+}

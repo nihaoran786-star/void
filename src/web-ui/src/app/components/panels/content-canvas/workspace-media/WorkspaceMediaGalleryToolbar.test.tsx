@@ -12,6 +12,7 @@ vi.mock('react-i18next', () => ({
       'workspaceMedia.views.deleted': 'Recently Deleted',
       'workspaceMedia.actions.selectVisible': 'Select all',
       'workspaceMedia.actions.clearVisibleSelection': 'Clear selected',
+      'workspaceMedia.actions.clearSearch': 'Clear search',
       'workspaceMedia.filters.ariaLabel': 'Media filters',
       'workspaceMedia.filters.all': 'All',
       'workspaceMedia.filters.images': 'Images',
@@ -111,12 +112,39 @@ describe('WorkspaceMediaGalleryToolbar', () => {
       '.workspace-media-gallery__refinement-panel',
     ) as HTMLDivElement;
 
-    expect(container.querySelector('input[placeholder="Search"]')).toBeTruthy();
+    const searchInput = container.querySelector(
+      'input[placeholder="Search"]',
+    ) as HTMLInputElement;
+    expect(searchInput).toBeTruthy();
+    expect(searchInput.getAttribute('aria-label')).toBe('Search');
+    expect(container.querySelector(
+      '.workspace-media-gallery__search-row',
+    )?.classList.contains('has-query')).toBe(false);
     expect(container.textContent).toContain('Media');
     expect(container.textContent).toContain('Recently Deleted');
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(panel.hidden).toBe(true);
     expect(panel.querySelectorAll('button')).toHaveLength(9);
+  });
+
+  it('keeps a non-empty query expanded and clears it through a labelled action', () => {
+    const actions = renderToolbar({
+      ...baseState,
+      query: 'character',
+    });
+    const searchRow = container.querySelector(
+      '.workspace-media-gallery__search-row',
+    ) as HTMLDivElement;
+    const clearButton = container.querySelector(
+      'button[aria-label="Clear search"]',
+    ) as HTMLButtonElement;
+
+    expect(searchRow.classList.contains('has-query')).toBe(true);
+    expect(clearButton).toBeTruthy();
+
+    act(() => clearButton.click());
+
+    expect(actions.onQueryChange).toHaveBeenCalledWith('');
   });
 
   it('keeps filter, sort, refresh, and selection behavior available after one disclosure', () => {

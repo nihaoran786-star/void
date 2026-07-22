@@ -182,9 +182,67 @@ describe('ShortDramaTeamPanelControls', () => {
     expect(onToggle).toHaveBeenCalledOnce();
   });
 
-  it('keeps only the same collapse button open and leaves agent selection to the real tab bar', async () => {
+  it('uses one open-panel agent selector and delegates existing handlers', async () => {
     const onToggle = vi.fn();
     const onSelectTab = vi.fn();
+    const tabs = [
+      makeStageTab('script-agent', 'ScriptAI', 'script'),
+      makeStageTab('asset-agent', 'AssetAI', 'assets'),
+      makeStageTab('video-agent', 'VideoAI', 'video'),
+    ];
+    await act(async () => {
+      root.render(
+        <ShortDramaTeamPanelControls
+          mode="open"
+          tabs={tabs}
+          activeTabId="asset-agent"
+          statuses={[
+            { tabId: 'script-agent', status: 'completed' },
+            { tabId: 'asset-agent', status: 'live' },
+            { tabId: 'video-agent', status: 'waiting' },
+          ]}
+          onToggle={onToggle}
+          onSelectTab={onSelectTab}
+        />,
+      );
+    });
+
+    const controls = container.querySelector(
+      '[data-testid="short-drama-team-panel-controls"]',
+    ) as HTMLElement;
+    const trigger = container.querySelector(
+      '[data-testid="short-drama-team-agent-trigger"]',
+    ) as HTMLButtonElement;
+    const collapse = container.querySelector(
+      '[data-testid="short-drama-team-panel-collapse"]',
+    ) as HTMLButtonElement;
+
+    expect(controls).not.toBeNull();
+    expect(trigger.textContent).toContain('canvas.shortDramaTeamCompact');
+    expect(trigger.textContent).toContain('AssetAI');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(collapse.getAttribute('aria-label'))
+      .toBe('canvas.collapseShortDramaTeam');
+
+    await act(async () => trigger.click());
+    const options = Array.from(container.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="short-drama-team-agent"]',
+    ));
+    expect(options).toHaveLength(3);
+    expect(options[1].getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(options[1]);
+
+    await act(async () => options[0].click());
+    expect(onSelectTab).toHaveBeenCalledWith('script-agent');
+    expect(container.querySelector(
+      '[data-testid="short-drama-team-agent-menu"]',
+    )).toBeNull();
+
+    await act(async () => collapse.click());
+    expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it('closes the open-panel agent menu with Escape and restores focus', async () => {
     await act(async () => {
       root.render(
         <ShortDramaTeamPanelControls
@@ -192,25 +250,30 @@ describe('ShortDramaTeamPanelControls', () => {
           tabs={[stageTab]}
           activeTabId="asset-agent"
           statuses={[{ tabId: 'asset-agent', status: 'live' }]}
-          onToggle={onToggle}
-          onSelectTab={onSelectTab}
+          onToggle={vi.fn()}
+          onSelectTab={vi.fn()}
         />,
       );
     });
 
-    const toggle = container.querySelector(
-      '[data-testid="short-drama-team-panel-toggle"]',
+    const trigger = container.querySelector(
+      '[data-testid="short-drama-team-agent-trigger"]',
     ) as HTMLButtonElement;
-    expect(container.querySelectorAll('button')).toHaveLength(1);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(toggle.querySelector(
-      '.short-drama-team-panel-controls__summary-label',
-    )).toBeNull();
-    expect(container.querySelector('[data-testid="short-drama-team-agent"]'))
-      .toBeNull();
+    await act(async () => trigger.click());
+    const menu = container.querySelector(
+      '[data-testid="short-drama-team-agent-menu"]',
+    ) as HTMLElement;
+    await act(async () => {
+      menu.dispatchEvent(new KeyboardEvent('keydown', {
+        bubbles: true,
+        key: 'Escape',
+      }));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    });
 
-    act(() => toggle.click());
-    expect(onToggle).toHaveBeenCalledOnce();
-    expect(onSelectTab).not.toHaveBeenCalled();
+    expect(container.querySelector(
+      '[data-testid="short-drama-team-agent-menu"]',
+    )).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });

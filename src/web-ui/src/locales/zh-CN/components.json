@@ -353,6 +353,7 @@
     "unsaved": "未保存",
     "fileDeleted": "已删除",
     "missionControl": "全景模式",
+    "moreActions": "更多操作",
     "hiddenTabsCount": "{{count}} 个隐藏标签",
     "confirmCloseWithDirty": "文件 \"{{title}}\" 有未保存的更改。\n\n是否放弃更改并关闭？",
     "confirmCloseAllWithDirty": "以下 {{count}} 个文件有未保存的更改：\n\n{{fileList}}\n\n是否放弃所有更改并关闭？"
@@ -619,6 +620,7 @@
     },
     "actions": {
       "delete": "删除",
+      "clearSearch": "清除搜索",
       "restore": "恢复",
       "purge": "彻底删除",
       "select": "选择",
@@ -660,6 +662,7 @@
   },
   "shortDrama": {
     "entry": "AI 短剧",
+    "switcher": "短剧",
     "ariaLabel": "AI 短剧中心",
     "kicker": "AI 短剧",
     "subtitle": "以产物为中心的生产协作台，用于管理剧本、资产、分镜、视频和后期 agent 工作。",

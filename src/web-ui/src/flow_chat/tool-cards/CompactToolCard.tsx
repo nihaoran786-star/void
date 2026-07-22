@@ -10,8 +10,12 @@
 
 import React, { ReactNode } from 'react';
 import { shouldIgnoreCardToggleClick } from '@/shared/utils/textSelection';
-import { BaseToolCard, type BaseToolCardProps } from './BaseToolCard';
-import { SmoothHeightCollapse } from '../components/modern/SmoothHeightCollapse';
+import {
+  BaseToolCard,
+  statusUsesLoadingShimmer,
+  renderToolCardHeaderActivation,
+  type BaseToolCardProps,
+} from './BaseToolCard';
 import { ToolCardIconSlot } from './ToolCardIconSlot';
 import { ToolCardStatusIcon } from './ToolCardStatusIcon';
 import type { ToolCardHeaderAffordanceKind } from './ToolCardHeaderLayoutContext';
@@ -43,52 +47,53 @@ export const CompactToolCard: React.FC<CompactToolCardProps> = ({
   header,
   expandedContent,
 }) => {
+  const isInteractive = clickable && Boolean(onClick);
   const handleWrapperClick = (event: React.MouseEvent) => {
-    if (!onClick || shouldIgnoreCardToggleClick(event)) {
+    if (shouldIgnoreCardToggleClick(event)) {
       return;
     }
 
-    onClick(event);
+    onClick!(event);
   };
-
-  const loadingShimmer =
-    status === 'preparing' ||
-    status === 'streaming' ||
-    status === 'receiving' ||
-    status === 'running' ||
-    status === 'analyzing';
+  const resolvedHeader =
+    React.isValidElement<CompactToolCardHeaderProps>(header)
+    && header.type === CompactToolCardHeader
+      ? React.cloneElement(header, {
+          onAffordanceClick:
+            header.props.onAffordanceClick ?? (isInteractive ? onClick : undefined),
+          expandable: header.props.expandable ?? isInteractive,
+          affordanceKind:
+            header.props.affordanceKind
+            ?? 'expand',
+          isExpanded: header.props.isExpanded ?? isExpanded,
+        })
+      : header;
 
   if (isExpanded && expandedContent) {
     return (
       <BaseToolCard
         status={status}
         isExpanded
-        onClick={handleWrapperClick}
+        onClick={isInteractive ? onClick : undefined}
         className={`compact-tool-card-wrapper--expanded-card ${className}`.trim()}
-        header={header}
+        header={resolvedHeader}
         expandedContent={expandedContent}
-        headerExpandAffordance={clickable || Boolean(onClick)}
+        headerExpandAffordance={isInteractive}
       />
     );
   }
 
   return (
     <div
-      className={`compact-tool-card-wrapper compact-tool-card-wrapper--dense-command${loadingShimmer ? ' compact-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
+      className={`compact-tool-card-wrapper compact-tool-card-wrapper--dense-command${statusUsesLoadingShimmer(status) ? ' compact-tool-card-wrapper--loading-shimmer' : ''} ${className}`.trim()}
     >
       <div
-        className={`compact-tool-card status-${status} ${clickable ? 'clickable' : ''} ${isExpanded ? 'expanded' : ''}`}
-        onClick={handleWrapperClick}
-        style={{ cursor: clickable ? 'pointer' : 'default' }}
+        className={`compact-tool-card status-${status} ${isInteractive ? 'clickable' : ''} ${isExpanded ? 'expanded' : ''}`}
+        onClick={isInteractive ? handleWrapperClick : undefined}
       >
-        {header}
+        {resolvedHeader}
       </div>
 
-      <SmoothHeightCollapse isOpen={Boolean(isExpanded && expandedContent)} className="compact-tool-card-expanded-collapse">
-        <div className="compact-tool-card-expanded">
-          {expandedContent}
-        </div>
-      </SmoothHeightCollapse>
     </div>
   );
 };
@@ -143,9 +148,15 @@ export const CompactToolCardHeader: React.FC<CompactToolCardHeaderProps> = ({
           expandable={expandable}
           affordanceKind={affordanceKind}
           isExpanded={isExpanded}
-          onAffordanceClick={onAffordanceClick}
           showDivider={showDivider}
         />
+      )}
+      {expandable && onAffordanceClick && (
+        renderToolCardHeaderActivation(
+          affordanceKind,
+          isExpanded,
+          onAffordanceClick,
+        )
       )}
       {action && <span className="compact-card-action">{action}</span>}
       {content && <span className="compact-card-content">{content}</span>}

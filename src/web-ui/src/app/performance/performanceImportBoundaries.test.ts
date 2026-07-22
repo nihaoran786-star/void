@@ -37,6 +37,72 @@ describe('Web UI startup import boundaries', () => {
     expect(source).not.toContain("import SettingsScene from './settings/SettingsScene'");
   });
 
+  it('loads the project-creation dialog only after the user opens it', () => {
+    const appLayout = readSource('../layout/AppLayout.tsx');
+    const dialogBarrel = readSource(
+      '../components/NewProjectDialog/index.ts',
+    );
+    const lazyDialog = readSource(
+      '../components/NewProjectDialog/LazyNewProjectDialog.tsx',
+    );
+
+    expect(appLayout).toContain(
+      "from '../components/NewProjectDialog'",
+    );
+    expect(appLayout).not.toContain(
+      "from '../components/NewProjectDialog/NewProjectDialog'",
+    );
+    expect(dialogBarrel).toContain(
+      "LazyNewProjectDialog as NewProjectDialog",
+    );
+    expect(lazyDialog).toContain("await import('./NewProjectDialog')");
+    expect(lazyDialog).toContain('if (!props.isOpen)');
+  });
+
+  it('loads the remote-connect implementation only after the user opens it', () => {
+    const footer = readSource(
+      '../components/NavPanel/components/PersistentFooterActions.tsx',
+    );
+    const dialogBarrel = readSource(
+      '../components/RemoteConnectDialog/index.ts',
+    );
+    const lazyDialog = readSource(
+      '../components/RemoteConnectDialog/LazyRemoteConnectDialog.tsx',
+    );
+
+    expect(footer).toContain(
+      "from '../../RemoteConnectDialog'",
+    );
+    expect(footer).not.toContain(
+      "from '../../RemoteConnectDialog/RemoteConnectDialog'",
+    );
+    expect(dialogBarrel).toContain(
+      'LazyRemoteConnectDialog as RemoteConnectDialog',
+    );
+    expect(lazyDialog).toContain("await import('./RemoteConnectDialog')");
+    expect(lazyDialog).toContain('if (!props.isOpen)');
+  });
+
+  it('loads media preview rendering only after a preview event opens it', () => {
+    const overlay = readSource(
+      '../../shared/services/preview/MediaPreviewOverlay.tsx',
+    );
+    const content = readSource(
+      '../../shared/services/preview/MediaPreviewOverlayContent.tsx',
+    );
+
+    expect(overlay).toContain("import('./MediaPreviewOverlayContent')");
+    expect(overlay).toContain('MEDIA_PREVIEW_EVENT');
+    expect(overlay).not.toContain("from 'lucide-react'");
+    expect(overlay).not.toContain("from '@/infrastructure/i18n'");
+    expect(overlay).not.toContain("from '@/shared/services/workspace-media'");
+    expect(overlay).not.toContain("import './MediaPreviewOverlay.scss'");
+    expect(content).toContain("from 'lucide-react'");
+    expect(content).toContain("from '@/shared/services/workspace-media'");
+    expect(content).toContain("import './MediaPreviewOverlay.scss'");
+    expect(content).not.toContain('MEDIA_PREVIEW_EVENT');
+  });
+
   it('loads optional panel implementations from concrete module boundaries', () => {
     const source = readSource('../components/panels/base/FlexiblePanel.tsx');
     const componentLibraryBarrel = readSource('../../component-library/components/index.ts');
@@ -130,7 +196,7 @@ describe('Web UI startup import boundaries', () => {
     );
   });
 
-  it('keeps lightweight short-drama entries independent of the feature barrel', () => {
+  it('keeps the unified media-session switcher independent of feature barrels', () => {
     const emptyState = readSource(
       '../components/panels/content-canvas/empty-state/EmptyState.tsx',
     );
@@ -138,8 +204,10 @@ describe('Web UI startup import boundaries', () => {
       '../components/panels/content-canvas/tab-bar/TabBar.tsx',
     );
 
-    expect(emptyState).toContain("from '../short-drama/ShortDramaEntry'");
-    expect(tabBar).toContain("from '../short-drama/ShortDramaEntry'");
+    expect(emptyState).toContain("from '../workspace-media/WorkspaceMediaEntry'");
+    expect(tabBar).toContain("from '../workspace-media/WorkspaceMediaEntry'");
+    expect(emptyState).not.toContain('ShortDramaEntry');
+    expect(tabBar).not.toContain('ShortDramaEntry');
   });
 
   it('keeps startup config and workspace-media consumers on concrete module boundaries', () => {
@@ -218,6 +286,10 @@ describe('Web UI startup import boundaries', () => {
     );
     expect(deferredSessionsSection).toContain("lazy(() => import('./SessionsSection'))");
     expect(mainNav).toContain("from './sections/sessions/DeferredSessionsSection'");
+    expect(mainNav).toContain(
+      "const NavSearchDialog = React.lazy(() => import('./NavSearchDialog'))",
+    );
+    expect(mainNav).not.toContain("import NavSearchDialog from './NavSearchDialog'");
     expect(workspaceItem).toContain("from '../sessions/DeferredSessionsSection'");
     expect(sessionsSection).toContain(
       "from './sessionNavProjection'",

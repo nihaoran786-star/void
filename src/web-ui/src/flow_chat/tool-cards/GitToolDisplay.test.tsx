@@ -33,7 +33,8 @@ vi.mock('../../component-library', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock('@/shared/utils/textSelection', () => ({
+vi.mock('@/shared/utils/textSelection', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/shared/utils/textSelection')>(),
   copyTextToClipboard: vi.fn(async () => true),
 }));
 
@@ -55,8 +56,15 @@ describe('GitToolDisplay', () => {
     });
     vi.stubGlobal('window', dom.window);
     vi.stubGlobal('document', dom.window.document);
+    vi.stubGlobal('Element', dom.window.Element);
     vi.stubGlobal('HTMLElement', dom.window.HTMLElement);
+    vi.stubGlobal('Node', dom.window.Node);
     vi.stubGlobal('CustomEvent', dom.window.CustomEvent);
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
 
     vi.mocked(copyTextToClipboard).mockClear();
 
@@ -113,6 +121,12 @@ describe('GitToolDisplay', () => {
     expect(container.textContent).not.toContain('Gitgit status --short');
     expect(container.textContent?.trim().startsWith('git status --short')).toBe(true);
 
+    let activation = container.querySelector<HTMLButtonElement>(
+      '.tool-card-header-activation'
+    );
+    expect(activation?.getAttribute('aria-label')).toBe('Expand details');
+    expect(activation?.getAttribute('aria-expanded')).toBe('false');
+
     const copyButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Copy git command"]'
     );
@@ -124,5 +138,12 @@ describe('GitToolDisplay', () => {
     });
 
     expect(copyTextToClipboard).toHaveBeenCalledWith('git status --short');
+
+    act(() => activation?.click());
+    activation = container.querySelector<HTMLButtonElement>(
+      '.tool-card-header-activation'
+    );
+    expect(activation?.getAttribute('aria-label')).toBe('Collapse details');
+    expect(activation?.getAttribute('aria-expanded')).toBe('true');
   });
 });
