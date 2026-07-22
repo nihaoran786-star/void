@@ -22,6 +22,7 @@ import {
 import {
   calculateShare,
   buildSessionUsageExportMarkdown,
+  formatCompactTokenCount,
   formatHitRatePercent,
   formatHitRateSuffix,
   formatUsageDuration,
@@ -54,6 +55,7 @@ interface SessionUsagePanelProps {
   sessionId?: string;
   workspacePath?: string;
   initialTab?: SessionUsagePanelTab;
+  contextUsage?: { current: number; max: number };
 }
 
 const TABS: SessionUsagePanelTab[] = ['overview', 'models', 'tools', 'files', 'errors', 'slowest'];
@@ -76,6 +78,7 @@ export const SessionUsagePanel: React.FC<SessionUsagePanelProps> = ({
   sessionId,
   workspacePath,
   initialTab,
+  contextUsage,
 }) => {
   const { t } = useTranslation('flow-chat');
   const [activeTab, setActiveTab] = useState<SessionUsagePanelTab>(initialTab ?? 'overview');
@@ -272,7 +275,7 @@ export const SessionUsagePanel: React.FC<SessionUsagePanelProps> = ({
         id={tabPanelId(activeTab)}
         aria-labelledby={tabId(activeTab)}
       >
-        {activeTab === 'overview' && <UsageOverview report={report} />}
+        {activeTab === 'overview' && <UsageOverview report={report} contextUsage={contextUsage} />}
         {activeTab === 'models' && <UsageModels report={report} sessionId={effectiveSessionId} />}
         {activeTab === 'tools' && <UsageTools report={report} sessionId={effectiveSessionId} />}
         {activeTab === 'files' && (
@@ -555,7 +558,7 @@ function getCompactFilePathLabel(pathLabel: string): string {
   return `.../${segments.slice(-2).join('/')}`;
 }
 
-function UsageOverview({ report }: { report: SessionUsageReport }) {
+function UsageOverview({ report, contextUsage }: { report: SessionUsageReport; contextUsage?: { current: number; max: number } }) {
   const { t } = useTranslation('flow-chat');
   const cacheCoverageHelp = report.tokens.cacheCoverage === 'unavailable'
     ? t('usage.help.cachedTokens')
@@ -573,14 +576,30 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
     ? Math.min(toolShareRaw, Math.max(0, 100 - modelShare))
     : toolShareRaw;
 
+  const contextShare = contextUsage && contextUsage.max > 0 && contextUsage.current > 0
+    ? Math.min(100, Math.round((contextUsage.current / contextUsage.max) * 100))
+    : undefined;
   const hitRate = report.tokens.cacheHitRate;
   const hasHitRate = typeof hitRate === 'number' && Number.isFinite(hitRate);
-  const gaugePercent = hasHitRate
-    ? Math.round(hitRate * 100)
-    : activeShare !== undefined
-      ? Math.round(activeShare)
+
+  let gaugePercent: number | undefined;
+  let gaugeLabel: string;
+  let gaugeCaption: string | undefined;
+  if (contextShare !== undefined && contextUsage) {
+    gaugePercent = contextShare;
+    gaugeLabel = t('usage.panel.contextUsage');
+    gaugeCaption = `${formatCompactTokenCount(contextUsage.current)} / ${formatCompactTokenCount(contextUsage.max)}`;
+  } else if (hasHitRate) {
+    gaugePercent = Math.round(hitRate * 100);
+    gaugeLabel = t('usage.metrics.cached');
+    gaugeCaption = formatUsageNumber(report.tokens.cachedTokens, t);
+  } else {
+    gaugePercent = activeShare !== undefined ? Math.round(activeShare) : undefined;
+    gaugeLabel = t('usage.metrics.active');
+    gaugeCaption = activeMs !== undefined && wallMs !== undefined
+      ? `${formatUsageDuration(activeMs, t)} / ${formatUsageDuration(wallMs, t)}`
       : undefined;
-  const gaugeLabel = hasHitRate ? t('usage.metrics.cached') : t('usage.metrics.active');
+  }
   const gaugeDash = gaugePercent !== undefined
     ? `${(Math.min(100, Math.max(0, gaugePercent)) / 100) * USAGE_GAUGE_CIRCUMFERENCE} ${USAGE_GAUGE_CIRCUMFERENCE}`
     : undefined;
@@ -676,7 +695,9 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
                 ? t('usage.percent', { value: gaugePercent })
                 : t('usage.unavailable')}
             </strong>
-            <span>{gaugeLabel}</span>
+            <span className="session-usage-panel__gauge-caption">
+              {gaugeCaption ? `${gaugeLabel} ${gaugeCaption}` : gaugeLabel}
+            </span>
           </div>
         </div>
 
@@ -720,6 +741,7 @@ function UsageOverview({ report }: { report: SessionUsageReport }) {
       <div className="session-usage-panel__fact-row">
         {facts.map(fact => (
           <span className="session-usage-panel__fact" key={fact.key}>
+            <i className={`session-usage-panel__fact-dot session-usage-panel__fact-dot--${fact.key}`} aria-hidden />
             {fact.label}
             <b>{fact.value}</b>
           </span>

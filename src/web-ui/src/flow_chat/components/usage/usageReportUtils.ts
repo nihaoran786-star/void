@@ -97,6 +97,16 @@ export function formatUsagePercent(value: number | undefined, t: Translator): st
  * use after a token count). Returns an empty string for null/undefined/NaN,
  * so callers can unconditionally append the result.
  */
+/**
+ * Compact token count for tight gauge captions (`92K`, `512`).
+ */
+export function formatCompactTokenCount(value: number | undefined): string {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return '-';
+  }
+  return value >= 1000 ? `${Math.round(value / 1000)}K` : `${Math.round(value)}`;
+}
+
 export function formatHitRateSuffix(rate: number | undefined | null, t: Translator): string {
   if (typeof rate !== 'number' || !Number.isFinite(rate)) {
     return '';

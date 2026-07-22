@@ -220,6 +220,7 @@
     },
     "panel": {
       "tabsLabel": "Usage report sections",
+      "contextUsage": "Context",
       "metadataLabel": "Usage report metadata",
       "accounting": "Accounting",
       "turnScope": "Scope",

@@ -322,6 +322,12 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       });
     }, [messageContent]);
 
+    const usageContextUsage = currentSession
+      ? currentSession.currentAcpContextUsage
+        ? { current: currentSession.currentAcpContextUsage.used, max: currentSession.currentAcpContextUsage.size }
+        : { current: currentSession.currentTokenUsage?.totalTokens || 0, max: currentSession.maxContextTokens || 128128 }
+      : undefined;
+
     const handleOpenUsageReport = useCallback((report: SessionUsageReport, initialTab?: SessionUsagePanelTab) => {
       void import('../../services/openSessionUsageReport').then(({ openSessionUsagePanel }) => {
         openSessionUsagePanel({
@@ -332,9 +338,10 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
           initialTab,
           title: t('usage.title'),
           expand: true,
+          contextUsage: usageContextUsage,
         });
       });
-    }, [currentSession?.sessionId, currentSession?.workspacePath, messageContent, resolvedSessionId, t]);
+    }, [currentSession?.sessionId, currentSession?.workspacePath, messageContent, resolvedSessionId, t, usageContextUsage]);
     
     // Collapse when clicking outside.
     useEffect(() => {
@@ -364,6 +371,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
           markdown={messageContent}
           generatedAt={message.metadata?.generatedAt}
           isLoading={isUsageReportLoading}
+          contextUsage={usageContextUsage}
           onOpenDetails={usageReport ? handleOpenUsageReport : undefined}
         />
       );

@@ -186,6 +186,7 @@
     },
     "panel": {
       "tabsLabel": "用量報告分區",
+      "contextUsage": "上下文",
       "accounting": "計量方式",
       "turnScope": "範圍",
       "cacheCoverage": "快取統計",

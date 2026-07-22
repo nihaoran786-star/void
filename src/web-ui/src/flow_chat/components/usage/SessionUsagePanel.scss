@@ -243,10 +243,9 @@
   }
 
   &__monitor {
-    display: grid;
-    grid-template-columns: 172px minmax(0, 1fr);
-    gap: 12px 24px;
-    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
   }
 
   &__gauge {
@@ -287,20 +286,24 @@
 
     strong {
       color: var(--color-text-primary);
-      font-size: var(--font-size-4xl);
+      font-size: var(--font-size-5xl);
       font-weight: 300;
       font-variant-numeric: tabular-nums;
       line-height: 1.1;
     }
 
     span {
-      max-width: 112px;
+      max-width: 120px;
       color: var(--color-text-muted);
       font-size: var(--flowchat-font-size-xs);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+
+  &__gauge-caption {
+    display: block;
   }
 
   &__stat-grid {
@@ -317,7 +320,7 @@
 
     strong {
       color: var(--color-text-primary);
-      font-size: var(--font-size-2xl);
+      font-size: var(--font-size-4xl);
       font-weight: 300;
       font-variant-numeric: tabular-nums;
       line-height: 1.2;
@@ -371,9 +374,9 @@
   }
 
   &__pulse-bar {
-    flex: 0 1 6px;
-    width: 6px;
-    min-height: 2px;
+    flex: 0 1 5px;
+    width: 5px;
+    min-height: 3px;
     border-radius: 2px;
     background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
 
@@ -393,7 +396,7 @@
 
   &__fact {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
     color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
@@ -402,6 +405,31 @@
       color: var(--color-text-primary);
       font-weight: 500;
       font-variant-numeric: tabular-nums;
+    }
+  }
+
+  &__fact-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+
+    &--tokens {
+      background: color-mix(in srgb, var(--color-text-primary) 78%, transparent);
+    }
+
+    &--cached {
+      box-sizing: border-box;
+      border: 1px solid color-mix(in srgb, var(--color-text-primary) 34%, transparent);
+      background: transparent;
+    }
+
+    &--files {
+      background: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
+    }
+
+    &--errors {
+      background: var(--accent-primary);
     }
   }
 

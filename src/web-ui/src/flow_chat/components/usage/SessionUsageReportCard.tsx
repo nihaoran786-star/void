@@ -43,6 +43,7 @@ interface SessionUsageReportCardProps {
   markdown?: string;
   generatedAt?: number;
   isLoading?: boolean;
+  contextUsage?: { current: number; max: number };
   onOpenDetails?: (report: SessionUsageReport, initialTab?: SessionUsagePanelTab) => void;
 }
 
@@ -51,6 +52,7 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
   markdown = '',
   generatedAt,
   isLoading = false,
+  contextUsage,
   onOpenDetails,
 }) => {
   const { t } = useTranslation('flow-chat');
@@ -164,14 +166,21 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
     : undefined;
   const fileMetricHelp = getFileScopeHelp(report, t);
   const activeShare = calculateShare(report.time.activeTurnMs, report.time.wallTimeMs);
+  const contextShare = contextUsage && contextUsage.max > 0 && contextUsage.current > 0
+    ? Math.min(100, Math.round((contextUsage.current / contextUsage.max) * 100))
+    : undefined;
   const hitRate = report.tokens.cacheHitRate;
   const hasHitRate = typeof hitRate === 'number' && Number.isFinite(hitRate);
-  const gaugePercent = hasHitRate
+  const gaugePercent = contextShare ?? (hasHitRate
     ? Math.round(hitRate * 100)
     : activeShare !== undefined
       ? Math.round(activeShare)
-      : undefined;
-  const gaugeLabel = hasHitRate ? t('usage.metrics.cached') : t('usage.metrics.active');
+      : undefined);
+  const gaugeLabel = contextShare !== undefined
+    ? t('usage.panel.contextUsage')
+    : hasHitRate
+      ? t('usage.metrics.cached')
+      : t('usage.metrics.active');
   const gaugeDash = gaugePercent !== undefined
     ? `${(Math.min(100, Math.max(0, gaugePercent)) / 100) * CARD_GAUGE_CIRCUMFERENCE} ${CARD_GAUGE_CIRCUMFERENCE}`
     : undefined;

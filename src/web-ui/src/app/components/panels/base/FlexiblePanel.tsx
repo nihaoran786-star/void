@@ -776,6 +776,7 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
               sessionId={content.data?.sessionId}
               workspacePath={content.data?.workspacePath || workspacePath}
               initialTab={content.data?.initialTab}
+              contextUsage={content.data?.contextUsage}
             />
           </React.Suspense>
         );

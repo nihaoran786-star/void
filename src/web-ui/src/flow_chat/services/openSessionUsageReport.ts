@@ -12,6 +12,7 @@ export interface SessionUsagePanelData {
   workspacePath?: string;
   title?: string;
   initialTab?: SessionUsagePanelTab;
+  contextUsage?: { current: number; max: number };
 }
 
 export interface SessionUsagePanelMetadata {

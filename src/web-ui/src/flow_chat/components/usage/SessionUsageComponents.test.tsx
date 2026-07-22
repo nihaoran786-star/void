@@ -151,6 +151,7 @@ vi.mock('react-i18next', () => ({
         'usage.runtime.button': 'Usage',
         'usage.runtime.tooltip': 'Generate a usage report in this chat',
         'usage.panel.tabsLabel': 'Usage report sections',
+        'usage.panel.contextUsage': 'Context',
         'usage.panel.accounting': 'Accounting',
         'usage.panel.turnScope': 'Scope',
         'usage.panel.cacheCoverage': 'Cache reporting',
@@ -820,6 +821,21 @@ describe('Session usage report UI components', () => {
     expect(modelBar?.style.width).toBe('50%');
     expect(toolBar?.style.width).toBe('25%');
     expect(container.querySelector('.session-usage-panel__overview-metric')).toBeNull();
+  });
+
+  it('prefers live context usage for the gauge when provided', () => {
+    render(
+      <SessionUsagePanel
+        report={usageReport()}
+        markdown="## Session Usage"
+        contextUsage={{ current: 92300, max: 128000 }}
+      />
+    );
+
+    const gauge = container.querySelector('.session-usage-panel__gauge');
+    expect(gauge?.getAttribute('aria-label')).toContain('Context 72%');
+    expect(container.querySelector('.session-usage-panel__gauge-caption')?.textContent)
+      .toBe('Context 92K / 128K');
   });
 
   it('shows the cache hit rate in the gauge when the provider reports it', () => {
