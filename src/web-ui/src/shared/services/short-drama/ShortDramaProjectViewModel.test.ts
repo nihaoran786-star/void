@@ -1504,3 +1504,51 @@ describe('ShortDramaArtifactChatContext', () => {
     expect(context.agentRole).toBe('director');
   });
 });
+
+describe('short drama asset anchor reclassification', () => {
+  it('moves assets whose text evidence clearly indicates another category', () => {
+    const project = createShortDramaStaticProject();
+    const misclassified = [
+      {
+        ...project.artifacts.find(item => item.type === 'character')!,
+        id: 'mis-scene-1',
+        title: '空间站指挥舱内景',
+        summary: '红色警示灯下的未来指挥舱场景',
+      },
+      {
+        ...project.artifacts.find(item => item.type === 'location')!,
+        id: 'mis-prop-1',
+        title: '金属手提箱',
+        summary: '装满信件的旧手提箱道具',
+      },
+    ];
+    const mixed = { ...project, artifacts: [...project.artifacts, ...misclassified] };
+
+    const categories = createShortDramaAssetAnchorViewModel(mixed);
+
+    expect(categories.find(category => category.id === 'locations')?.artifacts.map(item => item.id))
+      .toContain('mis-scene-1');
+    expect(categories.find(category => category.id === 'props')?.artifacts.map(item => item.id))
+      .toContain('mis-prop-1');
+    expect(categories.find(category => category.id === 'characters')?.artifacts.map(item => item.id))
+      .not.toContain('mis-scene-1');
+    expect(categories.find(category => category.id === 'characters')?.artifacts.map(item => item.id))
+      .not.toContain('mis-prop-1');
+  });
+
+  it('keeps the stored type when the text has no category hint', () => {
+    const project = createShortDramaStaticProject();
+    const neutral = {
+      ...project.artifacts.find(item => item.type === 'character')!,
+      id: 'neutral-1',
+      title: '远帆号·夜航',
+      summary: '第七集使用',
+    };
+    const mixed = { ...project, artifacts: [...project.artifacts, neutral] };
+
+    const categories = createShortDramaAssetAnchorViewModel(mixed);
+
+    expect(categories.find(category => category.id === 'characters')?.artifacts.map(item => item.id))
+      .toContain('neutral-1');
+  });
+});

@@ -2419,6 +2419,47 @@ async fn update_artifact_prompt(
     }))
 }
 
+fn infer_asset_artifact_type(text: &str) -> Option<String> {
+    const LOCATION_CJK: &[&str] = &[
+        "场景", "内景", "外景", "地点", "环境", "背景", "城市", "街道", "街景", "房间", "室内",
+        "指挥舱", "船舱", "空间站", "基地", "星球", "海面", "沙漠", "森林", "山脉", "天空", "太空", "夜景",
+    ];
+    const PROP_CJK: &[&str] = &[
+        "道具", "物件", "器物", "手持", "武器", "怀表", "手表", "箱子", "手提箱", "盒子", "信件",
+        "书信", "装置", "装备",
+    ];
+    const CHARACTER_CJK: &[&str] = &[
+        "角色", "人物", "肖像", "女主", "男主", "主角", "配角", "反派", "女孩", "男孩", "男人",
+        "女人", "少女", "少年", "老人", "队长", "士兵", "警官",
+    ];
+    const LOCATION_LATIN: &[&str] = &[
+        "location", "scenery", "interior", "exterior", "environment", "landscape", "cityscape",
+    ];
+    const PROP_LATIN: &[&str] = &["prop", "object", "item", "device", "gadget", "weapon", "suitcase"];
+    const CHARACTER_LATIN: &[&str] = &[
+        "character", "portrait", "girl", "boy", "man", "woman", "captain", "soldier",
+    ];
+
+    let lower = text.to_lowercase();
+    let has_cjk = |hints: &[&str]| hints.iter().any(|hint| lower.contains(hint));
+    let has_latin = |hints: &[&str]| {
+        lower
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|token| hints.contains(&token))
+    };
+
+    if has_cjk(LOCATION_CJK) || has_latin(LOCATION_LATIN) {
+        return Some("location".to_string());
+    }
+    if has_cjk(PROP_CJK) || has_latin(PROP_LATIN) {
+        return Some("prop".to_string());
+    }
+    if has_cjk(CHARACTER_CJK) || has_latin(CHARACTER_LATIN) {
+        return Some("character".to_string());
+    }
+    None
+}
+
 async fn upsert_asset_artifact(
     project_dir: &Path,
     input: ShortDramaProjectToolInput,
@@ -2427,23 +2468,24 @@ async fn upsert_asset_artifact(
         return Ok(denied);
     }
 
-    let artifact_type = normalize_asset_artifact_type(input.artifact_type.as_deref())
-        .unwrap_or_else(|| "character".to_string());
     let title = trimmed_value(input.title.clone())
         .or_else(|| trimmed_value(input.artifact_handle.clone()))
         .or_else(|| trimmed_value(input.artifact_id.clone()))
         .unwrap_or_else(|| "Untitled asset".to_string());
+    let summary = trimmed_value(input.summary.clone()).unwrap_or_default();
+    let user_instruction = trimmed_value(input.user_instruction.clone())
+        .unwrap_or_else(|| "Upsert short drama asset artifact.".to_string());
+    let artifact_type = normalize_asset_artifact_type(input.artifact_type.as_deref())
+        .or_else(|| infer_asset_artifact_type(&format!("{title} {summary} {user_instruction}")))
+        .unwrap_or_else(|| "character".to_string());
     let handle = trimmed_value(input.artifact_handle.clone())
         .or_else(|| trimmed_value(input.id_or_handle.clone()))
         .unwrap_or_else(|| next_asset_handle(project_dir, &artifact_type));
     let artifact_id = trimmed_value(input.artifact_id.clone()).unwrap_or_else(|| handle.clone());
     let status = trimmed_value(input.status.clone()).unwrap_or_else(|| "ready".to_string());
-    let summary = trimmed_value(input.summary.clone()).unwrap_or_default();
     let source_actor = trimmed_value(input.source_actor.clone())
         .or_else(|| trimmed_value(input.agent_role.clone()))
         .unwrap_or_else(|| "AssetAI".to_string());
-    let user_instruction = trimmed_value(input.user_instruction.clone())
-        .unwrap_or_else(|| "Upsert short drama asset artifact.".to_string());
     let now = now_millis();
     let path = project_dir
         .join("assets")
@@ -5042,6 +5084,29 @@ mod tests {
     use crate::agentic::WorkspaceBinding;
     use std::collections::HashMap;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn infer_asset_artifact_type_prefers_location_then_prop_then_character() {
+        assert_eq!(
+            infer_asset_artifact_type("空间站指挥舱内景 红色警示灯"),
+            Some("location".to_string())
+        );
+        assert_eq!(
+            infer_asset_artifact_type("金属手提箱 装满信件的旧道具"),
+            Some("prop".to_string())
+        );
+        assert_eq!(
+            infer_asset_artifact_type("队长肖像 宇航服半身像"),
+            Some("character".to_string())
+        );
+        assert_eq!(infer_asset_artifact_type("远帆号·夜航"), None);
+        // Latin hints match whole words only, so "command deck" must not read as "man".
+        assert_eq!(infer_asset_artifact_type("command deck wide shot"), None);
+        assert_eq!(
+            infer_asset_artifact_type("character sheet portrait"),
+            Some("character".to_string())
+        );
+    }
 
     #[test]
     fn render_ready_result_includes_script_content_for_assistant() {
