@@ -295,6 +295,7 @@ describe('MediaPreviewOverlay', () => {
         url: 'asset://local/clip.mp4',
         localPath: 'C:/work/media/generated/clip.mp4',
         title: 'Video #1',
+        modifiedAt: 42,
       });
     });
     await flushLazyContent();
@@ -310,6 +311,7 @@ describe('MediaPreviewOverlay', () => {
       filePath: 'C:/work/media/generated/clip.mp4',
       extension: 'mp4',
       kind: 'video',
+      modifiedAt: 42,
     });
     expect((container.querySelector('video') as HTMLVideoElement).src).toBe('data:video/mp4;base64,local-video');
   });

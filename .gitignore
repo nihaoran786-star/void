@@ -1,2 +1,4 @@
 .agent-loop/
+.codex-artifacts/
 .void/
+tests/e2e/media/generated/media_batch_*/

@@ -8,6 +8,7 @@ export interface MediaPreviewOpenRequest {
   localPath?: string;
   title?: string;
   remoteUrl?: string;
+  modifiedAt?: number;
 }
 
 export function openMediaPreviewPanel(request: MediaPreviewOpenRequest): void {

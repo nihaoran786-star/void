@@ -17,6 +17,7 @@ import {
   createShortDramaStageMediaViewModel,
   createShortDramaStageTimelineViewModel,
   createShortDramaStaticProject,
+  inferShortDramaAssetAnchorType,
   mapShortDramaSubagentSessionLinked,
   shortDramaEpisodeIdMatches,
 } from './ShortDramaProjectViewModel';
@@ -1506,6 +1507,12 @@ describe('ShortDramaArtifactChatContext', () => {
 });
 
 describe('short drama asset anchor reclassification', () => {
+  it('matches English category hints as whole words instead of substrings', () => {
+    expect(inferShortDramaAssetAnchorType('command deck wide shot')).toBeUndefined();
+    expect(inferShortDramaAssetAnchorType('human habitat concept')).toBeUndefined();
+    expect(inferShortDramaAssetAnchorType('character portrait sheet')).toBe('character');
+  });
+
   it('moves assets whose text evidence clearly indicates another category', () => {
     const project = createShortDramaStaticProject();
     const misclassified = [
@@ -1550,5 +1557,30 @@ describe('short drama asset anchor reclassification', () => {
 
     expect(categories.find(category => category.id === 'characters')?.artifacts.map(item => item.id))
       .toContain('neutral-1');
+  });
+});
+
+describe('short drama media preview version propagation', () => {
+  it('refreshes an existing media reference with the workspace modification time', () => {
+    const project = createShortDramaStaticProject();
+    const artifact = project.artifacts.find(item => item.mediaReference)!;
+    const mediaItem: WorkspaceMediaItem = {
+      id: artifact.mediaReference!.mediaItemId,
+      kind: artifact.mediaReference!.kind,
+      source: 'generated',
+      filePath: artifact.mediaReference!.localPath ?? 'C:/work/generated.png',
+      relativePath: artifact.mediaReference!.relativePath ?? 'media/generated.png',
+      fileName: 'generated.png',
+      extension: 'png',
+      modifiedAt: 42,
+      generationPrompt: 'existing short drama artifact',
+    };
+
+    const recovered = createShortDramaProjectWithRecoveredMediaReferences(project, [mediaItem]);
+    const refreshed = recovered.artifacts.find(item => item.id === artifact.id)!;
+    const preview = createShortDramaMediaPreviewViewModel(refreshed);
+
+    expect(refreshed.mediaReference?.modifiedAt).toBe(42);
+    expect(preview.status === 'ready' ? preview.modifiedAt : undefined).toBe(42);
   });
 });

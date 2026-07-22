@@ -224,6 +224,7 @@ export interface ShortDramaMediaReference {
   previewUrl?: string;
   thumbnailUrl?: string;
   durationMs?: number;
+  modifiedAt?: number;
   source?: 'generated' | 'imported' | 'external' | 'artifact-reference';
 }
 
@@ -869,6 +870,7 @@ export type ShortDramaMediaPreviewViewModel =
       filePath?: string;
       relativePath?: string;
       durationMs?: number;
+      modifiedAt?: number;
       source?: ShortDramaMediaReference['source'];
       canPlay: boolean;
     }
@@ -941,6 +943,7 @@ export interface ShortDramaWorkspaceMediaItem {
   previewUrl?: string;
   thumbnailUrl?: string;
   durationMs?: number;
+  modifiedAt?: number;
 }
 
 export interface ShortDramaMediaResolution {

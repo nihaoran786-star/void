@@ -4,6 +4,7 @@ import { readWorkspacePresentation, type WorkspacePresentation } from '@/app/pre
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
 import {
+  selectShortDramaTeamTabCloseAction,
   selectShortDramaTeamLayoutRecovery,
   selectShortDramaTeamPanelPresentation,
 } from './shortDramaTeamPanelPresentation';
@@ -94,14 +95,6 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   const handleTabDoubleClick = useCallback((groupId: EditorGroupId) => (tabId: string) => {
     promoteTab(tabId, groupId);
   }, [promoteTab]);
-
-  const handleTabClose = useCallback((groupId: EditorGroupId) => async (tabId: string) => {
-    if (onTabCloseWithDirtyCheck) {
-      await onTabCloseWithDirtyCheck(tabId, groupId);
-      return;
-    }
-    closeTab(tabId, groupId);
-  }, [closeTab, onTabCloseWithDirtyCheck]);
 
   const handleCloseAllTabs = useCallback((groupId: EditorGroupId) => async () => {
     if (onTabCloseAllWithDirtyCheck) {
@@ -229,6 +222,27 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   const handleShortDramaTeamCollapse = useCallback(() => {
     setExpandedShortDramaPrimarySurfaceKey(null);
   }, []);
+
+  const handleTabClose = useCallback((groupId: EditorGroupId) => async (tabId: string) => {
+    if (selectShortDramaTeamTabCloseAction({
+      groupId,
+      tabId,
+      presentation: shortDramaTeamPresentation,
+    }) === 'collapse-team') {
+      handleShortDramaTeamCollapse();
+      return;
+    }
+    if (onTabCloseWithDirtyCheck) {
+      await onTabCloseWithDirtyCheck(tabId, groupId);
+      return;
+    }
+    closeTab(tabId, groupId);
+  }, [
+    closeTab,
+    handleShortDramaTeamCollapse,
+    onTabCloseWithDirtyCheck,
+    shortDramaTeamPresentation,
+  ]);
 
   const handleShortDramaTeamAgentSelect = useCallback((tabId: string) => {
     if (shortDramaTeamPresentation.status !== 'ready') {

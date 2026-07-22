@@ -312,6 +312,7 @@ describe('ShortDramaCenterPanel asset disclosure contract', () => {
     );
     expect(previewHelper).toContain('openMediaPreviewPanel({');
     expect(previewHelper).toContain('resolveWorkspaceMediaPreviewUrl({');
+    expect(previewHelper).toContain('modifiedAt: preview.modifiedAt');
   });
 
   it('extracts the original complete card body without changing ArtifactGrid or ArtifactCard structure', () => {

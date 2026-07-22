@@ -29,8 +29,14 @@ const AUDIO_MIME_TYPES: Record<string, string> = {
 
 const MAX_RESOLVED_URL_CACHE_ENTRIES = 240;
 
+interface WorkspaceMediaPreviewResolution {
+  url: string;
+  cacheable: boolean;
+}
+
 const resolvedUrlCache = new Map<string, string>();
-const inFlightResolutions = new Map<string, Promise<string | undefined>>();
+const inFlightResolutions = new Map<string, Promise<WorkspaceMediaPreviewResolution>>();
+let cacheEpoch = 0;
 
 export interface WorkspaceMediaPreviewRequest {
   filePath: string;
@@ -81,6 +87,7 @@ function touchResolvedUrlCacheEntry(key: string, url: string) {
 }
 
 export function clearWorkspaceMediaPreviewUrlCache() {
+  cacheEpoch += 1;
   resolvedUrlCache.clear();
   inFlightResolutions.clear();
 }
@@ -102,10 +109,15 @@ export async function resolveWorkspaceMediaPreviewUrl(
 
   const inFlight = inFlightResolutions.get(cacheKey);
   if (inFlight) {
-    return inFlight;
+    try {
+      return (await inFlight).url;
+    } catch {
+      return undefined;
+    }
   }
 
-  const resolution = (async () => {
+  const resolutionEpoch = cacheEpoch;
+  const resolution = (async (): Promise<WorkspaceMediaPreviewResolution> => {
     if (isTauriEnvironment()) {
       try {
         let streamingUrl = convertFileSrc(filePath);
@@ -113,27 +125,35 @@ export async function resolveWorkspaceMediaPreviewUrl(
           streamingUrl += `${streamingUrl.includes('?') ? '&' : '?'}v=${request.modifiedAt}`;
         }
         if (streamingUrl) {
-          return streamingUrl;
+          return { url: streamingUrl, cacheable: true };
         }
       } catch {
         // Fall back to the base64 reader below.
       }
     }
     const base64 = await workspaceAPI.readFileContent(filePath);
-    return `data:${mimeTypeForMediaRequest(request)};base64,${base64}`;
+    return {
+      url: `data:${mimeTypeForMediaRequest(request)};base64,${base64}`,
+      // Completed data URLs may represent multi-megabyte videos. Keeping up
+      // to 240 of them in a module-level LRU retained media after its UI was
+      // unmounted. Only compact Tauri streaming URLs belong in this cache.
+      cacheable: false,
+    };
   })();
 
   inFlightResolutions.set(cacheKey, resolution);
   try {
-    const url = await resolution;
-    if (url) {
-      touchResolvedUrlCacheEntry(cacheKey, url);
+    const result = await resolution;
+    if (result.cacheable && resolutionEpoch === cacheEpoch) {
+      touchResolvedUrlCacheEntry(cacheKey, result.url);
     }
-    return url;
+    return result.url;
   } catch {
     return undefined;
   } finally {
-    inFlightResolutions.delete(cacheKey);
+    if (inFlightResolutions.get(cacheKey) === resolution) {
+      inFlightResolutions.delete(cacheKey);
+    }
   }
 }
 

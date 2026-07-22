@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasTab, EditorGroupState } from '../types';
 import {
+  selectShortDramaTeamTabCloseAction,
   selectShortDramaTeamLayoutRecovery,
   selectShortDramaTeamPanelPresentation,
 } from './shortDramaTeamPanelPresentation';
@@ -448,5 +449,61 @@ describe('selectShortDramaTeamLayoutRecovery', () => {
       primaryGroup: canonicalPrimary,
       secondaryGroup: canonicalSecondary,
     })).toEqual({ status: 'stable' });
+  });
+});
+
+describe('selectShortDramaTeamTabCloseAction', () => {
+  const stageAgentTabs = [
+    createTab('script-agent', 'btw-session', { shortDramaStage: 'script' }),
+    createTab('asset-agent', 'btw-session', { shortDramaStage: 'assets' }),
+  ];
+
+  it('collapses instead of deleting the final visible team tab', () => {
+    expect(selectShortDramaTeamTabCloseAction({
+      groupId: 'secondary',
+      tabId: 'script-agent',
+      presentation: {
+        status: 'ready',
+        mode: 'open',
+        tabs: [stageAgentTabs[0]],
+        activeTabId: 'script-agent',
+        primarySurfaceKey: 'short-drama-workspace:C:/work',
+        teamIdentity: 'team',
+      },
+    })).toBe('collapse-team');
+  });
+
+  it('keeps ordinary close behavior when another team tab remains', () => {
+    expect(selectShortDramaTeamTabCloseAction({
+      groupId: 'secondary',
+      tabId: 'script-agent',
+      presentation: {
+        status: 'ready',
+        mode: 'open',
+        tabs: stageAgentTabs,
+        activeTabId: 'script-agent',
+        primarySurfaceKey: 'short-drama-workspace:C:/work',
+        teamIdentity: 'team',
+      },
+    })).toBe('close-tab');
+  });
+
+  it('never intercepts primary, classic, or unrelated tab closes', () => {
+    const inactive = {
+      status: 'inactive' as const,
+      mode: 'closed' as const,
+      reason: 'classic-presentation' as const,
+      tabs: [] as const,
+    };
+    expect(selectShortDramaTeamTabCloseAction({
+      groupId: 'primary',
+      tabId: 'script-agent',
+      presentation: inactive,
+    })).toBe('close-tab');
+    expect(selectShortDramaTeamTabCloseAction({
+      groupId: 'secondary',
+      tabId: 'ordinary-tab',
+      presentation: inactive,
+    })).toBe('close-tab');
   });
 });

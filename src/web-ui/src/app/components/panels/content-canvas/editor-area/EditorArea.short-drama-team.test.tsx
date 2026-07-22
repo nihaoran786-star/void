@@ -46,14 +46,27 @@ vi.mock('../stores', () => ({
 vi.mock('./EditorGroup', () => ({
   EditorGroup: ({
     groupId,
+    group,
+    onTabClose,
     onCloseAllTabs,
     closeAllTabsLabel,
   }: {
     groupId: string;
+    group: EditorGroupState;
+    onTabClose?: (tabId: string) => void;
     onCloseAllTabs?: () => void;
     closeAllTabsLabel?: string;
   }) => (
     <div data-testid={`editor-group-${groupId}`}>
+      {onTabClose && group.tabs[0] && (
+        <button
+          data-testid={`tab-close-${groupId}`}
+          type="button"
+          onClick={() => onTabClose(group.tabs[0]!.id)}
+        >
+          close tab
+        </button>
+      )}
       {onCloseAllTabs && (
         <button
           data-testid={`group-close-all-${groupId}`}
@@ -169,9 +182,9 @@ describe('EditorArea short-drama team presentation', () => {
     container.remove();
   });
 
-  const renderArea = async () => {
+  const renderArea = async (props: React.ComponentProps<typeof EditorArea> = {}) => {
     await act(async () => {
-      root.render(<EditorArea workspacePath="C:/work" />);
+      root.render(<EditorArea workspacePath="C:/work" {...props} />);
       await Promise.resolve();
     });
   };
@@ -224,6 +237,38 @@ describe('EditorArea short-drama team presentation', () => {
     });
     expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
       .toBe('open');
+  });
+
+  it('turns closing the final team tab into a reversible collapse', async () => {
+    const dirtyCheck = vi.fn().mockResolvedValue(true);
+    canvasState.secondaryGroup = createGroup([teamGroup.tabs[0]!]);
+    await renderArea({ onTabCloseWithDirtyCheck: dirtyCheck });
+
+    act(() => {
+      (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
+    });
+    await act(async () => {
+      (container.querySelector('[data-testid="tab-close-secondary"]') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(dirtyCheck).not.toHaveBeenCalled();
+    expect(canvasState.closeTab).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
+      .toBe('rail');
+    expect(container.querySelector('[data-testid="team-toggle"]')).not.toBeNull();
+  });
+
+  it('keeps normal close behavior while another team tab remains', async () => {
+    const dirtyCheck = vi.fn().mockResolvedValue(true);
+    await renderArea({ onTabCloseWithDirtyCheck: dirtyCheck });
+
+    await act(async () => {
+      (container.querySelector('[data-testid="tab-close-secondary"]') as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    expect(dirtyCheck).toHaveBeenCalledWith('asset-agent', 'secondary');
   });
 
   it('keeps the team open when switching between the center and its media wall', async () => {

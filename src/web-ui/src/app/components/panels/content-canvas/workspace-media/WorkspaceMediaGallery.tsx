@@ -111,6 +111,7 @@ function openWorkspaceMediaPreview(item: WorkspaceMediaTileViewModel, previewUrl
     url: previewUrl,
     localPath: item.filePath,
     title: item.displayName,
+    modifiedAt: item.modifiedAt,
   });
 }
 
@@ -1093,6 +1094,7 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
       url: previewUrl,
       localPath: item.trashPath,
       title: item.fileName,
+      modifiedAt: item.deletedAt,
     });
   }, []);
 

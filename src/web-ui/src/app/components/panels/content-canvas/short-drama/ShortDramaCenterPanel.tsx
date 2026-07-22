@@ -78,6 +78,7 @@ import { openShortDramaRealStageAgentTab } from './ShortDramaStageAgentTabOrches
 import { ensureShortDramaStageAgentSessions } from './ShortDramaStageAgentBootstrap';
 import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDramaStageAgentSessionHydration';
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
+import { ShortDramaTopBar } from './ShortDramaTopBar';
 
 import './ShortDramaCenterPanel.scss';
 
@@ -584,6 +585,16 @@ export function ShortDramaCenterPanel({
       expandRightPanel: () => window.dispatchEvent(new CustomEvent(TAB_EVENTS.EXPAND_RIGHT_PANEL)),
     });
   }, [workspacePath]);
+  const readyStageWorkspaces = useMemo(() => stageWorkspaces.filter(workspace => (
+    Boolean(workspace.specialistSessionId) && Boolean(workspace.parentSessionId)
+  )), [stageWorkspaces]);
+  const handleTeamOpen = useCallback(() => {
+    const target = readyStageWorkspaces.find(workspace => workspace.stage === selectedStage)
+      ?? readyStageWorkspaces[0];
+    if (target) {
+      openNativeStageAgentTab(target);
+    }
+  }, [openNativeStageAgentTab, readyStageWorkspaces, selectedStage]);
 
   useEffect(() => {
     if (state.status !== 'ready') {
@@ -969,6 +980,8 @@ export function ShortDramaCenterPanel({
       <ShortDramaTopBar
         selectedStage={selectedStage}
         onStageSelect={handleStageSelect}
+        onTeamOpen={readyStageWorkspaces.length > 0 ? handleTeamOpen : undefined}
+        teamMemberCount={readyStageWorkspaces.length}
         t={t}
       />
 
@@ -1269,41 +1282,6 @@ function createShortDramaFlowSessionSignature(sessions: Map<string, Session>) {
       session.agentBackedTransient ? 'agent-backed' : '',
     ].join(':'))
     .join('|');
-}
-
-function ShortDramaTopBar({
-  selectedStage,
-  onStageSelect,
-  t,
-}: {
-  selectedStage: ShortDramaStage;
-  onStageSelect: (stage: ShortDramaStage) => void;
-  t: Translate;
-}) {
-  return (
-    <header className="short-drama-center__topbar">
-      <nav className="short-drama-center__tabs" aria-label={t('shortDrama.tabs.label')}>
-        {STAGES.map(stage => (
-          <button
-            key={stage}
-            type="button"
-            className={`short-drama-center__tab ${selectedStage === stage ? 'is-active' : ''}`}
-            data-testid="short-drama-stage-tab"
-            data-short-drama-stage={stage}
-            onClick={() => onStageSelect(stage)}
-            onFocus={(event) => {
-              event.currentTarget.scrollIntoView({
-                block: 'nearest',
-                inline: 'nearest',
-              });
-            }}
-          >
-            {t(`shortDrama.tabs.${stage}`)}
-          </button>
-        ))}
-      </nav>
-    </header>
-  );
 }
 
 function EpisodeNavigation({
@@ -1768,6 +1746,7 @@ function openShortDramaArtifactPreview(
       url,
       localPath,
       title: artifact.title,
+      modifiedAt: preview.modifiedAt,
     });
   };
   const directUrl = isDirectRenderableMediaUrl(preview.previewUrl) ? preview.previewUrl : undefined;
@@ -1782,6 +1761,7 @@ function openShortDramaArtifactPreview(
     filePath: localPath,
     extension: extensionFromPath(localPath),
     kind: preview.kind,
+    modifiedAt: preview.modifiedAt,
   })
     .then(resolvedUrl => openWithUrl(resolvedUrl ?? undefined))
     .catch(() => {
@@ -2206,6 +2186,10 @@ function MediaPreview({
       setResolvedThumbnailUrl(readyPreviewDirectThumbnailUrl);
     }
 
+    if (readyPreviewDirectUrl) {
+      return undefined;
+    }
+
     if (!readyPreviewLocalPath) {
       return undefined;
     }
@@ -2214,6 +2198,7 @@ function MediaPreview({
       filePath: readyPreviewLocalPath,
       extension: extensionFromPath(readyPreviewLocalPath),
       kind: readyPreviewKind,
+      modifiedAt: readyPreview?.modifiedAt,
     })
       .then(url => {
         if (!cancelled && url) {
@@ -2235,6 +2220,7 @@ function MediaPreview({
     isPreviewReady,
     readyPreviewKind,
     readyPreview?.mediaItemId,
+    readyPreview?.modifiedAt,
     readyPreview?.previewUrl,
     readyPreview?.thumbnailUrl,
     readyPreviewDirectThumbnailUrl,
@@ -2253,6 +2239,10 @@ function MediaPreview({
       setResolvedPosterUrl(readyPosterPreviewDirectUrl);
     }
 
+    if (readyPosterPreviewDirectUrl) {
+      return undefined;
+    }
+
     if (!readyPosterPreviewLocalPath) {
       return undefined;
     }
@@ -2261,6 +2251,7 @@ function MediaPreview({
       filePath: readyPosterPreviewLocalPath,
       extension: extensionFromPath(readyPosterPreviewLocalPath),
       kind: readyPosterPreviewKind,
+      modifiedAt: readyPosterPreview?.modifiedAt,
     })
       .then(url => {
         if (!cancelled && url) {
@@ -2280,6 +2271,7 @@ function MediaPreview({
     isPosterPreviewReady,
     readyPosterPreviewKind,
     readyPosterPreview?.mediaItemId,
+    readyPosterPreview?.modifiedAt,
     readyPosterPreview?.previewUrl,
     readyPosterPreviewDirectUrl,
     readyPosterPreviewLocalPath,
@@ -2302,6 +2294,7 @@ function MediaPreview({
         url: mediaUrl,
         localPath: preview.localPath ?? preview.filePath,
         title: artifact.title,
+        modifiedAt: preview.modifiedAt,
       });
     };
 

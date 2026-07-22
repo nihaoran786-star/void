@@ -20,7 +20,7 @@ describe('WorkspaceMediaPreviewResolver', () => {
     readFileContent.mockReset();
   });
 
-  it('reuses the resolved data url for repeated requests of the same file', async () => {
+  it('does not retain completed base64 data urls in the module cache', async () => {
     readFileContent.mockResolvedValue('QUJD');
 
     const first = await resolveWorkspaceMediaPreviewUrl({ filePath: 'C:/work/a.png', extension: 'png', kind: 'image' });
@@ -28,7 +28,7 @@ describe('WorkspaceMediaPreviewResolver', () => {
 
     expect(first).toBe('data:image/png;base64,QUJD');
     expect(second).toBe(first);
-    expect(readFileContent).toHaveBeenCalledTimes(1);
+    expect(readFileContent).toHaveBeenCalledTimes(2);
   });
 
   it('deduplicates in-flight resolutions for the same file', async () => {
@@ -47,6 +47,31 @@ describe('WorkspaceMediaPreviewResolver', () => {
     expect(first).toBe('data:image/png;base64,RERG');
     expect(second).toBe(first);
     expect(readFileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let an in-flight resolution repopulate a cleared cache', async () => {
+    let release!: (value: string) => void;
+    readFileContent.mockImplementationOnce(() => new Promise(resolve => {
+      release = resolve;
+    })).mockResolvedValueOnce('RERG');
+
+    const pending = resolveWorkspaceMediaPreviewUrl({
+      filePath: 'C:/work/cleared.png',
+      extension: 'png',
+      kind: 'image',
+    });
+    clearWorkspaceMediaPreviewUrlCache();
+    release('QUJD');
+    await pending;
+
+    const afterClear = await resolveWorkspaceMediaPreviewUrl({
+      filePath: 'C:/work/cleared.png',
+      extension: 'png',
+      kind: 'image',
+    });
+
+    expect(afterClear).toBe('data:image/png;base64,RERG');
+    expect(readFileContent).toHaveBeenCalledTimes(2);
   });
 
   it('keys the cache by modification time so regenerated files re-resolve', async () => {

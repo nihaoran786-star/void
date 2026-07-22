@@ -269,14 +269,25 @@ export function createShortDramaAssetAnchorViewModel(project: ShortDramaProject)
   });
 }
 
-const SHORT_DRAMA_LOCATION_HINT = /(场景|内景|外景|地点|环境|背景|城市|街道|街景|房间|室内|指挥舱|船舱|空间站|基地|星球|海面|沙漠|森林|山脉|天空|太空|夜景|location|scenery|interior|exterior|environment|landscape|cityscape|space station)/i;
-const SHORT_DRAMA_PROP_HINT = /(道具|物件|器物|手持|武器|怀表|手表|箱子|手提箱|盒子|信件|书信|装置|装备|prop|object|item|device|gadget|weapon|suitcase)/i;
-const SHORT_DRAMA_CHARACTER_HINT = /(角色|人物|肖像|女主|男主|主角|配角|反派|女孩|男孩|男人|女人|少女|少年|老人|队长|士兵|警官|character|portrait|girl|boy|man|woman|captain|soldier)/i;
+const SHORT_DRAMA_LOCATION_CJK_HINT = /(场景|内景|外景|地点|环境|背景|城市|街道|街景|房间|室内|指挥舱|船舱|空间站|基地|星球|海面|沙漠|森林|山脉|天空|太空|夜景)/i;
+const SHORT_DRAMA_PROP_CJK_HINT = /(道具|物件|器物|手持|武器|怀表|手表|箱子|手提箱|盒子|信件|书信|装置|装备)/i;
+const SHORT_DRAMA_CHARACTER_CJK_HINT = /(角色|人物|肖像|女主|男主|主角|配角|反派|女孩|男孩|男人|女人|少女|少年|老人|队长|士兵|警官)/i;
+const SHORT_DRAMA_LOCATION_LATIN_HINTS = new Set([
+  'location', 'scenery', 'interior', 'exterior', 'environment', 'landscape', 'cityscape',
+]);
+const SHORT_DRAMA_PROP_LATIN_HINTS = new Set([
+  'prop', 'object', 'item', 'device', 'gadget', 'weapon', 'suitcase',
+]);
+const SHORT_DRAMA_CHARACTER_LATIN_HINTS = new Set([
+  'character', 'portrait', 'girl', 'boy', 'man', 'woman', 'captain', 'soldier',
+]);
 
 export function inferShortDramaAssetAnchorType(text: string): ShortDramaArtifact['type'] | undefined {
-  if (SHORT_DRAMA_LOCATION_HINT.test(text)) return 'location';
-  if (SHORT_DRAMA_PROP_HINT.test(text)) return 'prop';
-  if (SHORT_DRAMA_CHARACTER_HINT.test(text)) return 'character';
+  const latinTokens = text.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const hasLatinHint = (hints: ReadonlySet<string>) => latinTokens.some(token => hints.has(token));
+  if (SHORT_DRAMA_LOCATION_CJK_HINT.test(text) || hasLatinHint(SHORT_DRAMA_LOCATION_LATIN_HINTS)) return 'location';
+  if (SHORT_DRAMA_PROP_CJK_HINT.test(text) || hasLatinHint(SHORT_DRAMA_PROP_LATIN_HINTS)) return 'prop';
+  if (SHORT_DRAMA_CHARACTER_CJK_HINT.test(text) || hasLatinHint(SHORT_DRAMA_CHARACTER_LATIN_HINTS)) return 'character';
   return undefined;
 }
 
@@ -913,6 +924,7 @@ export function createShortDramaMediaPreviewViewModel(
           filePath: resolution.mediaItem?.filePath ?? resolution.mediaItem?.localPath ?? reference.filePath ?? reference.localPath,
           relativePath: resolution.mediaItem?.relativePath ?? reference.relativePath,
           durationMs: resolution.mediaItem?.durationMs ?? reference.durationMs,
+          modifiedAt: resolution.mediaItem?.modifiedAt ?? reference.modifiedAt,
           source: reference.source,
           canPlay: reference.kind === 'video' || reference.kind === 'audio',
         };
@@ -955,6 +967,7 @@ export function createShortDramaMediaPreviewViewModel(
       filePath: reference.filePath ?? reference.localPath,
       relativePath: reference.relativePath,
       durationMs: reference.durationMs,
+      modifiedAt: reference.modifiedAt,
       source: reference.source,
       canPlay: reference.kind === 'video' || reference.kind === 'audio',
     };
@@ -984,6 +997,10 @@ export function createShortDramaProjectWithRecoveredMediaReferences(
   project: ShortDramaProject,
   mediaItems: WorkspaceMediaItem[],
 ): ShortDramaProject {
+  if (mediaItems.length === 0) {
+    return project;
+  }
+  const mediaItemsById = new Map(mediaItems.map(item => [item.id, item]));
   const candidateMediaItems = mediaItems
     .filter(item => (
       item.source === 'generated'
@@ -991,9 +1008,6 @@ export function createShortDramaProjectWithRecoveredMediaReferences(
       && item.generationPrompt.trim().length > 0
     ))
     .sort((left, right) => (right.sortAt || right.modifiedAt || 0) - (left.sortAt || left.modifiedAt || 0));
-  if (candidateMediaItems.length === 0) {
-    return project;
-  }
 
   const usedMediaIds = new Set(
     project.artifacts
@@ -1002,10 +1016,25 @@ export function createShortDramaProjectWithRecoveredMediaReferences(
   );
   let changed = false;
   const artifacts = project.artifacts.map(artifact => {
-    if (
-      artifact.mediaReference
-      || !shortDramaArtifactCanRecoverMediaReference(artifact)
-    ) {
+    if (artifact.mediaReference) {
+      const mediaItem = mediaItemsById.get(artifact.mediaReference.mediaItemId);
+      if (
+        !mediaItem
+        || typeof mediaItem.modifiedAt !== 'number'
+        || mediaItem.modifiedAt === artifact.mediaReference.modifiedAt
+      ) {
+        return artifact;
+      }
+      changed = true;
+      return {
+        ...artifact,
+        mediaReference: {
+          ...artifact.mediaReference,
+          modifiedAt: mediaItem.modifiedAt,
+        },
+      };
+    }
+    if (!shortDramaArtifactCanRecoverMediaReference(artifact)) {
       return artifact;
     }
 
@@ -1025,6 +1054,7 @@ export function createShortDramaProjectWithRecoveredMediaReferences(
       relativePath: match.relativePath,
       previewUrl: match.previewUrl ?? match.generationResultUrl,
       thumbnailUrl: match.thumbnailUrl ?? match.previewUrl ?? match.generationResultUrl,
+      modifiedAt: match.modifiedAt,
       source: 'generated',
     };
 

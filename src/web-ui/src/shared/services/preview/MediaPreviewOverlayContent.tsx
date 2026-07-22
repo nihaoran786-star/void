@@ -95,6 +95,7 @@ export const MediaPreviewOverlayContent: React.FC<MediaPreviewOverlayContentProp
       filePath: request.localPath,
       extension,
       kind: request.kind,
+      modifiedAt: request.modifiedAt,
     }).then((localDataUrl) => {
       if (localDataUrl && localDataUrl !== fallbackSourceUrl) {
         setActiveUrl((currentUrl) => (

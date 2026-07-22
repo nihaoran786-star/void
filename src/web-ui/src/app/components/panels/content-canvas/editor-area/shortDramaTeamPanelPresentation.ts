@@ -1,4 +1,4 @@
-import type { CanvasTab, EditorGroupState, SplitMode } from '../types';
+import type { CanvasTab, EditorGroupId, EditorGroupState, SplitMode } from '../types';
 import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { areShortDramaWorkspacePathsEqual } from '@/shared/services/short-drama/ShortDramaWorkspaceBinding';
 
@@ -41,6 +41,25 @@ export interface ShortDramaTeamLayoutRecoveryInput {
   secondaryGroup: EditorGroupState;
 }
 
+export type ShortDramaTeamTabCloseAction = 'collapse-team' | 'close-tab';
+
+export function selectShortDramaTeamTabCloseAction(input: {
+  groupId: EditorGroupId;
+  tabId: string;
+  presentation: ShortDramaTeamPanelPresentation;
+}): ShortDramaTeamTabCloseAction {
+  const { groupId, tabId, presentation } = input;
+  if (
+    groupId === 'secondary'
+    && presentation.status === 'ready'
+    && presentation.tabs.length === 1
+    && presentation.tabs[0]?.id === tabId
+  ) {
+    return 'collapse-team';
+  }
+  return 'close-tab';
+}
+
 export type ShortDramaTeamLayoutRecovery =
   | { status: 'stable' }
   | {
@@ -63,6 +82,14 @@ const isShortDramaWorkspaceTab = (tab: CanvasTab): boolean =>
   tab.content.type === 'short-drama-center'
   || tab.content.type === 'workspace-media-gallery';
 
+const workspacePathForTab = (tab: CanvasTab): string | undefined => {
+  const data = tab.content.data;
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+  return typeof data.workspacePath === 'string' ? data.workspacePath : undefined;
+};
+
 const primarySurfaceKeyForTab = (tab: CanvasTab): string => {
   if (isShortDramaWorkspaceTab(tab)) {
     const workspacePath = workspacePathForTab(tab);
@@ -71,14 +98,6 @@ const primarySurfaceKeyForTab = (tab: CanvasTab): string => {
     }
   }
   return `${tab.id}:${tab.content.type}`;
-};
-
-const workspacePathForTab = (tab: CanvasTab): string | undefined => {
-  const data = tab.content.data;
-  if (!data || typeof data !== 'object') {
-    return undefined;
-  }
-  return typeof data.workspacePath === 'string' ? data.workspacePath : undefined;
 };
 
 const stageAgentMatchesWorkspace = (
