@@ -12,6 +12,9 @@ const readSource = (relativePath: string): string =>
 const sha256 = (relativePath: string): string =>
   createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
 
+const sha256Text = (source: string): string =>
+  createHash('sha256').update(source).digest('hex');
+
 describe('Gallery card Minimal presentation contract', () => {
   const source = readSource('./GalleryCards.minimal.scss');
 
@@ -35,8 +38,11 @@ describe('Gallery card Minimal presentation contract', () => {
     expect(sha256('../../scenes/miniapps/components/MiniAppCard.scss')).toBe(
       'b38ab1c077424f4ffb82aea34ec353a303580e2477ffa7766a4523a42e2a6655',
     );
-    expect(sha256('../../scenes/profile/views/NurseryView.scss')).toBe(
-      'c1960242e9d604c0eabe8f1434a4b9e5a58a830e4c84b4ba500f7490415e2ecd',
+    const projectionFreeNursery = readSource('../../scenes/profile/views/NurseryView.scss')
+      .replace("@use './NurseryView.minimal' as minimal;\n", '')
+      .replace('\n\n@include minimal.styles;\n', '\n');
+    expect(sha256Text(projectionFreeNursery)).toBe(
+      '0a4ff738e71becc5f98d32504fb79015376e203c95f87c14b9330e0cf4e5e777',
     );
   });
 

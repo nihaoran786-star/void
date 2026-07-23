@@ -1737,3 +1737,32 @@ remain non-blocking at +1,715 JavaScript bytes and +492 CSS bytes. The budget
 ledger no longer requires the deleted `SessionModeMenu.tsx`; its replacement
 is a statically imported launcher and therefore must not be presented as a
 required dynamic boundary.
+
+### Slice 42: Assistant gallery and detail projection
+
+The Assistant gallery and Assistant detail page now use a feature-owned,
+Minimal-only presentation projection. The gallery removes the duplicate brand
+illustration, constrains the incubation template to a compact 720px command
+card, and keeps all template statistics and configuration actions available.
+Assistant instance cards continue to use the shared gallery card contract.
+
+The detail page uses the workspace typography scale, compact gutters, a
+single-border composer focus treatment, shorter document rows, and an
+intrinsic-height information panel instead of a full-height empty frame. At
+narrow widths the two columns become one scrollable flow without removing the
+conversation list, document editor, or Automation handoff. Simplified Chinese,
+Traditional Chinese, and English now provide the Assistant quick-message
+placeholder and keyboard hint, removing the English fallback from Chinese UI.
+
+The projection is loaded by the lazy `NurseryView.scss` owner and changes no
+React component, Workspace state, Flow Chat sender, session creation, deletion,
+persona document adapter, or Automation route. A source contract locks those
+behavior owners by hash and verifies scoping, geometry, typography, focus,
+localization, reduced motion, and the absence of gradients, blur, shadows,
+stagger, lift, and scale.
+
+The dedicated production artifact keeps the Nursery marker exclusively in the
+dynamic `ProfileScene` CSS chunk, not the entry stylesheet. The performance
+budget passes with 2,335,875 raw JavaScript bytes, 632,617 raw CSS bytes, all
+54 required dynamic entries, and zero unresolved static imports. The monitored
+gzip deltas remain non-blocking at +1,830 JavaScript bytes and +492 CSS bytes.

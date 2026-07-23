@@ -1,4 +1,5 @@
 @use '../../../../component-library/styles/tokens' as *;
+@use './NurseryView.minimal' as minimal;
 
 // Same as GalleryLayout.scss — nursery sub-pages align with Agents / gallery lists
 $nursery-scene-gutter: clamp(40px, 6vw, 80px);
@@ -3453,3 +3454,5 @@ $acp-content-top: clamp(40px, 4.5vh, 52px);
     }
   }
 }
+
+@include minimal.styles;

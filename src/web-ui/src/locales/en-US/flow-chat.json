@@ -415,6 +415,8 @@
   "input": {
     "placeholder": "How can I help you...",
     "placeholderWithContext": "Type a message, or drag and drop files to add context...",
+    "assistantPlaceholder": "Message {{name}}…",
+    "sendHint": "Enter to send · Shift+Enter for a new line",
     "send": "Send",
     "sendShortcut": "Send (⏎)",
     "stop": "Stop",

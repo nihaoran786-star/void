@@ -415,6 +415,8 @@
   "input": {
     "placeholder": "有什麼可以幫您...",
     "placeholderWithContext": "輸入消息，或拖放文件添加上下文...",
+    "assistantPlaceholder": "給 {{name}} 發送消息…",
+    "sendHint": "Enter 發送 · Shift+Enter 換行",
     "send": "發送",
     "sendShortcut": "發送 (⏎)",
     "stop": "停止",
