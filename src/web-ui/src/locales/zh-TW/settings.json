@@ -8,6 +8,11 @@
     "searchClear": "清除搜索",
     "beta": "Beta",
     "searchAliases": {
+      "account": [
+        "帳戶",
+        "登入",
+        "個人資料"
+      ],
       "archivedSessions": [
         "歸檔",
         "會話"
@@ -33,6 +38,7 @@
       ]
     },
     "tabDescriptions": {
+      "account": "帳戶資料、網頁登入與資料同步狀態。",
       "basics": "日誌、終端 Shell、通知與開機啟動。",
       "appearance": "語言、主題與介面字體大小。",
       "models": "AI 模型、API 密鑰、供應商與代理。",
@@ -53,6 +59,7 @@
       "devkit": "開發套件"
     },
     "tabs": {
+      "account": "帳戶",
       "basics": "基礎",
       "appearance": "外觀",
       "models": "模型",
@@ -68,6 +75,51 @@
       "keyboard": "快捷鍵",
       "archivedSessions": "已歸檔會話",
       "quickActions": "快捷動作"
+    }
+  },
+  "account": {
+    "title": "帳戶",
+    "subtitle": "管理個人資料與登入狀態。",
+    "profile": {
+      "title": "個人資料",
+      "description": "登入後，資料與同步狀態會顯示在這裡。"
+    },
+    "states": {
+      "anonymous": "尚未登入",
+      "anonymousHint": "透過系統瀏覽器安全登入。",
+      "unavailableHint": "網頁登入服務尚未接入。",
+      "authorizing": "正在等待網頁登入",
+      "authorizingHint": "請在瀏覽器中完成授權，然後返回應用程式。",
+      "authenticated": "已登入",
+      "error": "登入未完成"
+    },
+    "actions": {
+      "webSignIn": "網頁登入",
+      "waiting": "等待中",
+      "back": "返回",
+      "signOut": "登出"
+    },
+    "errors": {
+      "authorization_unavailable": "網頁登入服務尚未接入，請稍後再試。",
+      "authorization_cancelled": "授權已取消。",
+      "network": "網路連線失敗，請檢查網路後重試。",
+      "invalid_callback": "授權回呼無效，請重新登入。",
+      "session_expired": "登入已過期，請重新登入。",
+      "unknown": "登入過程中出現問題，請稍後重試。"
+    },
+    "security": {
+      "title": "登入與安全",
+      "description": "登入將在系統瀏覽器中完成，應用程式不會要求你在本頁輸入密碼。",
+      "browser": {
+        "title": "網頁授權",
+        "description": "登入將在系統瀏覽器中完成，返回應用程式後自動同步狀態。",
+        "value": "系統瀏覽器"
+      },
+      "credentials": {
+        "title": "憑據保護",
+        "description": "登入資訊會安全保存在此裝置中，不會顯示在此頁面。",
+        "value": "已保護"
+      }
     }
   },
   "general": {

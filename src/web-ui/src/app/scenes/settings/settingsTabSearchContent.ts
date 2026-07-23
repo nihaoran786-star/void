@@ -14,6 +14,14 @@ export interface SettingsTabSearchPhrase {
 
 /** Phrases resolved at runtime with i18n.getFixedT(lang, ns)(key). */
 export const SETTINGS_TAB_SEARCH_CONTENT: Record<ConfigTab, readonly SettingsTabSearchPhrase[]> = {
+  account: [
+    { ns: 'settings', key: 'account.title' },
+    { ns: 'settings', key: 'account.subtitle' },
+    { ns: 'settings', key: 'account.profile.title' },
+    { ns: 'settings', key: 'account.security.title' },
+    { ns: 'settings', key: 'account.actions.webSignIn' },
+  ],
+
   basics: [
     { ns: 'settings/basics', key: 'title' },
     { ns: 'settings/basics', key: 'subtitle' },

@@ -24,6 +24,7 @@ import QuickActionsConfig from '../../../infrastructure/config/components/QuickA
 import ArchivedSessionsConfig from './components/ArchivedSessionsConfig';
 
 const KeyboardShortcutsTab = lazy(() => import('./components/KeyboardShortcutsTab'));
+const AccountSettings = lazy(() => import('./components/AccountSettings'));
 
 const SettingsScene: React.FC = () => {
   const activeTab = useSettingsStore(s => s.activeTab);
@@ -45,6 +46,18 @@ const SettingsScene: React.FC = () => {
         <div key="keyboard" className="void-settings-scene__content-wrapper">
           <Suspense fallback={null}>
             <KeyboardShortcutsTab />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+
+  if (resolvedTab === 'account') {
+    return (
+      <div className="void-settings-scene">
+        <div key="account" className="void-settings-scene__content-wrapper">
+          <Suspense fallback={null}>
+            <AccountSettings />
           </Suspense>
         </div>
       </div>

@@ -8,6 +8,7 @@
     "searchClear": "Clear search",
     "beta": "Beta",
     "searchAliases": {
+      "account": [],
       "archivedSessions": [],
       "keyboard": [],
       "sessionPersonalization": [],
@@ -16,6 +17,7 @@
       "review": []
     },
     "tabDescriptions": {
+      "account": "Profile, web sign-in, and sync status.",
       "basics": "Logging, terminal shell, notifications, and launch at login.",
       "appearance": "Language, theme, and UI font size.",
       "models": "AI models, API keys, providers, and proxy.",
@@ -36,6 +38,7 @@
       "devkit": "Dev Kit"
     },
     "tabs": {
+      "account": "Account",
       "basics": "Basics",
       "appearance": "Appearance",
       "models": "Models",
@@ -51,6 +54,51 @@
       "lsp": "LSP",
       "keyboard": "Keyboard",
       "archivedSessions": "Archived Sessions"
+    }
+  },
+  "account": {
+    "title": "Account",
+    "subtitle": "Manage your profile and sign-in status.",
+    "profile": {
+      "title": "Profile",
+      "description": "Your profile and sync status will appear here after sign-in."
+    },
+    "states": {
+      "anonymous": "Not signed in",
+      "anonymousHint": "Sign in securely using your system browser.",
+      "unavailableHint": "Web sign-in is not connected yet.",
+      "authorizing": "Waiting for web sign-in",
+      "authorizingHint": "Complete authorization in your browser, then return to the app.",
+      "authenticated": "Signed in",
+      "error": "Sign-in not completed"
+    },
+    "actions": {
+      "webSignIn": "Sign in on web",
+      "waiting": "Waiting",
+      "back": "Back",
+      "signOut": "Sign out"
+    },
+    "errors": {
+      "authorization_unavailable": "Web sign-in is not connected yet. Try again later.",
+      "authorization_cancelled": "Authorization was cancelled.",
+      "network": "Could not connect. Check your network and try again.",
+      "invalid_callback": "The authorization callback was invalid. Sign in again.",
+      "session_expired": "Your session expired. Sign in again.",
+      "unknown": "Something went wrong during sign-in. Try again later."
+    },
+    "security": {
+      "title": "Sign-in and security",
+      "description": "Sign-in happens in your system browser. The app will never ask for your password here.",
+      "browser": {
+        "title": "Web authorization",
+        "description": "Sign-in finishes in your system browser and syncs automatically when you return.",
+        "value": "System browser"
+      },
+      "credentials": {
+        "title": "Credential protection",
+        "description": "Sign-in information is stored securely on this device and is never shown on this page.",
+        "value": "Protected"
+      }
     }
   },
   "general": {

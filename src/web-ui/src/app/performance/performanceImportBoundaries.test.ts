@@ -37,6 +37,22 @@ describe('Web UI startup import boundaries', () => {
     expect(source).not.toContain("import SettingsScene from './settings/SettingsScene'");
   });
 
+  it('loads the account settings and auth-session module only inside settings', () => {
+    const settingsScene = readSource('../scenes/settings/SettingsScene.tsx');
+    const accountSettings = readSource(
+      '../scenes/settings/components/AccountSettings.tsx',
+    );
+
+    expect(settingsScene).toContain(
+      "lazy(() => import('./components/AccountSettings'))",
+    );
+    expect(settingsScene).not.toContain(
+      "import AccountSettings from './components/AccountSettings'",
+    );
+    expect(accountSettings).toContain("from '@/app/auth-session'");
+    expect(accountSettings).not.toMatch(/localStorage|sessionStorage|invoke\(|@tauri-apps/);
+  });
+
   it('loads the project-creation dialog only after the user opens it', () => {
     const appLayout = readSource('../layout/AppLayout.tsx');
     const dialogBarrel = readSource(

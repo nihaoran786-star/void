@@ -6,6 +6,7 @@
  */
 
 export type ConfigTab =
+  | 'account'
   | 'basics'
   | 'appearance'
   | 'models'
@@ -42,6 +43,12 @@ export const SETTINGS_CATEGORIES: ConfigCategoryDef[] = [
     id: 'general',
     nameKey: 'configCenter.categories.general',
     tabs: [
+      {
+        id: 'account',
+        labelKey: 'configCenter.tabs.account',
+        descriptionKey: 'configCenter.tabDescriptions.account',
+        keywords: ['account', 'profile', 'login', 'sign in', 'oauth', 'sync'],
+      },
       {
         id: 'basics',
         labelKey: 'configCenter.tabs.basics',
@@ -249,6 +256,7 @@ const KNOWN_TABS: ConfigTab[] = SETTINGS_CATEGORIES.flatMap((c) => c.tabs.map((t
 
 /** Map removed or renamed tabs; used by deep links and IDE actions. */
 export function normalizeSettingsTab(section: string): ConfigTab {
+  if (section === 'profile' || section === 'login' || section === 'auth') return 'account';
   if (section === 'theme' || section === 'font' || section === 'fonts') return 'appearance';
   if (section === 'logging' || section === 'terminal') return 'basics';
   if (section === 'lsp') return DEFAULT_SETTINGS_TAB;
