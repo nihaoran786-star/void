@@ -16,8 +16,11 @@ const handlers = {
 const usageState: AccountUsageState = {
   status: 'ready',
   overview: {
-    source: 'token_usage_records',
+    source: 'device_token_usage_records',
     generatedAt: '2026-07-23T00:00:00.000Z',
+    recordCount: 779,
+    firstRecordedAt: '2026-05-23T00:00:00.000Z',
+    lastRecordedAt: '2026-07-23T00:00:00.000Z',
     totalTokens: 288_100_000,
     peakDailyTokens: 16_900_000,
     activeDays: 23,
@@ -96,7 +99,7 @@ describe('AccountSettingsView', () => {
     expect(html).toContain('account.errors.invalid_callback');
   });
 
-  it('renders real account usage metrics and activity cells', () => {
+  it('renders aggregate metrics and activity cells for all local sessions', () => {
     const html = render({
       state: { status: 'anonymous' },
       capabilities: { webAuthorization: 'unavailable' },
@@ -104,6 +107,8 @@ describe('AccountSettingsView', () => {
 
     expect(html).toContain('data-usage-status="ready"');
     expect(html).toContain('account.usage.metrics.totalTokens');
+    expect(html).toContain('account.usage.provenance.device');
+    expect(html).toContain('account.usage.provenance.recordCount');
     expect(html).toContain('account-settings__heat-cell--');
     expect(html).toContain('2026-07-23');
   });

@@ -11,10 +11,37 @@ function isOverview(value: unknown): value is AccountUsageOverview {
     return false;
   }
   const overview = value as Partial<AccountUsageOverview>;
-  return overview.source === 'token_usage_records'
-    && typeof overview.totalTokens === 'number'
-    && typeof overview.peakDailyTokens === 'number'
-    && Array.isArray(overview.daily);
+  const dailyIsValid = Array.isArray(overview.daily)
+    && overview.daily.every(day => (
+      typeof day?.date === 'string'
+      && typeof day.totalTokens === 'number'
+      && Number.isFinite(day.totalTokens)
+      && day.totalTokens >= 0
+    ));
+  const countersAreValid = [
+    overview.totalTokens,
+    overview.peakDailyTokens,
+    overview.activeDays,
+    overview.currentStreakDays,
+    overview.longestStreakDays,
+  ].every(counter => (
+    typeof counter === 'number'
+    && Number.isFinite(counter)
+    && Number.isInteger(counter)
+    && counter >= 0
+  ));
+  const datesAreValid = (
+    typeof overview.generatedAt === 'string'
+    && (overview.firstRecordedAt === null || typeof overview.firstRecordedAt === 'string')
+    && (overview.lastRecordedAt === null || typeof overview.lastRecordedAt === 'string')
+  );
+  return overview.source === 'device_token_usage_records'
+    && typeof overview.recordCount === 'number'
+    && Number.isInteger(overview.recordCount)
+    && overview.recordCount >= 0
+    && countersAreValid
+    && datesAreValid
+    && dailyIsValid;
 }
 
 export function useAccountUsage(

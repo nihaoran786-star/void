@@ -411,6 +411,47 @@ impl TokenUsageService {
         Ok(filtered.into_iter().skip(offset).take(limit).collect())
     }
 
+    /// Load every persisted usage record from the files that actually exist.
+    ///
+    /// All-session analytics use this instead of the derived model cache so
+    /// every displayed total and activity cell has the same source of truth.
+    pub async fn query_all_persisted_records(
+        &self,
+        include_subagent: bool,
+    ) -> Result<Vec<TokenUsageRecord>> {
+        let records_dir = self.get_base_dir().join(RECORDS_DIR);
+        let mut entries = fs::read_dir(&records_dir).await.with_context(|| {
+            format!("Failed to read token usage records directory: {records_dir:?}")
+        })?;
+        let mut records = Vec::new();
+
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .context("Failed to enumerate token usage record files")?
+        {
+            let path = entry.path();
+            if path.extension().and_then(|value| value.to_str()) != Some("json") {
+                continue;
+            }
+
+            let content = fs::read_to_string(&path)
+                .await
+                .with_context(|| format!("Failed to read token usage record file: {path:?}"))?;
+            let batch = serde_json::from_str::<RecordsBatch>(&content)
+                .with_context(|| format!("Failed to parse token usage record file: {path:?}"))?;
+            records.extend(
+                batch
+                    .records
+                    .into_iter()
+                    .filter(|record| include_subagent || !record.is_subagent),
+            );
+        }
+
+        records.sort_by(|left, right| left.timestamp.cmp(&right.timestamp));
+        Ok(records)
+    }
+
     /// Get date range from TimeRange enum
     fn get_date_range(&self, time_range: &TimeRange) -> (DateTime<Utc>, DateTime<Utc>) {
         let now = Utc::now();

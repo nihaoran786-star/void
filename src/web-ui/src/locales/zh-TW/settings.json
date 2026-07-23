@@ -85,13 +85,17 @@
       "description": "登入後，資料與同步狀態會顯示在這裡。"
     },
     "usage": {
-      "title": "使用概覽",
-      "description": "統計來自本機真實 Token 記錄，與登入狀態相互獨立。",
+      "title": "全部會話用量",
+      "description": "彙總本機全部 AI 會話的真實用量記錄，與登入和雲端無關。",
       "loading": "正在讀取使用記錄",
       "empty": "開始一次 AI 會話後，活動會顯示在這裡。",
       "activityTitle": "Token 活動",
       "activityRange": "過去 365 天",
       "activityAriaLabel": "過去 365 天的 Token 活動熱力圖",
+      "provenance": {
+        "device": "本機全部會話",
+        "recordCount": "{{count}} 條用量記錄"
+      },
       "metrics": {
         "totalTokens": "累計 Token 數",
         "peakTokens": "單日峰值",

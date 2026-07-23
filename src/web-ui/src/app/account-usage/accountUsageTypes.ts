@@ -4,8 +4,11 @@ export interface DailyTokenUsage {
 }
 
 export interface AccountUsageOverview {
-  source: 'token_usage_records';
+  source: 'device_token_usage_records';
   generatedAt: string;
+  recordCount: number;
+  firstRecordedAt: string | null;
+  lastRecordedAt: string | null;
   totalTokens: number;
   peakDailyTokens: number;
   activeDays: number;

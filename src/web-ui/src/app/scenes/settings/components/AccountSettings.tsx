@@ -24,7 +24,7 @@ import {
 } from '@/infrastructure/config/components/common';
 import './AccountSettings.scss';
 
-type Translate = (key: string) => string;
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export interface AccountSettingsViewProps {
   snapshot: AuthSessionSnapshot;
@@ -37,6 +37,21 @@ export interface AccountSettingsViewProps {
 
 function formatTokenCount(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+}
+
+function formatExactTokenCount(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatUsageDate(value?: string | null): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 }
 
 function heatLevel(tokens: number, peak: number): number {
@@ -60,28 +75,62 @@ function ActivityHeatmap({
     ? new Date(`${firstDate}T00:00:00Z`).getUTCDay()
     : 1;
   const leadingEmptyCells = (firstWeekday + 6) % 7;
+  const weekColumnCount = Math.ceil((leadingEmptyCells + daily.length) / 7);
+  const monthMarkers = daily.reduce<Array<{ label: string; column: number }>>((markers, day, index) => {
+    const date = new Date(`${day.date}T00:00:00Z`);
+    const isMonthStart = date.getUTCDate() === 1;
+    if (!isMonthStart) {
+      return markers;
+    }
+    const column = Math.floor((leadingEmptyCells + index) / 7) + 1;
+    const previous = markers[markers.length - 1];
+    if (previous?.column === column) {
+      return markers;
+    }
+    markers.push({
+      label: new Intl.DateTimeFormat(undefined, { month: 'short', timeZone: 'UTC' }).format(date),
+      column,
+    });
+    return markers;
+  }, []);
 
   return (
-    <div
-      className="account-settings__heatmap"
-      role="img"
-      aria-label={t('account.usage.activityAriaLabel')}
-    >
-      {Array.from({ length: leadingEmptyCells }, (_, index) => (
-        <span
-          key={`leading-${index}`}
-          className="account-settings__heat-cell account-settings__heat-cell--empty"
-          aria-hidden="true"
-        />
-      ))}
-      {daily.map(day => (
-        <span
-          key={day.date}
-          className={`account-settings__heat-cell account-settings__heat-cell--${heatLevel(day.totalTokens, peak)}`}
-          title={`${day.date} · ${formatTokenCount(day.totalTokens)} Tokens`}
-          aria-hidden="true"
-        />
-      ))}
+    <div className="account-settings__heatmap-figure">
+      <div
+        className="account-settings__heatmap"
+        role="img"
+        aria-label={t('account.usage.activityAriaLabel')}
+      >
+        {Array.from({ length: leadingEmptyCells }, (_, index) => (
+          <span
+            key={`leading-${index}`}
+            className="account-settings__heat-cell account-settings__heat-cell--empty"
+            aria-hidden="true"
+          />
+        ))}
+        {daily.map(day => (
+          <span
+            key={day.date}
+            className={`account-settings__heat-cell account-settings__heat-cell--${heatLevel(day.totalTokens, peak)}`}
+            title={`${day.date} · ${formatExactTokenCount(day.totalTokens)} Tokens`}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
+      <div
+        className="account-settings__heatmap-months"
+        style={{ gridTemplateColumns: `repeat(${weekColumnCount}, 10px)` }}
+        aria-hidden="true"
+      >
+        {monthMarkers.map(marker => (
+          <span
+            key={`${marker.label}-${marker.column}`}
+            style={{ gridColumnStart: marker.column }}
+          >
+            {marker.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -112,6 +161,8 @@ export function AccountUsageOverviewView({
   }
 
   const { overview } = state;
+  const firstRecordedDate = formatUsageDate(overview.firstRecordedAt);
+  const lastRecordedDate = formatUsageDate(overview.lastRecordedAt);
   const metrics = [
     [formatTokenCount(overview.totalTokens), t('account.usage.metrics.totalTokens')],
     [formatTokenCount(overview.peakDailyTokens), t('account.usage.metrics.peakTokens')],
@@ -122,6 +173,16 @@ export function AccountUsageOverviewView({
 
   return (
     <div className="account-settings__usage" data-usage-status={state.status}>
+      <div className="account-settings__provenance">
+        <span className="account-settings__source">
+          <i aria-hidden="true" />
+          {t('account.usage.provenance.device')}
+        </span>
+        <span>{t('account.usage.provenance.recordCount', { count: overview.recordCount })}</span>
+        {firstRecordedDate && lastRecordedDate && (
+          <span>{firstRecordedDate} — {lastRecordedDate}</span>
+        )}
+      </div>
       <div className="account-settings__metric-strip">
         {metrics.map(([value, label]) => (
           <div className="account-settings__usage-metric" key={label}>
@@ -263,6 +324,7 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = props => 
       </ConfigPageSection>
 
       <ConfigPageSection
+        className="account-settings__section--usage"
         title={props.t('account.usage.title')}
         description={props.t('account.usage.description')}
       >

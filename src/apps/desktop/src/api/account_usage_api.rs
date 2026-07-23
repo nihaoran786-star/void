@@ -3,7 +3,7 @@ use chrono::{DateTime, Days, NaiveDate, Utc};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 use tauri::State;
-use void_core::service::token_usage::{TimeRange, TokenUsageQuery, TokenUsageRecord};
+use void_core::service::token_usage::TokenUsageRecord;
 
 const ACTIVITY_DAYS: u64 = 365;
 
@@ -19,6 +19,9 @@ pub struct DailyTokenUsage {
 pub struct AccountUsageOverview {
     pub source: &'static str,
     pub generated_at: DateTime<Utc>,
+    pub record_count: usize,
+    pub first_recorded_at: Option<DateTime<Utc>>,
+    pub last_recorded_at: Option<DateTime<Utc>>,
     pub total_tokens: u64,
     pub peak_daily_tokens: u64,
     pub active_days: u32,
@@ -36,38 +39,14 @@ pub async fn get_account_usage_overview(
     let start_date = end_date
         .checked_sub_days(Days::new(ACTIVITY_DAYS - 1))
         .unwrap_or(end_date);
-    let start = start_date
-        .and_hms_opt(0, 0, 0)
-        .map(|value| value.and_utc())
-        .unwrap_or(DateTime::UNIX_EPOCH);
-
     let records = app_state
         .token_usage_service
-        .query_records(TokenUsageQuery {
-            model_id: None,
-            session_id: None,
-            time_range: TimeRange::Custom { start, end: now },
-            limit: None,
-            offset: None,
-            include_subagent: true,
-        })
+        .query_all_persisted_records(true)
         .await
         .map_err(|error| format!("Failed to load account usage records: {error}"))?;
 
-    let total_tokens = app_state
-        .token_usage_service
-        .get_all_model_stats()
-        .await
-        .values()
-        .map(|stats| stats.total_tokens)
-        .sum();
-
     Ok(build_account_usage_overview(
-        records,
-        start_date,
-        end_date,
-        total_tokens,
-        now,
+        records, start_date, end_date, now,
     ))
 }
 
@@ -75,11 +54,17 @@ fn build_account_usage_overview(
     records: Vec<TokenUsageRecord>,
     start_date: NaiveDate,
     end_date: NaiveDate,
-    total_tokens: u64,
     generated_at: DateTime<Utc>,
 ) -> AccountUsageOverview {
     let mut totals_by_day = BTreeMap::<NaiveDate, u64>::new();
-    for record in records {
+    let record_count = records.len();
+    let first_recorded_at = records.first().map(|record| record.timestamp);
+    let last_recorded_at = records.last().map(|record| record.timestamp);
+    let total_tokens = records
+        .iter()
+        .map(|record| record.total_tokens as u64)
+        .sum();
+    for record in &records {
         *totals_by_day
             .entry(record.timestamp.date_naive())
             .or_default() += record.total_tokens as u64;
@@ -90,16 +75,19 @@ fn build_account_usage_overview(
         .filter_map(|(date, tokens)| (*tokens > 0).then_some(*date))
         .collect::<HashSet<_>>();
     let daily = build_daily_series(&totals_by_day, start_date, end_date);
-    let peak_daily_tokens = daily
+    let peak_daily_tokens = totals_by_day
         .iter()
-        .map(|day| day.total_tokens)
+        .map(|(_, tokens)| *tokens)
         .max()
         .unwrap_or_default();
     let (current_streak_days, longest_streak_days) = calculate_streaks(&active_dates, end_date);
 
     AccountUsageOverview {
-        source: "token_usage_records",
+        source: "device_token_usage_records",
         generated_at,
+        record_count,
+        first_recorded_at,
+        last_recorded_at,
         total_tokens,
         peak_daily_tokens,
         active_days: active_dates.len() as u32,
@@ -132,21 +120,17 @@ fn build_daily_series(
 fn calculate_streaks(active_dates: &HashSet<NaiveDate>, end_date: NaiveDate) -> (u32, u32) {
     let mut longest = 0u32;
     let mut running = 0u32;
-    let mut date = end_date
-        .checked_sub_days(Days::new(ACTIVITY_DAYS - 1))
-        .unwrap_or(end_date);
-
-    while date <= end_date {
-        if active_dates.contains(&date) {
-            running += 1;
-            longest = longest.max(running);
+    let mut previous: Option<NaiveDate> = None;
+    let mut ordered_dates = active_dates.iter().copied().collect::<Vec<_>>();
+    ordered_dates.sort_unstable();
+    for date in ordered_dates {
+        running = if previous.and_then(|value| value.succ_opt()) == Some(date) {
+            running + 1
         } else {
-            running = 0;
-        }
-        let Some(next) = date.succ_opt() else {
-            break;
+            1
         };
-        date = next;
+        longest = longest.max(running);
+        previous = Some(date);
     }
 
     let current_anchor = if active_dates.contains(&end_date) {
@@ -207,11 +191,12 @@ mod tests {
             ],
             start,
             end,
-            1_000,
             generated_at,
         );
 
-        assert_eq!(overview.total_tokens, 1_000);
+        assert_eq!(overview.source, "device_token_usage_records");
+        assert_eq!(overview.record_count, 3);
+        assert_eq!(overview.total_tokens, 60);
         assert_eq!(overview.peak_daily_tokens, 30);
         assert_eq!(overview.active_days, 3);
         assert_eq!(overview.current_streak_days, 2);

@@ -64,13 +64,17 @@
       "description": "Your profile and sync status will appear here after sign-in."
     },
     "usage": {
-      "title": "Usage overview",
-      "description": "Based on real local token records and independent of sign-in.",
+      "title": "All-session usage",
+      "description": "Aggregated from real usage records for every AI session on this device. Independent of sign-in and cloud services.",
       "loading": "Loading usage records",
       "empty": "Activity will appear here after your first AI session.",
       "activityTitle": "Token activity",
       "activityRange": "Last 365 days",
       "activityAriaLabel": "Token activity heatmap for the last 365 days",
+      "provenance": {
+        "device": "All local sessions",
+        "recordCount": "{{count}} usage records"
+      },
       "metrics": {
         "totalTokens": "Total tokens",
         "peakTokens": "Daily peak",
