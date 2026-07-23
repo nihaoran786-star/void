@@ -16,7 +16,10 @@
     background: transparent;
     border: 1px solid var(--border-base);
     border-radius: $size-radius-sm;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      box-shadow $motion-base $easing-standard;
     min-height: 36px;
   }
 
@@ -164,7 +167,12 @@
     font-weight: $font-weight-medium;
   font-family: var(--font-family-sans);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      color $motion-base $easing-standard,
+      opacity $motion-base $easing-standard,
+      transform $motion-base $easing-standard;
     white-space: nowrap;
 
     &:hover:not(:disabled) {

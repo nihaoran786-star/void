@@ -179,7 +179,11 @@
     stroke: currentColor;
     fill: none;
     stroke-width: $stroke-width-default;
-    transition: all 0.3s $easing-smooth;
+    transition:
+      color 0.3s $easing-smooth,
+      opacity 0.3s $easing-smooth,
+      stroke-width 0.3s $easing-smooth,
+      transform 0.3s $easing-smooth;
   }
 
   &:hover:not(:disabled) {
