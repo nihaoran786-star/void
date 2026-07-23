@@ -5,7 +5,11 @@ import { AccountSettingsView } from './AccountSettings';
 import type { AuthSessionSnapshot } from '@/app/auth-session';
 import type { AccountUsageState } from '@/app/account-usage';
 
-const t = (key: string) => key;
+const t = (key: string, options?: Record<string, unknown>) => (
+  options?.value === undefined
+    ? key
+    : `${key}:${String(options.date)}:${String(options.value)}`
+);
 const handlers = {
   onStartWebAuthorization: vi.fn(),
   onClearError: vi.fn(),
@@ -22,13 +26,13 @@ const usageState: AccountUsageState = {
     firstRecordedAt: '2026-05-23T00:00:00.000Z',
     lastRecordedAt: '2026-07-23T00:00:00.000Z',
     totalTokens: 288_100_000,
-    peakDailyTokens: 16_900_000,
+    peakDailyTokens: 1_200_000_000,
     activeDays: 23,
     currentStreakDays: 7,
     longestStreakDays: 47,
     daily: [
-      { date: '2026-07-22', totalTokens: 1200 },
-      { date: '2026-07-23', totalTokens: 2400 },
+      { date: '2026-07-22', totalTokens: 5_000_000 },
+      { date: '2026-07-23', totalTokens: 1_200_000_000 },
     ],
   },
 };
@@ -111,5 +115,7 @@ describe('AccountSettingsView', () => {
     expect(html).toContain('account.usage.provenance.recordCount');
     expect(html).toContain('account-settings__heat-cell--');
     expect(html).toContain('2026-07-23');
+    expect(html).toContain('account.usage.activityTooltip:2026-07-22:0.05');
+    expect(html).toContain('account.usage.activityTooltip:2026-07-23:12');
   });
 });

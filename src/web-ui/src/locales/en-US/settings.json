@@ -71,6 +71,7 @@
       "activityTitle": "Token activity",
       "activityRange": "Last 365 days",
       "activityAriaLabel": "Token activity heatmap for the last 365 days",
+      "activityTooltip": "{{date}} · {{value}}B tokens",
       "provenance": {
         "device": "All local sessions",
         "recordCount": "{{count}} usage records"

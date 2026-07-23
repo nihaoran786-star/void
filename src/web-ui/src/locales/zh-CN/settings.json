@@ -92,6 +92,7 @@
       "activityTitle": "Token 活动",
       "activityRange": "过去 365 天",
       "activityAriaLabel": "过去 365 天的 Token 活动热力图",
+      "activityTooltip": "{{date}} · {{value}}亿 Token",
       "provenance": {
         "device": "本机全部会话",
         "recordCount": "{{count}} 条用量记录"

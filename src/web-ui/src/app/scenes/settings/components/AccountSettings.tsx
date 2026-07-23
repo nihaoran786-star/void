@@ -39,8 +39,15 @@ function formatTokenCount(value: number): string {
   return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }
 
-function formatExactTokenCount(value: number): string {
-  return new Intl.NumberFormat().format(value);
+function formatTokenInHundredMillions(value: number): string {
+  if (value <= 0) {
+    return '0';
+  }
+  const hundredMillions = value / 100_000_000;
+  if (hundredMillions < 0.0001) {
+    return '<0.0001';
+  }
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 4 }).format(hundredMillions);
 }
 
 function formatUsageDate(value?: string | null): string | undefined {
@@ -75,7 +82,8 @@ function ActivityHeatmap({
     ? new Date(`${firstDate}T00:00:00Z`).getUTCDay()
     : 1;
   const leadingEmptyCells = (firstWeekday + 6) % 7;
-  const weekColumnCount = Math.ceil((leadingEmptyCells + daily.length) / 7);
+  const weekColumnCount = Math.max(1, Math.ceil((leadingEmptyCells + daily.length) / 7));
+  const heatmapColumns = `repeat(${weekColumnCount}, minmax(0, 1fr))`;
   const monthMarkers = daily.reduce<Array<{ label: string; column: number }>>((markers, day, index) => {
     const date = new Date(`${day.date}T00:00:00Z`);
     const isMonthStart = date.getUTCDate() === 1;
@@ -98,6 +106,7 @@ function ActivityHeatmap({
     <div className="account-settings__heatmap-figure">
       <div
         className="account-settings__heatmap"
+        style={{ gridTemplateColumns: heatmapColumns }}
         role="img"
         aria-label={t('account.usage.activityAriaLabel')}
       >
@@ -112,14 +121,17 @@ function ActivityHeatmap({
           <span
             key={day.date}
             className={`account-settings__heat-cell account-settings__heat-cell--${heatLevel(day.totalTokens, peak)}`}
-            title={`${day.date} · ${formatExactTokenCount(day.totalTokens)} Tokens`}
+            title={t('account.usage.activityTooltip', {
+              date: day.date,
+              value: formatTokenInHundredMillions(day.totalTokens),
+            })}
             aria-hidden="true"
           />
         ))}
       </div>
       <div
         className="account-settings__heatmap-months"
-        style={{ gridTemplateColumns: `repeat(${weekColumnCount}, 10px)` }}
+        style={{ gridTemplateColumns: heatmapColumns }}
         aria-hidden="true"
       >
         {monthMarkers.map(marker => (
