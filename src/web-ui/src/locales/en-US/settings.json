@@ -69,9 +69,9 @@
       "loading": "Loading usage records",
       "empty": "Activity will appear here after your first AI session.",
       "activityTitle": "Token activity",
-      "activityRange": "Last 365 days",
-      "activityAriaLabel": "Token activity heatmap for the last 365 days",
-      "activityTooltip": "{{date}} · {{value}}B tokens",
+      "activityRange": "Rolling year",
+      "activityAriaLabel": "Token activity heatmap for the rolling year",
+      "activityTooltip": "{{date}} · {{value}} × 100M tokens",
       "provenance": {
         "device": "All local sessions",
         "recordCount": "{{count}} usage records"

@@ -1,11 +1,11 @@
 use crate::api::AppState;
-use chrono::{DateTime, Days, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Days, Local, NaiveDate, Utc};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashSet};
 use tauri::State;
 use void_core::service::token_usage::TokenUsageRecord;
 
-const ACTIVITY_DAYS: u64 = 365;
+const COMPLETED_ACTIVITY_WEEKS: u64 = 52;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -35,10 +35,8 @@ pub async fn get_account_usage_overview(
     app_state: State<'_, AppState>,
 ) -> Result<AccountUsageOverview, String> {
     let now = Utc::now();
-    let end_date = now.date_naive();
-    let start_date = end_date
-        .checked_sub_days(Days::new(ACTIVITY_DAYS - 1))
-        .unwrap_or(end_date);
+    let end_date = Local::now().date_naive();
+    let start_date = heatmap_start_date(end_date);
     let records = app_state
         .token_usage_service
         .query_all_persisted_records(true)
@@ -46,16 +44,24 @@ pub async fn get_account_usage_overview(
         .map_err(|error| format!("Failed to load account usage records: {error}"))?;
 
     Ok(build_account_usage_overview(
-        records, start_date, end_date, now,
+        records,
+        start_date,
+        end_date,
+        now,
+        |timestamp| timestamp.with_timezone(&Local).date_naive(),
     ))
 }
 
-fn build_account_usage_overview(
+fn build_account_usage_overview<F>(
     records: Vec<TokenUsageRecord>,
     start_date: NaiveDate,
     end_date: NaiveDate,
     generated_at: DateTime<Utc>,
-) -> AccountUsageOverview {
+    usage_date: F,
+) -> AccountUsageOverview
+where
+    F: Fn(DateTime<Utc>) -> NaiveDate,
+{
     let mut totals_by_day = BTreeMap::<NaiveDate, u64>::new();
     let record_count = records.len();
     let first_recorded_at = records.first().map(|record| record.timestamp);
@@ -66,7 +72,7 @@ fn build_account_usage_overview(
         .sum();
     for record in &records {
         *totals_by_day
-            .entry(record.timestamp.date_naive())
+            .entry(usage_date(record.timestamp))
             .or_default() += record.total_tokens as u64;
     }
 
@@ -95,6 +101,15 @@ fn build_account_usage_overview(
         longest_streak_days,
         daily,
     }
+}
+
+fn heatmap_start_date(end_date: NaiveDate) -> NaiveDate {
+    let current_week_start = end_date
+        .checked_sub_days(Days::new(end_date.weekday().num_days_from_monday() as u64))
+        .unwrap_or(end_date);
+    current_week_start
+        .checked_sub_days(Days::new(COMPLETED_ACTIVITY_WEEKS * 7))
+        .unwrap_or(current_week_start)
 }
 
 fn build_daily_series(
@@ -192,6 +207,7 @@ mod tests {
             start,
             end,
             generated_at,
+            |timestamp| timestamp.date_naive(),
         );
 
         assert_eq!(overview.source, "device_token_usage_records");
@@ -203,5 +219,40 @@ mod tests {
         assert_eq!(overview.longest_streak_days, 2);
         assert_eq!(overview.daily.len(), 5);
         assert_eq!(overview.daily[1].total_tokens, 0);
+    }
+
+    #[test]
+    fn aligns_heatmap_to_full_weeks_and_keeps_the_current_week_partial() {
+        let end = NaiveDate::from_ymd_opt(2026, 7, 23).unwrap();
+        let start = heatmap_start_date(end);
+        let daily = build_daily_series(&BTreeMap::new(), start, end);
+
+        assert_eq!(start, NaiveDate::from_ymd_opt(2025, 7, 21).unwrap());
+        assert_eq!(start.weekday(), chrono::Weekday::Mon);
+        assert_eq!(daily.len(), 368);
+        assert_eq!(daily.first().map(|day| day.date), Some(start));
+        assert_eq!(daily.last().map(|day| day.date), Some(end));
+    }
+
+    #[test]
+    fn advances_the_window_by_one_week_on_monday() {
+        let sunday = NaiveDate::from_ymd_opt(2026, 7, 26).unwrap();
+        let monday = NaiveDate::from_ymd_opt(2026, 7, 27).unwrap();
+
+        let sunday_start = heatmap_start_date(sunday);
+        let monday_start = heatmap_start_date(monday);
+
+        assert_eq!(
+            monday_start,
+            sunday_start.checked_add_days(Days::new(7)).unwrap()
+        );
+        assert_eq!(
+            build_daily_series(&BTreeMap::new(), sunday_start, sunday).len(),
+            371
+        );
+        assert_eq!(
+            build_daily_series(&BTreeMap::new(), monday_start, monday).len(),
+            365
+        );
     }
 }

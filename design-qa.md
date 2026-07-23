@@ -24,6 +24,8 @@ only the current session report.
 - Account state: anonymous identity with aggregate usage from every local session
 - Session state: completed partial report with live context usage
 - Account capture: `all-local-sessions-usage-final-v3.png` in the task visualization output
+- Rolling-week capture: `heatmap-rolling-weeks-final.png` in the task visualization output
+- Hover capture: `heatmap-rolling-weeks-hover.png` in the task visualization output
 - Session capture: `chat-current.png` in the task visualization output
 - Combined source/implementation comparison:
   `all-local-sessions-reference-comparison.png` in the task visualization output
@@ -38,7 +40,7 @@ capture; it is not a second simulated viewport.
 | --- | --- | --- |
 | Page identity | Account/profile context above analytics | Preserved with anonymous/authenticated states |
 | Metric hierarchy | Five continuous, evenly separated metrics | Matched |
-| Activity | Calendar-style token activity with intensity levels | Matched using 365 days of real records from all local sessions |
+| Activity | Calendar-style token activity with intensity levels | Matched using 52 complete historical weeks plus the current week through today |
 | Typography | Compact values and muted support labels | Matched to the repository type scale |
 | Session receipt | Same visual language with less text | Matched with token and time composition graphics |
 | Detail access | Rich model/tool/file information remains available | Preserved behind the existing Details action |
@@ -50,7 +52,7 @@ capture; it is not a second simulated viewport.
 1. **P0 — Totals and the heatmap previously had two potential sources of
    truth.** The overview now enumerates the persisted usage record files once
    and derives total tokens, daily peak, active days, streaks, dates, and the
-   365-day heatmap from that same record set.
+   rolling-year heatmap from that same record set.
 2. **P0 — Local aggregate usage could be mistaken for cloud account data.**
    The UI now identifies the scope as every local session, shows the persisted
    record count and date range, and explicitly states that it is independent
@@ -68,6 +70,12 @@ capture; it is not a second simulated viewport.
    currently record globally.** They were not simulated. The account strip
    uses total tokens, daily peak, active days, current streak, and longest
    streak.
+7. **P1 — A fixed 365-day range left partial gaps at both edges.** The usage
+   adapter now emits 52 complete Monday-to-Sunday historical weeks followed by
+   the current week through today. The left edge is always complete, the right
+   edge grows downward once per local calendar day, and every Monday advances
+   the window by one complete week. The account hook refreshes silently at the
+   local day boundary while the page remains open.
 
 ## Source verification
 
@@ -85,8 +93,8 @@ page. No test fixture or sample series is referenced by the runtime API.
 
 ## Verification
 
-- Account component tests: 5 passed.
-- Rust account-usage aggregation test: 1 passed.
+- Account component and rollover-hook tests: 6 passed.
+- Rust account-usage aggregation and calendar-window tests: 3 passed.
 - Web TypeScript check: passed.
 - Production web build and Monaco asset verification: passed.
 - Repository hygiene check: passed.

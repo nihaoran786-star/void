@@ -51,10 +51,12 @@ export function useAccountUsage(
 
   useEffect(() => {
     let active = true;
+    let rolloverTimer: ReturnType<typeof setTimeout> | undefined;
     setState({ status: 'loading' });
 
-    void client.loadOverview()
-      .then(overview => {
+    const loadOverview = async () => {
+      try {
+        const overview = await client.loadOverview();
         if (!active) {
           return;
         }
@@ -66,15 +68,36 @@ export function useAccountUsage(
           status: overview.totalTokens === 0 && overview.activeDays === 0 ? 'empty' : 'ready',
           overview,
         });
-      })
-      .catch(() => {
+      } catch {
         if (active) {
           setState({ status: 'error', category: 'unavailable' });
         }
-      });
+      }
+    };
+
+    const scheduleLocalDayRollover = () => {
+      if (!active) {
+        return;
+      }
+      const now = new Date();
+      const nextLocalMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+      ).getTime();
+      const delay = Math.max(1_000, nextLocalMidnight - now.getTime() + 1_000);
+      rolloverTimer = setTimeout(() => {
+        void loadOverview().finally(scheduleLocalDayRollover);
+      }, delay);
+    };
+
+    void loadOverview().finally(scheduleLocalDayRollover);
 
     return () => {
       active = false;
+      if (rolloverTimer !== undefined) {
+        clearTimeout(rolloverTimer);
+      }
     };
   }, [client]);
 

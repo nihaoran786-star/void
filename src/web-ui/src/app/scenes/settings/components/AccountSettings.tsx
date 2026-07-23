@@ -77,12 +77,7 @@ function ActivityHeatmap({
   peak: number;
   t: Translate;
 }) {
-  const firstDate = daily[0]?.date;
-  const firstWeekday = firstDate
-    ? new Date(`${firstDate}T00:00:00Z`).getUTCDay()
-    : 1;
-  const leadingEmptyCells = (firstWeekday + 6) % 7;
-  const weekColumnCount = Math.max(1, Math.ceil((leadingEmptyCells + daily.length) / 7));
+  const weekColumnCount = Math.max(1, Math.ceil(daily.length / 7));
   const heatmapColumns = `repeat(${weekColumnCount}, minmax(0, 1fr))`;
   const monthMarkers = daily.reduce<Array<{ label: string; column: number }>>((markers, day, index) => {
     const date = new Date(`${day.date}T00:00:00Z`);
@@ -90,7 +85,7 @@ function ActivityHeatmap({
     if (!isMonthStart) {
       return markers;
     }
-    const column = Math.floor((leadingEmptyCells + index) / 7) + 1;
+    const column = Math.floor(index / 7) + 1;
     const previous = markers[markers.length - 1];
     if (previous?.column === column) {
       return markers;
@@ -110,13 +105,6 @@ function ActivityHeatmap({
         role="img"
         aria-label={t('account.usage.activityAriaLabel')}
       >
-        {Array.from({ length: leadingEmptyCells }, (_, index) => (
-          <span
-            key={`leading-${index}`}
-            className="account-settings__heat-cell account-settings__heat-cell--empty"
-            aria-hidden="true"
-          />
-        ))}
         {daily.map(day => (
           <span
             key={day.date}

@@ -31,6 +31,15 @@ const usageState: AccountUsageState = {
     currentStreakDays: 7,
     longestStreakDays: 47,
     daily: [
+      { date: '2026-07-13', totalTokens: 0 },
+      { date: '2026-07-14', totalTokens: 0 },
+      { date: '2026-07-15', totalTokens: 0 },
+      { date: '2026-07-16', totalTokens: 0 },
+      { date: '2026-07-17', totalTokens: 0 },
+      { date: '2026-07-18', totalTokens: 0 },
+      { date: '2026-07-19', totalTokens: 0 },
+      { date: '2026-07-20', totalTokens: 0 },
+      { date: '2026-07-21', totalTokens: 0 },
       { date: '2026-07-22', totalTokens: 5_000_000 },
       { date: '2026-07-23', totalTokens: 1_200_000_000 },
     ],
@@ -114,6 +123,8 @@ describe('AccountSettingsView', () => {
     expect(html).toContain('account.usage.provenance.device');
     expect(html).toContain('account.usage.provenance.recordCount');
     expect(html).toContain('account-settings__heat-cell--');
+    expect(html).toContain('repeat(2, minmax(0, 1fr))');
+    expect(html).not.toContain('account-settings__heat-cell--empty');
     expect(html).toContain('2026-07-23');
     expect(html).toContain('account.usage.activityTooltip:2026-07-22:0.05');
     expect(html).toContain('account.usage.activityTooltip:2026-07-23:12');

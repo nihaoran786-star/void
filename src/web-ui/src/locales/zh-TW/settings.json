@@ -90,8 +90,8 @@
       "loading": "正在讀取使用記錄",
       "empty": "開始一次 AI 會話後，活動會顯示在這裡。",
       "activityTitle": "Token 活動",
-      "activityRange": "過去 365 天",
-      "activityAriaLabel": "過去 365 天的 Token 活動熱力圖",
+      "activityRange": "近一年",
+      "activityAriaLabel": "近一年的 Token 活動熱力圖",
       "activityTooltip": "{{date}} · {{value}}億 Token",
       "provenance": {
         "device": "本機全部會話",
