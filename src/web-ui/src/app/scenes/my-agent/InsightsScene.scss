@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/tokens.scss' as *;
+@use './InsightsScene.minimal' as minimal;
 
 // ============================================================
 // Design tokens
@@ -1510,3 +1511,5 @@ $ins-label:   var(--font-size-xs);
     flex-wrap: wrap;
   }
 }
+
+@include minimal.styles;

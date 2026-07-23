@@ -1943,3 +1943,35 @@ hygiene, core boundaries, theme colors, theme visual governance, and the
 JavaScript bytes, 632,617 raw CSS bytes, all 54 required dynamic entries, and
 zero unresolved imports. Gzip monitor deltas remain non-blocking at +1,838
 JavaScript bytes and +492 CSS bytes.
+
+### Slice 48: Insights workspace projection
+
+The Insights list now owns a feature-local Minimal projection. The active
+desktop tab remains the visible page identity while the duplicate in-page
+heading stays available to assistive technology. Range choices and the single
+Generate action share one 52px command row; the range strip remains
+horizontally reachable at narrow widths instead of wrapping into a second
+toolbar. The report-history zone follows immediately below with a compact
+label and a small graphical empty state.
+
+Existing reports are presented as flat rows in Minimal. Decorative lift,
+shadow, persistent `will-change`, and page-entry animation are removed. Long
+report lists use `content-visibility`, layout/paint containment, and an
+intrinsic-size fallback. Report cards and conclusion surfaces keep semantic
+borders and theme tokens without gradients or a second focus halo, and the
+projection disables its remaining transitions for reduced-motion users.
+
+This slice changes no `insightsStore`, report metadata, generation, cancellation,
+loading, Tauri opener, notification, API adapter, report file, or retention
+behavior. Manual desktop verification covered maximized and 1280-by-900
+layouts plus a live 30-day-to-7-day range switch. The external Generate action
+was deliberately not invoked during presentation verification, so no user
+report or model usage was created.
+
+The focused visual contract passes six tests, and TypeScript, repository
+hygiene, core boundaries, theme colors, and theme visual governance pass. The
+dedicated production artifact transforms 7,468 modules and passes the frozen
+performance budget with 2,336,013 raw JavaScript bytes, 632,617 raw CSS bytes,
+all 54 required dynamic entries, and zero unresolved imports. Gzip monitor
+deltas remain non-blocking at +1,832 JavaScript bytes and +492 CSS bytes; the
+Insights presentation remains in its lazy feature chunk.

@@ -123,7 +123,10 @@ const InsightsScene: React.FC = () => {
             <Loader2 size={16} className="insights-scene__spinner" />
           </div>
         ) : reportMetas.length === 0 ? (
-          <div className="insights-scene__empty">{t('insights.noReports')}</div>
+          <div className="insights-scene__empty">
+            <BarChart3 size={18} aria-hidden="true" />
+            <span>{t('insights.noReports')}</span>
+          </div>
         ) : (
           <div className="insights-scene__report-list">
             {reportMetas.map((meta) => (
