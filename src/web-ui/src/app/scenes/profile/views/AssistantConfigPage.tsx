@@ -25,7 +25,8 @@ import { MEditor } from '@/tools/editor/meditor';
 import DeferredSessionsSection from '@/app/components/NavPanel/sections/sessions/DeferredSessionsSection';
 import AssistantQuickInput from './AssistantQuickInput';
 import { useNurseryStore } from '../nurseryStore';
-import { useSceneManager } from '@/app/hooks/useSceneManager';
+import { useSceneStore } from '@/app/stores/sceneStore';
+
 const log = createLogger('AssistantConfigPage');
 
 const PERSONA_DOC_FILES = ['IDENTITY.md', 'SOUL.md', 'USER.md'] as const;
@@ -58,7 +59,7 @@ interface AssistantConfigPageProps {
 
 const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = true }) => {
   const { t } = useTranslation('scenes/profile');
-  const { openScene } = useSceneManager();
+  const openScene = useSceneStore((state) => state.openScene);
   const { isLight } = useTheme();
   const { openGallery, activeWorkspaceId } = useNurseryStore();
   const selectedAssistantWorkspaceId = useMyAgentStore((s) => s.selectedAssistantWorkspaceId);
@@ -241,6 +242,9 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
   }, [commitEdit]);
 
   const identityName = displayIdentity.name || DEFAULT_AGENT_NAME;
+  const handleOpenAutomation = useCallback(() => {
+    openScene('automation');
+  }, [openScene]);
 
   // ── Right panel: identity info ──────────────────────────────────────────
 
@@ -288,7 +292,8 @@ const AssistantConfigPage: React.FC<AssistantConfigPageProps> = ({ isActive = tr
                 type="button"
                 variant="secondary"
                 size="small"
-                onClick={() => openScene('automation')}
+                className="acp-automation-entry__action"
+                onClick={handleOpenAutomation}
               >
                 {t('common:automation.assistantEntry.button')}
               </Button>

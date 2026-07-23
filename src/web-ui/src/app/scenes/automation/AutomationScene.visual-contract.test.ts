@@ -226,6 +226,20 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).not.toMatch(/\bvisibility:\s*hidden\b/);
   });
 
+  it('uses the shared motion contract for list-row feedback', () => {
+    const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
+
+    expect(stylesheet).toMatch(
+      /\.list-view__row \{[\s\S]*?background-color var\(--workspace-motion-fast\) var\(--workspace-easing-standard\),[\s\S]*?color var\(--workspace-motion-fast\) var\(--workspace-easing-standard\);/,
+    );
+    expect(stylesheet).toMatch(
+      /\.list-view__row \{[\s\S]*?&:active \{[\s\S]*?background: var\(--workspace-surface-active\);/,
+    );
+    expect(stylesheet).not.toContain(
+      'transition: background 120ms ease, color 120ms ease;',
+    );
+  });
+
   it('keeps the create dialog compact, flat, and single-ring in minimal mode', () => {
     const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
 

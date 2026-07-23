@@ -412,12 +412,18 @@
       border-bottom: 1px solid var(--workspace-border-subtle);
       border-radius: 0;
       background: transparent;
-      transition: background 120ms ease, color 120ms ease;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       &:hover {
         border-color: var(--workspace-border-subtle);
         background: var(--workspace-surface-hover);
         box-shadow: none;
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
       }
 
       &--completed {

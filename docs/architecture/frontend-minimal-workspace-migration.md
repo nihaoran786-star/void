@@ -2191,3 +2191,52 @@ at +2,393 JavaScript bytes and +492 CSS bytes. An eight-second idle sample
 measured the desktop at approximately 0.78% of one logical core and 93.7 MB
 RSS, while the active Vite process remained at 0% CPU. The temporary manifest
 artifact is removed after verification.
+
+### Slice 55: Canonical Assistant handoff and tokenized list feedback
+
+The Assistant configuration surface now sends its Automation handoff directly
+through the canonical `sceneStore.openScene` interface. The page subscribes
+only to that stable action instead of the broader scene-manager projection,
+which avoids re-rendering the configuration page for unrelated open-tab,
+active-tab, mini-app, or language changes. Scene creation, activation,
+navigation history, tab eviction, and left-navigation synchronization remain
+owned by `sceneStore`; no scene state or fallback rule was duplicated in the
+page.
+
+The handoff presentation is flattened into the existing persona document
+section instead of rendering a nested card. Its title, single-line description,
+and compact action use workspace typography, spacing, focus, hover, active, and
+reduced-motion tokens. Below 640 pixels the description wraps without
+overlapping the action. Automation list rows now use the same shared motion and
+easing tokens with a quiet active surface, replacing their last hard-coded
+120-millisecond transition. A review of the Automation and Mini-app surfaces
+found their existing Minimal structure and responsive command geometry already
+aligned, so no duplicate global override or second Mini-app presentation layer
+was added.
+
+Real desktop verification covered maximized, 980-pixel, and 760-pixel windows,
+keyboard focus on the handoff action, and a real UI Automation invocation into
+the Automation week view. A stale hot-module session briefly showed a selected
+Assistant tab beside old Automation content; that state was discarded. The
+desktop was restarted cleanly and the full Assistant-to-Automation path was
+repeated before accepting the result.
+
+The focused presentation contracts pass 21 tests, and the complete frontend
+suite passes 408 files and 2,337 tests. TypeScript, repository hygiene, core
+boundaries, theme colors, theme visual governance, the 15-test i18n contract,
+and scoped ESLint for the changed TypeScript files pass. The independent i18n
+source audit still reports the existing 31 short-drama CJK candidate lines
+against its budget of 25. A full ESLint scan was not counted as a passing gate:
+after an accidental duplicate invocation was removed, the remaining scan still
+held roughly 1.5 GB and several logical cores for minutes without incremental
+output, so it was stopped rather than degrading the live desktop; the
+pre-existing tool-card findings remain tracked by Slice 54.
+
+The dedicated production artifact transforms 7,471 modules and passes the
+frozen performance budget with 2,337,056 raw JavaScript bytes, 632,617 raw CSS
+bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
+monitor deltas remain non-blocking at +2,396 JavaScript bytes and +492 CSS
+bytes. An eight-second idle sample measured the desktop at approximately 0.39%
+of one logical core and 87.1 MB working set while the active Vite process
+remained at 0% CPU. The temporary production artifact was removed after
+verification.

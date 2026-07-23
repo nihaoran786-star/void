@@ -447,20 +447,25 @@
     }
 
     .acp-section__schedule-body {
-      padding: var(--workspace-space-3);
+      padding: 0 var(--workspace-space-3) var(--workspace-space-3);
     }
 
     .acp-automation-entry {
       align-items: center;
       gap: var(--workspace-space-3);
-      padding: var(--workspace-space-3);
-      background: var(--workspace-surface-panel);
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
+      padding: var(--workspace-space-2) 0 0;
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .acp-automation-entry > div {
+      min-width: 0;
+      flex: 1 1 auto;
     }
 
     .acp-automation-entry__title {
-      margin-bottom: var(--workspace-space-1);
+      margin-bottom: 0;
       color: var(--workspace-text-primary);
       font-size: var(--workspace-font-size-label);
       font-weight: var(--workspace-font-weight-strong);
@@ -470,11 +475,38 @@
       color: var(--workspace-text-muted);
       font-size: var(--workspace-font-size-meta);
       line-height: var(--workspace-line-height-meta);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .acp-automation-entry .btn {
+    .acp-automation-entry__action.btn {
       flex-shrink: 0;
+      min-height: var(--workspace-icon-target);
+      padding-inline: var(--workspace-space-2);
+      color: var(--workspace-text-secondary);
+      background: transparent;
+      border-color: transparent;
+      border-radius: var(--workspace-radius-control);
       white-space: nowrap;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &:hover:not(:disabled) {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+      }
+
+      &:active:not(:disabled) {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-active);
+      }
+
+      &:focus-visible {
+        outline: 1px solid var(--workspace-focus-ring-subtle);
+        outline-offset: -1px;
+      }
     }
 
     .acp-persona-editor {
@@ -549,6 +581,14 @@
       .acp-persona-doc-row__file {
         display: none;
       }
+
+      .acp-automation-entry {
+        align-items: flex-start;
+      }
+
+      .acp-automation-entry p {
+        white-space: normal;
+      }
     }
   }
 
@@ -559,7 +599,8 @@
       .acp-left-header__name,
       .acp-left-header__meta-tag,
       .aqi__box,
-      .acp-persona-doc-row {
+      .acp-persona-doc-row,
+      .acp-automation-entry__action.btn {
         animation: none;
         transition: none;
       }

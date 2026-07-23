@@ -27,7 +27,7 @@ describe('Nursery Minimal presentation contract', () => {
       .not.toContain('NurseryView.minimal.scss');
   });
 
-  it('keeps assistant behavior and pre-existing Classic presentation unchanged', () => {
+  it('keeps gallery behavior and pre-existing Classic presentation unchanged', () => {
     const projectionFreeClassic = readSource('./NurseryView.scss')
       .replace("@use './NurseryView.minimal' as minimal;\n", '')
       .replace('\n\n@include minimal.styles;\n', '\n');
@@ -41,12 +41,20 @@ describe('Nursery Minimal presentation contract', () => {
     expect(sha256('./NurseryGallery.tsx')).toBe(
       '591398a73f4b41e2e751a76655e647591345bcfcad6ba655daba5c18d131f816',
     );
-    expect(sha256('./AssistantConfigPage.tsx')).toBe(
-      '9485381f0b118a2518a92b71f9fd33f1f79e7a9a304582a685d565abf2f021c9',
-    );
     expect(sha256('./AssistantQuickInput.tsx')).toBe(
       'cc5ee4a14460bdea0e7b582634b8fba729364d6c18b24fba0e4829257568c54d',
     );
+  });
+
+  it('routes the Automation handoff through the canonical scene interface', () => {
+    const assistantConfig = readSource('./AssistantConfigPage.tsx');
+
+    expect(assistantConfig).toContain(
+      "const openScene = useSceneStore((state) => state.openScene);",
+    );
+    expect(assistantConfig).toContain("openScene('automation');");
+    expect(assistantConfig).toContain('onClick={handleOpenAutomation}');
+    expect(assistantConfig).not.toContain('useSceneManager');
   });
 
   it('scopes all presentation changes to Minimal Nursery surfaces', () => {
@@ -96,7 +104,10 @@ describe('Nursery Minimal presentation contract', () => {
 
   it('keeps the Automation handoff action on one line at narrow panel widths', () => {
     expect(source).toMatch(
-      /\.acp-automation-entry \.btn \{[\s\S]*?flex-shrink: 0;[\s\S]*?white-space: nowrap;/,
+      /\.acp-automation-entry__action\.btn \{[\s\S]*?flex-shrink: 0;[\s\S]*?white-space: nowrap;/,
+    );
+    expect(source).toMatch(
+      /\.acp-automation-entry \{[\s\S]*?background: transparent;[\s\S]*?border: 0;[\s\S]*?border-radius: 0;/,
     );
     expect(source).toMatch(
       /\.acp-left-header__meta \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?overflow: hidden;/,
