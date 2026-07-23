@@ -595,7 +595,7 @@ describe('Session usage report UI components', () => {
       .toContain('tool calls whose result was unsuccessful');
   });
 
-  it('offers section detail jumps when summary lists are truncated', () => {
+  it('keeps verbose model, tool, and file rows behind the details action', () => {
     const onOpenDetails = vi.fn();
     const report = usageReport({
       tools: Array.from({ length: 4 }, (_, index) => ({
@@ -630,23 +630,17 @@ describe('Session usage report UI components', () => {
       />
     );
 
-    expect(container.textContent).toContain('View all 4');
-    expect(container.textContent).toContain('View all 5');
+    expect(container.textContent).not.toContain('Tool 4');
+    expect(container.textContent).not.toContain('src/file-5.ts');
 
-    const toolsButton = container.querySelector('button[aria-label="Open Tools details"]');
+    const detailsButton = container.querySelector('button[aria-label="Open details"]');
     act(() => {
-      toolsButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      detailsButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
     });
-    expect(onOpenDetails).toHaveBeenCalledWith(report, 'tools');
-
-    const filesButton = container.querySelector('button[aria-label="Open Files details"]');
-    act(() => {
-      filesButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
-    expect(onOpenDetails).toHaveBeenCalledWith(report, 'files');
+    expect(onOpenDetails).toHaveBeenCalledWith(report);
   });
 
-  it('uses semantic file diff colors on the chat card summary', () => {
+  it('renders a compact token composition graphic from the session totals', () => {
     render(
       <SessionUsageReportCard
         report={usageReport()}
@@ -654,11 +648,12 @@ describe('Session usage report UI components', () => {
       />
     );
 
-    expect(container.querySelector('.session-usage-report-card__file-stat--added')?.textContent).toBe('+4');
-    expect(container.querySelector('.session-usage-report-card__file-stat--deleted')?.textContent).toBe('-2');
+    expect(container.querySelector('.session-usage-report-card__token-flow-input')).not.toBeNull();
+    expect(container.querySelector('.session-usage-report-card__token-flow-output')).not.toBeNull();
+    expect(container.querySelectorAll('.session-usage-report-card__time-row')).toHaveLength(3);
   });
 
-  it('keeps chat card file names visible and labels model tokens', () => {
+  it('keeps verbose file paths and model rows out of the compact chat card', () => {
     dom.window.localStorage.setItem(USAGE_EXPORT_REDACT_PATHS_STORAGE_KEY, 'false');
     const longPath = 'src/features/session-usage/reports/components/very/deeply/nested/UsageReportCardFilePathThatWouldNormallyOverflow.tsx';
     const fileName = 'UsageReportCardFilePathThatWouldNormallyOverflow.tsx';
@@ -698,11 +693,11 @@ describe('Session usage report UI components', () => {
     );
 
     const fileNameLabel = container.querySelector('.session-usage-report-card__mini-list-file-name');
-    expect(fileNameLabel?.textContent).toBe(fileName);
+    expect(fileNameLabel).toBeNull();
+    expect(container.textContent).not.toContain(fileName);
     expect(container.textContent).not.toContain('src/features');
-    expect(container.textContent).not.toContain('/.../');
-    expect(container.querySelector(`[data-tooltip="${longPath}"]`)).not.toBeNull();
-    expect(container.textContent).toContain('1,500 tokens');
+    expect(container.querySelector(`[data-tooltip="${longPath}"]`)).toBeNull();
+    expect(container.textContent).toContain('1,500');
   });
 
   it('syncs path redaction between the chat card and detail panel', () => {
@@ -766,7 +761,7 @@ describe('Session usage report UI components', () => {
     expect(container.querySelector('[data-tooltip="src/private/secret.ts"]')).not.toBeNull();
   });
 
-  it('does not append a token unit when chat card model tokens are unavailable', () => {
+  it('does not render unavailable per-model rows on the compact card', () => {
     const report = usageReport({
       models: [
         {
@@ -787,17 +782,18 @@ describe('Session usage report UI components', () => {
       />
     );
 
-    expect(container.textContent).toContain('Unavailable');
+    expect(container.textContent).not.toContain('legacy-model');
     expect(container.textContent).not.toContain('Unavailable tokens');
     expect(container.textContent).not.toContain('Unavailable Token');
   });
 
-  it('keeps the compact usage card metrics text-only', () => {
+  it('combines compact text metrics with lightweight CSS graphics', () => {
     render(<SessionUsageReportCard report={usageReport()} markdown="## Session Usage" />);
 
-    expect(container.querySelectorAll('.session-usage-report-card__metric')).toHaveLength(6);
+    expect(container.querySelectorAll('.session-usage-report-card__metric')).toHaveLength(5);
     expect(container.querySelector('.session-usage-report-card__metric svg')).toBeNull();
     expect(container.querySelector('.session-usage-report-card__gauge')).toBeNull();
+    expect(container.querySelector('.session-usage-report-card__token-flow')).not.toBeNull();
   });
 
   it('keeps live context usage as a text metric without restoring the gauge', () => {
@@ -810,7 +806,7 @@ describe('Session usage report UI components', () => {
     );
 
     const metrics = container.querySelectorAll('.session-usage-report-card__metric');
-    expect(metrics).toHaveLength(7);
+    expect(metrics).toHaveLength(6);
     expect(metrics[0]?.textContent).toContain('Context');
     expect(metrics[0]?.textContent).toContain('8%');
     expect(container.querySelector('.session-usage-report-card__metrics--with-context')).not.toBeNull();
@@ -1218,7 +1214,7 @@ describe('Session usage report UI components', () => {
     expect(container.textContent).toContain('File scope');
   });
 
-  it('explains inferred legacy model labels on the card and detail panel', () => {
+  it('keeps inferred legacy model explanations in the detail panel', () => {
     const report = usageReport({
       models: [
         {
@@ -1240,8 +1236,7 @@ describe('Session usage report UI components', () => {
       />
     );
 
-    expect(container.textContent).toContain('gpt-5.4 (inferred)');
-    expect(container.querySelector('[data-tooltip="Inferred from the session model setting."]')).not.toBeNull();
+    expect(container.textContent).not.toContain('gpt-5.4 (inferred)');
 
     render(<SessionUsagePanel report={report} markdown="## Session Usage" />);
     const modelTab = Array.from(container.querySelectorAll('.session-usage-panel__tab'))

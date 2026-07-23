@@ -1035,6 +1035,7 @@ pub async fn run() {
             api::insights_api::load_insights_report,
             api::insights_api::has_insights_data,
             api::insights_api::cancel_insights_generation,
+            api::account_usage_api::get_account_usage_overview,
             // SSH Remote API
             api::ssh_api::ssh_list_saved_connections,
             api::ssh_api::ssh_save_connection,

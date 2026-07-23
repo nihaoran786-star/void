@@ -1,5 +1,5 @@
 .account-settings {
-  --config-page-content-max-width: 620px;
+  --config-page-content-max-width: 860px;
 }
 
 .account-settings__identity {
@@ -115,6 +115,133 @@
   animation: account-settings-spin 900ms linear infinite;
 }
 
+.account-settings__usage {
+  padding: 4px 12px 14px;
+}
+
+.account-settings__metric-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: 70px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+
+.account-settings__usage-metric {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 8px;
+  text-align: center;
+
+  &:not(:first-child) {
+    border-left: 1px solid var(--border-subtle);
+  }
+
+  strong {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-normal);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.25;
+  }
+
+  span {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.account-settings__activity {
+  min-width: 0;
+  padding: 22px 0 0;
+}
+
+.account-settings__activity-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+
+  strong {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+  }
+
+  span {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+}
+
+.account-settings__heatmap {
+  display: grid;
+  grid-template-rows: repeat(7, 9px);
+  grid-auto-flow: column;
+  grid-auto-columns: 9px;
+  gap: 3px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.account-settings__heat-cell {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
+}
+
+.account-settings__heat-cell--empty {
+  visibility: hidden;
+}
+
+.account-settings__heat-cell--1 {
+  background: color-mix(in srgb, var(--color-info) 22%, var(--element-bg-soft));
+}
+
+.account-settings__heat-cell--2 {
+  background: color-mix(in srgb, var(--color-info) 42%, var(--element-bg-soft));
+}
+
+.account-settings__heat-cell--3 {
+  background: color-mix(in srgb, var(--color-info) 65%, var(--element-bg-soft));
+}
+
+.account-settings__heat-cell--4 {
+  background: var(--color-info);
+}
+
+.account-settings__usage-state {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.account-settings__usage-state--error {
+  color: var(--color-warning);
+}
+
+.account-settings__empty-hint {
+  margin: 10px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 @keyframes account-settings-spin {
   to {
     transform: rotate(360deg);
@@ -129,6 +256,23 @@
   .account-settings__identity > .btn {
     grid-column: 1 / -1;
     justify-self: stretch;
+  }
+
+  .account-settings__metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-settings__usage-metric {
+    border-bottom: 1px solid var(--border-subtle);
+
+    &:nth-child(odd) {
+      border-left: 0;
+    }
+
+    &:last-child {
+      grid-column: 1 / -1;
+      border-bottom: 0;
+    }
   }
 }
 

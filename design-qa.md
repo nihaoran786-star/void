@@ -1,68 +1,75 @@
-# Design QA: Session usage receipt
+# Design QA: Account and session usage graphics
 
 ## Scope
 
-- Source visual truth: the user-provided per-session report screenshot
-- Aesthetic reference only: the user-provided global account analytics screenshot
-- Implementation:
+- Source visual truth: the user-provided personal account analytics screenshot.
+- Account implementation:
+  - `src/web-ui/src/app/scenes/settings/components/AccountSettings.tsx`
+  - `src/web-ui/src/app/scenes/settings/components/AccountSettings.scss`
+- Session implementation:
   - `src/web-ui/src/flow_chat/components/usage/SessionUsageReportCard.tsx`
   - `src/web-ui/src/flow_chat/components/usage/SessionUsageReportCard.scss`
-- Automated contract:
-  - `src/web-ui/src/flow_chat/components/usage/SessionUsageComponents.test.tsx`
+- Data boundary:
+  - `src/apps/desktop/src/api/account_usage_api.rs`
+  - `src/web-ui/src/app/account-usage/`
 
-The first source is the existing per-session report and defines the state and
-content that must remain available. The second source is a global account
-analytics page, so only its typography, continuous metric strip, spacing, and
-low-noise visual hierarchy are applicable to this component.
+The reference is a personal account page. It defines the continuous metric
+strip, calendar-style activity graphic, compact type scale, and low-noise
+hierarchy. The session receipt borrows that visual grammar but continues to use
+only the current session report.
 
-## Capture conditions
+## Capture evidence
 
 - Theme: light
-- State: completed partial session report with live context usage
-- Desktop window capture: `1215 × 809`
-- Full-view evidence: `session-usage-receipt-window.png` in the task's local
-  visualization output
-- Focused evidence: `session-usage-receipt-pass1-focus.png` in the same local
-  visualization output
+- Account state: anonymous identity with real local usage records
+- Session state: completed partial report with live context usage
+- Account capture: `account-usage-final-v2.png` in the task visualization output
+- Session capture: `chat-current.png` in the task visualization output
+- Combined source/implementation comparison:
+  `account-reference-comparison.png` in the task visualization output
 
-The desktop window was captured at its actual rendered size. The focused image
-is a crop for detail inspection and is not treated as a separate viewport.
+The captures come from the running Tauri desktop application. The combined
+comparison was generated from the user reference and the actual account-page
+capture; it is not a second simulated viewport.
 
-## Fidelity surfaces
+## Fidelity review
 
-| Surface | Source requirement | Implementation result |
+| Surface | Reference requirement | Implementation result |
 | --- | --- | --- |
-| Information identity | Per-session duration, tokens, cache, files, errors, model and tool details remain available | Preserved |
-| Metric hierarchy | Values lead, muted labels follow | Matched |
-| Metric container | One continuous low-noise strip with subtle separators | Matched |
-| Context usage | Remains visible when live context data exists | Preserved as a text metric |
-| Detail access | Copy, redaction and detail controls remain functional | Preserved |
-| Performance | No decorative runtime work or new dependency | Improved by removing the animated SVG gauge |
+| Page identity | Account/profile context above analytics | Preserved with anonymous/authenticated states |
+| Metric hierarchy | Five continuous, evenly separated metrics | Matched |
+| Activity | Calendar-style token activity with intensity levels | Matched using 365 days of real records |
+| Typography | Compact values and muted support labels | Matched to the repository type scale |
+| Session receipt | Same visual language with less text | Matched with token and time composition graphics |
+| Detail access | Rich model/tool/file information remains available | Preserved behind the existing Details action |
+| Empty/error data | No fabricated chart data | Explicit loading, empty, invalid, and unavailable states |
+| Performance | Lightweight static graphics | CSS grid and bars only; no chart library or animation |
 
-## Findings and fixes
+## Findings and corrections
 
-1. **P1 — The gauge competed with the actual session facts.**
-   Removed the SVG ring and represented context usage in the same text metric
-   grammar as the other facts.
-2. **P2 — The previous metric arrangement read like nested dashboard cards.**
-   Replaced it with a continuous horizontal strip and restrained separators.
-3. **P2 — The compact card could silently lose live context information.**
-   Added an explicit seven-metric state and a component contract test.
-4. **P3 — Decorative entrance motion added work without communicating state.**
-   Removed the report-card entrance animation.
+1. **P1 — The initial account activity color was too close to the neutral
+   surface.** Data cells now use the existing semantic information color at
+   four intensities.
+2. **P1 — The session card repeated verbose model, tool, and file lists.**
+   Those rows remain in Details; the inline receipt now leads with five or six
+   metrics and two compact graphics.
+3. **P2 — Full time labels truncated in the narrow session visualization.**
+   The final implementation uses short localized labels for model, tools, and
+   recorded time.
+4. **P2 — The reference includes metrics that this application does not
+   currently record globally.** They were not simulated. The account strip
+   uses total tokens, daily peak, active days, current streak, and longest
+   streak.
 
-## Verification history
+## Verification
 
-- Pass 1: compared the original per-session report with the rendered desktop
-  implementation and used the global analytics screenshot only as a style
-  reference.
-- Automated component contract: 39 tests passed.
+- Account and session component tests: 44 passed.
+- Rust account-usage aggregation test: passed.
 - Web TypeScript check: passed.
-- Theme color contract: passed with zero undefined variables.
-- Theme visual contract: passed.
+- Core boundary check: passed.
+- Theme color and visual-contract checks: passed.
+- i18n contract test: passed.
+- Full i18n audit retains the known short-drama hardcoded-CJK baseline failure;
+  this change adds no CJK source candidate.
 
-## Final result
-
-Passed. No open P0, P1, or P2 visual-fidelity issue is attributable to this
-change. Global usage analytics and account/profile settings remain separate
-future modules and were not simulated inside the session receipt.
+final result: passed

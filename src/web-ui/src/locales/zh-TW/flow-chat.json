@@ -161,6 +161,15 @@
       "errors": "錯誤",
       "errorRate": "錯誤率"
     },
+    "visuals": {
+      "tokenFlow": "Token 構成",
+      "tokenFlowAriaLabel": "輸入與輸出 Token 構成圖",
+      "cacheShare": "快取 {{value}}%",
+      "timeProfile": "耗時構成",
+      "model": "模型",
+      "tool": "工具",
+      "active": "記錄"
+    },
     "sections": {
       "models": "模型",
       "tools": "工具",

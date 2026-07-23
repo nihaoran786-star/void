@@ -63,6 +63,26 @@
       "title": "Profile",
       "description": "Your profile and sync status will appear here after sign-in."
     },
+    "usage": {
+      "title": "Usage overview",
+      "description": "Based on real local token records and independent of sign-in.",
+      "loading": "Loading usage records",
+      "empty": "Activity will appear here after your first AI session.",
+      "activityTitle": "Token activity",
+      "activityRange": "Last 365 days",
+      "activityAriaLabel": "Token activity heatmap for the last 365 days",
+      "metrics": {
+        "totalTokens": "Total tokens",
+        "peakTokens": "Daily peak",
+        "activeDays": "Active days",
+        "currentStreak": "Current streak",
+        "longestStreak": "Longest streak"
+      },
+      "errors": {
+        "unavailable": "Local usage records are temporarily unavailable.",
+        "invalid_data": "Usage records have an invalid format."
+      }
+    },
     "states": {
       "anonymous": "Not signed in",
       "anonymousHint": "Sign in securely using your system browser.",

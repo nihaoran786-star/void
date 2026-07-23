@@ -243,14 +243,14 @@
 
   &__metrics {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     min-width: 0;
     padding: 12px 0;
     border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
     border-bottom: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
 
     &--with-context {
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
     }
   }
 
@@ -299,148 +299,122 @@
     }
   }
 
-  &__lists {
+  &__visuals {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px 16px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 24px;
+    padding-top: 14px;
   }
 
-  &__mini-list {
+  &__visual {
     min-width: 0;
-    padding-top: 8px;
-    border-top: 1px solid color-mix(in srgb, var(--border-base) 42%, transparent);
   }
 
-  &__mini-list-header {
+  &__visual-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 10px;
+    margin-bottom: 8px;
     color: var(--color-text-muted);
-  }
-
-  &__mini-list-title {
-    min-width: 0;
     font-size: var(--flowchat-font-size-xs);
-    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
 
-  &__mini-list-more {
-    display: inline-flex;
+  &__token-flow {
+    display: flex;
+    width: 100%;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--element-bg-soft);
+  }
+
+  &__token-flow-input,
+  &__token-flow-output {
+    display: block;
+    min-width: 0;
+  }
+
+  &__token-flow-input {
+    background: color-mix(in srgb, var(--color-info) 78%, transparent);
+  }
+
+  &__token-flow-output {
+    background: color-mix(in srgb, var(--color-info) 28%, var(--element-bg-soft));
+  }
+
+  &__legend {
+    display: flex;
     align-items: center;
-    gap: 2px;
-    flex: 0 0 auto;
-    min-width: 0;
-    height: 20px;
-    padding: 0 4px;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--color-text-secondary);
+    gap: 10px;
+    margin-top: 7px;
+    color: var(--color-text-muted);
     font-size: var(--flowchat-font-size-xs);
-    cursor: pointer;
 
-    &:hover {
-      color: var(--color-text-primary);
-      background: color-mix(in srgb, var(--element-bg-soft) 72%, transparent);
+    > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
     }
+  }
 
-    &:focus-visible {
-      outline: 2px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
-      outline-offset: 2px;
-    }
+  &__legend-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+  }
 
-    span {
+  &__legend-dot--input {
+    background: color-mix(in srgb, var(--color-info) 78%, transparent);
+  }
+
+  &__legend-dot--output {
+    background: color-mix(in srgb, var(--color-info) 28%, var(--element-bg-soft));
+  }
+
+  &__time-profile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__time-row {
+    display: grid;
+    grid-template-columns: auto minmax(42px, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-muted);
+    font-size: var(--flowchat-font-size-xs);
+
+    > span {
+      width: 52px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    svg {
-      flex: 0 0 auto;
-    }
-  }
-
-  &__mini-list-empty {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-height: 28px;
-    padding-top: 4px;
-    color: var(--color-text-muted);
-    font-size: var(--flowchat-font-size-xs);
-
-    strong {
+    > strong {
+      min-width: 48px;
       color: var(--color-text-secondary);
-      font-weight: 500;
-    }
-
-    span {
-      line-height: var(--flowchat-compact-line-height, 1.32);
+      font-weight: 400;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
     }
   }
 
-  &__mini-list-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "label value"
-      "detail detail";
-    gap: 1px 8px;
-    min-width: 0;
-    padding: 5px 0;
-    font-size: var(--flowchat-font-size-xs);
-
-    & + & {
-      border-top: 1px solid color-mix(in srgb, var(--border-base) 38%, transparent);
-    }
-  }
-
-  &__mini-list-label {
-    grid-area: label;
-    min-width: 0;
-    color: var(--color-text-primary);
+  &__time-track {
+    height: 5px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    border-radius: 999px;
+    background: var(--element-bg-soft);
 
-    &--help {
-      text-decoration: underline;
-      text-decoration-style: dashed;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 3px;
-      cursor: help;
-    }
-  }
-
-  &__mini-list-file-name {
-    grid-area: label;
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-text-primary);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  &__mini-list-value {
-    grid-area: value;
-    color: var(--color-text-secondary);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  &__mini-list-detail {
-    grid-area: detail;
-    max-width: 100%;
-    color: var(--color-text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    &--help {
-      text-decoration: underline;
-      text-decoration-style: dashed;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 3px;
-      cursor: help;
+    > i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: color-mix(in srgb, var(--color-info) 48%, transparent);
     }
   }
 
@@ -466,8 +440,9 @@
       }
     }
 
-    &__lists {
+    &__visuals {
       grid-template-columns: 1fr;
+      gap: 14px;
     }
   }
 
@@ -517,22 +492,4 @@
     }
   }
 
-  &__file-stat {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  &__file-stat--added {
-    color: var(--color-success);
-  }
-
-  &__file-stat--deleted {
-    color: var(--color-error);
-  }
-
-  &__file-stat-separator {
-    color: var(--color-text-muted);
-  }
 }

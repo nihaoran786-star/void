@@ -161,6 +161,15 @@
       "errors": "Errors",
       "errorRate": "Error rate"
     },
+    "visuals": {
+      "tokenFlow": "Token mix",
+      "tokenFlowAriaLabel": "Input and output token composition",
+      "cacheShare": "{{value}}% cached",
+      "timeProfile": "Time profile",
+      "model": "Model",
+      "tool": "Tools",
+      "active": "Recorded"
+    },
     "sections": {
       "models": "Models",
       "tools": "Tools",

@@ -84,6 +84,26 @@
       "title": "个人资料",
       "description": "登录后，资料与同步状态会显示在这里。"
     },
+    "usage": {
+      "title": "使用概览",
+      "description": "统计来自本机真实 Token 记录，与登录状态相互独立。",
+      "loading": "正在读取使用记录",
+      "empty": "开始一次 AI 会话后，活动会显示在这里。",
+      "activityTitle": "Token 活动",
+      "activityRange": "过去 365 天",
+      "activityAriaLabel": "过去 365 天的 Token 活动热力图",
+      "metrics": {
+        "totalTokens": "累计 Token 数",
+        "peakTokens": "单日峰值",
+        "activeDays": "活跃天数",
+        "currentStreak": "当前连续天数",
+        "longestStreak": "最长连续天数"
+      },
+      "errors": {
+        "unavailable": "暂时无法读取本机使用记录。",
+        "invalid_data": "使用记录格式无效。"
+      }
+    },
     "states": {
       "anonymous": "尚未登录",
       "anonymousHint": "通过系统浏览器安全登录。",

@@ -84,6 +84,26 @@
       "title": "個人資料",
       "description": "登入後，資料與同步狀態會顯示在這裡。"
     },
+    "usage": {
+      "title": "使用概覽",
+      "description": "統計來自本機真實 Token 記錄，與登入狀態相互獨立。",
+      "loading": "正在讀取使用記錄",
+      "empty": "開始一次 AI 會話後，活動會顯示在這裡。",
+      "activityTitle": "Token 活動",
+      "activityRange": "過去 365 天",
+      "activityAriaLabel": "過去 365 天的 Token 活動熱力圖",
+      "metrics": {
+        "totalTokens": "累計 Token 數",
+        "peakTokens": "單日峰值",
+        "activeDays": "活躍天數",
+        "currentStreak": "目前連續天數",
+        "longestStreak": "最長連續天數"
+      },
+      "errors": {
+        "unavailable": "暫時無法讀取本機使用記錄。",
+        "invalid_data": "使用記錄格式無效。"
+      }
+    },
     "states": {
       "anonymous": "尚未登入",
       "anonymousHint": "透過系統瀏覽器安全登入。",

@@ -18,22 +18,12 @@ import {
   getFileScopeHelp,
   getFileSummaryLabel,
   getUsageDisplayPathLabel,
-  getModelHelp,
-  getModelLabel,
-  getRedactedLabel,
-  getTopFiles,
-  getTopModels,
-  getTopTools,
-  getToolCategoryLabel,
   getUsageExportRedactPathsPreference,
-  getUsageFileNameFromPath,
   setUsageExportRedactPathsPreference,
   subscribeUsageExportRedactPathsPreference,
 } from './usageReportUtils';
 import type { SessionUsagePanelTab } from './sessionUsagePanelTypes';
 import './SessionUsageReportCard.scss';
-
-const SUMMARY_LIST_LIMIT = 3;
 
 interface SessionUsageReportCardProps {
   report?: SessionUsageReport;
@@ -82,16 +72,6 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
     }
   }, [onOpenDetails, report]);
 
-  const handleOpenSectionDetails = useCallback((initialTab: SessionUsagePanelTab) => (event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (report) {
-      onOpenDetails?.(report, initialTab);
-    }
-  }, [onOpenDetails, report]);
-
-  const topModels = useMemo(() => report ? getTopModels(report, SUMMARY_LIST_LIMIT) : [], [report]);
-  const topTools = useMemo(() => report ? getTopTools(report, SUMMARY_LIST_LIMIT) : [], [report]);
-  const topFiles = useMemo(() => report ? getTopFiles(report, SUMMARY_LIST_LIMIT) : [], [report]);
   const loadingHints = useMemo(() => [
     t('usage.loading.steps.collecting'),
     t('usage.loading.steps.tokens'),
@@ -182,12 +162,6 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
       help: t('usage.help.wall'),
     },
     {
-      key: 'active',
-      label: t('usage.metrics.active'),
-      value: formatUsageDuration(report.time.activeTurnMs, t),
-      help: t('usage.help.active'),
-    },
-    {
       key: 'tokens',
       label: t('usage.metrics.tokens'),
       value: formatUsageNumber(tokenTotal, t),
@@ -212,6 +186,33 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
       help: t('usage.help.errors'),
     },
   ];
+  const inputTokens = report.tokens.inputTokens ?? 0;
+  const outputTokens = report.tokens.outputTokens ?? 0;
+  const cachedTokens = report.tokens.cachedTokens ?? 0;
+  const tokenFlowTotal = Math.max(1, inputTokens + outputTokens);
+  const inputShare = Math.round((inputTokens / tokenFlowTotal) * 100);
+  const outputShare = 100 - inputShare;
+  const cacheShare = report.tokens.cacheCoverage === 'unavailable' || inputTokens <= 0
+    ? undefined
+    : Math.min(100, Math.round((cachedTokens / inputTokens) * 100));
+  const timeSegments = [
+    {
+      key: 'model',
+      label: t('usage.visuals.model'),
+      value: report.time.modelMs,
+    },
+    {
+      key: 'tool',
+      label: t('usage.visuals.tool'),
+      value: report.time.toolMs,
+    },
+    {
+      key: 'active',
+      label: t('usage.visuals.active'),
+      value: report.time.activeTurnMs,
+    },
+  ];
+  const maxTimeSegment = Math.max(1, ...timeSegments.map(segment => segment.value ?? 0));
 
   const coverageBadgeClassName =
     `session-usage-report-card__coverage session-usage-report-card__coverage--${coverageTone}` +
@@ -291,86 +292,53 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="session-usage-report-card__lists">
-        <UsageMiniList
-          title={t('usage.sections.models')}
-          showAll={buildShowAllAction({
-            totalCount: report.models.length,
-            visibleCount: topModels.length,
-            sectionLabel: t('usage.sections.models'),
-            t,
-            onClick: onOpenDetails ? handleOpenSectionDetails('models') : undefined,
-          })}
-          items={topModels.map(model => {
-            const source = model.modelIdSource ?? (model.modelId === 'unknown_model' ? 'legacy_missing' : undefined);
-            const help = getModelHelp(source, t, model.modelId);
-            const label = getModelLabel(model.modelId, t, source);
-            const tokenValue = typeof model.totalTokens === 'number' && Number.isFinite(model.totalTokens)
-              ? t('usage.card.tokens', { value: formatUsageNumber(model.totalTokens, t) })
-              : formatUsageNumber(model.totalTokens, t);
-            return {
-              label: help ? { value: label, help } : label,
-              value: tokenValue,
-              detail: t('usage.card.calls', { count: model.callCount }),
-            };
-          })}
-          emptyLabel={t('usage.empty.models')}
-          emptyDescription={t('usage.empty.modelsDescription')}
-        />
-        <UsageMiniList
-          title={t('usage.sections.tools')}
-          showAll={buildShowAllAction({
-            totalCount: report.tools.length,
-            visibleCount: topTools.length,
-            sectionLabel: t('usage.sections.tools'),
-            t,
-            onClick: onOpenDetails ? handleOpenSectionDetails('tools') : undefined,
-          })}
-          items={topTools.map(tool => ({
-            label: tool.redacted ? getRedactedLabel(t) : tool.toolName,
-            value: t('usage.card.calls', { count: tool.callCount }),
-            detail: getToolCategoryLabel(tool.category, t),
-          }))}
-          emptyLabel={t('usage.empty.tools')}
-          emptyDescription={t('usage.empty.toolsDescription')}
-        />
-        <UsageMiniList
-          title={t('usage.sections.files')}
-          showAll={buildShowAllAction({
-            totalCount: report.files.files.length,
-            visibleCount: topFiles.length,
-            sectionLabel: t('usage.sections.files'),
-            t,
-            onClick: onOpenDetails ? handleOpenSectionDetails('files') : undefined,
-          })}
-          items={topFiles.map(file => {
-            const pathLabel = getUsageDisplayPathLabel(file.pathLabel, t, {
-              redactPaths: redactExportPaths,
-              keepFileName: true,
-            });
-            return {
-              label: file.redacted
-                ? getRedactedLabel(t)
-                : {
-                  node: <UsageMiniListFilePathLabel pathLabel={file.pathLabel} />,
-                  text: pathLabel,
-                  help: pathLabel,
-                },
-              value: t('usage.card.operations', { count: file.operationCount }),
-              detail: (
-                <UsageFileChangeDetail
-                  addedLines={file.addedLines}
-                  deletedLines={file.deletedLines}
-                  t={t}
-                />
-              ),
-            };
-          })}
-          emptyLabel={getFileSummaryLabel(report, t)}
-          emptyDescription={fileMetricHelp ?? t('usage.empty.filesDescription')}
-        />
+        <div className="session-usage-report-card__visuals">
+          <div className="session-usage-report-card__visual">
+            <div className="session-usage-report-card__visual-heading">
+              <span>{t('usage.visuals.tokenFlow')}</span>
+              <span>{inputShare}% / {outputShare}%</span>
+            </div>
+            <div
+              className="session-usage-report-card__token-flow"
+              role="img"
+              aria-label={t('usage.visuals.tokenFlowAriaLabel')}
+            >
+              <span
+                className="session-usage-report-card__token-flow-input"
+                style={{ width: `${inputShare}%` }}
+              />
+              <span
+                className="session-usage-report-card__token-flow-output"
+                style={{ width: `${outputShare}%` }}
+              />
+            </div>
+            <div className="session-usage-report-card__legend">
+              <span><i className="session-usage-report-card__legend-dot session-usage-report-card__legend-dot--input" />{t('usage.table.input')}</span>
+              <span><i className="session-usage-report-card__legend-dot session-usage-report-card__legend-dot--output" />{t('usage.table.output')}</span>
+              {cacheShare !== undefined && <span>{t('usage.visuals.cacheShare', { value: cacheShare })}</span>}
+            </div>
+          </div>
+          <div className="session-usage-report-card__visual">
+            <div className="session-usage-report-card__visual-heading">
+              <span>{t('usage.visuals.timeProfile')}</span>
+            </div>
+            <div className="session-usage-report-card__time-profile">
+              {timeSegments.map(segment => {
+                const value = segment.value ?? 0;
+                const width = value > 0 ? Math.max(4, Math.round((value / maxTimeSegment) * 100)) : 0;
+                return (
+                  <div className="session-usage-report-card__time-row" key={segment.key}>
+                    <span>{segment.label}</span>
+                    <div className="session-usage-report-card__time-track" aria-hidden="true">
+                      <i style={{ width: `${width}%` }} />
+                    </div>
+                    <strong>{formatUsageDuration(value, t)}</strong>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -384,161 +352,6 @@ function UsageMetricValue({ value, help }: { value: string; help?: string }) {
   );
 
   return help ? <Tooltip content={help}>{node}</Tooltip> : node;
-}
-
-type UsageMiniListLabel = string | {
-  value: string;
-  help?: string;
-} | {
-  node: React.ReactElement;
-  text: string;
-  help?: string;
-};
-
-type UsageMiniListShowAll = {
-  label: string;
-  ariaLabel: string;
-  onClick: (event: React.MouseEvent) => void;
-};
-
-interface UsageMiniListProps {
-  title: string;
-  showAll?: UsageMiniListShowAll;
-  items: Array<{
-    label: UsageMiniListLabel;
-    value: string;
-    detail: React.ReactNode;
-  }>;
-  emptyLabel: string;
-  emptyDescription?: string;
-}
-
-function buildShowAllAction({
-  totalCount,
-  visibleCount,
-  sectionLabel,
-  t,
-  onClick,
-}: {
-  totalCount: number;
-  visibleCount: number;
-  sectionLabel: string;
-  t: (key: string, options?: Record<string, unknown>) => string;
-  onClick?: (event: React.MouseEvent) => void;
-}): UsageMiniListShowAll | undefined {
-  if (!onClick || totalCount <= visibleCount) {
-    return undefined;
-  }
-  return {
-    label: t('usage.actions.viewAllSection', { count: totalCount }),
-    ariaLabel: t('usage.actions.openSectionDetails', { section: sectionLabel }),
-    onClick,
-  };
-}
-
-function getMiniListLabelText(label: UsageMiniListLabel): string {
-  if (typeof label !== 'string' && 'node' in label) {
-    return label.text;
-  }
-  return typeof label === 'string' ? label : label.value;
-}
-
-function UsageMiniListLabelView({ label }: { label: UsageMiniListLabel }) {
-  if (typeof label !== 'string' && 'node' in label) {
-    return label.help
-      ? <Tooltip content={label.help}>{label.node}</Tooltip>
-      : label.node;
-  }
-
-  const labelText = getMiniListLabelText(label);
-  const node = (
-    <span className={`session-usage-report-card__mini-list-label${typeof label !== 'string' && label.help ? ' session-usage-report-card__mini-list-label--help' : ''}`}>
-      {labelText}
-    </span>
-  );
-
-  return typeof label !== 'string' && label.help
-    ? <Tooltip content={label.help}>{node}</Tooltip>
-    : node;
-}
-
-function UsageMiniListFilePathLabel({ pathLabel }: { pathLabel: string }) {
-  return (
-    <span className="session-usage-report-card__mini-list-file-name">
-      {getUsageFileNameFromPath(pathLabel)}
-    </span>
-  );
-}
-
-function UsageFileChangeDetail({
-  addedLines,
-  deletedLines,
-  t,
-}: {
-  addedLines?: number;
-  deletedLines?: number;
-  t: (key: string, options?: Record<string, unknown>) => string;
-}) {
-  return (
-    <span
-      className="session-usage-report-card__file-stat"
-      aria-label={`${t('usage.table.added')}: ${formatUsageNumber(addedLines, t)}, ${t('usage.table.deleted')}: ${formatUsageNumber(deletedLines, t)}`}
-    >
-      <span className="session-usage-report-card__file-stat--added">
-        {formatSignedFileLineCount(addedLines, '+', t)}
-      </span>
-      <span className="session-usage-report-card__file-stat-separator">/</span>
-      <span className="session-usage-report-card__file-stat--deleted">
-        {formatSignedFileLineCount(deletedLines, '-', t)}
-      </span>
-    </span>
-  );
-}
-
-function formatSignedFileLineCount(
-  value: number | undefined,
-  sign: '+' | '-',
-  t: (key: string, options?: Record<string, unknown>) => string
-): string {
-  const formatted = formatUsageNumber(value, t);
-  return typeof value === 'number' && Number.isFinite(value) ? `${sign}${formatted}` : formatted;
-}
-
-function UsageMiniList({ title, showAll, items, emptyLabel, emptyDescription }: UsageMiniListProps) {
-  return (
-    <div className="session-usage-report-card__mini-list">
-      <div className="session-usage-report-card__mini-list-header">
-        <div className="session-usage-report-card__mini-list-title">{title}</div>
-        {showAll && (
-          <Tooltip content={showAll.ariaLabel}>
-            <button
-              type="button"
-              className="session-usage-report-card__mini-list-more"
-              onClick={showAll.onClick}
-              aria-label={showAll.ariaLabel}
-            >
-              <span>{showAll.label}</span>
-              <ChevronRight size={12} aria-hidden />
-            </button>
-          </Tooltip>
-        )}
-      </div>
-      {items.length === 0 ? (
-        <div className="session-usage-report-card__mini-list-empty">
-          <strong>{emptyLabel}</strong>
-          {emptyDescription && <span>{emptyDescription}</span>}
-        </div>
-      ) : (
-        items.map(item => (
-          <div className="session-usage-report-card__mini-list-row" key={`${getMiniListLabelText(item.label)}-${item.value}`}>
-            <UsageMiniListLabelView label={item.label} />
-            <span className="session-usage-report-card__mini-list-value">{item.value}</span>
-            <span className="session-usage-report-card__mini-list-detail">{item.detail}</span>
-          </div>
-        ))
-      )}
-    </div>
-  );
 }
 
 SessionUsageReportCard.displayName = 'SessionUsageReportCard';
