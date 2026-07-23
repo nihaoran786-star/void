@@ -2043,3 +2043,38 @@ frozen performance budget with 2,336,225 raw JavaScript bytes, 632,617 raw CSS
 bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
 monitor deltas remain non-blocking at +1,926 JavaScript bytes and +492 CSS
 bytes. The temporary build artifact is removed after verification.
+
+### Slice 51: Cross-scene stress regression and shortcut normalization
+
+The final cross-scene pass exercised the real desktop at 1280 by 900 through
+File Viewer, Git, the footer application menu, Shell session creation, and the
+return to the active media conversation. Scene tabs, scene-specific
+navigation, the main conversation, and the short-drama preview remained
+synchronized. The Shell empty state created a live PowerShell session and
+rendered the existing terminal surface without adding a second terminal or
+navigation implementation.
+
+The shared shortcut lookup now treats `Backquote` as a physical-key
+normalization case. On shifted layouts the browser reports `event.key` as `~`,
+while the registered terminal shortcut remains `` ` ``; using
+`KeyboardEvent.code` for this one key makes the existing
+`Mod+Shift+Backquote` binding
+reachable without placing keyboard-layout logic in the Shell page. An
+event-level contract covers the shifted Windows case. No terminal lifecycle,
+process, persistence, or scene behavior changed.
+
+Two verification-only stability corrections were also made. Git branch
+selection now uses the existing transparent border slot instead of a second
+inset focus ring, preserving geometry while satisfying the single-ring visual
+contract. The workspace-media pending-target test now verifies membership
+instead of relying on millisecond timestamp order; production media ordering
+and runtime code remain unchanged.
+
+The complete frontend suite passes 406 files and 2,317 tests. TypeScript,
+repository hygiene, core boundaries, theme colors, and theme visual governance
+also pass. The dedicated production artifact transforms 7,470 modules and
+passes the frozen performance budget with 2,336,245 raw JavaScript bytes,
+632,617 raw CSS bytes, all 54 required dynamic entries, and zero unresolved
+imports. Gzip monitor deltas remain non-blocking at +1,941 JavaScript bytes and
++492 CSS bytes. The temporary production artifact is removed after
+verification.

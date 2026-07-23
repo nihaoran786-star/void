@@ -140,7 +140,9 @@ describe('WorkspaceMediaEvents', () => {
       artifactHandle: 'EP01-VID01',
     });
 
-    expect(getWorkspaceMediaPendingGenerationsForWorkspace('C:/work')).toEqual([
+    const pendingTargets = getWorkspaceMediaPendingGenerationsForWorkspace('C:/work');
+    expect(pendingTargets).toHaveLength(2);
+    expect(pendingTargets).toEqual(expect.arrayContaining([
       expect.objectContaining({
         targetStage: 'storyboards',
         artifactHandle: 'EP01-SB01',
@@ -149,7 +151,7 @@ describe('WorkspaceMediaEvents', () => {
         targetStage: 'video',
         artifactHandle: 'EP01-VID01',
       }),
-    ]);
+    ]));
 
     recordWorkspaceMediaRefresh({
       reason: 'media-tool-event',

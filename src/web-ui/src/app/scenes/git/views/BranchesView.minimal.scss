@@ -54,6 +54,7 @@
       min-height: 32px;
       padding: 4px 6px;
       margin: 0;
+      border: 1px solid transparent;
       border-radius: var(--radius-sm);
 
       &--current,
@@ -66,7 +67,7 @@
       }
 
       &--selected {
-        box-shadow: inset 0 0 0 1px var(--border-subtle);
+        border-color: var(--border-subtle);
       }
     }
 
@@ -105,7 +106,7 @@
       border-radius: var(--radius-sm);
 
       &--expanded {
-        box-shadow: inset 0 0 0 1px var(--border-subtle);
+        border-color: var(--border-subtle);
       }
     }
 

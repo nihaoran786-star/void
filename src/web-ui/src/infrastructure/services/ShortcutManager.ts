@@ -116,6 +116,10 @@ function eventKeyForLookup(event: KeyboardEvent): string {
   if (digit) return digit[1];
   const numpad = /^Numpad([1-9])$/.exec(code);
   if (numpad) return numpad[1];
+  // Shift changes event.key from ` to ~, but the registered shortcut remains
+  // the physical Backquote key. Prefer event.code so Mod+Shift+` is reachable
+  // across keyboard layouts.
+  if (code === 'Backquote') return '`';
   // Keep in sync with makeMapKey: always lower-case logical key (Tab, escape, w, etc.)
   return event.key.toLowerCase();
 }

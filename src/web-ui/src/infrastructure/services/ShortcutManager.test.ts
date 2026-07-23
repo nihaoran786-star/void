@@ -79,6 +79,25 @@ describe('ShortcutManager platform primary modifier', () => {
     expect(findInFile?.config.meta).toBeUndefined();
   });
 
+  it('normalizes shifted Backquote to the registered physical key', () => {
+    setPlatform('Win32');
+    const callback = vi.fn();
+    shortcutManager.register(
+      'scene.openTerminal',
+      { key: '`', ctrl: true, shift: true, scope: 'app', allowInInput: true },
+      callback,
+    );
+
+    dispatchScopedKey('app', {
+      key: '~',
+      code: 'Backquote',
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it('detects app-scope conflicts against scoped shortcuts', () => {
     setPlatform('Win32');
     shortcutManager.register('app.search', { key: 'k', ctrl: true, scope: 'app' }, vi.fn());
