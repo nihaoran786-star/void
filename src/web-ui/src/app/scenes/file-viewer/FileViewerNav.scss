@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/tokens.scss' as *;
+@use './FileViewerNav.minimal' as minimal;
 
 .void-file-viewer-nav {
   display: flex;
@@ -75,3 +76,5 @@
     gap: 2px;
   }
 }
+
+@include minimal.styles;

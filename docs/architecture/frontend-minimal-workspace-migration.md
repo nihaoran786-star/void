@@ -2010,3 +2010,36 @@ CSS bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
 monitor deltas remain non-blocking at +1,927 JavaScript bytes and +492 CSS
 bytes. Git remains a lazy scene chunk, and the temporary build artifact is
 removed after verification.
+
+### Slice 50: File Viewer command row and scene activation
+
+The File Viewer navigation now owns a feature-local Minimal projection. Its
+directory command row keeps the existing new-file, new-folder, refresh, and
+tree/search controls while using the shared compact type scale, neutral icon
+color, single focus ring, and reduced-motion contract. The project canvas,
+file explorer, preview/editor tabs, file loading, Markdown renderer, and
+filesystem adapters remain unchanged.
+
+Real pointer verification uncovered a state-boundary defect in the workspace
+directory action. The action activated the workspace and directly opened only
+`navSceneStore`, leaving the prior right-side scene active. This produced a
+File Viewer tree beside Git or another unrelated scene, and selecting a file
+could not reveal the file canvas. The action now calls the existing
+`sceneStore.openScene('file-viewer')` interface after workspace activation.
+`sceneStore` remains the sole owner of scene tabs and synchronizes the existing
+File Viewer navigation through the registry; no page component infers scene
+state.
+
+Manual desktop verification covered the complete pointer path from the
+workspace directory icon to the localized File Viewer tab, then from the tree
+to an `AGENTS.md` Markdown preview. The flow was repeated after a clean desktop
+restart at maximized and 1280-by-900 sizes to rule out hot-module state. The
+focused navigation, presentation, import-boundary, and registry contracts pass
+22 tests, and TypeScript, repository hygiene, core boundaries, theme colors,
+and theme visual governance pass.
+
+The dedicated production artifact transforms 7,470 modules and passes the
+frozen performance budget with 2,336,225 raw JavaScript bytes, 632,617 raw CSS
+bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
+monitor deltas remain non-blocking at +1,926 JavaScript bytes and +492 CSS
+bytes. The temporary build artifact is removed after verification.

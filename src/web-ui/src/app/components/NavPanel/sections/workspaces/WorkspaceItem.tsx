@@ -11,7 +11,7 @@ import {
   createWorktreeWorkspace,
   deleteWorktreeWorkspace,
 } from '@/infrastructure/services/business/worktreeWorkspaceService';
-import { useNavSceneStore } from '@/app/stores/navSceneStore';
+import { useSceneStore } from '@/app/stores/sceneStore';
 import { useApp } from '@/app/hooks/useApp';
 import { useGitBasicInfo } from '@/tools/git/hooks/useGitState';
 import { workspaceAPI } from '@/infrastructure/api';
@@ -74,7 +74,7 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     resetAssistantWorkspace,
   } = useWorkspaceContext();
   const { switchLeftPanelTab } = useApp();
-  const openNavScene = useNavSceneStore(s => s.openNavScene);
+  const openScene = useSceneStore(s => s.openScene);
   const { isRepository } = useGitBasicInfo(workspace.rootPath);
   const [menuOpen, setMenuOpen] = useState(false);
   const [worktreeModalOpen, setWorktreeModalOpen] = useState(false);
@@ -690,14 +690,14 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
     try {
       await handleActivate();
       switchLeftPanelTab('files');
-      openNavScene('file-viewer');
+      openScene('file-viewer');
     } catch (error) {
       notificationService.error(
         error instanceof Error ? error.message : t('nav.workspaces.revealFailed'),
         { duration: 4000 }
       );
     }
-  }, [handleActivate, openNavScene, switchLeftPanelTab, t]);
+  }, [handleActivate, openScene, switchLeftPanelTab, t]);
 
   if (workspace.workspaceKind === WorkspaceKind.Assistant) {
     return (

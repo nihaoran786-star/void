@@ -1,0 +1,49 @@
+@mixin styles {
+  .void-ui--minimal .void-file-viewer-nav {
+    font-family: var(--font-family-sans);
+
+    &__header {
+      height: 30px;
+      width: calc(100% - 8px);
+      margin-inline: 4px;
+      padding-inline: 8px 4px;
+      gap: 6px;
+      border-radius: var(--radius-sm);
+      background: var(--element-bg-soft);
+      cursor: default;
+      font-size: var(--font-size-xs);
+      transition: none;
+
+      &:hover,
+      &:active {
+        background: var(--element-bg-soft);
+      }
+    }
+
+    &__icon {
+      color: var(--color-text-secondary);
+    }
+
+    &__actions {
+      gap: 0;
+    }
+
+    button {
+      transition:
+        color 120ms ease,
+        background-color 120ms ease;
+
+      &:focus-visible {
+        outline: 1px solid color-mix(in srgb, var(--color-primary) 52%, transparent);
+        outline-offset: -1px;
+        box-shadow: none;
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .void-file-viewer-nav button {
+      transition: none;
+    }
+  }
+}
