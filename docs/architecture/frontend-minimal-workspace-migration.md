@@ -1823,3 +1823,44 @@ passes the performance budget with 2,335,875 raw JavaScript bytes, 632,617 raw
 CSS bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
 monitor deltas remain non-blocking at +1,824 JavaScript bytes and +492 CSS
 bytes.
+
+### Slice 45: Automation workspace polish
+
+The existing Automation Minimal projection now removes the page-local title
+that duplicated the active desktop tab while retaining the semantic heading in
+the DOM. Empty weekday counters are omitted and non-empty counters keep their
+numeric projection, reducing repeated copy without changing task filtering or
+calendar calculation. The week, day, month, and list controls remain in one
+compact command row with the existing progressively disclosed filters.
+
+The create-task surface is now a flat, workspace-scoped sheet. It uses compact
+30px fields, a 72px prompt editor, 28px segmented choices and actions, explicit
+single-layer active states, one subtle focus ring, a bounded internal
+scrollbar, and no entrance animation, backdrop blur, or decorative shadow.
+Secondary execution-mode and schedule explanations are omitted in Minimal;
+the labels, icons, accessible roles, workspace-required error, and creation
+validation remain available.
+
+Real 1280-by-900 verification exposed an existing coordinate-system defect:
+the viewport-centered fixed overlay could extend behind the navigation panel
+and then be clipped by the Automation scene's overflow boundary. Minimal now
+establishes the scene as the overlay containing block and positions the overlay
+absolutely inside that workspace. The dialog is centered and bounded against
+the real Automation area at both verified window sizes, while the navigation
+and desktop title bar remain outside its scrim.
+
+This slice changes only `AutomationScene.minimal.scss`, its visual contract,
+and migration evidence. It does not change `AutomationScene.tsx`,
+`AutomationHeader.tsx`, `CreateTaskDialog.tsx`, the Automation context, Flow
+Chat state projection, cron adapters, session creation, task scheduling,
+filtering, persistence, or Runtime. Manual interaction covered week/list view
+switching, filter disclosure and Escape closure, dialog open/close, execution
+mode selection, schedule selection, and responsive reflow. All 11 Automation
+test files and 44 tests pass, along with TypeScript, theme colors, theme visual
+governance, repository hygiene, and core boundaries.
+
+The production artifact transforms 7,468 modules and passes the frozen
+performance budget with 2,335,875 raw JavaScript bytes, 632,617 raw CSS bytes,
+all 54 required dynamic entries, and zero unresolved imports. Gzip monitor
+deltas remain non-blocking at +1,821 JavaScript bytes and +492 CSS bytes; the
+Automation presentation remains in its lazy feature chunk.

@@ -153,14 +153,14 @@ describe('AutomationScene minimal visual contract', () => {
     expect(dayCountRule).toContain('text-overflow: ellipsis;');
     expect(dayCountRule).toContain('white-space: nowrap;');
     expect(weekView).toContain('data-count={dayTasks.length}');
-    expect(minimalStylesheet).toContain('@media (max-width: 1100px)');
     expect(minimalStylesheet).toContain(
-      '.void-ui--minimal .week-view__day-count',
+      '.week-view__day-count {',
     );
     expect(minimalStylesheet).toContain('content: attr(data-count);');
     expect(minimalStylesheet).toContain(
       'font-size: var(--as-font-size-meta);',
     );
+    expect(minimalStylesheet).toContain("&[data-count='0'] {");
   });
 
   it('replaces fixed light calendar and detail colors in minimal mode', () => {
@@ -196,7 +196,7 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).toContain('min-height: 40px;');
     expect(stylesheet).toContain('height: auto;');
     expect(stylesheet).toContain('flex-wrap: wrap;');
-    expect(stylesheet).toContain('outline-offset: -2px;');
+    expect(stylesheet).toContain('outline-offset: -1px;');
     expect(stylesheet).toContain('&__view-switcher {');
     expect(stylesheet).toContain('border-color: transparent;');
     expect(stylesheet).toContain('background: transparent;');
@@ -222,8 +222,43 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).toContain('.task-detail-panel__priority-dot {');
     expect(stylesheet).toContain('.task-detail-panel__artifact-icon {');
     expect(stylesheet).toContain('.task-detail-panel__msg-avatar {');
-    expect(hiddenDeclarations).toHaveLength(9);
+    expect(hiddenDeclarations).toHaveLength(11);
     expect(stylesheet).not.toMatch(/\bvisibility:\s*hidden\b/);
+  });
+
+  it('keeps the create dialog compact, flat, and single-ring in minimal mode', () => {
+    const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
+
+    for (const declaration of [
+      '.create-task-dialog {',
+      'width: min(420px, calc(100% - 16px));',
+      'max-height: calc(100% - 16px);',
+      'contain: layout paint style;',
+      '&__overlay {',
+      'position: absolute;',
+      '&__head {',
+      'min-height: 40px;',
+      '&__body {',
+      'scrollbar-width: thin;',
+      '&__textarea {',
+      'min-height: 72px;',
+      '&__mode-option {',
+      '&__mode-option--active {',
+      '&__mode-slider + .create-task-dialog__hint,',
+      '&__schedule-hint {',
+      '&__schedule-card {',
+      '&__schedule-card--active {',
+      '&__priority-option {',
+      '&__foot {',
+    ]) {
+      expect(stylesheet).toContain(declaration);
+    }
+
+    expect(stylesheet).toMatch(
+      /&__input,[\s\S]*?&:focus \{[\s\S]*?box-shadow: none;/,
+    );
+    expect(stylesheet).not.toMatch(/(?:linear|radial|conic)-gradient/i);
+    expect(stylesheet).not.toMatch(/\b(?:translate|scale)\s*\(/i);
   });
 
   it('keeps the quiet grid and flattened detail sheet presentation-only', () => {

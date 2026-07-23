@@ -4,13 +4,16 @@
   .void-ui--minimal .automation-scene {
     @include automation-theme.workspaceTokens;
 
+    position: relative;
+    isolation: isolate;
     font-family: var(--workspace-font-family);
     font-size: var(--workspace-font-size-control);
     line-height: var(--workspace-line-height-control);
 
     :where(button, input, select, summary, textarea):focus-visible {
-      outline: 2px solid var(--workspace-focus-ring);
-      outline-offset: -2px;
+      outline: 1px solid var(--workspace-focus-ring-subtle);
+      outline-offset: -1px;
+      box-shadow: none;
     }
   }
 
@@ -33,9 +36,15 @@
     }
 
     &__title {
-      flex: 0 0 auto;
-      font-size: var(--workspace-font-size-control);
-      font-weight: var(--workspace-font-weight-strong);
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
     }
 
     &__nav {
@@ -132,7 +141,7 @@
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background: var(--workspace-surface-raised);
-      box-shadow: var(--workspace-shadow-raised);
+      box-shadow: none;
     }
 
     &__today-btn,
@@ -311,6 +320,16 @@
 
     .week-view__day-count {
       margin-top: 0;
+      font-size: 0;
+
+      &::before {
+        content: attr(data-count);
+        font-size: var(--as-font-size-meta);
+      }
+
+      &[data-count='0'] {
+        display: none;
+      }
     }
 
     .month-view__day-num {
@@ -607,15 +626,173 @@
     .create-task-dialog__mode-option--active {
       box-shadow: none;
     }
-  }
 
-  @media (max-width: 1100px) {
-    .void-ui--minimal .week-view__day-count {
-      font-size: 0;
+    .create-task-dialog {
+      width: min(420px, calc(100% - 16px));
+      max-height: calc(100% - 16px);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      box-shadow: none;
+      animation: none;
+      contain: layout paint style;
 
-      &::before {
-        content: attr(data-count);
-        font-size: var(--as-font-size-meta);
+      &__overlay {
+        position: absolute;
+        background: var(--workspace-overlay-scrim);
+        padding: var(--workspace-space-2);
+        box-sizing: border-box;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        animation: none;
+      }
+
+      &__head {
+        min-height: 40px;
+        padding: var(--workspace-space-1) var(--workspace-space-3);
+      }
+
+      &__title {
+        font-size: var(--workspace-font-size-body);
+        line-height: var(--workspace-line-height-control);
+      }
+
+      &__close {
+        width: var(--workspace-icon-target);
+        height: var(--workspace-icon-target);
+      }
+
+      &__body {
+        gap: var(--workspace-space-2);
+        padding: var(--workspace-space-3);
+        scrollbar-color: var(--workspace-border-strong) transparent;
+        scrollbar-width: thin;
+      }
+
+      &__field {
+        gap: var(--workspace-space-1);
+      }
+
+      &__label {
+        color: var(--workspace-text-muted);
+        font-size: var(--workspace-font-size-meta);
+        line-height: var(--workspace-line-height-meta);
+      }
+
+      &__input,
+      &__select,
+      &__textarea {
+        height: 30px;
+        padding-inline: var(--workspace-space-2);
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-canvas);
+        border-color: var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        font-size: var(--workspace-font-size-label);
+        box-shadow: none;
+        transition:
+          background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+          border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+          color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+        &:focus {
+          border-color: var(--workspace-border-strong);
+          box-shadow: none;
+        }
+      }
+
+      &__textarea {
+        min-height: 72px;
+        padding-block: var(--workspace-space-2);
+        line-height: var(--workspace-line-height-control);
+      }
+
+      &__hint,
+      &__schedule-hint {
+        color: var(--workspace-text-muted);
+        font-size: var(--workspace-font-size-meta);
+        line-height: var(--workspace-line-height-meta);
+      }
+
+      &__inline-action,
+      &__btn {
+        height: 28px;
+        padding-inline: var(--workspace-space-2);
+        border-radius: var(--workspace-radius-control);
+        font-size: var(--workspace-font-size-label);
+      }
+
+      &__mode-slider {
+        gap: 2px;
+        padding: 2px;
+        border-color: var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        background: var(--workspace-surface-panel);
+      }
+
+      &__mode-slider + .create-task-dialog__hint,
+      &__schedule-hint {
+        display: none;
+      }
+
+      &__mode-option {
+        height: 28px;
+        padding-inline: var(--workspace-space-2);
+        border-radius: var(--workspace-radius-control);
+        box-shadow: none;
+
+        span {
+          font-size: var(--workspace-font-size-label);
+        }
+      }
+
+      &__mode-option--active {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-active);
+        box-shadow: none;
+      }
+
+      &__schedule-grid,
+      &__priority-grid {
+        gap: var(--workspace-space-1);
+      }
+
+      &__schedule-card {
+        gap: 2px;
+        padding: var(--workspace-space-1) var(--workspace-space-2);
+        border-color: var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+        background: var(--workspace-surface-canvas);
+      }
+
+      &__schedule-card--active {
+        border-color: var(--workspace-border-strong);
+        background: var(--workspace-surface-active);
+      }
+
+      &__schedule-head {
+        gap: var(--workspace-space-1);
+        font-size: var(--workspace-font-size-label);
+      }
+
+      &__priority-option {
+        height: 28px;
+        border-color: var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-control);
+
+        span,
+        small {
+          font-size: var(--workspace-font-size-meta);
+        }
+      }
+
+      &__row {
+        gap: var(--workspace-space-2);
+      }
+
+      &__foot {
+        gap: var(--workspace-space-1);
+        padding: var(--workspace-space-2) var(--workspace-space-3);
+        background: var(--workspace-surface-raised);
       }
     }
   }
@@ -647,6 +824,23 @@
 
       &__clear-btn {
         grid-column: auto;
+      }
+    }
+
+    .void-ui--minimal .create-task-dialog {
+      width: calc(100% - 8px);
+      max-height: calc(100% - 8px);
+
+      &__schedule-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      &__priority-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      &__row {
+        flex-wrap: wrap;
       }
     }
   }
