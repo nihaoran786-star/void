@@ -1,5 +1,6 @@
 @use '../../../component-library/styles/tokens' as *;
 @use '../../../component-library/styles/btn-primary-tokens.scss' as btn-primary;
+@use './SkillsScene.minimal' as minimal;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Root wrapper
@@ -1232,3 +1233,5 @@
     transition: none;
   }
 }
+
+@include minimal.styles;

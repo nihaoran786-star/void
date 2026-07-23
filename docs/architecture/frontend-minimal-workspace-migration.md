@@ -1701,3 +1701,31 @@ The projection is scoped below `.void-ui--minimal .gallery-layout`, so feature
 detail modals, Review Team summaries, partial class consumers, and Classic
 presentation do not inherit it. Feature state, click handlers, routing, data
 loading, Runtime, media, sessions, and subagents remain unchanged.
+
+### Slice 41: Skills workspace projection
+
+Installed Skills, the fixed Skill suite, and Skill Market now share one
+Minimal-only workspace projection. The scene uses the compact workspace
+typography, a quiet top bar, a 176px category rail, 28px controls, responsive
+260px card floors, and a common 136px card geometry. Duplicate category
+headings and the persistent explanatory footer are omitted from Minimal while
+the category labels, counts, search, filters, status badges, paths, details,
+install, delete, refresh, pagination, and suite policy controls remain
+available in their existing DOM and interaction paths.
+
+Market and suite hero treatments are reduced to flat command surfaces.
+Decorative gradients, blur, shadows, hover lift, scale, icon pop, staggered
+entrance, and continuous loading rotation are removed from the Minimal
+projection. Short surface/color feedback, a single inset focus ring, semantic
+success/info/error states, narrow-layout category scrolling, and reduced-motion
+coverage remain explicit.
+
+The projection is loaded once by the feature-owned `SkillsScene.scss`, so the
+lazy Skills route owns its CSS chunk and the startup Minimal aggregator does
+not absorb page-only styles. The include adds only selectors scoped below
+`.void-ui--minimal`; all pre-existing Classic rules remain byte-equivalent
+after removing the two projection wiring lines. The slice changes no Skills
+React component, hook, Store, workspace API, filesystem adapter,
+install/delete behavior, or runtime policy. A source contract locks those
+boundaries by hash and verifies scope, geometry, token ownership, prohibited
+effects, focus treatment, reduced motion, and lazy CSS ownership.

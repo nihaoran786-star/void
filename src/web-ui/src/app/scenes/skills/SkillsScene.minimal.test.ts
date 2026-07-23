@@ -1,0 +1,115 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+const pathFor = (relativePath: string): string =>
+  fileURLToPath(new URL(relativePath, import.meta.url));
+
+const readSource = (relativePath: string): string =>
+  readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
+
+const sha256 = (relativePath: string): string =>
+  createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
+
+const sha256Text = (source: string): string =>
+  createHash('sha256').update(source).digest('hex');
+
+describe('Skills scene Minimal presentation contract', () => {
+  const source = readSource('./SkillsScene.minimal.scss');
+
+  it('loads once through the lazy Skills feature stylesheet', () => {
+    const owner = readSource('./SkillsScene.scss');
+
+    expect(owner.match(/@use '\.\/SkillsScene\.minimal' as minimal;/g)).toHaveLength(1);
+    expect(owner.match(/@include minimal\.styles;/g)).toHaveLength(1);
+    expect(readSource('../../presentation/minimalWorkspacePresentation.scss'))
+      .not.toContain('SkillsScene.minimal.scss');
+  });
+
+  it('keeps Skills behavior and the pre-existing Classic rules unchanged', () => {
+    const projectionFreeClassic = readSource('./SkillsScene.scss')
+      .replace("@use './SkillsScene.minimal' as minimal;\n", '')
+      .replace('\n\n@include minimal.styles;\n', '\n');
+
+    expect(sha256Text(projectionFreeClassic)).toBe(
+      '0b8d55bd8384540d792392e939d728f7a9e89107294dea07122ea1295d3b9298',
+    );
+    expect(sha256('./SkillsScene.tsx')).toBe(
+      '18e6eb4b0799ea2958ece2e101f1212a2bbe8fc224785c223fc767db95b2e982',
+    );
+    expect(sha256('./components/SkillCard.scss')).toBe(
+      '25fb225b1eb44e976633027a12369c676717b545f760fc51b94b835de6e73c49',
+    );
+    expect(sha256('./components/SkillCard.tsx')).toBe(
+      'cdd00c65090c83f2faafb9159de2f71de38bc2aa74413f67d4db79084e4c1cf5',
+    );
+    expect(sha256('./components/SkillsSuiteView.tsx')).toBe(
+      '884a63570913c1fece911a38713cab92f2e410c4cf6fa710974d32b9fb661a82',
+    );
+  });
+
+  it('scopes all changes to the Minimal Skills scene', () => {
+    expect(source).toContain('@mixin styles {');
+    expect(source).toContain('.void-ui--minimal .void-skills-scene {');
+    expect(source).not.toMatch(/\n {2}\.(?:skills|skill-card)/);
+  });
+
+  it('uses one compact responsive geometry across installed, suite, and market cards', () => {
+    expect(source.match(
+      /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\);/g,
+    )).toHaveLength(4);
+    expect(source).toMatch(
+      /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 136px;[\s\S]*?min-height: 136px;/,
+    );
+    expect(source).toMatch(
+      /\.skill-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 136px;[\s\S]*?min-height: 136px;/,
+    );
+    expect(source).toMatch(
+      /\.skills-suite__group-card \{[\s\S]*?height: 160px;[\s\S]*?min-height: 160px;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?\.skills-suite__group-card \{[\s\S]*?height: auto;[\s\S]*?min-height: 0;/,
+    );
+    expect(source).toContain('@media (max-width: 520px)');
+    expect(source).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?grid-template-columns: 1fr;/,
+    );
+  });
+
+  it('removes decorative rendering cost while preserving semantic states', () => {
+    expect(source).not.toMatch(/(?:linear|radial|conic)-gradient/i);
+    expect(source).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);
+    expect(source).not.toMatch(/\brgba?\s*\(|\bhsla?\s*\(/i);
+    expect(
+      [...source.matchAll(/(?:-webkit-)?backdrop-filter:\s*([^;]+);/gi)]
+        .map((match) => match[1].trim()),
+    ).toEqual(['none']);
+    expect(source).toContain('&.is-enabled {');
+    expect(source).toContain('background: var(--workspace-status-success-bg);');
+    expect(source).toContain('&.is-dirty {');
+    expect(source).toContain('border-color: var(--workspace-status-info-border);');
+  });
+
+  it('uses short tokenized feedback without lift, bounce, or stagger', () => {
+    expect(source).toContain(
+      'background-color var(--workspace-motion-fast) var(--workspace-easing-standard)',
+    );
+    expect(source).not.toMatch(/transition\s*:\s*all/i);
+    expect(source).not.toMatch(/transition\s*:[^;]*(?:width|height|padding|margin)/i);
+    expect(source).not.toMatch(/\bscale\s*\(/i);
+    const transforms = [...source.matchAll(/\btransform:\s*([^;]+);/gi)]
+      .map((match) => match[1].trim());
+    expect(transforms.every((value) => value === 'none')).toBe(true);
+  });
+
+  it('keeps a single visible focus ring and honors reduced motion', () => {
+    expect(source).toMatch(
+      /&:focus-visible \{[\s\S]*?outline: 2px solid var\(--workspace-focus-ring\);[\s\S]*?outline-offset: -2px;[\s\S]*?box-shadow: none;/,
+    );
+    expect(source).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(source).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation: none;[\s\S]*?transition: none;/,
+    );
+  });
+});
