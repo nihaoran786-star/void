@@ -35,11 +35,14 @@ describe('AutomationScene minimal visual contract', () => {
       '--as-shadow-md: var(--workspace-shadow-raised);',
       '--as-shadow-hairline: none;',
       '--as-font-size-meta: var(--workspace-font-size-meta);',
+      '--as-font-size-micro: var(--workspace-font-size-micro);',
       '--as-font-size-label: var(--workspace-font-size-meta);',
       '--as-font-size-control: var(--workspace-font-size-label);',
       '--as-font-size-body: var(--workspace-font-size-control);',
       '--as-font-size-title: var(--workspace-font-size-body);',
       '--as-font-size-heading: var(--workspace-font-size-title);',
+      '--as-font-size-lead: var(--workspace-font-size-lead);',
+      '--as-font-size-display: var(--workspace-font-size-display);',
       '--as-font-weight-medium: var(--workspace-font-weight-medium);',
       '--as-font-weight-strong: var(--workspace-font-weight-strong);',
       '--as-p0-bg: var(--workspace-status-error-bg);',
@@ -57,7 +60,7 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).toContain(
       'font-family: var(--workspace-font-family);',
     );
-    expect(compatibilityAliases).toHaveLength(50);
+    expect(compatibilityAliases).toHaveLength(53);
     expect(themeBridge).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(themeBridge).not.toMatch(/\brgba?\(/i);
   });
