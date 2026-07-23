@@ -61,6 +61,7 @@ export interface BtwSessionPanelProps {
   workspacePath?: string;
   isActive?: boolean;
   presentationTitle?: string;
+  showKindBadge?: boolean;
 }
 
 const PANEL_CONFIG: FlowChatConfig = {
@@ -130,6 +131,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   workspacePath,
   isActive = true,
   presentationTitle,
+  showKindBadge = true,
 }) => {
   const { t } = useTranslation('flow-chat');
   const {
@@ -1281,7 +1283,9 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       >
         <div className="btw-session-panel__header">
           <div className="btw-session-panel__header-left">
-            <span className="btw-session-panel__badge">{childBadgeLabel}</span>
+            {showKindBadge && (
+              <span className="btw-session-panel__badge">{childBadgeLabel}</span>
+            )}
           </div>
           <div className="btw-session-panel__header-title-wrap">
             <span className="btw-session-panel__title">{childPresentationTitle}</span>

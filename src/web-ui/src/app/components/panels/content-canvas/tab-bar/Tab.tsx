@@ -8,6 +8,7 @@ import { X, Pin, Split, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import type { CanvasTab, EditorGroupId, TabState } from '../types';
+import { getCanvasTabDisplayTitle } from './canvasTabPresentation';
 import './Tab.scss';
 export interface TabProps {
   /** Tab data */
@@ -71,7 +72,8 @@ export const Tab: React.FC<TabProps> = ({
   // Build tooltip text
   const unsavedSuffix = tab.isDirty ? ` (${t('tabs.unsaved')})` : '';
   const deletedSuffix = tab.fileDeletedFromDisk ? ` - ${t('tabs.fileDeleted')}` : '';
-  const titleDisplay = `${tab.title}${deletedSuffix}`;
+  const localizedTitle = getCanvasTabDisplayTitle(tab, t);
+  const titleDisplay = `${localizedTitle}${deletedSuffix}`;
   const tooltipText = tab.content.data?.filePath
     ? `${tab.content.data.filePath}${deletedSuffix}${unsavedSuffix}`
     : `${titleDisplay}${unsavedSuffix}`;

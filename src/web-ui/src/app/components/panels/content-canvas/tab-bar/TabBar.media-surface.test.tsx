@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { CanvasTab } from '../types';
 import {
   canShowAllCompactPanelTabs,
+  selectDisplayedTabs,
   resolveVisibleTabsCount,
   selectTabStripTabs,
 } from './tabBarLayout';
@@ -60,5 +61,18 @@ describe('TabBar media surface layout', () => {
 
     expect(selectTabStripTabs(tabs, true).map(tab => tab.id)).toEqual(['script']);
     expect(selectTabStripTabs(tabs, false)).toEqual(tabs);
+  });
+
+  it('keeps an active overflow tab visible without mutating tab order', () => {
+    const tabs = [
+      createTab('browser', 'browser'),
+      createTab('script', 'btw-session'),
+      createTab('assets', 'btw-session'),
+    ];
+
+    expect(selectDisplayedTabs(tabs, 1, 'assets').map(tab => tab.id)).toEqual([
+      'assets',
+    ]);
+    expect(tabs.map(tab => tab.id)).toEqual(['browser', 'script', 'assets']);
   });
 });

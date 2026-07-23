@@ -2078,3 +2078,37 @@ passes the frozen performance budget with 2,336,245 raw JavaScript bytes,
 imports. Gzip monitor deltas remain non-blocking at +1,941 JavaScript bytes and
 +492 CSS bytes. The temporary production artifact is removed after
 verification.
+
+### Slice 52: Responsive browser chrome and localized stage projection
+
+The embedded Browser now owns one feature-local Minimal chrome projection that
+is shared by the panel and full scene. Container queries keep the normal
+single-row address toolbar at wide widths and reflow the same controls into a
+full-width address row plus a compact two-by-two action grid when the panel is
+compressed to roughly 160 pixels. Connection feedback is line-clamped instead
+of wrapping one word per line, the placeholder uses the workspace canvas
+surface without a decorative gradient, and focus feedback remains a single
+theme-token ring. Every existing navigation, reload, address, submit, WebView,
+and error action is preserved.
+
+Short-drama stage tabs now receive a presentation-only Chinese label and fixed
+workflow order: Script, Assets, Storyboards, Video, then Post-production.
+Ordinary canvas tabs retain their existing order and move-to-front behavior.
+When an active stage is hidden by overflow, the tab bar reserves a visible slot
+for it without mutating runtime tab order. The BTW stage panel uses the same
+localized title and omits the redundant generic `Agent` badge; session
+identity, metadata, persistence, stage routing, and team lifecycle remain
+unchanged.
+
+Real desktop verification covered 1280-by-900 and 1800-by-1000 windows, the
+160-pixel Browser panel, keyboard focus, overflow opening, all five localized
+stage labels, activation of a hidden stage, BTW title projection, and the
+return from a stage panel to the Browser. The complete frontend suite passes
+408 files and 2,331 tests. TypeScript, repository hygiene, core boundaries,
+theme colors, theme visual governance, scoped ESLint, and the 15-test i18n
+contract also pass. The dedicated production artifact transforms 7,471 modules
+and passes the frozen performance budget with 2,337,056 raw JavaScript bytes,
+632,617 raw CSS bytes, all 54 required dynamic entries, and zero unresolved
+imports. Gzip monitor deltas remain non-blocking at +2,403 JavaScript bytes and
++492 CSS bytes. Browser CSS remains in its lazy Browser panel and scene chunks,
+and the temporary production artifact is removed after verification.

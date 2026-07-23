@@ -15,6 +15,7 @@ vi.mock('react-i18next', () => ({
       'tabs.unpin': 'Unpin Tab',
       'tabs.popOut': 'Pop out as scene',
       'tabs.hiddenTabsCount': `${options?.count ?? 0} hidden tabs`,
+      'shortDrama.tabs.assets': '资产',
     })[key] ?? key,
   }),
 }));
@@ -192,5 +193,82 @@ describe('TabOverflowMenu', () => {
       getAction('Close Tab')?.click();
     });
     expect(onTabClose).toHaveBeenCalledWith('media-tab');
+  });
+
+  it('activates a localized stage tab without mutating its fixed order', async () => {
+    const onTabClick = vi.fn();
+    const onReorderTab = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <TabOverflowMenu
+          overflowTabs={[{
+            id: 'asset-agent',
+            title: 'AssetAI',
+            content: {
+              type: 'btw-session',
+              title: 'AssetAI',
+              metadata: { shortDramaStage: 'assets' },
+            },
+            state: 'active',
+            isDirty: false,
+            createdAt: 1,
+            lastAccessedAt: 1,
+          }]}
+          activeTabId={null}
+          onTabClick={onTabClick}
+          onTabClose={vi.fn()}
+          onReorderTab={onReorderTab}
+        />,
+      );
+    });
+
+    act(() => {
+      (container.querySelector('button') as HTMLButtonElement).click();
+    });
+    const stageItem = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ).find(button => button.textContent?.includes('资产 AI'));
+
+    expect(stageItem).toBeTruthy();
+    act(() => stageItem?.click());
+    expect(onTabClick).toHaveBeenCalledWith('asset-agent');
+    expect(onReorderTab).not.toHaveBeenCalled();
+  });
+
+  it('keeps move-to-front behavior for ordinary overflow tabs', async () => {
+    const onTabClick = vi.fn();
+    const onReorderTab = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <TabOverflowMenu
+          overflowTabs={[{
+            id: 'browser',
+            title: 'Browser',
+            content: { type: 'browser', title: 'Browser' },
+            state: 'active',
+            isDirty: false,
+            createdAt: 1,
+            lastAccessedAt: 1,
+          }]}
+          activeTabId={null}
+          onTabClick={onTabClick}
+          onTabClose={vi.fn()}
+          onReorderTab={onReorderTab}
+        />,
+      );
+    });
+
+    act(() => {
+      (container.querySelector('button') as HTMLButtonElement).click();
+    });
+    const browserItem = Array.from(
+      document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'),
+    ).find(button => button.textContent?.includes('Browser'));
+
+    act(() => browserItem?.click());
+    expect(onReorderTab).toHaveBeenCalledWith('browser', 0);
+    expect(onTabClick).toHaveBeenCalledWith('browser');
   });
 });

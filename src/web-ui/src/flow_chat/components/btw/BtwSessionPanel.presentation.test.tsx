@@ -277,6 +277,7 @@ describe('BtwSessionPanel presentation lifecycle', () => {
           parentSessionId="parent"
           workspacePath="D:/workspace/project"
           presentationTitle="剧本 AI"
+          showKindBadge={false}
           isActive={false}
         />,
       );
@@ -284,6 +285,7 @@ describe('BtwSessionPanel presentation lifecycle', () => {
 
     expect(container.querySelector('.btw-session-panel__title')?.textContent)
       .toBe('剧本 AI');
+    expect(container.querySelector('.btw-session-panel__badge')).toBeNull();
     expect(flowChatState.sessions.get('review-child')?.title).toBe('Review child');
   });
 

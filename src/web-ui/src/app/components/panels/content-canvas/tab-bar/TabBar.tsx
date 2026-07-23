@@ -13,8 +13,13 @@ import { TabOverflowMenu } from './TabOverflowMenu';
 import {
   canShowAllCompactPanelTabs,
   resolveVisibleTabsCount,
+  selectDisplayedTabs,
   selectTabStripTabs,
 } from './tabBarLayout';
+import {
+  getCanvasTabDisplayTitle,
+  orderCanvasTabsForPresentation,
+} from './canvasTabPresentation';
 import { WorkspaceMediaEntry } from '../workspace-media/WorkspaceMediaEntry';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
@@ -94,8 +99,14 @@ const estimateTabWidth = (title: string): number => {
   return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, estimated));
 };
 
-const tabTitleForWidthEstimate = (tab: CanvasTab, deletedLabel: string): string =>
-  tab.fileDeletedFromDisk ? `${tab.title} - ${deletedLabel}` : tab.title;
+const tabTitleForWidthEstimate = (
+  tab: CanvasTab,
+  deletedLabel: string,
+  translate: (key: string) => string,
+): string => {
+  const title = getCanvasTabDisplayTitle(tab, translate);
+  return tab.fileDeletedFromDisk ? `${title} - ${deletedLabel}` : title;
+};
 
 export const TabBar: React.FC<TabBarProps> = ({
   tabs,
@@ -133,6 +144,10 @@ export const TabBar: React.FC<TabBarProps> = ({
 
   // Filter out hidden tabs
   const visibleTabs = useMemo(() => tabs.filter(t => !t.isHidden), [tabs]);
+  const presentedVisibleTabs = useMemo(
+    () => orderCanvasTabsForPresentation(visibleTabs),
+    [visibleTabs],
+  );
   const activeSurface = useMemo(() => {
     const activeTab = visibleTabs.find(tab => tab.id === activeTabId);
     if (activeTab?.content.type === 'workspace-media-gallery') {
@@ -147,14 +162,18 @@ export const TabBar: React.FC<TabBarProps> = ({
   const collapseWorkspaceSurfaceTabs = workspacePresentation === 'minimal'
     && Boolean(onOpenShortDramaCenter);
   const stripTabs = useMemo(
-    () => selectTabStripTabs(visibleTabs, collapseWorkspaceSurfaceTabs),
-    [collapseWorkspaceSurfaceTabs, visibleTabs],
+    () => selectTabStripTabs(presentedVisibleTabs, collapseWorkspaceSurfaceTabs),
+    [collapseWorkspaceSurfaceTabs, presentedVisibleTabs],
   );
   
   // Build cache key (id + title because title changes affect width)
   const getTabCacheKey = useCallback(
-    (tab: CanvasTab) => `${tab.id}:${tab.title}:${tab.fileDeletedFromDisk ? '1' : '0'}`,
-    []
+    (tab: CanvasTab) => [
+      tab.id,
+      getCanvasTabDisplayTitle(tab, t),
+      tab.fileDeletedFromDisk ? '1' : '0',
+    ].join(':'),
+    [t],
   );
 
   // Get tab width: use cache if available, otherwise estimate
@@ -165,7 +184,11 @@ export const TabBar: React.FC<TabBarProps> = ({
       return cached;
     }
     // Estimated width
-    return estimateTabWidth(tabTitleForWidthEstimate(tab, t('tabs.fileDeleted')));
+    return estimateTabWidth(tabTitleForWidthEstimate(
+      tab,
+      t('tabs.fileDeleted'),
+      t,
+    ));
   }, [getTabCacheKey, t]);
 
   const closeAllLivesInMenu = Boolean(onCloseAllTabs && groupActionKind === 'close-all');
@@ -318,9 +341,15 @@ export const TabBar: React.FC<TabBarProps> = ({
   const renderedVisibleTabsCount = layoutReady || activeSurface === null
     ? visibleTabsCount
     : 0;
-  const displayedTabs = stripTabs.slice(0, renderedVisibleTabsCount);
+  const displayedTabs = selectDisplayedTabs(
+    stripTabs,
+    renderedVisibleTabsCount,
+    activeTabId,
+  );
   const displayedTabIds = new Set(displayedTabs.map(tab => tab.id));
-  const overflowTabs = visibleTabs.filter(tab => !displayedTabIds.has(tab.id));
+  const overflowTabs = presentedVisibleTabs.filter(
+    tab => !displayedTabIds.has(tab.id),
+  );
 
   // Handle tab drag start
   const handleTabDragStart = useCallback((tab: CanvasTab) => (_e: React.DragEvent) => {

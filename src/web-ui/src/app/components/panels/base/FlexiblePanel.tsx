@@ -4,6 +4,7 @@ import { MarkdownRenderer, IconButton } from '@/component-library';
 import { useI18n } from '@/infrastructure/i18n';
 import { createLogger } from '@/shared/utils/logger';
 import { globalEventBus } from '@/infrastructure/event-bus';
+import { getShortDramaStageDisplayTitle } from '../content-canvas/tab-bar/canvasTabPresentation';
 
 const log = createLogger('FlexiblePanel');
 const PANEL_LOADING_CLASS = 'void-flexible-panel__loading';
@@ -755,7 +756,11 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
         );
       }
 
-      case 'btw-session':
+      case 'btw-session': {
+        const stageTitle = getShortDramaStageDisplayTitle(
+          content.metadata?.shortDramaStage,
+          t,
+        );
         return (
           <React.Suspense fallback={<div className={PANEL_LOADING_CLASS}>{t('flexiblePanel.loading.taskDetail')}</div>}>
             <BtwSessionPanel
@@ -763,14 +768,12 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
               parentSessionId={content.data?.parentSessionId}
               workspacePath={content.data?.workspacePath || workspacePath}
               isActive={isActive}
-              presentationTitle={
-                typeof content.metadata?.shortDramaStage === 'string'
-                  ? content.title
-                  : undefined
-              }
+              presentationTitle={stageTitle ?? undefined}
+              showKindBadge={stageTitle === null}
             />
           </React.Suspense>
         );
+      }
 
       case 'session-usage':
         return (

@@ -19,6 +19,9 @@ describe('FlexiblePanel BTW presentation boundary', () => {
     const btwSessionCase = btwSessionCaseSource();
 
     expect(btwSessionCase).toContain('isActive={isActive}');
+    expect(btwSessionCase).toContain('getShortDramaStageDisplayTitle');
+    expect(btwSessionCase).toContain('presentationTitle={stageTitle ?? undefined}');
+    expect(btwSessionCase).toContain('showKindBadge={stageTitle === null}');
     expect(btwSessionCase).not.toContain('cancelSession');
     expect(btwSessionCase).not.toContain('FlowChatStore');
     expect(btwSessionCase).not.toContain('FlowChatPresentationActivityProvider');

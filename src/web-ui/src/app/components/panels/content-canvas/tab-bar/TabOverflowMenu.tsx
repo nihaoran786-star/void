@@ -10,6 +10,10 @@ import { ExternalLink, LayoutGrid, MoreHorizontal, Pin, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import type { CanvasTab } from '../types';
+import {
+  getCanvasTabDisplayTitle,
+  isShortDramaStageCanvasTab,
+} from './canvasTabPresentation';
 import './TabOverflowMenu.scss';
 export interface TabOverflowMenuProps {
   /** Overflow tabs */
@@ -164,12 +168,17 @@ export const TabOverflowMenu: React.FC<TabOverflowMenuProps> = ({
 
   // Handle tab click
   const handleTabClick = useCallback((tabId: string) => {
-    // Move tab to front (index 0) so it becomes visible
-    onReorderTab(tabId, 0);
+    // Ordinary tabs keep their historical move-to-front behavior. Fixed
+    // short-drama stages stay in presentation order; TabBar reserves a visible
+    // slot for the newly active tab instead.
+    const tab = overflowTabs.find(item => item.id === tabId);
+    if (!tab || !isShortDramaStageCanvasTab(tab)) {
+      onReorderTab(tabId, 0);
+    }
     // Then switch to the tab
     onTabClick(tabId);
     setIsOpen(false);
-  }, [onTabClick, onReorderTab]);
+  }, [onTabClick, onReorderTab, overflowTabs]);
 
   // Handle close click
   const handleCloseClick = useCallback(async (e: React.MouseEvent, tabId: string) => {
@@ -275,7 +284,7 @@ export const TabOverflowMenu: React.FC<TabOverflowMenuProps> = ({
             <div className="canvas-tab-overflow-menu__list">
               {overflowTabs.map((tab) => {
                 const deletedSuffix = tab.fileDeletedFromDisk ? ` - ${t('tabs.fileDeleted')}` : '';
-                const titleWithDeleted = `${tab.title}${deletedSuffix}`;
+                const titleWithDeleted = `${getCanvasTabDisplayTitle(tab, t)}${deletedSuffix}`;
                 return (
                 <div
                   key={tab.id}

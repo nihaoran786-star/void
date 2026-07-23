@@ -2,6 +2,7 @@ import type { CanvasTab, EditorGroupId, EditorGroupState, SplitMode } from '../t
 import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { areShortDramaWorkspacePathsEqual } from '@/shared/services/short-drama/ShortDramaWorkspaceBinding';
 import type { ShortDramaStage } from '@/shared/services/short-drama';
+import { getCanvasTabDisplayTitle } from '../tab-bar/canvasTabPresentation';
 
 export type ShortDramaTeamPanelMode = 'closed' | 'rail' | 'open';
 
@@ -115,8 +116,7 @@ export function getShortDramaTeamTabDisplayTitle(
   tab: CanvasTab,
   translate: (key: string) => string,
 ): string {
-  const stage = shortDramaStageForTab(tab);
-  return stage ? `${translate(`shortDrama.tabs.${stage}`)} AI` : tab.title;
+  return getCanvasTabDisplayTitle(tab, translate);
 }
 
 export function projectShortDramaTeamGroup(
