@@ -1,6 +1,6 @@
 @mixin styles {
   .void-ui--minimal .canvas-tab-bar {
-    height: calc(var(--workspace-icon-target) + var(--workspace-space-1));
+    height: var(--workspace-topbar-height);
     padding: 0 var(--workspace-space-2);
     border-bottom-color: var(--workspace-border-subtle);
     background: var(--workspace-surface-canvas);

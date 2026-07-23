@@ -62,7 +62,7 @@ describe('FlowChat minimal presentation contract', () => {
 
   it('keeps the minimal header flat, compact, focusable, and viewport-safe', () => {
     expect(headerMinimalSource).toMatch(
-      /\.void-ui--minimal \.flowchat-header \{[\s\S]*?height: 33px;[\s\S]*?backdrop-filter: none;/,
+      /\.void-ui--minimal \.flowchat-header \{[\s\S]*?height: var\(--workspace-topbar-height\);[\s\S]*?backdrop-filter: none;/,
     );
     expect(headerMinimalSource).toMatch(/&::after \{[\s\S]*?display: none;/);
     expect(headerMinimalSource).toContain('width: min(280px, calc(100vw - 16px));');

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Check,
-  ChevronRight,
   Copy,
 } from 'lucide-react';
 import { IconButton, MarkdownRenderer, ToolProcessingDots, Tooltip } from '@/component-library';
@@ -22,7 +21,6 @@ import {
   setUsageExportRedactPathsPreference,
   subscribeUsageExportRedactPathsPreference,
 } from './usageReportUtils';
-import type { SessionUsagePanelTab } from './sessionUsagePanelTypes';
 import './SessionUsageReportCard.scss';
 
 interface SessionUsageReportCardProps {
@@ -31,7 +29,6 @@ interface SessionUsageReportCardProps {
   generatedAt?: number;
   isLoading?: boolean;
   contextUsage?: { current: number; max: number };
-  onOpenDetails?: (report: SessionUsageReport, initialTab?: SessionUsagePanelTab) => void;
 }
 
 export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
@@ -40,7 +37,6 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
   generatedAt,
   isLoading = false,
   contextUsage,
-  onOpenDetails,
 }) => {
   const { t } = useTranslation('flow-chat');
   const [copied, setCopied] = useState(false);
@@ -64,13 +60,6 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
   const handleRedactExportPathsChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setUsageExportRedactPathsPreference(event.target.checked);
   }, []);
-
-  const handleOpenDetails = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (report) {
-      onOpenDetails?.(report);
-    }
-  }, [onOpenDetails, report]);
 
   const loadingHints = useMemo(() => [
     t('usage.loading.steps.collecting'),
@@ -263,18 +252,6 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
               >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
               </IconButton>
-            </Tooltip>
-            <Tooltip content={t('usage.actions.openDetails')}>
-              <button
-                type="button"
-                className="session-usage-report-card__details-button"
-                onClick={handleOpenDetails}
-                disabled={!onOpenDetails}
-                aria-label={t('usage.actions.openDetails')}
-              >
-                <span>{t('usage.actions.viewDetails')}</span>
-                <ChevronRight size={13} aria-hidden />
-              </button>
             </Tooltip>
           </div>
         </div>

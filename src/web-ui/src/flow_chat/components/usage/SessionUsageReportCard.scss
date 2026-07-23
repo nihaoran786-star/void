@@ -7,12 +7,15 @@
   box-sizing: border-box;
   width: auto;
   max-width: none;
-  margin: 0.12rem 3rem var(--flowchat-turn-gap, 0.4rem) 3rem;
+  margin: 0.12rem clamp(0.75rem, 5%, 3rem)
+    var(--flowchat-turn-gap, 0.4rem);
   padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--border-base) 55%, transparent);
   border-radius: 12px;
   background: var(--color-bg-flowchat);
   color: var(--color-text-primary);
+  container-name: session-usage-card;
+  container-type: inline-size;
 
   &--fallback {
     position: relative;
@@ -152,44 +155,6 @@
     }
   }
 
-  &__details-button {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    height: 26px;
-    padding: 0 7px 0 8px;
-    border: 0;
-    border-radius: 5px;
-    background: transparent;
-    color: var(--color-text-secondary);
-    font-size: var(--flowchat-font-size-xs);
-    font-weight: 500;
-    line-height: 1;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover {
-      background: color-mix(in srgb, var(--element-bg-soft) 78%, transparent);
-      color: var(--color-text-primary);
-    }
-
-    &:focus-visible {
-      outline: 2px solid color-mix(in srgb, var(--accent-primary) 70%, transparent);
-      outline-offset: 2px;
-    }
-
-    &:disabled {
-      opacity: 0.52;
-      cursor: default;
-    }
-
-    svg {
-      flex: 0 0 auto;
-    }
-  }
-
   &__coverage {
     display: inline-flex;
     align-items: center;
@@ -283,11 +248,14 @@
   }
 
   &__metric-value {
+    max-width: 100%;
+    overflow: hidden;
     color: var(--color-text-primary);
     font-size: var(--font-size-xl);
     font-weight: 400;
     font-variant-numeric: tabular-nums;
     line-height: 1.35;
+    text-overflow: ellipsis;
     white-space: nowrap;
 
     &--help {
@@ -418,38 +386,10 @@
     }
   }
 
-  @media (max-width: 900px) {
-    margin-left: 1.5rem;
-    margin-right: 1.5rem;
+}
 
-    &__metrics {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-
-      &--with-context {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-    }
-
-    &__metric {
-      &:nth-child(3n + 1) {
-        border-left: 0;
-      }
-
-      &:nth-child(n + 4) {
-        margin-top: 10px;
-      }
-    }
-
-    &__visuals {
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
-  }
-
-  @media (max-width: 560px) {
-    margin-left: 0.75rem;
-    margin-right: 0.75rem;
-
+@container session-usage-card (max-width: 620px) {
+  .session-usage-report-card {
     &__header {
       flex-wrap: wrap;
       align-items: flex-start;
@@ -459,12 +399,52 @@
       flex-basis: 100%;
     }
 
-    &__metrics {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    &__actions {
+      width: 100%;
+      justify-content: space-between;
+    }
 
-      &--with-context {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    &__metrics,
+    &__metrics--with-context {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    &__metric {
+      padding-inline: 8px;
+
+      &:nth-child(3n + 1) {
+        border-left: 0;
       }
+
+      &:nth-child(n + 4) {
+        margin-top: 10px;
+      }
+    }
+
+    &__metric-value {
+      font-size: var(--font-size-lg);
+    }
+
+    &__visuals {
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+  }
+}
+
+@container session-usage-card (max-width: 400px) {
+  .session-usage-report-card {
+    &__title-block {
+      flex-wrap: wrap;
+    }
+
+    &__meta {
+      flex-basis: 100%;
+    }
+
+    &__metrics,
+    &__metrics--with-context {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     &__metric {
@@ -486,10 +466,5 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    &__actions {
-      width: 100%;
-    }
   }
-
 }

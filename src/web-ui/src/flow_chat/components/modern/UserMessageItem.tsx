@@ -22,9 +22,7 @@ import {
   editAndRerunUserMessage,
 } from '../../services/UserMessageEditService';
 import { createLogger } from '@/shared/utils/logger';
-import type { SessionUsageReport } from '@/infrastructure/api/service-api/SessionAPI';
 import { SessionUsageReportCard } from '../usage/SessionUsageReportCard';
-import type { SessionUsagePanelTab } from '../usage/sessionUsagePanelTypes';
 import { coerceSessionUsageReport } from '../usage/usageReportUtils';
 import { resolveSessionRelationship } from '../../utils/sessionMetadata';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
@@ -328,21 +326,6 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
         : { current: currentSession.currentTokenUsage?.totalTokens || 0, max: currentSession.maxContextTokens || 128128 }
       : undefined;
 
-    const handleOpenUsageReport = useCallback((report: SessionUsageReport, initialTab?: SessionUsagePanelTab) => {
-      void import('../../services/openSessionUsageReport').then(({ openSessionUsagePanel }) => {
-        openSessionUsagePanel({
-          report,
-          markdown: messageContent,
-          sessionId: currentSession?.sessionId ?? resolvedSessionId,
-          workspacePath: currentSession?.workspacePath,
-          initialTab,
-          title: t('usage.title'),
-          expand: true,
-          contextUsage: usageContextUsage,
-        });
-      });
-    }, [currentSession?.sessionId, currentSession?.workspacePath, messageContent, resolvedSessionId, t, usageContextUsage]);
-    
     // Collapse when clicking outside.
     useEffect(() => {
       if (!isPresentationActive || !expanded) return;
@@ -372,7 +355,6 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
           generatedAt={message.metadata?.generatedAt}
           isLoading={isUsageReportLoading}
           contextUsage={usageContextUsage}
-          onOpenDetails={usageReport ? handleOpenUsageReport : undefined}
         />
       );
     }

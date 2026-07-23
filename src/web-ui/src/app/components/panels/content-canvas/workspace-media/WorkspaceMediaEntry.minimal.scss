@@ -1,7 +1,7 @@
 @mixin styles {
   .void-ui--minimal .workspace-media-entry {
     height: var(--workspace-icon-target);
-    gap: var(--workspace-space-1);
+    gap: 0;
     padding: 0;
     border: 0;
     border-radius: 0;

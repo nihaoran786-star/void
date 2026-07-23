@@ -19,7 +19,7 @@ describe('TabBar minimal presentation contract', () => {
 
   it('uses compact shared workspace metrics for the header, tabs, and actions', () => {
     expect(minimalSource).toMatch(
-      /\.void-ui--minimal \.canvas-tab-bar \{[\s\S]*?height: calc\(var\(--workspace-icon-target\) \+ var\(--workspace-space-1\)\);/,
+      /\.void-ui--minimal \.canvas-tab-bar \{[\s\S]*?height: var\(--workspace-topbar-height\);/,
     );
     expect(minimalSource).toMatch(
       /\.void-ui--minimal \.canvas-tab \{[\s\S]*?height: var\(--workspace-icon-target\);[\s\S]*?font/,

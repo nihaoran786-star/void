@@ -477,14 +477,12 @@ describe('Session usage report UI components', () => {
   };
 
   it('renders localized partial coverage and cache unavailable without showing zero', () => {
-    const onOpenDetails = vi.fn();
     const report = usageReport();
 
     render(
       <SessionUsageReportCard
         report={report}
         markdown="## Session Usage"
-        onOpenDetails={onOpenDetails}
       />
     );
 
@@ -501,14 +499,9 @@ describe('Session usage report UI components', () => {
     expect(cachedMetric?.querySelector('.session-usage-report-card__metric-value--help')?.hasAttribute('title'))
       .toBe(false);
 
-    const openButton = container.querySelector('button[aria-label="Open details"]');
-    expect(openButton?.textContent).toBe('Details');
-    expect(openButton?.className).toContain('session-usage-report-card__details-button');
+    expect(container.querySelector('button[aria-label="Open details"]')).toBeNull();
+    expect(container.querySelector('.session-usage-report-card__details-button')).toBeNull();
     expect(container.querySelector('.session-usage-report-card__action-group')).toBeNull();
-    act(() => {
-      openButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
-    expect(onOpenDetails).toHaveBeenCalledWith(report);
   });
 
   it('appends a hit-rate suffix to the cached cell when cache is reported', () => {
@@ -528,7 +521,6 @@ describe('Session usage report UI components', () => {
       <SessionUsageReportCard
         report={report}
         markdown="## Session Usage"
-        onOpenDetails={vi.fn()}
       />
     );
 
@@ -558,7 +550,6 @@ describe('Session usage report UI components', () => {
       <SessionUsageReportCard
         report={report}
         markdown="## Session Usage"
-        onOpenDetails={vi.fn()}
       />
     );
 
@@ -595,8 +586,7 @@ describe('Session usage report UI components', () => {
       .toContain('tool calls whose result was unsuccessful');
   });
 
-  it('keeps verbose model, tool, and file rows behind the details action', () => {
-    const onOpenDetails = vi.fn();
+  it('keeps verbose model, tool, and file rows out of the compact card', () => {
     const report = usageReport({
       tools: Array.from({ length: 4 }, (_, index) => ({
         toolName: `Tool ${index + 1}`,
@@ -626,18 +616,13 @@ describe('Session usage report UI components', () => {
       <SessionUsageReportCard
         report={report}
         markdown="## Session Usage"
-        onOpenDetails={onOpenDetails}
       />
     );
 
     expect(container.textContent).not.toContain('Tool 4');
     expect(container.textContent).not.toContain('src/file-5.ts');
 
-    const detailsButton = container.querySelector('button[aria-label="Open details"]');
-    act(() => {
-      detailsButton?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-    });
-    expect(onOpenDetails).toHaveBeenCalledWith(report);
+    expect(container.querySelector('button[aria-label="Open details"]')).toBeNull();
   });
 
   it('renders a compact token composition graphic from the session totals', () => {
@@ -1645,7 +1630,9 @@ describe('Session usage report i18n and theme guards', () => {
 
     expect(styleText).toContain('var(--color-text-primary)');
     expect(styleText).toContain('width: auto;');
-    expect(styleText).toContain('margin: 0.12rem 3rem');
+    expect(styleText).toContain('margin: 0.12rem clamp(0.75rem, 5%, 3rem)');
+    expect(styleText).toContain('container-name: session-usage-card;');
+    expect(styleText).toContain('@container session-usage-card (max-width: 620px)');
     expect(styleText).toContain('border: 1px solid color-mix(in srgb, var(--border-base)');
     expect(styleText).toContain('grid-template-columns: repeat(6, minmax(0, 1fr));');
     expect(styleText).toContain('width: clamp(180px, 26vw, 280px);');

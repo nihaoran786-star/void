@@ -1,7 +1,7 @@
 @mixin styles {
   .void-ui--minimal .flowchat-header {
-    height: 33px;
-    min-height: 33px;
+    height: var(--workspace-topbar-height);
+    min-height: var(--workspace-topbar-height);
     gap: var(--workspace-space-1);
     padding-inline: var(--workspace-space-2);
     border-bottom: 1px solid var(--workspace-border-subtle);
