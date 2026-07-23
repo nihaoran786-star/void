@@ -95,6 +95,14 @@
         opacity: 1;
       }
     }
+
+    &:focus-within {
+      background: var(--element-bg-hover);
+
+      .archived-sessions-config__row-actions {
+        opacity: 1;
+      }
+    }
   }
 
   &__row-info {
@@ -131,16 +139,16 @@
 
   &__delete-btn {
     &:hover {
-      color: var(--color-error, #ef4444);
+      color: var(--status-error-text);
     }
   }
 
   &__delete-all-btn {
-    color: var(--color-error, #ef4444);
+    color: var(--status-error-text);
 
     &:hover {
-      color: var(--color-error, #ef4444);
-      background: var(--color-error-bg, rgba(239, 68, 68, 0.1));
+      color: var(--status-error-text);
+      background: var(--status-error-bg);
     }
   }
 
@@ -148,5 +156,20 @@
     display: flex;
     align-items: center;
     gap: $size-gap-1;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .archived-sessions-config__row-actions {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .archived-sessions-config {
+    &__row,
+    &__row-actions {
+      transition: none;
+    }
   }
 }
