@@ -6,14 +6,29 @@
     background: var(--workspace-surface-canvas);
 
     .skills-tabs-bar {
-      min-height: var(--workspace-topbar-height);
-      padding: 0 var(--workspace-space-3);
-      border-bottom: 1px solid var(--workspace-border-subtle);
-      background: var(--workspace-surface-panel);
+      position: relative;
+      min-height: 180px;
+      align-items: flex-end;
+      margin: var(--workspace-space-3) var(--workspace-space-3) 0;
+      padding: var(--workspace-space-3) var(--workspace-space-4);
+      overflow: hidden;
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background-color: var(--workspace-surface-panel);
+      background-image: url('/visuals/void-skills-hero.webp');
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: cover;
     }
 
     .skills-tabs-bar__tabs {
+      position: relative;
+      z-index: 1;
       gap: 2px;
+      padding: 2px;
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
     }
 
     .skills-tabs-bar__divider {
@@ -813,6 +828,11 @@
 
   @media (max-width: 900px) {
     .void-ui--minimal .void-skills-scene {
+      .skills-tabs-bar {
+        min-height: 132px;
+        background-position: 58% center;
+      }
+
       .skills-installed {
         flex-direction: column;
       }
@@ -864,6 +884,13 @@
 
   @media (max-width: 520px) {
     .void-ui--minimal .void-skills-scene {
+      .skills-tabs-bar {
+        min-height: 92px;
+        margin-inline: var(--workspace-space-2);
+        padding: var(--workspace-space-2);
+        background-position: 68% center;
+      }
+
       .skills-main__toolbar-search {
         flex-basis: 100%;
       }

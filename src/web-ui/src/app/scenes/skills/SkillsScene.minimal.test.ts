@@ -81,6 +81,18 @@ describe('Skills scene Minimal presentation contract', () => {
     );
   });
 
+  it('uses a real responsive product visual without adding runtime behavior', () => {
+    expect(source).toMatch(
+      /\.skills-tabs-bar \{[\s\S]*?min-height: 180px;[\s\S]*?background-image: url\('\/visuals\/void-skills-hero\.webp'\);/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 132px;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 92px;/,
+    );
+  });
+
   it('removes decorative rendering cost while preserving semantic states', () => {
     expect(source).not.toMatch(/(?:linear|radial|conic)-gradient/i);
     expect(source).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);

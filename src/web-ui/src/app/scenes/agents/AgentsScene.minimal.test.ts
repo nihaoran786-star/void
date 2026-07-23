@@ -55,18 +55,21 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.(?:agent-card|core-agent-card|gallery-page-header)/);
   });
 
-  it('uses a single-line header with an icon-first expanding search', () => {
+  it('uses a responsive luxury hero with an icon-first expanding search', () => {
     expect(source).toMatch(
-      /\.gallery-page-header \{[\s\S]*?min-height: 52px;[\s\S]*?flex-direction: row;[\s\S]*?flex-wrap: nowrap;/,
+      /\.gallery-page-header \{[\s\S]*?min-height: 208px;[\s\S]*?background-image: url\('\/visuals\/void-agents-hero\.webp'\);/,
     );
     expect(source).toMatch(
-      /\.gallery-page-header__subtitle \{[\s\S]*?display: none;/,
+      /\.gallery-page-header__subtitle \{[\s\S]*?display: block;/,
     );
     expect(source).toMatch(
       /\.gallery-page-header__actions \.search \{[\s\S]*?width: var\(--workspace-icon-target\);/,
     );
     expect(source).toMatch(
       /&:focus-within \{[\s\S]*?width: 240px;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 124px;/,
     );
   });
 
