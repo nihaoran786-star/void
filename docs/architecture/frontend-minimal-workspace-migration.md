@@ -1910,3 +1910,36 @@ transforms 7,468 modules and passes the frozen performance budget with
 entries, and zero unresolved imports. Gzip monitor deltas remain non-blocking
 at +1,804 JavaScript bytes and +492 CSS bytes, and the Mini App presentation
 stays in the lazy `MiniAppGalleryView` feature chunk.
+
+### Slice 47: Settings shell and shared scene titles
+
+The Settings shell and its Account, Basics, Appearance, Models, archive,
+shortcut, personalization, permission, quick-action, review, MCP, ACP, and
+editor destinations were re-audited before making another visual projection.
+The existing shell already follows the Minimal workspace scale, compact
+navigation rhythm, bounded content width, semantic surfaces, and responsive
+scroll ownership. Real maximized and 1280-by-900 desktop checks therefore
+retain those components instead of adding duplicate selectors or presentation
+layers.
+
+The audit did expose one shared-shell inconsistency: several built-in scene
+definitions still rendered their English fallback labels in Chinese
+interfaces. Terminal, Git, Settings, File Viewer, and Profile now route their
+titles through the existing `common.scenes` translation keys. `SceneBar`
+remains the only presentation owner, and a locale contract verifies that all
+five mappings are present in Simplified Chinese, Traditional Chinese, and
+English.
+
+This slice changes no Settings state, config adapter, account or authentication
+state, model provider data, scene opening, closing, pinning, eviction, active
+tab selection, navigation history, Runtime, persistence, or filesystem access.
+Manual verification covered a maximized Appearance panel, a 1280-by-900 Models
+panel, the shared More-menu route into Settings, responsive navigation
+scrolling, and the localized `设置 / 外观` and `设置 / 模型` scene paths.
+The focused registry contract passes four tests, and TypeScript, repository
+hygiene, core boundaries, theme colors, theme visual governance, and the
+15-test i18n contract all pass. The dedicated production artifact transforms
+7,468 modules and passes the frozen performance budget with 2,336,013 raw
+JavaScript bytes, 632,617 raw CSS bytes, all 54 required dynamic entries, and
+zero unresolved imports. Gzip monitor deltas remain non-blocking at +1,838
+JavaScript bytes and +492 CSS bytes.

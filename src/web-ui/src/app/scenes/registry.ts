@@ -51,6 +51,7 @@ export const SCENE_TAB_REGISTRY: SceneTabDef[] = [
   {
     id: 'terminal' as SceneTabId,
     label: 'Terminal',
+    labelKey: 'scenes.terminal',
     Icon: Terminal,
     pinned: false,
     singleton: true,
@@ -59,6 +60,7 @@ export const SCENE_TAB_REGISTRY: SceneTabDef[] = [
   {
     id: 'git' as SceneTabId,
     label: 'Git',
+    labelKey: 'scenes.git',
     Icon: GitBranch,
     pinned: false,
     singleton: true,
@@ -67,6 +69,7 @@ export const SCENE_TAB_REGISTRY: SceneTabDef[] = [
   {
     id: 'settings' as SceneTabId,
     label: 'Settings',
+    labelKey: 'scenes.settings',
     Icon: Settings,
     pinned: false,
     singleton: true,
@@ -75,6 +78,7 @@ export const SCENE_TAB_REGISTRY: SceneTabDef[] = [
   {
     id: 'file-viewer' as SceneTabId,
     label: 'File Viewer',
+    labelKey: 'scenes.fileViewer',
     Icon: FileCode2,
     pinned: false,
     singleton: true,
@@ -83,6 +87,7 @@ export const SCENE_TAB_REGISTRY: SceneTabDef[] = [
   {
     id: 'profile' as SceneTabId,
     label: 'Profile',
+    labelKey: 'scenes.projectContext',
     Icon: CircleUserRound,
     pinned: false,
     singleton: true,
