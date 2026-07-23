@@ -2148,3 +2148,46 @@ bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
 monitor deltas remain non-blocking at +2,401 JavaScript bytes and +492 CSS
 bytes. The Skills projection remains in its lazy feature chunk, and the
 temporary production artifact is removed after verification.
+
+### Slice 54: Compact Assistant nursery and resilient gallery commands
+
+The Assistant nursery now uses the same compact command and card rhythm as the
+rest of the Minimal workspace. The inheritance template is reduced to a
+72-pixel information row that keeps its model, tool, and token facts while
+removing the duplicate explanatory and configuration labels. Assistant cards
+are reduced to 132 pixels, descriptions are held to one line, and the
+redundant visible configuration hint is removed while the existing whole-card
+configuration target, new-session action, delete action, and accessible labels
+remain unchanged. Large Assistant collections use `content-visibility` with a
+132-pixel intrinsic fallback so off-screen cards do not require eager painting.
+
+The shared Gallery command header now stays in one row from 1080 down to 520
+pixels and only stacks below that genuinely narrow breakpoint. This removes
+the previous early title/action split across Assistant and other Gallery
+surfaces. The Assistant configuration layout now stacks below 1080 pixels,
+rather than squeezing its document and automation panels into two narrow
+columns. Long identity metadata truncates evenly on one line, and the existing
+Automation handoff action no longer wraps its label.
+
+This slice changes no nursery component, assistant workspace state, identity
+document adapter, model or Skill configuration, session creation, deletion,
+scene registry, Runtime, persistence, or filesystem behavior. Real desktop
+verification covered 760-, 980-, 1280-pixel and maximized windows; pointer
+hover, keyboard focus, Enter-to-open configuration, template configuration,
+the direct Automation route, and return to the Assistant gallery. The complete
+frontend suite passes 408 files and 2,335 tests. TypeScript, repository hygiene,
+core boundaries, theme colors, theme visual governance, and the 15-test i18n
+contract pass.
+
+The full repository ESLint command still reports the pre-existing
+`no-use-before-define` findings in `BaseToolCard.tsx` and
+`CompactToolCard.tsx`, and the independent i18n source audit still reports 31
+short-drama CJK candidate lines against its checked-in budget of 25; neither
+area is touched by this presentation slice. The dedicated production artifact
+transforms 7,471 modules and passes the frozen performance budget with
+2,337,056 raw JavaScript bytes, 632,617 raw CSS bytes, all 54 required dynamic
+entries, and zero unresolved imports. Gzip monitor deltas remain non-blocking
+at +2,393 JavaScript bytes and +492 CSS bytes. An eight-second idle sample
+measured the desktop at approximately 0.78% of one logical core and 93.7 MB
+RSS, while the active Vite process remained at 0% CPU. The temporary manifest
+artifact is removed after verification.

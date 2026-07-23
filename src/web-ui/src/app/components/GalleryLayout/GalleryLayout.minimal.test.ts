@@ -53,6 +53,18 @@ describe('GalleryLayout Minimal presentation contract', () => {
     expect(source).toContain('min-height: var(--workspace-icon-target);');
   });
 
+  it('keeps the compact title and actions on one line until truly narrow widths', () => {
+    expect(source).toMatch(
+      /@media \(max-width: 1080px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?flex-direction: row;[\s\S]*?align-items: center;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 1080px\)[\s\S]*?\.gallery-page-header__actions \{[\s\S]*?width: auto;[\s\S]*?flex-wrap: nowrap;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 520px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?flex-direction: column;[\s\S]*?align-items: stretch;/,
+    );
+  });
+
   it('keeps interaction feedback short, composited-free and single-ring', () => {
     expect(source).toContain(
       'background-color var(--workspace-motion-fast) var(--workspace-easing-standard)',

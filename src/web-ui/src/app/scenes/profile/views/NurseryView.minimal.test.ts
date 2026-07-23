@@ -55,15 +55,30 @@ describe('Nursery Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.(?:nursery|acp|aqi)/);
   });
 
-  it('compresses the gallery hero and removes its duplicate brand decoration', () => {
+  it('compresses the gallery hero into a single low-noise configuration row', () => {
     expect(source).toMatch(
       /\.nursery-template-brand-mark \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-card \{[\s\S]*?flex: 0 1 720px;[\s\S]*?height: 104px;/,
+      /\.nursery-template-card \{[\s\S]*?flex: 0 1 720px;[\s\S]*?height: 72px;/,
+    );
+    expect(source).toMatch(
+      /\.nursery-template-card__subtitle,[\s\S]*?\.nursery-template-card__action \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
       /\.nursery-template-card__deco \{[\s\S]*?display: none;/,
+    );
+  });
+
+  it('keeps large assistant collections compact and incrementally renderable', () => {
+    expect(source).toMatch(
+      /\.assistant-card \{[\s\S]*?height: 132px;[\s\S]*?content-visibility: auto;[\s\S]*?contain-intrinsic-size: auto 132px;/,
+    );
+    expect(source).toMatch(
+      /\.assistant-card__vibe \{[\s\S]*?-webkit-line-clamp: 1;/,
+    );
+    expect(source).toMatch(
+      /\.assistant-card__footer-hint \{[\s\S]*?display: none;/,
     );
   });
 
@@ -76,6 +91,21 @@ describe('Nursery Minimal presentation contract', () => {
     expect(source).toMatch(/\.aqi__hint \{[\s\S]*?display: none;/);
     expect(source).toMatch(
       /&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring-subtle\);[\s\S]*?outline: none;/,
+    );
+  });
+
+  it('keeps the Automation handoff action on one line at narrow panel widths', () => {
+    expect(source).toMatch(
+      /\.acp-automation-entry \.btn \{[\s\S]*?flex-shrink: 0;[\s\S]*?white-space: nowrap;/,
+    );
+    expect(source).toMatch(
+      /\.acp-left-header__meta \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?overflow: hidden;/,
+    );
+    expect(source).toMatch(
+      /\.acp-left-header__meta-tag \{[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 1080px\)[\s\S]*?\.acp-layout \{[\s\S]*?flex-direction: column;/,
     );
   });
 
