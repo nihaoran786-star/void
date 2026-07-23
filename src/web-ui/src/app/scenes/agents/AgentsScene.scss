@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/tokens' as *;
+@use './AgentsScene.minimal' as minimal;
 
 .void-agents-scene {
   flex: 1 1 auto;
@@ -66,3 +67,5 @@
     }
   }
 }
+
+@include minimal.styles;

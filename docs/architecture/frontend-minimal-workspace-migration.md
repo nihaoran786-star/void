@@ -1782,3 +1782,44 @@ These corrections change no Account data, heatmap calculation, short-drama
 recovery behavior, session lifecycle, or BTW controls. They reconcile
 governance and integration tests with the current module interfaces and reduce
 theme debt rather than raising a test baseline.
+
+### Slice 44: Agents workspace and shared detail projection
+
+The Agents workspace now has a feature-owned, Minimal-only projection. Its
+title, short zone anchors, and icon-first search share one 52px header row;
+search expands in place without reserving a permanent text field. Agent cards
+use a 252px responsive floor, a fixed 120px geometry, one-line descriptions,
+flat semantic surfaces, one focus ring, and color/surface-only feedback. This
+produces two columns in the verified 1280-by-900 desktop window and five
+columns in the maximized desktop window while retaining all counts, filters,
+details, team configuration, creation, and management controls. Long zones use
+`content-visibility: auto` with an intrinsic-size fallback so off-screen card
+groups do not require immediate paint.
+
+The existing Gallery detail component also receives one shared Minimal
+projection for its Agents, Skills, and Mini Apps owners. It keeps the same
+React component and event handlers while using the workspace type scale,
+compact capability bars and segmented tabs, neutral chips, a 560px width, a
+720px height ceiling, and a thin independent content scrollbar. The projection
+is selected from the modal content class through the Minimal root, so Classic
+and unrelated dialogs do not inherit it. Reduced motion disables the scoped
+transitions. Runtime agent identities remain unchanged; only Simplified and
+Traditional Chinese presentation labels and search copy are shortened.
+
+This slice changes no Agents hook, Agent/Subagent API, Skill policy, Gallery
+React implementation, session state, media or short-drama routing, Runtime,
+filesystem adapter, persistence, or creation/deletion behavior. Source
+contracts lock those owners by hash and verify Minimal scoping, responsive
+geometry, token ownership, one-ring focus, containment, prohibited decorative
+effects, reduced motion, localization, and shared-modal ownership.
+
+Real desktop verification covered the maximized and 1280-by-900 layouts,
+in-place search focus and text entry, detail opening, capability-tab switching,
+long Skill-list scrolling, Escape closure, and responsive card reflow. The
+frontend suite passes 399 files and 2,284 tests; TypeScript, repository hygiene,
+core boundaries, theme colors, theme visual governance, and the 15-test i18n
+contract pass. The dedicated production artifact transforms 7,468 modules and
+passes the performance budget with 2,335,875 raw JavaScript bytes, 632,617 raw
+CSS bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
+monitor deltas remain non-blocking at +1,824 JavaScript bytes and +492 CSS
+bytes.

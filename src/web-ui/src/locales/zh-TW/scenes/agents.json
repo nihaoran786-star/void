@@ -9,14 +9,14 @@
   "loading": "加載中…",
   "page": {
     "title": "專業智能體",
-    "subtitle": "查看與管理核心模式、Agent 與 Sub-Agent，配置工具與 Skills。",
-    "searchPlaceholder": "搜索 Agent 名稱或描述…",
-    "newAgent": "新建 Agent"
+    "subtitle": "管理智能體、工具與技能。",
+    "searchPlaceholder": "搜尋智能體…",
+    "newAgent": "新建"
   },
   "nav": {
-    "coreAgents": "核心智能體",
-    "agents": "Agent",
-    "teams": "智能體團隊"
+    "coreAgents": "核心",
+    "agents": "智能體",
+    "teams": "團隊"
   },
   "filters": {
     "source": "來源",
@@ -24,12 +24,12 @@
     "builtin": "內置",
     "user": "用戶",
     "project": "項目",
-    "mode": "Agent",
-    "subagent": "Sub-Agent"
+    "mode": "智能體",
+    "subagent": "子智能體"
   },
   "coreAgentsZone": {
     "title": "核心智能體",
-    "subtitle": "平臺內置的核心 Agent，覆蓋主流 AI 工作流，開箱即用。",
+    "subtitle": "內置工作模式。",
     "empty": "暫未檢測到核心智能體",
     "roleLabel": "主要應用 · ",
     "modes": {
@@ -48,19 +48,19 @@
     }
   },
   "agentsZone": {
-    "title": "Agent 總覽",
-    "subtitle": "查看所有 Agent / Sub-Agent，並直接管理工具與 Skills。",
+    "title": "智能體",
+    "subtitle": "管理智能體及其能力。",
     "empty": {
-      "noAgents": "當前沒有可用的 Agent",
-      "noMatch": "沒有匹配的 Agent"
+      "noAgents": "暫無智能體",
+      "noMatch": "沒有匹配項"
     }
   },
   "agentCard": {
     "badges": {
-      "agent": "Agent",
-      "subagent": "Sub-Agent",
-      "userSubagent": "用戶 Sub-Agent",
-      "projectSubagent": "項目 Sub-Agent",
+      "agent": "智能體",
+      "subagent": "子智能體",
+      "userSubagent": "用戶子智能體",
+      "projectSubagent": "項目子智能體",
       "disabled": "已禁用"
     },
     "actions": {
@@ -68,8 +68,8 @@
     },
     "meta": {
       "tools": "{{count}} 個工具",
-      "skills": "{{count}} 個 Skills",
-      "subagents": "{{count}} 個 Sub-Agent"
+      "skills": "{{count}} 個技能",
+      "subagents": "{{count}} 個子智能體"
     }
   },
   "capabilityCategories": {
@@ -93,14 +93,14 @@
     "toolsResetSuccess": "已重置為默認工具",
     "toolsResetFailed": "重置工具失敗",
     "toolToggleFailed": "工具切換失敗",
-    "skills": "Skills",
-    "subagents": "Sub-Agents",
+    "skills": "技能",
+    "subagents": "子智能體",
     "skillsCancel": "取消編輯",
     "skillsSave": "保存",
-    "skillsEdit": "管理 Skills",
-    "subagentsEdit": "管理 Sub-Agents",
+    "skillsEdit": "管理技能",
+    "subagentsEdit": "管理子智能體",
     "subagentsDone": "完成",
-    "noSubagents": "目前沒有可管理的 Sub-Agent",
+    "noSubagents": "目前沒有可管理的子智能體",
     "enableGroup": "啟用分組",
     "disableGroup": "禁用分組",
     "clearGroup": "清空",
