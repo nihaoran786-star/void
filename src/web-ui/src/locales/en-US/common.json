@@ -80,6 +80,7 @@
       "persona": "Assistant",
       "agents": "Agents",
       "skills": "Skills",
+      "connectors": "Connectors",
       "tools": "Tools",
       "terminal": "Shell",
       "git": "Git",
@@ -91,6 +92,7 @@
       "persona": "Assistant — create and manage all assistant instances",
       "agents": "Which agents it can call",
       "skills": "What it knows — specialized knowledge files",
+      "connectors": "Manage MCP services and external connections",
       "tools": "What it can use — built-in tools & MCP services",
       "addWorkspace": "Add workspace"
     },

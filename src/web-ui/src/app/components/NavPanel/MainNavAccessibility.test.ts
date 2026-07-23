@@ -26,6 +26,7 @@ describe('MainNav workspace menu accessibility contract', () => {
     );
     expect(source).toContain('aria-expanded={isExtensionsOpen}');
     expect(source).toContain('aria-label={extensionsLabel}');
+    expect(source).toContain('aria-label={connectorsTooltip}');
     expect(minimalStyles).toContain('&__top-action-icon-slot {\n      display: none;');
     expect(minimalStyles).toContain(
       '&__top-action-expand-icon-default {\n      display: none;',
@@ -33,6 +34,23 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(minimalStyles).toContain(
       '&__top-action-expand-icon-chevron {\n      opacity: 1;',
     );
+  });
+
+  it('routes the connector entry through the existing MCP settings state', () => {
+    const source = readSibling('./MainNav.tsx');
+    const config = readSibling('./config.ts');
+    const baseStyles = readSibling('./NavPanel.scss');
+
+    expect(source).toContain("setSettingsActiveTab('mcp-tools');");
+    expect(source).toContain("openScene('settings');");
+    expect(source).toContain(
+      "activeTabId === 'settings' && settingsActiveTab === 'mcp-tools'",
+    );
+    expect(source).toContain("t('nav.items.connectors')");
+    expect(source).toContain('<Cable size={15} />');
+    expect(config).toContain('agents / skills / connectors');
+    expect(config).toContain('reuses the existing MCP settings surface');
+    expect(baseStyles).toContain('max-height: 104px;');
   });
 
   it('moves focus into the portal menu and restores it on Escape', () => {

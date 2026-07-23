@@ -13,7 +13,7 @@
 
 import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Blocks, ChevronDown, Search, CalendarClock } from 'lucide-react';
+import { Plus, FolderOpen, FolderPlus, History, Check, User, Users, Puzzle, Cable, Blocks, ChevronDown, Search, CalendarClock } from 'lucide-react';
 import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import { useSceneManager } from '../../hooks/useSceneManager';
@@ -42,6 +42,7 @@ import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDispl
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
 import { useSessionModeStore } from '../../stores/sessionModeStore';
+import { useSettingsStore } from '../../scenes/settings/settingsStore';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
@@ -77,6 +78,8 @@ const MainNav: React.FC<MainNavProps> = ({
   const { switchLeftPanelTab } = useApp();
   const { openScene } = useSceneManager();
   const activeTabId = useSceneStore(s => s.activeTabId);
+  const settingsActiveTab = useSettingsStore(s => s.activeTab);
+  const setSettingsActiveTab = useSettingsStore(s => s.setActiveTab);
   const setSelectedAssistantWorkspaceId = useMyAgentStore((s) => s.setSelectedAssistantWorkspaceId);
   const { t } = useI18n('common');
   const {
@@ -477,19 +480,25 @@ const MainNav: React.FC<MainNavProps> = ({
     openScene('skills');
   }, [openScene]);
 
+  const handleOpenConnectors = useCallback(() => {
+    setSettingsActiveTab('mcp-tools');
+    openScene('settings');
+  }, [openScene, setSettingsActiveTab]);
+
   const handleOpenAutomation = useCallback(() => {
     openScene('automation');
   }, [openScene]);
 
   const isAgentsActive = activeTabId === 'agents';
   const isSkillsActive = activeTabId === 'skills';
+  const isConnectorsActive = activeTabId === 'settings' && settingsActiveTab === 'mcp-tools';
   const isAutomationActive = activeTabId === 'automation';
 
   useEffect(() => {
-    if (isAgentsActive || isSkillsActive) {
+    if (isAgentsActive || isSkillsActive || isConnectorsActive) {
       setIsExtensionsOpen(true);
     }
-  }, [isAgentsActive, isSkillsActive]);
+  }, [isAgentsActive, isSkillsActive, isConnectorsActive]);
 
   const workspaceMenuPortal = workspaceMenuOpen ? createPortal(
     <div
@@ -583,6 +592,7 @@ const MainNav: React.FC<MainNavProps> = ({
   const isAssistantActive = activeTabId === 'assistant';
   const agentsTooltip = t('nav.tooltips.agents');
   const skillsTooltip = t('nav.tooltips.skills');
+  const connectorsTooltip = t('nav.tooltips.connectors');
   const extensionsLabel = t('nav.sections.extensions');
   const searchTrigger = (
     <Tooltip content={t('nav.search.triggerTooltip')} placement="right" followCursor>
@@ -734,6 +744,24 @@ const MainNav: React.FC<MainNavProps> = ({
                   <Puzzle size={15} />
                 </span>
                 <span>{t('nav.items.skills')}</span>
+              </button>
+            </Tooltip>
+
+            <Tooltip content={connectorsTooltip} placement="right" followCursor>
+              <button
+                type="button"
+                className={[
+                  'void-nav-panel__top-action-btn',
+                  'void-nav-panel__top-action-btn--sub',
+                  isConnectorsActive ? 'is-active' : '',
+                ].filter(Boolean).join(' ')}
+                onClick={handleOpenConnectors}
+                aria-label={connectorsTooltip}
+              >
+                <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
+                  <Cable size={15} />
+                </span>
+                <span>{t('nav.items.connectors')}</span>
               </button>
             </Tooltip>
           </div>

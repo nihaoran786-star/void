@@ -2148,7 +2148,7 @@ $_section-header-height: 24px;
   display: flex;
   flex-direction: column;
   gap: 1px;
-  // Divider below 扩展 (main row + optional Agents / Skills sublist) → scrollable sections
+  // Divider below 定制 (main row + optional Agents / Skills / Connectors sublist) → scrollable sections
   padding-bottom: $size-gap-2;
   margin-bottom: $size-gap-1;
   border-bottom: 1px solid var(--border-subtle);
@@ -2165,7 +2165,9 @@ $_section-header-height: 24px;
               opacity 0.15s $easing-standard;
 
   &.is-open {
-    max-height: 72px;
+    // Three 32px rows + the two 1px gaps. Keep a small ceiling buffer so
+    // localized font metrics never clip the final connector entry.
+    max-height: 104px;
     opacity: 1;
   }
 }
@@ -2210,7 +2212,7 @@ $_section-header-height: 24px;
     justify-content: center;
   }
 
-  // 助理行：前导 icon 悬停微微放大（与 __top-action-icon-circle 一致；排除 --sub 的 Agents / Skills）
+  // 助理行：前导 icon 悬停微微放大（排除定制下的子入口）
   &:not(.void-nav-panel__top-action-btn--sub) .void-nav-panel__top-action-icon-slot {
     transform: scale(1);
     transform-origin: center;

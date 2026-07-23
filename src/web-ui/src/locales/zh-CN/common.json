@@ -80,6 +80,7 @@
       "persona": "助理",
       "agents": "专业智能体",
       "skills": "技能",
+      "connectors": "连接器",
       "tools": "工具",
       "terminal": "Shell",
       "git": "Git",
@@ -91,6 +92,7 @@
       "persona": "助理 — 创建与管理所有助理实例",
       "agents": "它能调用哪些 Agent",
       "skills": "它懂什么专项知识 — 技能知识文件",
+      "connectors": "管理 MCP 服务与外部连接",
       "tools": "它能用什么工具 — 内置工具与 MCP 服务",
       "addWorkspace": "添加工作区"
     },
