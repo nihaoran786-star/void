@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CanvasTab } from '../types';
 import {
+  canShowAllCompactPanelTabs,
   resolveVisibleTabsCount,
   selectTabStripTabs,
 } from './tabBarLayout';
@@ -31,6 +32,23 @@ describe('TabBar media surface layout', () => {
   it('does not change the measured count when complete tabs fit', () => {
     expect(resolveVisibleTabsCount(2, 4, true)).toBe(2);
     expect(resolveVisibleTabsCount(2, 4, false)).toBe(2);
+  });
+
+  it('keeps five compact presentation tabs visible only when the bounded panel fits them', () => {
+    expect(canShowAllCompactPanelTabs({
+      containerWidth: 493,
+      tabCount: 5,
+      tabWidth: 80,
+      actionsWidth: 32,
+      actionsGap: 8,
+    })).toBe(true);
+    expect(canShowAllCompactPanelTabs({
+      containerWidth: 420,
+      tabCount: 5,
+      tabWidth: 80,
+      actionsWidth: 32,
+      actionsGap: 8,
+    })).toBe(false);
   });
 
   it('lets the Minimal media switcher own media surfaces without deleting tabs', () => {

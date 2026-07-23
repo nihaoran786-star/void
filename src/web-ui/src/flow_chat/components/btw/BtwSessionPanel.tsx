@@ -60,6 +60,7 @@ export interface BtwSessionPanelProps {
   parentSessionId?: string;
   workspacePath?: string;
   isActive?: boolean;
+  presentationTitle?: string;
 }
 
 const PANEL_CONFIG: FlowChatConfig = {
@@ -128,6 +129,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   parentSessionId,
   workspacePath,
   isActive = true,
+  presentationTitle,
 }) => {
   const { t } = useTranslation('flow-chat');
   const {
@@ -203,6 +205,8 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const childTitleFallback = t(`childSession.kinds.${childKind}.title`, {
     defaultValue: t('btw.threadLabel'),
   });
+  const childPresentationTitle = presentationTitle?.trim()
+    || resolveSessionTitle(childSession, childTitleFallback);
   const childOriginLabel = t(`childSession.kinds.${childKind}.origin`, {
     defaultValue: t('btw.origin'),
   });
@@ -1280,7 +1284,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
             <span className="btw-session-panel__badge">{childBadgeLabel}</span>
           </div>
           <div className="btw-session-panel__header-title-wrap">
-            <span className="btw-session-panel__title">{resolveSessionTitle(childSession, childTitleFallback)}</span>
+            <span className="btw-session-panel__title">{childPresentationTitle}</span>
           </div>
           <div className="btw-session-panel__header-right">
             {showOriginMeta && (

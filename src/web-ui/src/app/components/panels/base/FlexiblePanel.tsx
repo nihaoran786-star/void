@@ -763,6 +763,11 @@ const FlexiblePanel: React.FC<ExtendedFlexiblePanelProps> = memo(({
               parentSessionId={content.data?.parentSessionId}
               workspacePath={content.data?.workspacePath || workspacePath}
               isActive={isActive}
+              presentationTitle={
+                typeof content.metadata?.shortDramaStage === 'string'
+                  ? content.title
+                  : undefined
+              }
             />
           </React.Suspense>
         );

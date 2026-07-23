@@ -1,26 +1,18 @@
 import React from 'react';
-import { Bot, Check, ChevronDown, PanelRightClose } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
-import {
-  getShortDramaNativeStageAgentName,
-  type ShortDramaStage,
-} from '@/shared/services/short-drama';
 import type { CanvasTab } from '../types';
-import type { ShortDramaTeamPanelMode } from './shortDramaTeamPanelPresentation';
 import type {
-  ShortDramaTeamAgentActivity,
   ShortDramaTeamAgentStatus,
   ShortDramaTeamAgentStatusProjection,
 } from '@/flow_chat/types/short-drama-team-status';
+import { getShortDramaTeamTabDisplayTitle } from './shortDramaTeamPanelPresentation';
 
 export interface ShortDramaTeamPanelControlsProps {
-  mode: Exclude<ShortDramaTeamPanelMode, 'closed'>;
   tabs: readonly CanvasTab[];
-  activeTabId: string;
   statuses: readonly ShortDramaTeamAgentStatusProjection[];
   onToggle: () => void;
-  onSelectTab: (tabId: string) => void;
 }
 
 const statusPriority: readonly ShortDramaTeamAgentStatus[] = [
@@ -32,29 +24,18 @@ const statusPriority: readonly ShortDramaTeamAgentStatus[] = [
   'cancelled',
 ];
 
-export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsProps> = ({
-  mode,
+export const ShortDramaTeamPanelControls: React.FC<
+  ShortDramaTeamPanelControlsProps
+> = ({
   tabs,
-  activeTabId,
   statuses,
   onToggle,
-  onSelectTab,
 }) => {
   const { t } = useTranslation('components');
-  const isOpen = mode === 'open';
-  const rootRef = React.useRef<HTMLElement>(null);
-  const triggerRef = React.useRef<HTMLButtonElement>(null);
-  const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
-  const [isAgentMenuOpen, setIsAgentMenuOpen] = React.useState(false);
-  const toggleLabel = isOpen
-    ? t('canvas.collapseShortDramaTeam')
-    : t('canvas.expandShortDramaTeam');
-  const compactLabel = t('canvas.shortDramaTeamCompact');
   const statusByTabId = React.useMemo(
     () => new Map(statuses.map(status => [status.tabId, status])),
     [statuses],
   );
-  const isPreparing = tabs.length === 0;
   const statusCounts = React.useMemo(() => {
     const counts: Record<ShortDramaTeamAgentStatus, number> = {
       waiting: 0,
@@ -74,264 +55,30 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
   }, [statusByTabId, tabs]);
   const summaryStatus = statusPriority.find(status => statusCounts[status] > 0)
     ?? 'waiting';
-  const activeTabIndex = Math.max(
-    0,
-    tabs.findIndex(tab => tab.id === activeTabId),
-  );
-  const [highlightedIndex, setHighlightedIndex] = React.useState(activeTabIndex);
-  const activeTab = tabs[activeTabIndex] ?? null;
-  const activeAgentName = activeTab
-    ? getTeamAgentDisplayName(activeTab)
-    : compactLabel;
-  const activeProjection = activeTab
-    ? statusByTabId.get(activeTab.id)
-      ?? { tabId: activeTab.id, status: 'waiting' as const }
-    : null;
-  const activeStage = activeTab?.content.metadata?.shortDramaStage;
-  const activeStageLabel = typeof activeStage === 'string' && activeStage
-    ? t(`shortDrama.tabs.${activeStage}`)
-    : '';
+  const compactLabel = t('canvas.shortDramaTeamCompact');
   const statusSummary = statusPriority
     .map(status => `${t(`canvas.shortDramaTeamStatus.${status}`)} ${statusCounts[status]}`)
     .join(' · ');
-  const agentStatusSummary = tabs
-    .map(tab => {
-      const projection = statusByTabId.get(tab.id)
-        ?? { tabId: tab.id, status: 'waiting' as const };
-      const statusLabel = t(`canvas.shortDramaTeamStatus.${projection.status}`);
-      const activityLabel = formatActivityLabel(projection.activity, t);
-      return [getTeamAgentDisplayName(tab), statusLabel, activityLabel]
-        .filter(Boolean)
-        .join(' · ');
-    })
+  const agentSummary = tabs
+    .map(tab => [
+      getShortDramaTeamTabDisplayTitle(tab, t),
+      t(`canvas.shortDramaTeamStatus.${statusByTabId.get(tab.id)?.status ?? 'waiting'}`),
+    ].join(' · '))
     .join('；');
-  const accessibleToggleLabel = [
-    toggleLabel,
+  const accessibleLabel = [
+    t('canvas.expandShortDramaTeam'),
     `${compactLabel} ${tabs.length}`,
     statusSummary,
-    agentStatusSummary,
+    agentSummary,
   ].join(' · ');
-
-  React.useEffect(() => {
-    if (!isAgentMenuOpen) {
-      return;
-    }
-
-    optionRefs.current[highlightedIndex]?.focus();
-  }, [highlightedIndex, isAgentMenuOpen]);
-
-  React.useEffect(() => {
-    if (!isAgentMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (
-        event.target instanceof Node
-        && !rootRef.current?.contains(event.target)
-      ) {
-        setIsAgentMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [isAgentMenuOpen]);
-
-  if (isOpen) {
-    const openAgentMenu = (index = activeTabIndex) => {
-      setHighlightedIndex(index);
-      setIsAgentMenuOpen(true);
-    };
-    const closeAgentMenu = (restoreFocus: boolean) => {
-      setIsAgentMenuOpen(false);
-      if (restoreFocus) {
-        requestAnimationFrame(() => triggerRef.current?.focus());
-      }
-    };
-    const focusAgent = (index: number) => {
-      const normalizedIndex = (index + tabs.length) % tabs.length;
-      setHighlightedIndex(normalizedIndex);
-    };
-    const handleAgentMenuKeyDown = (
-      event: React.KeyboardEvent<HTMLDivElement>,
-    ) => {
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        focusAgent(highlightedIndex + 1);
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        focusAgent(highlightedIndex - 1);
-      } else if (event.key === 'Home') {
-        event.preventDefault();
-        focusAgent(0);
-      } else if (event.key === 'End') {
-        event.preventDefault();
-        focusAgent(tabs.length - 1);
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        closeAgentMenu(true);
-      } else if (event.key === 'Tab') {
-        setIsAgentMenuOpen(false);
-      }
-    };
-    const selectAgent = (tabId: string) => {
-      onSelectTab(tabId);
-      closeAgentMenu(true);
-    };
-
-    return (
-      <aside
-        ref={rootRef}
-        className="short-drama-team-panel-controls is-open"
-        data-testid="short-drama-team-panel-controls"
-        aria-label={t('canvas.shortDramaTeam')}
-      >
-        <div className="short-drama-team-panel-controls__agent-selector">
-          <button
-            ref={triggerRef}
-            type="button"
-            className="short-drama-team-panel-controls__agent-trigger"
-            data-testid="short-drama-team-agent-trigger"
-            aria-haspopup="listbox"
-            aria-expanded={isAgentMenuOpen}
-            aria-label={[
-              compactLabel,
-              activeAgentName,
-              activeProjection
-                ? t(`canvas.shortDramaTeamStatus.${activeProjection.status}`)
-                : '',
-            ].filter(Boolean).join(' · ')}
-            onClick={() => {
-              if (isAgentMenuOpen) {
-                closeAgentMenu(false);
-              } else {
-                openAgentMenu();
-              }
-            }}
-            onKeyDown={event => {
-              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                event.preventDefault();
-                openAgentMenu(
-                  event.key === 'ArrowDown'
-                    ? activeTabIndex
-                    : tabs.length - 1,
-                );
-              }
-            }}
-          >
-            {activeProjection && (
-              <span
-                className={[
-                  'short-drama-team-panel-controls__agent-dot',
-                  `is-status-${activeProjection.status}`,
-                ].join(' ')}
-                aria-hidden="true"
-              />
-            )}
-            <span className="short-drama-team-panel-controls__agent-text">
-              <span className="short-drama-team-panel-controls__agent-name">
-                {activeAgentName}
-              </span>
-              {activeStageLabel ? (
-                <span className="short-drama-team-panel-controls__agent-meta">
-                  {activeStageLabel}
-                </span>
-              ) : null}
-            </span>
-            <ChevronDown size={13} aria-hidden="true" />
-          </button>
-
-          {isAgentMenuOpen && (
-            <div
-              className="short-drama-team-panel-controls__agent-menu"
-              data-testid="short-drama-team-agent-menu"
-              role="listbox"
-              aria-label={t('canvas.shortDramaTeam')}
-              onKeyDown={handleAgentMenuKeyDown}
-            >
-              {tabs.map((tab, index) => {
-                const projection = statusByTabId.get(tab.id)
-                  ?? { tabId: tab.id, status: 'waiting' as const };
-                const isActive = tab.id === activeTab?.id;
-                const stage = tab.content.metadata?.shortDramaStage;
-                const stageLabel = typeof stage === 'string' && stage
-                  ? t(`shortDrama.tabs.${stage}`)
-                  : '';
-                const metaLabel = [
-                  stageLabel,
-                  formatActivityLabel(projection.activity, t),
-                ].filter(Boolean).join(' · ');
-                return (
-                  <button
-                    key={tab.id}
-                    ref={element => {
-                      optionRefs.current[index] = element;
-                    }}
-                    type="button"
-                    role="option"
-                    className={[
-                      'short-drama-team-panel-controls__agent-option',
-                      isActive ? 'is-active' : '',
-                    ].filter(Boolean).join(' ')}
-                    data-testid="short-drama-team-agent"
-                    data-short-drama-team-agent-id={tab.id}
-                    aria-selected={isActive}
-                    tabIndex={highlightedIndex === index ? 0 : -1}
-                    onMouseEnter={() => setHighlightedIndex(index)}
-                    onClick={() => selectAgent(tab.id)}
-                  >
-                    <span
-                      className={[
-                        'short-drama-team-panel-controls__agent-dot',
-                        `is-status-${projection.status}`,
-                      ].join(' ')}
-                      aria-hidden="true"
-                    />
-                    <span className="short-drama-team-panel-controls__agent-text">
-                      <span className="short-drama-team-panel-controls__agent-name">
-                        {getTeamAgentDisplayName(tab)}
-                      </span>
-                      {metaLabel ? (
-                        <span className="short-drama-team-panel-controls__agent-meta">
-                          {metaLabel}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="short-drama-team-panel-controls__agent-status">
-                      {t(`canvas.shortDramaTeamStatus.${projection.status}`)}
-                    </span>
-                    {isActive && <Check size={13} aria-hidden="true" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <Tooltip content={toggleLabel} placement="bottom">
-          <button
-            type="button"
-            className="short-drama-team-panel-controls__collapse"
-            data-testid="short-drama-team-panel-collapse"
-            aria-label={toggleLabel}
-            onClick={onToggle}
-          >
-            <PanelRightClose size={14} aria-hidden="true" />
-          </button>
-        </Tooltip>
-      </aside>
-    );
-  }
 
   return (
     <aside
-      className={`short-drama-team-panel-controls is-${mode}`}
+      className="short-drama-team-panel-controls is-rail"
       data-testid="short-drama-team-panel-controls"
       aria-label={t('canvas.shortDramaTeam')}
     >
-      {isPreparing ? (
+      {tabs.length === 0 ? (
         <span
           className="short-drama-team-panel-controls__preparing"
           role="status"
@@ -340,21 +87,24 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
           <span aria-hidden="true">…</span>
         </span>
       ) : (
-        <Tooltip content={toggleLabel} placement="bottom">
+        <Tooltip content={t('canvas.expandShortDramaTeam')} placement="bottom">
           <button
             type="button"
             className={[
               'short-drama-team-panel-controls__toggle',
-              isOpen ? '' : 'short-drama-team-panel-controls__summary',
+              'short-drama-team-panel-controls__summary',
               `is-status-${summaryStatus}`,
-            ].filter(Boolean).join(' ')}
+            ].join(' ')}
             data-testid="short-drama-team-panel-toggle"
             data-short-drama-team-summary-status={summaryStatus}
-            aria-label={accessibleToggleLabel}
+            aria-label={accessibleLabel}
             aria-expanded={false}
             onClick={onToggle}
           >
-            <span className="short-drama-team-panel-controls__summary-icon" aria-hidden="true">
+            <span
+              className="short-drama-team-panel-controls__summary-icon"
+              aria-hidden="true"
+            >
               <Bot size={14} strokeWidth={1.8} />
             </span>
             <span className="short-drama-team-panel-controls__summary-count">
@@ -370,25 +120,3 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
 ShortDramaTeamPanelControls.displayName = 'ShortDramaTeamPanelControls';
 
 export default ShortDramaTeamPanelControls;
-
-function formatActivityLabel(
-  activity: ShortDramaTeamAgentActivity | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-): string {
-  return activity ? t(`canvas.shortDramaTeamActivity.${activity}`) : '';
-}
-
-function getTeamAgentDisplayName(tab: CanvasTab): string {
-  const stage = tab.content.metadata?.shortDramaStage;
-  return isShortDramaStage(stage)
-    ? getShortDramaNativeStageAgentName(stage)
-    : tab.title;
-}
-
-function isShortDramaStage(value: unknown): value is ShortDramaStage {
-  return value === 'script'
-    || value === 'assets'
-    || value === 'storyboards'
-    || value === 'video'
-    || value === 'post';
-}

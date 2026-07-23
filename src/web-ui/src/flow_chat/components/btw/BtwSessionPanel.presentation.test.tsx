@@ -269,6 +269,24 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     vi.unstubAllGlobals();
   });
 
+  it('uses a short-drama presentation title without mutating the child session', async () => {
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          presentationTitle="剧本 AI"
+          isActive={false}
+        />,
+      );
+    });
+
+    expect(container.querySelector('.btw-session-panel__title')?.textContent)
+      .toBe('剧本 AI');
+    expect(flowChatState.sessions.get('review-child')?.title).toBe('Review child');
+  });
+
   it('pauses the message presentation subtree while ReviewActionBar stays live', async () => {
     useReviewActionBarStore.getState().showRunningActionBar({
       childSessionId: 'review-child',

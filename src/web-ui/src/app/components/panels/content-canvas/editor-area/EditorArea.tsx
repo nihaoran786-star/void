@@ -7,6 +7,7 @@ import {
   selectShortDramaTeamTabCloseAction,
   selectShortDramaTeamLayoutRecovery,
   selectShortDramaTeamPanelPresentation,
+  projectShortDramaTeamGroup,
 } from './shortDramaTeamPanelPresentation';
 import { useCanvasStore } from '../stores';
 import type { 
@@ -244,20 +245,12 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     shortDramaTeamPresentation,
   ]);
 
-  const handleShortDramaTeamAgentSelect = useCallback((tabId: string) => {
-    if (shortDramaTeamPresentation.status !== 'ready') {
-      return;
-    }
-    switchToTab(tabId, 'secondary');
-    setActiveGroup('secondary');
-    setExpandedShortDramaPrimarySurfaceKey(
-      shortDramaTeamPresentation.primarySurfaceKey,
-    );
-  }, [
-    setActiveGroup,
-    shortDramaTeamPresentation,
-    switchToTab,
-  ]);
+  const presentedSecondaryGroup = React.useMemo(
+    () => shortDramaTeamPresentation.status === 'ready'
+      ? projectShortDramaTeamGroup(secondaryGroup, t)
+      : secondaryGroup,
+    [secondaryGroup, shortDramaTeamPresentation.status, t],
+  );
 
   const renderEditorGroup = (
     groupId: EditorGroupId,
@@ -349,15 +342,13 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
           containerRef={containerRef}
         />
         <div className="canvas-editor-area__secondary" style={{ width: `${(1 - splitRatio) * 100}%` }}>
-          {renderEditorGroup('secondary', secondaryGroup, isSecondarySceneActive)}
-          {shortDramaTeamPresentation.status === 'ready' && (
+          {renderEditorGroup('secondary', presentedSecondaryGroup, isSecondarySceneActive)}
+          {shortDramaTeamPresentation.status === 'ready'
+            && shortDramaTeamPresentation.mode === 'rail' && (
             <React.Suspense fallback={null}>
               <ShortDramaTeamPanelControls
-                mode={shortDramaTeamPresentation.mode}
                 tabs={shortDramaTeamPresentation.tabs}
-                activeTabId={shortDramaTeamPresentation.activeTabId}
                 onToggle={handleShortDramaTeamToggle}
-                onSelectTab={handleShortDramaTeamAgentSelect}
               />
             </React.Suspense>
           )}

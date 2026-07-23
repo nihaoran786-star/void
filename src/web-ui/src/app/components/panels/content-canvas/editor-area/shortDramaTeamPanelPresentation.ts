@@ -1,6 +1,7 @@
 import type { CanvasTab, EditorGroupId, EditorGroupState, SplitMode } from '../types';
 import type { WorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { areShortDramaWorkspacePathsEqual } from '@/shared/services/short-drama/ShortDramaWorkspaceBinding';
+import type { ShortDramaStage } from '@/shared/services/short-drama';
 
 export type ShortDramaTeamPanelMode = 'closed' | 'rail' | 'open';
 
@@ -74,13 +75,98 @@ export type ShortDramaTeamLayoutRecovery =
 const activeTab = (group: EditorGroupState): CanvasTab | undefined =>
   group.tabs.find(tab => tab.id === group.activeTabId);
 
+const shortDramaStageOrder: Readonly<Record<ShortDramaStage, number>> = {
+  script: 0,
+  assets: 1,
+  storyboards: 2,
+  video: 3,
+  post: 4,
+};
+
+const isShortDramaStage = (value: unknown): value is ShortDramaStage =>
+  value === 'script'
+  || value === 'assets'
+  || value === 'storyboards'
+  || value === 'video'
+  || value === 'post';
+
 const isShortDramaStageAgentTab = (tab: CanvasTab): boolean =>
   tab.content.type === 'btw-session'
-  && typeof tab.content.metadata?.shortDramaStage === 'string';
+  && isShortDramaStage(tab.content.metadata?.shortDramaStage);
+
+const shortDramaStageForTab = (tab: CanvasTab): ShortDramaStage | null => {
+  const stage = tab.content.metadata?.shortDramaStage;
+  return isShortDramaStage(stage) ? stage : null;
+};
+
+export function orderShortDramaTeamTabs(
+  tabs: readonly CanvasTab[],
+): CanvasTab[] {
+  return [...tabs].sort((left, right) => {
+    const leftStage = shortDramaStageForTab(left);
+    const rightStage = shortDramaStageForTab(right);
+    const leftOrder = leftStage ? shortDramaStageOrder[leftStage] : Number.MAX_SAFE_INTEGER;
+    const rightOrder = rightStage ? shortDramaStageOrder[rightStage] : Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder;
+  });
+}
+
+export function getShortDramaTeamTabDisplayTitle(
+  tab: CanvasTab,
+  translate: (key: string) => string,
+): string {
+  const stage = shortDramaStageForTab(tab);
+  return stage ? `${translate(`shortDrama.tabs.${stage}`)} AI` : tab.title;
+}
+
+export function projectShortDramaTeamGroup(
+  group: EditorGroupState,
+  translate: (key: string) => string,
+): EditorGroupState {
+  const stageTabs = orderShortDramaTeamTabs(
+    group.tabs.filter(isShortDramaStageAgentTab),
+  );
+  const activeTabId = stageTabs.some(tab => tab.id === group.activeTabId)
+    ? group.activeTabId
+    : stageTabs[0]?.id ?? null;
+  return {
+    ...group,
+    activeTabId,
+    tabs: stageTabs.map(tab => {
+      const title = getShortDramaTeamTabDisplayTitle(tab, translate);
+      if (title === tab.title && title === tab.content.title) {
+        return tab;
+      }
+      return {
+        ...tab,
+        title,
+        content: {
+          ...tab.content,
+          title,
+        },
+      };
+    }),
+  };
+}
 
 const isShortDramaWorkspaceTab = (tab: CanvasTab): boolean =>
   tab.content.type === 'short-drama-center'
   || tab.content.type === 'workspace-media-gallery';
+
+const shortDramaSurfaceTab = (
+  group: EditorGroupState,
+): CanvasTab | undefined => {
+  const active = activeTab(group);
+  if (active && isShortDramaWorkspaceTab(active)) {
+    return active;
+  }
+
+  const visibleSurfaces = group.tabs.filter(tab => (
+    !tab.isHidden && isShortDramaWorkspaceTab(tab)
+  ));
+  return visibleSurfaces.find(tab => tab.content.type === 'short-drama-center')
+    ?? visibleSurfaces[0];
+};
 
 const workspacePathForTab = (tab: CanvasTab): string | undefined => {
   const data = tab.content.data;
@@ -218,8 +304,8 @@ export function selectShortDramaTeamPanelPresentation({
     };
   }
 
-  const activePrimaryTab = activeTab(primaryGroup);
-  if (!activePrimaryTab || !isShortDramaWorkspaceTab(activePrimaryTab)) {
+  const activePrimaryTab = shortDramaSurfaceTab(primaryGroup);
+  if (!activePrimaryTab) {
     return {
       status: 'inactive',
       mode: 'closed',
@@ -229,9 +315,10 @@ export function selectShortDramaTeamPanelPresentation({
   }
 
   const visibleSecondaryTabs = secondaryGroup.tabs.filter(tab => !tab.isHidden);
+  const visibleStageAgentTabs = visibleSecondaryTabs.filter(isShortDramaStageAgentTab);
   if (
     activePrimaryTab.content.type === 'workspace-media-gallery'
-    && visibleSecondaryTabs.length === 0
+    && visibleStageAgentTabs.length === 0
   ) {
     return {
       status: 'inactive',
@@ -240,7 +327,7 @@ export function selectShortDramaTeamPanelPresentation({
       tabs: [],
     };
   }
-  if (!visibleSecondaryTabs.every(isShortDramaStageAgentTab)) {
+  if (!visibleSecondaryTabs.every(tab => tab.content.type === 'btw-session')) {
     return {
       status: 'inactive',
       mode: 'closed',
@@ -252,7 +339,7 @@ export function selectShortDramaTeamPanelPresentation({
   const requireExplicitWorkspace = (
     activePrimaryTab.content.type === 'workspace-media-gallery'
   );
-  if (!visibleSecondaryTabs.every(
+  if (!visibleStageAgentTabs.every(
     tab => stageAgentMatchesWorkspace(
       tab,
       primaryWorkspacePath,
@@ -267,11 +354,12 @@ export function selectShortDramaTeamPanelPresentation({
     };
   }
 
-  const activeSecondaryTab = visibleSecondaryTabs.find(
+  const activeSecondaryTab = visibleStageAgentTabs.find(
     tab => tab.id === secondaryGroup.activeTabId,
   );
+  const orderedSecondaryTabs = orderShortDramaTeamTabs(visibleStageAgentTabs);
   const primarySurfaceKey = primarySurfaceKeyForTab(activePrimaryTab);
-  const teamIdentity = teamIdentityFor(primarySurfaceKey, visibleSecondaryTabs);
+  const teamIdentity = teamIdentityFor(primarySurfaceKey, orderedSecondaryTabs);
 
   return {
     status: 'ready',
@@ -279,7 +367,7 @@ export function selectShortDramaTeamPanelPresentation({
       && expandedPrimarySurfaceKey === primarySurfaceKey
       ? 'open'
       : 'rail',
-    tabs: visibleSecondaryTabs,
+    tabs: orderedSecondaryTabs,
     activeTabId: activeSecondaryTab?.id ?? '',
     primarySurfaceKey,
     teamIdentity,

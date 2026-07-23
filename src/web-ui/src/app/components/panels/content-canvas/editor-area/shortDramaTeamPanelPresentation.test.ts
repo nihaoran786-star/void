@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CanvasTab, EditorGroupState } from '../types';
 import {
+  projectShortDramaTeamGroup,
   selectShortDramaTeamTabCloseAction,
   selectShortDramaTeamLayoutRecovery,
   selectShortDramaTeamPanelPresentation,
@@ -96,6 +97,42 @@ describe('selectShortDramaTeamPanelPresentation', () => {
     });
   });
 
+  it('keeps an unrelated BTW thread out of the short-drama team without deleting it', () => {
+    const unrelatedBtw = createTab('hello-thread', 'btw-session');
+    const secondaryGroup = createGroup([
+      unrelatedBtw,
+      stageAgentTabs[1],
+      stageAgentTabs[0],
+    ], unrelatedBtw.id);
+
+    const presentation = selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup: shortDramaGroup,
+      secondaryGroup,
+      expandedPrimarySurfaceKey: 'short-drama-workspace:C:/work',
+    });
+    const projected = projectShortDramaTeamGroup(
+      secondaryGroup,
+      key => key,
+    );
+
+    expect(presentation).toMatchObject({
+      status: 'ready',
+      mode: 'open',
+      activeTabId: '',
+    });
+    expect(presentation.status === 'ready'
+      ? presentation.tabs.map(tab => tab.id)
+      : []).toEqual(['script-agent', 'asset-agent']);
+    expect(projected.tabs.map(tab => tab.id)).toEqual([
+      'script-agent',
+      'asset-agent',
+    ]);
+    expect(projected.activeTabId).toBe('script-agent');
+    expect(secondaryGroup.tabs).toContain(unrelatedBtw);
+  });
+
   it('does not reinterpret non-short-drama layouts', () => {
     expect(selectShortDramaTeamPanelPresentation({
       presentation: 'minimal',
@@ -107,6 +144,27 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       status: 'inactive',
       mode: 'closed',
       reason: 'primary-is-not-short-drama',
+    });
+  });
+
+  it('keeps the short-drama team presentation while another canvas tool is active', () => {
+    const browserTab = createTab('browser', 'browser');
+    const primaryGroup = createGroup([
+      browserTab,
+      ...shortDramaGroup.tabs,
+    ], browserTab.id);
+
+    expect(selectShortDramaTeamPanelPresentation({
+      presentation: 'minimal',
+      splitMode: 'horizontal',
+      primaryGroup,
+      secondaryGroup: createGroup(stageAgentTabs),
+      expandedPrimarySurfaceKey: 'short-drama-workspace:C:/work',
+    })).toMatchObject({
+      status: 'ready',
+      mode: 'open',
+      tabs: stageAgentTabs,
+      primarySurfaceKey: 'short-drama-workspace:C:/work',
     });
   });
 
@@ -352,6 +410,51 @@ describe('selectShortDramaTeamPanelPresentation', () => {
       : null).toBe(
       original.status === 'ready' ? original.teamIdentity : null,
     );
+  });
+
+  it('projects the shared BTW group into the fixed Chinese stage order', () => {
+    const group = createGroup([
+      createTab('post-agent', 'btw-session', { shortDramaStage: 'post' }),
+      createTab('video-agent', 'btw-session', { shortDramaStage: 'video' }),
+      createTab('storyboard-agent', 'btw-session', { shortDramaStage: 'storyboards' }),
+      createTab('asset-agent', 'btw-session', { shortDramaStage: 'assets' }),
+      createTab('script-agent', 'btw-session', { shortDramaStage: 'script' }),
+    ]);
+    const labels: Record<string, string> = {
+      'shortDrama.tabs.script': '剧本',
+      'shortDrama.tabs.assets': '资产',
+      'shortDrama.tabs.storyboards': '分镜',
+      'shortDrama.tabs.video': '视频',
+      'shortDrama.tabs.post': '后期',
+    };
+
+    const projected = projectShortDramaTeamGroup(
+      group,
+      key => labels[key] ?? key,
+    );
+
+    expect(projected.tabs.map(tab => tab.id)).toEqual([
+      'script-agent',
+      'asset-agent',
+      'storyboard-agent',
+      'video-agent',
+      'post-agent',
+    ]);
+    expect(projected.tabs.map(tab => tab.title)).toEqual([
+      '剧本 AI',
+      '资产 AI',
+      '分镜 AI',
+      '视频 AI',
+      '后期 AI',
+    ]);
+    expect(projected.tabs.map(tab => tab.content.title)).toEqual([
+      '剧本 AI',
+      '资产 AI',
+      '分镜 AI',
+      '视频 AI',
+      '后期 AI',
+    ]);
+    expect(projected.activeTabId).toBe(group.activeTabId);
   });
 });
 

@@ -85,10 +85,10 @@
 
       > .canvas-editor-area__secondary {
         position: relative;
-        flex: 0 0 min(360px, 32%);
-        width: min(360px, 32%) !important;
+        flex: 0 0 min(620px, 54%);
+        width: min(620px, 54%) !important;
         min-width: 0;
-        max-width: 360px;
+        max-width: 620px;
         box-sizing: border-box;
         z-index: 1;
         overflow: visible;
@@ -97,14 +97,32 @@
       }
 
       > .canvas-editor-area__secondary
-        > .canvas-editor-group {
-        box-sizing: border-box;
-        padding-top: calc(
-          var(--workspace-icon-target) + var(--workspace-space-2)
-        );
+        > .canvas-editor-group
+        > .canvas-tab-bar
+        > .canvas-tab-bar__tabs
+        > .canvas-tab-bar__tab-wrapper {
+        flex: 0 0 auto;
 
-        > .canvas-tab-bar {
-          display: none;
+        > .canvas-tab {
+          width: auto;
+          min-width: 80px;
+          max-width: 100px;
+          padding-inline: 6px;
+
+          > .canvas-tab__popout-btn,
+          > .canvas-tab__close-btn {
+            position: absolute;
+            right: 4px;
+          }
+
+          > .canvas-tab__popout-btn {
+            right: 20px;
+          }
+
+          &:hover > .canvas-tab__title,
+          &:focus-within > .canvas-tab__title {
+            padding-right: 32px;
+          }
         }
       }
 
@@ -113,20 +131,6 @@
         min-height: 32px;
         padding: 7px 10px;
         border-bottom-style: solid;
-      }
-
-      .btw-session-panel__header-left {
-        display: none;
-      }
-
-      .btw-session-panel__header-title-wrap {
-        display: none;
-      }
-
-      .btw-session-panel__header:has(
-        .btw-session-panel__header-right:empty
-      ) {
-        display: none;
       }
 
       .btw-session-panel__header-right {
@@ -266,30 +270,15 @@
         }
       }
 
-      &.is-open {
-        position: absolute;
-        inset: 0 0 auto;
-        display: flex;
-        height: calc(
-          var(--workspace-icon-target) + var(--workspace-space-2)
-        );
-        align-items: center;
-        justify-content: space-between;
-        gap: 6px;
-        padding: var(--workspace-space-1) var(--workspace-space-2);
-        border-bottom: 1px solid var(--workspace-border-subtle);
-        background: var(--workspace-surface-panel);
-        pointer-events: auto;
-      }
     }
 
     .short-drama-team-panel-controls__summary {
       gap: 5px;
       width: auto;
       padding-inline: 7px;
-      border: 1px solid var(--workspace-border-subtle);
+      border: 0;
       border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-panel);
+      background: transparent;
       box-shadow: none;
       font-size: var(--workspace-font-size-label);
       line-height: 1;
@@ -321,135 +310,6 @@
       line-height: 1;
     }
 
-    .short-drama-team-panel-controls__agent-selector {
-      position: relative;
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-
-    .short-drama-team-panel-controls
-      .short-drama-team-panel-controls__agent-trigger {
-      width: 100%;
-      max-width: 100%;
-      height: calc(
-        var(--workspace-icon-target)
-      );
-      gap: var(--workspace-space-2);
-      justify-content: flex-start;
-      padding-inline: var(--workspace-space-2);
-      color: var(--workspace-text-secondary);
-      font-size: var(--workspace-font-size-label);
-      white-space: nowrap;
-
-      > svg {
-        margin-left: auto;
-        flex: 0 0 auto;
-        color: var(--workspace-text-muted);
-      }
-    }
-
-    .short-drama-team-panel-controls__agent-status {
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-    }
-
-    .short-drama-team-panel-controls__agent-name {
-      min-width: 0;
-      overflow: hidden;
-      color: var(--workspace-text-primary);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .short-drama-team-panel-controls__agent-text {
-      display: grid;
-      min-width: 0;
-      gap: 0;
-      line-height: 1.15;
-    }
-
-    .short-drama-team-panel-controls__agent-meta {
-      min-width: 0;
-      overflow: hidden;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-meta);
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .short-drama-team-panel-controls__agent-dot {
-      width: 6px;
-      height: 6px;
-      flex: 0 0 6px;
-      border-radius: 999px;
-      background: currentColor;
-    }
-
-    .short-drama-team-panel-controls__agent-menu {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      z-index: 2;
-      display: grid;
-      width: min(300px, calc(100vw - var(--workspace-space-8)));
-      gap: var(--workspace-space-1);
-      padding: var(--workspace-space-1);
-      border: 1px solid var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-control);
-      background: var(--workspace-surface-raised);
-      box-shadow: var(--workspace-shadow-raised);
-    }
-
-    .short-drama-team-panel-controls
-      .short-drama-team-panel-controls__agent-option {
-      display: grid;
-      grid-template-columns: 6px minmax(0, 1fr) auto 14px;
-      align-items: center;
-      width: 100%;
-      min-height: calc(
-        var(--workspace-icon-target) + var(--workspace-space-2)
-      );
-      justify-content: stretch;
-      gap: var(--workspace-space-2);
-      padding-block: var(--workspace-space-1);
-      padding-inline: var(--workspace-space-2);
-      color: var(--workspace-text-secondary);
-      font-size: var(--workspace-font-size-label);
-      text-align: left;
-
-      &:hover,
-      &:focus-visible,
-      &.is-active {
-        color: var(--workspace-text-primary);
-        background: var(--workspace-surface-hover);
-      }
-
-      .short-drama-team-panel-controls__agent-status {
-        justify-self: end;
-      }
-    }
-
-    .short-drama-team-panel-controls__agent-dot.is-status-waiting,
-    .short-drama-team-panel-controls__agent-dot.is-status-cancelled {
-      color: var(--workspace-status-neutral-text);
-    }
-
-    .short-drama-team-panel-controls__agent-dot.is-status-live {
-      color: var(--workspace-status-info-text);
-    }
-
-    .short-drama-team-panel-controls__agent-dot.is-status-attention {
-      color: var(--workspace-status-warning-text);
-    }
-
-    .short-drama-team-panel-controls__agent-dot.is-status-completed {
-      color: var(--workspace-status-success-text);
-    }
-
-    .short-drama-team-panel-controls__agent-dot.is-status-failed {
-      color: var(--workspace-status-error-text);
-    }
-
     .short-drama-team-panel-controls__summary.is-status-waiting,
     .short-drama-team-panel-controls__summary.is-status-cancelled {
       color: var(--workspace-status-neutral-text);
@@ -479,10 +339,6 @@
         padding-right: 52px;
       }
 
-      .short-drama-team-panel-controls
-        .short-drama-team-panel-controls__agent-trigger {
-        max-width: 230px;
-      }
     }
 
     @container short-drama-editor-area (max-width: 720px) {
@@ -499,8 +355,8 @@
           flex: none;
           // Keep a 48px strip of the primary surface visible so the overlay
           // reads as an overlay instead of replacing the short-drama center.
-          width: min(360px, calc(100% - 48px)) !important;
-          max-width: 360px;
+          width: min(520px, calc(100% - 48px)) !important;
+          max-width: 520px;
           z-index: 7;
           box-shadow: var(--workspace-shadow-raised);
         }

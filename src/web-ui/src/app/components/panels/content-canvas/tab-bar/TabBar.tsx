@@ -11,6 +11,7 @@ import { readWorkspacePresentation } from '@/app/presentation/workspacePresentat
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
 import {
+  canShowAllCompactPanelTabs,
   resolveVisibleTabsCount,
   selectTabStripTabs,
 } from './tabBarLayout';
@@ -216,6 +217,21 @@ export const TabBar: React.FC<TabBarProps> = ({
     const overflowBtnWidth = 50;
     // Gap before actions area
     const actionsGap = 8;
+
+    if (
+      groupActionKind === 'collapse-panel'
+      && canShowAllCompactPanelTabs({
+        containerWidth,
+        tabCount: stripTabs.length,
+        tabWidth: 80,
+        actionsWidth: baseActionsWidth,
+        actionsGap,
+      })
+    ) {
+      setVisibleTabsCount(stripTabs.length);
+      setLayoutReady(true);
+      return;
+    }
     
     // Phase 1: check if all tabs fit without overflow
     // Overflow can be hidden only when mission control entry is not needed

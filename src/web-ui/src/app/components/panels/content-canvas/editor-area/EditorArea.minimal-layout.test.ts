@@ -15,10 +15,19 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /&\.is-short-drama-team-open[\s\S]*?> \.canvas-split-handle \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: relative;[\s\S]*?flex: 0 0 min\(360px, 32%\);[\s\S]*?width: min\(360px, 32%\) !important;[\s\S]*?max-width: 360px;[\s\S]*?box-shadow: none;/,
+      /&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: relative;[\s\S]*?flex: 0 0 min\(620px, 54%\);[\s\S]*?width: min\(620px, 54%\) !important;[\s\S]*?max-width: 620px;[\s\S]*?box-shadow: none;/,
     );
     expect(source).toMatch(
-      /@container short-drama-editor-area \(max-width: 720px\)[\s\S]*?&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?width: min\(360px, calc\(100% - 48px\)\) !important;[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
+      /@container short-drama-editor-area \(max-width: 720px\)[\s\S]*?&\.is-short-drama-team-open[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?width: min\(520px, calc\(100% - 48px\)\) !important;[\s\S]*?box-shadow: var\(--workspace-shadow-raised\);/,
+    );
+    expect(source).not.toContain(
+      'padding-top: var(--workspace-topbar-height);',
+    );
+    expect(source).toMatch(
+      /> \.canvas-tab-bar__tab-wrapper \{[\s\S]*?flex: 0 0 auto;[\s\S]*?> \.canvas-tab \{[\s\S]*?width: auto;[\s\S]*?min-width: 80px;[\s\S]*?max-width: 100px;/,
+    );
+    expect(source).toMatch(
+      /> \.canvas-tab__popout-btn,[\s\S]*?> \.canvas-tab__close-btn \{[\s\S]*?position: absolute;/,
     );
     expect(source).toMatch(
       /\.btw-session-panel__composer \{[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border: 0;[\s\S]*?background: var\(--workspace-surface-panel\);/,
@@ -47,7 +56,7 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /&\.is-short-drama-team-rail[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?right: 0;[\s\S]*?width: 0 !important;[\s\S]*?max-width: 0;[\s\S]*?overflow: visible;/,
     );
     expect(source).toMatch(
-      /\.short-drama-team-panel-controls__summary \{[\s\S]*?width: auto;[\s\S]*?border: 1px solid var\(--workspace-border-subtle\);/,
+      /\.short-drama-team-panel-controls__summary \{[\s\S]*?width: auto;[\s\S]*?border: 0;/,
     );
     expect(source).toMatch(
       /\.short-drama-team-panel-controls__summary-icon \{[\s\S]*?place-items: center;/,
@@ -56,7 +65,7 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       '.short-drama-team-panel-controls__summary-label',
     );
     expect(source).toMatch(
-      /\.short-drama-team-panel-controls__summary \{[\s\S]*?border-radius: var\(--workspace-radius-control\);[\s\S]*?background: var\(--workspace-surface-panel\);[\s\S]*?box-shadow: none;/,
+      /\.short-drama-team-panel-controls__summary \{[\s\S]*?border-radius: var\(--workspace-radius-control\);[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
     );
     expect(source).not.toContain('44px');
   });
