@@ -1766,3 +1766,19 @@ dynamic `ProfileScene` CSS chunk, not the entry stylesheet. The performance
 budget passes with 2,335,875 raw JavaScript bytes, 632,617 raw CSS bytes, all
 54 required dynamic entries, and zero unresolved static imports. The monitored
 gzip deltas remain non-blocking at +1,830 JavaScript bytes and +492 CSS bytes.
+
+### Slice 43: Theme governance reconciliation
+
+The full frontend suite exposed four stale presentation contracts from earlier
+theme slices. The Skills dirty state now uses its semantic border without an
+unapproved inset shadow. Account heatmap month labels use the shared 2xs type
+token instead of a literal 10px value. The typography ledger removes the
+already-retired literal monospace declaration from the session usage card.
+The short-drama recovery integration mock now follows the shared BTW controls
+container interface and verifies the rail mode on the owning EditorArea
+projection instead of expecting a removed `mode` prop.
+
+These corrections change no Account data, heatmap calculation, short-drama
+recovery behavior, session lifecycle, or BTW controls. They reconcile
+governance and integration tests with the current module interfaces and reduce
+theme debt rather than raising a test baseline.

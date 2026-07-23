@@ -22,9 +22,7 @@ vi.mock('./SplitHandle', () => ({
 }));
 
 vi.mock('./ShortDramaTeamPanelControlsContainer', () => ({
-  default: ({ mode }: { mode: string }) => (
-    <div data-testid="team-controls" data-mode={mode} />
-  ),
+  default: () => <div data-testid="team-controls" />,
 }));
 
 import { EditorArea } from './EditorArea';
@@ -101,8 +99,7 @@ describe('EditorArea short-drama team recovery integration', () => {
       'post-session',
     ]));
     expect(next.closedTabs).toHaveLength(0);
-    expect(container.querySelector('[data-testid="team-controls"]')?.getAttribute('data-mode'))
-      .toBe('rail');
+    expect(container.querySelector('[data-testid="team-controls"]')).not.toBeNull();
     expect(container.firstElementChild?.getAttribute('data-short-drama-team-mode'))
       .toBe('rail');
   });
