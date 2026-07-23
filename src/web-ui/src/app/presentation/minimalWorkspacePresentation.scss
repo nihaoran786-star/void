@@ -1,5 +1,6 @@
 @use '../layout/AppLayout.minimal.scss' as app-layout;
 @use '../components/NavPanel/NavPanel.minimal.scss' as nav-panel;
+@use '../components/GalleryLayout/GalleryLayout.minimal.scss' as gallery-layout;
 @use '../../flow_chat/components/ChatInput.minimal.scss' as chat-input;
 @use '../../flow_chat/components/RichTextInput.minimal.scss' as rich-text-input;
 @use '../../flow_chat/components/FileMentionPicker.minimal.scss' as file-mention-picker;
@@ -26,6 +27,7 @@
 
 @include app-layout.styles;
 @include nav-panel.styles;
+@include gallery-layout.styles;
 @include chat-input.styles;
 @include rich-text-input.styles;
 @include file-mention-picker.styles;

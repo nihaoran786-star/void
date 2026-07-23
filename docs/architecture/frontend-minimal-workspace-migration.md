@@ -1666,3 +1666,19 @@ Drama and Workspace Media presentation stylesheets. It rejects raw
 feature token references. Classic token values and the ordered consumer role
 maps are locked by feature tests, so a value change or semantic reassignment is
 an explicit review decision rather than incidental cascade drift.
+
+### Slice 39: Shared Gallery Minimal projection
+
+Agents, Nursery customization, and Mini Apps now share one Minimal-only Gallery
+projection loaded by the presentation aggregator. It applies the workspace
+typography, compact spacing, flat semantic surfaces, 28px interaction targets,
+a single focus ring, and short color/surface transitions while retaining the
+existing sticky header and anchor geometry. Partial class consumers in Skills,
+Insights, template configuration, and Portal surfaces stay outside the scoped
+projection. Reduced motion disables scoped transitions, skeleton shimmer,
+spinner, and item entrance.
+
+The slice changes no Gallery React component, Classic stylesheet, Store, API,
+Runtime, session, media, or subagent behavior. A source contract locks the
+Minimal scope and import path, Classic hashes, token ownership, prohibited
+effects, focus treatment, and reduced-motion behavior.
