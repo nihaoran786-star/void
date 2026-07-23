@@ -2112,3 +2112,39 @@ and passes the frozen performance budget with 2,337,056 raw JavaScript bytes,
 imports. Gzip monitor deltas remain non-blocking at +2,403 JavaScript bytes and
 +492 CSS bytes. Browser CSS remains in its lazy Browser panel and scene chunks,
 and the temporary production artifact is removed after verification.
+
+### Slice 53: Compact Skills cards and container-responsive commands
+
+The installed and market Skills galleries now use a denser Minimal card
+projection. Cards are reduced from 136 to 112 pixels, descriptions remain
+available but collapse to one line, full paths keep their existing tooltip and
+reveal action, and the redundant visible `Details` label becomes an accessible
+icon action. Secondary card actions stay present for keyboard and assistive
+technology users but are progressively disclosed on pointer hover or
+`focus-within`; touch layouts keep them visible. The entire card remains the
+primary details target, and delete, install, download, path reveal, filtering,
+pagination, and market behavior are unchanged.
+
+Installed and market cards use layout/paint/style containment,
+`content-visibility: auto`, and a 112-pixel intrinsic fallback so off-screen
+items do not require eager painting. The Skills main pane is now an inline-size
+container. When the pane itself becomes narrower than 520 pixels, regardless
+of the outer desktop width, search occupies the first command row and the
+duplicate/add actions share the second row. This fixes the previous orphaned
+Add button when the persistent navigation compressed the content pane.
+
+Real desktop verification covered the installed gallery, market gallery,
+pointer action disclosure, keyboard focus and Enter-to-open details, 760-,
+980-, 1280-, and 1800-pixel windows, plus return to the standard 1280-by-900
+workspace. The complete frontend suite passes 408 files and 2,332 tests.
+TypeScript, repository hygiene, core boundaries, theme colors, theme visual
+governance, and the 15-test i18n contract also pass. Idle sampling after the
+interaction pass measured the desktop process at approximately 1.6% CPU and
+92.6 MB RSS while the active Vite process remained at 0% CPU.
+
+The dedicated production artifact transforms 7,471 modules and passes the
+frozen performance budget with 2,337,056 raw JavaScript bytes, 632,617 raw CSS
+bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
+monitor deltas remain non-blocking at +2,401 JavaScript bytes and +492 CSS
+bytes. The Skills projection remains in its lazy feature chunk, and the
+temporary production artifact is removed after verification.

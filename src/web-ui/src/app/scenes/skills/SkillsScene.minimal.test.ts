@@ -60,10 +60,10 @@ describe('Skills scene Minimal presentation contract', () => {
       /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\);/g,
     )).toHaveLength(4);
     expect(source).toMatch(
-      /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 136px;[\s\S]*?min-height: 136px;/,
+      /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
     );
     expect(source).toMatch(
-      /\.skill-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 136px;[\s\S]*?min-height: 136px;/,
+      /\.skill-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
     );
     expect(source).toMatch(
       /\.skills-suite__group-card \{[\s\S]*?height: 160px;[\s\S]*?min-height: 160px;/,
@@ -74,6 +74,10 @@ describe('Skills scene Minimal presentation contract', () => {
     expect(source).toContain('@media (max-width: 520px)');
     expect(source).toMatch(
       /@media \(max-width: 520px\)[\s\S]*?grid-template-columns: 1fr;/,
+    );
+    expect(source).toContain('container-name: skills-main;');
+    expect(source).toMatch(
+      /@container skills-main \(max-width: 520px\)[\s\S]*?flex: 1 0 100%;[\s\S]*?flex: 1 1 calc\(50% - var\(--workspace-space-1\)\);/,
     );
   });
 
@@ -89,6 +93,23 @@ describe('Skills scene Minimal presentation contract', () => {
     expect(source).toContain('background: var(--workspace-status-success-bg);');
     expect(source).toContain('&.is-dirty {');
     expect(source).toContain('border-color: var(--workspace-status-info-border);');
+    expect(source.match(/content-visibility: auto;/g)).toHaveLength(2);
+    expect(source.match(/contain-intrinsic-block-size: 112px;/g)).toHaveLength(2);
+  });
+
+  it('keeps compact cards readable while collapsing the redundant details label', () => {
+    expect(source).toMatch(
+      /\.skills-card__desc \{[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/,
+    );
+    expect(source).toMatch(
+      /\.skills-card__actions \{[\s\S]*?grid-row: 2;[\s\S]*?flex-direction: row;/,
+    );
+    expect(source).toMatch(
+      /\.skills-card__actions \{[\s\S]*?\.btn \{[\s\S]*?span \{[\s\S]*?clip: rect\(0 0 0 0\);/,
+    );
+    expect(source).toMatch(
+      /@media \(hover: hover\)[\s\S]*?\.skills-card__actions \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card:focus-within \.skills-card__actions/,
+    );
   });
 
   it('uses short tokenized feedback without lift, bounce, or stagger', () => {
