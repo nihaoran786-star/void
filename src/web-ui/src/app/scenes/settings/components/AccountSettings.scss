@@ -303,6 +303,10 @@
   color: var(--color-warning);
 }
 
+.account-settings__section--profile .void-config-page-section__body {
+  background-color: var(--element-bg-subtle);
+}
+
 .account-settings__empty-hint {
   margin: 10px 0 0;
   color: var(--color-text-muted);
@@ -350,6 +354,44 @@
       grid-column: 1 / -1;
       border-bottom: 0;
     }
+  }
+}
+
+@container config-panel (min-width: 721px) {
+  .account-settings__section--profile .void-config-page-section__body {
+    min-height: 190px;
+    background-image: url('/visuals/void-robot-hero.webp');
+    background-repeat: no-repeat;
+    background-position: center 8%;
+    background-size: cover;
+  }
+
+  .account-settings__section--profile .account-settings__identity {
+    grid-template-areas:
+      'avatar copy visual'
+      'avatar action visual';
+    grid-template-columns: auto minmax(0, 360px) 1fr;
+    align-content: center;
+    align-items: center;
+    min-height: 188px;
+    padding: var(--account-space-lg);
+  }
+
+  .account-settings__section--profile .account-settings__avatar {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .account-settings__section--profile .account-settings__identity-copy {
+    grid-area: copy;
+    align-self: end;
+  }
+
+  .account-settings__section--profile .account-settings__identity > .btn {
+    grid-area: action;
+    align-self: start;
+    justify-self: start;
+    margin-top: var(--account-space-sm);
   }
 }
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { AccountSettingsView } from './AccountSettings';
@@ -53,6 +55,21 @@ function render(snapshot: AuthSessionSnapshot) {
 }
 
 describe('AccountSettingsView', () => {
+  it('uses the shared robot visual only for the wide profile presentation', () => {
+    const stylesheet = readFileSync(
+      fileURLToPath(new URL('./AccountSettings.scss', import.meta.url)),
+      'utf8',
+    ).replace(/\r\n/g, '\n');
+
+    expect(stylesheet).toContain('@container config-panel (min-width: 721px)');
+    expect(stylesheet).toContain(
+      "background-image: url('/visuals/void-robot-hero.webp');",
+    );
+    expect(stylesheet).toContain('min-height: 190px;');
+    expect(stylesheet).toContain("'avatar copy visual'");
+    expect(stylesheet).not.toMatch(/(?:linear|radial|conic)-gradient/i);
+  });
+
   it('renders anonymous production state without a fake account switch', () => {
     const html = render({
       state: { status: 'anonymous' },
@@ -60,6 +77,7 @@ describe('AccountSettingsView', () => {
     });
 
     expect(html).toContain('data-auth-status="anonymous"');
+    expect(html).toContain('account-settings__section--profile');
     expect(html).toContain('account.states.unavailableHint');
     expect(html).toContain('disabled=""');
   });

@@ -317,6 +317,7 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = props => 
     />
     <ConfigPageContent>
       <ConfigPageSection
+        className="account-settings__section--profile"
         title={props.t('account.profile.title')}
         description={props.t('account.profile.description')}
       >
