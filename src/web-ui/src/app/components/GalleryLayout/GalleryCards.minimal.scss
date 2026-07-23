@@ -1,0 +1,410 @@
+@mixin styles {
+  .void-ui--minimal .gallery-layout {
+    .gallery-grid,
+    .core-agents-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 288px), 1fr));
+      gap: var(--workspace-space-2);
+    }
+
+    .agent-card,
+    .core-agent-card,
+    .agent-team-card,
+    .miniapp-card,
+    .assistant-card {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      height: 164px;
+      min-height: 164px;
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-panel);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      box-shadow: none;
+      animation: none;
+      transform: none;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &::before {
+        content: none;
+      }
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+        border-color: var(--workspace-border-strong);
+        box-shadow: none;
+        transform: none;
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
+        box-shadow: none;
+        transform: none;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
+        box-shadow: none;
+      }
+    }
+
+    .miniapp-card--customizing {
+      border-color: var(--workspace-border-strong);
+      box-shadow: none;
+    }
+
+    .agent-card__header,
+    .core-agent-card__top,
+    .agent-team-card__header,
+    .miniapp-card__header,
+    .assistant-card__header {
+      gap: var(--workspace-space-2);
+      padding: var(--workspace-space-3);
+      padding-bottom: 0;
+    }
+
+    .agent-card__icon-area,
+    .core-agent-card__icon-wrap,
+    .agent-team-card__icon,
+    .miniapp-card__icon-area,
+    .assistant-card__avatar {
+      width: 32px;
+      height: 32px;
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-active);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      box-shadow: none;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .miniapp-card__icon,
+    .core-agent-card__icon-wrap {
+      animation: none;
+      transform: none;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .agent-card__header-info,
+    .core-agent-card__top-info,
+    .agent-team-card__header-copy,
+    .assistant-card__header-info {
+      gap: var(--workspace-space-1);
+    }
+
+    .agent-card__name,
+    .core-agent-card__name,
+    .agent-team-card__title,
+    .miniapp-card__name,
+    .assistant-card__name {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-strong);
+      line-height: var(--workspace-line-height-control);
+      letter-spacing: 0;
+    }
+
+    .core-agent-card__role,
+    .agent-team-card__role,
+    .miniapp-card__version,
+    .assistant-card__badges {
+      color: var(--workspace-text-muted);
+      font-family: var(--workspace-font-family);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    .agent-card__body,
+    .core-agent-card__body,
+    .agent-team-card__body,
+    .miniapp-card__body,
+    .assistant-card__body {
+      min-height: 44px;
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+    }
+
+    .agent-card__desc,
+    .core-agent-card__desc,
+    .agent-team-card__desc,
+    .miniapp-card__desc-inner,
+    .assistant-card__vibe {
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-regular);
+      line-height: var(--workspace-line-height-meta);
+      -webkit-line-clamp: 2;
+    }
+
+    .agent-card__footer,
+    .core-agent-card__footer,
+    .agent-team-card__footer,
+    .miniapp-card__footer,
+    .assistant-card__footer {
+      min-height: 32px;
+      height: auto;
+      padding: var(--workspace-space-2) var(--workspace-space-3);
+      background: transparent;
+      border-top: 1px solid var(--workspace-border-subtle);
+      border-radius: 0;
+
+      &::after {
+        content: none;
+      }
+    }
+
+    .miniapp-card__footer,
+    .assistant-card__footer {
+      padding: 0;
+    }
+
+    .miniapp-card__actions,
+    .assistant-card__footer-inner {
+      min-height: 32px;
+      padding: var(--workspace-space-1) var(--workspace-space-3);
+    }
+
+    .agent-card__cap-chip,
+    .agent-team-card__tag-chip,
+    .miniapp-card__tag,
+    .assistant-card__primary-badge {
+      min-height: 20px;
+      padding: 0 var(--workspace-space-2);
+      color: var(--workspace-text-muted);
+      background: var(--workspace-surface-active);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      font-size: var(--workspace-font-size-meta);
+      font-weight: var(--workspace-font-weight-medium);
+    }
+
+    .agent-card__meta,
+    .agent-card__meta-item,
+    .core-agent-card__tag,
+    .core-agent-card__meta-item,
+    .assistant-card__footer-hint {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    .miniapp-card__tags {
+      gap: var(--workspace-space-1);
+      margin-top: auto;
+      margin-bottom: var(--workspace-space-1);
+      padding-top: var(--workspace-space-1);
+    }
+
+    .miniapp-card__action-btn,
+    .assistant-card__new-session-btn,
+    .assistant-card__delete-btn {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      margin: 0;
+      color: var(--workspace-text-muted);
+      background: transparent;
+      border: 0;
+      border-radius: var(--workspace-radius-control);
+      box-shadow: none;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-active);
+        box-shadow: none;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
+        box-shadow: none;
+      }
+    }
+
+    .miniapp-card__action-btn:not(:last-child) {
+      margin-right: 0;
+    }
+
+    .miniapp-card__status-dots {
+      top: var(--workspace-space-2);
+      right: var(--workspace-space-2);
+    }
+
+    .miniapp-card__run-dot,
+    .miniapp-card__customize-dot {
+      width: 6px;
+      height: 6px;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .miniapp-card__run-dot {
+      background: var(--workspace-status-success-text);
+    }
+
+    .miniapp-card__customize-dot {
+      background: var(--workspace-focus-ring);
+    }
+
+    .nursery-template-hero {
+      align-items: stretch;
+      gap: var(--workspace-space-2);
+      width: 100%;
+      padding: var(--workspace-space-3) var(--workspace-space-4) 0;
+    }
+
+    .nursery-template-brand-mark {
+      width: 72px;
+      height: 120px;
+    }
+
+    .nursery-template-brand-mark__img {
+      filter: none;
+      transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .nursery-template-card {
+      height: 120px;
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-panel);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      box-shadow: none;
+      animation: none;
+      transform: none;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &::before {
+        content: none;
+      }
+
+      &:hover {
+        background: var(--workspace-surface-hover);
+        border-color: var(--workspace-border-strong);
+        box-shadow: none;
+        transform: none;
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
+        transform: none;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
+        box-shadow: none;
+      }
+    }
+
+    .nursery-template-card__content {
+      gap: var(--workspace-space-1);
+      padding: var(--workspace-space-3) var(--workspace-space-4);
+    }
+
+    .nursery-template-card__title {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-strong);
+      line-height: var(--workspace-line-height-control);
+      letter-spacing: 0;
+    }
+
+    .nursery-template-card__subtitle,
+    .nursery-template-card__action,
+    .nursery-template-card__stat {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-meta);
+    }
+
+    .nursery-template-card__stats {
+      flex-wrap: nowrap;
+      gap: var(--workspace-space-1);
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .nursery-template-card__stat {
+      flex: 0 1 auto;
+      min-width: 0;
+      padding: 1px var(--workspace-space-2);
+      background: var(--workspace-surface-active);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .nursery-template-card:hover .nursery-template-card__stat {
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-active);
+      border-color: var(--workspace-border-strong);
+    }
+
+    .nursery-template-card__deco {
+      display: none;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .void-ui--minimal .gallery-layout {
+      .nursery-template-hero {
+        padding-inline: var(--workspace-space-3);
+      }
+
+      .nursery-template-brand-mark {
+        display: none;
+      }
+
+      .nursery-template-card {
+        height: auto;
+        min-height: 112px;
+      }
+    }
+  }
+
+  @media (max-width: 520px) {
+    .void-ui--minimal .gallery-layout {
+      .gallery-grid,
+      .core-agents-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .gallery-layout {
+      .agent-card,
+      .core-agent-card,
+      .agent-team-card,
+      .miniapp-card,
+      .assistant-card,
+      .nursery-template-card,
+      .nursery-template-brand-mark__img,
+      .miniapp-card__icon,
+      .miniapp-card__run-dot,
+      .miniapp-card__customize-dot {
+        animation: none;
+        transition: none;
+      }
+    }
+  }
+}

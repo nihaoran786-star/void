@@ -1682,3 +1682,22 @@ The slice changes no Gallery React component, Classic stylesheet, Store, API,
 Runtime, session, media, or subagent behavior. A source contract locks the
 Minimal scope and import path, Classic hashes, token ownership, prohibited
 effects, focus treatment, and reduced-motion behavior.
+
+### Slice 40: Compact Gallery card projection
+
+The shared Minimal Gallery projection now normalizes the feature-owned Agent,
+Core Agent, Agent Team, Assistant, and Mini App cards without replacing their
+React implementations. Cards use a responsive 288px grid floor, compact
+workspace typography, flat semantic surfaces, one focus ring, and short
+color/surface feedback. Fixed 360px widths, decorative hover lift, bounce,
+staggered entrance, blur, glow, and gradient overlays remain available only in
+Classic. Mini App run/customize dots retain their semantic status while losing
+the continuous pulse and glow.
+
+Nursery's template entry follows the same projection as a compact, flat
+workspace action. Its brand mark is reduced on wide layouts and omitted at
+narrow widths; decorative egg artwork is removed from Minimal presentation.
+The projection is scoped below `.void-ui--minimal .gallery-layout`, so feature
+detail modals, Review Team summaries, partial class consumers, and Classic
+presentation do not inherit it. Feature state, click handlers, routing, data
+loading, Runtime, media, sessions, and subagents remain unchanged.
