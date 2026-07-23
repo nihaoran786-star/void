@@ -2,8 +2,15 @@
   .void-ui--minimal .gallery-layout {
     .gallery-grid,
     .core-agents-grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 288px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 288px), 1fr));
       gap: var(--workspace-space-2);
+    }
+
+    .gallery-grid--skeleton {
+      grid-template-columns: repeat(
+        auto-fill,
+        minmax(min(100%, var(--gallery-grid-min, 288px)), 1fr)
+      );
     }
 
     .agent-card,

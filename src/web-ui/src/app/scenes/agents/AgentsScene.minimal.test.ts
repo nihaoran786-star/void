@@ -74,7 +74,7 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(source).toMatch(
       /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 120px;[\s\S]*?min-height: 120px;/,
     );
-    expect(source).toContain('grid-template-columns: repeat(auto-fill, minmax(min(100%, 252px), 1fr));');
+    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 252px), 1fr));');
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(

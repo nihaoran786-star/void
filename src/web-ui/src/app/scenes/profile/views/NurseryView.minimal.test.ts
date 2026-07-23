@@ -68,10 +68,16 @@ describe('Nursery Minimal presentation contract', () => {
       /\.nursery-template-brand-mark \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-card \{[\s\S]*?flex: 0 1 720px;[\s\S]*?height: 72px;/,
+      /\.nursery-template-hero \{[\s\S]*?url\('\/visuals\/void-robot-hero\.webp'\)[\s\S]*?border-radius:/,
     );
     expect(source).toMatch(
-      /\.nursery-template-card__subtitle,[\s\S]*?\.nursery-template-card__action \{[\s\S]*?display: none;/,
+      /\.nursery-template-card \{[\s\S]*?width: 100%;[\s\S]*?background: transparent;[\s\S]*?border: 0;/,
+    );
+    expect(source).toMatch(
+      /\.nursery-template-card__content \{[\s\S]*?width: min\(52%, 560px\);/,
+    );
+    expect(source).toMatch(
+      /\.nursery-template-card__action \{[\s\S]*?display: inline-flex;[\s\S]*?background: var\(--workspace-text-primary\);/,
     );
     expect(source).toMatch(
       /\.nursery-template-card__deco \{[\s\S]*?display: none;/,
@@ -80,6 +86,9 @@ describe('Nursery Minimal presentation contract', () => {
 
   it('keeps large assistant collections compact and incrementally renderable', () => {
     expect(source).toMatch(
+      /\.nursery-gallery \{[\s\S]*?\.gallery-grid \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+    );
+    expect(source).toMatch(
       /\.assistant-card \{[\s\S]*?height: 132px;[\s\S]*?content-visibility: auto;[\s\S]*?contain-intrinsic-size: auto 132px;/,
     );
     expect(source).toMatch(
@@ -87,6 +96,12 @@ describe('Nursery Minimal presentation contract', () => {
     );
     expect(source).toMatch(
       /\.assistant-card__footer-hint \{[\s\S]*?display: none;/,
+    );
+  });
+
+  it('collapses the assistant grid to one shrink-safe column on narrow windows', () => {
+    expect(source).toMatch(
+      /@media \(max-width: 900px\) \{[\s\S]*?\.void-ui--minimal \.nursery-gallery \{[\s\S]*?\.gallery-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
     );
   });
 

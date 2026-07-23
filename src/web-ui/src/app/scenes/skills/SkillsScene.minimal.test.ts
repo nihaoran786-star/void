@@ -57,7 +57,7 @@ describe('Skills scene Minimal presentation contract', () => {
 
   it('uses one compact responsive geometry across installed, suite, and market cards', () => {
     expect(source.match(
-      /grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\);/g,
+      /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 260px\), 1fr\)\);/g,
     )).toHaveLength(4);
     expect(source).toMatch(
       /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,

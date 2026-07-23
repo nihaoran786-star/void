@@ -129,9 +129,9 @@
       "assistantsSubtitle": "点击助理卡片进行配置"
     },
     "template": {
-      "title": "孵化模板",
-      "subtitle": "新助理孵化时继承这里的配置",
-      "configure": "配置模板",
+      "title": "构建你的 AI 团队",
+      "subtitle": "统一配置模型、技能与工具，新助理从这里开始。",
+      "configure": "设置团队基础",
       "tokenTitle": "上下文占用估算",
       "tokenSystemPrompt": "系统提示词",
       "tokenToolInjection": "工具描述注入",

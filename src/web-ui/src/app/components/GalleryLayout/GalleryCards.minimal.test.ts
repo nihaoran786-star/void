@@ -54,7 +54,10 @@ describe('Gallery card Minimal presentation contract', () => {
 
   it('uses a compact responsive grid and consistent card geometry', () => {
     expect(source).toContain(
-      'grid-template-columns: repeat(auto-fill, minmax(min(100%, 288px), 1fr));',
+      'grid-template-columns: repeat(auto-fit, minmax(min(100%, 288px), 1fr));',
+    );
+    expect(source).toMatch(
+      /\.gallery-grid--skeleton \{[\s\S]*?grid-template-columns: repeat\([\s\S]*?auto-fill,[\s\S]*?var\(--gallery-grid-min, 288px\)/,
     );
     expect(source).toMatch(
       /\.agent-card,[\s\S]*?\.assistant-card \{[\s\S]*?width: 100%;[\s\S]*?box-sizing: border-box;[\s\S]*?height: 164px;[\s\S]*?min-height: 164px;/,

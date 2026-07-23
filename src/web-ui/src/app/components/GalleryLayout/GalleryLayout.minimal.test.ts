@@ -53,6 +53,21 @@ describe('GalleryLayout Minimal presentation contract', () => {
     expect(source).toContain('min-height: var(--workspace-icon-target);');
   });
 
+  it('lets gallery tracks shrink inside maximized and split desktop layouts', () => {
+    expect(source).toMatch(
+      /\.gallery-layout__body-inner \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zones \{[\s\S]*?width: 100%;[\s\S]*?max-width: 100%;[\s\S]*?min-width: 0;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zone \{[\s\S]*?min-width: 0;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-grid \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
+    );
+  });
+
   it('keeps the compact title and actions on one line until truly narrow widths', () => {
     expect(source).toMatch(
       /@media \(max-width: 1080px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?flex-direction: row;[\s\S]*?align-items: center;/,

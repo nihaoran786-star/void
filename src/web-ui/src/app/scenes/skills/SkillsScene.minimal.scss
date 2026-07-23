@@ -182,7 +182,7 @@
     }
 
     .skills-main__grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: var(--workspace-space-2);
       padding: var(--workspace-space-3);
       scrollbar-width: thin;
@@ -352,7 +352,7 @@
     }
 
     .skills-main__loading {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: var(--workspace-space-2);
       padding: var(--workspace-space-3);
     }
@@ -502,7 +502,7 @@
     }
 
     .skills-suite__grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: var(--workspace-space-2);
       padding-right: 0;
       scrollbar-width: thin;
@@ -660,7 +660,7 @@
     }
 
     .skills-discover__grid {
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
       gap: var(--workspace-space-2);
 
       .skill-card {

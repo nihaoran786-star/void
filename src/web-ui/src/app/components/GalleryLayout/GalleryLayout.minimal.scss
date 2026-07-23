@@ -10,6 +10,11 @@
       scrollbar-gutter: stable;
     }
 
+    .gallery-layout__body-inner {
+      width: 100%;
+      min-width: 0;
+    }
+
     .gallery-page-header {
       position: sticky;
       top: 0;
@@ -55,11 +60,14 @@
     .gallery-zones {
       gap: var(--workspace-space-6);
       width: 100%;
+      max-width: 100%;
+      min-width: 0;
       padding: var(--workspace-space-4);
     }
 
     .gallery-zone {
       gap: var(--workspace-space-2);
+      min-width: 0;
 
       &__header {
         gap: var(--workspace-space-2);
@@ -89,6 +97,8 @@
     }
 
     .gallery-grid {
+      width: 100%;
+      min-width: 0;
       gap: var(--workspace-space-2);
     }
 

@@ -129,9 +129,9 @@
       "assistantsSubtitle": "Click a card to configure"
     },
     "template": {
-      "title": "Hatch Template",
-      "subtitle": "New assistants inherit these settings",
-      "configure": "Configure",
+      "title": "Build your AI team",
+      "subtitle": "Set shared models, skills, and tools. Every new assistant starts here.",
+      "configure": "Set team foundation",
       "tokenTitle": "Context Usage Estimate",
       "tokenSystemPrompt": "System Prompt",
       "tokenToolInjection": "Tool Injection",

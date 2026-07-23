@@ -66,7 +66,7 @@ describe('Mini App gallery Minimal presentation contract', () => {
     expect(source).toContain('contain-intrinsic-size: auto 180px;');
     expect(source).toContain('overscroll-behavior-inline: contain;');
     expect(source).toContain(
-      'grid-template-columns: repeat(auto-fill, minmax(min(100%, 252px), 1fr));',
+      'grid-template-columns: repeat(auto-fit, minmax(min(100%, 252px), 1fr));',
     );
     expect(source).toMatch(
       /\.miniapp-card \{[\s\S]*?height: 132px;[\s\S]*?min-height: 132px;/,
