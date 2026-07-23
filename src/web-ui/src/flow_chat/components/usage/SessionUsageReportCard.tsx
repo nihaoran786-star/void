@@ -166,7 +166,7 @@ export const SessionUsageReportCard: React.FC<SessionUsageReportCardProps> = ({
     : undefined;
   const fileMetricHelp = getFileScopeHelp(report, t);
   const activeShare = calculateShare(report.time.activeTurnMs, report.time.wallTimeMs);
-  const contextShare = contextUsage && contextUsage.max > 0 && contextUsage.current > 0
+  const contextShare = contextUsage && contextUsage.max > 0 && contextUsage.current >= 0
     ? Math.min(100, Math.round((contextUsage.current / contextUsage.max) * 100))
     : undefined;
   const hitRate = report.tokens.cacheHitRate;
