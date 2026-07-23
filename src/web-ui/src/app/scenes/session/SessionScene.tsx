@@ -50,8 +50,14 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
 
-  const [, setLastRightWidth] = useState<number>(() =>
-    loadPanelWidth(STORAGE_KEYS.RIGHT_PANEL_LAST_WIDTH, RIGHT_PANEL_CONFIG.COMFORTABLE_DEFAULT)
+  const preferredRightWidthRef = useRef(
+    loadPanelWidth(
+      STORAGE_KEYS.RIGHT_PANEL_LAST_WIDTH,
+      RIGHT_PANEL_CONFIG.COMFORTABLE_DEFAULT,
+    ),
+  );
+  const [, setLastRightWidth] = useState<number>(
+    preferredRightWidthRef.current,
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +90,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   }, []);
 
   const saveAndUpdateRightWidth = useCallback((width: number) => {
+    preferredRightWidthRef.current = width;
     updateRightPanelWidth(width);
     setLastRightWidth(width);
     savePanelWidth(STORAGE_KEYS.RIGHT_PANEL_LAST_WIDTH, width);
@@ -132,6 +139,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       if (snapped !== lastValidWidth) {
         saveAndUpdateRightWidth(snapped);
       } else {
+        preferredRightWidthRef.current = lastValidWidth;
         updateRightPanelWidth(lastValidWidth);
         setLastRightWidth(lastValidWidth);
         savePanelWidth(STORAGE_KEYS.RIGHT_PANEL_LAST_WIDTH, lastValidWidth);
@@ -159,9 +167,12 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   // Responsive resize — also validate on mount to clamp widths restored from
   // localStorage that may exceed the current (non-maximized) window size.
+  // A temporary clamp must not replace the user's preferred width, otherwise
+  // maximizing the window again can leave the canvas too narrow for media and
+  // the short-drama team to coexist.
   useEffect(() => {
     const validate = () => {
-      const valid = calculateValidRightWidth(currentRightWidth);
+      const valid = calculateValidRightWidth(preferredRightWidthRef.current);
       if (valid !== currentRightWidth) updateRightPanelWidth(valid);
     };
     const rafId = requestAnimationFrame(validate);

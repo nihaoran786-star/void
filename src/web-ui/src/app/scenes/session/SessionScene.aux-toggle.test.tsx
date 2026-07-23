@@ -65,14 +65,23 @@ import SessionScene from './SessionScene';
 describe('SessionScene universal canvas toggle control', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let containerWidth: number;
+  let offsetWidthSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mocks.toggleRightPanel.mockReset();
     mocks.updateRightPanelWidth.mockReset();
     mocks.chatPaneProps = null;
+    mocks.layout.rightPanelWidth = 540;
     mocks.layout.rightPanelCollapsed = false;
     mocks.layout.chatCollapsed = false;
     mocks.layout.centerPanelCollapsed = false;
+    containerWidth = 1600;
+    offsetWidthSpy = vi.spyOn(
+      HTMLElement.prototype,
+      'offsetWidth',
+      'get',
+    ).mockImplementation(() => containerWidth);
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -81,6 +90,8 @@ describe('SessionScene universal canvas toggle control', () => {
 
   afterEach(() => {
     act(() => root.unmount());
+    offsetWidthSpy.mockRestore();
+    localStorage.clear();
     container.remove();
   });
 
@@ -124,5 +135,34 @@ describe('SessionScene universal canvas toggle control', () => {
     });
 
     expect(mocks.chatPaneProps).toBeNull();
+  });
+
+  it('restores the preferred canvas width after a temporary narrow-window clamp', async () => {
+    localStorage.setItem('void:rightPanelLastWidth', '900');
+    mocks.layout.rightPanelWidth = 900;
+    containerWidth = 800;
+
+    await act(async () => {
+      root.render(<SessionScene />);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(mocks.updateRightPanelWidth).toHaveBeenLastCalledWith(396);
+
+    mocks.layout.rightPanelWidth = 396;
+    containerWidth = 1600;
+    mocks.updateRightPanelWidth.mockClear();
+    await act(async () => {
+      root.render(<SessionScene />);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    expect(mocks.updateRightPanelWidth).toHaveBeenLastCalledWith(900);
   });
 });

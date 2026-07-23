@@ -271,6 +271,35 @@ describe('EditorArea short-drama team presentation', () => {
     expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
   });
 
+  it('keeps the team open when switching from the browser to the media wall', async () => {
+    const browserTab = createTab('browser', 'browser');
+    const centerTab = centerGroup.tabs[0]!;
+    const mediaTab = mediaGroup.tabs[0]!;
+    canvasState.primaryGroup = createGroup(
+      [browserTab, centerTab, mediaTab],
+      centerTab.id,
+    );
+    await renderArea();
+    act(() => {
+      (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+
+    canvasState.primaryGroup = createGroup(
+      [browserTab, centerTab, mediaTab],
+      browserTab.id,
+    );
+    await renderArea();
+    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+
+    canvasState.primaryGroup = createGroup(
+      [browserTab, centerTab, mediaTab],
+      mediaTab.id,
+    );
+    await renderArea();
+    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+  });
+
   it('does not collapse an open team when real stage tabs are only reordered', async () => {
     await renderArea();
     act(() => {
