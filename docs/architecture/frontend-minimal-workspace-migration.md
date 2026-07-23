@@ -1729,3 +1729,11 @@ React component, hook, Store, workspace API, filesystem adapter,
 install/delete behavior, or runtime policy. A source contract locks those
 boundaries by hash and verifies scope, geometry, token ownership, prohibited
 effects, focus treatment, reduced motion, and lazy CSS ownership.
+
+The dedicated production artifact passes the web performance budget with
+2,335,679 raw JavaScript bytes, 632,617 raw CSS bytes, all 54 required dynamic
+entries present, and zero unresolved static imports. Gzip monitor references
+remain non-blocking at +1,715 JavaScript bytes and +492 CSS bytes. The budget
+ledger no longer requires the deleted `SessionModeMenu.tsx`; its replacement
+is a statically imported launcher and therefore must not be presented as a
+required dynamic boundary.
