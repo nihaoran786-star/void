@@ -1,4 +1,5 @@
 @use '../../../../component-library/styles/tokens' as *;
+@use './MiniAppGalleryView.minimal' as minimal;
 
 .miniapp-gallery {
   --miniapp-icon-gradient-0: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-500) 35%, transparent) 0%, color-mix(in srgb, var(--color-info) 25%, transparent) 100%);
@@ -42,3 +43,5 @@
     }
   }
 }
+
+@include minimal.styles;

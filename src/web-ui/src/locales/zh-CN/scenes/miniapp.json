@@ -8,6 +8,12 @@
   "noRunningApps": "暂无运行中的应用",
   "all": "全部",
   "count": "{{count}} 个",
+  "categories": {
+    "design": "设计",
+    "developer": "开发",
+    "game": "游戏",
+    "lifestyle": "生活"
+  },
   "empty": {
     "generate": "边聊边生成，马上可用。和 AI 对话生成第一个小应用吧。",
     "noMatch": "没有匹配的应用。"

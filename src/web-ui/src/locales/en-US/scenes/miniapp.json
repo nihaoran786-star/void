@@ -8,6 +8,12 @@
   "noRunningApps": "No running apps",
   "all": "All",
   "count": "{{count}}",
+  "categories": {
+    "design": "Design",
+    "developer": "Developer",
+    "game": "Game",
+    "lifestyle": "Lifestyle"
+  },
   "empty": {
     "generate": "Generate as you chat, ready instantly. Start a conversation with AI to create your first mini app.",
     "noMatch": "No matching apps."

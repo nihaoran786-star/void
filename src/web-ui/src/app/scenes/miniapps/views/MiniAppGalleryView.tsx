@@ -4,6 +4,7 @@ import {
   FolderPlus,
   LayoutGrid,
   Play,
+  Search as SearchIcon,
   Sparkles,
   Square,
   Tag,
@@ -70,6 +71,16 @@ const MiniAppGalleryView: React.FC = () => {
     const values = Array.from(new Set(apps.map((app) => app.category).filter(Boolean)));
     return ['all', ...values];
   }, [apps]);
+
+  const categoryLabels = useMemo<Record<string, string>>(
+    () => ({
+      design: t('categories.design'),
+      developer: t('categories.developer'),
+      game: t('categories.game'),
+      lifestyle: t('categories.lifestyle'),
+    }),
+    [t],
+  );
 
   const filtered = useMemo(() => {
     return apps.filter((app) => {
@@ -233,7 +244,23 @@ const MiniAppGalleryView: React.FC = () => {
         subtitle={t('subtitle')}
         actions={(
           <>
-            <Search value={search} onChange={setSearch} placeholder={t('searchPlaceholder')} size="small" />
+            <Search
+              value={search}
+              onChange={setSearch}
+              placeholder={t('searchPlaceholder')}
+              size="small"
+              clearable
+              prefixIcon={<></>}
+              suffixContent={(
+                <button
+                  type="button"
+                  className="gallery-search-btn"
+                  aria-label={t('searchPlaceholder')}
+                >
+                  <SearchIcon size={14} />
+                </button>
+              )}
+            />
             <button
               type="button"
               className="gallery-action-btn gallery-action-btn--primary"
@@ -293,7 +320,7 @@ const MiniAppGalleryView: React.FC = () => {
                         .join(' ')}
                       onClick={() => setCategoryFilter(category)}
                     >
-                      {category === 'all' ? t('all') : category}
+                      {category === 'all' ? t('all') : categoryLabels[category] ?? category}
                     </button>
                   ))}
                 </div>
@@ -312,7 +339,9 @@ const MiniAppGalleryView: React.FC = () => {
         icon={selectedApp ? renderMiniAppIcon(selectedApp.icon || 'box', 24) : <Box size={24} />}
         iconGradient={selectedApp ? getMiniAppIconGradient(selectedApp.icon || 'box') : undefined}
         title={selectedApp ? pickLocalizedString(selectedApp, currentLanguage, 'name') : ''}
-        badges={selectedApp?.category ? <Badge variant="info">{selectedApp.category}</Badge> : null}
+        badges={selectedApp?.category
+          ? <Badge variant="info">{categoryLabels[selectedApp.category] ?? selectedApp.category}</Badge>
+          : null}
         description={selectedApp ? pickLocalizedString(selectedApp, currentLanguage, 'description') : undefined}
         meta={selectedApp ? <span>v{selectedApp.version}</span> : null}
         actions={selectedApp ? (

@@ -8,6 +8,12 @@
   "noRunningApps": "暫無運行中的應用",
   "all": "全部",
   "count": "{{count}} 個",
+  "categories": {
+    "design": "設計",
+    "developer": "開發",
+    "game": "遊戲",
+    "lifestyle": "生活"
+  },
   "empty": {
     "generate": "邊聊邊生成，馬上可用。和 AI 對話生成第一個小應用吧。",
     "noMatch": "沒有匹配的應用。"

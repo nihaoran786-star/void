@@ -1864,3 +1864,49 @@ performance budget with 2,335,875 raw JavaScript bytes, 632,617 raw CSS bytes,
 all 54 required dynamic entries, and zero unresolved imports. Gzip monitor
 deltas remain non-blocking at +1,821 JavaScript bytes and +492 CSS bytes; the
 Automation presentation remains in its lazy feature chunk.
+
+### Slice 46: Mini App gallery projection
+
+The Mini App gallery now owns a feature-local Minimal projection instead of
+adding more selectors to the global entry stylesheet. Its page header uses the
+same 52px command-row rhythm as the Agents workspace: the descriptive subtitle
+is omitted in Minimal, search rests as one icon and expands in place on focus,
+and folder import remains a separate 28px icon action with its existing
+accessible title. Search state and filtering remain owned by
+`MiniAppGalleryView`; the projection changes only how those controls consume
+space.
+
+An empty running-app zone now collapses into one line rather than reserving a
+large blank section. Category controls stay horizontally reachable without
+wrapping the zone header, and the known catalog identities `design`,
+`developer`, `game`, and `lifestyle` receive localized presentation labels in
+Simplified Chinese, Traditional Chinese, and English. The stored category
+identities and filter comparisons are unchanged, and unknown future
+categories continue to display their original value.
+
+Mini App cards use a 252px responsive floor and a bounded 132px geometry.
+Descriptions and the overview tag row are deliberately single-line and
+truncated in the card, while all description and tag content remains available
+through the existing shared detail dialog. Hover, active, and keyboard focus
+feedback is flat and tokenized, with no lift, stagger, gradient, blur, or
+decorative shadow. Off-screen zones retain `content-visibility` and an
+intrinsic-size fallback. Reduced-motion mode removes the remaining scoped
+search transitions.
+
+This slice changes no Mini App store, worker API, bridge, import adapter,
+permission handling, runner, customization session, preview, apply, rollback,
+or delete behavior. Manual desktop verification covered maximized and
+1280-by-900 layouts, search expansion and live filtering, category filtering,
+detail opening, and Escape closure. The full frontend suite passes 400 files
+and 2,292 tests; TypeScript, theme colors, theme visual governance, repository
+hygiene, core boundaries, and the 15-test i18n contract also pass.
+
+The broader `i18n:audit` remains blocked by an unrelated pre-existing mismatch:
+31 hardcoded CJK candidates are currently reported in short-drama service
+sources against the checked-in baseline of 25. This Mini App slice adds no CJK
+source candidate and does not raise that budget. The production artifact
+transforms 7,468 modules and passes the frozen performance budget with
+2,335,875 raw JavaScript bytes, 632,617 raw CSS bytes, all 54 required dynamic
+entries, and zero unresolved imports. Gzip monitor deltas remain non-blocking
+at +1,804 JavaScript bytes and +492 CSS bytes, and the Mini App presentation
+stays in the lazy `MiniAppGalleryView` feature chunk.
