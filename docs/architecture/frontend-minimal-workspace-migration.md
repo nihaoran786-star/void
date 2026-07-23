@@ -1975,3 +1975,38 @@ performance budget with 2,336,013 raw JavaScript bytes, 632,617 raw CSS bytes,
 all 54 required dynamic entries, and zero unresolved imports. Gzip monitor
 deltas remain non-blocking at +1,832 JavaScript bytes and +492 CSS bytes; the
 Insights presentation remains in its lazy feature chunk.
+
+### Slice 49: Git workspace projection and navigation restoration
+
+The Git workspace now owns feature-local Minimal projections for its empty
+repository state, working copy, scene navigation, branch history, and commit
+graph. The commit composer uses the same compact two-row command geometry as
+the rest of the workspace, and the projection targets the actual shared
+textarea field rather than only its wrapper. Branch and commit rows are flat,
+tokenized, and use `content-visibility` with intrinsic-size fallbacks. The
+branch and graph toolbars preserve every existing operation while reducing
+height, shadow, double focus feedback, and decorative motion.
+
+Real desktop navigation testing also exposed a functional registry omission:
+`GitNav` existed and `sceneStore` already requested a scene-specific navigation
+surface, but the `git` entry was absent from `nav-registry.ts`. The registry now
+returns the existing lazy `GitNav`, restoring direct access to Changes,
+Branches, and Graph without adding a second route or changing Git state. A
+focused registry contract prevents Settings, File Viewer, Shell, or Git
+navigation from silently falling back to the main sidebar.
+
+This slice changes no repository discovery, staging, commit, checkout, branch
+creation or deletion, reset, push, pull, fetch, diff, history, filesystem,
+notification, or persistence behavior. Manual verification covered the
+repository working copy, a live filename filter, branch selection, the branch
+history split view, graph navigation, and 1280-by-900 reflow. Destructive and
+remote Git actions were deliberately not invoked.
+
+The focused Git and navigation contracts pass 11 tests, and TypeScript,
+repository hygiene, core boundaries, theme colors, and theme visual governance
+pass. The dedicated production artifact transforms 7,470 modules and passes
+the frozen performance budget with 2,336,228 raw JavaScript bytes, 632,617 raw
+CSS bytes, all 54 required dynamic entries, and zero unresolved imports. Gzip
+monitor deltas remain non-blocking at +1,927 JavaScript bytes and +492 CSS
+bytes. Git remains a lazy scene chunk, and the temporary build artifact is
+removed after verification.

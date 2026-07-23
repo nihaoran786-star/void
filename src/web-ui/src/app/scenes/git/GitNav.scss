@@ -5,6 +5,7 @@
  */
 
 @use '../../../component-library/styles/tokens.scss' as *;
+@use './GitNav.minimal' as minimal;
 
 .void-git-scene-nav {
   display: flex;
@@ -141,3 +142,5 @@
     margin-left: $size-gap-1;
   }
 }
+
+@include minimal.styles;

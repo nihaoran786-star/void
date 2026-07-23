@@ -1,0 +1,92 @@
+@mixin styles {
+  .void-ui--minimal .void-git-scene {
+    color: var(--workspace-text-secondary);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-control);
+    line-height: var(--workspace-line-height-control);
+
+    button:focus-visible {
+      outline: 1px solid var(--workspace-focus-ring-subtle);
+      outline-offset: -1px;
+      box-shadow: none;
+    }
+  }
+
+  .void-ui--minimal .void-git-scene__init-container {
+    gap: var(--workspace-space-2);
+    max-width: 320px;
+  }
+
+  .void-ui--minimal .void-git-scene__init-decoration,
+  .void-ui--minimal .void-git-scene__init-hint {
+    display: none;
+  }
+
+  .void-ui--minimal .void-git-scene__init-card {
+    gap: var(--workspace-space-2);
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .void-ui--minimal .void-git-scene__init-icon {
+    color: var(--workspace-text-muted);
+  }
+
+  .void-ui--minimal .void-git-scene__init-text {
+    h3 {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-body);
+      line-height: var(--workspace-line-height-control);
+    }
+
+    p {
+      color: var(--workspace-text-muted);
+      font-size: var(--workspace-font-size-label);
+    }
+  }
+
+  .void-ui--minimal .void-git-scene__init-button {
+    height: 30px;
+    gap: var(--workspace-space-1);
+    padding-inline: var(--workspace-space-3);
+    color: var(--workspace-surface-canvas);
+    border: 0;
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-text-primary);
+    box-shadow: none;
+    font-size: var(--workspace-font-size-label);
+    transition:
+      background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+    &:hover,
+    &:active {
+      color: var(--workspace-surface-canvas);
+      border-color: transparent;
+      background: color-mix(
+        in srgb,
+        var(--workspace-text-primary) 86%,
+        var(--workspace-surface-canvas)
+      );
+      box-shadow: none;
+      transform: none;
+    }
+  }
+
+  .void-ui--minimal .void-git-scene__loading-state {
+    gap: var(--workspace-space-2);
+  }
+
+  .void-ui--minimal .void-git-scene__loading-hint {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .void-git-scene,
+    .void-ui--minimal .void-git-scene * {
+      animation: none;
+      transition: none;
+    }
+  }
+}

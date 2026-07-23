@@ -2,6 +2,8 @@
  * GitScene styles.
  */
 
+@use './GitScene.minimal' as minimal;
+
 .void-git-scene {
   display: flex;
   flex-direction: column;
@@ -142,3 +144,5 @@
     opacity: 0.6;
   }
 }
+
+@include minimal.styles;

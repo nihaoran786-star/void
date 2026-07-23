@@ -1,0 +1,172 @@
+@mixin styles {
+  .void-ui--minimal .void-git-scene-working-copy {
+    color: var(--workspace-text-secondary);
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-control);
+    line-height: var(--workspace-line-height-control);
+
+    :where(button, input):focus-visible {
+      outline: 1px solid var(--workspace-focus-ring-subtle);
+      outline-offset: -1px;
+      box-shadow: none;
+    }
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__commit-bar {
+    display: grid;
+    grid-template-areas:
+      'status status'
+      'message actions';
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--workspace-space-1) var(--workspace-space-2);
+    padding: var(--workspace-space-1) var(--workspace-space-3)
+      var(--workspace-space-2);
+    border-bottom-color: var(--workspace-border-subtle);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__status-row {
+    grid-area: status;
+    min-height: 28px;
+    gap: var(--workspace-space-1);
+    font-size: var(--workspace-font-size-label);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__commit-input-row {
+    grid-area: message;
+    min-width: 0;
+    align-items: stretch;
+    gap: var(--workspace-space-1);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__message {
+    min-width: 0;
+    min-height: 0;
+    gap: 0;
+  }
+
+  .void-ui--minimal
+    .void-git-scene-working-copy__message
+    .void-textarea__field {
+    min-height: 48px;
+    max-height: 96px;
+    padding: var(--workspace-space-2) var(--workspace-space-3);
+    color: var(--workspace-text-primary);
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-canvas);
+    box-shadow: none;
+    font-family: var(--workspace-font-family);
+    font-size: var(--workspace-font-size-label);
+    line-height: var(--workspace-line-height-control);
+    transition:
+      background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+      color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+    &:hover:not(:disabled),
+    &:focus,
+    &:focus-visible {
+      outline: none;
+      border-color: var(--workspace-border-strong);
+      background: var(--workspace-surface-canvas);
+      box-shadow: none;
+    }
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__commit-actions {
+    grid-area: actions;
+    align-self: end;
+    gap: 0;
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__commit-actions button {
+    min-height: 28px;
+    padding-inline: var(--workspace-space-3);
+    border-radius: var(--workspace-radius-control);
+    font-size: var(--workspace-font-size-label);
+    box-shadow: none;
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__search {
+    padding: var(--workspace-space-1) var(--workspace-space-2);
+  }
+
+  .void-ui--minimal
+    .void-git-scene-working-copy__search
+    .search__wrapper {
+    min-height: 28px;
+    height: 28px;
+    border-color: transparent;
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .void-ui--minimal
+    .void-git-scene-working-copy__search
+    .search__wrapper:focus-within {
+    border-color: var(--workspace-focus-ring-subtle);
+    background: var(--workspace-surface-canvas);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__group-header {
+    min-height: 28px;
+    padding: 0 var(--workspace-space-2);
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__file-row {
+    min-height: 28px;
+    padding: 0 var(--workspace-space-2);
+    color: var(--workspace-text-secondary);
+    font-size: var(--workspace-font-size-label);
+    contain: layout paint style;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 28px;
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__file-row:hover,
+  .void-ui--minimal .wcv-file--selected {
+    background: var(--workspace-surface-hover);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__resizer {
+    background: var(--workspace-border-subtle);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__placeholder {
+    gap: var(--workspace-space-2);
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-control);
+  }
+
+  .void-ui--minimal .void-git-scene-working-copy__hint {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+  }
+
+  @media (max-width: 720px) {
+    .void-ui--minimal .void-git-scene-working-copy__commit-bar {
+      grid-template-areas:
+        'status'
+        'message'
+        'actions';
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .void-ui--minimal .void-git-scene-working-copy__commit-actions {
+      justify-content: flex-end;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .void-git-scene-working-copy,
+    .void-ui--minimal .void-git-scene-working-copy * {
+      animation: none;
+      transition: none;
+    }
+  }
+}

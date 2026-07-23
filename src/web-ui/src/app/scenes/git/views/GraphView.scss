@@ -1,3 +1,5 @@
+@use './GraphView.minimal' as minimal;
+
 .void-git-scene-graph {
   display: flex;
   flex-direction: column;
@@ -12,3 +14,5 @@
     font-size: var(--font-size-base);
   }
 }
+
+@include minimal.styles;

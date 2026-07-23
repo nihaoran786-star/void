@@ -1,0 +1,70 @@
+@mixin styles {
+  .void-ui--minimal .void-git-scene-nav {
+    font-family: var(--font-family-sans);
+
+    &__header {
+      height: 36px;
+      padding-inline: 10px;
+    }
+
+    &__title {
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+    }
+
+    &__sections {
+      padding-block: 4px;
+    }
+
+    &__status {
+      padding: 0 8px 6px;
+      margin-bottom: 4px;
+    }
+
+    &__branch-row {
+      gap: 6px;
+      margin-bottom: 2px;
+      font-size: var(--font-size-xs);
+    }
+
+    &__sync-badges {
+      gap: 3px;
+      font-size: var(--font-size-2xs);
+    }
+
+    &__actions-row {
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    &__item {
+      height: 30px;
+      padding-inline: 10px 8px;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs);
+      transition:
+        color 120ms ease,
+        background-color 120ms ease;
+
+      &.is-active {
+        font-weight: 500;
+
+        &::before {
+          display: none;
+        }
+      }
+
+      &:focus-visible {
+        outline: 1px solid color-mix(in srgb, var(--color-primary) 52%, transparent);
+        outline-offset: -1px;
+        box-shadow: none;
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .void-git-scene-nav__item {
+      transition: none;
+    }
+  }
+}

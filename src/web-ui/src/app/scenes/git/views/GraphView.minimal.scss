@@ -1,0 +1,101 @@
+@mixin styles {
+  .void-ui--minimal .void-git-scene-graph {
+    font-family: var(--font-family-sans);
+
+    .git-graph-view {
+      background: var(--color-background);
+
+      &__header {
+        min-height: 44px;
+        padding: 6px 10px;
+        gap: 8px;
+        background: transparent;
+        border-color: var(--border-subtle);
+      }
+
+      &__header-left {
+        min-width: 0;
+        gap: 8px;
+
+        h3 {
+          font-size: var(--font-size-sm);
+          white-space: nowrap;
+        }
+      }
+
+      &__current-branch {
+        min-width: 0;
+        max-width: 260px;
+        padding: 3px 7px;
+        border-radius: var(--radius-sm);
+        background: var(--element-bg-medium);
+        color: var(--color-text-primary);
+        font-size: var(--font-size-xs);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &__search {
+        min-width: 160px;
+        max-width: 360px;
+      }
+
+      &__search-nav-btn {
+        transition:
+          color 120ms ease,
+          background-color 120ms ease;
+
+        &:active:not(:disabled) {
+          transform: none;
+        }
+
+        &:focus-visible {
+          outline: 1px solid color-mix(in srgb, var(--color-primary) 52%, transparent);
+          outline-offset: -1px;
+          box-shadow: none;
+        }
+      }
+
+      &__hit-area {
+        transition:
+          background-color 120ms ease,
+          border-color 120ms ease;
+
+        &--selected,
+        &--current-search-match {
+          box-shadow: none;
+        }
+      }
+    }
+  }
+
+  @media (max-width: 680px) {
+    .void-ui--minimal .void-git-scene-graph .git-graph-view {
+      &__header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      &__search {
+        width: 100%;
+        max-width: none;
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .void-ui--minimal .void-git-scene-graph .git-graph-view {
+      &__spinner,
+      &__ref--current,
+      &__hit-area--current-search-match {
+        animation: none;
+      }
+
+      &__search-nav-btn,
+      &__hit-area {
+        transition: none;
+      }
+    }
+  }
+}

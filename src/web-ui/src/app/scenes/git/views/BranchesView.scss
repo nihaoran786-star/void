@@ -1,3 +1,5 @@
+@use './BranchesView.minimal' as minimal;
+
 .void-git-scene-branches {
   display: flex;
   flex: 1;
@@ -228,3 +230,5 @@
     }
   }
 }
+
+@include minimal.styles;

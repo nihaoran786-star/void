@@ -1,3 +1,5 @@
+@use './WorkingCopyView.minimal' as minimal;
+
 .void-git-scene-working-copy {
   display: flex;
   flex-direction: column;
@@ -191,3 +193,5 @@
   opacity: 0.7;
   pointer-events: none;
 }
+
+@include minimal.styles;
