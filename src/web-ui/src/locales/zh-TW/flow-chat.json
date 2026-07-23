@@ -23,6 +23,8 @@
     "chatHiddenAction": "重新打開聊天",
     "panelCollapseHintLeft": "<- 鬆開收起",
     "panelCollapseHintRight": "鬆開收起 ->",
+    "collapseCanvas": "隱藏萬能畫布",
+    "expandCanvas": "顯示萬能畫布",
     "panelMode": {
       "collapsed": "收起",
       "compact": "緊湊",

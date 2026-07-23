@@ -340,7 +340,7 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
           <span aria-hidden="true">…</span>
         </span>
       ) : (
-        <Tooltip content={accessibleToggleLabel} placement="right">
+        <Tooltip content={toggleLabel} placement="bottom">
           <button
             type="button"
             className={[

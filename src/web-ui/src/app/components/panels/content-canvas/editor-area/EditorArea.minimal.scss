@@ -288,9 +288,9 @@
       width: auto;
       padding-inline: 8px;
       border: 1px solid var(--workspace-border-subtle);
-      border-radius: 8px;
-      background: var(--workspace-surface-raised);
-      box-shadow: var(--workspace-shadow-raised);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-panel);
+      box-shadow: none;
       font-size: var(--workspace-font-size-label);
       line-height: 1;
       white-space: nowrap;

@@ -23,6 +23,8 @@
     "chatHiddenAction": "Show Chat",
     "panelCollapseHintLeft": "<- Release to collapse",
     "panelCollapseHintRight": "Release to collapse ->",
+    "collapseCanvas": "Hide canvas",
+    "expandCanvas": "Show canvas",
     "panelMode": {
       "collapsed": "Collapsed",
       "compact": "Compact",

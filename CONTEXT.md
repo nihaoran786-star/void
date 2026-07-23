@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-07-19
+Updated: 2026-07-23
 
 ## Product state
 
@@ -12,6 +12,11 @@ Updated: 2026-07-19
   zero-reserved-width entry and open the existing group in a bounded overlay.
 - Closing the short-drama team presentation must not delete child sessions or
   remove the only reopen control.
+- The session owns one stable outer canvas toggle on the chat/canvas divider.
+  It hides the universal preview and any nested stage-agent presentation
+  together without closing tabs or deleting child sessions, then remains at
+  the scene edge as the one-click reopen action. The team control remains
+  scoped to the nested stage-agent presentation.
 - Runtime, persistence, Skill policy, media tool routing, session history, and
   desktop host behavior remain outside presentation-only changes.
 

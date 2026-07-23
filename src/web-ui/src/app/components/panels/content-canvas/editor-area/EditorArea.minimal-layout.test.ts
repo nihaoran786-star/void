@@ -52,6 +52,9 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     expect(source).toMatch(
       /@container short-drama-editor-area \(max-width: 560px\)[\s\S]*?\.short-drama-team-panel-controls__summary-label \{[\s\S]*?display: none;/,
     );
+    expect(source).toMatch(
+      /\.short-drama-team-panel-controls__summary \{[\s\S]*?border-radius: var\(--workspace-radius-control\);[\s\S]*?background: var\(--workspace-surface-panel\);[\s\S]*?box-shadow: none;/,
+    );
     expect(source).not.toContain('44px');
   });
 
