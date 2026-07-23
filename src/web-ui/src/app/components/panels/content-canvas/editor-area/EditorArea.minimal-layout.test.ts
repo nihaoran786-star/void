@@ -50,7 +50,10 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /\.short-drama-team-panel-controls__summary \{[\s\S]*?width: auto;[\s\S]*?border: 1px solid var\(--workspace-border-subtle\);/,
     );
     expect(source).toMatch(
-      /@container short-drama-editor-area \(max-width: 560px\)[\s\S]*?\.short-drama-team-panel-controls__summary-label \{[\s\S]*?display: none;/,
+      /\.short-drama-team-panel-controls__summary-icon \{[\s\S]*?place-items: center;/,
+    );
+    expect(source).not.toContain(
+      '.short-drama-team-panel-controls__summary-label',
     );
     expect(source).toMatch(
       /\.short-drama-team-panel-controls__summary \{[\s\S]*?border-radius: var\(--workspace-radius-control\);[\s\S]*?background: var\(--workspace-surface-panel\);[\s\S]*?box-shadow: none;/,

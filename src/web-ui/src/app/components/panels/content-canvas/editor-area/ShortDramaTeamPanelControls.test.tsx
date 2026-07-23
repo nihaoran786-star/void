@@ -112,8 +112,11 @@ describe('ShortDramaTeamPanelControls', () => {
     expect(buttons).toHaveLength(1);
     expect(toggle.type).toBe('button');
     expect(toggle.dataset.shortDramaTeamSummaryStatus).toBe('failed');
-    expect(toggle.textContent).toContain('canvas.shortDramaTeamCompact');
+    expect(toggle.textContent).not.toContain('canvas.shortDramaTeamCompact');
     expect(toggle.textContent).toContain('5');
+    expect(
+      toggle.querySelector('.short-drama-team-panel-controls__summary-icon'),
+    ).not.toBeNull();
     expect(ariaLabel).toContain('canvas.shortDramaTeamStatus.failed 1');
     expect(ariaLabel).toContain('canvas.shortDramaTeamStatus.attention 1');
     expect(ariaLabel).toContain('canvas.shortDramaTeamStatus.live 1');

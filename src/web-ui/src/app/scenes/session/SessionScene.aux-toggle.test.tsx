@@ -15,6 +15,11 @@ const mocks = vi.hoisted(() => ({
     chatCollapsed: false,
     centerPanelCollapsed: false,
   },
+  chatPaneProps: null as null | {
+    showCanvasToggle?: boolean;
+    isCanvasExpanded?: boolean;
+    onCanvasToggle?: () => void;
+  },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -40,7 +45,10 @@ vi.mock('../../hooks/useApp', () => ({
 }));
 
 vi.mock('./ChatPane', () => ({
-  default: () => <div data-testid="chat-pane" />,
+  default: (props: typeof mocks.chatPaneProps) => {
+    mocks.chatPaneProps = props;
+    return <div data-testid="chat-pane" />;
+  },
 }));
 
 vi.mock('./AuxPane', async () => {
@@ -61,6 +69,7 @@ describe('SessionScene universal canvas toggle control', () => {
   beforeEach(() => {
     mocks.toggleRightPanel.mockReset();
     mocks.updateRightPanelWidth.mockReset();
+    mocks.chatPaneProps = null;
     mocks.layout.rightPanelCollapsed = false;
     mocks.layout.chatCollapsed = false;
     mocks.layout.centerPanelCollapsed = false;
@@ -75,41 +84,33 @@ describe('SessionScene universal canvas toggle control', () => {
     container.remove();
   });
 
-  it('collapses the outer canvas from the scene divider without routing through tab or team actions', async () => {
+  it('routes the outer canvas control through the reserved chat header action', async () => {
     await act(async () => {
       root.render(<SessionScene workspacePath="D:\\workspace" />);
     });
 
-    const button = container.querySelector<HTMLButtonElement>(
-      '[data-testid="session-aux-pane-toggle"]',
-    );
-    expect(button?.getAttribute('aria-label')).toBe('layout.collapseCanvas');
-    expect(button?.getAttribute('aria-expanded')).toBe('true');
-    expect(button?.style.right).toBe('527px');
+    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
+    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(true);
 
     await act(async () => {
-      button?.click();
+      mocks.chatPaneProps?.onCanvasToggle?.();
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps one stable reopen control after the outer canvas is collapsed', async () => {
+  it('keeps the same header action available after the outer canvas is collapsed', async () => {
     mocks.layout.rightPanelCollapsed = true;
 
     await act(async () => {
       root.render(<SessionScene />);
     });
 
-    const button = container.querySelector<HTMLButtonElement>(
-      '[data-testid="session-aux-pane-toggle"]',
-    );
-    expect(button?.getAttribute('aria-label')).toBe('layout.expandCanvas');
-    expect(button?.getAttribute('aria-expanded')).toBe('false');
-    expect(button?.style.right).toBe('4px');
+    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
+    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(false);
 
     await act(async () => {
-      button?.click();
+      mocks.chatPaneProps?.onCanvasToggle?.();
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
@@ -122,8 +123,6 @@ describe('SessionScene universal canvas toggle control', () => {
       root.render(<SessionScene />);
     });
 
-    expect(
-      container.querySelector('[data-testid="session-aux-pane-toggle"]'),
-    ).toBeNull();
+    expect(mocks.chatPaneProps).toBeNull();
   });
 });

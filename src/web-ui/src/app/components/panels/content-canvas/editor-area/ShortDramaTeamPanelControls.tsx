@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, ChevronDown, PanelRightClose } from 'lucide-react';
+import { Bot, Check, ChevronDown, PanelRightClose } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import {
@@ -354,12 +354,8 @@ export const ShortDramaTeamPanelControls: React.FC<ShortDramaTeamPanelControlsPr
             aria-expanded={false}
             onClick={onToggle}
           >
-            <span
-              className="short-drama-team-panel-controls__summary-dot"
-              aria-hidden="true"
-            />
-            <span className="short-drama-team-panel-controls__summary-label">
-              {compactLabel}
+            <span className="short-drama-team-panel-controls__summary-icon" aria-hidden="true">
+              <Bot size={14} strokeWidth={1.8} />
             </span>
             <span className="short-drama-team-panel-controls__summary-count">
               {tabs.length}

@@ -130,6 +130,72 @@ describe('FlowChatHeader', () => {
     expect(container.querySelector('[data-testid="flowchat-header-turn-list"]')).not.toBeNull();
   });
 
+  it('keeps the canvas control in flow immediately before the unobstructed more menu', () => {
+    const onCanvasToggle = vi.fn();
+    act(() => {
+      root.render(
+        <FlowChatHeader
+          {...createProps({
+            showCanvasToggle: true,
+            isCanvasExpanded: true,
+            onCanvasToggle,
+          })}
+        />,
+      );
+    });
+
+    const canvasButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-aux-pane-toggle"]',
+    );
+    const moreButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="flowchat-header-more-actions"]',
+    );
+
+    expect(canvasButton?.getAttribute('aria-label')).toBe('layout.collapseCanvas');
+    expect(canvasButton?.getAttribute('aria-expanded')).toBe('true');
+    expect(canvasButton?.parentElement).toBe(moreButton?.parentElement?.parentElement);
+    expect(
+      canvasButton?.compareDocumentPosition(moreButton as Node)
+      ?? 0,
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    act(() => {
+      canvasButton?.click();
+      moreButton?.click();
+    });
+
+    expect(onCanvasToggle).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="menu"]')).not.toBeNull();
+  });
+
+  it('keeps a canvas reopen action in the header before a conversation exists', () => {
+    const onCanvasToggle = vi.fn();
+    act(() => {
+      root.render(
+        <FlowChatHeader
+          {...createProps({
+            visible: false,
+            totalTurns: 0,
+            turns: [],
+            showCanvasToggle: true,
+            isCanvasExpanded: false,
+            onCanvasToggle,
+          })}
+        />,
+      );
+    });
+
+    const canvasButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-aux-pane-toggle"]',
+    );
+    expect(canvasButton?.getAttribute('aria-label')).toBe('layout.expandCanvas');
+    expect(canvasButton?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('[data-testid="flowchat-header-more-actions"]')).toBeNull();
+
+    act(() => canvasButton?.click());
+    expect(onCanvasToggle).toHaveBeenCalledOnce();
+  });
+
   it('renders the preview-first floating chat action in the right chat header actions', () => {
     const onPreviewFirstToggle = vi.fn();
 

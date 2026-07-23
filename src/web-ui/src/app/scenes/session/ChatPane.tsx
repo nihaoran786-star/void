@@ -32,6 +32,9 @@ interface ChatPaneProps {
   isPreviewFirstActive?: boolean;
   onPreviewFirstToggle?: () => void;
   onOpenWorkspaceMedia?: () => void;
+  showCanvasToggle?: boolean;
+  isCanvasExpanded?: boolean;
+  onCanvasToggle?: () => void;
 }
 
 const ChatPaneInner: React.FC<ChatPaneProps> = ({
@@ -45,6 +48,9 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
   onOpenWorkspaceMedia,
+  showCanvasToggle = false,
+  isCanvasExpanded = false,
+  onCanvasToggle,
 }) => {
   const addTab = useCanvasStore(state => state.addTab);
   const deferredTaskDetailTimersRef = useRef<number[]>([]);
@@ -171,6 +177,9 @@ const ChatPaneInner: React.FC<ChatPaneProps> = ({
         isPreviewFirstActive={isPreviewFirstActive}
         onPreviewFirstToggle={onPreviewFirstToggle}
         onOpenWorkspaceMedia={onOpenWorkspaceMedia}
+        showCanvasToggle={showCanvasToggle}
+        isCanvasExpanded={isCanvasExpanded}
+        onCanvasToggle={onCanvasToggle}
       />
       {showChatInput && <ChatInput onSendMessage={(_message: string) => {}} />}
     </div>

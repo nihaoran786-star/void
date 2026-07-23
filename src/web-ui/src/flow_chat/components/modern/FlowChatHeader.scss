@@ -83,6 +83,16 @@
     }
   }
 
+  &__canvas-button {
+    flex: 0 0 auto;
+
+    &:not(:disabled):hover,
+    &--active {
+      color: var(--color-text-primary);
+      background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
+    }
+  }
+
   &__more-menu {
     position: absolute;
     top: calc(100% + 8px);
@@ -484,6 +494,15 @@
       outline: none;
       background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
       box-shadow: 0 0 0 1.5px var(--border-strong);
+    }
+  }
+
+  &__message--empty {
+    cursor: default;
+    pointer-events: none;
+
+    &:hover {
+      background: transparent;
     }
   }
 

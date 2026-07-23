@@ -284,9 +284,9 @@
     }
 
     .short-drama-team-panel-controls__summary {
-      gap: 6px;
+      gap: 5px;
       width: auto;
-      padding-inline: 8px;
+      padding-inline: 7px;
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-control);
       background: var(--workspace-surface-panel);
@@ -296,16 +296,12 @@
       white-space: nowrap;
     }
 
-    .short-drama-team-panel-controls__summary-dot {
-      width: 7px;
-      height: 7px;
-      flex: 0 0 7px;
-      border-radius: 999px;
-      background: currentColor;
-    }
-
-    .short-drama-team-panel-controls__summary-label {
-      color: var(--workspace-text-secondary);
+    .short-drama-team-panel-controls__summary-icon {
+      display: inline-grid;
+      width: 15px;
+      height: 15px;
+      flex: 0 0 15px;
+      place-items: center;
     }
 
     .short-drama-team-panel-controls__summary-count {
@@ -481,10 +477,6 @@
         > .canvas-editor-group
         > .canvas-tab-bar {
         padding-right: 52px;
-      }
-
-      .short-drama-team-panel-controls__summary-label {
-        display: none;
       }
 
       .short-drama-team-panel-controls

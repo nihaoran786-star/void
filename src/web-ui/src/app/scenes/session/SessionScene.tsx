@@ -11,8 +11,6 @@
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PanelRightClose, PanelRightOpen } from 'lucide-react';
-import { Tooltip } from '@/component-library';
 import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
 import AuxPane, { type AuxPaneRef } from './AuxPane';
@@ -207,10 +205,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   const canToggleAuxPane = !isRightAsMain && !state.layout.centerPanelCollapsed;
   const isAuxPaneExpanded = !state.layout.rightPanelCollapsed;
-  const auxPaneToggleLabel = isAuxPaneExpanded
-    ? t('layout.collapseCanvas')
-    : t('layout.expandCanvas');
-
   return (
     <div
       ref={containerRef}
@@ -237,6 +231,9 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             isPreviewFirstActive={isRightAsMain}
             onPreviewFirstToggle={handlePreviewFirstToggle}
             onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
+            showCanvasToggle={canToggleAuxPane}
+            isCanvasExpanded={isAuxPaneExpanded}
+            onCanvasToggle={toggleRightPanel}
           />
         </div>
       )}
@@ -276,31 +273,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             </svg>
           </div>
         </div>
-      )}
-
-      {canToggleAuxPane && (
-        <Tooltip content={auxPaneToggleLabel} placement="left">
-          <button
-            type="button"
-            className="void-session-scene__aux-toggle"
-            data-testid="session-aux-pane-toggle"
-            aria-label={auxPaneToggleLabel}
-            aria-controls="void-session-aux-pane"
-            aria-expanded={isAuxPaneExpanded}
-            style={{
-              right: state.layout.rightPanelCollapsed
-                ? '4px'
-                : `${Math.max(4, currentRightWidth - 13)}px`,
-            }}
-            onClick={toggleRightPanel}
-          >
-            {isAuxPaneExpanded ? (
-              <PanelRightClose size={13} aria-hidden="true" />
-            ) : (
-              <PanelRightOpen size={13} aria-hidden="true" />
-            )}
-          </button>
-        </Tooltip>
       )}
 
       {/* AuxPane — ContentCanvas */}

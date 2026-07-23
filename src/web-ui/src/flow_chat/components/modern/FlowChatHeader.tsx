@@ -13,6 +13,8 @@ import {
   Image,
   List,
   MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
   PictureInPicture2,
   Search,
   X,
@@ -87,6 +89,12 @@ export interface FlowChatHeaderProps {
   onPreviewFirstToggle?: () => void;
   /** Open the workspace media gallery in the right-side panel. */
   onOpenWorkspaceMedia?: () => void;
+  /** Show the universal canvas control in the reserved header action row. */
+  showCanvasToggle?: boolean;
+  /** Whether the universal canvas is currently expanded. */
+  isCanvasExpanded?: boolean;
+  /** Expand or collapse the universal canvas. */
+  onCanvasToggle?: () => void;
 }
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
@@ -113,6 +121,9 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
   onOpenWorkspaceMedia,
+  showCanvasToggle = false,
+  isCanvasExpanded = false,
+  onCanvasToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
   const { t: tComponents } = useTranslation('components');
@@ -130,6 +141,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const activeTurnItemRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const hasConversationHeader = visible && totalTurns > 0;
 
   // Truncate long messages.
   const truncatedMessage = currentUserMessage.length > 50
@@ -402,41 +414,47 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     setIsSubagentListOpen(false);
   };
 
-  if (!visible || totalTurns === 0) {
+  if (!hasConversationHeader && !showCanvasToggle) {
     return null;
   }
 
   return (
     <div className="flowchat-header">
       <div className="flowchat-header__actions flowchat-header__actions--left">
-        {isPresentationActive && <SessionFilesBadge sessionId={sessionId} />}
+        {hasConversationHeader && isPresentationActive && (
+          <SessionFilesBadge sessionId={sessionId} />
+        )}
       </div>
 
-      <Tooltip content={currentUserMessage} placement="bottom">
-        <div
-          className="flowchat-header__message"
-          role="button"
-          tabIndex={0}
-          onClick={onJumpToCurrentTurn}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onJumpToCurrentTurn?.();
-            }
-          }}
-          aria-label={t('flowChatHeader.jumpToCurrentTurn', {
-            turn: currentTurn,
-            defaultValue: `Jump to Turn ${currentTurn}`,
-          })}
-        >
-          <span className="flowchat-header__turn-badge" aria-label={turnBadgeLabel}>
-            <span>{turnBadgeLabel}</span>
-          </span>
-          <span className="flowchat-header__message-text">
-            {truncatedMessage}
-          </span>
-        </div>
-      </Tooltip>
+      {hasConversationHeader ? (
+        <Tooltip content={currentUserMessage} placement="bottom">
+          <div
+            className="flowchat-header__message"
+            role="button"
+            tabIndex={0}
+            onClick={onJumpToCurrentTurn}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onJumpToCurrentTurn?.();
+              }
+            }}
+            aria-label={t('flowChatHeader.jumpToCurrentTurn', {
+              turn: currentTurn,
+              defaultValue: `Jump to Turn ${currentTurn}`,
+            })}
+          >
+            <span className="flowchat-header__turn-badge" aria-label={turnBadgeLabel}>
+              <span>{turnBadgeLabel}</span>
+            </span>
+            <span className="flowchat-header__message-text">
+              {truncatedMessage}
+            </span>
+          </div>
+        </Tooltip>
+      ) : (
+        <div className="flowchat-header__message flowchat-header__message--empty" aria-hidden="true" />
+      )}
 
       <div className="flowchat-header__actions">
         {hasBackgroundSubagents && (
@@ -613,30 +631,51 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
           )}
         </div>
 
-        <div className="flowchat-header__more-actions" ref={moreActionsRef}>
+        {showCanvasToggle && onCanvasToggle && (
           <IconButton
-            ref={moreButtonRef}
-            className={`flowchat-header__more-button${isMoreMenuOpen ? ' flowchat-header__more-button--active' : ''}`}
+            className={`flowchat-header__canvas-button${isCanvasExpanded ? ' flowchat-header__canvas-button--active' : ''}`}
             variant="ghost"
             size="xs"
-            onClick={handleToggleMoreMenu}
-            tooltip={moreActionsLabel}
-            aria-label={moreActionsLabel}
-            aria-haspopup="menu"
-            aria-expanded={isMoreMenuOpen}
-            data-testid="flowchat-header-more-actions"
+            onClick={onCanvasToggle}
+            tooltip={t(isCanvasExpanded ? 'layout.collapseCanvas' : 'layout.expandCanvas')}
+            aria-label={t(isCanvasExpanded ? 'layout.collapseCanvas' : 'layout.expandCanvas')}
+            aria-controls="void-session-aux-pane"
+            aria-expanded={isCanvasExpanded}
+            data-testid="session-aux-pane-toggle"
           >
-            <MoreHorizontal size={14} />
+            {isCanvasExpanded ? (
+              <PanelRightClose size={14} aria-hidden="true" />
+            ) : (
+              <PanelRightOpen size={14} aria-hidden="true" />
+            )}
           </IconButton>
+        )}
 
-          {isMoreMenuOpen && (
-            <div
-              ref={moreMenuRef}
-              className="flowchat-header__more-menu"
-              role="menu"
+        {hasConversationHeader && (
+          <div className="flowchat-header__more-actions" ref={moreActionsRef}>
+            <IconButton
+              ref={moreButtonRef}
+              className={`flowchat-header__more-button${isMoreMenuOpen ? ' flowchat-header__more-button--active' : ''}`}
+              variant="ghost"
+              size="xs"
+              onClick={handleToggleMoreMenu}
+              tooltip={moreActionsLabel}
               aria-label={moreActionsLabel}
-              onKeyDown={handleMoreMenuKeyDown}
+              aria-haspopup="menu"
+              aria-expanded={isMoreMenuOpen}
+              data-testid="flowchat-header-more-actions"
             >
+              <MoreHorizontal size={14} />
+            </IconButton>
+
+            {isMoreMenuOpen && (
+              <div
+                ref={moreMenuRef}
+                className="flowchat-header__more-menu"
+                role="menu"
+                aria-label={moreActionsLabel}
+                onKeyDown={handleMoreMenuKeyDown}
+              >
               <button
                 type="button"
                 role="menuitem"
@@ -716,9 +755,10 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
                   <span>{t('layout.previewFirst.toggle', { defaultValue: 'Open compact chat' })}</span>
                 </button>
               )}
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
