@@ -6,6 +6,8 @@
 
     position: relative;
     isolation: isolate;
+    container-name: automation-scene;
+    container-type: inline-size;
     font-family: var(--workspace-font-family);
     font-size: var(--workspace-font-size-control);
     line-height: var(--workspace-line-height-control);
@@ -799,6 +801,73 @@
         gap: var(--workspace-space-1);
         padding: var(--workspace-space-2) var(--workspace-space-3);
         background: var(--workspace-surface-raised);
+      }
+    }
+  }
+
+  @container automation-scene (min-width: 721px) {
+    .void-ui--minimal .automation-header {
+      min-height: 152px;
+      margin: var(--workspace-space-3);
+      padding: var(--workspace-space-4);
+      align-items: flex-end;
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      background-color: var(--workspace-surface-panel);
+      background-image: url('/visuals/void-automation-hero.webp');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: cover;
+
+      &__left {
+        display: grid;
+        flex: 1 1 auto;
+        grid-template-areas:
+          'title title'
+          'nav range';
+        grid-template-columns: auto minmax(0, 1fr);
+        align-self: stretch;
+        align-content: end;
+        max-width: 46%;
+        gap: var(--workspace-space-2);
+      }
+
+      &__title {
+        position: static;
+        grid-area: title;
+        width: auto;
+        height: auto;
+        padding: 0;
+        margin: 0 0 auto;
+        overflow: visible;
+        color: var(--workspace-text-primary);
+        font-size: clamp(
+          var(--workspace-font-size-title),
+          3cqi,
+          34px
+        );
+        font-weight: var(--workspace-font-weight-medium);
+        line-height: var(--workspace-line-height-title);
+        letter-spacing: -0.04em;
+        clip-path: none;
+        white-space: normal;
+      }
+
+      &__nav {
+        grid-area: nav;
+      }
+
+      &__range {
+        grid-area: range;
+        align-self: center;
+        max-width: none;
+      }
+
+      &__right {
+        padding: 2px;
+        border: 1px solid var(--workspace-border-subtle);
+        border-radius: var(--workspace-radius-panel);
+        background: var(--workspace-surface-panel);
       }
     }
   }
