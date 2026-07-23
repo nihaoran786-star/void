@@ -797,6 +797,24 @@ describe('Session usage report UI components', () => {
 
     expect(container.querySelectorAll('.session-usage-report-card__metric')).toHaveLength(6);
     expect(container.querySelector('.session-usage-report-card__metric svg')).toBeNull();
+    expect(container.querySelector('.session-usage-report-card__gauge')).toBeNull();
+  });
+
+  it('keeps live context usage as a text metric without restoring the gauge', () => {
+    render(
+      <SessionUsageReportCard
+        report={usageReport()}
+        markdown="## Session Usage"
+        contextUsage={{ current: 10240, max: 128000 }}
+      />
+    );
+
+    const metrics = container.querySelectorAll('.session-usage-report-card__metric');
+    expect(metrics).toHaveLength(7);
+    expect(metrics[0]?.textContent).toContain('Context');
+    expect(metrics[0]?.textContent).toContain('8%');
+    expect(container.querySelector('.session-usage-report-card__metrics--with-context')).not.toBeNull();
+    expect(container.querySelector('.session-usage-report-card__gauge')).toBeNull();
   });
 
   it('keeps the detail coverage badge in the header action area', () => {
@@ -1634,7 +1652,7 @@ describe('Session usage report i18n and theme guards', () => {
     expect(styleText).toContain('width: auto;');
     expect(styleText).toContain('margin: 0.12rem 3rem');
     expect(styleText).toContain('border: 1px solid color-mix(in srgb, var(--border-base)');
-    expect(styleText).toContain('grid-template-columns: repeat(3, minmax(116px, 1fr));');
+    expect(styleText).toContain('grid-template-columns: repeat(6, minmax(0, 1fr));');
     expect(styleText).toContain('width: clamp(180px, 26vw, 280px);');
     expect(styleText).toContain('max-width: 280px;');
     expect(styleText).toContain('text-overflow: ellipsis;');
