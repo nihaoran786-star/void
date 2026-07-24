@@ -48,6 +48,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const { state, updateRightPanelWidth, toggleRightPanel } = useApp();
   const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
   const auxPaneRef = useRef<AuxPaneRef>(null);
+  const draftCollapseHandledRef = useRef(false);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -75,7 +76,13 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   }, [state.layout.rightPanelCollapsed, currentRightWidth]);
 
   useEffect(() => {
-    if (newSessionDraftStatus !== 'draft') return;
+    if (newSessionDraftStatus !== 'draft') {
+      draftCollapseHandledRef.current = false;
+      return;
+    }
+    if (draftCollapseHandledRef.current) return;
+    draftCollapseHandledRef.current = true;
+
     if (state.layout.chatCollapsed) {
       window.dispatchEvent(new CustomEvent('void:compact-chat-close-requested'));
     }

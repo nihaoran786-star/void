@@ -156,6 +156,32 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
   });
 
+  it('allows the auxiliary preview to be reopened after the draft initially collapses it', async () => {
+    await act(async () => {
+      root.render(<SessionScene />);
+      useSessionModeStore.getState().beginDraft('office', null);
+    });
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+
+    mocks.layout.rightPanelCollapsed = true;
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+
+    await act(async () => {
+      mocks.chatPaneProps?.onCanvasToggle?.();
+    });
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
+
+    mocks.layout.rightPanelCollapsed = false;
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
+    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(true);
+  });
+
   it('restores the preferred canvas width after a temporary narrow-window clamp', async () => {
     localStorage.setItem('void:rightPanelLastWidth', '900');
     mocks.layout.rightPanelWidth = 900;

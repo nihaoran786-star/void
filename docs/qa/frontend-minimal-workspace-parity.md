@@ -1095,3 +1095,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [x] These follow-ups remain presentation-only: no report generation, account
   usage, authentication, Mini App runtime, session, or persistence interfaces
   changed.
+- [x] Opening Universal Canvas tools from an unpersisted New Task draft no
+  longer leaves the canvas permanently collapsed. Draft entry performs its
+  one-time cleanup, then the shared header control can hide and reopen Browser
+  or other canvas tabs without creating a workspace or persisted session.
