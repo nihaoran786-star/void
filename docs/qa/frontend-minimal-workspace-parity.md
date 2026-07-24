@@ -193,6 +193,12 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   Classic retains its direct shell and browser buttons. The real desktop gate
   opens each path, restores URL/local-storage state, and records
   `slice7-minimal-footer-progressive-disclosure.png`.
+- [x] Minimal settings pages share an 840px responsive content shell, sticky
+  compact header, workspace typography/surface tokens, and symmetric
+  floating-mini-chat clearance. Real desktop review covered MCP at wide width
+  and Appearance at a 719x498 CSS-pixel viewport; header and content edges
+  matched exactly, with zero document-level horizontal overflow. Classic
+  settings markup and runtime behavior remain unchanged.
 
 ## Composer and Conversation
 

@@ -13,20 +13,22 @@ describe('Minimal Config page density visual contract', () => {
   it('compacts only the Minimal page header and preserves the narrow inset', () => {
     const stylesheet = readSource('./ConfigPageHeader.scss');
 
-    expect(stylesheet).toContain(
+    for (const contract of [
       '.void-ui--minimal .void-config-page-header {',
-    );
-    expect(stylesheet).toContain(
-      'padding-top: var(--size-gap-6, 24px);',
-    );
-    expect(stylesheet).toContain(
-      'margin-bottom: var(--size-gap-5, 20px);',
-    );
-    expect(stylesheet).toContain('font-size: var(--font-size-lg);');
-    expect(stylesheet).toContain('font-size: var(--font-size-xs);');
-    expect(stylesheet).toContain('line-height: var(--line-height-base);');
+      'position: sticky;',
+      'padding: var(--workspace-space-3) var(--config-page-content-inline-padding);',
+      'margin-bottom: var(--workspace-space-4);',
+      'background: var(--workspace-surface-canvas);',
+      'border-bottom: 1px solid var(--workspace-border-subtle);',
+      'font-size: var(--workspace-font-size-title);',
+      'font-size: var(--workspace-font-size-meta);',
+      'line-height: var(--workspace-line-height-meta);',
+    ]) {
+      expect(stylesheet).toContain(contract);
+    }
+
     expect(stylesheet).toMatch(
-      /@container config-panel \(max-width: 520px\)[\s\S]*?\.void-ui--minimal \.void-config-page-header \{\s*padding-top: var\(--size-gap-5, 20px\);\s*margin-bottom: var\(--size-gap-4, 16px\);/,
+      /@container config-panel \(max-width: 520px\)[\s\S]*?\.void-ui--minimal \.void-config-page-header \{\s*padding:\s*var\(--workspace-space-3\)\s*var\(--config-page-content-inline-padding\);\s*margin-bottom: var\(--workspace-space-3\);/,
     );
   });
 
@@ -35,13 +37,21 @@ describe('Minimal Config page density visual contract', () => {
 
     for (const contract of [
       '.void-ui--minimal .void-config-page-layout {',
-      '--config-page-content-bottom-padding: var(--size-gap-8, 32px);',
-      '--config-page-section-gap: var(--size-gap-6, 24px);',
+      '--config-page-content-inline-padding: var(--workspace-space-4);',
+      '--config-page-content-bottom-padding: var(--workspace-space-8);',
+      '--config-page-content-max-width: 840px;',
+      '--config-page-section-gap: var(--workspace-space-6);',
+      'scrollbar-gutter: stable both-edges;',
+      '.void-ui--minimal .void-config-page-content {',
+      'padding-left: var(--config-page-content-inline-padding);',
       '.void-ui--minimal .void-config-page-section {',
-      'gap: var(--size-gap-3, 12px);',
+      'gap: var(--workspace-space-3);',
       '.void-ui--minimal .void-config-page-row {',
-      'padding: var(--size-gap-3, 12px);',
-      '--config-page-content-bottom-padding: var(--size-gap-6, 24px);',
+      'padding: var(--workspace-space-3);',
+      '.void-ui--minimal .void-config-page-section__body {',
+      'background: var(--workspace-surface-panel);',
+      'border-color: var(--workspace-border-subtle);',
+      '--config-page-content-bottom-padding: var(--workspace-space-6);',
     ]) {
       expect(stylesheet).toContain(contract);
     }

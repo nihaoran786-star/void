@@ -14,7 +14,8 @@
       }
     }
 
-    .void-settings-scene .void-config-page-content {
+    .void-settings-scene
+      :is(.void-config-page-header, .void-config-page-content) {
       padding-right: calc(
         var(--config-page-content-inline-padding)
         + 24px

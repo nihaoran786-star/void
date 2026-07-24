@@ -175,17 +175,33 @@
 }
 
 .void-ui--minimal .void-config-page-layout {
-  --config-page-content-bottom-padding: var(--size-gap-8, 32px);
-  --config-page-section-gap: var(--size-gap-6, 24px);
+  --config-page-content-inline-padding: var(--workspace-space-4);
+  --config-page-content-bottom-padding: var(--workspace-space-8);
+  --config-page-content-max-width: 840px;
+  --config-page-section-gap: var(--workspace-space-6);
+  background: var(--workspace-surface-canvas);
+  color: var(--workspace-text-primary);
+  font-family: var(--workspace-font-family);
+  scrollbar-gutter: stable both-edges;
+}
+
+.void-ui--minimal .void-config-page-content {
+  padding-left: var(--config-page-content-inline-padding);
 }
 
 .void-ui--minimal .void-config-page-section {
-  gap: var(--size-gap-3, 12px);
+  gap: var(--workspace-space-3);
 }
 
 .void-ui--minimal .void-config-page-row {
-  gap: var(--size-gap-3, 12px);
-  padding: var(--size-gap-3, 12px);
+  gap: var(--workspace-space-3);
+  padding: var(--workspace-space-3);
+}
+
+.void-ui--minimal .void-config-page-section__body {
+  background: var(--workspace-surface-panel);
+  border-color: var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-panel);
 }
 
 @container config-panel (max-width: 900px) {
@@ -199,7 +215,7 @@
 
 @container config-panel (max-width: 520px) {
   .void-ui--minimal .void-config-page-layout {
-    --config-page-content-bottom-padding: var(--size-gap-6, 24px);
+    --config-page-content-bottom-padding: var(--workspace-space-6);
   }
 
   .void-config-page-section {

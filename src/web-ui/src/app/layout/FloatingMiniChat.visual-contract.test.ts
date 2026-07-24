@@ -51,7 +51,7 @@ describe('FloatingMiniChat minimal visual contract', () => {
       '&--open {\n        right: var(--workspace-space-3);',
       '&--miniapp-customizing {',
       'right: calc(clamp(380px, 38vw, 560px) + 44px);',
-      '.void-settings-scene .void-config-page-content {',
+      ':is(.void-config-page-header, .void-config-page-content) {',
       '+ 24px',
       'width: 25px;',
       'height: 40px;',
