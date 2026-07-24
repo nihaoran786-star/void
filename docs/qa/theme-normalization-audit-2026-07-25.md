@@ -1,0 +1,79 @@
+# Theme normalization audit — 2026-07-25
+
+This checkpoint audits the Minimal presentation of Assistant, Automation, and
+Professional Agents in the real desktop shell. It is dated evidence, not a
+permanent statement of repository quality.
+
+## Audit health score
+
+| Dimension | Score | Evidence |
+| --- | ---: | --- |
+| Accessibility | 3/4 | Interactive controls expose visible labels or accessible names and retain focus styling. Compact 28px filter chips remain a desktop-first target and need a separate touch-input policy before claiming full AA target sizing. |
+| Performance | 4/4 | Agent cards use `content-visibility`, bounded intrinsic sizing, and reduced-motion fallbacks. The audited pages introduce no decorative media, blur, or unbounded animation. |
+| Responsive design | 3/4 | Assistant and Automation have zero document overflow at a 719px WebView. Professional Agents originally clipped its second filter group; the remediation below makes every filter control visible with zero overflow. |
+| Theming | 4/4 | Audited Minimal surfaces consume workspace color, typography, spacing, radius, focus, and status tokens. No new literal color is required by the remediation. |
+| Anti-patterns | 3/4 | Hierarchy is compact and restrained. Professional Agents still relies heavily on repeated equal-weight cards, which is functional but weakens scan hierarchy for large catalogs. |
+| **Total** | **17/20** | **Good — remaining debt is refinement rather than a structural redesign.** |
+
+## Anti-pattern verdict
+
+The audited pages do not present the usual gradient, glow, glass, oversized
+metric, or decorative hero-image signatures. Professional Agents does retain a
+dense repeated-card catalog; this is a P3 hierarchy concern, not a reason to
+replace the working gallery or add decorative imagery.
+
+## Findings
+
+### P1 — Narrow Professional Agents filters were clipped
+
+- **Location:** `src/web-ui/src/app/scenes/agents/AgentsScene.minimal.scss`
+- **Category:** Responsive design
+- **Impact:** At a 719px WebView, the `来源` and `类型` groups each inherited
+  `width: 100%` while their parent forced `flex-wrap: nowrap`. The second group
+  started beyond the content viewport, hiding the `智能体` and `子智能体`
+  controls without a visible overflow affordance.
+- **Remediation:** At 720px and below, the Minimal projection now wraps filter
+  groups and disables the conflicting horizontal overflow rule. Runtime agent
+  filtering, counts, creation, and gallery data remain unchanged.
+- **Evidence:** Before remediation the second group occupied x=697–1119 in a
+  719px WebView and three controls were outside the viewport. After remediation
+  both rows occupy x=268–689, all five filter buttons are inside the viewport,
+  and document width remains 719/719.
+
+### P2 — Compact controls do not yet define a touch-input policy
+
+- **Location:** Shared gallery chips and Automation toolbar controls
+- **Category:** Accessibility / responsive design
+- **Impact:** The 28px controls are precise for mouse-driven desktop use but do
+  not independently satisfy a 44px touch-target recommendation on hybrid
+  devices.
+- **Recommendation:** Add a pointer-coarse presentation override at the shared
+  gallery and toolbar layer rather than enlarging desktop controls globally.
+
+### P3 — Large agent catalogs have uniform card emphasis
+
+- **Location:** Professional Agents gallery
+- **Category:** Anti-pattern / information hierarchy
+- **Impact:** Core agents, teams, and the general catalog are separated by
+  headings, but repeated equal-weight cards make long scans visually uniform.
+- **Recommendation:** Preserve the existing card component and progressively
+  disclose secondary metadata on narrow views; do not introduce decorative
+  portraits or another card implementation.
+
+## Positive findings
+
+- Assistant reflows its two cards to one column at 719px without horizontal
+  overflow or duplicated controls.
+- Automation preserves all day/week/month/list actions at 719px and keeps its
+  calendar grid within the scene container.
+- Professional Agents uses a bounded content axis, semantic workspace tokens,
+  visible focus treatment, reduced-motion rules, and deferred card rendering.
+
+## Next actions
+
+1. Apply the shared pointer-coarse target policy only after verifying the
+   desktop shell reports coarse input accurately.
+2. Continue `$normalize` on the Skills and Connector catalogs, comparing their
+   filter/header behavior with the corrected Agents layout.
+3. Finish with `$polish` after the remaining catalog pages pass maximized and
+   719px desktop checks.

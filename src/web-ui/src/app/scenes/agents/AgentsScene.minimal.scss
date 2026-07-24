@@ -521,6 +521,15 @@
     }
   }
 
+  @media (max-width: 720px) {
+    .void-ui--minimal .void-agents-scene {
+      .void-agents-scene__agent-filters {
+        flex-wrap: wrap;
+        overflow-x: visible;
+      }
+    }
+  }
+
   @media (max-width: 560px) {
     .void-ui--minimal .void-agents-scene {
       .gallery-page-header {

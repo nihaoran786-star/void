@@ -1133,3 +1133,8 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   overflowing card labels. Switching between Code and Office leaves the
   greeting and composer coordinates unchanged; the narrow document has zero
   horizontal overflow.
+- [x] Professional Agents no longer combines full-width narrow filter groups
+  with a no-wrap scrolling parent. At a 719px WebView, `来源` and `类型` now
+  form two compact rows; all five filter buttons stay inside x=268–689 and the
+  document remains 719/719. Agent filtering, counts, creation, data loading,
+  cards, and Classic presentation remain unchanged.

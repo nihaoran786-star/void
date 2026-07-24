@@ -124,6 +124,12 @@ describe('Agents scene Minimal presentation contract', () => {
     );
   });
 
+  it('wraps narrow filter groups instead of clipping the second group', () => {
+    expect(source).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.void-agents-scene__agent-filters \{[\s\S]*?flex-wrap: wrap;[\s\S]*?overflow-x: visible;/,
+    );
+  });
+
   it('uses compact Chinese labels without changing runtime agent identities', () => {
     const simplifiedChinese = JSON.parse(
       readSource('../../../locales/zh-CN/scenes/agents.json'),
