@@ -1,6 +1,6 @@
 {
-  "title": "ACP Agents",
-  "subtitle": "管理可在 FlowChat 會話裡運行的 ACP Agent。",
+  "title": "ACP 智能體",
+  "subtitle": "管理可在會話中運行的 ACP 相容智能體。",
   "actions": {
     "add": "添加",
     "download": "下載",
@@ -23,10 +23,10 @@
     "description": "高級編輯器，對應 acpClients 配置。桌面端會通過 stdio 啟動這些客戶端。"
   },
   "registry": {
-    "title": "Agent 列表",
-    "description": "已安裝的 Agent 會出現在工作區操作菜單裡。遠端工作區會複用同一份列表，並先在遠端主機檢測狀態。",
-    "searchPlaceholder": "搜尋 Agent...",
-    "filterLabel": "ACP Agent 篩選",
+    "title": "智能體列表",
+    "description": "工作區調用前會檢測本機或遠端環境。",
+    "searchPlaceholder": "搜尋智能體...",
+    "filterLabel": "ACP 智能體篩選",
     "filters": {
       "all": "全部",
       "enabled": "已啟用",
@@ -57,16 +57,16 @@
     "configInvalidDetail": "目前 ACP 設定暫時無法直接使用。",
     "toolPath": "路徑",
     "toolVersion": "版本",
-    "empty": "沒有匹配的 ACP Agent。"
+    "empty": "沒有匹配的 ACP 智能體。"
   },
   "clients": {
-    "loading": "正在加載 ACP Agent…"
+    "loading": "正在加載 ACP 智能體…"
   },
   "remote": {
     "title": "遠端伺服器",
-    "description": "已保存的 SSH 伺服器會複用同一份 ACP Agent 列表，並自動檢測每台遠端主機的狀態。",
+    "description": "已保存的 SSH 伺服器會複用同一份 ACP 智能體列表，並自動檢測每台遠端主機的狀態。",
     "empty": "沒有已保存的 SSH 伺服器。",
-    "noAgents": "請先添加 ACP Agent，再檢測遠端伺服器。",
+    "noAgents": "請先添加 ACP 智能體，再檢測遠端伺服器。",
     "refreshDetection": "刷新檢測",
     "summary": "{{available}} / {{total}} 可用",
     "issueSummary": "{{count}} 個異常"
@@ -92,6 +92,17 @@
     "ready": "依賴已就緒",
     "notReady": "依賴缺失"
   },
+  "presets": {
+    "opencode": {
+      "description": "原生 ACP 編程智能體。"
+    },
+    "claude-code": {
+      "description": "通過 Zed ACP 適配器運行 Claude Code。"
+    },
+    "codex": {
+      "description": "通過 Zed ACP 適配器運行 OpenAI Codex。"
+    }
+  },
   "notifications": {
     "loadFailed": "加載 ACP 配置失敗",
     "saveSuccess": "ACP 配置已保存",
@@ -104,8 +115,8 @@
     "installFailed": "安裝 ACP CLI 失敗",
     "configureSuccess": "ACP 適配器已就緒",
     "configureFailed": "配置 ACP 適配器失敗",
-    "downloadSuccess": "ACP Agent CLI 已下載",
-    "downloadFailed": "下載 ACP Agent CLI 失敗",
+    "downloadSuccess": "ACP 智能體 CLI 已下載",
+    "downloadFailed": "下載 ACP 智能體 CLI 失敗",
     "predownloadSuccess": "ACP 適配器已下載",
     "predownloadFailed": "下載 ACP 適配器失敗"
   }

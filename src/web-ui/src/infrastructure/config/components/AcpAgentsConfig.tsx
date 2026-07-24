@@ -914,6 +914,8 @@ const AcpAgentsConfig: React.FC = () => {
               <Button
                 variant="secondary"
                 size="small"
+                aria-label={showJsonEditor ? t('actions.closeJson') : t('actions.editJson')}
+                title={showJsonEditor ? t('actions.closeJson') : t('actions.editJson')}
                 onClick={() => setShowJsonEditor(prev => !prev)}
               >
                 <FileJson size={14} />
@@ -922,6 +924,8 @@ const AcpAgentsConfig: React.FC = () => {
               <Button
                 variant="secondary"
                 size="small"
+                aria-label={t('actions.refresh')}
+                title={t('actions.refresh')}
                 onClick={() => { void refreshRequirementProbes({ force: true }); }}
                 isLoading={probingRequirements}
               >
@@ -931,6 +935,8 @@ const AcpAgentsConfig: React.FC = () => {
               <Button
                 variant="secondary"
                 size="small"
+                aria-label={t('actions.learnMore')}
+                title={t('actions.learnMore')}
                 onClick={openLearnMore}
               >
                 {t('actions.learnMore')}
@@ -940,6 +946,8 @@ const AcpAgentsConfig: React.FC = () => {
                 <Button
                   variant="primary"
                   size="small"
+                  aria-label={t('actions.save')}
+                  title={t('actions.save')}
                   onClick={() => { void saveConfig(); }}
                   isLoading={saving}
                 >
@@ -1049,7 +1057,9 @@ const AcpAgentsConfig: React.FC = () => {
                       </span>
                       <div className="void-acp-agents__registry-copy">
                         <span className="void-acp-agents__registry-name">{preset.name}</span>
-                        <p className="void-acp-agents__registry-description">{preset.description}</p>
+                        <p className="void-acp-agents__registry-description">
+                          {t(`presets.${preset.id}.description`, { defaultValue: preset.description })}
+                        </p>
                       </div>
                     </div>
                     <div className="void-acp-agents__capabilities">

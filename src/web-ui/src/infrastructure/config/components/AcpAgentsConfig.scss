@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/tokens' as *;
+@use './AcpAgentsConfig.minimal' as minimal;
 
 .void-acp-agents {
   &__manager {
@@ -359,3 +360,5 @@
     transform: rotate(360deg);
   }
 }
+
+@include minimal.styles;

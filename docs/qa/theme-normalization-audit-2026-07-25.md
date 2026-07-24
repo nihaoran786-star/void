@@ -181,6 +181,38 @@ replace the working gallery or add decorative imagery.
   document remains 719/719. Full-width views preserve their bounded content
   axes without gradients, shadows, or entrance animation.
 
+### Resolved follow-up — ACP settings expanded into card-like rows
+
+- **Location:** `src/web-ui/src/infrastructure/config/components/AcpAgentsConfig.minimal.scss`
+  and `AcpAgentsConfig.tsx`
+- **Category:** Responsive design / theming / accessibility / localization
+- **Severity before remediation:** P1 responsive density, P2 visual-system and
+  localization drift
+- **Impact:** The page used a viewport-level 860px breakpoint for a component
+  rendered inside a much narrower settings panel. At a 719px WebView every
+  agent row collapsed into four stacked blocks, leaving only one partial agent
+  visible. Toolbar actions also split across multiple lines and Chinese
+  surfaces retained English generic Agent labels and descriptions.
+- **Remediation:** A feature-owned Minimal projection now uses the existing
+  `config-panel` container contract. Wide rows remain 48px four-column records;
+  narrow rows become two-level records with name/description followed by
+  capability, state, and action. Secondary toolbar actions become compact
+  icon controls only inside the narrow container and retain explicit accessible
+  names and titles. Generic Chinese Agent wording and preset descriptions are
+  localized without changing provider names, probes, installation, JSON
+  editing, or persistence.
+- **Focused audit score:** 13/20 before remediation; 19/20 after remediation
+  (A11y 3, performance 4, responsive 4, theming 4, anti-patterns 4).
+- **Evidence:** At maximized width the toolbar remains a single 840×32px row
+  and each registry row measures about 48px. At a 719×498 WebView the document
+  remains 719/719, search measures 379×32px, all three preset rows remain in
+  one continuous list at about 84px each, and the toolbar stays within its
+  379px content axis. Searching for `codex` leaves exactly one visible row;
+  raw JSON opens and closes without modifying the configuration.
+- **Gate note:** The locale contract passes. The full i18n source audit remains
+  blocked by the pre-existing short-drama CJK source count (31 candidates
+  against a budget of 25); none of those service files are part of this change.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

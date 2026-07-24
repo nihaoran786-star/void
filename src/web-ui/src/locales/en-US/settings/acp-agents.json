@@ -92,6 +92,17 @@
     "ready": "Requirements ready",
     "notReady": "Requirements missing"
   },
+  "presets": {
+    "opencode": {
+      "description": "Native ACP coding agent."
+    },
+    "claude-code": {
+      "description": "Run Claude Code through the Zed ACP adapter."
+    },
+    "codex": {
+      "description": "Run OpenAI Codex through the Zed ACP adapter."
+    }
+  },
   "notifications": {
     "loadFailed": "Failed to load ACP config",
     "saveSuccess": "ACP config saved",
