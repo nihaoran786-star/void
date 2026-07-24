@@ -27,6 +27,46 @@
 }
 
 /*
+ * Draft examples are supporting content, not part of the greeting's layout.
+ * Keep the heading and mode switch anchored while office examples refresh or
+ * change height.
+ */
+.void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
+  .welcome-panel__content {
+    position: relative;
+  }
+
+  .welcome-panel__cowork {
+    position: absolute;
+    top: calc(100% + 40px);
+    left: 50%;
+    width: min(100%, 600px);
+    transform: translateX(-50%);
+  }
+
+  .void-cowork-example-cards {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .void-cowork-example-cards__header {
+    min-height: 18px;
+    margin-bottom: 3px;
+  }
+
+  .void-cowork-example-cards__card {
+    min-height: 40px;
+    padding: 6px 8px;
+    justify-content: center;
+  }
+
+  .void-cowork-example-cards__card-desc {
+    display: none;
+  }
+}
+
+/*
  * The unpersisted new-session draft uses the existing composer as its home
  * surface. The creation-mode control is the explicit draft marker, so existing
  * empty sessions keep their normal conversation layout.
@@ -116,6 +156,10 @@
 
     .welcome-panel__creation-modes {
       margin-top: 8px;
+    }
+
+    .welcome-panel__cowork {
+      top: calc(100% + 38px);
     }
 
     .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
