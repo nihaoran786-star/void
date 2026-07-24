@@ -83,6 +83,7 @@ function AppearanceThemeSection() {
                 }))}
                 disabled={isChanging}
                 placeholder={t('appearance.language')}
+                ariaLabel={t('appearance.language')}
               />
             </div>
           </ConfigPageRow>
@@ -100,6 +101,7 @@ function AppearanceThemeSection() {
                   onChange={(value) => handleThemeChange(value as string)}
                   disabled={loading}
                   options={themeSelectOptions}
+                  ariaLabel={t('appearance.themes')}
                   renderOption={(option) => {
                     const v = String(option.value);
                     const fullTheme =

@@ -349,6 +349,31 @@ replace the working gallery or add decorative imagery.
   including `开机自动启动`, `关闭按钮行为`, `日志级别`, `默认终端`, and
   `在文件管理器中打开日志文件夹`.
 
+### Resolved follow-up — Appearance Settings mixed cards and unnamed controls
+
+- **Location:** `AppearanceConfig`, `FontPreferencePanel`, and the Basics locale
+  resources
+- **Category:** Accessibility / localization / responsive density / visual
+  hierarchy
+- **Severity before remediation:** P1 for unnamed language/theme controls; P2
+  for card-like section density
+- **Impact:** Language and theme selects exposed no accessible name, the font
+  preview announced an English-only literal, and the custom stepper/input and
+  optional chat-size select lacked contextual names. At a 719×498 WebView the
+  interface and font section bodies occupied about 231px and 391px as rounded
+  cards, forcing simple language and theme choices into stacked rows.
+- **Remediation:** Existing translations now name every affected control and
+  preview. The Minimal projection reuses the same flat divider-list treatment
+  as Basic Settings, keeps language and theme controls inline on narrow
+  layouts, retains the real font preview boundary, and removes the empty reset
+  metadata column. Theme, locale, and font preference services are unchanged.
+- **Evidence:** At maximized width both sections retain the bounded 840px
+  content axis. At a 719×498 WebView the interface section drops to about
+  135px, both selects remain 159px wide inside the 379px axis, and the document
+  remains 719/719. Opening the language list shows all three localized options
+  without clipping and closes without changing the locale. The controls report
+  `语言`, `主题`, `界面字体`, `界面字号预览`, and `自定义对话字号`.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

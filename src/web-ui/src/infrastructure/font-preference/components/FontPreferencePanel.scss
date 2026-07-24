@@ -16,6 +16,14 @@
     --row-grid-cols: minmax(0, 8fr) minmax(220px, 4fr);
   }
 
+  &__row--reset.void-config-page-row {
+    grid-template-columns: minmax(0, 1fr);
+
+    .void-config-page-row__meta {
+      display: none;
+    }
+  }
+
   &__ui-size {
     display: flex;
     flex-direction: column;

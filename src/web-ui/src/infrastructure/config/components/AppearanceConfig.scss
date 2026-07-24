@@ -7,6 +7,18 @@
   padding: 0;
 }
 
+.void-ui--minimal .void-appearance-config {
+  .void-config-page-section__body {
+    background: transparent;
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .void-config-page-row {
+    padding-inline: 0;
+  }
+}
+
 .theme-config {
   &__content {
     display: flex;
@@ -136,6 +148,19 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+}
+
+@container config-panel (max-width: 520px) {
+  .void-ui--minimal .void-appearance-config {
+    .theme-config .void-config-page-row {
+      grid-template-columns: minmax(0, 1fr) minmax(140px, 42%);
+      gap: var(--workspace-space-3);
+    }
+
+    .theme-config__language-select {
+      width: 100%;
+    }
   }
 }
 

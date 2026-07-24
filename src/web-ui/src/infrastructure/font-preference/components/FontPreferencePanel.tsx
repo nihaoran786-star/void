@@ -189,7 +189,7 @@ export function FontPreferencePanel() {
                         type="button"
                         className="font-pref-panel__step-btn"
                         onClick={() => handleCustomStep(-1)}
-                        aria-label="-1"
+                        aria-label={t('appearance.fontSize.decreaseButton')}
                       >−</button>
                       <input
                         type="number"
@@ -205,12 +205,13 @@ export function FontPreferencePanel() {
                         onChange={handleCustomInputChange}
                         onFocus={() => void handleLevelClick('custom')}
                         aria-invalid={!!customError}
+                        aria-label={t('appearance.fontSize.customPxLabel')}
                       />
                       <button
                         type="button"
                         className="font-pref-panel__step-btn"
                         onClick={() => handleCustomStep(1)}
-                        aria-label="+1"
+                        aria-label={t('appearance.fontSize.increaseButton')}
                       >+</button>
                     </div>
                     <span className="font-pref-panel__custom-unit">px</span>
@@ -227,7 +228,7 @@ export function FontPreferencePanel() {
           <div
             className="font-pref-panel__preview"
             style={{ fontSize: `${previewBasePx}px` }}
-            aria-label="Font size preview"
+            aria-label={t('appearance.fontSize.previewLabel')}
           >
             {t('appearance.fontSize.previewText')}
           </div>
@@ -258,6 +259,7 @@ export function FontPreferencePanel() {
                 options={flowChatPxOptions}
                 onChange={handleFlowChatPxChange}
                 placement="bottom"
+                ariaLabel={t('appearance.fontSize.flowChatLabel')}
               />
             </div>
           )}
@@ -265,7 +267,7 @@ export function FontPreferencePanel() {
       </ConfigPageRow>
 
       {/* Reset */}
-      <ConfigPageRow label="" align="center">
+      <ConfigPageRow className="font-pref-panel__row--reset" label="" align="center">
         <button
           type="button"
           className="font-pref-panel__reset-btn"
