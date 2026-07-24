@@ -239,6 +239,21 @@ $_tab-v-margin: 6px;   // symmetric top/bottom gap inside SceneBar
   opacity: 0.94;
 }
 
+@media (max-width: 720px) {
+  .void-scene-tab {
+    &__content {
+      gap: $size-gap-1;
+      padding-left: $size-gap-2;
+      padding-right: calc(#{$size-gap-2} + 18px);
+    }
+
+    &__sep,
+    &__subtitle {
+      display: none;
+    }
+  }
+}
+
 // Light themes: inactive = former active (soft tint on chrome); active = former inactive (lifted pill + edge).
 :root[data-theme-type='light'] .void-scene-tab {
   background: var(--element-bg-soft);

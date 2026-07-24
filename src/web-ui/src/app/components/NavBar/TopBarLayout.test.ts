@@ -26,4 +26,12 @@ describe('top bar layout styles', () => {
     expect(stylesheet).toContain('min-height: var(--void-topbar-control-size);');
     expect(stylesheet).toContain('border-radius: var(--void-topbar-control-radius);');
   });
+
+  it('removes secondary tab labels before narrow tabs clip their text', () => {
+    const stylesheet = readStylesheet('../SceneBar/SceneBar.scss');
+
+    expect(stylesheet).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?&__sep,\s*&__subtitle\s*\{\s*display: none;/,
+    );
+  });
 });
