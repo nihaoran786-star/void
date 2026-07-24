@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Code2,
   Images,
+  Plus,
   type LucideIcon,
 } from 'lucide-react';
 import { Tooltip } from '@/component-library';
@@ -96,39 +97,17 @@ export const SessionCreateLauncher: React.FC<SessionCreateLauncherProps> = ({
 
   return (
     <div className="void-nav-panel__session-create void-nav-panel__session-create--minimal">
-      <div
-        className={`void-nav-panel__session-mode-switch is-mode-${selectedMode}`}
-        role="radiogroup"
-        aria-label={groupLabel}
-      >
-        <span className="void-nav-panel__session-mode-indicator" aria-hidden="true" />
-        {MODE_OPTIONS.map(({ mode, Icon }) => (
-          <Tooltip key={mode} content={modeLabels[mode].create} placement="top">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={selectedMode === mode}
-              aria-label={modeLabels[mode].create}
-              className={`void-nav-panel__session-mode-option${selectedMode === mode ? ' is-active' : ''}`}
-              onClick={() => onSelectMode(mode)}
-            >
-              <Icon size={14} aria-hidden="true" />
-            </button>
-          </Tooltip>
-        ))}
-      </div>
-
       <div className="void-nav-panel__session-create-footer">
         <button
           type="button"
           className="void-nav-panel__session-create-action"
           onClick={onCreate}
-          aria-label={modeLabels[selectedMode].create}
+          aria-label={groupLabel}
         >
+          <Plus size={14} strokeWidth={1.5} aria-hidden="true" />
           <span className="void-nav-panel__session-create-action-text">
-            {modeLabels[selectedMode].create}
+            {groupLabel}
           </span>
-          <ArrowRight size={13} aria-hidden="true" />
         </button>
         {searchTrigger ? (
           <div className="void-nav-panel__session-search-slot">

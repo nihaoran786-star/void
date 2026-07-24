@@ -27,7 +27,9 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(source).toContain('aria-expanded={isExtensionsOpen}');
     expect(source).toContain('aria-label={extensionsLabel}');
     expect(source).toContain('aria-label={connectorsTooltip}');
-    expect(minimalStyles).toContain('&__top-action-icon-slot {\n      display: none;');
+    expect(minimalStyles).toContain(
+      '&__top-action-icon-slot {\n      display: inline-flex;',
+    );
     expect(minimalStyles).toContain(
       '&__top-action-expand-icon-default {\n      display: none;',
     );

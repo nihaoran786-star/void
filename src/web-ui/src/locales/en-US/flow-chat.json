@@ -439,7 +439,10 @@
     "spaceToActivate": "Press <space>Space</space> to type"
   },
   "workspaceStrip": {
-    "branchTooltipUnavailable": "Not a git repository or no current branch"
+    "branchTooltipUnavailable": "Not a git repository or no current branch",
+    "selectWorkspace": "Choose workspace",
+    "createWorkspace": "Create workspace",
+    "selectWorkspaceBeforeSend": "Choose a workspace from the bottom of the composer first"
   },
   "context": {
     "title": "Context",
@@ -1845,6 +1848,10 @@
     "promptSubtitleMedia": "Start with a script, asset, or visual",
     "promptSubtitleClaw": "Your assistant is ready",
     "promptSubtitleNamedClaw": "{{name}} is ready",
+    "creationModesLabel": "Choose a new session type",
+    "creationModeCode": "Code",
+    "creationModeCowork": "Office",
+    "creationModeMedia": "Media",
     "greetingMorning": "Good morning",
     "subtitleMorning": "A new day, new possibilities. Let's create something together",
     "greetingAfternoon": "Good afternoon",

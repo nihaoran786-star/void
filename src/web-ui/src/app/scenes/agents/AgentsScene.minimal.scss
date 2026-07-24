@@ -490,7 +490,7 @@
 
       .gallery-page-header__title {
         max-width: 180px;
-        font-size: 22px;
+        font-size: var(--workspace-font-size-display);
       }
 
       .gallery-page-header__subtitle,

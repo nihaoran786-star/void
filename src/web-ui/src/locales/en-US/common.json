@@ -161,6 +161,7 @@
     },
     "sessions": {
       "newSession": "New session",
+      "newTask": "New task",
       "newCodeSession": "New Code session",
       "newCoworkSession": "New Cowork session",
       "newMediaSession": "New Media session",

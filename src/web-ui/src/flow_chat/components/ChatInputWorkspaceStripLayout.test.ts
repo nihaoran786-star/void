@@ -16,7 +16,8 @@ describe('ChatInputWorkspaceStrip layout styles', () => {
 
     expect(stylesheet).toContain('position: relative;');
     expect(stylesheet).toContain('min-height: 20px;');
-    expect(stylesheet).not.toContain('position: absolute;');
+    expect(stylesheet).toContain('&__picker-menu {');
+    expect(stylesheet).toContain('bottom: calc(100% + 8px);');
     expect(stylesheet).not.toContain('bottom: 0;');
   });
 

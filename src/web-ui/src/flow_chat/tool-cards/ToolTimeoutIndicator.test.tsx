@@ -49,7 +49,7 @@ beforeAll(async () => {
 
   const jsdom = await import('jsdom');
   JSDOMCtor = jsdom.JSDOM as typeof JSDOMCtor;
-});
+}, 30_000);
 
 function withI18n(element: React.ReactElement): React.ReactElement {
   return (

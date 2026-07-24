@@ -17,15 +17,21 @@ describe('new session home visual governance', () => {
     expect(panelSource).not.toMatch(/<img\b/);
     expect(panelSource).not.toContain('/Logo-ICON.png');
     expect(panelSource).not.toContain('/Void-Logo.png');
-    expect(paneStyles).toContain(':has(.welcome-panel)');
+    expect(panelSource).toContain('welcome-panel__creation-modes');
+    expect(panelSource).toContain('welcome.creationModeCowork');
+    expect(panelSource).not.toContain('welcome.creationModeShortDrama');
+    expect(paneStyles).toContain(':has(.welcome-panel__creation-modes)');
     expect(paneStyles).toContain('.void-chat-input-drop-zone');
+    expect(paneStyles).toContain('min-height: 160px');
   });
 
   it('preserves the open-workspace affordance when no workspace is selected', () => {
     const panelSource = read('flow_chat/components/WelcomePanel.tsx');
     const paneStyles = read('app/scenes/session/ChatPane.scss');
 
-    expect(panelSource).toContain("const needsWorkspace = !isClawSession && !hasWorkspace");
+    expect(panelSource).toContain(
+      "const needsWorkspace = !isDraft && !isClawSession && !hasWorkspace",
+    );
     expect(panelSource).toContain('welcome-panel--needs-workspace');
     expect(paneStyles).toContain(
       '.welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative',
@@ -33,5 +39,17 @@ describe('new session home visual governance', () => {
     expect(paneStyles).not.toMatch(
       /(?<!not\(\.welcome-panel--needs-workspace\)\s)\.welcome-panel__narrative\s*\{\s*display:\s*none/,
     );
+  });
+
+  it('keeps a new session as an unpersisted draft until the first send', () => {
+    const mainNavSource = read('app/components/NavPanel/MainNav.tsx');
+    const draftServiceSource = read('flow_chat/services/NewSessionDraftService.ts');
+    const senderSource = read('flow_chat/hooks/useMessageSender.ts');
+
+    expect(mainNavSource).toContain("beginNewSessionDraft('code', null)");
+    expect(mainNavSource).not.toContain('pickWorkspaceForProjectChatSession');
+    expect(draftServiceSource).toContain('activeSessionId: null');
+    expect(senderSource).toContain('...newSessionConfig');
+    expect(senderSource).toContain('onSessionCreated?.(sessionId)');
   });
 });

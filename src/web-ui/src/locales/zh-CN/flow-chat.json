@@ -439,7 +439,10 @@
     "spaceToActivate": "按<space>空格键</space>快速键入"
   },
   "workspaceStrip": {
-    "branchTooltipUnavailable": "非 Git 仓库或当前无分支"
+    "branchTooltipUnavailable": "非 Git 仓库或当前无分支",
+    "selectWorkspace": "选择工作区",
+    "createWorkspace": "新建工作区",
+    "selectWorkspaceBeforeSend": "请先在输入框底部选择工作区"
   },
   "context": {
     "title": "上下文",
@@ -1845,6 +1848,10 @@
     "promptSubtitleMedia": "从脚本、素材或画面开始",
     "promptSubtitleClaw": "你的助理已经准备好",
     "promptSubtitleNamedClaw": "{{name}} 已准备好",
+    "creationModesLabel": "选择新会话类型",
+    "creationModeCode": "代码会话",
+    "creationModeCowork": "办公会话",
+    "creationModeMedia": "媒体会话",
     "greetingMorning": "早安",
     "subtitleMorning": "新的一天，新的可能，让我们一起创造些什么",
     "greetingAfternoon": "下午好",

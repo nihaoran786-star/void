@@ -15,6 +15,7 @@ import type { AIModelConfig, DefaultModelsConfig } from '@/infrastructure/config
 import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
 import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
+import type { SessionConfig } from '../types/flow-chat';
 
 const log = createLogger('FlowChat');
 
@@ -51,6 +52,10 @@ interface UseMessageSenderProps {
   onExitTemplateMode?: () => void;
   /** Selected agent type (mode) */
   currentAgentType?: string;
+  /** Workspace and transport scope for a not-yet-created session. */
+  newSessionConfig?: SessionConfig;
+  /** Called once after a deferred session is created successfully. */
+  onSessionCreated?: (sessionId: string) => void;
 }
 
 interface UseMessageSenderReturn {
@@ -73,6 +78,8 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     onSuccess,
     onExitTemplateMode,
     currentAgentType,
+    newSessionConfig,
+    onSessionCreated,
   } = props;
 
   const sendMessage = useCallback(async (
@@ -121,8 +128,10 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         const modelId = normalizeModelSelection(agentModels[agentType], allModels, defaultModels);
 
         sessionId = await flowChatManager.createChatSession({
-          modelName: modelId || undefined
+          ...newSessionConfig,
+          modelName: modelId || undefined,
         }, agentType);
+        onSessionCreated?.(sessionId);
         log.debug('Session created', { sessionId, modelId, agentType });
       } else {
         log.debug('Reusing existing session', { sessionId });
@@ -174,7 +183,16 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       });
       throw error;
     }
-  }, [currentSessionId, contexts, onClearContexts, onSuccess, onExitTemplateMode, currentAgentType]);
+  }, [
+    currentSessionId,
+    contexts,
+    onClearContexts,
+    onSuccess,
+    onExitTemplateMode,
+    currentAgentType,
+    newSessionConfig,
+    onSessionCreated,
+  ]);
 
   return {
     sendMessage,

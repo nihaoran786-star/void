@@ -128,17 +128,20 @@ describe('NavPanel layout styles', () => {
     expect(sectionActionBlock).toContain('height: var(--void-nav-row-action-icon-size);');
   });
 
-  it('keeps session mode selection in the segmented slider separate from the create action', () => {
+  it('keeps mode selection in Classic while Minimal exposes one independent task action', () => {
     const mainNavSource = readMainNavSource();
     const launcherSource = readSessionCreateLauncherSource();
 
     expect(mainNavSource).toContain('<SessionCreateLauncher');
     expect(mainNavSource).toContain('onSelectMode={setSessionMode}');
-    expect(mainNavSource).toContain('onCreate={handleCreateSelectedSession}');
+    expect(mainNavSource).toContain('onCreate={handleCreateTask}');
     expect(launcherSource).toContain("if (presentation === 'classic')");
-    expect(launcherSource.match(/role="radiogroup"/g)).toHaveLength(2);
+    expect(launcherSource.match(/role="radiogroup"/g)).toHaveLength(1);
     expect(launcherSource.match(/void-nav-panel__session-mode-switch/g)?.length)
-      .toBeGreaterThanOrEqual(2);
+      .toBeGreaterThanOrEqual(1);
+    expect(
+      launcherSource.slice(launcherSource.indexOf("if (presentation === 'classic')")),
+    ).toContain('void-nav-panel__session-mode-switch');
     expect(launcherSource).toContain('onClick={onCreate}');
     expect(launcherSource).not.toContain('void-nav-panel__session-mode-menu-trigger');
     expect(launcherSource).not.toContain("import('./SessionModeMenu')");
@@ -252,28 +255,11 @@ describe('NavPanel layout styles', () => {
     expect(minimalCreateBlock).toContain('overflow: visible;');
     expect(minimalFooterBlock).toContain('display: contents;');
     expect(stylesheet).toContain(
-      '&__session-create-action {\n      grid-template-columns: minmax(0, 1fr) auto;\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 28px;',
+      '&__session-create-action {\n      grid-template-columns: 18px minmax(0, 1fr);\n      gap: var(--workspace-space-1);\n      width: 100%;\n      height: 36px;',
     );
-    expect(stylesheet).toContain(
-      '&__session-mode-switch.is-mode-code &__session-mode-indicator',
-    );
-    expect(stylesheet).toContain(
-      '&__session-mode-switch.is-mode-cowork &__session-mode-indicator',
-    );
-    expect(stylesheet).toContain(
-      '&__session-mode-switch.is-mode-media &__session-mode-indicator',
-    );
-    expect(stylesheet).toContain('transform: translateX(0);');
-    expect(stylesheet).toContain(
-      'transform: translateX(calc(100% + var(--session-mode-gap)));',
-    );
-    expect(stylesheet).toContain('grid-column: 1 / -1;');
-    expect(stylesheet).toContain(
-      'transition: transform var(--workspace-motion-fast) var(--workspace-easing-standard);',
-    );
-    expect(stylesheet).toContain(
-      '&__session-mode-option:focus-visible {\n      outline: 2px solid var(--workspace-focus-ring);',
-    );
+    expect(stylesheet).not.toContain('&__session-mode-switch');
+    expect(stylesheet).not.toContain('&__session-mode-indicator');
+    expect(stylesheet).not.toContain('&__session-mode-option');
     expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
     expect(stylesheet).not.toContain('&__session-mode-menu-trigger');
     expect(stylesheet).not.toContain(
@@ -294,7 +280,7 @@ describe('NavPanel layout styles', () => {
     );
     expect(source.match(/className="void-nav-panel__search-trigger__label"/g))
       .toHaveLength(1);
-    expect(topActionIconBlock).toContain('display: none;');
+    expect(topActionIconBlock).toContain('display: inline-flex;');
     expect(expandIconsBlock).toContain('order: 2;');
     expect(expandIconsBlock).toContain('margin-left: auto;');
     expect(expandDefaultIconBlock).toContain('display: none;');
@@ -307,7 +293,7 @@ describe('NavPanel layout styles', () => {
     expect(source).toContain('className="void-nav-panel__search-trigger"');
     expect(source).toContain("aria-label={t('nav.search.triggerTooltip')}");
     expect(source).toContain('<NavSearchDialog open={searchOpen}');
-    expect(source).toContain('onCreate={handleCreateSelectedSession}');
+    expect(source).toContain('onCreate={handleCreateTask}');
     expect(source).toContain('onSelectMode={setSessionMode}');
     expect(launcherSource).not.toContain('const SelectedIcon');
     expect(launcherSource).not.toContain(

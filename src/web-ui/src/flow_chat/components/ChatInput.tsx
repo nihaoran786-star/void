@@ -24,6 +24,7 @@ import type { FlowChatState, Session } from '../types/flow-chat';
 import type { FileContext, DirectoryContext, ImageContext } from '@/types/context.ts';
 import { SmartRecommendations } from './smart-recommendations';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
+import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { WorkspaceKind } from '@/shared/types';
 import { createImageContextFromFile, createImageContextFromClipboard } from '../utils/imageUtils';
 import { notificationService } from '@/shared/notification-system';
@@ -77,6 +78,11 @@ import {
   type MediaReferenceEventDetail,
 } from '@/shared/services/media-reference';
 import { setChatPopupActive } from './chatPopupState';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
+import {
+  completeNewSessionDraft,
+  selectNewSessionDraftWorkspace,
+} from '../services/NewSessionDraftService';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
@@ -276,6 +282,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionState = useActiveSessionState();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
+  const draftMode = useSessionModeStore(state => state.mode);
+  const draftStatus = useSessionModeStore(state => state.draftStatus);
+  const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
+  const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
+  const isNewSessionDraft = !currentSessionId && draftStatus !== 'idle';
   const effectiveTargetSessionId = currentSessionId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
@@ -380,23 +391,89 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { transition, setQueuedInput } = useSessionStateMachineActions(effectiveTargetSessionId);
 
   const { workspace, workspacePath, workspaceName } = useCurrentWorkspace();
+  const { openedWorkspacesList } = useWorkspaceContext();
+
+  const draftWorkspaceOptions = useMemo(
+    () => openedWorkspacesList.filter(
+      candidate => candidate.workspaceKind !== WorkspaceKind.Assistant,
+    ),
+    [openedWorkspacesList],
+  );
+  const pendingDraftWorkspaceIdsRef = useRef<Set<string> | null>(null);
+
+  const handleCreateDraftWorkspace = useCallback(() => {
+    pendingDraftWorkspaceIdsRef.current = new Set(
+      draftWorkspaceOptions.map(candidate => candidate.id),
+    );
+    window.dispatchEvent(new Event('nav:new-project'));
+  }, [draftWorkspaceOptions]);
+
+  useEffect(() => {
+    if (!isNewSessionDraft) {
+      pendingDraftWorkspaceIdsRef.current = null;
+      return;
+    }
+
+    const previousWorkspaceIds = pendingDraftWorkspaceIdsRef.current;
+    if (!previousWorkspaceIds) {
+      return;
+    }
+
+    const createdWorkspace = draftWorkspaceOptions.find(
+      candidate => !previousWorkspaceIds.has(candidate.id),
+    );
+    if (createdWorkspace) {
+      selectNewSessionDraftWorkspace(createdWorkspace);
+      pendingDraftWorkspaceIdsRef.current = null;
+    }
+  }, [draftWorkspaceOptions, isNewSessionDraft]);
 
   const chatStripRepositoryPath = useMemo(() => {
+    if (isNewSessionDraft) {
+      return draftWorkspace?.rootPath?.trim() || '';
+    }
     const fromContext = (workspacePath || '').trim();
     const fromSession = (effectiveTargetSession?.workspacePath || '').trim();
     return fromContext || fromSession;
-  }, [workspacePath, effectiveTargetSession?.workspacePath]);
+  }, [
+    draftWorkspace?.rootPath,
+    effectiveTargetSession?.workspacePath,
+    isNewSessionDraft,
+    workspacePath,
+  ]);
 
   const chatStripWorkspaceLabel = useMemo(() => {
+    if (isNewSessionDraft) {
+      return draftWorkspace?.name?.trim() || t('workspaceStrip.selectWorkspace');
+    }
     const name = (workspaceName || '').trim();
     if (name) return name;
     if (chatStripRepositoryPath) return path.basename(chatStripRepositoryPath);
     return '';
-  }, [workspaceName, chatStripRepositoryPath]);
+  }, [
+    chatStripRepositoryPath,
+    draftWorkspace?.name,
+    isNewSessionDraft,
+    workspaceName,
+    t,
+  ]);
   
   const [tokenUsage, setTokenUsage] = React.useState({ current: 0, max: 128128 });
   const isAssistantWorkspace = workspace?.workspaceKind === WorkspaceKind.Assistant;
-  const currentMode = modeState.current;
+  const draftAgentType =
+    draftMode === 'cowork'
+      ? 'Cowork'
+      : draftMode === 'media'
+        ? 'Media'
+        : 'agentic';
+
+  useEffect(() => {
+    if (isNewSessionDraft) {
+      dispatchMode({ type: 'SET_CURRENT_MODE', payload: draftAgentType });
+    }
+  }, [draftAgentType, isNewSessionDraft]);
+
+  const currentMode = isNewSessionDraft ? draftAgentType : modeState.current;
   const isModeDropdownOpen = modeState.dropdownOpen;
   const activeSessionMode = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)?.mode
@@ -449,12 +526,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
 
   useEffect(() => {
+    if (currentSessionId && draftStatus !== 'idle') {
+      completeNewSessionDraft();
+    }
+  }, [currentSessionId, draftStatus]);
+
+  useEffect(() => {
     setChatInputActive(inputState.isActive);
   }, [inputState.isActive, setChatInputActive]);
   
   useEffect(() => {
     setChatInputExpanded(inputState.isExpanded);
   }, [inputState.isExpanded, setChatInputExpanded]);
+
+  const newSessionConfig = useMemo(
+    () =>
+      isNewSessionDraft && draftWorkspace
+        ? {
+            workspaceId: draftWorkspace.id,
+            workspacePath: draftWorkspace.rootPath,
+            remoteConnectionId: draftWorkspace.remoteConnectionId,
+            remoteSshHost: draftWorkspace.remoteSshHost,
+          }
+        : undefined,
+    [
+      draftWorkspace,
+      isNewSessionDraft,
+    ],
+  );
+
+  const handleDeferredSessionCreated = useCallback(() => {
+    completeNewSessionDraft();
+  }, []);
   
   // Reset history index when switching sessions
   useEffect(() => {
@@ -469,7 +572,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Composer mode is authoritative (synced from session on switch, updated in
     // applyModeChange). Prefer it over session.mode so a stale store cannot force
     // agentic when the user selected Team or another mode.
-    currentAgentType: modeState.current,
+    currentAgentType: currentMode,
+    newSessionConfig,
+    onSessionCreated: isNewSessionDraft ? handleDeferredSessionCreated : undefined,
   });
 
   const modeInfoById = useMemo(
@@ -1949,6 +2054,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const { sendButtonMode } = derivedState;
     const draftTrimmed = inputState.value.trim();
 
+    if (isNewSessionDraft && draftStatus === 'creating') {
+      return;
+    }
+
+    if (isNewSessionDraft && !draftWorkspace) {
+      notificationService.warning(
+        t('workspaceStrip.selectWorkspaceBeforeSend'),
+        { duration: 3500 },
+      );
+      return;
+    }
+
     // While generating, an empty control in `cancel` mode means stop. If the user has typed a follow-up,
     // never treat this path as cancel — that would call cancel_dialog_turn and abort the current round early.
     if (sendButtonMode === 'cancel' && !draftTrimmed) {
@@ -2067,6 +2184,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setQueuedInput(null);
 
     try {
+      if (isNewSessionDraft) {
+        setDraftStatus('creating');
+      }
       await sendMessage(message, {
         displayMessage: originalMessage,
       });
@@ -2074,6 +2194,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       dispatchInput({ type: 'CLEAR_VALUE' });
       dispatchInput({ type: 'DEACTIVATE' });
     } catch (error) {
+      if (
+        isNewSessionDraft &&
+        useSessionModeStore.getState().draftStatus !== 'idle'
+      ) {
+        setDraftStatus('error');
+      }
       log.error('Failed to send message', { error });
       pendingLargePastesRef.current = originalPendingLargePastes;
       dispatchInput({ type: 'ACTIVATE' });
@@ -2103,6 +2229,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     confirmPromptCacheGuardIfNeeded,
     t,
     resolveTypedMcpPromptCommand,
+    draftStatus,
+    draftWorkspace,
+    isNewSessionDraft,
+    setDraftStatus,
   ]);
   
   const getFilteredIncrementalModes = useCallback(() => {
@@ -3140,6 +3270,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <ChatInputWorkspaceStrip
                 repositoryPath={chatStripRepositoryPath}
                 workspaceLabel={chatStripWorkspaceLabel}
+                workspacePicker={
+                  isNewSessionDraft
+                    ? {
+                        ariaLabel: t('workspaceStrip.selectWorkspace'),
+                        options: draftWorkspaceOptions.map(candidate => ({
+                          id: candidate.id,
+                          label: candidate.name,
+                        })),
+                        selectedId: draftWorkspace?.id,
+                        createLabel: t('workspaceStrip.createWorkspace'),
+                        onCreate: handleCreateDraftWorkspace,
+                        onSelect: workspaceId => {
+                          const selectedWorkspace = draftWorkspaceOptions.find(
+                            candidate => candidate.id === workspaceId,
+                          );
+                          if (selectedWorkspace) {
+                            selectNewSessionDraftWorkspace(selectedWorkspace);
+                          }
+                        },
+                      }
+                    : undefined
+                }
                 usageReport={
                   effectiveTargetSessionId && effectiveTargetSession
                     ? { visible: true, onOpen: handleToolbarUsageReport }

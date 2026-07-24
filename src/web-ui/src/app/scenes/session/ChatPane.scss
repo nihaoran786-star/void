@@ -27,15 +27,15 @@
 }
 
 /*
- * Empty sessions use the existing composer as the home surface.
- * This remains presentation-only: WelcomePanel and ChatInput keep their
- * existing state, events, workspace resolution, and send behavior.
+ * The unpersisted new-session draft uses the existing composer as its home
+ * surface. The creation-mode control is the explicit draft marker, so existing
+ * empty sessions keep their normal conversation layout.
  */
 @media (min-height: 620px) {
-  .void-chat-pane__content:has(.welcome-panel) {
+  .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
     .welcome-panel {
       align-items: center;
-      padding-bottom: clamp(176px, 25vh, 236px);
+      padding-bottom: clamp(360px, 48vh, 438px);
     }
 
     .welcome-panel__content,
@@ -52,18 +52,70 @@
     }
 
     .void-chat-input-drop-zone {
-      bottom: 50%;
-      max-width: 780px;
-      transform: translate(-50%, 58%);
+      top: 43%;
+      bottom: auto;
+      max-width: 640px;
+      transform: translate(-50%, -4%);
+    }
+
+    .void-chat-input__box {
+      min-height: 160px;
+      max-height: min(240px, 38vh);
+      padding: 16px 14px 8px;
+      border-color: var(--border-subtle);
+      border-radius: calc(var(--flowchat-card-radius, 8px) + 6px);
+      box-shadow: 0 8px 24px color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .void-chat-input--capsule .void-chat-input__box--capsule {
+      grid-template-areas:
+        'input input input'
+        'tools spacer status'
+        'meta meta meta';
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-rows: minmax(56px, 1fr) auto auto;
+    }
+
+    .void-chat-input__input-area {
+      flex: 1 1 auto;
+      min-height: 56px;
+      padding: 0 2px;
+    }
+
+    .rich-text-input {
+      min-height: 56px !important;
+      max-height: 56px !important;
+      overflow-y: auto;
+    }
+
+    .void-chat-input__placeholder {
+      top: 0;
+      left: 2px;
+      right: 2px;
+      transform: none;
+    }
+
+    .void-chat-input-workspace-strip {
+      grid-area: meta;
+      min-height: 34px;
+      margin-top: 8px;
+      padding: 9px 2px 0;
+      border-top: 1px solid var(--border-subtle);
     }
   }
 }
 
 @media (max-height: 619px) {
-  .void-chat-pane__content:has(.welcome-panel) {
+  .void-ui--minimal .void-chat-pane__content:has(.welcome-panel__creation-modes) {
     .welcome-panel {
       align-items: flex-start;
       padding-top: clamp(72px, 16vh, 112px);
+    }
+
+    .welcome-panel__creation-modes {
+      margin-top: 8px;
     }
 
     .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
@@ -73,7 +125,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .void-chat-pane__content:has(.welcome-panel) .void-chat-input {
+  .void-ui--minimal
+    .void-chat-pane__content:has(.welcome-panel__creation-modes)
+    .void-chat-input {
     transition: none;
   }
 }

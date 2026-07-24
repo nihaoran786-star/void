@@ -50,7 +50,7 @@ describe('SessionCreateLauncher', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the minimal launcher as a mode slider, create action, and search control', async () => {
+  it('renders the minimal launcher as one new-task action and search control', async () => {
     const onCreate = vi.fn();
     const onSelectMode = vi.fn();
 
@@ -59,7 +59,7 @@ describe('SessionCreateLauncher', () => {
         <SessionCreateLauncher
           presentation="minimal"
           selectedMode="code"
-          groupLabel="新建会话"
+          groupLabel="新建任务"
           modeLabels={MODE_LABELS}
           onSelectMode={onSelectMode}
           onCreate={onCreate}
@@ -68,41 +68,31 @@ describe('SessionCreateLauncher', () => {
       );
     });
 
-    const switchEl = container.querySelector<HTMLDivElement>('[role="radiogroup"]');
     const radios = container.querySelectorAll<HTMLButtonElement>('[role="radio"]');
     const createButton = container.querySelector<HTMLButtonElement>(
       '.void-nav-panel__session-create-action',
     );
 
-    expect(switchEl).not.toBeNull();
-    expect(switchEl?.classList.contains('is-mode-code')).toBe(true);
-    expect(
-      switchEl?.querySelector('.void-nav-panel__session-mode-indicator'),
-    ).not.toBeNull();
-    expect(radios).toHaveLength(3);
-    expect(radios[0]?.getAttribute('aria-checked')).toBe('true');
-    expect(Array.from(radios).every((radio) => radio.querySelector('svg'))).toBe(true);
+    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(radios).toHaveLength(0);
     expect(container.querySelector('.void-nav-panel__session-mode-menu-trigger'))
       .toBeNull();
-    expect(container.querySelectorAll('button')).toHaveLength(5);
-    expect(createButton?.textContent).toContain('创建编码会话');
-    expect(createButton?.getAttribute('aria-label')).toBe('创建编码会话');
-
-    act(() => radios[1]?.click());
-    expect(onSelectMode).toHaveBeenCalledWith('cowork');
-    expect(onCreate).not.toHaveBeenCalled();
+    expect(container.querySelectorAll('button')).toHaveLength(2);
+    expect(createButton?.textContent).toContain('新建任务');
+    expect(createButton?.getAttribute('aria-label')).toBe('新建任务');
+    expect(onSelectMode).not.toHaveBeenCalled();
 
     act(() => createButton?.click());
     expect(onCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('reflects the selected mode in the minimal slider and create label', async () => {
+  it('keeps the minimal new-task entry independent from the previous session mode', async () => {
     await act(async () => {
       root.render(
         <SessionCreateLauncher
           presentation="minimal"
           selectedMode="media"
-          groupLabel="新建会话"
+          groupLabel="新建任务"
           modeLabels={MODE_LABELS}
           onSelectMode={vi.fn()}
           onCreate={vi.fn()}
@@ -110,16 +100,15 @@ describe('SessionCreateLauncher', () => {
       );
     });
 
-    const switchEl = container.querySelector<HTMLDivElement>('[role="radiogroup"]');
-    const radios = container.querySelectorAll<HTMLButtonElement>('[role="radio"]');
     const createButton = container.querySelector<HTMLButtonElement>(
       '.void-nav-panel__session-create-action',
     );
 
-    expect(switchEl?.classList.contains('is-mode-media')).toBe(true);
-    expect(radios[2]?.getAttribute('aria-checked')).toBe('true');
-    expect(createButton?.textContent).toContain('创建媒体会话');
-    expect(container.querySelectorAll('button')).toHaveLength(4);
+    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(container.querySelectorAll('[role="radio"]')).toHaveLength(0);
+    expect(createButton?.textContent).toContain('新建任务');
+    expect(createButton?.getAttribute('aria-label')).toBe('新建任务');
+    expect(container.querySelectorAll('button')).toHaveLength(1);
   });
 
   it('preserves the Classic three-option selector and create action', async () => {

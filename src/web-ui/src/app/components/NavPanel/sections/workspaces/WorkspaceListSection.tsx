@@ -7,6 +7,7 @@ import './WorkspaceListSection.scss';
 
 interface WorkspaceListSectionProps {
   variant: 'assistants' | 'projects';
+  suppressActive?: boolean;
 }
 
 type WorkspaceDragPosition = 'before' | 'after';
@@ -19,7 +20,10 @@ interface WorkspaceDragPayload {
 const WORKSPACE_DRAG_MIME_TYPE = 'application/x-void-workspace';
 
 
-const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) => {
+const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({
+  variant,
+  suppressActive = false,
+}) => {
   const { t } = useI18n('common');
   const {
     openedWorkspacesList,
@@ -177,7 +181,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({ variant }) 
             ) : null}
             <WorkspaceItem
               workspace={workspace}
-              isActive={workspace.id === activeWorkspaceId}
+              isActive={!suppressActive && workspace.id === activeWorkspaceId}
               isSingle={openedWorkspacesList.length === 1}
               draggable={workspaces.length > 1}
               isDragging={draggedWorkspaceId === workspace.id}

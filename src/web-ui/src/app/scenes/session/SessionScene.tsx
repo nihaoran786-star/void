@@ -15,6 +15,7 @@ import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
 import AuxPane, { type AuxPaneRef } from './AuxPane';
 import { isTauriRuntime } from '@/infrastructure/runtime';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 
 import {
   RIGHT_PANEL_CONFIG,
@@ -45,6 +46,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 }) => {
   const { t } = useTranslation('flow-chat');
   const { state, updateRightPanelWidth, toggleRightPanel } = useApp();
+  const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
   const auxPaneRef = useRef<AuxPaneRef>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -71,6 +73,21 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     if (state.layout.rightPanelCollapsed) return 'collapsed';
     return getPanelDisplayMode(currentRightWidth, RIGHT_PANEL_CONFIG);
   }, [state.layout.rightPanelCollapsed, currentRightWidth]);
+
+  useEffect(() => {
+    if (newSessionDraftStatus !== 'draft') return;
+    if (state.layout.chatCollapsed) {
+      window.dispatchEvent(new CustomEvent('void:compact-chat-close-requested'));
+    }
+    if (!state.layout.rightPanelCollapsed) {
+      toggleRightPanel();
+    }
+  }, [
+    newSessionDraftStatus,
+    state.layout.chatCollapsed,
+    state.layout.rightPanelCollapsed,
+    toggleRightPanel,
+  ]);
 
   // Keep right panel visible when chat is hidden
   useEffect(() => {

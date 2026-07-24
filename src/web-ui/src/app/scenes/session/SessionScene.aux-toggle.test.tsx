@@ -3,6 +3,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -76,6 +77,11 @@ describe('SessionScene universal canvas toggle control', () => {
     mocks.layout.rightPanelCollapsed = false;
     mocks.layout.chatCollapsed = false;
     mocks.layout.centerPanelCollapsed = false;
+    useSessionModeStore.setState({
+      mode: 'code',
+      draftStatus: 'idle',
+      draftWorkspace: null,
+    });
     containerWidth = 1600;
     offsetWidthSpy = vi.spyOn(
       HTMLElement.prototype,
@@ -135,6 +141,19 @@ describe('SessionScene universal canvas toggle control', () => {
     });
 
     expect(mocks.chatPaneProps).toBeNull();
+  });
+
+  it('collapses the auxiliary preview when an unpersisted session draft opens', async () => {
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+    expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useSessionModeStore.getState().beginDraft('media', null);
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
   });
 
   it('restores the preferred canvas width after a temporary narrow-window clamp', async () => {

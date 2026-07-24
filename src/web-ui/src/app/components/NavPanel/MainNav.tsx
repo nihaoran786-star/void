@@ -27,17 +27,11 @@ import SessionsSection from './sections/sessions/DeferredSessionsSection';
 import { useSceneStore } from '../../stores/sceneStore';
 import { useMyAgentStore } from '../../scenes/my-agent/myAgentStore';
 import { useMiniAppCatalogSync } from '../../scenes/miniapps/hooks/useMiniAppCatalogSync';
-import { flowChatManager } from '@/flow_chat/services/FlowChatManager';
+import { beginNewSessionDraft } from '@/flow_chat/services/NewSessionDraftService';
 import { workspaceManager } from '@/infrastructure/services/business/workspaceManager';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { createLogger } from '@/shared/utils/logger';
-import { notificationService } from '@/shared/notification-system';
 import { WorkspaceKind, isRemoteWorkspace } from '@/shared/types';
-import {
-  findReusableEmptySessionId,
-  flowChatSessionConfigForWorkspace,
-  pickWorkspaceForProjectChatSession,
-} from '@/app/utils/projectSessionWorkspace';
 import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDisplay';
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
@@ -88,7 +82,6 @@ const MainNav: React.FC<MainNavProps> = ({
     recentWorkspaces,
     openedWorkspacesList,
     assistantWorkspacesList,
-    normalWorkspacesList,
     switchWorkspace,
     setActiveWorkspace,
   } = useWorkspaceContext();
@@ -258,6 +251,7 @@ const MainNav: React.FC<MainNavProps> = ({
   }, [closeWorkspaceMenu, focusWorkspaceMenuItem]);
 
   const selectedSessionMode = useSessionModeStore(s => s.mode);
+  const isNewSessionDraft = useSessionModeStore(s => s.draftStatus !== 'idle');
   const setSessionMode = useSessionModeStore(s => s.setMode);
   const isAssistantWorkspaceActive = currentWorkspace?.workspaceKind === WorkspaceKind.Assistant;
 
@@ -296,65 +290,16 @@ const MainNav: React.FC<MainNavProps> = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [toggleNavSearch]);
 
-  const handleCreateProjectSession = useCallback(
-    async (mode: 'agentic' | 'Cowork' | 'Media') => {
-      const target = pickWorkspaceForProjectChatSession(currentWorkspace, normalWorkspacesList);
-      if (!target) {
-        notificationService.warning(t('nav.sessions.needProjectWorkspaceForSession'), { duration: 4500 });
-        return;
-      }
-      openScene('session');
-      switchLeftPanelTab('sessions');
-      try {
-        if (target.id !== currentWorkspace?.id) {
-          await setActiveWorkspace(target.id);
-        }
-        const reusableId = findReusableEmptySessionId(target, mode);
-        if (reusableId) {
-          await flowChatManager.switchChatSession(reusableId);
-          return;
-        }
-        await flowChatManager.createChatSession(flowChatSessionConfigForWorkspace(target), mode);
-      } catch (err) {
-        log.error('Failed to create session', err);
-      }
-    },
-    [
-      currentWorkspace,
-      normalWorkspacesList,
-      openScene,
-      setActiveWorkspace,
-      switchLeftPanelTab,
-      t,
-    ]
-  );
-
-  const handleCreateCodeSession = useCallback(() => {
+  const handleCreateTask = useCallback(() => {
     setSessionMode('code');
-    void handleCreateProjectSession('agentic');
-  }, [handleCreateProjectSession, setSessionMode]);
-
-  const handleCreateCoworkSession = useCallback(() => {
-    setSessionMode('cowork');
-    void handleCreateProjectSession('Cowork');
-  }, [handleCreateProjectSession, setSessionMode]);
-
-  const handleCreateMediaSession = useCallback(() => {
-    setSessionMode('media');
-    void handleCreateProjectSession('Media');
-  }, [handleCreateProjectSession, setSessionMode]);
-
-  const handleCreateSelectedSession = useCallback(() => {
-    if (selectedSessionMode === 'cowork') {
-      handleCreateCoworkSession();
-      return;
-    }
-    if (selectedSessionMode === 'media') {
-      handleCreateMediaSession();
-      return;
-    }
-    handleCreateCodeSession();
-  }, [handleCreateCodeSession, handleCreateCoworkSession, handleCreateMediaSession, selectedSessionMode]);
+    beginNewSessionDraft('code', null);
+    openScene('session');
+    switchLeftPanelTab('sessions');
+  }, [
+    openScene,
+    setSessionMode,
+    switchLeftPanelTab,
+  ]);
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -632,7 +577,7 @@ const MainNav: React.FC<MainNavProps> = ({
         <SessionCreateLauncher
           presentation={workspacePresentation}
           selectedMode={selectedSessionMode}
-          groupLabel={t('nav.sessions.newSession')}
+          groupLabel={t('nav.sessions.newTask')}
           modeLabels={{
             code: {
               create: t('nav.sessions.newCodeSession'),
@@ -651,7 +596,7 @@ const MainNav: React.FC<MainNavProps> = ({
             },
           }}
           onSelectMode={setSessionMode}
-          onCreate={handleCreateSelectedSession}
+          onCreate={handleCreateTask}
           searchTrigger={workspacePresentation === 'minimal' ? searchTrigger : undefined}
         />
 
@@ -793,7 +738,7 @@ const MainNav: React.FC<MainNavProps> = ({
                       workspaceId={workspace.id}
                       workspacePath={workspace.rootPath}
                       remoteConnectionId={isRemoteWorkspace(workspace) ? workspace.connectionId : null}
-                      isActiveWorkspace={workspace.id === currentWorkspace?.id}
+                      isActiveWorkspace={!isNewSessionDraft && workspace.id === currentWorkspace?.id}
                       assistantLabel={assistantDisplayName}
                       isVisible={expandedSections.has('assistant-sessions')}
                     />
@@ -834,7 +779,10 @@ const MainNav: React.FC<MainNavProps> = ({
           <div className={`void-nav-panel__collapsible${expandedSections.has('workspace') ? '' : ' is-collapsed'}`}>
             <div className="void-nav-panel__collapsible-inner">
               <div className="void-nav-panel__items">
-                <WorkspaceListSection variant="projects" />
+                <WorkspaceListSection
+                  variant="projects"
+                  suppressActive={isNewSessionDraft}
+                />
               </div>
             </div>
           </div>

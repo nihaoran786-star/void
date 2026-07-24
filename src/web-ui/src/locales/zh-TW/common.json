@@ -161,6 +161,7 @@
     },
     "sessions": {
       "newSession": "新建會話",
+      "newTask": "新建任務",
       "newCodeSession": "新建 Code 會話",
       "newCoworkSession": "新建 Cowork 會話",
       "newMediaSession": "新建媒體會話",

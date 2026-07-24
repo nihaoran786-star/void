@@ -38,6 +38,7 @@ these ledgers.
 
 - `docs/qa/*audit*.md` and `docs/architecture/*results.md` are checkpoint
   evidence.
+- [Account and session usage design QA](qa/design-qa-account-session-usage-2026-07-24.md)
 - `docs/superpowers/specs/` records accepted design specifications.
 - `docs/superpowers/plans/` records implementation plans.
 - `docs/plans/` records longer-lived engineering plans.

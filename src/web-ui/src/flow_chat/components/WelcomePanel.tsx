@@ -5,7 +5,16 @@
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderOpen, FolderPlus, ChevronDown, Check, GitBranch } from 'lucide-react';
+import {
+  ClipboardList,
+  Code2,
+  FolderOpen,
+  FolderPlus,
+  ChevronDown,
+  Check,
+  GitBranch,
+  Images,
+} from 'lucide-react';
 import { gitAPI } from '../../infrastructure/api';
 import type { GitWorkState } from '../../infrastructure/api/service-api/StartchatAgentAPI';
 import { useApp } from '../../app/hooks/useApp';
@@ -14,6 +23,7 @@ import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext'
 import type { WorkspaceInfo } from '@/shared/types';
 import CoworkExampleCards from './CoworkExampleCards';
 import { useAgentIdentityDocument } from '@/app/scenes/my-agent/useAgentIdentityDocument';
+import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import './WelcomePanel.css';
 
 const log = createLogger('WelcomePanel');
@@ -47,10 +57,16 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
     switchWorkspace,
   } = useWorkspaceContext();
   const sessionModeLower = (sessionMode || '').toLowerCase();
-  const isCoworkSession = sessionModeLower === 'cowork';
+  const draftMode = useSessionModeStore(state => state.mode);
+  const draftStatus = useSessionModeStore(state => state.draftStatus);
+  const setDraftMode = useSessionModeStore(state => state.setMode);
+  const isDraft = !sessionMode && draftStatus !== 'idle';
+  const effectiveMode = isDraft ? draftMode : sessionModeLower;
+  const isCoworkSession = effectiveMode === 'cowork';
   const isClawSession = sessionModeLower === 'claw';
-  const isMediaSession = sessionModeLower === 'media';
-  const needsWorkspace = !isClawSession && !hasWorkspace;
+  const isMediaSession = effectiveMode === 'media';
+  const needsWorkspace = !isDraft && !isClawSession && !hasWorkspace;
+  const showCreationModes = isDraft;
 
   const { document: identityDoc } = useAgentIdentityDocument(isClawSession ? workspacePath : '');
   const assistantName = isClawSession ? (identityDoc.name || '') : '';
@@ -174,11 +190,52 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
           <div className="welcome-panel__greeting-inner">
             <div className="welcome-panel__greeting-text">
               <h1 className="welcome-panel__heading">{t('welcome.promptTitle')}</h1>
-              <p className="welcome-panel__tagline">
-                {isClawSession && assistantName
-                  ? t('welcome.promptSubtitleNamedClaw', { name: assistantName })
-                  : t(promptSubtitleKey)}
-              </p>
+              {showCreationModes ? (
+                <div
+                  className="welcome-panel__creation-modes"
+                  role="radiogroup"
+                  aria-label={t('welcome.creationModesLabel')}
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={draftMode === 'code'}
+                    className={`welcome-panel__creation-mode${draftMode === 'code' ? ' is-active' : ''}`}
+                    onClick={() => setDraftMode('code')}
+                  >
+                    <Code2 size={13} strokeWidth={1.5} aria-hidden />
+                    <span>{t('welcome.creationModeCode')}</span>
+                  </button>
+                  <span className="welcome-panel__creation-mode-divider" aria-hidden />
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={draftMode === 'cowork'}
+                    className={`welcome-panel__creation-mode${draftMode === 'cowork' ? ' is-active' : ''}`}
+                    onClick={() => setDraftMode('cowork')}
+                  >
+                    <ClipboardList size={13} strokeWidth={1.5} aria-hidden />
+                    <span>{t('welcome.creationModeCowork')}</span>
+                  </button>
+                  <span className="welcome-panel__creation-mode-divider" aria-hidden />
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={draftMode === 'media'}
+                    className={`welcome-panel__creation-mode${draftMode === 'media' ? ' is-active' : ''}`}
+                    onClick={() => setDraftMode('media')}
+                  >
+                    <Images size={13} strokeWidth={1.5} aria-hidden />
+                    <span>{t('welcome.creationModeMedia')}</span>
+                  </button>
+                </div>
+              ) : (
+                <p className="welcome-panel__tagline">
+                  {isClawSession && assistantName
+                    ? t('welcome.promptSubtitleNamedClaw', { name: assistantName })
+                    : t(promptSubtitleKey)}
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -43,6 +43,7 @@
 }
 
 .welcome-panel__greeting-text {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--flowchat-inline-gap, 0.35rem);
@@ -51,7 +52,7 @@
 
 .welcome-panel__heading {
   margin: 0;
-  font-size: clamp(22px, 2.4vw, 32px);
+  font-size: clamp(20px, 2.2vw, 26px);
   font-weight: 600;
   color: var(--color-text-primary);
   line-height: 1.16;
@@ -63,6 +64,72 @@
   font-size: var(--flowchat-font-size-sm);
   color: var(--color-text-muted);
   line-height: var(--flowchat-support-line-height, 1.45);
+}
+
+.welcome-panel__creation-modes {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+  margin-top: 0;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: calc(var(--flowchat-card-radius, 8px) + 2px);
+  background: var(--color-bg-scene);
+}
+
+.welcome-panel__creation-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 100px;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--flowchat-card-radius, 8px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--flowchat-font-size-xxs);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.14s ease,
+    background-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.welcome-panel__creation-mode svg {
+  flex: none;
+}
+
+.welcome-panel__creation-mode:hover {
+  color: var(--color-text-primary);
+  background: var(--element-bg-subtle);
+}
+
+.welcome-panel__creation-mode.is-active {
+  color: var(--color-accent-600);
+  background: var(--color-bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--color-accent-500);
+}
+
+.welcome-panel__creation-mode:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px
+    var(--workspace-focus-ring, var(--color-accent-500));
+}
+
+.welcome-panel__creation-mode-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
 }
 
 /* ── Divider ── */
@@ -293,7 +360,12 @@
   }
 
   .welcome-panel__heading {
-    font-size: 22px;
+    font-size: var(--workspace-font-size-display);
+  }
+
+  .welcome-panel__creation-mode {
+    min-width: 0;
+    padding-inline: 10px;
   }
 
   .welcome-panel__dropdown {
@@ -309,7 +381,8 @@
 
   .welcome-panel__inline-chevron,
   .welcome-panel__dropdown,
-  .welcome-panel__dropdown-item {
+  .welcome-panel__dropdown-item,
+  .welcome-panel__creation-mode {
     animation: none;
     transition: none;
   }
