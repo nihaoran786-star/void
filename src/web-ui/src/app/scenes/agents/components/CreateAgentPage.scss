@@ -1,4 +1,5 @@
 @use '../../../../component-library/styles/tokens' as *;
+@use './CreateAgentPage.minimal' as minimal;
 
 .th__list-body {
   flex: 1;
@@ -181,3 +182,5 @@
     padding: $size-gap-4;
   }
 }
+
+@include minimal.styles;

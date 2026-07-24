@@ -1,4 +1,5 @@
 @use '../../../../component-library/styles/tokens' as *;
+@use './ReviewTeamPage.minimal' as minimal;
 
 .review-team-page {
   --config-page-content-max-width: 1480px;
@@ -606,3 +607,5 @@
     }
   }
 }
+
+@include minimal.styles;

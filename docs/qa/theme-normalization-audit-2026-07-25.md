@@ -157,6 +157,30 @@ replace the working gallery or add decorative imagery.
   719/719. The narrow gallery title is also visible again instead of leaving
   an empty header beside its actions.
 
+### Resolved follow-up — Agent configuration pages retained legacy decoration
+
+- **Location:** `src/web-ui/src/app/scenes/agents/components/CreateAgentPage.minimal.scss`
+  and `ReviewTeamPage.minimal.scss`
+- **Category:** Theming / responsive design / action reachability
+- **Impact:** New-agent configuration inherited a gradient editor bar,
+  animation, a dense free-flowing tool cloud, and actions that could fall below
+  a short desktop viewport. Review Team layered gradients and card shadows
+  across summaries, policy metrics, members, and details; at narrow widths its
+  summary cards and six-row member list dominated the first screen.
+- **Remediation:** Both pages now use feature-local Minimal projections over
+  shared workspace tokens. New-agent mode selection is a compact segmented
+  control, tools use a bounded responsive grid, and actions remain sticky
+  inside the scroll region. Review Team uses flat semantic surfaces, compact
+  summary rows, divider-based metrics, a two-column narrow member selector,
+  and a single-column policy panel below 960px. Runtime, model selection,
+  review policy, session, and persistence paths are unchanged.
+- **Evidence:** At a 719×498 WebView the new-agent action row remains visible,
+  project/tool selection succeeds, and the document is 719/719 with no
+  horizontal overflow. Review Team measures a 176.6px summary block and a
+  single 378px policy column; member switching updates the detail view and the
+  document remains 719/719. Full-width views preserve their bounded content
+  axes without gradients, shadows, or entrance animation.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -173,8 +197,8 @@ replace the working gallery or add decorative imagery.
 
 1. Apply the shared pointer-coarse target policy only after verifying the
    desktop shell reports coarse input accurately.
-2. Continue `$normalize` on Agent creation, Review Team detail, and remaining
-   long Settings forms; the Connector entry currently and intentionally reuses
-   the Settings/MCP interface rather than mounting a separate catalog.
+2. Continue `$normalize` on remaining long Settings forms; the Connector entry
+   currently and intentionally reuses the Settings/MCP interface rather than
+   mounting a separate catalog.
 3. Finish with `$polish` after the remaining catalog pages pass maximized and
    719px desktop checks.
