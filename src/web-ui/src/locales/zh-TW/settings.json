@@ -299,6 +299,10 @@
       "app": {
         "closePreview": "關閉預覽 / 關閉彈窗"
       },
+      "debug": {
+        "toggleInspector": "切換元素檢查器",
+        "openDevTools": "打開開發者工具"
+      },
       "canvas": {
         "missionControl": "Mission Control",
         "splitHorizontal": "水平分屏",

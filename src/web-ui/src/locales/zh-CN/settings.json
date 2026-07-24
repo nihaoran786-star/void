@@ -299,6 +299,10 @@
       "app": {
         "closePreview": "关闭预览 / 关闭弹窗"
       },
+      "debug": {
+        "toggleInspector": "切换元素检查器",
+        "openDevTools": "打开开发者工具"
+      },
       "canvas": {
         "missionControl": "Mission Control",
         "splitHorizontal": "水平分屏",

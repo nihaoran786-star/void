@@ -278,6 +278,10 @@
       "app": {
         "closePreview": "Close Preview / Dismiss Dialog"
       },
+      "debug": {
+        "toggleInspector": "Toggle element inspector",
+        "openDevTools": "Open developer tools"
+      },
       "canvas": {
         "missionControl": "Mission Control",
         "splitHorizontal": "Horizontal Split",

@@ -307,8 +307,11 @@ export const ALL_SHORTCUTS: ShortcutDef[] = [
   ...GIT_SHORTCUTS,
 ];
 
-/** Shortcuts registered in code but not listed in ALL_SHORTCUTS (e.g. legacy ids). */
-const EXTRA_SHORTCUT_DESCRIPTION_KEYS: Record<string, string> = {};
+/** Shortcuts registered in code but not listed in ALL_SHORTCUTS (e.g. development-only ids). */
+const EXTRA_SHORTCUT_DESCRIPTION_KEYS: Record<string, string> = {
+  'debug.toggleInspector': 'keyboard.shortcuts.debug.toggleInspector',
+  'debug.openDevTools': 'keyboard.shortcuts.debug.openDevTools',
+};
 
 /**
  * Resolve the i18n key (settings namespace) for a shortcut id.

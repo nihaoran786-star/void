@@ -278,6 +278,24 @@ replace the working gallery or add decorative imagery.
   document overflow. The focused action reports `aria-label="刷新"` and
   `title="刷新"`; activating it returns from loading to the same empty state.
 
+### Resolved follow-up — Development shortcuts bypassed translated labels
+
+- **Location:** `src/web-ui/src/shared/constants/shortcuts.ts`,
+  `KeyboardShortcutsTab.tsx`, and the Settings locale resources
+- **Category:** Localization / accessibility / interaction consistency
+- **Severity before remediation:** P2
+- **Impact:** Runtime-only development shortcuts bypassed the static shortcut
+  catalog, so the Chinese settings page displayed `Toggle element inspector`
+  and `Open native DevTools`. Revert controls also exposed only a visual arrow.
+- **Remediation:** The runtime ids now resolve through the existing Settings
+  translation lookup, and every revert control carries the localized accessible
+  name already used by its tooltip. Shortcut registration, capture, conflict
+  detection, persistence, and reset behavior are unchanged.
+- **Evidence:** At maximized width and a 719×498 WebView the list has no document
+  overflow. Searching `开发者` leaves the one translated developer-tools row.
+  Recording a temporary `F6` binding exposes `aria-label="撤销此更改"`; invoking
+  it removes the pending change and the Apply action without persisting.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

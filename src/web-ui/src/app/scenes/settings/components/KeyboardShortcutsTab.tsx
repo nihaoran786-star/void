@@ -648,6 +648,7 @@ const KeyboardShortcutsTab: React.FC = () => {
                           <button
                             type="button"
                             className="kb-shortcuts__revert-btn"
+                            aria-label={t('keyboard.revertChange')}
                             onClick={() => {
                               setPendingChanges((prev) => {
                                 const next = { ...prev };
@@ -707,6 +708,7 @@ const KeyboardShortcutsTab: React.FC = () => {
                           <button
                             type="button"
                             className="kb-shortcuts__revert-btn"
+                            aria-label={t('keyboard.revertChange')}
                             onClick={() => {
                               setPendingChanges((prev) => {
                                 const next = { ...prev };
@@ -780,6 +782,7 @@ const KeyboardShortcutsTab: React.FC = () => {
                                 <button
                                   type="button"
                                   className="kb-shortcuts__revert-btn"
+                                  aria-label={t('keyboard.revertChange')}
                                   onClick={() => {
                                     setPendingChanges((prev) => {
                                       const next = { ...prev };
