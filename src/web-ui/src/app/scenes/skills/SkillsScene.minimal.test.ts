@@ -60,10 +60,10 @@ describe('Skills scene Minimal presentation contract', () => {
       /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 260px\), 1fr\)\);/g,
     )).toHaveLength(4);
     expect(source).toMatch(
-      /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
+      /\.skills-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 104px;[\s\S]*?min-height: 104px;/,
     );
     expect(source).toMatch(
-      /\.skill-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
+      /\.skill-card \{[\s\S]*?box-sizing: border-box;[\s\S]*?height: 104px;[\s\S]*?min-height: 104px;/,
     );
     expect(source).toMatch(
       /\.skills-suite__group-card \{[\s\S]*?height: 160px;[\s\S]*?min-height: 160px;/,
@@ -83,14 +83,20 @@ describe('Skills scene Minimal presentation contract', () => {
 
   it('uses a compact responsive tab header without decorative imagery', () => {
     expect(source).toMatch(
-      /\.skills-tabs-bar \{[\s\S]*?min-height: 52px;[\s\S]*?background-color: var\(--workspace-surface-panel\);/,
+      /\.skills-tabs-bar \{[\s\S]*?position: sticky;[\s\S]*?min-height: 48px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background-color: var\(--workspace-surface-canvas\);/,
+    );
+    expect(source).toMatch(
+      /\.skills-tabs-bar__tabs \{[\s\S]*?border: 0;[\s\S]*?background: transparent;/,
+    );
+    expect(source).toMatch(
+      /\.skills-tabs-bar__tab \{[\s\S]*?&::after \{[\s\S]*?opacity: 0;[\s\S]*?&\.is-active \{[\s\S]*?opacity: 1;/,
     );
     expect(source).not.toContain('/visuals/void-skills-hero.webp');
     expect(source).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 52px;/,
+      /@media \(max-width: 900px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 48px;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 520px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 48px;/,
+      /@media \(max-width: 520px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 44px;/,
     );
   });
 
@@ -107,7 +113,7 @@ describe('Skills scene Minimal presentation contract', () => {
     expect(source).toContain('&.is-dirty {');
     expect(source).toContain('border-color: var(--workspace-status-info-border);');
     expect(source.match(/content-visibility: auto;/g)).toHaveLength(2);
-    expect(source.match(/contain-intrinsic-block-size: 112px;/g)).toHaveLength(2);
+    expect(source.match(/contain-intrinsic-block-size: 104px;/g)).toHaveLength(2);
   });
 
   it('keeps compact cards readable while collapsing the redundant details label', () => {
@@ -121,7 +127,7 @@ describe('Skills scene Minimal presentation contract', () => {
       /\.skills-card__actions \{[\s\S]*?\.btn \{[\s\S]*?span \{[\s\S]*?clip: rect\(0 0 0 0\);/,
     );
     expect(source).toMatch(
-      /@media \(hover: hover\)[\s\S]*?\.skills-card__actions \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card:focus-within \.skills-card__actions/,
+      /@media \(hover: hover\)[\s\S]*?\.skills-card__actions \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card__path \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card:focus-within \.skills-card__path/,
     );
   });
 

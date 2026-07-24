@@ -199,6 +199,15 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   and Appearance at a 719x498 CSS-pixel viewport; header and content edges
   matched exactly, with zero document-level horizontal overflow. Classic
   settings markup and runtime behavior remain unchanged.
+- [x] Minimal Skills removes the nested tab card and segmented capsule in
+  favor of one 48px workspace header, narrows the category rail from 176px to
+  152px, and progressively reveals file paths and secondary card actions.
+  Installed and market cards retain pagination, detail, install, delete,
+  filter, keyboard focus, and `content-visibility` behavior. Real desktop
+  interaction covered installed/market switching, built-in/all filtering,
+  card detail open/close, hover disclosure, and 719x498 narrow rendering with
+  zero horizontal overflow. Three warm switch cycles remained within
+  40.8–56.1ms over two animation frames.
 
 ## Composer and Conversation
 
