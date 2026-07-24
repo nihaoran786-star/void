@@ -60,6 +60,25 @@ replace the working gallery or add decorative imagery.
   disclose secondary metadata on narrow views; do not introduce decorative
   portraits or another card implementation.
 
+### Resolved follow-up — Skills search controls over-expanded on wide layouts
+
+- **Location:** `src/web-ui/src/app/scenes/skills/SkillsScene.minimal.scss`
+- **Category:** Responsive design / design-system consistency
+- **Impact:** The installed Skills search inherited `flex: 1` and expanded to
+  1,063px at a maximized WebView, while the Market search occupied 469px.
+  Both became the dominant visual surface despite being secondary toolbar
+  controls.
+- **Remediation:** The Minimal projection gives both search controls the same
+  360px wide-layout axis. Installed Skills keeps `margin-right: auto` so its
+  existing duplicate and add actions remain right-aligned. Existing
+  container/media rules still promote both controls to the full available
+  width on narrow layouts.
+- **Evidence:** Maximized desktop measurements are 360px for both installed
+  and Market search. At a 719px WebView they adapt to 431px and 423px
+  respectively, and the document remains 719/719 with no horizontal overflow.
+  Search, filtering, installation, pagination, and persistence paths are
+  unchanged.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -73,7 +92,7 @@ replace the working gallery or add decorative imagery.
 
 1. Apply the shared pointer-coarse target policy only after verifying the
    desktop shell reports coarse input accurately.
-2. Continue `$normalize` on the Skills and Connector catalogs, comparing their
-   filter/header behavior with the corrected Agents layout.
+2. Continue `$normalize` on the Connector catalog, comparing its filter/header
+   behavior with the corrected Agents and Skills layouts.
 3. Finish with `$polish` after the remaining catalog pages pass maximized and
    719px desktop checks.

@@ -100,6 +100,21 @@ describe('Skills scene Minimal presentation contract', () => {
     );
   });
 
+  it('keeps installed and market search controls compact on wide layouts', () => {
+    expect(source).toMatch(
+      /\.skills-main__toolbar-search \{[\s\S]*?flex: 0 1 360px;[\s\S]*?margin-right: auto;/,
+    );
+    expect(source).toMatch(
+      /\.skills-discover__hero-content \{[\s\S]*?grid-template-columns: minmax\(160px, 1fr\) minmax\(220px, 360px\);/,
+    );
+    expect(source).toMatch(
+      /@container skills-main \(max-width: 520px\)[\s\S]*?\.skills-main__toolbar-search \{[\s\S]*?flex: 1 0 100%;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?grid-template-areas:[\s\S]*?'search';/,
+    );
+  });
+
   it('removes decorative rendering cost while preserving semantic states', () => {
     expect(source).not.toMatch(/(?:linear|radial|conic)-gradient/i);
     expect(source).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);

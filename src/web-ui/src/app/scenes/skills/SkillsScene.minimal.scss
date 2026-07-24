@@ -158,7 +158,9 @@
     }
 
     .skills-main__toolbar-search {
+      flex: 0 1 360px;
       min-width: min(220px, 100%);
+      margin-right: auto;
 
       .search__wrapper {
         min-height: var(--workspace-control-height);
@@ -637,7 +639,7 @@
 
     .skills-discover__hero-content {
       display: grid;
-      grid-template-columns: minmax(160px, auto) minmax(220px, 520px);
+      grid-template-columns: minmax(160px, 1fr) minmax(220px, 360px);
       grid-template-areas:
         'title search'
         'subtitle search';
