@@ -22,6 +22,7 @@ import './AppearanceConfig.scss';
 
 function AppearanceThemeSection() {
   const { t } = useTranslation('settings/basics');
+  const { t: tAppearance } = useTranslation('settings/appearance');
   const { themeId, themes, setTheme, loading } = useTheme();
   const { currentLanguage, supportedLocales, selectLanguage, isChanging } = useLanguageSelector();
 
@@ -62,7 +63,7 @@ function AppearanceThemeSection() {
   return (
     <div className="theme-config">
       <div className="theme-config__content">
-        <ConfigPageSection title={t('appearance.title')} description={t('appearance.hint')}>
+        <ConfigPageSection title={tAppearance('interfaceSection')}>
           <ConfigPageRow
             label={t('appearance.language')}
             description={t('appearance.languageRowHint', {

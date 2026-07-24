@@ -1122,3 +1122,14 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   delete, bulk-delete, confirmation, session API, and loading paths remain
   unchanged. Maximized and 719px desktop checks show one visible page heading,
   successful refresh-to-empty behavior, and zero horizontal overflow.
+- [x] Appearance keeps the page title as `Appearance / 外观` and gives its
+  language-and-theme section the distinct `Interface / 界面` label in all three
+  locales. The repeated section hint is removed without changing language,
+  theme, or font preference state. Maximized and 719px desktop checks show the
+  `外观 / 界面 / 字体大小` hierarchy with zero document overflow.
+- [x] New Task office examples remain absolutely positioned outside the
+  greeting and mode-switch layout. The supporting strip is capped at 460px,
+  uses three 30px cards at both maximized and 719px widths, and truncates only
+  overflowing card labels. Switching between Code and Office leaves the
+  greeting and composer coordinates unchanged; the narrow document has zero
+  horizontal overflow.
