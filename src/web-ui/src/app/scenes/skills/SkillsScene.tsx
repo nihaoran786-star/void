@@ -168,17 +168,23 @@ const SkillsScene: React.FC = () => {
   return (
     <div className="void-skills-scene">
       <div className="skills-tabs-bar">
-        <div className="skills-tabs-bar__tabs">
+        <div
+          className="skills-tabs-bar__tabs"
+          role="group"
+          aria-label={t('nav.title')}
+        >
           <button
             type="button"
             className={`skills-tabs-bar__tab ${activeTab === 'installed' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('installed')}
+            aria-pressed={activeTab === 'installed'}
           ><span>{t('installed.titleAll')}</span></button>
           <span className="skills-tabs-bar__divider" />
           <button
             type="button"
             className={`skills-tabs-bar__tab ${activeTab === 'discover' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('discover')}
+            aria-pressed={activeTab === 'discover'}
           ><span>{t('market.title')}</span></button>
         </div>
       </div>
@@ -191,7 +197,10 @@ const SkillsScene: React.FC = () => {
               <div className="skills-sidebar__header">
                 <h2 className="skills-sidebar__title">{t('installed.titleAll')}</h2>
               </div>
-              <nav className="skills-sidebar__nav">
+              <nav
+                className="skills-sidebar__nav"
+                aria-label={t('installed.titleAll')}
+              >
                 {CATEGORIES.map((cat) => {
                   const count = installed.counts[cat.id];
                   const isEmpty = count === 0;
@@ -201,6 +210,7 @@ const SkillsScene: React.FC = () => {
                       type="button"
                       className={`skills-sidebar__item ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
                       onClick={() => setInstalledFilter(cat.id)}
+                      aria-pressed={installedFilter === cat.id}
                     >
                       <span className="skills-sidebar__item-icon">{cat.icon}</span>
                       <span className="skills-sidebar__item-label">{t(cat.labelKey)}</span>
@@ -235,11 +245,18 @@ const SkillsScene: React.FC = () => {
                       type="button"
                       className={`skills-main__chip-btn${hideDuplicates ? ' is-active' : ''}`}
                       onClick={() => setHideDuplicates(!hideDuplicates)}
+                      aria-pressed={hideDuplicates}
                     >
                       <Filter size={13} />
                       <span>{t('toolbar.hideDuplicates')}</span>
                     </button>
-                    <button type="button" className="skills-main__add-btn" onClick={toggleAddForm}>
+                    <button
+                      type="button"
+                      className="skills-main__add-btn"
+                      onClick={toggleAddForm}
+                      aria-expanded={isAddFormOpen}
+                      aria-haspopup="dialog"
+                    >
                       <Plus size={13} />
                       <span>{t('toolbar.addTooltip')}</span>
                     </button>

@@ -36,7 +36,7 @@ describe('Skills scene Minimal presentation contract', () => {
       '0b8d55bd8384540d792392e939d728f7a9e89107294dea07122ea1295d3b9298',
     );
     expect(sha256('./SkillsScene.tsx')).toBe(
-      '18e6eb4b0799ea2958ece2e101f1212a2bbe8fc224785c223fc767db95b2e982',
+      '0fcbefa3c14035b51ae1672a807643a952dc9c78be0c34e6525b08508b6fc77d',
     );
     expect(sha256('./components/SkillCard.scss')).toBe(
       '25fb225b1eb44e976633027a12369c676717b545f760fc51b94b835de6e73c49',
@@ -166,5 +166,19 @@ describe('Skills scene Minimal presentation contract', () => {
     expect(source).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation: none;[\s\S]*?transition: none;/,
     );
+  });
+
+  it('exposes visual selection and dialog state to assistive technology', () => {
+    const scene = readSource('./SkillsScene.tsx');
+
+    expect(scene).toContain('role="group"');
+    expect(scene).toContain("aria-label={t('nav.title')}");
+    expect(scene).toContain("aria-label={t('installed.titleAll')}");
+    expect(scene).toContain("aria-pressed={activeTab === 'installed'}");
+    expect(scene).toContain("aria-pressed={activeTab === 'discover'}");
+    expect(scene).toContain('aria-pressed={installedFilter === cat.id}');
+    expect(scene).toContain('aria-pressed={hideDuplicates}');
+    expect(scene).toContain('aria-expanded={isAddFormOpen}');
+    expect(scene).toContain('aria-haspopup="dialog"');
   });
 });

@@ -405,6 +405,29 @@ replace the working gallery or add decorative imagery.
   dependent fields before returning to the original enabled state. No visible
   control is unnamed.
 
+### Resolved follow-up — Skills visual state was not exposed as interaction state
+
+- **Location:** `SkillsScene.tsx` and the Skills Minimal presentation contract
+- **Category:** Accessibility / interaction consistency / responsive
+  verification
+- **Severity before remediation:** P2
+- **Impact:** Installed/market tabs, installed-skill category filters, the
+  duplicate filter, and the add-skill dialog trigger all had clear visual
+  states, but assistive technology could not determine which state was selected
+  or whether the dialog trigger was expanded.
+- **Remediation:** Existing buttons retain their navigation, filtering, and
+  dialog behavior while exposing localized group labels, pressed state, dialog
+  intent, and expansion state. No Skill discovery, scanning, filtering,
+  installation, deletion, suite visibility, or persistence logic changed.
+- **Evidence:** At maximized width the installed grid remains four 311px columns
+  with 104px cards; at a 719×498 WebView it becomes one 421px column with no
+  document or grid overflow. The marketplace uses the same geometry, and the
+  360×308 add dialog stays inside the viewport with all controls named.
+  Installed/market selection, all-category selection, duplicate filtering, and
+  add-dialog expansion now report their visual state and return to their
+  original state after interaction. The focused Skills contract passes 11
+  tests.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
