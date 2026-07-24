@@ -100,6 +100,22 @@ replace the working gallery or add decorative imagery.
   the visible agent catalog from 10 to 5 and restores to the built-in filter.
   Full and 719px documents have zero horizontal overflow.
 
+### Resolved follow-up — Office examples crowded the new-task heading
+
+- **Location:** `src/web-ui/src/app/scenes/session/ChatPane.scss`
+- **Category:** Onboarding hierarchy / responsive design
+- **Impact:** The optional office examples started before the session-type
+  switch had ended, visually crowding the fixed new-task heading even though
+  the examples were already outside normal document flow.
+- **Remediation:** The examples remain absolutely positioned so their content
+  cannot move the heading or type switch. Their content axis is reduced from
+  400px to 340px, cards from 26px to 24px, and the group now begins below the
+  type switch with a stable gap.
+- **Evidence:** At maximized width the heading and switch retain their original
+  y=254 and y=292 positions; the switch ends at y=323 and examples begin at
+  y=340. At a 719×498 WebView the switch ends at y=190 and examples begin at
+  y=199. Both documents retain zero horizontal overflow.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
