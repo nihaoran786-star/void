@@ -428,6 +428,35 @@ replace the working gallery or add decorative imagery.
   original state after interaction. The focused Skills contract passes 11
   tests.
 
+### Resolved follow-up — Connector examples dominated the JSON editor
+
+- **Location:** `McpToolsConfig` and its presentation contract
+- **Category:** Information density / accessibility / motion / rendering cost
+- **Severity before remediation:** P2
+- **Impact:** The connector empty state was already compact, but opening the
+  JSON editor rendered both full configuration examples unconditionally. At a
+  719×498 WebView the editor measured about 1,058px and the scene scroll height
+  reached 1,259px. The JSON field was named only by a code-shaped placeholder,
+  and the entry action did not expose its inline expansion state.
+- **Remediation:** Configuration examples remain available in a native,
+  keyboard-accessible details element but start collapsed. Their maximum width,
+  type scale, line height, and spacing are reduced, and scroll anchoring is
+  disabled so expansion does not move the editor heading. The existing entry
+  actions now identify and control the named editor, and editor entrance motion
+  is disabled when reduced motion is requested. Loading, JSON parsing,
+  validation, save/reload, server lifecycle, remote authentication, and OAuth
+  behavior are unchanged.
+- **Evidence:** The empty state remains a single 840px divider row at maximized
+  width and has no document overflow at 719×498. With the editor open, collapsed
+  examples occupy about 30px, reducing editor height to about 637px and scene
+  scroll height to 839px. Expanding the compact 680px reference content reaches
+  about 374px while the editor heading stays at the same coordinate (0px
+  shift); collapsing it and returning to the list restores the original empty
+  state. The trigger reports `aria-expanded` and
+  `aria-controls`, while the field reports `MCP JSON 配置`. Configured-server
+  and OAuth visuals remain a runtime coverage gap because the inspected
+  profile currently has no MCP servers.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

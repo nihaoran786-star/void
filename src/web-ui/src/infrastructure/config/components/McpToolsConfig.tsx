@@ -925,6 +925,8 @@ const McpToolsConfig: React.FC = () => {
       size="small"
       onClick={() => setShowJsonEditor(!showJsonEditor)}
       tooltip={showJsonEditor ? tMcp('actions.backToList') : tMcp('actions.jsonConfig')}
+      aria-expanded={showJsonEditor}
+      aria-controls="mcp-json-editor"
     >
       {showJsonEditor ? <X size={16} /> : <FileJson size={16} />}
     </IconButton>
@@ -1104,7 +1106,10 @@ const McpToolsConfig: React.FC = () => {
           className={isMcpEmpty ? 'void-mcp-tools__section--empty' : ''}
         >
           {showJsonEditor && (
-            <div className="void-mcp-tools__json-editor">
+            <div
+              id="mcp-json-editor"
+              className="void-mcp-tools__json-editor"
+            >
               <div className="void-mcp-tools__json-editor-header">
                 <h3>{tMcp('jsonEditor.title')}</h3>
                 <p className="void-mcp-tools__json-hint">{tMcp('jsonEditor.hint1')}</p>
@@ -1121,6 +1126,7 @@ const McpToolsConfig: React.FC = () => {
                 variant="outlined"
                 className="void-mcp-tools__json-textarea"
                 spellCheck={false}
+                aria-label={tMcp('jsonEditor.title')}
                 error={!!jsonLintError}
                 errorMessage={
                   jsonLintError
@@ -1145,17 +1151,21 @@ const McpToolsConfig: React.FC = () => {
                   {tMcp('actions.saveConfig')}
                 </Button>
               </div>
-              <div className="void-mcp-tools__json-examples">
-                <h4>{tMcp('jsonEditor.exampleTitle')}</h4>
-                <div className="void-mcp-tools__example">
-                  <h5>{tMcp('jsonEditor.localProcess')}</h5>
-                  <pre>{`{\n  "mcpServers": {\n    "zai-mcp-server": {\n      "command": "npx",\n      "args": ["-y", "@z_ai/mcp-server"],\n      "env": { "Z_AI_API_KEY": "your_api_key" }\n    }\n  }\n}`}</pre>
+              <details className="void-mcp-tools__json-examples">
+                <summary className="void-mcp-tools__json-examples-summary">
+                  {tMcp('jsonEditor.exampleTitle')}
+                </summary>
+                <div className="void-mcp-tools__json-examples-content">
+                  <div className="void-mcp-tools__example">
+                    <h5>{tMcp('jsonEditor.localProcess')}</h5>
+                    <pre>{`{\n  "mcpServers": {\n    "zai-mcp-server": {\n      "command": "npx",\n      "args": ["-y", "@z_ai/mcp-server"],\n      "env": { "Z_AI_API_KEY": "your_api_key" }\n    }\n  }\n}`}</pre>
+                  </div>
+                  <div className="void-mcp-tools__example">
+                    <h5>{tMcp('jsonEditor.remoteService')}</h5>
+                    <pre>{`{\n  "mcpServers": {\n    "remote-mcp": {\n      "url": "http://localhost:3000/sse"\n    }\n  }\n}`}</pre>
+                  </div>
                 </div>
-                <div className="void-mcp-tools__example">
-                  <h5>{tMcp('jsonEditor.remoteService')}</h5>
-                  <pre>{`{\n  "mcpServers": {\n    "remote-mcp": {\n      "url": "http://localhost:3000/sse"\n    }\n  }\n}`}</pre>
-                </div>
-              </div>
+              </details>
             </div>
           )}
 
@@ -1175,7 +1185,13 @@ const McpToolsConfig: React.FC = () => {
                   {tMcp('empty.noServersHint')}
                 </span>
               </div>
-              <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowJsonEditor(true)}
+                aria-expanded={showJsonEditor}
+                aria-controls="mcp-json-editor"
+              >
                 <FileJson size={14} />
                 {tMcp('actions.jsonConfig')}
               </Button>

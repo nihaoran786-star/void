@@ -28,4 +28,24 @@ describe('McpToolsConfig empty presentation', () => {
     expect(styles).toContain('border-top: 1px solid var(--workspace-border-subtle);');
     expect(styles).toContain('@container config-panel (max-width: 360px)');
   });
+
+  it('keeps optional examples collapsed and links the trigger to the named editor', () => {
+    const source = readSource('./McpToolsConfig.tsx');
+    const styles = readSource('./McpToolsConfig.scss');
+
+    expect(source).toContain('id="mcp-json-editor"');
+    expect(source).toContain('aria-controls="mcp-json-editor"');
+    expect(source).toContain('aria-expanded={showJsonEditor}');
+    expect(source).toContain("aria-label={tMcp('jsonEditor.title')}");
+    expect(source).toContain('<details className="void-mcp-tools__json-examples">');
+    expect(source).not.toContain(
+      '<details open className="void-mcp-tools__json-examples">',
+    );
+    expect(styles).toContain('&__json-examples-summary');
+    expect(styles).toContain('max-width: 680px;');
+    expect(styles).toContain('overflow-anchor: none;');
+    expect(styles).toContain('font-size: var(--workspace-font-size-meta);');
+    expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(styles).toContain('animation: none;');
+  });
 });
