@@ -25,3 +25,55 @@
   width: 100%;
   height: 100%;
 }
+
+/*
+ * Empty sessions use the existing composer as the home surface.
+ * This remains presentation-only: WelcomePanel and ChatInput keep their
+ * existing state, events, workspace resolution, and send behavior.
+ */
+@media (min-height: 620px) {
+  .void-chat-pane__content:has(.welcome-panel) {
+    .welcome-panel {
+      align-items: center;
+      padding-bottom: clamp(176px, 25vh, 236px);
+    }
+
+    .welcome-panel__content,
+    .welcome-panel__cowork {
+      max-width: 760px;
+    }
+
+    .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
+      display: none;
+    }
+
+    .welcome-panel--needs-workspace .welcome-panel__narrative {
+      margin-top: clamp(120px, 18vh, 168px);
+    }
+
+    .void-chat-input-drop-zone {
+      bottom: 50%;
+      max-width: 780px;
+      transform: translate(-50%, 58%);
+    }
+  }
+}
+
+@media (max-height: 619px) {
+  .void-chat-pane__content:has(.welcome-panel) {
+    .welcome-panel {
+      align-items: flex-start;
+      padding-top: clamp(72px, 16vh, 112px);
+    }
+
+    .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {
+      display: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .void-chat-pane__content:has(.welcome-panel) .void-chat-input {
+    transition: none;
+  }
+}

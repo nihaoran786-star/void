@@ -50,23 +50,18 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
   const isCoworkSession = sessionModeLower === 'cowork';
   const isClawSession = sessionModeLower === 'claw';
   const isMediaSession = sessionModeLower === 'media';
-  // code sessions use mode='agentic'; cowork/media sessions use explicit mode ids.
-  const showBrandMark = sessionModeLower !== 'code' && sessionModeLower !== 'agentic' && sessionModeLower !== 'cowork' && sessionModeLower !== 'media';
+  const needsWorkspace = !isClawSession && !hasWorkspace;
 
   const { document: identityDoc } = useAgentIdentityDocument(isClawSession ? workspacePath : '');
   const assistantName = isClawSession ? (identityDoc.name || '') : '';
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    const s = isCoworkSession ? 'Cowork' : isClawSession ? 'Claw' : '';
-    if (hour >= 5 && hour < 12) return { title: t('welcome.greetingMorning'), subtitle: t(`welcome.subtitleMorning${s}`) };
-    if (hour >= 12 && hour < 18) return { title: t('welcome.greetingAfternoon'), subtitle: t(`welcome.subtitleAfternoon${s}`) };
-    if (hour >= 18 && hour < 23) return { title: t('welcome.greetingEvening'), subtitle: t(`welcome.subtitleEvening${s}`) };
-    return { title: t('welcome.greetingNight'), subtitle: t(`welcome.subtitleNight${s}`) };
-  }, [t, isCoworkSession, isClawSession]);
-
-  const tagline = greeting.subtitle;
-  const aiPartnerKey = isCoworkSession ? 'welcome.aiPartnerCowork' : isClawSession ? 'welcome.aiPartnerClaw' : 'welcome.aiPartner';
+  const promptSubtitleKey = isCoworkSession
+    ? 'welcome.promptSubtitleCowork'
+    : isMediaSession
+      ? 'welcome.promptSubtitleMedia'
+      : isClawSession
+        ? 'welcome.promptSubtitleClaw'
+        : 'welcome.promptSubtitle';
 
   const otherWorkspaces = useMemo(
     () => openedWorkspacesList.filter(ws => ws.id !== currentWorkspace?.id),
@@ -173,22 +168,17 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
   }, [onQuickAction]);
 
   return (
-    <div className={`welcome-panel ${className}`}>
+    <div className={`welcome-panel${needsWorkspace ? ' welcome-panel--needs-workspace' : ''}${className ? ` ${className}` : ''}`}>
       <div className="welcome-panel__content">
-        {/* Greeting */}
         <div className="welcome-panel__greeting">
           <div className="welcome-panel__greeting-inner">
-            {showBrandMark && (
-              <div className="welcome-panel__brand-mark" aria-hidden="true">
-                <img src="/Logo-ICON.png" className="welcome-panel__brand-mark-frame welcome-panel__brand-mark-frame--1" alt="" />
-                <img src="/Void-Logo.png" className="welcome-panel__brand-mark-frame welcome-panel__brand-mark-frame--2" alt="" />
-              </div>
-            )}
             <div className="welcome-panel__greeting-text">
-              <h1 className="welcome-panel__heading">
-                {greeting.title}，{t(aiPartnerKey)}{isClawSession && assistantName ? `，${assistantName}` : ''}
-              </h1>
-              <p className="welcome-panel__tagline">{tagline}</p>
+              <h1 className="welcome-panel__heading">{t('welcome.promptTitle')}</h1>
+              <p className="welcome-panel__tagline">
+                {isClawSession && assistantName
+                  ? t('welcome.promptSubtitleNamedClaw', { name: assistantName })
+                  : t(promptSubtitleKey)}
+              </p>
             </div>
           </div>
         </div>

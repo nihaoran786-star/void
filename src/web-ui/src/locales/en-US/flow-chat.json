@@ -1839,6 +1839,12 @@
     }
   },
   "welcome": {
+    "promptTitle": "What would you like to do?",
+    "promptSubtitle": "Describe a goal, or use @ to add context",
+    "promptSubtitleCowork": "Organize ideas, tasks, or references",
+    "promptSubtitleMedia": "Start with a script, asset, or visual",
+    "promptSubtitleClaw": "Your assistant is ready",
+    "promptSubtitleNamedClaw": "{{name}} is ready",
     "greetingMorning": "Good morning",
     "subtitleMorning": "A new day, new possibilities. Let's create something together",
     "greetingAfternoon": "Good afternoon",

@@ -1839,6 +1839,12 @@
     }
   },
   "welcome": {
+    "promptTitle": "今天想做什麼？",
+    "promptSubtitle": "描述目標，或用 @ 加入上下文",
+    "promptSubtitleCowork": "整理想法、任務或資料",
+    "promptSubtitleMedia": "從腳本、素材或畫面開始",
+    "promptSubtitleClaw": "你的助理已經準備好",
+    "promptSubtitleNamedClaw": "{{name}} 已準備好",
     "greetingMorning": "早安",
     "subtitleMorning": "新的一天，新的可能，讓我們一起創造些什麼",
     "greetingAfternoon": "下午好",
