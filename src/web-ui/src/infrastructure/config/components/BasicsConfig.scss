@@ -7,6 +7,18 @@
   padding: 0;
 }
 
+.void-ui--minimal .void-basics-config {
+  .void-config-page-section__body {
+    background: transparent;
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .void-config-page-row {
+    padding-inline: 0;
+  }
+}
+
 .void-logging-config {
   &__content {
     display: flex;
@@ -133,6 +145,17 @@
 }
 
 @container config-panel (max-width: 520px) {
+  .void-ui--minimal .void-basics-config {
+    .void-config-page-row:not(.void-config-page-row--multiline) {
+      grid-template-columns: minmax(0, 1fr) minmax(112px, 34%);
+      gap: var(--workspace-space-3);
+    }
+
+    .void-config-page-row__control {
+      justify-content: flex-end;
+    }
+  }
+
   .void-terminal-config {
     &__inline-alert {
       padding: $size-gap-2;

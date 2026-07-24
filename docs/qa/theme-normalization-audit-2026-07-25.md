@@ -109,7 +109,7 @@ replace the working gallery or add decorative imagery.
   the examples were already outside normal document flow.
 - **Remediation:** The examples remain absolutely positioned so their content
   cannot move the heading or type switch. Their content axis is reduced to
-  304px, cards to 22px, and the group begins below the type switch with a
+  276px, cards to 20px, and the group begins below the type switch with a
   stable gap.
 - **Evidence:** At maximized width the heading and switch retain their original
   y=254 and y=292 positions; the switch ends at y=323 and examples begin at
@@ -322,6 +322,32 @@ replace the working gallery or add decorative imagery.
   textarea reports the visible label `插桩代码模板` through a matching
   `htmlFor`/`id` pair, and the browser select displays `默认浏览器`. Five
   focused component suites pass 10 tests.
+
+### Resolved follow-up — Basic Settings expanded simple controls into cards
+
+- **Location:** `src/web-ui/src/infrastructure/config/components/BasicsConfig.tsx`
+  and `BasicsConfig.scss`
+- **Category:** Accessibility / responsive density / visual hierarchy /
+  theme consistency
+- **Severity before remediation:** P1 for unnamed controls; P2 for narrow
+  card-like rows
+- **Impact:** Launch, update, window, logging, terminal, and notification
+  controls visually rendered, but nine compact controls exposed no accessible
+  name. At a 719×498 WebView each simple switch row also stacked into a bordered
+  card roughly 150px tall, making the long form slow to scan.
+- **Remediation:** Every compact switch, select, and icon-only folder action now
+  derives its accessible name from the existing visible translation. The
+  Minimal projection reuses the current section and row markup as a flat
+  divider list; simple controls remain inline at narrow widths while genuinely
+  multiline rows retain their stacked layout. Config loading, optimistic save,
+  rollback, terminal discovery, logging, notifications, and system adapters
+  are unchanged.
+- **Evidence:** At maximized width the content axis remains bounded to 840px
+  and simple rows measure about 67px. At a 719×498 WebView the first switch row
+  drops to about 86px, all controls stay within the 379px content axis, and the
+  document remains 719/719. The nine audited controls report Chinese names,
+  including `开机自动启动`, `关闭按钮行为`, `日志级别`, `默认终端`, and
+  `在文件管理器中打开日志文件夹`.
 
 ## Positive findings
 

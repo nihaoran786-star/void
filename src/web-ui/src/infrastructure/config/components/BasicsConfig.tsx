@@ -118,6 +118,7 @@ function BasicsLaunchAtLoginSection() {
                 void handleToggle(e.target.checked);
               }}
               disabled={saving}
+              aria-label={t('launchAtLogin.toggleLabel')}
             />
           </ConfigPageRow>
         </ConfigPageSection>
@@ -215,6 +216,7 @@ function BasicsAutoUpdateSection() {
                 void handleToggle(e.target.checked);
               }}
               disabled={saving}
+              aria-label={t('autoUpdate.toggleLabel')}
             />
           </ConfigPageRow>
         </ConfigPageSection>
@@ -387,6 +389,7 @@ function BasicsLoggingSection() {
                 onChange={(v) => handleLevelChange(v as string)}
                 options={levelOptions}
                 disabled={saving}
+                ariaLabel={t('logging.sections.level')}
               />
             </div>
           </ConfigPageRow>
@@ -401,6 +404,7 @@ function BasicsLoggingSection() {
                 void handleSensitiveDiagnosticsChange(e.target.checked);
               }}
               disabled={saving}
+              aria-label={t('logging.sensitiveDiagnostics.label')}
             />
           </ConfigPageRow>
           <ConfigPageRow
@@ -418,6 +422,7 @@ function BasicsLoggingSection() {
                   className="void-logging-config__open-btn"
                   onClick={handleOpenFolder}
                   disabled={openingFolder || !runtimeInfo?.sessionLogDir}
+                  aria-label={t('logging.actions.openFolderTooltip')}
                 >
                   <FolderOpen size={14} />
                 </button>
@@ -586,6 +591,7 @@ function BasicsTerminalSection() {
                   options={shellOptions}
                   placeholder={t('terminal.controls.placeholder')}
                   disabled={saving}
+                  ariaLabel={t('terminal.sections.defaultTerminal')}
                 />
               ) : (
                 <div className="void-terminal-config__no-shells">{t('terminal.controls.noShells')}</div>
@@ -698,6 +704,7 @@ function BasicsWindowBehaviorSection() {
                 onChange={(v) => { void handleChange(v as string); }}
                 options={behaviorOptions}
                 disabled={saving}
+                ariaLabel={t('windowBehavior.closeButtonLabel')}
               />
             </div>
           </ConfigPageRow>
@@ -770,6 +777,7 @@ function BasicsNotificationsSection() {  const { t } = useTranslation('settings/
           checked={dialogNotify}
           onChange={(e) => { void handleDialogNotifyToggle(e.target.checked); }}
           disabled={saving}
+          aria-label={t('notifications.dialogCompletion.label')}
         />
       </ConfigPageRow>
       <ConfigPageRow
@@ -781,6 +789,7 @@ function BasicsNotificationsSection() {  const { t } = useTranslation('settings/
           checked={startupTips}
           onChange={(e) => { void handleStartupTipsToggle(e.target.checked); }}
           disabled={saving}
+          aria-label={t('notifications.startupTips.label')}
         />
       </ConfigPageRow>
     </ConfigPageSection>
