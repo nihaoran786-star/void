@@ -2069,6 +2069,37 @@
 
 .void-ui--minimal .void-ai-model-config {
   --ai-model-compact-capability-font-size: var(--font-size-xxs);
+
+  .void-config-page-section__body {
+    background: transparent;
+    border-width: 1px 0 0;
+    border-radius: 0;
+  }
+
+  .void-config-page-row {
+    padding-inline: 0;
+  }
+}
+
+@container config-panel (max-width: 520px) {
+  .void-ui--minimal .void-ai-model-config {
+    .void-ai-model-config__compact-row {
+      grid-template-columns: minmax(0, 1fr) minmax(156px, 44%);
+      gap: var(--workspace-space-3);
+    }
+
+    .void-ai-model-config__compact-row .void-config-page-row__control {
+      justify-content: flex-end;
+    }
+  }
+}
+
+@container config-panel (max-width: 360px) {
+  .void-ui--minimal .void-ai-model-config {
+    .void-ai-model-config__compact-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
 }
 
 .void-ai-model-config {

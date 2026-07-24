@@ -463,6 +463,11 @@
 
 @container config-panel (max-width: 520px) {
   .default-model-config {
+    &__compact-row {
+      grid-template-columns: minmax(0, 1fr) minmax(156px, 44%);
+      gap: var(--workspace-space-3);
+    }
+
     &__section {
       gap: $size-gap-2;
       margin-bottom: $size-gap-4;
@@ -502,6 +507,14 @@
     &__override-name {
       flex: none;
       font-size: var(--font-size-xs);
+    }
+  }
+}
+
+@container config-panel (max-width: 360px) {
+  .default-model-config {
+    &__compact-row {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }

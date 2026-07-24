@@ -214,6 +214,7 @@ export const DefaultModelConfig: React.FC = () => {
         label={t('core.primary.label')}
         description={t('core.primary.description')}
         align="center"
+        className="default-model-config__compact-row"
       >
         <Select
           value={defaultModels.primary || ''}
@@ -225,6 +226,7 @@ export const DefaultModelConfig: React.FC = () => {
           className="default-model-config__model-select"
           disabled={enabledModels.length === 0}
           size="small"
+          ariaLabel={t('core.primary.label')}
         />
       </ConfigPageRow>
 
@@ -232,6 +234,7 @@ export const DefaultModelConfig: React.FC = () => {
         label={renderOptionalLabel(t('core.fast.label'))}
         description={t('core.fast.description')}
         align="center"
+        className="default-model-config__compact-row"
       >
         <Select
           value={defaultModels.fast || ''}
@@ -245,6 +248,7 @@ export const DefaultModelConfig: React.FC = () => {
           renderValue={renderModelValue}
           className="default-model-config__model-select"
           size="small"
+          ariaLabel={t('core.fast.label')}
         />
       </ConfigPageRow>
     </div>

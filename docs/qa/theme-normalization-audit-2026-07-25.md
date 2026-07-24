@@ -374,6 +374,37 @@ replace the working gallery or add decorative imagery.
   without clipping and closes without changing the locale. The controls report
   `语言`, `主题`, `界面字体`, `界面字号预览`, and `自定义对话字号`.
 
+### Resolved follow-up — Model Settings stacked simple controls into long cards
+
+- **Location:** `AIModelConfig`, `DefaultModelConfig`, and their presentation
+  styles
+- **Category:** Accessibility / localization / responsive density / visual
+  hierarchy
+- **Severity before remediation:** P1 for unnamed model, media, timeout, and
+  proxy controls; P2 for the 2,100px narrow form
+- **Impact:** The page had no horizontal overflow, but default-model, media,
+  timeout, and proxy controls stacked into rounded cards at a 719×498 WebView.
+  The primary and fast model selects, model switch, media fields, timeout
+  fields, and proxy controls exposed no contextual accessible name. Media
+  secret visibility also requested missing root-level component translations,
+  leaving an English `show` fallback in the Chinese interface.
+- **Remediation:** The Minimal projection now uses the same flat divider-list
+  treatment as Basic and Appearance Settings. Only simple rows remain inline
+  at narrow widths; CLI account actions and the model collection retain their
+  existing complex layouts. Visible translations name every audited control,
+  and both API-key visibility paths reuse the component library's localized
+  input labels. Provider discovery, model state, secrets, timeout persistence,
+  proxy persistence, and network adapters are unchanged.
+- **Evidence:** At maximized width the content remains bounded to 840px and the
+  document stays within its viewport. At a 719×498 WebView the document remains
+  719/719, compact controls use a 200px/167px split, and the page scroll height
+  drops from roughly 2,100px to 1,775px. The default, media, stream-timeout, and
+  proxy sections measure about 225px, 308px, 240px, and 333px respectively.
+  Opening the localized `主力模型` list stays inside the viewport. Media secret
+  show/hide returns to password state, and toggling the proxy disables its
+  dependent fields before returning to the original enabled state. No visible
+  control is unnamed.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

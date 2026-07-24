@@ -1531,7 +1531,9 @@ const AIModelConfig: React.FC = () => {
         </span>
       );
     };
-    const apiKeyVisibilityLabel = showApiKey ? tComponents('hide') : tComponents('show');
+    const apiKeyVisibilityLabel = showApiKey
+      ? tComponents('input.hide')
+      : tComponents('input.show');
     const apiKeySuffix = (
       <button
         type="button"
@@ -2366,6 +2368,7 @@ const AIModelConfig: React.FC = () => {
             void handleToggleEnabled(config, e.target.checked);
           }}
           size="small"
+          aria-label={modelLabel}
         />
         <IconButton
           variant="ghost"
@@ -2563,6 +2566,7 @@ const AIModelConfig: React.FC = () => {
             label={t('media.tokenLabel')}
             description={t('media.tokenHint')}
             align="center"
+            className="void-ai-model-config__compact-row"
           >
             <div className="void-ai-model-config__media-token-control">
               <Input
@@ -2574,12 +2578,15 @@ const AIModelConfig: React.FC = () => {
                 }))}
                 placeholder={t('media.tokenPlaceholder')}
                 inputSize="small"
+                aria-label={t('media.tokenLabel')}
               />
               <IconButton
                 variant="ghost"
                 size="small"
                 onClick={() => setShowMediaToken(prev => !prev)}
-                tooltip={showMediaToken ? tComponents('hide') : tComponents('show')}
+                tooltip={showMediaToken
+                  ? tComponents('input.hide')
+                  : tComponents('input.show')}
               >
                 {showMediaToken ? <EyeOff size={16} /> : <Eye size={16} />}
               </IconButton>
@@ -2589,11 +2596,13 @@ const AIModelConfig: React.FC = () => {
             label={t('media.baseUrlLabel')}
             description={t('media.baseUrlHint')}
             align="center"
+            className="void-ai-model-config__compact-row"
           >
             <Input
               value="https://api.apimart.ai"
               disabled
               inputSize="small"
+              aria-label={t('media.baseUrlLabel')}
             />
           </ConfigPageRow>
         </ConfigPageSection>
@@ -2619,23 +2628,27 @@ const AIModelConfig: React.FC = () => {
           <ConfigPageRow
             label={t('streamTtftTimeout.label')}
             align="center"
+            className="void-ai-model-config__compact-row"
           >
             <Input
               value={streamTtftTimeoutInput}
               onChange={(e) => setStreamTtftTimeoutInput(e.target.value)}
               placeholder={t('streamTtftTimeout.placeholder')}
               inputSize="small"
+              aria-label={t('streamTtftTimeout.label')}
             />
           </ConfigPageRow>
           <ConfigPageRow
             label={t('streamIdleTimeout.label')}
             align="center"
+            className="void-ai-model-config__compact-row"
           >
             <Input
               value={streamIdleTimeoutInput}
               onChange={(e) => setStreamIdleTimeoutInput(e.target.value)}
               placeholder={t('streamIdleTimeout.placeholder')}
               inputSize="small"
+              aria-label={t('streamIdleTimeout.label')}
             />
           </ConfigPageRow>
         </ConfigPageSection>
@@ -2654,32 +2667,52 @@ const AIModelConfig: React.FC = () => {
             </Button>
           )}
         >
-          <ConfigPageRow label={t('proxy.enable')} align="center">
+          <ConfigPageRow
+            label={t('proxy.enable')}
+            align="center"
+            className="void-ai-model-config__compact-row"
+          >
             <Switch
               checked={proxyConfig.enabled}
               onChange={(e) => setProxyConfig(prev => ({ ...prev, enabled: e.target.checked }))}
               size="small"
+              aria-label={t('proxy.enable')}
             />
           </ConfigPageRow>
-          <ConfigPageRow label={t('proxy.url')} description={t('proxy.urlHint')} align="center">
+          <ConfigPageRow
+            label={t('proxy.url')}
+            description={t('proxy.urlHint')}
+            align="center"
+            className="void-ai-model-config__compact-row"
+          >
             <Input
               value={proxyConfig.url}
               onChange={(e) => setProxyConfig(prev => ({ ...prev, url: e.target.value }))}
               placeholder={t('proxy.urlPlaceholder')}
               disabled={!proxyConfig.enabled}
               inputSize="small"
+              aria-label={t('proxy.url')}
             />
           </ConfigPageRow>
-          <ConfigPageRow label={t('proxy.username')} align="center">
+          <ConfigPageRow
+            label={t('proxy.username')}
+            align="center"
+            className="void-ai-model-config__compact-row"
+          >
             <Input
               value={proxyConfig.username || ''}
               onChange={(e) => setProxyConfig(prev => ({ ...prev, username: e.target.value }))}
               placeholder={t('proxy.usernamePlaceholder')}
               disabled={!proxyConfig.enabled}
               inputSize="small"
+              aria-label={t('proxy.username')}
             />
           </ConfigPageRow>
-          <ConfigPageRow label={t('proxy.password')} align="center">
+          <ConfigPageRow
+            label={t('proxy.password')}
+            align="center"
+            className="void-ai-model-config__compact-row"
+          >
             <Input
               type="password"
               value={proxyConfig.password || ''}
@@ -2687,6 +2720,7 @@ const AIModelConfig: React.FC = () => {
               placeholder={t('proxy.passwordPlaceholder')}
               disabled={!proxyConfig.enabled}
               inputSize="small"
+              aria-label={t('proxy.password')}
             />
           </ConfigPageRow>
         </ConfigPageSection>
