@@ -24,7 +24,7 @@
     "custom": {
       "title": "Custom actions",
       "description": "Add your own shortcut prompts — clicking sends them directly to the AI.",
-      "empty": "No custom actions yet. Add your first one below."
+      "empty": "No custom actions yet."
     }
   },
   "edit": {

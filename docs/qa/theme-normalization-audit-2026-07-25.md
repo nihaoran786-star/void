@@ -233,6 +233,36 @@ replace the working gallery or add decorative imagery.
   opens from the only action, retains the existing loaded configuration and
   examples, and closes without writing when cancelled.
 
+### Resolved follow-up — Quick Action state and controls were hidden
+
+- **Location:** `src/web-ui/src/infrastructure/config/components/QuickActionsConfig.tsx`
+  and `QuickActionsConfig.scss`
+- **Category:** Accessibility / interaction discoverability / anti-pattern /
+  responsive density
+- **Severity before remediation:** P1 for hidden enabled state; P2 for the
+  duplicated empty-state action
+- **Impact:** Every row applied `opacity: 0` to the complete control group,
+  including the enable switch. Users could not scan whether actions were
+  enabled until hovering, and keyboard focus did not reveal the group. The
+  empty custom section also repeated `添加动作` in its header and body, wrapped
+  the second action in a centered 154px card, and used copy that pointed to a
+  control “below.”
+- **Remediation:** Enable switches are now always visible and carry the
+  localized action name as their accessible label. Edit and delete remain
+  progressively disclosed, but appear on row hover, `:focus-within`, and
+  coarse-pointer devices. The custom empty state keeps the single section
+  action, removes the decorative icon and duplicate button, and uses concise
+  direction-neutral copy. Minimal presentation consumes workspace typography,
+  surface, border, spacing, and motion tokens.
+- **Focused audit score:** 14/20 before remediation; 19/20 after remediation
+  (accessibility 4, performance 4, responsive 4, theming 4, anti-patterns 3).
+- **Evidence:** At maximized width both 32×20px switches are visible while
+  secondary actions remain quiet, the empty state is a 40px row, and only one
+  `添加动作` control exists. At a 719×498 WebView the same controls remain
+  inside the 378px list axis with zero document overflow. Focusing the first
+  edit action raises its secondary control group to full opacity; opening and
+  cancelling the add modal preserves the action list.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

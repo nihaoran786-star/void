@@ -174,30 +174,33 @@ const ActionRow: React.FC<ActionRowProps> = ({ action, onToggle, onEdit, onDelet
           checked={action.enabled}
           onChange={() => onToggle(action.id)}
           size="small"
+          aria-label={actionText.label}
         />
-        <IconButton
-          type="button"
-          size="small"
-          variant="ghost"
-          aria-label={t('edit.button')}
-          tooltip={t('edit.button')}
-          onClick={() => onEdit(action)}
-        >
-          <Pencil size={13} />
-        </IconButton>
-        {canDelete && (
+        <div className="quick-actions-config__row-secondary-controls">
           <IconButton
             type="button"
             size="small"
             variant="ghost"
-            aria-label={t('delete.button')}
-            tooltip={t('delete.button')}
-            onClick={() => onDelete(action.id)}
-            className="quick-actions-config__delete-btn"
+            aria-label={t('edit.button')}
+            tooltip={t('edit.button')}
+            onClick={() => onEdit(action)}
           >
-            <Trash2 size={13} />
+            <Pencil size={13} />
           </IconButton>
-        )}
+          {canDelete && (
+            <IconButton
+              type="button"
+              size="small"
+              variant="ghost"
+              aria-label={t('delete.button')}
+              tooltip={t('delete.button')}
+              onClick={() => onDelete(action.id)}
+              className="quick-actions-config__delete-btn"
+            >
+              <Trash2 size={13} />
+            </IconButton>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -327,16 +330,7 @@ const QuickActionsConfig: React.FC = () => {
           <div className="quick-actions-config__list">
             {customActions.length === 0 ? (
               <div className="quick-actions-config__empty">
-                <Zap size={20} className="quick-actions-config__empty-icon" />
                 <p>{t('sections.custom.empty')}</p>
-                <Button
-                  size="small"
-                  variant="secondary"
-                  onClick={() => setModalTarget(null)}
-                >
-                  <Plus size={14} />
-                  {t('add.button')}
-                </Button>
               </div>
             ) : (
               customActions.map(action => (

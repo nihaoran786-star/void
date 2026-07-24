@@ -16,21 +16,17 @@
   // ── Empty state ─────────────────────────────────────────────────────────
   &__empty {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 32px 16px;
+    min-height: var(--workspace-control-height-primary);
+    padding: var(--workspace-space-2) var(--workspace-space-4);
     color: var(--color-text-muted);
-    text-align: center;
+    text-align: left;
 
     p {
       margin: 0;
-      font-size: var(--font-size-sm);
+      font-size: var(--workspace-font-size-meta);
+      line-height: var(--workspace-line-height-body);
     }
-  }
-
-  &__empty-icon {
-    opacity: 0.35;
   }
 
   // ── Action row ──────────────────────────────────────────────────────────
@@ -47,7 +43,15 @@
     &:hover {
       background: var(--element-bg-hover);
 
-      .quick-actions-config__row-controls {
+      .quick-actions-config__row-secondary-controls {
+        opacity: 1;
+      }
+    }
+
+    &:focus-within {
+      background: var(--element-bg-hover);
+
+      .quick-actions-config__row-secondary-controls {
         opacity: 1;
       }
     }
@@ -92,6 +96,12 @@
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+  }
+
+  &__row-secondary-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
     opacity: 0;
     transition: opacity var(--motion-fast) var(--easing-standard);
   }
@@ -161,5 +171,47 @@
     margin-top: $size-gap-3;
     padding-top: $size-gap-3;
     border-top: 1px solid var(--border-subtle);
+  }
+}
+
+.void-ui--minimal .quick-actions-config {
+  .quick-actions-config__content {
+    gap: var(--workspace-space-6);
+  }
+
+  .quick-actions-config__row {
+    border-color: var(--workspace-border-subtle);
+    transition:
+      background-color var(--workspace-motion-fast)
+      var(--workspace-easing-standard);
+  }
+
+  .quick-actions-config__row-icon {
+    background: var(--workspace-surface-active);
+    color: var(--workspace-text-secondary);
+  }
+
+  .quick-actions-config__row-label {
+    color: var(--workspace-text-primary);
+    font-size: var(--workspace-font-size-label);
+    font-weight: var(--workspace-font-weight-medium);
+  }
+
+  .quick-actions-config__row-prompt,
+  .quick-actions-config__empty {
+    color: var(--workspace-text-muted);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .quick-actions-config__row-secondary-controls {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-actions-config__row,
+  .quick-actions-config__row-secondary-controls {
+    transition: none;
   }
 }
