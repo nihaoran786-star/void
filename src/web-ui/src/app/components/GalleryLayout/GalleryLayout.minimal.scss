@@ -228,8 +228,7 @@
       border-color: var(--workspace-border-strong);
     }
 
-    .gallery-filter-count,
-    .gallery-zone-count {
+    .gallery-filter-count {
       color: var(--workspace-text-muted);
       background: var(--workspace-surface-panel);
       border-color: var(--workspace-border-subtle);
@@ -237,10 +236,16 @@
     }
 
     .gallery-zone-count {
-      height: var(--workspace-icon-target);
-      padding: 0 var(--workspace-space-2);
-      border-radius: var(--workspace-radius-control);
+      min-width: 0;
+      height: auto;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--workspace-text-muted);
+      background: transparent;
       font-weight: var(--workspace-font-weight-medium);
+      font-size: var(--workspace-font-size-meta);
+      font-variant-numeric: tabular-nums;
     }
 
     .gallery-zone-badge {

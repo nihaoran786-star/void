@@ -68,6 +68,15 @@ describe('GalleryLayout Minimal presentation contract', () => {
     );
   });
 
+  it('presents passive zone counts as metadata instead of button-like badges', () => {
+    expect(source).toMatch(
+      /\.gallery-filter-count \{[\s\S]*?background: var\(--workspace-surface-panel\);[\s\S]*?border-color: var\(--workspace-border-subtle\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zone-count \{[\s\S]*?min-width: 0;[\s\S]*?height: auto;[\s\S]*?border: 0;[\s\S]*?background: transparent;[\s\S]*?font-variant-numeric: tabular-nums;/,
+    );
+  });
+
   it('keeps the compact title and actions on one line until truly narrow widths', () => {
     expect(source).toMatch(
       /@media \(max-width: 1080px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?flex-direction: row;[\s\S]*?align-items: center;/,

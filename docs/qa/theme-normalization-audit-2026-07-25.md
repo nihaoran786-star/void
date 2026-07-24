@@ -79,21 +79,26 @@ replace the working gallery or add decorative imagery.
   Search, filtering, installation, pagination, and persistence paths are
   unchanged.
 
-### Resolved follow-up — Assistant count looked interactive and disconnected
+### Resolved follow-up — Gallery zone counts looked interactive
 
-- **Location:** `src/web-ui/src/app/scenes/profile/views/NurseryView.minimal.scss`
+- **Location:** `src/web-ui/src/app/components/GalleryLayout/GalleryLayout.minimal.scss`
+  and feature-local Gallery projections
 - **Category:** Visual hierarchy / anti-pattern
-- **Impact:** The assistant count used a bordered 28px badge and inherited
-  `margin-left: auto`, placing a passive value roughly 900px away from its
-  section title on a maximized window. It looked like an isolated control
-  despite having no interaction.
-- **Remediation:** The Nursery Minimal projection keeps the existing count
-  node but presents it as borderless tabular metadata immediately after the
-  section heading. Shared Gallery components and Assistant data are unchanged.
+- **Impact:** Passive zone totals in Assistant, Professional Agents, and Mini
+  Apps used the same bordered 28px badge geometry as interactive controls.
+  Assistant also inherited `margin-left: auto`, placing its count roughly
+  900px away from the section title.
+- **Remediation:** The shared Minimal Gallery projection now presents zone
+  totals as borderless tabular metadata. Feature-local 28px overrides in
+  Professional Agents and Mini Apps were removed; Assistant retains only its
+  intentional title-adjacent alignment. Interactive filter counts remain
+  compact badges.
 - **Evidence:** At maximized width the count moves from x=1509 to x=531 beside
   the heading; at a 719px WebView it remains beside the heading at x=390. The
-  two-card and one-column projections retain their original 116px card height,
-  and both documents have zero horizontal overflow.
+  Agents zone totals resolve to 6–13px text bounds without borders while its
+  five filter counts retain 16–21px badge bounds. The user filter still changes
+  the visible agent catalog from 10 to 5 and restores to the built-in filter.
+  Full and 719px documents have zero horizontal overflow.
 
 ## Positive findings
 
@@ -108,7 +113,8 @@ replace the working gallery or add decorative imagery.
 
 1. Apply the shared pointer-coarse target policy only after verifying the
    desktop shell reports coarse input accurately.
-2. Continue `$normalize` on the Connector catalog, comparing its filter/header
-   behavior with the corrected Agents and Skills layouts.
+2. Continue `$normalize` on Assistant configuration and Mini App customization
+   detail pages; the Connector entry currently and intentionally reuses the
+   Settings/MCP interface rather than mounting a separate catalog.
 3. Finish with `$polish` after the remaining catalog pages pass maximized and
    719px desktop checks.

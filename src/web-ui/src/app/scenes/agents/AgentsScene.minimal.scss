@@ -213,14 +213,6 @@
       gap: var(--workspace-space-1);
     }
 
-    .gallery-zone-count {
-      min-width: 28px;
-      height: 28px;
-      padding-inline: var(--workspace-space-2);
-      border-color: transparent;
-      background: transparent;
-    }
-
     .core-agents-grid,
     .gallery-grid {
       grid-template-columns: repeat(auto-fit, minmax(min(100%, 264px), 1fr));

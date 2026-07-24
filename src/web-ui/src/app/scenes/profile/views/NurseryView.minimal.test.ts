@@ -112,9 +112,6 @@ describe('Nursery Minimal presentation contract', () => {
       /\.gallery-zone__tools \{[\s\S]*?margin-left: 0;/,
     );
     expect(source).toMatch(
-      /\.gallery-zone-count \{[\s\S]*?min-width: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,
-    );
-    expect(source).toMatch(
       /@media \(hover: hover\) and \(pointer: fine\) \{[\s\S]*?\.assistant-card__footer-actions \{[\s\S]*?opacity: 0\.58;/,
     );
   });

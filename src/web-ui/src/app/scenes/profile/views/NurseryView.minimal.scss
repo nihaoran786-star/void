@@ -171,16 +171,6 @@
         margin-left: 0;
       }
 
-      .gallery-zone-count {
-        min-width: 0;
-        height: auto;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        font-variant-numeric: tabular-nums;
-      }
-
       .gallery-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
