@@ -55,9 +55,13 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.(?:agent-card|core-agent-card|gallery-page-header)/);
   });
 
-  it('uses a compact graphic-free header with an icon-first expanding search', () => {
+  it('uses one bounded content axis with a flat graphic-free header', () => {
+    expect(source).toContain('--agents-content-max: 1120px;');
     expect(source).toMatch(
-      /\.gallery-page-header \{[\s\S]*?min-height: 104px;[\s\S]*?background-color: var\(--workspace-surface-panel\);/,
+      /\.gallery-page-header \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 96px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background: transparent;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zones \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?margin-inline: auto;/,
     );
     expect(source).not.toContain('/visuals/void-agents-hero.webp');
     expect(source).toMatch(
@@ -70,20 +74,27 @@ describe('Agents scene Minimal presentation contract', () => {
       /&:focus-within \{[\s\S]*?width: 240px;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 88px;/,
+      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 80px;/,
     );
   });
 
   it('compresses list cards without removing their details behavior', () => {
     expect(source).toMatch(
-      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 120px;[\s\S]*?min-height: 120px;/,
+      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
     );
-    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 252px), 1fr));');
+    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 264px), 1fr));');
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(
       /\.agent-card__desc,[\s\S]*?white-space: nowrap;[\s\S]*?-webkit-line-clamp: 1;/,
     );
+  });
+
+  it('keeps core identity color on small icons without decorative imagery', () => {
+    expect(source).toMatch(
+      /\.core-agent-card__icon-wrap \{[\s\S]*?color: var\(--core-accent, var\(--workspace-accent\)\);[\s\S]*?background: var\(/,
+    );
+    expect(source).toContain('color-mix(in srgb, var(--workspace-accent) 9%, transparent)');
   });
 
   it('uses tokenized feedback without gradients, shadows, lift, or stagger', () => {

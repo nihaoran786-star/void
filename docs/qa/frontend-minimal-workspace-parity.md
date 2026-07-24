@@ -221,6 +221,18 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   switch cycles measured Assistant at 34.3–48.6ms over two animation frames;
   the surface retained 0 gradients, 0 backdrop filters, and the same 1,353 DOM
   elements as its measured baseline.
+- [x] Minimal Professional Agents now uses the same bounded 1120px content
+  axis, a flat divider header instead of a nested page card, four 274px columns
+  at the 1707px CSS viewport, and 112px list cards. Core identity color is
+  limited to the 28px icon target; capability data, filters, native detail
+  modal, keyboard roles, and create actions remain unchanged. Real desktop
+  verification covered the 1707x912 and 719x498 CSS-pixel viewports with zero
+  document overflow, opened and closed a real core-agent detail modal, and
+  expanded the search control from 28px to 240px. Three warm
+  Assistant/Professional Agents switch cycles settled within 46.6–56.6ms over
+  two animation frames after the initial lazy load. All three page zones retain
+  `content-visibility: auto`; the rendered surface uses zero gradients and zero
+  CSS/backdrop filters.
 
 ## Composer and Conversation
 
