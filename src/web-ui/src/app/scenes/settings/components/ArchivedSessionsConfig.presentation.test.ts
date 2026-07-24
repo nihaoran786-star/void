@@ -17,6 +17,9 @@ describe('ArchivedSessionsConfig empty presentation', () => {
       "<span>{t('nav.sessions.noArchivedSessions')}</span>",
     );
     expect(source).toContain('{headerExtra}');
+    expect(source).toContain("aria-label={t('actions.refresh')}");
+    expect(source).toContain("title={t('actions.refresh')}");
+    expect(source).not.toContain('aria-label="Refresh"');
     expect(styles).toMatch(
       /&__empty\s*\{[\s\S]*?justify-content:\s*flex-start;/,
     );

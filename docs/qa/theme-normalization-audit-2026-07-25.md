@@ -263,6 +263,21 @@ replace the working gallery or add decorative imagery.
   edit action raises its secondary control group to full opacity; opening and
   cancelling the add modal preserves the action list.
 
+### Resolved follow-up — Archived-session refresh exposed an English-only name
+
+- **Location:** `src/web-ui/src/app/scenes/settings/components/ArchivedSessionsConfig.tsx`
+- **Category:** Accessibility / localization / interaction consistency
+- **Severity before remediation:** P2
+- **Impact:** The empty archived-session page rendered correctly in Chinese,
+  but its icon-only refresh action exposed the hard-coded accessible name
+  `Refresh` and no localized hover hint.
+- **Remediation:** The existing shared `actions.refresh` translation now drives
+  both the accessible name and native hint. Session loading, restore, deletion,
+  grouping, and persistence remain unchanged.
+- **Evidence:** At maximized width and a 719×498 WebView, the empty state has no
+  document overflow. The focused action reports `aria-label="刷新"` and
+  `title="刷新"`; activating it returns from loading to the same empty state.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -274,6 +289,9 @@ replace the working gallery or add decorative imagery.
 - Mini Apps preserve detail, launch, delete, running-state, customization, and
   draft-preview entry points while their Minimal presentation avoids decorative
   paint and remains complete at both maximized and 719px desktop widths.
+- Review preserves its overview, strategy, capacity, reviewer, and optional
+  Sub-Agent controls at both maximized and 719px desktop widths; the narrow
+  overview stacks without document overflow.
 
 ## Next actions
 

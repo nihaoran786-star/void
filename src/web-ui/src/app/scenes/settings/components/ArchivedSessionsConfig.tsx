@@ -288,7 +288,8 @@ const ArchivedSessionsConfig: React.FC = () => {
         size="small"
         variant="ghost"
         onClick={() => { void loadArchived(); }}
-        aria-label="Refresh"
+        aria-label={t('actions.refresh')}
+        title={t('actions.refresh')}
       >
         <RefreshCw size={13} />
       </Button>
