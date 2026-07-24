@@ -8,7 +8,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Trash2, RotateCcw, Inbox, RefreshCw } from 'lucide-react';
+import { Trash2, RotateCcw, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   ConfigPageLayout,
@@ -318,15 +318,10 @@ const ArchivedSessionsConfig: React.FC = () => {
             {t('nav.sessions.loading')}
           </div>
         ) : !hasEntries ? (
-          <ConfigPageSection
-            title={t('nav.sessions.archivedSessions')}
-            extra={headerExtra}
-          >
-            <div className="archived-sessions-config__empty">
-              <Inbox size={32} className="archived-sessions-config__empty-icon" />
-              <span>{t('nav.sessions.noArchivedSessions')}</span>
-            </div>
-          </ConfigPageSection>
+          <div className="archived-sessions-config__empty">
+            <span>{t('nav.sessions.noArchivedSessions')}</span>
+            {headerExtra}
+          </div>
         ) : (
           <ConfigPageSection
             title={t('nav.sessions.archivedSessions')}

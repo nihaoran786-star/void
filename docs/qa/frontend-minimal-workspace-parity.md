@@ -1111,3 +1111,14 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   state, persistence, and API boundaries are unchanged; maximized and 719px
   desktop evidence confirms the action stays aligned to the content axis with
   zero horizontal overflow.
+- [x] A read-only 719px settings matrix covers Account, Basic, Appearance,
+  Models, Archived Sessions, Shortcuts, Personalization, Permissions, Quick
+  Actions, Review, MCP, ACP Agent, and Editor. Every page keeps both the
+  document and its config container within the viewport, with zero visible
+  control bounds crossing the window edge.
+- [x] Archived Sessions no longer repeats the same title across the page,
+  section, and framed empty card. Its empty projection is one 40px status row
+  with the existing refresh action; populated workspace groups and all restore,
+  delete, bulk-delete, confirmation, session API, and loading paths remain
+  unchanged. Maximized and 719px desktop checks show one visible page heading,
+  successful refresh-to-empty behavior, and zero horizontal overflow.

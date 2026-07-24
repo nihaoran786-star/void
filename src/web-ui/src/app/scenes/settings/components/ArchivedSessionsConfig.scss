@@ -18,17 +18,12 @@
 
   &__empty {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    padding: 32px 16px;
+    justify-content: flex-start;
+    gap: $size-gap-3;
+    min-height: var(--workspace-control-height-primary, 36px);
     color: var(--color-text-muted);
-    text-align: center;
     font-size: var(--font-size-sm);
-  }
-
-  &__empty-icon {
-    opacity: 0.35;
   }
 
   &__group {
