@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const keyboardShortcutsSource = readFileSync(
@@ -10,6 +10,19 @@ const archivedSessionsSource = readFileSync(
   new URL('../scenes/settings/components/ArchivedSessionsConfig.scss', import.meta.url),
   'utf8',
 );
+
+const configComponentStyles = readdirSync(
+  new URL('../../infrastructure/config/components/', import.meta.url),
+  { withFileTypes: true },
+)
+  .filter(entry => entry.isFile() && entry.name.endsWith('.scss'))
+  .map(entry => ({
+    name: entry.name,
+    source: readFileSync(
+      new URL(`../../infrastructure/config/components/${entry.name}`, import.meta.url),
+      'utf8',
+    ),
+  }));
 
 describe('settings interaction governance', () => {
   it('uses semantic status and control tokens for shortcut feedback', () => {
@@ -49,5 +62,13 @@ describe('settings interaction governance', () => {
     expect(archivedSessionsSource).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?&__row-actions\s*\{[\s\S]*?transition:\s*none/,
     );
+  });
+
+  it('keeps config component motion constrained to explicit properties', () => {
+    const unrestrictedTransitions = configComponentStyles.flatMap(({ name, source }) =>
+      [...source.matchAll(/transition\s*:\s*all\b/g)].map(() => name),
+    );
+
+    expect(unrestrictedTransitions).toEqual([]);
   });
 });

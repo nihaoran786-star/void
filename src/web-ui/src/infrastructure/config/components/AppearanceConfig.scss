@@ -39,7 +39,10 @@
     border: 1px solid var(--border-base);
     border-radius: $size-radius-sm;
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      opacity $motion-base $easing-standard;
     
     &:hover:not(:disabled):not(&--active) {
       background: var(--element-bg-subtle);
@@ -148,7 +151,10 @@
   border: 1px solid var(--border-base);
   border-radius: $size-radius-sm;
   cursor: pointer;
-  transition: all $motion-base $easing-standard;
+  transition:
+    background-color $motion-base $easing-standard,
+    border-color $motion-base $easing-standard,
+    opacity $motion-base $easing-standard;
   overflow: hidden;
   
   &:hover:not(&--disabled):not(&--active) {
@@ -280,7 +286,10 @@
     border-radius: $size-radius-sm;
     color: var(--color-text-secondary);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
     
     svg {
       width: 12px;
@@ -299,6 +308,14 @@
         color: var(--color-error);
       }
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-config__language-btn,
+  .theme-card,
+  .theme-config__action-btn {
+    transition: none;
   }
 }
 

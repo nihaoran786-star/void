@@ -53,7 +53,7 @@
     padding: $size-gap-2 $size-gap-3;
     border-radius: $size-radius-sm;
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition: background-color $motion-base $easing-standard;
     background: transparent;
     border: none;
     
@@ -95,7 +95,10 @@
     border: 2px solid var(--color-text-muted);
     border-radius: 50%;
     background: transparent;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      box-shadow $motion-base $easing-standard;
 
     &:checked {
       border-color: var(--color-accent-500);
@@ -134,6 +137,16 @@
   &__dropdown {
     min-width: 120px;
     margin-left: $size-gap-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-selection-radio {
+    &__option,
+    &__input,
+    &__label {
+      transition: none;
+    }
   }
 }
 

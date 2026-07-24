@@ -259,7 +259,6 @@
     padding: $size-gap-2 0;
     background: transparent;
     border: none;
-    transition: all $motion-base $easing-standard;
     
     &--configured {
       .default-model-config__capability-status {
@@ -325,7 +324,9 @@
     color: var(--color-text-secondary);
     font-size: var(--font-size-sm);
     font-weight: $font-weight-medium;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
     border-radius: $size-radius-sm;
     
     &:hover {

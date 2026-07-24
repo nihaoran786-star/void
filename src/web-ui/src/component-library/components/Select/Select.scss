@@ -28,7 +28,10 @@
     border: 1px solid var(--control-border);
     border-radius: var(--control-radius);
     cursor: pointer;
-    transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      box-shadow var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     min-height: 36px;
     position: relative;
     min-width: 0;
@@ -128,7 +131,10 @@
     font-size: var(--font-size-xs, 12px);
     color: var(--color-accent-500, #60a5fa);
     max-width: 150px;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 
     &:hover {
       background: var(--color-accent-100, rgba(96, 165, 250, 0.08));
@@ -170,7 +176,9 @@
     font-size: var(--control-icon-xs);
     line-height: 1;
     color: var(--color-text-muted, #a0a0a0);
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     margin-left: 2px;
 
     &:hover {
@@ -195,7 +203,9 @@
     border-radius: 50%;
     color: var(--color-text-muted, #a0a0a0);
     cursor: pointer;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     font-size: var(--control-icon-sm);
     line-height: 1;
 
@@ -224,7 +234,9 @@
     align-items: center;
     justify-content: center;
     color: var(--color-text-muted, #a0a0a0);
-    transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      transform var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 
     &--open {
       transform: rotate(180deg);
@@ -297,7 +309,9 @@
     cursor: pointer;
     font-size: var(--control-icon-xs);
     line-height: 1;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     flex-shrink: 0;
 
     &:hover {
@@ -318,7 +332,7 @@
     box-shadow: none !important;
     appearance: none;
     -webkit-appearance: none;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition: background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 
     &::placeholder {
       color: var(--color-text-muted, #a0a0a0);
@@ -348,7 +362,7 @@
     font-weight: var(--font-weight-medium, 500);
     border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
     background: transparent;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition: background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     border-radius: 3px;
     margin-bottom: 0;
     padding-bottom: 8px;
@@ -370,7 +384,10 @@
     gap: 8px;
     padding: 6px 10px;
     cursor: pointer;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      opacity var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     font-size: var(--font-size-sm, 14px);
     color: var(--color-text-secondary, #e5e5e5);
     border-radius: 3px;
@@ -447,7 +464,10 @@
     justify-content: center;
     flex-shrink: 0;
     font-size: var(--select-checkmark-size);
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     background: transparent;
     color: transparent;
 
@@ -497,7 +517,9 @@
     gap: 8px;
     padding: 8px 12px;
     cursor: pointer;
-    transition: all var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-fast, 0.15s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     font-size: var(--font-size-sm, 14px);
     color: var(--color-accent-500, #60a5fa);
     border-radius: 3px;
@@ -604,6 +626,28 @@
     .select__checkbox {
       width: 18px;
       height: 18px;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select {
+    &__trigger,
+    &__tag,
+    &__tag-remove,
+    &__clear,
+    &__arrow,
+    &__search-clear,
+    &__search-input,
+    &__select-all,
+    &__option,
+    &__checkbox,
+    &__custom-value-hint {
+      transition: none;
+    }
+
+    &__dropdown {
+      animation: none;
     }
   }
 }

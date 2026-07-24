@@ -308,7 +308,10 @@
     font-weight: $font-weight-medium;
     color: var(--color-text-secondary);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
     white-space: nowrap;
     position: relative;
 
@@ -405,7 +408,9 @@
     background: transparent;
     border: 1px solid var(--border-base, rgba(255, 255, 255, 0.14));
     border-radius: var(--size-radius-sm, 6px);
-    transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
     min-height: 36px;
 
     
@@ -476,7 +481,9 @@
     font-weight: $font-weight-medium;
     color: var(--color-text-secondary);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
     white-space: nowrap;
     height: 32px;
 
@@ -630,7 +637,9 @@
     border: none;
     background: var(--element-bg-subtle);
     color: var(--color-text-muted);
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
 
     
     &:hover {
@@ -780,7 +789,10 @@
     font-size: var(--font-size-sm);
   font-family: var(--font-family-sans);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
 
     
     &:hover:not(:disabled) {
@@ -946,7 +958,11 @@
       color: var(--color-text-primary, #e8e8e8);
       font-size: var(--font-size-sm);
   font-family: var(--font-family-sans);
-      transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+      transition:
+        background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+        opacity var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
       min-height: 36px;
 
       
@@ -1487,7 +1503,9 @@
     background: transparent;
     border-radius: var(--size-radius-sm, 6px);
     border: 1px solid var(--border-base, rgba(255, 255, 255, 0.14));
-    transition: all var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+    transition:
+      background-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1)),
+      border-color var(--motion-base, 0.3s) var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
 
     &:hover {
       background: var(--element-bg-subtle, rgba(255, 255, 255, 0.05));
@@ -1649,7 +1667,10 @@
 
   &__provider-card {
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard,
+      transform $motion-base $easing-standard;
     border: 1px solid var(--border-base);
 
     &:hover {
@@ -1735,7 +1756,9 @@
 
   &__custom-option {
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      border-color $motion-base $easing-standard;
     border: 1px dashed var(--border-base);
 
     &:hover {
@@ -1792,7 +1815,9 @@
     color: var(--color-text-secondary);
     font-size: var(--font-size-sm);
     cursor: pointer;
-    transition: all $motion-base $easing-standard;
+    transition:
+      background-color $motion-base $easing-standard,
+      color $motion-base $easing-standard;
 
     &:hover {
       color: var(--color-accent-500);
@@ -1809,6 +1834,29 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .void-ai-model-config {
+    &__tab,
+    &__search,
+    &__category-tab,
+    &__capability-tag,
+    &__action-btn,
+    &__form-group > input,
+    &__form-group > select,
+    &__form-group > textarea,
+    &__proxy-switch-wrapper,
+    &__provider-card,
+    &__custom-option,
+    &__back-button {
+      transition: none;
+    }
+
+    &__provider-card:hover {
+      transform: none;
+    }
   }
 }
 

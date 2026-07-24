@@ -47,7 +47,10 @@
     box-shadow: none;
     background: transparent;
     color: var(--color-text-muted);
-    transition: all 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
 
     svg {
       width: 12px !important;
@@ -174,6 +177,12 @@
     font-size: var(--font-size-xs);
     color: var(--color-text-muted);
     line-height: $line-height-relaxed;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .void-debug-config__icon-button {
+    transition: none;
   }
 }
 
