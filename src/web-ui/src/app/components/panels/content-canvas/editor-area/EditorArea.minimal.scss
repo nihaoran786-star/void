@@ -127,14 +127,7 @@
       }
 
       .btw-session-panel__header {
-        gap: 6px;
-        min-height: 32px;
-        padding: 7px 10px;
-        border-bottom-style: solid;
-      }
-
-      .btw-session-panel__header-right {
-        margin-left: auto;
+        display: none;
       }
 
       .btw-session-panel__composer {

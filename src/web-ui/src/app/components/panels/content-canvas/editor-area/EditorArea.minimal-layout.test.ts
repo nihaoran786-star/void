@@ -30,6 +30,9 @@ describe('EditorArea minimal short-drama team layout contract', () => {
       /> \.canvas-tab__popout-btn,[\s\S]*?> \.canvas-tab__close-btn \{[\s\S]*?position: absolute;/,
     );
     expect(source).toMatch(
+      /\.btw-session-panel__header \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
       /\.btw-session-panel__composer \{[\s\S]*?padding: var\(--workspace-space-2\);[\s\S]*?border: 0;[\s\S]*?background: var\(--workspace-surface-panel\);/,
     );
     expect(source).toMatch(

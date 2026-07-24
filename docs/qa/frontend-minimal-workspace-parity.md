@@ -1128,8 +1128,8 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   theme, or font preference state. Maximized and 719px desktop checks show the
   `外观 / 界面 / 字体大小` hierarchy with zero document overflow.
 - [x] New Task office examples remain absolutely positioned outside the
-  greeting and mode-switch layout. The supporting strip is capped at 460px,
-  uses three 30px cards at both maximized and 719px widths, and truncates only
+  greeting and mode-switch layout. The supporting strip is capped at 400px,
+  uses three 26px cards at both maximized and 719px widths, and truncates only
   overflowing card labels. Switching between Code and Office leaves the
   greeting and composer coordinates unchanged; the narrow document has zero
   horizontal overflow.
@@ -1138,3 +1138,9 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   form two compact rows; all five filter buttons stay inside x=268–689 and the
   document remains 719/719. Agent filtering, counts, creation, data loading,
   cards, and Classic presentation remain unchanged.
+- [x] Short Drama's Minimal team projection now uses the canvas tab as its
+  single visible stage-agent identity and hides the redundant empty BTW title
+  row only inside that projection. The shared BTW component, child sessions,
+  runtime state, and stage-agent ordering remain unchanged. Maximized and 719px
+  desktop checks have zero horizontal overflow; outer canvas hide/reopen and
+  team collapse/reopen preserve the active `资产 AI` tab.
