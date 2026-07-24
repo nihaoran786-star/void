@@ -116,6 +116,47 @@ replace the working gallery or add decorative imagery.
   y=340. At a 719×498 WebView the switch ends at y=190 and examples begin at
   y=199. Both documents retain zero horizontal overflow.
 
+### Resolved follow-up — Mini App cards retained legacy visual effects
+
+- **Location:** `src/web-ui/src/app/scenes/miniapps/views/MiniAppGalleryView.minimal.scss`
+- **Category:** Performance / anti-pattern / theming
+- **Impact:** The compact Minimal cards still inherited the classic card's
+  inline purple-blue gradient, blur, bounce easing, scale-on-hover, glow dots,
+  heavy font weight, and large shadow. The previous presentation contract only
+  proved that the Minimal stylesheet contained no decorative literals; it did
+  not prove that inherited classic effects were neutralized.
+- **Remediation:** The Minimal projection now explicitly removes both gradient
+  paint layers, animations, blur, scaling, glow, and shadows. Cards, tags,
+  status dots, typography, hover states, and actions use shared workspace
+  tokens. Classic presentation and Mini App behavior remain unchanged.
+- **Evidence:** A rendered card reports `animation-name: none`,
+  `transform: none`, `box-shadow: none`, and tokenized 13px/600 title type.
+  Both inherited gradient pseudo-elements resolve to `display: none`, and the
+  icon surface reports `backdrop-filter: none`. Full and 719px gallery views
+  retain zero horizontal overflow.
+
+### Resolved follow-up — Mini App customization looked detached and could clip
+
+- **Location:** `src/web-ui/src/app/scenes/miniapps/MiniAppScene.minimal.scss`
+- **Category:** Responsive design / accessibility / visual hierarchy
+- **Impact:** The customization surface appeared as a rounded floating card
+  with a 24px/70px shadow beside the running app. At a 719×498 WebView its
+  existing content consumed nearly the full available height while the panel
+  used `overflow: hidden`; an update notice, error, or editor session could
+  make actions unreachable.
+- **Remediation:** A Minimal-only scene projection integrates customization as
+  a border-separated split panel with no decorative shadow. The panel is
+  vertically scrollable, keeps its header and footer sticky, and becomes a
+  complete edge-to-edge content overlay at 720px and below. The running Mini
+  App, draft lifecycle, BTW editor session, permission confirmation, and apply
+  flow are untouched.
+- **Evidence:** At maximized width the panel occupies a bounded 520px axis,
+  fills the scene height, and reports `overflow-y: auto` with no shadow. At a
+  719×498 WebView it occupies the complete 455×410 content region; the 28px
+  close control and sticky footer remain visible, and document width remains
+  719/719. The narrow gallery title is also visible again instead of leaving
+  an empty header beside its actions.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -124,13 +165,16 @@ replace the working gallery or add decorative imagery.
   calendar grid within the scene container.
 - Professional Agents uses a bounded content axis, semantic workspace tokens,
   visible focus treatment, reduced-motion rules, and deferred card rendering.
+- Mini Apps preserve detail, launch, delete, running-state, customization, and
+  draft-preview entry points while their Minimal presentation avoids decorative
+  paint and remains complete at both maximized and 719px desktop widths.
 
 ## Next actions
 
 1. Apply the shared pointer-coarse target policy only after verifying the
    desktop shell reports coarse input accurately.
-2. Continue `$normalize` on Assistant configuration and Mini App customization
-   detail pages; the Connector entry currently and intentionally reuses the
-   Settings/MCP interface rather than mounting a separate catalog.
+2. Continue `$normalize` on Agent creation, Review Team detail, and remaining
+   long Settings forms; the Connector entry currently and intentionally reuses
+   the Settings/MCP interface rather than mounting a separate catalog.
 3. Finish with `$polish` after the remaining catalog pages pass maximized and
    719px desktop checks.

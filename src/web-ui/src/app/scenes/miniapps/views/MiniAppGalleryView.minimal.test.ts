@@ -88,6 +88,24 @@ describe('Mini App gallery Minimal presentation contract', () => {
     expect(source).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
+  it('neutralizes the legacy card gradients, bounce motion, blur, and glow', () => {
+    expect(source).toMatch(
+      /\.miniapp-card \{[\s\S]*?animation: none;[\s\S]*?&::before \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
+      /&:hover \{[\s\S]*?box-shadow: none;[\s\S]*?transform: none;/,
+    );
+    expect(source).toMatch(
+      /\.miniapp-card__icon-area \{[\s\S]*?backdrop-filter: none;/,
+    );
+    expect(source).toMatch(
+      /\.miniapp-card__run-dot,[\s\S]*?box-shadow: none;[\s\S]*?animation: none;/,
+    );
+    expect(source).toMatch(
+      /\.miniapp-card__footer \{[\s\S]*?&::after \{[\s\S]*?display: none;/,
+    );
+  });
+
   it('localizes known catalog categories without changing category identities', () => {
     const simplifiedChinese = JSON.parse(
       readSource('../../../../locales/zh-CN/scenes/miniapp.json'),

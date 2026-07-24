@@ -2,6 +2,7 @@
  * MiniAppScene styles
  */
 @use '../../../component-library/styles/tokens' as *;
+@use './MiniAppScene.minimal' as minimal;
 
 .miniapp-scene {
   display: flex;
@@ -510,3 +511,5 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+@include minimal.styles;

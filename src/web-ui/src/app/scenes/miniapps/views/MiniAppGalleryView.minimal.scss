@@ -209,10 +209,89 @@
       height: 132px;
       min-height: 132px;
       contain: layout paint style;
+      color: var(--workspace-text-secondary);
+      background: var(--workspace-surface-panel);
+      border: 1px solid var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-panel);
+      box-shadow: none;
+      animation: none;
+      transition:
+        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+        border-color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+      &::before {
+        display: none;
+      }
+
+      &:hover {
+        background: var(--workspace-surface-hover);
+        border-color: var(--workspace-border-strong);
+        box-shadow: none;
+        transform: none;
+      }
+
+      &:active {
+        background: var(--workspace-surface-active);
+        transform: none;
+      }
+
+      &--customizing {
+        border-color: var(--workspace-focus-ring-subtle);
+        box-shadow: none;
+      }
     }
 
     .miniapp-card__header {
       padding: var(--workspace-space-2) var(--workspace-space-3) 0;
+    }
+
+    .miniapp-card__icon-area {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      border-radius: var(--workspace-radius-control);
+      background: var(--workspace-surface-active);
+      backdrop-filter: none;
+    }
+
+    .miniapp-card__icon {
+      color: var(--workspace-text-secondary);
+      animation: none;
+      transition: color var(--workspace-motion-fast) var(--workspace-easing-standard);
+    }
+
+    .miniapp-card__status-dots {
+      top: var(--workspace-space-2);
+      right: var(--workspace-space-2);
+      gap: var(--workspace-space-1);
+    }
+
+    .miniapp-card__run-dot,
+    .miniapp-card__customize-dot {
+      width: 6px;
+      height: 6px;
+      box-shadow: none;
+      animation: none;
+    }
+
+    .miniapp-card__run-dot {
+      background: var(--workspace-status-success-text);
+    }
+
+    .miniapp-card__customize-dot {
+      background: var(--workspace-status-info-text);
+    }
+
+    .miniapp-card__name {
+      color: var(--workspace-text-primary);
+      font-size: var(--workspace-font-size-control);
+      font-weight: var(--workspace-font-weight-strong);
+    }
+
+    .miniapp-card__version {
+      color: var(--workspace-text-muted);
+      font-family: var(--workspace-font-family);
+      font-size: var(--workspace-font-size-meta);
+      letter-spacing: 0;
     }
 
     .miniapp-card__body {
@@ -223,6 +302,9 @@
     .miniapp-card__desc-inner {
       display: block;
       overflow: hidden;
+      color: var(--workspace-text-secondary);
+      font-size: var(--workspace-font-size-label);
+      font-weight: var(--workspace-font-weight-regular);
       white-space: nowrap;
       text-overflow: ellipsis;
       -webkit-line-clamp: 1;
@@ -239,13 +321,53 @@
       display: none;
     }
 
+    .miniapp-card__tag {
+      color: var(--workspace-text-muted);
+      background: var(--workspace-surface-active);
+      border-color: var(--workspace-border-subtle);
+      border-radius: var(--workspace-radius-control);
+      font-size: var(--workspace-font-size-meta);
+    }
+
     .miniapp-card__footer {
       min-height: 30px;
+      border-top: 1px solid var(--workspace-border-subtle);
+      border-radius: 0;
+
+      &::after {
+        display: none;
+      }
     }
 
     .miniapp-card__actions {
       min-height: 30px;
       padding: 0 var(--workspace-space-2);
+    }
+
+    .miniapp-card__action-btn {
+      width: var(--workspace-icon-target);
+      height: var(--workspace-icon-target);
+      color: var(--workspace-text-muted);
+      background: transparent;
+      border-radius: var(--workspace-radius-control);
+
+      &--primary:hover,
+      &--danger:hover,
+      &--stop:hover {
+        background: var(--workspace-surface-active);
+      }
+
+      &--primary:hover {
+        color: var(--workspace-text-primary);
+      }
+
+      &--danger:hover {
+        color: var(--workspace-status-error-text);
+      }
+
+      &--stop:hover {
+        color: var(--workspace-status-success-text);
+      }
     }
 
     .miniapp-card,
@@ -277,15 +399,13 @@
   @media (max-width: 720px) {
     .void-ui--minimal .miniapp-gallery {
       .gallery-page-header__title {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip-path: inset(50%);
+        position: static;
+        width: auto;
+        height: auto;
+        margin: 0;
+        overflow: visible;
+        clip-path: none;
         white-space: nowrap;
-        border: 0;
       }
 
       .gallery-zone__header {
