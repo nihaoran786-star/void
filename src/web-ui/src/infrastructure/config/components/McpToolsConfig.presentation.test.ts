@@ -19,9 +19,13 @@ describe('McpToolsConfig empty presentation', () => {
     expect(source).toContain(
       'className="void-collection-empty void-mcp-tools__empty"',
     );
+    expect(source).toContain("tMcp('empty.noServers')");
+    expect(source).toContain("tMcp('empty.noServersHint')");
     expect(source).toContain('onClick={() => setShowJsonEditor(true)}');
     expect(styles).toContain('&__section--empty');
     expect(styles).toContain('&__empty');
-    expect(styles).toContain('align-items: flex-start;');
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto;');
+    expect(styles).toContain('border-top: 1px solid var(--workspace-border-subtle);');
+    expect(styles).toContain('@container config-panel (max-width: 360px)');
   });
 });

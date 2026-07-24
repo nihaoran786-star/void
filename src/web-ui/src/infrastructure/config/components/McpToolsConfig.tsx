@@ -1167,6 +1167,14 @@ const McpToolsConfig: React.FC = () => {
 
           {isMcpEmpty && (
             <div className="void-collection-empty void-mcp-tools__empty">
+              <div className="void-mcp-tools__empty-copy">
+                <span className="void-mcp-tools__empty-title">
+                  {tMcp('empty.noServers')}
+                </span>
+                <span className="void-mcp-tools__empty-hint">
+                  {tMcp('empty.noServersHint')}
+                </span>
+              </div>
               <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
                 <FileJson size={14} />
                 {tMcp('actions.jsonConfig')}

@@ -9,9 +9,32 @@
   }
 
   &__empty {
-    align-items: flex-start;
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--workspace-space-4);
+    width: 100%;
     padding: 0;
+  }
+
+  &__empty-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--workspace-space-1);
+    min-width: 0;
+  }
+
+  &__empty-title {
+    color: var(--workspace-text-primary);
+    font-size: var(--workspace-font-size-label);
+    font-weight: var(--workspace-font-weight-medium);
+    line-height: var(--workspace-line-height-title);
+  }
+
+  &__empty-hint {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    line-height: var(--workspace-line-height-body);
   }
 
   // ─── JSON editor (MCP) ─────────────────────────────────────────────────────
@@ -164,5 +187,20 @@
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
     word-break: break-all;
+  }
+}
+
+.void-ui--minimal .void-mcp-tools {
+  .void-mcp-tools__empty {
+    padding: var(--workspace-space-3) 0;
+    border-top: 1px solid var(--workspace-border-subtle);
+    border-bottom: 1px solid var(--workspace-border-subtle);
+  }
+}
+
+@container config-panel (max-width: 360px) {
+  .void-mcp-tools__empty {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--workspace-space-2);
   }
 }

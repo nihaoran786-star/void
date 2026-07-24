@@ -213,6 +213,26 @@ replace the working gallery or add decorative imagery.
   blocked by the pre-existing short-drama CJK source count (31 candidates
   against a budget of 25); none of those service files are part of this change.
 
+### Resolved follow-up — MCP empty state had no explanatory hierarchy
+
+- **Location:** `src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx`
+  and `McpToolsConfig.scss`
+- **Category:** Empty-state usability / visual hierarchy / responsive design
+- **Severity before remediation:** P2
+- **Impact:** With no configured MCP servers, the maximized settings page showed
+  only a detached `JSON 配置` button beneath the list heading. The action was
+  functional but did not explain the current state or what configuring it would
+  accomplish, while the remaining 840px content axis appeared unfinished.
+- **Remediation:** The existing localized empty title and hint now accompany the
+  same JSON action in one flat, divider-bound row. It adds no new card, catalog,
+  configuration path, or runtime behavior. The row uses the shared workspace
+  typography, spacing, border, and responsive container tokens.
+- **Evidence:** At maximized width the empty state fills the bounded 840px
+  content axis as a single approximately 62px row. At a 719×498 WebView it
+  remains one 379px-wide row with no document overflow. The JSON editor still
+  opens from the only action, retains the existing loaded configuration and
+  examples, and closes without writing when cancelled.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
