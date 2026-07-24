@@ -2,6 +2,8 @@
   .void-ui--minimal {
     .nursery-gallery,
     .nursery-page {
+      --nursery-content-max: 1120px;
+
       color: var(--workspace-text-secondary);
       background: var(--workspace-surface-canvas);
       font-family: var(--workspace-font-family);
@@ -10,14 +12,25 @@
     }
 
     .nursery-gallery {
+      .gallery-page-header {
+        padding-inline:
+          max(
+            var(--workspace-space-4),
+            calc((100% - var(--nursery-content-max)) / 2)
+          );
+      }
+
       .nursery-template-hero {
         position: relative;
         align-items: stretch;
         justify-content: stretch;
         gap: 0;
-        width: calc(100% - (var(--workspace-space-4) * 2));
-        max-width: 1440px;
-        min-height: 112px;
+        width: min(
+          calc(100% - (var(--workspace-space-4) * 2)),
+          var(--nursery-content-max)
+        );
+        max-width: none;
+        min-height: 96px;
         margin: var(--workspace-space-4) auto 0;
         padding: 0;
         overflow: hidden;
@@ -77,7 +90,7 @@
         align-items: center;
         gap: var(--workspace-space-1) var(--workspace-space-4);
         width: 100%;
-        padding: var(--workspace-space-4);
+        padding: var(--workspace-space-3) var(--workspace-space-4);
       }
 
       .nursery-template-card__title {
@@ -116,10 +129,10 @@
 
       .nursery-template-card__stat {
         min-width: 0;
-        padding: 1px var(--workspace-space-2);
-        background: var(--workspace-surface-active);
-        border-color: var(--workspace-border-subtle);
-        border-radius: var(--workspace-radius-control);
+        padding: 0 var(--workspace-space-1);
+        background: transparent;
+        border-color: transparent;
+        border-radius: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -145,7 +158,13 @@
       }
 
       .gallery-zones {
-        padding-top: var(--workspace-space-2);
+        width: min(
+          calc(100% - (var(--workspace-space-4) * 2)),
+          var(--nursery-content-max)
+        );
+        max-width: none;
+        margin-inline: auto;
+        padding: var(--workspace-space-2) 0 var(--workspace-space-4);
       }
 
       .gallery-grid {
@@ -153,20 +172,58 @@
       }
 
       .assistant-card {
-        height: 132px;
-        min-height: 132px;
+        height: 116px;
+        min-height: 116px;
         content-visibility: auto;
-        contain-intrinsic-size: auto 132px;
+        contain-intrinsic-size: auto 116px;
       }
 
       .assistant-card__header {
         padding: var(--workspace-space-2) var(--workspace-space-3) 0;
       }
 
+      .assistant-card__avatar {
+        width: 28px;
+        height: 28px;
+        color: var(--workspace-accent);
+        background:
+          color-mix(in srgb, var(--workspace-accent) 10%, transparent);
+        border-color:
+          color-mix(
+            in srgb,
+            var(--workspace-accent) 22%,
+            var(--workspace-border-subtle)
+          );
+      }
+
+      .assistant-card__emoji {
+        font-size: var(--workspace-font-size-title);
+      }
+
+      .assistant-card__primary-badge {
+        color: var(--workspace-accent);
+        background:
+          color-mix(in srgb, var(--workspace-accent) 8%, transparent);
+        border-color:
+          color-mix(
+            in srgb,
+            var(--workspace-accent) 18%,
+            var(--workspace-border-subtle)
+          );
+      }
+
       .assistant-card__badges {
         flex-wrap: nowrap;
         max-width: 100%;
         overflow: hidden;
+      }
+
+      .assistant-card__badges .badge {
+        min-width: 0;
+        max-width: min(100%, 24ch);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .assistant-card__body {
@@ -185,13 +242,33 @@
       .assistant-card__footer-hint {
         display: none;
       }
+
+      @media (hover: hover) and (pointer: fine) {
+        .assistant-card__footer-actions {
+          opacity: 0.58;
+          transition:
+            opacity var(--workspace-motion-fast)
+            var(--workspace-easing-standard);
+        }
+
+        .assistant-card:hover .assistant-card__footer-actions,
+        .assistant-card:focus-within .assistant-card__footer-actions {
+          opacity: 1;
+        }
+      }
     }
 
     .nursery-page__bar,
     .acp-page__bar {
+      width: min(
+        calc(100% - (var(--workspace-space-4) * 2)),
+        var(--nursery-content-max)
+      );
       min-height: var(--workspace-icon-target);
+      margin-inline: auto;
       padding: var(--workspace-space-1) var(--workspace-space-3);
       border-bottom: 0;
+      box-sizing: border-box;
     }
 
     .nursery-page__back {
@@ -217,7 +294,7 @@
 
     .acp-layout {
       width: 100%;
-      max-width: 1520px;
+      max-width: var(--nursery-content-max);
       margin: 0 auto;
       gap: var(--workspace-space-4);
       padding: 0 var(--workspace-space-4) var(--workspace-space-4);
@@ -604,6 +681,18 @@
         grid-template-columns: minmax(0, 1fr);
       }
 
+      .gallery-zone__header {
+        flex-direction: row;
+        align-items: center;
+      }
+
+      .gallery-zone__tools {
+        width: auto;
+        margin-left: auto;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+      }
+
       .nursery-template-hero {
         min-height: 108px;
       }
@@ -611,6 +700,16 @@
       .nursery-template-card__content {
         width: 100%;
         padding: var(--workspace-space-4);
+      }
+
+      .nursery-template-card__action {
+        width: var(--workspace-icon-target);
+        padding: 0;
+        justify-content: center;
+      }
+
+      .nursery-template-card__action span {
+        display: none;
       }
     }
   }
@@ -649,6 +748,15 @@
         display: none;
       }
 
+      .nursery-gallery .gallery-page-header {
+        padding-inline: var(--workspace-space-3);
+      }
+
+      .nursery-gallery .gallery-zones {
+        width: calc(100% - (var(--workspace-space-3) * 2));
+        padding-inline: 0;
+      }
+
       .acp-layout {
         padding-inline: var(--workspace-space-3);
       }
@@ -674,6 +782,7 @@
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal {
       .nursery-template-card,
+      .assistant-card__footer-actions,
       .nursery-page__back,
       .acp-left-header__name,
       .acp-left-header__meta-tag,

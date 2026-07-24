@@ -64,11 +64,15 @@ describe('Nursery Minimal presentation contract', () => {
   });
 
   it('uses a compact graphic-free configuration header', () => {
+    expect(source).toContain('--nursery-content-max: 1120px;');
+    expect(source).toMatch(
+      /\.gallery-page-header \{[\s\S]*?calc\(\(100% - var\(--nursery-content-max\)\) \/ 2\)/,
+    );
     expect(source).toMatch(
       /\.nursery-template-brand-mark \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-hero \{[\s\S]*?min-height: 112px;[\s\S]*?background: var\(--workspace-surface-panel\);/,
+      /\.nursery-template-hero \{[\s\S]*?min-height: 96px;[\s\S]*?background: var\(--workspace-surface-panel\);/,
     );
     expect(source).not.toContain('/visuals/void-robot-hero.webp');
     expect(source).toMatch(
@@ -90,7 +94,7 @@ describe('Nursery Minimal presentation contract', () => {
       /\.nursery-gallery \{[\s\S]*?\.gallery-grid \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
     );
     expect(source).toMatch(
-      /\.assistant-card \{[\s\S]*?height: 132px;[\s\S]*?content-visibility: auto;[\s\S]*?contain-intrinsic-size: auto 132px;/,
+      /\.assistant-card \{[\s\S]*?height: 116px;[\s\S]*?content-visibility: auto;[\s\S]*?contain-intrinsic-size: auto 116px;/,
     );
     expect(source).toMatch(
       /\.assistant-card__vibe \{[\s\S]*?-webkit-line-clamp: 1;/,
@@ -98,11 +102,29 @@ describe('Nursery Minimal presentation contract', () => {
     expect(source).toMatch(
       /\.assistant-card__footer-hint \{[\s\S]*?display: none;/,
     );
+    expect(source).toMatch(
+      /\.assistant-card__badges \.badge \{[\s\S]*?max-width: min\(100%, 24ch\);[\s\S]*?text-overflow: ellipsis;[\s\S]*?white-space: nowrap;/,
+    );
+    expect(source).toMatch(
+      /\.assistant-card__avatar \{[\s\S]*?color: var\(--workspace-accent\);[\s\S]*?color-mix\(/,
+    );
+    expect(source).toMatch(
+      /@media \(hover: hover\) and \(pointer: fine\) \{[\s\S]*?\.assistant-card__footer-actions \{[\s\S]*?opacity: 0\.58;/,
+    );
   });
 
   it('collapses the assistant grid to one shrink-safe column on narrow windows', () => {
     expect(source).toMatch(
       /@media \(max-width: 900px\) \{[\s\S]*?\.void-ui--minimal \.nursery-gallery \{[\s\S]*?\.gallery-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.gallery-zone__header \{[\s\S]*?flex-direction: row;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.gallery-zone__tools \{[\s\S]*?width: auto;[\s\S]*?margin-left: auto;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.nursery-template-card__action span \{[\s\S]*?display: none;/,
     );
   });
 
@@ -115,6 +137,12 @@ describe('Nursery Minimal presentation contract', () => {
     expect(source).toMatch(/\.aqi__hint \{[\s\S]*?display: none;/);
     expect(source).toMatch(
       /&:focus-within \{[\s\S]*?border-color: var\(--workspace-focus-ring-subtle\);[\s\S]*?outline: none;/,
+    );
+    expect(source).toMatch(
+      /\.acp-layout \{[\s\S]*?max-width: var\(--nursery-content-max\);/,
+    );
+    expect(source).toMatch(
+      /\.nursery-page__bar,[\s\S]*?\.acp-page__bar \{[\s\S]*?var\(--nursery-content-max\)[\s\S]*?margin-inline: auto;/,
     );
   });
 

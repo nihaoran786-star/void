@@ -208,6 +208,19 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   card detail open/close, hover disclosure, and 719x498 narrow rendering with
   zero horizontal overflow. Three warm switch cycles remained within
   40.8–56.1ms over two animation frames.
+- [x] Minimal Assistant and its retained editor share one bounded 1120px
+  content axis instead of stretching cards and the editor across the full
+  desktop canvas. The configuration module contracts from 112px to 96px at
+  wide width, assistant cards from 132px to 116px, and long identity badges
+  use a 24-character visual cap with a real ellipsis. Accent color is limited
+  to the small identity target and primary marker; cards retain native
+  identity data, keyboard focus, create-session/delete actions, and
+  `content-visibility`. At the real 719x498 CSS-pixel viewport the configuration
+  action becomes icon-only, the count remains on the section-heading row, and
+  the editor stacks without horizontal overflow. Three warm Skills/Assistant
+  switch cycles measured Assistant at 34.3–48.6ms over two animation frames;
+  the surface retained 0 gradients, 0 backdrop filters, and the same 1,353 DOM
+  elements as its measured baseline.
 
 ## Composer and Conversation
 
