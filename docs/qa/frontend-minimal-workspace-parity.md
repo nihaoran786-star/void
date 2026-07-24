@@ -1099,3 +1099,15 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   longer leaves the canvas permanently collapsed. Draft entry performs its
   one-time cleanup, then the shared header control can hide and reopen Browser
   or other canvas tabs without creating a workspace or persisted session.
+- [x] Real maximized and 719px WebView review covers New Task, Assistant
+  Nursery, installed Skills, Professional Agents, and the MCP connector entry.
+  New Task keeps its 315px by 31px creation-mode example strip independent of
+  the centered heading and lower composer; Nursery, Skills, and Professional
+  Agents retain their two/four-column wide layouts and single-column narrow
+  projections with zero horizontal overflow.
+- [x] The empty MCP connector entry now exposes one compact JSON configuration
+  action instead of duplicating a header icon, explanatory copy, and a framed
+  empty card. The existing JSON editor open/cancel path, MCP loading, server
+  state, persistence, and API boundaries are unchanged; maximized and 719px
+  desktop evidence confirms the action stays aligned to the content axis with
+  zero horizontal overflow.

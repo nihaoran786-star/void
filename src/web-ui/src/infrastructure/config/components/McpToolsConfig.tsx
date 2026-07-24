@@ -929,6 +929,7 @@ const McpToolsConfig: React.FC = () => {
       {showJsonEditor ? <X size={16} /> : <FileJson size={16} />}
     </IconButton>
   );
+  const isMcpEmpty = !showJsonEditor && !mcpLoading && servers.length === 0;
 
   const renderServerBadge = (server: MCPServerInfo) => (
     <span className={`void-mcp-tools__status-badge ${getStatusClass(server.status)}`}>
@@ -1098,8 +1099,9 @@ const McpToolsConfig: React.FC = () => {
         {/* MCP section */}
         <ConfigPageSection
           title={tMcp('section.serverList.title')}
-          description={tMcp('section.serverList.description')}
-          extra={mcpSectionExtra}
+          description={isMcpEmpty ? undefined : tMcp('section.serverList.description')}
+          extra={isMcpEmpty ? undefined : mcpSectionExtra}
+          className={isMcpEmpty ? 'void-mcp-tools__section--empty' : ''}
         >
           {showJsonEditor && (
             <div className="void-mcp-tools__json-editor">
@@ -1163,9 +1165,9 @@ const McpToolsConfig: React.FC = () => {
             </div>
           )}
 
-          {!showJsonEditor && !mcpLoading && servers.length === 0 && (
-            <div className="void-collection-empty">
-              <Button variant="dashed" size="small" onClick={() => setShowJsonEditor(true)}>
+          {isMcpEmpty && (
+            <div className="void-collection-empty void-mcp-tools__empty">
+              <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
                 <FileJson size={14} />
                 {tMcp('actions.jsonConfig')}
               </Button>

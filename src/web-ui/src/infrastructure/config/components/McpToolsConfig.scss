@@ -1,6 +1,19 @@
 @use '../../../component-library/styles/tokens' as *;
 
 .void-mcp-tools {
+  &__section--empty {
+    .void-config-page-section__body {
+      background: transparent;
+      border: 0;
+    }
+  }
+
+  &__empty {
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0;
+  }
+
   // ─── JSON editor (MCP) ─────────────────────────────────────────────────────
   &__json-editor {
     padding: $size-gap-4;
