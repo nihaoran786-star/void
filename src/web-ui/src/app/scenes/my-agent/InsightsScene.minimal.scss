@@ -19,27 +19,29 @@
 
   .void-ui--minimal .insights-scene__header {
     box-sizing: border-box;
-    min-height: 52px;
-    padding: var(--workspace-space-2) var(--workspace-space-4);
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    padding: var(--workspace-space-3) var(--workspace-space-4);
     border-bottom: 1px solid var(--workspace-border-subtle);
   }
 
-  .void-ui--minimal .insights-scene__header-identity,
-  .void-ui--minimal .insights-scene__header-meta {
+  .void-ui--minimal .insights-scene__header-identity {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-4);
     width: 100%;
     min-width: 0;
   }
 
   .void-ui--minimal .insights-scene__header-title {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+    flex: 0 0 auto;
+    margin: 0;
+    color: var(--workspace-text-primary);
+    font-size: var(--workspace-font-size-body);
+    font-weight: var(--workspace-font-weight-strong);
+    line-height: var(--workspace-line-height-title);
     white-space: nowrap;
-    border: 0;
   }
 
   .void-ui--minimal .insights-scene__header-subtitle,
@@ -48,13 +50,15 @@
   }
 
   .void-ui--minimal .insights-scene__header-meta {
+    min-width: 0;
+    flex: 1 1 auto;
     display: block;
   }
 
   .void-ui--minimal .insights-scene__header-actions {
     min-width: 0;
     flex-wrap: nowrap;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: var(--workspace-space-2);
   }
 
@@ -143,7 +147,7 @@
 
   .void-ui--minimal .insights-scene__empty {
     display: flex;
-    min-height: 220px;
+    min-height: 168px;
     align-items: center;
     justify-content: center;
     flex-direction: column;
@@ -230,7 +234,15 @@
 
   @media (max-width: 720px) {
     .void-ui--minimal .insights-scene__header {
+      min-height: 92px;
+      align-items: stretch;
       padding-inline: var(--workspace-space-3);
+    }
+
+    .void-ui--minimal .insights-scene__header-identity {
+      align-items: stretch;
+      flex-direction: column;
+      gap: var(--workspace-space-2);
     }
 
     .void-ui--minimal .insights-scene__history {
@@ -239,6 +251,7 @@
 
     .void-ui--minimal .insights-scene__header-actions {
       align-items: center;
+      justify-content: space-between;
     }
 
     .void-ui--minimal .insights-scene__day-filters {

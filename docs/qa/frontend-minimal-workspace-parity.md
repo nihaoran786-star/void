@@ -1078,3 +1078,20 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   at 100% and 200% after the independent verification run; confirm card,
   toolbar, editor, episode rail, and glyph geometry have no clipping or
   horizontal overflow.
+
+## Global utility follow-up (2026-07-25)
+
+- [x] Real desktop review covers the Mini Apps gallery and account usage page
+  at maximized and 719px WebView widths. Mini Apps changes from five columns to
+  one without horizontal overflow; account usage renders 370 real daily cells,
+  reflows its metrics, and keeps the heatmap within its content axis.
+- [x] At 720px and below, SceneBar removes the optional separator and subtitle
+  before tabs become too narrow. Primary labels remain complete; wider windows
+  continue to show contextual subtitles such as `Settings / Account`.
+- [x] The Insights list restores a visible page title, keeps filters and report
+  generation on one compact desktop command row, and uses a bounded two-row
+  header on narrow windows. Empty and populated report states retain their
+  existing store and generation paths.
+- [x] These follow-ups remain presentation-only: no report generation, account
+  usage, authentication, Mini App runtime, session, or persistence interfaces
+  changed.

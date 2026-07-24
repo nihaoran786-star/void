@@ -24,15 +24,15 @@ describe('Insights Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.insights-/);
   });
 
-  it('uses one compact command row and keeps the scene title semantic', () => {
+  it('uses one compact command row with a visible scene title', () => {
     expect(source).toMatch(
-      /\.insights-scene__header \{[\s\S]*?min-height: 52px;[\s\S]*?border-bottom:/,
+      /\.insights-scene__header \{[\s\S]*?min-height: 60px;[\s\S]*?border-bottom:/,
     );
     expect(source).toMatch(
-      /\.insights-scene__header-title \{[\s\S]*?clip-path: inset\(50%\);/,
+      /\.insights-scene__header-title \{[\s\S]*?font-size: var\(--workspace-font-size-body\);[\s\S]*?white-space: nowrap;/,
     );
     expect(source).toMatch(
-      /\.insights-scene__header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?justify-content: space-between;/,
+      /\.insights-scene__header-actions \{[\s\S]*?flex-wrap: nowrap;[\s\S]*?justify-content: flex-end;/,
     );
     expect(source).toContain('overscroll-behavior-inline: contain;');
   });
