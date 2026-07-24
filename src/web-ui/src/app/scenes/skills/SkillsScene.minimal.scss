@@ -7,18 +7,14 @@
 
     .skills-tabs-bar {
       position: relative;
-      min-height: 180px;
-      align-items: flex-end;
+      min-height: 52px;
+      align-items: center;
       margin: var(--workspace-space-3) var(--workspace-space-3) 0;
-      padding: var(--workspace-space-3) var(--workspace-space-4);
+      padding: var(--workspace-space-2) var(--workspace-space-3);
       overflow: hidden;
       border: 1px solid var(--workspace-border-subtle);
       border-radius: var(--workspace-radius-panel);
       background-color: var(--workspace-surface-panel);
-      background-image: url('/visuals/void-skills-hero.webp');
-      background-position: center;
-      background-repeat: no-repeat;
-      background-size: cover;
     }
 
     .skills-tabs-bar__tabs {
@@ -829,8 +825,7 @@
   @media (max-width: 900px) {
     .void-ui--minimal .void-skills-scene {
       .skills-tabs-bar {
-        min-height: 132px;
-        background-position: 58% center;
+        min-height: 52px;
       }
 
       .skills-installed {
@@ -885,10 +880,9 @@
   @media (max-width: 520px) {
     .void-ui--minimal .void-skills-scene {
       .skills-tabs-bar {
-        min-height: 92px;
+        min-height: 48px;
         margin-inline: var(--workspace-space-2);
         padding: var(--workspace-space-2);
-        background-position: 68% center;
       }
 
       .skills-main__toolbar-search {

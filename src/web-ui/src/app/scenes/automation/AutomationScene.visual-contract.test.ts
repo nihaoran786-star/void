@@ -229,22 +229,21 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).not.toMatch(/\bvisibility:\s*hidden\b/);
   });
 
-  it('adds a wide luxury hero without replacing the compact header contract', () => {
+  it('keeps the wide header compact and free of decorative imagery', () => {
     const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
 
     for (const declaration of [
       'container-name: automation-scene;',
       'container-type: inline-size;',
       '@container automation-scene (min-width: 721px)',
-      'min-height: 152px;',
-      "background-image: url('/visuals/void-automation-hero.webp');",
-      'background-size: cover;',
+      'min-height: 72px;',
       "grid-template-areas:\n          'title title'\n          'nav range';",
-      'max-width: 46%;',
+      'max-width: 70%;',
       'letter-spacing: -0.04em;',
     ]) {
       expect(stylesheet).toContain(declaration);
     }
+    expect(stylesheet).not.toContain('/visuals/void-automation-hero.webp');
   });
 
   it('uses the shared motion contract for list-row feedback', () => {

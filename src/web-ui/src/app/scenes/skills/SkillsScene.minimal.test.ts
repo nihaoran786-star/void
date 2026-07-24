@@ -81,15 +81,16 @@ describe('Skills scene Minimal presentation contract', () => {
     );
   });
 
-  it('uses a real responsive product visual without adding runtime behavior', () => {
+  it('uses a compact responsive tab header without decorative imagery', () => {
     expect(source).toMatch(
-      /\.skills-tabs-bar \{[\s\S]*?min-height: 180px;[\s\S]*?background-image: url\('\/visuals\/void-skills-hero\.webp'\);/,
+      /\.skills-tabs-bar \{[\s\S]*?min-height: 52px;[\s\S]*?background-color: var\(--workspace-surface-panel\);/,
+    );
+    expect(source).not.toContain('/visuals/void-skills-hero.webp');
+    expect(source).toMatch(
+      /@media \(max-width: 900px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 52px;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 132px;/,
-    );
-    expect(source).toMatch(
-      /@media \(max-width: 520px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 92px;/,
+      /@media \(max-width: 520px\)[\s\S]*?\.skills-tabs-bar \{[\s\S]*?min-height: 48px;/,
     );
   });
 

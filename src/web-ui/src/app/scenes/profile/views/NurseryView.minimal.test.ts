@@ -63,21 +63,22 @@ describe('Nursery Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.(?:nursery|acp|aqi)/);
   });
 
-  it('compresses the gallery hero into a single low-noise configuration row', () => {
+  it('uses a compact graphic-free configuration header', () => {
     expect(source).toMatch(
       /\.nursery-template-brand-mark \{[\s\S]*?display: none;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-hero \{[\s\S]*?url\('\/visuals\/void-robot-hero\.webp'\)[\s\S]*?border-radius:/,
+      /\.nursery-template-hero \{[\s\S]*?min-height: 112px;[\s\S]*?background: var\(--workspace-surface-panel\);/,
     );
+    expect(source).not.toContain('/visuals/void-robot-hero.webp');
     expect(source).toMatch(
       /\.nursery-template-card \{[\s\S]*?width: 100%;[\s\S]*?background: transparent;[\s\S]*?border: 0;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-card__content \{[\s\S]*?width: min\(52%, 560px\);/,
+      /\.nursery-template-card__content \{[\s\S]*?grid-template-areas:[\s\S]*?width: 100%;/,
     );
     expect(source).toMatch(
-      /\.nursery-template-card__action \{[\s\S]*?display: inline-flex;[\s\S]*?background: var\(--workspace-text-primary\);/,
+      /\.nursery-template-card__action \{[\s\S]*?display: inline-flex;[\s\S]*?background: var\(--workspace-surface-raised\);/,
     );
     expect(source).toMatch(
       /\.nursery-template-card__deco \{[\s\S]*?display: none;/,
