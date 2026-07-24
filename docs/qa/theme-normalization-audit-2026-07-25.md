@@ -79,6 +79,22 @@ replace the working gallery or add decorative imagery.
   Search, filtering, installation, pagination, and persistence paths are
   unchanged.
 
+### Resolved follow-up — Assistant count looked interactive and disconnected
+
+- **Location:** `src/web-ui/src/app/scenes/profile/views/NurseryView.minimal.scss`
+- **Category:** Visual hierarchy / anti-pattern
+- **Impact:** The assistant count used a bordered 28px badge and inherited
+  `margin-left: auto`, placing a passive value roughly 900px away from its
+  section title on a maximized window. It looked like an isolated control
+  despite having no interaction.
+- **Remediation:** The Nursery Minimal projection keeps the existing count
+  node but presents it as borderless tabular metadata immediately after the
+  section heading. Shared Gallery components and Assistant data are unchanged.
+- **Evidence:** At maximized width the count moves from x=1509 to x=531 beside
+  the heading; at a 719px WebView it remains beside the heading at x=390. The
+  two-card and one-column projections retain their original 116px card height,
+  and both documents have zero horizontal overflow.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

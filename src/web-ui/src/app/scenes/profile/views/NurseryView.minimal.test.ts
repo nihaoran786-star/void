@@ -109,6 +109,12 @@ describe('Nursery Minimal presentation contract', () => {
       /\.assistant-card__avatar \{[\s\S]*?color: var\(--workspace-accent\);[\s\S]*?color-mix\(/,
     );
     expect(source).toMatch(
+      /\.gallery-zone__tools \{[\s\S]*?margin-left: 0;/,
+    );
+    expect(source).toMatch(
+      /\.gallery-zone-count \{[\s\S]*?min-width: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,
+    );
+    expect(source).toMatch(
       /@media \(hover: hover\) and \(pointer: fine\) \{[\s\S]*?\.assistant-card__footer-actions \{[\s\S]*?opacity: 0\.58;/,
     );
   });
@@ -121,7 +127,7 @@ describe('Nursery Minimal presentation contract', () => {
       /@media \(max-width: 900px\)[\s\S]*?\.gallery-zone__header \{[\s\S]*?flex-direction: row;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 900px\)[\s\S]*?\.gallery-zone__tools \{[\s\S]*?width: auto;[\s\S]*?margin-left: auto;/,
+      /@media \(max-width: 900px\)[\s\S]*?\.gallery-zone__tools \{[\s\S]*?width: auto;[\s\S]*?margin-left: 0;/,
     );
     expect(source).toMatch(
       /@media \(max-width: 900px\)[\s\S]*?\.nursery-template-card__action span \{[\s\S]*?display: none;/,
