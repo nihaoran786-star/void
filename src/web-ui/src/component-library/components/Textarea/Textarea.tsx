@@ -28,11 +28,14 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       value,
       onChange,
       style,
+      id,
       ...props
     },
     ref
   ) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const generatedId = React.useId();
+    const textareaId = id ?? generatedId;
     const [charCount, setCharCount] = React.useState(0);
 
     useImperativeHandle(ref, () => textareaRef.current!);
@@ -71,7 +74,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className={containerClass}>
         {label && (
-          <label className="void-textarea__label">
+          <label className="void-textarea__label" htmlFor={textareaId}>
             {label}
             {props.required && <span className="void-textarea__required">*</span>}
           </label>
@@ -79,6 +82,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <div className="void-textarea__wrapper">
           <textarea
             ref={textareaRef}
+            id={textareaId}
             className="void-textarea__field"
             value={value}
             onChange={handleChange}

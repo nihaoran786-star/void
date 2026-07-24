@@ -94,6 +94,7 @@
     "tabs": "個標籤頁",
     "preferredBrowser": "瀏覽器",
     "preferredBrowserDesc": "選擇要由 void 透過 CDP 控制的瀏覽器；預設表示跟隨系統預設瀏覽器。",
+    "defaultBrowser": "預設瀏覽器",
     "notInstalled": "未安裝"
   },
   "model": {

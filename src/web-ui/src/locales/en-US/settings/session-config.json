@@ -72,6 +72,7 @@
     "desktopOnly": "Browser control is only available in the void desktop app.",
     "preferredBrowser": "Browser",
     "preferredBrowserDesc": "Choose which browser void controls through CDP. Default follows the system default browser.",
+    "defaultBrowser": "Default browser",
     "notInstalled": "not installed",
     "status": "Connection",
     "statusDesc": "",

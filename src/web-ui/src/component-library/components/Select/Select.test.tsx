@@ -166,4 +166,37 @@ describe('Select', () => {
     expect(selectRoot?.className).toContain('select--placement-bottom');
     expect(dropdown?.className).toContain('select__dropdown--bottom');
   });
+
+  it('exposes the supplied accessible name on the combobox trigger', async () => {
+    await act(async () => {
+      root.render(
+        <Select
+          ariaLabel="Preferred browser"
+          options={[{ value: 'default', label: 'System default' }]}
+          value="default"
+        />
+      );
+    });
+
+    expect(
+      container.querySelector('[role="combobox"]')?.getAttribute('aria-label'),
+    ).toBe('Preferred browser');
+  });
+
+  it('associates its visible label with the combobox trigger', async () => {
+    await act(async () => {
+      root.render(
+        <Select
+          label="Browser"
+          options={[{ value: 'default', label: 'System default' }]}
+          value="default"
+        />
+      );
+    });
+
+    const label = container.querySelector('.select__label');
+    const trigger = container.querySelector('[role="combobox"]');
+    expect(label?.id).toBeTruthy();
+    expect(trigger?.getAttribute('aria-labelledby')).toBe(label?.id);
+  });
 });

@@ -22,6 +22,7 @@ export interface NumberInputProps {
   precision?: number;
   className?: string;
   label?: string;
+  inputAriaLabel?: string;
   draggable?: boolean;
   disableWheel?: boolean;
 }
@@ -42,6 +43,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
       precision = 0,
       className = '',
       label,
+      inputAriaLabel,
       draggable = false,
       disableWheel = false,
     },
@@ -52,6 +54,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     const [inputValue, setInputValue] = useState(String(value));
     const [isDragging, setIsDragging] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const inputId = React.useId();
     const dragStartRef = useRef<{ y: number; value: number } | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -189,7 +192,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
 
     return (
       <div className={containerClassName}>
-        {label && <label className="void-number-input__label">{label}</label>}
+        {label && <label className="void-number-input__label" htmlFor={inputId}>{label}</label>}
         <div
           ref={containerRef}
           className="void-number-input__container"
@@ -213,6 +216,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
                 }
                 (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
               }}
+              id={inputId}
               type="text"
               inputMode="decimal"
               className="void-number-input__input"
@@ -222,6 +226,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               onBlur={handleInputBlur}
               onKeyDown={handleKeyDown}
               disabled={disabled}
+              aria-label={inputAriaLabel ?? label}
             />
             {unit && <span className="void-number-input__unit">{unit}</span>}
           </div>

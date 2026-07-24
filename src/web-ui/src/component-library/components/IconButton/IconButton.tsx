@@ -29,6 +29,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>((
   tooltipFollowCursor = true,
   className = '',
   disabled,
+  'aria-label': ariaLabel,
   ...props
 }, ref) => {
   const classNames = [
@@ -45,6 +46,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>((
       ref={ref}
       className={classNames}
       disabled={disabled || isLoading}
+      aria-label={ariaLabel ?? (typeof tooltip === 'string' ? tooltip : undefined)}
       {...props}
     >
       {children}

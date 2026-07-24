@@ -296,6 +296,33 @@ replace the working gallery or add decorative imagery.
   Recording a temporary `F6` binding exposes `aria-label="撤销此更改"`; invoking
   it removes the pending change and the Apply action without persisting.
 
+### Resolved follow-up — Shared Settings controls lost their accessible names
+
+- **Location:** Shared `IconButton`, `Input`, `NumberInput`, `Select`, and
+  `Textarea` components plus `SessionConfig.tsx`
+- **Category:** Accessibility / localization / shared-component consistency
+- **Severity before remediation:** P1 for unnamed permission controls; P2 for
+  the untranslated default-browser option
+- **Impact:** Personalization and Permissions looked stable at narrow and
+  maximized desktop widths, but multiple icon buttons, switches, compact
+  numeric inputs, selects, and debug-template fields exposed no useful
+  accessible name. Visible `Input` and `Textarea` labels were also not bound to
+  their fields. The system browser option remained `Default browser` in the
+  Chinese UI.
+- **Remediation:** Shared controls now preserve explicit accessible names,
+  derive safe fallbacks from string tooltips or visible labels, and associate
+  native form labels through stable generated ids. Permissions supplies
+  contextual labels for switches and compact fields, while the existing locale
+  chain owns the default-browser name. Runtime settings, persistence, browser
+  control, Computer Use, and debug-template behavior remain unchanged.
+- **Evidence:** At a 719×498 WebView the Permissions document remains 719/719
+  with no horizontal overflow. Workspace search, auto execute, timeouts,
+  Computer Use, browser, log path, ingest port, all five language-template
+  switches, and region fields report localized names. The expanded template
+  textarea reports the visible label `插桩代码模板` through a matching
+  `htmlFor`/`id` pair, and the browser select displays `默认浏览器`. Five
+  focused component suites pass 10 tests.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

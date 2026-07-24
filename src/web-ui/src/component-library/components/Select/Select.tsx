@@ -31,6 +31,7 @@ export interface SelectProps {
   onChange?: (value: string | number | (string | number)[]) => void;
   size?: 'small' | 'medium' | 'large';
   label?: string;
+  ariaLabel?: string;
   multiple?: boolean;
   searchable?: boolean;
   clearable?: boolean;
@@ -60,6 +61,7 @@ export const Select: React.FC<SelectProps> = ({
   onChange,
   size = 'medium',
   label,
+  ariaLabel,
   multiple = false,
   searchable = false,
   clearable = false,
@@ -86,6 +88,7 @@ export const Select: React.FC<SelectProps> = ({
   const resolvedSearchPlaceholder = searchPlaceholder ?? t('select.search');
   const resolvedEmptyText = emptyText ?? t('select.emptyText');
   const resolvedCustomValueHint = customValueHint ?? t('select.customValueHint');
+  const labelId = React.useId();
   const [isOpen, setIsOpen] = useState(false);
   const [resolvedPlacement, setResolvedPlacement] = useState<'bottom' | 'top'>(placement);
   const [selectedValue, setSelectedValue] = useState<string | number | (string | number)[]>(
@@ -487,7 +490,7 @@ export const Select: React.FC<SelectProps> = ({
 
   return (
     <div className={classNames} ref={selectRef}>
-      {label && <label className="select__label">{label}</label>}
+      {label && <span className="select__label" id={labelId}>{label}</span>}
       
       <div
         className="select__trigger"
@@ -495,6 +498,8 @@ export const Select: React.FC<SelectProps> = ({
         onKeyDown={handleKeyDown}
         tabIndex={disabled ? -1 : 0}
         role="combobox"
+        aria-label={ariaLabel}
+        aria-labelledby={!ariaLabel && label ? labelId : undefined}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-disabled={disabled}

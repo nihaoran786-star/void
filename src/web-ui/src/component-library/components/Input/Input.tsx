@@ -28,9 +28,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   label,
   hint,
   className = '',
+  id,
   disabled,
   ...props
 }, ref) => {
+  const generatedId = React.useId();
+  const inputId = id ?? generatedId;
   const resolvedInputSize = size ?? inputSize;
   const classNames = [
     'void-input-wrapper',
@@ -45,11 +48,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
 
   return (
     <div className={classNames}>
-      {label && <label className="void-input-label">{label}</label>}
+      {label && <label className="void-input-label" htmlFor={inputId}>{label}</label>}
       <div className="void-input-container">
         {prefix && <span className="void-input-prefix">{prefix}</span>}
         <input
           ref={ref}
+          id={inputId}
           className="void-input"
           disabled={disabled}
           {...props}

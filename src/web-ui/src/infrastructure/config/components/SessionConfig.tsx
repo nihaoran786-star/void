@@ -703,7 +703,11 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
     : browserStatusLoading ? t('loading.text') : t('browserControl.notConnected');
   const browserSelectOptions: SelectOption[] = browserOptions.map((option) => ({
     value: option.value,
-    label: option.installed ? option.label : `${option.label} (${t('browserControl.notInstalled')})`,
+    label: option.installed
+      ? option.value === DEFAULT_BROWSER_CONTROL_BROWSER
+        ? t('browserControl.defaultBrowser')
+        : option.label
+      : `${option.label} (${t('browserControl.notInstalled')})`,
     disabled: !option.installed,
   }));
 
@@ -744,6 +748,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
               <Switch
                 checked={settings.enable_session_title_generation}
                 onChange={(e) => updateSetting('enable_session_title_generation', e.target.checked)}
+                aria-label={t('common.enable')}
                 size="small"
               />
             </div>
@@ -776,6 +781,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
               <Switch
                 checked={settings.enable_agent_companion}
                 onChange={(e) => updateSetting('enable_agent_companion', e.target.checked)}
+                aria-label={t('features.agentCompanion.enable')}
                 size="small"
               />
             </div>
@@ -788,6 +794,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
             <Select
               className="void-func-agent-config__pet-select"
               size="small"
+              ariaLabel={t('features.agentCompanion.displayModeLabel')}
               options={companionDisplayModeOptions}
               value={settings.agent_companion_display_mode}
               onChange={(value) => {
@@ -969,6 +976,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
               <Switch
                 checked={settings.enable_workspace_search}
                 onChange={(e) => updateSetting('enable_workspace_search', e.target.checked)}
+                aria-label={t('features.workspaceSearch.enable')}
                 size="small"
               />
             </div>
@@ -986,6 +994,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                 checked={skipToolConfirmation}
                 onChange={(e) => handleSkipToolConfirmationChange(e.target.checked)}
                 disabled={toolExecConfigLoading}
+                aria-label={tTools('config.autoExecute')}
                 size="small"
               />
             </div>
@@ -999,6 +1008,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                 max={3600}
                 step={5}
                 unit={tTools('config.seconds')}
+                inputAriaLabel={tTools('config.confirmTimeout')}
                 size="small"
                 variant="compact"
               />
@@ -1013,6 +1023,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                 max={3600}
                 step={5}
                 unit={tTools('config.seconds')}
+                inputAriaLabel={tTools('config.executionTimeout')}
                 size="small"
                 variant="compact"
               />
@@ -1035,6 +1046,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                     checked={computerUseEnabled}
                     onChange={(e) => handleComputerUseEnabledChange(e.target.checked)}
                     disabled={computerUseBusy || computerUseStatusLoading}
+                    aria-label={t('computerUse.enable')}
                     size="small"
                   />
                 </div>
@@ -1152,6 +1164,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                   <Select
                     value={preferredBrowser}
                     options={browserSelectOptions}
+                    ariaLabel={t('browserControl.preferredBrowser')}
                     size="small"
                     disabled={browserControlBusy || browserStatusLoading || browserSelectOptions.length === 0}
                     onChange={(value) => {
@@ -1258,6 +1271,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                 value={debugConfig.log_path}
                 onChange={(e) => updateDebugConfig({ log_path: e.target.value })}
                 placeholder={tDebug('settings.logPath.placeholder')}
+                aria-label={tDebug('settings.logPath.label')}
                 variant="outlined"
                 inputSize="small"
               />
@@ -1283,6 +1297,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
               min={1024}
               max={65535}
               step={1}
+              inputAriaLabel={tDebug('settings.ingestPort.label')}
               size="small"
             />
           </ConfigPageRow>
@@ -1367,6 +1382,11 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                         <Switch
                           checked={template.enabled}
                           onChange={() => toggleTemplateEnabled(language, template.enabled)}
+                          aria-label={`${template.display_name || LANGUAGE_TEMPLATE_LABELS[language] || language}: ${
+                            template.enabled
+                              ? tDebug('templates.disableTooltip')
+                              : tDebug('templates.enableTooltip')
+                          }`}
                           size="small"
                         />
                       </div>
@@ -1402,6 +1422,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                             value={template.region_start}
                             onChange={(e) => updateTemplate(language, { region_start: e.target.value })}
                             placeholder={tDebug('templates.region.startPlaceholder')}
+                            aria-label={tDebug('templates.region.startPlaceholder')}
                             variant="outlined"
                             inputSize="small"
                           />
@@ -1409,6 +1430,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                             value={template.region_end}
                             onChange={(e) => updateTemplate(language, { region_end: e.target.value })}
                             placeholder={tDebug('templates.region.endPlaceholder')}
+                            aria-label={tDebug('templates.region.endPlaceholder')}
                             variant="outlined"
                             inputSize="small"
                           />
