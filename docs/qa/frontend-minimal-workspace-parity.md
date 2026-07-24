@@ -610,6 +610,16 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   List rows expose task, effective queued/status label, priority, agent, and
   time through one accessible name. Focused tests pass 22/22, the complete
   Automation test directory passes 43/43, and Web TypeScript passes.
+- [x] Minimal Automation keeps its calendar as a full-width productivity
+  surface while replacing the wide nested header card and secondary control
+  capsule with one 64px flat divider bar. The title now uses the shared
+  workspace title role rather than a viewport-scaled display size. Real
+  desktop verification covered 1707x912 and 719x498 CSS-pixel viewports,
+  Week/List switching, and a create-task dialog that autofocuses and stays
+  within the narrow scene without persisted mutation. Three warm
+  Assistant/Automation switch cycles rendered Automation within 30.8–52.2ms
+  over two animation frames; the active surface retained zero gradients, zero
+  CSS/backdrop filters, and zero document overflow.
 - [x] Slice 25 real-desktop verification passes 6/6 serial cases across Week,
   Day, Month, List, filters, populated Prompt/Artifacts/Conversation detail,
   light/dark themes, focus, and cleanup. Independent visual review reports

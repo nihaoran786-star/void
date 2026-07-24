@@ -229,17 +229,20 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).not.toMatch(/\bvisibility:\s*hidden\b/);
   });
 
-  it('keeps the wide header compact and free of decorative imagery', () => {
+  it('keeps the wide header flat, compact, and free of decorative imagery', () => {
     const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
 
     for (const declaration of [
       'container-name: automation-scene;',
       'container-type: inline-size;',
       '@container automation-scene (min-width: 721px)',
-      'min-height: 72px;',
+      'min-height: 64px;',
       "grid-template-areas:\n          'title title'\n          'nav range';",
-      'max-width: 70%;',
-      'letter-spacing: -0.04em;',
+      'max-width: 64%;',
+      'font-size: var(--workspace-font-size-title);',
+      'border-bottom: 1px solid var(--workspace-border-subtle);',
+      'background: transparent;',
+      'letter-spacing: -0.02em;',
     ]) {
       expect(stylesheet).toContain(declaration);
     }
