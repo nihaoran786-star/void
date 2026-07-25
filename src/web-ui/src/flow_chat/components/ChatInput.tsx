@@ -3103,7 +3103,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       dispatchMode({ type: 'CLOSE_DROPDOWN' });
       focusRichTextInputSoon();
     },
-    [focusRichTextInputSoon, inputState.value, t]
+    [focusRichTextInputSoon, inputState.value]
   );
 
   const handleBoostPickImage = useCallback(
