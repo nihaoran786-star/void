@@ -187,6 +187,22 @@
       transform: none;
     }
 
+    /*
+     * The draft composer sits in the middle of tall views. Opening slash
+     * commands above it would cover the fixed greeting and creation modes, so
+     * use the available lower viewport and keep the command list scrollable.
+     * Short views retain the default upward picker beside the bottom composer.
+     */
+    .void-chat-input__slash-command-picker {
+      top: calc(100% + 120px);
+      bottom: auto;
+      max-height: min(280px, calc(57vh - 195px));
+    }
+
+    .void-chat-input__slash-command-list {
+      max-height: min(240px, calc(57vh - 238px));
+    }
+
     .void-chat-input-workspace-strip {
       grid-area: meta;
       min-height: 34px;
@@ -210,6 +226,18 @@
 
     .welcome-panel__cowork {
       top: calc(100% + 50px);
+    }
+
+    .void-chat-input__slash-command-picker {
+      max-height: clamp(80px, calc(100vh - 392px), 220px);
+    }
+
+    .void-chat-input__slash-command-header {
+      display: none;
+    }
+
+    .void-chat-input__slash-command-list {
+      max-height: clamp(80px, calc(100vh - 392px), 220px);
     }
 
     .welcome-panel:not(.welcome-panel--needs-workspace) .welcome-panel__narrative {

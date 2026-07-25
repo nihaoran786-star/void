@@ -136,6 +136,29 @@ replace the working gallery or add decorative imagery.
   `background-color 0.15s`, and clearing the draft restores the disabled send
   state without sending or creating a session.
 
+### Resolved follow-up — Draft slash commands covered the new-task heading
+
+- **Location:** `src/web-ui/src/app/scenes/session/ChatPane.scss`
+- **Category:** Responsive layout / interaction reachability
+- **Impact:** The new-task composer is centered on tall views, but its slash
+  command picker inherited the bottom composer’s upward placement. Opening `/`
+  covered the fixed greeting and session-type switch. On short views, the full
+  command menu could also reach the application bar.
+- **Remediation:** Only the unpersisted new-task surface changes placement.
+  Tall views open the picker below the complete composer and bound it to the
+  remaining viewport. Short views keep the upward direction, remove the
+  redundant keyboard-hint header, and expose a compact scrollable command
+  list between the mode switch and composer. Persisted sessions retain the
+  existing upward picker.
+- **Evidence:** At 1707×912 the greeting remains at y=254–284, the type switch
+  at y=292–323, the composer ends at y=576, and the picker occupies y=582–804.
+  At a 720×498 WebView the title remains at y=120–143 while the picker occupies
+  y=295–401; its 106px list has 168px of scrollable command content and the
+  document remains 720/720 with no horizontal overflow. A persisted
+  `日常问候` session does not match the draft selector and continues to place
+  the picker immediately above its bottom composer. All test drafts were
+  cleared without sending or creating a session.
+
 ### Resolved follow-up — Mini App cards retained legacy visual effects
 
 - **Location:** `src/web-ui/src/app/scenes/miniapps/views/MiniAppGalleryView.minimal.scss`

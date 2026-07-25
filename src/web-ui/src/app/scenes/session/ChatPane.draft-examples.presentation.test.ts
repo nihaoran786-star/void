@@ -18,4 +18,22 @@ describe('new-task draft examples presentation', () => {
       /@media \(max-height: 619px\)[\s\S]*?\.welcome-panel__cowork\s*\{[\s\S]*?top:\s*calc\(100% \+ 50px\);/,
     );
   });
+
+  it('opens slash commands below the centered draft composer only on tall views', () => {
+    expect(source).toMatch(
+      /@media \(min-height: 620px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:\s*calc\(100% \+ 120px\);[\s\S]*?bottom:\s*auto;/,
+    );
+    expect(source).toMatch(
+      /\.void-chat-input__slash-command-list\s*\{[\s\S]*?max-height:\s*min\(240px, calc\(57vh - 238px\)\);/,
+    );
+    expect(source).toMatch(
+      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?max-height:\s*clamp\(80px, calc\(100vh - 392px\), 220px\);/,
+    );
+    expect(source).toMatch(
+      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-header\s*\{[\s\S]*?display:\s*none;/,
+    );
+    expect(source).not.toMatch(
+      /@media \(max-height: 619px\)[\s\S]*?\.void-chat-input__slash-command-picker\s*\{[\s\S]*?top:/,
+    );
+  });
 });
