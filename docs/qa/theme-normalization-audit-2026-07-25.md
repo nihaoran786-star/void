@@ -1124,6 +1124,30 @@ replace the working gallery or add decorative imagery.
   `打开/引用/选择/删除 + 文件名` and renders `生成结果 / 图片 / 无法预览`.
   The full gallery suite and locale contract pass.
 
+### Resolved follow-up — Resolver-ready media could return to a broken-image glyph
+
+- **Location:** Workspace Media preview-state projection
+- **Category:** State clarity / responsive visual stability
+- **Severity:** P1
+- **Impact:** The preview resolver can produce a URL that the WebView still
+  cannot decode or read. The card correctly recorded its `<img>` error, but a
+  synchronization effect immediately cleared that error because the resolver
+  remained `ready`. Two concurrently loaded cards could therefore expose the
+  browser's native broken-image glyph instead of the product's stable,
+  localized unavailable state.
+- **Remediation:** Resolver success no longer clears a render failure. A real
+  media `load` remains the only same-version path that clears it; the existing
+  preview cache key still removes stale failures and retries automatically
+  when the file version changes. Discovery, bounded concurrency, preview
+  opening, generation, references, trash, and persistence are unchanged.
+- **Verification evidence:** The focused Workspace Media suite passes 38/38,
+  including an asynchronous image-error regression that proves the `<img>` is
+  removed after queued effects settle. Real-desktop light/dark Media and Short
+  Drama captures at 1707x912 (100%) and 853x456 (200%) show zero native broken
+  images, no document-level horizontal overflow, one-column narrow media
+  reflow, visible short-drama stage tabs and episode rail, and zero unnamed
+  controls.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

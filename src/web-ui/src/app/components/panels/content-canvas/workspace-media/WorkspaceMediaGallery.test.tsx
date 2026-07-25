@@ -1704,13 +1704,16 @@ describe('WorkspaceMediaGallery', () => {
     });
 
     const image = container.querySelector('[data-testid="workspace-media-card-image"] img') as HTMLImageElement;
-    act(() => {
+    await act(async () => {
       image.dispatchEvent(new dom.window.Event('error', { bubbles: false }));
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     const failedCard = container.querySelector('[data-testid="workspace-media-card-image"]') as HTMLButtonElement;
     expect(failedCard.className).toContain('is-failed');
     expect(failedCard.textContent).toContain('Preview unavailable');
+    expect(failedCard.querySelector('img')).toBeNull();
 
     act(() => {
       failedCard.click();

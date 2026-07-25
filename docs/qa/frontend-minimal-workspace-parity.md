@@ -1080,10 +1080,18 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   workspace-role bypasses, and unknown Short Drama or Workspace Media feature
   tokens; its synthesized regression case and focused presentation suite pass
   `21/21`, and both owning Sass entrypoints compile.
-- [ ] Refresh real-desktop light/dark Short Drama and Workspace Media captures
+- [x] Refresh real-desktop light/dark Short Drama and Workspace Media captures
   at 100% and 200% after the independent verification run; confirm card,
   toolbar, editor, episode rail, and glyph geometry have no clipping or
-  horizontal overflow.
+  horizontal overflow. The refreshed single-window matrix uses the real
+  maximized desktop at 1707x912 CSS pixels and the product's 200% zoom at
+  853x456 CSS pixels. Both documents remain exactly viewport-wide; the narrow
+  media wall reflows to one column, the short-drama tabs and episode rail stay
+  visible, and both themes report zero unnamed controls. The same review found
+  and fixed a separate image-decode race: a resolver-ready URL that failed in
+  `<img>` could previously return to the browser's broken-image glyph. Render
+  failure now remains explicit until a real load succeeds or the media version
+  changes, so both themes use the localized unavailable projection.
 
 ## Global utility follow-up (2026-07-25)
 

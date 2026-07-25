@@ -840,11 +840,6 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
         if (previewState?.status === 'failed' && !next.has(previewKey)) {
           next.add(previewKey);
           changed = true;
-        } else if (
-          previewState?.status === 'ready'
-          && next.delete(previewKey)
-        ) {
-          changed = true;
         }
       }
       return changed ? next : current;
