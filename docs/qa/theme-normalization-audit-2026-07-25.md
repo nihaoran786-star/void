@@ -1167,6 +1167,24 @@ replace the working gallery or add decorative imagery.
   presentation suite passes 7/7; the theme visual contract and core boundary
   gate pass.
 
+### Resolved follow-up — Mini App search animated its width
+
+- **Location:** Mini App gallery Minimal command bar
+- **Category:** Interaction performance / motion
+- **Severity:** P2
+- **Impact:** Focusing the compact search action animated its width from the
+  shared icon target to 220px. Containment limited the affected region, but the
+  180ms geometry transition still scheduled repeated layout work during a
+  common catalog interaction.
+- **Remediation:** Search keeps the same compact hit target, expanded width,
+  focus border, background response, and input fade. Its geometry now switches
+  once while the compositor-safe opacity and color feedback supplies visual
+  continuity. Search state, filtering, clearing, and folder import are
+  unchanged.
+- **Verification evidence:** The Minimal Mini App contract now rejects width,
+  max-width, height, and max-height transitions. The focused suite passes and
+  the shared theme visual contract remains green.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

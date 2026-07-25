@@ -55,6 +55,9 @@ describe('Mini App gallery Minimal presentation contract', () => {
     expect(source).toMatch(
       /&:focus-within \{[\s\S]*?width: 220px;/,
     );
+    expect(source).not.toMatch(
+      /transition\s*:[^;]*(?:width|max-width|height|max-height)/,
+    );
     expect(readSource('./MiniAppGalleryView.tsx')).toContain(
       'className="gallery-search-btn"',
     );

@@ -52,7 +52,6 @@
       max-width: min(220px, calc(100vw - 80px));
       height: var(--workspace-icon-target);
       contain: layout style;
-      transition: width var(--workspace-motion-fast) var(--workspace-easing-standard);
 
       &:focus-within {
         width: 220px;
