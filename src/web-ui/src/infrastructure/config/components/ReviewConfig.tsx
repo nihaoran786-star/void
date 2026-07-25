@@ -407,6 +407,7 @@ const ReviewConfig: React.FC = () => {
               max={16}
               step={1}
               size="small"
+              inputAriaLabel={t('capacity.maxParallelReviewers.label')}
               disabled={savingConcurrencyKey === 'maxParallelInstances'}
             />
           </ConfigPageRow>
@@ -420,6 +421,7 @@ const ReviewConfig: React.FC = () => {
               step={60}
               unit="s"
               size="small"
+              inputAriaLabel={t('capacity.maxQueueWaitSeconds.label')}
               disabled={savingConcurrencyKey === 'maxQueueWaitSeconds'}
             />
           </ConfigPageRow>
@@ -438,11 +440,16 @@ const ReviewConfig: React.FC = () => {
                 <div className="review-config__member-main">
                   <div className="review-config__member-heading">
                     <span className="review-config__member-name">{getMemberName(member)}</span>
-                    <Badge variant={member.locked ? 'neutral' : 'info'}>
+                    <Badge
+                      variant={member.locked ? 'neutral' : 'info'}
+                      className={`review-config__member-state${member.locked ? ' is-locked' : ''}`}
+                    >
                       {member.locked ? t('members.locked') : t('members.extra')}
                     </Badge>
                   </div>
-                  <p className="review-config__member-role">{getMemberRole(member)}</p>
+                  {getMemberRole(member) !== getMemberName(member) ? (
+                    <p className="review-config__member-role">{getMemberRole(member)}</p>
+                  ) : null}
                 </div>
 
                 <div className="review-config__member-controls">
@@ -453,6 +460,7 @@ const ReviewConfig: React.FC = () => {
                       (Array.isArray(value) ? value[0] : value) as ReviewMemberStrategyLevel,
                     )}
                     size="small"
+                    ariaLabel={`${getMemberName(member)} · ${t('members.strategyControl')}`}
                     disabled={savingStrategyTarget === `member:${member.id}`}
                     options={MEMBER_STRATEGY_OPTIONS.map((level) => ({
                       value: level,
@@ -462,6 +470,7 @@ const ReviewConfig: React.FC = () => {
                   <Select
                     value={member.model || DEFAULT_REVIEW_TEAM_MODEL}
                     size="small"
+                    ariaLabel={`${getMemberName(member)} · ${t('members.modelControl')}`}
                     disabled={savingMemberId === member.id}
                     options={modelOptions}
                     onChange={(value) => void handleModelChange(
@@ -493,6 +502,7 @@ const ReviewConfig: React.FC = () => {
                 value={candidateId}
                 onChange={(value) => setCandidateId(String(Array.isArray(value) ? value[0] || '' : value))}
                 size="small"
+                ariaLabel={t('extra.candidate')}
                 disabled={extraCandidates.length === 0 || addingMember}
                 placeholder={t('extra.placeholder')}
                 options={extraCandidates.map((candidate) => ({

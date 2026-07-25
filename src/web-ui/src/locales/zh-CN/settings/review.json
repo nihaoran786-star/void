@@ -79,6 +79,8 @@
     "locked": "锁定",
     "extra": "额外",
     "remove": "移除",
+    "strategyControl": "审核策略",
+    "modelControl": "审核模型",
     "businessLogic": {
       "name": "业务逻辑审核员",
       "role": "业务逻辑审核员"

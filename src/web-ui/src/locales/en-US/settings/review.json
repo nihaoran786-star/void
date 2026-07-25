@@ -79,6 +79,8 @@
     "locked": "Locked",
     "extra": "Extra",
     "remove": "Remove",
+    "strategyControl": "Review strategy",
+    "modelControl": "Review model",
     "businessLogic": {
       "name": "Business Logic Reviewer",
       "role": "Business Logic Reviewer"

@@ -79,6 +79,8 @@
     "locked": "鎖定",
     "extra": "額外",
     "remove": "移除",
+    "strategyControl": "審核策略",
+    "modelControl": "審核模型",
     "businessLogic": {
       "name": "業務邏輯審核員",
       "role": "業務邏輯審核員"

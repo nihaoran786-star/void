@@ -457,6 +457,36 @@ replace the working gallery or add decorative imagery.
   and OAuth visuals remain a runtime coverage gap because the inspected
   profile currently has no MCP servers.
 
+### Resolved follow-up — Review settings repeated every reviewer as a tall card
+
+- **Location:** `ReviewConfig`, its feature-owned Minimal projection, locale
+  resources, and presentation contract
+- **Category:** Information density / responsive design / accessibility /
+  theming
+- **Impact:** Six locked reviewer rows each repeated the role name, lock state,
+  selected model hint, and two full-width controls. At maximized width every
+  row measured about 123px and the settings scene reached 1,748px, forcing a
+  long scan through visually identical blocks. The viewport-level member
+  breakpoint could also disagree with the actual settings panel width, and
+  reviewer controls had values but no role-specific accessible names.
+- **Remediation:** The Minimal projection keeps reviewer identity and both
+  editable controls in one divider row, suppresses only redundant locked-state,
+  duplicate-role, and model-hint text, and uses the existing `config-panel`
+  container rather than the viewport. Workflow copy is line-clamped, the
+  narrow strategy picker becomes a three-option segmented row, and every
+  number/model/strategy field now exposes a localized accessible name. Review
+  team loading, strategy values, capacity persistence, model assignment,
+  candidate eligibility, add/remove behavior, and provider/runtime calls are
+  unchanged.
+- **Evidence:** At maximized width reviewer rows fall to about 53.5px and scene
+  scroll height to 1,191px; the workflow summary is about 82px and the strategy
+  block about 90px. At an exact 719×498 WebView, document width remains
+  719/719, the workflow summary is about 105px, strategy selection is 56px,
+  and all six reviewer rows remain visible as a continuous list at about
+  53.5px each. The first strategy control reports
+  `业务逻辑审核员 · 审核策略`; its dropdown opens inside the viewport and closes
+  with Escape without producing horizontal overflow.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
