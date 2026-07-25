@@ -883,7 +883,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                   <div
                     id="void-companion-pet-list"
                     className="void-func-agent-config__pet-list"
-                    role="radiogroup"
+                    role="group"
                     aria-label={t('features.agentCompanion.petLabel')}
                   >
                     {companionPetOptions.map((option, index) => {
@@ -899,18 +899,11 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                               {option.group}
                             </div>
                           )}
-                          <div
+                          <button
+                            type="button"
                             className={`void-func-agent-config__pet-select-option${isSelected ? ' void-func-agent-config__pet-select-option--selected' : ''}`}
-                            role="radio"
-                            tabIndex={0}
-                            aria-checked={isSelected}
+                            aria-pressed={isSelected}
                             onClick={() => void handleCompanionPetChange(option.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                void handleCompanionPetChange(option.value);
-                              }
-                            }}
                           >
                             <div className="void-func-agent-config__pet-select-option-main">
                               <span className="void-func-agent-config__pet-select-thumb" aria-hidden>
@@ -953,7 +946,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
                                 </IconButton>
                               )}
                             </div>
-                          </div>
+                          </button>
                         </React.Fragment>
                       );
                     })}

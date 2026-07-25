@@ -689,6 +689,39 @@ replace the working gallery or add decorative imagery.
   interaction tests, web type checking, and locale interpolation contracts
   pass.
 
+### Resolved follow-up — Personalization is flat with on-demand pet motion
+
+- **Location:** `SessionConfig` personalization projection and
+  `AIFeaturesConfig.scss`
+- **Category:** Responsive design / performance / accessibility / anti-pattern
+- **Severity:** P2
+- **Impact:** At a 720×498 WebView, the session-title model row retains its
+  higher-specificity 4:6 grid and stacks three model choices vertically,
+  expanding the first two-row setting to about 244px. Both settings groups
+  repeat rounded panel chrome, while the selected pet sprite animates
+  indefinitely whenever the page is visible. Expanded pet choices are `radio`
+  divs but every option has `tabIndex=0`, creating a verbose radio-group tab
+  sequence without native button behavior.
+- **Remediation:** The Minimal personalization section bodies are now flat,
+  narrow containers restore a single-column model row with a wrapping
+  horizontal selector, and pet sprite motion runs only while its trigger or
+  choice is hovered or keyboard-focused. Pet choices are native pressed
+  buttons inside a named group. Title generation, model selection, companion
+  settings, import, delete, and package loading remain on their existing
+  interfaces.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** The page has only two clearly titled sections, every
+  switch and select is named, the pet picker has an explicit expanded state,
+  and both maximized and 720×498 layouts have zero document-level overflow.
+- **Verification evidence:** At 720×498, the model row resolves to one
+  356px column, its three choices remain in a 24.8px horizontal row, and the
+  first section falls from about 244px to 209px. The selected sprite reports
+  `animation-name: none` at rest. Expanding the picker exposes native
+  `button[type=button]` choices with the selected Boxcat at
+  `aria-pressed=true`; closing it makes no setting change. Maximized and narrow
+  desktop layouts remain overflow-free, and targeted presentation tests, web
+  type checking, and ESLint pass.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

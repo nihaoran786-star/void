@@ -195,6 +195,7 @@
     border: 1px solid var(--border-subtle);
     border-radius: var(--size-radius-sm, 8px);
     color: var(--color-text-primary);
+    font: inherit;
     text-align: left;
     background: color-mix(in srgb, var(--element-bg-base) 74%, transparent);
     cursor: pointer;
@@ -317,6 +318,29 @@
 
 }
 
+.void-ui--minimal .void-func-agent-config--personalization {
+  .void-config-page-section__body {
+    border-width: 1px 0 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .void-config-page-row {
+    min-height: 54px;
+  }
+
+  .void-func-agent-config__pet-preview-sprite {
+    animation: none;
+  }
+
+  .void-func-agent-config__pet-expand-button:is(:hover, :focus-visible)
+    .void-func-agent-config__pet-preview-sprite,
+  .void-func-agent-config__pet-select-option:is(:hover, :focus-visible)
+    .void-func-agent-config__pet-preview-sprite {
+    animation: void-config-pet-preview 1.2s steps(6) infinite;
+  }
+}
+
 .void-ui--minimal .void-func-agent-config--permissions {
   --config-page-content-max-width: 1040px;
 
@@ -377,6 +401,23 @@
 }
 
 @container config-panel (max-width: 520px) {
+  .void-ui--minimal .void-func-agent-config--personalization {
+    .void-config-page-row.void-func-agent-config__model-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .void-func-agent-config__row-control--model {
+      align-items: stretch;
+    }
+
+    .model-selection-radio--horizontal {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-start;
+    }
+  }
+
   .void-func-agent-config {
     &__row-control {
       align-items: flex-start;
