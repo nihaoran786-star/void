@@ -146,6 +146,15 @@ export const ChatInputWorkspaceStrip: React.FC<ChatInputWorkspaceStripProps> = (
       ? ShieldCheck
       : ShieldQuestion;
   const permissionStatus = permissionControl?.status ?? 'ready';
+  const permissionAccessibleLabel = permissionStatus === 'failed'
+    ? t('chatInput.permissionMode.loadFailed')
+    : permissionStatus === 'loading'
+      ? t('chatInput.permissionMode.loading')
+      : permissionControl && permissionCopy
+        ? t('chatInput.permissionMode.current', {
+            mode: permissionCopy[permissionControl.mode].label,
+          })
+        : undefined;
   const permissionDisabled = permissionControl
     ? permissionControl.saving
       || permissionStatus !== 'ready'
@@ -298,21 +307,13 @@ export const ChatInputWorkspaceStrip: React.FC<ChatInputWorkspaceStripProps> = (
           {permissionControl && permissionCopy ? (
             <div className="void-chat-input-workspace-strip__permission" ref={permissionMenuRef}>
               <Tooltip
-                content={permissionStatus === 'failed'
-                  ? t('chatInput.permissionMode.loadFailed')
-                  : permissionStatus === 'loading'
-                    ? t('chatInput.permissionMode.loading')
-                    : t('chatInput.permissionMode.current', {
-                        mode: permissionCopy[permissionControl.mode].label,
-                      })}
+                content={permissionAccessibleLabel}
               >
                 <button
                   ref={permissionTriggerRef}
                   type="button"
                   className={`void-chat-input-workspace-strip__permission-trigger void-chat-input-workspace-strip__permission-trigger--${permissionControl.mode}`}
-                  aria-label={t('chatInput.permissionMode.current', {
-                    mode: permissionCopy[permissionControl.mode].label,
-                  })}
+                  aria-label={permissionAccessibleLabel}
                   aria-haspopup="menu"
                   aria-expanded={permissionMenuOpen}
                   disabled={permissionDisabled}

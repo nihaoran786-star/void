@@ -76,9 +76,10 @@ describe('ChatInputWorkspaceStrip permission control', () => {
       );
     });
 
-    expect(container.querySelector<HTMLButtonElement>(
+    const trigger = container.querySelector<HTMLButtonElement>(
       '[data-testid="chat-input-permission-trigger"]',
-    )?.disabled).toBe(true);
+    );
+    expect(trigger?.disabled).toBe(true);
   });
 
   it('shows ACP ownership without exposing native permission choices', async () => {
@@ -171,8 +172,10 @@ describe('ChatInputWorkspaceStrip permission control', () => {
       );
     });
 
-    expect(container.querySelector<HTMLButtonElement>(
+    const trigger = container.querySelector<HTMLButtonElement>(
       '[data-testid="chat-input-permission-trigger"]',
-    )?.disabled).toBe(true);
+    );
+    expect(trigger?.disabled).toBe(true);
+    expect(trigger?.getAttribute('aria-label')).toBe('chatInput.permissionMode.loadFailed');
   });
 });
