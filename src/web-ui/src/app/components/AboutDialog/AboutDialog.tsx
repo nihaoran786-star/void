@@ -4,7 +4,7 @@
  * Uses component library Modal.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '@/infrastructure/i18n';
 import { Tooltip, Modal, Button, Alert } from '@/component-library';
 import { Copy, Check, Download, CheckCircle2 } from 'lucide-react';
@@ -49,6 +49,8 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
   const [manualCheckErrorMessage, setManualCheckErrorMessage] = useState<string | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualData, setManualData] = useState<CheckForUpdatesResponse | null>(null);
+  const manualCheckButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreManualCheckFocusRef = useRef(false);
   const updateStatus = useUpdateInstallStore(state => state.status);
   const updateProgress = useUpdateInstallStore(state => state.progress);
   const updateError = useUpdateInstallStore(state => state.error);
@@ -65,13 +67,30 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
     if (isOpen) {
       setManualCheckStatus('idle');
       setManualCheckErrorMessage(null);
+    } else {
+      restoreManualCheckFocusRef.current = false;
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (
+      !isOpen
+      || manualCheckBusy
+      || manualOpen
+      || !restoreManualCheckFocusRef.current
+    ) {
+      return;
+    }
+
+    restoreManualCheckFocusRef.current = false;
+    manualCheckButtonRef.current?.focus();
+  }, [isOpen, manualCheckBusy, manualOpen]);
 
   const handleCheckForUpdates = useCallback(async () => {
     if (!isTauriRuntime()) {
       return;
     }
+    restoreManualCheckFocusRef.current = true;
     setManualCheckStatus('idle');
     setManualCheckErrorMessage(null);
     setManualOpen(false);
@@ -84,6 +103,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
       } else if (!res.updateAvailable) {
         setManualCheckStatus('latest');
       } else {
+        restoreManualCheckFocusRef.current = false;
         setManualData(res);
         setManualOpen(true);
       }
@@ -201,6 +221,7 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
                 </div>
                 <div className="void-about-dialog__update-card-actions">
                   <Button
+                    ref={manualCheckButtonRef}
                     variant="secondary"
                     size="small"
                     isLoading={manualCheckBusy}

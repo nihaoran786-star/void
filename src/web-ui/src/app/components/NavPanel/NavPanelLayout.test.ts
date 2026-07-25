@@ -346,4 +346,22 @@ describe('NavPanel layout styles', () => {
     expect(source).toContain('handleOpenShell();');
     expect(source).toContain('handleOpenBrowser();');
   });
+
+  it('returns modal focus to the persistent footer trigger', () => {
+    const source = readPersistentFooterActionsSource();
+
+    expect(source).toContain(
+      'const moreTriggerRef = useRef<HTMLButtonElement>(null);',
+    );
+    expect(source).toContain('ref={moreTriggerRef}');
+    expect(source).toContain(
+      "moreTriggerRef.current?.focus();\n    window.dispatchEvent(new Event('nav:workspace-status'));",
+    );
+    expect(source).toContain(
+      'moreTriggerRef.current?.focus();\n    setShowAbout(true);',
+    );
+    expect(source).toContain(
+      'closeMenu();\n    moreTriggerRef.current?.focus();\n\n    if (hasAgreedRemoteDisclaimer',
+    );
+  });
 });

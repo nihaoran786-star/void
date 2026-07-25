@@ -23,13 +23,14 @@ vi.mock('@/component-library', () => ({
   Alert: ({ type, message }: { type: string; message: React.ReactNode }) => (
     <div data-testid={`alert-${type}`}>{message}</div>
   ),
-  Button: ({
-    children,
-    isLoading: _isLoading,
-    ...props
-  }: React.ButtonHTMLAttributes<HTMLButtonElement> & { isLoading?: boolean }) => (
-    <button {...props}>{children}</button>
-  ),
+  Button: React.forwardRef<
+    HTMLButtonElement,
+    React.ButtonHTMLAttributes<HTMLButtonElement> & { isLoading?: boolean }
+  >(({ children, isLoading, disabled, ...props }, ref) => (
+    <button ref={ref} disabled={disabled || isLoading} {...props}>
+      {children}
+    </button>
+  )),
   Modal: ({ isOpen, children }: { isOpen: boolean; children: React.ReactNode }) => (
     isOpen ? <div data-testid="about-modal">{children}</div> : null
   ),
@@ -141,15 +142,17 @@ describe('AboutDialog manual update status', () => {
     container.remove();
   });
 
-  async function checkForUpdates(): Promise<void> {
+  async function checkForUpdates(): Promise<HTMLButtonElement> {
     const button = Array.from(container.querySelectorAll('button'))
       .find(candidate => candidate.textContent?.includes('update.checkForUpdates'));
     expect(button).toBeTruthy();
+    button?.focus();
     await act(async () => {
       button?.click();
       await Promise.resolve();
       await Promise.resolve();
     });
+    return button as HTMLButtonElement;
   }
 
   it.each([
@@ -207,4 +210,30 @@ describe('AboutDialog manual update status', () => {
     expect(container.textContent).not.toContain('update.noUpdate');
     expect(container.querySelector('[data-testid="manual-update-dialog"]')).toBeNull();
   });
+
+  it.each([
+    [
+      'unavailable',
+      updateResponse({
+        updaterStatus: 'unconfigured',
+        unavailableReason: 'missing_configuration',
+      }),
+      null,
+    ],
+    ['latest', updateResponse(), null],
+    ['error', null, new Error('offline')],
+  ] as const)(
+    'restores focus to the check action after a %s result',
+    async (_state, response, error) => {
+      if (error) {
+        mocks.checkForUpdates.mockRejectedValue(error);
+      } else {
+        mocks.checkForUpdates.mockResolvedValue(response);
+      }
+
+      const button = await checkForUpdates();
+
+      expect(document.activeElement).toBe(button);
+    },
+  );
 });

@@ -1051,6 +1051,40 @@ replace the working gallery or add decorative imagery.
   control remains fully inside the scene. At maximized 1707×912, the existing
   64px header and one-line command group remain unchanged.
 
+### Resolved follow-up — About update checks dropped keyboard focus
+
+- **Location:** About dialog manual update action
+- **Category:** Accessibility / interaction continuity
+- **Severity:** P1
+- **Impact:** The update action becomes disabled while its asynchronous check
+  runs. Browsers move focus away from a disabled control, and completed
+  unavailable, latest, or error states previously left focus on the document
+  body instead of returning users to the result area.
+- **Remediation:** The About dialog now restores focus to the original check
+  action after terminal inline results. When an update is available and the
+  existing install dialog opens, focus ownership remains with that nested
+  dialog instead of being pulled backward.
+- **Suggested command:** `$normalize`
+- **Verification evidence:** A real desktop check reached the localized
+  unavailable alert and returned focus to the enabled `检查更新` button.
+  Focused component tests cover unavailable, latest, and error responses.
+
+### Resolved follow-up — Footer dialogs returned focus to an unmounted menu item
+
+- **Location:** Persistent footer menu → About, workspace status, and remote
+  connection dialogs
+- **Category:** Accessibility / keyboard continuity
+- **Severity:** P1
+- **Impact:** The menu closed shortly after opening its dialog, disconnecting
+  the menu item that the shared Modal had recorded as its return target.
+  Escape therefore returned focus to the document body.
+- **Remediation:** The entry owner now moves focus to the persistent
+  `更多选项` trigger immediately before opening a footer dialog. The shared
+  Modal keeps its general focus-return behavior without special cases.
+- **Verification evidence:** Real desktop keyboard checks opened About and
+  workspace status, closed each with Escape, and returned focus to the visible
+  footer trigger. Focused navigation and About suites pass.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

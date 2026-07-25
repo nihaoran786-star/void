@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Settings,
   Info,
@@ -34,6 +34,7 @@ import {
 } from '../../RemoteConnectDialog/remoteConnectDisclaimerStorage';
 
 const PersistentFooterActions: React.FC = () => {
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const { t } = useI18n('common');
   const { openScene } = useSceneManager();
   const activeTabId = useSceneStore((s) => s.activeTabId);
@@ -121,11 +122,13 @@ const PersistentFooterActions: React.FC = () => {
 
   const handleShowWorkspaceStatus = useCallback(() => {
     closeMenu();
+    moreTriggerRef.current?.focus();
     window.dispatchEvent(new Event('nav:workspace-status'));
   }, [closeMenu]);
 
   const handleShowAbout = () => {
     closeMenu();
+    moreTriggerRef.current?.focus();
     setShowAbout(true);
   };
 
@@ -141,6 +144,7 @@ const PersistentFooterActions: React.FC = () => {
     }
 
     closeMenu();
+    moreTriggerRef.current?.focus();
 
     if (hasAgreedRemoteDisclaimer || getRemoteConnectDisclaimerAgreed()) {
       setHasAgreedRemoteDisclaimer(true);
@@ -168,6 +172,7 @@ const PersistentFooterActions: React.FC = () => {
           <div className="void-nav-panel__footer-more-wrap">
             <Tooltip content={t('nav.moreOptions')} placement="right" followCursor disabled={menuOpen}>
               <button
+                ref={moreTriggerRef}
                 type="button"
                 className={`void-nav-panel__footer-btn void-nav-panel__footer-btn--icon${menuOpen ? ' is-active' : ''}`}
                 aria-label={t('nav.moreOptions')}

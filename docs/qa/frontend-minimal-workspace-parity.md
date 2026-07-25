@@ -148,7 +148,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
 - [ ] Create and switch sessions.
 - [ ] Restore historical sessions after restart.
 - [x] Open the settings surface and keep the UI responsive.
-- [ ] Open About, update, and workspace status surfaces.
+- [x] Open About, update, and workspace status surfaces.
 - [ ] Preserve window close/save behavior.
 - [ ] Preserve fullscreen and window-mode behavior.
 - [ ] Preserve current scene/tab state.
@@ -1144,3 +1144,8 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   runtime state, and stage-agent ordering remain unchanged. Maximized and 719px
   desktop checks have zero horizontal overflow; outer canvas hide/reopen and
   team collapse/reopen preserve the active `资产 AI` tab.
+- [x] Real desktop verification opens About and workspace status from the
+  persistent footer menu, exercises the localized unavailable-update result,
+  closes both dialogs with Escape, and returns keyboard focus to the connected
+  `更多选项` trigger. Inline latest, unavailable, and error update results also
+  restore focus to the enabled `检查更新` action.
