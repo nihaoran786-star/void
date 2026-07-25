@@ -62,4 +62,29 @@ describe('Insights Minimal presentation contract', () => {
     expect(component).toContain('<BarChart3 size={18} aria-hidden="true" />');
     expect(component.match(/onClick=\{generateReport\}/g)).toHaveLength(1);
   });
+
+  it('exposes the selected range and localized icon controls', () => {
+    const component = readSource('./InsightsScene.tsx');
+
+    expect(component).toMatch(
+      /className="insights-scene__day-filter-group"[\s\S]*?role="group"[\s\S]*?aria-label=\{t\('insights\.rangeLabel'\)\}/,
+    );
+    expect(component).toContain('aria-pressed={selectedDays === d}');
+    expect(component).toContain("t('insights.copyContent')");
+    expect(component).toContain("t('insights.copied')");
+    expect(component).toContain("aria-label={t('actions.close')}");
+  });
+
+  it('routes chart roles and coarse targets through shared theme contracts', () => {
+    const component = readSource('./InsightsScene.tsx');
+    const owner = readSource('./InsightsScene.scss');
+
+    const palette = component.match(/const CHART_COLORS = \{[\s\S]*?\} as const;/)?.[0] ?? '';
+    expect(palette).not.toMatch(/#[0-9a-f]{3,8}/i);
+    expect(palette).toContain('var(--insights-chart-primary)');
+    expect(owner).toContain('--insights-chart-primary: var(--color-accent-500);');
+    expect(source).toMatch(
+      /@media \(hover: none\), \(pointer: coarse\)[\s\S]*?min-width: var\(--workspace-touch-target\);[\s\S]*?height: var\(--workspace-touch-target\);[\s\S]*?touch-action: manipulation;/,
+    );
+  });
 });

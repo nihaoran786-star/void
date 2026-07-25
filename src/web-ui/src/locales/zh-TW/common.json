@@ -1104,6 +1104,8 @@
     "keepLatest5": "僅保留最近 5 份報告",
     "openHtmlFailed": "打開報告失敗",
     "cancelBtn": "停止",
+    "copyContent": "複製內容",
+    "copied": "已複製",
     "outcomes": "結果分佈",
     "satisfaction": "滿意度（推斷）",
     "responseTime": "響應時間分佈",

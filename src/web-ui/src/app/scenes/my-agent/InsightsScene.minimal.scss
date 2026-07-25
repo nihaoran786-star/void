@@ -260,6 +260,16 @@
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    .void-ui--minimal .insights-scene .gallery-cat-chip,
+    .void-ui--minimal .insights-scene__generate-btn,
+    .void-ui--minimal .insights-scene__cancel-btn {
+      min-width: var(--workspace-touch-target);
+      height: var(--workspace-touch-target);
+      touch-action: manipulation;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .insights-scene,
     .void-ui--minimal .insights-scene * {

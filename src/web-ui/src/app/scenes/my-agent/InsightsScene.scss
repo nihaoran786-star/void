@@ -71,6 +71,13 @@ $ins-label:   var(--font-size-xs);
 // ============================================================
 
 .insights-scene {
+  --insights-chart-primary: var(--color-accent-500);
+  --insights-chart-success: var(--color-success);
+  --insights-chart-category: var(--color-accent-600);
+  --insights-chart-time: var(--color-accent-400);
+  --insights-chart-neutral: var(--color-warning);
+  --insights-chart-error: var(--color-error);
+
   display: flex;
   flex-direction: column;
   height: 100%;

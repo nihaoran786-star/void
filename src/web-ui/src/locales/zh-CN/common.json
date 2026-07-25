@@ -1104,6 +1104,8 @@
     "keepLatest5": "仅保留最近 5 份报告",
     "openHtmlFailed": "打开报告失败",
     "cancelBtn": "停止",
+    "copyContent": "复制内容",
+    "copied": "已复制",
     "outcomes": "结果分布",
     "satisfaction": "满意度（推断）",
     "responseTime": "响应时间分布",

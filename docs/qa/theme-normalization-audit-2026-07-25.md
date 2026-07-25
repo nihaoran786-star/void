@@ -627,6 +627,35 @@ replace the working gallery or add decorative imagery.
   have accessible names, reduced motion is respected, and neither maximized nor
   720×498 layouts produce document-level horizontal overflow.
 
+### Resolved follow-up — Insights state and chart colors use shared contracts
+
+- **Location:** `InsightsScene`, its Minimal projection, and Common locale
+  resources
+- **Category:** Accessibility / localization / theming / coarse-pointer input
+- **Severity:** P2
+- **Impact:** The selected 30-day range is communicated only by an active
+  background class, so assistive technology cannot identify the current range.
+  Generated-report copy controls expose English-only `Copy to clipboard` /
+  `Copied` names in the Chinese interface. Six chart colors are also literal
+  hexadecimal values in TS, bypassing theme changes. At both maximized width
+  and a 720×498 WebView the list itself has zero overflow, but all five header
+  actions remain 28px on coarse-pointer devices.
+- **Remediation:** The range is now a named pressed-button group, copy and
+  dismiss controls use the existing Common locale namespace, and all six chart
+  roles resolve through feature-owned CSS variables backed by semantic theme
+  tokens. The Minimal projection reuses the shared 44px target only for coarse
+  pointers, without changing report generation or rendering.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** The empty state has one generation path, the compact
+  command row remains fully visible at 720×498, long report cards already use
+  `content-visibility`, and the Minimal projection disables decorative motion
+  under reduced-motion.
+- **Verification evidence:** Targeted presentation tests pass 8/8, web type
+  checking and the locale contract pass, and real desktop checks at maximized
+  width and 720×498 show no document-level horizontal overflow. Switching from
+  30 to 7 days and back updates both the active class and `aria-pressed` while
+  preserving the compact header geometry.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

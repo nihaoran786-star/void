@@ -55,14 +55,19 @@ const InsightsScene: React.FC = () => {
             <p className="insights-scene__header-subtitle">{t('insights.subtitle')}</p>
             <div className="insights-scene__header-actions">
               <div className="insights-scene__day-filters">
-                <div className="insights-scene__day-filter-group">
-                  <span className="insights-scene__day-filter-label">
+                <div
+                  className="insights-scene__day-filter-group"
+                  role="group"
+                  aria-label={t('insights.rangeLabel')}
+                >
+                  <span className="insights-scene__day-filter-label" aria-hidden="true">
                     {t('insights.rangeLabel')}
                   </span>
                   {DAY_OPTIONS.map((d) => (
                     <button
                       key={d}
                       type="button"
+                      aria-pressed={selectedDays === d}
                       className={[
                         'gallery-cat-chip',
                         selectedDays === d ? 'gallery-cat-chip--active' : '',
@@ -76,18 +81,20 @@ const InsightsScene: React.FC = () => {
               </div>
               {generating ? (
                 <button
+                  type="button"
                   className="insights-scene__cancel-btn"
                   onClick={cancelGeneration}
                 >
-                  <X size={14} />
+                  <X size={14} aria-hidden="true" />
                   <span>{t('insights.cancelBtn')}</span>
                 </button>
               ) : (
                 <button
+                  type="button"
                   className="insights-scene__generate-btn"
                   onClick={generateReport}
                 >
-                  <BarChart3 size={14} />
+                  <BarChart3 size={14} aria-hidden="true" />
                   <span>{t('insights.generateBtn')}</span>
                 </button>
               )}
@@ -98,9 +105,11 @@ const InsightsScene: React.FC = () => {
 
       {error && (
         <div className="insights-scene__error">
-          <AlertTriangle size={14} />
+          <AlertTriangle size={14} aria-hidden="true" />
           <span>{error}</span>
-          <button onClick={clearError}>&times;</button>
+          <button type="button" onClick={clearError} aria-label={t('actions.close')}>
+            &times;
+          </button>
         </div>
       )}
 
@@ -742,12 +751,12 @@ const StatItem: React.FC<{ value: string; label: string }> = ({ value, label }) 
 
 // Bar chart palette (default + semantic roles)
 const CHART_COLORS = {
-  blue: '#60a5fa',      // default / primary series
-  green: '#6eb88c',     // positive / success
-  purple: '#8b5cf6',    // distribution / category
-  indigo: '#818cf8',    // time-related
-  orange: '#c9944d',    // time-of-day / neutral
-  red: '#c77070',       // issues / errors
+  blue: 'var(--insights-chart-primary)',       // default / primary series
+  green: 'var(--insights-chart-success)',      // positive / success
+  purple: 'var(--insights-chart-category)',    // distribution / category
+  indigo: 'var(--insights-chart-time)',         // time-related
+  orange: 'var(--insights-chart-neutral)',      // time-of-day / neutral
+  red: 'var(--insights-chart-error)',           // issues / errors
 } as const;
 
 type ChartColor = typeof CHART_COLORS[keyof typeof CHART_COLORS];
@@ -869,6 +878,7 @@ const MarkdownInline: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const CopyableCode: React.FC<{ text: string; label?: string }> = ({ text, label }) => {
+  const { t } = useI18n('common');
   const [copied, setCopied] = React.useState(false);
 
   const handleCopy = useCallback(async () => {
@@ -886,8 +896,13 @@ const CopyableCode: React.FC<{ text: string; label?: string }> = ({ text, label 
       {label && <div className="insights-copyable__label">{label}</div>}
       <div className="insights-copyable__row">
         <code className="insights-copyable__code">{text}</code>
-        <button className="insights-copyable__btn" onClick={handleCopy} aria-label={copied ? 'Copied' : 'Copy to clipboard'}>
-          {copied ? <Check size={12} /> : <Copy size={12} />}
+        <button
+          type="button"
+          className="insights-copyable__btn"
+          onClick={handleCopy}
+          aria-label={copied ? t('insights.copied') : t('insights.copyContent')}
+        >
+          {copied ? <Check size={12} aria-hidden="true" /> : <Copy size={12} aria-hidden="true" />}
         </button>
       </div>
     </div>

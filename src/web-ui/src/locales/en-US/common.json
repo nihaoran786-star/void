@@ -1104,6 +1104,8 @@
     "keepLatest5": "Only the 5 most recent reports are kept",
     "openHtmlFailed": "Failed to open report",
     "cancelBtn": "Stop",
+    "copyContent": "Copy content",
+    "copied": "Copied",
     "outcomes": "Outcomes",
     "satisfaction": "Satisfaction (Inferred)",
     "responseTime": "Response Time Distribution",
