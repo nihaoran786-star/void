@@ -125,6 +125,14 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
     e.preventDefault();
   }, []);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  }, [onClick]);
+
   // Handle drag start
   const handleDragStart = useCallback((e: React.DragEvent) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -142,7 +150,12 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
     <div
       className={`canvas-thumbnail-card ${isActive ? 'is-active' : ''} ${stateClass} ${tab.isDirty ? 'is-dirty' : ''} ${tab.fileDeletedFromDisk ? 'is-file-deleted' : ''}`}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       onContextMenu={handleContextMenu}
+      role="button"
+      tabIndex={0}
+      aria-label={titleWithDeleted}
+      aria-current={isActive ? 'true' : undefined}
       draggable
       onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
@@ -162,18 +175,23 @@ export const ThumbnailCard: React.FC<ThumbnailCardProps> = ({
         <div className="canvas-thumbnail-card__actions">
           <Tooltip content={tab.state === 'pinned' ? t('tabs.unpin') : t('tabs.pin')}>
             <button
+              type="button"
               className={`canvas-thumbnail-card__action-btn ${tab.state === 'pinned' ? 'is-active' : ''}`}
               onClick={handlePin}
+              aria-label={tab.state === 'pinned' ? t('tabs.unpin') : t('tabs.pin')}
+              aria-pressed={tab.state === 'pinned'}
             >
-              <Pin size={12} />
+              <Pin size={12} aria-hidden="true" />
             </button>
           </Tooltip>
           <Tooltip content={t('tabs.close')}>
             <button
+              type="button"
               className="canvas-thumbnail-card__action-btn canvas-thumbnail-card__close-btn"
               onClick={handleClose}
+              aria-label={t('tabs.close')}
             >
-              <X size={12} />
+              <X size={12} aria-hidden="true" />
             </button>
           </Tooltip>
         </div>

@@ -100,4 +100,22 @@ describe('FloatingMiniChat minimal visual contract', () => {
     expect(stylesheet).not.toMatch(/\b(?:glow|pulse)\b/i);
     expect(stylesheet).not.toMatch(/\bscale\s*\(/i);
   });
+
+  it('names every icon-only compact-chat action', () => {
+    const source = readSource('./FloatingMiniChat.tsx');
+
+    for (const contract of [
+      "aria-label={t('toolCards.toolbar.startNewChat')}",
+      "aria-label={t('session.new')}",
+      "aria-label={t('toolCards.common.confirm')}",
+      "aria-label={t('toolCards.common.cancel')}",
+      "aria-label={t('compactChat.close')}",
+      "aria-label={t('input.stop')}",
+      "aria-label={t('input.send')}",
+    ]) {
+      expect(source).toContain(contract);
+    }
+    expect(source).toContain('<MessageSquare size={20} aria-hidden="true" />');
+    expect(source).toContain('<ArrowUp size={14} aria-hidden="true" />');
+  });
 });

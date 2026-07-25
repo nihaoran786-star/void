@@ -55,11 +55,15 @@ export const ForkSessionButton: React.FC<ForkSessionButtonProps> = ({
       placement="top"
     >
       <button
+        type="button"
         className="model-round-item__action-btn model-round-item__fork-btn"
+        aria-label={t('modelRound.forkDialog')}
         onClick={handleFork}
         disabled={isForking}
       >
-        {isForking ? <Loader2 size={14} className="spinning" /> : <GitFork size={14} />}
+        {isForking
+          ? <Loader2 size={14} className="spinning" aria-hidden="true" />
+          : <GitFork size={14} aria-hidden="true" />}
       </button>
     </Tooltip>
   );

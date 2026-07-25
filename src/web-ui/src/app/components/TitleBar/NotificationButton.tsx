@@ -60,6 +60,7 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
       ].filter(Boolean).join(' ')}
       onClick={() => notificationService.toggleCenter()}
       type="button"
+      aria-label={t('nav.notifications')}
       data-testid="notification-button"
     >
       {activeNotification ? (
@@ -132,8 +133,8 @@ const NotificationButton: React.FC<NotificationButtonProps> = ({
         )
       ) : (
         unreadCount > 0
-          ? <BellDot size={14} className="void-notification-btn__icon--has-message" />
-          : <Bell size={14} />
+          ? <BellDot size={14} className="void-notification-btn__icon--has-message" aria-hidden="true" />
+          : <Bell size={14} aria-hidden="true" />
       )}
     </button>
     </Tooltip>

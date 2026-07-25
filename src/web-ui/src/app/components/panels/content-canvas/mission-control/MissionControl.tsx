@@ -192,27 +192,35 @@ export const MissionControl: React.FC<MissionControlProps> = ({
       data-shortcut-scope="canvas"
       tabIndex={-1}
       onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="canvas-mission-control-title"
     >
       <div className="canvas-mission-control__content">
         {/* Header */}
         <div className="canvas-mission-control__header">
-          <h2 className="canvas-mission-control__title">{t('tabs.missionControl')}</h2>
+          <h2 id="canvas-mission-control-title" className="canvas-mission-control__title">
+            {t('tabs.missionControl')}
+          </h2>
           <div className="canvas-mission-control__header-actions">
             {hasMultipleGroups && (
               <button
+                type="button"
                 className="canvas-mission-control__merge-btn"
                 onClick={handleMergeAll}
                 title={t('canvas.mergeAllGroups')}
               >
-                <Merge size={14} />
+                <Merge size={14} aria-hidden="true" />
                 <span>{t('canvas.mergeAll')}</span>
               </button>
             )}
             <button
+              type="button"
               className="canvas-mission-control__close-btn"
               onClick={onClose}
+              aria-label={t('tooltip.close')}
             >
-              <X size={14} />
+              <X size={14} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -242,10 +250,12 @@ export const MissionControl: React.FC<MissionControlProps> = ({
                   
                   return (
                     <button
+                      type="button"
                       key={id}
                       className={`canvas-mission-control__group-filter ${selectedGroups.has(id) ? 'is-active' : ''}`}
                       onClick={() => toggleGroupFilter(id)}
                       title={t(labelKey)}
+                      aria-pressed={selectedGroups.has(id)}
                       style={{ 
                         '--group-color': color,
                         '--group-color-rgb': colorRgb,

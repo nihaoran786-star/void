@@ -624,6 +624,12 @@
       "restore": "恢复",
       "purge": "彻底删除",
       "select": "选择",
+      "openNamed": "打开 {{name}}",
+      "referenceNamed": "引用 {{name}}",
+      "selectNamed": "选择 {{name}}",
+      "deleteNamed": "删除 {{name}}",
+      "restoreNamed": "恢复 {{name}}",
+      "purgeNamed": "彻底删除 {{name}}",
       "selectVisible": "全选",
       "clearVisibleSelection": "取消全选",
       "deleteSelected": "删除所选",
@@ -657,7 +663,21 @@
       "truncated": "当前仅显示受限数量内的媒体文件。",
       "noFilterMatches": "没有符合此筛选条件的媒体文件。",
       "unpreviewable": "无法预览",
+      "generating": "生成中",
+      "generatingNamed": "{{name}} 正在生成",
+      "previewUnavailable": "无法预览",
+      "previewUnavailableNamed": "{{name}} 无法预览",
+      "deleted": "已删除",
       "deletedEmpty": "最近删除中没有媒体。"
+    },
+    "sources": {
+      "generated": "生成结果",
+      "input": "导入素材"
+    },
+    "kinds": {
+      "image": "图片",
+      "video": "视频",
+      "audio": "音频"
     }
   },
   "shortDrama": {

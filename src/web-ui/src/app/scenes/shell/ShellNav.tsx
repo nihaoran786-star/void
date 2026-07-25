@@ -273,20 +273,22 @@ const ShellNav: React.FC = () => {
               <button
                 type="button"
                 className="void-shell-nav__split-button-main"
+                aria-label={t('nav.shell.actions.newTerminal')}
                 onClick={() => { void handleCreateManualTerminal(); }}
               >
-                <Plus size={14} />
+                <Plus size={14} aria-hidden="true" />
               </button>
             </Tooltip>
             <Tooltip content={t('actions.more')} placement="bottom">
               <button
                 type="button"
                 className="void-shell-nav__split-button-toggle"
+                aria-label={t('actions.more')}
                 onClick={handleToggleCreateMenu}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
               >
-                <ChevronDown size={12} />
+                <ChevronDown size={12} aria-hidden="true" />
               </button>
             </Tooltip>
           </div>

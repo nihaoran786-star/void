@@ -127,13 +127,16 @@ export const AnchorZone: React.FC<AnchorZoneProps> = ({
           {/* Collapse/expand */}
           <Tooltip content={isCollapsed ? t('tooltip.expand') : t('tooltip.collapse')}>
             <button
+              type="button"
               className="canvas-anchor-zone__action-btn"
               onClick={toggleCollapse}
+              aria-label={isCollapsed ? t('tooltip.expand') : t('tooltip.collapse')}
+              aria-expanded={!isCollapsed}
             >
               {isCollapsed ? (
-                isBottom ? <ChevronUp size={14} /> : <ChevronUp size={14} />
+                isBottom ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronUp size={14} aria-hidden="true" />
               ) : (
-                isBottom ? <ChevronDown size={14} /> : <ChevronDown size={14} />
+                isBottom ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />
               )}
             </button>
           </Tooltip>
@@ -142,10 +145,15 @@ export const AnchorZone: React.FC<AnchorZoneProps> = ({
           {onToggleMaximize && (
             <Tooltip content={isMaximized ? t('windowControls.restore') : t('windowControls.maximize')}>
               <button
+                type="button"
                 className="canvas-anchor-zone__action-btn"
                 onClick={onToggleMaximize}
+                aria-label={isMaximized ? t('windowControls.restore') : t('windowControls.maximize')}
+                aria-pressed={isMaximized}
               >
-                {isMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                {isMaximized
+                  ? <Minimize2 size={14} aria-hidden="true" />
+                  : <Maximize2 size={14} aria-hidden="true" />}
               </button>
             </Tooltip>
           )}
@@ -153,10 +161,12 @@ export const AnchorZone: React.FC<AnchorZoneProps> = ({
           {/* Close */}
           <Tooltip content={t('tooltip.close')}>
             <button
+              type="button"
               className="canvas-anchor-zone__action-btn canvas-anchor-zone__close-btn"
               onClick={onClose}
+              aria-label={t('tooltip.close')}
             >
-              <X size={14} />
+              <X size={14} aria-hidden="true" />
             </button>
           </Tooltip>
         </div>

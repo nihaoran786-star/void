@@ -1085,6 +1085,45 @@ replace the working gallery or add decorative imagery.
   workspace status, closed each with Escape, and returned focus to the visible
   footer trigger. Focused navigation and About suites pass.
 
+### Resolved follow-up — Persistent icon actions lacked complete names and state
+
+- **Location:** Navigation workspace rows, notifications, content canvas,
+  mission control, workspace media, floating mini chat, Flow Chat round
+  actions, Shell split controls, and short-drama child composer
+- **Category:** Accessibility / interaction consistency
+- **Severity:** P1
+- **Impact:** Several persistent icon-only actions relied on hover Tooltips or
+  decorative glyphs. Screen readers could encounter unnamed buttons, and
+  collapse, maximize, pin, or filter controls did not consistently expose
+  their current state.
+- **Remediation:** Reused existing localized labels, added explicit button
+  types, hid decorative icons, and exposed `aria-expanded` or `aria-pressed`
+  where the control represents a toggle. Mission Control now has labelled
+  dialog semantics, and its thumbnail cards can be activated with Enter or
+  Space without changing the existing tab switch handler.
+- **Verification evidence:** Real-desktop scans of the primary scenes, all
+  Settings routes, Browser, Shell, Insights, Media, and Short Drama report zero
+  unnamed visible controls at maximized 1707×912 and narrow 466×324 CSS
+  viewports. A real Mission Control interaction exposed labelled thumbnails
+  and closed through keyboard activation. Six focused suites pass 58 tests.
+
+### Resolved follow-up — Workspace media card semantics leaked English
+
+- **Location:** Workspace Media gallery and recently deleted cards
+- **Category:** Localization / accessibility
+- **Severity:** P2
+- **Impact:** Chinese sessions still announced English actions such as Open,
+  Reference, Select, and Delete, while card metadata displayed `generated`,
+  `image`, and `Preview unavailable`.
+- **Remediation:** Moved action templates, source/kind labels, generation,
+  deletion, and preview failure copy into the existing `components`
+  translations for all three supported locales. Media discovery, preview
+  resolution, references, selection, trash operations, and virtualization are
+  unchanged.
+- **Verification evidence:** The real Chinese media gallery now announces
+  `打开/引用/选择/删除 + 文件名` and renders `生成结果 / 图片 / 无法预览`.
+  The full gallery suite and locale contract pass.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

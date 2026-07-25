@@ -624,6 +624,12 @@
       "restore": "恢復",
       "purge": "徹底刪除",
       "select": "選擇",
+      "openNamed": "開啟 {{name}}",
+      "referenceNamed": "引用 {{name}}",
+      "selectNamed": "選擇 {{name}}",
+      "deleteNamed": "刪除 {{name}}",
+      "restoreNamed": "恢復 {{name}}",
+      "purgeNamed": "徹底刪除 {{name}}",
       "selectVisible": "全選",
       "clearVisibleSelection": "取消全選",
       "deleteSelected": "刪除所選",
@@ -657,7 +663,21 @@
       "truncated": "目前僅顯示受限數量內的媒體檔案。",
       "noFilterMatches": "沒有符合此篩選條件的媒體檔案。",
       "unpreviewable": "無法預覽",
+      "generating": "生成中",
+      "generatingNamed": "{{name}} 正在生成",
+      "previewUnavailable": "無法預覽",
+      "previewUnavailableNamed": "{{name}} 無法預覽",
+      "deleted": "已刪除",
       "deletedEmpty": "最近刪除中沒有媒體。"
+    },
+    "sources": {
+      "generated": "生成結果",
+      "input": "匯入素材"
+    },
+    "kinds": {
+      "image": "圖片",
+      "video": "影片",
+      "audio": "音訊"
     }
   },
   "shortDrama": {

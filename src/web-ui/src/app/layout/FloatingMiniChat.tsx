@@ -225,7 +225,7 @@ export const FloatingMiniChat: React.FC = () => {
         onClick={handleOpen}
         aria-label={t('toolCards.toolbar.startNewChat')}
       >
-        <MessageSquare size={20} />
+        <MessageSquare size={20} aria-hidden="true" />
       </button>
 
       {/* Expanded panel */}
@@ -233,8 +233,13 @@ export const FloatingMiniChat: React.FC = () => {
         {/* Header */}
         <div className="void-fmc__header">
           <Tooltip content={t('session.new')}>
-            <button type="button" className="void-fmc__header-btn" onClick={handleCreateSession}>
-              <Plus size={14} />
+            <button
+              type="button"
+              className="void-fmc__header-btn"
+              aria-label={t('session.new')}
+              onClick={handleCreateSession}
+            >
+              <Plus size={14} aria-hidden="true" />
             </button>
           </Tooltip>
 
@@ -281,13 +286,23 @@ export const FloatingMiniChat: React.FC = () => {
           {toolbarState.hasPendingConfirmation && (
             <>
               <Tooltip content={t('toolCards.common.confirm')}>
-                <button type="button" className="void-fmc__header-btn void-fmc__header-btn--confirm" onClick={handleConfirm}>
-                  <Check size={14} />
+                <button
+                  type="button"
+                  className="void-fmc__header-btn void-fmc__header-btn--confirm"
+                  aria-label={t('toolCards.common.confirm')}
+                  onClick={handleConfirm}
+                >
+                  <Check size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
               <Tooltip content={t('toolCards.common.cancel')}>
-                <button type="button" className="void-fmc__header-btn void-fmc__header-btn--reject" onClick={handleReject}>
-                  <X size={14} />
+                <button
+                  type="button"
+                  className="void-fmc__header-btn void-fmc__header-btn--reject"
+                  aria-label={t('toolCards.common.cancel')}
+                  onClick={handleReject}
+                >
+                  <X size={14} aria-hidden="true" />
                 </button>
               </Tooltip>
             </>
@@ -295,15 +310,25 @@ export const FloatingMiniChat: React.FC = () => {
 
           {currentStreamState.isStreaming && !toolbarState.hasPendingConfirmation && (
             <Tooltip content={t('input.stop')}>
-              <button type="button" className="void-fmc__header-btn void-fmc__header-btn--stop" onClick={handleCancel}>
-                <Square size={12} />
+              <button
+                type="button"
+                className="void-fmc__header-btn void-fmc__header-btn--stop"
+                aria-label={t('input.stop')}
+                onClick={handleCancel}
+              >
+                <Square size={12} aria-hidden="true" />
               </button>
             </Tooltip>
           )}
 
-          <Tooltip content={t('planner.cancel')}>
-            <button type="button" className="void-fmc__header-btn void-fmc__header-btn--close" onClick={handleClose}>
-              <X size={14} />
+          <Tooltip content={t('compactChat.close')}>
+            <button
+              type="button"
+              className="void-fmc__header-btn void-fmc__header-btn--close"
+              aria-label={t('compactChat.close')}
+              onClick={handleClose}
+            >
+              <X size={14} aria-hidden="true" />
             </button>
           </Tooltip>
         </div>
@@ -338,9 +363,10 @@ export const FloatingMiniChat: React.FC = () => {
               <button
                 type="button"
                 className="void-fmc__input-btn void-fmc__input-btn--stop"
+                aria-label={t('input.stop')}
                 onClick={handleCancel}
               >
-                <Square size={14} />
+                <Square size={14} aria-hidden="true" />
               </button>
             </Tooltip>
           ) : (
@@ -348,10 +374,11 @@ export const FloatingMiniChat: React.FC = () => {
               <button
                 type="button"
                 className="void-fmc__input-btn void-fmc__input-btn--send"
+                aria-label={t('input.send')}
                 onClick={handleSendMessage}
                 disabled={!inputValue.trim()}
               >
-                <ArrowUp size={14} />
+                <ArrowUp size={14} aria-hidden="true" />
               </button>
             </Tooltip>
           )}

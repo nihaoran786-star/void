@@ -123,4 +123,37 @@ describe('MainNav workspace menu accessibility contract', () => {
     );
     expect(minimalStyles).toContain("&[data-keyboard-focus='true']");
   });
+
+  it('names persistent icon-only notification and canvas actions', () => {
+    const notificationSource = readSibling(
+      '../TitleBar/NotificationButton.tsx',
+    );
+    const canvasEmptyStateSource = readSibling(
+      '../panels/content-canvas/empty-state/EmptyState.tsx',
+    );
+
+    expect(notificationSource).toContain(
+      "aria-label={t('nav.notifications')}",
+    );
+    expect(notificationSource).toContain(
+      '<Bell size={14} aria-hidden="true" />',
+    );
+    expect(canvasEmptyStateSource).toContain('type="button"');
+    expect(canvasEmptyStateSource).toContain(
+      "aria-label={t('tabs.close')}",
+    );
+    expect(canvasEmptyStateSource).toContain(
+      '<X size={14} aria-hidden="true" />',
+    );
+  });
+
+  it('names workspace row file and overflow actions', () => {
+    const source = readSibling(
+      './sections/workspaces/WorkspaceItem.tsx',
+    );
+
+    expect(source.match(/aria-label=\{t\('nav\.items\.project'\)\}/g)).toHaveLength(2);
+    expect(source.match(/aria-label=\{t\('nav\.moreOptions'\)\}/g)).toHaveLength(2);
+    expect(source.match(/aria-expanded=\{menuOpen\}/g)).toHaveLength(2);
+  });
 });

@@ -699,7 +699,13 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   The task detail sheet has labelled/described dialog semantics, a named APG
   tablist, focus entry/containment/return, Escape/backdrop close, cyclic arrow
   navigation, Home/End, and safe focus restoration when the source unmounts.
-- [ ] Screen-reader names exist for icon-only actions.
+- [x] Screen-reader names exist for persistent icon-only actions across the
+  primary navigation, workspace rows, notifications, canvas empty/anchor and
+  mission-control states, media selection controls, floating mini chat,
+  Flow Chat round actions, Shell split controls, and short-drama child
+  composers. Real-desktop scans cover the primary scenes, all Settings routes,
+  Media/Short Drama, Shell, Browser, and Insights at maximized and 466px CSS
+  widths with zero unnamed visible controls.
 - [x] Toolbar Mode's high-frequency icon actions and both text inputs use
   existing localized accessible names. Session and overflow triggers reference
   stable listbox/menu ids, real sessions expose option/selected state, every

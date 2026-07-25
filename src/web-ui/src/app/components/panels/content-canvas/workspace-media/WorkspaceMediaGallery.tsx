@@ -217,6 +217,7 @@ const MediaTile: React.FC<MediaTileProps> = ({
   onSelect,
   isSelected = false,
 }) => {
+  const { t } = useTranslation('components');
   const isPending = renderStatus === 'pending';
   const canOpen = Boolean(previewUrl);
   const canRenderPreviewMedia = tile.kind === 'image' || tile.kind === 'video';
@@ -242,7 +243,11 @@ const MediaTile: React.FC<MediaTileProps> = ({
             onOpen(tile, previewUrl);
           }
         }}
-        aria-label={isPending ? `${tile.displayName} generating` : isUnavailable ? `${tile.displayName} preview unavailable` : `Open ${tile.displayName}`}
+        aria-label={isPending
+          ? t('workspaceMedia.states.generatingNamed', { name: tile.displayName })
+          : isUnavailable
+            ? t('workspaceMedia.states.previewUnavailableNamed', { name: tile.displayName })
+            : t('workspaceMedia.actions.openNamed', { name: tile.displayName })}
       >
         <span className="workspace-media-card__stage">
         {isPending ? (
@@ -307,14 +312,20 @@ const MediaTile: React.FC<MediaTileProps> = ({
           <strong>{tile.displayName}</strong>
           <small>{tile.pathLabel}</small>
           <span className="workspace-media-card__meta">
-            <span>{isPending ? 'generating' : tile.source}</span>
-            <span>{tile.kind}</span>
+            <span>
+              {isPending
+                ? t('workspaceMedia.states.generating')
+                : t(`workspaceMedia.sources.${tile.source}`)}
+            </span>
+            <span>{t(`workspaceMedia.kinds.${tile.kind}`)}</span>
             {tile.pending?.requestedAspectRatio && <span>{tile.pending.requestedAspectRatio}</span>}
             {formatBytes(tile.sizeBytes) && <span>{formatBytes(tile.sizeBytes)}</span>}
             {formatRelativeTime(tile.modifiedAt) && <span>{formatRelativeTime(tile.modifiedAt)}</span>}
           </span>
           {(isUnavailable || isThumbnailFailed) && !isPreviewLoading && (
-            <span className="workspace-media-card__unavailable">Preview unavailable</span>
+            <span className="workspace-media-card__unavailable">
+              {t('workspaceMedia.states.previewUnavailable')}
+            </span>
           )}
         </span>
       </button>
@@ -324,7 +335,7 @@ const MediaTile: React.FC<MediaTileProps> = ({
             <button
               type="button"
               className="workspace-media-card__action"
-              aria-label={`Reference ${tile.displayName}`}
+              aria-label={t('workspaceMedia.actions.referenceNamed', { name: tile.displayName })}
               onClick={(event) => {
                 event.stopPropagation();
                 onReference(tile, previewUrl);
@@ -337,7 +348,7 @@ const MediaTile: React.FC<MediaTileProps> = ({
             <button
               type="button"
               className="workspace-media-card__action"
-              aria-label={`Select ${tile.displayName}`}
+              aria-label={t('workspaceMedia.actions.selectNamed', { name: tile.displayName })}
               aria-pressed={isSelected}
               onClick={(event) => {
                 event.stopPropagation();
@@ -351,13 +362,13 @@ const MediaTile: React.FC<MediaTileProps> = ({
             <button
               type="button"
               className="workspace-media-card__action"
-              aria-label={`Delete ${tile.displayName}`}
+              aria-label={t('workspaceMedia.actions.deleteNamed', { name: tile.displayName })}
               onClick={(event) => {
                 event.stopPropagation();
                 onDelete(tile);
               }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={13} aria-hidden="true" />
             </button>
           )}
         </span>
@@ -393,6 +404,7 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
   onPurge,
   onOpen,
 }) => {
+  const { t } = useTranslation('components');
   const isPreviewLoading = shouldResolveTrashPreview(item) && previewStatus === 'loading';
   const isPreviewFailed = shouldResolveTrashPreview(item) && previewStatus === 'failed';
   const canOpen = Boolean(previewUrl);
@@ -413,7 +425,9 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
             onOpen(item, previewUrl);
           }
         }}
-        aria-label={canOpen ? `Open ${item.fileName}` : `${item.fileName} preview unavailable`}
+        aria-label={canOpen
+          ? t('workspaceMedia.actions.openNamed', { name: item.fileName })
+          : t('workspaceMedia.states.previewUnavailableNamed', { name: item.fileName })}
       >
         <span className="workspace-media-card__stage">
           {item.kind === 'image' && thumbnailUrl ? (
@@ -445,13 +459,15 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
           <strong>{item.fileName}</strong>
           <small>{item.originalPath}</small>
           <span className="workspace-media-card__meta">
-            <span>deleted</span>
-            <span>{item.kind}</span>
+            <span>{t('workspaceMedia.states.deleted')}</span>
+            <span>{t(`workspaceMedia.kinds.${item.kind}`)}</span>
             {formatBytes(item.sizeBytes) && <span>{formatBytes(item.sizeBytes)}</span>}
             {formatRelativeTime(item.deletedAt) && <span>{formatRelativeTime(item.deletedAt)}</span>}
           </span>
           {isPreviewFailed && (
-            <span className="workspace-media-card__unavailable">Preview unavailable</span>
+            <span className="workspace-media-card__unavailable">
+              {t('workspaceMedia.states.previewUnavailable')}
+            </span>
           )}
         </span>
       </button>
@@ -459,7 +475,7 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
         <button
           type="button"
           className="workspace-media-card__action"
-          aria-label={`Select ${item.fileName}`}
+          aria-label={t('workspaceMedia.actions.selectNamed', { name: item.fileName })}
           aria-pressed={isSelected}
           onClick={(event) => {
             event.stopPropagation();
@@ -471,24 +487,24 @@ const DeletedMediaTile: React.FC<DeletedMediaTileProps> = ({
         <button
           type="button"
           className="workspace-media-card__action"
-          aria-label={`Restore ${item.fileName}`}
+          aria-label={t('workspaceMedia.actions.restoreNamed', { name: item.fileName })}
           onClick={(event) => {
             event.stopPropagation();
             onRestore(item);
           }}
         >
-          <RotateCcw size={13} />
+          <RotateCcw size={13} aria-hidden="true" />
         </button>
         <button
           type="button"
           className="workspace-media-card__action"
-          aria-label={`Delete forever ${item.fileName}`}
+          aria-label={t('workspaceMedia.actions.purgeNamed', { name: item.fileName })}
           onClick={(event) => {
             event.stopPropagation();
             onPurge(item);
           }}
         >
-          <Trash2 size={13} />
+          <Trash2 size={13} aria-hidden="true" />
         </button>
       </span>
     </span>
@@ -1231,8 +1247,12 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
             <button type="button" onClick={() => void deleteTiles(selectedTiles)}>
               {t('workspaceMedia.actions.deleteSelected')}
             </button>
-            <button type="button" onClick={() => setSelectedTileIds(new Set())}>
-              <X size={13} />
+            <button
+              type="button"
+              onClick={() => setSelectedTileIds(new Set())}
+              aria-label={t('workspaceMedia.actions.clearVisibleSelection')}
+            >
+              <X size={13} aria-hidden="true" />
             </button>
           </div>
         )}
@@ -1255,8 +1275,12 @@ export const WorkspaceMediaGallery: React.FC<WorkspaceMediaGalleryProps> = ({
             <button type="button" onClick={() => void purgeTrashItems(selectedDeletedItems)}>
               {t('workspaceMedia.actions.purgeSelected')}
             </button>
-            <button type="button" onClick={() => setSelectedTrashIds(new Set())}>
-              <X size={13} />
+            <button
+              type="button"
+              onClick={() => setSelectedTrashIds(new Set())}
+              aria-label={t('workspaceMedia.actions.clearVisibleSelection')}
+            >
+              <X size={13} aria-hidden="true" />
             </button>
           </div>
         )}

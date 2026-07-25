@@ -537,11 +537,17 @@ export const ExportImageButton: React.FC<ExportImageButtonProps> = ({
   return (
     <Tooltip content={isExporting ? i18nService.t('flow-chat:exportImage.exporting') : i18nService.t('flow-chat:exportImage.exportToImage')} placement="top">
       <button
+        type="button"
         className={`model-round-item__action-btn model-round-item__export-btn ${className}`}
+        aria-label={isExporting
+          ? i18nService.t('flow-chat:exportImage.exporting')
+          : i18nService.t('flow-chat:exportImage.exportToImage')}
         onClick={handleExport}
         disabled={isExporting}
       >
-        {isExporting ? <Loader2 size={14} className="spinning" /> : <Image size={14} />}
+        {isExporting
+          ? <Loader2 size={14} className="spinning" aria-hidden="true" />
+          : <Image size={14} aria-hidden="true" />}
       </button>
     </Tooltip>
   );

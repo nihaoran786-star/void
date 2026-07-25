@@ -6,7 +6,8 @@ import { JSDOM } from 'jsdom';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => ({
+    t: (key: string, options?: { name?: string }) => {
+      const value = ({
       'workspaceMedia.title': 'Media',
       'workspaceMedia.description': 'Workspace images, videos, and audio files.',
       'workspaceMedia.refresh': 'Refresh',
@@ -16,6 +17,12 @@ vi.mock('react-i18next', () => ({
       'workspaceMedia.actions.restore': 'Restore',
       'workspaceMedia.actions.purge': 'Delete forever',
       'workspaceMedia.actions.select': 'Select',
+      'workspaceMedia.actions.openNamed': 'Open {{name}}',
+      'workspaceMedia.actions.referenceNamed': 'Reference {{name}}',
+      'workspaceMedia.actions.selectNamed': 'Select {{name}}',
+      'workspaceMedia.actions.deleteNamed': 'Delete {{name}}',
+      'workspaceMedia.actions.restoreNamed': 'Restore {{name}}',
+      'workspaceMedia.actions.purgeNamed': 'Delete forever {{name}}',
       'workspaceMedia.actions.selectVisible': 'Select all',
       'workspaceMedia.actions.clearVisibleSelection': 'Clear selected',
       'workspaceMedia.actions.deleteSelected': 'Delete selected',
@@ -42,9 +49,21 @@ vi.mock('react-i18next', () => ({
       'workspaceMedia.states.truncated': 'Showing the first limited set of media files.',
       'workspaceMedia.states.noFilterMatches': 'No media files match this filter.',
       'workspaceMedia.states.unpreviewable': 'Unavailable previews',
+      'workspaceMedia.states.generating': 'Generating',
+      'workspaceMedia.states.generatingNamed': '{{name}} generating',
+      'workspaceMedia.states.previewUnavailable': 'Preview unavailable',
+      'workspaceMedia.states.previewUnavailableNamed': '{{name}} preview unavailable',
+      'workspaceMedia.states.deleted': 'Deleted',
       'workspaceMedia.states.deletedEmpty': 'No recently deleted media.',
+      'workspaceMedia.sources.generated': 'Generated',
+      'workspaceMedia.sources.input': 'Imported',
+      'workspaceMedia.kinds.image': 'Image',
+      'workspaceMedia.kinds.video': 'Video',
+      'workspaceMedia.kinds.audio': 'Audio',
       'workspaceMedia.ariaLabel': 'Workspace media',
-    })[key] || key,
+      })[key] || key;
+      return options?.name ? value.replace('{{name}}', options.name) : value;
+    },
   }),
 }));
 

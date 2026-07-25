@@ -624,6 +624,12 @@
       "restore": "Restore",
       "purge": "Delete forever",
       "select": "Select",
+      "openNamed": "Open {{name}}",
+      "referenceNamed": "Reference {{name}}",
+      "selectNamed": "Select {{name}}",
+      "deleteNamed": "Delete {{name}}",
+      "restoreNamed": "Restore {{name}}",
+      "purgeNamed": "Delete {{name}} forever",
       "selectVisible": "Select all",
       "clearVisibleSelection": "Clear selected",
       "deleteSelected": "Delete selected",
@@ -657,7 +663,21 @@
       "truncated": "Showing the first limited set of media files.",
       "noFilterMatches": "No media files match this filter.",
       "unpreviewable": "Unavailable previews",
+      "generating": "Generating",
+      "generatingNamed": "{{name}} is generating",
+      "previewUnavailable": "Preview unavailable",
+      "previewUnavailableNamed": "{{name}} preview unavailable",
+      "deleted": "Deleted",
       "deletedEmpty": "No recently deleted media."
+    },
+    "sources": {
+      "generated": "Generated",
+      "input": "Imported"
+    },
+    "kinds": {
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio"
     }
   },
   "shortDrama": {

@@ -457,10 +457,14 @@ export const ModelRoundItem = React.memo<ModelRoundItemProps>(
             <Tooltip content={copied ? t('modelRound.copiedDialog') : t('modelRound.copyDialog')} placement="top">
               <button
                 ref={copyButtonRef}
+                type="button"
                 className={`model-round-item__action-btn model-round-item__copy-btn ${copied ? 'copied' : ''}`}
+                aria-label={copied ? t('modelRound.copiedDialog') : t('modelRound.copyDialog')}
                 onClick={handleCopy}
               >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied
+                  ? <Check size={14} aria-hidden="true" />
+                  : <Copy size={14} aria-hidden="true" />}
               </button>
             </Tooltip>
             

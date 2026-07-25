@@ -39,10 +39,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ onClose, workspacePath, 
           {onClose && (
             <Tooltip content={t('tabs.close')}>
               <button
+                type="button"
                 className="canvas-empty-state__close-btn"
+                aria-label={t('tabs.close')}
                 onClick={handleClose}
               >
-                <X size={14} />
+                <X size={14} aria-hidden="true" />
               </button>
             </Tooltip>
           )}

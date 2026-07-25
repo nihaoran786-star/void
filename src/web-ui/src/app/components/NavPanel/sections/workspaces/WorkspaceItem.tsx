@@ -766,8 +766,9 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 type="button"
                 className="void-nav-panel__assistant-item-menu-trigger"
                 onClick={() => { void handleOpenFiles(); }}
+                aria-label={t('nav.items.project')}
               >
-                <Folder size="var(--void-nav-row-action-icon-size)" />
+                <Folder size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
@@ -775,8 +776,10 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 type="button"
                 className={`void-nav-panel__assistant-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
                 onClick={() => setMenuOpen(prev => !prev)}
+                aria-label={t('nav.moreOptions')}
+                aria-expanded={menuOpen}
               >
-                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
+                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
               </button>
             </div>
 
@@ -1073,8 +1076,9 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 type="button"
                 className="void-nav-panel__workspace-item-menu-trigger"
                 onClick={() => { void handleOpenFiles(); }}
+                aria-label={t('nav.items.project')}
               >
-                <Folder size="var(--void-nav-row-action-icon-size)" />
+                <Folder size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
               </button>
             </Tooltip>
             <div ref={menuAnchorRef}>
@@ -1082,8 +1086,10 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
                 type="button"
                 className={`void-nav-panel__workspace-item-menu-trigger${menuOpen ? ' is-open' : ''}`}
                 onClick={() => setMenuOpen(prev => !prev)}
+                aria-label={t('nav.moreOptions')}
+                aria-expanded={menuOpen}
               >
-                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" />
+                <MoreHorizontal size="var(--void-nav-row-action-icon-size)" aria-hidden="true" />
               </button>
             </div>
 
