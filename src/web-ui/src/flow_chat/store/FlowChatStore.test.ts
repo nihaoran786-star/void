@@ -422,6 +422,38 @@ describe('FlowChatStore historical session hydration state', () => {
     vi.clearAllMocks();
   });
 
+  it('hydrates persisted failure diagnostics without model rounds', () => {
+    const turns = (flowChatStore as any).convertToDialogTurns([{
+      turnId: 'turn-failed',
+      turnIndex: 0,
+      sessionId: 'history-1',
+      timestamp: 1,
+      userMessage: { id: 'user-1', content: 'hello', timestamp: 1 },
+      modelRounds: [],
+      startTime: 1,
+      endTime: 2,
+      status: 'error',
+      error: 'Provider request failed',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-1',
+        retryable: true,
+      },
+    }]);
+
+    expect(turns[0]).toMatchObject({
+      id: 'turn-failed',
+      status: 'error',
+      modelRounds: [],
+      error: 'Provider request failed',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-1',
+        retryable: true,
+      },
+    });
+  });
+
   it('loads persisted metadata as metadata-only historical sessions', async () => {
     apiMocks.listSessions.mockResolvedValueOnce([
       {

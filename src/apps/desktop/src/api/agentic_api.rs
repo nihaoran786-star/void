@@ -2005,6 +2005,8 @@ mod tests {
             end_time: Some(2),
             duration_ms: Some(1),
             status: TurnStatus::Completed,
+            error: None,
+            error_detail: None,
         };
 
         let stats = restore_turn_payload_stats(&[turn]);
@@ -2067,6 +2069,8 @@ mod tests {
             end_time: Some(2),
             duration_ms: Some(1),
             status: TurnStatus::Completed,
+            error: None,
+            error_detail: None,
         }];
 
         omit_assistant_only_tool_results_for_session_view(&mut turns);
@@ -2125,6 +2129,8 @@ mod tests {
             end_time: Some(2),
             duration_ms: Some(1),
             status: TurnStatus::Completed,
+            error: None,
+            error_detail: None,
         }];
 
         omit_assistant_only_tool_results_for_session_view(&mut turns);

@@ -64,6 +64,14 @@ export type VirtualItem =
     }
   | { type: 'model-round'; data: ModelRound; turnId: string; isLastRound: boolean; isTurnComplete: boolean }
   | { type: 'explore-group'; data: ExploreGroupData; turnId: string }
+  | {
+      type: 'turn-failure-notice';
+      data: {
+        error: string;
+        errorDetail: NonNullable<DialogTurn['errorDetail']>;
+      };
+      turnId: string;
+    }
   | { type: 'image-analyzing'; turnId: string };
 
 /**
@@ -409,6 +417,21 @@ export function sessionToVirtualItems(session: Session | null): VirtualItem[] {
 
     flushRoundEntries(pendingRounds, { collapseTrailingExploreGroup: true });
 
+    if (
+      turn.status === 'error'
+      && typeof turn.error === 'string'
+      && turn.error.trim().length > 0
+      && turn.errorDetail
+    ) {
+      items.push({
+        type: 'turn-failure-notice',
+        turnId: turn.id,
+        data: {
+          error: turn.error.trim(),
+          errorDetail: turn.errorDetail,
+        },
+      });
+    }
   });
 
   cachedVirtualItems = items;

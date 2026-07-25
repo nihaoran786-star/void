@@ -1438,6 +1438,8 @@ mod tests {
             end_time: Some(1_250),
             duration_ms: Some(250),
             status,
+            error: None,
+            error_detail: None,
         }
     }
 }

@@ -1,7 +1,7 @@
 //! Types for session persistence
 
-use void_core_types::SessionKind;
 use serde::{Deserialize, Serialize};
+use void_core_types::SessionKind;
 
 pub const SESSION_STORAGE_SCHEMA_VERSION: u32 = 2;
 
@@ -348,6 +348,18 @@ pub struct DialogTurnData {
 
     /// Turn status
     pub status: TurnStatus,
+
+    /// User-facing summary for a failed turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+
+    /// Structured provider/runtime diagnostics for a failed turn.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        alias = "error_detail"
+    )]
+    pub error_detail: Option<serde_json::Value>,
 }
 
 /// Persisted dialog turn kind.
@@ -849,6 +861,8 @@ impl DialogTurnData {
             end_time: None,
             duration_ms: None,
             status: TurnStatus::InProgress,
+            error: None,
+            error_detail: None,
         }
     }
 
@@ -902,6 +916,72 @@ mod tests {
             serde_json::from_value(payload).expect("legacy payload should deserialize");
 
         assert_eq!(turn.kind, DialogTurnKind::UserDialog);
+        assert!(turn.error.is_none());
+        assert!(turn.error_detail.is_none());
+    }
+
+    #[test]
+    fn dialog_turn_failure_diagnostics_round_trip() {
+        let payload = serde_json::json!({
+            "turnId": "turn-1",
+            "turnIndex": 0,
+            "sessionId": "session-1",
+            "timestamp": 1,
+            "userMessage": {
+                "id": "user-1",
+                "content": "hello",
+                "timestamp": 1
+            },
+            "modelRounds": [],
+            "startTime": 1,
+            "status": "error",
+            "error": "request failed",
+            "errorDetail": {
+                "category": "network",
+                "requestId": "request-1",
+                "retryable": true
+            }
+        });
+
+        let turn: DialogTurnData =
+            serde_json::from_value(payload).expect("failure payload should deserialize");
+        let serialized = serde_json::to_value(&turn).expect("failure payload should serialize");
+
+        assert_eq!(turn.error.as_deref(), Some("request failed"));
+        assert_eq!(serialized["errorDetail"]["category"], "network");
+        assert_eq!(serialized["errorDetail"]["requestId"], "request-1");
+    }
+
+    #[test]
+    fn dialog_turn_failure_diagnostics_accept_legacy_snake_case_alias() {
+        let payload = serde_json::json!({
+            "turnId": "turn-legacy-error",
+            "turnIndex": 0,
+            "sessionId": "session-1",
+            "timestamp": 1,
+            "userMessage": {
+                "id": "user-1",
+                "content": "hello",
+                "timestamp": 1
+            },
+            "modelRounds": [],
+            "startTime": 1,
+            "status": "error",
+            "error": "request failed",
+            "error_detail": {
+                "category": "network",
+                "requestId": "request-legacy",
+                "retryable": true
+            }
+        });
+
+        let turn: DialogTurnData =
+            serde_json::from_value(payload).expect("legacy diagnostics should deserialize");
+        let serialized = serde_json::to_value(&turn).expect("diagnostics should serialize");
+
+        assert_eq!(turn.error_detail.as_ref().unwrap()["requestId"], "request-legacy");
+        assert!(serialized.get("error_detail").is_none());
+        assert_eq!(serialized["errorDetail"]["requestId"], "request-legacy");
     }
 
     #[test]

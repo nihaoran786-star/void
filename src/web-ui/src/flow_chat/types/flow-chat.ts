@@ -9,6 +9,7 @@ import type {
   SessionTitleSource,
 } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
+import type { AiErrorDetail } from '@/shared/ai-errors/aiErrorPresenter';
 
 // Base type for streaming items.
 export interface FlowItem {
@@ -239,6 +240,7 @@ export interface DialogTurn {
   startTime: number;
   endTime?: number;
   error?: string;
+  errorDetail?: AiErrorDetail;
   tokenUsage?: TokenUsage;
   todos?: TodoItem[];
   backendTurnIndex?: number;

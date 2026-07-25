@@ -215,6 +215,32 @@ describe('PersistenceModule', () => {
     expect(JSON.stringify(persisted)).not.toContain('data:image/png;base64,abc123');
   });
 
+  it('persists failure summary and structured diagnostics for zero-round turns', () => {
+    const turn = {
+      ...createDialogTurn('error'),
+      modelRounds: [],
+      error: 'Provider request failed',
+      errorDetail: {
+        category: 'network' as const,
+        requestId: 'request-1',
+        retryable: true,
+      },
+    };
+
+    const persisted = convertDialogTurnToBackendFormat(turn, 0);
+
+    expect(persisted).toMatchObject({
+      status: 'error',
+      error: 'Provider request failed',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-1',
+        retryable: true,
+      },
+      modelRounds: [],
+    });
+  });
+
   it('ignores preview image attachment base64 when calculating the save hash', () => {
     const firstTurn = createDialogTurn('completed');
     firstTurn.modelRounds[0].items = [

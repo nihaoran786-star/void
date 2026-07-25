@@ -2078,5 +2078,12 @@
   "mediaPreview": {
     "copy": "複製路徑或 URL",
     "close": "關閉"
+  },
+  "turnFailureNotice": {
+    "title": "本輪執行失敗",
+    "showDiagnostics": "展開診斷資訊",
+    "copyDiagnostics": "複製診斷資訊",
+    "copied": "已複製",
+    "copyFailed": "複製失敗"
   }
 }

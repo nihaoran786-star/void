@@ -5,6 +5,7 @@
  */
 
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
+import type { AiErrorDetail } from '@/shared/ai-errors/aiErrorPresenter';
 
 export type SessionKind = 'normal' | 'btw' | 'review' | 'deep_review' | 'miniapp' | 'subagent';
 export type PersistedSessionKind = 'standard' | 'subagent';
@@ -155,6 +156,8 @@ export interface DialogTurnData {
   endTime?: number;
   durationMs?: number;
   status: TurnStatus;
+  error?: string;
+  errorDetail?: AiErrorDetail;
 }
 
 export interface UserMessageData {

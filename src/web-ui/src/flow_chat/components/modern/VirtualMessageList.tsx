@@ -264,6 +264,7 @@ function getVirtualItemStableKey(item: VirtualItem): string {
     case 'explore-group':
       return `${item.type}:${item.turnId}:${item.data.groupId}`;
     case 'image-analyzing':
+    case 'turn-failure-notice':
       return `${item.type}:${item.turnId}`;
   }
 }

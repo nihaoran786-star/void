@@ -3222,7 +3222,7 @@ export class FlowChatStore {
           || metadata?.localCommandKind === 'goal_verifying'
           ? turn.userMessage.content
           : metadata?.original_text || this.cleanRemoteUserInput(turn.userMessage.content);
-      const normalizedTurnStatus = normalizeRecoveredTurnStatus(turn.status, { error: undefined });
+      const normalizedTurnStatus = normalizeRecoveredTurnStatus(turn.status, { error: turn.error });
 
       return {
       id: turn.turnId,
@@ -3333,6 +3333,10 @@ export class FlowChatStore {
       status: normalizedTurnStatus,
       startTime: turn.startTime,
       endTime: turn.endTime,
+      error: typeof turn.error === 'string' ? turn.error : undefined,
+      errorDetail: turn.errorDetail && typeof turn.errorDetail === 'object'
+        ? turn.errorDetail
+        : undefined,
       backendTurnIndex: turn.turnIndex,
     };
     });

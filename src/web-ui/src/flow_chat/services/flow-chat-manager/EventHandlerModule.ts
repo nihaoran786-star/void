@@ -150,6 +150,7 @@ export const __test_only__ = {
   resolveDialogTurnDisplayContent,
   shouldAllowLateMediaToolEvent,
   ensureSubagentSession,
+  handleDialogTurnFailed,
 };
 
 function shouldMarkUnreadCompletion(sessionId: string): boolean {
@@ -2373,9 +2374,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
   context.flowChatStore.markSessionFinished(sessionId);
   
   const dialogTurn = session.dialogTurns.find(turn => turn.id === turnId);
-  const hasSuccessfulModelRounds = dialogTurn && dialogTurn.modelRounds.length > 0;
-  
-  if (hasSuccessfulModelRounds) {
+  if (dialogTurn) {
     context.flowChatStore.updateDialogTurn(sessionId, turnId, turn => {
       const updatedModelRounds = turn.modelRounds.map((round) => {
         if (round.isStreaming) {
@@ -2395,6 +2394,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
         modelRounds: updatedModelRounds,
         status: 'error' as const,
         error: error || 'Execution failed',
+        errorDetail,
         endTime: Date.now()
       };
     });
@@ -2402,8 +2402,8 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
     saveDialogTurnToDisk(context, sessionId, turnId).catch(err => {
       log.warn('Failed to save failed dialog turn', { sessionId, turnId, error: err });
     });
-  } else {
-    if (dialogTurn?.userMessage?.content) {
+
+    if (dialogTurn.modelRounds.length === 0 && dialogTurn.userMessage?.content) {
       try {
         // B-policy: restore the failed turn's user content into the pending
         // queue exactly once, marked `failed` and `retryCount=1`. The auto-drain
@@ -2426,11 +2426,6 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
         });
       }
     }
-
-    context.flowChatStore.deleteDialogTurn(sessionId, turnId);
-    updateSessionMetadata(context, sessionId).catch(err => {
-      log.warn('Failed to update failed session metadata', { sessionId, error: err });
-    });
   }
   
   const currentState = stateMachineManager.getCurrentState(sessionId);

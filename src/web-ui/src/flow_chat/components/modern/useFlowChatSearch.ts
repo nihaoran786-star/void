@@ -48,6 +48,9 @@ function getVirtualItemSearchText(item: VirtualItem): string {
   if (item.type === 'explore-group') {
     return extractSearchableText(item.data.allItems);
   }
+  if (item.type === 'turn-failure-notice') {
+    return `${item.data.error} ${JSON.stringify(item.data.errorDetail)}`;
+  }
   return '';
 }
 

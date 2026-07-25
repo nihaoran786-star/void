@@ -16,6 +16,7 @@ import { SessionExecutionEvent, SessionExecutionState } from '../../state-machin
 import { FlowChatStore } from '../../store/FlowChatStore';
 import type { DialogTurn, FlowUserSteeringItem, ModelRound, Session } from '../../types/flow-chat';
 import type { FlowChatContext } from './types';
+import { pendingQueueManager } from './PendingQueueModule';
 
 vi.mock('@/infrastructure/i18n/core/I18nService', () => ({
   i18nService: {
@@ -951,5 +952,118 @@ describe('handleDialogTurnComplete', () => {
     expect(turn?.status).toBe('error');
     expect(turn?.error).toContain('empty response');
     expect(stateMachineManager.getCurrentState('session-1')).toBe(SessionExecutionState.IDLE);
+  });
+});
+
+describe('handleDialogTurnFailed', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    resetFlowChatStore();
+    stateMachineManager.clear();
+  });
+
+  afterEach(() => {
+    resetFlowChatStore();
+    stateMachineManager.clear();
+  });
+
+  it('keeps a zero-round failed turn and preserves the explicit failed queue policy', () => {
+    createSessionWithTurn({
+      id: 'turn-1',
+      sessionId: 'session-1',
+      userMessage: {
+        id: 'user-1',
+        content: 'Try this request',
+        timestamp: 900,
+      },
+      modelRounds: [],
+      status: 'processing',
+      startTime: 900,
+    });
+    const enqueue = vi.spyOn(pendingQueueManager, 'enqueue').mockImplementation(() => 'queued-1');
+    const context = createFlowChatContext();
+
+    __test_only__.handleDialogTurnFailed(context, {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      error: 'Connection reset',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-1',
+        retryable: true,
+      },
+    });
+
+    const turn = FlowChatStore.getInstance()
+      .getState()
+      .sessions.get('session-1')
+      ?.dialogTurns[0];
+    expect(turn).toMatchObject({
+      id: 'turn-1',
+      status: 'error',
+      error: 'Connection reset',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-1',
+        retryable: true,
+      },
+      modelRounds: [],
+    });
+    expect(enqueue).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      content: 'Try this request',
+      displayMessage: 'Try this request',
+      retryCount: 1,
+      initialStatus: 'failed',
+    });
+  });
+
+  it('marks an active round failed and ignores a duplicate failure event', () => {
+    createSessionWithTurn({
+      id: 'turn-1',
+      sessionId: 'session-1',
+      userMessage: {
+        id: 'user-1',
+        content: 'Continue this request',
+        timestamp: 900,
+      },
+      modelRounds: [makeRound('round-1')],
+      status: 'processing',
+      startTime: 900,
+    });
+    const enqueue = vi.spyOn(pendingQueueManager, 'enqueue');
+    const context = createFlowChatContext();
+    const event = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      error: 'Provider disconnected',
+      errorDetail: {
+        category: 'network',
+        requestId: 'request-2',
+        retryable: true,
+      },
+    };
+
+    __test_only__.handleDialogTurnFailed(context, event);
+    __test_only__.handleDialogTurnFailed(context, event);
+
+    const turn = FlowChatStore.getInstance()
+      .getState()
+      .sessions.get('session-1')
+      ?.dialogTurns[0];
+    expect(turn).toMatchObject({
+      status: 'error',
+      error: 'Provider disconnected',
+      modelRounds: [{
+        id: 'round-1',
+        status: 'error',
+        isStreaming: false,
+        isComplete: true,
+      }],
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(context.handledTerminalTurnEvents).toEqual(
+      new Set(['session-1:turn-1']),
+    );
   });
 });
