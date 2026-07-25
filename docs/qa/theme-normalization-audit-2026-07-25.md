@@ -601,6 +601,32 @@ replace the working gallery or add decorative imagery.
   overflow. A scoped runtime scan finds no unnamed inputs, buttons, or
   comboboxes.
 
+### Resolved follow-up — Account activity cells collapsed below inspectable size
+
+- **Location:** `AccountSettings` activity heatmap and its Minimal presentation
+- **Category:** Responsive design / interaction precision
+- **Severity before remediation:** P2
+- **Impact:** The one-year activity view preserves all 370 real daily records
+  and avoids document overflow, but distributes every week across the available
+  width. At a 720×498 WebView each daily cell collapses to about 3.24px, so the
+  native per-day hover value is technically present but impractical to target.
+  The same cells measure about 11.92px in the maximized 840px content axis.
+- **Remediation:** Narrow Account containers now keep the same 840px year-grid
+  geometry used by the maximized page and scroll only inside the heatmap figure.
+  A feature-owned observer reveals the latest dates after mount or container
+  resize. The named region supports pointer/trackpad scrolling plus
+  Left/Right/Home/End keyboard navigation with the shared focus token.
+- **Evidence:** At 720×498, daily cells remain about 11.92px, the internal
+  viewport resolves to 380/840px and initially rests at its 460px latest-date
+  boundary, while the document remains 720/720 with no horizontal overflow.
+  Arrow Left moves the figure to 412px and End returns it to 460px. The first
+  and last real titles remain `2025-07-21 · 0亿 Token` and
+  `2026-07-25 · 0.0005亿 Token`; no future cells were added.
+- **Positive evidence:** The anonymous profile, five real usage metrics, login
+  security rows, and 60KB WebP hero remain bounded. All visible Account controls
+  have accessible names, reduced motion is respected, and neither maximized nor
+  720×498 layouts produce document-level horizontal overflow.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

@@ -240,7 +240,26 @@
 
 .account-settings__heatmap-figure {
   max-width: 100%;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 2px;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.account-settings__heatmap-figure:focus-visible {
+  outline: 2px solid var(--workspace-focus-ring);
+  outline-offset: 3px;
+}
+
+.account-settings__heatmap-figure::-webkit-scrollbar {
+  height: 4px;
+}
+
+.account-settings__heatmap-figure::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--border-strong);
 }
 
 .account-settings__heatmap-months {
@@ -354,6 +373,11 @@
       grid-column: 1 / -1;
       border-bottom: 0;
     }
+  }
+
+  .account-settings__heatmap,
+  .account-settings__heatmap-months {
+    min-width: 840px;
   }
 }
 

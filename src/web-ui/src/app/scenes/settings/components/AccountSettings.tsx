@@ -77,6 +77,7 @@ function ActivityHeatmap({
   peak: number;
   t: Translate;
 }) {
+  const figureRef = React.useRef<HTMLDivElement>(null);
   const weekColumnCount = Math.max(1, Math.ceil(daily.length / 7));
   const heatmapColumns = `repeat(${weekColumnCount}, minmax(0, 1fr))`;
   const monthMarkers = daily.reduce<Array<{ label: string; column: number }>>((markers, day, index) => {
@@ -97,8 +98,64 @@ function ActivityHeatmap({
     return markers;
   }, []);
 
+  React.useEffect(() => {
+    const figure = figureRef.current;
+    if (!figure) {
+      return;
+    }
+
+    const revealLatest = () => {
+      figure.scrollLeft = Math.max(0, figure.scrollWidth - figure.clientWidth);
+    };
+
+    revealLatest();
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(revealLatest);
+    observer.observe(figure);
+    return () => observer.disconnect();
+  }, [daily]);
+
+  const handleHeatmapKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const figure = figureRef.current;
+    if (!figure) {
+      return;
+    }
+
+    const latest = Math.max(0, figure.scrollWidth - figure.clientWidth);
+    switch (event.key) {
+      case 'ArrowLeft':
+        event.preventDefault();
+        figure.scrollLeft = Math.max(0, figure.scrollLeft - 48);
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        figure.scrollLeft = Math.min(latest, figure.scrollLeft + 48);
+        break;
+      case 'Home':
+        event.preventDefault();
+        figure.scrollLeft = 0;
+        break;
+      case 'End':
+        event.preventDefault();
+        figure.scrollLeft = latest;
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div className="account-settings__heatmap-figure">
+    <div
+      className="account-settings__heatmap-figure"
+      ref={figureRef}
+      role="region"
+      aria-label={t('account.usage.activityAriaLabel')}
+      tabIndex={0}
+      onKeyDown={handleHeatmapKeyDown}
+    >
       <div
         className="account-settings__heatmap"
         style={{ gridTemplateColumns: heatmapColumns }}
