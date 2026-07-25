@@ -1185,6 +1185,30 @@ replace the working gallery or add decorative imagery.
   max-width, height, and max-height transitions. The focused suite passes and
   the shared theme visual contract remains green.
 
+### Resolved follow-up — Narrow Settings navigation starved long forms
+
+- **Location:** Shared workspace split while Settings navigation is active
+- **Category:** Responsive layout / information priority
+- **Severity:** P1
+- **Impact:** At a 466×592 CSS viewport, the Settings navigation retained its
+  240px user width plus shell gutters. The ACP scene received only 202px and
+  its content axis only 144px, compressing card identity, status, and add
+  actions despite reporting no document overflow.
+- **Remediation:** `WorkspaceBody` now derives both the navigation column and
+  divider from one presentation-only effective-width variable. In Minimal
+  Settings at 720px and below, that width is capped by
+  `clamp(136px, 34vw, 176px)`. Full-width Settings, every non-Settings scene,
+  collapse ownership, the stored drag width, navigation state, and all config
+  state remain unchanged. The narrow projection disables the width transition
+  so its responsive reallocation does not animate layout.
+- **Verification evidence:** In the real ACP page at the same 466×592
+  viewport, navigation falls from 240px to 158.44px, the scene grows from
+  202px to 283.56px, and its content axis grows from 144px to 217.56px.
+  Search, filtering, three toolbar actions, agent identity, availability, and
+  add actions remain visible; document and scene overflow are both zero.
+  The focused Settings navigation contract passes 6/6, together with theme
+  visual governance and core-boundary checks.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

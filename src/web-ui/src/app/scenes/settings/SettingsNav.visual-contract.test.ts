@@ -106,4 +106,25 @@ describe('SettingsNav compact search visual contract', () => {
     expect(classicStyles).toContain('height: 32px;');
     expect(minimalStyles).not.toMatch(/position:\s*(?:absolute|fixed)/);
   });
+
+  it('gives narrow Settings content priority without changing navigation state', () => {
+    const workspaceStyles = readSource('../../layout/WorkspaceBody.scss');
+
+    expect(workspaceStyles).toContain(
+      '--workspace-nav-effective-width: var(--nav-width, #{$_nav-width});',
+    );
+    expect(workspaceStyles).toContain(
+      'width: var(--workspace-nav-effective-width);',
+    );
+    expect(workspaceStyles).toContain(
+      'left: calc(#{$size-gap-2} + var(--workspace-nav-effective-width));',
+    );
+    expect(workspaceStyles).toMatch(
+      /@media \(max-width: 720px\) \{[\s\S]*?\.void-ui--minimal \.void-workspace-body:has\(\.void-settings-nav\) \{[\s\S]*?--workspace-nav-effective-width: clamp\(136px, 34vw, 176px\);/,
+    );
+    expect(workspaceStyles).toMatch(
+      /\.void-workspace-body:has\(\.void-settings-nav\)[\s\S]*?\.void-workspace-body__nav-area \{[\s\S]*?transition: none;/,
+    );
+    expect(workspaceStyles).not.toContain('useSettingsStore');
+  });
 });
