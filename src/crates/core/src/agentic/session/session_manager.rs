@@ -40,7 +40,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time;
-use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
+use void_core_types::{SubagentTaskRecord, SubagentTaskRecoveryState, SubagentTaskStatus};
 
 /// Session manager configuration
 #[derive(Debug, Clone)]
@@ -535,7 +535,7 @@ impl SessionManager {
     ) -> VoidResult<()> {
         let recovered = self
             .persistence_manager
-            .recover_interrupted_subagent_tasks(
+            .recover_subagent_tasks_after_restart(
                 storage_path,
                 parent_session_id,
                 SystemTime::now()
@@ -586,6 +586,18 @@ impl SessionManager {
             .await
     }
 
+    pub async fn list_subagent_task_recovery_queue(
+        &self,
+        parent_session_id: &str,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        Ok(self
+            .list_subagent_tasks(parent_session_id)
+            .await?
+            .into_iter()
+            .filter(|task| task.recovery_state == SubagentTaskRecoveryState::Queued)
+            .collect())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn transition_subagent_task(
         &self,
@@ -621,12 +633,23 @@ impl SessionManager {
         &self,
         parent_session_id: &str,
         task_id: &str,
-        updated_at: u64,
+        lease_id: String,
+        lease_owner: String,
+        now: u64,
+        lease_duration_ms: u64,
     ) -> VoidResult<Option<SubagentTaskRecord>> {
         let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
         let task = self
             .persistence_manager
-            .claim_subagent_task_delivery(&storage_path, parent_session_id, task_id, updated_at)
+            .claim_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                lease_id,
+                lease_owner,
+                now,
+                lease_duration_ms,
+            )
             .await?;
         if let Some(task) = task.as_ref() {
             self.publish_subagent_task_changed(task).await;
@@ -638,12 +661,21 @@ impl SessionManager {
         &self,
         parent_session_id: &str,
         task_id: &str,
+        lease_id: &str,
+        external_receipt: String,
         updated_at: u64,
     ) -> VoidResult<SubagentTaskRecord> {
         let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
         let task = self
             .persistence_manager
-            .complete_subagent_task_delivery(&storage_path, parent_session_id, task_id, updated_at)
+            .complete_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                lease_id,
+                external_receipt,
+                updated_at,
+            )
             .await?;
         self.publish_subagent_task_changed(&task).await;
         Ok(task)
@@ -653,6 +685,8 @@ impl SessionManager {
         &self,
         parent_session_id: &str,
         task_id: &str,
+        lease_id: &str,
+        reason: String,
         updated_at: u64,
     ) -> VoidResult<SubagentTaskRecord> {
         let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
@@ -662,6 +696,8 @@ impl SessionManager {
                 &storage_path,
                 parent_session_id,
                 task_id,
+                lease_id,
+                reason,
                 updated_at,
             )
             .await?;

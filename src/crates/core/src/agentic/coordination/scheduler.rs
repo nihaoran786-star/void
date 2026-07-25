@@ -290,6 +290,74 @@ impl DialogScheduler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub async fn deliver_background_result_idempotent(
+        &self,
+        session_id: String,
+        agent_type: String,
+        workspace_path: Option<String>,
+        content: String,
+        display_content: Option<String>,
+        user_message_metadata: Option<serde_json::Value>,
+        idempotency_key: String,
+    ) -> Result<String, String> {
+        if idempotency_key.trim().is_empty() {
+            return Err("Background result delivery requires an idempotency key".to_string());
+        }
+        let display = display_content.unwrap_or_else(|| content.clone());
+        let state = self
+            .session_manager
+            .get_session(&session_id)
+            .map(|session| session.state.clone());
+
+        if matches!(state, Some(SessionState::Processing { .. })) {
+            self.round_injection_buffer.push_if_absent(
+                &session_id,
+                RoundInjection {
+                    id: idempotency_key.clone(),
+                    kind: RoundInjectionKind::BackgroundResult,
+                    target: RoundInjectionTarget::CurrentRunningTurn,
+                    content,
+                    display_content: display,
+                    created_at: SystemTime::now(),
+                },
+            );
+            return Ok(format!("round-injection:{idempotency_key}"));
+        }
+
+        let already_known = self
+            .session_manager
+            .get_session(&session_id)
+            .is_some_and(|session| session.dialog_turn_ids.contains(&idempotency_key))
+            || self
+                .active_turns
+                .get(&session_id)
+                .is_some_and(|turn| turn.turn_id == idempotency_key)
+            || self.queues.get(&session_id).is_some_and(|queue| {
+                queue
+                    .iter()
+                    .any(|turn| turn.turn_id.as_deref() == Some(idempotency_key.as_str()))
+            });
+        if already_known {
+            return Ok(format!("dialog-turn:{idempotency_key}"));
+        }
+
+        self.submit(
+            session_id,
+            content,
+            Some(display),
+            Some(idempotency_key.clone()),
+            agent_type,
+            workspace_path,
+            DialogSubmissionPolicy::for_source(DialogTriggerSource::AgentSession),
+            None,
+            user_message_metadata,
+            None,
+        )
+        .await?;
+        Ok(format!("dialog-turn:{idempotency_key}"))
+    }
+
     pub async fn submit_init_agents_md(
         &self,
         session_id: String,

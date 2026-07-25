@@ -20,7 +20,9 @@ pub use external_config_sources::{
 pub use session::SessionKind;
 pub use subscription_auth::SubscriptionProvider;
 pub use subagent_task::{
-    SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskStatus,
+    SubagentTaskCheckpointRef, SubagentTaskContextMode, SubagentTaskDeliveryLease,
+    SubagentTaskDeliveryReceipt, SubagentTaskDeliveryState, SubagentTaskExecutionMode,
+    SubagentTaskRecord, SubagentTaskRecoveryState, SubagentTaskReplaySafety, SubagentTaskStatus,
     SubagentTaskTransitionError, SUBAGENT_TASK_SCHEMA_VERSION,
 };
 pub use surface::{

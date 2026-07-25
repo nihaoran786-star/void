@@ -3,8 +3,8 @@
 //! Responsible for project-scoped session persistence.
 
 use crate::agentic::core::{
-    strip_prompt_markup, CompressionState, Message, MessageContent, RecoveryCheckpoint, Session,
-    SessionConfig, SessionKind, SessionState, SessionSummary,
+    strip_prompt_markup, CompressionState, Message, MessageContent, RecoveryCheckpoint,
+    RecoveryCheckpointStatus, Session, SessionConfig, SessionKind, SessionState, SessionSummary,
 };
 use crate::agentic::session::{SessionPromptCache, PROMPT_CACHE_SCHEMA_VERSION};
 use crate::infrastructure::PathManager;
@@ -19,17 +19,22 @@ use crate::service::session::{
 };
 use crate::service::workspace_runtime::WorkspaceRuntimeService;
 use crate::util::errors::{VoidError, VoidResult};
+use fs2::FileExt;
 use log::{debug, info, warn};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
+use std::fs::{File, OpenOptions};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::Mutex;
-use void_core_types::{SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskStatus};
+use void_core_types::{
+    SubagentTaskCheckpointRef, SubagentTaskDeliveryState, SubagentTaskRecord,
+    SubagentTaskRecoveryState, SubagentTaskStatus,
+};
 
 const TRANSCRIPT_SCHEMA_VERSION: u32 = 1;
 const JSON_WRITE_MAX_RETRIES: usize = 5;
@@ -435,6 +440,54 @@ impl PersistenceManager {
         Ok(self
             .subagent_tasks_dir(workspace_path, session_id)
             .join(format!("{task_id}.json")))
+    }
+
+    async fn acquire_subagent_task_file_lock(&self, task_path: &Path) -> VoidResult<File> {
+        let lock_path = task_path.with_extension("lock");
+        if let Some(parent) = lock_path.parent() {
+            fs::create_dir_all(parent).await.map_err(|error| {
+                VoidError::io(format!(
+                    "Failed to create subagent task lock directory {}: {}",
+                    parent.display(),
+                    error
+                ))
+            })?;
+        }
+        tokio::task::spawn_blocking(move || {
+            let file = OpenOptions::new()
+                .create(true)
+                .read(true)
+                .write(true)
+                .open(&lock_path)
+                .map_err(|error| {
+                    VoidError::io(format!(
+                        "Failed to open subagent task lock {}: {}",
+                        lock_path.display(),
+                        error
+                    ))
+                })?;
+            file.lock_exclusive().map_err(|error| {
+                VoidError::io(format!(
+                    "Failed to lock subagent task {}: {}",
+                    lock_path.display(),
+                    error
+                ))
+            })?;
+            Ok(file)
+        })
+        .await
+        .map_err(|error| VoidError::service(format!("Subagent task lock worker failed: {error}")))?
+    }
+
+    async fn read_subagent_task_optional(
+        &self,
+        path: &Path,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let mut task = self.read_json_optional::<SubagentTaskRecord>(path).await?;
+        if let Some(task) = task.as_mut() {
+            task.upgrade_legacy_fields();
+        }
+        Ok(task)
     }
 
     fn metadata_path(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
@@ -1961,11 +2014,8 @@ impl PersistenceManager {
             .get_session_metadata_update_lock(workspace_path, parent_session_id)
             .await;
         let _guard = lock.lock().await;
-        if self
-            .read_json_optional::<SubagentTaskRecord>(&path)
-            .await?
-            .is_some()
-        {
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
+        if self.read_subagent_task_optional(&path).await?.is_some() {
             return Err(VoidError::Validation(format!(
                 "Subagent task already exists: {}",
                 task.task_id
@@ -1982,7 +2032,7 @@ impl PersistenceManager {
         task_id: &str,
     ) -> VoidResult<Option<SubagentTaskRecord>> {
         let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
-        self.read_json_optional(&path).await
+        self.read_subagent_task_optional(&path).await
     }
 
     pub async fn list_subagent_tasks(
@@ -2014,7 +2064,7 @@ impl PersistenceManager {
             if path.extension().and_then(|value| value.to_str()) != Some("json") {
                 continue;
             }
-            if let Some(task) = self.read_json_optional::<SubagentTaskRecord>(&path).await? {
+            if let Some(task) = self.read_subagent_task_optional(&path).await? {
                 tasks.push(task);
             }
         }
@@ -2044,8 +2094,9 @@ impl PersistenceManager {
             .get_session_metadata_update_lock(workspace_path, parent_session_id)
             .await;
         let _guard = lock.lock().await;
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
         let mut task = self
-            .read_json_optional::<SubagentTaskRecord>(&path)
+            .read_subagent_task_optional(&path)
             .await?
             .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
 
@@ -2081,22 +2132,30 @@ impl PersistenceManager {
         workspace_path: &Path,
         parent_session_id: &str,
         task_id: &str,
-        updated_at: u64,
+        lease_id: String,
+        lease_owner: String,
+        now: u64,
+        lease_duration_ms: u64,
     ) -> VoidResult<Option<SubagentTaskRecord>> {
         let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
         let lock = self
             .get_session_metadata_update_lock(workspace_path, parent_session_id)
             .await;
         let _guard = lock.lock().await;
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
         let mut task = self
-            .read_json_optional::<SubagentTaskRecord>(&path)
+            .read_subagent_task_optional(&path)
             .await?
             .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
-        if task.delivery_state != SubagentTaskDeliveryState::Pending || !task.status.is_terminal() {
+        if !task
+            .claim_delivery(lease_id, lease_owner, now, lease_duration_ms)
+            .map_err(|error| VoidError::Validation(error.to_string()))?
+        {
+            if task.recovery_state == SubagentTaskRecoveryState::Blocked {
+                self.write_json_atomic(&path, &task).await?;
+            }
             return Ok(None);
         }
-        task.transition_delivery(SubagentTaskDeliveryState::Delivering, updated_at)
-            .map_err(|error| VoidError::Validation(error.to_string()))?;
         self.write_json_atomic(&path, &task).await?;
         Ok(Some(task))
     }
@@ -2107,6 +2166,8 @@ impl PersistenceManager {
         parent_session_id: &str,
         task_id: &str,
         next_state: SubagentTaskDeliveryState,
+        lease_id: &str,
+        detail: String,
         updated_at: u64,
     ) -> VoidResult<SubagentTaskRecord> {
         let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
@@ -2114,12 +2175,25 @@ impl PersistenceManager {
             .get_session_metadata_update_lock(workspace_path, parent_session_id)
             .await;
         let _guard = lock.lock().await;
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
         let mut task = self
-            .read_json_optional::<SubagentTaskRecord>(&path)
+            .read_subagent_task_optional(&path)
             .await?
             .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
-        task.transition_delivery(next_state, updated_at)
-            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        match next_state {
+            SubagentTaskDeliveryState::Delivered => task
+                .complete_delivery(lease_id, detail, updated_at)
+                .map_err(|error| VoidError::Validation(error.to_string()))?,
+            SubagentTaskDeliveryState::Failed => {
+                task.fail_delivery(lease_id, detail, updated_at)
+                    .map_err(|error| VoidError::Validation(error.to_string()))?
+            }
+            _ => {
+                return Err(VoidError::Validation(format!(
+                    "Unsupported subagent delivery finish state: {next_state:?}"
+                )));
+            }
+        }
         self.write_json_atomic(&path, &task).await?;
         Ok(task)
     }
@@ -2129,6 +2203,8 @@ impl PersistenceManager {
         workspace_path: &Path,
         parent_session_id: &str,
         task_id: &str,
+        lease_id: &str,
+        external_receipt: String,
         updated_at: u64,
     ) -> VoidResult<SubagentTaskRecord> {
         self.finish_subagent_task_delivery(
@@ -2136,6 +2212,8 @@ impl PersistenceManager {
             parent_session_id,
             task_id,
             SubagentTaskDeliveryState::Delivered,
+            lease_id,
+            external_receipt,
             updated_at,
         )
         .await
@@ -2146,6 +2224,8 @@ impl PersistenceManager {
         workspace_path: &Path,
         parent_session_id: &str,
         task_id: &str,
+        lease_id: &str,
+        reason: String,
         updated_at: u64,
     ) -> VoidResult<SubagentTaskRecord> {
         self.finish_subagent_task_delivery(
@@ -2153,38 +2233,65 @@ impl PersistenceManager {
             parent_session_id,
             task_id,
             SubagentTaskDeliveryState::Failed,
+            lease_id,
+            reason,
             updated_at,
         )
         .await
     }
 
-    pub async fn recover_interrupted_subagent_tasks(
+    pub async fn recover_subagent_tasks_after_restart(
         &self,
         workspace_path: &Path,
         parent_session_id: &str,
         updated_at: u64,
     ) -> VoidResult<Vec<SubagentTaskRecord>> {
-        let lock = self
-            .get_session_metadata_update_lock(workspace_path, parent_session_id)
-            .await;
-        let _guard = lock.lock().await;
         let mut changed = Vec::new();
         for mut task in self
             .list_subagent_tasks(workspace_path, parent_session_id)
             .await?
         {
-            if !matches!(
-                task.status,
-                SubagentTaskStatus::Created | SubagentTaskStatus::Running
-            ) {
-                continue;
-            }
-            task.transition_status(SubagentTaskStatus::Interrupted, updated_at)
-                .map_err(|error| VoidError::Validation(error.to_string()))?;
-            task.failure = Some("runtime restarted before task completion".to_string());
             let path = self.subagent_task_path(workspace_path, parent_session_id, &task.task_id)?;
+            let lock = self
+                .get_session_metadata_update_lock(workspace_path, parent_session_id)
+                .await;
+            let _guard = lock.lock().await;
+            let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
+            task = self
+                .read_subagent_task_optional(&path)
+                .await?
+                .ok_or_else(|| {
+                    VoidError::NotFound(format!("Subagent task not found: {}", task.task_id))
+                })?;
+
+            if matches!(
+                task.status,
+                SubagentTaskStatus::Created
+                    | SubagentTaskStatus::Running
+                    | SubagentTaskStatus::Interrupted
+            ) {
+                task.durable_checkpoint = match task.child_session_id.as_deref() {
+                    Some(child_session_id) => self
+                        .load_recovery_checkpoint(workspace_path, child_session_id)
+                        .await?
+                        .filter(|checkpoint| {
+                            checkpoint.status == RecoveryCheckpointStatus::Ready
+                                && checkpoint
+                                    .validate(child_session_id, checkpoint.catalog_generation)
+                                    .is_ok()
+                        })
+                        .map(|checkpoint| SubagentTaskCheckpointRef {
+                            checkpoint_id: checkpoint.checkpoint_id,
+                            session_id: checkpoint.session_id,
+                            checkpoint_version: checkpoint.checkpoint_version,
+                        }),
+                    None => None,
+                };
+            }
+            if task.mark_recovery_after_restart(updated_at) {
             self.write_json_atomic(&path, &task).await?;
             changed.push(task);
+        }
         }
         Ok(changed)
     }
@@ -3287,10 +3394,14 @@ mod tests {
         TextItemData, UserMessageData,
     };
     use std::path::{Path, PathBuf};
+    use std::process::Command;
     use std::sync::Arc;
     use std::time::Instant;
     use uuid::Uuid;
-    use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
+    use void_core_types::{
+        SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskRecoveryState,
+        SubagentTaskReplaySafety, SubagentTaskStatus,
+    };
 
     struct TestWorkspace {
         path: PathBuf,
@@ -3329,6 +3440,37 @@ mod tests {
             "execution-1".to_string(),
             10,
         )
+    }
+
+    const CROSS_PROCESS_WORKSPACE_ENV: &str = "VOID_B2_CLAIM_WORKSPACE";
+    const CROSS_PROCESS_USER_ROOT_ENV: &str = "VOID_B2_CLAIM_USER_ROOT";
+
+    #[test]
+    fn cross_process_delivery_claim_worker() {
+        let Ok(workspace_path) = std::env::var(CROSS_PROCESS_WORKSPACE_ENV) else {
+            return;
+        };
+        let user_root =
+            std::env::var(CROSS_PROCESS_USER_ROOT_ENV).expect("worker user root should be set");
+        let runtime = tokio::runtime::Runtime::new().expect("worker runtime");
+        runtime.block_on(async {
+            let manager = PersistenceManager::new(Arc::new(
+                PathManager::with_user_root_for_tests(PathBuf::from(user_root)),
+            ))
+            .expect("worker persistence manager");
+            manager
+                .claim_subagent_task_delivery(
+                    Path::new(&workspace_path),
+                    "parent-1",
+                    "bg-subagent-cross-process",
+                    format!("lease-{}", std::process::id()),
+                    format!("process-{}", std::process::id()),
+                    13,
+                    30_000,
+                )
+                .await
+                .expect("worker claim should not fail");
+        });
     }
 
     #[tokio::test]
@@ -3386,6 +3528,8 @@ mod tests {
         let manager = Arc::new(
             PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
         );
+        let competing_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("competing manager"));
         let mut task = subagent_task("bg-subagent-claim", "parent-1");
         task.transition_status(SubagentTaskStatus::Running, 11)
             .expect("task should run");
@@ -3402,13 +3546,19 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-claim",
-                13
+                "lease-left".into(),
+                "process-left".into(),
+                13,
+                30_000,
             ),
-            manager.claim_subagent_task_delivery(
+            competing_manager.claim_subagent_task_delivery(
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-claim",
-                13
+                "lease-right".into(),
+                "process-right".into(),
+                13,
+                30_000,
             )
         );
         let winners = [left, right]
@@ -3417,12 +3567,32 @@ mod tests {
             .count();
         assert_eq!(winners, 1);
 
+        let claimed = manager
+            .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-claim")
+            .await
+            .unwrap()
+            .unwrap();
+        let winning_lease = claimed.delivery_lease.unwrap().lease_id;
         manager
-            .complete_subagent_task_delivery(workspace.path(), "parent-1", "bg-subagent-claim", 14)
+            .complete_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-claim",
+                &winning_lease,
+                "dialog-turn:receipt".into(),
+                14,
+            )
             .await
             .expect("claimed delivery should complete");
         assert!(manager
-            .complete_subagent_task_delivery(workspace.path(), "parent-1", "bg-subagent-claim", 15,)
+            .complete_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-claim",
+                &winning_lease,
+                "duplicate".into(),
+                15,
+            )
             .await
             .is_err());
         assert!(manager
@@ -3430,6 +3600,8 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-claim",
+                &winning_lease,
+                "duplicate".into(),
                 15,
             )
             .await
@@ -3452,7 +3624,10 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-failed-delivery",
+                "failure-lease".into(),
+                "process".into(),
                 18,
+                30_000,
             )
             .await
             .expect("claim should succeed")
@@ -3462,6 +3637,8 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-failed-delivery",
+                "failure-lease",
+                "scheduler unavailable".into(),
                 19,
             )
             .await
@@ -3472,7 +3649,10 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-failed-delivery",
+                "retry-lease".into(),
+                "process".into(),
                 20,
+                30_000,
             )
             .await
             .expect("claim check should succeed")
@@ -3482,6 +3662,8 @@ mod tests {
                 workspace.path(),
                 "parent-1",
                 "bg-subagent-failed-delivery",
+                "failure-lease",
+                "duplicate".into(),
                 20,
             )
             .await
@@ -3489,7 +3671,56 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn restart_recovery_interrupts_only_created_and_running_tasks() {
+    async fn cross_process_subagent_delivery_claim_has_one_winner() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let mut task = subagent_task("bg-subagent-cross-process", "parent-1");
+        task.transition_status(SubagentTaskStatus::Running, 11)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 12)
+            .unwrap();
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+
+        let executable = std::env::current_exe().expect("current test executable");
+        let user_root = workspace.path().join("user-root");
+        let spawn_worker = || {
+            Command::new(&executable)
+                .arg("--exact")
+                .arg(
+                    "agentic::persistence::manager::tests::cross_process_delivery_claim_worker",
+                )
+                .env(CROSS_PROCESS_WORKSPACE_ENV, workspace.path())
+                .env(CROSS_PROCESS_USER_ROOT_ENV, &user_root)
+                .spawn()
+                .expect("claim worker should start")
+        };
+        let mut first = spawn_worker();
+        let mut second = spawn_worker();
+        assert!(first.wait().expect("first worker should exit").success());
+        assert!(second.wait().expect("second worker should exit").success());
+
+        let claimed = manager
+            .get_subagent_task(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-cross-process",
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(claimed.delivery_attempts, 1);
+        assert_eq!(
+            claimed.delivery_state,
+            SubagentTaskDeliveryState::Delivering
+        );
+    }
+
+    #[tokio::test]
+    async fn restart_recovery_interrupts_active_tasks_and_queues_terminal_pending_delivery() {
         let workspace = TestWorkspace::new();
         let manager =
             PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
@@ -3522,22 +3753,250 @@ mod tests {
             .expect("completed task should save");
 
         let changed = manager
-            .recover_interrupted_subagent_tasks(workspace.path(), "parent-1", 20)
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 20)
             .await
             .expect("recovery should succeed");
-        assert_eq!(changed.len(), 2);
+        assert_eq!(changed.len(), 3);
         assert!(changed
             .iter()
-            .all(|task| task.status == SubagentTaskStatus::Interrupted));
-        assert_eq!(
-            manager
+            .filter(|task| task.status == SubagentTaskStatus::Interrupted)
+            .all(|task| task.recovery_state == SubagentTaskRecoveryState::Blocked));
+        let completed = manager
                 .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-completed")
                 .await
                 .expect("task should load")
-                .expect("task should exist")
-                .status,
-            SubagentTaskStatus::Completed
+            .expect("task should exist");
+        assert_eq!(completed.status, SubagentTaskStatus::Completed);
+        assert_eq!(completed.recovery_state, SubagentTaskRecoveryState::Queued);
+
+        assert!(manager
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 21)
+            .await
+            .expect("repeated recovery should succeed")
+            .is_empty());
+    }
+
+    #[tokio::test]
+    async fn expired_delivery_lease_can_be_reclaimed_after_process_crash() {
+        let workspace = TestWorkspace::new();
+        let first_process =
+            PersistenceManager::new(workspace.path_manager()).expect("first process");
+        let restarted_process =
+            PersistenceManager::new(workspace.path_manager()).expect("restarted process");
+        let mut task = subagent_task("bg-subagent-crash", "parent-1");
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        first_process
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+        first_process
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-crash",
+                "crashed-lease".into(),
+                "process-1".into(),
+                4,
+                10,
+            )
+            .await
+            .unwrap()
+            .expect("initial claim");
+
+        assert!(restarted_process
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-crash",
+                "too-early".into(),
+                "process-2".into(),
+                13,
+                10,
+            )
+            .await
+            .unwrap()
+            .is_none());
+        let reclaimed = restarted_process
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-crash",
+                "reclaimed-lease".into(),
+                "process-2".into(),
+                14,
+                10,
+            )
+            .await
+            .unwrap()
+            .expect("expired lease should be reclaimed");
+        assert_eq!(reclaimed.delivery_attempts, 2);
+        assert_eq!(
+            reclaimed.delivery_lease.unwrap().lease_id,
+            "reclaimed-lease"
         );
+    }
+
+    #[tokio::test]
+    async fn restart_blocks_expired_delivery_without_replay_guarantee() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let mut task = subagent_task("bg-subagent-unsafe", "parent-1");
+        task.delivery_replay_safety = SubagentTaskReplaySafety::UnsafeExternalSideEffect;
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+        manager
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-unsafe",
+                "unsafe-lease".into(),
+                "process-1".into(),
+                4,
+                10,
+            )
+            .await
+            .unwrap()
+            .expect("initial delivery may be claimed");
+
+        let changed = manager
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 14)
+            .await
+            .unwrap();
+        assert_eq!(changed.len(), 1);
+        assert_eq!(
+            changed[0].delivery_state,
+            SubagentTaskDeliveryState::Blocked
+        );
+        assert_eq!(
+            changed[0].recovery_state,
+            SubagentTaskRecoveryState::Blocked
+        );
+        assert!(changed[0]
+            .recovery_reason
+            .as_deref()
+            .unwrap()
+            .contains("without idempotency"));
+    }
+
+    #[tokio::test]
+    async fn interrupted_task_is_resumable_only_with_persisted_checkpoint() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let mut task = subagent_task("subagent-resume", "parent-1");
+        task.child_session_id = Some("child-1".into());
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".into(),
+            "child-1".into(),
+            "turn-1".into(),
+            RecoveryBoundary::AutomaticContinue,
+            42,
+            &[Message::user("finish the child task".into())],
+            3,
+        );
+        manager
+            .save_recovery_checkpoint(workspace.path(), "child-1", &checkpoint)
+            .await
+            .unwrap();
+
+        let recovered = manager
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 4)
+            .await
+            .unwrap();
+        assert_eq!(recovered.len(), 1);
+        assert_eq!(recovered[0].status, SubagentTaskStatus::Interrupted);
+        assert_eq!(
+            recovered[0].recovery_state,
+            SubagentTaskRecoveryState::Queued
+        );
+        assert_eq!(
+            recovered[0]
+                .durable_checkpoint
+                .as_ref()
+                .map(|checkpoint| checkpoint.checkpoint_id.as_str()),
+            Some("checkpoint-1")
+        );
+        let resumed = manager
+            .transition_subagent_task(
+                workspace.path(),
+                "parent-1",
+                "subagent-resume",
+                SubagentTaskStatus::Running,
+                None,
+                None,
+                None,
+                None,
+                5,
+            )
+            .await
+            .expect("durable checkpoint should allow resume");
+        assert_eq!(resumed.status, SubagentTaskStatus::Running);
+    }
+
+    #[tokio::test]
+    async fn delivered_task_is_unchanged_across_repeated_startup_recovery() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let mut task = subagent_task("bg-subagent-delivered", "parent-1");
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+        manager
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-delivered",
+                "lease".into(),
+                "process".into(),
+                4,
+                10,
+            )
+            .await
+            .unwrap();
+        manager
+            .complete_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-delivered",
+                "lease",
+                "dialog-turn:receipt".into(),
+                5,
+            )
+            .await
+            .unwrap();
+
+        assert!(manager
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 20)
+            .await
+            .unwrap()
+            .is_empty());
+        assert!(manager
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 21)
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[test]

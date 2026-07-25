@@ -1,7 +1,23 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub const SUBAGENT_TASK_SCHEMA_VERSION: u32 = 1;
+pub const SUBAGENT_TASK_SCHEMA_VERSION: u32 = 2;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SubagentTaskExecutionMode {
+    Synchronous,
+    #[default]
+    Background,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SubagentTaskContextMode {
+    #[default]
+    Fresh,
+    Fork,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -25,10 +41,16 @@ impl SubagentTaskStatus {
 
         matches!(
             (self, next),
-            (Created, Running | Blocked | Failed | Cancelled | Interrupted)
-                | (Running, Blocked | Completed | Failed | Cancelled | Interrupted)
-                | (Blocked, Running | Completed | Failed | Cancelled | Interrupted)
-                | (Interrupted, Running | Failed | Cancelled)
+            (
+                Created,
+                Running | Blocked | Failed | Cancelled | Interrupted
+            ) | (
+                Running,
+                Blocked | Completed | Failed | Cancelled | Interrupted
+            ) | (
+                Blocked,
+                Running | Completed | Failed | Cancelled | Interrupted
+            ) | (Interrupted, Running | Failed | Cancelled)
         )
     }
 }
@@ -36,10 +58,12 @@ impl SubagentTaskStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SubagentTaskDeliveryState {
+    NotRequired,
     Pending,
     Delivering,
     Delivered,
     Failed,
+    Blocked,
 }
 
 impl SubagentTaskDeliveryState {
@@ -49,8 +73,49 @@ impl SubagentTaskDeliveryState {
             (Self::Pending, Self::Delivering)
                 | (Self::Delivering, Self::Delivered)
                 | (Self::Delivering, Self::Failed)
+                | (Self::Delivering, Self::Blocked)
         )
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SubagentTaskReplaySafety {
+    #[default]
+    Idempotent,
+    UnsafeExternalSideEffect,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SubagentTaskRecoveryState {
+    #[default]
+    None,
+    Queued,
+    Blocked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubagentTaskDeliveryLease {
+    pub lease_id: String,
+    pub owner: String,
+    pub acquired_at: u64,
+    pub expires_at: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubagentTaskDeliveryReceipt {
+    pub idempotency_key: String,
+    pub lease_id: String,
+    pub external_receipt: String,
+    pub delivered_at: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubagentTaskCheckpointRef {
+    pub checkpoint_id: String,
+    pub session_id: String,
+    pub checkpoint_version: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +147,10 @@ pub struct SubagentTaskRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub child_session_id: Option<String>,
     pub objective: String,
+    #[serde(default)]
+    pub execution_mode: SubagentTaskExecutionMode,
+    #[serde(default)]
+    pub context_mode: SubagentTaskContextMode,
     pub status: SubagentTaskStatus,
     pub owner: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -91,6 +160,22 @@ pub struct SubagentTaskRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
     pub delivery_state: SubagentTaskDeliveryState,
+    #[serde(default)]
+    pub delivery_replay_safety: SubagentTaskReplaySafety,
+    #[serde(default)]
+    pub delivery_idempotency_key: String,
+    #[serde(default)]
+    pub delivery_attempts: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_lease: Option<SubagentTaskDeliveryLease>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delivery_receipt: Option<SubagentTaskDeliveryReceipt>,
+    #[serde(default)]
+    pub recovery_state: SubagentTaskRecoveryState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub durable_checkpoint: Option<SubagentTaskCheckpointRef>,
     pub created_at: u64,
     pub updated_at: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,18 +192,56 @@ impl SubagentTaskRecord {
         owner: String,
         created_at: u64,
     ) -> Self {
+        Self::new_typed(
+            task_id,
+            parent_session_id,
+            objective,
+            owner,
+            SubagentTaskExecutionMode::Background,
+            SubagentTaskContextMode::Fresh,
+            SubagentTaskReplaySafety::Idempotent,
+            created_at,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_typed(
+        task_id: String,
+        parent_session_id: String,
+        objective: String,
+        owner: String,
+        execution_mode: SubagentTaskExecutionMode,
+        context_mode: SubagentTaskContextMode,
+        delivery_replay_safety: SubagentTaskReplaySafety,
+        created_at: u64,
+    ) -> Self {
+        let delivery_idempotency_key = format!("subagent-delivery:{parent_session_id}:{task_id}");
+        let delivery_state = match execution_mode {
+            SubagentTaskExecutionMode::Synchronous => SubagentTaskDeliveryState::NotRequired,
+            SubagentTaskExecutionMode::Background => SubagentTaskDeliveryState::Pending,
+        };
         Self {
             schema_version: SUBAGENT_TASK_SCHEMA_VERSION,
             task_id,
             parent_session_id,
             child_session_id: None,
             objective,
+            execution_mode,
+            context_mode,
             status: SubagentTaskStatus::Created,
             owner,
             progress: None,
             result: None,
             failure: None,
-            delivery_state: SubagentTaskDeliveryState::Pending,
+            delivery_state,
+            delivery_replay_safety,
+            delivery_idempotency_key,
+            delivery_attempts: 0,
+            delivery_lease: None,
+            delivery_receipt: None,
+            recovery_state: SubagentTaskRecoveryState::None,
+            recovery_reason: None,
+            durable_checkpoint: None,
             created_at,
             updated_at: created_at,
             completed_at: None,
@@ -131,6 +254,14 @@ impl SubagentTaskRecord {
         next: SubagentTaskStatus,
         updated_at: u64,
     ) -> Result<(), SubagentTaskTransitionError> {
+        if self.status == SubagentTaskStatus::Interrupted
+            && next == SubagentTaskStatus::Running
+            && self.durable_checkpoint.is_none()
+        {
+            return Err(SubagentTaskTransitionError::new(
+                "interrupted subagent task cannot resume without a durable checkpoint",
+            ));
+        }
         if !self.status.can_transition_to(next) {
             return Err(SubagentTaskTransitionError::new(format!(
                 "invalid subagent task status transition: {:?} -> {:?}",
@@ -145,6 +276,8 @@ impl SubagentTaskRecord {
                 self.result = None;
                 self.failure = None;
                 self.completed_at = None;
+                self.recovery_state = SubagentTaskRecoveryState::None;
+                self.recovery_reason = None;
             }
             SubagentTaskStatus::Completed => {
                 self.failure = None;
@@ -159,6 +292,187 @@ impl SubagentTaskRecord {
             | SubagentTaskStatus::Interrupted => {}
         }
         Ok(())
+    }
+
+    pub fn upgrade_legacy_fields(&mut self) {
+        if self.delivery_idempotency_key.is_empty() {
+            self.delivery_idempotency_key = format!(
+                "subagent-delivery:{}:{}",
+                self.parent_session_id, self.task_id
+            );
+        }
+        self.schema_version = SUBAGENT_TASK_SCHEMA_VERSION;
+    }
+
+    pub fn claim_delivery(
+        &mut self,
+        lease_id: String,
+        lease_owner: String,
+        now: u64,
+        lease_duration_ms: u64,
+    ) -> Result<bool, SubagentTaskTransitionError> {
+        if self.delivery_receipt.is_some()
+            || self.delivery_state == SubagentTaskDeliveryState::Delivered
+        {
+            return Ok(false);
+        }
+        if !self.status.is_terminal() {
+            return Ok(false);
+        }
+
+        match self.delivery_state {
+            SubagentTaskDeliveryState::Pending => {}
+            SubagentTaskDeliveryState::Delivering => {
+                let expired = self
+                    .delivery_lease
+                    .as_ref()
+                    .is_none_or(|lease| lease.expires_at <= now);
+                if !expired {
+                    return Ok(false);
+                }
+                if self.delivery_replay_safety == SubagentTaskReplaySafety::UnsafeExternalSideEffect
+                {
+                    self.delivery_state = SubagentTaskDeliveryState::Blocked;
+                    self.delivery_lease = None;
+                    self.recovery_state = SubagentTaskRecoveryState::Blocked;
+                    self.recovery_reason = Some(
+                        "delivery lease expired after an unsafe external side effect; blind replay is prohibited"
+                            .to_string(),
+                    );
+                    self.updated_at = now;
+                    return Ok(false);
+                }
+            }
+            SubagentTaskDeliveryState::NotRequired
+            | SubagentTaskDeliveryState::Delivered
+            | SubagentTaskDeliveryState::Failed
+            | SubagentTaskDeliveryState::Blocked => return Ok(false),
+        }
+
+        self.delivery_state = SubagentTaskDeliveryState::Delivering;
+        self.delivery_attempts = self.delivery_attempts.saturating_add(1);
+        self.delivery_lease = Some(SubagentTaskDeliveryLease {
+            lease_id,
+            owner: lease_owner,
+            acquired_at: now,
+            expires_at: now.saturating_add(lease_duration_ms.max(1)),
+        });
+        self.recovery_state = SubagentTaskRecoveryState::None;
+        self.recovery_reason = None;
+        self.updated_at = now;
+        Ok(true)
+    }
+
+    pub fn complete_delivery(
+        &mut self,
+        lease_id: &str,
+        external_receipt: String,
+        now: u64,
+    ) -> Result<(), SubagentTaskTransitionError> {
+        if self.delivery_state == SubagentTaskDeliveryState::Delivered {
+            return Err(SubagentTaskTransitionError::new(
+                "subagent task delivery is already complete",
+            ));
+        }
+        let lease = self.delivery_lease.as_ref().ok_or_else(|| {
+            SubagentTaskTransitionError::new("subagent task delivery has no active lease")
+        })?;
+        if lease.lease_id != lease_id {
+            return Err(SubagentTaskTransitionError::new(
+                "subagent task delivery lease does not match",
+            ));
+        }
+        self.transition_delivery(SubagentTaskDeliveryState::Delivered, now)?;
+        self.delivery_receipt = Some(SubagentTaskDeliveryReceipt {
+            idempotency_key: self.delivery_idempotency_key.clone(),
+            lease_id: lease_id.to_string(),
+            external_receipt,
+            delivered_at: now,
+        });
+        self.delivery_lease = None;
+        self.recovery_state = SubagentTaskRecoveryState::None;
+        self.recovery_reason = None;
+        Ok(())
+    }
+
+    pub fn fail_delivery(
+        &mut self,
+        lease_id: &str,
+        reason: String,
+        now: u64,
+    ) -> Result<(), SubagentTaskTransitionError> {
+        let lease = self.delivery_lease.as_ref().ok_or_else(|| {
+            SubagentTaskTransitionError::new("subagent task delivery has no active lease")
+        })?;
+        if lease.lease_id != lease_id {
+            return Err(SubagentTaskTransitionError::new(
+                "subagent task delivery lease does not match",
+            ));
+        }
+        self.transition_delivery(SubagentTaskDeliveryState::Failed, now)?;
+        self.delivery_lease = None;
+        self.recovery_state = SubagentTaskRecoveryState::Blocked;
+        self.recovery_reason = Some(reason);
+        Ok(())
+    }
+
+    pub fn mark_recovery_after_restart(&mut self, now: u64) -> bool {
+        let before = self.clone();
+        if matches!(
+            self.status,
+            SubagentTaskStatus::Created | SubagentTaskStatus::Running
+        ) {
+            self.status = SubagentTaskStatus::Interrupted;
+            self.failure = Some("runtime restarted before task completion".to_string());
+        }
+
+        if self.status == SubagentTaskStatus::Interrupted {
+            if self.durable_checkpoint.is_some() {
+                self.recovery_state = SubagentTaskRecoveryState::Queued;
+                self.recovery_reason =
+                    Some("interrupted task has a durable checkpoint and may resume".to_string());
+            } else {
+                self.recovery_state = SubagentTaskRecoveryState::Blocked;
+                self.recovery_reason = Some(
+                    "interrupted task has no durable checkpoint and cannot resume".to_string(),
+                );
+            }
+        } else if self.status.is_terminal() {
+            match self.delivery_state {
+                SubagentTaskDeliveryState::Pending => {
+                    self.recovery_state = SubagentTaskRecoveryState::Queued;
+                    self.recovery_reason = Some("terminal task has a pending delivery".to_string());
+                }
+                SubagentTaskDeliveryState::Delivering
+                    if self
+                        .delivery_lease
+                        .as_ref()
+                        .is_none_or(|lease| lease.expires_at <= now) =>
+                {
+                    if self.delivery_replay_safety
+                        == SubagentTaskReplaySafety::UnsafeExternalSideEffect
+                    {
+                        self.delivery_state = SubagentTaskDeliveryState::Blocked;
+                        self.delivery_lease = None;
+                        self.recovery_state = SubagentTaskRecoveryState::Blocked;
+                        self.recovery_reason = Some(
+                            "expired delivery cannot be replayed without idempotency guarantees"
+                                .to_string(),
+                        );
+                    } else {
+                        self.recovery_state = SubagentTaskRecoveryState::Queued;
+                        self.recovery_reason =
+                            Some("expired delivery lease is eligible for safe reclaim".to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+        let changed = *self != before;
+        if changed {
+            self.updated_at = now;
+        }
+        changed
     }
 
     pub fn transition_delivery(
@@ -263,8 +577,7 @@ mod tests {
         task.progress = Some("started".into());
 
         let json = serde_json::to_string(&task).expect("serialize task");
-        let restored: SubagentTaskRecord =
-            serde_json::from_str(&json).expect("deserialize task");
+        let restored: SubagentTaskRecord = serde_json::from_str(&json).expect("deserialize task");
 
         assert_eq!(restored, task);
         assert!(json.contains("\"status\":\"running\""));
@@ -285,6 +598,15 @@ mod tests {
         task.transition_status(SubagentTaskStatus::Interrupted, 12)
             .expect("running task should be interrupted");
         task.failure = Some("runtime restarted".into());
+        assert!(task
+            .transition_status(SubagentTaskStatus::Running, 13)
+            .is_err());
+        assert_eq!(task.status, SubagentTaskStatus::Interrupted);
+        task.durable_checkpoint = Some(SubagentTaskCheckpointRef {
+            checkpoint_id: "checkpoint-1".into(),
+            session_id: "child-1".into(),
+            checkpoint_version: 1,
+        });
 
         task.transition_status(SubagentTaskStatus::Running, 13)
             .expect("interrupted task should resume");
@@ -315,5 +637,97 @@ mod tests {
             .transition_status(SubagentTaskStatus::Failed, 22)
             .expect("running task should fail");
         assert_eq!(failed.result, None);
+    }
+
+    #[test]
+    fn expired_lease_is_reclaimable_only_for_idempotent_delivery() {
+        let mut safe = SubagentTaskRecord::new(
+            "safe".into(),
+            "parent".into(),
+            "deliver".into(),
+            "owner".into(),
+            1,
+        );
+        safe.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        safe.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        assert!(safe
+            .claim_delivery("lease-1".into(), "worker-1".into(), 4, 10)
+            .unwrap());
+        assert!(!safe
+            .claim_delivery("lease-2".into(), "worker-2".into(), 5, 10)
+            .unwrap());
+        assert!(safe
+            .claim_delivery("lease-2".into(), "worker-2".into(), 14, 10)
+            .unwrap());
+        assert_eq!(safe.delivery_attempts, 2);
+
+        let mut unsafe_task = safe.clone();
+        unsafe_task.task_id = "unsafe".into();
+        unsafe_task.delivery_replay_safety = SubagentTaskReplaySafety::UnsafeExternalSideEffect;
+        unsafe_task.delivery_lease.as_mut().unwrap().expires_at = 20;
+        assert!(!unsafe_task
+            .claim_delivery("lease-3".into(), "worker-3".into(), 20, 10)
+            .unwrap());
+        assert_eq!(
+            unsafe_task.delivery_state,
+            SubagentTaskDeliveryState::Blocked
+        );
+        assert_eq!(
+            unsafe_task.recovery_state,
+            SubagentTaskRecoveryState::Blocked
+        );
+    }
+
+    #[test]
+    fn persisted_receipt_prevents_duplicate_delivery() {
+        let mut task = SubagentTaskRecord::new(
+            "safe".into(),
+            "parent".into(),
+            "deliver".into(),
+            "owner".into(),
+            1,
+        );
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        task.claim_delivery("lease-1".into(), "worker-1".into(), 4, 10)
+            .unwrap();
+        task.complete_delivery("lease-1", "dialog-turn:stable".into(), 5)
+            .unwrap();
+
+        assert!(task.delivery_receipt.is_some());
+        assert!(!task
+            .claim_delivery("lease-2".into(), "worker-2".into(), 20, 10)
+            .unwrap());
+        assert!(task
+            .complete_delivery("lease-1", "duplicate".into(), 21)
+            .is_err());
+    }
+
+    #[test]
+    fn synchronous_fork_uses_same_record_without_delivery() {
+        let task = SubagentTaskRecord::new_typed(
+            "subagent-sync".into(),
+            "parent".into(),
+            "inspect inherited context".into(),
+            "owner".into(),
+            SubagentTaskExecutionMode::Synchronous,
+            SubagentTaskContextMode::Fork,
+            SubagentTaskReplaySafety::Idempotent,
+            1,
+        );
+
+        assert_eq!(
+            task.execution_mode,
+            SubagentTaskExecutionMode::Synchronous
+        );
+        assert_eq!(task.context_mode, SubagentTaskContextMode::Fork);
+        assert_eq!(
+            task.delivery_state,
+            SubagentTaskDeliveryState::NotRequired
+        );
     }
 }

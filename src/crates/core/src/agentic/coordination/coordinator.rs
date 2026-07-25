@@ -55,7 +55,10 @@ use std::sync::OnceLock;
 use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
-use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
+use void_core_types::{
+    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskRecord,
+    SubagentTaskReplaySafety, SubagentTaskStatus,
+};
 use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
 const MANUAL_COMPACTION_COMMAND: &str = "/compact";
@@ -63,6 +66,7 @@ const CONTEXT_COMPRESSION_TOOL_NAME: &str = "ContextCompression";
 const DEFAULT_SUBAGENT_MAX_CONCURRENCY: usize = 5;
 const MAX_SUBAGENT_MAX_CONCURRENCY: usize = 64;
 const SUBAGENT_TIMEOUT_GRACE_PERIOD: Duration = Duration::from_secs(10);
+const SUBAGENT_DELIVERY_LEASE_DURATION_MS: u64 = 30_000;
 
 /// Subagent execution result
 ///
@@ -238,11 +242,11 @@ struct HiddenSubagentExecutionRequest {
     delegation_policy: DelegationPolicy,
     runtime_tool_restrictions: ToolRuntimeRestrictions,
     prompt_cache_source_session_id: Option<String>,
-    persistent_task: Option<BackgroundSubagentTaskContext>,
+    persistent_task: Option<PersistentSubagentTaskContext>,
 }
 
 #[derive(Clone)]
-struct BackgroundSubagentTaskContext {
+struct PersistentSubagentTaskContext {
     task_id: String,
     parent_session_id: String,
 }
@@ -4811,13 +4815,67 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         cancel_token: Option<&CancellationToken>,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<SubagentResult> {
-        self.execute_hidden_subagent_internal(
-            self.resolve_hidden_subagent_execution_request(request)
-                .await?,
-            cancel_token,
-            timeout_seconds,
+        let context_mode = match request.context_mode {
+            SubagentContextMode::Fresh => SubagentTaskContextMode::Fresh,
+            SubagentContextMode::Fork => SubagentTaskContextMode::Fork,
+        };
+        let mut request = self
+            .resolve_hidden_subagent_execution_request(request)
+            .await?;
+        let persistent_task =
+            request
+                .subagent_parent_info
+                .as_ref()
+                .map(|parent| PersistentSubagentTaskContext {
+                    task_id: format!("subagent-{}", uuid::Uuid::new_v4()),
+                    parent_session_id: parent.session_id.clone(),
+                });
+        if let Some(task) = persistent_task.as_ref() {
+            let record = SubagentTaskRecord::new_typed(
+                task.task_id.clone(),
+                task.parent_session_id.clone(),
+                request.user_input_text.clone(),
+                format!("synchronous-execution-{}", uuid::Uuid::new_v4()),
+                SubagentTaskExecutionMode::Synchronous,
+                context_mode,
+                SubagentTaskReplaySafety::Idempotent,
+                now_ms(),
+            );
+            match self.session_manager.create_subagent_task(record).await {
+                Ok(_) => request.persistent_task = Some(task.clone()),
+                Err(error) => warn!(
+                    "Failed to persist synchronous subagent task; execution semantics are unchanged: parent_session_id={}, task_id={}, error={}",
+                    task.parent_session_id, task.task_id, error
+                ),
+            }
+        }
+
+        let outcome = self
+            .execute_hidden_subagent_internal(request, cancel_token, timeout_seconds)
+            .await;
+        if let Some(task) = persistent_task {
+            let (status, result, failure) = background_subagent_terminal_facts(outcome.as_ref());
+            if let Err(error) = self
+                .session_manager
+                .transition_subagent_task(
+                    &task.parent_session_id,
+                    &task.task_id,
+                    status,
+                    None,
+                    None,
+                    result,
+                    failure,
+                    now_ms(),
         )
         .await
+            {
+                warn!(
+                    "Failed to persist synchronous subagent terminal state; execution result is unchanged: parent_session_id={}, task_id={}, error={}",
+                    task.parent_session_id, task.task_id, error
+                );
+            }
+        }
+        outcome
     }
 
     pub(crate) async fn start_background_subagent(
@@ -4852,15 +4910,22 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         let task_description = request.user_input_text.clone();
         let request_context = request.context.clone();
         self.session_manager
-            .create_subagent_task(SubagentTaskRecord::new(
+            .create_subagent_task(SubagentTaskRecord::new_typed(
                 background_task_id.clone(),
                 subagent_parent_info.session_id.clone(),
                 task_description.clone(),
                 background_execution_owner,
+                SubagentTaskExecutionMode::Background,
+                if request.prompt_cache_source_session_id.is_some() {
+                    SubagentTaskContextMode::Fork
+                } else {
+                    SubagentTaskContextMode::Fresh
+                },
+                SubagentTaskReplaySafety::Idempotent,
                 now_ms(),
             ))
             .await?;
-        request.persistent_task = Some(BackgroundSubagentTaskContext {
+        request.persistent_task = Some(PersistentSubagentTaskContext {
             task_id: background_task_id.clone(),
             parent_session_id: subagent_parent_info.session_id.clone(),
         });
@@ -4917,16 +4982,21 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 return;
             }
 
-            match coordinator
+            let delivery_lease_id = format!("delivery-lease-{}", uuid::Uuid::new_v4());
+            let delivery_owner = format!("delivery-worker-{}", uuid::Uuid::new_v4());
+            let claimed_task = match coordinator
                 .session_manager
                 .claim_subagent_task_delivery(
                     &subagent_parent_info.session_id,
                     &background_task_id_for_delivery,
+                    delivery_lease_id.clone(),
+                    delivery_owner,
                     now_ms(),
+                    SUBAGENT_DELIVERY_LEASE_DURATION_MS,
                 )
                 .await
             {
-                Ok(Some(_)) => {}
+                Ok(Some(task)) => task,
                 Ok(None) => {
                     warn!(
                         "Background subagent result delivery was already claimed or is not eligible: background_task_id={}, parent_session_id={}",
@@ -4944,25 +5014,32 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     );
                     return;
                 }
-            }
+            };
 
-            let metadata = build_background_subagent_result_metadata(
+            let mut metadata = build_background_subagent_result_metadata(
                 &background_task_id_for_delivery,
                 &agent_type,
                 &task_description,
                 request_context,
             );
+            if let Some(object) = metadata.as_object_mut() {
+                object.insert(
+                    "deliveryIdempotencyKey".to_string(),
+                    serde_json::Value::String(claimed_task.delivery_idempotency_key.clone()),
+                );
+            }
 
             let delivery_result = if let Some(scheduler) = super::scheduler::get_global_scheduler()
             {
                 scheduler
-                    .deliver_background_result(
+                    .deliver_background_result_idempotent(
                         subagent_parent_info.session_id.clone(),
                         parent_agent_type,
                         parent_workspace_path,
                         delivery_text,
                         None,
                         Some(metadata),
+                        claimed_task.delivery_idempotency_key,
                     )
                     .await
             } else {
@@ -4970,12 +5047,14 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             };
 
             let delivery_state_result = match delivery_result {
-                Ok(()) => {
+                Ok(external_receipt) => {
                     coordinator
                         .session_manager
                         .complete_subagent_task_delivery(
                             &subagent_parent_info.session_id,
                             &background_task_id_for_delivery,
+                            &delivery_lease_id,
+                            external_receipt,
                             now_ms(),
                         )
                         .await
@@ -4992,6 +5071,8 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         .fail_subagent_task_delivery(
                             &subagent_parent_info.session_id,
                             &background_task_id_for_delivery,
+                            &delivery_lease_id,
+                            error,
                             now_ms(),
                         )
                         .await
