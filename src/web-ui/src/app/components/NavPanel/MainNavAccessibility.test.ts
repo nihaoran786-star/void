@@ -42,6 +42,33 @@ describe('MainNav workspace menu accessibility contract', () => {
     );
   });
 
+  it('removes collapsed session and workspace content from interaction', () => {
+    const source = readSibling('./MainNav.tsx');
+    const sectionHeaderSource = readSibling('./components/SectionHeader.tsx');
+
+    expect(sectionHeaderSource).toContain(
+      'aria-controls={collapsible ? controlsId : undefined}',
+    );
+    expect(source).toContain(
+      'controlsId="void-nav-panel-assistant-sessions"',
+    );
+    expect(source).toContain('id="void-nav-panel-assistant-sessions"');
+    expect(source).toContain(
+      "aria-hidden={!expandedSections.has('assistant-sessions')}",
+    );
+    expect(source).toContain(
+      "...(!expandedSections.has('assistant-sessions') ? { inert: '' } : {})",
+    );
+    expect(source).toContain('controlsId="void-nav-panel-workspaces"');
+    expect(source).toContain('id="void-nav-panel-workspaces"');
+    expect(source).toContain(
+      "aria-hidden={!expandedSections.has('workspace')}",
+    );
+    expect(source).toContain(
+      "...(!expandedSections.has('workspace') ? { inert: '' } : {})",
+    );
+  });
+
   it('routes the connector entry through the existing MCP settings state', () => {
     const source = readSibling('./MainNav.tsx');
     const config = readSibling('./config.ts');

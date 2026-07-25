@@ -730,9 +730,15 @@ const MainNav: React.FC<MainNavProps> = ({
             label={t('nav.sections.assistantSessions')}
             collapsible
             isOpen={expandedSections.has('assistant-sessions')}
+            controlsId="void-nav-panel-assistant-sessions"
             onToggle={() => toggleSection('assistant-sessions')}
           />
-          <div className={`void-nav-panel__collapsible${expandedSections.has('assistant-sessions') ? '' : ' is-collapsed'}`}>
+          <div
+            id="void-nav-panel-assistant-sessions"
+            className={`void-nav-panel__collapsible${expandedSections.has('assistant-sessions') ? '' : ' is-collapsed'}`}
+            aria-hidden={!expandedSections.has('assistant-sessions')}
+            {...(!expandedSections.has('assistant-sessions') ? { inert: '' } : {})}
+          >
             <div className="void-nav-panel__collapsible-inner">
               <div className="void-nav-panel__items void-nav-panel__items--session-blocks">
                 {assistantWorkspacesList.map(workspace => {
@@ -763,6 +769,7 @@ const MainNav: React.FC<MainNavProps> = ({
             label={t('nav.sections.workspace')}
             collapsible
             isOpen={expandedSections.has('workspace')}
+            controlsId="void-nav-panel-workspaces"
             onToggle={() => toggleSection('workspace')}
             actions={
               <div className="void-nav-panel__workspace-action-wrap">
@@ -784,7 +791,12 @@ const MainNav: React.FC<MainNavProps> = ({
               </div>
             }
           />
-          <div className={`void-nav-panel__collapsible${expandedSections.has('workspace') ? '' : ' is-collapsed'}`}>
+          <div
+            id="void-nav-panel-workspaces"
+            className={`void-nav-panel__collapsible${expandedSections.has('workspace') ? '' : ' is-collapsed'}`}
+            aria-hidden={!expandedSections.has('workspace')}
+            {...(!expandedSections.has('workspace') ? { inert: '' } : {})}
+          >
             <div className="void-nav-panel__collapsible-inner">
               <div className="void-nav-panel__items">
                 <WorkspaceListSection

@@ -870,6 +870,29 @@ replace the working gallery or add decorative imagery.
   `aria-hidden=false`, and `tabIndex=0` for each child. Re-collapsing restores
   the hidden state without changing document width or navigation geometry.
 
+### Resolved follow-up — Collapsed navigation sections retained hidden focus
+
+- **Location:** Shared `SectionHeader` and `MainNav` assistant/workspace sections
+- **Category:** Accessibility / interaction consistency
+- **Severity:** P1
+- **Impact:** 助理会话 and 工作区 animated to zero height when collapsed, but
+  their existing session and workspace controls remained programmatically
+  focusable. The headers also did not identify the regions they controlled.
+- **Remediation:** Collapsible section headers now expose `aria-controls`.
+  Their existing animated regions own stable IDs, mirror the open state through
+  `aria-hidden`, and use the native `inert` attribute only while collapsed.
+  Session projection, workspace routing, and the existing grid-row animation
+  are unchanged.
+- **Suggested command:** `$harden`
+- **Positive evidence:** Both headers already expose `aria-expanded`, support
+  Enter/Space activation, retain visible labels, and preserve reduced-motion
+  behavior.
+- **Verification evidence:** In the real maximized desktop, the collapsed
+  regions remain 0px high, report `aria-hidden=true` and `inert=true`, and
+  reject direct focus attempts across 4 assistant and 27 workspace controls.
+  Reopening restores the original 60px and 330px heights, removes `inert`, and
+  restores focus without changing the sidebar or new-task geometry.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

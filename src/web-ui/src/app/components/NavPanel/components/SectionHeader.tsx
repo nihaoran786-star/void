@@ -9,6 +9,7 @@ interface SectionHeaderProps {
   label: string;
   collapsible: boolean;
   isOpen: boolean;
+  controlsId?: string;
   onToggle?: () => void;
   onSceneOpen?: () => void;
   actions?: React.ReactNode;
@@ -18,6 +19,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
   label,
   collapsible,
   isOpen,
+  controlsId,
   onToggle,
   onSceneOpen,
   actions,
@@ -48,6 +50,7 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       role={isInteractive ? 'button' : undefined}
       tabIndex={isInteractive ? 0 : undefined}
       aria-expanded={collapsible ? isOpen : undefined}
+      aria-controls={collapsible ? controlsId : undefined}
       onKeyDown={
         isInteractive
           ? e => {
