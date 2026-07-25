@@ -2,6 +2,8 @@
 
 import { configManager } from './ConfigManager';
 import { DEFAULT_AGENT_COMPANION_PET } from './AgentCompanionPetService';
+import { DEFAULT_VOICE_INPUT_CONFIG } from './LocalAsrConfigService';
+import type { VoiceInputConfig } from '../types';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('AIExperienceConfig');
@@ -25,6 +27,8 @@ export interface AIExperienceSettings {
   agent_companion_pet?: AgentCompanionPetSelection | null;
   /** Flashgrep-backed accelerated workspace search for local workspaces. */
   enable_workspace_search: boolean;
+  /** Local speech-to-text settings. */
+  voice_input: VoiceInputConfig;
   /** User-defined quick actions shown in the post-coding actions menu. */
   quick_actions?: QuickAction[];
 }
@@ -65,6 +69,7 @@ const defaultSettings: AIExperienceSettings = {
   agent_companion_display_mode: 'desktop',
   agent_companion_pet: DEFAULT_AGENT_COMPANION_PET,
   enable_workspace_search: false,
+  voice_input: DEFAULT_VOICE_INPUT_CONFIG,
   quick_actions: DEFAULT_QUICK_ACTIONS,
 };
 

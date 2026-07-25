@@ -334,5 +334,41 @@
       "validJson": "JSON格式有效",
       "mergeHint": "自定义字段将覆盖默认请求体中的对应字段"
     }
+  },
+  "localAsr": {
+    "title": "本地语音输入",
+    "description": "配置本地 ASR 模型目录并检查可用状态。当前版本未打包推理引擎，不会上传音频或伪装为可用。",
+    "enable": "启用本地语音输入",
+    "enableDescription": "仅开启能力开关；实际转写需本地推理引擎可用。",
+    "modelDirectory": "模型目录",
+    "modelDirectoryDescription": "目录中的一级文件或文件夹会作为可选模型被发现。",
+    "modelDirectoryPlaceholder": "例如 D:\\Models\\ASR",
+    "modelId": "模型 ID",
+    "modelIdDescription": "填写模型目录中的一个文件或文件夹名称。",
+    "discoveredModels": "已发现：{{models}}",
+    "capabilityStatus": "能力状态",
+    "statusDescription": "状态由桌面端本地 Adapter 检查，不由页面猜测。",
+    "refresh": "刷新状态",
+    "save": "保存",
+    "saving": "保存中…",
+    "saved": "本地语音输入配置已保存",
+    "saveFailed": "本地语音输入配置保存失败",
+    "status": {
+      "loading": "检查中",
+      "disabled": "未启用",
+      "missing_directory": "模型目录不存在",
+      "missing_model": "模型不存在",
+      "unavailable": "暂不可用",
+      "ready": "可用",
+      "failed": "检查失败"
+    },
+    "errors": {
+      "unsupported_provider": "当前 Adapter 仅支持本地模型。",
+      "invalid_model_id": "模型 ID 只能是一个本地文件或文件夹名称。",
+      "model_directory_missing": "请填写存在的本地模型目录。",
+      "model_missing": "所选模型不在配置目录中。",
+      "engine_not_bundled": "当前构建未打包本地 ASR 推理引擎；需要单独审批推理依赖后才能启用转写。",
+      "inspection_failed": "无法读取本地模型状态，请检查目录权限后重试。"
+    }
   }
 }

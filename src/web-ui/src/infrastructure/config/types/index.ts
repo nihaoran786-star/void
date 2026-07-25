@@ -82,8 +82,20 @@ export interface AIExperienceConfig {
 
   /** Whether to enable flashgrep-backed accelerated workspace search for local workspaces. */
   enable_workspace_search: boolean;
+  /** Local speech-to-text settings. */
+  voice_input: VoiceInputConfig;
   /** User-defined quick actions shown in the post-coding actions menu. */
   quick_actions?: Array<{ id: string; label: string; prompt: string; enabled: boolean }>;
+}
+
+export interface VoiceInputConfig {
+  enabled: boolean;
+  provider: 'local';
+  model_id: string;
+  model_directory: string;
+  default_language: string;
+  max_recording_seconds: number;
+  microphone_device_id: string;
 }
 
 export type ModelCapability =

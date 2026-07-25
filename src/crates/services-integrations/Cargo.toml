@@ -51,6 +51,7 @@ default = []
 announcement = []
 git = ["void-services-core", "chrono", "git2", "thiserror"]
 file-watch = ["notify"]
+local-asr = ["void-services-core"]
 mcp = [
     "aes-gcm",
     "anyhow",
@@ -70,6 +71,7 @@ product-full = [
     "announcement",
     "file-watch",
     "git",
+    "local-asr",
     "mcp",
     "remote-connect",
     "remote-ssh",

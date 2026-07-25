@@ -11,6 +11,9 @@ pub mod file_watch;
 
 pub mod external_config_sources;
 
+#[cfg(feature = "local-asr")]
+pub mod local_asr;
+
 #[cfg(feature = "git")]
 pub mod git;
 

@@ -25,6 +25,7 @@ pub mod i18n_api;
 pub mod insights_api;
 pub mod lsp_api;
 pub mod lsp_workspace_api;
+pub mod local_asr_api;
 pub mod mcp_api;
 pub mod miniapp_api;
 pub mod path_target;

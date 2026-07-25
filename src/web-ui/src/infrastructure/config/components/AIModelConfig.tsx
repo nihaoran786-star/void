@@ -21,6 +21,7 @@ import DefaultModelConfig from './DefaultModelConfig';
 import { createLogger } from '@/shared/utils/logger';
 import { translateConnectionTestMessage } from '@/shared/utils/aiConnectionTestMessages';
 import './AIModelConfig.scss';
+import { LocalAsrSettings } from './LocalAsrSettings';
 
 const log = createLogger('AIModelConfig');
 
@@ -2652,6 +2653,8 @@ const AIModelConfig: React.FC = () => {
             />
           </ConfigPageRow>
         </ConfigPageSection>
+
+        <LocalAsrSettings />
 
         <ConfigPageSection
           title={tDefault('tabs.proxy')}

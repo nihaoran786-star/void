@@ -684,6 +684,7 @@ pub async fn run() {
             paste_files,
             get_config,
             get_configs,
+            api::local_asr_api::get_local_asr_status,
             computer_use_get_status,
             computer_use_request_permissions,
             computer_use_open_system_settings,

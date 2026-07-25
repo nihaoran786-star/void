@@ -182,6 +182,8 @@ pub struct AIExperienceConfig {
     pub agent_companion_pet: Option<AgentCompanionPetSelection>,
     /// Whether to enable flashgrep-backed accelerated workspace search.
     pub enable_workspace_search: bool,
+    /// Local speech-to-text settings for the chat composer.
+    pub voice_input: VoiceInputConfig,
     /// User-defined quick actions (post-coding menu); persisted for the web UI.
     #[serde(default)]
     pub quick_actions: Vec<AiExperienceQuickAction>,
@@ -469,6 +471,7 @@ pub enum ModelCategory {
 }
 
 pub use void_ai_adapters::types::ReasoningMode;
+pub use void_services_core::local_asr::VoiceInputConfig;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -1445,6 +1448,7 @@ impl Default for AIExperienceConfig {
             agent_companion_display_mode: "desktop".to_string(),
             agent_companion_pet: default_agent_companion_pet(),
             enable_workspace_search: false,
+            voice_input: VoiceInputConfig::default(),
             quick_actions: Vec::new(),
         }
     }
@@ -2022,6 +2026,33 @@ mod tests {
         assert_eq!(
             pet.spritesheet_path,
             "/agent-companion-pets/boxcat/spritesheet.webp"
+        );
+    }
+
+    #[test]
+    fn voice_input_config_defaults_disabled_and_round_trips_model_directory() {
+        let default_config: AIExperienceConfig =
+            serde_json::from_value(serde_json::json!({})).expect("empty config should default");
+        assert!(!default_config.voice_input.enabled);
+
+        let config: AIExperienceConfig = serde_json::from_value(serde_json::json!({
+            "voice_input": {
+                "enabled": true,
+                "provider": "local",
+                "model_id": "sensevoice-small-int8",
+                "model_directory": "D:/models/asr",
+                "default_language": "auto",
+                "max_recording_seconds": 60,
+                "microphone_device_id": ""
+            }
+        }))
+        .expect("voice input config should deserialize");
+
+        assert_eq!(config.voice_input.model_directory, "D:/models/asr");
+        let serialized = serde_json::to_value(config).expect("voice input config should serialize");
+        assert_eq!(
+            serialized["voice_input"]["model_id"],
+            "sensevoice-small-int8"
         );
     }
 

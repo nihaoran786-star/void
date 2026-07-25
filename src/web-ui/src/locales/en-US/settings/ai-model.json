@@ -334,5 +334,41 @@
       "validJson": "JSON format is valid",
       "mergeHint": "Custom fields will override corresponding fields in the default request body"
     }
+  },
+  "localAsr": {
+    "title": "Local voice input",
+    "description": "Configure a local ASR model directory and inspect availability. This build does not bundle an inference engine and never uploads audio or pretends transcription is ready.",
+    "enable": "Enable local voice input",
+    "enableDescription": "Enables the capability gate only; transcription still requires a local inference engine.",
+    "modelDirectory": "Model directory",
+    "modelDirectoryDescription": "Top-level files and folders are discovered as model choices.",
+    "modelDirectoryPlaceholder": "For example, D:\\Models\\ASR",
+    "modelId": "Model ID",
+    "modelIdDescription": "Enter one file or folder name from the model directory.",
+    "discoveredModels": "Discovered: {{models}}",
+    "capabilityStatus": "Capability status",
+    "statusDescription": "The desktop adapter reports this status; the page does not infer it.",
+    "refresh": "Refresh status",
+    "save": "Save",
+    "saving": "Saving…",
+    "saved": "Local voice input settings saved",
+    "saveFailed": "Failed to save local voice input settings",
+    "status": {
+      "loading": "Checking",
+      "disabled": "Disabled",
+      "missing_directory": "Model directory missing",
+      "missing_model": "Model missing",
+      "unavailable": "Unavailable",
+      "ready": "Ready",
+      "failed": "Inspection failed"
+    },
+    "errors": {
+      "unsupported_provider": "This adapter supports local models only.",
+      "invalid_model_id": "The model ID must be one local file or folder name.",
+      "model_directory_missing": "Choose an existing local model directory.",
+      "model_missing": "The selected model was not found in that directory.",
+      "engine_not_bundled": "This build does not bundle a local ASR inference engine. Inference dependencies require separate approval.",
+      "inspection_failed": "The local model status could not be read. Check directory permissions and retry."
+    }
   }
 }

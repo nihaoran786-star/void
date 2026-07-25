@@ -15,6 +15,8 @@ pub mod cron; // Scheduled jobs
 pub mod filesystem; // FileSystem management
 pub use void_services_integrations::external_config_sources;
 #[cfg(feature = "service-integrations")]
+pub use void_services_integrations::local_asr;
+#[cfg(feature = "service-integrations")]
 pub mod git; // Git service
 pub mod i18n; // I18n service
 pub mod lsp; // LSP (Language Server Protocol) system
