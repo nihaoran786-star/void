@@ -109,7 +109,7 @@ replace the working gallery or add decorative imagery.
   the examples were already outside normal document flow.
 - **Remediation:** The examples remain absolutely positioned so their content
   cannot move the heading or type switch. Their content axis is reduced to
-  276px, cards to 20px, and the group begins below the type switch with a
+  244px, cards to 18px, and the group begins below the type switch with a
   stable gap.
 - **Evidence:** At maximized width the heading and switch retain their original
   y=254 and y=292 positions; the switch ends at y=323 and examples begin at
@@ -513,6 +513,30 @@ replace the working gallery or add decorative imagery.
   inside the viewport with all four options and closes with Escape. A runtime
   DOM scan finds no unnamed editor inputs or comboboxes.
 
+### Resolved follow-up — Permission settings remained a long card stack
+
+- **Location:** `SessionConfig`, its feature-owned Minimal projection, and
+  presentation contract
+- **Category:** Information density / responsive design / theming
+- **Impact:** Workspace search, tool execution, Computer Use, browser control,
+  and debug settings were forced into one 840px column. Even in a maximized
+  desktop scene the page reached 1,244px, while every group retained a rounded
+  card body that conflicted with the flatter Basic, Appearance, Model, and
+  Editor settings.
+- **Remediation:** Personalization and permissions now expose independent
+  presentation scopes. Only the permissions scope uses a bounded 1,040px
+  two-column grid: workspace search remains full width, related tool/Computer
+  Use and browser/debug groups are paired, and section bodies become flat
+  divider lists. A 720px container query returns the page to one section
+  column. Settings state, tool confirmation, OS permissions, CDP lifecycle,
+  debug templates, validation, and persistence are unchanged.
+- **Evidence:** At maximized width the search group measures 1,040px, paired
+  sections measure 508px, and the complete permissions page fits its 864px
+  scene viewport without an internal scroll range. In the narrow desktop
+  shell the content returns to one 354px section column with zero document
+  overflow. A scoped runtime scan finds no unnamed inputs, buttons, or
+  comboboxes.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -529,6 +553,8 @@ replace the working gallery or add decorative imagery.
   overview stacks without document overflow.
 - Editor settings preserve every visible control at both maximized and 719px
   desktop widths while using the wide scene for parallel sections.
+- Permission settings preserve all five functional groups while using the
+  maximized scene in two columns and returning to one column without overflow.
 
 ## Next actions
 

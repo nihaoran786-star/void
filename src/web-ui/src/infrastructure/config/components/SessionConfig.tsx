@@ -720,7 +720,9 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
   if (isLoading || !settings) {
     return (
-      <ConfigPageLayout className="void-func-agent-config">
+      <ConfigPageLayout
+        className={`void-func-agent-config void-func-agent-config--${variant}`}
+      >
         <ConfigPageHeader title={pageTitle} subtitle={pageSubtitle} />
         <ConfigPageContent className="void-func-agent-config__content">
           <ConfigPageLoading text={t('loading.text')} />
@@ -730,7 +732,9 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
   }
 
   return (
-    <ConfigPageLayout className="void-func-agent-config">
+    <ConfigPageLayout
+      className={`void-func-agent-config void-func-agent-config--${variant}`}
+    >
       <ConfigPageHeader title={pageTitle} subtitle={pageSubtitle} />
 
       <ConfigPageContent className="void-func-agent-config__content">
@@ -968,6 +972,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
         {/* ── Accelerated workspace search ───────────────────────── */}
         <ConfigPageSection
+          className="void-func-agent-config__section--workspace-search"
           title={t('features.workspaceSearch.title')}
           description={t('features.workspaceSearch.subtitle')}
         >
@@ -985,6 +990,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
         {/* ── Tool execution behavior ────────────────────────────── */}
         <ConfigPageSection
+          className="void-func-agent-config__section--tool-execution"
           title={t('toolExecution.sectionTitle')}
           description={t('toolExecution.sectionDescription')}
         >
@@ -1033,6 +1039,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
         {/* ── Computer use (desktop) ─────────────────────────────── */}
         <ConfigPageSection
+          className="void-func-agent-config__section--computer-use"
           title={t('computerUse.sectionTitle')}
           description={
             IS_TAURI_DESKTOP ? t('computerUse.sectionDescription') : t('computerUse.desktopOnly')
@@ -1145,6 +1152,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
         {/* ── Browser control (CDP) ──────────────────────────────── */}
         <ConfigPageSection
+          className="void-func-agent-config__section--browser-control"
           title={t('browserControl.sectionTitle')}
           description={
             IS_TAURI_DESKTOP ? t('browserControl.sectionDescription') : t('browserControl.desktopOnly')
@@ -1258,6 +1266,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 
         {/* ── Debug mode settings ───────────────────────────────── */}
         <ConfigPageSection
+          className="void-func-agent-config__section--debug"
           title={tDebug('sections.combined')}
           description={tDebug('sections.combinedDescription')}
         >
