@@ -989,6 +989,31 @@ replace the working gallery or add decorative imagery.
   1707×912, the existing centered 840px content axis, symmetric stable gutters,
   scene position, and zero body overflow are unchanged.
 
+### Resolved follow-up — New-task editor hid long drafts at a fixed height
+
+- **Location:** New-task draft composer in `ChatPane`
+- **Category:** Input ergonomics / responsive height
+- **Severity:** P1
+- **Impact:** On tall desktop views, the rich-text editor used the same 56px
+  minimum and maximum height. Multi-line drafts therefore remained inside a
+  fixed editor and started scrolling as soon as they exceeded about three
+  lines, even though the centered composer had available vertical space.
+- **Remediation:** The editor keeps its 56px starting height but now grows with
+  its content up to `min(216px, 28vh)`. The complete draft composer can grow
+  from its existing 160px baseline up to `min(340px, 55vh)`; only content beyond
+  that limit scrolls inside the editor. Short desktop windows retain the
+  existing compact five-line limit.
+- **Suggested command:** `$adapt`
+- **Positive evidence:** The contenteditable already owns IME, paste, inline
+  context, keyboard, placeholder, and controlled-value synchronization; the
+  fix remains presentation-only and does not alter those callbacks.
+- **Verification evidence:** In the real maximized desktop, a short draft keeps
+  the 56px editor and 167px composer, six lines grow them to about 130px and
+  242px, and an over-limit draft caps at 216px and 327px while its scroll height
+  reaches 694px. The original draft was restored after testing. At a 456×318
+  CSS viewport, the existing 102px compact editor remains fully inside the
+  viewport with zero body overflow.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
