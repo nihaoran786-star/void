@@ -9,10 +9,10 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
-const MAX_CANDIDATE_BYTES: usize = 4_096;
+pub(super) const MAX_CANDIDATE_BYTES: usize = 4_096;
 pub const AGENT_MEMORY_SCHEMA_VERSION: u32 = 2;
 
-fn current_time_ms() -> u64 {
+pub(super) fn current_time_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -114,6 +114,12 @@ pub trait AgentMemoryRepository {
         expected_revision: Option<u64>,
     ) -> Result<(), String>;
     fn delete(&self, workspace_root: &Path, id: &str) -> Result<(), String>;
+    fn delete_cas(
+        &self,
+        workspace_root: &Path,
+        id: &str,
+        expected_revision: u64,
+    ) -> Result<(), String>;
 }
 
 #[derive(Clone)]
@@ -215,6 +221,38 @@ fn write_stored_agent_memory_cas_in_dir(
     replace_file(&path, &data)
 }
 
+fn delete_stored_agent_memory_cas_in_dir(
+    memory_dir: &Path,
+    id: &str,
+    expected_revision: u64,
+) -> Result<(), String> {
+    if !memory_dir.exists() {
+        return Err("memory not found".to_string());
+    }
+    let lock = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(memory_dir.join(".agent-memory.lock"))
+        .map_err(|error| error.to_string())?;
+    lock.lock_exclusive().map_err(|error| error.to_string())?;
+
+    let path = memory_file_path(memory_dir, id)?;
+    if !path.exists() {
+        return Err("memory not found".to_string());
+    }
+    let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+    let actual_revision = serde_json::from_str::<StoredAgentMemory>(&raw)
+        .map_err(|error| error.to_string())?
+        .revision;
+    if actual_revision != expected_revision {
+        return Err(format!(
+            "memory revision conflict: expected {expected_revision}, found {actual_revision}"
+        ));
+    }
+    fs::remove_file(path).map_err(|error| error.to_string())
+}
+
 impl AgentMemoryRepository for FileAgentMemoryRepository {
     fn list(&self, workspace_root: &Path) -> Result<Vec<StoredAgentMemory>, String> {
         list_stored_agent_memories_in_dir(&self.memory_dir(workspace_root))
@@ -239,6 +277,19 @@ impl AgentMemoryRepository for FileAgentMemoryRepository {
             fs::remove_file(path).map_err(|error| error.to_string())?;
         }
         Ok(())
+    }
+
+    fn delete_cas(
+        &self,
+        workspace_root: &Path,
+        id: &str,
+        expected_revision: u64,
+    ) -> Result<(), String> {
+        delete_stored_agent_memory_cas_in_dir(
+            &self.memory_dir(workspace_root),
+            id,
+            expected_revision,
+        )
     }
 }
 
@@ -336,11 +387,11 @@ impl<R: AgentMemoryRepository> AgentMemoryService<R> {
     }
 }
 
-fn normalize_memory_content(input: &str) -> String {
+pub(super) fn normalize_memory_content(input: &str) -> String {
     input.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-fn contains_sensitive_or_hidden_data(input: &str) -> bool {
+pub(super) fn contains_sensitive_or_hidden_data(input: &str) -> bool {
     let lower = input.to_lowercase();
     const BLOCKED_MARKERS: &[&str] = &[
         "api_key",
@@ -405,6 +456,26 @@ mod tests {
         }
 
         fn delete(&self, _workspace_root: &Path, id: &str) -> Result<(), String> {
+            self.values.borrow_mut().retain(|memory| memory.id != id);
+            Ok(())
+        }
+
+        fn delete_cas(
+            &self,
+            _workspace_root: &Path,
+            id: &str,
+            expected_revision: u64,
+        ) -> Result<(), String> {
+            let actual_revision = self
+                .values
+                .borrow()
+                .iter()
+                .find(|memory| memory.id == id)
+                .map(|memory| memory.revision)
+                .ok_or_else(|| "memory not found".to_string())?;
+            if actual_revision != expected_revision {
+                return Err("memory revision conflict".to_string());
+            }
             self.values.borrow_mut().retain(|memory| memory.id != id);
             Ok(())
         }
@@ -502,5 +573,28 @@ mod tests {
         assert_eq!(stored.len(), 1);
         assert_eq!(stored[0].revision, 2);
         assert_eq!(stored[0].content, "second");
+    }
+
+    #[test]
+    fn file_repository_compare_and_swap_delete_rejects_stale_revision() {
+        let directory = crate::service::agent_memory::AgentMemoryTestDir::new();
+        let memory =
+            StoredAgentMemory::new_committed("memory-1".to_string(), "first".to_string(), 10);
+        write_stored_agent_memory_cas_in_dir(directory.path(), &memory, None).unwrap();
+
+        let error =
+            delete_stored_agent_memory_cas_in_dir(directory.path(), "memory-1", 2).unwrap_err();
+        assert!(error.contains("revision conflict"));
+        assert_eq!(
+            list_stored_agent_memories_in_dir(directory.path())
+                .unwrap()
+                .len(),
+            1
+        );
+
+        delete_stored_agent_memory_cas_in_dir(directory.path(), "memory-1", 1).unwrap();
+        assert!(list_stored_agent_memories_in_dir(directory.path())
+            .unwrap()
+            .is_empty());
     }
 }
