@@ -3668,7 +3668,7 @@ mod tests {
             .await
             .expect("claimed delivery should fail once");
         assert_eq!(failed.failure.as_deref(), Some("execution failed"));
-        assert!(manager
+        let retry_claim = manager
             .claim_subagent_task_delivery(
                 workspace.path(),
                 "parent-1",
@@ -3680,7 +3680,12 @@ mod tests {
             )
             .await
             .expect("claim check should succeed")
-            .is_none());
+            .expect("idempotent failed delivery should be retryable");
+        assert_eq!(retry_claim.delivery_attempts, 2);
+        assert_eq!(
+            retry_claim.delivery_state,
+            SubagentTaskDeliveryState::Delivering
+        );
         assert!(manager
             .fail_subagent_task_delivery(
                 workspace.path(),
