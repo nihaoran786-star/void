@@ -109,6 +109,44 @@
         "invalid_data": "使用记录格式无效。"
       }
     },
+    "subscriptions": {
+      "title": "模型订阅",
+      "description": "在系统浏览器中连接 Codex 或 OpenCode，凭据仅保存在本机安全凭据库。",
+      "loading": "正在读取订阅账户",
+      "listAriaLabel": "模型订阅账户",
+      "statusAriaLabel": "{{provider}} 状态：{{status}}",
+      "unknownAccount": "已连接账户",
+      "expiresAt": "{{date}} 到期",
+      "providers": {
+        "codex": "Codex（ChatGPT）",
+        "opencode": "OpenCode"
+      },
+      "states": {
+        "connected": "已连接",
+        "disconnected": "未连接",
+        "vault_unavailable": "凭据库不可用",
+        "failed": "暂不可用",
+        "disconnectedHint": "登录后可使用此订阅访问模型。",
+        "vault_unavailableHint": "安全凭据库暂时不可用，请直接重试，无需重新登录。",
+        "failedHint": "无法读取订阅状态。"
+      },
+      "login": {
+        "pending": "正在等待浏览器授权。",
+        "code": "验证码：",
+        "openFailed": "无法打开浏览器：{{error}}。请点击“打开浏览器”重试。",
+        "authorized": "授权已完成。",
+        "cancelled": "授权已取消。",
+        "failed": "授权失败。"
+      },
+      "actions": {
+        "login": "登录",
+        "cancel": "取消",
+        "open": "打开浏览器",
+        "refresh": "刷新",
+        "logout": "退出登录",
+        "retry": "重试"
+      }
+    },
     "states": {
       "anonymous": "尚未登录",
       "anonymousHint": "通过系统浏览器安全登录。",

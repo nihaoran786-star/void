@@ -88,6 +88,44 @@
         "invalid_data": "Usage records have an invalid format."
       }
     },
+    "subscriptions": {
+      "title": "Model subscriptions",
+      "description": "Connect Codex or OpenCode in your system browser. Credentials stay in this device's secure vault.",
+      "loading": "Loading subscription accounts",
+      "listAriaLabel": "Model subscription accounts",
+      "statusAriaLabel": "{{provider}} status: {{status}}",
+      "unknownAccount": "Connected account",
+      "expiresAt": "Expires {{date}}",
+      "providers": {
+        "codex": "Codex (ChatGPT)",
+        "opencode": "OpenCode"
+      },
+      "states": {
+        "connected": "Connected",
+        "disconnected": "Not connected",
+        "vault_unavailable": "Vault unavailable",
+        "failed": "Unavailable",
+        "disconnectedHint": "Sign in to use this subscription for model access.",
+        "vault_unavailableHint": "The secure credential vault is temporarily unavailable. Retry without signing in again.",
+        "failedHint": "Subscription status could not be loaded."
+      },
+      "login": {
+        "pending": "Waiting for authorization in your browser.",
+        "code": "Verification code:",
+        "openFailed": "The browser could not be opened: {{error}}. Use Open browser to try again.",
+        "authorized": "Authorization completed.",
+        "cancelled": "Authorization cancelled.",
+        "failed": "Authorization failed."
+      },
+      "actions": {
+        "login": "Sign in",
+        "cancel": "Cancel",
+        "open": "Open browser",
+        "refresh": "Refresh",
+        "logout": "Sign out",
+        "retry": "Retry"
+      }
+    },
     "states": {
       "anonymous": "Not signed in",
       "anonymousHint": "Sign in securely using your system browser.",

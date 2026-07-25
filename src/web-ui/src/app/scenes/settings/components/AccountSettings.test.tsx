@@ -107,6 +107,23 @@ describe('AccountSettingsView', () => {
     expect(html).toContain('disabled=""');
   });
 
+  it('mounts model subscriptions as injected content without owning its workflow', () => {
+    const html = renderToStaticMarkup(
+      <AccountSettingsView
+        snapshot={{
+          state: { status: 'anonymous' },
+          capabilities: { webAuthorization: 'unavailable' },
+        }}
+        usageState={usageState}
+        subscriptionAccounts={<div data-testid="subscription-panel">subscription panel</div>}
+        {...handlers}
+      />,
+    );
+
+    expect(html).toContain('account.subscriptions.title');
+    expect(html).toContain('data-testid="subscription-panel"');
+  });
+
   it('renders authorizing state from explicit view props', () => {
     const html = render({
       state: {

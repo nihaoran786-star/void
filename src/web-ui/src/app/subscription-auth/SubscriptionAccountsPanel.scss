@@ -1,0 +1,190 @@
+.subscription-accounts {
+  min-width: 0;
+}
+
+.subscription-accounts__loading {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--size-gap-2, 8px);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.subscription-accounts__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-gap-2, 8px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.subscription-accounts__item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--size-gap-3, 12px);
+  padding: var(--size-gap-3, 12px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--size-radius-md, 10px);
+  background: var(--element-bg-subtle);
+}
+
+.subscription-accounts__icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--size-radius-sm, 7px);
+  background: var(--element-bg-soft);
+  color: var(--color-text-secondary);
+}
+
+.subscription-accounts__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.subscription-accounts__heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--size-gap-2, 8px);
+
+  strong {
+    overflow: hidden;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.subscription-accounts__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+
+  &::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-text-muted);
+  }
+}
+
+.subscription-accounts__status--connected::before {
+  background: var(--color-success);
+}
+
+.subscription-accounts__status--vault_unavailable::before,
+.subscription-accounts__status--failed::before {
+  background: var(--color-warning);
+}
+
+.subscription-accounts__description {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.subscription-accounts__session {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 4px;
+  color: var(--color-info);
+  font-size: var(--font-size-xs);
+
+  code {
+    color: var(--color-text-primary);
+    font-family: var(--font-family-mono);
+    font-weight: var(--font-weight-semibold);
+    user-select: all;
+  }
+}
+
+.subscription-accounts__session--failed {
+  color: var(--color-error);
+}
+
+.subscription-accounts__open-error {
+  color: var(--color-warning);
+}
+
+.subscription-accounts__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--size-gap-2, 8px);
+
+  .btn {
+    gap: var(--size-gap-1, 4px);
+  }
+}
+
+.subscription-accounts__global-error {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--size-gap-2, 8px);
+  margin-bottom: var(--size-gap-2, 8px);
+  padding: var(--size-gap-2, 8px) var(--size-gap-3, 12px);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 42%, var(--border-subtle));
+  border-radius: var(--size-radius-sm, 7px);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  color: var(--color-warning);
+  font-size: var(--font-size-xs);
+}
+
+.subscription-accounts__spinner {
+  animation: subscription-accounts-spin 900ms linear infinite;
+}
+
+@keyframes subscription-accounts-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@container config-panel (max-width: 620px) {
+  .subscription-accounts__item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .subscription-accounts__actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+
+    .btn {
+      flex: 1 1 auto;
+    }
+  }
+
+  .subscription-accounts__global-error {
+    grid-template-columns: auto minmax(0, 1fr);
+
+    .btn {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subscription-accounts__spinner {
+    animation: none;
+  }
+}

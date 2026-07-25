@@ -14,6 +14,7 @@ import {
   type AccountUsageState,
   type DailyTokenUsage,
 } from '@/app/account-usage';
+import { SubscriptionAccountsPanel } from '@/app/subscription-auth';
 import { useI18n } from '@/infrastructure/i18n';
 import {
   ConfigPageContent,
@@ -29,6 +30,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 export interface AccountSettingsViewProps {
   snapshot: AuthSessionSnapshot;
   usageState: AccountUsageState;
+  subscriptionAccounts?: React.ReactNode;
   onStartWebAuthorization: () => void;
   onClearError: () => void;
   onSignOut: () => void;
@@ -389,6 +391,16 @@ export const AccountSettingsView: React.FC<AccountSettingsViewProps> = props => 
         <AccountUsageOverviewView state={props.usageState} t={props.t} />
       </ConfigPageSection>
 
+      {props.subscriptionAccounts && (
+        <ConfigPageSection
+          className="account-settings__section--subscriptions"
+          title={props.t('account.subscriptions.title')}
+          description={props.t('account.subscriptions.description')}
+        >
+          {props.subscriptionAccounts}
+        </ConfigPageSection>
+      )}
+
       <ConfigPageSection
         title={props.t('account.security.title')}
         description={props.t('account.security.description')}
@@ -434,6 +446,7 @@ const AccountSettings: React.FC<AccountSettingsProps> = ({
     <AccountSettingsView
       snapshot={snapshot}
       usageState={usageState}
+      subscriptionAccounts={<SubscriptionAccountsPanel />}
       onStartWebAuthorization={() => void controller.startWebAuthorization()}
       onClearError={controller.clearError}
       onSignOut={() => void controller.signOut()}

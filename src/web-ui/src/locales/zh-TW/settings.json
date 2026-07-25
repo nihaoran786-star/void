@@ -109,6 +109,44 @@
         "invalid_data": "使用記錄格式無效。"
       }
     },
+    "subscriptions": {
+      "title": "模型訂閱",
+      "description": "在系統瀏覽器中連接 Codex 或 OpenCode，憑據僅保存在本機安全憑據庫。",
+      "loading": "正在讀取訂閱帳戶",
+      "listAriaLabel": "模型訂閱帳戶",
+      "statusAriaLabel": "{{provider}} 狀態：{{status}}",
+      "unknownAccount": "已連接帳戶",
+      "expiresAt": "{{date}} 到期",
+      "providers": {
+        "codex": "Codex（ChatGPT）",
+        "opencode": "OpenCode"
+      },
+      "states": {
+        "connected": "已連接",
+        "disconnected": "未連接",
+        "vault_unavailable": "憑據庫不可用",
+        "failed": "暫不可用",
+        "disconnectedHint": "登入後可使用此訂閱存取模型。",
+        "vault_unavailableHint": "安全憑據庫暫時不可用，請直接重試，無需重新登入。",
+        "failedHint": "無法讀取訂閱狀態。"
+      },
+      "login": {
+        "pending": "正在等待瀏覽器授權。",
+        "code": "驗證碼：",
+        "openFailed": "無法開啟瀏覽器：{{error}}。請點擊「開啟瀏覽器」重試。",
+        "authorized": "授權已完成。",
+        "cancelled": "授權已取消。",
+        "failed": "授權失敗。"
+      },
+      "actions": {
+        "login": "登入",
+        "cancel": "取消",
+        "open": "開啟瀏覽器",
+        "refresh": "重新整理",
+        "logout": "登出",
+        "retry": "重試"
+      }
+    },
     "states": {
       "anonymous": "尚未登入",
       "anonymousHint": "透過系統瀏覽器安全登入。",
