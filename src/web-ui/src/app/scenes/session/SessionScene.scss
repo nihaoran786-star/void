@@ -55,6 +55,12 @@
   }
 }
 
+.void-ui--minimal .void-session-scene__chat-pane {
+  min-width: min(400px, 100%);
+  container-name: session-chat-pane;
+  container-type: inline-size;
+}
+
 
 .void-session-scene__aux-pane {
   display: flex;

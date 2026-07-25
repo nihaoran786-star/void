@@ -722,6 +722,36 @@ replace the working gallery or add decorative imagery.
   desktop layouts remain overflow-free, and targeted presentation tests, web
   type checking, and ESLint pass.
 
+### Resolved follow-up — Narrow new-task drafts were clipped by the chat minimum
+
+- **Location:** `SessionScene.scss`, `ChatPane.scss`, and the shared new-task
+  welcome/composer projection
+- **Category:** Responsive design / accessibility
+- **Severity:** P1
+- **Impact:** In a 720×498 desktop window at 150% scale, the navigation left
+  only 202 CSS pixels for the active scene. The chat pane still enforced a
+  400px minimum, so its heading, creation modes, examples, composer, and
+  workspace picker were rendered outside the visible scene and clipped rather
+  than adapting.
+- **Remediation:** Minimal chat panes retain their 400px preferred minimum but
+  may shrink to the available scene width. The chat pane is now a named inline
+  container: below 360px, the welcome content and three creation modes use the
+  local width, nonessential mode icons disappear, and the workspace chooser
+  condenses to its still-labelled folder button. Its menu is sized and offset
+  against the same container. Draft state, first-send persistence, workspace
+  selection, and message submission remain unchanged.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** The existing full-screen 760px welcome composition,
+  315px mode switch, 188px office examples, and 640px composer retain their
+  geometry; no alternate welcome component or runtime branch was introduced.
+- **Verification evidence:** At the same 720×498 desktop size, the 202px chat
+  pane now contains the heading, all three modes, the 178px example strip, and
+  the composer. The compact workspace chooser, model selector, and send button
+  no longer overlap. Opening the chooser produces a 178px menu fully inside
+  the scene and exposes new-workspace plus all three existing workspace
+  options. The maximized 1707×912 desktop remains document-overflow-free and
+  preserves the previous heading and example positions.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

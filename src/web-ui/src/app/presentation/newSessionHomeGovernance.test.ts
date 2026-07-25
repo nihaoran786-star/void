@@ -12,6 +12,7 @@ describe('new session home visual governance', () => {
   it('keeps the welcome surface graphic-free and driven by the shared composer', () => {
     const panelSource = read('flow_chat/components/WelcomePanel.tsx');
     const paneStyles = read('app/scenes/session/ChatPane.scss');
+    const sceneStyles = read('app/scenes/session/SessionScene.scss');
 
     expect(panelSource).toContain("t('welcome.promptTitle')");
     expect(panelSource).not.toMatch(/<img\b/);
@@ -25,6 +26,18 @@ describe('new session home visual governance', () => {
     expect(paneStyles).toContain('min-height: 160px');
     expect(paneStyles).toMatch(
       /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 188px\);/,
+    );
+    expect(sceneStyles).toMatch(
+      /\.void-ui--minimal \.void-session-scene__chat-pane\s*\{[\s\S]*?min-width:\s*min\(400px, 100%\);[\s\S]*?container-name:\s*session-chat-pane;/,
+    );
+    expect(paneStyles).toMatch(
+      /@container session-chat-pane \(max-width: 360px\)[\s\S]*?\.welcome-panel__creation-modes\s*\{[\s\S]*?width:\s*100%;[\s\S]*?\.welcome-panel__creation-mode\s*\{[\s\S]*?flex:\s*1 1 0;/,
+    );
+    expect(paneStyles).toMatch(
+      /@container session-chat-pane \(max-width: 360px\)[\s\S]*?\.void-chat-input-workspace-strip__picker-trigger\s*\{[\s\S]*?width:\s*28px;[\s\S]*?\.void-chat-input-workspace-strip__workspace,[\s\S]*?svg:last-child\s*\{[\s\S]*?display:\s*none;/,
+    );
+    expect(paneStyles).toMatch(
+      /@container session-chat-pane \(max-width: 360px\)[\s\S]*?\.void-chat-input-workspace-strip__picker-menu\s*\{[\s\S]*?left:\s*calc\(0px - var\(--workspace-space-6\) - var\(--workspace-space-4\)\);[\s\S]*?100cqw/,
     );
   });
 
