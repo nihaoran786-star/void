@@ -1,7 +1,7 @@
 # BitFun capability upgrade program
 
 Date: 2026-07-25
-Status: Batch 1 Web UI complete; Batches 2 and 3 are outside this worktree's current scope
+Status: All three capability batches implemented on the isolated upgrade branch; integration pending
 Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
 Batch 1 implementation evidence is recorded in
@@ -11,6 +11,12 @@ isolated provider-Adapter follow-up with HTTP/1.1 fallback. The later scoped
 follow-ups also completed BTW `ComposerPresentation` recovery and bounded,
 authorized session-reference transcript injection without modifying the
 multi-agent coordinator or recovery state machine.
+
+The subsequently authorized Batch 2 and Batch 3 capabilities, runtime recovery,
+and final verification are recorded in
+[the capability upgrade result](../qa/bitfun-capability-upgrade-results-2026-07-26.md).
+The implementation remains isolated on `codex/bitfun-capability-upgrades`; this
+document does not claim that it has been merged into another Void branch.
 
 ## Objective and boundaries
 
@@ -109,13 +115,13 @@ Crossing these boundaries requires a documented decision before editing.
 
 ## Isolation and integration
 
-Implementation occurs in `D:\codex\void-bitfun-upgrades` on
-`codex/bitfun-capability-upgrades`. `D:\codex\void-source` is an independently
-changing main worktree and must not be modified, cleaned, reset, or used for
-generated output. Its HEAD may advance while this program runs, so every
-integration checkpoint must compare merge-base and working-tree state before
-rebasing or merging. Integration, push, dependency installation, and generated
-file updates remain separately authorized actions.
+Implementation occurs in the isolated upgrade worktree on
+`codex/bitfun-capability-upgrades`. The primary Void worktree is independently
+changing and must not be modified, cleaned, reset, or used for generated
+output. Its HEAD may advance while this program runs, so every integration
+checkpoint must compare merge-base and working-tree state before rebasing or
+merging. Integration, push, dependency installation, and generated file
+updates remain separately authorized actions.
 
 ## Validation and completion
 
