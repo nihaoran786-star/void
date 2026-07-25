@@ -25,7 +25,11 @@ describe('MainNav workspace menu accessibility contract', () => {
       '<span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">',
     );
     expect(source).toContain('aria-expanded={isExtensionsOpen}');
+    expect(source).toContain('aria-controls="void-nav-panel-extensions"');
     expect(source).toContain('aria-label={extensionsLabel}');
+    expect(source).toContain('id="void-nav-panel-extensions"');
+    expect(source).toContain('aria-hidden={!isExtensionsOpen}');
+    expect(source.match(/tabIndex=\{isExtensionsOpen \? 0 : -1\}/g)).toHaveLength(3);
     expect(source).toContain('aria-label={connectorsTooltip}');
     expect(minimalStyles).toContain(
       '&__top-action-icon-slot {\n      display: inline-flex;',

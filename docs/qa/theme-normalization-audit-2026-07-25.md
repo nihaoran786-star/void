@@ -847,6 +847,29 @@ replace the working gallery or add decorative imagery.
   delete disclosure to coarse pointers because the current desktop WebDriver
   endpoint does not expose pointer-media emulation.
 
+### Resolved follow-up — Collapsed customization links leave the tab order
+
+- **Location:** Minimal `MainNav` customization disclosure
+- **Category:** Accessibility / interaction consistency
+- **Severity:** P1
+- **Impact:** Collapsing 定制 animated its sublist to zero height and opacity,
+  but 专业智能体, 技能, and 连接器 remained focusable native buttons and
+  visible to assistive technology. Keyboard users could tab into an invisible
+  part of the sidebar with no apparent focus target.
+- **Remediation:** The existing animated disclosure now owns its sublist through
+  `aria-controls`. The sublist mirrors the open state through `aria-hidden`,
+  and its three buttons leave the tab order only while collapsed. Existing
+  Agent, Skill, and MCP routing callbacks are unchanged.
+- **Suggested command:** `$harden`
+- **Positive evidence:** The disclosure already uses a native button,
+  `aria-expanded`, a translated label, visible focus, and state-driven automatic
+  expansion when one of its child scenes is active.
+- **Verification evidence:** In the real maximized desktop, the collapsed list
+  remains 0px high, reports `aria-hidden=true`, and all three child buttons
+  report `tabIndex=-1`. Activating 定制 restores the 86px list,
+  `aria-hidden=false`, and `tabIndex=0` for each child. Re-collapsing restores
+  the hidden state without changing document width or navigation geometry.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

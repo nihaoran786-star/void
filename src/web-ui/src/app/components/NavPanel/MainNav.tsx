@@ -639,6 +639,7 @@ const MainNav: React.FC<MainNavProps> = ({
               ].filter(Boolean).join(' ')}
               onClick={() => setIsExtensionsOpen(v => !v)}
               aria-expanded={isExtensionsOpen}
+              aria-controls="void-nav-panel-extensions"
               aria-label={extensionsLabel}
             >
               <span className="void-nav-panel__top-action-expand-icons" aria-hidden="true">
@@ -655,7 +656,11 @@ const MainNav: React.FC<MainNavProps> = ({
             </button>
           </Tooltip>
 
-          <div className={`void-nav-panel__top-action-sublist${isExtensionsOpen ? ' is-open' : ''}`}>
+          <div
+            id="void-nav-panel-extensions"
+            className={`void-nav-panel__top-action-sublist${isExtensionsOpen ? ' is-open' : ''}`}
+            aria-hidden={!isExtensionsOpen}
+          >
             <Tooltip content={agentsTooltip} placement="right" followCursor>
               <button
                 type="button"
@@ -666,6 +671,7 @@ const MainNav: React.FC<MainNavProps> = ({
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenAgents}
                 aria-label={agentsTooltip}
+                tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
                   <Users size={15} />
@@ -684,6 +690,7 @@ const MainNav: React.FC<MainNavProps> = ({
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenSkills}
                 aria-label={skillsTooltip}
+                tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
                   <Puzzle size={15} />
@@ -702,6 +709,7 @@ const MainNav: React.FC<MainNavProps> = ({
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenConnectors}
                 aria-label={connectorsTooltip}
+                tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
                   <Cable size={15} />
