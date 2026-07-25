@@ -208,6 +208,13 @@ describe('AutomationScene minimal visual contract', () => {
     expect(stylesheet).toContain('height: 28px;');
     expect(stylesheet).toContain('&__filters {\n      position: absolute;');
     expect(stylesheet).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(stylesheet).toContain(
+      '@container automation-scene (max-width: 280px)',
+    );
+    expect(stylesheet).toContain(
+      'grid-template-columns: auto minmax(0, 1fr);',
+    );
+    expect(stylesheet).toContain('grid-column: 1 / -1;');
     expect(stylesheet).toContain(':where(button, input, select, summary, textarea):focus-visible');
     expect(stylesheet).not.toContain('@media (max-width: 1120px)');
     expect(stylesheet).toContain('@media (max-width: 720px)');

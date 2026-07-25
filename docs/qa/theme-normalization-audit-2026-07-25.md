@@ -1033,6 +1033,24 @@ replace the working gallery or add decorative imagery.
   horizontal overflow. The maximized 840px content axis retains its labelled,
   single-row toolbar.
 
+### Resolved follow-up — Ultra-narrow Automation clipped task creation
+
+- **Location:** Automation scene command header
+- **Category:** Responsive layout / action visibility
+- **Severity:** P1
+- **Impact:** In a 192px Automation scene, the filter, four view controls, and
+  create action retained a 251px second row. The create action extended beyond
+  the scene edge and could not be reached reliably.
+- **Remediation:** The Automation scene now owns a 280px container breakpoint.
+  Navigation and the date range retain their first-row context, filter and view
+  controls share the next row, and the labelled create action occupies a
+  complete third row. No view, filter, or task-creation handler changed.
+- **Suggested command:** `$adapt`
+- **Verification evidence:** At a 456×318 CSS viewport with a 192px Automation
+  scene, header and scene horizontal scroll width return to 192px and every
+  control remains fully inside the scene. At maximized 1707×912, the existing
+  64px header and one-line command group remain unchanged.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
