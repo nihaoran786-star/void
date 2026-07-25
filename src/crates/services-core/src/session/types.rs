@@ -12,6 +12,7 @@ pub enum BtwHydrationState {
     #[default]
     Loading,
     Ready,
+    RuntimeUnavailable,
     Stale,
     Failed,
 }
@@ -1073,7 +1074,10 @@ mod tests {
             serde_json::from_value(payload).expect("legacy diagnostics should deserialize");
         let serialized = serde_json::to_value(&turn).expect("diagnostics should serialize");
 
-        assert_eq!(turn.error_detail.as_ref().unwrap()["requestId"], "request-legacy");
+        assert_eq!(
+            turn.error_detail.as_ref().unwrap()["requestId"],
+            "request-legacy"
+        );
         assert!(serialized.get("error_detail").is_none());
         assert_eq!(serialized["errorDetail"]["requestId"], "request-legacy");
     }

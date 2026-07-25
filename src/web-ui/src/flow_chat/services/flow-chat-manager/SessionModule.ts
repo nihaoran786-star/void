@@ -23,6 +23,7 @@ import {
   resolveSessionTitle,
 } from '../../utils/sessionTitle';
 import { buildCreateSessionRelationship } from '../../utils/sessionMetadata';
+import { hydrateBtwRelationships } from '../BtwRelationshipHydrationService';
 
 const log = createLogger('SessionModule');
 const pendingSessionCreations = new Map<string, Promise<string>>();
@@ -497,6 +498,18 @@ export async function switchChatSession(
     if (session?.isHistorical) {
       // Load history in the background — do not block the UI.
       void hydrateHistoricalSession(context, sessionId, true);
+    }
+    if (
+      session?.sessionKind === 'normal' &&
+      session.workspacePath &&
+      !session.remoteConnectionId
+    ) {
+      await hydrateBtwRelationships({
+        parentSessionId: session.sessionId,
+        workspacePath: session.workspacePath,
+      }).catch(error => {
+        log.warn('Failed to hydrate BTW relationships', { sessionId, error });
+      });
     }
   } catch (error) {
     log.error('Failed to switch chat session', { sessionId, error });

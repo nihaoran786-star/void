@@ -238,6 +238,12 @@ export async function sendMessageToTransientBtwSession(params: {
   if (!isTransientBtwSession(childSession)) {
     throw new Error(`Session is not a transient /btw session: ${params.childSessionId}`);
   }
+  const workspacePath =
+    childSession.workspacePath?.trim() ||
+    requireSession(params.parentSessionId).workspacePath?.trim();
+  if (!workspacePath) {
+    throw new Error(`Workspace path is required for BTW child session: ${params.childSessionId}`);
+  }
 
   await flowChatManager.ensureBackendSession(params.parentSessionId);
 
@@ -249,6 +255,7 @@ export async function sendMessageToTransientBtwSession(params: {
   const response = await btwAPI.askStream({
     requestId,
     sessionId: params.parentSessionId,
+    workspacePath,
     childSessionId: params.childSessionId,
     childSessionName: params.childSessionName || childSession.title || 'Side thread',
     question,

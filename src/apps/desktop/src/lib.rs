@@ -615,6 +615,7 @@ pub async fn run() {
             api::agent_memory_api::delete_agent_memory,
             api::btw_api::btw_ask_stream,
             api::btw_api::btw_cancel,
+            api::btw_api::btw_list_relationships,
             api::editor_ai_api::editor_ai_stream,
             api::editor_ai_api::editor_ai_cancel,
             api::context_upload_api::upload_image_contexts,

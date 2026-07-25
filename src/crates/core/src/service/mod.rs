@@ -11,6 +11,8 @@ mod atomic_file;
 #[cfg(feature = "service-integrations")]
 pub mod announcement; // Announcement / feature-demo / tips system
 pub(crate) mod bootstrap; // Workspace persona bootstrap helpers
+#[cfg(feature = "product-full")]
+pub mod btw_relationship; // Durable BTW lineage without transient runtime duplication
 pub mod config; // Config management
 #[cfg(feature = "product-full")]
 pub mod cron; // Scheduled jobs

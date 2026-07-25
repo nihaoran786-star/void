@@ -7,14 +7,18 @@
 //! agentic event pipeline.
 
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
 
+use super::agent_memory_api::resolve_registered_local_workspace;
 use super::agentic_api::resolve_missing_image_payloads;
 use crate::api::app_state::AppState;
 
 use void_core::agentic::coordination::ConversationCoordinator;
 use void_core::agentic::image_analysis::ImageContextData;
+use void_core::infrastructure::app_paths::get_path_manager_arc;
+use void_core::service::btw_relationship::BtwRelationshipRepository;
 use void_core::service::session::BtwSessionRecord;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,6 +26,7 @@ use void_core::service::session::BtwSessionRecord;
 pub struct BtwAskStreamRequest {
     pub request_id: String,
     pub session_id: String,
+    pub workspace_path: PathBuf,
     pub question: String,
     pub child_session_id: String,
     pub child_session_name: Option<String>,
@@ -45,6 +50,31 @@ pub struct BtwAskStreamResponse {
 #[serde(rename_all = "camelCase")]
 pub struct BtwCancelRequest {
     pub request_id: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtwListRelationshipsRequest {
+    pub workspace_path: PathBuf,
+    pub parent_session_id: String,
+}
+
+#[tauri::command]
+pub async fn btw_list_relationships(
+    state: State<'_, AppState>,
+    request: BtwListRelationshipsRequest,
+) -> Result<Vec<BtwSessionRecord>, String> {
+    if request.parent_session_id.trim().is_empty() {
+        return Err("parentSessionId is required".to_string());
+    }
+    let workspace_path =
+        resolve_registered_local_workspace(&state, &request.workspace_path).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        BtwRelationshipRepository::new(get_path_manager_arc())
+            .list_for_parent(&workspace_path, &request.parent_session_id)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -97,6 +127,8 @@ pub async fn btw_ask_stream(
     if child_session_id.is_empty() {
         return Err("childSessionId is required".to_string());
     }
+    let workspace_path =
+        resolve_registered_local_workspace(&state, &request.workspace_path).await?;
 
     let image_contexts = if let Some(image_contexts) = request
         .image_contexts
@@ -113,8 +145,10 @@ pub async fn btw_ask_stream(
     relationship.request_id = Some(request.request_id.clone());
     relationship.child_session_name = request.child_session_name.clone();
     relationship.memory_enabled = request.memory_enabled;
+    let relationship_repository = BtwRelationshipRepository::new(get_path_manager_arc());
+    relationship_repository.save(&workspace_path, &relationship)?;
 
-    let turn_id = coordinator
+    let turn_id = match coordinator
         .start_hidden_btw_turn(
             &request.request_id,
             &request.session_id,
@@ -125,8 +159,23 @@ pub async fn btw_ask_stream(
             image_contexts,
         )
         .await
-        .map_err(|e| e.to_string())?;
+    {
+        Ok(turn_id) => turn_id,
+        Err(error) => {
+            relationship.mark_failed(format!("BTW runtime start failed: {error}"));
+            let _ = relationship_repository.save(&workspace_path, &relationship);
+            return Err(format!("btw_start_failed: {error}"));
+        }
+    };
     relationship.mark_ready();
+    if let Err(error) = relationship_repository.save(&workspace_path, &relationship) {
+        relationship.mark_failed(format!("BTW relationship persistence failed: {error}"));
+        let _ = relationship_repository.save(&workspace_path, &relationship);
+        let _ = coordinator
+            .cancel_dialog_turn(child_session_id, &turn_id)
+            .await;
+        return Err(format!("btw_relationship_persistence_failed: {error}"));
+    }
 
     state
         .side_question_runtime

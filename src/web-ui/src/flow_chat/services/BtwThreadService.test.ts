@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockCreateSession = vi.fn();
 const mockAskStream = vi.fn();
+const mockListRelationships = vi.fn();
 const mockAddExternalSession = vi.fn();
 const mockUpdateSessionRelationship = vi.fn();
 const mockUpdateSessionBtwOrigin = vi.fn();
@@ -26,6 +27,7 @@ vi.mock('@/infrastructure/api', () => ({
   },
   btwAPI: {
     askStream: (...args: any[]) => mockAskStream(...args),
+    listRelationships: (...args: any[]) => mockListRelationships(...args),
   },
 }));
 
@@ -86,7 +88,12 @@ vi.mock('@/shared/notification-system', () => ({
   },
 }));
 
-import { createBtwChildSession, sendMessageToTransientBtwSession, startBtwThread } from './BtwThreadService';
+import {
+  createBtwChildSession,
+  sendMessageToTransientBtwSession,
+  startBtwThread,
+} from './BtwThreadService';
+import { hydrateBtwRelationships } from './BtwRelationshipHydrationService';
 
 describe('BtwThreadService', () => {
   beforeEach(() => {
@@ -115,6 +122,7 @@ describe('BtwThreadService', () => {
       ok: true,
       relationship: readyRelationship,
     });
+    mockListRelationships.mockResolvedValue([]);
   });
 
   it('passes structured relationship metadata to backend-created review sessions', async () => {
@@ -248,6 +256,55 @@ describe('BtwThreadService', () => {
 
     expect(mockAskStream).toHaveBeenCalledWith(
       expect.objectContaining({ memoryEnabled: true }),
+    );
+  });
+
+  it('hydrates a typed persisted BTW relationship as a historical UI capsule only', async () => {
+    const staleRelationship = {
+      ...readyRelationship,
+      hydrationState: 'runtime_unavailable' as const,
+      hydrationDetail: 'persisted BTW relationship restored; start a new turn to resume',
+    };
+    mockListRelationships.mockResolvedValue([staleRelationship]);
+
+    await expect(hydrateBtwRelationships({
+      parentSessionId: 'parent-1',
+      workspacePath: '/workspace',
+    })).resolves.toEqual([staleRelationship]);
+    expect(mockListRelationships).toHaveBeenCalledWith({
+      parentSessionId: 'parent-1',
+      workspacePath: '/workspace',
+    });
+    expect(mockAddExternalSession).toHaveBeenCalledWith(
+      'btw-child-1',
+      'Side question',
+      'agentic',
+      '/workspace',
+      expect.objectContaining({
+        parentSessionId: 'parent-1',
+        sessionKind: 'btw',
+        isTransient: true,
+      }),
+    );
+    expect(mockAddBtwThreadMarker).toHaveBeenCalledWith(
+      'parent-1',
+      expect.objectContaining({
+        childSessionId: 'btw-child-1',
+        status: 'error',
+      }),
+    );
+
+    await sendMessageToTransientBtwSession({
+      parentSessionId: 'parent-1',
+      childSessionId: 'btw-child-1',
+      question: 'Resume with a new runtime turn',
+    });
+    expect(mockAskStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        childSessionId: 'btw-child-1',
+        workspacePath: '/workspace',
+        memoryEnabled: false,
+      }),
     );
   });
 
