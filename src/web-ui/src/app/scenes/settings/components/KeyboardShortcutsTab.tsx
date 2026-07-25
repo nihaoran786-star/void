@@ -538,6 +538,14 @@ const KeyboardShortcutsTab: React.FC = () => {
     filteredByScope('git').length > 0;
 
   const hasPendingChanges = Object.keys(pendingChanges).length > 0;
+  const bindingButtonLabel = (
+    action: string,
+    binding: string,
+    isRecording: boolean
+  ): string =>
+    isRecording
+      ? t('keyboard.recordingBindingAria', { action })
+      : t('keyboard.editBindingAria', { action, binding });
 
   return (
     <ConfigPageLayout>
@@ -546,7 +554,7 @@ const KeyboardShortcutsTab: React.FC = () => {
         title={t('keyboard.title')}
         subtitle={t('keyboard.description')}
       />
-      <ConfigPageContent>
+      <ConfigPageContent className="kb-shortcuts">
         {/* Search + actions bar */}
         <div className="kb-shortcuts__toolbar">
           <Search
@@ -636,6 +644,12 @@ const KeyboardShortcutsTab: React.FC = () => {
                           ]
                             .filter(Boolean)
                             .join(' ')}
+                          aria-label={bindingButtonLabel(
+                            t('keyboard.shortcuts.tab.switchMerged'),
+                            mergedTabKeyLabel,
+                            recordingId === MERGED_TAB_RECORD_ID
+                          )}
+                          aria-pressed={recordingId === MERGED_TAB_RECORD_ID}
                           onClick={() =>
                             setRecordingId(recordingId === MERGED_TAB_RECORD_ID ? null : MERGED_TAB_RECORD_ID)
                           }
@@ -696,6 +710,12 @@ const KeyboardShortcutsTab: React.FC = () => {
                           ]
                             .filter(Boolean)
                             .join(' ')}
+                          aria-label={bindingButtonLabel(
+                            t('keyboard.shortcuts.scene.focusMerged'),
+                            mergedSceneKeyLabel,
+                            recordingId === MERGED_SCENE_RECORD_ID
+                          )}
+                          aria-pressed={recordingId === MERGED_SCENE_RECORD_ID}
                           onClick={() =>
                             setRecordingId(recordingId === MERGED_SCENE_RECORD_ID ? null : MERGED_SCENE_RECORD_ID)
                           }
@@ -728,6 +748,7 @@ const KeyboardShortcutsTab: React.FC = () => {
                   const pending = pendingChanges[reg.id];
                   const isRecording = recordingId === reg.id;
                   const fixed = NON_USER_CUSTOMIZABLE_SHORTCUT_IDS.has(reg.id);
+                  const actionName = shortcutDisplayName(reg, t);
                   const conflict =
                     !fixed && pending ? detectConflict(pending, reg.config.scope ?? 'app') : null;
 
@@ -743,7 +764,7 @@ const KeyboardShortcutsTab: React.FC = () => {
                     >
                       <div className="kb-shortcuts__item-label">
                         <span className="kb-shortcuts__item-name">
-                          {shortcutDisplayName(reg, t)}
+                          {actionName}
                         </span>
                         {conflict && (
                           <span className="kb-shortcuts__item-conflict-hint">
@@ -770,6 +791,12 @@ const KeyboardShortcutsTab: React.FC = () => {
                                   isRecording ? 'kb-shortcuts__keybadge--recording' : '',
                                   conflict ? 'kb-shortcuts__keybadge--conflict' : '',
                                 ].filter(Boolean).join(' ')}
+                                aria-label={bindingButtonLabel(
+                                  actionName,
+                                  formatKey(reg, pending),
+                                  isRecording
+                                )}
+                                aria-pressed={isRecording}
                                 onClick={() => setRecordingId(isRecording ? null : reg.id)}
                               >
                                 {isRecording

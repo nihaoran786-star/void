@@ -239,6 +239,8 @@
     "saving": "Saving…",
     "reset": "Reset to Defaults",
     "clickToRecord": "Click to record a new key binding",
+    "editBindingAria": "{{action}}: current binding {{binding}}. Click to record a new key binding",
+    "recordingBindingAria": "{{action}}: recording a new key binding",
     "recording": "Press new key combination…",
     "revertChange": "Revert this change",
     "fixedBinding": "This shortcut is fixed and cannot be changed",

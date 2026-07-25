@@ -260,6 +260,8 @@
     "saving": "保存中…",
     "reset": "重置为默认",
     "clickToRecord": "点击录制新的快捷键",
+    "editBindingAria": "{{action}}：当前键位 {{binding}}。点击录制新的快捷键",
+    "recordingBindingAria": "{{action}}：正在录制新键位",
     "recording": "按下新键位…",
     "revertChange": "撤销此更改",
     "fixedBinding": "系统固定快捷键，无法自定义",

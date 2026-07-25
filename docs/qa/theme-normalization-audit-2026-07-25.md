@@ -656,6 +656,39 @@ replace the working gallery or add decorative imagery.
   30 to 7 days and back updates both the active class and `aria-pressed` while
   preserving the compact header geometry.
 
+### Resolved follow-up — Keyboard bindings expose action context without card chrome
+
+- **Location:** `KeyboardShortcutsTab` and its Settings locale resources
+- **Category:** Accessibility / responsive input / performance / anti-pattern
+- **Severity:** P1 for unnamed recording actions; P2 for coarse-pointer targets
+  and repeated panel treatment
+- **Impact:** Editable key buttons expose only the current binding, such as
+  `Alt+1–3`, so assistive technology cannot identify which action will be
+  changed or whether capture mode is active. At a 720×498 WebView these buttons
+  are about 25.5px high and revert controls are 22px, with no coarse-pointer
+  promotion. At maximized width the search field expands to most of the 840px
+  content axis, and every shortcut scope repeats a bordered panel even though
+  the rows already provide the useful hierarchy.
+- **Remediation:** Editable bindings now expose localized action, current
+  binding, and recording state through their accessible names and
+  `aria-pressed`. The Minimal projection reuses the shared 44px coarse-pointer
+  target, bounds the desktop toolbar/search axis, flattens scope bodies into
+  quiet separated rows, and defers offscreen scope paint without changing
+  shortcut registration, conflict detection, or persistence.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** Search is already labeled, fixed bindings are rendered
+  as non-buttons, focus treatment is visible, recording animation respects
+  reduced motion, and both maximized and 720×498 layouts have zero
+  document-level horizontal overflow.
+- **Verification evidence:** At 720×498, the first editable binding reports
+  `切换场景：当前键位 Alt+1–3。点击录制新的快捷键`; entering capture changes
+  it to `切换场景：正在录制新键位` with `aria-pressed=true`. Escape restores
+  the original state without creating a pending Apply action. At maximized
+  width the search is 560px inside a 660px toolbar rather than filling the
+  840px content axis. Both viewport sizes remain overflow-free, and targeted
+  interaction tests, web type checking, and locale interpolation contracts
+  pass.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

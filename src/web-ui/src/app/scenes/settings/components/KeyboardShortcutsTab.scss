@@ -252,3 +252,69 @@
     opacity: 0.88;
   }
 }
+
+.void-ui--minimal .kb-shortcuts {
+  .kb-shortcuts__toolbar {
+    width: min(100%, 660px);
+    gap: var(--workspace-space-2);
+    margin-bottom: var(--workspace-space-4);
+  }
+
+  .kb-shortcuts__search.search {
+    flex: 1 1 560px;
+    max-width: 560px;
+  }
+
+  .void-config-page-section {
+    gap: var(--workspace-space-2);
+    contain: layout paint style;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 320px;
+  }
+
+  .void-config-page-section__body {
+    overflow: clip;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .kb-shortcuts__list {
+    gap: 0;
+  }
+
+  .kb-shortcuts__item {
+    min-height: var(--workspace-control-height);
+    padding: var(--workspace-space-2) var(--workspace-space-1);
+    border-bottom: 1px solid var(--workspace-border-subtle);
+    border-radius: 0;
+  }
+
+  .kb-shortcuts__item:last-child {
+    border-bottom: 0;
+  }
+
+  .kb-shortcuts__keybadge {
+    border-color: var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-panel);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .void-ui--minimal .kb-shortcuts {
+    .kb-shortcuts__search.search .search__wrapper,
+    .kb-shortcuts__actions .btn,
+    .kb-shortcuts__keybadge {
+      min-height: var(--workspace-touch-target);
+      height: var(--workspace-touch-target);
+      touch-action: manipulation;
+    }
+
+    .kb-shortcuts__revert-btn {
+      width: var(--workspace-touch-target);
+      height: var(--workspace-touch-target);
+      touch-action: manipulation;
+    }
+  }
+}

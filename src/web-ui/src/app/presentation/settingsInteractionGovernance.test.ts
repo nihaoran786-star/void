@@ -6,6 +6,11 @@ const keyboardShortcutsSource = readFileSync(
   'utf8',
 );
 
+const keyboardShortcutsComponent = readFileSync(
+  new URL('../scenes/settings/components/KeyboardShortcutsTab.tsx', import.meta.url),
+  'utf8',
+);
+
 const archivedSessionsSource = readFileSync(
   new URL('../scenes/settings/components/ArchivedSessionsConfig.scss', import.meta.url),
   'utf8',
@@ -43,6 +48,26 @@ describe('settings interaction governance', () => {
     );
     expect(keyboardShortcutsSource).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?&__keybadge--recording\s*\{[\s\S]*?animation:\s*none/,
+    );
+  });
+
+  it('names shortcut recording controls and exposes their capture state', () => {
+    expect(keyboardShortcutsComponent).toContain(
+      "t('keyboard.editBindingAria', { action, binding })",
+    );
+    expect(keyboardShortcutsComponent).toContain(
+      "t('keyboard.recordingBindingAria', { action })",
+    );
+    expect(keyboardShortcutsComponent.match(/aria-pressed=/g)).toHaveLength(3);
+  });
+
+  it('flattens repeated shortcut panels and promotes coarse targets', () => {
+    expect(keyboardShortcutsSource).toMatch(
+      /\.void-ui--minimal \.kb-shortcuts[\s\S]*?\.void-config-page-section__body\s*\{[\s\S]*?border:\s*0;[\s\S]*?background:\s*transparent;/,
+    );
+    expect(keyboardShortcutsSource).toContain('content-visibility: auto;');
+    expect(keyboardShortcutsSource).toMatch(
+      /@media \(hover: none\), \(pointer: coarse\)[\s\S]*?min-height: var\(--workspace-touch-target\);[\s\S]*?touch-action: manipulation;/,
     );
   });
 
