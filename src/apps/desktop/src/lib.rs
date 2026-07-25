@@ -285,6 +285,8 @@ pub async fn run() {
     };
 
     let terminal_state = api::terminal_api::TerminalState::new();
+    let subscription_auth_state =
+        api::subscription_auth_api::SubscriptionAuthDesktopState::default();
 
     let path_manager = get_path_manager_arc();
 
@@ -307,6 +309,7 @@ pub async fn run() {
         .manage(coordinator)
         .manage(scheduler)
         .manage(terminal_state)
+        .manage(subscription_auth_state)
         .setup(move |app| {
             let setup_started = Instant::now();
             log::debug!(
@@ -613,6 +616,12 @@ pub async fn run() {
             api::agent_memory_api::commit_agent_memory,
             api::agent_memory_api::list_agent_memories,
             api::agent_memory_api::delete_agent_memory,
+            api::subscription_auth_api::subscription_auth_list_accounts,
+            api::subscription_auth_api::subscription_auth_start,
+            api::subscription_auth_api::subscription_auth_status,
+            api::subscription_auth_api::subscription_auth_cancel,
+            api::subscription_auth_api::subscription_auth_logout,
+            api::subscription_auth_api::subscription_auth_refresh,
             api::btw_api::btw_ask_stream,
             api::btw_api::btw_cancel,
             api::btw_api::btw_list_relationships,

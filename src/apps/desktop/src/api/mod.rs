@@ -43,6 +43,7 @@ pub mod ssh_api;
 pub mod startchat_agent_api;
 pub mod storage_commands;
 pub mod subagent_api;
+pub mod subscription_auth_api;
 pub mod system_api;
 pub mod terminal_api;
 pub mod tool_api;

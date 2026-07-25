@@ -246,18 +246,11 @@ impl SubscriptionAuthService {
             )
         };
         if pending.expected_state() != Some(callback_state) {
-            let _commit = self.commit_lock.lock().await;
-            return self
-                .finish(
-                    session_id,
-                    generation,
-                    Err(SubscriptionAuthError::new(
-                        SubscriptionAuthErrorCode::InvalidState,
-                        "OAuth callback state did not match the pending session",
-                        false,
-                    )),
-                )
-                .await;
+            return Err(SubscriptionAuthError::new(
+                SubscriptionAuthErrorCode::InvalidState,
+                "OAuth callback state did not match the pending session",
+                false,
+            ));
         }
         let exchange_result = self
             .provider
@@ -291,6 +284,22 @@ impl SubscriptionAuthService {
             record.generation = self.next_generation.fetch_add(1, Ordering::Relaxed);
         }
         Ok(record.snapshot.clone())
+    }
+
+    /// Marks a pending backend-owned flow as failed. Presentation adapters use
+    /// this for callback timeout or malformed local callback requests.
+    pub async fn fail_pending(
+        &self,
+        session_id: &str,
+        error: SubscriptionAuthError,
+    ) -> SubscriptionAuthResult<SubscriptionAuthSession> {
+        let _commit = self.commit_lock.lock().await;
+        let generation = {
+            let sessions = self.sessions.lock().await;
+            let record = sessions.get(session_id).ok_or_else(session_not_found)?;
+            record.generation
+        };
+        self.finish(session_id, generation, Err(error)).await
     }
 
     pub async fn list(&self) -> SubscriptionAuthResult<Vec<SubscriptionAccount>> {
@@ -460,6 +469,22 @@ mod tests {
         inner: MemoryStore,
     }
 
+    struct BlockingSaveStore {
+        entered: Notify,
+        release: Notify,
+        inner: MemoryStore,
+    }
+
+    impl BlockingSaveStore {
+        fn new() -> Self {
+            Self {
+                entered: Notify::new(),
+                release: Notify::new(),
+                inner: MemoryStore::default(),
+            }
+        }
+    }
+
     impl BlockingStore {
         fn new() -> Self {
             Self {
@@ -540,6 +565,38 @@ mod tests {
             provider: SubscriptionProvider,
             credential: SubscriptionCredential,
         ) -> SubscriptionAuthResult<()> {
+            self.inner.save(provider, credential).await
+        }
+
+        async fn delete(&self, provider: SubscriptionProvider) -> SubscriptionAuthResult<()> {
+            self.inner.delete(provider).await
+        }
+
+        async fn list(&self) -> SubscriptionAuthResult<Vec<SubscriptionAccount>> {
+            self.inner.list().await
+        }
+    }
+
+    #[async_trait]
+    impl SubscriptionCredentialStoreAdapter for BlockingSaveStore {
+        async fn ensure_available(&self) -> SubscriptionAuthResult<()> {
+            Ok(())
+        }
+
+        async fn load(
+            &self,
+            provider: SubscriptionProvider,
+        ) -> SubscriptionAuthResult<Option<SubscriptionCredential>> {
+            self.inner.load(provider).await
+        }
+
+        async fn save(
+            &self,
+            provider: SubscriptionProvider,
+            credential: SubscriptionCredential,
+        ) -> SubscriptionAuthResult<()> {
+            self.entered.notify_one();
+            self.release.notified().await;
             self.inner.save(provider, credential).await
         }
 
@@ -727,24 +784,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn codex_rejects_wrong_callback_state_and_drops_pending_secrets() {
+    async fn codex_rejects_wrong_callback_state_without_ending_pending_session() {
         let service = service(Arc::new(MemoryStore::default()));
         let started = service
             .start(request(SubscriptionProvider::Codex))
             .await
             .unwrap();
-        let failed = service
+        let error = service
             .complete_browser(&started.session_id, "code", "wrong-state")
             .await
-            .unwrap();
-        assert_eq!(failed.status, SubscriptionAuthStatus::Failed);
-        assert_eq!(
-            failed.error.unwrap().code,
-            SubscriptionAuthErrorCode::InvalidState
-        );
+            .unwrap_err();
+        assert_eq!(error.code, SubscriptionAuthErrorCode::InvalidState);
         assert_eq!(
             service.status(&started.session_id).await.unwrap().status,
-            SubscriptionAuthStatus::Failed
+            SubscriptionAuthStatus::Pending
         );
     }
 
@@ -859,6 +912,43 @@ mod tests {
         assert_eq!(
             tick.await.unwrap().status,
             SubscriptionAuthStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_waits_for_in_progress_credential_commit() {
+        let store = Arc::new(BlockingSaveStore::new());
+        let clock = Arc::new(FakeClock::new());
+        let service = Arc::new(SubscriptionAuthService::with_clock(
+            Arc::new(MockProvider),
+            store.clone(),
+            clock.clone(),
+        ));
+        let started = service
+            .start(request(SubscriptionProvider::Opencode))
+            .await
+            .unwrap();
+        clock.advance(Duration::from_secs(5));
+        let tick_service = service.clone();
+        let tick_session_id = started.session_id.clone();
+        let tick = tokio::spawn(async move { tick_service.tick(&tick_session_id).await.unwrap() });
+        store.entered.notified().await;
+
+        let cancel_service = service.clone();
+        let cancel_session_id = started.session_id.clone();
+        let cancel =
+            tokio::spawn(async move { cancel_service.cancel(&cancel_session_id).await.unwrap() });
+        tokio::task::yield_now().await;
+        assert!(!cancel.is_finished());
+        store.release.notify_one();
+
+        assert_eq!(
+            tick.await.unwrap().status,
+            SubscriptionAuthStatus::Authorized
+        );
+        assert_eq!(
+            cancel.await.unwrap().status,
+            SubscriptionAuthStatus::Authorized
         );
     }
 
