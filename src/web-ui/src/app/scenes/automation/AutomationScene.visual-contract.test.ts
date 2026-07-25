@@ -325,4 +325,12 @@ describe('AutomationScene minimal visual contract', () => {
       expect(stylesheet).toContain(declaration);
     }
   });
+
+  it('uses the shared 44px target only for coarse-pointer header controls', () => {
+    const stylesheet = readStylesheet('./AutomationScene.minimal.scss');
+
+    expect(stylesheet).toMatch(
+      /@media \(hover: none\), \(pointer: coarse\)[\s\S]*?\.void-ui--minimal \.automation-header \{[\s\S]*?min-height: var\(--workspace-touch-target\);[\s\S]*?touch-action: manipulation;/,
+    );
+  });
 });

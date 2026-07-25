@@ -107,6 +107,12 @@ describe('GalleryLayout Minimal presentation contract', () => {
     expect(source).not.toMatch(/\bscale\s*\(|\btransform\s*:/i);
   });
 
+  it('keeps compact mouse controls and exposes 44px targets to coarse pointers', () => {
+    expect(source).toMatch(
+      /@media \(hover: none\), \(pointer: coarse\)[\s\S]*?min-width: var\(--workspace-touch-target\);[\s\S]*?min-height: var\(--workspace-touch-target\);[\s\S]*?touch-action: manipulation;/,
+    );
+  });
+
   it('uses governed tokens without raw colors, fallbacks, blur or gradients', () => {
     expect(source).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);
     expect(source).not.toMatch(/\brgba?\s*\(|\bhsla?\s*\(/i);

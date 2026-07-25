@@ -865,6 +865,28 @@
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    .void-ui--minimal .automation-header {
+      &__filter-trigger,
+      &__today-btn,
+      &__icon-btn,
+      &__select,
+      &__clear-btn,
+      &__view-btn,
+      &__create-btn {
+        min-height: var(--workspace-touch-target);
+        height: var(--workspace-touch-target);
+        touch-action: manipulation;
+      }
+
+      &__filter-trigger,
+      &__icon-btn {
+        min-width: var(--workspace-touch-target);
+        width: var(--workspace-touch-target);
+      }
+    }
+  }
+
   @media (max-width: 720px) {
     .void-ui--minimal .automation-header {
       align-items: center;

@@ -8,12 +8,12 @@ permanent statement of repository quality.
 
 | Dimension | Score | Evidence |
 | --- | ---: | --- |
-| Accessibility | 3/4 | Interactive controls expose visible labels or accessible names and retain focus styling. Compact 28px filter chips remain a desktop-first target and need a separate touch-input policy before claiming full AA target sizing. |
+| Accessibility | 4/4 | Interactive controls expose visible labels or accessible names and retain focus styling. Mouse-driven controls remain compact while shared gallery and Automation header controls promote to a 44px target for coarse pointers. |
 | Performance | 4/4 | Agent cards use `content-visibility`, bounded intrinsic sizing, and reduced-motion fallbacks. The audited pages introduce no decorative media, blur, or unbounded animation. |
 | Responsive design | 3/4 | Assistant and Automation have zero document overflow at a 719px WebView. Professional Agents originally clipped its second filter group; the remediation below makes every filter control visible with zero overflow. |
 | Theming | 4/4 | Audited Minimal surfaces consume workspace color, typography, spacing, radius, focus, and status tokens. No new literal color is required by the remediation. |
 | Anti-patterns | 3/4 | Hierarchy is compact and restrained. Professional Agents still relies heavily on repeated equal-weight cards, which is functional but weakens scan hierarchy for large catalogs. |
-| **Total** | **17/20** | **Good — remaining debt is refinement rather than a structural redesign.** |
+| **Total** | **18/20** | **Good — remaining debt is refinement rather than a structural redesign.** |
 
 ## Anti-pattern verdict
 
@@ -40,15 +40,25 @@ replace the working gallery or add decorative imagery.
   both rows occupy x=268–689, all five filter buttons are inside the viewport,
   and document width remains 719/719.
 
-### P2 — Compact controls do not yet define a touch-input policy
+### Resolved follow-up — Compact controls lacked a touch-input policy
 
 - **Location:** Shared gallery chips and Automation toolbar controls
 - **Category:** Accessibility / responsive design
 - **Impact:** The 28px controls are precise for mouse-driven desktop use but do
   not independently satisfy a 44px touch-target recommendation on hybrid
   devices.
-- **Recommendation:** Add a pointer-coarse presentation override at the shared
-  gallery and toolbar layer rather than enlarging desktop controls globally.
+- **Remediation:** The shared workspace theme now defines a 44px touch target.
+  Minimal Gallery controls and Automation header controls promote their
+  minimum height and icon width only under `(hover: none)` or
+  `(pointer: coarse)`, with `touch-action: manipulation`. Mouse and trackpad
+  layouts retain their compact 28px geometry.
+- **Evidence:** In the maximized mouse-driven desktop shell, Automation
+  navigation, filter, view, and create controls still report 28px heights and
+  the document remains 1707/1707 with no horizontal overflow. Static
+  presentation contracts prove that both shared Gallery and Automation
+  consume the same `--workspace-touch-target` only inside the coarse-pointer
+  media query. The current WebDriver endpoint does not expose pointer-media
+  emulation, so no synthetic touch screenshot is claimed.
 
 ### P3 — Large agent catalogs have uniform card emphasis
 

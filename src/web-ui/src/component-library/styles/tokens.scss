@@ -1177,6 +1177,7 @@ $badge-info-text: $color-info;
   --workspace-control-height: var(--control-height-sm);
   --workspace-control-height-primary: var(--control-height-md);
   --workspace-icon-target: var(--control-square-sm);
+  --workspace-touch-target: 44px;
   --workspace-topbar-height: calc(
     var(--workspace-icon-target) + var(--workspace-space-2)
   );

@@ -305,6 +305,27 @@
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    .void-ui--minimal .gallery-layout {
+      .gallery-action-btn,
+      .gallery-search-btn,
+      .gallery-plain-icon-btn,
+      .gallery-filter-chip,
+      .gallery-anchor-btn,
+      .gallery-cat-chip {
+        min-width: var(--workspace-touch-target);
+        min-height: var(--workspace-touch-target);
+        height: var(--workspace-touch-target);
+        touch-action: manipulation;
+      }
+
+      .gallery-search-btn,
+      .gallery-plain-icon-btn {
+        width: var(--workspace-touch-target);
+      }
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .gallery-layout {
       .gallery-action-btn,
