@@ -35,6 +35,17 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
     onSceneOpen?.();
   }, [collapsible, onSceneOpen, onToggle]);
 
+  const content = (
+    <>
+      <span className="void-nav-panel__section-label">{label}</span>
+      {onSceneOpen ? (
+        <span className="void-nav-panel__section-indicator" aria-hidden="true">
+          <ChevronRight size={14} />
+        </span>
+      ) : null}
+    </>
+  );
+
   return (
     <div
       className={[
@@ -46,34 +57,24 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={isInteractive ? handleActivate : undefined}
-      role={isInteractive ? 'button' : undefined}
-      tabIndex={isInteractive ? 0 : undefined}
-      aria-expanded={collapsible ? isOpen : undefined}
-      aria-controls={collapsible ? controlsId : undefined}
-      onKeyDown={
-        isInteractive
-          ? e => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                handleActivate();
-              }
-            }
-          : undefined
-      }
     >
-      <span className="void-nav-panel__section-label">{label}</span>
-      {onSceneOpen ? (
-        <span className="void-nav-panel__section-indicator" aria-hidden="true">
-          <ChevronRight size={14} />
-        </span>
-      ) : null}
-      {actions ? (
-        <div
-          className="void-nav-panel__section-actions"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
+      {isInteractive ? (
+        <button
+          type="button"
+          className="void-nav-panel__section-toggle"
+          onClick={handleActivate}
+          aria-expanded={collapsible ? isOpen : undefined}
+          aria-controls={collapsible ? controlsId : undefined}
         >
+          {content}
+        </button>
+      ) : (
+        <span className="void-nav-panel__section-toggle void-nav-panel__section-toggle--static">
+          {content}
+        </span>
+      )}
+      {actions ? (
+        <div className="void-nav-panel__section-actions">
           {actions}
         </div>
       ) : null}

@@ -49,6 +49,14 @@ describe('MainNav workspace menu accessibility contract', () => {
     expect(sectionHeaderSource).toContain(
       'aria-controls={collapsible ? controlsId : undefined}',
     );
+    expect(sectionHeaderSource).toContain(
+      'className="void-nav-panel__section-toggle"',
+    );
+    expect(sectionHeaderSource).toContain('<button');
+    expect(sectionHeaderSource).not.toContain("role={isInteractive ? 'button'");
+    expect(sectionHeaderSource).not.toContain(
+      'onClick={e => e.stopPropagation()}',
+    );
     expect(source).toContain(
       'controlsId="void-nav-panel-assistant-sessions"',
     );

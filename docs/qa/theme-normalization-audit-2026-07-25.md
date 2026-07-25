@@ -893,6 +893,28 @@ replace the working gallery or add decorative imagery.
   Reopening restores the original 60px and 330px heights, removes `inert`, and
   restores focus without changing the sidebar or new-task geometry.
 
+### Resolved follow-up — Workspace action was nested inside a disclosure role
+
+- **Location:** Shared `SectionHeader`
+- **Category:** Accessibility / interaction structure
+- **Severity:** P1
+- **Impact:** The workspace disclosure used a `div[role=button]` that contained
+  the native add-workspace button. The two independent actions looked separate
+  but formed a nested interactive control for keyboard and assistive technology.
+- **Remediation:** The shared header now renders its label/disclosure as a
+  native button and keeps optional actions as siblings. Native Enter/Space
+  behavior replaces the manual keyboard shim, while the existing header
+  classes, sizing, hover treatment, disclosure state, and add-workspace routing
+  remain intact.
+- **Suggested command:** `$harden`
+- **Positive evidence:** The add-workspace action already has a translated
+  accessible name, menu ownership, expanded state, and dedicated focus handling.
+- **Verification evidence:** The real maximized desktop reports no nested
+  buttons. 助理会话 keeps a 232×24px disclosure; 工作区 keeps a 200×24px
+  disclosure beside the existing 20×20px add action. Opening the workspace menu
+  does not collapse its section, and the disclosure still collapses to a 0px
+  inert region and restores its original content height.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
