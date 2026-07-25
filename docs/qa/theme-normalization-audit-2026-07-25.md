@@ -752,6 +752,29 @@ replace the working gallery or add decorative imagery.
   options. The maximized 1707×912 desktop remains document-overflow-free and
   preserves the previous heading and example positions.
 
+### Resolved follow-up — Agent cards support complete keyboard activation
+
+- **Location:** `AgentCard`, `CoreAgentCard`, and `AgentTeamCard`
+- **Category:** Accessibility / interaction consistency
+- **Severity:** P2
+- **Impact:** The three catalog cards expose `role="button"` and `tabIndex=0`,
+  but their key handlers only activate on Enter. Keyboard users who use the
+  standard Space interaction for button-like controls receive no response even
+  though focus styling indicates that the card is actionable.
+- **Remediation:** The existing card structure and detail callbacks are
+  preserved. All three card components now handle Enter and Space through the
+  same activation path, prevent Space from scrolling the catalog, and ignore
+  repeated keydown events so a held key cannot reopen the surface.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** Cards already have accessible names, visible focus,
+  mouse activation, compact narrow layouts, and one shared details path; no
+  alternate keyboard-only behavior is needed.
+- **Verification evidence:** In the real 720×498 desktop shell, Space on the
+  focused Agentic core card opens its 450px detail dialog, Space on the review
+  team card opens the existing team page, and Space on the Plan catalog card
+  opens the same detail dialog used by click. Each event reports
+  `defaultPrevented=true`. Full-screen and narrow catalog geometry is unchanged.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

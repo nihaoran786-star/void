@@ -35,6 +35,11 @@ const AgentCard: React.FC<AgentCardProps> = ({
   const Icon = AGENT_ICON_MAP[(agent.iconKey ?? 'bot') as keyof typeof AGENT_ICON_MAP] ?? Bot;
   const totalTools = toolCount ?? agent.toolCount ?? agent.defaultTools?.length ?? 0;
   const openDetails = () => onOpenDetails(agent);
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    openDetails();
+  };
 
   return (
     <div
@@ -46,7 +51,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       onClick={openDetails}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && openDetails()}
+      onKeyDown={handleKeyDown}
       aria-label={agent.name}
     >
       {/* Header: icon + name */}

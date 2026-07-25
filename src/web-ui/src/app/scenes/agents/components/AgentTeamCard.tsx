@@ -25,6 +25,12 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   tagNames,
   onOpen,
 }) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
+    event.preventDefault();
+    onOpen();
+  };
+
   return (
     <div
       className="agent-team-card"
@@ -32,11 +38,7 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          onOpen();
-        }
-      }}
+      onKeyDown={handleKeyDown}
       aria-label={title}
     >
       <div className="agent-team-card__header">

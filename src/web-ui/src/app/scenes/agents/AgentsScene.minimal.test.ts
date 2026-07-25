@@ -39,14 +39,26 @@ describe('Agents scene Minimal presentation contract', () => {
       'edb37d48b85194d36105081a78c08d87dc25adc0f9c9a243adbafdb99138eadb',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      'd201635e21fa3070b56d35ac1e18637580694823749af39be15b4e34238afbdd',
+      '5233367039aa746057b1a77d5e6cf760c8c31f0d61c644ae88380ca1e5191604',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      '4eed809d79182f4ea479464e78f7b671d25d85b6efb43e607da2469452555b27',
+      '0960eb15332ba2ea890fab502cd8510b1ca11ef728b49263e208baa63faeb676',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
-      '96f831b5cdee36dac7dc75ccf7b2cb0c231440facdd5ce3ccca4d2ffbcf38826',
+      'd110bce323ec56728ffe27ee4d90b2bd87af106f0265043fd1c3b6b37c215533',
     );
+  });
+
+  it('gives every button-like catalog card Enter and Space activation', () => {
+    for (const cardSource of [
+      readSource('./components/CoreAgentCard.tsx'),
+      readSource('./components/AgentCard.tsx'),
+      readSource('./components/AgentTeamCard.tsx'),
+    ]) {
+      expect(cardSource).toContain("event.key !== 'Enter' && event.key !== ' '");
+      expect(cardSource).toContain('event.preventDefault();');
+      expect(cardSource).toContain('onKeyDown={handleKeyDown}');
+    }
   });
 
   it('scopes all presentation changes to the Minimal Agents scene', () => {
