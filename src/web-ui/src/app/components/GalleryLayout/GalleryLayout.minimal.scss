@@ -1,5 +1,8 @@
 @mixin styles {
   .void-ui--minimal .gallery-layout {
+    container-type: inline-size;
+    container-name: gallery-layout;
+
     color: var(--workspace-text-secondary);
     background: var(--workspace-surface-canvas);
     font-family: var(--workspace-font-family);

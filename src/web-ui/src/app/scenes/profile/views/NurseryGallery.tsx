@@ -148,6 +148,7 @@ const NurseryGallery: React.FC = () => {
             className="gallery-action-btn gallery-action-btn--primary"
             onClick={handleCreateAssistant}
             disabled={creating}
+            aria-label={t('nursery.gallery.newAssistant')}
           >
             <Plus size={15} />
             <span>{t('nursery.gallery.newAssistant')}</span>

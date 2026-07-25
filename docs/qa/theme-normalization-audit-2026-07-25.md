@@ -915,6 +915,33 @@ replace the working gallery or add decorative imagery.
   does not collapse its section, and the disclosure still collapses to a 0px
   inert region and restores its original content height.
 
+### Resolved follow-up — Assistant gallery responded to the window, not its pane
+
+- **Location:** Shared Minimal `GalleryLayout` and Nursery gallery
+- **Category:** Responsive layout / information density
+- **Severity:** P1
+- **Impact:** With the desktop narrowed while the navigation remained open, the
+  Assistant scene had only 192px of content width. Viewport media queries still
+  rendered a 104px page header and 126px team card, forcing the title into a
+  large multi-line block and delaying the first assistant beyond the initial
+  viewport.
+- **Remediation:** Minimal galleries now expose a named inline-size container.
+  At a genuinely narrow Assistant pane, the page header stays on one line, its
+  secondary subtitle is removed, the accessible create action becomes icon
+  only, and the team card switches to a compact title/action grid. Existing
+  vertical scrolling, assistant configuration, and gallery card behavior are
+  unchanged.
+- **Suggested command:** `$adapt`
+- **Positive evidence:** The gallery already owns vertical scrolling, shrink-safe
+  tracks, a one-column narrow grid, deferred card rendering, and coarse-pointer
+  target policies.
+- **Verification evidence:** At a 456×318 CSS viewport with a 192px Assistant
+  scene, the header drops from 104px to 52px, the team card from about 126px to
+  64px, and the internal scroll extent from 546px to 432px while the first
+  assistant becomes visible. At maximized 1707×912, the 64px header, 96px team
+  card, 1120px two-column grid, full subtitle, and labelled create action retain
+  their previous geometry.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

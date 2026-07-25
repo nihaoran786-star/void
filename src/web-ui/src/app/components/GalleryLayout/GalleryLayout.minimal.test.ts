@@ -54,6 +54,8 @@ describe('GalleryLayout Minimal presentation contract', () => {
   });
 
   it('lets gallery tracks shrink inside maximized and split desktop layouts', () => {
+    expect(source).toContain('container-type: inline-size;');
+    expect(source).toContain('container-name: gallery-layout;');
     expect(source).toMatch(
       /\.gallery-layout__body-inner \{[\s\S]*?width: 100%;[\s\S]*?min-width: 0;/,
     );

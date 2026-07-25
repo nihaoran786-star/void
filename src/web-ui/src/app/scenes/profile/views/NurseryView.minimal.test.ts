@@ -39,7 +39,7 @@ describe('Nursery Minimal presentation contract', () => {
       '16732b9a3c98db38eb1b0d7e5f76921003b2df25cf645d081c5fcd9f5710c044',
     );
     expect(sha256('./NurseryGallery.tsx')).toBe(
-      '591398a73f4b41e2e751a76655e647591345bcfcad6ba655daba5c18d131f816',
+      '6bf9344cb71f68f61dfbebdd89f79f59ad203a6ff7735e9a92cb630410588573',
     );
     expect(sha256('./AssistantQuickInput.tsx')).toBe(
       'cc5ee4a14460bdea0e7b582634b8fba729364d6c18b24fba0e4829257568c54d',
@@ -117,6 +117,9 @@ describe('Nursery Minimal presentation contract', () => {
   });
 
   it('collapses the assistant grid to one shrink-safe column on narrow windows', () => {
+    expect(readSource('./NurseryGallery.tsx')).toContain(
+      "aria-label={t('nursery.gallery.newAssistant')}",
+    );
     expect(source).toMatch(
       /@media \(max-width: 900px\) \{[\s\S]*?\.void-ui--minimal \.nursery-gallery \{[\s\S]*?\.gallery-grid \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\);/,
     );
@@ -128,6 +131,12 @@ describe('Nursery Minimal presentation contract', () => {
     );
     expect(source).toMatch(
       /@media \(max-width: 900px\)[\s\S]*?\.nursery-template-card__action span \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
+      /@container gallery-layout \(max-width: 280px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?flex-direction: row;[\s\S]*?\.gallery-page-header__subtitle \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
+      /@container gallery-layout \(max-width: 280px\)[\s\S]*?\.nursery-template-card__content \{[\s\S]*?grid-template-areas: 'title action';[\s\S]*?\.nursery-template-card__title \{[\s\S]*?font-size: var\(--workspace-font-size-label\);/,
     );
   });
 
