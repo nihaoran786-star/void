@@ -775,6 +775,29 @@ replace the working gallery or add decorative imagery.
   opens the same detail dialog used by click. Each event reports
   `defaultPrevented=true`. Full-screen and narrow catalog geometry is unchanged.
 
+### Resolved follow-up — Settings navigation exposes its current page
+
+- **Location:** `SettingsNav`
+- **Category:** Accessibility / interaction consistency
+- **Severity:** P2
+- **Impact:** Every settings tab had a clear visual selected state, but the
+  shared navigation exposed the tabs only as unrelated buttons. Assistive
+  technology could not identify the settings landmark or determine which page
+  was current.
+- **Remediation:** The existing compact navigation is now a named `nav`
+  landmark, and only the active settings item exposes `aria-current="page"`.
+  Search, category grouping, tab selection, and settings ownership are
+  unchanged.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** The navigation already uses native buttons, visible
+  labels, focus treatment, compact search, translated copy, and a scrollable
+  narrow layout.
+- **Verification evidence:** At maximized 1707×912 and narrow 706×490 desktop
+  sizes, the navigation remains overflow-free. Compact search still opens,
+  focuses its labelled input, and leaves the active MCP page visible. The MCP
+  item alone reports `aria-current="page"`; switching to Account moves that
+  state to the Account item without changing page geometry.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

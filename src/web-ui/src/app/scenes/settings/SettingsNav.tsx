@@ -363,8 +363,13 @@ const SettingsNav: React.FC = () => {
   } = useSettingsNav();
   const searchLabel = t('configCenter.searchPlaceholder');
 
+  const navigationLabel = t('configCenter.title', {
+    defaultValue: t('title', { defaultValue: 'Settings' }),
+  });
+
   return (
-    <div
+    <nav
+      aria-label={navigationLabel}
       className={[
         'void-settings-nav',
         isCompactSearchOpen && 'is-compact-search-open',
@@ -374,7 +379,7 @@ const SettingsNav: React.FC = () => {
     >
       <div className="void-settings-nav__header">
         <span className="void-settings-nav__title">
-          {t('configCenter.title', { defaultValue: t('title', { defaultValue: 'Settings' }) })}
+          {navigationLabel}
         </span>
         <button
           ref={searchTriggerRef}
@@ -486,6 +491,7 @@ const SettingsNav: React.FC = () => {
                     ]
                       .filter(Boolean)
                       .join(' ')}
+                    aria-current={activeTab === tabDef.id ? 'page' : undefined}
                     onClick={() => handleTabClick(tabDef.id)}
                   >
                     <span className="void-settings-nav__item-label">
@@ -503,7 +509,7 @@ const SettingsNav: React.FC = () => {
           ))
         )}
       </div>
-    </div>
+    </nav>
   );
 };
 

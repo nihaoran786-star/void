@@ -45,6 +45,17 @@ describe('SettingsNav compact search visual contract', () => {
     expect(source).not.toContain("closest('.void-ui--minimal')");
   });
 
+  it('exposes the settings navigation landmark and current page', () => {
+    const source = readSource('./SettingsNav.tsx');
+
+    expect(source).toContain('<nav');
+    expect(source).toContain('aria-label={navigationLabel}');
+    expect(source).toContain(
+      "aria-current={activeTab === tabDef.id ? 'page' : undefined}",
+    );
+    expect(source).toContain('</nav>');
+  });
+
   it('collapses only Minimal search and uses compact workspace-token controls', () => {
     const stylesheet = readSource('./SettingsNav.scss');
 
