@@ -2,7 +2,7 @@
 
 Date: 2026-07-26
 Branch: `codex/bitfun-capability-upgrades`
-Baseline: `18f8f1d4f`
+Common ancestor with the current primary Void branch: `96040a30b807`
 Reference: read-only `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
 ## Result
@@ -89,8 +89,12 @@ tool-card lint is outside this capability program.
 
 ## Integration handoff
 
-Before merging, make the target worktree clean, compare its changes since
-`18f8f1d4f` with this branch, and resolve overlapping files deliberately.
+Before merging, make the target worktree clean and use the actual common
+ancestor `96040a30b807` for a three-way review. At this checkpoint the upgrade
+and primary branches are 45 and 11 commits ahead of that ancestor,
+respectively. Their committed changes overlap in only four files:
+`ConfigPageLayout.scss` and the three `flow-chat.json` locale files. Resolve
+those files deliberately rather than force-overwriting either side.
 Do not copy generated Monaco/version output from a build. Re-run the target
 branch's required gates after integration. No merge, push, dependency install,
 or BitFun modification was performed as part of this result.
