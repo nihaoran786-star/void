@@ -1,8 +1,8 @@
 # BitFun capability upgrades — Batch 1 Web UI results
 
-Date: 2026-07-25  
-Workspace: `D:\codex\void-bitfun-upgrades`  
-Branch: `codex/bitfun-capability-upgrades`  
+Date: 2026-07-25
+Workspace: isolated Void capability-upgrade worktree
+Branch: `codex/bitfun-capability-upgrades`
 Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
 ## Result

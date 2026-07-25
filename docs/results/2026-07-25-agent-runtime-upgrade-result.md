@@ -1,7 +1,7 @@
 # Agent Runtime 切片 A 实施结果
 
-日期：2026-07-25  
-分支：`codex/agent-runtime-upgrades`  
+日期：2026-07-25
+分支：`codex/agent-runtime-upgrades`
 基线：`18f8f1d4f15f353116496414330ae2dc805299e1`
 
 ## 结果

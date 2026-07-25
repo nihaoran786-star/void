@@ -1,6 +1,6 @@
 # Agent Runtime 上游迁移台账
 
-日期：2026-07-25  
+日期：2026-07-25
 适用分支：`codex/agent-runtime-upgrades`
 
 ## 切片 A：按需工具加载

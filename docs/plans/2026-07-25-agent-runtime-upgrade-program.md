@@ -1,8 +1,8 @@
 # 多代理运行时能力升级计划
 
-日期：2026-07-25  
-状态：执行中（切片 A 已实现并完成聚焦验证，等待独立提交）  
-负责人分支：`codex/agent-runtime-upgrades`  
+日期：2026-07-25
+状态：执行中（切片 A 已实现并完成聚焦验证，等待独立提交）
+负责人分支：`codex/agent-runtime-upgrades`
 隔离工作树：Void 主仓库旁的独立 agent-runtime worktree
 
 ## 1. 基线、目标与本轮边界

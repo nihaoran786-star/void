@@ -1,8 +1,8 @@
 # BitFun capability upgrade results
 
-Date: 2026-07-26  
-Branch: `codex/bitfun-capability-upgrades`  
-Baseline: `18f8f1d4f`  
+Date: 2026-07-26
+Branch: `codex/bitfun-capability-upgrades`
+Baseline: `18f8f1d4f`
 Reference: read-only `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
 ## Result
