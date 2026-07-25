@@ -143,6 +143,18 @@ impl SubscriptionCredential {
         self.refresh_token.as_deref()
     }
 
+    pub(crate) fn access_token(&self) -> &str {
+        &self.access_token
+    }
+
+    pub(crate) fn expires_at(&self) -> Option<i64> {
+        self.expires_at
+    }
+
+    pub(crate) fn account_hint(&self) -> Option<&str> {
+        self.account_hint.as_deref()
+    }
+
     pub fn account(&self, provider: SubscriptionProvider) -> SubscriptionAccount {
         SubscriptionAccount {
             provider,

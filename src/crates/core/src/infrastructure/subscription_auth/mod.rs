@@ -15,7 +15,9 @@ pub use contracts::{
     SubscriptionAuthErrorCode, SubscriptionAuthResult, SubscriptionAuthSession,
     SubscriptionAuthStatus, SubscriptionCredential, SubscriptionProvider,
 };
-pub use credential_store_adapter::UnsupportedSubscriptionCredentialStore;
+pub use credential_store_adapter::{
+    NativeSubscriptionCredentialStore, UnsupportedSubscriptionCredentialStore,
+};
 pub use ports::{
     DeviceAuthorizationPoll, PendingAuthorization, SubscriptionCredentialStoreAdapter,
     SubscriptionOAuthProviderAdapter,
