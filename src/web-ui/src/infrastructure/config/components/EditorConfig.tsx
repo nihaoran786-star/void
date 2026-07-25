@@ -373,6 +373,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               value={getPrimaryFont(config.fontFamily)}
               onChange={(v) => updateConfig('fontFamily', buildFontFamily(v as string))}
               placeholder={t('appearance.font')}
+              ariaLabel={t('appearance.font')}
               size="small"
             />
           </ConfigPageRow>
@@ -382,6 +383,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               value={config.fontWeight}
               onChange={(v) => updateConfig('fontWeight', v as typeof config.fontWeight)}
               placeholder={t('appearance.fontWeight')}
+              ariaLabel={t('appearance.fontWeight')}
               size="small"
             />
           </ConfigPageRow>
@@ -393,6 +395,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               max={32}
               step={1}
               unit="px"
+              inputAriaLabel={t('appearance.fontSize')}
               size="small"
             />
           </ConfigPageRow>
@@ -404,6 +407,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               max={3.0}
               step={0.1}
               precision={1}
+              inputAriaLabel={t('appearance.lineHeight')}
               size="small"
             />
           </ConfigPageRow>
@@ -412,6 +416,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={cursorStyleOptionsTranslated}
               value={config.cursorStyle}
               onChange={(v) => updateConfig('cursorStyle', v as typeof config.cursorStyle)}
+              ariaLabel={t('appearance.cursorStyle')}
               size="small"
             />
           </ConfigPageRow>
@@ -420,6 +425,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={cursorBlinkingOptionsTranslated}
               value={config.cursorBlinking}
               onChange={(v) => updateConfig('cursorBlinking', v as typeof config.cursorBlinking)}
+              ariaLabel={t('appearance.cursorBlinking')}
               size="small"
             />
           </ConfigPageRow>
@@ -435,6 +441,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               onChange={(v) => updateConfig('tabSize', v)}
               min={1}
               max={8}
+              inputAriaLabel={t('behavior.tabSize')}
               size="small"
             />
           </ConfigPageRow>
@@ -442,6 +449,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.insertSpaces}
               onChange={(e) => updateConfig('insertSpaces', e.target.checked)}
+              aria-label={t('behavior.insertSpaces')}
               size="small"
             />
           </ConfigPageRow>
@@ -450,6 +458,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={wordWrapOptionsTranslated}
               value={config.wordWrap}
               onChange={(v) => updateConfig('wordWrap', v as typeof config.wordWrap)}
+              ariaLabel={t('behavior.wordWrap')}
               size="small"
             />
           </ConfigPageRow>
@@ -458,6 +467,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={lineNumbersOptionsTranslated}
               value={config.lineNumbers}
               onChange={(v) => updateConfig('lineNumbers', v as typeof config.lineNumbers)}
+              ariaLabel={t('behavior.lineNumbers')}
               size="small"
             />
           </ConfigPageRow>
@@ -465,6 +475,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.smoothScrolling}
               onChange={(e) => updateConfig('smoothScrolling', e.target.checked)}
+              aria-label={t('behavior.smoothScrolling')}
               size="small"
             />
           </ConfigPageRow>
@@ -472,6 +483,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.scrollBeyondLastLine}
               onChange={(e) => updateConfig('scrollBeyondLastLine', e.target.checked)}
+              aria-label={t('behavior.scrollBeyondLastLine')}
               size="small"
             />
           </ConfigPageRow>
@@ -485,6 +497,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.minimap.enabled}
               onChange={(e) => updateMinimapConfig('enabled', e.target.checked)}
+              aria-label={t('display.minimap')}
               size="small"
             />
           </ConfigPageRow>
@@ -495,6 +508,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
                   options={minimapSideOptionsTranslated}
                   value={config.minimap.side}
                   onChange={(v) => updateMinimapConfig('side', v as string)}
+                  ariaLabel={t('display.minimapPosition')}
                   size="small"
                 />
               </ConfigPageRow>
@@ -503,6 +517,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
                   options={minimapSizeOptionsTranslated}
                   value={config.minimap.size}
                   onChange={(v) => updateMinimapConfig('size', v as string)}
+                  ariaLabel={t('display.minimapSize')}
                   size="small"
                 />
               </ConfigPageRow>
@@ -513,6 +528,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={renderWhitespaceOptionsTranslated}
               value={config.renderWhitespace}
               onChange={(v) => updateConfig('renderWhitespace', v as typeof config.renderWhitespace)}
+              ariaLabel={t('display.whitespace')}
               size="small"
             />
           </ConfigPageRow>
@@ -521,6 +537,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
               options={renderLineHighlightOptionsTranslated}
               value={config.renderLineHighlight}
               onChange={(v) => updateConfig('renderLineHighlight', v as typeof config.renderLineHighlight)}
+              ariaLabel={t('display.lineHighlight')}
               size="small"
             />
           </ConfigPageRow>
@@ -534,6 +551,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.semanticHighlighting}
               onChange={(e) => updateConfig('semanticHighlighting', e.target.checked)}
+              aria-label={t('advanced.semanticHighlighting')}
               size="small"
             />
           </ConfigPageRow>
@@ -541,6 +559,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.bracketPairColorization}
               onChange={(e) => updateConfig('bracketPairColorization', e.target.checked)}
+              aria-label={t('advanced.bracketPairColorization')}
               size="small"
             />
           </ConfigPageRow>
@@ -548,6 +567,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.formatOnSave}
               onChange={(e) => updateConfig('formatOnSave', e.target.checked)}
+              aria-label={t('advanced.formatOnSave')}
               size="small"
             />
           </ConfigPageRow>
@@ -555,6 +575,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.formatOnPaste}
               onChange={(e) => updateConfig('formatOnPaste', e.target.checked)}
+              aria-label={t('advanced.formatOnPaste')}
               size="small"
             />
           </ConfigPageRow>
@@ -562,6 +583,7 @@ const EditorConfig: React.FC<EditorConfigProps> = () => {
             <Switch
               checked={config.trimAutoWhitespace}
               onChange={(e) => updateConfig('trimAutoWhitespace', e.target.checked)}
+              aria-label={t('advanced.trimAutoWhitespace')}
               size="small"
             />
           </ConfigPageRow>

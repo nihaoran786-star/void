@@ -487,6 +487,32 @@ replace the working gallery or add decorative imagery.
   `业务逻辑审核员 · 审核策略`; its dropdown opens inside the viewport and closes
   with Escape without producing horizontal overflow.
 
+### Resolved follow-up — Editor settings underused wide layouts and exposed unnamed controls
+
+- **Location:** `EditorConfig`, its feature-owned Minimal projection, and
+  presentation contract
+- **Category:** Information density / responsive design / accessibility /
+  theming
+- **Impact:** Appearance, behavior, display, advanced, and reset sections were
+  forced into one long column even in a maximized desktop scene. Ten selects,
+  three number fields, and nine switches displayed visible row labels but did
+  not expose those labels as accessible names.
+- **Remediation:** The Minimal projection uses a bounded 1,040px content axis
+  and pairs the four primary sections in a two-column grid, while the reset
+  section remains full width. Simple setting groups become flat divider lists,
+  controls keep a bounded column, and container queries return the page to one
+  section column at 720px and one control column at 360px. Every field now
+  receives its localized visible label as its accessible name. Config loading,
+  conversion, validation, debounced auto-save, reset, and
+  `editor:config:changed` behavior are unchanged.
+- **Evidence:** At maximized width the content resolves to two 508px columns
+  and the scene scroll height is 1,082px; all four primary sections are visible
+  in the first viewport. At an exact 719×498 WebView the content returns to one
+  379px section column, document width remains 719/719, and a typical row keeps
+  a 223px label column with a 144px control. The font list opens entirely
+  inside the viewport with all four options and closes with Escape. A runtime
+  DOM scan finds no unnamed editor inputs or comboboxes.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
@@ -501,6 +527,8 @@ replace the working gallery or add decorative imagery.
 - Review preserves its overview, strategy, capacity, reviewer, and optional
   Sub-Agent controls at both maximized and 719px desktop widths; the narrow
   overview stacks without document overflow.
+- Editor settings preserve every visible control at both maximized and 719px
+  desktop widths while using the wide scene for parallel sections.
 
 ## Next actions
 
