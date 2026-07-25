@@ -55,6 +55,7 @@ use std::sync::OnceLock;
 use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
+use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
 use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
 const MANUAL_COMPACTION_COMMAND: &str = "/compact";
@@ -160,6 +161,22 @@ fn format_background_subagent_delivery_text(
     }
 }
 
+fn background_subagent_terminal_facts(
+    outcome: Result<&SubagentResult, &VoidError>,
+) -> (SubagentTaskStatus, Option<String>, Option<String>) {
+    match outcome {
+        Ok(result) => (
+            SubagentTaskStatus::Completed,
+            Some(result.text.clone()),
+            None,
+        ),
+        Err(error) if matches!(error, VoidError::Cancelled(_)) => {
+            (SubagentTaskStatus::Cancelled, None, Some(error.to_string()))
+        }
+        Err(error) => (SubagentTaskStatus::Failed, None, Some(error.to_string())),
+    }
+}
+
 fn build_background_subagent_result_metadata(
     background_task_id: &str,
     agent_type: &str,
@@ -221,6 +238,13 @@ struct HiddenSubagentExecutionRequest {
     delegation_policy: DelegationPolicy,
     runtime_tool_restrictions: ToolRuntimeRestrictions,
     prompt_cache_source_session_id: Option<String>,
+    persistent_task: Option<BackgroundSubagentTaskContext>,
+}
+
+#[derive(Clone)]
+struct BackgroundSubagentTaskContext {
+    task_id: String,
+    parent_session_id: String,
 }
 
 pub use void_runtime_ports::DialogTriggerSource;
@@ -3717,6 +3741,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             delegation_policy,
             runtime_tool_restrictions,
             prompt_cache_source_session_id,
+            persistent_task,
         } = request;
 
         let requested_timeout_seconds = timeout_seconds.filter(|seconds| *seconds > 0);
@@ -3850,6 +3875,21 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 build_subagent_session_relationship(subagent_parent_info.as_ref(), &agent_type),
             )
             .await?;
+
+        if let Some(task) = persistent_task.as_ref() {
+            self.session_manager
+                .transition_subagent_task(
+                    &task.parent_session_id,
+                    &task.task_id,
+                    SubagentTaskStatus::Running,
+                    Some(session_id.clone()),
+                    None,
+                    None,
+                    None,
+                    now_ms(),
+                )
+                .await?;
+        }
 
         if let Some(parent_info) = subagent_parent_info.as_ref() {
             self.emit_event(AgenticEvent::SubagentSessionLinked {
@@ -4714,6 +4754,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         request.delegation_policy,
                     ),
                     prompt_cache_source_session_id: None,
+                    persistent_task: None,
                 })
             }
             SubagentContextMode::Fork => {
@@ -4754,6 +4795,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         request.delegation_policy,
                     ),
                     prompt_cache_source_session_id: Some(snapshot.parent_session_id),
+                    persistent_task: None,
                 })
             }
         }
@@ -4783,7 +4825,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         request: SubagentExecutionRequest,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<BackgroundSubagentStartResult> {
-        let request = self
+        let mut request = self
             .resolve_hidden_subagent_execution_request(request)
             .await?;
         let agent_type = request.agent_type.clone();
@@ -4805,9 +4847,23 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         let parent_agent_type = parent_session.agent_type.clone();
         let parent_workspace_path = parent_session.config.workspace_path.clone();
         let background_task_id = format!("bg-subagent-{}", uuid::Uuid::new_v4());
+        let background_execution_owner = format!("background-execution-{}", uuid::Uuid::new_v4());
         let background_task_id_for_delivery = background_task_id.clone();
         let task_description = request.user_input_text.clone();
         let request_context = request.context.clone();
+        self.session_manager
+            .create_subagent_task(SubagentTaskRecord::new(
+                background_task_id.clone(),
+                subagent_parent_info.session_id.clone(),
+                task_description.clone(),
+                background_execution_owner,
+                now_ms(),
+            ))
+            .await?;
+        request.persistent_task = Some(BackgroundSubagentTaskContext {
+            task_id: background_task_id.clone(),
+            parent_session_id: subagent_parent_info.session_id.clone(),
+        });
         let coordinator = get_global_coordinator()
             .ok_or_else(|| VoidError::service("Coordinator not initialized".to_string()))?;
         let parent_cancel_token = self
@@ -4816,25 +4872,79 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .map(|token| token.child_token());
 
         tokio::spawn(async move {
-            let delivery_text = match coordinator
+            let outcome = coordinator
                 .execute_hidden_subagent_internal(
                     request,
                     parent_cancel_token.as_ref(),
                     timeout_seconds,
                 )
-                .await
-            {
+                .await;
+            let delivery_text = match &outcome {
                 Ok(result) => format_background_subagent_delivery_text(
                     &background_task_id_for_delivery,
                     &agent_type,
-                    Ok(&result),
+                    Ok(result),
                 ),
                 Err(error) => format_background_subagent_delivery_text(
                     &background_task_id_for_delivery,
                     &agent_type,
-                    Err(&error),
+                    Err(error),
                 ),
             };
+            let (terminal_status, result, failure) =
+                background_subagent_terminal_facts(outcome.as_ref());
+
+            if let Err(error) = coordinator
+                .session_manager
+                .transition_subagent_task(
+                    &subagent_parent_info.session_id,
+                    &background_task_id_for_delivery,
+                    terminal_status,
+                    None,
+                    None,
+                    result,
+                    failure,
+                    now_ms(),
+                )
+                .await
+            {
+                warn!(
+                    "Failed to persist terminal background subagent task state; result will not be delivered: background_task_id={}, parent_session_id={}, error={}",
+                    background_task_id_for_delivery,
+                    subagent_parent_info.session_id,
+                    error
+                );
+                return;
+            }
+
+            match coordinator
+                .session_manager
+                .claim_subagent_task_delivery(
+                    &subagent_parent_info.session_id,
+                    &background_task_id_for_delivery,
+                    now_ms(),
+                )
+                .await
+            {
+                Ok(Some(_)) => {}
+                Ok(None) => {
+                    warn!(
+                        "Background subagent result delivery was already claimed or is not eligible: background_task_id={}, parent_session_id={}",
+                        background_task_id_for_delivery,
+                        subagent_parent_info.session_id
+                    );
+                    return;
+                }
+                Err(error) => {
+                    warn!(
+                        "Failed to claim background subagent result delivery: background_task_id={}, parent_session_id={}, error={}",
+                        background_task_id_for_delivery,
+                        subagent_parent_info.session_id,
+                        error
+                    );
+                    return;
+                }
+            }
 
             let metadata = build_background_subagent_result_metadata(
                 &background_task_id_for_delivery,
@@ -4843,8 +4953,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 request_context,
             );
 
-            if let Some(scheduler) = super::scheduler::get_global_scheduler() {
-                if let Err(error) = scheduler
+            let delivery_result = if let Some(scheduler) = super::scheduler::get_global_scheduler()
+            {
+                scheduler
                     .deliver_background_result(
                         subagent_parent_info.session_id.clone(),
                         parent_agent_type,
@@ -4854,19 +4965,44 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         Some(metadata),
                     )
                     .await
-                {
+            } else {
+                Err("Scheduler not initialized for background result delivery".to_string())
+            };
+
+            let delivery_state_result = match delivery_result {
+                Ok(()) => {
+                    coordinator
+                        .session_manager
+                        .complete_subagent_task_delivery(
+                            &subagent_parent_info.session_id,
+                            &background_task_id_for_delivery,
+                            now_ms(),
+                        )
+                        .await
+                }
+                Err(error) => {
                     warn!(
                         "Failed to deliver background subagent result: background_task_id={}, parent_session_id={}, error={}",
                         background_task_id_for_delivery,
                         subagent_parent_info.session_id,
                         error
                     );
+                    coordinator
+                        .session_manager
+                        .fail_subagent_task_delivery(
+                            &subagent_parent_info.session_id,
+                            &background_task_id_for_delivery,
+                            now_ms(),
+                        )
+                        .await
                 }
-            } else {
+            };
+            if let Err(error) = delivery_state_result {
                 warn!(
-                    "Scheduler not initialized; background subagent result dropped: background_task_id={}, parent_session_id={}",
+                    "Failed to persist background subagent delivery outcome: background_task_id={}, parent_session_id={}, error={}",
                     background_task_id_for_delivery,
-                    subagent_parent_info.session_id
+                    subagent_parent_info.session_id,
+                    error
                 );
             }
         });
@@ -5032,6 +5168,17 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             previous_model_id: previous_model_id.to_string(),
             new_model_id: new_model_id.to_string(),
             reason: reason.to_string(),
+        };
+        let _ = self
+            .event_queue
+            .enqueue(event, Some(EventPriority::High))
+            .await;
+    }
+
+    pub async fn emit_subagent_task_changed(&self, task: SubagentTaskRecord) {
+        let event = AgenticEvent::SubagentTaskChanged {
+            session_id: task.parent_session_id.clone(),
+            task,
         };
         let _ = self
             .event_queue
@@ -5472,6 +5619,36 @@ mod tests {
             "Background subagent 'GeneralPurpose' (background_task_id='bg-subagent-789') failed before producing a final result."
         ));
         assert!(failed_text.contains("Error:"));
+    }
+
+    #[test]
+    fn background_subagent_terminal_facts_preserve_typed_outcome() {
+        let completed = super::SubagentResult::completed("done".to_string());
+        assert_eq!(
+            super::background_subagent_terminal_facts(Ok(&completed)),
+            (
+                void_core_types::SubagentTaskStatus::Completed,
+                Some("done".to_string()),
+                None
+            )
+        );
+
+        let cancelled = crate::util::errors::VoidError::Cancelled("stopped".to_string());
+        let cancelled_facts = super::background_subagent_terminal_facts(Err(&cancelled));
+        assert_eq!(
+            cancelled_facts.0,
+            void_core_types::SubagentTaskStatus::Cancelled
+        );
+        assert!(cancelled_facts
+            .2
+            .as_deref()
+            .is_some_and(|failure| failure.contains("stopped")));
+
+        let failed = crate::util::errors::VoidError::tool("boom".to_string());
+        assert_eq!(
+            super::background_subagent_terminal_facts(Err(&failed)).0,
+            void_core_types::SubagentTaskStatus::Failed
+        );
     }
 
     #[test]

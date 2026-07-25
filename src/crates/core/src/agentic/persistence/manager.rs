@@ -29,6 +29,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::Mutex;
+use void_core_types::{SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskStatus};
 
 const TRANSCRIPT_SCHEMA_VERSION: u32 = 1;
 const JSON_WRITE_MAX_RETRIES: usize = 5;
@@ -404,6 +405,36 @@ impl PersistenceManager {
 
     fn session_dir(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
         self.project_sessions_dir(workspace_path).join(session_id)
+    }
+
+    fn validate_subagent_task_id(task_id: &str) -> VoidResult<()> {
+        if task_id.is_empty()
+            || !task_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+        {
+            return Err(VoidError::Validation(format!(
+                "Invalid subagent task id: {task_id}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn subagent_tasks_dir(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
+        self.session_dir(workspace_path, session_id)
+            .join("subagent-tasks")
+    }
+
+    fn subagent_task_path(
+        &self,
+        workspace_path: &Path,
+        session_id: &str,
+        task_id: &str,
+    ) -> VoidResult<PathBuf> {
+        Self::validate_subagent_task_id(task_id)?;
+        Ok(self
+            .subagent_tasks_dir(workspace_path, session_id)
+            .join(format!("{task_id}.json")))
     }
 
     fn metadata_path(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
@@ -1905,6 +1936,254 @@ impl PersistenceManager {
         }
     }
 
+    pub async fn create_subagent_task(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task: &SubagentTaskRecord,
+    ) -> VoidResult<SubagentTaskRecord> {
+        if task.parent_session_id != parent_session_id {
+            return Err(VoidError::Validation(
+                "Subagent task parent session does not match storage session".to_string(),
+            ));
+        }
+        let path = self.subagent_task_path(workspace_path, parent_session_id, &task.task_id)?;
+        self.ensure_runtime_for_write(workspace_path).await?;
+        self.ensure_session_dir(workspace_path, parent_session_id)
+            .await?;
+
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        if self
+            .read_json_optional::<SubagentTaskRecord>(&path)
+            .await?
+            .is_some()
+        {
+            return Err(VoidError::Validation(format!(
+                "Subagent task already exists: {}",
+                task.task_id
+            )));
+        }
+        self.write_json_atomic(&path, task).await?;
+        Ok(task.clone())
+    }
+
+    pub async fn get_subagent_task(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        self.read_json_optional(&path).await
+    }
+
+    pub async fn list_subagent_tasks(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        let directory = self.subagent_tasks_dir(workspace_path, parent_session_id);
+        let mut entries = match fs::read_dir(&directory).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => {
+                return Err(VoidError::io(format!(
+                    "Failed to list subagent tasks {}: {}",
+                    directory.display(),
+                    error
+                )));
+            }
+        };
+        let mut tasks = Vec::new();
+        while let Some(entry) = entries.next_entry().await.map_err(|error| {
+            VoidError::io(format!(
+                "Failed to read subagent task directory {}: {}",
+                directory.display(),
+                error
+            ))
+        })? {
+            let path = entry.path();
+            if path.extension().and_then(|value| value.to_str()) != Some("json") {
+                continue;
+            }
+            if let Some(task) = self.read_json_optional::<SubagentTaskRecord>(&path).await? {
+                tasks.push(task);
+            }
+        }
+        tasks.sort_by(|left, right| {
+            left.created_at
+                .cmp(&right.created_at)
+                .then_with(|| left.task_id.cmp(&right.task_id))
+        });
+        Ok(tasks)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn transition_subagent_task(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        next_status: SubagentTaskStatus,
+        child_session_id: Option<String>,
+        progress: Option<String>,
+        result: Option<String>,
+        failure: Option<String>,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let mut task = self
+            .read_json_optional::<SubagentTaskRecord>(&path)
+            .await?
+            .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
+
+        if let Some(child_session_id) = child_session_id {
+            if task
+                .child_session_id
+                .as_ref()
+                .is_some_and(|existing| existing != &child_session_id)
+            {
+                return Err(VoidError::Validation(format!(
+                    "Subagent task {task_id} is already bound to another child session"
+                )));
+            }
+            task.child_session_id = Some(child_session_id);
+        }
+        task.transition_status(next_status, updated_at)
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        if progress.is_some() {
+            task.progress = progress;
+        }
+        if result.is_some() {
+            task.result = result;
+        }
+        if failure.is_some() {
+            task.failure = failure;
+        }
+        self.write_json_atomic(&path, &task).await?;
+        Ok(task)
+    }
+
+    pub async fn claim_subagent_task_delivery(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let mut task = self
+            .read_json_optional::<SubagentTaskRecord>(&path)
+            .await?
+            .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
+        if task.delivery_state != SubagentTaskDeliveryState::Pending || !task.status.is_terminal() {
+            return Ok(None);
+        }
+        task.transition_delivery(SubagentTaskDeliveryState::Delivering, updated_at)
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        self.write_json_atomic(&path, &task).await?;
+        Ok(Some(task))
+    }
+
+    async fn finish_subagent_task_delivery(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        next_state: SubagentTaskDeliveryState,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let mut task = self
+            .read_json_optional::<SubagentTaskRecord>(&path)
+            .await?
+            .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
+        task.transition_delivery(next_state, updated_at)
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        self.write_json_atomic(&path, &task).await?;
+        Ok(task)
+    }
+
+    pub async fn complete_subagent_task_delivery(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        self.finish_subagent_task_delivery(
+            workspace_path,
+            parent_session_id,
+            task_id,
+            SubagentTaskDeliveryState::Delivered,
+            updated_at,
+        )
+        .await
+    }
+
+    pub async fn fail_subagent_task_delivery(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        self.finish_subagent_task_delivery(
+            workspace_path,
+            parent_session_id,
+            task_id,
+            SubagentTaskDeliveryState::Failed,
+            updated_at,
+        )
+        .await
+    }
+
+    pub async fn recover_interrupted_subagent_tasks(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let mut changed = Vec::new();
+        for mut task in self
+            .list_subagent_tasks(workspace_path, parent_session_id)
+            .await?
+        {
+            if !matches!(
+                task.status,
+                SubagentTaskStatus::Created | SubagentTaskStatus::Running
+            ) {
+                continue;
+            }
+            task.transition_status(SubagentTaskStatus::Interrupted, updated_at)
+                .map_err(|error| VoidError::Validation(error.to_string()))?;
+            task.failure = Some("runtime restarted before task completion".to_string());
+            let path = self.subagent_task_path(workspace_path, parent_session_id, &task.task_id)?;
+            self.write_json_atomic(&path, &task).await?;
+            changed.push(task);
+        }
+        Ok(changed)
+    }
+
     pub async fn load_session_metadata(
         &self,
         workspace_path: &Path,
@@ -2969,6 +3248,7 @@ mod tests {
     use std::sync::Arc;
     use std::time::Instant;
     use uuid::Uuid;
+    use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
 
     struct TestWorkspace {
         path: PathBuf,
@@ -2997,6 +3277,193 @@ mod tests {
         fn drop(&mut self) {
             let _ = std::fs::remove_dir_all(&self.path);
         }
+    }
+
+    fn subagent_task(task_id: &str, parent_session_id: &str) -> SubagentTaskRecord {
+        SubagentTaskRecord::new(
+            task_id.to_string(),
+            parent_session_id.to_string(),
+            "inspect runtime".to_string(),
+            "execution-1".to_string(),
+            10,
+        )
+    }
+
+    #[tokio::test]
+    async fn subagent_task_storage_handles_missing_directory_and_rejects_unsafe_ids() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+
+        assert!(manager
+            .list_subagent_tasks(workspace.path(), "parent-1")
+            .await
+            .expect("legacy session without task directory should list")
+            .is_empty());
+        assert!(manager
+            .get_subagent_task(workspace.path(), "parent-1", "../escape")
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn concurrent_subagent_delivery_claim_has_one_winner() {
+        let workspace = TestWorkspace::new();
+        let manager = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
+        );
+        let mut task = subagent_task("bg-subagent-claim", "parent-1");
+        task.transition_status(SubagentTaskStatus::Running, 11)
+            .expect("task should run");
+        task.transition_status(SubagentTaskStatus::Completed, 12)
+            .expect("task should complete");
+        task.result = Some("done".to_string());
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .expect("task should save");
+
+        let (left, right) = tokio::join!(
+            manager.claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-claim",
+                13
+            ),
+            manager.claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-claim",
+                13
+            )
+        );
+        let winners = [left, right]
+            .into_iter()
+            .filter(|result| result.as_ref().is_ok_and(Option::is_some))
+            .count();
+        assert_eq!(winners, 1);
+
+        manager
+            .complete_subagent_task_delivery(workspace.path(), "parent-1", "bg-subagent-claim", 14)
+            .await
+            .expect("claimed delivery should complete");
+        assert!(manager
+            .complete_subagent_task_delivery(workspace.path(), "parent-1", "bg-subagent-claim", 15,)
+            .await
+            .is_err());
+        assert!(manager
+            .fail_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-claim",
+                15,
+            )
+            .await
+            .is_err());
+
+        let mut failed_delivery = subagent_task("bg-subagent-failed-delivery", "parent-1");
+        failed_delivery
+            .transition_status(SubagentTaskStatus::Running, 16)
+            .expect("task should run");
+        failed_delivery
+            .transition_status(SubagentTaskStatus::Failed, 17)
+            .expect("task should fail");
+        failed_delivery.failure = Some("execution failed".to_string());
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &failed_delivery)
+            .await
+            .expect("second task should save");
+        manager
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-failed-delivery",
+                18,
+            )
+            .await
+            .expect("claim should succeed")
+            .expect("delivery should be claimable");
+        let failed = manager
+            .fail_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-failed-delivery",
+                19,
+            )
+            .await
+            .expect("claimed delivery should fail once");
+        assert_eq!(failed.failure.as_deref(), Some("execution failed"));
+        assert!(manager
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-failed-delivery",
+                20,
+            )
+            .await
+            .expect("claim check should succeed")
+            .is_none());
+        assert!(manager
+            .fail_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-failed-delivery",
+                20,
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn restart_recovery_interrupts_only_created_and_running_tasks() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+
+        let created = subagent_task("bg-subagent-created", "parent-1");
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &created)
+            .await
+            .expect("created task should save");
+
+        let mut running = subagent_task("bg-subagent-running", "parent-1");
+        running
+            .transition_status(SubagentTaskStatus::Running, 11)
+            .expect("task should run");
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &running)
+            .await
+            .expect("running task should save");
+
+        let mut completed = subagent_task("bg-subagent-completed", "parent-1");
+        completed
+            .transition_status(SubagentTaskStatus::Running, 11)
+            .expect("task should run");
+        completed
+            .transition_status(SubagentTaskStatus::Completed, 12)
+            .expect("task should complete");
+        manager
+            .create_subagent_task(workspace.path(), "parent-1", &completed)
+            .await
+            .expect("completed task should save");
+
+        let changed = manager
+            .recover_interrupted_subagent_tasks(workspace.path(), "parent-1", 20)
+            .await
+            .expect("recovery should succeed");
+        assert_eq!(changed.len(), 2);
+        assert!(changed
+            .iter()
+            .all(|task| task.status == SubagentTaskStatus::Interrupted));
+        assert_eq!(
+            manager
+                .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-completed")
+                .await
+                .expect("task should load")
+                .expect("task should exist")
+                .status,
+            SubagentTaskStatus::Completed
+        );
     }
 
     #[test]

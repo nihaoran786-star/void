@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 pub use void_core_types::errors::{AiErrorDetail, ErrorCategory};
 use void_core_types::ToolImageAttachment;
+pub use void_core_types::SubagentTaskRecord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum AgenticEventPriority {
@@ -126,6 +127,13 @@ pub enum AgenticEvent {
         parent_tool_call_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
+    },
+
+    /// Durable background-subagent task state. Consumers should render the
+    /// typed DTO and must not infer lifecycle or delivery state from text.
+    SubagentTaskChanged {
+        session_id: String,
+        task: SubagentTaskRecord,
     },
 
     DialogTurnCompleted {
@@ -680,6 +688,29 @@ mod tests {
         assert_eq!(serialized["parent_tool_call_id"], "tool-1");
         assert_eq!(serialized["agent_type"], "GeneralPurpose");
     }
+
+    #[test]
+    fn subagent_task_changed_serializes_typed_contract() {
+        let task = SubagentTaskRecord::new(
+            "bg-subagent-1".to_string(),
+            "parent-session".to_string(),
+            "inspect runtime".to_string(),
+            "execution-1".to_string(),
+            10,
+        );
+        let event = AgenticEvent::SubagentTaskChanged {
+            session_id: "parent-session".to_string(),
+            task,
+        };
+
+        assert_eq!(event.session_id(), Some("parent-session"));
+        assert_eq!(event.default_priority(), AgenticEventPriority::High);
+        let serialized = serde_json::to_value(event).expect("serialize event");
+        assert_eq!(serialized["type"], "SubagentTaskChanged");
+        assert_eq!(serialized["task"]["task_id"], "bg-subagent-1");
+        assert_eq!(serialized["task"]["status"], "created");
+        assert_eq!(serialized["task"]["delivery_state"], "pending");
+    }
 }
 
 impl Eq for AgenticEventEnvelope {}
@@ -722,6 +753,7 @@ impl AgenticEvent {
             | Self::ImageAnalysisCompleted { session_id, .. }
             | Self::DialogTurnStarted { session_id, .. }
             | Self::SubagentSessionLinked { session_id, .. }
+            | Self::SubagentTaskChanged { session_id, .. }
             | Self::DialogTurnCompleted { session_id, .. }
             | Self::TokenUsageUpdated { session_id, .. }
             | Self::ContextCompressionStarted { session_id, .. }
@@ -754,6 +786,7 @@ impl AgenticEvent {
             | Self::SessionTitleGenerated { .. }
             | Self::SessionModelAutoMigrated { .. }
             | Self::SubagentSessionLinked { .. }
+            | Self::SubagentTaskChanged { .. }
             | Self::DeepReviewQueueStateChanged { .. }
             | Self::ContextCompressionFailed { .. } => AgenticEventPriority::High,
 

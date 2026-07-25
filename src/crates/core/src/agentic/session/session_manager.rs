@@ -38,8 +38,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time;
+use void_core_types::{SubagentTaskRecord, SubagentTaskStatus};
 
 /// Session manager configuration
 #[derive(Debug, Clone)]
@@ -430,6 +431,163 @@ impl SessionManager {
     async fn effective_session_workspace_path(&self, session_id: &str) -> Option<PathBuf> {
         let config = self.sessions.get(session_id)?.config.clone();
         Self::effective_workspace_path_from_config(&config).await
+    }
+
+    async fn subagent_task_storage_path(&self, parent_session_id: &str) -> VoidResult<PathBuf> {
+        self.effective_session_workspace_path(parent_session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Parent session workspace not found: {parent_session_id}"
+                ))
+            })
+    }
+
+    async fn publish_subagent_task_changed(&self, task: &SubagentTaskRecord) {
+        if let Some(coordinator) = crate::agentic::coordination::get_global_coordinator() {
+            coordinator.emit_subagent_task_changed(task.clone()).await;
+        }
+    }
+
+    async fn recover_subagent_tasks_after_restart(
+        &self,
+        storage_path: &Path,
+        parent_session_id: &str,
+    ) -> VoidResult<()> {
+        let recovered = self
+            .persistence_manager
+            .recover_interrupted_subagent_tasks(
+                storage_path,
+                parent_session_id,
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            )
+            .await?;
+        for task in recovered {
+            self.publish_subagent_task_changed(&task).await;
+        }
+        Ok(())
+    }
+
+    pub async fn create_subagent_task(
+        &self,
+        task: SubagentTaskRecord,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self
+            .subagent_task_storage_path(&task.parent_session_id)
+            .await?;
+        let persisted = self
+            .persistence_manager
+            .create_subagent_task(&storage_path, &task.parent_session_id, &task)
+            .await?;
+        self.publish_subagent_task_changed(&persisted).await;
+        Ok(persisted)
+    }
+
+    pub async fn get_subagent_task(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        self.persistence_manager
+            .get_subagent_task(&storage_path, parent_session_id, task_id)
+            .await
+    }
+
+    pub async fn list_subagent_tasks(
+        &self,
+        parent_session_id: &str,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        self.persistence_manager
+            .list_subagent_tasks(&storage_path, parent_session_id)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn transition_subagent_task(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        next_status: SubagentTaskStatus,
+        child_session_id: Option<String>,
+        progress: Option<String>,
+        result: Option<String>,
+        failure: Option<String>,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .transition_subagent_task(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                next_status,
+                child_session_id,
+                progress,
+                result,
+                failure,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
+    }
+
+    pub async fn claim_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .claim_subagent_task_delivery(&storage_path, parent_session_id, task_id, updated_at)
+            .await?;
+        if let Some(task) = task.as_ref() {
+            self.publish_subagent_task_changed(task).await;
+        }
+        Ok(task)
+    }
+
+    pub async fn complete_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .complete_subagent_task_delivery(&storage_path, parent_session_id, task_id, updated_at)
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
+    }
+
+    pub async fn fail_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .fail_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
     }
 
     /// Resolve the logical workspace path bound to a session.
@@ -1931,6 +2089,11 @@ impl SessionManager {
             elapsed_ms_u64(metadata_started_at)
         );
 
+        if !self.sessions.contains_key(session_id) {
+            self.recover_subagent_tasks_after_restart(&session_storage_path, session_id)
+                .await?;
+        }
+
         let session_started_at = Instant::now();
         let (mut session, persisted_turns) = self
             .persistence_manager
@@ -2040,6 +2203,11 @@ impl SessionManager {
             session_id,
             elapsed_ms_u64(metadata_started_at)
         );
+
+        if !session_already_in_memory {
+            self.recover_subagent_tasks_after_restart(&session_storage_path, session_id)
+                .await?;
+        }
 
         // 1. Load session and turns from storage in one pass
         let session_started_at = Instant::now();

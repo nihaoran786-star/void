@@ -7,6 +7,7 @@ pub mod errors;
 pub mod external_config_sources;
 pub mod session;
 pub mod subscription_auth;
+pub mod subagent_task;
 pub mod surface;
 pub mod tool_image_attachment;
 
@@ -18,6 +19,10 @@ pub use external_config_sources::{
 };
 pub use session::SessionKind;
 pub use subscription_auth::SubscriptionProvider;
+pub use subagent_task::{
+    SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskStatus,
+    SubagentTaskTransitionError, SUBAGENT_TASK_SCHEMA_VERSION,
+};
 pub use surface::{
     ApprovalSource, CapabilityRequest, CapabilityRequestKind, PermissionDecision, PermissionScope,
     RuntimeArtifactKind, RuntimeArtifactRef, SurfaceKind, ThreadEnvironment, ThreadEnvironmentKind,
