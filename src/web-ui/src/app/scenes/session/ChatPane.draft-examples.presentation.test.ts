@@ -6,10 +6,10 @@ const source = readFileSync(new URL('./ChatPane.scss', import.meta.url), 'utf8')
 describe('new-task draft examples presentation', () => {
   it('keeps compact office examples outside the greeting layout', () => {
     expect(source).toMatch(
-      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 220px\);/,
+      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 188px\);/,
     );
     expect(source).toMatch(
-      /\.void-cowork-example-cards__card\s*\{[\s\S]*?min-height:\s*16px;/,
+      /\.void-cowork-example-cards__card\s*\{[\s\S]*?min-height:\s*14px;/,
     );
     expect(source).toMatch(
       /\.void-cowork-example-cards__grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/,
