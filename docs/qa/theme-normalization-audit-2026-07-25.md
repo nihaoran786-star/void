@@ -942,6 +942,29 @@ replace the working gallery or add decorative imagery.
   card, 1120px two-column grid, full subtitle, and labelled create action retain
   their previous geometry.
 
+### Resolved follow-up — Narrow Skills cards collapsed labels and controls
+
+- **Location:** Installed Skills card grid
+- **Category:** Responsive layout / interaction target
+- **Severity:** P1
+- **Impact:** In a 192px Skills pane, an installed card is 158px wide. The
+  built-in badge could reduce the skill-name column to about 7px, while the
+  duplicated detail action and delete action compressed the delete target to
+  about 13px.
+- **Remediation:** A card-owned 240px container breakpoint compacts only the
+  built-in badge label, removes the redundant detail button when the whole card
+  already opens details, and keeps the delete target fixed at 28px. Built-in
+  cards retain their explicit detail button, and the badge text remains in the
+  accessibility tree.
+- **Suggested command:** `$adapt`
+- **Positive evidence:** The grid already owns its scrolling, card dimensions,
+  truncation, focus treatment, and deferred rendering.
+- **Verification evidence:** At a 456×318 CSS viewport, regular card title
+  space increases to about 69px and the delete target remains 28×28px; built-in
+  title space increases to about 41px and its detail target remains 28×32px.
+  At maximized 1707×912, the existing four 311px columns, 104px card height,
+  complete badge labels, and zero body overflow are unchanged.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

@@ -144,6 +144,15 @@ describe('Skills scene Minimal presentation contract', () => {
     expect(source).toMatch(
       /@media \(hover: hover\)[\s\S]*?\.skills-card__actions \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card__path \{[\s\S]*?opacity: 0;[\s\S]*?\.skills-card:focus-within \.skills-card__path/,
     );
+    expect(source).toMatch(
+      /@container skills-main \(max-width: 240px\)[\s\S]*?\.skills-card__top > \.badge \{[\s\S]*?font-size: 0;/,
+    );
+    expect(source).toMatch(
+      /@container skills-main \(max-width: 240px\)[\s\S]*?\.skills-card__actions:has\(\.skills-card__delete\) > \.btn \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
+      /@container skills-main \(max-width: 240px\)[\s\S]*?\.skills-card__delete \{[\s\S]*?flex: 0 0 var\(--workspace-icon-target\);[\s\S]*?min-width: var\(--workspace-icon-target\);/,
+    );
   });
 
   it('uses short tokenized feedback without lift, bounce, or stagger', () => {

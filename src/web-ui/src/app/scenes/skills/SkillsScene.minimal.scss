@@ -854,6 +854,29 @@
     }
   }
 
+  @container skills-main (max-width: 240px) {
+    .void-ui--minimal .void-skills-scene {
+      .skills-card__top > .badge {
+        width: 20px;
+        height: 20px;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+        overflow: hidden;
+        font-size: 0;
+      }
+
+      .skills-card__actions:has(.skills-card__delete) > .btn {
+        display: none;
+      }
+
+      .skills-card__delete {
+        flex: 0 0 var(--workspace-icon-target);
+        min-width: var(--workspace-icon-target);
+      }
+    }
+  }
+
   @media (max-width: 900px) {
     .void-ui--minimal .void-skills-scene {
       .skills-tabs-bar {
