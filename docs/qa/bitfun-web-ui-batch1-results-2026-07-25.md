@@ -22,6 +22,12 @@ Delivered commits:
   media, Skill, and session references, including history pills and recovery;
 - `3d0ea1250` — remove one pre-existing unused import that blocked the required
   Web type-check/build gate.
+- `8cbb5db91` — enable HTTP/2 negotiation in the provider Adapter with typed
+  transport states and an explicit HTTP/1.1 retry fallback;
+- `adfc7e313` — pass the versioned composer DTO through scoped BTW rollback
+  and restore text, file, image, media, Skill, and session-reference state;
+- `a7fa27737` — resolve explicitly selected session references through a
+  workspace-scoped Module Interface and inject a bounded, sanitized transcript.
 
 ## Composer and reference contract
 
@@ -30,10 +36,17 @@ preserves the ordered presentation of text, contexts, and Skill references.
 Image and generated-media metadata keeps stable path/name identity but removes
 known `dataUrl`, thumbnail, and preview payloads before message persistence.
 
-`session-reference` is deliberately a Web UI/context DTO in this batch. It
-stores session and workspace/remote locators, renders a history capsule, and
-emits a safe prompt marker. It does not read or inject another session's
-transcript; that runtime capability remains an integration handoff.
+`session-reference` stores session and workspace/remote locators, renders a
+history capsule, and queries the desktop persistence Adapter only after an
+explicit user reference. The session-reference service rejects cross-workspace
+and owner mismatches, missing/hidden sessions, recursive references, and
+oversized transcripts. It injects only visible user and assistant text; tool
+payloads, thinking/system content, metadata, and credentials are excluded.
+Results use typed `ready`, `missing`, `denied`, `too_large`, `unsupported`, and
+`failed` states. Per-reference and combined message/token budgets are enforced.
+
+The BTW scoped fill contract now carries `ComposerPresentation` v1 instead of
+reducing rollback to display text. Legacy text-only turns remain compatible.
 
 The existing pending queue now preserves user-message metadata during normal
 enqueue, persistence, failed-turn recovery, reordering, and automatic drain.
@@ -84,6 +97,10 @@ Focused reference-history verification passed:
 ```text
 7 test files, 36 tests passed
 independent read-only audit: 8 test files, 66 tests passed
+BTW and session-reference Web tests: 4 test files, 39 tests passed
+session-reference Rust policy tests: 6 passed
+HTTP/2 Adapter stream tests: 13 passed
+cargo check -p void-ai-adapters -p void-services-core -p void-desktop
 ```
 
 The combined Batch 1 Web UI test selection produced:
@@ -100,12 +117,11 @@ behavioral test failed.
 
 ## Known boundaries
 
-- The BTW panel's scoped rollback callback still accepts only plain text, so a
-  structured reference cannot be fully reconstructed inside that separate
-  child composer.
 - The DTO parser rejects unsupported versions and malformed segment shapes,
   but optional context fields can be validated more narrowly in a later
   hardening pass.
-- Session-reference transcript injection is intentionally absent.
+- Session-reference injection intentionally rejects rather than truncates a
+  source that exceeds its safe budget, so the user must reference a smaller
+  session.
 - Batch 2 multi-agent runtime and Batch 3 product expansion were not developed
   in this worktree.

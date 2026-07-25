@@ -7,7 +7,10 @@ Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 Batch 1 implementation evidence is recorded in
 [the dated result](../qa/bitfun-web-ui-batch1-results-2026-07-25.md). The
 HTTP/2 dependency gate was subsequently approved and implemented as an
-isolated provider-Adapter follow-up with HTTP/1.1 fallback.
+isolated provider-Adapter follow-up with HTTP/1.1 fallback. The later scoped
+follow-ups also completed BTW `ComposerPresentation` recovery and bounded,
+authorized session-reference transcript injection without modifying the
+multi-agent coordinator or recovery state machine.
 
 ## Objective and boundaries
 
