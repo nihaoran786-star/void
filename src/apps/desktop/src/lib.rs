@@ -614,6 +614,7 @@ pub async fn run() {
             api::editor_ai_api::editor_ai_stream,
             api::editor_ai_api::editor_ai_cancel,
             api::context_upload_api::upload_image_contexts,
+            api::external_config_sources_api::discover_external_config_source_summaries,
             get_all_tools_info,
             get_readonly_tools_info,
             get_tool_info,

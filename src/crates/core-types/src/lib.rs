@@ -4,11 +4,17 @@
 //! product assembly dependencies here.
 
 pub mod errors;
+pub mod external_config_sources;
 pub mod session;
 pub mod surface;
 pub mod tool_image_attachment;
 
 pub use errors::{AiErrorDetail, ErrorCategory};
+pub use external_config_sources::{
+    ExternalConfigFormat, ExternalConfigLocationCategory, ExternalConfigSafeSummary,
+    ExternalConfigSource, ExternalConfigSourceError, ExternalConfigSourceErrorCode,
+    ExternalConfigSourceSnapshot, ExternalConfigSourceStatus, ExternalConfigSourcesSnapshot,
+};
 pub use session::SessionKind;
 pub use surface::{
     ApprovalSource, CapabilityRequest, CapabilityRequestKind, PermissionDecision, PermissionScope,

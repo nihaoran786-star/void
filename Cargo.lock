@@ -9409,6 +9409,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "uuid",
+ "void-core-types",
  "void-events",
  "void-runtime-ports",
  "void-services-core",

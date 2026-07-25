@@ -9,6 +9,8 @@ pub mod announcement;
 #[cfg(feature = "file-watch")]
 pub mod file_watch;
 
+pub mod external_config_sources;
+
 #[cfg(feature = "git")]
 pub mod git;
 
