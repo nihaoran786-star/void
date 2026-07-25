@@ -82,13 +82,40 @@ const SceneBar: React.FC<SceneBarProps> = ({
     onMaximize?.();
   }, [isSingleTab, onMaximize]);
 
+  const handleTabsKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    if (openTabs.length <= 1) return;
+
+    const currentIndex = openTabs.findIndex(tab => tab.id === activeTabId);
+    if (currentIndex < 0) return;
+
+    e.preventDefault();
+    const nextIndex =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? openTabs.length - 1
+          : e.key === 'ArrowLeft'
+            ? (currentIndex - 1 + openTabs.length) % openTabs.length
+            : (currentIndex + 1) % openTabs.length;
+    const nextTab = openTabs[nextIndex];
+    if (!nextTab) return;
+
+    activateScene(nextTab.id);
+    const tablist = e.currentTarget;
+    window.requestAnimationFrame(() => {
+      tablist.querySelectorAll<HTMLElement>('[role="tab"]')[nextIndex]?.focus();
+    });
+  }, [activeTabId, activateScene, openTabs]);
+
   return (
     <div
       className={sceneBarClassName}
       role="tablist"
-      aria-label="Scene tabs"
+      aria-label={t('sceneTabs.label')}
       onMouseDown={handleBarMouseDown}
       onDoubleClick={handleBarDoubleClick}
+      onKeyDown={handleTabsKeyDown}
     >
       <div className="void-scene-bar__tabs" style={tabsStyle}>
         {openTabs.map(tab => {
@@ -105,6 +132,7 @@ const SceneBar: React.FC<SceneBarProps> = ({
               def={{ ...def, label: translatedLabel }}
               isActive={tab.id === activeTabId}
               subtitle={subtitle}
+              closeTitle={t('sceneTabs.close', { label: translatedLabel })}
               onActivate={activateScene}
               onClose={closeScene}
             />

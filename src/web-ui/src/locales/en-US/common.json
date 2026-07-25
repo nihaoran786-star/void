@@ -996,6 +996,10 @@
     "shell": "Shell",
     "panelView": "Panel View"
   },
+  "sceneTabs": {
+    "label": "Scene tabs",
+    "close": "Close {{label}}"
+  },
   "loading": {
     "scenes": "Loading scene"
   },

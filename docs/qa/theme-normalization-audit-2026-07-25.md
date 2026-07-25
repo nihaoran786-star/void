@@ -798,6 +798,30 @@ replace the working gallery or add decorative imagery.
   item alone reports `aria-current="page"`; switching to Account moves that
   state to the Account item without changing page geometry.
 
+### Resolved follow-up — Scene tabs are localized and keyboard navigable
+
+- **Location:** `SceneBar` and `SceneTab`
+- **Category:** Accessibility / localization / interaction consistency
+- **Severity:** P1 for English-only names; P2 for incomplete tab interaction
+- **Impact:** The shared top-level tab list exposed `Scene tabs` and dynamic
+  close actions such as `Close 设置` in the Chinese interface. Focused tabs
+  also ignored the standard Left, Right, Home, and End navigation keys, making
+  keyboard movement depend on repeated pointer activation.
+- **Remediation:** The common locale now owns the tab-list and close-action
+  names in all three bundled languages. The shared tab list implements cyclic
+  Left/Right movement plus Home/End jumps, activates through the existing scene
+  manager, and restores focus to the newly active tab.
+- **Suggested command:** `$normalize`
+- **Positive evidence:** Tabs already expose `role="tab"`, `aria-selected`, a
+  roving tab index, Enter/Space activation, middle-click close, visible focus,
+  compact narrow labels, and reduced-motion behavior.
+- **Verification evidence:** In the real maximized desktop, the list reports
+  `场景标签页` and its dynamic actions report `关闭设置` and `关闭智能体`.
+  Starting from the last Settings tab, Right wraps focus and selection to
+  Session, End returns both to Settings, Home moves both to Session, and Left
+  wraps back to Settings. The three-tab geometry and document width remain
+  unchanged at both 1707×912 and 706×490.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

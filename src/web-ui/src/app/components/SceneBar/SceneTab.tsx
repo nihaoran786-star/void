@@ -21,6 +21,8 @@ interface SceneTabProps {
   onActionClick?: () => void;
   /** Accessible label for the action icon */
   actionTitle?: string;
+  /** Localized accessible label for the close button. */
+  closeTitle: string;
   onActivate: (id: SceneTabType['id']) => void;
   onClose: (id: SceneTabType['id']) => void;
 }
@@ -32,6 +34,7 @@ const SceneTab: React.FC<SceneTabProps> = ({
   subtitle,
   onActionClick,
   actionTitle,
+  closeTitle,
   onActivate,
   onClose,
 }) => {
@@ -123,7 +126,7 @@ const SceneTab: React.FC<SceneTabProps> = ({
         <button
           type="button"
           className="void-scene-tab__close"
-          aria-label={`Close ${label}`}
+          aria-label={closeTitle}
           onClick={handleClose}
           tabIndex={-1}
         >

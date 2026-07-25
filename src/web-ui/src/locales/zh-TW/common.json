@@ -996,6 +996,10 @@
     "shell": "Shell",
     "panelView": "面板視圖"
   },
+  "sceneTabs": {
+    "label": "場景標籤頁",
+    "close": "關閉{{label}}"
+  },
   "loading": {
     "scenes": "正在加載場景"
   },
