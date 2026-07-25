@@ -17,7 +17,7 @@
     justify-content: space-between;
   }
 
-  &--usage-only {
+  &--controls-only {
     justify-content: flex-end;
   }
   min-width: 0;
@@ -49,11 +49,12 @@
     max-width: calc(100% - 24px);
   }
 
-  &__usage {
+  &__controls {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    gap: 4px;
   }
 
   /* Keep the usage action compact, but large enough to read beside the strip text. */
@@ -81,6 +82,98 @@
       flex-shrink: 0;
       width: 14px;
       height: 14px;
+    }
+  }
+
+  &__permission {
+    position: relative;
+  }
+
+  &__permission-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 20px;
+    padding: 1px 5px;
+    border: 0;
+    border-radius: $size-radius-sm;
+    color: var(--color-text-secondary);
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover:not(:disabled),
+    &[aria-expanded='true'] {
+      color: var(--color-text-primary);
+      background: var(--element-bg-medium);
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    &--auto {
+      color: color-mix(in srgb, var(--color-accent-500) 76%, var(--color-text-primary));
+    }
+
+    &--full_access {
+      color: var(--color-warning-foreground, var(--color-text-primary));
+    }
+  }
+
+  &__permission-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 40;
+    display: grid;
+    gap: 2px;
+    width: min(280px, calc(100vw - 32px));
+    padding: 5px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--size-radius-base);
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-base);
+  }
+
+  &__permission-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 14px;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--size-radius-sm);
+    color: var(--color-text-secondary);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &[aria-checked='true'] {
+      color: var(--color-text-primary);
+      background: var(--element-bg-subtle);
+    }
+
+    > span {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    strong {
+      font-size: var(--flowchat-font-size-xs);
+      font-weight: 550;
+    }
+
+    small {
+      color: var(--color-text-muted);
+      font-size: var(--flowchat-font-size-xxs);
+      line-height: 1.35;
+      white-space: normal;
     }
   }
 

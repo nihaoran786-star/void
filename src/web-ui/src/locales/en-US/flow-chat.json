@@ -558,6 +558,33 @@
     "deepreviewNestedDisabled": "Deep Review can only be started from the main session.",
     "deepreviewThreadTitle": "Deep review",
     "currentMode": "Current mode: {{mode}}",
+    "permissionMode": {
+      "menuLabel": "Permission mode",
+      "current": "Permissions: {{mode}}",
+      "loading": "Loading permission policy…",
+      "loadFailed": "Permission policy is unavailable. Changes are disabled.",
+      "ask": {
+        "label": "Ask",
+        "description": "Confirm before tools that require permission run."
+      },
+      "auto": {
+        "label": "Auto",
+        "description": "Automatically approve Ask decisions while preserving explicit Deny rules."
+      },
+      "fullAccess": {
+        "label": "Full access",
+        "description": "Allow tools by default while preserving explicit Deny rules."
+      },
+      "acp": {
+        "label": "ACP controlled",
+        "description": "Permissions for this session are controlled by the external ACP client."
+      },
+      "fullAccessWarningTitle": "Enable full access?",
+      "fullAccessWarningMessage": "Full access allows tools by default. Enable it only for a workspace and task you trust.",
+      "fullAccessConfirm": "Enable full access",
+      "cancel": "Cancel",
+      "changeFailed": "Failed to save permission mode"
+    },
     "noMatchingMode": "No matching mode",
     "noMatchingCommand": "No matching command",
     "selectHint": "↑↓ Select · Enter Confirm · Esc Cancel",

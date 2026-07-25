@@ -552,6 +552,33 @@
     "deepreviewNestedDisabled": "深度审核只能从主会话启动。",
     "deepreviewThreadTitle": "深度审核",
     "currentMode": "当前模式: {{mode}}",
+    "permissionMode": {
+      "menuLabel": "权限模式",
+      "current": "权限：{{mode}}",
+      "loading": "正在加载权限策略…",
+      "loadFailed": "权限策略暂不可用，已禁止修改。",
+      "ask": {
+        "label": "每次询问",
+        "description": "需要权限的工具在执行前请求确认。"
+      },
+      "auto": {
+        "label": "自动执行",
+        "description": "自动批准询问，但仍遵守显式拒绝规则。"
+      },
+      "fullAccess": {
+        "label": "完全访问",
+        "description": "默认允许工具执行，显式拒绝规则仍然有效。"
+      },
+      "acp": {
+        "label": "ACP 控制",
+        "description": "当前会话的权限由外部 ACP 客户端管理。"
+      },
+      "fullAccessWarningTitle": "启用完全访问？",
+      "fullAccessWarningMessage": "完全访问会默认允许工具执行。仅在你信任当前工作区和任务时启用。",
+      "fullAccessConfirm": "启用完全访问",
+      "cancel": "取消",
+      "changeFailed": "权限模式保存失败"
+    },
     "noMatchingMode": "没有匹配的模式",
     "noMatchingCommand": "没有匹配的命令",
     "selectHint": "↑↓ 选择 · Enter 确认 · Esc 取消",

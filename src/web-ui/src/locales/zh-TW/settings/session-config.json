@@ -48,7 +48,19 @@
   },
   "toolExecution": {
     "sectionTitle": "工具執行行為",
-    "sectionDescription": "本會話中 AI 調用工具時的確認與超時策略。"
+    "sectionDescription": "本會話中 AI 調用工具時的確認與超時策略。",
+    "permissionMode": "預設權限模式",
+    "permissionModeDesc": "輸入框中也可快速切換；明確拒絕規則始終優先。",
+    "permissionModeSaved": "權限模式已儲存",
+    "fullAccessWarningTitle": "啟用完全存取？",
+    "fullAccessWarningMessage": "完全存取會預設允許工具執行。僅在你信任目前工作區和任務時啟用。",
+    "fullAccessConfirm": "啟用完全存取",
+    "fullAccessCancel": "取消",
+    "permissionModes": {
+      "ask": "每次詢問",
+      "auto": "自動執行",
+      "fullAccess": "完全存取"
+    }
   },
   "computerUse": {
     "sectionTitle": "Computer use（桌面自動化）",

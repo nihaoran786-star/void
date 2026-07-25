@@ -60,11 +60,20 @@ import { Tooltip, IconButton, confirmWarning } from '@/component-library';
 import { PendingQueuePanel } from './PendingQueuePanel';
 import { openBtwSessionInAuxPane } from '../services/openBtwSession';
 import { resolveSessionRelationship } from '../utils/sessionMetadata';
+import { isAcpFlowSession } from '../utils/acpSession';
 import { resolveWorkspaceChatInputMode } from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
 import type { SceneTabId } from '@/app/components/SceneBar/types';
 import { configAPI } from '@/infrastructure/api';
-import type { ModeSkillInfo } from '@/infrastructure/config/types';
+import type {
+  ModeSkillInfo,
+  ToolPermissionConfig,
+  ToolPermissionMode,
+} from '@/infrastructure/config/types';
+import {
+  DEFAULT_TOOL_PERMISSION_CONFIG,
+  toolPermissionConfigService,
+} from '@/infrastructure/config/services/ToolPermissionConfigService';
 import MCPAPI, { type MCPPrompt, type MCPPromptMessage, type MCPServerInfo } from '@/infrastructure/api/service-api/MCPAPI';
 import { ChatInputWorkspaceStrip } from './ChatInputWorkspaceStrip';
 import { expandWidgetPromptReferenceTokens } from '@/tools/generative-widget/widgetPromptReference';
@@ -583,6 +592,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [draftAgentType, isNewSessionDraft]);
 
   const currentMode = isNewSessionDraft ? draftAgentType : modeState.current;
+  const isAcpTargetSession = isAcpFlowSession(effectiveTargetSession);
   const isModeDropdownOpen = modeState.dropdownOpen;
   const activeSessionMode = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)?.mode
@@ -619,6 +629,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const openScene = useSceneStore(s => s.openScene);
   const [boostPanelSkills, setBoostPanelSkills] = useState<ModeSkillInfo[]>([]);
   const [boostSkillsLoading, setBoostSkillsLoading] = useState(false);
+  const [toolPermissionConfig, setToolPermissionConfig] = useState<ToolPermissionConfig>(
+    DEFAULT_TOOL_PERMISSION_CONFIG,
+  );
+  const [permissionConfigStatus, setPermissionConfigStatus] = useState<
+    'loading' | 'ready' | 'failed'
+  >('loading');
+  const [permissionModeSaving, setPermissionModeSaving] = useState(false);
 
   const setChatInputActive = useChatInputState(state => state.setActive);
   const setChatInputExpanded = useChatInputState(state => state.setExpanded);
@@ -633,6 +650,66 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const unsubscribe = FlowChatStore.getInstance().subscribe(setFlowChatState);
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPermissionConfig = async () => {
+      if (!cancelled) setPermissionConfigStatus('loading');
+      try {
+        const config = await toolPermissionConfigService.loadConfig();
+        if (!cancelled) {
+          setToolPermissionConfig(config);
+          setPermissionConfigStatus('ready');
+        }
+      } catch (error) {
+        log.warn('Failed to load tool permission config', { error });
+        if (!cancelled) setPermissionConfigStatus('failed');
+      }
+    };
+    const handleConfigUpdated = () => {
+      void loadPermissionConfig();
+    };
+    void loadPermissionConfig();
+    globalEventBus.on('mode:config:updated', handleConfigUpdated);
+    return () => {
+      cancelled = true;
+      globalEventBus.off('mode:config:updated', handleConfigUpdated);
+    };
+  }, []);
+
+  const handlePermissionModeChange = useCallback(async (mode: ToolPermissionMode) => {
+    if (
+      permissionConfigStatus !== 'ready'
+      || permissionModeSaving
+      || mode === toolPermissionConfig.mode
+    ) return;
+    if (mode === 'full_access') {
+      const confirmed = await confirmWarning(
+        t('chatInput.permissionMode.fullAccessWarningTitle'),
+        t('chatInput.permissionMode.fullAccessWarningMessage'),
+        {
+          confirmText: t('chatInput.permissionMode.fullAccessConfirm'),
+          cancelText: t('chatInput.permissionMode.cancel'),
+        },
+      );
+      if (!confirmed) return;
+    }
+
+    const previous = toolPermissionConfig;
+    setToolPermissionConfig({ ...previous, mode });
+    setPermissionModeSaving(true);
+    try {
+      setToolPermissionConfig(
+        await toolPermissionConfigService.saveMode(mode, previous),
+      );
+    } catch (error) {
+      log.error('Failed to save tool permission mode', { error, mode });
+      setToolPermissionConfig(previous);
+      notificationService.error(t('chatInput.permissionMode.changeFailed'));
+    } finally {
+      setPermissionModeSaving(false);
+    }
+  }, [permissionConfigStatus, permissionModeSaving, t, toolPermissionConfig]);
 
   useEffect(() => {
     if (currentSessionId && draftStatus !== 'idle') {
@@ -3538,9 +3615,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 {renderActionButton()}
               </div>
             </div>
-            {((chatStripRepositoryPath || chatStripWorkspaceLabel) ||
-              (effectiveTargetSessionId && effectiveTargetSession)) && (
-              <ChatInputWorkspaceStrip
+            <ChatInputWorkspaceStrip
                 repositoryPath={chatStripRepositoryPath}
                 workspaceLabel={chatStripWorkspaceLabel}
                 workspacePicker={
@@ -3570,8 +3645,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     ? { visible: true, onOpen: handleToolbarUsageReport }
                     : undefined
                 }
+                permissionControl={{
+                  mode: isAcpTargetSession ? 'acp' : toolPermissionConfig.mode,
+                  status: isAcpTargetSession ? 'ready' : permissionConfigStatus,
+                  saving: permissionModeSaving,
+                  onChange: isAcpTargetSession ? undefined : handlePermissionModeChange,
+                }}
               />
-            )}
           </div>
         </div>
       </div>

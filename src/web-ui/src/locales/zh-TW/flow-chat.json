@@ -552,6 +552,33 @@
     "deepreviewNestedDisabled": "深度審核只能從主會話啟動。",
     "deepreviewThreadTitle": "深度審核",
     "currentMode": "當前模式: {{mode}}",
+    "permissionMode": {
+      "menuLabel": "權限模式",
+      "current": "權限：{{mode}}",
+      "loading": "正在載入權限策略…",
+      "loadFailed": "權限策略暫不可用，已停用修改。",
+      "ask": {
+        "label": "每次詢問",
+        "description": "需要權限的工具在執行前請求確認。"
+      },
+      "auto": {
+        "label": "自動執行",
+        "description": "自動批准詢問，但仍遵守明確拒絕規則。"
+      },
+      "fullAccess": {
+        "label": "完全存取",
+        "description": "預設允許工具執行，明確拒絕規則仍然有效。"
+      },
+      "acp": {
+        "label": "ACP 控制",
+        "description": "目前會話的權限由外部 ACP 用戶端管理。"
+      },
+      "fullAccessWarningTitle": "啟用完全存取？",
+      "fullAccessWarningMessage": "完全存取會預設允許工具執行。僅在你信任目前工作區和任務時啟用。",
+      "fullAccessConfirm": "啟用完全存取",
+      "cancel": "取消",
+      "changeFailed": "權限模式儲存失敗"
+    },
     "noMatchingMode": "沒有匹配的模式",
     "noMatchingCommand": "沒有匹配的命令",
     "selectHint": "↑↓ 選擇 · Enter 確認 · Esc 取消",

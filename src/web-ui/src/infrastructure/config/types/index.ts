@@ -199,8 +199,24 @@ export interface AIConfig {
   tool_execution_timeout_secs?: number | null;
   tool_confirmation_timeout_secs?: number | null;
   skip_tool_confirmation?: boolean;
+  tool_permissions?: ToolPermissionConfig;
   computer_use_enabled?: boolean;
   browser_control_preferred_browser?: string;
+}
+
+export type ToolPermissionMode = 'ask' | 'auto' | 'full_access';
+export type ToolPermissionDecision = 'allow' | 'ask' | 'deny';
+
+export interface ToolPermissionRule {
+  id?: string;
+  tool: string;
+  intent?: string;
+  decision: ToolPermissionDecision;
+}
+
+export interface ToolPermissionConfig {
+  mode: ToolPermissionMode;
+  rules: ToolPermissionRule[];
 }
 
 export interface StoredAgentProfileConfigItem {
