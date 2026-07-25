@@ -43,6 +43,7 @@ import {
   DEFAULT_LANGUAGE_TEMPLATES,
 } from '../types';
 import { ModelSelectionRadio } from './ModelSelectionRadio';
+import { AgentMemorySettings } from './AgentMemorySettings';
 import { ChatInputPixelPet } from '@/flow_chat/components/ChatInputPixelPet';
 import {
   DEFAULT_TOOL_PERMISSION_CONFIG,
@@ -1575,7 +1576,12 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 };
 
 export function SessionPersonalizationConfig(): React.ReactElement {
-  return <SessionSettingsPanels variant="personalization" />;
+  return (
+    <>
+      <SessionSettingsPanels variant="personalization" />
+      <AgentMemorySettings />
+    </>
+  );
 }
 
 export function SessionPermissionsConfig(): React.ReactElement {

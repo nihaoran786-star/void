@@ -635,5 +635,18 @@
       "import": "導入主題",
       "export": "導出當前主題"
     }
+  },
+  "agentMemory": {
+    "title": "工作區記憶",
+    "description": "記憶功能為可選項。每筆候選記憶都需審核後才會儲存；憑證和隱藏系統資料會被拒絕。",
+    "openWorkspace": "請先開啟本機工作區工作階段，再管理其記憶。",
+    "placeholder": "新增需要長期保留的偏好或專案事實",
+    "candidateAriaLabel": "新記憶候選",
+    "review": "審核候選",
+    "rejected": "候選內容可能包含敏感資料，已拒絕。",
+    "save": "儲存",
+    "discard": "捨棄",
+    "savedAriaLabel": "已儲存的工作區記憶",
+    "delete": "刪除"
   }
 }

@@ -614,5 +614,18 @@
       "import": "Import Theme",
       "export": "Export Current Theme"
     }
+  },
+  "agentMemory": {
+    "title": "Workspace memory",
+    "description": "Memory is optional. Review every candidate before it is saved. Credentials and hidden system data are rejected.",
+    "openWorkspace": "Open a local workspace session to manage its memories.",
+    "placeholder": "Add a durable preference or project fact",
+    "candidateAriaLabel": "New memory candidate",
+    "review": "Review candidate",
+    "rejected": "The candidate was rejected because it may contain sensitive data.",
+    "save": "Save",
+    "discard": "Discard",
+    "savedAriaLabel": "Saved workspace memories",
+    "delete": "Delete"
   }
 }

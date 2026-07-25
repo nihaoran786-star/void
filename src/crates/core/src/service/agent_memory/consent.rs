@@ -3,7 +3,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum AgentMemoryState {
+pub enum AgentMemoryState {
     Candidate,
     ConsentPending,
     Committed,
@@ -13,7 +13,7 @@ pub(crate) enum AgentMemoryState {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum AgentMemoryConsent {
+pub enum AgentMemoryConsent {
     NotRequested,
     Pending,
     Granted,
@@ -22,7 +22,7 @@ pub(crate) enum AgentMemoryConsent {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AgentMemoryCandidate {
+pub struct AgentMemoryCandidate {
     pub id: String,
     pub content: String,
     pub state: AgentMemoryState,
@@ -32,7 +32,7 @@ pub(crate) struct AgentMemoryCandidate {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum MemoryTransitionError {
+pub enum MemoryTransitionError {
     EmptyCandidate,
     InvalidTransition {
         from: AgentMemoryState,
@@ -65,7 +65,7 @@ impl fmt::Display for MemoryTransitionError {
 impl std::error::Error for MemoryTransitionError {}
 
 impl AgentMemoryCandidate {
-    pub(crate) fn new(
+    pub fn new(
         id: impl Into<String>,
         content: impl Into<String>,
     ) -> Result<Self, MemoryTransitionError> {
@@ -82,7 +82,7 @@ impl AgentMemoryCandidate {
         })
     }
 
-    pub(crate) fn request_consent(&mut self) -> Result<(), MemoryTransitionError> {
+    pub fn request_consent(&mut self) -> Result<(), MemoryTransitionError> {
         if self.state != AgentMemoryState::Candidate {
             return Err(MemoryTransitionError::InvalidTransition {
                 from: self.state,
@@ -94,7 +94,7 @@ impl AgentMemoryCandidate {
         Ok(())
     }
 
-    pub(crate) fn resolve_consent(&mut self, approved: bool) -> Result<(), MemoryTransitionError> {
+    pub fn resolve_consent(&mut self, approved: bool) -> Result<(), MemoryTransitionError> {
         if self.state != AgentMemoryState::ConsentPending {
             return Err(MemoryTransitionError::InvalidTransition {
                 from: self.state,
@@ -113,7 +113,7 @@ impl AgentMemoryCandidate {
     }
 
     /// Calls the persistence boundary only after explicit consent.
-    pub(crate) fn commit_with(
+    pub fn commit_with(
         &mut self,
         write: impl FnOnce(&str) -> Result<(), String>,
     ) -> Result<(), MemoryTransitionError> {
@@ -136,7 +136,7 @@ impl AgentMemoryCandidate {
         }
     }
 
-    pub(crate) fn delete_with(
+    pub fn delete_with(
         &mut self,
         delete: impl FnOnce() -> Result<(), String>,
     ) -> Result<(), MemoryTransitionError> {

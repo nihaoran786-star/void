@@ -5,7 +5,9 @@
 //! contracts and equivalence tests are explicit.
 
 #[cfg(feature = "product-full")]
-pub(crate) mod agent_memory; // Agent memory prompt helpers
+pub mod agent_memory; // Agent memory prompt helpers and consent-gated repository interface
+#[cfg(feature = "product-full")]
+mod atomic_file;
 #[cfg(feature = "service-integrations")]
 pub mod announcement; // Announcement / feature-demo / tips system
 pub(crate) mod bootstrap; // Workspace persona bootstrap helpers

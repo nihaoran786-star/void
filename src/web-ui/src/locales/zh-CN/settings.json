@@ -635,5 +635,18 @@
       "import": "导入主题",
       "export": "导出当前主题"
     }
+  },
+  "agentMemory": {
+    "title": "工作区记忆",
+    "description": "记忆功能为可选项。每条候选记忆都需审核后才会保存；凭据和隐藏系统数据会被拒绝。",
+    "openWorkspace": "请先打开本地工作区会话，再管理其记忆。",
+    "placeholder": "添加需要长期保留的偏好或项目事实",
+    "candidateAriaLabel": "新记忆候选",
+    "review": "审核候选",
+    "rejected": "候选内容可能包含敏感数据，已拒绝。",
+    "save": "保存",
+    "discard": "丢弃",
+    "savedAriaLabel": "已保存的工作区记忆",
+    "delete": "删除"
   }
 }
