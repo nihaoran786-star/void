@@ -5,7 +5,8 @@ import { SubagentAPI, type SubagentInfo } from '@/infrastructure/api/service-api
 import { configAPI } from '@/infrastructure/api/service-api/ConfigAPI';
 import type { AgentProfileConfigItem, ModeSkillInfo } from '@/infrastructure/config/types';
 import { useNotification } from '@/shared/notification-system';
-import type { DynamicToolInfo } from '@/shared/types/agent-api';
+import { toolAPI } from '@/infrastructure/api/service-api/ToolAPI';
+import type { ToolInfo } from '@/shared/types/agent-api';
 import type { AgentWithCapabilities } from '../agentsStore';
 import { enrichCapabilities } from '../utils';
 import { STATIC_HIDDEN_AGENT_IDS, isAgentInOverviewZone } from '../agentVisibility';
@@ -14,13 +15,6 @@ import { loadDefaultReviewTeamDefinition } from '@/shared/services/reviewTeamSer
 
 export type FilterLevel = 'all' | 'builtin' | 'user' | 'project';
 export type FilterType = 'all' | 'mode' | 'subagent';
-
-export interface ToolInfo {
-  name: string;
-  description: string;
-  is_readonly: boolean;
-  dynamic_info?: DynamicToolInfo;
-}
 
 interface UseAgentsListOptions {
   searchQuery: string;
@@ -107,20 +101,11 @@ export function useAgentsList({
     const requestId = ++loadRequestIdRef.current;
     setLoading(true);
 
-    const fetchTools = async (): Promise<ToolInfo[]> => {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        return await invoke<ToolInfo[]>('get_all_tools_info');
-      } catch {
-        return [];
-      }
-    };
-
     try {
       const [modes, subagents, tools, configs, reviewTeamDefinition] = await Promise.all([
         agentAPI.getAvailableModes().catch(() => []),
         SubagentAPI.listSubagents({ workspacePath: workspacePath || undefined }).catch(() => []),
-        fetchTools(),
+        toolAPI.getAllToolsInfo().catch(() => []),
         configAPI.getAgentProfileConfigs().catch(() => ({})),
         loadDefaultReviewTeamDefinition().catch(() => undefined),
       ]);

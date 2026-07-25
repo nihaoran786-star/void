@@ -51,6 +51,13 @@ pub struct DynamicToolInfo {
     pub mcp: Option<DynamicMcpToolInfo>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolLoadMode {
+    Expanded,
+    OnDemand,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolInfo {
     pub name: String,
@@ -59,6 +66,7 @@ pub struct ToolInfo {
     pub is_readonly: bool,
     pub is_concurrency_safe: bool,
     pub needs_permissions: bool,
+    pub load_mode: ToolLoadMode,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dynamic_info: Option<DynamicToolInfo>,
 }
@@ -220,6 +228,14 @@ async fn build_tool_info(tool: &Arc<dyn void_core::agentic::tools::framework::To
         is_readonly: tool.is_readonly(),
         is_concurrency_safe: tool.is_concurrency_safe(None),
         needs_permissions: tool.needs_permissions(None),
+        load_mode: match tool.default_exposure() {
+            void_core::agentic::tools::framework::ToolExposure::Expanded => {
+                ToolLoadMode::Expanded
+            }
+            void_core::agentic::tools::framework::ToolExposure::Collapsed => {
+                ToolLoadMode::OnDemand
+            }
+        },
         dynamic_info: tool.dynamic_tool_info().map(to_dynamic_tool_info),
     }
 }
