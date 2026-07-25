@@ -39,10 +39,10 @@ describe('new-task draft examples presentation', () => {
 
   it('lets the draft editor grow with content before switching to internal scroll', () => {
     expect(source).toMatch(
-      /@media \(min-height: 620px\)[\s\S]*?\.void-chat-input__box\s*\{[\s\S]*?min-height:\s*160px;[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
+      /@media \(min-height: 620px\)[\s\S]*?\.void-chat-input__box\s*\{[\s\S]*?height:\s*auto;[\s\S]*?min-height:\s*var\(--workspace-composer-min-height\);[\s\S]*?max-height:\s*min\(340px, 55vh\);/,
     );
     expect(source).toMatch(
-      /@media \(min-height: 620px\)[\s\S]*?\.rich-text-input\s*\{[\s\S]*?min-height:\s*56px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
+      /@media \(min-height: 620px\)[\s\S]*?\.rich-text-input\s*\{[\s\S]*?min-height:\s*22px !important;[\s\S]*?max-height:\s*min\(216px, 28vh\) !important;[\s\S]*?overflow-y:\s*auto;/,
     );
     expect(source).not.toMatch(
       /\.rich-text-input\s*\{[\s\S]*?min-height:\s*56px !important;[\s\S]*?max-height:\s*56px !important;/,

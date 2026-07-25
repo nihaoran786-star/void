@@ -37,6 +37,22 @@
       padding: var(--workspace-space-2);
     }
 
+    &__box--multi-line {
+      height: auto;
+      min-height: var(--workspace-composer-min-height);
+      max-height: min(280px, 42vh);
+
+      .void-chat-input__input-area {
+        min-height: 22px;
+      }
+
+      .rich-text-input {
+        min-height: 22px;
+        max-height: min(216px, 32vh);
+        overflow-y: auto;
+      }
+    }
+
     // Keep the existing composer callbacks and state machine, but present the
     // idle capsule as a compact input surface with a dedicated action row.
     &--capsule {

@@ -106,6 +106,9 @@ describe('FlowChat minimal presentation contract', () => {
       /&--capsule \{[\s\S]*?\.void-chat-input__box--capsule \{[\s\S]*?grid-template-areas:[\s\S]*?'input input input'[\s\S]*?'tools meta status';[\s\S]*?grid-template-columns: auto minmax\(0, 1fr\) auto;[\s\S]*?row-gap: var\(--workspace-space-2\);[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(240px, 38vh\);/,
     );
     expect(inputMinimalSource).toMatch(
+      /&__box--multi-line \{[\s\S]*?height: auto;[\s\S]*?min-height: var\(--workspace-composer-min-height\);[\s\S]*?max-height: min\(280px, 42vh\);[\s\S]*?\.rich-text-input \{[\s\S]*?min-height: 22px;[\s\S]*?max-height: min\(216px, 32vh\);[\s\S]*?overflow-y: auto;/,
+    );
+    expect(inputMinimalSource).toMatch(
       /\.void-chat-input-workspace-strip \{[\s\S]*?grid-area: meta;[\s\S]*?align-self: stretch;/,
     );
     expect(inputMinimalSource).toMatch(
