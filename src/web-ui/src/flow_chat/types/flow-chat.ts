@@ -47,6 +47,11 @@ export interface FlowThinkingItem extends FlowItem {
   isCollapsed: boolean; // Whether the thinking block is collapsed.
 }
 
+export interface ViewImagePreviewAttachment {
+  mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/bmp';
+  dataBase64: string;
+}
+
 export interface FlowToolItem extends FlowItem {
   type: 'tool';
   toolName: string;
@@ -91,6 +96,11 @@ export interface FlowToolItem extends FlowItem {
   preflightMs?: number;
   confirmationWaitMs?: number;
   executionMs?: number;
+  /**
+   * Runtime-only image payload projected from a live ViewImage completion.
+   * Deliberately kept outside toolResult so history persistence stays unchanged.
+   */
+  previewImageAttachments?: ViewImagePreviewAttachment[];
 
   /** Resolved when a subagent model round completes (parent Task tool only). */
   subagentModelId?: string;

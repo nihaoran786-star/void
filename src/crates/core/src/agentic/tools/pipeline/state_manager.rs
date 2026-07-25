@@ -206,6 +206,17 @@ impl ToolStateManager {
                     } => result_for_assistant.clone(),
                     _ => None,
                 },
+                image_attachments: if task.tool_call.tool_name == "ViewImage" {
+                    match result {
+                        crate::agentic::tools::framework::ToolResult::Result {
+                            image_attachments,
+                            ..
+                        } => image_attachments.clone(),
+                        _ => None,
+                    }
+                } else {
+                    None
+                },
                 duration_ms: *duration_ms,
                 queue_wait_ms: *queue_wait_ms,
                 preflight_ms: *preflight_ms,
@@ -297,11 +308,11 @@ mod tests {
     use std::time::Duration;
     use tokio::time::timeout;
 
-    fn test_task(tool_id: &str) -> ToolTask {
+    fn test_task_with_name(tool_id: &str, tool_name: &str) -> ToolTask {
         ToolTask::new(
             ToolCall {
                 tool_id: tool_id.to_string(),
-                tool_name: "test_tool".to_string(),
+                tool_name: tool_name.to_string(),
                 arguments: serde_json::json!({}),
                 raw_arguments: None,
                 is_error: false,
@@ -325,6 +336,10 @@ mod tests {
             },
             ToolExecutionOptions::default(),
         )
+    }
+
+    fn test_task(tool_id: &str) -> ToolTask {
+        test_task_with_name(tool_id, "test_tool")
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -365,6 +380,100 @@ mod tests {
             .await
             .expect("state update should finish after event queue is released")
             .expect("state update task should not panic");
+    }
+
+    #[tokio::test]
+    async fn completed_state_forwards_tool_image_attachments() {
+        let event_queue = Arc::new(EventQueue::new(EventQueueConfig::default()));
+        let manager = ToolStateManager::new(event_queue.clone());
+        let tool_id = manager
+            .create_task(test_task_with_name("tool-image-1", "ViewImage"))
+            .await;
+        let attachment = crate::util::types::ToolImageAttachment {
+            mime_type: "image/png".to_string(),
+            data_base64: "aGVsbG8=".to_string(),
+        };
+
+        manager
+            .update_state(
+                &tool_id,
+                ToolExecutionState::Completed {
+                    result: crate::agentic::tools::framework::ToolResult::ok_with_images(
+                        serde_json::json!({ "status": "success" }),
+                        None,
+                        vec![attachment.clone()],
+                    ),
+                    duration_ms: 5,
+                    queue_wait_ms: None,
+                    preflight_ms: None,
+                    confirmation_wait_ms: None,
+                    execution_ms: Some(5),
+                },
+            )
+            .await;
+
+        let events = event_queue.dequeue_batch(10).await;
+        let completed = events
+            .into_iter()
+            .find_map(|envelope| match envelope.event {
+                AgenticEvent::ToolEvent {
+                    tool_event:
+                        ToolEventData::Completed {
+                            image_attachments, ..
+                        },
+                    ..
+                } => image_attachments,
+                _ => None,
+            });
+
+        assert_eq!(completed, Some(vec![attachment]));
+    }
+
+    #[tokio::test]
+    async fn completed_state_does_not_forward_image_attachments_for_computer_use() {
+        let event_queue = Arc::new(EventQueue::new(EventQueueConfig::default()));
+        let manager = ToolStateManager::new(event_queue.clone());
+        let tool_id = manager
+            .create_task(test_task_with_name("tool-image-2", "ComputerUse"))
+            .await;
+        let attachment = crate::util::types::ToolImageAttachment {
+            mime_type: "image/png".to_string(),
+            data_base64: "aGVsbG8=".to_string(),
+        };
+
+        manager
+            .update_state(
+                &tool_id,
+                ToolExecutionState::Completed {
+                    result: crate::agentic::tools::framework::ToolResult::ok_with_images(
+                        serde_json::json!({ "status": "success" }),
+                        None,
+                        vec![attachment],
+                    ),
+                    duration_ms: 5,
+                    queue_wait_ms: None,
+                    preflight_ms: None,
+                    confirmation_wait_ms: None,
+                    execution_ms: Some(5),
+                },
+            )
+            .await;
+
+        let events = event_queue.dequeue_batch(10).await;
+        let completed = events
+            .into_iter()
+            .find_map(|envelope| match envelope.event {
+                AgenticEvent::ToolEvent {
+                    tool_event:
+                        ToolEventData::Completed {
+                            image_attachments, ..
+                        },
+                    ..
+                } => Some(image_attachments),
+                _ => None,
+            });
+
+        assert_eq!(completed, Some(None));
     }
 }
 

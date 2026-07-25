@@ -6,7 +6,11 @@ import {
   useWorkspaceMediaRefreshStore,
   WORKSPACE_MEDIA_REFRESH_EVENT,
 } from '@/shared/services/workspace-media/WorkspaceMediaEvents';
-import { processToolEvent, processToolParamsPartialInternal } from './ToolEventModule';
+import {
+  normalizeViewImagePreviewAttachments,
+  processToolEvent,
+  processToolParamsPartialInternal,
+} from './ToolEventModule';
 
 function resetStore(): void {
   FlowChatStore.getInstance().setState(() => ({
@@ -182,6 +186,77 @@ describe('processToolParamsPartialInternal', () => {
     expect(updatedTool._paramsBuffer).toBe('{"file_path":"src/main.rs"}');
     expect(updatedTool.partialParams).toEqual(existingParams);
     expect(updatedTool.toolCall.input).toEqual(existingParams);
+  });
+});
+
+describe('ViewImage live preview projection', () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it('accepts only the first valid bounded raster attachment', () => {
+    expect(normalizeViewImagePreviewAttachments([
+      { mime_type: 'image/svg+xml', data_base64: 'PHN2Zz4=' },
+      { mime_type: 'image/png', data_base64: 'aGVsbG8=' },
+      { mime_type: 'image/jpeg', data_base64: 'd29ybGQ=' },
+    ])).toEqual([
+      { mimeType: 'image/png', dataBase64: 'aGVsbG8=' },
+    ]);
+  });
+
+  it('rejects SVG, malformed padding, empty, and oversized base64 payloads', () => {
+    expect(normalizeViewImagePreviewAttachments([
+      { mime_type: 'image/svg+xml', data_base64: 'PHN2Zz4=' },
+    ])).toBeUndefined();
+    expect(normalizeViewImagePreviewAttachments([
+      { mime_type: 'image/png', data_base64: 'abc===' },
+    ])).toBeUndefined();
+    expect(normalizeViewImagePreviewAttachments([
+      { mime_type: 'image/png', data_base64: '' },
+    ])).toBeUndefined();
+    expect(normalizeViewImagePreviewAttachments([
+      { mime_type: 'image/png', data_base64: 'A'.repeat(6_990_512) },
+    ])).toBeUndefined();
+  });
+
+  it('projects valid attachments only for ViewImage and keeps them outside toolResult', () => {
+    const tool: FlowToolItem = {
+      id: 'view-image-1',
+      type: 'tool',
+      toolName: 'ViewImage',
+      timestamp: 1000,
+      status: 'running',
+      toolCall: {
+        id: 'view-image-1',
+        input: { image_path: 'poster.png' },
+      },
+    };
+    FlowChatStore.getInstance().setState(() => ({
+      sessions: new Map([['session-1', createSessionWithTool(tool)]]),
+      activeSessionId: 'session-1',
+    }));
+
+    processToolEvent(
+      makeToolContext(),
+      'session-1',
+      'turn-1',
+      'round-1',
+      {
+        event_type: 'Completed',
+        tool_id: 'view-image-1',
+        tool_name: 'ViewImage',
+        result: { status: 'success' },
+        image_attachments: [{ mime_type: 'image/webp', data_base64: 'aGVsbG8=' }],
+        duration_ms: 10,
+      },
+    );
+
+    const updated = FlowChatStore.getInstance()
+      .findToolItem('session-1', 'turn-1', 'view-image-1') as FlowToolItem;
+    expect(updated.previewImageAttachments).toEqual([
+      { mimeType: 'image/webp', dataBase64: 'aGVsbG8=' },
+    ]);
+    expect(updated.toolResult).not.toHaveProperty('image_attachments');
   });
 });
 

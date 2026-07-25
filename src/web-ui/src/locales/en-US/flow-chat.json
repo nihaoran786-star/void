@@ -1110,6 +1110,14 @@
     "collapse": "Collapse commands"
   },
   "toolCards": {
+    "viewImage": {
+      "previewTitle": "Image preview",
+      "imageAlt": "Preview of {{name}}",
+      "loading": "Loading preview",
+      "openPreview": "Open full preview",
+      "unavailable": "Preview unavailable",
+      "loadFailed": "Preview failed to load"
+    },
     "file": {
       "write": "Write File",
       "edit": "Edit File",

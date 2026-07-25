@@ -12,6 +12,7 @@ describe('toolCardMetadata', () => {
     expect(getToolCardConfig('GetFileDiff').displayName).toBe('File Diff');
     expect(getToolCardConfig('GenerateImage').displayName).toBe('Generate Image');
     expect(getToolCardConfig('InitMiniApp').displayName).toBe('Init Mini App');
+    expect(getToolCardConfig('ViewImage').displayName).toBe('View Image');
   });
 
   it('keeps MCP display names derived from the parsed tool name', () => {
@@ -39,5 +40,6 @@ describe('toolCardMetadata', () => {
   it('lists registered tools from the metadata source', () => {
     expect(getAllToolNames()).toContain('GenerativeUI');
     expect(getAllToolNames()).toContain('GetMediaTaskStatus');
+    expect(getAllToolNames()).toContain('ViewImage');
   });
 });

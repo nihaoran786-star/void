@@ -1110,6 +1110,14 @@
     "collapse": "收起命令列表"
   },
   "toolCards": {
+    "viewImage": {
+      "previewTitle": "圖片預覽",
+      "imageAlt": "{{name}} 的預覽",
+      "loading": "正在載入預覽",
+      "openPreview": "開啟完整預覽",
+      "unavailable": "預覽無法使用",
+      "loadFailed": "預覽載入失敗"
+    },
     "file": {
       "write": "寫入文件",
       "edit": "編輯文件",
