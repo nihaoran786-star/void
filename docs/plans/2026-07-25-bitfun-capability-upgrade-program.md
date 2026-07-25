@@ -1,8 +1,13 @@
 # BitFun capability upgrade program
 
 Date: 2026-07-25
-Status: active plan
+Status: Batch 1 Web UI complete; Batches 2 and 3 are outside this worktree's current scope
 Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
+
+Batch 1 implementation evidence is recorded in
+[the dated result](../qa/bitfun-web-ui-batch1-results-2026-07-25.md). The
+HTTP/2 item was verified as not currently enabled and remains behind the
+separate Rust dependency/lockfile approval gate.
 
 ## Objective and boundaries
 

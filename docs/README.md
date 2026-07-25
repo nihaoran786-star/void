@@ -11,6 +11,7 @@ automatically the current source of truth.
 - [Current repository audit](qa/repository-audit-2026-07-19.md)
 - [BitFun capability upgrade program](plans/2026-07-25-bitfun-capability-upgrade-program.md)
 - [BitFun capability baseline](qa/bitfun-capability-baseline-2026-07-25.md)
+- [BitFun Batch 1 Web UI results](qa/bitfun-web-ui-batch1-results-2026-07-25.md)
 
 ## Current architecture and product specifications
 
