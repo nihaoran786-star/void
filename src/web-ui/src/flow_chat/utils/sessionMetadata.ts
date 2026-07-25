@@ -110,6 +110,9 @@ export function normalizeSessionRelationship(
     parentSessionId,
     parentDialogTurnId: normalizeString(input?.btwOrigin?.parentDialogTurnId),
     parentTurnIndex: normalizeTurnIndex(input?.btwOrigin?.parentTurnIndex),
+    ...(typeof input?.btwOrigin?.memoryEnabled === 'boolean'
+      ? { memoryEnabled: input.btwOrigin.memoryEnabled }
+      : {}),
   };
 
   return {

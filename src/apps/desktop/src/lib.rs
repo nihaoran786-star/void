@@ -629,6 +629,7 @@ pub async fn run() {
             api::btw_api::btw_ask_stream,
             api::btw_api::btw_cancel,
             api::btw_api::btw_list_relationships,
+            api::btw_api::btw_update_memory_enabled,
             api::editor_ai_api::editor_ai_stream,
             api::editor_ai_api::editor_ai_cancel,
             api::context_upload_api::upload_image_contexts,

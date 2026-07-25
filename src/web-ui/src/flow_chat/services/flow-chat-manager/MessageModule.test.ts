@@ -172,6 +172,25 @@ describe('MessageModule transient BTW image follow-up', () => {
     );
   });
 
+  it('preserves the explicit BTW memory choice on follow-up turns', async () => {
+    sessions.set('btw-child-1', {
+      ...sessions.get('btw-child-1'),
+      btwOrigin: {
+        parentSessionId: 'parent-1',
+        memoryEnabled: true,
+      },
+    });
+
+    await sendMessage(context, 'Remember only after review', 'btw-child-1');
+
+    expect(mockSendMessageToTransientBtwSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        childSessionId: 'btw-child-1',
+        memoryEnabled: true,
+      }),
+    );
+  });
+
   it('does not create or delete a normal dialog turn when transient BTW image send fails', async () => {
     const error = new Error('btw stream failed');
     mockSendMessageToTransientBtwSession.mockRejectedValueOnce(error);

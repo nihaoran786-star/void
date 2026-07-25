@@ -415,6 +415,7 @@ export interface Session {
     parentSessionId?: string;
     parentDialogTurnId?: string;
     parentTurnIndex?: number;
+    memoryEnabled?: boolean;
   };
 
   /**

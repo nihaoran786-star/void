@@ -687,7 +687,7 @@
   "btw": {
     "title": "侧问",
     "shortLabel": "侧问",
-    "hint": "不保存 · 使用当前对话上下文 · 无工具",
+    "hint": "作为私有侧问保存 · 使用当前对话上下文 · 无工具",
     "placeholder": "问个小问题…",
     "ask": "提问",
     "asking": "思考中…",
@@ -704,7 +704,10 @@
     "nestedDisabled": "侧问会话中不能继续新建侧问",
     "error": "失败",
     "close": "关闭",
-    "noSession": "当前没有可用于 /btw 的会话"
+    "noSession": "当前没有可用于 /btw 的会话",
+    "memoryLabel": "记忆",
+    "memoryHint": "允许从此侧问生成记忆候选，保存前仍需您逐条确认。",
+    "memoryUpdateFailed": "更新记忆偏好失败。"
   },
   "childSession": {
     "stopReview": "中止审核",

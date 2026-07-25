@@ -36,4 +36,30 @@ describe('BtwAPI', () => {
       childSessionId: 'child',
     })).rejects.toThrow('disk full');
   });
+
+  it('updates the persisted BTW memory preference through the typed adapter', async () => {
+    const relationship = {
+      schemaVersion: 1,
+      parentSessionId: 'parent',
+      childSessionId: 'child',
+      hydrationState: 'ready',
+      memoryEnabled: true,
+    };
+    invoke.mockResolvedValue(relationship);
+
+    await expect(new BtwAPI().updateMemoryEnabled({
+      workspacePath: 'D:/workspace',
+      parentSessionId: 'parent',
+      childSessionId: 'child',
+      enabled: true,
+    })).resolves.toEqual(relationship);
+    expect(invoke).toHaveBeenCalledWith('btw_update_memory_enabled', {
+      request: {
+        workspacePath: 'D:/workspace',
+        parentSessionId: 'parent',
+        childSessionId: 'child',
+        enabled: true,
+      },
+    });
+  });
 });

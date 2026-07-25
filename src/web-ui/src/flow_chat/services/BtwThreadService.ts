@@ -261,11 +261,16 @@ export async function sendMessageToTransientBtwSession(params: {
     question,
     modelId: params.modelId ?? childSession.config.modelName ?? 'fast',
     imageContexts: params.imagePayload?.imageContexts,
-    memoryEnabled: params.memoryEnabled ?? false,
+    memoryEnabled: params.memoryEnabled,
   });
   if (params.modelId?.trim()) {
     flowChatStore.updateSessionModelName(params.childSessionId, params.modelId.trim());
   }
+  flowChatStore.updateSessionBtwOrigin(params.childSessionId, {
+    requestId,
+    parentSessionId: params.parentSessionId,
+    memoryEnabled: response.relationship.memoryEnabled,
+  }, 'btw');
 
   return { requestId, relationship: response.relationship };
 }

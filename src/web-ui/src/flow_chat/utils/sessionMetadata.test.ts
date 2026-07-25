@@ -395,6 +395,25 @@ describe('sessionMetadata', () => {
     });
   });
 
+  it('preserves an explicit BTW memory choice without inventing a default', () => {
+    expect(normalizeSessionRelationship({
+      sessionKind: 'btw',
+      parentSessionId: 'parent-1',
+      btwOrigin: {
+        parentSessionId: 'parent-1',
+        memoryEnabled: true,
+      },
+    }).btwOrigin).toMatchObject({
+      parentSessionId: 'parent-1',
+      memoryEnabled: true,
+    });
+
+    expect(normalizeSessionRelationship({
+      sessionKind: 'btw',
+      parentSessionId: 'parent-1',
+    }).btwOrigin).not.toHaveProperty('memoryEnabled');
+  });
+
   it('keeps MiniApp sessions independent from assistant parent sessions', () => {
     const relationship = normalizeSessionRelationship({
       sessionKind: 'miniapp',

@@ -201,7 +201,15 @@ export function openBtwSessionInAuxPane(params: {
         undefined,
         params.remoteConnectionId || parentSession?.remoteConnectionId,
         params.remoteSshHost || parentSession?.remoteSshHost,
-        { includeInternal: params.includeInternal },
+        {
+          includeInternal:
+            params.includeInternal ??
+            (
+              params.sessionKind === undefined ||
+              params.sessionKind === 'btw' ||
+              params.sessionKind === 'subagent'
+            ),
+        },
       );
     }
   }

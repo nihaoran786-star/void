@@ -221,6 +221,7 @@ export async function sendMessage(
         childSessionName: refreshedSession.title,
         modelId: refreshedSession.config.modelName,
         imagePayload,
+        memoryEnabled: refreshedSession.btwOrigin?.memoryEnabled,
       });
       return;
     }

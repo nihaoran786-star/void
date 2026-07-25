@@ -318,6 +318,47 @@ fn build_subagent_session_relationship(
     }
 }
 
+fn build_btw_session_relationship(
+    parent_session_id: &str,
+    parent_request_id: &str,
+) -> SessionRelationship {
+    SessionRelationship {
+        kind: Some(SessionRelationshipKind::Btw),
+        parent_session_id: Some(parent_session_id.to_string()),
+        parent_request_id: Some(parent_request_id.to_string()),
+        parent_dialog_turn_id: None,
+        parent_turn_index: None,
+        parent_tool_call_id: None,
+        subagent_type: None,
+    }
+}
+
+fn validate_btw_child_session(
+    parent_session: &Session,
+    child_session: &Session,
+) -> VoidResult<()> {
+    if child_session.kind != SessionKind::EphemeralChild {
+        return Err(VoidError::Validation(format!(
+            "Session {} is not a BTW child session",
+            child_session.session_id
+        )));
+    }
+    let expected_created_by = format!("session-{}", parent_session.session_id);
+    if child_session.created_by.as_deref() != Some(expected_created_by.as_str()) {
+        return Err(VoidError::Validation(format!(
+            "BTW child {} does not belong to parent {}",
+            child_session.session_id, parent_session.session_id
+        )));
+    }
+    if child_session.config.workspace_path != parent_session.config.workspace_path {
+        return Err(VoidError::Validation(format!(
+            "BTW child {} does not belong to the parent workspace",
+            child_session.session_id
+        )));
+    }
+    Ok(())
+}
+
 fn fork_subagent_system_reminder() -> String {
     "<system_reminder>You are now running as a forked subagent. Messages before this reminder were inherited from the parent agent as context. Messages after this reminder are the request for you. Do not call the Task tool to launch another subagent. Use the tools available to complete the task directly.</system_reminder>".to_string()
 }
@@ -4743,12 +4784,55 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
     async fn ensure_hidden_btw_session(
         &self,
+        request_id: &str,
         parent_session_id: &str,
         child_session_id: &str,
         child_session_name: Option<&str>,
     ) -> VoidResult<Session> {
+        let parent_session = self
+            .session_manager
+            .get_session(parent_session_id)
+            .ok_or_else(|| {
+                VoidError::NotFound(format!("Parent session not found: {parent_session_id}"))
+            })?;
+
         if let Some(session) = self.session_manager.get_session(child_session_id) {
+            validate_btw_child_session(&parent_session, &session)?;
             return Ok(session);
+        }
+
+        let workspace_path = parent_session
+            .config
+            .workspace_path
+            .as_deref()
+            .ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Parent session has no workspace path: {parent_session_id}"
+                ))
+            })?;
+        if let Some(metadata) = self
+            .session_manager
+            .load_session_metadata(Path::new(workspace_path), child_session_id)
+            .await?
+        {
+            let relationship = metadata.relationship.as_ref().ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Persisted BTW child has no typed lineage: {child_session_id}"
+                ))
+            })?;
+            if relationship.kind.as_ref() != Some(&SessionRelationshipKind::Btw)
+                || relationship.parent_session_id.as_deref() != Some(parent_session_id)
+            {
+                return Err(VoidError::Validation(format!(
+                    "Persisted session {child_session_id} is not a child of BTW parent {parent_session_id}"
+                )));
+            }
+            let restored = self
+                .session_manager
+                .restore_internal_session(Path::new(workspace_path), child_session_id)
+                .await?;
+            validate_btw_child_session(&parent_session, &restored)?;
+            return Ok(restored);
         }
 
         let snapshot = self
@@ -4774,6 +4858,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         self.session_manager
             .replace_context_messages(&child_session.session_id, snapshot.messages)
             .await;
+        self.session_manager
+            .persist_session_lineage(
+                &child_session.session_id,
+                build_btw_session_relationship(parent_session_id, request_id),
+            )
+            .await?;
 
         Ok(child_session)
     }
@@ -4806,7 +4896,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         }
 
         let child_session = self
-            .ensure_hidden_btw_session(parent_session_id, child_session_id, child_session_name)
+            .ensure_hidden_btw_session(
+                request_id,
+                parent_session_id,
+                child_session_id,
+                child_session_name,
+            )
             .await?;
 
         if let Some(model_id) = model_id

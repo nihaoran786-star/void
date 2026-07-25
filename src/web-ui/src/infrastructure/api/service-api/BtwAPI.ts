@@ -11,7 +11,7 @@ export interface BtwAskStreamRequest {
   childSessionId: string;
   childSessionName?: string;
   imageContexts?: ImageContextData[];
-  /** Long-term memory is opt-in and disabled when omitted. */
+  /** Long-term memory is opt-in on creation; omission preserves an existing choice. */
   memoryEnabled?: boolean;
 }
 
@@ -48,6 +48,13 @@ export interface BtwListRelationshipsRequest {
   parentSessionId: string;
 }
 
+export interface BtwUpdateMemoryRequest {
+  workspacePath: string;
+  parentSessionId: string;
+  childSessionId: string;
+  enabled: boolean;
+}
+
 export class BtwAPI {
   async askStream(request: BtwAskStreamRequest): Promise<BtwAskStreamResponse> {
     try {
@@ -79,6 +86,22 @@ export class BtwAPI {
       return await api.invoke<BtwSessionRecord[]>('btw_list_relationships', { request });
     } catch (error) {
       throw createTauriCommandError('btw_list_relationships', error, request);
+    }
+  }
+
+  async updateMemoryEnabled(
+    request: BtwUpdateMemoryRequest,
+  ): Promise<BtwSessionRecord> {
+    try {
+      return await api.invoke<BtwSessionRecord>('btw_update_memory_enabled', {
+        request,
+      });
+    } catch (error) {
+      throw createTauriCommandError(
+        'btw_update_memory_enabled',
+        error,
+        request,
+      );
     }
   }
 }

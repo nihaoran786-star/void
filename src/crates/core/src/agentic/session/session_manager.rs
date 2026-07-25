@@ -284,8 +284,7 @@ impl SessionManager {
 
     fn should_persist_session_kind(kind: SessionKind) -> bool {
         match kind {
-            SessionKind::Standard | SessionKind::Subagent => true,
-            SessionKind::EphemeralChild => false,
+            SessionKind::Standard | SessionKind::Subagent | SessionKind::EphemeralChild => true,
         }
     }
 
@@ -5091,7 +5090,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ephemeral_child_session_is_kept_in_memory_without_persisting() {
+    async fn ephemeral_btw_child_persists_for_internal_restore_but_stays_out_of_user_lists() {
         let workspace = TestWorkspace::new();
         let persistence_manager = Arc::new(
             PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
@@ -5113,12 +5112,67 @@ mod tests {
             .await
             .expect("ephemeral child session should create");
 
+        manager
+            .persist_session_lineage(
+                &session.session_id,
+                SessionRelationship {
+                    kind: Some(SessionRelationshipKind::Btw),
+                    parent_session_id: Some("parent".to_string()),
+                    parent_request_id: Some("request-1".to_string()),
+                    parent_dialog_turn_id: None,
+                    parent_turn_index: None,
+                    parent_tool_call_id: None,
+                    subagent_type: None,
+                },
+            )
+            .await
+            .expect("BTW lineage should persist");
+        let turn_id = manager
+            .start_dialog_turn(
+                &session.session_id,
+                "agentic".to_string(),
+                "Remember this side-thread turn".to_string(),
+                Some("btw-turn-request-1".to_string()),
+                None,
+                Some(json!({"kind": "btw", "parentSessionId": "parent"})),
+            )
+            .await
+            .expect("BTW turn should persist");
+
         assert!(manager.get_session(&session.session_id).is_some());
-        assert!(persistence_manager
+        let metadata = persistence_manager
             .load_session_metadata(workspace.path(), &session.session_id)
             .await
             .expect("metadata lookup should succeed")
-            .is_none());
+            .expect("BTW metadata should persist");
+        assert_eq!(
+            metadata
+                .relationship
+                .as_ref()
+                .and_then(|relationship| relationship.parent_session_id.as_deref()),
+            Some("parent")
+        );
+        assert!(manager
+            .list_sessions(workspace.path())
+            .await
+            .expect("user session list should load")
+            .iter()
+            .all(|summary| summary.session_id != session.session_id));
+
+        let restarted_manager = test_manager(persistence_manager);
+        let (restored, turns) = restarted_manager
+            .restore_internal_session_with_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("BTW child should restore through the internal interface");
+        assert_eq!(restored.session_id, session.session_id);
+        assert_eq!(restored.kind, SessionKind::EphemeralChild);
+        assert_eq!(restored.created_by.as_deref(), Some("session-parent"));
+        assert_eq!(restored.dialog_turn_ids, vec![turn_id]);
+        assert_eq!(turns.len(), 1);
+        assert_eq!(
+            turns[0].user_message.content,
+            "Remember this side-thread turn"
+        );
     }
 
     #[tokio::test]

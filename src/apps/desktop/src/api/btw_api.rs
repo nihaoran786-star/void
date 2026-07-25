@@ -36,7 +36,7 @@ pub struct BtwAskStreamRequest {
     pub image_contexts: Option<Vec<ImageContextData>>,
     /// Long-term memory is opt-in for BTW and remains disabled by default.
     #[serde(default)]
-    pub memory_enabled: bool,
+    pub memory_enabled: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -59,6 +59,15 @@ pub struct BtwListRelationshipsRequest {
     pub parent_session_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtwUpdateMemoryRequest {
+    pub workspace_path: PathBuf,
+    pub parent_session_id: String,
+    pub child_session_id: String,
+    pub enabled: bool,
+}
+
 #[tauri::command]
 pub async fn btw_list_relationships(
     state: State<'_, AppState>,
@@ -72,6 +81,36 @@ pub async fn btw_list_relationships(
     tauri::async_runtime::spawn_blocking(move || {
         BtwRelationshipRepository::new(get_path_manager_arc())
             .list_for_parent(&workspace_path, &request.parent_session_id)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn btw_update_memory_enabled(
+    state: State<'_, AppState>,
+    request: BtwUpdateMemoryRequest,
+) -> Result<BtwSessionRecord, String> {
+    if request.parent_session_id.trim().is_empty()
+        || request.child_session_id.trim().is_empty()
+    {
+        return Err("parentSessionId and childSessionId are required".to_string());
+    }
+    let workspace_path =
+        resolve_registered_local_workspace(&state, &request.workspace_path).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repository = BtwRelationshipRepository::new(get_path_manager_arc());
+        let mut relationship = repository
+            .find_by_child(&workspace_path, &request.child_session_id)?
+            .ok_or_else(|| "BTW relationship not found".to_string())?;
+        if relationship.parent_session_id != request.parent_session_id
+            || relationship.child_session_id != request.child_session_id
+        {
+            return Err("BTW relationship does not match the requested parent and child".to_string());
+        }
+        relationship.memory_enabled = request.enabled;
+        repository.save(&workspace_path, &relationship)?;
+        Ok(relationship)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -141,11 +180,25 @@ pub async fn btw_ask_stream(
         None
     };
 
+    let relationship_repository = BtwRelationshipRepository::new(get_path_manager_arc());
+    let existing_relationship =
+        relationship_repository.find_by_child(&workspace_path, child_session_id)?;
+    if let Some(existing) = existing_relationship.as_ref() {
+        if existing.parent_session_id != request.session_id {
+            return Err(format!(
+                "btw_lineage_conflict: child session {child_session_id} belongs to a different parent"
+            ));
+        }
+    }
+
     let mut relationship = BtwSessionRecord::loading(&request.session_id, child_session_id);
     relationship.request_id = Some(request.request_id.clone());
     relationship.child_session_name = request.child_session_name.clone();
-    relationship.memory_enabled = request.memory_enabled;
-    let relationship_repository = BtwRelationshipRepository::new(get_path_manager_arc());
+    relationship.memory_enabled = request.memory_enabled.unwrap_or_else(|| {
+        existing_relationship
+            .as_ref()
+            .is_some_and(|existing| existing.memory_enabled)
+    });
     relationship_repository.save(&workspace_path, &relationship)?;
 
     let turn_id = match coordinator

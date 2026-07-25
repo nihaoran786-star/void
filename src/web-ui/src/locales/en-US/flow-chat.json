@@ -687,7 +687,7 @@
   "btw": {
     "title": "Side question",
     "shortLabel": "Side",
-    "hint": "Not saved · Uses current chat context · No tools",
+    "hint": "Saved as a private side thread · Uses current chat context · No tools",
     "placeholder": "Ask a quick question…",
     "ask": "Ask",
     "asking": "Thinking…",
@@ -704,7 +704,10 @@
     "nestedDisabled": "A side question cannot start another side question",
     "error": "Failed",
     "close": "Close",
-    "noSession": "No active session for /btw"
+    "noSession": "No active session for /btw",
+    "memoryLabel": "Memory",
+    "memoryHint": "Allow this side thread to offer memory candidates for your review.",
+    "memoryUpdateFailed": "Failed to update the memory preference."
   },
   "childSession": {
     "stopReview": "Stop review",

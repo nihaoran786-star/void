@@ -7,6 +7,7 @@ const mockAddExternalSession = vi.fn();
 const mockUpdateSessionRelationship = vi.fn();
 const mockUpdateSessionBtwOrigin = vi.fn();
 const mockAddBtwThreadMarker = vi.fn();
+const mockLoadSessionHistory = vi.fn();
 const mockEnsureBackendSession = vi.fn();
 const mockDiscardLocalSession = vi.fn();
 
@@ -61,6 +62,7 @@ vi.mock('../store/FlowChatStore', () => ({
     updateSessionRelationship: (...args: any[]) => mockUpdateSessionRelationship(...args),
     updateSessionBtwOrigin: (...args: any[]) => mockUpdateSessionBtwOrigin(...args),
     addBtwThreadMarker: (...args: any[]) => mockAddBtwThreadMarker(...args),
+    loadSessionHistory: (...args: any[]) => mockLoadSessionHistory(...args),
     updateSessionModelName: vi.fn(),
   },
 }));
@@ -123,6 +125,7 @@ describe('BtwThreadService', () => {
       relationship: readyRelationship,
     });
     mockListRelationships.mockResolvedValue([]);
+    mockLoadSessionHistory.mockResolvedValue(undefined);
   });
 
   it('passes structured relationship metadata to backend-created review sessions', async () => {
@@ -190,7 +193,7 @@ describe('BtwThreadService', () => {
         sessionId: 'parent-1',
         childSessionId: 'btw-child-1',
         question: 'Follow up?',
-        memoryEnabled: false,
+        memoryEnabled: undefined,
       }),
     );
     expect(relationship).toEqual(readyRelationship);
@@ -259,7 +262,7 @@ describe('BtwThreadService', () => {
     );
   });
 
-  it('hydrates a typed persisted BTW relationship as a historical UI capsule only', async () => {
+  it('hydrates a typed persisted BTW relationship and resumes it through the next turn', async () => {
     const staleRelationship = {
       ...readyRelationship,
       hydrationState: 'runtime_unavailable' as const,
@@ -290,8 +293,17 @@ describe('BtwThreadService', () => {
       'parent-1',
       expect.objectContaining({
         childSessionId: 'btw-child-1',
-        status: 'error',
+        status: 'done',
+        error: undefined,
       }),
+    );
+    expect(mockLoadSessionHistory).toHaveBeenCalledWith(
+      'btw-child-1',
+      '/workspace',
+      undefined,
+      undefined,
+      undefined,
+      { includeInternal: true },
     );
 
     await sendMessageToTransientBtwSession({
@@ -303,7 +315,7 @@ describe('BtwThreadService', () => {
       expect.objectContaining({
         childSessionId: 'btw-child-1',
         workspacePath: '/workspace',
-        memoryEnabled: false,
+        memoryEnabled: undefined,
       }),
     );
   });
@@ -311,7 +323,7 @@ describe('BtwThreadService', () => {
   it('prepares the parent backend session before starting a transient BTW stream', async () => {
     mockAskStream.mockImplementation(() => {
       expect(mockEnsureBackendSession).toHaveBeenCalledWith('parent-1');
-      return Promise.resolve({ ok: true });
+      return Promise.resolve({ ok: true, relationship: readyRelationship });
     });
 
     await startBtwThread({

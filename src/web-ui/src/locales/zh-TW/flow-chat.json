@@ -687,7 +687,7 @@
   "btw": {
     "title": "側問",
     "shortLabel": "側問",
-    "hint": "不保存 · 使用當前對話上下文 · 無工具",
+    "hint": "作為私人側問保存 · 使用當前對話上下文 · 無工具",
     "placeholder": "問個小問題…",
     "ask": "提問",
     "asking": "思考中…",
@@ -704,7 +704,10 @@
     "nestedDisabled": "側問會話中不能繼續新建側問",
     "error": "失敗",
     "close": "關閉",
-    "noSession": "當前沒有可用於 /btw 的會話"
+    "noSession": "當前沒有可用於 /btw 的會話",
+    "memoryLabel": "記憶",
+    "memoryHint": "允許從此側問產生記憶候選，保存前仍需您逐條確認。",
+    "memoryUpdateFailed": "更新記憶偏好失敗。"
   },
   "childSession": {
     "stopReview": "中止審核",

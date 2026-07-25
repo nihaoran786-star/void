@@ -184,6 +184,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const [isAddingComposerImage, setIsAddingComposerImage] = useState(false);
   const [isAddingComposerTextFile, setIsAddingComposerTextFile] = useState(false);
   const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [isUpdatingBtwMemory, setIsUpdatingBtwMemory] = useState(false);
   const [composerSkills, setComposerSkills] = useState<ModeSkillInfo[]>([]);
   const [isLoadingComposerSkills, setIsLoadingComposerSkills] = useState(false);
   const [isSkillPickerOpen, setIsSkillPickerOpen] = useState(false);
@@ -274,7 +275,11 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       undefined,
       historySession.remoteConnectionId,
       historySession.remoteSshHost,
-      { includeInternal: historySession.sessionKind === 'subagent' },
+      {
+        includeInternal:
+          historySession.sessionKind === 'subagent' ||
+          historySession.sessionKind === 'btw',
+      },
     ).finally(() => {
       isLoadingRef.current = false;
     });
@@ -1388,6 +1393,79 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     );
   }, [btwOrigin, parentSessionId]);
 
+  const handleBtwMemoryEnabledChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const resolvedParentSessionId =
+        btwOrigin?.parentSessionId || parentSessionId;
+      if (
+        !childSessionId ||
+        childKind !== 'btw' ||
+        !resolvedParentSessionId ||
+        !workspacePath
+      ) {
+        return;
+      }
+      const previous = btwOrigin?.memoryEnabled === true;
+      const enabled = event.target.checked;
+      setIsUpdatingBtwMemory(true);
+      flowChatStore.updateSessionBtwOrigin(
+        childSessionId,
+        {
+          ...btwOrigin,
+          parentSessionId: resolvedParentSessionId,
+          memoryEnabled: enabled,
+        },
+        'btw',
+      );
+      try {
+        const relationship = await btwAPI.updateMemoryEnabled({
+          workspacePath,
+          parentSessionId: resolvedParentSessionId,
+          childSessionId,
+          enabled,
+        });
+        flowChatStore.updateSessionBtwOrigin(
+          childSessionId,
+          {
+            ...btwOrigin,
+            parentSessionId: resolvedParentSessionId,
+            memoryEnabled: relationship.memoryEnabled,
+          },
+          'btw',
+        );
+      } catch (error) {
+        flowChatStore.updateSessionBtwOrigin(
+          childSessionId,
+          {
+            ...btwOrigin,
+            parentSessionId: resolvedParentSessionId,
+            memoryEnabled: previous,
+          },
+          'btw',
+        );
+        log.error('Failed to update BTW memory preference', {
+          childSessionId,
+          error,
+        });
+        notificationService.error(
+          t('btw.memoryUpdateFailed', {
+            defaultValue: 'Failed to update the memory preference.',
+          }),
+        );
+      } finally {
+        setIsUpdatingBtwMemory(false);
+      }
+    },
+    [
+      btwOrigin,
+      childKind,
+      childSessionId,
+      parentSessionId,
+      t,
+      workspacePath,
+    ],
+  );
+
   if (!childSessionId || !childSession) {
     return (
       <div className="btw-session-panel btw-session-panel--empty">
@@ -1413,6 +1491,29 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
             <span className="btw-session-panel__title">{childPresentationTitle}</span>
           </div>
           <div className="btw-session-panel__header-right">
+            {childKind === 'btw' && (
+              <label
+                className="btw-session-panel__memory-toggle"
+                title={t('btw.memoryHint', {
+                  defaultValue:
+                    'Allow this side thread to offer memory candidates for your review.',
+                })}
+              >
+                <input
+                  type="checkbox"
+                  checked={btwOrigin?.memoryEnabled === true}
+                  disabled={
+                    isUpdatingBtwMemory ||
+                    isSubmittingMessage ||
+                    isChildSessionProcessing
+                  }
+                  onChange={event => void handleBtwMemoryEnabledChange(event)}
+                />
+                <span>
+                  {t('btw.memoryLabel', { defaultValue: 'Memory' })}
+                </span>
+              </label>
+            )}
             {showOriginMeta && (
               <div className="btw-session-panel__meta">
                 <span className="btw-session-panel__meta-label">{childOriginLabel}</span>
