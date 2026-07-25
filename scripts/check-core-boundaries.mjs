@@ -420,6 +420,7 @@ const ownerCrateFeatureAssemblyRules = [
       'announcement',
       'file-watch',
       'git',
+      'local-asr',
       'mcp',
       'remote-connect',
       'remote-ssh',
