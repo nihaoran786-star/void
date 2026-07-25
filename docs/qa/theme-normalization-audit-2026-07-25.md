@@ -109,12 +109,32 @@ replace the working gallery or add decorative imagery.
   the examples were already outside normal document flow.
 - **Remediation:** The examples remain absolutely positioned so their content
   cannot move the heading or type switch. Their content axis is reduced to
-  244px, cards to 18px, and the group begins below the type switch with a
+  220px, cards to 16px, and the group begins below the type switch with a
   stable gap.
 - **Evidence:** At maximized width the heading and switch retain their original
   y=254 and y=292 positions; the switch ends at y=323 and examples begin at
   y=336. At a 719×498 WebView the switch ends at y=190 and examples begin at
   y=195. Both documents retain zero horizontal overflow.
+
+### Resolved follow-up — Chat input animated unrelated properties
+
+- **Location:** `src/web-ui/src/flow_chat/components/ChatInput.scss`
+- **Category:** Motion / rendering performance
+- **Impact:** Five high-frequency input controls used `transition: all`, so
+  unrelated style changes could be interpolated when the composer, mode menu,
+  or slash-command menu updated.
+- **Remediation:** The composer surface now transitions only background,
+  border, and shadow feedback. Action controls transition only background,
+  color, opacity, and transform where those states are rendered. Mode controls
+  transition only background and color, while slash-command rows transition
+  only their selection background.
+- **Evidence:** In the maximized desktop shell, every non-zero composer
+  transition reports an explicit property list; no rendered input descendant
+  has a non-zero `transition: all`. The agent affordance, model selector, and
+  slash-command menu open and close normally. Entering `/` renders all six
+  available commands, each row reports only
+  `background-color 0.15s`, and clearing the draft restores the disabled send
+  state without sending or creating a session.
 
 ### Resolved follow-up — Mini App cards retained legacy visual effects
 
