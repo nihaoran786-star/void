@@ -6,6 +6,7 @@ pub mod dialog_turn;
 pub mod message;
 pub mod messages_helper;
 pub mod prompt_markup;
+pub mod recovery_checkpoint;
 pub mod session;
 pub mod state;
 pub use void_core_types::SessionKind;
@@ -20,6 +21,11 @@ pub use messages_helper::{MessageHelper, RequestReasoningTokenPolicy};
 pub use prompt_markup::{
     has_prompt_markup, is_system_reminder_only, render_system_reminder, render_user_query,
     strip_prompt_markup, PromptBlock, PromptBlockKind, PromptEnvelope,
+};
+pub use recovery_checkpoint::{
+    invocation_signature, PendingInvocationDisposition, RecoveryBoundary, RecoveryCheckpoint,
+    RecoveryCheckpointStatus, RecoveryInvocation, RecoveryInvocationState,
+    RECOVERY_CHECKPOINT_VERSION,
 };
 pub use session::{CompressionState, Session, SessionConfig, SessionSummary};
 pub use state::{ProcessingPhase, SessionState, ToolExecutionState};

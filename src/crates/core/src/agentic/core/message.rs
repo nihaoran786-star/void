@@ -1,4 +1,5 @@
 use super::prompt_markup::is_system_reminder_only;
+use super::recovery_checkpoint::RecoveryCheckpoint;
 use crate::agentic::image_analysis::{render_attached_image_references, ImageContextData};
 use crate::util::types::{Message as AIMessage, ToolCall as AIToolCall, ToolImageAttachment};
 use crate::util::TokenCounter;
@@ -94,6 +95,9 @@ pub enum CompressionEntry {
     },
     ModelSummary {
         text: String,
+    },
+    RecoveryCheckpoint {
+        checkpoint: RecoveryCheckpoint,
     },
     Turn {
         #[serde(skip_serializing_if = "Option::is_none")]

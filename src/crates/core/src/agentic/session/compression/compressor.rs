@@ -9,7 +9,7 @@ use super::fallback::{
 use crate::agentic::core::{
     render_system_reminder, CompressedMessage, CompressedMessageRole, CompressedTodoSnapshot,
     CompressionContract, CompressionEntry, CompressionPayload, Message, MessageContent,
-    MessageHelper, MessageRole, MessageSemanticKind,
+    MessageHelper, MessageRole, MessageSemanticKind, RecoveryCheckpoint,
 };
 use crate::util::errors::VoidResult;
 use log::{debug, trace};
@@ -172,6 +172,28 @@ impl ContextCompressor {
         contract: Option<CompressionContract>,
         model_summary: Option<String>,
     ) -> VoidResult<CompressionResult> {
+        self.compress_turns_with_recovery_checkpoint(
+            session_id,
+            context_window,
+            turns,
+            mode,
+            contract,
+            model_summary,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn compress_turns_with_recovery_checkpoint(
+        &self,
+        session_id: &str,
+        context_window: usize,
+        turns: Vec<TurnWithTokens>,
+        mode: CompressionMode,
+        contract: Option<CompressionContract>,
+        model_summary: Option<String>,
+        recovery_checkpoint: Option<RecoveryCheckpoint>,
+    ) -> VoidResult<CompressionResult> {
         if turns.is_empty() {
             debug!("No turns need compression: session_id={}", session_id);
             return Ok(CompressionResult {
@@ -201,6 +223,19 @@ impl ContextCompressor {
             Some(summary) => self.build_model_summary_artifact(summary, contract),
             None => self.build_fallback_summary_artifact(turns, context_window, contract),
         };
+        if let Some(checkpoint) = recovery_checkpoint {
+            let checkpoint_text = serde_json::to_string_pretty(&checkpoint)
+                .unwrap_or_else(|_| "{\"status\":\"failed\"}".to_string());
+            summary_artifact.summary_text = format!(
+                "{}\n\nStructured recovery checkpoint (authoritative continuation boundary):\n{}",
+                summary_artifact.summary_text.trim_end(),
+                checkpoint_text
+            );
+            summary_artifact
+                .payload
+                .entries
+                .push(CompressionEntry::RecoveryCheckpoint { checkpoint });
+        }
         if matches!(mode, CompressionMode::Auto) {
             self.append_live_boundary_context(
                 &mut summary_artifact,
@@ -210,7 +245,7 @@ impl ContextCompressor {
         }
         trace!("Compression summary artifact generated");
         let has_model_summary = summary_artifact.used_model_summary;
-        let (boundary_message, summary_message) = self.create_summary_turn(summary_artifact);
+        let (boundary_message, summary_message) = self.create_summary_turn(summary_artifact, mode);
         let compressed_messages = vec![boundary_message, summary_message];
 
         debug!(
@@ -228,9 +263,11 @@ impl ContextCompressor {
     fn create_summary_turn(
         &self,
         summary_artifact: CompressionSummaryArtifact,
+        mode: CompressionMode,
     ) -> (Message, Message) {
         let boundary = Message::user(render_system_reminder(&Self::render_boundary_marker_text(
             summary_artifact.used_model_summary,
+            mode,
         )))
         .with_semantic_kind(MessageSemanticKind::CompressionBoundaryMarker);
 
@@ -323,8 +360,11 @@ impl ContextCompressor {
         lines.join("\n")
     }
 
-    fn render_boundary_marker_text(used_model_summary: bool) -> String {
-        let mut msg = "The earlier conversation is summarized in the next assistant message. Use it as prior context.".to_string();
+    fn render_boundary_marker_text(used_model_summary: bool, mode: CompressionMode) -> String {
+        let mut msg = match mode {
+            CompressionMode::Auto => "The earlier conversation is summarized in the next assistant message. Continue the active user goal from its structured recovery checkpoint. Treat finished tool invocations as authoritative and do not execute them again.".to_string(),
+            CompressionMode::Manual => "The earlier conversation is summarized in the next assistant message. This user boundary and the following assistant summary form the preserved manual-compaction boundary.".to_string(),
+        };
         if !used_model_summary {
             msg.push_str(" This is a partial reconstructed record. Message text, tool arguments, task lists, and tool results may be truncated or omitted.");
         }
@@ -534,7 +574,7 @@ mod tests {
     use super::{CompressionMode, ContextCompressor, TurnWithTokens};
     use crate::agentic::core::{
         render_system_reminder, CompressionContract, CompressionContractItem, CompressionEntry,
-        CompressionPayload, Message, MessageSemanticKind,
+        CompressionPayload, Message, MessageSemanticKind, RecoveryBoundary, RecoveryCheckpoint,
     };
 
     fn make_turn(messages: Vec<Message>) -> TurnWithTokens {
@@ -591,6 +631,7 @@ mod tests {
             _ => panic!("expected boundary marker text"),
         };
         assert!(boundary_text.contains("partial reconstructed record"));
+        assert!(boundary_text.contains("preserved manual-compaction boundary"));
 
         let summary_text = match &result.messages[1].content {
             crate::agentic::core::MessageContent::Text(text) => text,
@@ -621,6 +662,49 @@ mod tests {
         assert!(summary_text.contains("Most recent user message before this summary"));
         assert!(summary_text.contains("Continue the refactor"));
         assert!(summary_text.contains("Most recent task list snapshot before this summary"));
+        let boundary_text = match &result.messages[0].content {
+            crate::agentic::core::MessageContent::Text(text) => text,
+            _ => panic!("expected boundary marker text"),
+        };
+        assert!(boundary_text.contains("Continue the active user goal"));
+        assert!(boundary_text.contains("do not execute them again"));
+    }
+
+    #[test]
+    fn automatic_compression_embeds_structured_recovery_checkpoint() {
+        let compressor = ContextCompressor::new(Default::default());
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".to_string(),
+            "session".to_string(),
+            "turn-1".to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            42,
+            &[Message::user("Continue the refactor".to_string())],
+            10,
+        );
+        let result = compressor
+            .compress_turns_with_recovery_checkpoint(
+                "session",
+                8000,
+                vec![todo_turn()],
+                CompressionMode::Auto,
+                None,
+                Some("Model summary".to_string()),
+                Some(checkpoint.clone()),
+            )
+            .expect("compression succeeds");
+
+        assert_eq!(
+            RecoveryCheckpoint::latest_embedded(&result.messages),
+            Some(checkpoint)
+        );
+        let summary_text = match &result.messages[1].content {
+            crate::agentic::core::MessageContent::Text(text) => text,
+            _ => panic!("expected assistant text summary"),
+        };
+        assert!(summary_text.contains("Structured recovery checkpoint"));
+        assert!(summary_text.contains("\"latest_user_goal\": \"Continue the refactor\""));
+        assert!(summary_text.contains("\"catalog_generation\": 42"));
     }
 
     #[test]

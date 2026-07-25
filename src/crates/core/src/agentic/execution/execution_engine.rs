@@ -11,7 +11,8 @@ use crate::agentic::agents::{
 use crate::agentic::context_profile::{ContextProfilePolicy, ModelCapabilityProfile};
 use crate::agentic::core::{
     render_system_reminder, Message, MessageContent, MessageHelper, MessageRole,
-    MessageSemanticKind, RequestReasoningTokenPolicy, Session,
+    MessageSemanticKind, RecoveryBoundary, RecoveryCheckpoint, RecoveryCheckpointStatus,
+    RequestReasoningTokenPolicy, Session,
 };
 use crate::agentic::events::{AgenticEvent, EventPriority, EventQueue};
 use crate::agentic::execution::types::FinishReason;
@@ -40,6 +41,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_util::sync::CancellationToken;
 use void_agent_tools::{
     collect_loaded_collapsed_tool_names_for_generation, GetToolSpecLoadObservation,
@@ -82,6 +84,7 @@ struct CompressionRuntimeScaffold {
     prepended_prompt_reminders: PrependedPromptReminders,
     primary_supports_image_understanding: bool,
     compression_contract_limit: usize,
+    catalog_generation: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -944,6 +947,7 @@ impl ExecutionEngine {
             collapsed_tools: Vec::new(),
             unlocked_collapsed_tools: Vec::new(),
             catalog_generation: 0,
+            recovery_checkpoint: None,
             model_name: ai_client.config.model.clone(),
             agent_type,
             context_vars: execution_context_vars.clone(),
@@ -1440,6 +1444,10 @@ impl ExecutionEngine {
         } else {
             ToolListingSections::default()
         };
+        let catalog_generation = tool_manifest
+            .as_ref()
+            .map(|manifest| manifest.catalog_generation)
+            .unwrap_or_default();
         let tool_definitions = tool_manifest.map(|manifest| manifest.tool_definitions);
 
         let prompt_context = Self::build_prompt_context(
@@ -1471,7 +1479,38 @@ impl ExecutionEngine {
             prepended_prompt_reminders,
             primary_supports_image_understanding,
             compression_contract_limit: context_profile_policy.compression_contract_limit,
+            catalog_generation,
         })
+    }
+
+    /// Compress context, will emit compression events (Started, Completed, and Failed)
+    async fn record_recovery_checkpoint_failure(
+        &self,
+        checkpoint: &mut RecoveryCheckpoint,
+        session_id: &str,
+        dialog_turn_id: &str,
+        compression_id: &str,
+        reason: String,
+    ) {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        checkpoint.mark_failed(reason.clone(), timestamp);
+        let _ = self
+            .session_manager
+            .save_recovery_checkpoint(checkpoint)
+            .await;
+        self.emit_event(
+            AgenticEvent::ContextCompressionFailed {
+                session_id: session_id.to_string(),
+                turn_id: dialog_turn_id.to_string(),
+                compression_id: compression_id.to_string(),
+                error: reason,
+            },
+            EventPriority::High,
+        )
+        .await;
     }
 
     /// Compress context, will emit compression events (Started, Completed, and Failed)
@@ -1489,6 +1528,7 @@ impl ExecutionEngine {
         prepended_prompt_reminders: &PrependedPromptReminders,
         primary_supports_image_understanding: bool,
         compression_contract_limit: usize,
+        catalog_generation: u64,
         workspace_path: Option<&Path>,
     ) -> VoidResult<Option<(usize, Vec<Message>)>> {
         let mut session = self
@@ -1509,6 +1549,22 @@ impl ExecutionEngine {
 
         // Generate compression ID
         let compression_id = format!("compression_{}", uuid::Uuid::new_v4());
+        let checkpoint_timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let mut recovery_checkpoint = RecoveryCheckpoint::from_messages(
+            compression_id.clone(),
+            session_id.to_string(),
+            dialog_turn_id.to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            catalog_generation,
+            &runtime_messages,
+            checkpoint_timestamp,
+        );
+        self.session_manager
+            .save_recovery_checkpoint(&recovery_checkpoint)
+            .await?;
 
         // Emit compression started event
         self.emit_event(
@@ -1551,18 +1607,77 @@ impl ExecutionEngine {
                 None
             }
         };
-        match self.context_compressor.compress_turns_with_contract(
-            session_id,
-            context_window,
-            turns,
-            CompressionMode::Auto,
-            compression_contract,
-            model_summary,
-        ) {
+        match self
+            .context_compressor
+            .compress_turns_with_recovery_checkpoint(
+                session_id,
+                context_window,
+                turns,
+                CompressionMode::Auto,
+                compression_contract,
+                model_summary,
+                Some(recovery_checkpoint.clone()),
+            ) {
             Ok(compression_result) => {
                 self.session_manager
                     .replace_context_messages(session_id, compression_result.messages.clone())
                     .await;
+                let validated_checkpoint = match self
+                    .session_manager
+                    .validate_recovery_checkpoint(
+                        session_id,
+                        catalog_generation,
+                        &compression_result.messages,
+                    )
+                    .await
+                {
+                    Ok(Some(checkpoint)) => checkpoint,
+                    Ok(None) => {
+                        let reason =
+                            "Recovery checkpoint disappeared after persistence".to_string();
+                        self.record_recovery_checkpoint_failure(
+                            &mut recovery_checkpoint,
+                            session_id,
+                            dialog_turn_id,
+                            &compression_id,
+                            reason.clone(),
+                        )
+                        .await;
+                        return Err(VoidError::Session(reason));
+                    }
+                    Err(error) => {
+                        let reason = format!("Recovery checkpoint validation failed: {error}");
+                        self.record_recovery_checkpoint_failure(
+                            &mut recovery_checkpoint,
+                            session_id,
+                            dialog_turn_id,
+                            &compression_id,
+                            reason.clone(),
+                        )
+                        .await;
+                        return Err(VoidError::Session(reason));
+                    }
+                };
+                if validated_checkpoint.status != RecoveryCheckpointStatus::Ready {
+                    let reason =
+                        validated_checkpoint
+                            .blocking_reason
+                            .clone()
+                            .unwrap_or_else(|| {
+                                "Recovery checkpoint is not ready to continue".to_string()
+                            });
+                    self.emit_event(
+                        AgenticEvent::ContextCompressionFailed {
+                            session_id: session_id.to_string(),
+                            turn_id: dialog_turn_id.to_string(),
+                            compression_id: compression_id.clone(),
+                            error: reason.clone(),
+                        },
+                        EventPriority::High,
+                    )
+                    .await;
+                    return Err(VoidError::Session(reason));
+                }
                 self.session_manager
                     .invalidate_prompt_cache(
                         session_id,
@@ -1629,15 +1744,12 @@ impl ExecutionEngine {
                 Ok(Some((compressed_tokens, new_messages)))
             }
             Err(e) => {
-                // Emit compression failed event
-                self.emit_event(
-                    AgenticEvent::ContextCompressionFailed {
-                        session_id: session_id.to_string(),
-                        turn_id: dialog_turn_id.to_string(),
-                        compression_id: compression_id.clone(),
-                        error: e.to_string(),
-                    },
-                    EventPriority::High,
+                self.record_recovery_checkpoint_failure(
+                    &mut recovery_checkpoint,
+                    session_id,
+                    dialog_turn_id,
+                    &compression_id,
+                    format!("Context compression failed before recovery: {e}"),
                 )
                 .await;
 
@@ -1729,6 +1841,22 @@ impl ExecutionEngine {
 
         let mut runtime_messages = vec![scaffold.system_prompt_message.clone()];
         runtime_messages.extend(messages);
+        let checkpoint_timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let mut recovery_checkpoint = RecoveryCheckpoint::from_messages(
+            compression_id.clone(),
+            session_id.clone(),
+            dialog_turn_id.clone(),
+            RecoveryBoundary::ManualUserAssistant,
+            scaffold.catalog_generation,
+            &runtime_messages,
+            checkpoint_timestamp,
+        );
+        self.session_manager
+            .save_recovery_checkpoint(&recovery_checkpoint)
+            .await?;
         let compression_contract = self
             .session_manager
             .compression_contract_for_session(&session_id, scaffold.compression_contract_limit);
@@ -1757,19 +1885,76 @@ impl ExecutionEngine {
                 None
             }
         };
-        match self.context_compressor.compress_turns_with_contract(
-            &session_id,
-            context_window,
-            turns,
-            CompressionMode::Manual,
-            compression_contract,
-            model_summary,
-        ) {
+        match self
+            .context_compressor
+            .compress_turns_with_recovery_checkpoint(
+                &session_id,
+                context_window,
+                turns,
+                CompressionMode::Manual,
+                compression_contract,
+                model_summary,
+                Some(recovery_checkpoint.clone()),
+            ) {
             Ok(compression_result) => {
                 let mut compressed_messages = compression_result.messages;
                 self.session_manager
                     .replace_context_messages(&session_id, compressed_messages.clone())
                     .await;
+                let validated_checkpoint = match self
+                    .session_manager
+                    .validate_recovery_checkpoint(
+                        &session_id,
+                        scaffold.catalog_generation,
+                        &compressed_messages,
+                    )
+                    .await
+                {
+                    Ok(Some(checkpoint)) => checkpoint,
+                    Ok(None) => {
+                        let reason =
+                            "Recovery checkpoint disappeared after manual compaction".to_string();
+                        self.record_recovery_checkpoint_failure(
+                            &mut recovery_checkpoint,
+                            &session_id,
+                            &dialog_turn_id,
+                            &compression_id,
+                            reason.clone(),
+                        )
+                        .await;
+                        return Err(VoidError::Session(reason));
+                    }
+                    Err(error) => {
+                        let reason =
+                            format!("Manual recovery checkpoint validation failed: {error}");
+                        self.record_recovery_checkpoint_failure(
+                            &mut recovery_checkpoint,
+                            &session_id,
+                            &dialog_turn_id,
+                            &compression_id,
+                            reason.clone(),
+                        )
+                        .await;
+                        return Err(VoidError::Session(reason));
+                    }
+                };
+                if validated_checkpoint.status != RecoveryCheckpointStatus::Ready {
+                    let reason = validated_checkpoint
+                        .blocking_reason
+                        .clone()
+                        .unwrap_or_else(|| "Manual recovery checkpoint is not ready".to_string());
+                    self.emit_event(
+                        AgenticEvent::ContextCompressionFailed {
+                            session_id: session_id.clone(),
+                            turn_id: dialog_turn_id.clone(),
+                            compression_id: compression_id.clone(),
+                            error: reason.clone(),
+                        },
+                        EventPriority::High,
+                    )
+                    .await;
+                    return Err(VoidError::Session(reason));
+                }
                 self.session_manager
                     .invalidate_prompt_cache(
                         &session_id,
@@ -1834,14 +2019,12 @@ impl ExecutionEngine {
                 })
             }
             Err(err) => {
-                self.emit_event(
-                    AgenticEvent::ContextCompressionFailed {
-                        session_id: session_id.to_string(),
-                        turn_id: dialog_turn_id.to_string(),
-                        compression_id: compression_id.clone(),
-                        error: err.to_string(),
-                    },
-                    EventPriority::High,
+                self.record_recovery_checkpoint_failure(
+                    &mut recovery_checkpoint,
+                    &session_id,
+                    &dialog_turn_id,
+                    &compression_id,
+                    format!("Manual context compaction failed before recovery: {err}"),
                 )
                 .await;
 
@@ -2184,6 +2367,49 @@ impl ExecutionEngine {
         // Add System Prompt to the beginning of message list (only for this execution, not persisted)
         let mut messages = vec![system_prompt_message.clone()];
         messages.extend(initial_messages);
+        let mut active_recovery_checkpoint =
+            if let Some(embedded) = RecoveryCheckpoint::latest_embedded(&messages) {
+                if embedded.matches_latest_user_goal(&messages) {
+                    let checkpoint = self
+                        .session_manager
+                        .validate_recovery_checkpoint(
+                            &context.session_id,
+                            catalog_generation,
+                            &messages,
+                        )
+                        .await?;
+                    let Some(checkpoint) = checkpoint else {
+                        let reason =
+                            "Context has a recovery boundary without a persisted checkpoint"
+                                .to_string();
+                        let mut failed = embedded;
+                        failed.mark_failed(
+                            reason.clone(),
+                            SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap_or_default()
+                                .as_millis() as u64,
+                        );
+                        let _ = self
+                            .session_manager
+                            .save_recovery_checkpoint(&failed)
+                            .await;
+                        return Err(VoidError::Session(reason));
+                    };
+                    if checkpoint.status != RecoveryCheckpointStatus::Ready {
+                        return Err(VoidError::Session(
+                            checkpoint.blocking_reason.clone().unwrap_or_else(|| {
+                                "Recovery checkpoint is not ready".to_string()
+                            }),
+                        ));
+                    }
+                    Some(checkpoint)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
         let mut round_index = 0;
         let mut completed_rounds = 0usize;
@@ -2356,6 +2582,7 @@ impl ExecutionEngine {
                         &prepended_prompt_reminders,
                         primary_supports_image_understanding,
                         context_profile_policy.compression_contract_limit,
+                        catalog_generation,
                         context
                             .workspace
                             .as_ref()
@@ -2374,6 +2601,8 @@ impl ExecutionEngine {
                         );
 
                         messages = compressed_messages;
+                        active_recovery_checkpoint =
+                            RecoveryCheckpoint::latest_embedded(&messages);
                         full_compression_count += 1;
                         consecutive_compression_failures = 0;
                     }
@@ -2455,6 +2684,7 @@ impl ExecutionEngine {
                 collapsed_tools: collapsed_tools.clone(),
                 unlocked_collapsed_tools,
                 catalog_generation,
+                recovery_checkpoint: active_recovery_checkpoint.clone(),
                 model_name: ai_client.config.model.clone(),
                 agent_type: agent_type.clone(),
                 context_vars: round_context_vars,

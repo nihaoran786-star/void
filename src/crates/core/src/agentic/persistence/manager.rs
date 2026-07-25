@@ -3,8 +3,8 @@
 //! Responsible for project-scoped session persistence.
 
 use crate::agentic::core::{
-    strip_prompt_markup, CompressionState, Message, MessageContent, Session, SessionConfig,
-    SessionKind, SessionState, SessionSummary,
+    strip_prompt_markup, CompressionState, Message, MessageContent, RecoveryCheckpoint, Session,
+    SessionConfig, SessionKind, SessionState, SessionSummary,
 };
 use crate::agentic::session::{SessionPromptCache, PROMPT_CACHE_SCHEMA_VERSION};
 use crate::infrastructure::PathManager;
@@ -479,6 +479,11 @@ impl PersistenceManager {
     ) -> PathBuf {
         self.snapshots_dir(workspace_path, session_id)
             .join(format!("context-{:04}.json", turn_index))
+    }
+
+    fn recovery_checkpoint_path(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
+        self.session_dir(workspace_path, session_id)
+            .join("recovery-checkpoint.json")
     }
 
     fn transcript_path(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
@@ -2266,6 +2271,40 @@ impl PersistenceManager {
 
     // ============ Turn context snapshot (sent to model)============
 
+    pub async fn save_recovery_checkpoint(
+        &self,
+        workspace_path: &Path,
+        session_id: &str,
+        checkpoint: &RecoveryCheckpoint,
+    ) -> VoidResult<RecoveryCheckpoint> {
+        if checkpoint.session_id != session_id {
+            return Err(VoidError::Validation(
+                "Recovery checkpoint session does not match storage session".to_string(),
+            ));
+        }
+        self.ensure_runtime_for_write(workspace_path).await?;
+        self.ensure_session_dir(workspace_path, session_id).await?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, session_id)
+            .await;
+        let _guard = lock.lock().await;
+        self.write_json_atomic(
+            &self.recovery_checkpoint_path(workspace_path, session_id),
+            checkpoint,
+        )
+        .await?;
+        Ok(checkpoint.clone())
+    }
+
+    pub async fn load_recovery_checkpoint(
+        &self,
+        workspace_path: &Path,
+        session_id: &str,
+    ) -> VoidResult<Option<RecoveryCheckpoint>> {
+        self.read_json_optional(&self.recovery_checkpoint_path(workspace_path, session_id))
+            .await
+    }
+
     pub async fn save_turn_context_snapshot(
         &self,
         workspace_path: &Path,
@@ -3237,7 +3276,10 @@ impl PersistenceManager {
 #[cfg(test)]
 mod tests {
     use super::{context_snapshot_payload_stats, PersistenceManager};
-    use crate::agentic::core::{Message, Session, SessionConfig, SessionKind, ToolResult};
+    use crate::agentic::core::{
+        Message, RecoveryBoundary, RecoveryCheckpoint, Session, SessionConfig, SessionKind,
+        ToolResult,
+    };
     use crate::infrastructure::PathManager;
     use crate::service::session::{
         DialogTurnData, ModelRoundData, SessionMetadata, SessionRelationship,
@@ -3287,6 +3329,38 @@ mod tests {
             "execution-1".to_string(),
             10,
         )
+    }
+
+    #[tokio::test]
+    async fn recovery_checkpoint_round_trips_through_existing_session_storage() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".to_string(),
+            "session-1".to_string(),
+            "turn-1".to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            42,
+            &[Message::user("Continue the task".to_string())],
+            10,
+        );
+
+        manager
+            .save_recovery_checkpoint(workspace.path(), "session-1", &checkpoint)
+            .await
+            .expect("checkpoint should persist");
+        let restored = manager
+            .load_recovery_checkpoint(workspace.path(), "session-1")
+            .await
+            .expect("checkpoint should load")
+            .expect("checkpoint should exist");
+
+        assert_eq!(restored, checkpoint);
+        assert!(manager
+            .save_recovery_checkpoint(workspace.path(), "different-session", &checkpoint)
+            .await
+            .is_err());
     }
 
     #[tokio::test]

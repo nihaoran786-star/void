@@ -1,6 +1,6 @@
 //! Execution Engine Type Definitions
 
-use crate::agentic::core::Message;
+use crate::agentic::core::{Message, RecoveryCheckpoint};
 use crate::agentic::round_preempt::{
     DialogRoundInjectionInterrupt, DialogRoundInjectionSource, DialogRoundPreemptSource,
 };
@@ -53,6 +53,7 @@ pub struct RoundContext {
     pub collapsed_tools: Vec<String>,
     pub unlocked_collapsed_tools: Vec<String>,
     pub catalog_generation: u64,
+    pub recovery_checkpoint: Option<RecoveryCheckpoint>,
     pub model_name: String,
     pub agent_type: String,
     pub context_vars: HashMap<String, String>,

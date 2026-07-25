@@ -4,8 +4,8 @@
 
 use crate::agentic::core::{
     new_turn_id, CompressionContract, CompressionState, Message, MessageContent, MessageRole,
-    MessageSemanticKind, ProcessingPhase, Session, SessionConfig, SessionKind, SessionState,
-    SessionSummary, ToolCall, ToolResult, TurnStats,
+    MessageSemanticKind, ProcessingPhase, RecoveryCheckpoint, Session, SessionConfig, SessionKind,
+    SessionState, SessionSummary, ToolCall, ToolResult, TurnStats,
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::persistence::PersistenceManager;
@@ -431,6 +431,85 @@ impl SessionManager {
     async fn effective_session_workspace_path(&self, session_id: &str) -> Option<PathBuf> {
         let config = self.sessions.get(session_id)?.config.clone();
         Self::effective_workspace_path_from_config(&config).await
+    }
+
+    fn recovery_timestamp_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
+    }
+
+    pub async fn save_recovery_checkpoint(
+        &self,
+        checkpoint: &RecoveryCheckpoint,
+    ) -> VoidResult<RecoveryCheckpoint> {
+        let storage_path = self
+            .effective_session_workspace_path(&checkpoint.session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Recovery checkpoint session workspace not found: {}",
+                    checkpoint.session_id
+                ))
+            })?;
+        self.persistence_manager
+            .save_recovery_checkpoint(&storage_path, &checkpoint.session_id, checkpoint)
+            .await
+    }
+
+    pub async fn load_recovery_checkpoint(
+        &self,
+        session_id: &str,
+    ) -> VoidResult<Option<RecoveryCheckpoint>> {
+        let storage_path = self
+            .effective_session_workspace_path(session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Recovery checkpoint session workspace not found: {session_id}"
+                ))
+            })?;
+        self.persistence_manager
+            .load_recovery_checkpoint(&storage_path, session_id)
+            .await
+    }
+
+    pub async fn validate_recovery_checkpoint(
+        &self,
+        session_id: &str,
+        expected_catalog_generation: u64,
+        context_messages: &[Message],
+    ) -> VoidResult<Option<RecoveryCheckpoint>> {
+        let Some(mut persisted) = self.load_recovery_checkpoint(session_id).await? else {
+            return Ok(None);
+        };
+        let Some(embedded) = RecoveryCheckpoint::latest_embedded(context_messages) else {
+            persisted.mark_failed(
+                "Persisted recovery checkpoint is missing from the context boundary".to_string(),
+                Self::recovery_timestamp_ms(),
+            );
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(
+                "Persisted recovery checkpoint is missing from the context boundary".to_string(),
+            ));
+        };
+        if persisted != embedded {
+            persisted.mark_failed(
+                "Persisted recovery checkpoint does not match the context boundary".to_string(),
+                Self::recovery_timestamp_ms(),
+            );
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(
+                "Persisted recovery checkpoint does not match the context boundary".to_string(),
+            ));
+        }
+        if let Err(reason) = persisted.validate(session_id, expected_catalog_generation) {
+            persisted.mark_failed(reason.clone(), Self::recovery_timestamp_ms());
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(reason));
+        }
+        Ok(Some(persisted))
     }
 
     async fn subagent_task_storage_path(&self, parent_session_id: &str) -> VoidResult<PathBuf> {
@@ -4354,8 +4433,9 @@ fn extract_subagent_relationship(
 mod tests {
     use super::{SessionManager, SessionManagerConfig};
     use crate::agentic::core::{
-        Message, MessageContent, MessageRole, ProcessingPhase, Session, SessionConfig, SessionState,
-        TurnStats,
+        CompressionEntry, CompressionPayload, Message, MessageContent, MessageRole,
+        ProcessingPhase, RecoveryBoundary, RecoveryCheckpoint, RecoveryCheckpointStatus, Session,
+        SessionConfig, SessionState, TurnStats,
     };
     use crate::agentic::persistence::PersistenceManager;
     use crate::agentic::session::{
@@ -4561,6 +4641,62 @@ mod tests {
             TryResult::Absent => panic!("session should remain present"),
             TryResult::Locked => panic!("snapshot collection should not retain session map guards"),
         };
+    }
+
+    #[tokio::test]
+    async fn invalid_recovery_checkpoint_is_persisted_as_failed() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
+        );
+        let manager = test_manager(persistence_manager);
+        let session = manager
+            .create_session(
+                "Recovery validation".to_string(),
+                "agent".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".to_string(),
+            session.session_id.clone(),
+            "turn-1".to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            41,
+            &[Message::user("Continue recovery".to_string())],
+            10,
+        );
+        manager
+            .save_recovery_checkpoint(&checkpoint)
+            .await
+            .expect("checkpoint should save");
+        let boundary = Message::assistant("summary".to_string()).with_compression_payload(
+            CompressionPayload {
+                entries: vec![CompressionEntry::RecoveryCheckpoint {
+                    checkpoint: checkpoint.clone(),
+                }],
+            },
+        );
+
+        assert!(manager
+            .validate_recovery_checkpoint(&session.session_id, 42, &[boundary])
+            .await
+            .is_err());
+        let failed = manager
+            .load_recovery_checkpoint(&session.session_id)
+            .await
+            .expect("checkpoint should load")
+            .expect("checkpoint should exist");
+
+        assert_eq!(failed.status, RecoveryCheckpointStatus::Failed);
+        assert!(failed
+            .blocking_reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("catalog generation is stale")));
     }
 
     #[tokio::test]

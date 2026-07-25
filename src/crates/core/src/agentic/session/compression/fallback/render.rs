@@ -25,6 +25,13 @@ pub(super) fn render_payload_for_model(payload: &CompressionPayload) -> String {
                     text
                 ));
             }
+            CompressionEntry::RecoveryCheckpoint { checkpoint } => {
+                history_sections.push(format!(
+                    "Authoritative recovery checkpoint:\n{}",
+                    serde_json::to_string_pretty(checkpoint)
+                        .unwrap_or_else(|_| "{\"status\":\"failed\"}".to_string())
+                ));
+            }
             CompressionEntry::Turn { messages, todo, .. } => {
                 let mut lines = vec![format!("Historical turn {}:", index + 1)];
                 let mut previous_role = None;

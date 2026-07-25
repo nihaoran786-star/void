@@ -17,13 +17,20 @@ pub(super) fn trim_payload_to_budget(
     let mut selected_units: Vec<CompressionUnit> = units
         .iter()
         .filter_map(|unit| match unit {
-            CompressionUnit::Contract { .. } => Some(unit.clone()),
+            CompressionUnit::Contract { .. } | CompressionUnit::RecoveryCheckpoint { .. } => {
+                Some(unit.clone())
+            }
             _ => None,
         })
         .collect();
     let history_units: Vec<CompressionUnit> = units
         .into_iter()
-        .filter(|unit| !matches!(unit, CompressionUnit::Contract { .. }))
+        .filter(|unit| {
+            !matches!(
+                unit,
+                CompressionUnit::Contract { .. } | CompressionUnit::RecoveryCheckpoint { .. }
+            )
+        })
         .collect();
 
     for unit in history_units.into_iter().rev() {
@@ -34,7 +41,13 @@ pub(super) fn trim_payload_to_budget(
         if estimate_payload_tokens(&candidate_payload) <= options.max_tokens {
             let history_insert_index = selected_units
                 .iter()
-                .take_while(|selected| matches!(selected, CompressionUnit::Contract { .. }))
+                .take_while(|selected| {
+                    matches!(
+                        selected,
+                        CompressionUnit::Contract { .. }
+                            | CompressionUnit::RecoveryCheckpoint { .. }
+                    )
+                })
                 .count();
             selected_units.insert(history_insert_index, unit);
         }
@@ -53,6 +66,9 @@ fn flatten_entries_to_units(entries: Vec<CompressionEntry>) -> Vec<CompressionUn
             }
             CompressionEntry::ModelSummary { text } => {
                 units.push(CompressionUnit::ModelSummary { text });
+            }
+            CompressionEntry::RecoveryCheckpoint { checkpoint } => {
+                units.push(CompressionUnit::RecoveryCheckpoint { checkpoint });
             }
             CompressionEntry::Turn {
                 turn_id,
@@ -108,6 +124,16 @@ fn rebuild_payload_from_units(units: Vec<CompressionUnit>) -> CompressionPayload
                     &mut current_todo,
                 );
                 entries.push(CompressionEntry::ModelSummary { text });
+            }
+            CompressionUnit::RecoveryCheckpoint { checkpoint } => {
+                flush_rebuilt_turn(
+                    &mut entries,
+                    &mut current_turn_entry_id,
+                    &mut current_turn_id,
+                    &mut current_messages,
+                    &mut current_todo,
+                );
+                entries.push(CompressionEntry::RecoveryCheckpoint { checkpoint });
             }
             CompressionUnit::TurnMessage {
                 entry_id,
