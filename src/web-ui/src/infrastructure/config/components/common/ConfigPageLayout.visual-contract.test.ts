@@ -59,6 +59,12 @@ describe('Minimal Config page density visual contract', () => {
     expect(stylesheet).toContain(
       '--config-page-section-gap: var(--size-gap-10, 40px);',
     );
+    expect(stylesheet).toMatch(
+      /@container config-panel \(max-width: 280px\)[\s\S]*?\.void-config-page-header,[\s\S]*?\.void-config-page-content[\s\S]*?--config-page-content-inline-padding: var\(--workspace-space-3\);[\s\S]*?--config-page-section-gap: var\(--workspace-space-4\);/,
+    );
+    expect(stylesheet).toMatch(
+      /@media \(max-width: 600px\)[\s\S]*?\.void-ui--minimal \.void-config-page-layout \{[\s\S]*?scrollbar-gutter: auto;/,
+    );
     expect(stylesheet).not.toContain('display: none');
   });
 });

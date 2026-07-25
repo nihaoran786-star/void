@@ -244,3 +244,18 @@
   }
 }
 
+@container config-panel (max-width: 280px) {
+  .void-ui--minimal :is(
+    .void-config-page-header,
+    .void-config-page-content
+  ) {
+    --config-page-content-inline-padding: var(--workspace-space-3);
+    --config-page-section-gap: var(--workspace-space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .void-ui--minimal .void-config-page-layout {
+    scrollbar-gutter: auto;
+  }
+}

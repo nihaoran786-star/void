@@ -965,6 +965,30 @@ replace the working gallery or add decorative imagery.
   At maximized 1707×912, the existing four 311px columns, 104px card height,
   complete badge labels, and zero body overflow are unchanged.
 
+### Resolved follow-up — Narrow Settings panes retained wide-page gutters
+
+- **Location:** Shared Minimal `ConfigPageLayout`, verified through Settings →
+  MCP
+- **Category:** Responsive layout / shared settings shell
+- **Severity:** P1
+- **Impact:** With a 192px Settings scene, the centered content axis retained
+  two stable scrollbar gutters and 16px page insets. Only 116px remained for
+  headings, empty-state copy, and the JSON configuration action.
+- **Remediation:** At a genuinely narrow config panel, header and content insets
+  now use the compact workspace spacing and section rhythm. Only when the whole
+  desktop viewport is at most 600px does the scroll container release its
+  symmetric stable gutters; wide split panes retain the stable scrollbar
+  geometry.
+- **Suggested command:** `$adapt`
+- **Positive evidence:** MCP already reuses the Settings scene, owns its empty
+  state and JSON editor, stacks its empty-state grid below 360px, and does not
+  duplicate connector state in the navigation entry.
+- **Verification evidence:** At a 456×318 CSS viewport, the MCP content axis
+  grows from 116px to 144px, the empty title returns to one line, the subtitle
+  remains readable, and the JSON action stays fully visible. At maximized
+  1707×912, the existing centered 840px content axis, symmetric stable gutters,
+  scene position, and zero body overflow are unchanged.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
