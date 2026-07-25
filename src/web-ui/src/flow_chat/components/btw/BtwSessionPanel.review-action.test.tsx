@@ -18,6 +18,7 @@ const mockGetModeSkillConfigs = vi.fn();
 const mockLoadSessionHistory = vi.fn();
 const mockCreateImageContextFromFile = vi.fn();
 const mockBuildImageContextsForBackend = vi.fn();
+const mockResolveSessionReferences = vi.fn();
 let mockExecutionState = 'idle';
 const translate = (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => (
   options?.defaultValue ?? _key
@@ -144,6 +145,9 @@ vi.mock('@/infrastructure/api', () => ({
   },
   configAPI: {
     getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args),
+  },
+  sessionAPI: {
+    resolveSessionReferences: (...args: unknown[]) => mockResolveSessionReferences(...args),
   },
 }));
 
@@ -552,6 +556,17 @@ describe('BtwSessionPanel review action bar integration', () => {
     vi.clearAllMocks();
     flowChatListeners.clear();
     mockGetModeSkillConfigs.mockResolvedValue([]);
+    mockResolveSessionReferences.mockResolvedValue([{
+      source: {
+        kind: 'session_reference',
+        sessionId: 'research-session',
+        sessionTitle: 'Research',
+      },
+      status: 'ready',
+      transcript: '<referenced_session id="research-session">Research transcript</referenced_session>',
+      messageCount: 2,
+      estimatedTokens: 12,
+    }]);
     mockExecutionState = 'idle';
     mockCreateImageContextFromFile.mockResolvedValue({
       id: 'image-context-1',
@@ -829,6 +844,7 @@ describe('BtwSessionPanel review action bar integration', () => {
     expect(sessionId).toBe('subagent-child');
     expect(agentType).toBe('Researcher');
     expect(String(message)).toContain('Please use the Skill tool with command "audit".');
+    expect(String(message)).toContain('Research transcript');
     expect(String(message)).toContain('[Session Reference: Research; session=research-session; workspace=workspace-1]');
     expect(String(message)).toContain('[Media Reference: preview.mp4]');
     expect(options.userMessageMetadata).toEqual({
@@ -852,6 +868,15 @@ describe('BtwSessionPanel review action bar integration', () => {
           sessionId: 'research-session',
         }),
       ],
+      sessionReferenceResolutions: [{
+        source: {
+          kind: 'session_reference',
+          sessionId: 'research-session',
+          sessionTitle: 'Research',
+        },
+        status: 'ready',
+        error: undefined,
+      }],
     });
   });
 
@@ -1089,6 +1114,7 @@ describe('BtwSessionPanel review action bar integration', () => {
         userMessageMetadata: {
           composerPresentation: expect.objectContaining({ version: 1 }),
           sessionReferences: [],
+          sessionReferenceResolutions: [],
         },
       },
     );

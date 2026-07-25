@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   createChatSession: vi.fn(),
   sendMessage: vi.fn(),
   getConfig: vi.fn(),
+  resolveSessionReferences: vi.fn(),
 }));
 
 vi.mock('../services/FlowChatManager', () => ({
@@ -25,6 +26,12 @@ vi.mock('../services/FlowChatManager', () => ({
 vi.mock('@/infrastructure/config/services/ConfigManager', () => ({
   configManager: {
     getConfig: mocks.getConfig,
+  },
+}));
+
+vi.mock('@/infrastructure/api', () => ({
+  sessionAPI: {
+    resolveSessionReferences: mocks.resolveSessionReferences,
   },
 }));
 
@@ -152,6 +159,7 @@ describe('useMessageSender deferred session creation', () => {
     await act(async () => {
       root.render(<Harness />);
     });
+    mocks.resolveSessionReferences.mockReset();
 
     let sendPromise: Promise<MessageSendReceipt | undefined> | undefined;
     await act(async () => {
@@ -241,5 +249,66 @@ describe('useMessageSender deferred session creation', () => {
     expect(JSON.stringify(presentation)).not.toContain('base64');
     expect(JSON.stringify(presentation)).not.toContain('thumbnailUrl');
     expect(call[5].imageDisplayData[0].dataUrl).toContain('base64');
+  });
+
+  it('injects an explicitly referenced session through the scoped Module Interface', async () => {
+    const sessionReference: ContextItem = {
+      id: 'session-reference-1',
+      type: 'session-reference',
+      sessionId: 'research',
+      sessionTitle: 'Research',
+      workspaceId: 'workspace-1',
+      workspacePath: 'D:/workspace/project',
+      timestamp: 4,
+    };
+    mocks.resolveSessionReferences.mockResolvedValue([{
+      source: {
+        kind: 'session_reference',
+        sessionId: 'research',
+        sessionTitle: 'Research',
+      },
+      status: 'ready',
+      transcript: '<referenced_session>bounded transcript</referenced_session>',
+      messageCount: 2,
+      estimatedTokens: 20,
+    }]);
+
+    function Harness() {
+      const value = useMessageSender({
+        currentSessionId: 'session-1',
+        contexts: [sessionReference],
+        sessionReferenceScope: {
+          workspaceId: 'workspace-1',
+          workspacePath: 'D:/workspace/project',
+        },
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await act(async () => {
+      await sender?.sendMessage('Compare the findings.');
+    });
+
+    expect(mocks.resolveSessionReferences).toHaveBeenCalledWith(
+      {
+        currentSessionId: 'session-1',
+        workspaceId: 'workspace-1',
+        workspacePath: 'D:/workspace/project',
+      },
+      [sessionReference],
+    );
+    const call = mocks.sendMessage.mock.calls[0];
+    expect(call[0]).toContain('bounded transcript');
+    expect(call[5].userMessageMetadata.sessionReferenceResolutions).toEqual([{
+      source: expect.objectContaining({ sessionId: 'research' }),
+      status: 'ready',
+      error: undefined,
+    }]);
   });
 });

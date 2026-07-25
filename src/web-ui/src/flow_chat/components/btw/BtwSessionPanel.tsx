@@ -32,7 +32,12 @@ import {FlowChatManager} from '../../services/FlowChatManager';
 import {createImageContextFromFile} from '../../utils/imageUtils';
 import {buildImageContextsForBackend} from '../../utils/imageContextForBackend';
 import type {ModeSkillInfo} from '@/infrastructure/config/types';
-import type {CodeSnippetContext, ContextItem, ImageContext} from '@/shared/types/context';
+import type {
+  CodeSnippetContext,
+  ContextItem,
+  ImageContext,
+  SessionReferenceContext,
+} from '@/shared/types/context';
 import {formatContextForPrompt} from '@/shared/utils/contextPrompt';
 import {
   composerPresentationToValue,
@@ -42,6 +47,10 @@ import {
   type ComposerPresentation,
 } from '../../utils/composerPresentation';
 import {expandSkillPromptReferences} from '../../utils/skillPromptReference';
+import {
+  resolveSessionReferenceTranscriptInjection,
+  sessionReferenceResolutionMetadata,
+} from '../../services/sessionReferenceTranscript';
 import {stateMachineManager, SessionExecutionState} from '../../state-machine';
 import {settleStoppedReviewSessionState} from '../../utils/reviewSessionStop';
 import {findLatestCodeReviewResult, findLatestCodeReviewResultState} from '../../utils/reviewSessionSummary';
@@ -1094,6 +1103,21 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         : undefined;
       const agentType = childAgentType;
       const nonImageContexts: ContextItem[] = [...textContexts, ...referenceContexts];
+      const sessionReferences = referenceContexts.filter(
+        (context): context is SessionReferenceContext => context.type === 'session-reference',
+      );
+      const sessionReferenceInjection = await resolveSessionReferenceTranscriptInjection(
+        sessionReferences,
+        workspacePath
+          ? {
+              currentSessionId: childSessionId,
+              workspaceId: childSession.workspaceId,
+              workspacePath,
+              remoteConnectionId: childSession.remoteConnectionId,
+              remoteSshHost: childSession.remoteSshHost,
+            }
+          : undefined,
+      );
       const contextPrompt = nonImageContexts
         .map(context => context.type === 'code-snippet'
           ? formatComposerTextFileContextForPrompt(context)
@@ -1101,7 +1125,12 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         .filter(Boolean)
         .join('\n');
       const expandedMessage = expandSkillPromptReferences(messageForAgent);
-      const aiMessage = contextPrompt ? `${contextPrompt}\n\n${expandedMessage}` : expandedMessage;
+      const messageWithContext = contextPrompt
+        ? `${contextPrompt}\n\n${expandedMessage}`
+        : expandedMessage;
+      const aiMessage = sessionReferenceInjection.prompt
+        ? `${sessionReferenceInjection.prompt}\n\n${messageWithContext}`
+        : messageWithContext;
       const displayMessage = contextPrompt ? message : undefined;
       await FlowChatManager.getInstance().sendMessage(
         aiMessage,
@@ -1113,8 +1142,9 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
           ...imageContextOptions,
           userMessageMetadata: {
             composerPresentation,
-            sessionReferences: referenceContexts.filter(
-              context => context.type === 'session-reference',
+            sessionReferences,
+            sessionReferenceResolutions: sessionReferenceResolutionMetadata(
+              sessionReferenceInjection.results,
             ),
           },
         },
@@ -1151,6 +1181,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     restoredComposerPresentation,
     t,
     trimmedComposerValue,
+    workspacePath,
   ]);
 
   const handleComposerValueChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {

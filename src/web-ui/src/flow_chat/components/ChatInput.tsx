@@ -684,6 +684,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     currentAgentType: currentMode,
     newSessionConfig,
     onSessionCreated: isNewSessionDraft ? handleDeferredSessionCreated : undefined,
+    sessionReferenceScope: isNewSessionDraft
+      ? newSessionConfig
+      : effectiveTargetSession
+        ? {
+            workspaceId: effectiveTargetSession.workspaceId,
+            workspacePath: effectiveTargetSession.workspacePath || '',
+            remoteConnectionId: effectiveTargetSession.remoteConnectionId,
+            remoteSshHost: effectiveTargetSession.remoteSshHost,
+          }
+        : undefined,
   });
 
   const modeInfoById = useMemo(

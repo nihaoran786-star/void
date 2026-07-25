@@ -29,6 +29,7 @@ pub mod review_platform; // Pull request review platform adapters
 pub mod runtime; // Managed runtime and capability management
 pub mod search; // Workspace search via managed flashgrep daemon
 pub mod session; // Session persistence
+pub use void_services_core::session_reference;
 #[cfg(feature = "product-full")]
 pub mod session_usage; // Session runtime usage reports
 #[cfg(feature = "product-full")]

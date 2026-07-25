@@ -800,6 +800,7 @@ pub async fn run() {
             list_persisted_sessions,
             list_persisted_sessions_page,
             load_session_turns,
+            resolve_session_references,
             get_session_usage_report,
             save_session_turn,
             save_session_metadata,

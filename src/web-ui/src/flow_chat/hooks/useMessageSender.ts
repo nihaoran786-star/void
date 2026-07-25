@@ -10,7 +10,11 @@
 
 import { useCallback } from 'react';
 import { FlowChatManager } from '../services/FlowChatManager';
-import type { ContextItem, ImageContext } from '@/shared/types/context';
+import type {
+  ContextItem,
+  ImageContext,
+  SessionReferenceContext,
+} from '@/shared/types/context';
 import type { AIModelConfig, DefaultModelsConfig } from '@/infrastructure/config/types';
 import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
@@ -21,6 +25,11 @@ import {
   type ComposerPresentation,
 } from '../utils/composerPresentation';
 import { expandSkillPromptReferences } from '../utils/skillPromptReference';
+import type { SessionReferenceAccessScope } from '@/infrastructure/api/service-api/SessionAPI';
+import {
+  resolveSessionReferenceTranscriptInjection,
+  sessionReferenceResolutionMetadata,
+} from '../services/sessionReferenceTranscript';
 
 const log = createLogger('FlowChat');
 
@@ -59,6 +68,8 @@ interface UseMessageSenderProps {
   newSessionConfig?: SessionConfig;
   /** Called once after a deferred session is created successfully. */
   onSessionCreated?: (sessionId: string) => void;
+  /** Authorized scope used by the session-reference Module Interface. */
+  sessionReferenceScope?: Omit<SessionReferenceAccessScope, 'currentSessionId'>;
 }
 
 export interface MessageSendReceipt {
@@ -89,6 +100,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     currentAgentType,
     newSessionConfig,
     onSessionCreated,
+    sessionReferenceScope,
   } = props;
 
   const sendMessage = useCallback(async (
@@ -152,7 +164,16 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
 
       const imageContexts = submittedContexts.filter(ctx => ctx.type === 'image') as ImageContext[];
       const sessionReferences = submittedContexts.filter(
-        context => context.type === 'session-reference',
+        (context): context is SessionReferenceContext => context.type === 'session-reference',
+      );
+      const sessionReferenceInjection = await resolveSessionReferenceTranscriptInjection(
+        sessionReferences,
+        sessionReferenceScope?.workspacePath
+          ? {
+              currentSessionId: sessionId,
+              ...sessionReferenceScope,
+            }
+          : undefined,
       );
 
       let fullMessage = aiTrimmedMessage;
@@ -167,6 +188,9 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
           .join('\n');
 
         fullMessage = `${fullContextSection}\n\n${aiTrimmedMessage}`;
+      }
+      if (sessionReferenceInjection.prompt) {
+        fullMessage = `${sessionReferenceInjection.prompt}\n\n${fullMessage}`;
       }
 
       // Always pass imageContexts to the backend; the coordinator decides
@@ -187,6 +211,9 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
           userMessageMetadata: {
             composerPresentation,
             sessionReferences,
+            sessionReferenceResolutions: sessionReferenceResolutionMetadata(
+              sessionReferenceInjection.results,
+            ),
           },
         },
       );
@@ -223,6 +250,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     currentAgentType,
     newSessionConfig,
     onSessionCreated,
+    sessionReferenceScope,
   ]);
 
   return {
