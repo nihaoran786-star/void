@@ -22,8 +22,9 @@ pub use subscription_auth::SubscriptionProvider;
 pub use subagent_task::{
     SubagentTaskCheckpointRef, SubagentTaskContextMode, SubagentTaskDeliveryLease,
     SubagentTaskDeliveryReceipt, SubagentTaskDeliveryState, SubagentTaskExecutionMode,
-    SubagentTaskRecord, SubagentTaskRecoveryState, SubagentTaskReplaySafety, SubagentTaskStatus,
-    SubagentTaskTransitionError, SUBAGENT_TASK_SCHEMA_VERSION,
+    SubagentTaskLaunchSpec, SubagentTaskRecord, SubagentTaskRecoveryBlock,
+    SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
+    SubagentTaskStatus, SubagentTaskTransitionError, SUBAGENT_TASK_SCHEMA_VERSION,
 };
 pub use surface::{
     ApprovalSource, CapabilityRequest, CapabilityRequestKind, PermissionDecision, PermissionScope,

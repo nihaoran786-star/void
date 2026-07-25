@@ -33,7 +33,7 @@ use tokio::fs;
 use tokio::sync::Mutex;
 use void_core_types::{
     SubagentTaskCheckpointRef, SubagentTaskDeliveryState, SubagentTaskRecord,
-    SubagentTaskRecoveryState, SubagentTaskStatus,
+    SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskStatus,
 };
 
 const TRANSCRIPT_SCHEMA_VERSION: u32 = 1;
@@ -2160,6 +2160,30 @@ impl PersistenceManager {
         Ok(Some(task))
     }
 
+    pub async fn block_subagent_task_recovery(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        code: SubagentTaskRecoveryBlockCode,
+        detail: String,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
+        let mut task = self
+            .read_subagent_task_optional(&path)
+            .await?
+            .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
+        task.block_recovery(code, detail, updated_at);
+        self.write_json_atomic(&path, &task).await?;
+        Ok(task)
+    }
+
     async fn finish_subagent_task_delivery(
         &self,
         workspace_path: &Path,
@@ -3399,8 +3423,8 @@ mod tests {
     use std::time::Instant;
     use uuid::Uuid;
     use void_core_types::{
-        SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskRecoveryState,
-        SubagentTaskReplaySafety, SubagentTaskStatus,
+        SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskRecoveryBlockCode,
+        SubagentTaskRecoveryState, SubagentTaskReplaySafety, SubagentTaskStatus,
     };
 
     struct TestWorkspace {
@@ -3840,6 +3864,82 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn failed_idempotent_delivery_is_requeued_and_single_winner_reclaims_it() {
+        let workspace = TestWorkspace::new();
+        let first_process =
+            PersistenceManager::new(workspace.path_manager()).expect("first process");
+        let restarted_process =
+            PersistenceManager::new(workspace.path_manager()).expect("restarted process");
+        let competing_process =
+            PersistenceManager::new(workspace.path_manager()).expect("competing process");
+        let mut task = subagent_task("bg-subagent-retry", "parent-1");
+        task.transition_status(SubagentTaskStatus::Running, 2)
+            .unwrap();
+        task.transition_status(SubagentTaskStatus::Completed, 3)
+            .unwrap();
+        first_process
+            .create_subagent_task(workspace.path(), "parent-1", &task)
+            .await
+            .unwrap();
+        first_process
+            .claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-retry",
+                "failed-lease".into(),
+                "process-1".into(),
+                4,
+                10,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        first_process
+            .fail_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-retry",
+                "failed-lease",
+                "connection reset".into(),
+                5,
+            )
+            .await
+            .unwrap();
+        restarted_process
+            .recover_subagent_tasks_after_restart(workspace.path(), "parent-1", 20)
+            .await
+            .unwrap();
+
+        let (winner, loser) = tokio::join!(
+            restarted_process.claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-retry",
+                "retry-1".into(),
+                "process-2".into(),
+                21,
+                10,
+            ),
+            competing_process.claim_subagent_task_delivery(
+                workspace.path(),
+                "parent-1",
+                "bg-subagent-retry",
+                "retry-2".into(),
+                "process-3".into(),
+                21,
+                10,
+            ),
+        );
+        assert_eq!(
+            [winner.unwrap().is_some(), loser.unwrap().is_some()]
+                .into_iter()
+                .filter(|claimed| *claimed)
+                .count(),
+            1
+        );
+    }
+
+    #[tokio::test]
     async fn restart_blocks_expired_delivery_without_replay_guarantee() {
         let workspace = TestWorkspace::new();
         let manager =
@@ -3886,6 +3986,13 @@ mod tests {
             .as_deref()
             .unwrap()
             .contains("without idempotency"));
+        assert_eq!(
+            changed[0]
+                .recovery_block
+                .as_ref()
+                .map(|blocked| blocked.code),
+            Some(SubagentTaskRecoveryBlockCode::UnsafeDeliveryReplay)
+        );
     }
 
     #[tokio::test]

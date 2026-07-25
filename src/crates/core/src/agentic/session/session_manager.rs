@@ -40,7 +40,10 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time;
-use void_core_types::{SubagentTaskRecord, SubagentTaskRecoveryState, SubagentTaskStatus};
+use void_core_types::{
+    SubagentTaskRecord, SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState,
+    SubagentTaskStatus,
+};
 
 /// Session manager configuration
 #[derive(Debug, Clone)]
@@ -654,6 +657,30 @@ impl SessionManager {
         if let Some(task) = task.as_ref() {
             self.publish_subagent_task_changed(task).await;
         }
+        Ok(task)
+    }
+
+    pub async fn block_subagent_task_recovery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        code: SubagentTaskRecoveryBlockCode,
+        detail: String,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .block_subagent_task_recovery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                code,
+                detail,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
         Ok(task)
     }
 
