@@ -25,6 +25,53 @@ fn canonical_config_path(path: &str) -> &str {
     }
 }
 
+#[cfg(feature = "product-full")]
+fn normalize_tool_permission_config(config: &mut Value) {
+    let Some(ai) = config.get_mut("ai").and_then(Value::as_object_mut) else {
+        return;
+    };
+
+    let permissions = ai
+        .get("tool_permissions")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<ToolPermissionConfig>(value).ok())
+        .unwrap_or_else(|| {
+            if ai.contains_key("tool_permissions") {
+                // An invalid typed policy must not fall back to a permissive
+                // legacy flag.
+                ToolPermissionConfig::default()
+            } else {
+                let mode = match ai.get("skip_tool_confirmation").and_then(Value::as_bool) {
+                    // Legacy `true` skipped confirmation for tools that would
+                    // otherwise ask. It did not override an explicit deny, so
+                    // the safe equivalent is Auto, not FullAccess.
+                    Some(true) => ToolPermissionMode::Auto,
+                    Some(false) | None => ToolPermissionMode::Ask,
+                };
+                ToolPermissionConfig {
+                    mode,
+                    rules: Vec::new(),
+                }
+            }
+        });
+
+    // Keep the legacy boolean as a behavior-preserving compatibility
+    // projection until the runtime evaluates the typed policy directly.
+    // Explicit Deny enforcement remains the responsibility of that runtime
+    // integration slice.
+    ai.insert(
+        "skip_tool_confirmation".to_string(),
+        Value::Bool(matches!(
+            permissions.mode,
+            ToolPermissionMode::Auto | ToolPermissionMode::FullAccess
+        )),
+    );
+    ai.insert(
+        "tool_permissions".to_string(),
+        serde_json::to_value(permissions).expect("tool permission config is serializable"),
+    );
+}
+
 /// Configuration manager.
 pub struct ConfigManager {
     config_dir: PathBuf,
@@ -120,6 +167,9 @@ impl ConfigManager {
             VoidError::config(format!("Failed to parse config file as JSON: {}", e))
         })?;
 
+        #[cfg(feature = "product-full")]
+        normalize_tool_permission_config(&mut config_value);
+
         let file_version = config_value
             .get("version")
             .and_then(|v| v.as_str())
@@ -176,7 +226,10 @@ impl ConfigManager {
     }
 
     /// Performs a smart merge from a JSON value.
-    async fn smart_merge_config_from_value(&mut self, user_value: Value) -> VoidResult<()> {
+    async fn smart_merge_config_from_value(&mut self, mut user_value: Value) -> VoidResult<()> {
+        #[cfg(feature = "product-full")]
+        normalize_tool_permission_config(&mut user_value);
+
         let base_config = self.providers.get_default_config();
 
         let base_value = serde_json::to_value(&base_config).map_err(|e| {
@@ -373,8 +426,11 @@ impl ConfigManager {
     }
 
     /// Imports configuration.
-    pub async fn import_config(&mut self, config_data: serde_json::Value) -> VoidResult<()> {
+    pub async fn import_config(&mut self, mut config_data: serde_json::Value) -> VoidResult<()> {
         let old_config = self.config.clone();
+
+        #[cfg(feature = "product-full")]
+        normalize_tool_permission_config(&mut config_data);
 
         let imported_config: GlobalConfig = serde_json::from_value(config_data)
             .map_err(|e| VoidError::config(format!("Failed to parse imported config: {}", e)))?;
@@ -622,6 +678,12 @@ pub struct ConfigStatistics {
 #[cfg(test)]
 mod tests {
     use super::canonical_config_path;
+    #[cfg(feature = "product-full")]
+    use super::normalize_tool_permission_config;
+    #[cfg(feature = "product-full")]
+    use crate::service::config::types::{ToolPermissionConfig, ToolPermissionMode};
+    #[cfg(feature = "product-full")]
+    use serde_json::json;
 
     #[test]
     fn canonicalizes_legacy_review_team_auxiliary_paths() {
@@ -637,6 +699,54 @@ mod tests {
             canonical_config_path("ai.review_teams.default"),
             "ai.review_teams.default"
         );
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn migrates_legacy_skip_confirmation_without_overriding_typed_config() {
+        let mut legacy = json!({ "ai": { "skip_tool_confirmation": true } });
+        normalize_tool_permission_config(&mut legacy);
+        let migrated: ToolPermissionConfig =
+            serde_json::from_value(legacy["ai"]["tool_permissions"].clone())
+                .expect("migrated typed permissions");
+        assert_eq!(migrated.mode, ToolPermissionMode::Auto);
+
+        let mut typed = json!({
+            "ai": {
+                "skip_tool_confirmation": true,
+                "tool_permissions": { "mode": "auto", "rules": [] }
+            }
+        });
+        normalize_tool_permission_config(&mut typed);
+        let preserved: ToolPermissionConfig =
+            serde_json::from_value(typed["ai"]["tool_permissions"].clone())
+                .expect("preserved typed permissions");
+        assert_eq!(preserved.mode, ToolPermissionMode::Auto);
+        assert_eq!(typed["ai"]["skip_tool_confirmation"], true);
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn invalid_legacy_or_typed_values_fail_safe_to_ask() {
+        let mut invalid_legacy = json!({ "ai": { "skip_tool_confirmation": "yes" } });
+        normalize_tool_permission_config(&mut invalid_legacy);
+        let migrated: ToolPermissionConfig =
+            serde_json::from_value(invalid_legacy["ai"]["tool_permissions"].clone())
+                .expect("fail-safe typed permissions");
+        assert_eq!(migrated.mode, ToolPermissionMode::Ask);
+
+        let mut invalid_typed = json!({
+            "ai": {
+                "skip_tool_confirmation": true,
+                "tool_permissions": { "mode": "unknown", "rules": [] }
+            }
+        });
+        normalize_tool_permission_config(&mut invalid_typed);
+        let normalized: ToolPermissionConfig =
+            serde_json::from_value(invalid_typed["ai"]["tool_permissions"].clone())
+                .expect("normalized typed permissions");
+        assert_eq!(normalized.mode, ToolPermissionMode::Ask);
+        assert_eq!(invalid_typed["ai"]["skip_tool_confirmation"], false);
     }
 }
 

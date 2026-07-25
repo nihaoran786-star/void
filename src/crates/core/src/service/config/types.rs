@@ -7,6 +7,12 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(feature = "product-full")]
+pub use void_product_domains::tool_permissions::{
+    ToolPermissionConfig, ToolPermissionDecision, ToolPermissionMode, ToolPermissionPreset,
+    ToolPermissionReason, ToolPermissionResolution, ToolPermissionRule, ToolPermissionSource,
+};
+
 fn deserialize_agent_profiles<'de, D>(
     deserializer: D,
 ) -> Result<HashMap<String, AgentProfileConfig>, D::Error>
@@ -624,6 +630,14 @@ pub struct AIConfig {
     #[serde(default = "default_skip_tool_confirmation")]
     pub skip_tool_confirmation: bool,
 
+    /// Ordered native tool-permission policy.
+    ///
+    /// `skip_tool_confirmation` remains as a compatibility projection while
+    /// runtimes migrate to this typed policy.
+    #[cfg(feature = "product-full")]
+    #[serde(default)]
+    pub tool_permissions: ToolPermissionConfig,
+
     /// Selects how the Write tool obtains file content.
     #[serde(default)]
     pub write_tool_mode: WriteToolMode,
@@ -820,7 +834,7 @@ fn default_tool_confirmation_timeout() -> Option<u64> {
 }
 
 fn default_skip_tool_confirmation() -> bool {
-    true
+    false
 }
 
 fn default_subagent_max_concurrency() -> usize {
@@ -1636,7 +1650,9 @@ impl Default for AIConfig {
             stream_ttft_timeout_secs: default_stream_ttft_timeout(),
             tool_execution_timeout_secs: default_tool_execution_timeout(),
             tool_confirmation_timeout_secs: default_tool_confirmation_timeout(),
-            skip_tool_confirmation: true,
+            skip_tool_confirmation: false,
+            #[cfg(feature = "product-full")]
+            tool_permissions: ToolPermissionConfig::default(),
             write_tool_mode: WriteToolMode::default(),
             debug_mode_config: DebugModeConfig::default(),
             computer_use_enabled: false,
