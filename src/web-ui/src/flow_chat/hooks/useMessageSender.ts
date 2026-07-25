@@ -44,10 +44,8 @@ interface UseMessageSenderProps {
   currentSessionId?: string;
   /** Context items */
   contexts: ContextItem[];
-  /** Clear contexts callback */
-  onClearContexts: () => void;
   /** Success callback */
-  onSuccess?: (message: string) => void;
+  onSuccess?: (message: string, receipt: MessageSendReceipt) => void;
   /** Exit template mode callback */
   onExitTemplateMode?: () => void;
   /** Selected agent type (mode) */
@@ -58,6 +56,12 @@ interface UseMessageSenderProps {
   onSessionCreated?: (sessionId: string) => void;
 }
 
+export interface MessageSendReceipt {
+  requestedSessionId: string | null;
+  sentSessionId: string;
+  submittedContextIds: readonly string[];
+}
+
 interface UseMessageSenderReturn {
   /** Send a message */
   sendMessage: (
@@ -65,7 +69,7 @@ interface UseMessageSenderReturn {
     options?: {
       displayMessage?: string;
     }
-  ) => Promise<void>;
+  ) => Promise<MessageSendReceipt | undefined>;
   /** Whether a send is in progress */
   isSending: boolean;
 }
@@ -74,7 +78,6 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
   const {
     currentSessionId,
     contexts,
-    onClearContexts,
     onSuccess,
     onExitTemplateMode,
     currentAgentType,
@@ -93,6 +96,9 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     }
 
     const trimmedMessage = message.trim();
+    const requestedSessionId = currentSessionId ?? null;
+    const submittedContexts = contexts.map(context => ({ ...context }));
+    const submittedContextIds = contexts.map(context => context.id);
     // Strip inline `#img:<name>` tags from the AI-bound text. The rich text
     // editor inserts these when an image is pasted, but the named file does
     // not exist on disk; image bytes are sent out-of-band via `imageContexts`
@@ -106,10 +112,10 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         .replace(/\n{3,}/g, '\n\n')
         .trim();
     const aiTrimmedMessage = stripImageTags(trimmedMessage);
-    let sessionId = currentSessionId;
+    let sessionId = requestedSessionId;
     log.debug('Send message initiated', {
       textLength: trimmedMessage.length,
-      contextCount: contexts.length,
+      contextCount: submittedContexts.length,
       hasSession: !!sessionId,
       agentType: currentAgentType || 'agentic',
     });
@@ -137,13 +143,16 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         log.debug('Reusing existing session', { sessionId });
       }
 
-      const imageContexts = contexts.filter(ctx => ctx.type === 'image') as ImageContext[];
+      const imageContexts = submittedContexts.filter(ctx => ctx.type === 'image') as ImageContext[];
 
       let fullMessage = aiTrimmedMessage;
       const displayMessage = options?.displayMessage?.trim() || trimmedMessage;
 
-      if (contexts.length > 0) {
-        const fullContextSection = contexts.map(formatContextForPrompt).filter(Boolean).join('\n');
+      if (submittedContexts.length > 0) {
+        const fullContextSection = submittedContexts
+          .map(formatContextForPrompt)
+          .filter(Boolean)
+          .join('\n');
 
         fullMessage = `${fullContextSection}\n\n${aiTrimmedMessage}`;
       }
@@ -163,22 +172,26 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         imageContextsForBackend
       );
 
-      onClearContexts();
-
       onExitTemplateMode?.();
 
-      onSuccess?.(trimmedMessage);
+      const receipt: MessageSendReceipt = {
+        requestedSessionId,
+        sentSessionId: sessionId,
+        submittedContextIds,
+      };
+      onSuccess?.(trimmedMessage, receipt);
       log.info('Message sent successfully', {
         sessionId,
         agentType: currentAgentType || 'agentic',
-        contextCount: contexts.length,
+        contextCount: submittedContexts.length,
         imageCount: imageContexts.length,
       });
+      return receipt;
     } catch (error) {
       log.error('Failed to send message', {
         sessionId,
         agentType: currentAgentType || 'agentic',
-        contextCount: contexts.length,
+        contextCount: submittedContexts.length,
         error: (error as Error)?.message ?? 'unknown',
       });
       throw error;
@@ -186,7 +199,6 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
   }, [
     currentSessionId,
     contexts,
-    onClearContexts,
     onSuccess,
     onExitTemplateMode,
     currentAgentType,

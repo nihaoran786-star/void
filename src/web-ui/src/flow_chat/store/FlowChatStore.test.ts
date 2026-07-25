@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flowChatStore } from './FlowChatStore';
 import type { FlowChatState, Session } from '../types/flow-chat';
+import {
+  getSessionComposerDraft,
+  resetSessionComposerDraftsForTests,
+  saveSessionComposerDraft,
+} from './sessionComposerStore';
 
 const apiMocks = vi.hoisted(() => ({
   listSessions: vi.fn(),
@@ -75,6 +80,7 @@ const resetStore = () => {
     activeSessionId: null,
   }));
   flowChatStore.registerPersistUnreadCompletionCallback(() => {});
+  resetSessionComposerDraftsForTests();
 };
 
 const createSession = (overrides: Partial<Session> = {}): Session => ({
@@ -110,6 +116,88 @@ async function flushAsyncWork(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+const saveComposerDraft = (sessionId: string) => {
+  saveSessionComposerDraft(sessionId, {
+    value: `${sessionId} draft`,
+    contexts: [],
+    pendingLargePastes: {},
+  });
+};
+
+describe('FlowChatStore composer draft cleanup', () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it('clears parent, BTW, and subagent drafts when removing a parent cascade', () => {
+    const parent = createSession({ sessionId: 'parent' });
+    const btw = createSession({
+      sessionId: 'btw-child',
+      parentSessionId: parent.sessionId,
+      sessionKind: 'btw',
+    });
+    const subagent = createSession({
+      sessionId: 'subagent-child',
+      parentSessionId: parent.sessionId,
+      sessionKind: 'subagent',
+      subagentType: 'ScriptAI',
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        [parent.sessionId, parent],
+        [btw.sessionId, btw],
+        [subagent.sessionId, subagent],
+      ]),
+      activeSessionId: parent.sessionId,
+    }));
+    [parent.sessionId, btw.sessionId, subagent.sessionId].forEach(saveComposerDraft);
+
+    expect(flowChatStore.removeSession(parent.sessionId)).toEqual([
+      btw.sessionId,
+      subagent.sessionId,
+      parent.sessionId,
+    ]);
+    expect(getSessionComposerDraft(parent.sessionId)).toBeUndefined();
+    expect(getSessionComposerDraft(btw.sessionId)).toBeUndefined();
+    expect(getSessionComposerDraft(subagent.sessionId)).toBeUndefined();
+  });
+
+  it('clears every removed draft in a workspace batch and preserves other workspaces', () => {
+    const first = createSession({
+      sessionId: 'workspace-a-1',
+      workspaceId: 'workspace-a',
+    });
+    const second = createSession({
+      sessionId: 'workspace-a-2',
+      workspaceId: 'workspace-a',
+    });
+    const other = createSession({
+      sessionId: 'workspace-b-1',
+      workspaceId: 'workspace-b',
+      workspacePath: 'D:/workspace/other',
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([
+        [first.sessionId, first],
+        [second.sessionId, second],
+        [other.sessionId, other],
+      ]),
+      activeSessionId: first.sessionId,
+    }));
+    [first.sessionId, second.sessionId, other.sessionId].forEach(saveComposerDraft);
+
+    expect(flowChatStore.removeSessionsForWorkspace({
+      id: 'workspace-a',
+      rootPath: 'D:/workspace/void',
+      connectionId: undefined,
+      sshHost: undefined,
+    })).toEqual([first.sessionId, second.sessionId]);
+    expect(getSessionComposerDraft(first.sessionId)).toBeUndefined();
+    expect(getSessionComposerDraft(second.sessionId)).toBeUndefined();
+    expect(getSessionComposerDraft(other.sessionId)?.value).toBe('workspace-b-1 draft');
+  });
+});
 
 describe('FlowChatStore metadata persistence callbacks', () => {
   afterEach(() => {

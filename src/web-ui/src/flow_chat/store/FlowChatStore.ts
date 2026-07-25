@@ -54,6 +54,7 @@ import {
 import type { WorkspaceInfo } from '@/shared/types';
 import { sessionBelongsToWorkspaceNavRow } from '../utils/sessionOrdering';
 import { sessionMatchesWorkspace } from '../utils/workspaceScope';
+import { clearSessionComposerDrafts } from './sessionComposerStore';
 
 const log = createLogger('FlowChatStore');
 const VALID_AGENT_TYPES = new Set([
@@ -1032,6 +1033,7 @@ export class FlowChatStore {
       };
     });
 
+    clearSessionComposerDrafts(removedSessionIds);
     return removedSessionIds;
   }
 
@@ -1150,6 +1152,7 @@ export class FlowChatStore {
       };
     });
 
+    clearSessionComposerDrafts(removedSessionIds);
     return removedSessionIds;
   }
 

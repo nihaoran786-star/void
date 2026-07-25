@@ -13,11 +13,11 @@ import { RichTextInput, type MentionState } from './RichTextInput';
 import { FileMentionPicker } from './FileMentionPicker';
 import { globalEventBus } from '@/infrastructure/event-bus';
 import {
-  useSessionDerivedState,
   useSessionStateMachine,
   useSessionStateMachineActions,
 } from '../hooks/useSessionStateMachine';
 import { SessionExecutionEvent } from '../state-machine/types';
+import { deriveSessionState } from '../state-machine/derivedState';
 import { ModelSelector } from './ModelSelector';
 import { FlowChatStore } from '../store/FlowChatStore';
 import type { FlowChatState, Session } from '../types/flow-chat';
@@ -83,6 +83,25 @@ import {
   completeNewSessionDraft,
   selectNewSessionDraftWorkspace,
 } from '../services/NewSessionDraftService';
+import {
+  clearSessionComposerDraftIfRevision,
+  consumeEmptyPasteClearGuard,
+  countEmptyPasteClearGuards,
+  getSessionComposerDraft,
+  getSessionComposerDraftRevision,
+  isSessionComposerSnapshotCurrent,
+  observeSessionComposerQueue,
+  resolveSessionComposerHydration,
+  resolveSessionComposerDraftGuard,
+  saveSessionComposerDraft,
+  saveSessionComposerDraftIfRevision,
+  shouldApplyGuardedComposerResult,
+  shouldApplySessionComposerHydration,
+  shouldClaimSuccessfulSendReceipt,
+  shouldDeactivateComposerAfterSend,
+  shouldRestoreFailedComposer,
+  shouldRestoreFailedComposerContent,
+} from '../store/sessionComposerStore';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
@@ -251,6 +270,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Ref so the queuedInput sync effect can read the latest value without it being a dep
   const inputValueRef = useRef('');
   const pendingLargePastesRef = useRef<PendingLargePasteMap>({});
+  const emptyPasteClearGuardCountRef = useRef(0);
   const largePasteCountersRef = useRef<Record<number, number>>({});
   const undoImageStackRef = useRef<string[]>([]);
   
@@ -263,7 +283,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const addContext = useContextStore(state => state.addContext);
   const removeContext = useContextStore(state => state.removeContext);
   const clearContexts = useContextStore(state => state.clearContexts);
+  const replaceContexts = useContextStore(state => state.replaceContexts);
   const contextsRef = useRef(contexts);
+
+  useEffect(() => {
+    inputValueRef.current = inputState.value;
+  }, [inputState.value]);
 
   useEffect(() => {
     contextsRef.current = contexts;
@@ -282,6 +307,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionState = useActiveSessionState();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
+  const previousComposerSessionIdRef = useRef<string | null>(null);
+  const deferredCreatedSessionIdRef = useRef<string | null>(null);
+  const lastAppliedQueuedInputRef = useRef<{
+    sessionId: string | null;
+    value: string | null;
+  }>({ sessionId: null, value: null });
   const draftMode = useSessionModeStore(state => state.mode);
   const draftStatus = useSessionModeStore(state => state.draftStatus);
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
@@ -293,18 +324,87 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     : undefined;
   const effectiveTargetRelationship = resolveSessionRelationship(effectiveTargetSession);
   const isBtwSession = effectiveTargetRelationship.displayAsChild;
-  
+
   // Memoize history so keyboard handlers don't see a fresh [] on every render.
   const inputHistory = useMemo(
     () => (effectiveTargetSessionId ? getSessionHistory(effectiveTargetSessionId) : []),
     [effectiveTargetSessionId, getSessionHistory],
   );
-  const derivedState = useSessionDerivedState(
-    effectiveTargetSessionId,
-    inputState.value.trim()
+  const sessionSnapshot = useSessionStateMachine(effectiveTargetSessionId);
+  const derivedState = useMemo(
+    () => sessionSnapshot
+      ? deriveSessionState(sessionSnapshot, {
+        processingInputDraftTrimmed: inputState.value.trim(),
+      })
+      : null,
+    [inputState.value, sessionSnapshot],
   );
+
+  useEffect(() => {
+    if (!isSessionComposerSnapshotCurrent(
+      currentSessionId,
+      sessionSnapshot?.sessionId,
+    )) {
+      return;
+    }
+
+    const previousSessionId = previousComposerSessionIdRef.current;
+    const sessionChanged = previousSessionId !== currentSessionId;
+    const queueDecision = observeSessionComposerQueue(
+      lastAppliedQueuedInputRef.current,
+      currentSessionId,
+      derivedState?.queuedInput,
+    );
+    const queuedInput = queueDecision.observation.value;
+    lastAppliedQueuedInputRef.current = queueDecision.observation;
+
+    if (!shouldApplySessionComposerHydration(
+      sessionChanged,
+      queueDecision,
+      inputValueRef.current,
+    )) {
+      return;
+    }
+
+    if (sessionChanged && previousSessionId) {
+      saveSessionComposerDraft(previousSessionId, {
+        value: inputValueRef.current,
+        contexts: contextsRef.current,
+        pendingLargePastes: pendingLargePastesRef.current,
+      });
+    }
+
+    const restoredDraft = currentSessionId
+      ? getSessionComposerDraft(currentSessionId)
+      : undefined;
+    const hydration = resolveSessionComposerHydration(queuedInput, restoredDraft);
+
+    previousComposerSessionIdRef.current = currentSessionId;
+    emptyPasteClearGuardCountRef.current = countEmptyPasteClearGuards(
+      Object.keys(hydration.pendingLargePastes).length > 0,
+      inputValueRef.current,
+      hydration.value,
+    );
+    inputValueRef.current = hydration.value;
+    pendingLargePastesRef.current = hydration.pendingLargePastes;
+    contextsRef.current = hydration.contexts;
+    if (queuedInput) {
+      dispatchInput({ type: 'ACTIVATE' });
+    }
+    dispatchInput({ type: 'SET_VALUE', payload: hydration.value });
+    replaceContexts(hydration.contexts);
+    setHistoryIndex(-1);
+    if (queuedInput) {
+      richTextInputRef.current?.focus();
+    }
+  }, [
+    currentSessionId,
+    derivedState?.queuedInput,
+    replaceContexts,
+    sessionSnapshot?.sessionId,
+  ]);
+
   const currentReviewActivity = useSessionReviewActivity(currentSessionId);
-  useSessionStateMachine(effectiveTargetSessionId);
   const { confirmDeepReviewLaunch, deepReviewConsentDialog } = useDeepReviewConsent();
   // isMultiLine: true when content overflows a single line (scrollHeight > threshold or has newlines)
   const [isMultiLine, setIsMultiLine] = useState(false);
@@ -555,7 +655,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     ],
   );
 
-  const handleDeferredSessionCreated = useCallback(() => {
+  const handleDeferredSessionCreated = useCallback((sessionId: string) => {
+    deferredCreatedSessionIdRef.current = sessionId;
     completeNewSessionDraft();
   }, []);
   
@@ -567,7 +668,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { sendMessage } = useMessageSender({
     currentSessionId: effectiveTargetSessionId || undefined,
     contexts,
-    onClearContexts: clearContexts,
     onSuccess: onSendMessage,
     // Composer mode is authoritative (synced from session on switch, updated in
     // applyModeChange). Prefer it over session.mode so a stale store cannot force
@@ -769,6 +869,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   React.useEffect(() => {
     if (inputState.value === '') {
+      const guard = consumeEmptyPasteClearGuard(
+        emptyPasteClearGuardCountRef.current,
+      );
+      emptyPasteClearGuardCountRef.current = guard.remainingGuardCount;
+      if (guard.shouldSkipClear) {
+        return;
+      }
       clearPendingLargePastes();
     }
   }, [clearPendingLargePastes, inputState.value]);
@@ -1074,36 +1181,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
     }
   }, [activeSessionMode, currentMode, effectiveTargetSessionId, isAssistantWorkspace]);
-
-  React.useEffect(() => {
-    const queuedInput = derivedState?.queuedInput;
-    if (!queuedInput?.trim() || !effectiveTargetSessionId) {
-      return;
-    }
-    // Sync machine queue into the input (e.g. failed turn restored by EventHandlerModule).
-    // `queuedInput` is cleared on successful send via `setQueuedInput(null)` so we do not fight CLEAR_VALUE.
-    // Use inputValueRef (not inputState.value) so this effect only re-runs when the machine's
-    // queuedInput actually changes — not on every keystroke — avoiding the race condition where
-    // a stale queuedInput would overwrite what the user is currently typing.
-    const currentValue = inputValueRef.current;
-    if (currentValue !== queuedInput && !currentValue.trim()) {
-      // Only restore when the input is empty: this effect is for failure-recovery
-      // (EventHandlerModule sets queuedInput on failed turns), NOT for live typing.
-      // Restoring while the user is actively typing would overwrite their draft.
-      log.debug('Detected queuedInput, restoring message to input', { queuedInput });
-      clearPendingLargePastes();
-      dispatchInput({ type: 'ACTIVATE' });
-      dispatchInput({ type: 'SET_VALUE', payload: queuedInput });
-      inputValueRef.current = queuedInput;
-      if (richTextInputRef.current) {
-        richTextInputRef.current.focus();
-      }
-    }
-  }, [
-    derivedState?.queuedInput,
-    effectiveTargetSessionId,
-    clearPendingLargePastes,
-  ]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1980,13 +2057,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
+    const requestedSessionId = effectiveTargetSessionId;
+    const submittedDraftRevision = getSessionComposerDraftRevision(
+      requestedSessionId,
+    );
     const originalPendingLargePastes = { ...pendingLargePastesRef.current };
+    const originalContexts = [...contextsRef.current];
+    if (!requestedSessionId) {
+      deferredCreatedSessionIdRef.current = null;
+    }
     if (effectiveTargetSessionId) {
       addToHistory(effectiveTargetSessionId, originalMessage);
     }
     setHistoryIndex(-1);
     setSavedDraft('');
     dispatchInput({ type: 'CLEAR_VALUE' });
+    inputValueRef.current = '';
     clearPendingLargePastes();
     setQueuedInput(null);
     setSlashCommandState({ isActive: false, kind: 'modes', query: '', selectedIndex: 0 });
@@ -2011,18 +2097,86 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         throw new Error('MCP prompt returned no displayable content');
       }
 
-      await sendMessage(renderedPrompt, {
+      const receipt = await sendMessage(renderedPrompt, {
         displayMessage: originalMessage,
       });
-      dispatchInput({ type: 'DEACTIVATE' });
+      if (receipt) {
+        const draftGuard = resolveSessionComposerDraftGuard(
+          receipt.requestedSessionId,
+          receipt.sentSessionId,
+          submittedDraftRevision,
+        );
+        const draftMutationApplied = draftGuard
+          ? clearSessionComposerDraftIfRevision(draftGuard)
+          : false;
+        if (
+          shouldApplyGuardedComposerResult(draftGuard, draftMutationApplied)
+          && shouldClaimSuccessfulSendReceipt(
+            previousComposerSessionIdRef.current,
+            receipt.requestedSessionId,
+            receipt.sentSessionId,
+          )
+        ) {
+          const currentContexts = useContextStore.getState().contexts;
+          contextsRef.current = currentContexts;
+          receipt.submittedContextIds.forEach(removeContext);
+          if (shouldDeactivateComposerAfterSend(
+            previousComposerSessionIdRef.current,
+            receipt,
+            inputValueRef.current,
+            currentContexts.map(context => context.id),
+            pendingLargePastesRef.current,
+          )) {
+            dispatchInput({ type: 'DEACTIVATE' });
+          }
+        }
+      }
     } catch (error) {
       log.error('Failed to run MCP prompt command', {
         command: originalMessage,
         error,
       });
-      pendingLargePastesRef.current = originalPendingLargePastes;
-      dispatchInput({ type: 'ACTIVATE' });
-      dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
+      const createdSessionId = deferredCreatedSessionIdRef.current;
+      const draftGuard = resolveSessionComposerDraftGuard(
+        requestedSessionId,
+        createdSessionId,
+        submittedDraftRevision,
+      );
+      const draftMutationApplied = draftGuard
+        ? saveSessionComposerDraftIfRevision(draftGuard, {
+            value: originalMessage,
+            contexts: originalContexts,
+            pendingLargePastes: originalPendingLargePastes,
+          })
+        : false;
+      if (
+        shouldApplyGuardedComposerResult(draftGuard, draftMutationApplied)
+        && shouldRestoreFailedComposer(
+          previousComposerSessionIdRef.current,
+          requestedSessionId,
+          createdSessionId,
+        )
+      ) {
+        if (shouldRestoreFailedComposerContent(
+          inputValueRef.current,
+          pendingLargePastesRef.current,
+        )) {
+          inputValueRef.current = originalMessage;
+          pendingLargePastesRef.current = originalPendingLargePastes;
+          dispatchInput({ type: 'ACTIVATE' });
+          dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
+        }
+        const currentContexts = useContextStore.getState().contexts;
+        const currentContextIds = new Set(currentContexts.map(context => context.id));
+        const missingOriginalContexts = originalContexts.filter(
+          context => !currentContextIds.has(context.id),
+        );
+        if (missingOriginalContexts.length > 0) {
+          const mergedContexts = [...currentContexts, ...missingOriginalContexts];
+          contextsRef.current = mergedContexts;
+          replaceContexts(mergedContexts);
+        }
+      }
       notificationService.error(
         error instanceof Error ? error.message : t('error.unknown'),
         {
@@ -2039,6 +2193,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     inputState.value,
     loadMcpPromptCommands,
     resolveTypedMcpPromptCommand,
+    removeContext,
+    replaceContexts,
     sendMessage,
     setQueuedInput,
     t,
@@ -2080,7 +2236,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (!draftTrimmed) return;
     
     const originalMessage = draftTrimmed;
+    const submittedSessionId = effectiveTargetSessionId;
     const originalPendingLargePastes = { ...pendingLargePastesRef.current };
+    const originalContexts = [...contextsRef.current];
+    if (!submittedSessionId) {
+      deferredCreatedSessionIdRef.current = null;
+    }
+    const submittedDraftRevision = getSessionComposerDraftRevision(
+      submittedSessionId,
+    );
     const message = expandComposerSpecialTokens(originalMessage);
     const messageCharCount = getCharacterCount(message);
 
@@ -2179,6 +2343,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     setSavedDraft('');
 
     dispatchInput({ type: 'CLEAR_VALUE' });
+    inputValueRef.current = '';
     clearPendingLargePastes();
     // Clear machine queue too; otherwise the queuedInput→input sync effect puts the text back after send.
     setQueuedInput(null);
@@ -2187,12 +2352,40 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (isNewSessionDraft) {
         setDraftStatus('creating');
       }
-      await sendMessage(message, {
+      const receipt = await sendMessage(message, {
         displayMessage: originalMessage,
       });
-      clearPendingLargePastes();
-      dispatchInput({ type: 'CLEAR_VALUE' });
-      dispatchInput({ type: 'DEACTIVATE' });
+      if (receipt) {
+        const draftGuard = resolveSessionComposerDraftGuard(
+          receipt.requestedSessionId,
+          receipt.sentSessionId,
+          submittedDraftRevision,
+        );
+        const draftMutationApplied = draftGuard
+          ? clearSessionComposerDraftIfRevision(draftGuard)
+          : false;
+        if (
+          shouldApplyGuardedComposerResult(draftGuard, draftMutationApplied)
+          && shouldClaimSuccessfulSendReceipt(
+            previousComposerSessionIdRef.current,
+            receipt.requestedSessionId,
+            receipt.sentSessionId,
+          )
+        ) {
+          const currentContexts = useContextStore.getState().contexts;
+          contextsRef.current = currentContexts;
+          receipt.submittedContextIds.forEach(removeContext);
+          if (shouldDeactivateComposerAfterSend(
+            previousComposerSessionIdRef.current,
+            receipt,
+            inputValueRef.current,
+            currentContexts.map(context => context.id),
+            pendingLargePastesRef.current,
+          )) {
+            dispatchInput({ type: 'DEACTIVATE' });
+          }
+        }
+      }
     } catch (error) {
       if (
         isNewSessionDraft &&
@@ -2201,9 +2394,47 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         setDraftStatus('error');
       }
       log.error('Failed to send message', { error });
-      pendingLargePastesRef.current = originalPendingLargePastes;
-      dispatchInput({ type: 'ACTIVATE' });
-      dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
+      const createdSessionId = deferredCreatedSessionIdRef.current;
+      const draftGuard = resolveSessionComposerDraftGuard(
+        submittedSessionId,
+        createdSessionId,
+        submittedDraftRevision,
+      );
+      const draftMutationApplied = draftGuard
+        ? saveSessionComposerDraftIfRevision(draftGuard, {
+            value: originalMessage,
+            contexts: originalContexts,
+            pendingLargePastes: originalPendingLargePastes,
+          })
+        : false;
+      if (
+        shouldApplyGuardedComposerResult(draftGuard, draftMutationApplied)
+        && shouldRestoreFailedComposer(
+          previousComposerSessionIdRef.current,
+          submittedSessionId,
+          createdSessionId,
+        )
+      ) {
+        if (shouldRestoreFailedComposerContent(
+          inputValueRef.current,
+          pendingLargePastesRef.current,
+        )) {
+          inputValueRef.current = originalMessage;
+          pendingLargePastesRef.current = originalPendingLargePastes;
+          dispatchInput({ type: 'ACTIVATE' });
+          dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
+        }
+        const currentContexts = useContextStore.getState().contexts;
+        const currentContextIds = new Set(currentContexts.map(context => context.id));
+        const missingOriginalContexts = originalContexts.filter(
+          context => !currentContextIds.has(context.id),
+        );
+        const mergedContexts = [...currentContexts, ...missingOriginalContexts];
+        contextsRef.current = mergedContexts;
+        if (missingOriginalContexts.length > 0) {
+          replaceContexts(mergedContexts);
+        }
+      }
       if (derivedState?.isProcessing) {
         setQueuedInput(originalMessage);
       }
@@ -2217,6 +2448,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     addToHistory,
     effectiveTargetSessionId,
     clearPendingLargePastes,
+    removeContext,
+    replaceContexts,
     expandComposerSpecialTokens,
     setQueuedInput,
     submitBtwFromInput,
