@@ -314,4 +314,99 @@ describe('UserMessageItem steering tag', () => {
 
     expect(container.querySelector('.user-message-item__edit-btn')).toBeNull();
   });
+
+  it('renders persisted file, Skill and session references as accessible pills', () => {
+    activeSessionRef.current = {
+      sessionId: 'main-session',
+      sessionKind: 'normal',
+      dialogTurns: [{ id: 'turn-1', status: 'completed' }],
+    };
+    const composerPresentation = {
+      version: 1,
+      segments: [
+        { type: 'text', text: 'Review ' },
+        {
+          type: 'context',
+          context: {
+            id: 'file-1',
+            timestamp: 1,
+            type: 'file',
+            filePath: 'D:/work/a.ts',
+            fileName: 'a.ts',
+          },
+        },
+        { type: 'text', text: ' with ' },
+        { type: 'skill', name: 'audit' },
+        { type: 'text', text: ' from ' },
+        {
+          type: 'context',
+          context: {
+            id: 'session-ref-1',
+            timestamp: 1,
+            type: 'session-reference',
+            sessionId: 'research-1',
+            sessionTitle: 'Research',
+          },
+        },
+      ],
+    };
+
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider value={{ sessionId: 'main-session' }}>
+          <UserMessageItem
+            message={{
+              id: 'user-1',
+              content: 'legacy fallback',
+              timestamp: 1000,
+              metadata: { composerPresentation },
+            }}
+            turnId="turn-1"
+          />
+        </FlowChatContext.Provider>,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="file reference: a.ts"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Skill reference: audit"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Session reference: Research"]')).not.toBeNull();
+    expect(container.querySelector('.user-message-item__edit-btn')?.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('returns the structured presentation when filling a failed message back into the composer', () => {
+    const composerPresentation = {
+      version: 1,
+      segments: [{ type: 'skill', name: 'audit' }],
+    };
+    activeSessionRef.current = {
+      sessionId: 'main-session',
+      sessionKind: 'normal',
+      dialogTurns: [{ id: 'turn-1', status: 'error' }],
+    };
+
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider value={{ sessionId: 'main-session' }}>
+          <UserMessageItem
+            message={{
+              id: 'user-1',
+              content: 'failed',
+              timestamp: 1000,
+              metadata: { composerPresentation },
+            }}
+            turnId="turn-1"
+          />
+        </FlowChatContext.Provider>,
+      );
+    });
+    act(() => {
+      container.querySelector<HTMLButtonElement>('[aria-label="message.fillToInput"]')
+        ?.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(globalEventBus.emit).toHaveBeenCalledWith('fill-chat-input', {
+      content: 'failed',
+      composerPresentation: expect.objectContaining({ version: 1 }),
+    });
+  });
 });

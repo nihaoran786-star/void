@@ -27,6 +27,11 @@ import { coerceSessionUsageReport } from '../usage/usageReportUtils';
 import { resolveSessionRelationship } from '../../utils/sessionMetadata';
 import { useFlowChatPresentationActive } from './FlowChatPresentationActivity';
 import { usePresentationActiveSession } from './useFlowChatPresentationStore';
+import {
+  composerPresentationToAccessibleText,
+  parseComposerPresentation,
+} from '../../utils/composerPresentation';
+import { UserMessagePresentationContent } from './UserMessagePresentationContent';
 import './UserMessageItem.scss';
 
 const log = createLogger('UserMessageItem');
@@ -69,6 +74,13 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     const contentRef = useRef<HTMLDivElement>(null);
     const messageContent = typeof message?.content === 'string' ? message.content : String(message?.content || '');
     const messageImages = useMemo(() => message?.images ?? [], [message?.images]);
+    const composerPresentation = useMemo(
+      () => parseComposerPresentation(message?.metadata?.composerPresentation),
+      [message?.metadata?.composerPresentation],
+    );
+    const hasStructuredPresentation = composerPresentation?.segments.some(
+      segment => segment.type !== 'text',
+    ) ?? false;
     const isUsageReportMessage = message?.metadata?.localCommandKind === 'usage_report';
     const isGoalPendingMessage = message?.metadata?.localCommandKind === 'goal_pending';
     const isGoalVerifyingMessage = message?.metadata?.localCommandKind === 'goal_verifying';
@@ -105,7 +117,9 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       turnIndex >= 0 &&
       !isSystemTriggered &&
       !steeringStatus;
-    const canEdit = canEditBase && !isEditSubmitting && !isRollingBack;
+    // The legacy edit service accepts plain text only. Disable it for structured
+    // references instead of silently flattening and losing their identities.
+    const canEdit = canEditBase && !hasStructuredPresentation && !isEditSubmitting && !isRollingBack;
     const canShowEditAction = allowUserMessageEdit && !isFailed;
     const editDisabledReason = isSystemTriggered
       ? t('message.cannotEdit')
@@ -167,13 +181,17 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     const handleCopy = useCallback(async (e: React.MouseEvent) => {
       e.stopPropagation(); // Prevent toggle via bubbling.
       try {
-        await navigator.clipboard.writeText(messageContent);
+        await navigator.clipboard.writeText(
+          composerPresentation
+            ? composerPresentationToAccessibleText(composerPresentation)
+            : messageContent,
+        );
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (error) {
         log.error('Failed to copy', error);
       }
-    }, [messageContent]);
+    }, [composerPresentation, messageContent]);
 
     const handleRollback = useCallback(async (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -217,6 +235,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
           } else {
             globalEventBus.emit('fill-chat-input', {
               content: messageContent,
+              composerPresentation,
             });
           }
         }
@@ -228,7 +247,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       } finally {
         setIsRollingBack(false);
       }
-    }, [canRollback, onFillUserMessageInput, resolvedSessionId, t, turnIndex, messageContent]);
+    }, [canRollback, composerPresentation, onFillUserMessageInput, resolvedSessionId, t, turnIndex, messageContent]);
 
     const handleBeginEdit = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
@@ -316,9 +335,10 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     const handleFillToInput = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
       globalEventBus.emit('fill-chat-input', {
-        content: messageContent
+        content: messageContent,
+        composerPresentation,
       });
-    }, [messageContent]);
+    }, [composerPresentation, messageContent]);
 
     const usageContextUsage = currentSession
       ? currentSession.currentAcpContextUsage
@@ -418,7 +438,9 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
                     cursor: (hasOverflow || expanded) ? 'pointer' : 'text',
                   }}
                 >
-                  {displayText}
+                  {composerPresentation
+                    ? <UserMessagePresentationContent presentation={composerPresentation} />
+                    : displayText}
                 </div>
                 {steeringTag && (
                   <div className={`user-message-item__steering-tag ${steeringTag.className}`}>
@@ -437,7 +459,9 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
                     cursor: (hasOverflow || expanded) ? 'pointer' : 'text',
                   }}
                 >
-                  {displayText}
+                  {composerPresentation
+                    ? <UserMessagePresentationContent presentation={composerPresentation} />
+                    : displayText}
                 </div>
                 {steeringTag && (
                   <div className={`user-message-item__steering-tag ${steeringTag.className}`}>

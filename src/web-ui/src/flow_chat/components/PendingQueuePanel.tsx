@@ -34,6 +34,7 @@ import { notificationService } from '../../shared/notification-system';
 import { createLogger } from '@/shared/utils/logger';
 import type { QueuedMessage } from '../types/flow-chat';
 import { isAcpFlowSession } from '../utils/acpSession';
+import { parseComposerPresentation } from '../utils/composerPresentation';
 import './PendingQueuePanel.scss';
 
 const log = createLogger('PendingQueuePanel');
@@ -104,6 +105,15 @@ export function PendingQueuePanel({ sessionId, className }: PendingQueuePanelPro
       pendingQueueManager.update(sessionId, item.id, {
         content: trimmed,
         displayMessage: trimmed,
+        userMessageMetadata: (() => {
+          if (!item.userMessageMetadata) return undefined;
+          const {
+            composerPresentation: _composerPresentation,
+            sessionReferences: _sessionReferences,
+            ...remainingMetadata
+          } = item.userMessageMetadata;
+          return Object.keys(remainingMetadata).length > 0 ? remainingMetadata : undefined;
+        })(),
       });
       setEditingId(null);
       setEditingDraft('');
@@ -149,6 +159,7 @@ export function PendingQueuePanel({ sessionId, className }: PendingQueuePanelPro
               agentType: item.agentType,
               imageContexts: item.imageContexts,
               imageDisplayData: item.imageDisplayData,
+              userMessageMetadata: item.userMessageMetadata,
             });
             for (const other of allItems) {
               if (other.id === item.id) continue;
@@ -159,6 +170,7 @@ export function PendingQueuePanel({ sessionId, className }: PendingQueuePanelPro
                 agentType: other.agentType,
                 imageContexts: other.imageContexts,
                 imageDisplayData: other.imageDisplayData,
+                userMessageMetadata: other.userMessageMetadata,
               });
             }
           }
@@ -234,6 +246,15 @@ export function PendingQueuePanel({ sessionId, className }: PendingQueuePanelPro
           const isSendingNow = item.status === 'sending_now';
           const isSending = item.status === 'sending' || isSendingNow;
           const isFailed = item.status === 'failed' || (item.retryCount ?? 0) > 0;
+          const queuedPresentation = parseComposerPresentation(
+            item.userMessageMetadata?.composerPresentation,
+          );
+          const hasStructuredReferences =
+            queuedPresentation?.segments.some(segment => segment.type !== 'text') === true
+            || (
+              Array.isArray(item.userMessageMetadata?.sessionReferences)
+              && item.userMessageMetadata.sessionReferences.length > 0
+            );
           const previewText = item.displayMessage ?? item.content;
           const itemClass = [
             'void-pending-queue-panel__item',
@@ -351,7 +372,7 @@ export function PendingQueuePanel({ sessionId, className }: PendingQueuePanelPro
                         <Pencil size={12} strokeWidth={2.25} />
                       </IconButton>
                     </Tooltip>
-                    {!isAcpSession && (
+                    {!isAcpSession && !hasStructuredReferences && (
                       <Tooltip content={t('pendingQueue.tooltip.sendNow')}>
                         <IconButton
                           size="small"

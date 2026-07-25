@@ -9,7 +9,11 @@ import { useTranslation } from 'react-i18next';
 import { ArrowUp, Image, RotateCcw, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
 import { ContextDropZone, useContextStore } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
-import { RichTextInput, type MentionState } from './RichTextInput';
+import {
+  RichTextInput,
+  type MentionState,
+  type RichTextInputElement,
+} from './RichTextInput';
 import { FileMentionPicker } from './FileMentionPicker';
 import { globalEventBus } from '@/infrastructure/event-bus';
 import {
@@ -102,6 +106,12 @@ import {
   shouldRestoreFailedComposer,
   shouldRestoreFailedComposerContent,
 } from '../store/sessionComposerStore';
+import {
+  composerPresentationToValue,
+  getComposerPresentationContexts,
+  parseComposerPresentation,
+} from '../utils/composerPresentation';
+import { createSkillPromptReferenceToken } from '../utils/skillPromptReference';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
@@ -263,7 +273,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [inputState, dispatchInput] = useReducer(inputReducer, initialInputState);
   const [modeState, dispatchMode] = useReducer(modeReducer, initialModeState);
   
-  const richTextInputRef = useRef<HTMLDivElement>(null);
+  const richTextInputRef = useRef<RichTextInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const agentBoostRef = useRef<HTMLDivElement>(null);
   const isImeComposingRef = useRef(false);
@@ -282,7 +292,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const contexts = useContextStore(state => state.contexts);
   const addContext = useContextStore(state => state.addContext);
   const removeContext = useContextStore(state => state.removeContext);
-  const clearContexts = useContextStore(state => state.clearContexts);
   const replaceContexts = useContextStore(state => state.replaceContexts);
   const contextsRef = useRef(contexts);
 
@@ -932,30 +941,47 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       onlyIfEmpty?: boolean;
       mode?: 'replace' | 'append';
       separator?: string;
+      composerPresentation?: unknown;
     }) => {
       if (data.onlyIfEmpty && inputValueRef.current.trim().length > 0) {
         return;
       }
 
+      const parsedPresentation = data.mode === 'append'
+        ? null
+        : parseComposerPresentation(data.composerPresentation);
+      const restoredContent = parsedPresentation
+        ? composerPresentationToValue(parsedPresentation)
+        : data.content;
       const nextValue =
         data.mode === 'append'
           ? (() => {
               const currentValue = inputValueRef.current;
               if (!currentValue.trim()) {
-                return data.content;
+                return restoredContent;
               }
 
               const separator = data.separator ?? '\n\n';
-              return `${currentValue.replace(/\s+$/, '')}${separator}${data.content.replace(/^\s+/, '')}`;
+              return `${currentValue.replace(/\s+$/, '')}${separator}${restoredContent.replace(/^\s+/, '')}`;
             })()
-          : data.content;
+          : restoredContent;
 
       if (data.mode !== 'append') {
         clearPendingLargePastes();
+        const restoredContexts = parsedPresentation
+          ? getComposerPresentationContexts(parsedPresentation)
+          : [];
+        contextsRef.current = restoredContexts;
+        replaceContexts(restoredContexts);
       }
       dispatchInput({ type: 'ACTIVATE' });
       dispatchInput({ type: 'SET_VALUE', payload: nextValue });
       inputValueRef.current = nextValue;
+      if (parsedPresentation) {
+        window.requestAnimationFrame(() => {
+          richTextInputRef.current?.restorePresentation?.(parsedPresentation);
+        });
+      }
 
       if (richTextInputRef.current) {
         richTextInputRef.current.focus();
@@ -967,7 +993,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       globalEventBus.off('fill-chat-input', handleFillChatInput);
     };
-  }, [clearPendingLargePastes]);
+  }, [clearPendingLargePastes, replaceContexts]);
 
   // Expose current input value for external queries (e.g. deep review fill-back confirmation)
   React.useEffect(() => {
@@ -2063,6 +2089,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     );
     const originalPendingLargePastes = { ...pendingLargePastesRef.current };
     const originalContexts = [...contextsRef.current];
+    const originalPresentation = richTextInputRef.current?.getPresentation?.();
     if (!requestedSessionId) {
       deferredCreatedSessionIdRef.current = null;
     }
@@ -2099,6 +2126,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       const receipt = await sendMessage(renderedPrompt, {
         displayMessage: originalMessage,
+        composerPresentation: originalPresentation,
       });
       if (receipt) {
         const draftGuard = resolveSessionComposerDraftGuard(
@@ -2239,6 +2267,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const submittedSessionId = effectiveTargetSessionId;
     const originalPendingLargePastes = { ...pendingLargePastesRef.current };
     const originalContexts = [...contextsRef.current];
+    const originalPresentation = richTextInputRef.current?.getPresentation?.();
     if (!submittedSessionId) {
       deferredCreatedSessionIdRef.current = null;
     }
@@ -2354,6 +2383,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
       const receipt = await sendMessage(message, {
         displayMessage: originalMessage,
+        composerPresentation: originalPresentation,
       });
       if (receipt) {
         const draftGuard = resolveSessionComposerDraftGuard(
@@ -2960,7 +2990,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const insertSkillIntoInput = useCallback(
     (skillName: string) => {
-      const line = t('chatInput.insertSkillLine', { name: skillName });
+      const line = createSkillPromptReferenceToken(skillName);
       dispatchInput({ type: 'ACTIVATE' });
       const cur = inputState.value;
       const next = cur.trim() ? `${cur.trimEnd()}\n\n${line}` : line;

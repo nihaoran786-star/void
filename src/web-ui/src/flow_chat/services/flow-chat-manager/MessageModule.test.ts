@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockSendMessageToTransientBtwSession = vi.fn();
 const mockStateMachineGetCurrentState = vi.fn();
 const mockPendingQueueList = vi.fn();
+const mockPendingQueueEnqueue = vi.fn();
 
 vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({
   agentAPI: {
@@ -47,7 +48,7 @@ vi.mock('@/infrastructure/event-bus', () => ({
 vi.mock('./PendingQueueModule', () => ({
   pendingQueueManager: {
     list: (...args: any[]) => mockPendingQueueList(...args),
-    enqueue: vi.fn(),
+    enqueue: (...args: any[]) => mockPendingQueueEnqueue(...args),
   },
 }));
 
@@ -99,6 +100,7 @@ describe('MessageModule transient BTW image follow-up', () => {
     });
     mockStateMachineGetCurrentState.mockReturnValue(SessionExecutionState.IDLE);
     mockPendingQueueList.mockReturnValue([]);
+    mockPendingQueueEnqueue.mockReturnValue({ id: 'pending-1' });
     mockSendMessageToTransientBtwSession.mockResolvedValue({ requestId: 'btw-req-1' });
   });
 
@@ -212,5 +214,38 @@ describe('MessageModule transient BTW image follow-up', () => {
         }),
       }),
     );
+  });
+
+  it('preserves user-message metadata while a busy session queues the message', async () => {
+    sessions.set('busy-session', {
+      sessionId: 'busy-session',
+      title: 'Busy',
+      mode: 'agentic',
+      sessionKind: 'normal',
+      config: { modelName: 'fast' },
+    });
+    mockStateMachineGetCurrentState.mockReturnValue(SessionExecutionState.PROCESSING);
+    const userMessageMetadata = {
+      composerPresentation: {
+        version: 1,
+        segments: [{ type: 'skill', name: 'audit' }],
+      },
+    };
+
+    await sendMessage(
+      context,
+      'Please use the Skill tool with command "audit".',
+      'busy-session',
+      '[[void-skill:audit]]',
+      'agentic',
+      undefined,
+      { userMessageMetadata },
+    );
+
+    expect(mockPendingQueueEnqueue).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'busy-session',
+      userMessageMetadata,
+    }));
+    expect(context.flowChatStore.addDialogTurn).not.toHaveBeenCalled();
   });
 });

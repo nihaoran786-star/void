@@ -2415,6 +2415,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
           sessionId,
           content: dialogTurn.userMessage.content,
           displayMessage: dialogTurn.userMessage.content,
+          userMessageMetadata: dialogTurn.userMessage.metadata,
           retryCount: 1,
           initialStatus: 'failed',
         });

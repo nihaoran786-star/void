@@ -36,6 +36,16 @@ export function formatContextForPrompt(context: ContextItem): string {
       ];
       return lines.filter(Boolean).join('\n');
     }
+    case 'session-reference': {
+      const locator = [
+        `session=${context.sessionId}`,
+        context.workspaceId ? `workspace=${context.workspaceId}` : '',
+        context.workspacePath ? `path=${context.workspacePath}` : '',
+        context.remoteConnectionId ? `remote=${context.remoteConnectionId}` : '',
+        context.remoteSshHost ? `host=${context.remoteSshHost}` : '',
+      ].filter(Boolean).join('; ');
+      return `[Session Reference: ${context.sessionTitle || context.sessionId}; ${locator}]`;
+    }
     case 'terminal-command':
       return `[Command: ${context.command}]`;
     case 'mermaid-node':

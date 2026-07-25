@@ -24,6 +24,7 @@ export type ContextItem =
   | MermaidDiagramContext
   | ImageContext
   | MediaReferenceContext
+  | SessionReferenceContext
   | TerminalCommandContext
   | GitRefContext
   | URLContext
@@ -111,6 +112,22 @@ export interface MediaReferenceContext extends BaseContext {
   mimeType?: string;
   source?: 'generated' | 'input';
   stableSlotId?: string;
+}
+
+/**
+ * A presentation-only reference to another chat session.
+ *
+ * The locators are intentionally sufficient to reopen/identify the session,
+ * but this DTO does not imply that the Web UI can read or inject transcripts.
+ */
+export interface SessionReferenceContext extends BaseContext {
+  type: 'session-reference';
+  sessionId: string;
+  sessionTitle: string;
+  workspaceId?: string;
+  workspacePath?: string;
+  remoteConnectionId?: string;
+  remoteSshHost?: string;
 }
 
 export interface TerminalCommandContext extends BaseContext {
@@ -211,6 +228,10 @@ export function isImageContext(context: ContextItem): context is ImageContext {
 
 export function isMediaReferenceContext(context: ContextItem): context is MediaReferenceContext {
   return context.type === 'media-reference';
+}
+
+export function isSessionReferenceContext(context: ContextItem): context is SessionReferenceContext {
+  return context.type === 'session-reference';
 }
 
 export function isTerminalCommandContext(context: ContextItem): context is TerminalCommandContext {

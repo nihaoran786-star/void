@@ -16,6 +16,11 @@ import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
 import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
 import type { SessionConfig } from '../types/flow-chat';
+import {
+  createComposerPresentation,
+  type ComposerPresentation,
+} from '../utils/composerPresentation';
+import { expandSkillPromptReferences } from '../utils/skillPromptReference';
 
 const log = createLogger('FlowChat');
 
@@ -68,6 +73,7 @@ interface UseMessageSenderReturn {
     message: string,
     options?: {
       displayMessage?: string;
+      composerPresentation?: ComposerPresentation;
     }
   ) => Promise<MessageSendReceipt | undefined>;
   /** Whether a send is in progress */
@@ -89,6 +95,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     message: string,
     options?: {
       displayMessage?: string;
+      composerPresentation?: ComposerPresentation;
     }
   ) => {
     if (!message.trim()) {
@@ -111,7 +118,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         .replace(/[ \t]+\n/g, '\n')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    const aiTrimmedMessage = stripImageTags(trimmedMessage);
+    const aiTrimmedMessage = expandSkillPromptReferences(stripImageTags(trimmedMessage));
     let sessionId = requestedSessionId;
     log.debug('Send message initiated', {
       textLength: trimmedMessage.length,
@@ -144,9 +151,14 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       }
 
       const imageContexts = submittedContexts.filter(ctx => ctx.type === 'image') as ImageContext[];
+      const sessionReferences = submittedContexts.filter(
+        context => context.type === 'session-reference',
+      );
 
       let fullMessage = aiTrimmedMessage;
       const displayMessage = options?.displayMessage?.trim() || trimmedMessage;
+      const composerPresentation = options?.composerPresentation
+        ?? createComposerPresentation(displayMessage, submittedContexts);
 
       if (submittedContexts.length > 0) {
         const fullContextSection = submittedContexts
@@ -169,7 +181,14 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         displayMessage,
         currentAgentType || 'agentic',
         undefined,
-        imageContextsForBackend
+        {
+          imageContexts: imageContextsForBackend?.imageContexts,
+          imageDisplayData: imageContextsForBackend?.imageDisplayData,
+          userMessageMetadata: {
+            composerPresentation,
+            sessionReferences,
+          },
+        },
       );
 
       onExitTemplateMode?.();

@@ -117,7 +117,15 @@ describe('useMessageSender deferred session creation', () => {
       '第一条消息',
       'Cowork',
       undefined,
-      undefined,
+      expect.objectContaining({
+        userMessageMetadata: expect.objectContaining({
+          composerPresentation: {
+            version: 1,
+            segments: [{ type: 'text', text: '第一条消息' }],
+          },
+          sessionReferences: [],
+        }),
+      }),
     );
   });
 
@@ -192,5 +200,46 @@ describe('useMessageSender deferred session creation', () => {
       await sender?.sendMessage('失败消息');
     })).rejects.toThrow('send failed');
     expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it('persists a payload-free image presentation and expands Skill references for the model', async () => {
+    const image: ContextItem = {
+      id: 'image-1',
+      timestamp: 3,
+      type: 'image',
+      imagePath: 'D:/workspace/cat.png',
+      imageName: 'cat.png',
+      fileSize: 42,
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,large',
+      thumbnailUrl: 'blob:large',
+      source: 'file',
+      isLocal: true,
+    };
+
+    function Harness() {
+      const value = useMessageSender({
+        currentSessionId: 'session-1',
+        contexts: [image],
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    await act(async () => {
+      await sender?.sendMessage('[[void-skill:audit]] inspect #img:cat.png');
+    });
+
+    const call = mocks.sendMessage.mock.calls[0];
+    expect(call[0]).toContain('Please use the Skill tool with command "audit".');
+    const presentation = call[5].userMessageMetadata.composerPresentation;
+    expect(JSON.stringify(presentation)).not.toContain('base64');
+    expect(JSON.stringify(presentation)).not.toContain('thumbnailUrl');
+    expect(call[5].imageDisplayData[0].dataUrl).toContain('base64');
   });
 });

@@ -1,8 +1,10 @@
 import React, { act, createRef, forwardRef, useImperativeHandle, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import RichTextInput from './RichTextInput';
+import RichTextInput, { type RichTextInputElement } from './RichTextInput';
 import type { ContextItem, FileContext } from '../../shared/types/context';
+import type { ComposerPresentation } from '../utils/composerPresentation';
+import { createSkillPromptReferenceToken } from '../utils/skillPromptReference';
 
 type HarnessHandle = {
   setValue: (value: string) => void;
@@ -339,5 +341,147 @@ describeWithJsdom('RichTextInput external sync', () => {
     expect((editor.childNodes[1] as HTMLElement).dataset.tagFormat).toBe('#file:file.ts');
     expect(Array.from(editor.childNodes).slice(2).map(node => node.textContent).join('')).toBe(' ');
     expect(onChange).toHaveBeenLastCalledWith('ask #file:file.ts', [fileContext]);
+  });
+
+  it('renders Skill references as pills and exposes an ordered presentation', async () => {
+    const editorRef = createRef<RichTextInputElement>();
+    const fileContext: FileContext = {
+      id: 'file-1',
+      type: 'file',
+      filePath: '/repo/a.ts',
+      fileName: 'a.ts',
+      timestamp: 1,
+    };
+    const token = createSkillPromptReferenceToken('audit');
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          ref={editorRef}
+          value={`Review #file:a.ts with ${token}`}
+          contexts={[fileContext]}
+          onChange={() => {}}
+          onRemoveContext={() => {}}
+        />,
+      );
+    });
+
+    expect(container.querySelector('[data-inline-token-type="skill-ref"]')?.textContent).toContain('audit');
+    expect(editorRef.current?.getPresentation?.().segments.map(segment => segment.type)).toEqual([
+      'text', 'context', 'text', 'skill',
+    ]);
+  });
+
+  it('keeps restored session contexts after the first input event', async () => {
+    const onChange = vi.fn();
+    const fileContext: FileContext = {
+      id: 'file-1',
+      type: 'file',
+      filePath: '/repo/a.ts',
+      fileName: 'a.ts',
+      timestamp: 1,
+    };
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value="Review #file:a.ts"
+          contexts={[fileContext]}
+          onChange={onChange}
+          onRemoveContext={() => {}}
+        />,
+      );
+    });
+
+    const editor = container.querySelector('.rich-text-input') as HTMLDivElement;
+    expect(editor.querySelector('[data-context-id="file-1"]')).not.toBeNull();
+    await act(async () => {
+      editor.appendChild(document.createTextNode(' now'));
+      editor.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith('Review #file:a.ts now', [fileContext]);
+  });
+
+  it('renders overlapping context tokens as the correct pills', async () => {
+    const short: FileContext = {
+      id: 'file-short',
+      type: 'file',
+      filePath: '/repo/a',
+      fileName: 'a',
+      timestamp: 1,
+    };
+    const long: FileContext = {
+      id: 'file-long',
+      type: 'file',
+      filePath: '/repo/a.ts',
+      fileName: 'a.ts',
+      timestamp: 2,
+    };
+
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          value="#file:a then #file:a.ts"
+          contexts={[short, long]}
+          onChange={() => {}}
+          onRemoveContext={() => {}}
+        />,
+      );
+    });
+
+    const pills = Array.from(
+      container.querySelectorAll<HTMLElement>('[data-context-id]'),
+    ).map(element => element.dataset.contextId);
+    expect(pills).toEqual(['file-short', 'file-long']);
+  });
+
+  it('restores text, contexts and Skill pills from a presentation', async () => {
+    const editorRef = createRef<RichTextInputElement>();
+    const onChange = vi.fn();
+    const fileContext: FileContext = {
+      id: 'file-1',
+      type: 'file',
+      filePath: '/repo/a.ts',
+      fileName: 'a.ts',
+      timestamp: 1,
+    };
+    const presentation: ComposerPresentation = {
+      version: 1,
+      segments: [
+        { type: 'context', context: fileContext },
+        { type: 'text', text: ' then ' },
+        { type: 'skill', name: 'audit' },
+      ],
+    };
+    await act(async () => {
+      root.render(
+        <RichTextInput
+          ref={editorRef}
+          value=""
+          contexts={[fileContext]}
+          onChange={onChange}
+          onRemoveContext={() => {}}
+        />,
+      );
+    });
+    await act(async () => {
+      editorRef.current?.restorePresentation?.(presentation);
+    });
+
+    expect(onChange).toHaveBeenCalledWith(
+      '#file:a.ts then [[void-skill:audit]]',
+      [fileContext],
+    );
+    expect(container.querySelector('[data-context-id="file-1"]')).not.toBeNull();
+    expect(container.querySelector('[data-inline-token-type="skill-ref"]')).not.toBeNull();
+
+    await act(async () => {
+      (container.querySelector('.rich-text-input') as HTMLDivElement)
+        .dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      '#file:a.ts then [[void-skill:audit]]',
+      [fileContext],
+    );
   });
 });
