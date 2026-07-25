@@ -34,6 +34,7 @@ pub enum ExternalConfigFormat {
     Json,
     JsonWithComments,
     Toml,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

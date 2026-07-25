@@ -35,6 +35,7 @@ fn context(home: &Path, platform: HostPlatform) -> ExternalConfigDiscoveryContex
         home_dir: Some(home.to_path_buf()),
         platform_config_dir: None,
         codex_home: None,
+        opencode_config: None,
     }
 }
 
@@ -60,10 +61,7 @@ fn candidate_paths_are_platform_specific_without_exposing_them_in_dtos() {
     );
     assert_eq!(
         mac[0].path,
-        home.join("Library")
-            .join("Application Support")
-            .join("opencode")
-            .join("opencode.json")
+        home.join(".config").join("opencode").join("opencode.json")
     );
     assert_eq!(
         windows[0].path,
@@ -213,6 +211,7 @@ fn environment_overrides_are_labeled_but_their_values_are_not_returned() {
         home_dir: Some(test_dir.path.clone()),
         platform_config_dir: None,
         codex_home: Some(codex_home),
+        opencode_config: None,
     };
 
     let snapshot = probe_source(ExternalConfigSource::Codex, &context);
@@ -222,4 +221,72 @@ fn environment_overrides_are_labeled_but_their_values_are_not_returned() {
     );
     let serialized = serde_json::to_string(&snapshot).expect("serialize snapshot");
     assert!(!serialized.contains("custom-codex-private"));
+}
+
+#[test]
+fn opencode_jsonc_adapter_uses_official_global_shape_without_leaking_credentials() {
+    let test_dir = TestDirectory::new();
+    let config_dir = test_dir.path.join(".config").join("opencode");
+    fs::create_dir_all(&config_dir).expect("create opencode config directory");
+    fs::write(
+        config_dir.join("opencode.jsonc"),
+        r#"{
+            // OpenCode supports comments and trailing commas.
+            "model": "anthropic/claude-sonnet-4-5",
+            "provider": {
+                "anthropic": {
+                    "options": { "apiKey": "{env:ANTHROPIC_API_KEY}" },
+                },
+            },
+            "agent": {
+                "reviewer": { "model": "anthropic/claude-opus-4-1" },
+            },
+            "command": {
+                "private": { "template": "never-return-this-command" },
+            },
+        }"#,
+    )
+    .expect("write config");
+
+    let snapshot = probe_source(
+        ExternalConfigSource::OpenCode,
+        &context(&test_dir.path, HostPlatform::Windows),
+    );
+
+    assert_eq!(snapshot.status, ExternalConfigSourceStatus::Ready);
+    assert_eq!(snapshot.format, ExternalConfigFormat::JsonWithComments);
+    assert_eq!(snapshot.summary.provider_names, ["anthropic"]);
+    assert_eq!(
+        snapshot.summary.model_names,
+        ["anthropic/claude-opus-4-1", "anthropic/claude-sonnet-4-5"]
+    );
+    assert_eq!(snapshot.summary.profile_names, ["reviewer"]);
+    let serialized = serde_json::to_string(&snapshot).expect("serialize snapshot");
+    assert!(!serialized.contains("ANTHROPIC_API_KEY"));
+    assert!(!serialized.contains("never-return-this-command"));
+}
+
+#[test]
+fn opencode_explicit_config_path_is_preferred_and_never_exposed() {
+    let test_dir = TestDirectory::new();
+    let custom_path = test_dir.path.join("private-custom-opencode.json");
+    fs::write(&custom_path, r#"{ "model": "openai/gpt-5" }"#).expect("write custom config");
+    let context = ExternalConfigDiscoveryContext {
+        platform: HostPlatform::Linux,
+        home_dir: Some(test_dir.path.clone()),
+        platform_config_dir: None,
+        codex_home: None,
+        opencode_config: Some(custom_path),
+    };
+
+    let snapshot = probe_source(ExternalConfigSource::OpenCode, &context);
+
+    assert_eq!(snapshot.status, ExternalConfigSourceStatus::Ready);
+    assert_eq!(
+        snapshot.location_category,
+        ExternalConfigLocationCategory::EnvironmentOverride
+    );
+    assert_eq!(snapshot.summary.model_names, ["openai/gpt-5"]);
+    let serialized = serde_json::to_string(&snapshot).expect("serialize snapshot");
+    assert!(!serialized.contains("private-custom-opencode"));
 }

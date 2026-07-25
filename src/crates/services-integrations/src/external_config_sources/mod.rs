@@ -34,6 +34,7 @@ pub struct ExternalConfigDiscoveryContext {
     pub home_dir: Option<PathBuf>,
     pub platform_config_dir: Option<PathBuf>,
     pub codex_home: Option<PathBuf>,
+    pub opencode_config: Option<PathBuf>,
 }
 
 impl ExternalConfigDiscoveryContext {
@@ -45,19 +46,14 @@ impl ExternalConfigDiscoveryContext {
             "HOME"
         })
         .or_else(|| env_path("HOME"));
-        let platform_config_dir = env_path("XDG_CONFIG_HOME").or_else(|| {
-            if platform == HostPlatform::Windows {
-                env_path("APPDATA")
-            } else {
-                None
-            }
-        });
+        let platform_config_dir = env_path("XDG_CONFIG_HOME");
 
         Self {
             platform,
             home_dir,
             platform_config_dir,
             codex_home: env_path("CODEX_HOME"),
+            opencode_config: env_path("OPENCODE_CONFIG"),
         }
     }
 }
@@ -154,10 +150,9 @@ fn probe_source(
         };
         let summary = match candidate.format {
             ExternalConfigFormat::Json => parse_json_summary(&content),
-            ExternalConfigFormat::JsonWithComments => {
-                Err(ExternalConfigSourceErrorCode::UnsupportedFormat)
-            }
+            ExternalConfigFormat::JsonWithComments => parse_jsonc_summary(&content),
             ExternalConfigFormat::Toml => parse_toml_summary(&content),
+            ExternalConfigFormat::Unknown => Err(ExternalConfigSourceErrorCode::UnsupportedFormat),
         };
 
         return match summary {
@@ -239,26 +234,32 @@ fn candidates_for(
 }
 
 fn open_code_candidates(context: &ExternalConfigDiscoveryContext) -> Vec<ConfigCandidate> {
+    let mut candidates = Vec::new();
+    if let Some(path) = &context.opencode_config {
+        candidates.push(candidate(
+            path.clone(),
+            ExternalConfigLocationCategory::EnvironmentOverride,
+            json_format_for_path(path),
+        ));
+    }
+
     let (config_root, category) = if let Some(config_dir) = &context.platform_config_dir {
         (
             Some(config_dir.clone()),
             ExternalConfigLocationCategory::EnvironmentOverride,
         )
     } else if let Some(home) = &context.home_dir {
-        let path = match context.platform {
-            HostPlatform::Windows | HostPlatform::Linux => home.join(".config"),
-            HostPlatform::MacOs => home.join("Library").join("Application Support"),
-        };
+        let path = home.join(".config");
         (Some(path), ExternalConfigLocationCategory::PlatformConfig)
     } else {
         (None, ExternalConfigLocationCategory::PlatformConfig)
     };
 
     let Some(root) = config_root else {
-        return Vec::new();
+        return candidates;
     };
     let base = root.join("opencode");
-    vec![
+    candidates.extend([
         candidate(
             base.join("opencode.json"),
             category,
@@ -274,7 +275,21 @@ fn open_code_candidates(context: &ExternalConfigDiscoveryContext) -> Vec<ConfigC
             category,
             ExternalConfigFormat::JsonWithComments,
         ),
-    ]
+    ]);
+    candidates
+}
+
+fn json_format_for_path(path: &std::path::Path) -> ExternalConfigFormat {
+    match path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("json") => ExternalConfigFormat::Json,
+        Some("jsonc") => ExternalConfigFormat::JsonWithComments,
+        _ => ExternalConfigFormat::Unknown,
+    }
 }
 
 fn candidate(
@@ -387,6 +402,118 @@ fn parse_json_summary(
     Ok(collector.finish())
 }
 
+fn parse_jsonc_summary(
+    content: &str,
+) -> Result<ExternalConfigSafeSummary, ExternalConfigSourceErrorCode> {
+    let without_comments = strip_jsonc_comments(content)?;
+    let normalized = strip_jsonc_trailing_commas(&without_comments);
+    parse_json_summary(&normalized)
+}
+
+fn strip_jsonc_comments(content: &str) -> Result<String, ExternalConfigSourceErrorCode> {
+    let mut output = String::with_capacity(content.len());
+    let mut chars = content.chars().peekable();
+    let mut in_string = false;
+    let mut escaped = false;
+
+    while let Some(character) = chars.next() {
+        if in_string {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if character == '"' {
+            in_string = true;
+            output.push(character);
+            continue;
+        }
+
+        if character == '/' {
+            match chars.peek().copied() {
+                Some('/') => {
+                    chars.next();
+                    for comment_character in chars.by_ref() {
+                        if comment_character == '\n' {
+                            output.push('\n');
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                Some('*') => {
+                    chars.next();
+                    let mut closed = false;
+                    let mut previous = '\0';
+                    for comment_character in chars.by_ref() {
+                        if comment_character == '\n' {
+                            output.push('\n');
+                        }
+                        if previous == '*' && comment_character == '/' {
+                            closed = true;
+                            break;
+                        }
+                        previous = comment_character;
+                    }
+                    if !closed {
+                        return Err(ExternalConfigSourceErrorCode::ParseFailed);
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
+        output.push(character);
+    }
+
+    if in_string {
+        return Err(ExternalConfigSourceErrorCode::ParseFailed);
+    }
+    Ok(output)
+}
+
+fn strip_jsonc_trailing_commas(content: &str) -> String {
+    let mut output = String::with_capacity(content.len());
+    let mut chars = content.chars().peekable();
+    let mut in_string = false;
+    let mut escaped = false;
+
+    while let Some(character) = chars.next() {
+        if in_string {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if character == '"' {
+            in_string = true;
+            output.push(character);
+            continue;
+        }
+        if character == ',' {
+            let mut lookahead = chars.clone();
+            while lookahead.next_if(|next| next.is_whitespace()).is_some() {}
+            if matches!(lookahead.peek(), Some('}' | ']')) {
+                continue;
+            }
+        }
+        output.push(character);
+    }
+    output
+}
+
 fn collect_json_summary(
     value: &Value,
     parent_key: Option<&str>,
@@ -401,15 +528,22 @@ fn collect_json_summary(
             let normalized_parent = parent_key.map(normalize_key);
             if matches!(
                 normalized_parent.as_deref(),
-                Some("providers" | "modelproviders")
+                Some("provider" | "providers" | "modelproviders")
             ) {
                 for key in object.keys() {
-                    collector.add_provider(key);
+                    if !is_sensitive_key(&normalize_key(key)) {
+                        collector.add_provider(key);
+                    }
                 }
             }
-            if matches!(normalized_parent.as_deref(), Some("profiles" | "agents")) {
+            if matches!(
+                normalized_parent.as_deref(),
+                Some("profile" | "profiles" | "agent" | "agents")
+            ) {
                 for key in object.keys() {
-                    collector.add_profile(key);
+                    if !is_sensitive_key(&normalize_key(key)) {
+                        collector.add_profile(key);
+                    }
                 }
             }
 
@@ -612,6 +746,8 @@ fn add_safe_value(values: &mut BTreeSet<String>, value: &str) {
     if value.is_empty()
         || value.chars().count() > MAX_SUMMARY_VALUE_CHARS
         || value.chars().any(char::is_control)
+        || value.contains("{env:")
+        || value.contains("{file:")
     {
         return;
     }
