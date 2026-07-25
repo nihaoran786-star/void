@@ -13,6 +13,9 @@ describe('AcpAgentsConfig Minimal presentation', () => {
     expect(owner).toContain('@include minimal.styles;');
     expect(styles).toContain('.void-ui--minimal .void-acp-agents');
     expect(styles).toContain('@container config-panel (max-width: 520px)');
+    expect(styles).toContain('@container config-panel (max-width: 360px)');
+    expect(styles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(styles).toContain('grid-column: 1 / -1;');
     expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto auto;');
     expect(styles).toContain('var(--workspace-surface-panel)');
     expect(styles).not.toMatch(/(?:linear|radial)-gradient|backdrop-filter|rgba?\(/);

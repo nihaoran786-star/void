@@ -220,6 +220,25 @@
 
   @container config-panel (max-width: 360px) {
     .void-ui--minimal .void-acp-agents {
+      &__toolbar-actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+
+        > .btn {
+          width: 100%;
+          min-width: 0;
+        }
+
+        > .btn:last-child:nth-child(5) {
+          grid-column: 1 / -1;
+        }
+      }
+
+      &__filter-select {
+        grid-column: 1 / -1;
+        min-width: 0;
+      }
+
       &__registry-row {
         grid-template-columns: minmax(0, 1fr) auto;
       }

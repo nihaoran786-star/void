@@ -1014,6 +1014,25 @@ replace the working gallery or add decorative imagery.
   CSS viewport, the existing 102px compact editor remains fully inside the
   viewport with zero body overflow.
 
+### Resolved follow-up — Narrow ACP toolbar clipped its final action
+
+- **Location:** Settings → ACP agents
+- **Category:** Responsive layout / action visibility
+- **Severity:** P1
+- **Impact:** In a 134px content axis, the filter and three compact toolbar
+  actions retained a 192px single-row grid. The final learn-more action was
+  clipped outside the scene, and the toolbar created internal horizontal
+  overflow.
+- **Remediation:** At the existing 360px component breakpoint, the filter now
+  owns a full row and the three icon actions share a shrink-safe second row.
+  The optional save action continues to occupy its own full-width row.
+  Registry data, command handlers, and ACP persistence are unchanged.
+- **Suggested command:** `$adapt`
+- **Verification evidence:** At a 456×318 CSS viewport with a 134px ACP content
+  axis, the toolbar and all three actions remain inside the scene without
+  horizontal overflow. The maximized 840px content axis retains its labelled,
+  single-row toolbar.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal
