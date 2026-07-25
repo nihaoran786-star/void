@@ -648,6 +648,8 @@ impl RoundExecutor {
             };
 
             // Read tool execution related configuration from global config
+            #[cfg(feature = "product-full")]
+            let mut permission_config = None;
             let (needs_confirmation, tool_execution_timeout, tool_confirmation_timeout) = {
                 let config_service = GlobalConfigManager::get_service().await.ok();
 
@@ -656,6 +658,11 @@ impl RoundExecutor {
                     if let Some(ref service) = config_service {
                         let ai_config: crate::service::config::types::AIConfig =
                             service.get_config(Some("ai")).await.unwrap_or_default();
+
+                        #[cfg(feature = "product-full")]
+                        {
+                            permission_config = Some(ai_config.tool_permissions.clone());
+                        }
 
                         if ai_config.skip_tool_confirmation {
                             debug!("Global config skips tool confirmation");
@@ -675,6 +682,13 @@ impl RoundExecutor {
                     .get("skip_tool_confirmation")
                     .map(|v| v == "true")
                     .unwrap_or(false);
+
+                #[cfg(feature = "product-full")]
+                if skip_from_context {
+                    if let Some(config) = permission_config.as_mut() {
+                        config.mode = crate::service::config::types::ToolPermissionMode::Auto;
+                    }
+                }
 
                 let needs_confirm = if skip_confirmation || skip_from_context {
                     false
@@ -704,6 +718,8 @@ impl RoundExecutor {
                 confirm_before_run: needs_confirmation,
                 timeout_secs: tool_execution_timeout,
                 confirmation_timeout_secs: tool_confirmation_timeout,
+                #[cfg(feature = "product-full")]
+                permission_config,
                 ..ToolExecutionOptions::default()
             };
 

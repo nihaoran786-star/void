@@ -105,11 +105,42 @@ impl ToolPermissionConfig {
             base
         }
     }
+
+    /// Resolve a tool in runtimes that cannot provide a trusted intent.
+    ///
+    /// A matching intent-scoped rule must fail closed instead of being skipped,
+    /// otherwise a scoped deny could be bypassed by `Auto` or `FullAccess`.
+    pub fn resolve_without_intent(&self, tool: &str) -> ToolPermissionResolution {
+        if let Some((index, rule)) = self
+            .rules
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, rule)| rule.matches_tool(tool))
+        {
+            if !matches!(rule.intent.as_deref(), None | Some("*")) {
+                return ToolPermissionResolution {
+                    decision: ToolPermissionDecision::Deny,
+                    source: ToolPermissionSource::OrderedRule {
+                        index,
+                        rule_id: rule.id.clone(),
+                    },
+                    reason: ToolPermissionReason::IntentUnavailable,
+                };
+            }
+        }
+
+        self.resolve(tool, None)
+    }
 }
 
 impl ToolPermissionRule {
+    fn matches_tool(&self, tool: &str) -> bool {
+        self.tool == "*" || self.tool.eq_ignore_ascii_case(tool)
+    }
+
     fn matches(&self, tool: &str, intent: Option<&str>) -> bool {
-        let tool_matches = self.tool == "*" || self.tool.eq_ignore_ascii_case(tool);
+        let tool_matches = self.matches_tool(tool);
         let intent_matches = match self.intent.as_deref() {
             None | Some("*") => true,
             Some(expected) => intent.is_some_and(|actual| expected.eq_ignore_ascii_case(actual)),
@@ -142,6 +173,7 @@ pub enum ToolPermissionReason {
     RuleMatched,
     PresetDefault,
     AutoApprovedAsk,
+    IntentUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

@@ -13,6 +13,8 @@ use crate::agentic::tools::registry::ToolRegistry;
 use crate::agentic::tools::tool_context_runtime;
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::agentic::tools::tool_result_storage;
+#[cfg(feature = "product-full")]
+use crate::service::config::types::ToolPermissionDecision;
 use crate::util::elapsed_ms_u64;
 use crate::util::errors::{VoidError, VoidResult};
 use dashmap::DashMap;
@@ -47,6 +49,17 @@ const TOOL_CALL_LOOP_THRESHOLD: usize = 3;
 /// session does not accumulate unbounded memory; only the tail of the window
 /// participates in loop detection anyway.
 const TOOL_CALL_HISTORY_WINDOW: usize = 10;
+
+#[cfg(feature = "product-full")]
+fn resolve_configured_tool_permission(
+    options: &ToolExecutionOptions,
+    tool_name: &str,
+) -> Option<crate::service::config::types::ToolPermissionResolution> {
+    options
+        .permission_config
+        .as_ref()
+        .map(|config| config.resolve_without_intent(tool_name))
+}
 
 /// Snapshot of a recently attempted tool call, used to detect agent loops.
 #[derive(Debug, Clone)]
@@ -798,15 +811,51 @@ impl ToolPipeline {
             );
         }
 
-        // Register cancellation only after deterministic validation and registry lookup succeed.
-        self.cancellation_tokens
-            .insert(tool_id.clone(), cancellation_token.clone());
-
         debug!("Executing tool: tool_name={}", tool_name);
 
         let is_streaming = tool.supports_streaming();
         let preflight_ms = elapsed_ms_u64(start_time);
 
+        #[cfg(feature = "product-full")]
+        let permission_resolution = resolve_configured_tool_permission(&task.options, &tool_name);
+
+        #[cfg(feature = "product-full")]
+        if permission_resolution
+            .as_ref()
+            .is_some_and(|resolution| resolution.decision == ToolPermissionDecision::Deny)
+        {
+            let error_msg = format!(
+                "Tool denied by runtime restrictions: '{}' is denied by the configured tool permission policy",
+                tool_name
+            );
+            self.state_manager
+                .update_state(
+                    &tool_id,
+                    ToolExecutionState::Failed {
+                        error: error_msg.clone(),
+                        is_retryable: false,
+                        duration_ms: Some(elapsed_ms_u64(start_time)),
+                        queue_wait_ms: Some(queue_wait_ms),
+                        preflight_ms: Some(preflight_ms),
+                        confirmation_wait_ms: None,
+                        execution_ms: None,
+                    },
+                )
+                .await;
+            return Err(VoidError::Tool(error_msg));
+        }
+
+        // Register cancellation only after deterministic validation and
+        // permission denial checks succeed.
+        self.cancellation_tokens
+            .insert(tool_id.clone(), cancellation_token.clone());
+
+        #[cfg(feature = "product-full")]
+        let needs_confirmation = permission_resolution
+            .map(|resolution| resolution.decision == ToolPermissionDecision::Ask)
+            .unwrap_or(task.options.confirm_before_run)
+            && tool.needs_permissions(Some(&tool_args));
+        #[cfg(not(feature = "product-full"))]
         let needs_confirmation =
             task.options.confirm_before_run && tool.needs_permissions(Some(&tool_args));
 
@@ -1454,8 +1503,14 @@ mod tests {
     use crate::agentic::tools::framework::Tool;
     use crate::agentic::tools::implementations::task_tool::TaskTool;
     use crate::agentic::tools::ToolRuntimeRestrictions;
+    #[cfg(feature = "product-full")]
+    use crate::service::config::types::{
+        ToolPermissionConfig, ToolPermissionDecision, ToolPermissionMode, ToolPermissionRule,
+    };
     use serde_json::json;
     use std::collections::HashMap;
+    #[cfg(feature = "product-full")]
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn test_tool_pipeline() -> ToolPipeline {
         let registry = Arc::new(TokioRwLock::new(ToolRegistry::new()));
@@ -1492,6 +1547,121 @@ mod tests {
             },
             ToolExecutionOptions::default(),
         )
+    }
+
+    #[cfg(feature = "product-full")]
+    struct CountingPermissionTool {
+        calls: Arc<AtomicUsize>,
+    }
+
+    #[cfg(feature = "product-full")]
+    #[async_trait::async_trait]
+    impl Tool for CountingPermissionTool {
+        fn name(&self) -> &str {
+            "PermissionProbe"
+        }
+
+        async fn description(&self) -> VoidResult<String> {
+            Ok("permission test tool".to_string())
+        }
+
+        fn short_description(&self) -> String {
+            "permission test tool".to_string()
+        }
+
+        fn input_schema(&self) -> serde_json::Value {
+            json!({ "type": "object" })
+        }
+
+        async fn call_impl(
+            &self,
+            _input: &serde_json::Value,
+            _context: &ToolUseContext,
+        ) -> VoidResult<Vec<FrameworkToolResult>> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![FrameworkToolResult::Result {
+                data: json!({ "ok": true }),
+                result_for_assistant: None,
+                image_attachments: None,
+            }])
+        }
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn configured_auto_mode_preserves_explicit_deny() {
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Auto,
+            rules: vec![ToolPermissionRule {
+                id: Some("deny-bash".to_string()),
+                tool: "Bash".to_string(),
+                intent: None,
+                decision: ToolPermissionDecision::Deny,
+            }],
+        });
+
+        let resolution =
+            resolve_configured_tool_permission(&options, "Bash").expect("typed resolution");
+        assert_eq!(resolution.decision, ToolPermissionDecision::Deny);
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn configured_ask_and_full_access_modes_drive_unmatched_tool_decisions() {
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Ask,
+            rules: Vec::new(),
+        });
+        assert_eq!(
+            resolve_configured_tool_permission(&options, "Write")
+                .expect("ask resolution")
+                .decision,
+            ToolPermissionDecision::Ask
+        );
+
+        options.permission_config.as_mut().expect("config").mode = ToolPermissionMode::FullAccess;
+        assert_eq!(
+            resolve_configured_tool_permission(&options, "Write")
+                .expect("full access resolution")
+                .decision,
+            ToolPermissionDecision::Allow
+        );
+    }
+
+    #[cfg(feature = "product-full")]
+    #[tokio::test]
+    async fn configured_deny_returns_runtime_error_without_calling_tool() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut registry = ToolRegistry::new();
+        registry.register_tool(Arc::new(CountingPermissionTool {
+            calls: calls.clone(),
+        }));
+        let event_queue = Arc::new(EventQueue::new(EventQueueConfig::default()));
+        let state_manager = Arc::new(ToolStateManager::new(event_queue));
+        let pipeline = ToolPipeline::new(Arc::new(TokioRwLock::new(registry)), state_manager, None);
+        let task = test_tool_task("permission-probe-1", "PermissionProbe");
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Auto,
+            rules: vec![ToolPermissionRule {
+                id: Some("deny-probe".to_string()),
+                tool: "PermissionProbe".to_string(),
+                intent: None,
+                decision: ToolPermissionDecision::Deny,
+            }],
+        });
+
+        let results = pipeline
+            .execute_tools(vec![task.tool_call], task.context, options)
+            .await
+            .expect("pipeline should return a per-tool denial result");
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].result.is_error);
+        assert_eq!(results[0].result.result["category"], "runtime_denied");
     }
 
     #[test]

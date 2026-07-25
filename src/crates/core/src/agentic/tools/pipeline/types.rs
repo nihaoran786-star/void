@@ -21,6 +21,10 @@ pub struct ToolExecutionOptions {
     pub confirm_before_run: bool,
     /// Tool confirmation timeout (seconds), None means infinite waiting
     pub confirmation_timeout_secs: Option<u64>,
+    /// Typed policy evaluated for each concrete tool call. The legacy
+    /// `confirm_before_run` flag remains the no-policy compatibility path.
+    #[cfg(feature = "product-full")]
+    pub permission_config: Option<crate::service::config::types::ToolPermissionConfig>,
 }
 
 impl Default for ToolExecutionOptions {
@@ -31,6 +35,8 @@ impl Default for ToolExecutionOptions {
             timeout_secs: None, // Default no timeout (infinite waiting)
             confirm_before_run: true,
             confirmation_timeout_secs: None, // Default no timeout (infinite waiting)
+            #[cfg(feature = "product-full")]
+            permission_config: None,
         }
     }
 }

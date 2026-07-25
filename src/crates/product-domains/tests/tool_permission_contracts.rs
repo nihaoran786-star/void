@@ -93,3 +93,20 @@ fn contracts_serialize_with_stable_snake_case_values() {
     assert_eq!(value["mode"], "full_access");
     assert_eq!(value["rules"][0]["decision"], "deny");
 }
+
+#[test]
+fn runtime_without_trusted_intent_fails_closed_for_scoped_rules() {
+    let config = ToolPermissionConfig {
+        mode: ToolPermissionMode::FullAccess,
+        rules: vec![ToolPermissionRule {
+            id: Some("deny-shell-execute".to_string()),
+            tool: "Bash".to_string(),
+            intent: Some("execute".to_string()),
+            decision: ToolPermissionDecision::Deny,
+        }],
+    };
+
+    let resolution = config.resolve_without_intent("bash");
+    assert_eq!(resolution.decision, ToolPermissionDecision::Deny);
+    assert_eq!(resolution.reason, ToolPermissionReason::IntentUnavailable);
+}

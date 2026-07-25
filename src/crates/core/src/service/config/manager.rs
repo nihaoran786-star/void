@@ -72,6 +72,30 @@ fn normalize_tool_permission_config(config: &mut Value) {
     );
 }
 
+#[cfg(feature = "product-full")]
+fn apply_legacy_tool_confirmation_update(config: &mut Value) {
+    let Some(ai) = config.get_mut("ai").and_then(Value::as_object_mut) else {
+        return;
+    };
+    let mut permissions = ai
+        .get("tool_permissions")
+        .cloned()
+        .and_then(|value| serde_json::from_value::<ToolPermissionConfig>(value).ok())
+        .unwrap_or_default();
+    permissions.mode = match ai.get("skip_tool_confirmation").and_then(Value::as_bool) {
+        Some(true) => ToolPermissionMode::Auto,
+        Some(false) | None => ToolPermissionMode::Ask,
+    };
+    ai.insert(
+        "skip_tool_confirmation".to_string(),
+        Value::Bool(matches!(permissions.mode, ToolPermissionMode::Auto)),
+    );
+    ai.insert(
+        "tool_permissions".to_string(),
+        serde_json::to_value(permissions).expect("tool permission config is serializable"),
+    );
+}
+
 /// Configuration manager.
 pub struct ConfigManager {
     config_dir: PathBuf,
@@ -232,9 +256,8 @@ impl ConfigManager {
 
         let base_config = self.providers.get_default_config();
 
-        let base_value = serde_json::to_value(&base_config).map_err(|e| {
-            VoidError::config(format!("Failed to serialize default config: {}", e))
-        })?;
+        let base_value = serde_json::to_value(&base_config)
+            .map_err(|e| VoidError::config(format!("Failed to serialize default config: {}", e)))?;
         let merged_value = deep_merge(base_value, user_value);
 
         let mut config: GlobalConfig = serde_json::from_value(merged_value).map_err(|e| {
@@ -520,9 +543,9 @@ impl ConfigManager {
         let mut current = &config_value;
 
         for key in keys {
-            current = current.get(key).ok_or_else(|| {
-                VoidError::NotFound(format!("Config path '{}' not found", path))
-            })?;
+            current = current
+                .get(key)
+                .ok_or_else(|| VoidError::NotFound(format!("Config path '{}' not found", path)))?;
         }
 
         Ok(current.clone())
@@ -553,9 +576,9 @@ impl ConfigManager {
 
         let mut current = &mut config_value;
         for key in parent_keys {
-            current = current.get_mut(key).ok_or_else(|| {
-                VoidError::NotFound(format!("Config path '{}' not found", path))
-            })?;
+            current = current
+                .get_mut(key)
+                .ok_or_else(|| VoidError::NotFound(format!("Config path '{}' not found", path)))?;
         }
 
         if let Some(obj) = current.as_object_mut() {
@@ -567,6 +590,13 @@ impl ConfigManager {
             )));
         }
 
+        #[cfg(feature = "product-full")]
+        if path == "ai.tool_permissions" {
+            normalize_tool_permission_config(&mut config_value);
+        } else if path == "ai.skip_tool_confirmation" {
+            apply_legacy_tool_confirmation_update(&mut config_value);
+        }
+
         self.config = serde_json::from_value(config_value).map_err(|e| {
             VoidError::config(format!("Failed to deserialize updated config: {}", e))
         })?;
@@ -575,11 +605,7 @@ impl ConfigManager {
     }
 
     /// Notifies about a configuration change.
-    async fn notify_config_changed(
-        &self,
-        path: &str,
-        old_config: &GlobalConfig,
-    ) -> VoidResult<()> {
+    async fn notify_config_changed(&self, path: &str, old_config: &GlobalConfig) -> VoidResult<()> {
         self.check_and_broadcast_app_change(path).await;
         self.check_and_broadcast_debug_mode_change(old_config).await;
         self.check_and_broadcast_log_level_change(old_config).await;
@@ -679,7 +705,7 @@ pub struct ConfigStatistics {
 mod tests {
     use super::canonical_config_path;
     #[cfg(feature = "product-full")]
-    use super::normalize_tool_permission_config;
+    use super::{apply_legacy_tool_confirmation_update, normalize_tool_permission_config};
     #[cfg(feature = "product-full")]
     use crate::service::config::types::{ToolPermissionConfig, ToolPermissionMode};
     #[cfg(feature = "product-full")]
@@ -747,6 +773,34 @@ mod tests {
                 .expect("normalized typed permissions");
         assert_eq!(normalized.mode, ToolPermissionMode::Ask);
         assert_eq!(invalid_typed["ai"]["skip_tool_confirmation"], false);
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn legacy_updates_change_typed_mode_without_dropping_rules() {
+        let mut config = json!({
+            "ai": {
+                "skip_tool_confirmation": true,
+                "tool_permissions": {
+                    "mode": "ask",
+                    "rules": [{ "tool": "Bash", "decision": "deny" }]
+                }
+            }
+        });
+        apply_legacy_tool_confirmation_update(&mut config);
+        let updated: ToolPermissionConfig =
+            serde_json::from_value(config["ai"]["tool_permissions"].clone())
+                .expect("updated typed permissions");
+        assert_eq!(updated.mode, ToolPermissionMode::Auto);
+        assert_eq!(updated.rules.len(), 1);
+
+        config["ai"]["skip_tool_confirmation"] = json!(false);
+        apply_legacy_tool_confirmation_update(&mut config);
+        let updated: ToolPermissionConfig =
+            serde_json::from_value(config["ai"]["tool_permissions"].clone())
+                .expect("updated typed permissions");
+        assert_eq!(updated.mode, ToolPermissionMode::Ask);
+        assert_eq!(updated.rules.len(), 1);
     }
 }
 
