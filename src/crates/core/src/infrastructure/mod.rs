@@ -9,6 +9,7 @@ pub mod debug_log;
 pub mod events;
 pub mod filesystem;
 pub mod storage;
+pub mod subscription_auth;
 
 pub use ai::AIClient;
 pub use app_paths::{get_path_manager_arc, try_get_path_manager_arc, PathManager, StorageLevel};
