@@ -519,6 +519,24 @@
         flex-wrap: wrap;
         overflow-x: visible;
       }
+
+      .agent-card,
+      .core-agent-card,
+      .agent-team-card {
+        height: 76px;
+        min-height: 76px;
+      }
+
+      .agent-card__body,
+      .core-agent-card__body,
+      .agent-team-card__body {
+        display: none;
+      }
+
+      .agent-card__meta > :nth-child(n + 2),
+      .core-agent-card__meta > :nth-child(n + 2) {
+        display: none;
+      }
     }
   }
 
@@ -557,8 +575,8 @@
       .agent-card,
       .core-agent-card,
       .agent-team-card {
-        height: 108px;
-        min-height: 108px;
+        height: 76px;
+        min-height: 76px;
       }
     }
   }

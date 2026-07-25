@@ -130,6 +130,18 @@ describe('Agents scene Minimal presentation contract', () => {
     );
   });
 
+  it('progressively discloses secondary card details on narrow views', () => {
+    expect(source).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 76px;[\s\S]*?min-height: 76px;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: none;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__meta > :nth-child\(n \+ 2\),[\s\S]*?\.core-agent-card__meta > :nth-child\(n \+ 2\) \{[\s\S]*?display: none;/,
+    );
+  });
+
   it('uses compact Chinese labels without changing runtime agent identities', () => {
     const simplifiedChinese = JSON.parse(
       readSource('../../../locales/zh-CN/scenes/agents.json'),

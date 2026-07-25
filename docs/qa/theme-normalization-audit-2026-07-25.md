@@ -66,9 +66,20 @@ replace the working gallery or add decorative imagery.
 - **Category:** Anti-pattern / information hierarchy
 - **Impact:** Core agents, teams, and the general catalog are separated by
   headings, but repeated equal-weight cards make long scans visually uniform.
-- **Recommendation:** Preserve the existing card component and progressively
-  disclose secondary metadata on narrow views; do not introduce decorative
-  portraits or another card implementation.
+- **Partial remediation:** The existing card components are preserved. At
+  720px and below, cards now present identity, role, and one primary metric in
+  a 76px row; descriptions and repeated metrics remain available in the
+  existing detail modal. Wide layouts retain their 112px single-description
+  cards. No decorative portrait or second card implementation was added.
+- **Evidence:** At a 720×498 WebView, card height falls from 112px to 76px,
+  body content resolves to `display: none`, approximately 3.5 cards are visible
+  in the first catalog viewport, and the document remains 720/720. Clicking
+  the compact Agentic card still opens its complete detail modal and closing
+  it restores the catalog. At 1707×912, cards remain 112px with descriptions
+  visible and zero horizontal overflow.
+- **Remaining recommendation:** If wide catalogs need stronger emphasis, solve
+  it through section-level ranking or user data rather than arbitrary card
+  decoration.
 
 ### Resolved follow-up — Skills search controls over-expanded on wide layouts
 
