@@ -24,7 +24,7 @@ describe('new session home visual governance', () => {
     expect(paneStyles).toContain('.void-chat-input-drop-zone');
     expect(paneStyles).toContain('min-height: 160px');
     expect(paneStyles).toMatch(
-      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 244px\);/,
+      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 220px\);/,
     );
   });
 

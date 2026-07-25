@@ -49,7 +49,7 @@
     position: absolute;
     top: calc(100% + 50px);
     left: 50%;
-    width: min(100%, 244px);
+    width: min(100%, 220px);
     transform: translateX(-50%);
   }
 
@@ -60,16 +60,16 @@
   }
 
   .void-cowork-example-cards__header {
-    min-height: 14px;
+    min-height: 12px;
     margin-bottom: 0;
   }
 
   .void-cowork-example-cards__header-actions,
   .void-cowork-example-cards__header-actions .icon-btn {
-    width: 16px;
-    height: 16px;
-    min-width: 16px;
-    min-height: 16px;
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
   }
 
   .void-cowork-example-cards__title {
@@ -79,12 +79,12 @@
 
   .void-cowork-example-cards__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 2px;
+    gap: 1px;
   }
 
   .void-cowork-example-cards__card {
-    min-height: 18px;
-    padding: 0 2px;
+    min-height: 16px;
+    padding: 0 1px;
     justify-content: center;
   }
 
@@ -93,13 +93,13 @@
   }
 
   .void-cowork-example-cards__card-icon {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
   }
 
   .void-cowork-example-cards__card-icon svg {
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
   }
 
   .void-cowork-example-cards__card-title {
