@@ -54,7 +54,6 @@ import {
   immediateSaveDialogTurn, 
   saveDialogTurnToDisk,
   cleanupSaveState,
-  updateSessionMetadata,
 } from './PersistenceModule';
 import { 
   processNormalTextChunkInternal, 
