@@ -13,6 +13,7 @@ import type {
   ToolEvent,
   AgenticEvent,
   SubagentSessionLinkedEvent,
+  SubagentTaskChangedEvent,
   SessionTitleGeneratedEvent,
   SessionModelAutoMigratedEvent,
   ImageAnalysisEvent,
@@ -39,6 +40,7 @@ export interface AgenticEventCallbacks {
   onTextChunk?: (event: TextChunkEvent) => void;
   onToolEvent?: (event: ToolEvent) => void;
   onSubagentSessionLinked?: (event: SubagentSessionLinkedEvent) => void;
+  onSubagentTaskChanged?: (event: SubagentTaskChangedEvent) => void;
   onDeepReviewQueueStateChanged?: (event: DeepReviewQueueStateChangedEvent) => void;
   onDialogTurnCompleted?: (event: AgenticEvent) => void;
   onDialogTurnFailed?: (event: AgenticEvent) => void;
@@ -150,6 +152,19 @@ export class AgenticEventListener {
         const unlisten = agentAPI.onSubagentSessionLinked((event) => {
           logger.debug('Subagent session linked:', event);
           callbacks.onSubagentSessionLinked?.(event);
+        });
+        this.unlistenFunctions.push(unlisten);
+      }
+
+      if (callbacks.onSubagentTaskChanged) {
+        const unlisten = agentAPI.onSubagentTaskChanged((event) => {
+          logger.debug('Subagent task changed:', {
+            sessionId: event.sessionId,
+            taskId: event.task.taskId,
+            status: event.task.status,
+            deliveryState: event.task.deliveryState,
+          });
+          callbacks.onSubagentTaskChanged?.(event);
         });
         this.unlistenFunctions.push(unlisten);
       }

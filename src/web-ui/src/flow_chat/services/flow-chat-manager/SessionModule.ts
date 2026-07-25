@@ -24,6 +24,7 @@ import {
 } from '../../utils/sessionTitle';
 import { buildCreateSessionRelationship } from '../../utils/sessionMetadata';
 import { hydrateBtwRelationships } from '../BtwRelationshipHydrationService';
+import { hydrateSubagentTaskProjections } from '../SubagentTaskProjectionService';
 
 const log = createLogger('SessionModule');
 const pendingSessionCreations = new Map<string, Promise<string>>();
@@ -147,6 +148,15 @@ async function hydrateHistoricalSession(
       effectiveConnectionId,
       effectiveSshHost
     );
+    await hydrateSubagentTaskProjections(
+      context.flowChatStore,
+      sessionId,
+    ).catch(error => {
+      log.warn('Failed to hydrate subagent task projections with session history', {
+        sessionId,
+        error,
+      });
+    });
   })();
 
   context.pendingHistoryLoads.set(sessionId, loadPromise);
@@ -498,6 +508,16 @@ export async function switchChatSession(
     if (session?.isHistorical) {
       // Load history in the background — do not block the UI.
       void hydrateHistoricalSession(context, sessionId, true);
+    } else if (session) {
+      void hydrateSubagentTaskProjections(
+        context.flowChatStore,
+        sessionId,
+      ).catch(error => {
+        log.warn('Failed to hydrate subagent task projections on session switch', {
+          sessionId,
+          error,
+        });
+      });
     }
     if (
       session?.sessionKind === 'normal' &&

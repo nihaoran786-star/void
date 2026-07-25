@@ -21,6 +21,7 @@ use void_core::agentic::image_analysis::ImageContextData;
 use void_core::agentic::tools::image_context::get_image_context;
 use void_core::agentic::{GoalModeStatus, GoalModeUpdateAction};
 use void_core::service::session::{DialogTurnData, SessionRelationship};
+use void_core_types::SubagentTaskRecord;
 
 const SESSION_VIEW_TOOL_RESULT_TOTAL_CHAR_BUDGET: usize = 512 * 1024;
 const SESSION_VIEW_TOOL_RESULT_STRING_CHAR_LIMIT: usize = 16 * 1024;
@@ -570,6 +571,12 @@ pub struct ListSessionsRequest {
     pub remote_connection_id: Option<String>,
     #[serde(default)]
     pub remote_ssh_host: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSubagentTasksRequest {
+    pub parent_session_id: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1612,6 +1619,23 @@ pub async fn list_sessions(
         .collect();
 
     Ok(responses)
+}
+
+#[tauri::command]
+pub async fn list_subagent_tasks(
+    coordinator: State<'_, Arc<ConversationCoordinator>>,
+    request: ListSubagentTasksRequest,
+) -> Result<Vec<SubagentTaskRecord>, String> {
+    let parent_session_id = request.parent_session_id.trim();
+    if parent_session_id.is_empty() {
+        return Err("Parent session ID is required".to_string());
+    }
+
+    coordinator
+        .get_session_manager()
+        .list_subagent_tasks(parent_session_id)
+        .await
+        .map_err(|error| format!("Failed to list subagent tasks: {error}"))
 }
 
 #[tauri::command]

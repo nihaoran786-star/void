@@ -10,6 +10,7 @@ import type {
 } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
 import type { AiErrorDetail } from '@/shared/ai-errors/aiErrorPresenter';
+import type { SubagentTaskRecordDTO } from '@/infrastructure/api/service-api/AgentAPI';
 
 // Base type for streaming items.
 export interface FlowItem {
@@ -58,6 +59,8 @@ export interface FlowToolItem extends FlowItem {
   toolName: string;
   terminalSessionId?: string;
   interruptionReason?: 'app_restart';
+  /** Durable background-task lifecycle projected onto the existing parent Task item. */
+  subagentTask?: SubagentTaskRecordDTO;
   toolCall: {
     input: any;
     id: string;

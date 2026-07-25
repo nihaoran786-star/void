@@ -33,6 +33,7 @@ import type {
   AcpContextUsageUpdatedEvent,
   SessionModelAutoMigratedEvent,
   SubagentSessionLinkedEvent,
+  SubagentTaskChangedEvent,
 } from '@/infrastructure/api/service-api/AgentAPI';
 import { i18nService } from '@/infrastructure/i18n/core/I18nService';
 import { MCPAPI } from '@/infrastructure/api/service-api/MCPAPI';
@@ -47,6 +48,10 @@ import {
 } from '@/shared/ai-errors/aiErrorPresenter';
 import { useReviewActionBarStore } from '../../store/deepReviewActionBarStore';
 import { buildDeepReviewCapacityQueueStateFromEvent } from '../../utils/deepReviewQueueStateEvents';
+import {
+  applySubagentTaskProjection,
+  hydrateSubagentTaskProjections,
+} from '../SubagentTaskProjectionService';
 
 const pendingImageAnalysisTurns = new Map<string, string>();
 import { 
@@ -510,6 +515,27 @@ function handleSubagentSessionLinked(
     agentType,
     workspacePath: resolveExternalSessionWorkspacePath(context, event as Record<string, unknown>),
   });
+  void hydrateSubagentTaskProjections(context.flowChatStore, parentSessionId).catch((error) => {
+    log.warn('Failed to hydrate subagent task projection after session link', {
+      parentSessionId,
+      childSessionId,
+      error,
+    });
+  });
+}
+
+function handleSubagentTaskChanged(
+  context: FlowChatContext,
+  event: SubagentTaskChangedEvent,
+): void {
+  const projected = applySubagentTaskProjection(context.flowChatStore, event.task);
+  if (!projected) {
+    log.debug('Deferred subagent task projection until parent Task item is available', {
+      parentSessionId: event.task.parentSessionId,
+      childSessionId: event.task.childSessionId,
+      taskId: event.task.taskId,
+    });
+  }
 }
 
 export function emitSubagentSessionLinkedEventForObservers(
@@ -754,6 +780,9 @@ export async function initializeEventListeners(
     },
     onSubagentSessionLinked: (event) => {
       handleSubagentSessionLinked(context, event);
+    },
+    onSubagentTaskChanged: (event) => {
+      handleSubagentTaskChanged(context, event);
     },
     onDeepReviewQueueStateChanged: (event) => {
       handleDeepReviewQueueStateChanged(event);

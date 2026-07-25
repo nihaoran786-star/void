@@ -133,6 +133,15 @@ impl TransportAdapter for TauriTransportAdapter {
                     }),
                 )?;
             }
+            AgenticEvent::SubagentTaskChanged { session_id, task } => {
+                self.app_handle.emit(
+                    "agentic://subagent-task-changed",
+                    json!({
+                        "sessionId": session_id,
+                        "task": task,
+                    }),
+                )?;
+            }
             AgenticEvent::ModelRoundStarted {
                 session_id,
                 turn_id,

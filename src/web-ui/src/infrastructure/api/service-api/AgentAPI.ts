@@ -207,6 +207,272 @@ export interface SubagentSessionLinkedEvent extends AgenticEvent {
   agentType?: string;
 }
 
+export type SubagentTaskStatus =
+  | 'created'
+  | 'running'
+  | 'blocked'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'interrupted';
+
+export type SubagentTaskDeliveryState =
+  | 'not_required'
+  | 'pending'
+  | 'delivering'
+  | 'delivered'
+  | 'failed'
+  | 'blocked';
+
+export type SubagentTaskRecoveryState = 'none' | 'queued' | 'blocked';
+export type SubagentTaskRecoveryBlockCode =
+  | 'missing_checkpoint'
+  | 'invalid_checkpoint'
+  | 'missing_launch_spec'
+  | 'invalid_launch_spec'
+  | 'missing_child_session'
+  | 'unsafe_delivery_replay'
+  | 'resume_failed';
+
+export interface SubagentTaskRecordDTO {
+  schemaVersion: number;
+  taskId: string;
+  parentSessionId: string;
+  childSessionId?: string;
+  objective: string;
+  executionMode: 'synchronous' | 'background';
+  contextMode: 'fresh' | 'fork';
+  status: SubagentTaskStatus;
+  owner: string;
+  progress?: string;
+  result?: string;
+  failure?: string;
+  deliveryState: SubagentTaskDeliveryState;
+  deliveryReplaySafety: 'idempotent' | 'unsafe_external_side_effect';
+  deliveryIdempotencyKey: string;
+  deliveryAttempts: number;
+  recoveryState: SubagentTaskRecoveryState;
+  recoveryReason?: string;
+  recoveryBlock?: {
+    code: SubagentTaskRecoveryBlockCode;
+    detail: string;
+  };
+  durableCheckpoint?: {
+    checkpointId: string;
+    sessionId: string;
+    checkpointVersion: number;
+  };
+  createdAt: number;
+  updatedAt: number;
+  completedAt?: number;
+  deliveredAt?: number;
+}
+
+export interface SubagentTaskChangedEvent extends AgenticEvent {
+  task: SubagentTaskRecordDTO;
+}
+
+const SUBAGENT_TASK_STATUSES = new Set<SubagentTaskStatus>([
+  'created',
+  'running',
+  'blocked',
+  'completed',
+  'failed',
+  'cancelled',
+  'interrupted',
+]);
+const SUBAGENT_DELIVERY_STATES = new Set<SubagentTaskDeliveryState>([
+  'not_required',
+  'pending',
+  'delivering',
+  'delivered',
+  'failed',
+  'blocked',
+]);
+const SUBAGENT_RECOVERY_STATES = new Set<SubagentTaskRecoveryState>([
+  'none',
+  'queued',
+  'blocked',
+]);
+const SUBAGENT_EXECUTION_MODES = new Set<SubagentTaskRecordDTO['executionMode']>([
+  'synchronous',
+  'background',
+]);
+const SUBAGENT_CONTEXT_MODES = new Set<SubagentTaskRecordDTO['contextMode']>([
+  'fresh',
+  'fork',
+]);
+const SUBAGENT_REPLAY_SAFETY = new Set<SubagentTaskRecordDTO['deliveryReplaySafety']>([
+  'idempotent',
+  'unsafe_external_side_effect',
+]);
+const SUBAGENT_RECOVERY_BLOCK_CODES = new Set<SubagentTaskRecoveryBlockCode>([
+  'missing_checkpoint',
+  'invalid_checkpoint',
+  'missing_launch_spec',
+  'invalid_launch_spec',
+  'missing_child_session',
+  'unsafe_delivery_replay',
+  'resume_failed',
+]);
+
+function readDtoField(
+  record: Record<string, unknown>,
+  camelKey: string,
+  snakeKey: string,
+): unknown {
+  return record[camelKey] ?? record[snakeKey];
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function readOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+export function normalizeSubagentTaskRecord(value: unknown): SubagentTaskRecordDTO | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const schemaVersion = readOptionalNumber(readDtoField(record, 'schemaVersion', 'schema_version'));
+  const taskId = readOptionalString(readDtoField(record, 'taskId', 'task_id'));
+  const parentSessionId = readOptionalString(
+    readDtoField(record, 'parentSessionId', 'parent_session_id'),
+  );
+  const objective = readOptionalString(record.objective);
+  const owner = readOptionalString(record.owner);
+  const executionMode = readOptionalString(
+    readDtoField(record, 'executionMode', 'execution_mode'),
+  ) as SubagentTaskRecordDTO['executionMode'] | undefined;
+  const contextMode = readOptionalString(
+    readDtoField(record, 'contextMode', 'context_mode'),
+  ) as SubagentTaskRecordDTO['contextMode'] | undefined;
+  const status = readOptionalString(record.status) as SubagentTaskStatus | undefined;
+  const deliveryState = readOptionalString(
+    readDtoField(record, 'deliveryState', 'delivery_state'),
+  ) as SubagentTaskDeliveryState | undefined;
+  const recoveryState = (
+    readOptionalString(readDtoField(record, 'recoveryState', 'recovery_state'))
+  ) as SubagentTaskRecoveryState | undefined;
+  const replaySafety = readOptionalString(
+    readDtoField(record, 'deliveryReplaySafety', 'delivery_replay_safety'),
+  ) as SubagentTaskRecordDTO['deliveryReplaySafety'] | undefined;
+  const deliveryIdempotencyKey = readOptionalString(
+    readDtoField(record, 'deliveryIdempotencyKey', 'delivery_idempotency_key'),
+  );
+  const deliveryAttempts = readOptionalNumber(
+    readDtoField(record, 'deliveryAttempts', 'delivery_attempts'),
+  );
+  const createdAt = readOptionalNumber(readDtoField(record, 'createdAt', 'created_at'));
+  const updatedAt = readOptionalNumber(readDtoField(record, 'updatedAt', 'updated_at'));
+
+  if (
+    (schemaVersion !== 2 && schemaVersion !== 3) ||
+    !taskId ||
+    !parentSessionId ||
+    !objective ||
+    !owner ||
+    !executionMode ||
+    !SUBAGENT_EXECUTION_MODES.has(executionMode) ||
+    !contextMode ||
+    !SUBAGENT_CONTEXT_MODES.has(contextMode) ||
+    !status ||
+    !SUBAGENT_TASK_STATUSES.has(status) ||
+    !deliveryState ||
+    !SUBAGENT_DELIVERY_STATES.has(deliveryState) ||
+    !recoveryState ||
+    !SUBAGENT_RECOVERY_STATES.has(recoveryState) ||
+    !replaySafety ||
+    !SUBAGENT_REPLAY_SAFETY.has(replaySafety) ||
+    !deliveryIdempotencyKey ||
+    deliveryAttempts === undefined ||
+    !Number.isInteger(deliveryAttempts) ||
+    deliveryAttempts < 0 ||
+    createdAt === undefined ||
+    updatedAt === undefined
+  ) {
+    return null;
+  }
+
+  const rawCheckpoint = readDtoField(record, 'durableCheckpoint', 'durable_checkpoint');
+  const checkpoint = rawCheckpoint && typeof rawCheckpoint === 'object' && !Array.isArray(rawCheckpoint)
+    ? rawCheckpoint as Record<string, unknown>
+    : undefined;
+  const checkpointId = checkpoint
+    ? readOptionalString(readDtoField(checkpoint, 'checkpointId', 'checkpoint_id'))
+    : undefined;
+  const checkpointSessionId = checkpoint
+    ? readOptionalString(readDtoField(checkpoint, 'sessionId', 'session_id'))
+    : undefined;
+  const checkpointVersion = checkpoint
+    ? readOptionalNumber(readDtoField(checkpoint, 'checkpointVersion', 'checkpoint_version'))
+    : undefined;
+  const rawRecoveryBlock = readDtoField(record, 'recoveryBlock', 'recovery_block');
+  const recoveryBlock = rawRecoveryBlock &&
+    typeof rawRecoveryBlock === 'object' &&
+    !Array.isArray(rawRecoveryBlock)
+    ? rawRecoveryBlock as Record<string, unknown>
+    : undefined;
+  const recoveryBlockCode = recoveryBlock
+    ? readOptionalString(recoveryBlock.code) as SubagentTaskRecoveryBlockCode | undefined
+    : undefined;
+  const recoveryBlockDetail = recoveryBlock
+    ? readOptionalString(recoveryBlock.detail)
+    : undefined;
+  if (
+    rawRecoveryBlock != null &&
+    (
+      !recoveryBlockCode ||
+      !SUBAGENT_RECOVERY_BLOCK_CODES.has(recoveryBlockCode) ||
+      !recoveryBlockDetail
+    )
+  ) {
+    return null;
+  }
+
+  return {
+    schemaVersion,
+    taskId,
+    parentSessionId,
+    childSessionId: readOptionalString(
+      readDtoField(record, 'childSessionId', 'child_session_id'),
+    ),
+    objective,
+    executionMode,
+    contextMode,
+    status,
+    owner,
+    progress: readOptionalString(record.progress),
+    result: readOptionalString(record.result),
+    failure: readOptionalString(record.failure),
+    deliveryState,
+    deliveryReplaySafety: replaySafety,
+    deliveryIdempotencyKey,
+    deliveryAttempts,
+    recoveryState,
+    recoveryReason: readOptionalString(
+      readDtoField(record, 'recoveryReason', 'recovery_reason'),
+    ),
+    recoveryBlock: recoveryBlockCode && recoveryBlockDetail
+      ? { code: recoveryBlockCode, detail: recoveryBlockDetail }
+      : undefined,
+    durableCheckpoint: checkpointId && checkpointSessionId && checkpointVersion !== undefined
+      ? {
+          checkpointId,
+          sessionId: checkpointSessionId,
+          checkpointVersion,
+        }
+      : undefined,
+    createdAt,
+    updatedAt,
+    completedAt: readOptionalNumber(readDtoField(record, 'completedAt', 'completed_at')),
+    deliveredAt: readOptionalNumber(readDtoField(record, 'deliveredAt', 'delivered_at')),
+  };
+}
+
 export type DeepReviewQueueStatus =
   | 'queued_for_capacity'
   | 'paused_by_user'
@@ -605,6 +871,23 @@ export class AgentAPI {
     }
   }
 
+  async listSubagentTasks(parentSessionId: string): Promise<SubagentTaskRecordDTO[]> {
+    try {
+      const values = await api.invoke<unknown[]>('list_subagent_tasks', {
+        request: { parentSessionId },
+      });
+      return values.map((value) => {
+        const task = normalizeSubagentTaskRecord(value);
+        if (!task) {
+          throw new Error('Backend returned an invalid subagent task record');
+        }
+        return task;
+      });
+    } catch (error) {
+      throw createTauriCommandError('list_subagent_tasks', error, { parentSessionId });
+    }
+  }
+
   async confirmToolExecution(sessionId: string, toolId: string): Promise<void> {
     try {
       await api.invoke<void>('confirm_tool_execution', {
@@ -687,6 +970,24 @@ export class AgentAPI {
       'agentic://subagent-session-linked',
       callback
     );
+  }
+
+  onSubagentTaskChanged(
+    callback: (event: SubagentTaskChangedEvent) => void,
+  ): () => void {
+    return api.listen<Record<string, unknown>>('agentic://subagent-task-changed', (event) => {
+      const task = normalizeSubagentTaskRecord(event.task);
+      if (!task) {
+        return;
+      }
+      callback({
+        ...event,
+        sessionId: typeof event.sessionId === 'string'
+          ? event.sessionId
+          : task.parentSessionId,
+        task,
+      });
+    });
   }
 
   onDeepReviewQueueStateChanged(

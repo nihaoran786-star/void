@@ -221,7 +221,11 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
   const hasRealPrompt = Boolean(
     taskInput && taskInput.prompt && taskInput.prompt !== 'Not provided',
   );
-  const hasInterruptionNote = Boolean(interruptionNote);
+  const projectedRecoveryBlockNote = toolItem.subagentTask?.recoveryBlock
+    ? `${toolItem.subagentTask.recoveryBlock.code}: ${toolItem.subagentTask.recoveryBlock.detail}`
+    : undefined;
+  const visibleInterruptionNote = projectedRecoveryBlockNote || interruptionNote;
+  const hasInterruptionNote = Boolean(visibleInterruptionNote);
   const needsConfirmation =
     requiresConfirmation && !userConfirmed && status !== 'completed';
 
@@ -455,11 +459,11 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
 
     return (
       <div className="task-expanded-content">
-        {interruptionNote && (
+        {visibleInterruptionNote && (
           <>
-            <div className="task-interruption-note" role="note">
+            <div className="task-interruption-note" role="alert">
               <AlertTriangle size={14} strokeWidth={2} aria-hidden />
-              <span>{interruptionNote}</span>
+              <span>{visibleInterruptionNote}</span>
             </div>
             {(hasRealPrompt || needsConfirmation || taskInput?.reviewerContext) && (
               <div className="task-interruption-divider" aria-hidden />

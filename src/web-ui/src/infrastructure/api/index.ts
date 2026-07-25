@@ -40,8 +40,13 @@ export { workspaceAPI, configAPI, aiApi, toolAPI, agentAPI, agentMemoryAPI, syst
 export type {
   AgentMemoryCandidate,
   AgentMemoryConsent,
+  AgentMemoryProposal,
   AgentMemoryState,
   MemoryCandidateBatch,
+  MemoryApprovalOutcome,
+  MemoryCompletionOutcome,
+  MemoryWorkflowError,
+  MemoryWorkflowErrorCode,
   StoredAgentMemory,
 } from './service-api/AgentMemoryAPI';
 export * from './service-api/ReviewPlatformAPI';

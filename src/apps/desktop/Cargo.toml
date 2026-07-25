@@ -20,6 +20,7 @@ serde_json = { workspace = true }
 [dependencies]
 # Internal crates
 void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
+void-core-types = { path = "../../crates/core-types" }
 void-services-integrations = { path = "../../crates/services-integrations", default-features = false, features = ["local-asr"] }
 void-transport = { path = "../../crates/transport", features = ["tauri-adapter"] }
 void-webdriver = { path = "../../crates/webdriver" }

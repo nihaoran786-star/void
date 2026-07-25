@@ -9420,6 +9420,7 @@ dependencies = [
  "uuid",
  "void-acp",
  "void-core",
+ "void-core-types",
  "void-services-integrations",
  "void-transport",
  "void-webdriver",

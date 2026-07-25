@@ -104,6 +104,28 @@ function readSubagentExecutionStatus(session: Session): 'processing' | 'finishin
   return null;
 }
 
+function readProjectedSubagentTaskStatus(
+  task: FlowToolItem['subagentTask'],
+): 'processing' | 'finishing' | null {
+  if (!task) {
+    return null;
+  }
+  if (
+    task.status === 'created' ||
+    task.status === 'running' ||
+    task.recoveryState === 'queued'
+  ) {
+    return 'processing';
+  }
+  if (
+    task.deliveryState === 'pending' ||
+    task.deliveryState === 'delivering'
+  ) {
+    return 'finishing';
+  }
+  return null;
+}
+
 function collectRunningBackgroundSubagents(parentSessionId: string | undefined): BackgroundSubagentSummary[] {
   if (!parentSessionId) {
     return [];
@@ -142,7 +164,9 @@ function collectRunningBackgroundSubagents(parentSessionId: string | undefined):
       continue;
     }
 
-    const status = readSubagentExecutionStatus(session);
+    const status =
+      readProjectedSubagentTaskStatus(parentTask.subagentTask) ||
+      readSubagentExecutionStatus(session);
     if (!status) {
       continue;
     }

@@ -606,6 +606,7 @@ pub async fn run() {
             api::agentic_api::restore_session_with_turns,
             webdriver_bridge_result,
             api::agentic_api::list_sessions,
+            api::agentic_api::list_subagent_tasks,
             api::agentic_api::confirm_tool_execution,
             api::agentic_api::reject_tool_execution,
             api::agentic_api::cancel_tool,

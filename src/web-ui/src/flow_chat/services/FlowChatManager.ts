@@ -20,6 +20,7 @@ import {
   sessionBelongsToWorkspaceNavRow,
 } from '../utils/sessionOrdering';
 import { hydrateBtwRelationships } from './BtwRelationshipHydrationService';
+import { hydrateSubagentTaskProjections } from './SubagentTaskProjectionService';
 
 import type { FlowChatContext, SessionConfig, DialogTurn } from './flow-chat-manager/types';
 import {
@@ -218,6 +219,17 @@ export class FlowChatManager {
         }).catch(error => {
           log.warn('Failed to hydrate BTW relationships during initialization', {
             sessionId: initializedSession.sessionId,
+            error,
+          });
+        });
+      }
+      if (initializedSessionId) {
+        await hydrateSubagentTaskProjections(
+          this.context.flowChatStore,
+          initializedSessionId,
+        ).catch(error => {
+          log.warn('Failed to hydrate subagent task projections during initialization', {
+            sessionId: initializedSessionId,
             error,
           });
         });
