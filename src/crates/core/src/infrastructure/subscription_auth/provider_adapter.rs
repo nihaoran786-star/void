@@ -214,11 +214,15 @@ impl ReqwestSubscriptionOAuthAdapter {
             .json::<OAuthTokenResponse>()
             .await
             .map_err(|_| invalid_provider_response("Subscription token refresh"))?;
-        current.with_refreshed_tokens(
-            tokens.access_token,
-            tokens.refresh_token,
-            expiry_from(tokens.expires_in),
-        )
+        let account_id = account_id_from_tokens(&tokens)
+            .or_else(|| current.account_id().map(ToString::to_string));
+        current
+            .with_refreshed_tokens(
+                tokens.access_token,
+                tokens.refresh_token,
+                expiry_from(tokens.expires_in),
+            )
+            .map(|credential| credential.with_account_id(account_id))
     }
 }
 
@@ -292,6 +296,8 @@ struct OAuthTokenResponse {
     refresh_token: Option<String>,
     #[serde(default)]
     expires_in: Option<i64>,
+    #[serde(default)]
+    id_token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -303,12 +309,66 @@ fn credential_from_tokens(
     tokens: OAuthTokenResponse,
     account_hint: Option<String>,
 ) -> SubscriptionAuthResult<SubscriptionCredential> {
+    let account_id = account_id_from_tokens(&tokens);
     SubscriptionCredential::new(
         tokens.access_token,
         tokens.refresh_token,
         expiry_from(tokens.expires_in),
         account_hint,
     )
+    .map(|credential| credential.with_account_id(account_id))
+}
+
+const MAX_JWT_BYTES: usize = 32 * 1024;
+const MAX_JWT_PAYLOAD_BYTES: usize = 16 * 1024;
+const MAX_ACCOUNT_ID_BYTES: usize = 256;
+
+fn account_id_from_tokens(tokens: &OAuthTokenResponse) -> Option<String> {
+    tokens
+        .id_token
+        .as_deref()
+        .and_then(account_id_from_jwt)
+        .or_else(|| account_id_from_jwt(&tokens.access_token))
+}
+
+fn account_id_from_jwt(token: &str) -> Option<String> {
+    if token.is_empty() || token.len() > MAX_JWT_BYTES {
+        return None;
+    }
+    let mut segments = token.split('.');
+    let header = segments.next()?;
+    let payload = segments.next()?;
+    let signature = segments.next()?;
+    if header.is_empty() || payload.is_empty() || signature.is_empty() || segments.next().is_some()
+    {
+        return None;
+    }
+    let decoded = URL_SAFE_NO_PAD.decode(payload).ok()?;
+    if decoded.len() > MAX_JWT_PAYLOAD_BYTES {
+        return None;
+    }
+    let claims = serde_json::from_slice::<serde_json::Value>(&decoded).ok()?;
+    let account_id = [
+        claims.get("chatgpt_account_id"),
+        claims.get("account_id"),
+        claims
+            .get("https://api.openai.com/auth")
+            .and_then(|auth| auth.get("chatgpt_account_id")),
+    ]
+    .into_iter()
+    .flatten()
+    .find_map(|value| value.as_str().and_then(validate_account_id));
+    account_id
+}
+
+fn validate_account_id(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    (!trimmed.is_empty()
+        && trimmed.len() <= MAX_ACCOUNT_ID_BYTES
+        && trimmed
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.')))
+    .then(|| trimmed.to_string())
 }
 
 fn expiry_from(expires_in: Option<i64>) -> Option<i64> {
@@ -401,6 +461,12 @@ fn invalid_flow(message: &str) -> SubscriptionAuthError {
 mod tests {
     use super::*;
 
+    fn jwt(payload: serde_json::Value) -> String {
+        let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#);
+        let payload = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).unwrap());
+        format!("{header}.{payload}.signature")
+    }
+
     #[test]
     fn codex_start_uses_s256_pkce_and_redacts_secrets() {
         let pending = ReqwestSubscriptionOAuthAdapter::codex_browser_start(
@@ -460,5 +526,47 @@ mod tests {
         let debug = format!("{credential:?}");
         assert!(!debug.contains("access-secret"));
         assert!(!debug.contains("refresh-secret"));
+    }
+
+    #[test]
+    fn extracts_only_bounded_official_account_id_claims() {
+        let nested = jwt(serde_json::json!({
+            "https://api.openai.com/auth": {
+                "chatgpt_account_id": "acct_nested-123"
+            }
+        }));
+        assert_eq!(
+            account_id_from_jwt(&nested).as_deref(),
+            Some("acct_nested-123")
+        );
+        let direct = jwt(serde_json::json!({ "account_id": "acct.direct" }));
+        assert_eq!(account_id_from_jwt(&direct).as_deref(), Some("acct.direct"));
+        let unrelated = jwt(serde_json::json!({ "organization_id": "org_ignored" }));
+        assert_eq!(account_id_from_jwt(&unrelated), None);
+        let unsafe_value = jwt(serde_json::json!({ "chatgpt_account_id": "acct/unsafe" }));
+        assert_eq!(account_id_from_jwt(&unsafe_value), None);
+    }
+
+    #[test]
+    fn malformed_or_oversized_jwt_payload_is_ignored_without_exposing_token() {
+        assert_eq!(account_id_from_jwt("not-a-jwt"), None);
+        let oversized = format!(
+            "header.{}.signature",
+            URL_SAFE_NO_PAD.encode(vec![b'a'; MAX_JWT_PAYLOAD_BYTES + 1])
+        );
+        assert_eq!(account_id_from_jwt(&oversized), None);
+        let token = jwt(serde_json::json!({ "chatgpt_account_id": "acct_secret" }));
+        let credential = credential_from_tokens(
+            OAuthTokenResponse {
+                access_token: token.clone(),
+                refresh_token: Some("refresh-secret".to_string()),
+                expires_in: Some(3_600),
+                id_token: None,
+            },
+            None,
+        )
+        .unwrap();
+        assert_eq!(credential.account_id(), Some("acct_secret"));
+        assert!(!format!("{credential:?}").contains(&token));
     }
 }

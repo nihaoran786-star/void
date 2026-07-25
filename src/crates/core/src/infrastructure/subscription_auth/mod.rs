@@ -8,6 +8,7 @@ mod contracts;
 mod credential_store_adapter;
 mod ports;
 mod provider_adapter;
+mod runtime_resolver;
 mod service;
 
 pub use contracts::{
@@ -23,4 +24,5 @@ pub use ports::{
     SubscriptionOAuthProviderAdapter,
 };
 pub use provider_adapter::ReqwestSubscriptionOAuthAdapter;
+pub(crate) use runtime_resolver::resolve_native_subscription_auth;
 pub use service::SubscriptionAuthService;

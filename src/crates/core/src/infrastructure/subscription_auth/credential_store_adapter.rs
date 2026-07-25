@@ -71,6 +71,8 @@ struct CredentialManifest {
     refresh_parts: u32,
     expires_at: Option<i64>,
     account_hint: Option<String>,
+    #[serde(default)]
+    account_id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     cleanup: Vec<SecretSet>,
 }
@@ -165,6 +167,7 @@ impl NativeSubscriptionCredentialStore {
             manifest.expires_at,
             manifest.account_hint.clone(),
         )
+        .map(|credential| credential.with_account_id(manifest.account_id.clone()))
         .map_err(|_| store_error("read invalid subscription credential"))?;
         self.retry_cleanup(provider, &manifest).await;
         Ok(Some(credential))
@@ -313,6 +316,7 @@ impl SubscriptionCredentialStoreAdapter for NativeSubscriptionCredentialStore {
                 refresh_parts,
                 expires_at: credential.expires_at(),
                 account_hint: credential.account_hint().map(ToString::to_string),
+                account_id: credential.account_id().map(ToString::to_string),
                 cleanup,
             };
             let bytes = serde_json::to_vec(&manifest)
@@ -595,6 +599,7 @@ mod tests {
             Some("user@example.test".to_string()),
         )
         .unwrap()
+        .with_account_id(Some("acct_test".to_string()))
     }
 
     #[tokio::test]
@@ -619,6 +624,7 @@ mod tests {
             .unwrap();
         assert_eq!(loaded.access_token(), access);
         assert_eq!(loaded.refresh_token(), Some(refresh.as_str()));
+        assert_eq!(loaded.account_id(), Some("acct_test"));
         assert_eq!(
             store.list().await.unwrap(),
             vec![
@@ -645,6 +651,22 @@ mod tests {
         assert!(!String::from_utf8_lossy(manifest).contains("refresh-"));
         assert!(entries.keys().any(|name| name.ends_with("/access/2")));
         assert!(entries.keys().any(|name| name.ends_with("/refresh/1")));
+    }
+
+    #[test]
+    fn legacy_manifest_without_account_id_remains_readable() {
+        let manifest: CredentialManifest = serde_json::from_value(serde_json::json!({
+            "version": 1,
+            "setId": "legacy",
+            "accessParts": 1,
+            "refreshParts": 0,
+            "expiresAt": null,
+            "accountHint": "user@example.test"
+        }))
+        .expect("legacy manifest should deserialize");
+
+        assert_eq!(manifest.account_id, None);
+        assert_eq!(manifest.account_hint.as_deref(), Some("user@example.test"));
     }
 
     #[tokio::test]

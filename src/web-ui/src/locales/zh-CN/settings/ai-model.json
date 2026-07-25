@@ -30,6 +30,23 @@
     "notDetected": "本机未检测到 {{kind}} 已登录账号，请先在终端完成登录",
     "unknownAccount": "当前登录账号"
   },
+  "subscriptionAuth": {
+    "options": {
+      "codex": "Codex 订阅账号",
+      "opencode": "OpenCode 订阅账号"
+    },
+    "loading": "正在检查已连接的订阅账号…",
+    "connected": "将使用已连接的订阅账号（{{account}}），Token 仅保存在系统凭据库中。",
+    "currentAccount": "当前账号",
+    "openAccountSettings": "前往账号设置",
+    "status": {
+      "disconnected": "该订阅账号尚未连接。",
+      "vault_unavailable": "系统凭据库当前不可用。",
+      "failed": "无法读取该订阅账号。",
+      "load_failed": "订阅账号加载失败。",
+      "unsupported": "桌面后端未返回该订阅服务。"
+    }
+  },
   "providerSelection": {
     "title": "选择模型提供商",
     "subtitle": "选择一个预设提供商快速配置，或选择自定义完全手动配置",

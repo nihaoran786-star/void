@@ -1,4 +1,5 @@
 import { i18nService } from '@/infrastructure/i18n';
+import type { SubscriptionProvider } from '@/shared/contracts/subscriptionAuth';
 
 const t = (key: string, options?: Record<string, unknown>) => i18nService.t(key, options);
 export interface GlobalConfig {
@@ -172,7 +173,8 @@ export interface AIModelConfig {
 export type AuthConfig =
   | { type: 'api_key' }
   | { type: 'codex_cli' }
-  | { type: 'gemini_cli' };
+  | { type: 'gemini_cli' }
+  | { type: 'subscription'; provider: SubscriptionProvider };
 
 export interface ProxyConfig {
   enabled: boolean;

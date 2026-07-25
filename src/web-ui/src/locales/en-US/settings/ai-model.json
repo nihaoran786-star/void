@@ -30,6 +30,23 @@
     "notDetected": "No signed-in {{kind}} account detected; sign in from the terminal first.",
     "unknownAccount": "current login"
   },
+  "subscriptionAuth": {
+    "options": {
+      "codex": "Codex subscription",
+      "opencode": "OpenCode subscription"
+    },
+    "loading": "Checking the connected subscription account…",
+    "connected": "Will use the connected subscription account ({{account}}). Tokens stay in the system credential vault.",
+    "currentAccount": "current account",
+    "openAccountSettings": "Open Account settings",
+    "status": {
+      "disconnected": "This subscription is not connected.",
+      "vault_unavailable": "The system credential vault is unavailable.",
+      "failed": "The subscription account could not be read.",
+      "load_failed": "Subscription accounts could not be loaded.",
+      "unsupported": "The desktop backend did not return this subscription provider."
+    }
+  },
   "providerSelection": {
     "title": "Select Model Provider",
     "subtitle": "Choose a preset provider for quick setup, or select custom for full manual configuration",

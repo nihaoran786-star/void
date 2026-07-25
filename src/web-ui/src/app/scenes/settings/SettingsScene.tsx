@@ -64,12 +64,21 @@ const SettingsScene: React.FC = () => {
     );
   }
 
+  if (resolvedTab === 'models') {
+    return (
+      <div className="void-settings-scene">
+        <div key="models" className="void-settings-scene__content-wrapper">
+          <AIModelConfig onOpenAccountSettings={() => setActiveTab('account')} />
+        </div>
+      </div>
+    );
+  }
+
   let Content: React.ComponentType | null = null;
 
   switch (resolvedTab) {
     case 'basics':           Content = BasicsConfig;         break;
     case 'appearance':       Content = AppearanceConfig;     break;
-    case 'models':           Content = AIModelConfig;        break;
     case 'archived-sessions': Content = ArchivedSessionsConfig; break;
     case 'session-personalization': Content = SessionPersonalizationConfig; break;
     case 'session-permissions':     Content = SessionPermissionsConfig;     break;

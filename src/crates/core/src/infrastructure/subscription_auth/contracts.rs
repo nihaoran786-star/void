@@ -1,12 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SubscriptionProvider {
-    Codex,
-    Opencode,
-}
+pub use void_core_types::SubscriptionProvider;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -128,6 +123,7 @@ pub struct SubscriptionCredential {
     refresh_token: Option<String>,
     expires_at: Option<i64>,
     account_hint: Option<String>,
+    account_id: Option<String>,
 }
 
 impl SubscriptionCredential {
@@ -149,6 +145,7 @@ impl SubscriptionCredential {
             refresh_token,
             expires_at,
             account_hint,
+            account_id: None,
         })
     }
 
@@ -166,6 +163,15 @@ impl SubscriptionCredential {
 
     pub(crate) fn account_hint(&self) -> Option<&str> {
         self.account_hint.as_deref()
+    }
+
+    pub(crate) fn account_id(&self) -> Option<&str> {
+        self.account_id.as_deref()
+    }
+
+    pub(crate) fn with_account_id(mut self, account_id: Option<String>) -> Self {
+        self.account_id = account_id;
+        self
     }
 
     pub fn account(&self, provider: SubscriptionProvider) -> SubscriptionAccount {
@@ -190,6 +196,7 @@ impl SubscriptionCredential {
             expires_at,
             self.account_hint.clone(),
         )
+        .map(|credential| credential.with_account_id(self.account_id.clone()))
     }
 }
 
@@ -204,6 +211,7 @@ impl fmt::Debug for SubscriptionCredential {
             )
             .field("expires_at", &self.expires_at)
             .field("account_hint", &self.account_hint)
+            .field("account_id", &self.account_id)
             .finish()
     }
 }

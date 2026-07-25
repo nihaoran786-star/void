@@ -1,9 +1,12 @@
 import { api } from './ApiClient';
 import { createTauriCommandError } from '../errors/TauriCommandError';
+import {
+  SUBSCRIPTION_PROVIDERS,
+  type SubscriptionProvider,
+} from '@/shared/contracts/subscriptionAuth';
 
-export const SUBSCRIPTION_PROVIDERS = ['codex', 'opencode'] as const;
-
-export type SubscriptionProvider = typeof SUBSCRIPTION_PROVIDERS[number];
+export { SUBSCRIPTION_PROVIDERS };
+export type { SubscriptionProvider };
 export type SubscriptionAccountStatus =
   | 'connected'
   | 'disconnected'

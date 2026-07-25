@@ -30,6 +30,23 @@
     "notDetected": "本機未檢測到 {{kind}} 已登錄賬號，請先在終端完成登錄",
     "unknownAccount": "當前登錄賬號"
   },
+  "subscriptionAuth": {
+    "options": {
+      "codex": "Codex 訂閱賬號",
+      "opencode": "OpenCode 訂閱賬號"
+    },
+    "loading": "正在檢查已連接的訂閱賬號…",
+    "connected": "將使用已連接的訂閱賬號（{{account}}），Token 僅保存在系統憑據庫中。",
+    "currentAccount": "當前賬號",
+    "openAccountSettings": "前往賬號設置",
+    "status": {
+      "disconnected": "該訂閱賬號尚未連接。",
+      "vault_unavailable": "系統憑據庫當前不可用。",
+      "failed": "無法讀取該訂閱賬號。",
+      "load_failed": "訂閱賬號加載失敗。",
+      "unsupported": "桌面後端未返回該訂閱服務。"
+    }
+  },
   "providerSelection": {
     "title": "選擇模型提供商",
     "subtitle": "選擇一個預設提供商快速配置，或選擇自定義完全手動配置",

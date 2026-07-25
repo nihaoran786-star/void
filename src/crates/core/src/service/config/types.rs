@@ -6,6 +6,7 @@ use crate::util::errors::*;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use void_core_types::SubscriptionProvider;
 
 #[cfg(feature = "product-full")]
 pub use void_product_domains::tool_permissions::{
@@ -1196,10 +1197,9 @@ pub struct AIModelConfig {
 
 /// Where to obtain the runtime auth material for an `AIModelConfig`.
 ///
-/// Stored on disk as `{"type":"api_key"}` / `{"type":"codex_cli"}` /
-/// `{"type":"gemini_cli"}`; the concrete sub-mode (apikey vs OAuth) is
-/// auto-detected from the CLI's on-disk state at resolution time so the user
-/// only has to choose "use Codex CLI" once.
+/// Subscription auth stores only the typed provider selector. Access and
+/// refresh tokens stay in the native credential vault and are resolved at
+/// client creation time.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthConfig {
@@ -1210,6 +1210,8 @@ pub enum AuthConfig {
     CodexCli,
     /// Reuse `~/.gemini/.env` or `~/.gemini/oauth_creds.json`.
     GeminiCli,
+    /// Resolve a locally connected subscription account from the native vault.
+    Subscription { provider: SubscriptionProvider },
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1867,9 +1869,57 @@ impl AIModelConfig {
 #[cfg(test)]
 mod tests {
     use super::{
-        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, GlobalConfig,
+        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, AuthConfig, GlobalConfig,
         ModelCapability, ModelCategory, ReasoningMode,
     };
+    use void_core_types::SubscriptionProvider;
+
+    #[test]
+    fn subscription_auth_round_trips_without_secret_material() {
+        let config: AIModelConfig = serde_json::from_value(serde_json::json!({
+            "id": "subscription-model",
+            "name": "Codex subscription",
+            "provider": "responses",
+            "model_name": "gpt-5-codex",
+            "base_url": "https://placeholder.invalid",
+            "api_key": "",
+            "enabled": true,
+            "auth": {
+                "type": "subscription",
+                "provider": "codex"
+            }
+        }))
+        .expect("subscription auth should deserialize");
+
+        assert_eq!(
+            config.auth,
+            AuthConfig::Subscription {
+                provider: SubscriptionProvider::Codex
+            }
+        );
+        let serialized = serde_json::to_value(&config).expect("config should serialize");
+        assert_eq!(serialized["auth"]["type"], "subscription");
+        assert_eq!(serialized["auth"]["provider"], "codex");
+        assert_eq!(serialized["api_key"], "");
+        assert!(serialized.to_string().find("access_token").is_none());
+        assert!(serialized.to_string().find("refresh_token").is_none());
+    }
+
+    #[test]
+    fn missing_auth_remains_legacy_api_key() {
+        let config: AIModelConfig = serde_json::from_value(serde_json::json!({
+            "id": "legacy-model",
+            "name": "Legacy",
+            "provider": "openai",
+            "model_name": "legacy",
+            "base_url": "https://example.test/v1",
+            "api_key": "legacy-key",
+            "enabled": true
+        }))
+        .expect("legacy model should deserialize");
+
+        assert_eq!(config.auth, AuthConfig::ApiKey);
+    }
 
     #[test]
     fn deserializes_compatibility_thinking_flag_into_reasoning_mode() {
