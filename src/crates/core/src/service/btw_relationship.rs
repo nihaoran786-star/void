@@ -85,6 +85,31 @@ impl BtwRelationshipRepository {
         records.sort_by(|left, right| left.child_session_id.cmp(&right.child_session_id));
         Ok(records)
     }
+
+    pub fn find_by_child(
+        &self,
+        workspace_root: &Path,
+        child_session_id: &str,
+    ) -> Result<Option<BtwSessionRecord>, String> {
+        let json_path = self.record_path(workspace_root, child_session_id)?;
+        let path = if json_path.is_file() {
+            json_path
+        } else {
+            let legacy_path = self
+                .dir(workspace_root)
+                .join(format!("{child_session_id}.txt"));
+            if !legacy_path.is_file() {
+                return Ok(None);
+            }
+            legacy_path
+        };
+        let raw = fs::read_to_string(path).map_err(|error| error.to_string())?;
+        let record = BtwSessionRecord::from_persisted(&raw, "", child_session_id);
+        if record.child_session_id != child_session_id {
+            return Err("BTW relationship child id does not match its sidecar".to_string());
+        }
+        Ok(Some(record))
+    }
 }
 
 #[cfg(test)]
@@ -161,6 +186,41 @@ mod tests {
             records[0].hydration_state,
             BtwHydrationState::RuntimeUnavailable
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn child_lookup_is_exact_and_preserves_memory_authorization() {
+        let root = std::env::temp_dir().join(format!("void-btw-child-{}", Uuid::new_v4()));
+        let workspace = root.join("workspace");
+        fs::create_dir_all(&workspace).unwrap();
+        let manager = Arc::new(PathManager::with_user_root_for_tests(root.join("config")));
+        let repository = BtwRelationshipRepository::new(manager.clone());
+        let mut allowed = BtwSessionRecord::loading("parent", "allowed-child");
+        allowed.memory_enabled = true;
+        allowed.mark_ready();
+        repository.save(&workspace, &allowed).unwrap();
+
+        assert!(repository
+            .find_by_child(&workspace, "missing-child")
+            .unwrap()
+            .is_none());
+        assert!(
+            repository
+                .find_by_child(&workspace, "allowed-child")
+                .unwrap()
+                .unwrap()
+                .memory_enabled
+        );
+
+        let mismatched_path = manager
+            .project_sessions_dir(&workspace)
+            .join("btw")
+            .join("expected-child.json");
+        fs::write(mismatched_path, serde_json::to_vec(&allowed).unwrap()).unwrap();
+        assert!(repository
+            .find_by_child(&workspace, "expected-child")
+            .is_err());
         fs::remove_dir_all(root).unwrap();
     }
 }

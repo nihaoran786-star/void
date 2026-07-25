@@ -29,3 +29,31 @@
     gap: 8px;
   }
 }
+
+.agent-memory-settings__trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-memory-settings__hint {
+  margin: -6px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.agent-memory-settings__content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+
+  textarea {
+    width: 100%;
+  }
+}
+
+.agent-memory-settings__badge {
+  color: var(--text-secondary);
+  font-size: 12px;
+}

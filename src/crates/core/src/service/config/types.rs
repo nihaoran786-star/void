@@ -183,6 +183,10 @@ pub struct AIExperienceConfig {
     pub agent_companion_pet: Option<AgentCompanionPetSelection>,
     /// Whether to enable flashgrep-backed accelerated workspace search.
     pub enable_workspace_search: bool,
+    /// Whether the user may explicitly extract memory candidates from a session.
+    /// Saving still requires explicit per-candidate approval.
+    #[serde(default)]
+    pub agent_memory_extraction_enabled: bool,
     /// Local speech-to-text settings for the chat composer.
     pub voice_input: VoiceInputConfig,
     /// User-defined quick actions (post-coding menu); persisted for the web UI.
@@ -1450,6 +1454,7 @@ impl Default for AIExperienceConfig {
             agent_companion_display_mode: "desktop".to_string(),
             agent_companion_pet: default_agent_companion_pet(),
             enable_workspace_search: false,
+            agent_memory_extraction_enabled: false,
             voice_input: VoiceInputConfig::default(),
             quick_actions: Vec::new(),
         }
@@ -2188,6 +2193,7 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].id, "custom_1");
         assert_eq!(actions[0].label, "Run tests");
+        assert!(!config.app.ai_experience.agent_memory_extraction_enabled);
 
         let serialized = serde_json::to_value(&config).expect("config should serialize");
         assert_eq!(

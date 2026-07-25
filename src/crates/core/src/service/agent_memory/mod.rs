@@ -20,11 +20,12 @@ pub use session_source::{
     UnsupportedPersistentSessionSourceAdapter,
 };
 pub use workflow::{
-    delete_confirmation_token, AgentMemoryExtractorPort, AgentMemoryProposal, AgentMemoryWorkflow,
-    DeleteMemoryConfirmation, ExistingMemoryForExtraction, ExtractedMemory, MemoryApprovalOutcome,
-    MemoryApprovalStatus, MemoryCompletionOutcome, MemoryCompletionTriggerConfig,
-    MemoryExtractionRequest, MemoryWorkflowError, MemoryWorkflowErrorCode,
-    SessionCompletionMemoryRequest, UnsupportedAgentMemoryExtractor,
+    delete_confirmation_token, revise_memory_proposal, AgentMemoryExtractorPort,
+    AgentMemoryProposal, AgentMemoryWorkflow, DeleteMemoryConfirmation,
+    ExistingMemoryForExtraction, ExtractedMemory, MemoryApprovalOutcome, MemoryApprovalStatus,
+    MemoryCompletionOutcome, MemoryCompletionTriggerConfig, MemoryExtractionRequest,
+    MemoryWorkflowError, MemoryWorkflowErrorCode, SessionCompletionMemoryRequest,
+    UnsupportedAgentMemoryExtractor,
 };
 
 #[cfg(test)]

@@ -35,7 +35,11 @@ pub struct MemoryWorkflowError {
 }
 
 impl MemoryWorkflowError {
-    fn new(code: MemoryWorkflowErrorCode, message: impl Into<String>, retryable: bool) -> Self {
+    pub(crate) fn new(
+        code: MemoryWorkflowErrorCode,
+        message: impl Into<String>,
+        retryable: bool,
+    ) -> Self {
         Self {
             code,
             message: message.into(),
@@ -337,6 +341,25 @@ where
 
 pub fn delete_confirmation_token(memory_id: &str, revision: u64) -> String {
     format!("delete:{memory_id}:revision:{revision}")
+}
+
+pub fn revise_memory_proposal(
+    mut proposal: AgentMemoryProposal,
+    content: String,
+) -> Result<AgentMemoryProposal, MemoryWorkflowError> {
+    proposal.content = normalize_memory_content(&content);
+    proposal.proposal_id = deterministic_proposal_id(
+        proposal
+            .source
+            .transcript_fingerprint
+            .as_deref()
+            .unwrap_or_default(),
+        &proposal.memory_id,
+        proposal.expected_revision,
+        &proposal.content,
+    );
+    validate_proposal(&proposal)?;
+    Ok(proposal)
 }
 
 fn merge_proposals(
@@ -793,6 +816,29 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.code, MemoryWorkflowErrorCode::Conflict);
         assert_eq!(repository.values()[0].content, "concurrent");
+    }
+
+    #[test]
+    fn reviewed_proposal_can_be_edited_without_losing_merge_target() {
+        let proposal = merge_proposals(
+            &[stored("existing", "old", 3)],
+            vec![ExtractedMemory {
+                content: "draft".to_string(),
+                target_memory_id: Some("existing".to_string()),
+            }],
+            &transcript(),
+        )
+        .remove(0);
+        let original_id = proposal.proposal_id.clone();
+
+        let revised =
+            revise_memory_proposal(proposal, "  Prefer focused integration tests  ".to_string())
+                .unwrap();
+
+        assert_eq!(revised.content, "Prefer focused integration tests");
+        assert_eq!(revised.memory_id, "existing");
+        assert_eq!(revised.expected_revision, Some(3));
+        assert_ne!(revised.proposal_id, original_id);
     }
 
     #[test]

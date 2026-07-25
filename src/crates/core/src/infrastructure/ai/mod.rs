@@ -2,6 +2,7 @@
 //!
 //! Provides AI clients and related services
 
+mod agent_memory_extractor;
 pub mod client_factory;
 pub mod tool_call_accumulator;
 
@@ -10,12 +11,13 @@ use std::time::Duration;
 pub use void_ai_adapters::providers;
 pub use void_ai_adapters::stream as ai_stream_handlers;
 
+pub use agent_memory_extractor::AIClientAgentMemoryExtractor;
+pub use client_factory::{
+    get_global_ai_client_factory, initialize_global_ai_client_factory, AIClientFactory,
+};
 pub use void_ai_adapters::{
     AIClient, StreamOptions, StreamResponse, DEFAULT_STREAM_IDLE_TIMEOUT_SECS,
     DEFAULT_STREAM_TTFT_TIMEOUT_SECS, REASONING_STREAM_TTFT_TIMEOUT_SECS,
-};
-pub use client_factory::{
-    get_global_ai_client_factory, initialize_global_ai_client_factory, AIClientFactory,
 };
 
 use crate::service::config::types::{AIConfig, AIModelConfig, ReasoningMode};
