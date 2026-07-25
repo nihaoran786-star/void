@@ -117,6 +117,12 @@ describe('WorkspaceMediaGallery minimal card presentation', () => {
     expect(source).toMatch(
       /\.workspace-media-card__overlay strong \{[\s\S]*?font-size: var\(--workspace-media-font-size-ui-label\);/,
     );
+    expect(source).toMatch(
+      /\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__overlay small,[\s\S]*?\.workspace-media-card:not\(\.is-pending\) \.workspace-media-card__meta \{[\s\S]*?transition:\s*opacity [^,;]+,\s*transform [^;]+;/,
+    );
+    expect(source).not.toMatch(
+      /transition\s*:[^;]*(?:height|max-height)/,
+    );
   });
 
   it('preserves keyboard focus treatment for card actions', () => {

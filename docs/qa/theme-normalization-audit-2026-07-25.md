@@ -1148,6 +1148,25 @@ replace the working gallery or add decorative imagery.
   reflow, visible short-drama stage tabs and episode rail, and zero unnamed
   controls.
 
+### Resolved follow-up — Media detail disclosure animated layout geometry
+
+- **Location:** Workspace Media Minimal card metadata
+- **Category:** Interaction performance / motion
+- **Severity:** P2
+- **Impact:** Hovering or keyboard-focusing a completed media card transitioned
+  `max-height` for 180ms. Unlike opacity and transform, that geometry property
+  can require layout work on every animation frame across the visible masonry
+  cards.
+- **Remediation:** Metadata still expands to the same bounded height and keeps
+  the same hover and focus-visible behavior, but only opacity and transform are
+  animated. The height state changes once instead of participating in the
+  animation timeline. Media state, operations, previews, selection, and
+  accessibility semantics are unchanged.
+- **Verification evidence:** The style contract records one layout-transition
+  property before remediation and zero afterward. The focused Minimal media
+  presentation suite passes 7/7; the theme visual contract and core boundary
+  gate pass.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

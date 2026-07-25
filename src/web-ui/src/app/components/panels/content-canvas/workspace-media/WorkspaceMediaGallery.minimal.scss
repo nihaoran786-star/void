@@ -410,7 +410,6 @@
     opacity: 0;
     transform: translateY(2px);
     transition:
-      max-height var(--workspace-motion-fast) var(--workspace-easing-standard),
       opacity var(--workspace-motion-fast) var(--workspace-easing-standard),
       transform var(--workspace-motion-fast) var(--workspace-easing-standard);
   }
