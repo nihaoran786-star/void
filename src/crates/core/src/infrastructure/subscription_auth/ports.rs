@@ -16,6 +16,7 @@ pub enum PendingAuthorization {
         authorization_url: String,
         user_code: String,
         device_code: String,
+        poll_interval_seconds: u64,
     },
 }
 
@@ -73,6 +74,7 @@ impl fmt::Debug for PendingAuthorization {
 #[derive(Debug)]
 pub enum DeviceAuthorizationPoll {
     Pending,
+    SlowDown,
     Authorized(SubscriptionCredential),
 }
 

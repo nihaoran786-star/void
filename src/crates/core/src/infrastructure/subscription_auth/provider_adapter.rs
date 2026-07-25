@@ -91,6 +91,7 @@ impl ReqwestSubscriptionOAuthAdapter {
             authorization_url: absolute_opencode_url(&device.verification_uri_complete)?,
             user_code: device.user_code,
             device_code: device.device_code,
+            poll_interval_seconds: device.interval.unwrap_or(5).max(1),
         })
     }
 
@@ -164,11 +165,11 @@ impl ReqwestSubscriptionOAuthAdapter {
             return credential_from_tokens(tokens, None).map(DeviceAuthorizationPoll::Authorized);
         }
         if let Ok(pending) = serde_json::from_str::<OAuthPendingResponse>(&body) {
-            if matches!(
-                pending.error.as_str(),
-                "authorization_pending" | "slow_down"
-            ) {
+            if matches!(pending.error.as_str(), "authorization_pending") {
                 return Ok(DeviceAuthorizationPoll::Pending);
+            }
+            if pending.error == "slow_down" {
+                return Ok(DeviceAuthorizationPoll::SlowDown);
             }
         }
         ensure_success(status, "OpenCode token polling")?;
@@ -280,6 +281,8 @@ struct OpenCodeDeviceResponse {
     device_code: String,
     user_code: String,
     verification_uri_complete: String,
+    #[serde(default)]
+    interval: Option<u64>,
 }
 
 #[derive(Deserialize)]

@@ -10,6 +10,7 @@ use super::ports::{
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -17,6 +18,20 @@ struct SessionRecord {
     snapshot: SubscriptionAuthSession,
     pending: Option<PendingAuthorization>,
     generation: u64,
+    poll_interval: Option<Duration>,
+    next_poll_at: Option<Instant>,
+}
+
+pub trait SubscriptionAuthClock: Send + Sync {
+    fn now(&self) -> Instant;
+}
+
+struct SystemSubscriptionAuthClock;
+
+impl SubscriptionAuthClock for SystemSubscriptionAuthClock {
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
 }
 
 /// Application-level subscription authentication orchestration.
@@ -29,6 +44,7 @@ pub struct SubscriptionAuthService {
     sessions: Mutex<HashMap<String, SessionRecord>>,
     commit_lock: Mutex<()>,
     next_generation: AtomicU64,
+    clock: Arc<dyn SubscriptionAuthClock>,
 }
 
 impl SubscriptionAuthService {
@@ -36,12 +52,21 @@ impl SubscriptionAuthService {
         provider: Arc<dyn SubscriptionOAuthProviderAdapter>,
         store: Arc<dyn SubscriptionCredentialStoreAdapter>,
     ) -> Self {
+        Self::with_clock(provider, store, Arc::new(SystemSubscriptionAuthClock))
+    }
+
+    fn with_clock(
+        provider: Arc<dyn SubscriptionOAuthProviderAdapter>,
+        store: Arc<dyn SubscriptionCredentialStoreAdapter>,
+        clock: Arc<dyn SubscriptionAuthClock>,
+    ) -> Self {
         Self {
             provider,
             store,
             sessions: Mutex::new(HashMap::new()),
             commit_lock: Mutex::new(()),
             next_generation: AtomicU64::new(1),
+            clock,
         }
     }
 
@@ -49,47 +74,111 @@ impl SubscriptionAuthService {
         &self,
         request: StartSubscriptionAuthRequest,
     ) -> SubscriptionAuthResult<SubscriptionAuthSession> {
-        self.store.ensure_available().await?;
-        let pending = self
-            .provider
-            .start(request.provider, request.redirect_uri.as_deref())
-            .await?;
-        let session_id = Uuid::new_v4().to_string();
+        Uuid::parse_str(&request.session_id).map_err(|_| {
+            SubscriptionAuthError::new(
+                SubscriptionAuthErrorCode::InvalidRequest,
+                "Subscription authorization session_id must be a UUID",
+                false,
+            )
+        })?;
         let generation = self.next_generation.fetch_add(1, Ordering::Relaxed);
-        let snapshot = SubscriptionAuthSession {
-            session_id: session_id.clone(),
+        let placeholder = SubscriptionAuthSession {
+            session_id: request.session_id.clone(),
             provider: request.provider,
             status: SubscriptionAuthStatus::Pending,
-            authorization_url: Some(pending.authorization_url().to_string()),
-            user_code: pending.user_code().map(ToString::to_string),
+            authorization_url: None,
+            user_code: None,
             error: None,
         };
-        self.sessions.lock().await.insert(
-            session_id,
-            SessionRecord {
-                snapshot: snapshot.clone(),
-                pending: Some(pending),
-                generation,
-            },
-        );
-        Ok(snapshot)
+        {
+            let _commit = self.commit_lock.lock().await;
+            let mut sessions = self.sessions.lock().await;
+            if sessions.contains_key(&request.session_id) {
+                return Err(SubscriptionAuthError::new(
+                    SubscriptionAuthErrorCode::InvalidRequest,
+                    "Subscription authorization session_id is already in use",
+                    false,
+                ));
+            }
+            sessions.insert(
+                request.session_id.clone(),
+                SessionRecord {
+                    snapshot: placeholder,
+                    pending: None,
+                    generation,
+                    poll_interval: None,
+                    next_poll_at: None,
+                },
+            );
+        }
+        let provider_result = match self.store.ensure_available().await {
+            Ok(()) => {
+                self.provider
+                    .start(request.provider, request.redirect_uri.as_deref())
+                    .await
+            }
+            Err(error) => Err(error),
+        };
+        let _commit = self.commit_lock.lock().await;
+        if let Some(snapshot) = self.stale_snapshot(&request.session_id, generation).await? {
+            return Ok(snapshot);
+        }
+        match provider_result {
+            Ok(pending) => {
+                let (poll_interval, next_poll_at) = poll_schedule(&pending, self.clock.now());
+                let mut sessions = self.sessions.lock().await;
+                let record = sessions
+                    .get_mut(&request.session_id)
+                    .ok_or_else(session_not_found)?;
+                record.snapshot.authorization_url = Some(pending.authorization_url().to_string());
+                record.snapshot.user_code = pending.user_code().map(ToString::to_string);
+                record.pending = Some(pending);
+                record.poll_interval = poll_interval;
+                record.next_poll_at = next_poll_at;
+                Ok(record.snapshot.clone())
+            }
+            Err(error) => {
+                self.finish(&request.session_id, generation, Err(error))
+                    .await
+            }
+        }
     }
 
-    /// Returns current state and advances OpenCode device authorization by one
-    /// poll. Codex remains pending until the desktop callback calls
-    /// `complete_browser`.
+    /// Cached status only. It never performs provider network I/O.
     pub async fn status(
         &self,
         session_id: &str,
     ) -> SubscriptionAuthResult<SubscriptionAuthSession> {
-        let (provider, pending, current, generation) = {
-            let sessions = self.sessions.lock().await;
-            let record = sessions.get(session_id).ok_or_else(session_not_found)?;
+        let sessions = self.sessions.lock().await;
+        sessions
+            .get(session_id)
+            .map(|record| record.snapshot.clone())
+            .ok_or_else(session_not_found)
+    }
+
+    /// Backend-controlled OpenCode polling tick. Calls before `next_poll_at`
+    /// are cheap cached reads.
+    pub async fn tick(&self, session_id: &str) -> SubscriptionAuthResult<SubscriptionAuthSession> {
+        let now = self.clock.now();
+        let (provider, pending, current, generation, interval) = {
+            let mut sessions = self.sessions.lock().await;
+            let record = sessions.get_mut(session_id).ok_or_else(session_not_found)?;
+            let interval = record.poll_interval;
+            if record.snapshot.status != SubscriptionAuthStatus::Pending
+                || record.snapshot.provider != SubscriptionProvider::Opencode
+                || record.next_poll_at.is_none_or(|next| now < next)
+            {
+                return Ok(record.snapshot.clone());
+            }
+            if let Some(interval) = interval {
+                record.next_poll_at = Some(now + interval);
+            }
             (
                 record.snapshot.provider,
                 record.pending.clone(),
                 record.snapshot.clone(),
                 record.generation,
+                interval.unwrap_or(Duration::from_secs(5)),
             )
         };
         if current.status != SubscriptionAuthStatus::Pending
@@ -101,7 +190,19 @@ impl SubscriptionAuthService {
             return Ok(current);
         };
         match self.provider.poll_device(provider, &pending).await {
-            Ok(DeviceAuthorizationPoll::Pending) => Ok(current),
+            Ok(DeviceAuthorizationPoll::Pending) => self.status(session_id).await,
+            Ok(DeviceAuthorizationPoll::SlowDown) => {
+                let mut sessions = self.sessions.lock().await;
+                let record = sessions.get_mut(session_id).ok_or_else(session_not_found)?;
+                if record.generation == generation
+                    && record.snapshot.status == SubscriptionAuthStatus::Pending
+                {
+                    let slowed = interval + Duration::from_secs(5);
+                    record.poll_interval = Some(slowed);
+                    record.next_poll_at = Some(self.clock.now() + slowed);
+                }
+                Ok(record.snapshot.clone())
+            }
             Ok(DeviceAuthorizationPoll::Authorized(credential)) => {
                 let _commit = self.commit_lock.lock().await;
                 if let Some(snapshot) = self.stale_snapshot(session_id, generation).await? {
@@ -185,6 +286,8 @@ impl SubscriptionAuthService {
             record.snapshot.authorization_url = None;
             record.snapshot.user_code = None;
             record.pending = None;
+            record.poll_interval = None;
+            record.next_poll_at = None;
             record.generation = self.next_generation.fetch_add(1, Ordering::Relaxed);
         }
         Ok(record.snapshot.clone())
@@ -231,6 +334,8 @@ impl SubscriptionAuthService {
             return Ok(record.snapshot.clone());
         }
         record.pending = None;
+        record.poll_interval = None;
+        record.next_poll_at = None;
         record.snapshot.authorization_url = None;
         record.snapshot.user_code = None;
         match result {
@@ -259,6 +364,22 @@ impl SubscriptionAuthService {
     }
 }
 
+fn poll_schedule(
+    pending: &PendingAuthorization,
+    now: Instant,
+) -> (Option<Duration>, Option<Instant>) {
+    match pending {
+        PendingAuthorization::Device {
+            poll_interval_seconds,
+            ..
+        } => {
+            let interval = Duration::from_secs((*poll_interval_seconds).max(1));
+            (Some(interval), Some(now + interval))
+        }
+        PendingAuthorization::Browser { .. } => (None, None),
+    }
+}
+
 fn session_not_found() -> SubscriptionAuthError {
     SubscriptionAuthError::new(
         SubscriptionAuthErrorCode::SessionNotFound,
@@ -272,6 +393,9 @@ mod tests {
     use super::*;
     use crate::infrastructure::subscription_auth::contracts::SubscriptionCredential;
     use async_trait::async_trait;
+    use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+    use std::sync::Mutex as StdMutex;
+    use tokio::sync::Notify;
 
     #[derive(Default)]
     struct MockProvider;
@@ -294,6 +418,7 @@ mod tests {
                     authorization_url: "http://authorize.test/opencode".to_string(),
                     user_code: "ABCD-EFGH".to_string(),
                     device_code: "device-secret".to_string(),
+                    poll_interval_seconds: 5,
                 },
             })
         }
@@ -329,6 +454,22 @@ mod tests {
         credentials: Mutex<HashMap<SubscriptionProvider, SubscriptionCredential>>,
     }
 
+    struct BlockingStore {
+        entered: Notify,
+        release: Notify,
+        inner: MemoryStore,
+    }
+
+    impl BlockingStore {
+        fn new() -> Self {
+            Self {
+                entered: Notify::new(),
+                release: Notify::new(),
+                inner: MemoryStore::default(),
+            }
+        }
+    }
+
     #[async_trait]
     impl SubscriptionCredentialStoreAdapter for MemoryStore {
         async fn ensure_available(&self) -> SubscriptionAuthResult<()> {
@@ -357,13 +498,156 @@ mod tests {
         }
 
         async fn list(&self) -> SubscriptionAuthResult<Vec<SubscriptionAccount>> {
-            Ok(self
-                .credentials
-                .lock()
-                .await
-                .iter()
-                .map(|(provider, credential)| credential.account(*provider))
-                .collect())
+            let credentials = self.credentials.lock().await;
+            Ok([
+                SubscriptionProvider::Codex,
+                SubscriptionProvider::Opencode,
+            ]
+            .into_iter()
+            .map(|provider| {
+                credentials.get(&provider).map_or(
+                    SubscriptionAccount {
+                        provider,
+                        status: crate::infrastructure::subscription_auth::SubscriptionAccountStatus::Disconnected,
+                        account_hint: None,
+                        expires_at: None,
+                        error: None,
+                    },
+                    |credential| credential.account(provider),
+                )
+            })
+            .collect())
+        }
+    }
+
+    #[async_trait]
+    impl SubscriptionCredentialStoreAdapter for BlockingStore {
+        async fn ensure_available(&self) -> SubscriptionAuthResult<()> {
+            self.entered.notify_one();
+            self.release.notified().await;
+            Ok(())
+        }
+
+        async fn load(
+            &self,
+            provider: SubscriptionProvider,
+        ) -> SubscriptionAuthResult<Option<SubscriptionCredential>> {
+            self.inner.load(provider).await
+        }
+
+        async fn save(
+            &self,
+            provider: SubscriptionProvider,
+            credential: SubscriptionCredential,
+        ) -> SubscriptionAuthResult<()> {
+            self.inner.save(provider, credential).await
+        }
+
+        async fn delete(&self, provider: SubscriptionProvider) -> SubscriptionAuthResult<()> {
+            self.inner.delete(provider).await
+        }
+
+        async fn list(&self) -> SubscriptionAuthResult<Vec<SubscriptionAccount>> {
+            self.inner.list().await
+        }
+    }
+
+    struct ScriptedPollProvider {
+        polls: AtomicUsize,
+        block_poll: bool,
+        poll_entered: Notify,
+        poll_release: Notify,
+    }
+
+    impl ScriptedPollProvider {
+        fn slowing() -> Self {
+            Self {
+                polls: AtomicUsize::new(0),
+                block_poll: false,
+                poll_entered: Notify::new(),
+                poll_release: Notify::new(),
+            }
+        }
+
+        fn blocking() -> Self {
+            Self {
+                polls: AtomicUsize::new(0),
+                block_poll: true,
+                poll_entered: Notify::new(),
+                poll_release: Notify::new(),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl SubscriptionOAuthProviderAdapter for ScriptedPollProvider {
+        async fn start(
+            &self,
+            _provider: SubscriptionProvider,
+            _redirect_uri: Option<&str>,
+        ) -> SubscriptionAuthResult<PendingAuthorization> {
+            Ok(PendingAuthorization::Device {
+                authorization_url: "http://authorize.test/opencode".to_string(),
+                user_code: "ABCD-EFGH".to_string(),
+                device_code: "device-secret".to_string(),
+                poll_interval_seconds: 5,
+            })
+        }
+
+        async fn exchange_browser_code(
+            &self,
+            _provider: SubscriptionProvider,
+            _pending: &PendingAuthorization,
+            _code: &str,
+        ) -> SubscriptionAuthResult<SubscriptionCredential> {
+            Err(SubscriptionAuthError::new(
+                SubscriptionAuthErrorCode::InvalidRequest,
+                "browser flow unsupported by test provider",
+                false,
+            ))
+        }
+
+        async fn poll_device(
+            &self,
+            _provider: SubscriptionProvider,
+            _pending: &PendingAuthorization,
+        ) -> SubscriptionAuthResult<DeviceAuthorizationPoll> {
+            self.poll_entered.notify_one();
+            if self.block_poll {
+                self.poll_release.notified().await;
+                return Ok(DeviceAuthorizationPoll::Pending);
+            }
+            match self.polls.fetch_add(1, AtomicOrdering::Relaxed) {
+                0 => Ok(DeviceAuthorizationPoll::SlowDown),
+                _ => Ok(DeviceAuthorizationPoll::Authorized(credential()?)),
+            }
+        }
+
+        async fn refresh(
+            &self,
+            _provider: SubscriptionProvider,
+            _current: &SubscriptionCredential,
+        ) -> SubscriptionAuthResult<SubscriptionCredential> {
+            credential()
+        }
+    }
+
+    struct FakeClock(StdMutex<Instant>);
+
+    impl FakeClock {
+        fn new() -> Self {
+            Self(StdMutex::new(Instant::now()))
+        }
+
+        fn advance(&self, duration: Duration) {
+            let mut now = self.0.lock().unwrap();
+            *now += duration;
+        }
+    }
+
+    impl SubscriptionAuthClock for FakeClock {
+        fn now(&self) -> Instant {
+            *self.0.lock().unwrap()
         }
     }
 
@@ -380,23 +664,52 @@ mod tests {
         SubscriptionAuthService::new(Arc::new(MockProvider), store)
     }
 
+    fn request(provider: SubscriptionProvider) -> StartSubscriptionAuthRequest {
+        StartSubscriptionAuthRequest {
+            session_id: Uuid::new_v4().to_string(),
+            provider,
+            redirect_uri: (provider == SubscriptionProvider::Codex)
+                .then(|| "http://localhost:1455/auth/callback".to_string()),
+        }
+    }
+
     #[tokio::test]
-    async fn opencode_status_authorizes_then_list_refresh_and_logout_work() {
+    async fn opencode_status_is_cached_and_backend_tick_authorizes_on_schedule() {
         let store = Arc::new(MemoryStore::default());
-        let service = service(store);
+        let clock = Arc::new(FakeClock::new());
+        let service =
+            SubscriptionAuthService::with_clock(Arc::new(MockProvider), store, clock.clone());
         let started = service
-            .start(StartSubscriptionAuthRequest {
-                provider: SubscriptionProvider::Opencode,
-                redirect_uri: None,
-            })
+            .start(request(SubscriptionProvider::Opencode))
             .await
             .unwrap();
         assert_eq!(started.status, SubscriptionAuthStatus::Pending);
         assert_eq!(started.user_code.as_deref(), Some("ABCD-EFGH"));
 
-        let authorized = service.status(&started.session_id).await.unwrap();
+        assert_eq!(
+            service.status(&started.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Pending
+        );
+        assert_eq!(
+            service.tick(&started.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Pending
+        );
+        clock.advance(Duration::from_secs(5));
+        let authorized = service.tick(&started.session_id).await.unwrap();
         assert_eq!(authorized.status, SubscriptionAuthStatus::Authorized);
-        assert_eq!(service.list().await.unwrap().len(), 1);
+        assert_eq!(
+            service
+                .list()
+                .await
+                .unwrap()
+                .into_iter()
+                .filter(|account| {
+                    account.status
+                        == crate::infrastructure::subscription_auth::SubscriptionAccountStatus::Connected
+                })
+                .count(),
+            1
+        );
 
         let refreshed = service
             .refresh(SubscriptionProvider::Opencode)
@@ -407,17 +720,17 @@ mod tests {
             .logout(SubscriptionProvider::Opencode)
             .await
             .unwrap();
-        assert!(service.list().await.unwrap().is_empty());
+        assert!(service.list().await.unwrap().into_iter().all(|account| {
+            account.status
+                == crate::infrastructure::subscription_auth::SubscriptionAccountStatus::Disconnected
+        }));
     }
 
     #[tokio::test]
     async fn codex_rejects_wrong_callback_state_and_drops_pending_secrets() {
         let service = service(Arc::new(MemoryStore::default()));
         let started = service
-            .start(StartSubscriptionAuthRequest {
-                provider: SubscriptionProvider::Codex,
-                redirect_uri: Some("http://localhost:1455/auth/callback".to_string()),
-            })
+            .start(request(SubscriptionProvider::Codex))
             .await
             .unwrap();
         let failed = service
@@ -439,10 +752,7 @@ mod tests {
     async fn cancel_is_terminal_and_idempotent() {
         let service = service(Arc::new(MemoryStore::default()));
         let started = service
-            .start(StartSubscriptionAuthRequest {
-                provider: SubscriptionProvider::Codex,
-                redirect_uri: Some("http://localhost:1455/auth/callback".to_string()),
-            })
+            .start(request(SubscriptionProvider::Codex))
             .await
             .unwrap();
         let cancelled = service.cancel(&started.session_id).await.unwrap();
@@ -457,10 +767,7 @@ mod tests {
     async fn cancelled_generation_rejects_a_stale_authorization_commit() {
         let service = service(Arc::new(MemoryStore::default()));
         let started = service
-            .start(StartSubscriptionAuthRequest {
-                provider: SubscriptionProvider::Codex,
-                redirect_uri: Some("http://localhost:1455/auth/callback".to_string()),
-            })
+            .start(request(SubscriptionProvider::Codex))
             .await
             .unwrap();
         let generation = service
@@ -477,7 +784,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(stale.status, SubscriptionAuthStatus::Cancelled);
-        assert!(service.list().await.unwrap().is_empty());
+        assert!(service.list().await.unwrap().into_iter().all(|account| {
+            account.status
+                == crate::infrastructure::subscription_auth::SubscriptionAccountStatus::Disconnected
+        }));
     }
 
     #[tokio::test]
@@ -485,16 +795,101 @@ mod tests {
         let service = service(Arc::new(
             crate::infrastructure::subscription_auth::UnsupportedSubscriptionCredentialStore,
         ));
-        let error = service
-            .start(StartSubscriptionAuthRequest {
-                provider: SubscriptionProvider::Codex,
-                redirect_uri: Some("http://localhost:1455/auth/callback".to_string()),
-            })
+        let failed = service
+            .start(request(SubscriptionProvider::Codex))
             .await
-            .expect_err("production storage gate must fail closed");
+            .expect("placeholder should remain queryable");
+        assert_eq!(failed.status, SubscriptionAuthStatus::Failed);
         assert_eq!(
-            error.code,
+            failed.error.unwrap().code,
             SubscriptionAuthErrorCode::CredentialStoreUnsupported
+        );
+        assert_eq!(
+            service.status(&failed.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Failed
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_during_vault_preflight_prevents_provider_start_commit() {
+        let store = Arc::new(BlockingStore::new());
+        let service = Arc::new(SubscriptionAuthService::new(
+            Arc::new(MockProvider),
+            store.clone(),
+        ));
+        let request = request(SubscriptionProvider::Codex);
+        let session_id = request.session_id.clone();
+        let start_service = service.clone();
+        let start = tokio::spawn(async move { start_service.start(request).await.unwrap() });
+        store.entered.notified().await;
+        service.cancel(&session_id).await.unwrap();
+        store.release.notify_one();
+
+        assert_eq!(
+            start.await.unwrap().status,
+            SubscriptionAuthStatus::Cancelled
+        );
+        assert_eq!(
+            service.status(&session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_during_poll_returns_latest_cancelled_snapshot() {
+        let provider = Arc::new(ScriptedPollProvider::blocking());
+        let clock = Arc::new(FakeClock::new());
+        let service = Arc::new(SubscriptionAuthService::with_clock(
+            provider.clone(),
+            Arc::new(MemoryStore::default()),
+            clock.clone(),
+        ));
+        let started = service
+            .start(request(SubscriptionProvider::Opencode))
+            .await
+            .unwrap();
+        clock.advance(Duration::from_secs(5));
+        let tick_service = service.clone();
+        let session_id = started.session_id.clone();
+        let tick = tokio::spawn(async move { tick_service.tick(&session_id).await.unwrap() });
+        provider.poll_entered.notified().await;
+        service.cancel(&started.session_id).await.unwrap();
+        provider.poll_release.notify_one();
+
+        assert_eq!(
+            tick.await.unwrap().status,
+            SubscriptionAuthStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn opencode_slow_down_adds_five_seconds_before_next_poll() {
+        let provider = Arc::new(ScriptedPollProvider::slowing());
+        let clock = Arc::new(FakeClock::new());
+        let service = SubscriptionAuthService::with_clock(
+            provider.clone(),
+            Arc::new(MemoryStore::default()),
+            clock.clone(),
+        );
+        let started = service
+            .start(request(SubscriptionProvider::Opencode))
+            .await
+            .unwrap();
+        clock.advance(Duration::from_secs(5));
+        assert_eq!(
+            service.tick(&started.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Pending
+        );
+        clock.advance(Duration::from_secs(9));
+        assert_eq!(
+            service.tick(&started.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Pending
+        );
+        assert_eq!(provider.polls.load(AtomicOrdering::Relaxed), 1);
+        clock.advance(Duration::from_secs(1));
+        assert_eq!(
+            service.tick(&started.session_id).await.unwrap().status,
+            SubscriptionAuthStatus::Authorized
         );
     }
 }

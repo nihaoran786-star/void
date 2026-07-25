@@ -1,6 +1,7 @@
 use super::contracts::{
-    SubscriptionAccount, SubscriptionAuthError, SubscriptionAuthErrorCode, SubscriptionAuthResult,
-    SubscriptionCredential, SubscriptionProvider,
+    SubscriptionAccount, SubscriptionAccountStatus, SubscriptionAuthError,
+    SubscriptionAuthErrorCode, SubscriptionAuthResult, SubscriptionCredential,
+    SubscriptionProvider,
 };
 use super::ports::SubscriptionCredentialStoreAdapter;
 use async_trait::async_trait;
@@ -351,8 +352,26 @@ impl SubscriptionCredentialStoreAdapter for NativeSubscriptionCredentialStore {
         let _transaction = credential_transaction_lock().lock().await;
         let mut accounts = Vec::new();
         for provider in [SubscriptionProvider::Codex, SubscriptionProvider::Opencode] {
-            if let Some(credential) = self.load_credential(provider).await? {
-                accounts.push(credential.account(provider));
+            match self.load_credential(provider).await {
+                Ok(Some(credential)) => accounts.push(credential.account(provider)),
+                Ok(None) => accounts.push(SubscriptionAccount {
+                    provider,
+                    status: SubscriptionAccountStatus::Disconnected,
+                    account_hint: None,
+                    expires_at: None,
+                    error: None,
+                }),
+                Err(error) => accounts.push(SubscriptionAccount {
+                    provider,
+                    status: if error.retryable {
+                        SubscriptionAccountStatus::VaultUnavailable
+                    } else {
+                        SubscriptionAccountStatus::Failed
+                    },
+                    account_hint: None,
+                    expires_at: None,
+                    error: Some(error),
+                }),
             }
         }
         Ok(accounts)
@@ -602,11 +621,22 @@ mod tests {
         assert_eq!(loaded.refresh_token(), Some(refresh.as_str()));
         assert_eq!(
             store.list().await.unwrap(),
-            vec![SubscriptionAccount {
-                provider: SubscriptionProvider::Codex,
-                account_hint: Some("user@example.test".to_string()),
-                expires_at: Some(4_102_444_800),
-            }]
+            vec![
+                SubscriptionAccount {
+                    provider: SubscriptionProvider::Codex,
+                    status: SubscriptionAccountStatus::Connected,
+                    account_hint: Some("user@example.test".to_string()),
+                    expires_at: Some(4_102_444_800),
+                    error: None,
+                },
+                SubscriptionAccount {
+                    provider: SubscriptionProvider::Opencode,
+                    status: SubscriptionAccountStatus::Disconnected,
+                    account_hint: None,
+                    expires_at: None,
+                    error: None,
+                }
+            ]
         );
 
         let entries = vault.entries.lock().unwrap();

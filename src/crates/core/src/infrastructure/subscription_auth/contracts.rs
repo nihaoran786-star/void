@@ -65,6 +65,8 @@ pub type SubscriptionAuthResult<T> = Result<T, SubscriptionAuthError>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartSubscriptionAuthRequest {
+    /// Caller-generated UUID, known before provider network I/O starts.
+    pub session_id: String,
     pub provider: SubscriptionProvider,
     /// Codex requires a loopback callback URI owned by the desktop shell.
     /// OpenCode uses a device flow and ignores this field.
@@ -103,8 +105,19 @@ impl fmt::Debug for SubscriptionAuthSession {
 #[serde(rename_all = "camelCase")]
 pub struct SubscriptionAccount {
     pub provider: SubscriptionProvider,
+    pub status: SubscriptionAccountStatus,
     pub account_hint: Option<String>,
     pub expires_at: Option<i64>,
+    pub error: Option<SubscriptionAuthError>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SubscriptionAccountStatus {
+    Connected,
+    Disconnected,
+    VaultUnavailable,
+    Failed,
 }
 
 /// Secret-bearing value exchanged only between the provider and credential
@@ -158,8 +171,10 @@ impl SubscriptionCredential {
     pub fn account(&self, provider: SubscriptionProvider) -> SubscriptionAccount {
         SubscriptionAccount {
             provider,
+            status: SubscriptionAccountStatus::Connected,
             account_hint: self.account_hint.clone(),
             expires_at: self.expires_at,
+            error: None,
         }
     }
 

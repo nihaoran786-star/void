@@ -11,9 +11,9 @@ mod provider_adapter;
 mod service;
 
 pub use contracts::{
-    StartSubscriptionAuthRequest, SubscriptionAccount, SubscriptionAuthError,
-    SubscriptionAuthErrorCode, SubscriptionAuthResult, SubscriptionAuthSession,
-    SubscriptionAuthStatus, SubscriptionCredential, SubscriptionProvider,
+    StartSubscriptionAuthRequest, SubscriptionAccount, SubscriptionAccountStatus,
+    SubscriptionAuthError, SubscriptionAuthErrorCode, SubscriptionAuthResult,
+    SubscriptionAuthSession, SubscriptionAuthStatus, SubscriptionCredential, SubscriptionProvider,
 };
 pub use credential_store_adapter::{
     NativeSubscriptionCredentialStore, UnsupportedSubscriptionCredentialStore,
