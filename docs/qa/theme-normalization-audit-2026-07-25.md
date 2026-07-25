@@ -822,6 +822,31 @@ replace the working gallery or add decorative imagery.
   wraps back to Settings. The three-tab geometry and document width remain
   unchanged at both 1707×912 and 706×490.
 
+### Resolved follow-up — Welcome recents disclose touch deletion
+
+- **Location:** Minimal `WelcomeScene`
+- **Category:** Coarse-pointer safety / responsive interaction
+- **Severity:** P1 for ambiguous destructive action; P2 for touch targets
+- **Impact:** A recent workspace's date doubles as the remove-from-recents
+  button. Mouse hover replaces the date with a trash icon, but touch input has
+  no hover phase, so tapping apparently passive date metadata could remove the
+  entry without first disclosing the destructive affordance. The same rows and
+  header actions also retained compact mouse targets.
+- **Remediation:** Only under `hover: none` or `pointer: coarse`, header actions,
+  workspace rows, and removal controls use the shared 44px touch target and
+  `touch-action: manipulation`. The date stays visible on the left while the
+  trash icon is persistently disclosed on the right. Mouse-driven geometry and
+  workspace switching/removal callbacks are unchanged.
+- **Suggested command:** `$harden`
+- **Positive evidence:** Workspace names and dates are already translated,
+  long remote paths are truncated with a tooltip, removal has an accessible
+  name, focus reveals the icon, and reduced motion is respected.
+- **Verification evidence:** At 1707×912 the five recent rows remain 32px high;
+  at 706×490 the 394px list remains fully visible with zero document or scene
+  overflow. Static presentation contracts scope 44px targets and persistent
+  delete disclosure to coarse pointers because the current desktop WebDriver
+  endpoint does not expose pointer-media emulation.
+
 ## Positive findings
 
 - Assistant reflows its two cards to one column at 719px without horizontal

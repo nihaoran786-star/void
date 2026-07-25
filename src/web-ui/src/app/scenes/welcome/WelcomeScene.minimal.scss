@@ -258,6 +258,37 @@
     }
   }
 
+  @media (hover: none), (pointer: coarse) {
+    .void-ui--minimal .welcome-scene {
+      &__link-btn,
+      &__recent-item,
+      &__recent-time-btn {
+        min-height: var(--workspace-touch-target);
+        touch-action: manipulation;
+      }
+
+      &__recent-row {
+        min-height: var(--workspace-touch-target);
+      }
+
+      &__recent-time-btn__label {
+        justify-content: flex-start;
+        padding-right: calc(
+          var(--workspace-font-size-control) + var(--workspace-space-2)
+        );
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 1;
+      }
+
+      &__recent-time-btn__icon {
+        opacity: 1;
+        color: var(--workspace-text-secondary);
+      }
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .void-ui--minimal .welcome-scene {
       &__link-btn,

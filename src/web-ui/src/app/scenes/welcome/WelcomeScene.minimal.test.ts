@@ -105,4 +105,31 @@ describe('WelcomeScene Minimal presentation', () => {
     expect(stylesheet).toContain('@media (prefers-reduced-motion: reduce)');
     expect(stylesheet).toContain('transition: none;');
   });
+
+  it('keeps touch removal explicit without expanding mouse-driven rows', () => {
+    const coarsePointerStart = stylesheet.indexOf(
+      '@media (hover: none), (pointer: coarse)',
+    );
+    const reducedMotionStart = stylesheet.indexOf(
+      '@media (prefers-reduced-motion: reduce)',
+      coarsePointerStart,
+    );
+    const coarsePointerStyles = stylesheet.slice(
+      coarsePointerStart,
+      reducedMotionStart,
+    );
+    const desktopStyles = stylesheet.slice(0, coarsePointerStart);
+
+    expect(coarsePointerStyles).toContain(
+      'min-height: var(--workspace-touch-target);',
+    );
+    expect(coarsePointerStyles).toContain('touch-action: manipulation;');
+    expect(coarsePointerStyles).toContain('&__recent-time-btn__label {');
+    expect(coarsePointerStyles).toContain('justify-content: flex-start;');
+    expect(coarsePointerStyles).toContain('&__recent-time-btn__icon {');
+    expect(coarsePointerStyles).toContain('opacity: 1;');
+    expect(desktopStyles).not.toContain(
+      'min-height: var(--workspace-touch-target);',
+    );
+  });
 });
