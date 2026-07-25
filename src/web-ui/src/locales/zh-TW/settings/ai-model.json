@@ -384,6 +384,7 @@
       "invalid_model_id": "模型 ID 只能是一個本地檔案或資料夾名稱。",
       "model_directory_missing": "請填寫存在的本地模型目錄。",
       "model_missing": "所選模型不在設定目錄中。",
+      "model_corrupt": "所選 SenseVoice 模型必須包含 model.int8.onnx 和 tokens.txt。",
       "engine_not_bundled": "目前建置未封裝本地 ASR 推理引擎；推理依賴需要另行審批。",
       "inspection_failed": "無法讀取本地模型狀態，請檢查目錄權限後重試。"
     }

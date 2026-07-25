@@ -51,11 +51,21 @@ pub enum LocalAsrStatusCode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LocalAsrErrorCode {
+    Disabled,
     UnsupportedProvider,
+    AccessDenied,
     InvalidModelId,
     ModelDirectoryMissing,
     ModelMissing,
+    ModelCorrupt,
     EngineNotBundled,
+    Busy,
+    SessionNotFound,
+    InvalidAudio,
+    EmptyAudio,
+    RecordingLimitReached,
+    TranscriptionFailed,
+    Cancelled,
     InspectionFailed,
 }
 
@@ -99,6 +109,58 @@ pub trait LocalAsrStatusProvider: Send + Sync {
     fn inspect(&self, config: &VoiceInputConfig) -> LocalAsrStatus;
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrStartInputSessionRequest {
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub sample_rate: Option<u32>,
+    #[serde(default)]
+    pub max_recording_seconds: Option<u32>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrInputSession {
+    pub session_id: String,
+    pub model_id: String,
+    pub language: String,
+    pub sample_rate: u32,
+    pub max_recording_seconds: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrAppendAudioChunkRequest {
+    pub session_id: String,
+    /// Base64-encoded PCM16 little-endian mono audio.
+    pub pcm16_base64: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrAppendAudioChunkResponse {
+    pub received_bytes: u64,
+    pub received_seconds: f64,
+    pub limit_reached: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrSessionRequest {
+    pub session_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAsrTranscriptionResult {
+    pub text: String,
+    pub language: String,
+    pub duration_ms: u64,
+    pub audio_duration_seconds: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +199,9 @@ mod tests {
         assert_eq!(value["status"], "unavailable");
         assert_eq!(value["modelAvailable"], true);
         assert_eq!(value["error"]["code"], "engine_not_bundled");
+        assert_eq!(
+            serde_json::to_value(LocalAsrErrorCode::AccessDenied).unwrap(),
+            "access_denied"
+        );
     }
 }

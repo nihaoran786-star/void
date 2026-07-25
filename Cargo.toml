@@ -175,6 +175,9 @@ qrcode = "0.14"
 
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 
+# Local speech recognition
+sherpa-onnx = "1.13.4"
+
 rmcp = { version = "1.7", default-features = false, features = [
     "auth",
     "base64",

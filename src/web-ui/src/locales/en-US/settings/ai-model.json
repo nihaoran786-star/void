@@ -384,6 +384,7 @@
       "invalid_model_id": "The model ID must be one local file or folder name.",
       "model_directory_missing": "Choose an existing local model directory.",
       "model_missing": "The selected model was not found in that directory.",
+      "model_corrupt": "The selected SenseVoice model must contain model.int8.onnx and tokens.txt.",
       "engine_not_bundled": "This build does not bundle a local ASR inference engine. Inference dependencies require separate approval.",
       "inspection_failed": "The local model status could not be read. Check directory permissions and retry."
     }

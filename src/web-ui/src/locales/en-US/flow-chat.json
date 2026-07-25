@@ -436,7 +436,23 @@
     "messageTooLarge": "Message exceeds the maximum length of {{max}} characters ({{count}} provided).",
     "openWorkspaceFolder": "Open workspace folder",
     "openWorkspaceFolderFailed": "Failed to open workspace folder: {{error}}",
-    "spaceToActivate": "Press <space>Space</space> to type"
+    "spaceToActivate": "Press <space>Space</space> to type",
+    "voiceInput": {
+      "start": "Start local voice input",
+      "stop": "Stop and transcribe",
+      "preparing": "Preparing local voice input",
+      "transcribing": "Transcribing locally",
+      "disabled": "Enable local voice input in model settings first.",
+      "unsupported": "Local voice input is unavailable in this runtime.",
+      "engineUnavailable": "This build does not include the local speech engine.",
+      "modelMissing": "Configure a valid local SenseVoice model first.",
+      "providerUnsupported": "The configured speech provider is not supported.",
+      "accessDenied": "This window is not allowed to access local voice input.",
+      "unavailable": "Local voice input is currently unavailable.",
+      "permissionDenied": "Microphone access was denied. Allow access in system settings and retry.",
+      "failed": "Local voice transcription failed. Check the model and microphone, then retry.",
+      "empty": "No speech was detected."
+    }
   },
   "workspaceStrip": {
     "branchTooltipUnavailable": "Not a git repository or no current branch",

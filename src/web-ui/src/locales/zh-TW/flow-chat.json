@@ -436,7 +436,23 @@
     "messageTooLarge": "消息超過最大長度 {{max}} 個字符（當前 {{count}} 個字符）。",
     "openWorkspaceFolder": "打開工作區文件夾",
     "openWorkspaceFolderFailed": "打開工作區文件夾失敗：{{error}}",
-    "spaceToActivate": "按<space>空格鍵</space>快速鍵入"
+    "spaceToActivate": "按<space>空格鍵</space>快速鍵入",
+    "voiceInput": {
+      "start": "開始本地語音輸入",
+      "stop": "停止並轉寫",
+      "preparing": "正在準備本地語音輸入",
+      "transcribing": "正在本地轉寫",
+      "disabled": "請先在模型設定中啟用本地語音輸入。",
+      "unsupported": "目前執行環境不支援本地語音輸入。",
+      "engineUnavailable": "目前建置未包含本地語音辨識引擎。",
+      "modelMissing": "請先設定有效的本地 SenseVoice 模型。",
+      "providerUnsupported": "目前設定的語音服務不受支援。",
+      "accessDenied": "目前視窗無權使用本地語音輸入。",
+      "unavailable": "本地語音輸入目前無法使用。",
+      "permissionDenied": "麥克風權限遭拒，請在系統設定中允許後重試。",
+      "failed": "本地語音轉寫失敗，請檢查模型與麥克風後重試。",
+      "empty": "未偵測到語音內容。"
+    }
   },
   "workspaceStrip": {
     "branchTooltipUnavailable": "非 Git 存放庫或目前無分支",

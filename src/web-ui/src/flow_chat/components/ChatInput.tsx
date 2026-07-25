@@ -121,6 +121,8 @@ import {
   parseComposerPresentation,
 } from '../utils/composerPresentation';
 import { createSkillPromptReferenceToken } from '../utils/skillPromptReference';
+import { ComposerVoiceInputButton } from './voice/ComposerVoiceInputButton';
+import { useComposerVoiceInput } from './voice/useComposerVoiceInput';
 import './ChatInput.scss';
 
 const log = createLogger('ChatInput');
@@ -3057,6 +3059,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     });
   }, []);
 
+  const insertVoiceTranscript = useCallback((transcript: string) => {
+    const current = inputValueRef.current;
+    const next = current.trim()
+      ? `${current.trimEnd()} ${transcript}`
+      : transcript;
+    dispatchInput({ type: 'ACTIVATE' });
+    dispatchInput({ type: 'SET_VALUE', payload: next });
+    inputValueRef.current = next;
+  }, []);
+
+  const voiceInput = useComposerVoiceInput({
+    composerSessionId: currentSessionId,
+    insertText: insertVoiceTranscript,
+    focusInputSoon: focusRichTextInputSoon,
+  });
+
   // Space-to-focus: when no editable element is focused, Space key focuses the input.
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -3612,7 +3630,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   />
                 </div>
 
-                {renderActionButton()}
+                <ComposerVoiceInputButton controller={voiceInput} />
+                {voiceInput.phase === 'idle' ? renderActionButton() : null}
               </div>
             </div>
             <ChatInputWorkspaceStrip

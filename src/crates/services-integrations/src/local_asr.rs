@@ -6,16 +6,43 @@
 use std::fs;
 use std::path::{Component, Path};
 pub use void_services_core::local_asr::{
-    LocalAsrError, LocalAsrErrorCode, LocalAsrSource, LocalAsrStatus, LocalAsrStatusCode,
-    LocalAsrStatusProvider, VoiceInputConfig,
+    LocalAsrAppendAudioChunkRequest, LocalAsrAppendAudioChunkResponse, LocalAsrError,
+    LocalAsrErrorCode, LocalAsrInputSession, LocalAsrSessionRequest, LocalAsrSource,
+    LocalAsrStartInputSessionRequest, LocalAsrStatus, LocalAsrStatusCode, LocalAsrStatusProvider,
+    LocalAsrTranscriptionResult, VoiceInputConfig,
 };
 
 const MAX_DISCOVERED_MODELS: usize = 100;
 
-#[derive(Debug, Default, Clone, Copy)]
-pub struct LocalFilesystemAsrStatusAdapter;
+pub fn is_valid_local_model_id(model_id: &str) -> bool {
+    let mut components = Path::new(model_id).components();
+    matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct LocalFilesystemAsrStatusAdapter {
+    engine_available: bool,
+}
+
+impl Default for LocalFilesystemAsrStatusAdapter {
+    fn default() -> Self {
+        Self::without_engine()
+    }
+}
 
 impl LocalFilesystemAsrStatusAdapter {
+    pub const fn without_engine() -> Self {
+        Self {
+            engine_available: false,
+        }
+    }
+
+    pub const fn with_engine() -> Self {
+        Self {
+            engine_available: true,
+        }
+    }
+
     fn error_status(
         config: &VoiceInputConfig,
         status: LocalAsrStatusCode,
@@ -37,11 +64,6 @@ impl LocalFilesystemAsrStatusAdapter {
                 retryable: false,
             }),
         }
-    }
-
-    fn valid_model_id(model_id: &str) -> bool {
-        let mut components = Path::new(model_id).components();
-        matches!(components.next(), Some(Component::Normal(_))) && components.next().is_none()
     }
 
     fn discover_models(directory: &Path) -> Result<Vec<String>, std::io::Error> {
@@ -74,7 +96,7 @@ impl LocalAsrStatusProvider for LocalFilesystemAsrStatusAdapter {
             );
         }
 
-        if !Self::valid_model_id(config.model_id.trim()) {
+        if !is_valid_local_model_id(config.model_id.trim()) {
             return Self::error_status(
                 config,
                 LocalAsrStatusCode::MissingModel,
@@ -121,6 +143,31 @@ impl LocalAsrStatusProvider for LocalFilesystemAsrStatusAdapter {
             );
         }
 
+        let model_path = directory.join(config.model_id.trim());
+        if !model_path.join("model.int8.onnx").is_file() || !model_path.join("tokens.txt").is_file()
+        {
+            return Self::error_status(
+                config,
+                LocalAsrStatusCode::Failed,
+                LocalAsrErrorCode::ModelCorrupt,
+                "The SenseVoice model must contain model.int8.onnx and tokens.txt.",
+                discovered_models,
+            );
+        }
+
+        if self.engine_available {
+            return LocalAsrStatus {
+                source: LocalAsrSource::LocalFilesystem,
+                status: LocalAsrStatusCode::Ready,
+                configured_model_id: config.model_id.clone(),
+                model_directory: config.model_directory.clone(),
+                model_available: true,
+                engine_available: true,
+                discovered_models,
+                error: None,
+            };
+        }
+
         LocalAsrStatus {
             source: LocalAsrSource::LocalFilesystem,
             status: LocalAsrStatusCode::Unavailable,
@@ -159,13 +206,15 @@ mod tests {
         let root = unique_temp_dir();
         let model = root.join("sensevoice-small-int8");
         fs::create_dir_all(&model).expect("create model fixture");
+        fs::write(model.join("model.int8.onnx"), b"fixture").expect("write model fixture");
+        fs::write(model.join("tokens.txt"), b"fixture").expect("write tokens fixture");
         let config = VoiceInputConfig {
             enabled: true,
             model_directory: root.to_string_lossy().into_owned(),
             ..VoiceInputConfig::default()
         };
 
-        let status = LocalFilesystemAsrStatusAdapter.inspect(&config);
+        let status = LocalFilesystemAsrStatusAdapter::without_engine().inspect(&config);
 
         assert!(status.model_available);
         assert!(!status.engine_available);
@@ -186,7 +235,7 @@ mod tests {
             ..VoiceInputConfig::default()
         };
 
-        let status = LocalFilesystemAsrStatusAdapter.inspect(&config);
+        let status = LocalFilesystemAsrStatusAdapter::without_engine().inspect(&config);
 
         assert_eq!(status.status, LocalAsrStatusCode::MissingModel);
         assert_eq!(

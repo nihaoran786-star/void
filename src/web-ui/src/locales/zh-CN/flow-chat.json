@@ -436,7 +436,23 @@
     "messageTooLarge": "消息超过最大长度 {{max}} 个字符（当前 {{count}} 个字符）。",
     "openWorkspaceFolder": "打开工作区文件夹",
     "openWorkspaceFolderFailed": "打开工作区文件夹失败：{{error}}",
-    "spaceToActivate": "按<space>空格键</space>快速键入"
+    "spaceToActivate": "按<space>空格键</space>快速键入",
+    "voiceInput": {
+      "start": "开始本地语音输入",
+      "stop": "停止并转写",
+      "preparing": "正在准备本地语音输入",
+      "transcribing": "正在本地转写",
+      "disabled": "请先在模型设置中启用本地语音输入。",
+      "unsupported": "当前运行环境不支持本地语音输入。",
+      "engineUnavailable": "当前构建未包含本地语音识别引擎。",
+      "modelMissing": "请先配置有效的本地 SenseVoice 模型。",
+      "providerUnsupported": "当前配置的语音服务不受支持。",
+      "accessDenied": "当前窗口无权使用本地语音输入。",
+      "unavailable": "本地语音输入当前不可用。",
+      "permissionDenied": "麦克风权限被拒绝，请在系统设置中允许后重试。",
+      "failed": "本地语音转写失败，请检查模型和麦克风后重试。",
+      "empty": "未检测到语音内容。"
+    }
   },
   "workspaceStrip": {
     "branchTooltipUnavailable": "非 Git 仓库或当前无分支",

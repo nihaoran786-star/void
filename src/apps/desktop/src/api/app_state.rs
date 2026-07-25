@@ -12,6 +12,8 @@ use void_core::service::remote_ssh::{
 };
 use void_core::service::{announcement, config, filesystem, mcp, search, token_usage, workspace};
 use void_core::util::errors::*;
+#[cfg(feature = "local-asr-engine")]
+use void_services_integrations::local_asr_engine::LocalAsrService;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -69,6 +71,8 @@ pub struct AppState {
     pub config_service: Arc<config::ConfigService>,
     pub filesystem_service: Arc<filesystem::FileSystemService>,
     pub workspace_search_service: Arc<search::WorkspaceSearchService>,
+    #[cfg(feature = "local-asr-engine")]
+    pub local_asr_service: Arc<LocalAsrService>,
     pub agent_registry: Arc<agents::AgentRegistry>,
     pub mcp_service: Option<Arc<mcp::MCPService>>,
     pub acp_client_service: Option<Arc<void_acp::AcpClientService>>,
@@ -117,6 +121,8 @@ impl AppState {
         let filesystem_service = Arc::new(filesystem::FileSystemServiceFactory::create_default());
         let workspace_search_service = Arc::new(search::WorkspaceSearchService::new());
         search::set_global_workspace_search_service(workspace_search_service.clone());
+        #[cfg(feature = "local-asr-engine")]
+        let local_asr_service = Arc::new(LocalAsrService::new());
 
         let agent_registry = agents::get_agent_registry();
 
@@ -292,6 +298,8 @@ impl AppState {
             config_service,
             filesystem_service,
             workspace_search_service,
+            #[cfg(feature = "local-asr-engine")]
+            local_asr_service,
             agent_registry,
             mcp_service,
             acp_client_service,

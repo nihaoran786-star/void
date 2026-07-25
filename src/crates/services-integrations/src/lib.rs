@@ -13,6 +13,8 @@ pub mod external_config_sources;
 
 #[cfg(feature = "local-asr")]
 pub mod local_asr;
+#[cfg(feature = "local-asr-engine")]
+pub mod local_asr_engine;
 
 #[cfg(feature = "git")]
 pub mod git;
