@@ -19,8 +19,19 @@ export interface AgentMemoryCandidate {
 }
 
 export interface StoredAgentMemory {
+  schemaVersion: number;
   id: string;
   content: string;
+  revision: number;
+  source: {
+    kind: string;
+    sessionId?: string;
+    transcriptFingerprint?: string;
+    rendererVersion?: string;
+  };
+  createdAt: number;
+  updatedAt: number;
+  state: AgentMemoryState;
 }
 
 export interface MemoryCandidateBatch {

@@ -1,19 +1,101 @@
 use super::consent::{AgentMemoryCandidate, MemoryTransitionError};
 use crate::infrastructure::app_paths::PathManager;
 use crate::service::atomic_file::replace_file;
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const MAX_CANDIDATE_BYTES: usize = 4_096;
+pub const AGENT_MEMORY_SCHEMA_VERSION: u32 = 2;
+
+fn current_time_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
+}
+
+fn default_schema_version() -> u32 {
+    AGENT_MEMORY_SCHEMA_VERSION
+}
+
+fn default_revision() -> u64 {
+    1
+}
+
+fn default_committed_state() -> super::consent::AgentMemoryState {
+    super::consent::AgentMemoryState::Committed
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentMemorySource {
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transcript_fingerprint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub renderer_version: Option<String>,
+}
+
+impl AgentMemorySource {
+    pub fn legacy_manual() -> Self {
+        Self {
+            kind: "legacy_manual".to_string(),
+            session_id: None,
+            transcript_fingerprint: None,
+            renderer_version: None,
+        }
+    }
+}
+
+impl Default for AgentMemorySource {
+    fn default() -> Self {
+        Self::legacy_manual()
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct StoredAgentMemory {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: u32,
     pub id: String,
     pub content: String,
+    #[serde(default = "default_revision")]
+    pub revision: u64,
+    #[serde(default)]
+    pub source: AgentMemorySource,
+    #[serde(default)]
+    pub created_at: u64,
+    #[serde(default)]
+    pub updated_at: u64,
+    #[serde(default = "default_committed_state")]
+    pub state: super::consent::AgentMemoryState,
+}
+
+impl StoredAgentMemory {
+    fn new_committed(id: String, content: String, now: u64) -> Self {
+        Self {
+            schema_version: AGENT_MEMORY_SCHEMA_VERSION,
+            id,
+            content,
+            revision: 1,
+            source: AgentMemorySource::legacy_manual(),
+            created_at: now,
+            updated_at: now,
+            state: super::consent::AgentMemoryState::Committed,
+        }
+    }
+
+    pub fn is_committed(&self) -> bool {
+        self.state == super::consent::AgentMemoryState::Committed
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -25,7 +107,12 @@ pub struct MemoryCandidateBatch {
 
 pub trait AgentMemoryRepository {
     fn list(&self, workspace_root: &Path) -> Result<Vec<StoredAgentMemory>, String>;
-    fn write(&self, workspace_root: &Path, memory: &StoredAgentMemory) -> Result<(), String>;
+    fn write_cas(
+        &self,
+        workspace_root: &Path,
+        memory: &StoredAgentMemory,
+        expected_revision: Option<u64>,
+    ) -> Result<(), String>;
     fn delete(&self, workspace_root: &Path, id: &str) -> Result<(), String>;
 }
 
@@ -44,42 +131,106 @@ impl FileAgentMemoryRepository {
     }
 
     fn memory_path(&self, workspace_root: &Path, id: &str) -> Result<PathBuf, String> {
-        if id.is_empty()
-            || !id
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
-        {
-            return Err("invalid memory id".to_string());
-        }
-        Ok(self.memory_dir(workspace_root).join(format!("{id}.json")))
+        memory_file_path(&self.memory_dir(workspace_root), id)
     }
+}
+
+fn memory_file_path(dir: &Path, id: &str) -> Result<PathBuf, String> {
+    if id.is_empty()
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err("invalid memory id".to_string());
+    }
+    Ok(dir.join(format!("{id}.json")))
+}
+
+pub(crate) fn list_stored_agent_memories_in_dir(
+    dir: &Path,
+) -> Result<Vec<StoredAgentMemory>, String> {
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut memories = Vec::new();
+    for entry in fs::read_dir(dir).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
+            continue;
+        }
+        let raw = fs::read_to_string(entry.path()).map_err(|error| error.to_string())?;
+        let memory =
+            serde_json::from_str::<StoredAgentMemory>(&raw).map_err(|error| error.to_string())?;
+        memories.push(memory);
+    }
+    memories.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(memories)
+}
+
+fn write_stored_agent_memory_cas_in_dir(
+    memory_dir: &Path,
+    memory: &StoredAgentMemory,
+    expected_revision: Option<u64>,
+) -> Result<(), String> {
+    fs::create_dir_all(memory_dir).map_err(|error| error.to_string())?;
+    let lock = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(memory_dir.join(".agent-memory.lock"))
+        .map_err(|error| error.to_string())?;
+    lock.lock_exclusive().map_err(|error| error.to_string())?;
+
+    let path = memory_file_path(memory_dir, &memory.id)?;
+    let actual_revision = if path.exists() {
+        let raw = fs::read_to_string(&path).map_err(|error| error.to_string())?;
+        Some(
+            serde_json::from_str::<StoredAgentMemory>(&raw)
+                .map_err(|error| error.to_string())?
+                .revision,
+        )
+    } else {
+        None
+    };
+    if actual_revision != expected_revision {
+        return Err(format!(
+            "memory revision conflict: expected {:?}, found {:?}",
+            expected_revision, actual_revision
+        ));
+    }
+    let required_revision = expected_revision
+        .map(|revision| revision.saturating_add(1))
+        .unwrap_or(1);
+    if memory.schema_version != AGENT_MEMORY_SCHEMA_VERSION || memory.revision != required_revision
+    {
+        return Err(format!(
+            "invalid memory version: schemaVersion={} revision={}, expected schemaVersion={} revision={}",
+            memory.schema_version,
+            memory.revision,
+            AGENT_MEMORY_SCHEMA_VERSION,
+            required_revision
+        ));
+    }
+    let data = serde_json::to_vec_pretty(memory).map_err(|error| error.to_string())?;
+    replace_file(&path, &data)
 }
 
 impl AgentMemoryRepository for FileAgentMemoryRepository {
     fn list(&self, workspace_root: &Path) -> Result<Vec<StoredAgentMemory>, String> {
-        let dir = self.memory_dir(workspace_root);
-        if !dir.exists() {
-            return Ok(Vec::new());
-        }
-        let mut memories = Vec::new();
-        for entry in fs::read_dir(dir).map_err(|error| error.to_string())? {
-            let entry = entry.map_err(|error| error.to_string())?;
-            if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
-                continue;
-            }
-            let raw = fs::read_to_string(entry.path()).map_err(|error| error.to_string())?;
-            let memory = serde_json::from_str::<StoredAgentMemory>(&raw)
-                .map_err(|error| error.to_string())?;
-            memories.push(memory);
-        }
-        memories.sort_by(|left, right| left.id.cmp(&right.id));
-        Ok(memories)
+        list_stored_agent_memories_in_dir(&self.memory_dir(workspace_root))
     }
 
-    fn write(&self, workspace_root: &Path, memory: &StoredAgentMemory) -> Result<(), String> {
-        let path = self.memory_path(workspace_root, &memory.id)?;
-        let data = serde_json::to_vec_pretty(memory).map_err(|error| error.to_string())?;
-        replace_file(&path, &data)
+    fn write_cas(
+        &self,
+        workspace_root: &Path,
+        memory: &StoredAgentMemory,
+        expected_revision: Option<u64>,
+    ) -> Result<(), String> {
+        write_stored_agent_memory_cas_in_dir(
+            &self.memory_dir(workspace_root),
+            memory,
+            expected_revision,
+        )
     }
 
     fn delete(&self, workspace_root: &Path, id: &str) -> Result<(), String> {
@@ -167,11 +318,12 @@ impl<R: AgentMemoryRepository> AgentMemoryService<R> {
                 "candidate contains credentials or hidden system data".to_string(),
             ));
         }
-        let memory = StoredAgentMemory {
-            id: candidate.id.clone(),
-            content: candidate.content.clone(),
-        };
-        candidate.commit_with(|_| self.repository.write(workspace_root, &memory))?;
+        let memory = StoredAgentMemory::new_committed(
+            candidate.id.clone(),
+            candidate.content.clone(),
+            current_time_ms(),
+        );
+        candidate.commit_with(|_| self.repository.write_cas(workspace_root, &memory, None))?;
         Ok(candidate)
     }
 
@@ -233,7 +385,21 @@ mod tests {
             Ok(self.values.borrow().clone())
         }
 
-        fn write(&self, _workspace_root: &Path, memory: &StoredAgentMemory) -> Result<(), String> {
+        fn write_cas(
+            &self,
+            _workspace_root: &Path,
+            memory: &StoredAgentMemory,
+            expected_revision: Option<u64>,
+        ) -> Result<(), String> {
+            let actual_revision = self
+                .values
+                .borrow()
+                .iter()
+                .find(|value| value.id == memory.id)
+                .map(|value| value.revision);
+            if actual_revision != expected_revision {
+                return Err("memory revision conflict".to_string());
+            }
             self.values.borrow_mut().push(memory.clone());
             Ok(())
         }
@@ -285,12 +451,56 @@ mod tests {
         ]);
         let merged = service.merge_candidates(
             &[StoredAgentMemory {
+                schema_version: AGENT_MEMORY_SCHEMA_VERSION,
                 id: "old".to_string(),
                 content: "use focused tests".to_string(),
+                revision: 1,
+                source: AgentMemorySource::legacy_manual(),
+                created_at: 0,
+                updated_at: 0,
+                state: AgentMemoryState::Committed,
             }],
             batch,
         );
         assert_eq!(merged.candidates.len(), 1);
         assert_eq!(merged.candidates[0].content, "Keep diffs small");
+    }
+
+    #[test]
+    fn v1_memory_deserializes_as_committed_v2_record() {
+        let memory: StoredAgentMemory =
+            serde_json::from_str(r#"{"id":"legacy","content":"Keep diffs small"}"#).unwrap();
+
+        assert_eq!(memory.schema_version, AGENT_MEMORY_SCHEMA_VERSION);
+        assert_eq!(memory.revision, 1);
+        assert_eq!(memory.source, AgentMemorySource::legacy_manual());
+        assert_eq!(memory.created_at, 0);
+        assert_eq!(memory.updated_at, 0);
+        assert_eq!(memory.state, AgentMemoryState::Committed);
+    }
+
+    #[test]
+    fn file_repository_compare_and_swap_rejects_stale_revision() {
+        let directory = crate::service::agent_memory::AgentMemoryTestDir::new();
+        let first =
+            StoredAgentMemory::new_committed("memory-1".to_string(), "first".to_string(), 10);
+        write_stored_agent_memory_cas_in_dir(directory.path(), &first, None).unwrap();
+
+        let mut second = first.clone();
+        second.content = "second".to_string();
+        second.revision = 2;
+        second.updated_at = 20;
+        write_stored_agent_memory_cas_in_dir(directory.path(), &second, Some(1)).unwrap();
+
+        let mut stale = second.clone();
+        stale.content = "stale".to_string();
+        let error =
+            write_stored_agent_memory_cas_in_dir(directory.path(), &stale, Some(1)).unwrap_err();
+        assert!(error.contains("revision conflict"));
+
+        let stored = list_stored_agent_memories_in_dir(directory.path()).unwrap();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].revision, 2);
+        assert_eq!(stored[0].content, "second");
     }
 }

@@ -1,6 +1,10 @@
 use crate::infrastructure::get_path_manager_arc;
+use crate::service::agent_memory::repository::{
+    list_stored_agent_memories_in_dir, StoredAgentMemory,
+};
 use crate::util::errors::*;
 use log::debug;
+use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
@@ -8,6 +12,9 @@ const MEMORY_DIR_NAME: &str = "memory";
 const MEMORY_INDEX_FILE: &str = "memory.md";
 const MEMORY_INDEX_MAX_LINES: usize = 200;
 const TOPIC_MEMORY_MAX_FILES: usize = 30;
+const APPROVED_MEMORY_MAX_ITEMS: usize = 24;
+const APPROVED_MEMORY_MAX_BYTES: usize = 12_000;
+const APPROVED_MEMORY_MAX_CONTENT_BYTES: usize = 2_000;
 
 fn memory_dir_path(workspace_root: &Path) -> PathBuf {
     let path_manager = get_path_manager_arc();
@@ -212,7 +219,15 @@ pub(crate) async fn build_workspace_memory_files_context(
     if !memory_dir.exists() {
         return Ok(None);
     }
-    let memory_files_section = build_memory_space_files_section(&memory_dir).await?;
+    let approved_memories = list_stored_agent_memories_in_dir(&memory_dir).map_err(|error| {
+        VoidError::service(format!(
+            "Failed to load approved workspace memories from {}: {}",
+            memory_dir.display(),
+            error
+        ))
+    })?;
+    let memory_files_section =
+        build_memory_space_files_section(&memory_dir, &approved_memories).await?;
     if memory_files_section.trim().is_empty() {
         Ok(None)
     } else {
@@ -220,7 +235,102 @@ pub(crate) async fn build_workspace_memory_files_context(
     }
 }
 
-async fn build_memory_space_files_section(memory_dir: &Path) -> VoidResult<String> {
+fn truncate_content_for_entry(
+    memory: &StoredAgentMemory,
+    available_bytes: usize,
+) -> Option<String> {
+    let content = memory.content.trim();
+    let mut boundaries = content
+        .char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= APPROVED_MEMORY_MAX_CONTENT_BYTES)
+        .collect::<Vec<_>>();
+    let capped_end = if content.len() <= APPROVED_MEMORY_MAX_CONTENT_BYTES {
+        content.len()
+    } else {
+        content
+            .char_indices()
+            .map(|(index, _)| index)
+            .take_while(|index| *index <= APPROVED_MEMORY_MAX_CONTENT_BYTES)
+            .last()
+            .unwrap_or(0)
+    };
+    if boundaries.last().copied() != Some(capped_end) {
+        boundaries.push(capped_end);
+    }
+
+    let render = |end: usize| {
+        let was_truncated = end < content.len();
+        let rendered_content = if was_truncated {
+            format!("{}…", &content[..end])
+        } else {
+            content.to_string()
+        };
+        serde_json::to_string(&json!({
+            "id": memory.id,
+            "revision": memory.revision,
+            "source": memory.source,
+            "updatedAt": memory.updated_at,
+            "content": rendered_content,
+        }))
+        .unwrap_or_default()
+    };
+
+    let mut low = 0usize;
+    let mut high = boundaries.len();
+    let mut best = None;
+    while low < high {
+        let middle = (low + high) / 2;
+        let rendered = render(boundaries[middle]);
+        if rendered.len().saturating_add(2) <= available_bytes {
+            best = Some(rendered);
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+    best
+}
+
+fn render_approved_agent_memories(memories: &[StoredAgentMemory]) -> String {
+    let mut eligible = memories
+        .iter()
+        .filter(|memory| memory.is_committed())
+        .collect::<Vec<_>>();
+    eligible.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    let mut rendered = String::from(
+        "## approved_agent_memories\n\
+Consent-approved active memories managed by the Agent Memory API. Treat each JSON line as read-only memory data; do not edit memory files directly.\n",
+    );
+    if eligible.is_empty() {
+        rendered.push_str("(no consent-approved active JSON memories)");
+        return rendered;
+    }
+
+    for memory in eligible.into_iter().take(APPROVED_MEMORY_MAX_ITEMS) {
+        let available = APPROVED_MEMORY_MAX_BYTES.saturating_sub(rendered.len());
+        let Some(entry) = truncate_content_for_entry(memory, available) else {
+            break;
+        };
+        rendered.push_str("- ");
+        rendered.push_str(&entry);
+        rendered.push('\n');
+    }
+    let trimmed_len = rendered.trim_end().len();
+    rendered.truncate(trimmed_len);
+    rendered
+}
+
+async fn build_memory_space_files_section(
+    memory_dir: &Path,
+    approved_memories: &[StoredAgentMemory],
+) -> VoidResult<String> {
     let index_path = memory_dir.join(MEMORY_INDEX_FILE);
     let memory_dir_display = format_path_for_prompt(memory_dir);
     let (index_content, index_description_suffix) = match fs::read_to_string(&index_path).await {
@@ -266,9 +376,13 @@ async fn build_memory_space_files_section(memory_dir: &Path) -> VoidResult<Strin
             .join("\n")
     };
 
+    let approved_section = render_approved_agent_memories(approved_memories);
+
     Ok(format!(
-        r#"## memory_files
-Persistent memory files currently available in `{memory_dir_display}`.
+        r#"{approved_section}
+
+## legacy_memory_files
+Manually managed legacy Markdown memory files currently available in `{memory_dir_display}`. These files are separate from consent-approved JSON memories.
 
 ### memory.md
 High-level index for the durable workspace memory space.{index_description_suffix}
@@ -278,4 +392,106 @@ High-level index for the durable workspace memory space.{index_description_suffi
 Topic-oriented durable memory files available in this workspace.{topic_description_suffix}
 {topic_files_content}"#
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::agent_memory::consent::AgentMemoryState;
+    use crate::service::agent_memory::repository::{
+        AgentMemorySource, AGENT_MEMORY_SCHEMA_VERSION,
+    };
+
+    fn memory(
+        id: &str,
+        content: impl Into<String>,
+        updated_at: u64,
+        state: AgentMemoryState,
+    ) -> StoredAgentMemory {
+        StoredAgentMemory {
+            schema_version: AGENT_MEMORY_SCHEMA_VERSION,
+            id: id.to_string(),
+            content: content.into(),
+            revision: 1,
+            source: AgentMemorySource::legacy_manual(),
+            created_at: 1,
+            updated_at,
+            state,
+        }
+    }
+
+    #[test]
+    fn recall_includes_only_committed_memories_in_stable_order() {
+        let rendered = render_approved_agent_memories(&[
+            memory("older", "older memory", 10, AgentMemoryState::Committed),
+            memory("deleted", "must not appear", 30, AgentMemoryState::Deleted),
+            memory(
+                "candidate",
+                "must not appear either",
+                40,
+                AgentMemoryState::Candidate,
+            ),
+            memory("newer", "newer memory", 20, AgentMemoryState::Committed),
+        ]);
+
+        assert!(rendered.contains("newer memory"));
+        assert!(rendered.contains("older memory"));
+        assert!(!rendered.contains("must not appear"));
+        assert!(
+            rendered.find("\"id\":\"newer\"").unwrap() < rendered.find("\"id\":\"older\"").unwrap()
+        );
+    }
+
+    #[test]
+    fn approved_recall_obeys_item_and_byte_budgets() {
+        let memories = (0..100)
+            .map(|index| {
+                memory(
+                    &format!("memory-{index:03}"),
+                    "多".repeat(4_000),
+                    index,
+                    AgentMemoryState::Committed,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let rendered = render_approved_agent_memories(&memories);
+
+        assert!(rendered.len() <= APPROVED_MEMORY_MAX_BYTES);
+        assert!(rendered.matches("\"id\":").count() <= APPROVED_MEMORY_MAX_ITEMS);
+        assert!(rendered.contains('…'));
+        assert!(std::str::from_utf8(rendered.as_bytes()).is_ok());
+    }
+
+    #[tokio::test]
+    async fn approved_json_and_legacy_markdown_are_explicitly_partitioned() {
+        let directory = crate::service::agent_memory::AgentMemoryTestDir::new();
+        fs::write(
+            directory.path().join(MEMORY_INDEX_FILE),
+            "- [Legacy](legacy.md) — legacy note",
+        )
+        .await
+        .unwrap();
+        fs::write(directory.path().join("legacy.md"), "legacy body")
+            .await
+            .unwrap();
+
+        let rendered = build_memory_space_files_section(
+            directory.path(),
+            &[memory(
+                "approved",
+                "approved JSON memory",
+                1,
+                AgentMemoryState::Committed,
+            )],
+        )
+        .await
+        .unwrap();
+
+        assert!(rendered.contains("## approved_agent_memories"));
+        assert!(rendered.contains("approved JSON memory"));
+        assert!(rendered.contains("## legacy_memory_files"));
+        assert!(rendered.contains("[Legacy](legacy.md)"));
+        assert!(rendered.contains("`legacy.md`"));
+    }
 }
