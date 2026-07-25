@@ -41,26 +41,29 @@ Active-turn steering is unavailable for structured-reference queue items
 because the existing steering transport has no metadata field. A plain-text
 queue edit explicitly removes stale composer/session-reference metadata.
 
-## HTTP/2 gate
+## HTTP/2 follow-up
 
-No HTTP/2 or Rust dependency change was made during the remaining Web UI work.
-The workspace dependency is currently:
+The initial Web UI batch correctly left HTTP/2 behind a dependency gate. A
+separately authorized follow-up enabled only reqwest's existing `http2`
+feature, without upgrading reqwest:
 
 ```toml
 reqwest = { version = "0.12", default-features = false, features = [
   "native-tls",
   "rustls-tls",
+  "http2",
   "json",
   "stream",
   "multipart",
 ] }
 ```
 
-There is no `http2` feature or explicit HTTP/2 client builder policy in the
-provider client path. Therefore the proposed HTTP/2 capability is not already
-implemented by Void. Enabling it changes the Rust feature/dependency graph and
-remains behind the separately requested dependency/lockfile approval gate.
-This branch does not pretend that the transport capability is complete.
+The provider Adapter uses normal ALPN negotiation, records typed states for an
+HTTP/2 connection, negotiated HTTP/1.1 compatibility, forced HTTP/1.1
+fallback, interruption, and final failure, and forces the next retry to
+HTTP/1.1 after an initial transport/header-timeout failure. HTTP/1.1-only
+providers remain supported. The lockfile change adds `h2 0.4.15`; no unrelated
+network dependency was upgraded.
 
 ## Verification
 
@@ -106,4 +109,3 @@ behavioral test failed.
 - Session-reference transcript injection is intentionally absent.
 - Batch 2 multi-agent runtime and Batch 3 product expansion were not developed
   in this worktree.
-

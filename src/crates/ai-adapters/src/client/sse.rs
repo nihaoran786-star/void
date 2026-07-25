@@ -7,7 +7,7 @@ use futures::Stream;
 use log::{debug, error, warn};
 use reqwest::{
     header::{HeaderMap, RETRY_AFTER},
-    StatusCode,
+    StatusCode, Version,
 };
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -26,6 +26,48 @@ enum StreamSendOutcome {
     Response(reqwest::Response),
     Transport(reqwest::Error),
     TtftTimeout,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StreamHttpMode {
+    Auto,
+    Http1Fallback,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StreamHttpState {
+    Http2Available,
+    Http2UnavailableUsingHttp1,
+    Http2NegotiationOrConnectionFailed,
+    Http1FallbackConnected,
+    ConnectionInterrupted,
+    Failed,
+}
+
+fn request_for_http_mode(
+    request: reqwest::RequestBuilder,
+    mode: StreamHttpMode,
+) -> reqwest::RequestBuilder {
+    match mode {
+        StreamHttpMode::Auto => request,
+        StreamHttpMode::Http1Fallback => request.version(Version::HTTP_11),
+    }
+}
+
+fn connected_http_state(mode: StreamHttpMode, version: Version) -> StreamHttpState {
+    match (mode, version) {
+        (_, Version::HTTP_2) => StreamHttpState::Http2Available,
+        (StreamHttpMode::Auto, _) => StreamHttpState::Http2UnavailableUsingHttp1,
+        (StreamHttpMode::Http1Fallback, _) => StreamHttpState::Http1FallbackConnected,
+    }
+}
+
+fn failed_http_state(mode: StreamHttpMode, has_more_attempts: bool) -> StreamHttpState {
+    match (mode, has_more_attempts) {
+        (StreamHttpMode::Auto, true) => StreamHttpState::Http2NegotiationOrConnectionFailed,
+        (StreamHttpMode::Http1Fallback, true) => StreamHttpState::ConnectionInterrupted,
+        (_, false) => StreamHttpState::Failed,
+    }
 }
 
 struct AbortHandlerOnDropStream {
@@ -63,19 +105,19 @@ async fn send_stream_request<BuildRequest>(
     build_request: BuildRequest,
     request_body: &serde_json::Value,
     ttft_timeout: Option<Duration>,
+    http_mode: StreamHttpMode,
 ) -> StreamSendOutcome
 where
     BuildRequest: Fn() -> reqwest::RequestBuilder,
 {
+    let build = || request_for_http_mode(build_request(), http_mode).json(request_body);
     match ttft_timeout {
-        Some(timeout) => {
-            match tokio::time::timeout(timeout, build_request().json(request_body).send()).await {
-                Ok(Ok(response)) => StreamSendOutcome::Response(response),
-                Ok(Err(error)) => StreamSendOutcome::Transport(error),
-                Err(_) => StreamSendOutcome::TtftTimeout,
-            }
-        }
-        None => match build_request().json(request_body).send().await {
+        Some(timeout) => match tokio::time::timeout(timeout, build().send()).await {
+            Ok(Ok(response)) => StreamSendOutcome::Response(response),
+            Ok(Err(error)) => StreamSendOutcome::Transport(error),
+            Err(_) => StreamSendOutcome::TtftTimeout,
+        },
+        None => match build().send().await {
             Ok(response) => StreamSendOutcome::Response(response),
             Err(error) => StreamSendOutcome::Transport(error),
         },
@@ -166,9 +208,11 @@ where
     ) -> JoinHandle<()>,
 {
     let mut last_error = None;
+    let mut http_mode = StreamHttpMode::Auto;
     for attempt in 0..max_tries {
         let request_start_time = std::time::Instant::now();
-        let send_outcome = send_stream_request(&build_request, request_body, ttft_timeout).await;
+        let send_outcome =
+            send_stream_request(&build_request, request_body, ttft_timeout, http_mode).await;
 
         let response = match send_outcome {
             StreamSendOutcome::Response(resp) => {
@@ -186,11 +230,14 @@ where
                 }
 
                 if status.is_success() {
+                    let transport_state = connected_http_state(http_mode, resp.version());
                     debug!(
-                        "{} request connected: {}ms, status: {}, attempt: {}/{}",
+                        "{} request connected: {}ms, status: {}, http_state: {:?}, version: {:?}, attempt: {}/{}",
                         label,
                         connect_time,
                         status,
+                        transport_state,
+                        resp.version(),
                         attempt + 1,
                         max_tries
                     );
@@ -227,24 +274,31 @@ where
             }
             StreamSendOutcome::Transport(e) => {
                 let connect_time = request_start_time.elapsed().as_millis();
+                let has_more_attempts = attempt < max_tries - 1;
+                let transport_state = failed_http_state(http_mode, has_more_attempts);
                 let error_msg = format_transport_error(label, &e);
                 let error = anyhow!("{}", error_msg);
                 warn!(
-                    "{} request failed: {}ms, attempt {}/{}, error: {}",
+                    "{} request failed: {}ms, http_state: {:?}, attempt {}/{}, error: {}",
                     label,
                     connect_time,
+                    transport_state,
                     attempt + 1,
                     max_tries,
                     error_msg
                 );
                 last_error = Some(error);
 
-                if attempt < max_tries - 1 {
+                if has_more_attempts {
+                    if http_mode == StreamHttpMode::Auto {
+                        http_mode = StreamHttpMode::Http1Fallback;
+                    }
                     let delay_ms = exponential_retry_delay_ms(attempt);
                     debug!(
-                        "Retrying {} after {}ms (attempt {})",
+                        "Retrying {} after {}ms with {:?} (attempt {})",
                         label,
                         delay_ms,
+                        http_mode,
                         attempt + 2
                     );
                     tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
@@ -253,24 +307,31 @@ where
             }
             StreamSendOutcome::TtftTimeout => {
                 let connect_time = request_start_time.elapsed().as_millis();
+                let has_more_attempts = attempt < max_tries - 1;
+                let transport_state = failed_http_state(http_mode, has_more_attempts);
                 let error_msg = format_ttft_timeout_error(label, ttft_timeout);
                 let error = anyhow!("{}", error_msg);
                 warn!(
-                    "{} request failed: {}ms, attempt {}/{}, error: {}",
+                    "{} request failed: {}ms, http_state: {:?}, attempt {}/{}, error: {}",
                     label,
                     connect_time,
+                    transport_state,
                     attempt + 1,
                     max_tries,
                     error_msg
                 );
                 last_error = Some(error);
 
-                if attempt < max_tries - 1 {
+                if has_more_attempts {
+                    if http_mode == StreamHttpMode::Auto {
+                        http_mode = StreamHttpMode::Http1Fallback;
+                    }
                     let delay_ms = exponential_retry_delay_ms(attempt);
                     debug!(
-                        "Retrying {} after {}ms (attempt {})",
+                        "Retrying {} after {}ms with {:?} (attempt {})",
                         label,
                         delay_ms,
+                        http_mode,
                         attempt + 2
                     );
                     tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
@@ -305,7 +366,122 @@ mod tests {
     use super::*;
     use futures::{FutureExt, StreamExt};
     use reqwest::header::HeaderValue;
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
     use tokio::sync::oneshot;
+
+    #[test]
+    fn http_transport_states_cover_http2_negotiation_and_http1_fallback() {
+        assert_eq!(
+            connected_http_state(StreamHttpMode::Auto, Version::HTTP_2),
+            StreamHttpState::Http2Available
+        );
+        assert_eq!(
+            connected_http_state(StreamHttpMode::Auto, Version::HTTP_11),
+            StreamHttpState::Http2UnavailableUsingHttp1
+        );
+        assert_eq!(
+            connected_http_state(StreamHttpMode::Http1Fallback, Version::HTTP_11),
+            StreamHttpState::Http1FallbackConnected
+        );
+    }
+
+    #[test]
+    fn transport_failure_downgrades_once_then_reports_interruption_or_failure() {
+        assert_eq!(
+            failed_http_state(StreamHttpMode::Auto, true),
+            StreamHttpState::Http2NegotiationOrConnectionFailed
+        );
+        assert_eq!(
+            failed_http_state(StreamHttpMode::Http1Fallback, true),
+            StreamHttpState::ConnectionInterrupted
+        );
+        assert_eq!(
+            failed_http_state(StreamHttpMode::Http1Fallback, false),
+            StreamHttpState::Failed
+        );
+    }
+
+    #[test]
+    fn http1_fallback_sets_an_explicit_request_version() {
+        let request = request_for_http_mode(
+            reqwest::Client::new().get("https://example.com"),
+            StreamHttpMode::Http1Fallback,
+        )
+        .build()
+        .expect("request should build");
+
+        assert_eq!(request.version(), Version::HTTP_11);
+    }
+
+    #[tokio::test]
+    async fn transport_disconnect_retries_with_http1_fallback() {
+        let closed_listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("reserve a closed port");
+        let closed_url = format!("http://{}", closed_listener.local_addr().unwrap());
+        drop(closed_listener);
+
+        let fallback_listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind fallback server");
+        let fallback_url = format!("http://{}", fallback_listener.local_addr().unwrap());
+        let (request_line_tx, request_line_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = fallback_listener.accept().await.expect("accept fallback");
+            let mut buffer = vec![0_u8; 4096];
+            let read = socket
+                .read(&mut buffer)
+                .await
+                .expect("read fallback request");
+            let request = String::from_utf8_lossy(&buffer[..read]);
+            let request_line = request.lines().next().unwrap_or_default().to_string();
+            let _ = request_line_tx.send(request_line);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .expect("write fallback response");
+        });
+
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .expect("test client");
+        let build_attempts = attempts.clone();
+        let response = execute_sse_request(
+            "test stream",
+            "",
+            &serde_json::json!({ "stream": true }),
+            2,
+            None,
+            move || {
+                let attempt = build_attempts.fetch_add(1, Ordering::SeqCst);
+                client.post(if attempt == 0 {
+                    &closed_url
+                } else {
+                    &fallback_url
+                })
+            },
+            |_, tx, _, _| tokio::spawn(async move { drop(tx) }),
+        )
+        .await
+        .expect("HTTP/1.1 fallback should reconnect");
+
+        drop(response);
+        server.await.expect("fallback server task");
+        assert_eq!(attempts.load(Ordering::SeqCst), 2);
+        assert!(request_line_rx
+            .await
+            .expect("fallback request line")
+            .ends_with("HTTP/1.1"));
+    }
 
     #[test]
     fn format_ttft_timeout_error_includes_timeout_seconds() {

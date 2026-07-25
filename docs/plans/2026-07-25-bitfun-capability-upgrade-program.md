@@ -6,8 +6,8 @@ Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
 Batch 1 implementation evidence is recorded in
 [the dated result](../qa/bitfun-web-ui-batch1-results-2026-07-25.md). The
-HTTP/2 item was verified as not currently enabled and remains behind the
-separate Rust dependency/lockfile approval gate.
+HTTP/2 dependency gate was subsequently approved and implemented as an
+isolated provider-Adapter follow-up with HTTP/1.1 fallback.
 
 ## Objective and boundaries
 

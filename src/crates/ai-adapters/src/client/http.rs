@@ -18,6 +18,7 @@ pub(crate) fn create_http_client(
             AIClient::HTTP_POOL_IDLE_TIMEOUT_SECS,
         ))
         .pool_max_idle_per_host(4)
+        .http2_adaptive_window(true)
         .tcp_keepalive(Some(std::time::Duration::from_secs(
             AIClient::HTTP_TCP_KEEPALIVE_SECS,
         )))
