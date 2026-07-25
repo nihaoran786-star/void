@@ -272,7 +272,10 @@ describe('UserMessageItem steering tag', () => {
       await Promise.resolve();
     });
 
-    expect(fillPanelInput).toHaveBeenCalledWith('btw rollback question');
+    expect(fillPanelInput).toHaveBeenCalledWith({
+      content: 'btw rollback question',
+      composerPresentation: undefined,
+    });
     expect(globalEventBus.emit).not.toHaveBeenCalledWith(
       'fill-chat-input',
       expect.anything(),

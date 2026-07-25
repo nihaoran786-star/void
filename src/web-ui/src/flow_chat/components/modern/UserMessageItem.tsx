@@ -231,7 +231,10 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
         //    content silently disappearing when the input already has text.
         if (messageContent.trim().length > 0) {
           if (onFillUserMessageInput) {
-            onFillUserMessageInput(messageContent);
+            onFillUserMessageInput({
+              content: messageContent,
+              composerPresentation: composerPresentation ?? undefined,
+            });
           } else {
             globalEventBus.emit('fill-chat-input', {
               content: messageContent,
@@ -334,11 +337,16 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     // Fill content into the input (failed state only).
     const handleFillToInput = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
-      globalEventBus.emit('fill-chat-input', {
+      const fillRequest = {
         content: messageContent,
-        composerPresentation,
-      });
-    }, [composerPresentation, messageContent]);
+        composerPresentation: composerPresentation ?? undefined,
+      };
+      if (onFillUserMessageInput) {
+        onFillUserMessageInput(fillRequest);
+      } else {
+        globalEventBus.emit('fill-chat-input', fillRequest);
+      }
+    }, [composerPresentation, messageContent, onFillUserMessageInput]);
 
     const usageContextUsage = currentSession
       ? currentSession.currentAcpContextUsage

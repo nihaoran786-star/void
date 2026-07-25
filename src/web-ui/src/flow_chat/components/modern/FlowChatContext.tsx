@@ -7,6 +7,12 @@ import { createContext, useContext } from 'react';
 import type React from 'react';
 import type { FlowChatConfig, Session } from '../../types/flow-chat';
 import type { LineRange } from '@/component-library';
+import type { ComposerPresentation } from '../../utils/composerPresentation';
+
+export interface FlowChatComposerFillRequest {
+  content: string;
+  composerPresentation?: ComposerPresentation;
+}
 
 export interface FlowChatContextValue {
   // File and panel actions
@@ -25,7 +31,7 @@ export interface FlowChatContextValue {
   activeSessionOverride?: Session | null;
   allowUserMessageRollback?: boolean;
   allowUserMessageEdit?: boolean;
-  onFillUserMessageInput?: (content: string) => void;
+  onFillUserMessageInput?: (request: FlowChatComposerFillRequest) => void;
 
   // Config
   config?: FlowChatConfig;
