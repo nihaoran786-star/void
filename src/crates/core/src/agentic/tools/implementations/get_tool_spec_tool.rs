@@ -17,9 +17,13 @@ use void_agent_tools::{
 
 const GET_TOOL_SPEC_DESCRIPTION: &str = r#"Read usage instructions for additional tools.
 
-Some tools are collapsed: their names may appear in the tool list, but you must not call them directly until you have loaded their definition with GetToolSpec.
+Some tools are deferred: their schemas are omitted from the tool list. Load a
+definition with GetToolSpec before invoking it.
 
-When the current collapsed tool listing includes a <collapsed_tools> section, use the exact tool names from that section. Before using one of those tools, first call GetToolSpec with its exact tool name to read its full description and input schema. After reading the returned definition, call the real tool directly using its own name.
+When the current listing includes a <collapsed_tools> section, use the exact
+tool names from that section. Then call CallDeferredTool with the exact name,
+the target arguments inside `arguments`, and the returned
+`catalog_generation`.
 
 Do not call GetToolSpec again for a tool whose definition is already loaded in the current conversation."#;
 

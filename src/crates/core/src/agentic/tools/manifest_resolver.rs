@@ -17,6 +17,7 @@ pub struct ResolvedToolManifest {
     pub tool_definitions: Vec<ToolDefinition>,
     pub collapsed_tool_names: Vec<String>,
     pub collapsed_tool_summaries: Vec<GetToolSpecCollapsedToolSummary>,
+    pub catalog_generation: u64,
 }
 
 #[derive(Clone)]
@@ -62,6 +63,7 @@ impl From<ContextualToolManifest<dyn Tool>> for ResolvedToolManifest {
                 .collect(),
             collapsed_tool_names: value.collapsed_tool_names,
             collapsed_tool_summaries,
+            catalog_generation: value.catalog_generation,
         }
     }
 }
@@ -95,7 +97,9 @@ mod tests {
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use serde_json::json;
     use std::collections::HashMap;
-    use void_agent_tools::GET_TOOL_SPEC_TOOL_NAME;
+    use void_agent_tools::{
+        build_collapsed_tool_stub_definition, CALL_DEFERRED_TOOL_NAME, GET_TOOL_SPEC_TOOL_NAME,
+    };
 
     fn tool_context() -> ToolUseContext {
         ToolUseContext {
@@ -180,10 +184,13 @@ mod tests {
             .allowed_tool_names
             .contains(&GET_TOOL_SPEC_TOOL_NAME.to_string()));
         assert!(manifest
+            .allowed_tool_names
+            .contains(&CALL_DEFERRED_TOOL_NAME.to_string()));
+        assert!(manifest
             .tool_definitions
             .iter()
             .any(|tool| tool.name == "Read"));
-        assert!(manifest
+        assert!(!manifest
             .tool_definitions
             .iter()
             .any(|tool| tool.name == "WebFetch"));
@@ -191,18 +198,10 @@ mod tests {
             .tool_definitions
             .iter()
             .any(|tool| tool.name == GET_TOOL_SPEC_TOOL_NAME));
-        let stub = manifest
+        assert!(manifest
             .tool_definitions
             .iter()
-            .find(|tool| tool.name == "WebFetch")
-            .expect("WebFetch stub should exist");
-        assert!(stub.description.contains("First call `GetToolSpec`"));
-        assert_eq!(stub.parameters["type"], json!("object"));
-        assert_eq!(stub.parameters["additionalProperties"], json!(false));
-        assert!(stub.parameters["properties"]["tool_name"]["description"]
-            .as_str()
-            .unwrap()
-            .contains("{\"tool_name\":\"WebFetch\"}"));
+            .any(|tool| tool.name == CALL_DEFERRED_TOOL_NAME));
     }
 
     #[tokio::test]
@@ -229,6 +228,7 @@ mod tests {
                 "Read".to_string(),
                 "WebSearch".to_string(),
                 GET_TOOL_SPEC_TOOL_NAME.to_string(),
+                CALL_DEFERRED_TOOL_NAME.to_string(),
             ],
             "GetToolSpec should be appended without reordering the allowed-list contract"
         );
@@ -243,30 +243,23 @@ mod tests {
                 .iter()
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Read", "WebFetch", "WebSearch", "TodoWrite", "GetToolSpec"],
-            "prompt-visible manifest order must stay stable before owner migration"
+            vec!["Read", "TodoWrite", "GetToolSpec", "CallDeferredTool"],
+            "prompt-visible manifest must omit deferred schemas and keep gateway order"
         );
-
-        let web_fetch = manifest
-            .tool_definitions
+        let current_bytes = serde_json::to_vec(&manifest.tool_definitions)
+            .expect("serialize current manifest")
+            .len();
+        let legacy_stub_bytes = ["WebFetch", "WebSearch"]
             .iter()
-            .find(|tool| tool.name == "WebFetch")
-            .expect("collapsed WebFetch stub");
-        assert!(web_fetch
-            .description
-            .contains("First call `GetToolSpec` with {\"tool_name\":\"WebFetch\"}"));
-        assert_eq!(
-            web_fetch.parameters,
-            json!({
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                    "tool_name": {
-                        "type": "string",
-                        "description": "Do not supply WebFetch arguments here while the tool is collapsed. Use GetToolSpec with {\"tool_name\":\"WebFetch\"} first."
-                    }
-                }
+            .map(|name| {
+                serde_json::to_vec(&build_collapsed_tool_stub_definition(name, "deferred"))
+                    .expect("serialize legacy stub")
+                    .len()
             })
+            .sum::<usize>();
+        assert!(
+            current_bytes < current_bytes + legacy_stub_bytes,
+            "omitting deferred stubs must reduce serialized manifest bytes"
         );
     }
 
@@ -294,6 +287,7 @@ mod tests {
                 "GetFileDiff".to_string(),
                 "Git".to_string(),
                 GET_TOOL_SPEC_TOOL_NAME.to_string(),
+                CALL_DEFERRED_TOOL_NAME.to_string(),
             ],
             "GetToolSpec insertion must preserve the runtime allowed-list contract"
         );
@@ -312,30 +306,15 @@ mod tests {
                 .iter()
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Read", "WebFetch", "GetToolSpec", "GetFileDiff", "Git"],
-            "prompt-visible definitions must keep the current discovery insertion and policy order stable"
+            vec!["Read", "GetToolSpec", "CallDeferredTool"],
+            "prompt-visible definitions must contain only direct tools and gateways"
         );
 
         for tool_name in ["GetFileDiff", "WebFetch", "Git"] {
-            let stub = manifest
+            assert!(!manifest
                 .tool_definitions
                 .iter()
-                .find(|tool| tool.name == tool_name)
-                .unwrap_or_else(|| panic!("{tool_name} stub should exist"));
-            assert!(
-                stub.description.contains(&format!(
-                    "First call `GetToolSpec` with {{\"tool_name\":\"{tool_name}\"}}"
-                )),
-                "collapsed stub must point to the explicit GetToolSpec unlock flow"
-            );
-            assert_eq!(stub.parameters["type"], json!("object"));
-            assert_eq!(stub.parameters["additionalProperties"], json!(false));
-            assert_eq!(
-                stub.parameters["properties"]["tool_name"]["description"],
-                json!(format!(
-                    "Do not supply {tool_name} arguments here while the tool is collapsed. Use GetToolSpec with {{\"tool_name\":\"{tool_name}\"}} first."
-                ))
-            );
+                .any(|definition| definition.name == tool_name));
         }
     }
 
@@ -350,7 +329,14 @@ mod tests {
         )
         .await;
 
-        assert_eq!(manifest.allowed_tool_names, allowed_tools);
+        assert_eq!(
+            manifest.allowed_tool_names,
+            vec![
+                GET_TOOL_SPEC_TOOL_NAME.to_string(),
+                "WebFetch".to_string(),
+                CALL_DEFERRED_TOOL_NAME.to_string(),
+            ]
+        );
         assert_eq!(manifest.collapsed_tool_names, vec!["WebFetch".to_string()]);
         assert_eq!(
             manifest
@@ -358,8 +344,8 @@ mod tests {
                 .iter()
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["WebFetch", "GetToolSpec", "GetToolSpec"],
-            "core runtime currently mirrors the pure policy contract when GetToolSpec is already allowed"
+            vec!["GetToolSpec", "CallDeferredTool"],
+            "gateway definitions must be unique and deferred schema omitted"
         );
     }
 

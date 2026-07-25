@@ -641,6 +641,7 @@ impl RoundExecutor {
                 delegation_policy: context.delegation_policy,
                 collapsed_tools: context.collapsed_tools.clone(),
                 unlocked_collapsed_tools: context.unlocked_collapsed_tools.clone(),
+                catalog_generation: context.catalog_generation,
                 allowed_tools: context.available_tools.clone(),
                 runtime_tool_restrictions: context.runtime_tool_restrictions.clone(),
                 steering_interrupt: context.steering_interrupt.clone(),
@@ -699,8 +700,23 @@ impl RoundExecutor {
                     let mut requires_permission = false;
 
                     for tool_call in &stream_result.tool_calls {
-                        if let Some(tool) = tool_registry.get_tool(&tool_call.tool_name) {
-                            if tool.needs_permissions(Some(&tool_call.arguments)) {
+                        let (effective_name, effective_arguments) = if tool_call.tool_name
+                            == void_agent_tools::CALL_DEFERRED_TOOL_NAME
+                        {
+                            match void_agent_tools::parse_deferred_tool_call(&tool_call.arguments) {
+                                Ok(call) => (call.tool_name, call.arguments),
+                                Err(_) => {
+                                    // Invalid gateway input is rejected by
+                                    // pipeline validation without asking
+                                    // for a misleading confirmation.
+                                    continue;
+                                }
+                            }
+                        } else {
+                            (tool_call.tool_name.clone(), tool_call.arguments.clone())
+                        };
+                        if let Some(tool) = tool_registry.get_tool(&effective_name) {
+                            if tool.needs_permissions(Some(&effective_arguments)) {
                                 requires_permission = true;
                                 break;
                             }
@@ -1883,6 +1899,7 @@ mod tests {
             available_tools: Vec::new(),
             collapsed_tools: Vec::new(),
             unlocked_collapsed_tools: Vec::new(),
+            catalog_generation: 0,
             model_name: "test-model".to_string(),
             agent_type: "test-agent".to_string(),
             context_vars: HashMap::new(),

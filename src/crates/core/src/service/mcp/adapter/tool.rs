@@ -3,8 +3,8 @@
 //! Wraps MCP tools as implementations of Void's `Tool` trait.
 
 use crate::agentic::tools::framework::{
-    DynamicMcpToolInfo, DynamicToolInfo, Tool, ToolRenderOptions, ToolResult, ToolUseContext,
-    ValidationResult,
+    DynamicMcpToolInfo, DynamicToolInfo, Tool, ToolExposure, ToolRenderOptions, ToolResult,
+    ToolUseContext, ValidationResult,
 };
 use crate::service::mcp::protocol::{MCPTool, MCPToolResult};
 use crate::service::mcp::server::MCPConnection;
@@ -81,6 +81,10 @@ impl Tool for MCPToolWrapper {
             .filter(|value| !value.trim().is_empty())
             .unwrap_or("MCP tool");
         format!("{} ({})", summary, self.server_name)
+    }
+
+    fn default_exposure(&self) -> ToolExposure {
+        ToolExposure::Collapsed
     }
 
     fn input_schema(&self) -> Value {

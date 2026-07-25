@@ -8,11 +8,11 @@ use crate::agentic::tools::pipeline::SubagentParentInfo;
 use crate::agentic::tools::ToolRuntimeRestrictions;
 use crate::agentic::workspace::WorkspaceServices;
 use crate::agentic::WorkspaceBinding;
-use void_runtime_ports::DelegationPolicy;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use void_runtime_ports::DelegationPolicy;
 
 /// Execution context
 #[derive(Clone)]
@@ -52,6 +52,7 @@ pub struct RoundContext {
     pub available_tools: Vec<String>,
     pub collapsed_tools: Vec<String>,
     pub unlocked_collapsed_tools: Vec<String>,
+    pub catalog_generation: u64,
     pub model_name: String,
     pub agent_type: String,
     pub context_vars: HashMap<String, String>,

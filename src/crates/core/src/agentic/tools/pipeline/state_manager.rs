@@ -329,6 +329,7 @@ mod tests {
                 delegation_policy: void_runtime_ports::DelegationPolicy::top_level(),
                 collapsed_tools: Vec::new(),
                 unlocked_collapsed_tools: Vec::new(),
+                catalog_generation: 0,
                 allowed_tools: Vec::new(),
                 runtime_tool_restrictions: Default::default(),
                 steering_interrupt: None,

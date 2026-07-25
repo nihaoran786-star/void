@@ -71,6 +71,7 @@ pub struct ToolExecutionContext {
     pub(crate) delegation_policy: DelegationPolicy,
     pub collapsed_tools: Vec<String>,
     pub unlocked_collapsed_tools: Vec<String>,
+    pub catalog_generation: u64,
     /// Allowed tools list (whitelist)
     /// If empty, allow all registered tools
     /// If not empty, only allow tools in the list to be executed

@@ -16,8 +16,8 @@ use crate::agentic::core::{
 use crate::agentic::events::{AgenticEvent, EventPriority, EventQueue};
 use crate::agentic::execution::types::FinishReason;
 use crate::agentic::image_analysis::{
-    build_multimodal_message_with_images, process_image_contexts_for_provider, ImageContextData,
-    ImageLimits, render_attached_image_references,
+    build_multimodal_message_with_images, process_image_contexts_for_provider,
+    render_attached_image_references, ImageContextData, ImageLimits,
 };
 use crate::agentic::round_preempt::RoundInjectionKind;
 use crate::agentic::session::{CompressionMode, ContextCompressor, SessionManager};
@@ -35,13 +35,15 @@ use crate::util::token_counter::TokenCounter;
 use crate::util::types::Message as AIMessage;
 use crate::util::types::ToolDefinition;
 use crate::util::{elapsed_ms_u64, truncate_at_char_boundary};
-use void_agent_tools::{collect_loaded_collapsed_tool_names, GetToolSpecLoadObservation};
 use log::{debug, error, info, trace, warn};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use void_agent_tools::{
+    collect_loaded_collapsed_tool_names_for_generation, GetToolSpecLoadObservation,
+};
 
 /// Execution engine configuration
 #[derive(Debug, Clone)]
@@ -546,6 +548,7 @@ impl ExecutionEngine {
     fn collect_unlocked_collapsed_tools(
         messages: &[Message],
         collapsed_tools: &[String],
+        catalog_generation: u64,
     ) -> Vec<String> {
         let observations = messages
             .iter()
@@ -563,15 +566,17 @@ impl ExecutionEngine {
                 Some(GetToolSpecLoadObservation {
                     tool_name,
                     loaded_tool_name: result.get("tool_name").and_then(|v| v.as_str()),
+                    catalog_generation: result.get("catalog_generation").and_then(|v| v.as_u64()),
                     is_error: *is_error,
                 })
             })
             .collect::<Vec<_>>();
 
-        collect_loaded_collapsed_tool_names(
+        collect_loaded_collapsed_tool_names_for_generation(
             &observations,
             collapsed_tools,
             crate::agentic::tools::registry::GET_TOOL_SPEC_TOOL_NAME,
+            catalog_generation,
         )
     }
 
@@ -938,6 +943,7 @@ impl ExecutionEngine {
             available_tools: Vec::new(),
             collapsed_tools: Vec::new(),
             unlocked_collapsed_tools: Vec::new(),
+            catalog_generation: 0,
             model_name: ai_client.config.model.clone(),
             agent_type,
             context_vars: execution_context_vars.clone(),
@@ -1312,9 +1318,9 @@ impl ExecutionEngine {
             )
             .await?;
 
-        let ai_client_factory = get_global_ai_client_factory().await.map_err(|e| {
-            VoidError::AIClient(format!("Failed to get AI client factory: {}", e))
-        })?;
+        let ai_client_factory = get_global_ai_client_factory()
+            .await
+            .map_err(|e| VoidError::AIClient(format!("Failed to get AI client factory: {}", e)))?;
         let ai_client = ai_client_factory
             .get_client_resolved(&model_id)
             .await
@@ -1949,9 +1955,9 @@ impl ExecutionEngine {
             model_id
         );
 
-        let ai_client_factory = get_global_ai_client_factory().await.map_err(|e| {
-            VoidError::AIClient(format!("Failed to get AI client factory: {}", e))
-        })?;
+        let ai_client_factory = get_global_ai_client_factory()
+            .await
+            .map_err(|e| VoidError::AIClient(format!("Failed to get AI client factory: {}", e)))?;
 
         // Get AI client by model ID
         let ai_client = ai_client_factory
@@ -2105,6 +2111,10 @@ impl ExecutionEngine {
         let collapsed_tools = tool_manifest
             .as_ref()
             .map(|manifest| manifest.collapsed_tool_names.clone())
+            .unwrap_or_default();
+        let catalog_generation = tool_manifest
+            .as_ref()
+            .map(|manifest| manifest.catalog_generation)
             .unwrap_or_default();
         let tool_listing_sections = if let Some(manifest) = tool_manifest.as_ref() {
             Self::build_tool_listing_sections(manifest, &tool_description_context).await
@@ -2428,8 +2438,11 @@ impl ExecutionEngine {
             if context.skip_tool_confirmation {
                 round_context_vars.insert("skip_tool_confirmation".to_string(), "true".to_string());
             }
-            let unlocked_collapsed_tools =
-                Self::collect_unlocked_collapsed_tools(&messages, &collapsed_tools);
+            let unlocked_collapsed_tools = Self::collect_unlocked_collapsed_tools(
+                &messages,
+                &collapsed_tools,
+                catalog_generation,
+            );
             let round_context = RoundContext {
                 session_id: context.session_id.clone(),
                 subagent_parent_info: context.subagent_parent_info.clone(),
@@ -2441,6 +2454,7 @@ impl ExecutionEngine {
                 available_tools: available_tools.clone(),
                 collapsed_tools: collapsed_tools.clone(),
                 unlocked_collapsed_tools,
+                catalog_generation,
                 model_name: ai_client.config.model.clone(),
                 agent_type: agent_type.clone(),
                 context_vars: round_context_vars,
@@ -3441,6 +3455,7 @@ mod tests {
             tool_name: "GetToolSpec".to_string(),
             result: json!({
                 "tool_name": "WebFetch",
+                "catalog_generation": 42,
             }),
             result_for_assistant: None,
             is_error: false,
@@ -3452,6 +3467,7 @@ mod tests {
             tool_name: "GetToolSpec".to_string(),
             result: json!({
                 "tool_name": "Read",
+                "catalog_generation": 42,
             }),
             result_for_assistant: None,
             is_error: false,
@@ -3463,6 +3479,7 @@ mod tests {
             tool_name: "GetToolSpec".to_string(),
             result: json!({
                 "tool_name": "GetFileDiff",
+                "catalog_generation": 42,
             }),
             result_for_assistant: None,
             is_error: true,
@@ -3477,6 +3494,7 @@ mod tests {
                 failed_get_tool_spec_result,
             ],
             &["WebFetch".to_string(), "GetFileDiff".to_string()],
+            42,
         );
 
         assert_eq!(unlocked, vec!["WebFetch".to_string()]);
@@ -3491,6 +3509,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": "WebFetch",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3502,6 +3521,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": "WebFetch",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3513,6 +3533,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": "Git",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3524,6 +3545,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": "Read",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3535,6 +3557,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": "GetFileDiff",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: true,
@@ -3546,6 +3569,7 @@ mod tests {
                     tool_name: "GetToolSpec".to_string(),
                     result: json!({
                         "tool_name": 42,
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3557,6 +3581,7 @@ mod tests {
                     tool_name: "Read".to_string(),
                     result: json!({
                         "tool_name": "GetFileDiff",
+                        "catalog_generation": 42,
                     }),
                     result_for_assistant: None,
                     is_error: false,
@@ -3569,6 +3594,7 @@ mod tests {
                 "GetFileDiff".to_string(),
                 "Git".to_string(),
             ],
+            42,
         );
 
         assert_eq!(unlocked, vec!["Git".to_string(), "WebFetch".to_string()]);

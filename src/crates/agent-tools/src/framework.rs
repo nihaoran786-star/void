@@ -2,7 +2,6 @@ use crate::{
     DynamicToolDescriptor, DynamicToolProvider, PortError, PortErrorKind, PortResult, ToolDecorator,
 };
 use async_trait::async_trait;
-use void_core_types::ToolImageAttachment;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -11,6 +10,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use void_core_types::ToolImageAttachment;
 
 /// Dynamic MCP tool subtype metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -63,24 +63,118 @@ pub trait PortableToolContextProvider: Send + Sync {
 }
 
 pub const GET_TOOL_SPEC_TOOL_NAME: &str = "GetToolSpec";
+pub const CALL_DEFERRED_TOOL_NAME: &str = "CallDeferredTool";
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeferredToolCall {
+    pub tool_name: String,
+    pub arguments: Value,
+    pub catalog_generation: u64,
+}
+
+pub fn call_deferred_tool_description() -> String {
+    "Execute a deferred tool after loading its current schema with GetToolSpec. \
+Pass the exact target tool name, the target tool arguments, and the catalog \
+generation returned by GetToolSpec. The target tool's validation, permission, \
+confirmation, cancellation, and runtime restrictions still apply."
+        .to_string()
+}
+
+pub fn call_deferred_tool_short_description() -> String {
+    "Execute a deferred tool whose schema was loaded with GetToolSpec.".to_string()
+}
+
+pub fn call_deferred_tool_input_schema() -> Value {
+    serde_json::json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool_name", "arguments", "catalog_generation"],
+        "properties": {
+            "tool_name": {
+                "type": "string",
+                "description": "Exact deferred tool name returned by GetToolSpec."
+            },
+            "arguments": {
+                "type": "object",
+                "description": "Arguments for the deferred target, matching the schema returned by GetToolSpec."
+            },
+            "catalog_generation": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Catalog generation returned by GetToolSpec for this target schema."
+            }
+        }
+    })
+}
+
+pub fn parse_deferred_tool_call(input: &Value) -> Result<DeferredToolCall, String> {
+    let tool_name = input
+        .get("tool_name")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .ok_or_else(|| "tool_name is required and cannot be empty".to_string())?;
+    let arguments = input
+        .get("arguments")
+        .filter(|value| value.is_object())
+        .cloned()
+        .ok_or_else(|| "arguments is required and must be an object".to_string())?;
+    let catalog_generation = input
+        .get("catalog_generation")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| {
+            "catalog_generation is required and must be a non-negative integer".to_string()
+        })?;
+
+    Ok(DeferredToolCall {
+        tool_name: tool_name.to_string(),
+        arguments,
+        catalog_generation,
+    })
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CollapsedToolUsageError {
+    DirectCallForbidden {
+        tool_name: String,
+    },
+    NotCollapsedInManifest {
+        tool_name: String,
+    },
+    StaleCatalogGeneration {
+        tool_name: String,
+        requested_generation: Option<u64>,
+        current_generation: u64,
+    },
     RequiresGetToolSpec {
         tool_name: String,
-        get_tool_spec_tool_name: String,
     },
 }
 
 impl fmt::Display for CollapsedToolUsageError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RequiresGetToolSpec {
+            Self::DirectCallForbidden { tool_name } => write!(
+                formatter,
+                "Tool '{tool_name}' is deferred and cannot be called directly. Call GetToolSpec, then use CallDeferredTool."
+            ),
+            Self::NotCollapsedInManifest { tool_name } => write!(
+                formatter,
+                "Tool '{tool_name}' is not a deferred tool in the current manifest"
+            ),
+            Self::StaleCatalogGeneration {
                 tool_name,
-                get_tool_spec_tool_name,
+                requested_generation,
+                current_generation,
             } => write!(
                 formatter,
-                "Tool '{tool_name}' is collapsed. Call {get_tool_spec_tool_name} first with {{\"tool_name\":\"{tool_name}\"}} to read its full usage instructions and input schema, then try again."
+                "Deferred schema for tool '{tool_name}' is stale: requested catalog generation {requested_generation:?}, current generation {current_generation}. Call GetToolSpec again."
+            ),
+            Self::RequiresGetToolSpec {
+                tool_name,
+            } => write!(
+                formatter,
+                "Tool '{tool_name}' is deferred. Call GetToolSpec first, then use CallDeferredTool with the returned catalog generation."
             ),
         }
     }
@@ -128,32 +222,49 @@ pub fn validate_tool_allowed_by_list(
 
 pub fn validate_collapsed_tool_usage(
     tool_name: &str,
+    is_deferred_invocation: bool,
     collapsed_tools: &[String],
     loaded_collapsed_tools: &[String],
-    get_tool_spec_tool_name: &str,
+    requested_catalog_generation: Option<u64>,
+    current_catalog_generation: u64,
 ) -> Result<(), CollapsedToolUsageError> {
-    if tool_name == get_tool_spec_tool_name {
-        return Ok(());
-    }
-
-    if !collapsed_tools
+    let is_collapsed = collapsed_tools
         .iter()
-        .any(|collapsed_tool| collapsed_tool == tool_name)
-    {
+        .any(|collapsed_tool| collapsed_tool == tool_name);
+
+    if !is_deferred_invocation {
+        if is_collapsed {
+            return Err(CollapsedToolUsageError::DirectCallForbidden {
+                tool_name: tool_name.to_string(),
+            });
+        }
         return Ok(());
     }
 
-    if loaded_collapsed_tools
+    if !is_collapsed {
+        return Err(CollapsedToolUsageError::NotCollapsedInManifest {
+            tool_name: tool_name.to_string(),
+        });
+    }
+
+    if requested_catalog_generation != Some(current_catalog_generation) {
+        return Err(CollapsedToolUsageError::StaleCatalogGeneration {
+            tool_name: tool_name.to_string(),
+            requested_generation: requested_catalog_generation,
+            current_generation: current_catalog_generation,
+        });
+    }
+
+    if !loaded_collapsed_tools
         .iter()
         .any(|loaded_tool| loaded_tool == tool_name)
     {
-        return Ok(());
+        return Err(CollapsedToolUsageError::RequiresGetToolSpec {
+            tool_name: tool_name.to_string(),
+        });
     }
 
-    Err(CollapsedToolUsageError::RequiresGetToolSpec {
-        tool_name: tool_name.to_string(),
-        get_tool_spec_tool_name: get_tool_spec_tool_name.to_string(),
-    })
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -217,6 +328,7 @@ pub struct ContextualToolManifest<Tool: ?Sized> {
     pub collapsed_tool_names: Vec<String>,
     pub collapsed_tools: Vec<ToolRef<Tool>>,
     pub tool_definitions: Vec<ToolManifestDefinition>,
+    pub catalog_generation: u64,
 }
 
 pub fn resolve_tool_manifest_policy(
@@ -249,17 +361,15 @@ pub fn resolve_tool_manifest_policy(
     }
 
     if !collapsed_tool_names.is_empty() {
-        if !allowed_tool_names
-            .iter()
-            .any(|name| name == get_tool_spec_tool_name)
-        {
-            allowed_tool_names.push(get_tool_spec_tool_name.to_string());
-        }
-        if tool_snapshot
-            .iter()
-            .any(|tool| tool.name == get_tool_spec_tool_name)
-        {
-            expanded_tool_names.push(get_tool_spec_tool_name.to_string());
+        for gateway_name in [get_tool_spec_tool_name, CALL_DEFERRED_TOOL_NAME] {
+            if !allowed_tool_names.iter().any(|name| name == gateway_name) {
+                allowed_tool_names.push(gateway_name.to_string());
+            }
+            if tool_snapshot.iter().any(|tool| tool.name == gateway_name)
+                && !expanded_tool_names.iter().any(|name| name == gateway_name)
+            {
+                expanded_tool_names.push(gateway_name.to_string());
+            }
         }
     }
 
@@ -347,6 +457,7 @@ pub struct GetToolSpecDetail {
     pub tool_name: String,
     pub description: String,
     pub input_schema: Value,
+    pub catalog_generation: u64,
 }
 
 impl GetToolSpecDetail {
@@ -355,6 +466,7 @@ impl GetToolSpecDetail {
             "tool_name": self.tool_name.clone(),
             "description": self.description.clone(),
             "input_schema": self.input_schema.clone(),
+            "catalog_generation": self.catalog_generation,
         })
     }
 }
@@ -395,14 +507,17 @@ tool fails with a message like "Tool 'Git' is collapsed", make the next tool
 call `GetToolSpec` with `{{"tool_name":"Git"}}`, then retry the real tool after
 reading the returned schema.
 
-After reading the returned definition, call the real tool directly using its own name.
+After reading the returned definition, call `CallDeferredTool`. Pass the exact
+tool name, place the target arguments inside `arguments`, and copy the returned
+`catalog_generation`.
 
 Do not call GetToolSpec again for a tool whose definition is already loaded in the current conversation.
 
 Example:
 - Suppose the catalog includes a tool named `GetWeather` and you need to use it.
 - First call `GetToolSpec` with `{{"tool_name":"GetWeather"}}`
-- Then read the returned schema and call `GetWeather` itself with the appropriate arguments
+- Then call `CallDeferredTool` with `tool_name` set to `GetWeather`, the target
+  arguments inside `arguments`, and the returned `catalog_generation`
 "#,
         collapsed_tools_list
     )
@@ -470,7 +585,7 @@ pub fn validate_get_tool_spec_input(input: &Value) -> ValidationResult {
 
 pub fn build_get_tool_spec_duplicate_load_hint(tool_name: &str) -> String {
     format!(
-        "Tool '{}' is already loaded in the current conversation. Do not call GetToolSpec again for it. Use '{}' directly.",
+        "Tool '{}' is already loaded in the current conversation. Do not call GetToolSpec again for it. Use CallDeferredTool with tool_name '{}'.",
         tool_name, tool_name
     )
 }
@@ -534,6 +649,7 @@ pub fn resolve_get_tool_spec_execution_plan<'a>(
 pub struct GetToolSpecLoadObservation<'a> {
     pub tool_name: &'a str,
     pub loaded_tool_name: Option<&'a str>,
+    pub catalog_generation: Option<u64>,
     pub is_error: bool,
 }
 
@@ -556,6 +672,33 @@ pub fn collect_loaded_collapsed_tool_names(
 
         if collapsed_set.contains(tool_name) {
             loaded.insert(tool_name.to_string());
+        }
+    }
+
+    loaded.into_iter().collect()
+}
+
+pub fn collect_loaded_collapsed_tool_names_for_generation(
+    observations: &[GetToolSpecLoadObservation<'_>],
+    collapsed_tool_names: &[String],
+    get_tool_spec_tool_name: &str,
+    current_catalog_generation: u64,
+) -> Vec<String> {
+    let collapsed_set: HashSet<&str> = collapsed_tool_names.iter().map(String::as_str).collect();
+    let mut loaded = BTreeSet::new();
+
+    for observation in observations {
+        if observation.is_error
+            || observation.tool_name != get_tool_spec_tool_name
+            || observation.catalog_generation != Some(current_catalog_generation)
+        {
+            continue;
+        }
+
+        if let Some(tool_name) = observation.loaded_tool_name {
+            if collapsed_set.contains(tool_name) {
+                loaded.insert(tool_name.to_string());
+            }
         }
     }
 
@@ -605,7 +748,8 @@ pub fn tool_manifest_sort_rank(tool_name: &str) -> usize {
         "Skill" => 13,
         "Log" => 14,
         GET_TOOL_SPEC_TOOL_NAME => 15,
-        "ControlHub" => 16,
+        CALL_DEFERRED_TOOL_NAME => 16,
+        "ControlHub" => 17,
         _ => 100,
     }
 }
@@ -619,12 +763,9 @@ pub fn build_prompt_visible_tool_manifest_definitions(
 ) -> Vec<ToolManifestDefinition> {
     let mut definitions = items
         .iter()
-        .map(|item| match item {
-            PromptVisibleToolManifestItem::Expanded(definition) => definition.clone(),
-            PromptVisibleToolManifestItem::Collapsed {
-                name,
-                short_description,
-            } => build_collapsed_tool_stub_definition(name, short_description),
+        .filter_map(|item| match item {
+            PromptVisibleToolManifestItem::Expanded(definition) => Some(definition.clone()),
+            PromptVisibleToolManifestItem::Collapsed { .. } => None,
         })
         .collect::<Vec<_>>();
     sort_tool_manifest_definitions(&mut definitions);
@@ -671,6 +812,82 @@ pub trait ToolRegistryItem: Send + Sync {
                 mcp: None,
             })
     }
+}
+
+/// Deterministically fingerprint an ordered registry snapshot.
+///
+/// This uses explicit FNV-1a rather than randomized process hashing, so the
+/// same registry can reconstruct the same generation after restart.
+pub fn stable_tool_catalog_generation<Tool: ToolRegistryItem + ?Sized>(
+    tool_snapshot: &[ToolRef<Tool>],
+) -> u64 {
+    fn feed(hash: &mut u64, bytes: &[u8]) {
+        for byte in bytes {
+            *hash ^= u64::from(*byte);
+            *hash = hash.wrapping_mul(1_099_511_628_211);
+        }
+        *hash ^= 0xff;
+        *hash = hash.wrapping_mul(1_099_511_628_211);
+    }
+
+    fn canonical_json(value: &Value) -> String {
+        match value {
+            Value::Object(map) => {
+                let mut keys = map.keys().collect::<Vec<_>>();
+                keys.sort();
+                let entries = keys
+                    .into_iter()
+                    .map(|key| {
+                        format!(
+                            "{}:{}",
+                            serde_json::to_string(key).unwrap_or_default(),
+                            canonical_json(&map[key])
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!("{{{entries}}}")
+            }
+            Value::Array(values) => format!(
+                "[{}]",
+                values
+                    .iter()
+                    .map(canonical_json)
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
+            _ => serde_json::to_string(value).unwrap_or_default(),
+        }
+    }
+
+    let mut hash = 14_695_981_039_346_656_037;
+    for tool in tool_snapshot {
+        feed(&mut hash, tool.name().as_bytes());
+        feed(&mut hash, tool.short_description().as_bytes());
+        feed(
+            &mut hash,
+            match tool.default_exposure() {
+                ToolExposure::Expanded => b"expanded",
+                ToolExposure::Collapsed => b"collapsed",
+            },
+        );
+        feed(
+            &mut hash,
+            if tool.is_readonly() {
+                b"readonly"
+            } else {
+                b"mutable"
+            },
+        );
+        feed(&mut hash, canonical_json(&tool.input_schema()).as_bytes());
+        if let Some(info) = tool.dynamic_tool_info() {
+            feed(
+                &mut hash,
+                canonical_json(&serde_json::to_value(info).unwrap_or(Value::Null)).as_bytes(),
+            );
+        }
+    }
+    hash
 }
 
 #[async_trait]
@@ -729,6 +946,10 @@ where
         &self,
         context: Option<&Context>,
     ) -> Result<Vec<ToolRef<Tool>>, String>;
+
+    async fn catalog_generation(&self) -> u64 {
+        0
+    }
 }
 
 pub fn summarize_get_tool_spec_collapsed_tools<Tool: ToolRegistryItem + ?Sized>(
@@ -854,6 +1075,7 @@ where
         tool_name: tool_name.to_string(),
         description,
         input_schema,
+        catalog_generation: 0,
     })
 }
 
@@ -913,7 +1135,7 @@ where
     match resolve_get_tool_spec_execution_plan(input, loaded_collapsed_tools)? {
         GetToolSpecExecutionPlan::DuplicateLoad(result) => Ok(result),
         GetToolSpecExecutionPlan::LoadDetail { tool_name } => {
-            let detail = resolve_get_tool_spec_detail_from_provider(
+            let mut detail = resolve_get_tool_spec_detail_from_provider(
                 provider,
                 tool_name,
                 context,
@@ -921,6 +1143,7 @@ where
             )
             .await
             .map_err(GetToolSpecExecutionError::Detail)?;
+            detail.catalog_generation = provider.catalog_generation().await;
             Ok(build_get_tool_spec_detail_result(&detail))
         }
     }
@@ -1151,6 +1374,7 @@ where
         collapsed_tool_names: visible_tools.collapsed_tool_names,
         collapsed_tools: visible_tools.collapsed_tools,
         tool_definitions,
+        catalog_generation: stable_tool_catalog_generation(tool_snapshot),
     }
 }
 
@@ -1665,9 +1889,7 @@ pub fn normalize_runtime_relative_path(path: &str) -> Result<String, ToolPathCon
     Ok(segments.join("/"))
 }
 
-pub fn parse_void_runtime_uri(
-    path: &str,
-) -> Result<ParsedVoidRuntimeUri, ToolPathContractError> {
+pub fn parse_void_runtime_uri(path: &str) -> Result<ParsedVoidRuntimeUri, ToolPathContractError> {
     let trimmed = path.trim();
     let suffix = trimmed
         .strip_prefix(VOID_RUNTIME_URI_PREFIX)
@@ -1941,7 +2163,9 @@ pub enum ToolRestrictionError {
         tool_name: String,
         message: Option<String>,
     },
-    NotAllowed { tool_name: String },
+    NotAllowed {
+        tool_name: String,
+    },
 }
 
 impl fmt::Display for ToolRestrictionError {
