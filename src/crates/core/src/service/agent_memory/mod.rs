@@ -1,4 +1,5 @@
 mod auto_memory;
+pub(crate) mod consent;
 mod instruction_context;
 
 pub(crate) use auto_memory::build_workspace_agent_memory_prompt;

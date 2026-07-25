@@ -4,6 +4,99 @@ use serde::{Deserialize, Serialize};
 use void_core_types::SessionKind;
 
 pub const SESSION_STORAGE_SCHEMA_VERSION: u32 = 2;
+pub const BTW_SESSION_RECORD_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum BtwHydrationState {
+    #[default]
+    Loading,
+    Ready,
+    Stale,
+    Failed,
+}
+
+fn default_btw_record_schema_version() -> u32 {
+    BTW_SESSION_RECORD_SCHEMA_VERSION
+}
+
+/// Portable persisted identity for a BTW child.
+///
+/// Runtime/transient lifecycle remains owned by the coordinator. This record
+/// only makes lineage and hydration outcomes durable and explicit.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct BtwSessionRecord {
+    #[serde(default = "default_btw_record_schema_version")]
+    pub schema_version: u32,
+    pub parent_session_id: String,
+    pub child_session_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub child_session_name: Option<String>,
+    #[serde(default)]
+    pub hydration_state: BtwHydrationState,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hydration_detail: Option<String>,
+    /// BTW memory is opt-in and false for old records.
+    #[serde(default)]
+    pub memory_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_text: Option<String>,
+}
+
+impl BtwSessionRecord {
+    pub fn loading(
+        parent_session_id: impl Into<String>,
+        child_session_id: impl Into<String>,
+    ) -> Self {
+        Self {
+            schema_version: BTW_SESSION_RECORD_SCHEMA_VERSION,
+            parent_session_id: parent_session_id.into(),
+            child_session_id: child_session_id.into(),
+            request_id: None,
+            child_session_name: None,
+            hydration_state: BtwHydrationState::Loading,
+            hydration_detail: None,
+            memory_enabled: false,
+            legacy_text: None,
+        }
+    }
+
+    pub fn mark_ready(&mut self) {
+        self.hydration_state = BtwHydrationState::Ready;
+        self.hydration_detail = None;
+    }
+
+    pub fn mark_stale(&mut self, detail: impl Into<String>) {
+        self.hydration_state = BtwHydrationState::Stale;
+        self.hydration_detail = Some(detail.into());
+    }
+
+    pub fn mark_failed(&mut self, detail: impl Into<String>) {
+        self.hydration_state = BtwHydrationState::Failed;
+        self.hydration_detail = Some(detail.into());
+    }
+
+    /// Reads the current JSON form and legacy plain-text side-thread records.
+    ///
+    /// Legacy text cannot prove a complete lineage snapshot, so it is surfaced
+    /// as stale until the owning adapter rehydrates it.
+    pub fn from_persisted(
+        raw: &str,
+        parent_session_id: impl Into<String>,
+        child_session_id: impl Into<String>,
+    ) -> Self {
+        if let Ok(record) = serde_json::from_str::<Self>(raw) {
+            return record;
+        }
+        let mut record = Self::loading(parent_session_id, child_session_id);
+        record.legacy_text = Some(raw.to_string());
+        record.mark_stale("legacy plain-text BTW record requires hydration");
+        record
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -890,8 +983,9 @@ impl DialogTurnData {
 #[cfg(test)]
 mod tests {
     use super::{
-        DialogTurnData, DialogTurnKind, ModelRoundData, SessionMetadata, SessionRelationship,
-        SessionRelationshipKind, ToolItemData, UserMessageData,
+        BtwHydrationState, BtwSessionRecord, DialogTurnData, DialogTurnKind, ModelRoundData,
+        SessionMetadata, SessionRelationship, SessionRelationshipKind, ToolItemData,
+        UserMessageData,
     };
     use void_core_types::SessionKind;
 
@@ -1077,6 +1171,44 @@ mod tests {
             serde_json::from_value(json).expect("metadata should deserialize");
 
         assert_eq!(round_trip.relationship, metadata.relationship);
+    }
+
+    #[test]
+    fn btw_record_round_trips_lineage_and_explicit_hydration_state() {
+        let mut record = BtwSessionRecord::loading("parent-1", "child-1");
+        record.request_id = Some("request-1".to_string());
+        record.child_session_name = Some("Side thread".to_string());
+        record.mark_ready();
+
+        let json = serde_json::to_string(&record).expect("BTW record should serialize");
+        let round_trip = BtwSessionRecord::from_persisted(&json, "ignored", "ignored");
+
+        assert_eq!(round_trip, record);
+        assert_eq!(round_trip.hydration_state, BtwHydrationState::Ready);
+        assert!(!round_trip.memory_enabled);
+    }
+
+    #[test]
+    fn btw_record_accepts_legacy_plain_text_as_stale_and_memory_off() {
+        let record = BtwSessionRecord::from_persisted("old side question", "parent-1", "child-1");
+
+        assert_eq!(record.parent_session_id, "parent-1");
+        assert_eq!(record.child_session_id, "child-1");
+        assert_eq!(record.legacy_text.as_deref(), Some("old side question"));
+        assert_eq!(record.hydration_state, BtwHydrationState::Stale);
+        assert!(!record.memory_enabled);
+    }
+
+    #[test]
+    fn btw_hydration_failure_is_not_inferred_from_missing_content() {
+        let mut record = BtwSessionRecord::loading("parent-1", "child-1");
+        record.mark_failed("parent snapshot unavailable");
+
+        assert_eq!(record.hydration_state, BtwHydrationState::Failed);
+        assert_eq!(
+            record.hydration_detail.as_deref(),
+            Some("parent snapshot unavailable")
+        );
     }
 
     #[test]

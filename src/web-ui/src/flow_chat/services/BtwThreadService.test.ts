@@ -10,6 +10,15 @@ const mockEnsureBackendSession = vi.fn();
 const mockDiscardLocalSession = vi.fn();
 
 const sessions = new Map<string, any>();
+const readyRelationship = {
+  schemaVersion: 1,
+  parentSessionId: 'parent-1',
+  childSessionId: 'btw-child-1',
+  requestId: 'request-1',
+  childSessionName: 'Side question',
+  hydrationState: 'ready' as const,
+  memoryEnabled: false,
+};
 
 vi.mock('@/infrastructure/api', () => ({
   agentAPI: {
@@ -102,6 +111,10 @@ describe('BtwThreadService', () => {
       sessionId: 'child-1',
     });
     mockEnsureBackendSession.mockResolvedValue(undefined);
+    mockAskStream.mockResolvedValue({
+      ok: true,
+      relationship: readyRelationship,
+    });
   });
 
   it('passes structured relationship metadata to backend-created review sessions', async () => {
@@ -149,9 +162,7 @@ describe('BtwThreadService', () => {
         modelName: 'fast',
       },
     });
-    mockAskStream.mockResolvedValue({ ok: true });
-
-    const { requestId } = await sendMessageToTransientBtwSession({
+    const { requestId, relationship } = await sendMessageToTransientBtwSession({
       parentSessionId: 'parent-1',
       childSessionId: 'btw-child-1',
       question: 'Follow up?',
@@ -171,8 +182,10 @@ describe('BtwThreadService', () => {
         sessionId: 'parent-1',
         childSessionId: 'btw-child-1',
         question: 'Follow up?',
+        memoryEnabled: false,
       }),
     );
+    expect(relationship).toEqual(readyRelationship);
   });
 
   it('passes image contexts to transient BTW follow-up streams', async () => {
@@ -187,8 +200,6 @@ describe('BtwThreadService', () => {
         modelName: 'fast',
       },
     });
-    mockAskStream.mockResolvedValue({ ok: true });
-
     await sendMessageToTransientBtwSession({
       parentSessionId: 'parent-1',
       childSessionId: 'btw-child-1',
@@ -214,6 +225,29 @@ describe('BtwThreadService', () => {
           },
         ],
       }),
+    );
+  });
+
+  it('keeps optional BTW memory disabled unless explicitly enabled', async () => {
+    sessions.set('btw-child-1', {
+      sessionId: 'btw-child-1',
+      title: 'Side question',
+      sessionKind: 'btw',
+      parentSessionId: 'parent-1',
+      isTransient: true,
+      agentBackedTransient: false,
+      config: { modelName: 'fast' },
+    });
+
+    await sendMessageToTransientBtwSession({
+      parentSessionId: 'parent-1',
+      childSessionId: 'btw-child-1',
+      question: 'Remember this only for the side thread?',
+      memoryEnabled: true,
+    });
+
+    expect(mockAskStream).toHaveBeenCalledWith(
+      expect.objectContaining({ memoryEnabled: true }),
     );
   });
 

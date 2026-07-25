@@ -6,7 +6,6 @@ use tokio::fs;
 
 const MEMORY_DIR_NAME: &str = "memory";
 const MEMORY_INDEX_FILE: &str = "memory.md";
-const MEMORY_INDEX_TEMPLATE: &str = "# Memory Index\n";
 const MEMORY_INDEX_MAX_LINES: usize = 200;
 const TOPIC_MEMORY_MAX_FILES: usize = 30;
 
@@ -24,18 +23,6 @@ fn memory_dir_path(workspace_root: &Path) -> PathBuf {
 
 fn format_path_for_prompt(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
-}
-
-async fn ensure_markdown_placeholder(path: &Path, content: &str) -> VoidResult<bool> {
-    if path.exists() {
-        return Ok(false);
-    }
-
-    fs::write(path, content)
-        .await
-        .map_err(|e| VoidError::service(format!("Failed to create {}: {}", path.display(), e)))?;
-
-    Ok(true)
 }
 
 async fn list_memory_files(memory_dir: &Path) -> VoidResult<Vec<String>> {
@@ -77,48 +64,20 @@ async fn list_memory_files(memory_dir: &Path) -> VoidResult<Vec<String>> {
     Ok(memory_files)
 }
 
-pub(crate) async fn ensure_workspace_memory_files_for_prompt(
-    workspace_root: &Path,
-) -> VoidResult<()> {
-    let memory_dir = memory_dir_path(workspace_root);
-    if !memory_dir.exists() {
-        fs::create_dir_all(&memory_dir).await.map_err(|e| {
-            VoidError::service(format!(
-                "Failed to create memory directory {}: {}",
-                memory_dir.display(),
-                e
-            ))
-        })?;
-    }
-    let created_memory_index =
-        ensure_markdown_placeholder(&memory_dir.join(MEMORY_INDEX_FILE), MEMORY_INDEX_TEMPLATE)
-            .await?;
-
-    debug!(
-        "Ensured workspace agent memory files: path={}, created_memory_index={}",
-        workspace_root.display(),
-        created_memory_index
-    );
-
-    Ok(())
-}
-
 pub(crate) async fn build_workspace_agent_memory_prompt(
     workspace_root: &Path,
 ) -> VoidResult<String> {
-    ensure_workspace_memory_files_for_prompt(workspace_root).await?;
-
     let memory_dir = memory_dir_path(workspace_root);
     let memory_dir_display = format_path_for_prompt(&memory_dir);
 
     Ok(format!(
         r#"# auto memory
 
-You have a persistent, file-based memory system at `{memory_dir_display}`. This directory already exists — write to it directly with the Write/Edit tool (do not run mkdir or check for its existence).
+Long-term memory is disabled by default. The persistence location is `{memory_dir_display}`, but you MUST NOT create that directory or write, edit, or delete memory files until the user has reviewed a concrete memory candidate and explicitly consented to that exact change.
 
-You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.
+Before consent, only formulate a candidate and ask the user whether it should be committed. A candidate is not durable memory. If consent is denied, discard it. Report persistence failures instead of claiming that a candidate was saved.
 
-If the user explicitly asks you to remember something, save it immediately as whichever type fits best. If they ask you to forget something, find and remove the relevant entry.
+If the user explicitly asks you to remember or forget something, treat that request as a candidate and confirm the exact durable change before performing file operations.
 
 ## Types of memory
 
@@ -132,10 +91,10 @@ There are several discrete types of memory that you can store in your memory sys
     <how_to_use>When your work should be informed by the user's profile or perspective. For example, if the user is asking you to explain a part of the code, you should answer that question in a way that is tailored to the specific details that they will find most valuable or that helps them build their mental model in relation to domain knowledge they already have.</how_to_use>
     <examples>
     user: I'm a data scientist investigating what logging we have in place
-    assistant: [saves user memory: user is a data scientist, currently focused on observability/logging]
+    assistant: [proposes user memory candidate for consent: user is a data scientist, currently focused on observability/logging]
 
     user: I've been writing Go for ten years but this is my first time touching the React side of this repo
-    assistant: [saves user memory: deep Go expertise, new to React and this project's frontend — frame frontend explanations in terms of backend analogues]
+    assistant: [proposes user memory candidate for consent: deep Go expertise, new to React and this project's frontend — frame frontend explanations in terms of backend analogues]
     </examples>
 </type>
 <type>
@@ -146,13 +105,13 @@ There are several discrete types of memory that you can store in your memory sys
     <body_structure>Lead with the rule itself, then a **Why:** line (the reason the user gave — often a past incident or strong preference) and a **How to apply:** line (when/where this guidance kicks in). Knowing *why* lets you judge edge cases instead of blindly following the rule.</body_structure>
     <examples>
     user: don't mock the database in these tests — we got burned last quarter when mocked tests passed but the prod migration failed
-    assistant: [saves feedback memory: integration tests must hit a real database, not mocks. Reason: prior incident where mock/prod divergence masked a broken migration]
+    assistant: [proposes feedback memory candidate for consent: integration tests must hit a real database, not mocks. Reason: prior incident where mock/prod divergence masked a broken migration]
 
     user: stop summarizing what you just did at the end of every response, I can read the diff
-    assistant: [saves feedback memory: this user wants terse responses with no trailing summaries]
+    assistant: [proposes feedback memory candidate for consent: this user wants terse responses with no trailing summaries]
 
     user: yeah the single bundled PR was the right call here, splitting this one would've just been churn
-    assistant: [saves feedback memory: for refactors in this area, user prefers one bundled PR over many small ones. Confirmed after I chose this approach — a validated judgment call, not a correction]
+    assistant: [proposes feedback memory candidate for consent: for refactors in this area, user prefers one bundled PR over many small ones. Confirmed after I chose this approach — a validated judgment call, not a correction]
     </examples>
 </type>
 <type>
@@ -163,10 +122,10 @@ There are several discrete types of memory that you can store in your memory sys
     <body_structure>Lead with the fact or decision, then a **Why:** line (the motivation — often a constraint, deadline, or stakeholder ask) and a **How to apply:** line (how this should shape your suggestions). Project memories decay fast, so the why helps future-you judge whether the memory is still load-bearing.</body_structure>
     <examples>
     user: we're freezing all non-critical merges after Thursday — mobile team is cutting a release branch
-    assistant: [saves project memory: merge freeze begins 2026-03-05 for mobile release cut. Flag any non-critical PR work scheduled after that date]
+    assistant: [proposes project memory candidate for consent: merge freeze begins 2026-03-05 for mobile release cut. Flag any non-critical PR work scheduled after that date]
 
     user: the reason we're ripping out the old auth middleware is that legal flagged it for storing session tokens in a way that doesn't meet the new compliance requirements
-    assistant: [saves project memory: auth middleware rewrite is driven by legal/compliance requirements around session token storage, not tech-debt cleanup — scope decisions should favor compliance over ergonomics]
+    assistant: [proposes project memory candidate for consent: auth middleware rewrite is driven by legal/compliance requirements around session token storage, not tech-debt cleanup — scope decisions should favor compliance over ergonomics]
     </examples>
 </type>
 <type>
@@ -176,10 +135,10 @@ There are several discrete types of memory that you can store in your memory sys
     <how_to_use>When the user references an external system or information that may be in an external system.</how_to_use>
     <examples>
     user: check the Linear project "INGEST" if you want context on these tickets, that's where we track all pipeline bugs
-    assistant: [saves reference memory: pipeline bugs are tracked in Linear project "INGEST"]
+    assistant: [proposes reference memory candidate for consent: pipeline bugs are tracked in Linear project "INGEST"]
 
     user: the Grafana board at grafana.internal/d/api-latency is what oncall watches — if you're touching request handling, that's the thing that'll page someone
-    assistant: [saves reference memory: grafana.internal/d/api-latency is the oncall latency dashboard — check it when editing request-path code]
+    assistant: [proposes reference memory candidate for consent: grafana.internal/d/api-latency is the oncall latency dashboard — check it when editing request-path code]
     </examples>
 </type>
 </types>
@@ -196,9 +155,11 @@ These exclusions apply even when the user explicitly asks you to save. If they a
 
 ## How to save memories
 
-Saving a memory is a two-step process:
+After consent, committing a memory is a two-step process:
 
-**Step 1** — write the memory to its own file (e.g., `user_role.md`, `feedback_testing.md`) using this frontmatter format:
+Only after explicit consent:
+
+**Step 1** — write the approved memory to its own file (e.g., `user_role.md`, `feedback_testing.md`) using this frontmatter format:
 
 ```markdown
 ---
@@ -248,6 +209,9 @@ pub(crate) async fn build_workspace_memory_files_context(
     workspace_root: &Path,
 ) -> VoidResult<Option<String>> {
     let memory_dir = memory_dir_path(workspace_root);
+    if !memory_dir.exists() {
+        return Ok(None);
+    }
     let memory_files_section = build_memory_space_files_section(&memory_dir).await?;
     if memory_files_section.trim().is_empty() {
         Ok(None)

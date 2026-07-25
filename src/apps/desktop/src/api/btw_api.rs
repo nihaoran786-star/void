@@ -10,11 +10,12 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::State;
 
-use crate::api::app_state::AppState;
 use super::agentic_api::resolve_missing_image_payloads;
+use crate::api::app_state::AppState;
 
 use void_core::agentic::coordination::ConversationCoordinator;
 use void_core::agentic::image_analysis::ImageContextData;
+use void_core::service::session::BtwSessionRecord;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,12 +29,16 @@ pub struct BtwAskStreamRequest {
     pub model_id: Option<String>,
     #[serde(default)]
     pub image_contexts: Option<Vec<ImageContextData>>,
+    /// Long-term memory is opt-in for BTW and remains disabled by default.
+    #[serde(default)]
+    pub memory_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BtwAskStreamResponse {
     pub ok: bool,
+    pub relationship: BtwSessionRecord,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -104,6 +109,11 @@ pub async fn btw_ask_stream(
         None
     };
 
+    let mut relationship = BtwSessionRecord::loading(&request.session_id, child_session_id);
+    relationship.request_id = Some(request.request_id.clone());
+    relationship.child_session_name = request.child_session_name.clone();
+    relationship.memory_enabled = request.memory_enabled;
+
     let turn_id = coordinator
         .start_hidden_btw_turn(
             &request.request_id,
@@ -116,6 +126,7 @@ pub async fn btw_ask_stream(
         )
         .await
         .map_err(|e| e.to_string())?;
+    relationship.mark_ready();
 
     state
         .side_question_runtime
@@ -154,5 +165,8 @@ pub async fn btw_ask_stream(
         }
     });
 
-    Ok(BtwAskStreamResponse { ok: true })
+    Ok(BtwAskStreamResponse {
+        ok: true,
+        relationship,
+    })
 }

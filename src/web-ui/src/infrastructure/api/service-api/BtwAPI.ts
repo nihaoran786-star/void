@@ -10,10 +10,27 @@ export interface BtwAskStreamRequest {
   childSessionId: string;
   childSessionName?: string;
   imageContexts?: ImageContextData[];
+  /** Long-term memory is opt-in and disabled when omitted. */
+  memoryEnabled?: boolean;
+}
+
+export type BtwHydrationState = 'loading' | 'ready' | 'stale' | 'failed';
+
+export interface BtwSessionRecord {
+  schemaVersion: number;
+  parentSessionId: string;
+  childSessionId: string;
+  requestId?: string;
+  childSessionName?: string;
+  hydrationState: BtwHydrationState;
+  hydrationDetail?: string;
+  memoryEnabled: boolean;
+  legacyText?: string;
 }
 
 export interface BtwAskStreamResponse {
   ok: boolean;
+  relationship: BtwSessionRecord;
 }
 
 export interface BtwCancelRequest {
