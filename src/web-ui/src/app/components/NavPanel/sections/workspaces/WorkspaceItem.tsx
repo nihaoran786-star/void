@@ -41,6 +41,7 @@ import { confirmWarning } from '@/component-library/components/ConfirmDialog/con
 interface WorkspaceItemProps {
   workspace: WorkspaceInfo;
   isActive: boolean;
+  onActivate?: (workspace: WorkspaceInfo) => void;
   isSingle?: boolean;
   draggable?: boolean;
   isDragging?: boolean;
@@ -58,6 +59,7 @@ function getIndexActionKind(phase?: string | null): 'build' | 'rebuild' {
 const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   workspace,
   isActive,
+  onActivate,
   isSingle = false,
   draggable = false,
   isDragging = false,
@@ -368,8 +370,9 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
   const handleActivate = useCallback(async () => {
     if (!isActive) {
       await setActiveWorkspace(workspace.id);
+      onActivate?.(workspace);
     }
-  }, [isActive, setActiveWorkspace, workspace.id]);
+  }, [isActive, onActivate, setActiveWorkspace, workspace]);
 
   const handleCollapseToggle = useCallback(() => {
     setSessionsCollapsed(prev => !prev);
@@ -377,12 +380,12 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
 
   const handleCardNameClick = useCallback(async () => {
     if (!isActive) {
-      await setActiveWorkspace(workspace.id);
+      await handleActivate();
       setSessionsCollapsed(false);
     } else {
       setSessionsCollapsed(prev => !prev);
     }
-  }, [isActive, setActiveWorkspace, workspace.id]);
+  }, [handleActivate, isActive]);
 
   const handleCloseWorkspace = useCallback(async () => {
     setMenuOpen(false);

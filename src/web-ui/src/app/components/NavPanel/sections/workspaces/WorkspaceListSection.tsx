@@ -3,11 +3,13 @@ import { useI18n } from '@/infrastructure/i18n';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { notificationService } from '@/shared/notification-system';
 import WorkspaceItem from './WorkspaceItem';
+import type { WorkspaceInfo } from '@/shared/types';
 import './WorkspaceListSection.scss';
 
 interface WorkspaceListSectionProps {
   variant: 'assistants' | 'projects';
   suppressActive?: boolean;
+  onWorkspaceActivate?: (workspace: WorkspaceInfo) => void;
 }
 
 type WorkspaceDragPosition = 'before' | 'after';
@@ -23,6 +25,7 @@ const WORKSPACE_DRAG_MIME_TYPE = 'application/x-void-workspace';
 const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({
   variant,
   suppressActive = false,
+  onWorkspaceActivate,
 }) => {
   const { t } = useI18n('common');
   const {
@@ -182,6 +185,7 @@ const WorkspaceListSection: React.FC<WorkspaceListSectionProps> = ({
             <WorkspaceItem
               workspace={workspace}
               isActive={!suppressActive && workspace.id === activeWorkspaceId}
+              onActivate={onWorkspaceActivate}
               isSingle={openedWorkspacesList.length === 1}
               draggable={workspaces.length > 1}
               isDragging={draggedWorkspaceId === workspace.id}

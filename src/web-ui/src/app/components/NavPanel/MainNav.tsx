@@ -27,11 +27,14 @@ import SessionsSection from './sections/sessions/DeferredSessionsSection';
 import { useSceneStore } from '../../stores/sceneStore';
 import { useMyAgentStore } from '../../scenes/my-agent/myAgentStore';
 import { useMiniAppCatalogSync } from '../../scenes/miniapps/hooks/useMiniAppCatalogSync';
-import { beginNewSessionDraft } from '@/flow_chat/services/NewSessionDraftService';
+import {
+  beginNewSessionDraft,
+  selectNewSessionDraftWorkspace,
+} from '@/flow_chat/services/NewSessionDraftService';
 import { workspaceManager } from '@/infrastructure/services/business/workspaceManager';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { createLogger } from '@/shared/utils/logger';
-import { WorkspaceKind, isRemoteWorkspace } from '@/shared/types';
+import { WorkspaceKind, isRemoteWorkspace, type WorkspaceInfo } from '@/shared/types';
 import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDisplay';
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
@@ -300,6 +303,12 @@ const MainNav: React.FC<MainNavProps> = ({
     setSessionMode,
     switchLeftPanelTab,
   ]);
+
+  const handleWorkspaceActivate = useCallback((workspace: WorkspaceInfo) => {
+    if (isNewSessionDraft) {
+      selectNewSessionDraftWorkspace(workspace);
+    }
+  }, [isNewSessionDraft]);
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -799,10 +808,11 @@ const MainNav: React.FC<MainNavProps> = ({
           >
             <div className="void-nav-panel__collapsible-inner">
               <div className="void-nav-panel__items">
-                <WorkspaceListSection
-                  variant="projects"
-                  suppressActive={isNewSessionDraft}
-                />
+        <WorkspaceListSection
+          variant="projects"
+          suppressActive={isNewSessionDraft}
+          onWorkspaceActivate={handleWorkspaceActivate}
+        />
               </div>
             </div>
           </div>

@@ -65,6 +65,12 @@ describe('new session home visual governance', () => {
     const senderSource = read('flow_chat/hooks/useMessageSender.ts');
 
     expect(mainNavSource).toContain("beginNewSessionDraft('code', null)");
+    expect(mainNavSource).toContain(
+      'selectNewSessionDraftWorkspace(workspace)',
+    );
+    expect(mainNavSource).toContain(
+      'onWorkspaceActivate={handleWorkspaceActivate}',
+    );
     expect(mainNavSource).not.toContain('pickWorkspaceForProjectChatSession');
     expect(draftServiceSource).toContain('activeSessionId: null');
     expect(senderSource).toContain('...newSessionConfig');
