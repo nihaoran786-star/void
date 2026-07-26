@@ -692,6 +692,7 @@
     "editCandidate": "編輯記憶候選",
     "merge": "更新現有記憶",
     "empty": "目前工作區沒有已儲存的記憶。",
+    "desktopUpdateRequired": "工作區記憶需要新版桌面端支援。請重新啟動 Void 完成更新。",
     "btwTranscriptUnsupported": "此 BTW 工作階段沒有可用於記憶擷取的持久化記錄。",
     "deleteConfirmTitle": "刪除工作區記憶？",
     "deleteConfirmMessage": "將永久刪除「{{content}}」。",

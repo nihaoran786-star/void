@@ -6,6 +6,7 @@ import type {
   AgentMemoryProposal,
   StoredAgentMemory,
 } from '@/infrastructure/api';
+import { isAgentMemoryCapabilityError } from '@/infrastructure/api/service-api/AgentMemoryAPI';
 import { configManager } from '@/infrastructure/config';
 import { flowChatStore } from '@/flow_chat/store/FlowChatStore';
 import { Button, confirmDanger } from '@/component-library';
@@ -28,11 +29,28 @@ function activeMemoryTarget(): MemorySessionTarget | undefined {
   };
 }
 
-function errorMessage(cause: unknown): string {
-  if (cause && typeof cause === 'object' && 'message' in cause) {
-    return String(cause.message);
+interface AgentMemoryPresentationError {
+  code: 'desktop_update_required' | 'operation_failed';
+  message: string;
+}
+
+function presentationError(cause: unknown): AgentMemoryPresentationError {
+  if (isAgentMemoryCapabilityError(cause)) {
+    return {
+      code: 'desktop_update_required',
+      message: cause.message,
+    };
   }
-  return String(cause);
+  if (cause && typeof cause === 'object' && 'message' in cause) {
+    return {
+      code: 'operation_failed',
+      message: String(cause.message),
+    };
+  }
+  return {
+    code: 'operation_failed',
+    message: String(cause),
+  };
 }
 
 export function AgentMemorySettings(): React.ReactElement {
@@ -45,7 +63,8 @@ export function AgentMemorySettings(): React.ReactElement {
   const [candidates, setCandidates] = useState<AgentMemoryProposal[]>([]);
   const [memories, setMemories] = useState<StoredAgentMemory[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<AgentMemoryPresentationError>();
+  const desktopUpdateRequired = error?.code === 'desktop_update_required';
 
   useEffect(
     () => flowChatStore.subscribe(() => setTarget(activeMemoryTarget())),
@@ -58,7 +77,7 @@ export function AgentMemorySettings(): React.ReactElement {
         'app.ai_experience.agent_memory_extraction_enabled',
       )
       .then(value => setExtractionEnabled(value === true))
-      .catch(cause => setError(errorMessage(cause)));
+      .catch(cause => setError(presentationError(cause)));
   }, []);
 
   const refresh = useCallback(async () => {
@@ -73,7 +92,7 @@ export function AgentMemorySettings(): React.ReactElement {
     setCandidates([]);
     setManualCandidates([]);
     setError(undefined);
-    void refresh().catch(cause => setError(errorMessage(cause)));
+    void refresh().catch(cause => setError(presentationError(cause)));
   }, [refresh]);
 
   const setExtractionPermission = useCallback(async (enabled: boolean) => {
@@ -86,7 +105,7 @@ export function AgentMemorySettings(): React.ReactElement {
       );
       setExtractionEnabled(enabled);
     } catch (cause) {
-      setError(errorMessage(cause));
+      setError(presentationError(cause));
     } finally {
       setBusy(false);
     }
@@ -103,7 +122,7 @@ export function AgentMemorySettings(): React.ReactElement {
       );
       setCandidates(outcome.status === 'proposed' ? outcome.proposals : []);
     } catch (cause) {
-      setError(errorMessage(cause));
+      setError(presentationError(cause));
     } finally {
       setBusy(false);
     }
@@ -119,7 +138,7 @@ export function AgentMemorySettings(): React.ReactElement {
       setRejectedCount(batch.rejectedCount);
       setInput('');
     } catch (cause) {
-      setError(errorMessage(cause));
+      setError(presentationError(cause));
     } finally {
       setBusy(false);
     }
@@ -137,7 +156,7 @@ export function AgentMemorySettings(): React.ReactElement {
         );
         if (approved) await refresh();
       } catch (cause) {
-        setError(errorMessage(cause));
+        setError(presentationError(cause));
       } finally {
         setBusy(false);
       }
@@ -172,7 +191,7 @@ export function AgentMemorySettings(): React.ReactElement {
         );
         if (approved) await refresh();
       } catch (cause) {
-        setError(errorMessage(cause));
+        setError(presentationError(cause));
       } finally {
         setBusy(false);
       }
@@ -194,7 +213,7 @@ export function AgentMemorySettings(): React.ReactElement {
         await agentMemoryAPI.deleteConfirmed(memory, target.workspacePath);
         await refresh();
       } catch (cause) {
-        setError(errorMessage(cause));
+        setError(presentationError(cause));
       } finally {
         setBusy(false);
       }
@@ -210,7 +229,7 @@ export function AgentMemorySettings(): React.ReactElement {
         <input
           type="checkbox"
           checked={extractionEnabled}
-          disabled={busy}
+          disabled={busy || desktopUpdateRequired}
           onChange={event => void setExtractionPermission(event.target.checked)}
         />
         <span>{t('agentMemory.extractionPermission')}</span>
@@ -227,11 +246,11 @@ export function AgentMemorySettings(): React.ReactElement {
             onChange={event => setInput(event.target.value)}
             placeholder={t('agentMemory.placeholder')}
             aria-label={t('agentMemory.candidateAriaLabel')}
-            disabled={busy}
+            disabled={busy || desktopUpdateRequired}
           />
           <Button
             onClick={() => void proposeManual()}
-            disabled={busy || !input.trim()}
+            disabled={busy || desktopUpdateRequired || !input.trim()}
           >
             {t('agentMemory.review')}
           </Button>
@@ -244,13 +263,13 @@ export function AgentMemorySettings(): React.ReactElement {
               <div>
                 <Button
                   onClick={() => void resolveManualCandidate(candidate, true)}
-                  disabled={busy}
+                  disabled={busy || desktopUpdateRequired}
                 >
                   {t('agentMemory.save')}
                 </Button>
                 <Button
                   onClick={() => void resolveManualCandidate(candidate, false)}
-                  disabled={busy}
+                  disabled={busy || desktopUpdateRequired}
                 >
                   {t('agentMemory.discard')}
                 </Button>
@@ -259,11 +278,17 @@ export function AgentMemorySettings(): React.ReactElement {
           ))}
           <Button
             onClick={() => void extractFromSession()}
-            disabled={busy || !extractionEnabled}
+            disabled={busy || desktopUpdateRequired || !extractionEnabled}
           >
             {t('agentMemory.reviewSession')}
           </Button>
-          {error && <p role="alert">{error}</p>}
+          {error && (
+            <p role="alert">
+              {desktopUpdateRequired
+                ? t('agentMemory.desktopUpdateRequired')
+                : error.message}
+            </p>
+          )}
           <div aria-label={t('agentMemory.candidatesAriaLabel')}>
             {candidates.map(candidate => (
               <div className="agent-memory-settings__item" key={candidate.proposalId}>
@@ -276,7 +301,7 @@ export function AgentMemorySettings(): React.ReactElement {
                   <textarea
                     value={candidate.content}
                     aria-label={t('agentMemory.editCandidate')}
-                    disabled={busy}
+                    disabled={busy || desktopUpdateRequired}
                     onChange={event =>
                       updateCandidate(candidate.proposalId, event.target.value)
                     }
@@ -285,13 +310,13 @@ export function AgentMemorySettings(): React.ReactElement {
                 <div>
                   <Button
                     onClick={() => void resolveCandidate(candidate, true)}
-                    disabled={busy || !candidate.content.trim()}
+                    disabled={busy || desktopUpdateRequired || !candidate.content.trim()}
                   >
                     {t('agentMemory.save')}
                   </Button>
                   <Button
                     onClick={() => void resolveCandidate(candidate, false)}
-                    disabled={busy}
+                    disabled={busy || desktopUpdateRequired}
                   >
                     {t('agentMemory.discard')}
                   </Button>
@@ -306,7 +331,10 @@ export function AgentMemorySettings(): React.ReactElement {
             {memories.map(memory => (
               <div className="agent-memory-settings__item" key={memory.id}>
                 <span>{memory.content}</span>
-                <Button onClick={() => void removeMemory(memory)} disabled={busy}>
+                <Button
+                  onClick={() => void removeMemory(memory)}
+                  disabled={busy || desktopUpdateRequired}
+                >
                   {t('agentMemory.delete')}
                 </Button>
               </div>

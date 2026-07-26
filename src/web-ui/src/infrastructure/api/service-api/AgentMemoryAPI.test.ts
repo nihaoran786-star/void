@@ -6,11 +6,11 @@ vi.mock('./ApiClient', () => ({
   api: { invoke },
 }));
 
-vi.mock('../errors/TauriCommandError', () => ({
-  createTauriCommandError: (_command: string, error: unknown) => error,
-}));
-
-import { AgentMemoryAPI, type StoredAgentMemory } from './AgentMemoryAPI';
+import {
+  AGENT_MEMORY_DESKTOP_UPDATE_REQUIRED,
+  AgentMemoryAPI,
+  type StoredAgentMemory,
+} from './AgentMemoryAPI';
 
 describe('AgentMemoryAPI', () => {
   beforeEach(() => invoke.mockReset());
@@ -87,6 +87,17 @@ describe('AgentMemoryAPI', () => {
         expectedRevision: 3,
         confirmation: 'delete:memory-1:revision:3',
       },
+    });
+  });
+
+  it('classifies an older desktop host without memory commands as non-retryable', async () => {
+    invoke.mockRejectedValueOnce(
+      new Error('Command list_agent_memories not found'),
+    );
+
+    await expect(new AgentMemoryAPI().list('D:/workspace')).rejects.toMatchObject({
+      code: AGENT_MEMORY_DESKTOP_UPDATE_REQUIRED,
+      retryable: false,
     });
   });
 });

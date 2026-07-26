@@ -671,6 +671,7 @@
     "editCandidate": "Edit memory candidate",
     "merge": "Updates an existing memory",
     "empty": "No saved memories for this workspace.",
+    "desktopUpdateRequired": "Workspace memory requires the updated desktop host. Restart Void to finish the update.",
     "btwTranscriptUnsupported": "This BTW session has no durable transcript available for memory extraction.",
     "deleteConfirmTitle": "Delete workspace memory?",
     "deleteConfirmMessage": "This permanently deletes “{{content}}”.",

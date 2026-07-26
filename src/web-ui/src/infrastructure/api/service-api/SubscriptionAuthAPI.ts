@@ -1,5 +1,8 @@
 import { api } from './ApiClient';
-import { createTauriCommandError } from '../errors/TauriCommandError';
+import {
+  createTauriCommandError,
+  isTauriCommandUnavailableError,
+} from '../errors/TauriCommandError';
 import {
   SUBSCRIPTION_PROVIDERS,
   type SubscriptionProvider,
@@ -81,20 +84,12 @@ function isProvider(value: unknown): value is SubscriptionProvider {
   return SUBSCRIPTION_PROVIDERS.some(provider => provider === value);
 }
 
-function isMissingSubscriptionAuthCommand(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  const normalized = message.toLowerCase();
-  return normalized.includes('unknown command')
-    || normalized.includes('command not found')
-    || (normalized.includes('command') && normalized.includes('not found'));
-}
-
 function subscriptionAuthCommandError(
   command: string,
   error: unknown,
   request?: unknown,
 ): Error {
-  return isMissingSubscriptionAuthCommand(error)
+  return isTauriCommandUnavailableError(error)
     ? new SubscriptionAuthCapabilityError()
     : createTauriCommandError(command, error, request);
 }

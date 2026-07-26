@@ -692,6 +692,7 @@
     "editCandidate": "编辑记忆候选",
     "merge": "更新现有记忆",
     "empty": "当前工作区暂无已保存记忆。",
+    "desktopUpdateRequired": "工作区记忆需要新版桌面端支持。请重启 Void 完成更新。",
     "btwTranscriptUnsupported": "此 BTW 会话没有可用于记忆提取的持久化记录。",
     "deleteConfirmTitle": "删除工作区记忆？",
     "deleteConfirmMessage": "将永久删除“{{content}}”。",
