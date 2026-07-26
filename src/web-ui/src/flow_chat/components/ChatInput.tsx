@@ -376,7 +376,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    const previousSessionId = previousComposerSessionIdRef.current;
     const previousScopeId = previousComposerScopeIdRef.current;
     const sessionChanged = previousScopeId !== composerScopeId;
     const queueDecision = observeSessionComposerQueue(
@@ -395,7 +394,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    if (sessionChanged && previousSessionId && previousScopeId) {
+    if (sessionChanged && previousScopeId) {
       saveSessionComposerDraft(previousScopeId, {
         value: inputValueRef.current,
         contexts: contextsRef.current,

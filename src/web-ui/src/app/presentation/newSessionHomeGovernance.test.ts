@@ -61,6 +61,10 @@ describe('new session home visual governance', () => {
 
   it('keeps a new session as an unpersisted draft until the first send', () => {
     const mainNavSource = read('app/components/NavPanel/MainNav.tsx');
+    const workspaceItemSource = read(
+      'app/components/NavPanel/sections/workspaces/WorkspaceItem.tsx',
+    );
+    const chatInputSource = read('flow_chat/components/ChatInput.tsx');
     const draftServiceSource = read('flow_chat/services/NewSessionDraftService.ts');
     const senderSource = read('flow_chat/hooks/useMessageSender.ts');
 
@@ -69,7 +73,15 @@ describe('new session home visual governance', () => {
       'selectNewSessionDraftWorkspace(workspace)',
     );
     expect(mainNavSource).toContain(
-      'onWorkspaceActivate={handleWorkspaceActivate}',
+      'isNewSessionDraft ? handleWorkspaceActivate : undefined',
+    );
+    expect(workspaceItemSource).toContain('if (onActivate)');
+    expect(workspaceItemSource).toContain('onActivate(workspace)');
+    expect(chatInputSource).toContain(
+      'if (sessionChanged && previousScopeId)',
+    );
+    expect(chatInputSource).not.toContain(
+      'sessionChanged && previousSessionId && previousScopeId',
     );
     expect(mainNavSource).not.toContain('pickWorkspaceForProjectChatSession');
     expect(draftServiceSource).toContain('activeSessionId: null');

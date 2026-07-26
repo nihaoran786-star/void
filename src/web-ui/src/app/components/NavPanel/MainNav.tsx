@@ -808,11 +808,13 @@ const MainNav: React.FC<MainNavProps> = ({
           >
             <div className="void-nav-panel__collapsible-inner">
               <div className="void-nav-panel__items">
-        <WorkspaceListSection
-          variant="projects"
-          suppressActive={isNewSessionDraft}
-          onWorkspaceActivate={handleWorkspaceActivate}
-        />
+                <WorkspaceListSection
+                  variant="projects"
+                  suppressActive={isNewSessionDraft}
+                  onWorkspaceActivate={
+                    isNewSessionDraft ? handleWorkspaceActivate : undefined
+                  }
+                />
               </div>
             </div>
           </div>

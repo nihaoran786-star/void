@@ -369,8 +369,11 @@ const WorkspaceItem: React.FC<WorkspaceItemProps> = ({
 
   const handleActivate = useCallback(async () => {
     if (!isActive) {
+      if (onActivate) {
+        onActivate(workspace);
+        return;
+      }
       await setActiveWorkspace(workspace.id);
-      onActivate?.(workspace);
     }
   }, [isActive, onActivate, setActiveWorkspace, workspace]);
 
