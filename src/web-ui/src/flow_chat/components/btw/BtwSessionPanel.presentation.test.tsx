@@ -94,8 +94,11 @@ vi.mock('@/shared/utils/tabUtils', () => ({ createTab: vi.fn() }));
 
 vi.mock('@/infrastructure/api', () => ({
   agentAPI: { cancelSession: (...args: unknown[]) => mockCancelSession(...args) },
-  btwAPI: { cancel: (...args: unknown[]) => mockBtwCancel(...args) },
   configAPI: { getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args) },
+}));
+
+vi.mock('@/infrastructure/api/service-api/BtwAPI', () => ({
+  btwAPI: { cancel: (...args: unknown[]) => mockBtwCancel(...args) },
 }));
 
 vi.mock('@/infrastructure/event-bus', () => ({

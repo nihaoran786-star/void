@@ -34,11 +34,6 @@ interface SessionModeState {
 
 let nextNewSessionDraftId = 0;
 
-function createNewSessionDraftId(): string {
-  nextNewSessionDraftId += 1;
-  return `new-session-${nextNewSessionDraftId}`;
-}
-
 export const useSessionModeStore = create<SessionModeState>((set) => ({
   mode: 'code',
   draftId: null,
@@ -47,7 +42,7 @@ export const useSessionModeStore = create<SessionModeState>((set) => ({
   setMode: (mode) => set({ mode }),
   beginDraft: (mode, workspace = null) => set({
     mode,
-    draftId: createNewSessionDraftId(),
+    draftId: `draft:${++nextNewSessionDraftId}`,
     draftStatus: 'draft',
     draftWorkspace: workspace,
   }),

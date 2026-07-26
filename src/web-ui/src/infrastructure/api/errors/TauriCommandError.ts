@@ -99,11 +99,3 @@ export function createTauriCommandError(
 export function isTauriCommandError(error: any): error is TauriCommandError {
   return error && error.isTauriCommandError === true;
 }
-
-export function isTauriCommandUnavailableError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  const normalized = message.toLowerCase();
-  return normalized.includes('unknown command')
-    || normalized.includes('command not found')
-    || (normalized.includes('command') && normalized.includes('not found'));
-}

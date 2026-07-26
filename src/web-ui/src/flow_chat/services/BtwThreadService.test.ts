@@ -26,6 +26,9 @@ vi.mock('@/infrastructure/api', () => ({
   agentAPI: {
     createSession: (...args: any[]) => mockCreateSession(...args),
   },
+}));
+
+vi.mock('@/infrastructure/api/service-api/BtwAPI', () => ({
   btwAPI: {
     askStream: (...args: any[]) => mockAskStream(...args),
     listRelationships: (...args: any[]) => mockListRelationships(...args),

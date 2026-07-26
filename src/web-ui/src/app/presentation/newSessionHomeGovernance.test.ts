@@ -70,10 +70,10 @@ describe('new session home visual governance', () => {
 
     expect(mainNavSource).toContain("beginNewSessionDraft('code', null)");
     expect(mainNavSource).toContain(
-      'selectNewSessionDraftWorkspace(workspace)',
+      '? selectNewSessionDraftWorkspace',
     );
     expect(mainNavSource).toContain(
-      'isNewSessionDraft ? handleWorkspaceActivate : undefined',
+      'onWorkspaceActivate={',
     );
     expect(workspaceItemSource).toContain('if (onActivate)');
     expect(workspaceItemSource).toContain('onActivate(workspace)');
@@ -82,6 +82,12 @@ describe('new session home visual governance', () => {
     );
     expect(chatInputSource).not.toContain(
       'sessionChanged && previousSessionId && previousScopeId',
+    );
+    expect(chatInputSource).toContain(
+      'const composerScopeId = currentSessionId || draftId',
+    );
+    expect(chatInputSource).toContain(
+      'if (!derivedState && !isNewSessionDraft)',
     );
     expect(mainNavSource).not.toContain('pickWorkspaceForProjectChatSession');
     expect(draftServiceSource).toContain('activeSessionId: null');

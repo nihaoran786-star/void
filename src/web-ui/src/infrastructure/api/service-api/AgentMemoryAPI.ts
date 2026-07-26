@@ -1,8 +1,8 @@
 import { api } from './ApiClient';
 import {
   createTauriCommandError,
-  isTauriCommandUnavailableError,
 } from '../errors/TauriCommandError';
+import { isTauriCommandUnavailableError } from '../errors/TauriCommandSupport';
 
 export type AgentMemoryState =
   | 'candidate'

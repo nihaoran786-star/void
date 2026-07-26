@@ -97,7 +97,6 @@ import {
   selectNewSessionDraftWorkspace,
 } from '../services/NewSessionDraftService';
 import {
-  canUseSessionlessComposer,
   clearSessionComposerDraftIfRevision,
   consumeEmptyPasteClearGuard,
   countEmptyPasteClearGuards,
@@ -107,7 +106,6 @@ import {
   observeSessionComposerQueue,
   resolveSessionComposerHydration,
   resolveSessionComposerDraftGuard,
-  resolveSessionComposerScopeId,
   saveSessionComposerDraft,
   saveSessionComposerDraftIfRevision,
   shouldApplyGuardedComposerResult,
@@ -342,10 +340,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
   const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
   const isNewSessionDraft = !currentSessionId && draftStatus !== 'idle';
-  const composerScopeId = resolveSessionComposerScopeId(
-    currentSessionId,
-    isNewSessionDraft ? draftId : null,
-  );
+  const composerScopeId = currentSessionId || draftId;
   const effectiveTargetSessionId = currentSessionId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
@@ -2332,7 +2327,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
   
   const handleSendOrCancel = useCallback(async () => {
-    if (!canUseSessionlessComposer(Boolean(derivedState), isNewSessionDraft)) {
+    if (!derivedState && !isNewSessionDraft) {
       return;
     }
     
@@ -3160,7 +3155,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const renderActionButton = () => {
-    if (!canUseSessionlessComposer(Boolean(derivedState), isNewSessionDraft)) {
+    if (!derivedState && !isNewSessionDraft) {
       return (
         <IconButton
           className="void-chat-input__send-button"

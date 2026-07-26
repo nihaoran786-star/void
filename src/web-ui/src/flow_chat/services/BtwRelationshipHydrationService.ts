@@ -1,4 +1,3 @@
-import { btwAPI } from '@/infrastructure/api';
 import type { BtwSessionRecord } from '@/infrastructure/api/service-api/BtwAPI';
 import { flowChatStore } from '../store/FlowChatStore';
 
@@ -11,6 +10,9 @@ export async function hydrateBtwRelationships(params: {
   parentSessionId: string;
   workspacePath: string;
 }): Promise<BtwSessionRecord[]> {
+  const { btwAPI } = await import(
+    '@/infrastructure/api/service-api/BtwAPI'
+  );
   const records = await btwAPI.listRelationships({
     parentSessionId: params.parentSessionId,
     workspacePath: params.workspacePath,

@@ -26,14 +26,12 @@
   font-family: var(--font-sans, var(--font-family-sans, inherit));
   font-size: var(--flowchat-font-size-xxs);
   line-height: var(--flowchat-support-line-height, 1.45);
-  font-weight: 400;
   letter-spacing: 0.01em;
   color: var(--color-text-primary);
   user-select: text;
   pointer-events: auto;
 
   width: 100%;
-  max-width: none;
 
   &__main {
     display: flex;

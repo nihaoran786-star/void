@@ -41,23 +41,6 @@ const drafts = new Map<string, SessionComposerDraft>();
 const draftRevisions = new Map<string, number>();
 let nextDraftRevision = 0;
 
-export function resolveSessionComposerScopeId(
-  sessionId: string | null,
-  newSessionDraftId: string | null,
-): string | null {
-  if (sessionId) {
-    return sessionId;
-  }
-  return newSessionDraftId ? `draft:${newSessionDraftId}` : null;
-}
-
-export function canUseSessionlessComposer(
-  hasDerivedSessionState: boolean,
-  isNewSessionDraft: boolean,
-): boolean {
-  return hasDerivedSessionState || isNewSessionDraft;
-}
-
 function cloneDraft(draft: SessionComposerDraft): SessionComposerDraft {
   return {
     ...draft,

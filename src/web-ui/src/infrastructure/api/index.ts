@@ -30,13 +30,12 @@ import { gitRepoHistoryAPI, type GitRepoHistory } from './service-api/GitRepoHis
 import { startchatAgentAPI } from './service-api/StartchatAgentAPI';
 import { sessionAPI } from './service-api/SessionAPI';
 import { i18nAPI } from './service-api/I18nAPI';
-import { btwAPI } from './service-api/BtwAPI';
 import { editorAiAPI } from './service-api/EditorAiAPI';
 import { reviewPlatformAPI } from './service-api/ReviewPlatformAPI';
 import { insightsApi } from './insightsApi';
 
 // Export API modules
-export { workspaceAPI, configAPI, aiApi, toolAPI, agentAPI, agentMemoryAPI, systemAPI, projectAPI, diffAPI, snapshotAPI, globalAPI, contextAPI, cronAPI, gitAPI, gitAgentAPI, gitRepoHistoryAPI, startchatAgentAPI, sessionAPI, i18nAPI, btwAPI, editorAiAPI, reviewPlatformAPI, insightsApi };
+export { workspaceAPI, configAPI, aiApi, toolAPI, agentAPI, agentMemoryAPI, systemAPI, projectAPI, diffAPI, snapshotAPI, globalAPI, contextAPI, cronAPI, gitAPI, gitAgentAPI, gitRepoHistoryAPI, startchatAgentAPI, sessionAPI, i18nAPI, editorAiAPI, reviewPlatformAPI, insightsApi };
 export type {
   AgentMemoryCandidate,
   AgentMemoryConsent,
@@ -76,7 +75,6 @@ export const voidAPI = {
   startchatAgent: startchatAgentAPI,
   session: sessionAPI,
   i18n: i18nAPI,
-  btw: btwAPI,
   editorAi: editorAiAPI,
   reviewPlatform: reviewPlatformAPI,
   insights: insightsApi,

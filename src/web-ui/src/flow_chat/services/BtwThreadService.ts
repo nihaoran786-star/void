@@ -1,4 +1,4 @@
-import { agentAPI, btwAPI } from '@/infrastructure/api';
+import { agentAPI } from '@/infrastructure/api';
 import { notificationService } from '@/shared/notification-system';
 import { flowChatStore } from '../store/FlowChatStore';
 import { stateMachineManager } from '../state-machine';
@@ -252,6 +252,11 @@ export async function sendMessageToTransientBtwSession(params: {
     requestId,
     parentSessionId: params.parentSessionId,
   }, 'btw');
+  // BTW is not part of the startup path. Keep its transport adapter out of the
+  // initial bundle and load it only when the user starts a side question.
+  const { btwAPI } = await import(
+    '@/infrastructure/api/service-api/BtwAPI'
+  );
   const response = await btwAPI.askStream({
     requestId,
     sessionId: params.parentSessionId,

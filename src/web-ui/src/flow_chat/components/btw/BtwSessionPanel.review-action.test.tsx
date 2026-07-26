@@ -140,14 +140,17 @@ vi.mock('@/infrastructure/api', () => ({
   agentAPI: {
     cancelSession: (...args: unknown[]) => mockCancelSession(...args),
   },
-  btwAPI: {
-    cancel: (...args: unknown[]) => mockBtwCancel(...args),
-  },
   configAPI: {
     getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args),
   },
   sessionAPI: {
     resolveSessionReferences: (...args: unknown[]) => mockResolveSessionReferences(...args),
+  },
+}));
+
+vi.mock('@/infrastructure/api/service-api/BtwAPI', () => ({
+  btwAPI: {
+    cancel: (...args: unknown[]) => mockBtwCancel(...args),
   },
 }));
 

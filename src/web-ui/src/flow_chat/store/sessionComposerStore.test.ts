@@ -3,7 +3,6 @@ import type { ContextItem } from '@/shared/types/context';
 import {
   clearSessionComposerDraftIfRevision,
   clearSessionComposerDrafts,
-  canUseSessionlessComposer,
   consumeEmptyPasteClearGuard,
   countEmptyPasteClearGuards,
   getSessionComposerDraft,
@@ -11,7 +10,6 @@ import {
   isSessionComposerSnapshotCurrent,
   observeSessionComposerQueue,
   resolveSessionComposerHydration,
-  resolveSessionComposerScopeId,
   resetSessionComposerDraftsForTests,
   resolveSessionComposerDraftGuard,
   saveSessionComposerDraftIfRevision,
@@ -71,36 +69,6 @@ describe('sessionComposerStore', () => {
     expect(getSessionComposerDraft('parent')?.value).toBe('parent draft');
     expect(getSessionComposerDraft('btw-child')?.value).toBe('btw draft');
     expect(getSessionComposerDraft('subagent-child')?.value).toBe('subagent draft');
-  });
-
-  it('treats each unpersisted new-task draft as its own composer scope', () => {
-    expect(resolveSessionComposerScopeId(null, 'draft-1')).toBe('draft:draft-1');
-    expect(resolveSessionComposerScopeId(null, 'draft-2')).toBe('draft:draft-2');
-    expect(resolveSessionComposerScopeId('session-1', 'draft-2')).toBe('session-1');
-    expect(resolveSessionComposerScopeId(null, null)).toBeNull();
-  });
-
-  it('restores an existing session draft after visiting an isolated new-task scope', () => {
-    saveSessionComposerDraft('session-1', {
-      value: 'session-only text',
-      contexts: [fileContext],
-      pendingLargePastes: {},
-    });
-
-    const newTaskScope = resolveSessionComposerScopeId(null, 'draft-1');
-    expect(newTaskScope && getSessionComposerDraft(newTaskScope)).toBeUndefined();
-
-    const restoredSessionScope = resolveSessionComposerScopeId('session-1', null);
-    expect(restoredSessionScope && getSessionComposerDraft(restoredSessionScope)).toMatchObject({
-      value: 'session-only text',
-      contexts: [fileContext],
-    });
-  });
-
-  it('allows a new-task composer to send without a session state machine', () => {
-    expect(canUseSessionlessComposer(false, true)).toBe(true);
-    expect(canUseSessionlessComposer(false, false)).toBe(false);
-    expect(canUseSessionlessComposer(true, false)).toBe(true);
   });
 
   it('retains all contexts, including unsent images, and returns defensive copies', () => {

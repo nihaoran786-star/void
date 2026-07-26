@@ -34,7 +34,7 @@ import {
 import { workspaceManager } from '@/infrastructure/services/business/workspaceManager';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import { createLogger } from '@/shared/utils/logger';
-import { WorkspaceKind, isRemoteWorkspace, type WorkspaceInfo } from '@/shared/types';
+import { WorkspaceKind, isRemoteWorkspace } from '@/shared/types';
 import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDisplay';
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
@@ -303,12 +303,6 @@ const MainNav: React.FC<MainNavProps> = ({
     setSessionMode,
     switchLeftPanelTab,
   ]);
-
-  const handleWorkspaceActivate = useCallback((workspace: WorkspaceInfo) => {
-    if (isNewSessionDraft) {
-      selectNewSessionDraftWorkspace(workspace);
-    }
-  }, [isNewSessionDraft]);
 
   const handleOpenProject = useCallback(async () => {
     try {
@@ -812,7 +806,9 @@ const MainNav: React.FC<MainNavProps> = ({
                   variant="projects"
                   suppressActive={isNewSessionDraft}
                   onWorkspaceActivate={
-                    isNewSessionDraft ? handleWorkspaceActivate : undefined
+                    isNewSessionDraft
+                      ? selectNewSessionDraftWorkspace
+                      : undefined
                   }
                 />
               </div>
