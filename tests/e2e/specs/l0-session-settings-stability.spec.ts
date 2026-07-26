@@ -6,6 +6,11 @@ import { saveScreenshot } from '../helpers/screenshot-utils';
 
 const TEST_WORKSPACE_PATH = process.env.E2E_TEST_WORKSPACE || process.cwd();
 const SESSION_PROBE_MESSAGE = 'Void E2E stability probe. Reply OK.';
+const SESSION_PROBE_TITLE_PREFIXES = [
+  'Void E2E stability',
+  'E2E Stability Probe',
+  'E2E稳定性探测',
+];
 const screenshotDirectory = path.resolve(
   process.cwd(),
   '..',
@@ -67,7 +72,7 @@ describe('L0 session composer and settings stability', () => {
     ]);
     await waitForDoubleAnimationFrame();
     expect(await openWorkspace(TEST_WORKSPACE_PATH)).toBe(true);
-    await browser.execute(async (workspacePath) => {
+    await browser.execute(async ({ titlePrefixes, workspacePath }) => {
       const agentPath = '/src/infrastructure/api/service-api/AgentAPI.ts';
       const flowStorePath = '/src/flow_chat/store/FlowChatStore.ts';
       const sessionApiPath = '/src/infrastructure/api/service-api/SessionAPI.ts';
@@ -76,14 +81,19 @@ describe('L0 session composer and settings stability', () => {
       const { SessionAPI } = await import(/* @vite-ignore */ sessionApiPath);
       const sessionAPI = new SessionAPI();
       const staleProbeSessions = (await sessionAPI.listSessions(workspacePath))
-        .filter(session => session.sessionName.startsWith('Void E2E stability'));
+        .filter(session => titlePrefixes.some(
+          prefix => session.sessionName.startsWith(prefix),
+        ));
 
       for (const session of staleProbeSessions) {
         await agentAPI.cancelSession(session.sessionId).catch(() => undefined);
         await sessionAPI.deleteSession(session.sessionId, workspacePath);
         flowChatStore.removeSession(session.sessionId);
       }
-    }, TEST_WORKSPACE_PATH);
+    }, {
+      titlePrefixes: SESSION_PROBE_TITLE_PREFIXES,
+      workspacePath: TEST_WORKSPACE_PATH,
+    });
   });
 
   afterEach(async () => {
