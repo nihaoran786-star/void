@@ -10,7 +10,7 @@ const readSource = (relativePath: string): string =>
   readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
 
 const sha256 = (relativePath: string): string =>
-  createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
+  sha256Text(readSource(relativePath));
 
 const sha256Text = (source: string): string =>
   createHash('sha256').update(source).digest('hex');
@@ -36,16 +36,16 @@ describe('Agents scene Minimal presentation contract', () => {
       'aa24794f9fae4914f35829e5bdd442b95f00c822ca779d530ad56c003fdac1bd',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      'edb37d48b85194d36105081a78c08d87dc25adc0f9c9a243adbafdb99138eadb',
+      '4cb9bd8a3bf1d2d41c96151f3676bd0e186516eb1c6b50905ca3a13437aa4ab3',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      '5233367039aa746057b1a77d5e6cf760c8c31f0d61c644ae88380ca1e5191604',
+      '6c91afe416d6807ffb0ad6e0fa6b53cacbfb300e377f15fb31a1472b8c675586',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      '0960eb15332ba2ea890fab502cd8510b1ca11ef728b49263e208baa63faeb676',
+      '90fb45e966bb8985dc3b53575f67dea166fee12d94e080a63c3d394f28fc9dac',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
-      'd110bce323ec56728ffe27ee4d90b2bd87af106f0265043fd1c3b6b37c215533',
+      '270b4ba8a2043c28ae885356a0ca66a77c3bc9c6adab50488e19645dbce3b2d7',
     );
   });
 

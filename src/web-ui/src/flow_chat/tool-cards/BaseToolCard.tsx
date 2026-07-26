@@ -8,6 +8,10 @@ import { SmoothHeightCollapse } from '../components/modern/SmoothHeightCollapse'
 import type { ToolCardHeaderAffordanceKind } from './ToolCardHeaderLayoutContext';
 import { ToolCardIconSlot } from './ToolCardIconSlot';
 import { ToolCardStatusIcon } from './ToolCardStatusIcon';
+import {
+  renderToolCardHeaderActivation,
+  statusUsesLoadingShimmer,
+} from './toolCardPresentation';
 import './BaseToolCard.scss';
 
 export type ToolCardStatus =
@@ -22,30 +26,6 @@ export type ToolCardStatus =
   | 'analyzing'
   | 'pending_confirmation'
   | 'confirmed';
-
-export const statusUsesLoadingShimmer = (status: ToolCardStatus): boolean =>
-  status !== 'pending' && status.endsWith('ing');
-
-export const renderToolCardHeaderActivation = (
-  affordanceKind: ToolCardHeaderAffordanceKind,
-  isExpanded: boolean,
-  onClick: React.MouseEventHandler<HTMLButtonElement>,
-) => {
-  const expandsInline = affordanceKind === 'expand';
-  return (
-    <button
-      type="button"
-      className="tool-card-header-activation"
-      onClick={onClick}
-      aria-label={
-        expandsInline
-          ? isExpanded ? 'Collapse details' : 'Expand details'
-          : 'Open details'
-      }
-      aria-expanded={expandsInline ? isExpanded : undefined}
-    />
-  );
-};
 
 export interface BaseToolCardProps {
   /** Tool status */
@@ -181,7 +161,7 @@ export interface ToolCardHeaderProps {
 /**
  * Tool card header component
  */
-export const ToolCardHeader: React.FC<ToolCardHeaderProps> = ({
+export function ToolCardHeader({
   icon,
   iconClassName,
   expandAffordance = false,
@@ -192,7 +172,7 @@ export const ToolCardHeader: React.FC<ToolCardHeaderProps> = ({
   content,
   extra,
   statusIcon,
-}) => {
+}: ToolCardHeaderProps) {
   return (
     <>
       {icon != null && icon !== false && icon !== '' && (
@@ -222,4 +202,4 @@ export const ToolCardHeader: React.FC<ToolCardHeaderProps> = ({
       )}
     </>
   );
-};
+}

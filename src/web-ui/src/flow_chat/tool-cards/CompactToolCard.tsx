@@ -12,10 +12,12 @@ import React, { ReactNode } from 'react';
 import { shouldIgnoreCardToggleClick } from '@/shared/utils/textSelection';
 import {
   BaseToolCard,
-  statusUsesLoadingShimmer,
-  renderToolCardHeaderActivation,
   type BaseToolCardProps,
 } from './BaseToolCard';
+import {
+  renderToolCardHeaderActivation,
+  statusUsesLoadingShimmer,
+} from './toolCardPresentation';
 import { ToolCardIconSlot } from './ToolCardIconSlot';
 import { ToolCardStatusIcon } from './ToolCardStatusIcon';
 import type { ToolCardHeaderAffordanceKind } from './ToolCardHeaderLayoutContext';
@@ -125,7 +127,7 @@ export interface CompactToolCardHeaderProps {
   rightStatusIconWithDivider?: boolean;
 }
 
-export const CompactToolCardHeader: React.FC<CompactToolCardHeaderProps> = ({
+export function CompactToolCardHeader({
   icon,
   iconClassName,
   expandable = false,
@@ -138,7 +140,7 @@ export const CompactToolCardHeader: React.FC<CompactToolCardHeaderProps> = ({
   extra,
   rightStatusIcon,
   rightStatusIconWithDivider = false,
-}) => {
+}: CompactToolCardHeaderProps) {
   return (
     <>
       {icon && (
@@ -170,4 +172,4 @@ export const CompactToolCardHeader: React.FC<CompactToolCardHeaderProps> = ({
       )}
     </>
   );
-};
+}

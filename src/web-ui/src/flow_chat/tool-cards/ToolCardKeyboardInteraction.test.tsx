@@ -5,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BaseToolCard,
-  statusUsesLoadingShimmer,
   ToolCardHeader,
   type ToolCardStatus,
 } from './BaseToolCard';
+import { statusUsesLoadingShimmer } from './toolCardPresentation';
 import {
   CompactToolCard,
   CompactToolCardHeader,

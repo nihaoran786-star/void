@@ -23,7 +23,9 @@ describe('new session home visual governance', () => {
     expect(panelSource).not.toContain('welcome.creationModeShortDrama');
     expect(paneStyles).toContain(':has(.welcome-panel__creation-modes)');
     expect(paneStyles).toContain('.void-chat-input-drop-zone');
-    expect(paneStyles).toContain('min-height: 160px');
+    expect(paneStyles).toContain(
+      'min-height: var(--workspace-composer-min-height)',
+    );
     expect(paneStyles).toMatch(
       /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 172px\);/,
     );
