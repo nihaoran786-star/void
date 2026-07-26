@@ -15,7 +15,7 @@ describe('ChatInputWorkspaceStrip layout styles', () => {
     const stylesheet = readWorkspaceStripStylesheet();
 
     expect(stylesheet).toContain('position: relative;');
-    expect(stylesheet).toContain('min-height: 20px;');
+    expect(stylesheet).toContain('min-height: 28px;');
     expect(stylesheet).toContain('&__picker-menu {');
     expect(stylesheet).toContain('bottom: calc(100% + 8px);');
     expect(stylesheet).not.toContain('bottom: 0;');
@@ -25,12 +25,26 @@ describe('ChatInputWorkspaceStrip layout styles', () => {
     const stylesheet = readWorkspaceStripStylesheet();
 
     expect(stylesheet).toContain('max-width: calc(100% - 24px);');
-    expect(stylesheet).toContain('width: 16px;');
-    expect(stylesheet).toContain('height: 16px;');
-    expect(stylesheet).toContain('min-width: 16px;');
+    expect(stylesheet).toContain('width: 24px;');
+    expect(stylesheet).toContain('height: 24px;');
+    expect(stylesheet).toContain('min-width: 24px;');
     expect(stylesheet).toContain('width: 14px;');
     expect(stylesheet).toContain('height: 14px;');
     expect(stylesheet).toContain('color: color-mix(in srgb, var(--color-accent-500) 62%, var(--color-text-secondary));');
     expect(stylesheet).toContain('color: color-mix(in srgb, var(--color-accent-500) 86%, var(--color-text-primary));');
+  });
+
+  it('keeps workspace and permission actions comfortably clickable', () => {
+    const stylesheet = readWorkspaceStripStylesheet();
+
+    expect(stylesheet).toMatch(
+      /&__permission-trigger\s*\{[\s\S]*?min-height:\s*28px;/,
+    );
+    expect(stylesheet).toMatch(
+      /&__picker-trigger\s*\{[\s\S]*?min-height:\s*28px;/,
+    );
+    expect(stylesheet).toMatch(
+      /&__picker-option\s*\{[\s\S]*?min-height:\s*36px;/,
+    );
   });
 });
