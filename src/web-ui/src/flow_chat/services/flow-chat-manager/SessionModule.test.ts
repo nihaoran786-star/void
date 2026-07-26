@@ -17,6 +17,9 @@ const persistenceMocks = vi.hoisted(() => ({
   touchSessionActivity: vi.fn(),
   cleanupSaveState: vi.fn(),
 }));
+const btwHydrationMocks = vi.hoisted(() => ({
+  hydrateBtwRelationships: vi.fn(),
+}));
 
 vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({
   agentAPI: agentApiMocks,
@@ -64,6 +67,8 @@ vi.mock('./PersistenceModule', () => ({
   touchSessionActivity: persistenceMocks.touchSessionActivity,
   cleanupSaveState: persistenceMocks.cleanupSaveState,
 }));
+
+vi.mock('../BtwRelationshipHydrationService', () => btwHydrationMocks);
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void;
@@ -136,11 +141,16 @@ describe('SessionModule historical session coordination', () => {
     const { context, flowChatStore } = createContext(createSession());
     flowChatStore.loadSessionHistory.mockReturnValueOnce(load.promise);
     persistenceMocks.touchSessionActivity.mockResolvedValueOnce(undefined);
+    btwHydrationMocks.hydrateBtwRelationships.mockResolvedValueOnce([]);
 
     await switchChatSession(context, 'history-1');
 
     expect(flowChatStore.switchSession).toHaveBeenCalledWith('history-1');
     expect(flowChatStore.loadSessionHistory).toHaveBeenCalledTimes(1);
+    expect(btwHydrationMocks.hydrateBtwRelationships).toHaveBeenCalledWith({
+      parentSessionId: 'history-1',
+      workspacePath: 'D:/workspace/void',
+    });
 
     load.resolve();
     await load.promise;

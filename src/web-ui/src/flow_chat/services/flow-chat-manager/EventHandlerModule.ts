@@ -33,6 +33,7 @@ import type {
   AcpContextUsageUpdatedEvent,
   SessionModelAutoMigratedEvent,
   SubagentSessionLinkedEvent,
+  SubagentTaskChangedEvent,
 } from '@/infrastructure/api/service-api/AgentAPI';
 import { i18nService } from '@/infrastructure/i18n/core/I18nService';
 import { MCPAPI } from '@/infrastructure/api/service-api/MCPAPI';
@@ -47,6 +48,10 @@ import {
 } from '@/shared/ai-errors/aiErrorPresenter';
 import { useReviewActionBarStore } from '../../store/deepReviewActionBarStore';
 import { buildDeepReviewCapacityQueueStateFromEvent } from '../../utils/deepReviewQueueStateEvents';
+import {
+  applySubagentTaskProjection,
+  hydrateSubagentTaskProjections,
+} from '../SubagentTaskProjectionService';
 
 const pendingImageAnalysisTurns = new Map<string, string>();
 import { 
@@ -54,7 +59,6 @@ import {
   immediateSaveDialogTurn, 
   saveDialogTurnToDisk,
   cleanupSaveState,
-  updateSessionMetadata,
 } from './PersistenceModule';
 import { 
   processNormalTextChunkInternal, 
@@ -150,6 +154,7 @@ export const __test_only__ = {
   resolveDialogTurnDisplayContent,
   shouldAllowLateMediaToolEvent,
   ensureSubagentSession,
+  handleDialogTurnFailed,
 };
 
 function shouldMarkUnreadCompletion(sessionId: string): boolean {
@@ -510,6 +515,27 @@ function handleSubagentSessionLinked(
     agentType,
     workspacePath: resolveExternalSessionWorkspacePath(context, event as Record<string, unknown>),
   });
+  void hydrateSubagentTaskProjections(context.flowChatStore, parentSessionId).catch((error) => {
+    log.warn('Failed to hydrate subagent task projection after session link', {
+      parentSessionId,
+      childSessionId,
+      error,
+    });
+  });
+}
+
+function handleSubagentTaskChanged(
+  context: FlowChatContext,
+  event: SubagentTaskChangedEvent,
+): void {
+  const projected = applySubagentTaskProjection(context.flowChatStore, event.task);
+  if (!projected) {
+    log.debug('Deferred subagent task projection until parent Task item is available', {
+      parentSessionId: event.task.parentSessionId,
+      childSessionId: event.task.childSessionId,
+      taskId: event.task.taskId,
+    });
+  }
 }
 
 export function emitSubagentSessionLinkedEventForObservers(
@@ -754,6 +780,9 @@ export async function initializeEventListeners(
     },
     onSubagentSessionLinked: (event) => {
       handleSubagentSessionLinked(context, event);
+    },
+    onSubagentTaskChanged: (event) => {
+      handleSubagentTaskChanged(context, event);
     },
     onDeepReviewQueueStateChanged: (event) => {
       handleDeepReviewQueueStateChanged(event);
@@ -2373,9 +2402,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
   context.flowChatStore.markSessionFinished(sessionId);
   
   const dialogTurn = session.dialogTurns.find(turn => turn.id === turnId);
-  const hasSuccessfulModelRounds = dialogTurn && dialogTurn.modelRounds.length > 0;
-  
-  if (hasSuccessfulModelRounds) {
+  if (dialogTurn) {
     context.flowChatStore.updateDialogTurn(sessionId, turnId, turn => {
       const updatedModelRounds = turn.modelRounds.map((round) => {
         if (round.isStreaming) {
@@ -2395,6 +2422,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
         modelRounds: updatedModelRounds,
         status: 'error' as const,
         error: error || 'Execution failed',
+        errorDetail,
         endTime: Date.now()
       };
     });
@@ -2402,8 +2430,8 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
     saveDialogTurnToDisk(context, sessionId, turnId).catch(err => {
       log.warn('Failed to save failed dialog turn', { sessionId, turnId, error: err });
     });
-  } else {
-    if (dialogTurn?.userMessage?.content) {
+
+    if (dialogTurn.modelRounds.length === 0 && dialogTurn.userMessage?.content) {
       try {
         // B-policy: restore the failed turn's user content into the pending
         // queue exactly once, marked `failed` and `retryCount=1`. The auto-drain
@@ -2415,6 +2443,7 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
           sessionId,
           content: dialogTurn.userMessage.content,
           displayMessage: dialogTurn.userMessage.content,
+          userMessageMetadata: dialogTurn.userMessage.metadata,
           retryCount: 1,
           initialStatus: 'failed',
         });
@@ -2426,11 +2455,6 @@ function handleDialogTurnFailed(context: FlowChatContext, event: any): void {
         });
       }
     }
-
-    context.flowChatStore.deleteDialogTurn(sessionId, turnId);
-    updateSessionMetadata(context, sessionId).catch(err => {
-      log.warn('Failed to update failed session metadata', { sessionId, error: err });
-    });
   }
   
   const currentState = stateMachineManager.getCurrentState(sessionId);

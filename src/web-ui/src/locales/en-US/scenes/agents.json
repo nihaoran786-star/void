@@ -126,6 +126,15 @@
       "team": "Team",
       "other": "Other"
     },
+    "toolGroups": {
+      "core": "Core tools",
+      "onDemand": "On-demand tools",
+      "mcp": "MCP tools",
+      "integration": "Integration tools"
+    },
+    "onDemandCount": "{{count}} on demand",
+    "onDemandDescription": "Loaded through GetToolSpec only when the agent needs it",
+    "expandedDescription": "Included in the agent tool manifest immediately",
     "customActions": "Custom agent",
     "editAgent": "Edit",
     "deleteAgent": "Delete",

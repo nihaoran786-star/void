@@ -11,7 +11,7 @@ import type { FlowChatContext, FlowToolItem, ToolEventOptions, DialogTurn } from
 import { immediateSaveDialogTurn } from './PersistenceModule';
 import { applyPendingAcpPermissionForTool } from './AcpPermissionToolCardModule';
 import { normalizeParamsPartialFragment } from '../EventBatcher';
-import type { FlowItem } from '../../types/flow-chat';
+import type { FlowItem, ViewImagePreviewAttachment } from '../../types/flow-chat';
 import type {
   CancelledToolEvent,
   CompletedToolEvent,
@@ -23,6 +23,43 @@ import type {
   ProgressToolEvent,
   StartedToolEvent,
 } from '../EventBatcher';
+
+const VIEW_IMAGE_ALLOWED_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/bmp',
+] as const);
+const VIEW_IMAGE_MAX_BASE64_CHARS = 6_990_508;
+
+type ViewImageMimeType = ViewImagePreviewAttachment['mimeType'];
+
+export function normalizeViewImagePreviewAttachments(
+  attachments: CompletedToolEvent['image_attachments'],
+): FlowToolItem['previewImageAttachments'] {
+  for (const attachment of attachments ?? []) {
+    if (typeof attachment.mime_type !== 'string' || typeof attachment.data_base64 !== 'string') {
+      continue;
+    }
+    const mimeType = attachment.mime_type.trim().toLowerCase();
+    const dataBase64 = attachment.data_base64.trim();
+    if (
+      VIEW_IMAGE_ALLOWED_MIME_TYPES.has(mimeType as ViewImageMimeType)
+      && dataBase64.length > 0
+      && dataBase64.length <= VIEW_IMAGE_MAX_BASE64_CHARS
+      && dataBase64.length % 4 === 0
+      && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(dataBase64)
+    ) {
+      return [{
+        mimeType: mimeType as ViewImageMimeType,
+        dataBase64,
+      }];
+    }
+  }
+
+  return undefined;
+}
 
 const log = createLogger('ToolEventModule');
 const pendingTerminalSessionIds = new Map<string, string>();
@@ -626,7 +663,10 @@ function handleCompleted(
     queueWaitMs: toolEvent.queue_wait_ms,
     preflightMs: toolEvent.preflight_ms,
     confirmationWaitMs: toolEvent.confirmation_wait_ms,
-    executionMs: toolEvent.execution_ms
+    executionMs: toolEvent.execution_ms,
+    previewImageAttachments: toolEvent.tool_name === 'ViewImage'
+      ? normalizeViewImagePreviewAttachments(toolEvent.image_attachments)
+      : undefined
   };
 
   store.updateModelRoundItem(sessionId, turnId, toolEvent.tool_id, updates as any);

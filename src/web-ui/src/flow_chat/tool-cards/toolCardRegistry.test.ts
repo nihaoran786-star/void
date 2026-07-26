@@ -24,6 +24,7 @@ describe('toolCardRegistry', () => {
     expect(TOOL_CARD_COMPONENTS.GenerateImage).toBe(TOOL_CARD_COMPONENTS.GenerateVideo);
     expect(TOOL_CARD_COMPONENTS.GenerateVideo).toBe(TOOL_CARD_COMPONENTS.GenerateSpeech);
     expect(getToolCardComponent('Read')).toBe(TOOL_CARD_COMPONENTS.Read);
+    expect(getToolCardComponent('ViewImage')).toBe(TOOL_CARD_COMPONENTS.ViewImage);
     expect(getToolCardComponent('Read')).toBe(getToolCardComponent('Read'));
   });
 

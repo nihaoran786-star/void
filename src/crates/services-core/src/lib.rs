@@ -6,8 +6,10 @@
 pub mod diagnostics;
 pub mod diff;
 pub mod filesystem;
+pub mod local_asr;
 pub mod process_manager;
 pub mod session;
+pub mod session_reference;
 pub mod session_usage;
 pub mod system;
 pub mod token_usage;

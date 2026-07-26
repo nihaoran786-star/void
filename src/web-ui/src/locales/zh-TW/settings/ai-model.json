@@ -30,6 +30,23 @@
     "notDetected": "本機未檢測到 {{kind}} 已登錄賬號，請先在終端完成登錄",
     "unknownAccount": "當前登錄賬號"
   },
+  "subscriptionAuth": {
+    "options": {
+      "codex": "Codex 訂閱賬號",
+      "opencode": "OpenCode 訂閱賬號"
+    },
+    "loading": "正在檢查已連接的訂閱賬號…",
+    "connected": "將使用已連接的訂閱賬號（{{account}}），Token 僅保存在系統憑據庫中。",
+    "currentAccount": "當前賬號",
+    "openAccountSettings": "前往賬號設置",
+    "status": {
+      "disconnected": "該訂閱賬號尚未連接。",
+      "vault_unavailable": "系統憑據庫當前不可用。",
+      "failed": "無法讀取該訂閱賬號。",
+      "load_failed": "訂閱賬號加載失敗。",
+      "unsupported": "桌面後端未返回該訂閱服務。"
+    }
+  },
   "providerSelection": {
     "title": "選擇模型提供商",
     "subtitle": "選擇一個預設提供商快速配置，或選擇自定義完全手動配置",
@@ -333,6 +350,43 @@
       "invalidJson": "JSON格式錯誤，請檢查語法",
       "validJson": "JSON格式有效",
       "mergeHint": "自定義字段將覆蓋默認請求體中的對應字段"
+    }
+  },
+  "localAsr": {
+    "title": "本地語音輸入",
+    "description": "設定本地 ASR 模型目錄並檢查可用狀態。目前版本未封裝推理引擎，不會上傳音訊或假裝可用。",
+    "enable": "啟用本地語音輸入",
+    "enableDescription": "只開啟能力開關；實際轉寫仍需要本地推理引擎。",
+    "modelDirectory": "模型目錄",
+    "modelDirectoryDescription": "目錄中的第一層檔案或資料夾會被發現為模型選項。",
+    "modelDirectoryPlaceholder": "例如 D:\\Models\\ASR",
+    "modelId": "模型 ID",
+    "modelIdDescription": "填寫模型目錄中的一個檔案或資料夾名稱。",
+    "discoveredModels": "已發現：{{models}}",
+    "capabilityStatus": "能力狀態",
+    "statusDescription": "狀態由桌面端本地 Adapter 檢查，不由頁面推測。",
+    "refresh": "重新整理狀態",
+    "save": "儲存",
+    "saving": "儲存中…",
+    "saved": "本地語音輸入設定已儲存",
+    "saveFailed": "本地語音輸入設定儲存失敗",
+    "status": {
+      "loading": "檢查中",
+      "disabled": "未啟用",
+      "missing_directory": "模型目錄不存在",
+      "missing_model": "模型不存在",
+      "unavailable": "暫不可用",
+      "ready": "可用",
+      "failed": "檢查失敗"
+    },
+    "errors": {
+      "unsupported_provider": "目前 Adapter 只支援本地模型。",
+      "invalid_model_id": "模型 ID 只能是一個本地檔案或資料夾名稱。",
+      "model_directory_missing": "請填寫存在的本地模型目錄。",
+      "model_missing": "所選模型不在設定目錄中。",
+      "model_corrupt": "所選 SenseVoice 模型必須包含 model.int8.onnx 和 tokens.txt。",
+      "engine_not_bundled": "目前建置未封裝本地 ASR 推理引擎；推理依賴需要另行審批。",
+      "inspection_failed": "無法讀取本地模型狀態，請檢查目錄權限後重試。"
     }
   }
 }

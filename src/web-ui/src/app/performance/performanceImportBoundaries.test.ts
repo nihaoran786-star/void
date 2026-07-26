@@ -387,6 +387,7 @@ describe('Web UI startup import boundaries', () => {
       'MCPToolDisplay',
       'DefaultToolCard',
       'MediaGenerationToolCard',
+      'ViewImageToolCard',
     ]) {
       expect(registry).toContain(`import('./${moduleName}')`);
       expect(registry).not.toMatch(new RegExp(`from ['"]\\./${moduleName}['"]`));

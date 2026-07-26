@@ -32,6 +32,7 @@ chrono-tz = { workspace = true, optional = true }
 cron = { workspace = true, optional = true }
 regex = { workspace = true }
 base64 = { workspace = true }
+keyring-core = { workspace = true }
 image = { workspace = true, optional = true }
 md5 = { workspace = true, optional = true }
 aes = { version = "0.8", optional = true }
@@ -150,11 +151,18 @@ void-transport = { path = "../transport" }
 # Tauri dependency (optional, enabled only when needed)
 tauri = { workspace = true, optional = true }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { workspace = true }
+
+[target.'cfg(all(unix, not(any(target_os = "macos", target_os = "ios", target_os = "android"))))'.dependencies]
+zbus-secret-service-keyring-store = { workspace = true }
+
 # Non-Windows: vendored OpenSSL for libgit2 (no system install).
 [target.'cfg(not(windows))'.dependencies]
 git2 = { workspace = true, features = ["vendored-openssl"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
+windows-native-keyring-store = { workspace = true }
 win32job = { workspace = true }
 rustls = { version = "0.23", default-features = false }
 rustls-native-certs = "0.8"

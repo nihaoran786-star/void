@@ -14,6 +14,7 @@ tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 log = { workspace = true }
+void-core-types = { path = "../core-types" }
 void-events = { path = "../events" }
 void-runtime-ports = { path = "../runtime-ports", optional = true }
 aes-gcm = { workspace = true, optional = true }
@@ -37,6 +38,7 @@ rmcp = { version = "0.12.0", default-features = false, features = [
     "server",
 ], optional = true }
 sha2 = { workspace = true, optional = true }
+sherpa-onnx = { workspace = true, optional = true }
 sse-stream = { version = "0.2.1", optional = true }
 thiserror = { workspace = true, optional = true }
 tokio-util = { workspace = true, optional = true }
@@ -50,6 +52,8 @@ default = []
 announcement = []
 git = ["void-services-core", "chrono", "git2", "thiserror"]
 file-watch = ["notify"]
+local-asr = ["void-services-core"]
+local-asr-engine = ["local-asr", "base64", "sherpa-onnx", "uuid"]
 mcp = [
     "aes-gcm",
     "anyhow",
@@ -69,6 +73,7 @@ product-full = [
     "announcement",
     "file-watch",
     "git",
+    "local-asr",
     "mcp",
     "remote-connect",
     "remote-ssh",

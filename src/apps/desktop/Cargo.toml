@@ -20,6 +20,8 @@ serde_json = { workspace = true }
 [dependencies]
 # Internal crates
 void-core = { path = "../../crates/core", default-features = false, features = ["product-full"] }
+void-core-types = { path = "../../crates/core-types" }
+void-services-integrations = { path = "../../crates/services-integrations", default-features = false, features = ["local-asr"] }
 void-transport = { path = "../../crates/transport", features = ["tauri-adapter"] }
 void-webdriver = { path = "../../crates/webdriver" }
 void-acp = { path = "../../crates/acp" }
@@ -108,6 +110,7 @@ default = []
 # Only active in debug builds or when explicitly requested via --features devtools.
 # Never enabled in release profile intended for end users.
 devtools = ["tauri/devtools"]
+local-asr-engine = ["void-services-integrations/local-asr-engine"]
 
 [target.'cfg(target_os = "linux")'.dependencies]
 atspi = "0.29"

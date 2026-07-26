@@ -509,4 +509,53 @@ describe('sessionToVirtualItems explore grouping', () => {
       steeringStatus: 'pending',
     });
   });
+
+  it('projects one failure notice only for an explicit error with diagnostics', () => {
+    const failedSession = makeSession({
+      dialogTurns: [{
+        id: 'turn-failed',
+        sessionId: 'session-1',
+        userMessage: {
+          id: 'user-failed',
+          content: 'Try the provider',
+          timestamp: 900,
+        },
+        modelRounds: [],
+        status: 'error',
+        error: 'Provider request failed',
+        errorDetail: {
+          category: 'network',
+          requestId: 'request-1',
+          retryable: true,
+        },
+        startTime: 900,
+      }],
+    });
+
+    expect(sessionToVirtualItems(failedSession)).toEqual([
+      expect.objectContaining({ type: 'user-message', turnId: 'turn-failed' }),
+      {
+        type: 'turn-failure-notice',
+        turnId: 'turn-failed',
+        data: {
+          error: 'Provider request failed',
+          errorDetail: {
+            category: 'network',
+            requestId: 'request-1',
+            retryable: true,
+          },
+        },
+      },
+    ]);
+
+    const missingDiagnostics = makeSession({
+      sessionId: 'session-2',
+      dialogTurns: [{
+        ...failedSession.dialogTurns[0],
+        sessionId: 'session-2',
+        errorDetail: undefined,
+      }],
+    });
+    expect(sessionToVirtualItems(missingDiagnostics).map(item => item.type)).toEqual(['user-message']);
+  });
 });

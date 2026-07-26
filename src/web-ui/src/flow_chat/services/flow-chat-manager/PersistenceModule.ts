@@ -77,13 +77,20 @@ async function runSerialDialogTurnSave(
  * Calculate content hash for dialog turn (for deduplication)
  */
 export function calculateTurnHash(dialogTurn: DialogTurn): string {
+  const lastRound = dialogTurn.modelRounds[dialogTurn.modelRounds.length - 1];
   const keyData = JSON.stringify({
     status: dialogTurn.status,
     roundsCount: dialogTurn.modelRounds.length,
-    lastRoundData: dialogTurn.modelRounds[dialogTurn.modelRounds.length - 1]
+    lastRoundData: lastRound
       ? {
-          ...dialogTurn.modelRounds[dialogTurn.modelRounds.length - 1],
-          items: dialogTurn.modelRounds[dialogTurn.modelRounds.length - 1].items.filter(item => !isRuntimeStatusItem(item)),
+          ...lastRound,
+          items: lastRound.items
+            .filter(item => !isRuntimeStatusItem(item))
+            .map(item => {
+              const hashableItem = { ...item };
+              delete (hashableItem as { previewImageAttachments?: unknown }).previewImageAttachments;
+              return hashableItem;
+            }),
         }
       : null,
     error: dialogTurn.error,
@@ -461,6 +468,8 @@ export function convertDialogTurnToBackendFormat(dialogTurn: DialogTurn, turnInd
     }),
     startTime: dialogTurn.startTime,
     endTime: dialogTurn.endTime,
+    error: dialogTurn.error,
+    errorDetail: dialogTurn.errorDetail,
     status: dialogTurn.status === 'completed' ? 'completed' : 
             dialogTurn.status === 'error' ? 'error' : 
             dialogTurn.status === 'cancelled' ? 'cancelled' : 'inprogress',

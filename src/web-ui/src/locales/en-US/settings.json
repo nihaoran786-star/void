@@ -88,6 +88,44 @@
         "invalid_data": "Usage records have an invalid format."
       }
     },
+    "subscriptions": {
+      "title": "Model subscriptions",
+      "description": "Connect Codex or OpenCode in your system browser. Credentials stay in this device's secure vault.",
+      "loading": "Loading subscription accounts",
+      "listAriaLabel": "Model subscription accounts",
+      "statusAriaLabel": "{{provider}} status: {{status}}",
+      "unknownAccount": "Connected account",
+      "expiresAt": "Expires {{date}}",
+      "providers": {
+        "codex": "Codex (ChatGPT)",
+        "opencode": "OpenCode"
+      },
+      "states": {
+        "connected": "Connected",
+        "disconnected": "Not connected",
+        "vault_unavailable": "Vault unavailable",
+        "failed": "Unavailable",
+        "disconnectedHint": "Sign in to use this subscription for model access.",
+        "vault_unavailableHint": "The secure credential vault is temporarily unavailable. Retry without signing in again.",
+        "failedHint": "Subscription status could not be loaded."
+      },
+      "login": {
+        "pending": "Waiting for authorization in your browser.",
+        "code": "Verification code:",
+        "openFailed": "The browser could not be opened: {{error}}. Use Open browser to try again.",
+        "authorized": "Authorization completed.",
+        "cancelled": "Authorization cancelled.",
+        "failed": "Authorization failed."
+      },
+      "actions": {
+        "login": "Sign in",
+        "cancel": "Cancel",
+        "open": "Open browser",
+        "refresh": "Refresh",
+        "logout": "Sign out",
+        "retry": "Retry"
+      }
+    },
     "states": {
       "anonymous": "Not signed in",
       "anonymousHint": "Sign in securely using your system browser.",
@@ -614,5 +652,28 @@
       "import": "Import Theme",
       "export": "Export Current Theme"
     }
+  },
+  "agentMemory": {
+    "title": "Workspace memory",
+    "description": "Memory is optional. Review every candidate before it is saved. Credentials and hidden system data are rejected.",
+    "extractionPermission": "Allow extraction from the current session",
+    "extractionPermissionHint": "Off by default. Extraction is manual, bounded, tool-free, and never saves without your approval.",
+    "openWorkspace": "Open a local workspace session to manage its memories.",
+    "placeholder": "Add a durable preference or project fact",
+    "candidateAriaLabel": "New memory candidate",
+    "review": "Review candidate",
+    "rejected": "The candidate was rejected because it may contain sensitive data.",
+    "reviewSession": "Review current session",
+    "candidatesAriaLabel": "Memory candidates awaiting review",
+    "editCandidate": "Edit memory candidate",
+    "merge": "Updates an existing memory",
+    "empty": "No saved memories for this workspace.",
+    "btwTranscriptUnsupported": "This BTW session has no durable transcript available for memory extraction.",
+    "deleteConfirmTitle": "Delete workspace memory?",
+    "deleteConfirmMessage": "This permanently deletes “{{content}}”.",
+    "save": "Save",
+    "discard": "Discard",
+    "savedAriaLabel": "Saved workspace memories",
+    "delete": "Delete"
   }
 }

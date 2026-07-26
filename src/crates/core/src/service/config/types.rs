@@ -6,6 +6,13 @@ use crate::util::errors::*;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use void_core_types::SubscriptionProvider;
+
+#[cfg(feature = "product-full")]
+pub use void_product_domains::tool_permissions::{
+    ToolPermissionConfig, ToolPermissionDecision, ToolPermissionMode, ToolPermissionPreset,
+    ToolPermissionReason, ToolPermissionResolution, ToolPermissionRule, ToolPermissionSource,
+};
 
 fn deserialize_agent_profiles<'de, D>(
     deserializer: D,
@@ -176,6 +183,12 @@ pub struct AIExperienceConfig {
     pub agent_companion_pet: Option<AgentCompanionPetSelection>,
     /// Whether to enable flashgrep-backed accelerated workspace search.
     pub enable_workspace_search: bool,
+    /// Whether the user may explicitly extract memory candidates from a session.
+    /// Saving still requires explicit per-candidate approval.
+    #[serde(default)]
+    pub agent_memory_extraction_enabled: bool,
+    /// Local speech-to-text settings for the chat composer.
+    pub voice_input: VoiceInputConfig,
     /// User-defined quick actions (post-coding menu); persisted for the web UI.
     #[serde(default)]
     pub quick_actions: Vec<AiExperienceQuickAction>,
@@ -463,6 +476,7 @@ pub enum ModelCategory {
 }
 
 pub use void_ai_adapters::types::ReasoningMode;
+pub use void_services_core::local_asr::VoiceInputConfig;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
@@ -623,6 +637,14 @@ pub struct AIConfig {
     /// Skip tool execution confirmation (global, applies to all modes).
     #[serde(default = "default_skip_tool_confirmation")]
     pub skip_tool_confirmation: bool,
+
+    /// Ordered native tool-permission policy.
+    ///
+    /// `skip_tool_confirmation` remains as a compatibility projection while
+    /// runtimes migrate to this typed policy.
+    #[cfg(feature = "product-full")]
+    #[serde(default)]
+    pub tool_permissions: ToolPermissionConfig,
 
     /// Selects how the Write tool obtains file content.
     #[serde(default)]
@@ -820,7 +842,7 @@ fn default_tool_confirmation_timeout() -> Option<u64> {
 }
 
 fn default_skip_tool_confirmation() -> bool {
-    true
+    false
 }
 
 fn default_subagent_max_concurrency() -> usize {
@@ -1179,10 +1201,9 @@ pub struct AIModelConfig {
 
 /// Where to obtain the runtime auth material for an `AIModelConfig`.
 ///
-/// Stored on disk as `{"type":"api_key"}` / `{"type":"codex_cli"}` /
-/// `{"type":"gemini_cli"}`; the concrete sub-mode (apikey vs OAuth) is
-/// auto-detected from the CLI's on-disk state at resolution time so the user
-/// only has to choose "use Codex CLI" once.
+/// Subscription auth stores only the typed provider selector. Access and
+/// refresh tokens stay in the native credential vault and are resolved at
+/// client creation time.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthConfig {
@@ -1193,6 +1214,8 @@ pub enum AuthConfig {
     CodexCli,
     /// Reuse `~/.gemini/.env` or `~/.gemini/oauth_creds.json`.
     GeminiCli,
+    /// Resolve a locally connected subscription account from the native vault.
+    Subscription { provider: SubscriptionProvider },
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1431,6 +1454,8 @@ impl Default for AIExperienceConfig {
             agent_companion_display_mode: "desktop".to_string(),
             agent_companion_pet: default_agent_companion_pet(),
             enable_workspace_search: false,
+            agent_memory_extraction_enabled: false,
+            voice_input: VoiceInputConfig::default(),
             quick_actions: Vec::new(),
         }
     }
@@ -1636,7 +1661,9 @@ impl Default for AIConfig {
             stream_ttft_timeout_secs: default_stream_ttft_timeout(),
             tool_execution_timeout_secs: default_tool_execution_timeout(),
             tool_confirmation_timeout_secs: default_tool_confirmation_timeout(),
-            skip_tool_confirmation: true,
+            skip_tool_confirmation: false,
+            #[cfg(feature = "product-full")]
+            tool_permissions: ToolPermissionConfig::default(),
             write_tool_mode: WriteToolMode::default(),
             debug_mode_config: DebugModeConfig::default(),
             computer_use_enabled: false,
@@ -1847,9 +1874,57 @@ impl AIModelConfig {
 #[cfg(test)]
 mod tests {
     use super::{
-        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, GlobalConfig,
+        AIConfig, AIExperienceConfig, AIModelConfig, AppLoggingConfig, AuthConfig, GlobalConfig,
         ModelCapability, ModelCategory, ReasoningMode,
     };
+    use void_core_types::SubscriptionProvider;
+
+    #[test]
+    fn subscription_auth_round_trips_without_secret_material() {
+        let config: AIModelConfig = serde_json::from_value(serde_json::json!({
+            "id": "subscription-model",
+            "name": "Codex subscription",
+            "provider": "responses",
+            "model_name": "gpt-5-codex",
+            "base_url": "https://placeholder.invalid",
+            "api_key": "",
+            "enabled": true,
+            "auth": {
+                "type": "subscription",
+                "provider": "codex"
+            }
+        }))
+        .expect("subscription auth should deserialize");
+
+        assert_eq!(
+            config.auth,
+            AuthConfig::Subscription {
+                provider: SubscriptionProvider::Codex
+            }
+        );
+        let serialized = serde_json::to_value(&config).expect("config should serialize");
+        assert_eq!(serialized["auth"]["type"], "subscription");
+        assert_eq!(serialized["auth"]["provider"], "codex");
+        assert_eq!(serialized["api_key"], "");
+        assert!(serialized.to_string().find("access_token").is_none());
+        assert!(serialized.to_string().find("refresh_token").is_none());
+    }
+
+    #[test]
+    fn missing_auth_remains_legacy_api_key() {
+        let config: AIModelConfig = serde_json::from_value(serde_json::json!({
+            "id": "legacy-model",
+            "name": "Legacy",
+            "provider": "openai",
+            "model_name": "legacy",
+            "base_url": "https://example.test/v1",
+            "api_key": "legacy-key",
+            "enabled": true
+        }))
+        .expect("legacy model should deserialize");
+
+        assert_eq!(config.auth, AuthConfig::ApiKey);
+    }
 
     #[test]
     fn deserializes_compatibility_thinking_flag_into_reasoning_mode() {
@@ -2010,6 +2085,33 @@ mod tests {
     }
 
     #[test]
+    fn voice_input_config_defaults_disabled_and_round_trips_model_directory() {
+        let default_config: AIExperienceConfig =
+            serde_json::from_value(serde_json::json!({})).expect("empty config should default");
+        assert!(!default_config.voice_input.enabled);
+
+        let config: AIExperienceConfig = serde_json::from_value(serde_json::json!({
+            "voice_input": {
+                "enabled": true,
+                "provider": "local",
+                "model_id": "sensevoice-small-int8",
+                "model_directory": "D:/models/asr",
+                "default_language": "auto",
+                "max_recording_seconds": 60,
+                "microphone_device_id": ""
+            }
+        }))
+        .expect("voice input config should deserialize");
+
+        assert_eq!(config.voice_input.model_directory, "D:/models/asr");
+        let serialized = serde_json::to_value(config).expect("voice input config should serialize");
+        assert_eq!(
+            serialized["voice_input"]["model_id"],
+            "sensevoice-small-int8"
+        );
+    }
+
+    #[test]
     fn preserves_selected_agent_companion_pet() {
         let config: AIExperienceConfig = serde_json::from_value(serde_json::json!({
             "enable_session_title_generation": true,
@@ -2091,6 +2193,7 @@ mod tests {
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].id, "custom_1");
         assert_eq!(actions[0].label, "Run tests");
+        assert!(!config.app.ai_experience.agent_memory_extraction_enabled);
 
         let serialized = serde_json::to_value(&config).expect("config should serialize");
         assert_eq!(

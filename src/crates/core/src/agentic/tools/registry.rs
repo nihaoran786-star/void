@@ -371,6 +371,7 @@ mod tests {
             "CreatePlan",
             "submit_code_review",
             "GetToolSpec",
+            "CallDeferredTool",
             "GetFileDiff",
             "Log",
             "ShortDramaProject",

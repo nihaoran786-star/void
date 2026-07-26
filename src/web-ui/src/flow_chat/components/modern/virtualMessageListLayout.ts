@@ -115,6 +115,8 @@ export function estimateVirtualMessageItemHeight(item: VirtualItem): number {
       return estimateExploreGroupHeight(item);
     case 'image-analyzing':
       return LIVE_SESSION_DEFAULT_ITEM_HEIGHT_PX;
+    case 'turn-failure-notice':
+      return 160;
   }
 }
 

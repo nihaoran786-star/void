@@ -19,6 +19,8 @@ import {
   compareSessionsForDisplay,
   sessionBelongsToWorkspaceNavRow,
 } from '../utils/sessionOrdering';
+import { hydrateBtwRelationships } from './BtwRelationshipHydrationService';
+import { hydrateSubagentTaskProjections } from './SubagentTaskProjectionService';
 
 import type { FlowChatContext, SessionConfig, DialogTurn } from './flow-chat-manager/types';
 import {
@@ -202,6 +204,36 @@ export class FlowChatManager {
       }
 
       this.context.currentWorkspacePath = workspacePath;
+      const initializedSessionId = this.context.flowChatStore.getState().activeSessionId;
+      const initializedSession = initializedSessionId
+        ? this.context.flowChatStore.getState().sessions.get(initializedSessionId)
+        : undefined;
+      if (
+        initializedSession?.sessionKind === 'normal' &&
+        !remoteConnectionId &&
+        !initializedSession.remoteConnectionId
+      ) {
+        await hydrateBtwRelationships({
+          parentSessionId: initializedSession.sessionId,
+          workspacePath,
+        }).catch(error => {
+          log.warn('Failed to hydrate BTW relationships during initialization', {
+            sessionId: initializedSession.sessionId,
+            error,
+          });
+        });
+      }
+      if (initializedSessionId) {
+        await hydrateSubagentTaskProjections(
+          this.context.flowChatStore,
+          initializedSessionId,
+        ).catch(error => {
+          log.warn('Failed to hydrate subagent task projections during initialization', {
+            sessionId: initializedSessionId,
+            error,
+          });
+        });
+      }
 
       return hasHistoricalSessions;
     } catch (error) {

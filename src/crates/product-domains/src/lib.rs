@@ -8,3 +8,5 @@ pub mod miniapp;
 
 #[cfg(feature = "function-agents")]
 pub mod function_agents;
+
+pub mod tool_permissions;

@@ -9,6 +9,8 @@ import type {
   SessionTitleSource,
 } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
+import type { AiErrorDetail } from '@/shared/ai-errors/aiErrorPresenter';
+import type { SubagentTaskRecordDTO } from '@/infrastructure/api/service-api/AgentAPI';
 
 // Base type for streaming items.
 export interface FlowItem {
@@ -47,11 +49,18 @@ export interface FlowThinkingItem extends FlowItem {
   isCollapsed: boolean; // Whether the thinking block is collapsed.
 }
 
+export interface ViewImagePreviewAttachment {
+  mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/bmp';
+  dataBase64: string;
+}
+
 export interface FlowToolItem extends FlowItem {
   type: 'tool';
   toolName: string;
   terminalSessionId?: string;
   interruptionReason?: 'app_restart';
+  /** Durable background-task lifecycle projected onto the existing parent Task item. */
+  subagentTask?: SubagentTaskRecordDTO;
   toolCall: {
     input: any;
     id: string;
@@ -91,6 +100,11 @@ export interface FlowToolItem extends FlowItem {
   preflightMs?: number;
   confirmationWaitMs?: number;
   executionMs?: number;
+  /**
+   * Runtime-only image payload projected from a live ViewImage completion.
+   * Deliberately kept outside toolResult so history persistence stays unchanged.
+   */
+  previewImageAttachments?: ViewImagePreviewAttachment[];
 
   /** Resolved when a subagent model round completes (parent Task tool only). */
   subagentModelId?: string;
@@ -229,6 +243,7 @@ export interface DialogTurn {
   startTime: number;
   endTime?: number;
   error?: string;
+  errorDetail?: AiErrorDetail;
   tokenUsage?: TokenUsage;
   todos?: TodoItem[];
   backendTurnIndex?: number;
@@ -400,6 +415,7 @@ export interface Session {
     parentSessionId?: string;
     parentDialogTurnId?: string;
     parentTurnIndex?: number;
+    memoryEnabled?: boolean;
   };
 
   /**
@@ -476,6 +492,8 @@ export interface QueuedMessage {
   /** Image / attachment payloads forwarded to `start_dialog_turn` when drained. */
   imageContexts?: unknown[];
   imageDisplayData?: unknown[];
+  /** User-message presentation metadata forwarded unchanged when drained. */
+  userMessageMetadata?: Record<string, unknown>;
   localDialogTurnId?: string;
 }
 

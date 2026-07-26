@@ -2,6 +2,9 @@
 
 use crate::api::app_state::AppState;
 use crate::api::session_storage_path::desktop_effective_session_storage_path;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::State;
 use void_core::agentic::persistence::{
     PersistenceManager, SessionBranchRequest, SessionBranchResult, SessionMetadataPage,
 };
@@ -10,12 +13,16 @@ use void_core::service::session::{
     DialogTurnData, SessionKind, SessionMetadata, SessionStatus, SessionTranscriptExport,
     SessionTranscriptExportOptions,
 };
+use void_core::service::session_reference::{
+    candidate_from_persisted, failed_session_reference_result,
+    resolve_session_reference_transcript, too_large_session_reference_result,
+    SessionReferenceAccessScope, SessionReferenceLocator, SessionReferenceTranscriptResult,
+    SessionReferenceTranscriptStatus, SESSION_REFERENCE_MAX_REFERENCES,
+    SESSION_REFERENCE_MAX_TOKENS,
+};
 use void_core::service::session_usage::{
     generate_session_usage_report, SessionUsageReport, SessionUsageReportRequest,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ListPersistedSessionsRequest {
@@ -48,6 +55,12 @@ pub struct LoadSessionTurnsRequest {
     pub remote_ssh_host: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResolveSessionReferencesRequest {
+    pub scope: SessionReferenceAccessScope,
+    pub references: Vec<SessionReferenceLocator>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -254,6 +267,103 @@ pub async fn load_session_turns(
     };
 
     turns.map_err(|e| format!("Failed to load session turns: {}", e))
+}
+
+#[tauri::command]
+pub async fn resolve_session_references(
+    request: ResolveSessionReferencesRequest,
+    app_state: State<'_, AppState>,
+    path_manager: State<'_, Arc<PathManager>>,
+) -> Result<Vec<SessionReferenceTranscriptResult>, String> {
+    let storage_workspace_path = desktop_effective_session_storage_path(
+        &app_state,
+        &request.scope.workspace_path,
+        request.scope.remote_connection_id.as_deref(),
+        request.scope.remote_ssh_host.as_deref(),
+    )
+    .await;
+    let manager = PersistenceManager::new(path_manager.inner().clone())
+        .map_err(|error| format!("Failed to create persistence manager: {error}"))?;
+    let mut results = Vec::with_capacity(request.references.len());
+    let mut injected_tokens = 0usize;
+
+    for (index, locator) in request.references.into_iter().enumerate() {
+        if index >= SESSION_REFERENCE_MAX_REFERENCES {
+            results.push(too_large_session_reference_result(
+                &locator,
+                "Too many session references were requested.",
+            ));
+            continue;
+        }
+        // Validate the explicit locator before touching persistence so a
+        // cross-workspace reference cannot be used as an existence oracle.
+        let preflight = resolve_session_reference_transcript(&request.scope, &locator, None);
+        if preflight.status != SessionReferenceTranscriptStatus::Missing {
+            results.push(preflight);
+            continue;
+        }
+
+        let metadata = match manager
+            .load_session_metadata(&storage_workspace_path, &locator.session_id)
+            .await
+        {
+            Ok(Some(metadata)) => metadata,
+            Ok(None) => {
+                results.push(preflight);
+                continue;
+            }
+            Err(_error) => {
+                results.push(failed_session_reference_result(
+                    &locator,
+                    "Failed to read referenced session metadata.",
+                ));
+                continue;
+            }
+        };
+
+        let authorization_candidate = candidate_from_persisted(&metadata, &[]);
+        let authorization = resolve_session_reference_transcript(
+            &request.scope,
+            &locator,
+            Some(&authorization_candidate),
+        );
+        if authorization.status != SessionReferenceTranscriptStatus::Ready {
+            results.push(authorization);
+            continue;
+        }
+
+        match manager
+            .load_session_turns(&storage_workspace_path, &locator.session_id)
+            .await
+        {
+            Ok(turns) => {
+                let candidate = candidate_from_persisted(&metadata, &turns);
+                let resolved = resolve_session_reference_transcript(
+                    &request.scope,
+                    &locator,
+                    Some(&candidate),
+                );
+                if resolved.status == SessionReferenceTranscriptStatus::Ready
+                    && injected_tokens.saturating_add(resolved.estimated_tokens)
+                        > SESSION_REFERENCE_MAX_TOKENS
+                {
+                    results.push(too_large_session_reference_result(
+                        &locator,
+                        "Combined session references exceed the safe injection budget.",
+                    ));
+                } else {
+                    injected_tokens = injected_tokens.saturating_add(resolved.estimated_tokens);
+                    results.push(resolved);
+                }
+            }
+            Err(_error) => results.push(failed_session_reference_result(
+                &locator,
+                "Failed to read referenced session transcript.",
+            )),
+        }
+    }
+
+    Ok(results)
 }
 
 #[tauri::command]

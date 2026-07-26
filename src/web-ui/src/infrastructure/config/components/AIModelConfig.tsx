@@ -21,6 +21,10 @@ import DefaultModelConfig from './DefaultModelConfig';
 import { createLogger } from '@/shared/utils/logger';
 import { translateConnectionTestMessage } from '@/shared/utils/aiConnectionTestMessages';
 import './AIModelConfig.scss';
+import { LocalAsrSettings } from './LocalAsrSettings';
+import { ModelAuthSourceField } from '../model-auth/ModelAuthSourceField';
+import { normalizeModelAuthForPersistence } from '../model-auth/modelSubscriptionAuth';
+import { useModelSubscriptionAccounts } from '../model-auth/useModelSubscriptionAccounts';
 
 const log = createLogger('AIModelConfig');
 
@@ -286,7 +290,13 @@ function previewRequestUrl(baseUrl: string, provider: string): string {
   return resolveRequestUrl(baseUrl, provider);
 }
 
-const AIModelConfig: React.FC = () => {
+interface AIModelConfigProps {
+  onOpenAccountSettings?: () => void;
+}
+
+const AIModelConfig: React.FC<AIModelConfigProps> = ({
+  onOpenAccountSettings = () => undefined,
+}) => {
   const { t } = useTranslation('settings/ai-model');
   const { t: tDefault } = useTranslation('settings/default-model');
   const { t: tComponents } = useTranslation('components');
@@ -327,6 +337,7 @@ const AIModelConfig: React.FC = () => {
   const [expandedModelCards, setExpandedModelCards] = useState<Set<string>>(new Set());
   const [discoveredCli, setDiscoveredCli] = useState<DiscoveredCliCredential[]>([]);
   const [isDiscoveringCli, setIsDiscoveringCli] = useState(false);
+  const subscriptionAccounts = useModelSubscriptionAccounts();
   const lastRemoteFetchSignatureRef = React.useRef<string | null>(null);
   const activeRemoteFetchSignatureRef = React.useRef<string | null>(null);
 
@@ -685,7 +696,8 @@ const AIModelConfig: React.FC = () => {
     const resolvedBaseUrl = (config.base_url || currentTemplate?.baseUrl || '').trim();
     const resolvedProvider = (config.provider || currentTemplate?.format || 'openai').trim();
     const resolvedAuth = config.auth || { type: 'api_key' };
-    const resolvedApiKey = (config.api_key || '').trim();
+    const persistedAuth = normalizeModelAuthForPersistence(resolvedAuth, config.api_key);
+    const resolvedApiKey = persistedAuth.apiKey.trim();
     const resolvedModelName = (
       config.model_name ||
       selectedModelDrafts[0]?.modelName ||
@@ -727,7 +739,7 @@ const AIModelConfig: React.FC = () => {
       skip_ssl_verify: config.skip_ssl_verify ?? false,
       custom_request_body: config.custom_request_body,
       custom_request_body_mode: config.custom_request_body_mode,
-      auth: resolvedAuth,
+      auth: persistedAuth.auth,
     };
   };
 
@@ -1037,6 +1049,10 @@ const AIModelConfig: React.FC = () => {
         ? editingProviderModelIds
         : new Set<string>();
       const configsToSave: AIModelConfigType[] = draftsToSave.map((draft, index) => {
+        const persistedAuth = normalizeModelAuthForPersistence(
+          editingConfig.auth,
+          editingConfig.api_key,
+        );
         return {
           id: editingConfig.id || draft.configId || `model_${Date.now()}_${index}`,
           name: providerName,
@@ -1046,7 +1062,7 @@ const AIModelConfig: React.FC = () => {
             editingConfig.provider || 'openai',
             draft.modelName
           ),
-          api_key: editingConfig.api_key || '',
+          api_key: persistedAuth.apiKey,
           model_name: draft.modelName,
           provider: editingConfig.provider || 'openai',
           enabled: editingConfig.enabled ?? true,
@@ -1068,7 +1084,7 @@ const AIModelConfig: React.FC = () => {
           skip_ssl_verify: editingConfig.skip_ssl_verify ?? false,
           custom_request_body: editingConfig.custom_request_body,
           custom_request_body_mode: editingConfig.custom_request_body_mode,
-          auth: editingConfig.auth || { type: 'api_key' },
+          auth: persistedAuth.auth,
         };
       });
 
@@ -1786,44 +1802,27 @@ const AIModelConfig: React.FC = () => {
       );
     };
 
-    const authType: 'api_key' | 'codex_cli' | 'gemini_cli' = editingConfig.auth?.type || 'api_key';
-    const authIsCli = authType !== 'api_key';
-    const cliAuthOptions: SelectOption[] = [
-      { value: 'api_key', label: t('cliAuth.options.apiKey') },
-      { value: 'codex_cli', label: t('cliAuth.options.codexCli') },
-      { value: 'gemini_cli', label: t('cliAuth.options.geminiCli') },
-    ];
-    const matchedCliCredential = authType === 'codex_cli'
-      ? discoveredCli.find(c => c.kind === 'codex')
-      : authType === 'gemini_cli'
-        ? discoveredCli.find(c => c.kind === 'gemini')
-        : undefined;
+    const authType = editingConfig.auth?.type || 'api_key';
+    const authUsesExternalCredential = authType !== 'api_key';
 
     const renderAuthRow = () => (
-      <ConfigPageRow label={t('cliAuth.label')} align={authIsCli ? 'start' : 'center'} wide>
-        <div className="void-ai-model-config__control-stack">
-          <Select
-            value={authType}
-            onChange={(value) => {
-              const next = String(value) as 'api_key' | 'codex_cli' | 'gemini_cli';
-              setEditingConfig(prev => ({ ...prev, auth: { type: next } }));
-            }}
-            options={cliAuthOptions}
-            size="small"
-          />
-          {authIsCli && (
-            <small className={matchedCliCredential ? 'resolved-url__hint void-ai-model-config__cli-auth-hint' : `resolved-url__hint void-ai-model-config__cli-auth-hint void-ai-model-config__json-status--error`}>
-              {matchedCliCredential
-                ? t('cliAuth.detected', {
-                    label: matchedCliCredential.display_label,
-                    account: matchedCliCredential.account || t('cliAuth.unknownAccount'),
-                  })
-                : t('cliAuth.notDetected', {
-                    kind: authType === 'codex_cli' ? 'Codex CLI' : 'Gemini CLI',
-                  })}
-            </small>
-          )}
-        </div>
+      <ConfigPageRow label={t('cliAuth.label')} align={authUsesExternalCredential ? 'start' : 'center'} wide>
+        <ModelAuthSourceField
+          auth={editingConfig.auth}
+          discoveredCli={discoveredCli}
+          subscriptions={subscriptionAccounts.state}
+          onChange={(auth) => {
+            resetRemoteModelDiscovery();
+            const persisted = normalizeModelAuthForPersistence(auth, editingConfig.api_key);
+            setEditingConfig(prev => ({
+              ...prev,
+              auth: persisted.auth,
+              api_key: persisted.apiKey,
+            }));
+          }}
+          onOpenAccountSettings={onOpenAccountSettings}
+          t={t}
+        />
       </ConfigPageRow>
     );
 
@@ -1857,7 +1856,7 @@ const AIModelConfig: React.FC = () => {
                   <Input value={editingConfig.name || ''} onChange={(e) => setEditingConfig(prev => ({ ...prev, name: e.target.value }))} placeholder={t('form.configNamePlaceholder')} inputSize="small" />
                 </ConfigPageRow>
                 {renderAuthRow()}
-                {!authIsCli && renderApiKeyRow(`${t('form.apiKey')} *`)}
+                {!authUsesExternalCredential && renderApiKeyRow(`${t('form.apiKey')} *`)}
                 <ConfigPageRow label={t('form.baseUrl')} align="center" wide>
                   <div className="void-ai-model-config__control-stack">
                     {currentTemplate?.baseUrlOptions && currentTemplate.baseUrlOptions.length > 0 && (
@@ -1989,7 +1988,7 @@ const AIModelConfig: React.FC = () => {
                       <Input value={editingConfig.name || ''} onChange={(e) => setEditingConfig(prev => ({ ...prev, name: e.target.value }))} placeholder={t('form.configNamePlaceholder')} inputSize="small" />
                     </ConfigPageRow>
                     {renderAuthRow()}
-                    {!authIsCli && renderApiKeyRow(`${t('form.apiKey')} *`)}
+                    {!authUsesExternalCredential && renderApiKeyRow(`${t('form.apiKey')} *`)}
                     <ConfigPageRow label={`${t('form.baseUrl')} *`} align="center" wide>
                       <div className="void-ai-model-config__control-stack">
                         <Input
@@ -2652,6 +2651,8 @@ const AIModelConfig: React.FC = () => {
             />
           </ConfigPageRow>
         </ConfigPageSection>
+
+        <LocalAsrSettings />
 
         <ConfigPageSection
           title={tDefault('tabs.proxy')}

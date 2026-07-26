@@ -4,8 +4,8 @@
 
 use crate::agentic::core::{
     new_turn_id, CompressionContract, CompressionState, Message, MessageContent, MessageRole,
-    MessageSemanticKind, ProcessingPhase, Session, SessionConfig, SessionKind, SessionState,
-    SessionSummary, ToolCall, ToolResult, TurnStats,
+    MessageSemanticKind, ProcessingPhase, RecoveryCheckpoint, Session, SessionConfig, SessionKind,
+    SessionState, SessionSummary, ToolCall, ToolResult, TurnStats,
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::persistence::PersistenceManager;
@@ -38,8 +38,12 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::time;
+use void_core_types::{
+    SubagentTaskRecord, SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState,
+    SubagentTaskStatus,
+};
 
 /// Session manager configuration
 #[derive(Debug, Clone)]
@@ -280,8 +284,7 @@ impl SessionManager {
 
     fn should_persist_session_kind(kind: SessionKind) -> bool {
         match kind {
-            SessionKind::Standard | SessionKind::Subagent => true,
-            SessionKind::EphemeralChild => false,
+            SessionKind::Standard | SessionKind::Subagent | SessionKind::EphemeralChild => true,
         }
     }
 
@@ -430,6 +433,302 @@ impl SessionManager {
     async fn effective_session_workspace_path(&self, session_id: &str) -> Option<PathBuf> {
         let config = self.sessions.get(session_id)?.config.clone();
         Self::effective_workspace_path_from_config(&config).await
+    }
+
+    fn recovery_timestamp_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
+    }
+
+    pub async fn save_recovery_checkpoint(
+        &self,
+        checkpoint: &RecoveryCheckpoint,
+    ) -> VoidResult<RecoveryCheckpoint> {
+        let storage_path = self
+            .effective_session_workspace_path(&checkpoint.session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Recovery checkpoint session workspace not found: {}",
+                    checkpoint.session_id
+                ))
+            })?;
+        self.persistence_manager
+            .save_recovery_checkpoint(&storage_path, &checkpoint.session_id, checkpoint)
+            .await
+    }
+
+    pub async fn load_recovery_checkpoint(
+        &self,
+        session_id: &str,
+    ) -> VoidResult<Option<RecoveryCheckpoint>> {
+        let storage_path = self
+            .effective_session_workspace_path(session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Recovery checkpoint session workspace not found: {session_id}"
+                ))
+            })?;
+        self.persistence_manager
+            .load_recovery_checkpoint(&storage_path, session_id)
+            .await
+    }
+
+    pub async fn validate_recovery_checkpoint(
+        &self,
+        session_id: &str,
+        expected_catalog_generation: u64,
+        context_messages: &[Message],
+    ) -> VoidResult<Option<RecoveryCheckpoint>> {
+        let Some(mut persisted) = self.load_recovery_checkpoint(session_id).await? else {
+            return Ok(None);
+        };
+        let Some(embedded) = RecoveryCheckpoint::latest_embedded(context_messages) else {
+            persisted.mark_failed(
+                "Persisted recovery checkpoint is missing from the context boundary".to_string(),
+                Self::recovery_timestamp_ms(),
+            );
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(
+                "Persisted recovery checkpoint is missing from the context boundary".to_string(),
+            ));
+        };
+        if persisted != embedded {
+            persisted.mark_failed(
+                "Persisted recovery checkpoint does not match the context boundary".to_string(),
+                Self::recovery_timestamp_ms(),
+            );
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(
+                "Persisted recovery checkpoint does not match the context boundary".to_string(),
+            ));
+        }
+        if let Err(reason) = persisted.validate(session_id, expected_catalog_generation) {
+            persisted.mark_failed(reason.clone(), Self::recovery_timestamp_ms());
+            let _ = self.save_recovery_checkpoint(&persisted).await;
+            return Err(VoidError::Validation(reason));
+        }
+        Ok(Some(persisted))
+    }
+
+    async fn subagent_task_storage_path(&self, parent_session_id: &str) -> VoidResult<PathBuf> {
+        self.effective_session_workspace_path(parent_session_id)
+            .await
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Parent session workspace not found: {parent_session_id}"
+                ))
+            })
+    }
+
+    async fn publish_subagent_task_changed(&self, task: &SubagentTaskRecord) {
+        if let Some(coordinator) = crate::agentic::coordination::get_global_coordinator() {
+            coordinator.emit_subagent_task_changed(task.clone()).await;
+        }
+    }
+
+    async fn recover_subagent_tasks_after_restart(
+        &self,
+        storage_path: &Path,
+        parent_session_id: &str,
+    ) -> VoidResult<()> {
+        let recovered = self
+            .persistence_manager
+            .recover_subagent_tasks_after_restart(
+                storage_path,
+                parent_session_id,
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64,
+            )
+            .await?;
+        for task in recovered {
+            self.publish_subagent_task_changed(&task).await;
+        }
+        Ok(())
+    }
+
+    pub async fn create_subagent_task(
+        &self,
+        task: SubagentTaskRecord,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self
+            .subagent_task_storage_path(&task.parent_session_id)
+            .await?;
+        let persisted = self
+            .persistence_manager
+            .create_subagent_task(&storage_path, &task.parent_session_id, &task)
+            .await?;
+        self.publish_subagent_task_changed(&persisted).await;
+        Ok(persisted)
+    }
+
+    pub async fn get_subagent_task(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        self.persistence_manager
+            .get_subagent_task(&storage_path, parent_session_id, task_id)
+            .await
+    }
+
+    pub async fn list_subagent_tasks(
+        &self,
+        parent_session_id: &str,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        self.persistence_manager
+            .list_subagent_tasks(&storage_path, parent_session_id)
+            .await
+    }
+
+    pub async fn list_subagent_task_recovery_queue(
+        &self,
+        parent_session_id: &str,
+    ) -> VoidResult<Vec<SubagentTaskRecord>> {
+        Ok(self
+            .list_subagent_tasks(parent_session_id)
+            .await?
+            .into_iter()
+            .filter(|task| task.recovery_state == SubagentTaskRecoveryState::Queued)
+            .collect())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn transition_subagent_task(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        next_status: SubagentTaskStatus,
+        child_session_id: Option<String>,
+        progress: Option<String>,
+        result: Option<String>,
+        failure: Option<String>,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .transition_subagent_task(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                next_status,
+                child_session_id,
+                progress,
+                result,
+                failure,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
+    }
+
+    pub async fn claim_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        lease_id: String,
+        lease_owner: String,
+        now: u64,
+        lease_duration_ms: u64,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .claim_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                lease_id,
+                lease_owner,
+                now,
+                lease_duration_ms,
+            )
+            .await?;
+        if let Some(task) = task.as_ref() {
+            self.publish_subagent_task_changed(task).await;
+        }
+        Ok(task)
+    }
+
+    pub async fn block_subagent_task_recovery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        code: SubagentTaskRecoveryBlockCode,
+        detail: String,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .block_subagent_task_recovery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                code,
+                detail,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
+    }
+
+    pub async fn complete_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        lease_id: &str,
+        external_receipt: String,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .complete_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                lease_id,
+                external_receipt,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
+    }
+
+    pub async fn fail_subagent_task_delivery(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        lease_id: &str,
+        reason: String,
+        updated_at: u64,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .fail_subagent_task_delivery(
+                &storage_path,
+                parent_session_id,
+                task_id,
+                lease_id,
+                reason,
+                updated_at,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
     }
 
     /// Resolve the logical workspace path bound to a session.
@@ -1931,6 +2230,11 @@ impl SessionManager {
             elapsed_ms_u64(metadata_started_at)
         );
 
+        if !self.sessions.contains_key(session_id) {
+            self.recover_subagent_tasks_after_restart(&session_storage_path, session_id)
+                .await?;
+        }
+
         let session_started_at = Instant::now();
         let (mut session, persisted_turns) = self
             .persistence_manager
@@ -2040,6 +2344,11 @@ impl SessionManager {
             session_id,
             elapsed_ms_u64(metadata_started_at)
         );
+
+        if !session_already_in_memory {
+            self.recover_subagent_tasks_after_restart(&session_storage_path, session_id)
+                .await?;
+        }
 
         // 1. Load session and turns from storage in one pass
         let session_started_at = Instant::now();
@@ -4186,8 +4495,9 @@ fn extract_subagent_relationship(
 mod tests {
     use super::{SessionManager, SessionManagerConfig};
     use crate::agentic::core::{
-        Message, MessageContent, MessageRole, ProcessingPhase, Session, SessionConfig, SessionState,
-        TurnStats,
+        CompressionEntry, CompressionPayload, Message, MessageContent, MessageRole,
+        ProcessingPhase, RecoveryBoundary, RecoveryCheckpoint, RecoveryCheckpointStatus, Session,
+        SessionConfig, SessionState, TurnStats,
     };
     use crate::agentic::persistence::PersistenceManager;
     use crate::agentic::session::{
@@ -4393,6 +4703,62 @@ mod tests {
             TryResult::Absent => panic!("session should remain present"),
             TryResult::Locked => panic!("snapshot collection should not retain session map guards"),
         };
+    }
+
+    #[tokio::test]
+    async fn invalid_recovery_checkpoint_is_persisted_as_failed() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
+        );
+        let manager = test_manager(persistence_manager);
+        let session = manager
+            .create_session(
+                "Recovery validation".to_string(),
+                "agent".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".to_string(),
+            session.session_id.clone(),
+            "turn-1".to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            41,
+            &[Message::user("Continue recovery".to_string())],
+            10,
+        );
+        manager
+            .save_recovery_checkpoint(&checkpoint)
+            .await
+            .expect("checkpoint should save");
+        let boundary = Message::assistant("summary".to_string()).with_compression_payload(
+            CompressionPayload {
+                entries: vec![CompressionEntry::RecoveryCheckpoint {
+                    checkpoint: checkpoint.clone(),
+                }],
+            },
+        );
+
+        assert!(manager
+            .validate_recovery_checkpoint(&session.session_id, 42, &[boundary])
+            .await
+            .is_err());
+        let failed = manager
+            .load_recovery_checkpoint(&session.session_id)
+            .await
+            .expect("checkpoint should load")
+            .expect("checkpoint should exist");
+
+        assert_eq!(failed.status, RecoveryCheckpointStatus::Failed);
+        assert!(failed
+            .blocking_reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("catalog generation is stale")));
     }
 
     #[tokio::test]
@@ -4724,7 +5090,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn ephemeral_child_session_is_kept_in_memory_without_persisting() {
+    async fn ephemeral_btw_child_persists_for_internal_restore_but_stays_out_of_user_lists() {
         let workspace = TestWorkspace::new();
         let persistence_manager = Arc::new(
             PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
@@ -4746,12 +5112,67 @@ mod tests {
             .await
             .expect("ephemeral child session should create");
 
+        manager
+            .persist_session_lineage(
+                &session.session_id,
+                SessionRelationship {
+                    kind: Some(SessionRelationshipKind::Btw),
+                    parent_session_id: Some("parent".to_string()),
+                    parent_request_id: Some("request-1".to_string()),
+                    parent_dialog_turn_id: None,
+                    parent_turn_index: None,
+                    parent_tool_call_id: None,
+                    subagent_type: None,
+                },
+            )
+            .await
+            .expect("BTW lineage should persist");
+        let turn_id = manager
+            .start_dialog_turn(
+                &session.session_id,
+                "agentic".to_string(),
+                "Remember this side-thread turn".to_string(),
+                Some("btw-turn-request-1".to_string()),
+                None,
+                Some(json!({"kind": "btw", "parentSessionId": "parent"})),
+            )
+            .await
+            .expect("BTW turn should persist");
+
         assert!(manager.get_session(&session.session_id).is_some());
-        assert!(persistence_manager
+        let metadata = persistence_manager
             .load_session_metadata(workspace.path(), &session.session_id)
             .await
             .expect("metadata lookup should succeed")
-            .is_none());
+            .expect("BTW metadata should persist");
+        assert_eq!(
+            metadata
+                .relationship
+                .as_ref()
+                .and_then(|relationship| relationship.parent_session_id.as_deref()),
+            Some("parent")
+        );
+        assert!(manager
+            .list_sessions(workspace.path())
+            .await
+            .expect("user session list should load")
+            .iter()
+            .all(|summary| summary.session_id != session.session_id));
+
+        let restarted_manager = test_manager(persistence_manager);
+        let (restored, turns) = restarted_manager
+            .restore_internal_session_with_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("BTW child should restore through the internal interface");
+        assert_eq!(restored.session_id, session.session_id);
+        assert_eq!(restored.kind, SessionKind::EphemeralChild);
+        assert_eq!(restored.created_by.as_deref(), Some("session-parent"));
+        assert_eq!(restored.dialog_turn_ids, vec![turn_id]);
+        assert_eq!(turns.len(), 1);
+        assert_eq!(
+            turns[0].user_message.content,
+            "Remember this side-thread turn"
+        );
     }
 
     #[tokio::test]

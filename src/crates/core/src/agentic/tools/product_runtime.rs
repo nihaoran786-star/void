@@ -18,10 +18,10 @@ use std::sync::Arc;
 #[cfg(test)]
 use void_agent_tools::StaticToolProvider;
 use void_agent_tools::{
-    ContextualToolManifest, ContextualVisibleTools, GetToolSpecCatalogProvider,
-    GetToolSpecExecutionError, GetToolSpecRuntime, SnapshotToolDecorator, SnapshotToolWrapper,
-    StaticToolProviderGroup, ToolCatalogRuntime, ToolCatalogSnapshotProvider, ToolRuntimeAssembly,
-    GET_TOOL_SPEC_TOOL_NAME,
+    stable_tool_catalog_generation, ContextualToolManifest, ContextualVisibleTools,
+    GetToolSpecCatalogProvider, GetToolSpecExecutionError, GetToolSpecRuntime,
+    SnapshotToolDecorator, SnapshotToolWrapper, StaticToolProviderGroup, ToolCatalogRuntime,
+    ToolCatalogSnapshotProvider, ToolRuntimeAssembly, GET_TOOL_SPEC_TOOL_NAME,
 };
 use void_tool_packs::product_tool_provider_group_plan;
 
@@ -114,6 +114,7 @@ fn materialize_tool(tool_name: &str) -> Arc<dyn Tool> {
         "CreatePlan" => Arc::new(CreatePlanTool::new()),
         "submit_code_review" => Arc::new(CodeReviewTool::new()),
         "GetToolSpec" => Arc::new(GetToolSpecTool::new()),
+        "CallDeferredTool" => Arc::new(CallDeferredTool::new()),
         "GetFileDiff" => Arc::new(GetFileDiffTool::new()),
         "Log" => Arc::new(LogTool::new()),
         "ShortDramaProject" => Arc::new(ShortDramaProjectTool::new()),
@@ -178,6 +179,12 @@ impl GetToolSpecCatalogProvider<dyn Tool, ToolUseContext> for ProductToolCatalog
                 .map_err(|error| error.to_string()),
             None => Ok(self.default_collapsed_tools().await),
         }
+    }
+
+    async fn catalog_generation(&self) -> u64 {
+        let registry = get_global_tool_registry();
+        let registry = registry.read().await;
+        stable_tool_catalog_generation(&registry.get_all_tools())
     }
 }
 
@@ -390,8 +397,8 @@ mod tests {
                 .iter()
                 .map(|tool| tool.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Read", "WebFetch", "GetToolSpec"],
-            "product manifest facade must preserve prompt-visible definition order"
+            vec!["Read", "GetToolSpec", "CallDeferredTool"],
+            "product manifest must omit deferred target schemas and preserve gateways"
         );
     }
 
@@ -412,12 +419,18 @@ mod tests {
             .map(|tool| tool.name.as_str())
             .collect::<Vec<_>>();
         assert!(
-            definition_names.contains(&"AnalyzeImage"),
-            "AnalyzeImage remains prompt-visible when allowed"
+            !definition_names.contains(&"AnalyzeImage"),
+            "deferred AnalyzeImage schema must not enter the initial manifest"
         );
         assert!(
-            definition_names.contains(&"ViewImage"),
-            "ViewImage is available in the allowed manifest after provider and path gates pass"
+            !definition_names.contains(&"ViewImage"),
+            "deferred ViewImage schema must not enter the initial manifest"
+        );
+        assert!(
+            manifest
+                .collapsed_tool_names
+                .contains(&"AnalyzeImage".to_string()),
+            "AnalyzeImage must remain GetToolSpec-discoverable"
         );
         assert!(
             manifest

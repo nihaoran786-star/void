@@ -3,7 +3,10 @@ import {useTranslation} from 'react-i18next';
 import {useShallow} from 'zustand/react/shallow';
 import path from 'path-browserify';
 import {CornerUpLeft, Image as ImageIcon, Link2, Loader2, Send, Square, Sparkles, X} from 'lucide-react';
-import {FlowChatContext} from '../modern/FlowChatContext';
+import {
+  FlowChatContext,
+  type FlowChatComposerFillRequest,
+} from '../modern/FlowChatContext';
 import {FlowChatPresentationActivityProvider} from '../modern/FlowChatPresentationActivity';
 import {VirtualItemRenderer} from '../modern/VirtualItemRenderer';
 import {ProcessingIndicator} from '../modern/ProcessingIndicator';
@@ -29,7 +32,25 @@ import {FlowChatManager} from '../../services/FlowChatManager';
 import {createImageContextFromFile} from '../../utils/imageUtils';
 import {buildImageContextsForBackend} from '../../utils/imageContextForBackend';
 import type {ModeSkillInfo} from '@/infrastructure/config/types';
-import type {CodeSnippetContext, ImageContext} from '@/shared/types/context';
+import type {
+  CodeSnippetContext,
+  ContextItem,
+  ImageContext,
+  SessionReferenceContext,
+} from '@/shared/types/context';
+import {formatContextForPrompt} from '@/shared/utils/contextPrompt';
+import {
+  composerPresentationToValue,
+  createComposerPresentation,
+  getComposerPresentationContexts,
+  getContextPresentationLabel,
+  type ComposerPresentation,
+} from '../../utils/composerPresentation';
+import {expandSkillPromptReferences} from '../../utils/skillPromptReference';
+import {
+  resolveSessionReferenceTranscriptInjection,
+  sessionReferenceResolutionMetadata,
+} from '../../services/sessionReferenceTranscript';
 import {stateMachineManager, SessionExecutionState} from '../../state-machine';
 import {settleStoppedReviewSessionState} from '../../utils/reviewSessionStop';
 import {findLatestCodeReviewResult, findLatestCodeReviewResultState} from '../../utils/reviewSessionSummary';
@@ -78,6 +99,16 @@ const resolveSessionTitle = (session?: Session | null, fallback = 'Side thread')
 const log = createLogger('BtwSessionPanel');
 const REVIEW_ACTION_BOTTOM_BLANK_SPACE_PX = 96;
 const MemoizedReviewActionBar = React.memo(ReviewActionBar);
+
+const removeComposerPresentationContext = (
+  presentation: ComposerPresentation,
+  contextId: string,
+): ComposerPresentation => ({
+  ...presentation,
+  segments: presentation.segments.filter(
+    segment => segment.type !== 'context' || segment.context.id !== contextId,
+  ),
+});
 
 const isActiveReviewTurnStatus = (status?: DialogTurn['status']) =>
   status === 'pending' ||
@@ -147,9 +178,13 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const [composerValue, setComposerValue] = useState('');
   const [composerImageContexts, setComposerImageContexts] = useState<ImageContext[]>([]);
   const [composerTextContexts, setComposerTextContexts] = useState<CodeSnippetContext[]>([]);
+  const [composerReferenceContexts, setComposerReferenceContexts] = useState<ContextItem[]>([]);
+  const [restoredComposerPresentation, setRestoredComposerPresentation] =
+    useState<ComposerPresentation | null>(null);
   const [isAddingComposerImage, setIsAddingComposerImage] = useState(false);
   const [isAddingComposerTextFile, setIsAddingComposerTextFile] = useState(false);
   const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [isUpdatingBtwMemory, setIsUpdatingBtwMemory] = useState(false);
   const [composerSkills, setComposerSkills] = useState<ModeSkillInfo[]>([]);
   const [isLoadingComposerSkills, setIsLoadingComposerSkills] = useState(false);
   const [isSkillPickerOpen, setIsSkillPickerOpen] = useState(false);
@@ -240,7 +275,11 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       undefined,
       historySession.remoteConnectionId,
       historySession.remoteSshHost,
-      { includeInternal: historySession.sessionKind === 'subagent' },
+      {
+        includeInternal:
+          historySession.sessionKind === 'subagent' ||
+          historySession.sessionKind === 'btw',
+      },
     ).finally(() => {
       isLoadingRef.current = false;
     });
@@ -348,8 +387,29 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     });
   }, []);
 
-  const handleFillUserMessageInput = useCallback((content: string) => {
-    setComposerValue(content);
+  const handleFillUserMessageInput = useCallback((request: FlowChatComposerFillRequest) => {
+    const presentation = request.composerPresentation;
+    if (presentation) {
+      const contexts = getComposerPresentationContexts(presentation);
+      setComposerValue(composerPresentationToValue(presentation));
+      setComposerImageContexts(
+        contexts.filter((context): context is ImageContext => context.type === 'image'),
+      );
+      setComposerTextContexts(
+        contexts.filter((context): context is CodeSnippetContext => context.type === 'code-snippet'),
+      );
+      setComposerReferenceContexts(
+        contexts.filter(context => context.type !== 'image' && context.type !== 'code-snippet'),
+      );
+      setRestoredComposerPresentation(presentation);
+    } else {
+      // Backward compatibility for turns persisted before ComposerPresentation v1.
+      setComposerValue(request.content);
+      setComposerImageContexts([]);
+      setComposerTextContexts([]);
+      setComposerReferenceContexts([]);
+      setRestoredComposerPresentation(null);
+    }
     window.requestAnimationFrame(() => {
       composerInputRef.current?.focus();
     });
@@ -1027,9 +1087,19 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     const messageForAgent = childSkillCommand.message;
     const imageContexts = composerImageContexts;
     const textContexts = composerTextContexts;
+    const referenceContexts = composerReferenceContexts;
+    const submittedContexts: ContextItem[] = [
+      ...textContexts,
+      ...referenceContexts,
+      ...imageContexts,
+    ];
+    const composerPresentation = restoredComposerPresentation
+      ?? createComposerPresentation(message, submittedContexts);
     setComposerValue('');
     setComposerImageContexts([]);
     setComposerTextContexts([]);
+    setComposerReferenceContexts([]);
+    setRestoredComposerPresentation(null);
     setIsSkillPickerOpen(false);
     setIsSubmittingMessage(true);
     try {
@@ -1037,30 +1107,59 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         ? buildImageContextsForBackend(imageContexts)
         : undefined;
       const agentType = childAgentType;
-      const contextPrompt = textContexts.map(formatComposerTextFileContextForPrompt).filter(Boolean).join('\n');
-      const aiMessage = contextPrompt ? `${contextPrompt}\n\n${messageForAgent}` : messageForAgent;
+      const nonImageContexts: ContextItem[] = [...textContexts, ...referenceContexts];
+      const sessionReferences = referenceContexts.filter(
+        (context): context is SessionReferenceContext => context.type === 'session-reference',
+      );
+      const sessionReferenceInjection = await resolveSessionReferenceTranscriptInjection(
+        sessionReferences,
+        workspacePath
+          ? {
+              currentSessionId: childSessionId,
+              workspaceId: childSession.workspaceId,
+              workspacePath,
+              remoteConnectionId: childSession.remoteConnectionId,
+              remoteSshHost: childSession.remoteSshHost,
+            }
+          : undefined,
+      );
+      const contextPrompt = nonImageContexts
+        .map(context => context.type === 'code-snippet'
+          ? formatComposerTextFileContextForPrompt(context)
+          : formatContextForPrompt(context))
+        .filter(Boolean)
+        .join('\n');
+      const expandedMessage = expandSkillPromptReferences(messageForAgent);
+      const messageWithContext = contextPrompt
+        ? `${contextPrompt}\n\n${expandedMessage}`
+        : expandedMessage;
+      const aiMessage = sessionReferenceInjection.prompt
+        ? `${sessionReferenceInjection.prompt}\n\n${messageWithContext}`
+        : messageWithContext;
       const displayMessage = contextPrompt ? message : undefined;
-      if (imageContextOptions) {
-        await FlowChatManager.getInstance().sendMessage(
-          aiMessage,
-          childSessionId,
-          displayMessage,
-          agentType,
-          undefined,
-          imageContextOptions,
-        );
-      } else {
-        await FlowChatManager.getInstance().sendMessage(
-          aiMessage,
-          childSessionId,
-          displayMessage,
-          agentType,
-        );
-      }
+      await FlowChatManager.getInstance().sendMessage(
+        aiMessage,
+        childSessionId,
+        displayMessage,
+        agentType,
+        undefined,
+        {
+          ...imageContextOptions,
+          userMessageMetadata: {
+            composerPresentation,
+            sessionReferences,
+            sessionReferenceResolutions: sessionReferenceResolutionMetadata(
+              sessionReferenceInjection.results,
+            ),
+          },
+        },
+      );
     } catch (error) {
       setComposerValue(message);
       setComposerImageContexts(imageContexts);
       setComposerTextContexts(textContexts);
+      setComposerReferenceContexts(referenceContexts);
+      setRestoredComposerPresentation(composerPresentation);
       log.error('Failed to send child session message', {
         childSessionId,
         childKind,
@@ -1080,16 +1179,20 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     childSession,
     childSessionId,
     composerImageContexts,
+    composerReferenceContexts,
     composerTextContexts,
     childAgentType,
     runtimeComposerSkills,
+    restoredComposerPresentation,
     t,
     trimmedComposerValue,
+    workspacePath,
   ]);
 
   const handleComposerValueChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextValue = event.target.value;
     setComposerValue(nextValue);
+    setRestoredComposerPresentation(null);
     setIsSkillPickerOpen(
       childKind === 'subagent' && nextValue.trimStart().startsWith('/'),
     );
@@ -1127,6 +1230,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       );
       if (contexts.length > 0) {
         setComposerImageContexts(previous => [...previous, ...contexts]);
+        setRestoredComposerPresentation(null);
       }
     } catch (error) {
       log.error('Failed to add child session image attachment', {
@@ -1146,6 +1250,12 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   const handleRemoveComposerImage = useCallback((imageId: string) => {
     setComposerImageContexts(previous => previous.filter(image => image.id !== imageId));
+    setRestoredComposerPresentation(previous => {
+      if (!previous) return null;
+      const next = removeComposerPresentationContext(previous, imageId);
+      setComposerValue(composerPresentationToValue(next));
+      return next;
+    });
   }, []);
 
   const handleComposerFileInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1160,6 +1270,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     try {
       const contexts = await Promise.all(textFiles.map(readComposerTextFileContext));
       setComposerTextContexts(previous => [...previous, ...contexts]);
+      setRestoredComposerPresentation(null);
     } catch (error) {
       log.error('Failed to add child session text attachment', {
         childSessionId,
@@ -1178,6 +1289,22 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
 
   const handleRemoveComposerTextFile = useCallback((contextId: string) => {
     setComposerTextContexts(previous => previous.filter(context => context.id !== contextId));
+    setRestoredComposerPresentation(previous => {
+      if (!previous) return null;
+      const next = removeComposerPresentationContext(previous, contextId);
+      setComposerValue(composerPresentationToValue(next));
+      return next;
+    });
+  }, []);
+
+  const handleRemoveComposerReference = useCallback((contextId: string) => {
+    setComposerReferenceContexts(previous => previous.filter(context => context.id !== contextId));
+    setRestoredComposerPresentation(previous => {
+      if (!previous) return null;
+      const next = removeComposerPresentationContext(previous, contextId);
+      setComposerValue(composerPresentationToValue(next));
+      return next;
+    });
   }, []);
 
   const handleComposerKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1266,6 +1393,79 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     );
   }, [btwOrigin, parentSessionId]);
 
+  const handleBtwMemoryEnabledChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const resolvedParentSessionId =
+        btwOrigin?.parentSessionId || parentSessionId;
+      if (
+        !childSessionId ||
+        childKind !== 'btw' ||
+        !resolvedParentSessionId ||
+        !workspacePath
+      ) {
+        return;
+      }
+      const previous = btwOrigin?.memoryEnabled === true;
+      const enabled = event.target.checked;
+      setIsUpdatingBtwMemory(true);
+      flowChatStore.updateSessionBtwOrigin(
+        childSessionId,
+        {
+          ...btwOrigin,
+          parentSessionId: resolvedParentSessionId,
+          memoryEnabled: enabled,
+        },
+        'btw',
+      );
+      try {
+        const relationship = await btwAPI.updateMemoryEnabled({
+          workspacePath,
+          parentSessionId: resolvedParentSessionId,
+          childSessionId,
+          enabled,
+        });
+        flowChatStore.updateSessionBtwOrigin(
+          childSessionId,
+          {
+            ...btwOrigin,
+            parentSessionId: resolvedParentSessionId,
+            memoryEnabled: relationship.memoryEnabled,
+          },
+          'btw',
+        );
+      } catch (error) {
+        flowChatStore.updateSessionBtwOrigin(
+          childSessionId,
+          {
+            ...btwOrigin,
+            parentSessionId: resolvedParentSessionId,
+            memoryEnabled: previous,
+          },
+          'btw',
+        );
+        log.error('Failed to update BTW memory preference', {
+          childSessionId,
+          error,
+        });
+        notificationService.error(
+          t('btw.memoryUpdateFailed', {
+            defaultValue: 'Failed to update the memory preference.',
+          }),
+        );
+      } finally {
+        setIsUpdatingBtwMemory(false);
+      }
+    },
+    [
+      btwOrigin,
+      childKind,
+      childSessionId,
+      parentSessionId,
+      t,
+      workspacePath,
+    ],
+  );
+
   if (!childSessionId || !childSession) {
     return (
       <div className="btw-session-panel btw-session-panel--empty">
@@ -1291,6 +1491,29 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
             <span className="btw-session-panel__title">{childPresentationTitle}</span>
           </div>
           <div className="btw-session-panel__header-right">
+            {childKind === 'btw' && (
+              <label
+                className="btw-session-panel__memory-toggle"
+                title={t('btw.memoryHint', {
+                  defaultValue:
+                    'Allow this side thread to offer memory candidates for your review.',
+                })}
+              >
+                <input
+                  type="checkbox"
+                  checked={btwOrigin?.memoryEnabled === true}
+                  disabled={
+                    isUpdatingBtwMemory ||
+                    isSubmittingMessage ||
+                    isChildSessionProcessing
+                  }
+                  onChange={event => void handleBtwMemoryEnabledChange(event)}
+                />
+                <span>
+                  {t('btw.memoryLabel', { defaultValue: 'Memory' })}
+                </span>
+              </label>
+            )}
             {showOriginMeta && (
               <div className="btw-session-panel__meta">
                 <span className="btw-session-panel__meta-label">{childOriginLabel}</span>
@@ -1481,7 +1704,9 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
               </div>
             )}
             <div className="btw-session-panel__composer-box">
-              {(composerImageContexts.length > 0 || composerTextContexts.length > 0) && (
+              {(composerImageContexts.length > 0
+                || composerTextContexts.length > 0
+                || composerReferenceContexts.length > 0) && (
                 <div className="btw-session-panel__composer-attachments">
                   {composerImageContexts.map(image => (
                     <button
@@ -1519,6 +1744,27 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
                       <X size={10} />
                     </button>
                   ))}
+                  {composerReferenceContexts.map(context => {
+                    const label = getContextPresentationLabel(context);
+                    return (
+                      <button
+                        key={context.id}
+                        type="button"
+                        className="btw-session-panel__composer-attachment"
+                        onClick={() => handleRemoveComposerReference(context.id)}
+                        title={t('childSession.removeAttachment', {
+                          defaultValue: 'Remove attachment',
+                        })}
+                        aria-label={t('childSession.removeAttachmentNamed', {
+                          name: label,
+                          defaultValue: `Remove ${label}`,
+                        })}
+                      >
+                        <span>{label}</span>
+                        <X size={10} />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
               <div className="btw-session-panel__composer-row">

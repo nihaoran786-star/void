@@ -48,7 +48,19 @@
   },
   "toolExecution": {
     "sectionTitle": "Tool execution behavior",
-    "sectionDescription": "Confirmation and timeout settings when tools run in a session."
+    "sectionDescription": "Confirmation and timeout settings when tools run in a session.",
+    "permissionMode": "Default permission mode",
+    "permissionModeDesc": "You can also switch it from the composer; explicit Deny rules always win.",
+    "permissionModeSaved": "Permission mode saved",
+    "fullAccessWarningTitle": "Enable full access?",
+    "fullAccessWarningMessage": "Full access allows tools by default. Enable it only for a workspace and task you trust.",
+    "fullAccessConfirm": "Enable full access",
+    "fullAccessCancel": "Cancel",
+    "permissionModes": {
+      "ask": "Ask",
+      "auto": "Auto",
+      "fullAccess": "Full access"
+    }
   },
   "computerUse": {
     "sectionTitle": "Computer use (desktop)",

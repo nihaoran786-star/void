@@ -2,6 +2,8 @@
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 pub use void_core_types::errors::{AiErrorDetail, ErrorCategory};
+use void_core_types::ToolImageAttachment;
+pub use void_core_types::SubagentTaskRecord;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum AgenticEventPriority {
@@ -125,6 +127,13 @@ pub enum AgenticEvent {
         parent_tool_call_id: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         agent_type: Option<String>,
+    },
+
+    /// Durable background-subagent task state. Consumers should render the
+    /// typed DTO and must not infer lifecycle or delivery state from text.
+    SubagentTaskChanged {
+        session_id: String,
+        task: SubagentTaskRecord,
     },
 
     DialogTurnCompleted {
@@ -388,6 +397,8 @@ pub enum ToolEventData {
         result: serde_json::Value,
         #[serde(skip_serializing_if = "Option::is_none")]
         result_for_assistant: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        image_attachments: Option<Vec<ToolImageAttachment>>,
         duration_ms: u64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         queue_wait_ms: Option<u64>,
@@ -537,6 +548,7 @@ mod tests {
             tool_name: "write_file".to_string(),
             result: serde_json::json!({ "ok": true }),
             result_for_assistant: None,
+            image_attachments: None,
             duration_ms: 120,
             queue_wait_ms: Some(10),
             preflight_ms: Some(20),
@@ -548,6 +560,31 @@ mod tests {
 
         assert_eq!(json["duration_ms"], 120);
         assert_eq!(json["execution_ms"], 90);
+        assert!(json.get("image_attachments").is_none());
+    }
+
+    #[test]
+    fn completed_tool_serializes_image_attachments() {
+        let event = ToolEventData::Completed {
+            tool_id: "tool-image-1".to_string(),
+            tool_name: "ViewImage".to_string(),
+            result: serde_json::json!({ "status": "success" }),
+            result_for_assistant: None,
+            image_attachments: Some(vec![ToolImageAttachment {
+                mime_type: "image/png".to_string(),
+                data_base64: "aGVsbG8=".to_string(),
+            }]),
+            duration_ms: 1,
+            queue_wait_ms: None,
+            preflight_ms: None,
+            confirmation_wait_ms: None,
+            execution_ms: Some(1),
+        };
+
+        let json = serde_json::to_value(&event).expect("serialize tool event");
+
+        assert_eq!(json["image_attachments"][0]["mime_type"], "image/png");
+        assert_eq!(json["image_attachments"][0]["data_base64"], "aGVsbG8=");
     }
 
     #[test]
@@ -651,6 +688,29 @@ mod tests {
         assert_eq!(serialized["parent_tool_call_id"], "tool-1");
         assert_eq!(serialized["agent_type"], "GeneralPurpose");
     }
+
+    #[test]
+    fn subagent_task_changed_serializes_typed_contract() {
+        let task = SubagentTaskRecord::new(
+            "bg-subagent-1".to_string(),
+            "parent-session".to_string(),
+            "inspect runtime".to_string(),
+            "execution-1".to_string(),
+            10,
+        );
+        let event = AgenticEvent::SubagentTaskChanged {
+            session_id: "parent-session".to_string(),
+            task,
+        };
+
+        assert_eq!(event.session_id(), Some("parent-session"));
+        assert_eq!(event.default_priority(), AgenticEventPriority::High);
+        let serialized = serde_json::to_value(event).expect("serialize event");
+        assert_eq!(serialized["type"], "SubagentTaskChanged");
+        assert_eq!(serialized["task"]["task_id"], "bg-subagent-1");
+        assert_eq!(serialized["task"]["status"], "created");
+        assert_eq!(serialized["task"]["delivery_state"], "pending");
+    }
 }
 
 impl Eq for AgenticEventEnvelope {}
@@ -693,6 +753,7 @@ impl AgenticEvent {
             | Self::ImageAnalysisCompleted { session_id, .. }
             | Self::DialogTurnStarted { session_id, .. }
             | Self::SubagentSessionLinked { session_id, .. }
+            | Self::SubagentTaskChanged { session_id, .. }
             | Self::DialogTurnCompleted { session_id, .. }
             | Self::TokenUsageUpdated { session_id, .. }
             | Self::ContextCompressionStarted { session_id, .. }
@@ -725,6 +786,7 @@ impl AgenticEvent {
             | Self::SessionTitleGenerated { .. }
             | Self::SessionModelAutoMigrated { .. }
             | Self::SubagentSessionLinked { .. }
+            | Self::SubagentTaskChanged { .. }
             | Self::DeepReviewQueueStateChanged { .. }
             | Self::ContextCompressionFailed { .. } => AgenticEventPriority::High,
 

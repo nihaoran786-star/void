@@ -305,11 +305,17 @@ export type RejectedToolEvent = BaseToolEvent<'Rejected'>;
 export interface CompletedToolEvent extends BaseToolEvent<'Completed'> {
   result: unknown;
   result_for_assistant?: string;
+  image_attachments?: ToolImageAttachment[];
   duration_ms: number;
   queue_wait_ms?: number;
   preflight_ms?: number;
   confirmation_wait_ms?: number;
   execution_ms?: number;
+}
+
+export interface ToolImageAttachment {
+  mime_type: string;
+  data_base64: string;
 }
 
 export interface FailedToolEvent extends BaseToolEvent<'Failed'> {

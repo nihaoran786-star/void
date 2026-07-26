@@ -55,6 +55,11 @@ use std::sync::OnceLock;
 use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
+use void_core_types::{
+    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec,
+    SubagentTaskRecord, SubagentTaskRecoveryBlockCode, SubagentTaskReplaySafety,
+    SubagentTaskStatus,
+};
 use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
 const MANUAL_COMPACTION_COMMAND: &str = "/compact";
@@ -62,6 +67,57 @@ const CONTEXT_COMPRESSION_TOOL_NAME: &str = "ContextCompression";
 const DEFAULT_SUBAGENT_MAX_CONCURRENCY: usize = 5;
 const MAX_SUBAGENT_MAX_CONCURRENCY: usize = 64;
 const SUBAGENT_TIMEOUT_GRACE_PERIOD: Duration = Duration::from_secs(10);
+const SUBAGENT_DELIVERY_LEASE_DURATION_MS: u64 = 30_000;
+const MAX_DURABLE_SUBAGENT_CONTEXT_ENTRIES: usize = 8;
+const MAX_DURABLE_SUBAGENT_CONTEXT_KEY_BYTES: usize = 64;
+const MAX_DURABLE_SUBAGENT_CONTEXT_VALUE_BYTES: usize = 1024;
+const MAX_DURABLE_SUBAGENT_CONTEXT_TOTAL_BYTES: usize = 4096;
+const DURABLE_SUBAGENT_CONTEXT_ALLOWLIST: &[&str] = &[
+    "deep_review_subagent_role",
+    "deep_review_subagent_type",
+    "multitaskBranchId",
+    "multitaskBranchGoal",
+];
+
+fn contains_explicit_sensitive_context_value(value: &str) -> bool {
+    let lowered = value.to_ascii_lowercase();
+    let trimmed = lowered.trim_start();
+    let basic_credential = trimmed
+        .strip_prefix("basic ")
+        .is_some_and(|credential| {
+            credential.len() >= 12
+                && !credential.chars().any(char::is_whitespace)
+                && credential
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || "+/=_-".contains(character))
+        });
+    if trimmed
+        .strip_prefix("bearer ")
+        .is_some_and(|credential| credential.trim().len() >= 8)
+        || basic_credential
+        || lowered.contains("authorization: bearer ")
+        || lowered.contains("authorization: basic ")
+    {
+        return true;
+    }
+    [
+        "authorization:",
+        "authorization=",
+        "api_key=",
+        "api-key=",
+        "password=",
+        "passwd=",
+        "cookie=",
+        "secret=",
+        "_token=",
+        "-----begin private key-----",
+        "-----begin rsa private key-----",
+        "-----begin ec private key-----",
+        "-----begin openssh private key-----",
+    ]
+    .iter()
+    .any(|marker| lowered.contains(marker))
+}
 
 /// Subagent execution result
 ///
@@ -160,6 +216,22 @@ fn format_background_subagent_delivery_text(
     }
 }
 
+fn background_subagent_terminal_facts(
+    outcome: Result<&SubagentResult, &VoidError>,
+) -> (SubagentTaskStatus, Option<String>, Option<String>) {
+    match outcome {
+        Ok(result) => (
+            SubagentTaskStatus::Completed,
+            Some(result.text.clone()),
+            None,
+        ),
+        Err(error) if matches!(error, VoidError::Cancelled(_)) => {
+            (SubagentTaskStatus::Cancelled, None, Some(error.to_string()))
+        }
+        Err(error) => (SubagentTaskStatus::Failed, None, Some(error.to_string())),
+    }
+}
+
 fn build_background_subagent_result_metadata(
     background_task_id: &str,
     agent_type: &str,
@@ -176,6 +248,61 @@ fn build_background_subagent_result_metadata(
     })
 }
 
+fn durable_subagent_context(
+    context: &HashMap<String, String>,
+) -> std::collections::BTreeMap<String, String> {
+    let mut durable = std::collections::BTreeMap::new();
+    let mut total_bytes = 0usize;
+    for key in DURABLE_SUBAGENT_CONTEXT_ALLOWLIST {
+        let Some(value) = context.get(*key) else {
+            continue;
+        };
+        let normalized_key = key.trim();
+        let lowered = normalized_key.to_ascii_lowercase();
+        if ["token", "key", "auth", "password", "secret", "cookie"]
+            .iter()
+            .any(|sensitive| lowered.contains(sensitive))
+            || contains_explicit_sensitive_context_value(value)
+            || normalized_key.len() > MAX_DURABLE_SUBAGENT_CONTEXT_KEY_BYTES
+            || value.len() > MAX_DURABLE_SUBAGENT_CONTEXT_VALUE_BYTES
+            || durable.len() >= MAX_DURABLE_SUBAGENT_CONTEXT_ENTRIES
+            || total_bytes.saturating_add(normalized_key.len() + value.len())
+                > MAX_DURABLE_SUBAGENT_CONTEXT_TOTAL_BYTES
+        {
+            continue;
+        }
+        total_bytes += normalized_key.len() + value.len();
+        durable.insert(normalized_key.to_string(), value.clone());
+    }
+    durable
+}
+
+fn format_persisted_background_subagent_delivery_text(
+    task: &SubagentTaskRecord,
+    agent_type: &str,
+) -> String {
+    match task.status {
+        SubagentTaskStatus::Completed => format!(
+            "Background subagent '{}' (background_task_id='{}') completed successfully:\n<result>\n{}\n</result>",
+            agent_type,
+            task.task_id,
+            task.result.as_deref().unwrap_or_default()
+        ),
+        SubagentTaskStatus::Cancelled => format!(
+            "Background subagent '{}' (background_task_id='{}') was cancelled.\nReason: {}",
+            agent_type,
+            task.task_id,
+            task.failure.as_deref().unwrap_or("cancelled")
+        ),
+        _ => format!(
+            "Background subagent '{}' (background_task_id='{}') failed before producing a final result.\nError: {}",
+            agent_type,
+            task.task_id,
+            task.failure.as_deref().unwrap_or("unknown failure")
+        ),
+    }
+}
+
 fn build_subagent_session_relationship(
     parent_info: Option<&SubagentParentInfo>,
     agent_type: &str,
@@ -189,6 +316,47 @@ fn build_subagent_session_relationship(
         parent_tool_call_id: parent_info.map(|info| info.tool_call_id.clone()),
         subagent_type: Some(agent_type.to_string()),
     }
+}
+
+fn build_btw_session_relationship(
+    parent_session_id: &str,
+    parent_request_id: &str,
+) -> SessionRelationship {
+    SessionRelationship {
+        kind: Some(SessionRelationshipKind::Btw),
+        parent_session_id: Some(parent_session_id.to_string()),
+        parent_request_id: Some(parent_request_id.to_string()),
+        parent_dialog_turn_id: None,
+        parent_turn_index: None,
+        parent_tool_call_id: None,
+        subagent_type: None,
+    }
+}
+
+fn validate_btw_child_session(
+    parent_session: &Session,
+    child_session: &Session,
+) -> VoidResult<()> {
+    if child_session.kind != SessionKind::EphemeralChild {
+        return Err(VoidError::Validation(format!(
+            "Session {} is not a BTW child session",
+            child_session.session_id
+        )));
+    }
+    let expected_created_by = format!("session-{}", parent_session.session_id);
+    if child_session.created_by.as_deref() != Some(expected_created_by.as_str()) {
+        return Err(VoidError::Validation(format!(
+            "BTW child {} does not belong to parent {}",
+            child_session.session_id, parent_session.session_id
+        )));
+    }
+    if child_session.config.workspace_path != parent_session.config.workspace_path {
+        return Err(VoidError::Validation(format!(
+            "BTW child {} does not belong to the parent workspace",
+            child_session.session_id
+        )));
+    }
+    Ok(())
 }
 
 fn fork_subagent_system_reminder() -> String {
@@ -221,6 +389,14 @@ struct HiddenSubagentExecutionRequest {
     delegation_policy: DelegationPolicy,
     runtime_tool_restrictions: ToolRuntimeRestrictions,
     prompt_cache_source_session_id: Option<String>,
+    persistent_task: Option<PersistentSubagentTaskContext>,
+    resume_session_id: Option<String>,
+}
+
+#[derive(Clone)]
+struct PersistentSubagentTaskContext {
+    task_id: String,
+    parent_session_id: String,
 }
 
 pub use void_runtime_ports::DialogTriggerSource;
@@ -2354,6 +2530,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     .await?
             }
         };
+        self.schedule_subagent_task_recovery_sweep(&session_id);
 
         let previous_agent_type = session.last_user_dialog_agent_type.clone();
         let requested_agent_type = agent_type.trim().to_string();
@@ -3334,9 +3511,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &Path,
         session_id: &str,
     ) -> VoidResult<Session> {
-        self.session_manager
+        let session = self
+            .session_manager
             .restore_session(workspace_path, session_id)
-            .await
+            .await?;
+        self.schedule_subagent_task_recovery_sweep(session_id);
+        Ok(session)
     }
 
     pub async fn restore_internal_session(
@@ -3344,9 +3524,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &Path,
         session_id: &str,
     ) -> VoidResult<Session> {
-        self.session_manager
+        let session = self
+            .session_manager
             .restore_internal_session(workspace_path, session_id)
-            .await
+            .await?;
+        self.schedule_subagent_task_recovery_sweep(session_id);
+        Ok(session)
     }
 
     /// Restore session and return the persisted turns read during restore.
@@ -3355,9 +3538,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &Path,
         session_id: &str,
     ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
-        self.session_manager
+        let restored = self
+            .session_manager
             .restore_session_with_turns(workspace_path, session_id)
-            .await
+            .await?;
+        self.schedule_subagent_task_recovery_sweep(session_id);
+        Ok(restored)
     }
 
     pub async fn restore_internal_session_with_turns(
@@ -3365,9 +3551,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         workspace_path: &Path,
         session_id: &str,
     ) -> VoidResult<(Session, Vec<crate::service::session::DialogTurnData>)> {
-        self.session_manager
+        let restored = self
+            .session_manager
             .restore_internal_session_with_turns(workspace_path, session_id)
-            .await
+            .await?;
+        self.schedule_subagent_task_recovery_sweep(session_id);
+        Ok(restored)
     }
 
     /// Restore only the UI-visible persisted session view.
@@ -3717,6 +3906,8 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             delegation_policy,
             runtime_tool_restrictions,
             prompt_cache_source_session_id,
+            persistent_task,
+            resume_session_id,
         } = request;
 
         let requested_timeout_seconds = timeout_seconds.filter(|seconds| *seconds > 0);
@@ -3821,17 +4012,29 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             return Err(VoidError::Timeout(timeout_error_message.clone()));
         }
 
-        let session = self
-            .create_hidden_subagent_session(
+        let is_resume = resume_session_id.is_some();
+        let session = if let Some(resume_session_id) = resume_session_id.as_deref() {
+            let workspace_path = session_config.workspace_path.as_deref().ok_or_else(|| {
+                VoidError::Validation(
+                    "resumed subagent session has no persisted workspace path".to_string(),
+                )
+            })?;
+            self.session_manager
+                .restore_internal_session(Path::new(workspace_path), resume_session_id)
+                .await?
+        } else {
+            self.create_hidden_subagent_session(
                 None,
                 session_name,
                 agent_type.clone(),
                 session_config,
                 created_by,
             )
-            .await?;
+            .await?
+        };
         let session_id = session.session_id.clone();
-        if let Some(source_session_id) = prompt_cache_source_session_id.as_deref() {
+        if !is_resume {
+            if let Some(source_session_id) = prompt_cache_source_session_id.as_deref() {
             let copied = self
                 .session_manager
                 .clone_prompt_cache(source_session_id, &session_id)
@@ -3840,18 +4043,37 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 "Forked prompt cache into subagent session: source_session_id={}, session_id={}, copied={}",
                 source_session_id, session_id, copied
             );
+            }
+            self.session_manager
+                .replace_context_messages(&session_id, initial_messages.clone())
+                .await;
+            self.session_manager
+                .persist_session_lineage(
+                    &session_id,
+                    build_subagent_session_relationship(subagent_parent_info.as_ref(), &agent_type),
+                )
+                .await?;
         }
-        self.session_manager
-            .replace_context_messages(&session_id, initial_messages.clone())
-            .await;
-        self.session_manager
-            .persist_session_lineage(
-                &session_id,
-                build_subagent_session_relationship(subagent_parent_info.as_ref(), &agent_type),
-            )
-            .await?;
 
-        if let Some(parent_info) = subagent_parent_info.as_ref() {
+        if !is_resume {
+            if let Some(task) = persistent_task.as_ref() {
+            self.session_manager
+                .transition_subagent_task(
+                    &task.parent_session_id,
+                    &task.task_id,
+                    SubagentTaskStatus::Running,
+                    Some(session_id.clone()),
+                    None,
+                    None,
+                    None,
+                    now_ms(),
+                )
+                .await?;
+            }
+        }
+
+        if !is_resume {
+            if let Some(parent_info) = subagent_parent_info.as_ref() {
             self.emit_event(AgenticEvent::SubagentSessionLinked {
                 session_id: session_id.clone(),
                 parent_session_id: parent_info.session_id.clone(),
@@ -3860,6 +4082,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 agent_type: Some(agent_type.clone()),
             })
             .await;
+            }
         }
 
         // Register timeout handle so it can be adjusted at runtime.
@@ -4561,12 +4784,55 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
     async fn ensure_hidden_btw_session(
         &self,
+        request_id: &str,
         parent_session_id: &str,
         child_session_id: &str,
         child_session_name: Option<&str>,
     ) -> VoidResult<Session> {
+        let parent_session = self
+            .session_manager
+            .get_session(parent_session_id)
+            .ok_or_else(|| {
+                VoidError::NotFound(format!("Parent session not found: {parent_session_id}"))
+            })?;
+
         if let Some(session) = self.session_manager.get_session(child_session_id) {
+            validate_btw_child_session(&parent_session, &session)?;
             return Ok(session);
+        }
+
+        let workspace_path = parent_session
+            .config
+            .workspace_path
+            .as_deref()
+            .ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Parent session has no workspace path: {parent_session_id}"
+                ))
+            })?;
+        if let Some(metadata) = self
+            .session_manager
+            .load_session_metadata(Path::new(workspace_path), child_session_id)
+            .await?
+        {
+            let relationship = metadata.relationship.as_ref().ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Persisted BTW child has no typed lineage: {child_session_id}"
+                ))
+            })?;
+            if relationship.kind.as_ref() != Some(&SessionRelationshipKind::Btw)
+                || relationship.parent_session_id.as_deref() != Some(parent_session_id)
+            {
+                return Err(VoidError::Validation(format!(
+                    "Persisted session {child_session_id} is not a child of BTW parent {parent_session_id}"
+                )));
+            }
+            let restored = self
+                .session_manager
+                .restore_internal_session(Path::new(workspace_path), child_session_id)
+                .await?;
+            validate_btw_child_session(&parent_session, &restored)?;
+            return Ok(restored);
         }
 
         let snapshot = self
@@ -4592,6 +4858,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         self.session_manager
             .replace_context_messages(&child_session.session_id, snapshot.messages)
             .await;
+        self.session_manager
+            .persist_session_lineage(
+                &child_session.session_id,
+                build_btw_session_relationship(parent_session_id, request_id),
+            )
+            .await?;
 
         Ok(child_session)
     }
@@ -4624,7 +4896,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         }
 
         let child_session = self
-            .ensure_hidden_btw_session(parent_session_id, child_session_id, child_session_name)
+            .ensure_hidden_btw_session(
+                request_id,
+                parent_session_id,
+                child_session_id,
+                child_session_name,
+            )
             .await?;
 
         if let Some(model_id) = model_id
@@ -4714,6 +4991,8 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         request.delegation_policy,
                     ),
                     prompt_cache_source_session_id: None,
+                    persistent_task: None,
+                    resume_session_id: None,
                 })
             }
             SubagentContextMode::Fork => {
@@ -4754,6 +5033,8 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         request.delegation_policy,
                     ),
                     prompt_cache_source_session_id: Some(snapshot.parent_session_id),
+                    persistent_task: None,
+                    resume_session_id: None,
                 })
             }
         }
@@ -4769,13 +5050,517 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         cancel_token: Option<&CancellationToken>,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<SubagentResult> {
-        self.execute_hidden_subagent_internal(
-            self.resolve_hidden_subagent_execution_request(request)
-                .await?,
-            cancel_token,
-            timeout_seconds,
+        let context_mode = match request.context_mode {
+            SubagentContextMode::Fresh => SubagentTaskContextMode::Fresh,
+            SubagentContextMode::Fork => SubagentTaskContextMode::Fork,
+        };
+        let mut request = self
+            .resolve_hidden_subagent_execution_request(request)
+            .await?;
+        let persistent_task =
+            request
+                .subagent_parent_info
+                .as_ref()
+                .map(|parent| PersistentSubagentTaskContext {
+                    task_id: format!("subagent-{}", uuid::Uuid::new_v4()),
+                    parent_session_id: parent.session_id.clone(),
+                });
+        if let Some(task) = persistent_task.as_ref() {
+            let record = SubagentTaskRecord::new_typed(
+                task.task_id.clone(),
+                task.parent_session_id.clone(),
+                request.user_input_text.clone(),
+                format!("synchronous-execution-{}", uuid::Uuid::new_v4()),
+                SubagentTaskExecutionMode::Synchronous,
+                context_mode,
+                SubagentTaskReplaySafety::Idempotent,
+                now_ms(),
+            );
+            match self.session_manager.create_subagent_task(record).await {
+                Ok(_) => request.persistent_task = Some(task.clone()),
+                Err(error) => warn!(
+                    "Failed to persist synchronous subagent task; execution semantics are unchanged: parent_session_id={}, task_id={}, error={}",
+                    task.parent_session_id, task.task_id, error
+                ),
+            }
+        }
+
+        let outcome = self
+            .execute_hidden_subagent_internal(request, cancel_token, timeout_seconds)
+            .await;
+        if let Some(task) = persistent_task {
+            let (status, result, failure) = background_subagent_terminal_facts(outcome.as_ref());
+            if let Err(error) = self
+                .session_manager
+                .transition_subagent_task(
+                    &task.parent_session_id,
+                    &task.task_id,
+                    status,
+                    None,
+                    None,
+                    result,
+                    failure,
+                    now_ms(),
         )
         .await
+            {
+                warn!(
+                    "Failed to persist synchronous subagent terminal state; execution result is unchanged: parent_session_id={}, task_id={}, error={}",
+                    task.parent_session_id, task.task_id, error
+                );
+            }
+        }
+        outcome
+    }
+
+    async fn deliver_persisted_background_task(
+        &self,
+        parent_session_id: &str,
+        task_id: &str,
+        agent_type: &str,
+        task_description: &str,
+        context: HashMap<String, String>,
+        delivery_text: Option<String>,
+    ) -> VoidResult<()> {
+        let delivery_lease_id = format!("delivery-lease-{}", uuid::Uuid::new_v4());
+        let delivery_owner = format!("delivery-worker-{}", uuid::Uuid::new_v4());
+        let Some(claimed_task) = self
+            .session_manager
+            .claim_subagent_task_delivery(
+                parent_session_id,
+                task_id,
+                delivery_lease_id.clone(),
+                delivery_owner,
+                now_ms(),
+                SUBAGENT_DELIVERY_LEASE_DURATION_MS,
+            )
+            .await?
+        else {
+            return Ok(());
+        };
+
+        let parent_session = self
+            .session_manager
+            .get_session(parent_session_id)
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Parent session not restored for subagent delivery: {parent_session_id}"
+                ))
+            })?;
+        let parent_workspace_path = parent_session.config.workspace_path.clone();
+        let mut metadata = build_background_subagent_result_metadata(
+            task_id,
+            agent_type,
+            task_description,
+            context,
+        );
+        if let Some(object) = metadata.as_object_mut() {
+            object.insert(
+                "deliveryIdempotencyKey".to_string(),
+                serde_json::Value::String(claimed_task.delivery_idempotency_key.clone()),
+            );
+        }
+
+        let delivery_result = if let Some(scheduler) = super::scheduler::get_global_scheduler() {
+            scheduler
+                .deliver_background_result_idempotent(
+                    parent_session_id.to_string(),
+                    parent_session.agent_type,
+                    parent_workspace_path,
+                    delivery_text.unwrap_or_else(|| {
+                        format_persisted_background_subagent_delivery_text(
+                            &claimed_task,
+                            agent_type,
+                        )
+                    }),
+                    None,
+                    Some(metadata),
+                    claimed_task.delivery_idempotency_key,
+                )
+                .await
+        } else {
+            Err("Scheduler not initialized for background result delivery".to_string())
+        };
+
+        match delivery_result {
+            Ok(external_receipt) => {
+                self.session_manager
+                    .complete_subagent_task_delivery(
+                        parent_session_id,
+                        task_id,
+                        &delivery_lease_id,
+                        external_receipt,
+                        now_ms(),
+                    )
+                    .await?;
+            }
+            Err(error) => {
+                self.session_manager
+                    .fail_subagent_task_delivery(
+                        parent_session_id,
+                        task_id,
+                        &delivery_lease_id,
+                        error,
+                        now_ms(),
+                    )
+                    .await?;
+            }
+        }
+        Ok(())
+    }
+
+    async fn block_subagent_recovery(
+        &self,
+        task: &SubagentTaskRecord,
+        code: SubagentTaskRecoveryBlockCode,
+        detail: impl Into<String>,
+    ) {
+        let detail = detail.into();
+        if let Err(error) = self
+            .session_manager
+            .block_subagent_task_recovery(
+                &task.parent_session_id,
+                &task.task_id,
+                code,
+                detail.clone(),
+                now_ms(),
+            )
+            .await
+        {
+            warn!(
+                "Failed to persist typed subagent recovery block: parent_session_id={}, task_id={}, detail={}, error={}",
+                task.parent_session_id, task.task_id, detail, error
+            );
+        }
+    }
+
+    /// Consume the persisted recovery queue for one restored parent session.
+    ///
+    /// Delivery claims and interrupted-to-running transitions are persisted
+    /// before work starts, so concurrent restore entry points still elect one
+    /// winner.
+    pub async fn consume_subagent_task_recovery_queue(
+        &self,
+        parent_session_id: &str,
+    ) -> VoidResult<()> {
+        let recovery_queue = self
+            .session_manager
+            .list_subagent_task_recovery_queue(parent_session_id)
+            .await?;
+        for task in recovery_queue {
+            if task.status.is_terminal() {
+                let agent_type = task
+                    .launch_spec
+                    .as_ref()
+                    .map(|spec| spec.agent_type.as_str())
+                    .unwrap_or("subagent");
+                let context = task
+                    .launch_spec
+                    .as_ref()
+                    .map(|spec| spec.context.clone().into_iter().collect())
+                    .unwrap_or_default();
+                if let Err(error) = self
+                    .deliver_persisted_background_task(
+                        parent_session_id,
+                        &task.task_id,
+                        agent_type,
+                        &task.objective,
+                        context,
+                        None,
+                    )
+                    .await
+                {
+                    warn!(
+                        "Recovered subagent delivery attempt failed: parent_session_id={}, task_id={}, error={}",
+                        parent_session_id, task.task_id, error
+                    );
+                }
+                continue;
+            }
+
+            if task.status != SubagentTaskStatus::Interrupted {
+                continue;
+            }
+            let Some(checkpoint_ref) = task.durable_checkpoint.as_ref() else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::MissingCheckpoint,
+                    "interrupted subagent has no durable checkpoint",
+                )
+                .await;
+                continue;
+            };
+            let Some(launch_spec) = task.launch_spec.as_ref() else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::MissingLaunchSpec,
+                    "legacy interrupted subagent has no persisted launch spec",
+                )
+                .await;
+                continue;
+            };
+            if let Err(error) = launch_spec.validate() {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
+                    error.to_string(),
+                )
+                .await;
+                continue;
+            }
+            let persisted_context = launch_spec
+                .context
+                .clone()
+                .into_iter()
+                .collect::<HashMap<_, _>>();
+            if durable_subagent_context(&persisted_context) != launch_spec.context {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
+                    "persisted launch context violates the durable context policy",
+                )
+                .await;
+                continue;
+            }
+            let Some(child_session_id) = task.child_session_id.as_deref() else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::MissingChildSession,
+                    "interrupted subagent launch spec has no child session",
+                )
+                .await;
+                continue;
+            };
+            if checkpoint_ref.session_id != child_session_id {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::InvalidCheckpoint,
+                    "durable checkpoint does not belong to the persisted child session",
+                )
+                .await;
+                continue;
+            }
+            let parent_session = self
+                .session_manager
+                .get_session(parent_session_id)
+                .ok_or_else(|| {
+                    VoidError::NotFound(format!(
+                        "Parent session not restored for subagent recovery: {parent_session_id}"
+                    ))
+                })?;
+            let Some(workspace_path) = parent_session.config.workspace_path.as_deref() else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::MissingChildSession,
+                    "parent session has no workspace for child restore",
+                )
+                .await;
+                continue;
+            };
+            let child_session = match self
+                .session_manager
+                .restore_internal_session(Path::new(workspace_path), child_session_id)
+                .await
+            {
+                Ok(session) => session,
+                Err(error) => {
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::MissingChildSession,
+                        format!("persisted child session cannot be restored: {error}"),
+                    )
+                    .await;
+                    continue;
+                }
+            };
+            let context_messages = self
+                .session_manager
+                .get_context_messages(child_session_id)
+                .await?;
+            let Some(persisted_checkpoint) = self
+                .session_manager
+                .load_recovery_checkpoint(child_session_id)
+                .await?
+            else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::MissingCheckpoint,
+                    "durable checkpoint payload is missing",
+                )
+                .await;
+                continue;
+            };
+            if persisted_checkpoint.checkpoint_id != checkpoint_ref.checkpoint_id
+                || self
+                    .session_manager
+                    .validate_recovery_checkpoint(
+                        child_session_id,
+                        persisted_checkpoint.catalog_generation,
+                        &context_messages,
+                    )
+                    .await
+                    .is_err()
+            {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::InvalidCheckpoint,
+                    "durable checkpoint failed identity or context validation",
+                )
+                .await;
+                continue;
+            }
+
+            match self
+                .session_manager
+                .transition_subagent_task(
+                    parent_session_id,
+                    &task.task_id,
+                    SubagentTaskStatus::Running,
+                    Some(child_session_id.to_string()),
+                    Some("resuming from durable checkpoint".to_string()),
+                    None,
+                    None,
+                    now_ms(),
+                )
+                .await
+            {
+                Ok(_) => {}
+                Err(error) => {
+                    let claim_was_lost = self
+                        .session_manager
+                        .get_subagent_task(parent_session_id, &task.task_id)
+                        .await?
+                        .is_some_and(|current| current.status == SubagentTaskStatus::Running);
+                    if claim_was_lost {
+                        continue;
+                    }
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::ResumeFailed,
+                        format!("failed to claim interrupted subagent for resume: {error}"),
+                    )
+                    .await;
+                    continue;
+                }
+            }
+
+            let Some(coordinator) = get_global_coordinator() else {
+                self.block_subagent_recovery(
+                    &task,
+                    SubagentTaskRecoveryBlockCode::ResumeFailed,
+                    "coordinator is unavailable after recovery claim",
+                )
+                .await;
+                continue;
+            };
+            let task_id = task.task_id.clone();
+            let parent_session_id = parent_session_id.to_string();
+            let task_description = task.objective.clone();
+            let launch_spec = launch_spec.clone();
+            let child_session_id = child_session_id.to_string();
+            tokio::spawn(async move {
+                let request = HiddenSubagentExecutionRequest {
+                    session_name: child_session.session_name.clone(),
+                    agent_type: launch_spec.agent_type.clone(),
+                    session_config: child_session.config.clone(),
+                    initial_messages: context_messages,
+                    user_input_text:
+                        "<system_reminder>Resume the interrupted task from the validated durable checkpoint. Do not restart completed work.</system_reminder>"
+                            .to_string(),
+                    created_by: child_session.created_by.clone(),
+                    subagent_parent_info: Some(SubagentParentInfo {
+                        tool_call_id: launch_spec.parent_tool_call_id.clone(),
+                        session_id: parent_session_id.clone(),
+                        dialog_turn_id: launch_spec.parent_dialog_turn_id.clone(),
+                    }),
+                    context: launch_spec.context.clone().into_iter().collect(),
+                    delegation_policy: DelegationPolicy {
+                        allow_subagent_spawn: launch_spec.allow_subagent_spawn,
+                        nesting_depth: launch_spec.nesting_depth,
+                    },
+                    runtime_tool_restrictions: runtime_tool_restrictions_for_delegation_policy(
+                        DelegationPolicy {
+                            allow_subagent_spawn: launch_spec.allow_subagent_spawn,
+                            nesting_depth: launch_spec.nesting_depth,
+                        },
+                    ),
+                    prompt_cache_source_session_id: None,
+                    persistent_task: Some(PersistentSubagentTaskContext {
+                        task_id: task_id.clone(),
+                        parent_session_id: parent_session_id.clone(),
+                    }),
+                    resume_session_id: Some(child_session_id),
+                };
+                let outcome = coordinator
+                    .execute_hidden_subagent_internal(
+                        request,
+                        None,
+                        launch_spec.timeout_seconds,
+                    )
+                    .await;
+                let (status, result, failure) =
+                    background_subagent_terminal_facts(outcome.as_ref());
+                if let Err(error) = coordinator
+                    .session_manager
+                    .transition_subagent_task(
+                        &parent_session_id,
+                        &task_id,
+                        status,
+                        None,
+                        None,
+                        result,
+                        failure,
+                        now_ms(),
+                    )
+                    .await
+                {
+                    warn!(
+                        "Failed to persist resumed subagent terminal state: parent_session_id={}, task_id={}, error={}",
+                        parent_session_id, task_id, error
+                    );
+                    return;
+                }
+                if let Err(error) = coordinator
+                    .deliver_persisted_background_task(
+                        &parent_session_id,
+                        &task_id,
+                        &launch_spec.agent_type,
+                        &task_description,
+                        launch_spec.context.into_iter().collect(),
+                        None,
+                    )
+                    .await
+                {
+                    warn!(
+                        "Failed to deliver resumed subagent result: parent_session_id={}, task_id={}, error={}",
+                        parent_session_id, task_id, error
+                    );
+                }
+            });
+        }
+        Ok(())
+    }
+
+    fn schedule_subagent_task_recovery_sweep(&self, parent_session_id: &str) {
+        let Some(coordinator) = get_global_coordinator() else {
+            warn!(
+                "Cannot schedule subagent recovery sweep before coordinator initialization: parent_session_id={}",
+                parent_session_id
+            );
+            return;
+        };
+        let parent_session_id = parent_session_id.to_string();
+        tokio::spawn(async move {
+            if let Err(error) = coordinator
+                .consume_subagent_task_recovery_queue(&parent_session_id)
+                .await
+            {
+                warn!(
+                    "Subagent recovery sweep failed: parent_session_id={}, error={}",
+                    parent_session_id, error
+                );
+            }
+        });
     }
 
     pub(crate) async fn start_background_subagent(
@@ -4783,7 +5568,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         request: SubagentExecutionRequest,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<BackgroundSubagentStartResult> {
-        let request = self
+        let mut request = self
             .resolve_hidden_subagent_execution_request(request)
             .await?;
         let agent_type = request.agent_type.clone();
@@ -4793,21 +5578,51 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     .to_string(),
             )
         })?;
-        let parent_session = self
+        if self
             .session_manager
             .get_session(&subagent_parent_info.session_id)
-            .ok_or_else(|| {
+            .is_none()
+        {
+            return Err(
                 VoidError::NotFound(format!(
                     "Parent session not found: {}",
                     subagent_parent_info.session_id
-                ))
-            })?;
-        let parent_agent_type = parent_session.agent_type.clone();
-        let parent_workspace_path = parent_session.config.workspace_path.clone();
+                )),
+            );
+        }
         let background_task_id = format!("bg-subagent-{}", uuid::Uuid::new_v4());
+        let background_execution_owner = format!("background-execution-{}", uuid::Uuid::new_v4());
         let background_task_id_for_delivery = background_task_id.clone();
         let task_description = request.user_input_text.clone();
         let request_context = request.context.clone();
+        let mut task_record = SubagentTaskRecord::new_typed(
+                background_task_id.clone(),
+                subagent_parent_info.session_id.clone(),
+                task_description.clone(),
+                background_execution_owner,
+                SubagentTaskExecutionMode::Background,
+                if request.prompt_cache_source_session_id.is_some() {
+                    SubagentTaskContextMode::Fork
+                } else {
+                    SubagentTaskContextMode::Fresh
+                },
+                SubagentTaskReplaySafety::Idempotent,
+                now_ms(),
+            );
+        task_record.launch_spec = Some(SubagentTaskLaunchSpec {
+            agent_type: agent_type.clone(),
+            parent_dialog_turn_id: subagent_parent_info.dialog_turn_id.clone(),
+            parent_tool_call_id: subagent_parent_info.tool_call_id.clone(),
+            context: durable_subagent_context(&request_context),
+            allow_subagent_spawn: request.delegation_policy.allow_subagent_spawn,
+            nesting_depth: request.delegation_policy.nesting_depth,
+            timeout_seconds,
+        });
+        self.session_manager.create_subagent_task(task_record).await?;
+        request.persistent_task = Some(PersistentSubagentTaskContext {
+            task_id: background_task_id.clone(),
+            parent_session_id: subagent_parent_info.session_id.clone(),
+        });
         let coordinator = get_global_coordinator()
             .ok_or_else(|| VoidError::service("Coordinator not initialized".to_string()))?;
         let parent_cancel_token = self
@@ -4816,57 +5631,67 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .map(|token| token.child_token());
 
         tokio::spawn(async move {
-            let delivery_text = match coordinator
+            let outcome = coordinator
                 .execute_hidden_subagent_internal(
                     request,
                     parent_cancel_token.as_ref(),
                     timeout_seconds,
                 )
-                .await
-            {
+                .await;
+            let delivery_text = match &outcome {
                 Ok(result) => format_background_subagent_delivery_text(
                     &background_task_id_for_delivery,
                     &agent_type,
-                    Ok(&result),
+                    Ok(result),
                 ),
                 Err(error) => format_background_subagent_delivery_text(
                     &background_task_id_for_delivery,
                     &agent_type,
-                    Err(&error),
+                    Err(error),
                 ),
             };
+            let (terminal_status, result, failure) =
+                background_subagent_terminal_facts(outcome.as_ref());
 
-            let metadata = build_background_subagent_result_metadata(
-                &background_task_id_for_delivery,
-                &agent_type,
-                &task_description,
-                request_context,
-            );
-
-            if let Some(scheduler) = super::scheduler::get_global_scheduler() {
-                if let Err(error) = scheduler
-                    .deliver_background_result(
-                        subagent_parent_info.session_id.clone(),
-                        parent_agent_type,
-                        parent_workspace_path,
-                        delivery_text,
-                        None,
-                        Some(metadata),
-                    )
-                    .await
-                {
-                    warn!(
-                        "Failed to deliver background subagent result: background_task_id={}, parent_session_id={}, error={}",
-                        background_task_id_for_delivery,
-                        subagent_parent_info.session_id,
-                        error
-                    );
-                }
-            } else {
+            if let Err(error) = coordinator
+                .session_manager
+                .transition_subagent_task(
+                    &subagent_parent_info.session_id,
+                    &background_task_id_for_delivery,
+                    terminal_status,
+                    None,
+                    None,
+                    result,
+                    failure,
+                    now_ms(),
+                )
+                .await
+            {
                 warn!(
-                    "Scheduler not initialized; background subagent result dropped: background_task_id={}, parent_session_id={}",
+                    "Failed to persist terminal background subagent task state; result will not be delivered: background_task_id={}, parent_session_id={}, error={}",
                     background_task_id_for_delivery,
-                    subagent_parent_info.session_id
+                    subagent_parent_info.session_id,
+                    error
+                );
+                return;
+            }
+
+            if let Err(error) = coordinator
+                .deliver_persisted_background_task(
+                    &subagent_parent_info.session_id,
+                    &background_task_id_for_delivery,
+                    &agent_type,
+                    &task_description,
+                    request_context,
+                    Some(delivery_text),
+                )
+                .await
+            {
+                warn!(
+                    "Failed to persist background subagent delivery outcome: background_task_id={}, parent_session_id={}, error={}",
+                    background_task_id_for_delivery,
+                    subagent_parent_info.session_id,
+                    error
                 );
             }
         });
@@ -5032,6 +5857,17 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             previous_model_id: previous_model_id.to_string(),
             new_model_id: new_model_id.to_string(),
             reason: reason.to_string(),
+        };
+        let _ = self
+            .event_queue
+            .enqueue(event, Some(EventPriority::High))
+            .await;
+    }
+
+    pub async fn emit_subagent_task_changed(&self, task: SubagentTaskRecord) {
+        let event = AgenticEvent::SubagentTaskChanged {
+            session_id: task.parent_session_id.clone(),
+            task,
         };
         let _ = self
             .event_queue
@@ -5475,6 +6311,36 @@ mod tests {
     }
 
     #[test]
+    fn background_subagent_terminal_facts_preserve_typed_outcome() {
+        let completed = super::SubagentResult::completed("done".to_string());
+        assert_eq!(
+            super::background_subagent_terminal_facts(Ok(&completed)),
+            (
+                void_core_types::SubagentTaskStatus::Completed,
+                Some("done".to_string()),
+                None
+            )
+        );
+
+        let cancelled = crate::util::errors::VoidError::Cancelled("stopped".to_string());
+        let cancelled_facts = super::background_subagent_terminal_facts(Err(&cancelled));
+        assert_eq!(
+            cancelled_facts.0,
+            void_core_types::SubagentTaskStatus::Cancelled
+        );
+        assert!(cancelled_facts
+            .2
+            .as_deref()
+            .is_some_and(|failure| failure.contains("stopped")));
+
+        let failed = crate::util::errors::VoidError::tool("boom".to_string());
+        assert_eq!(
+            super::background_subagent_terminal_facts(Err(&failed)).0,
+            void_core_types::SubagentTaskStatus::Failed
+        );
+    }
+
+    #[test]
     fn background_subagent_metadata_preserves_request_context() {
         let mut context = HashMap::new();
         context.insert("multitaskBranchId".to_string(), "backend".to_string());
@@ -5489,6 +6355,60 @@ mod tests {
         assert_eq!(metadata["kind"], "background_result");
         assert_eq!(metadata["backgroundTaskId"], "bg-subagent-123");
         assert_eq!(metadata["context"]["multitaskBranchId"], "backend");
+    }
+
+    #[test]
+    fn durable_subagent_context_is_allowlisted_bounded_and_secret_free() {
+        assert!(super::contains_explicit_sensitive_context_value(
+            "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="
+        ));
+        assert!(!super::contains_explicit_sensitive_context_value(
+            "basic reviewer"
+        ));
+        let mut context = HashMap::new();
+        context.insert("multitaskBranchId".to_string(), "backend".to_string());
+        context.insert(
+            "multitaskBranchGoal".to_string(),
+            "x".repeat(super::MAX_DURABLE_SUBAGENT_CONTEXT_VALUE_BYTES + 1),
+        );
+        context.insert(
+            "deep_review_subagent_type".to_string(),
+            "Bearer credential-value".to_string(),
+        );
+        context.insert(
+            "deep_review_subagent_role".to_string(),
+            "basic reviewer".to_string(),
+        );
+        context.insert("apiToken".to_string(), "top-secret".to_string());
+        context.insert("cookie".to_string(), "session=secret".to_string());
+        context.insert("arbitrary_hidden_payload".to_string(), "hidden".to_string());
+
+        let durable = super::durable_subagent_context(&context);
+
+        assert_eq!(
+            durable.get("multitaskBranchId").map(String::as_str),
+            Some("backend")
+        );
+        assert!(!durable.contains_key("multitaskBranchGoal"));
+        assert!(!durable.contains_key("deep_review_subagent_type"));
+        assert_eq!(
+            durable.get("deep_review_subagent_role").map(String::as_str),
+            Some("basic reviewer")
+        );
+        assert!(!durable.contains_key("apiToken"));
+        assert!(!durable.contains_key("cookie"));
+        assert!(!durable.contains_key("arbitrary_hidden_payload"));
+        assert!(serde_json::to_string(&durable)
+            .unwrap()
+            .find("top-secret")
+            .is_none());
+
+        let tampered = std::collections::BTreeMap::from([(
+            "multitaskBranchGoal".to_string(),
+            "Authorization: Bearer persisted-secret".to_string(),
+        )]);
+        let tampered_map = tampered.clone().into_iter().collect();
+        assert_ne!(super::durable_subagent_context(&tampered_map), tampered);
     }
 
     #[test]

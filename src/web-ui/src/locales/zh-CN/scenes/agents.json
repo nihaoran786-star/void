@@ -126,6 +126,15 @@
       "team": "Team",
       "other": "其他"
     },
+    "toolGroups": {
+      "core": "核心工具",
+      "onDemand": "按需加载工具",
+      "mcp": "MCP 工具",
+      "integration": "集成工具"
+    },
+    "onDemandCount": "{{count}} 个按需",
+    "onDemandDescription": "仅在 Agent 需要时通过 GetToolSpec 加载",
+    "expandedDescription": "立即加入 Agent 工具清单",
     "customActions": "自定义 Agent",
     "editAgent": "编辑",
     "deleteAgent": "删除",

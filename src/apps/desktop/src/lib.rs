@@ -285,6 +285,8 @@ pub async fn run() {
     };
 
     let terminal_state = api::terminal_api::TerminalState::new();
+    let subscription_auth_state =
+        api::subscription_auth_api::SubscriptionAuthDesktopState::default();
 
     let path_manager = get_path_manager_arc();
 
@@ -307,6 +309,7 @@ pub async fn run() {
         .manage(coordinator)
         .manage(scheduler)
         .manage(terminal_state)
+        .manage(subscription_auth_state)
         .setup(move |app| {
             let setup_started = Instant::now();
             log::debug!(
@@ -603,17 +606,34 @@ pub async fn run() {
             api::agentic_api::restore_session_with_turns,
             webdriver_bridge_result,
             api::agentic_api::list_sessions,
+            api::agentic_api::list_subagent_tasks,
             api::agentic_api::confirm_tool_execution,
             api::agentic_api::reject_tool_execution,
             api::agentic_api::cancel_tool,
             api::agentic_api::generate_session_title,
             api::agentic_api::get_available_modes,
             api::agentic_api::get_default_review_team_definition,
+            api::agent_memory_api::propose_agent_memory,
+            api::agent_memory_api::commit_agent_memory,
+            api::agent_memory_api::list_agent_memories,
+            api::agent_memory_api::delete_agent_memory,
+            api::agent_memory_api::extract_agent_memory_from_session,
+            api::agent_memory_api::review_agent_memory_proposal,
+            api::agent_memory_api::delete_agent_memory_confirmed,
+            api::subscription_auth_api::subscription_auth_list_accounts,
+            api::subscription_auth_api::subscription_auth_start,
+            api::subscription_auth_api::subscription_auth_status,
+            api::subscription_auth_api::subscription_auth_cancel,
+            api::subscription_auth_api::subscription_auth_logout,
+            api::subscription_auth_api::subscription_auth_refresh,
             api::btw_api::btw_ask_stream,
             api::btw_api::btw_cancel,
+            api::btw_api::btw_list_relationships,
+            api::btw_api::btw_update_memory_enabled,
             api::editor_ai_api::editor_ai_stream,
             api::editor_ai_api::editor_ai_cancel,
             api::context_upload_api::upload_image_contexts,
+            api::external_config_sources_api::discover_external_config_source_summaries,
             get_all_tools_info,
             get_readonly_tools_info,
             get_tool_info,
@@ -683,6 +703,11 @@ pub async fn run() {
             paste_files,
             get_config,
             get_configs,
+            api::local_asr_api::get_local_asr_status,
+            api::local_asr_api::local_asr_start_input_session,
+            api::local_asr_api::local_asr_append_audio_chunk,
+            api::local_asr_api::local_asr_finish_input_session,
+            api::local_asr_api::local_asr_cancel_input_session,
             computer_use_get_status,
             computer_use_request_permissions,
             computer_use_open_system_settings,
@@ -800,6 +825,7 @@ pub async fn run() {
             list_persisted_sessions,
             list_persisted_sessions_page,
             load_session_turns,
+            resolve_session_references,
             get_session_usage_report,
             save_session_turn,
             save_session_metadata,

@@ -283,6 +283,7 @@ async fn emit_media_job_completed(event_context: MediaToolEventContext, result: 
                 tool_name: event_context.tool_name,
                 result,
                 result_for_assistant: Some(assistant_text),
+                image_attachments: None,
                 duration_ms: 0,
                 queue_wait_ms: None,
                 preflight_ms: None,

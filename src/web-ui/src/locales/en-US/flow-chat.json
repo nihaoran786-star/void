@@ -436,7 +436,23 @@
     "messageTooLarge": "Message exceeds the maximum length of {{max}} characters ({{count}} provided).",
     "openWorkspaceFolder": "Open workspace folder",
     "openWorkspaceFolderFailed": "Failed to open workspace folder: {{error}}",
-    "spaceToActivate": "Press <space>Space</space> to type"
+    "spaceToActivate": "Press <space>Space</space> to type",
+    "voiceInput": {
+      "start": "Start local voice input",
+      "stop": "Stop and transcribe",
+      "preparing": "Preparing local voice input",
+      "transcribing": "Transcribing locally",
+      "disabled": "Enable local voice input in model settings first.",
+      "unsupported": "Local voice input is unavailable in this runtime.",
+      "engineUnavailable": "This build does not include the local speech engine.",
+      "modelMissing": "Configure a valid local SenseVoice model first.",
+      "providerUnsupported": "The configured speech provider is not supported.",
+      "accessDenied": "This window is not allowed to access local voice input.",
+      "unavailable": "Local voice input is currently unavailable.",
+      "permissionDenied": "Microphone access was denied. Allow access in system settings and retry.",
+      "failed": "Local voice transcription failed. Check the model and microphone, then retry.",
+      "empty": "No speech was detected."
+    }
   },
   "workspaceStrip": {
     "branchTooltipUnavailable": "Not a git repository or no current branch",
@@ -558,6 +574,33 @@
     "deepreviewNestedDisabled": "Deep Review can only be started from the main session.",
     "deepreviewThreadTitle": "Deep review",
     "currentMode": "Current mode: {{mode}}",
+    "permissionMode": {
+      "menuLabel": "Permission mode",
+      "current": "Permissions: {{mode}}",
+      "loading": "Loading permission policy…",
+      "loadFailed": "Permission policy is unavailable. Changes are disabled.",
+      "ask": {
+        "label": "Ask",
+        "description": "Confirm before tools that require permission run."
+      },
+      "auto": {
+        "label": "Auto",
+        "description": "Automatically approve Ask decisions while preserving explicit Deny rules."
+      },
+      "fullAccess": {
+        "label": "Full access",
+        "description": "Allow tools by default while preserving explicit Deny rules."
+      },
+      "acp": {
+        "label": "ACP controlled",
+        "description": "Permissions for this session are controlled by the external ACP client."
+      },
+      "fullAccessWarningTitle": "Enable full access?",
+      "fullAccessWarningMessage": "Full access allows tools by default. Enable it only for a workspace and task you trust.",
+      "fullAccessConfirm": "Enable full access",
+      "cancel": "Cancel",
+      "changeFailed": "Failed to save permission mode"
+    },
     "noMatchingMode": "No matching mode",
     "noMatchingCommand": "No matching command",
     "selectHint": "↑↓ Select · Enter Confirm · Esc Cancel",
@@ -644,7 +687,7 @@
   "btw": {
     "title": "Side question",
     "shortLabel": "Side",
-    "hint": "Not saved · Uses current chat context · No tools",
+    "hint": "Saved as a private side thread · Uses current chat context · No tools",
     "placeholder": "Ask a quick question…",
     "ask": "Ask",
     "asking": "Thinking…",
@@ -661,7 +704,10 @@
     "nestedDisabled": "A side question cannot start another side question",
     "error": "Failed",
     "close": "Close",
-    "noSession": "No active session for /btw"
+    "noSession": "No active session for /btw",
+    "memoryLabel": "Memory",
+    "memoryHint": "Allow this side thread to offer memory candidates for your review.",
+    "memoryUpdateFailed": "Failed to update the memory preference."
   },
   "childSession": {
     "stopReview": "Stop review",
@@ -1124,6 +1170,14 @@
     "collapse": "Collapse commands"
   },
   "toolCards": {
+    "viewImage": {
+      "previewTitle": "Image preview",
+      "imageAlt": "Preview of {{name}}",
+      "loading": "Loading preview",
+      "openPreview": "Open full preview",
+      "unavailable": "Preview unavailable",
+      "loadFailed": "Preview failed to load"
+    },
     "file": {
       "write": "Write File",
       "edit": "Edit File",
@@ -2084,5 +2138,12 @@
   "mediaPreview": {
     "copy": "Copy path or URL",
     "close": "Close"
+  },
+  "turnFailureNotice": {
+    "title": "This turn failed",
+    "showDiagnostics": "Show diagnostics",
+    "copyDiagnostics": "Copy diagnostics",
+    "copied": "Copied",
+    "copyFailed": "Copy failed"
   }
 }

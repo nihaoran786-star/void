@@ -1,4 +1,5 @@
 import { i18nService } from '@/infrastructure/i18n';
+import type { SubscriptionProvider } from '@/shared/contracts/subscriptionAuth';
 
 const t = (key: string, options?: Record<string, unknown>) => i18nService.t(key, options);
 export interface GlobalConfig {
@@ -82,8 +83,20 @@ export interface AIExperienceConfig {
 
   /** Whether to enable flashgrep-backed accelerated workspace search for local workspaces. */
   enable_workspace_search: boolean;
+  /** Local speech-to-text settings. */
+  voice_input: VoiceInputConfig;
   /** User-defined quick actions shown in the post-coding actions menu. */
   quick_actions?: Array<{ id: string; label: string; prompt: string; enabled: boolean }>;
+}
+
+export interface VoiceInputConfig {
+  enabled: boolean;
+  provider: 'local';
+  model_id: string;
+  model_directory: string;
+  default_language: string;
+  max_recording_seconds: number;
+  microphone_device_id: string;
 }
 
 export type ModelCapability =
@@ -160,7 +173,8 @@ export interface AIModelConfig {
 export type AuthConfig =
   | { type: 'api_key' }
   | { type: 'codex_cli' }
-  | { type: 'gemini_cli' };
+  | { type: 'gemini_cli' }
+  | { type: 'subscription'; provider: SubscriptionProvider };
 
 export interface ProxyConfig {
   enabled: boolean;
@@ -199,8 +213,24 @@ export interface AIConfig {
   tool_execution_timeout_secs?: number | null;
   tool_confirmation_timeout_secs?: number | null;
   skip_tool_confirmation?: boolean;
+  tool_permissions?: ToolPermissionConfig;
   computer_use_enabled?: boolean;
   browser_control_preferred_browser?: string;
+}
+
+export type ToolPermissionMode = 'ask' | 'auto' | 'full_access';
+export type ToolPermissionDecision = 'allow' | 'ask' | 'deny';
+
+export interface ToolPermissionRule {
+  id?: string;
+  tool: string;
+  intent?: string;
+  decision: ToolPermissionDecision;
+}
+
+export interface ToolPermissionConfig {
+  mode: ToolPermissionMode;
+  rules: ToolPermissionRule[];
 }
 
 export interface StoredAgentProfileConfigItem {

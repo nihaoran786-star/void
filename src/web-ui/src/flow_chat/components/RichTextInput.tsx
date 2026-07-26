@@ -10,7 +10,23 @@ import {
   getWidgetPromptReferenceMatches,
   parseWidgetPromptReferenceToken,
 } from '@/tools/generative-widget/widgetPromptReference';
+import {
+  composerPresentationToValue,
+  createComposerPresentation,
+  getComposerPresentationContexts,
+  type ComposerPresentation,
+} from '../utils/composerPresentation';
+import {
+  createSkillPromptReferenceToken,
+  getSkillPromptReferenceMatches,
+  parseSkillPromptReferenceToken,
+} from '../utils/skillPromptReference';
 import './RichTextInput.scss';
+
+export interface RichTextInputElement extends HTMLDivElement {
+  getPresentation?: () => ComposerPresentation;
+  restorePresentation?: (presentation: ComposerPresentation) => void;
+}
 
 /** @ mention state */
 export interface MentionState {
@@ -53,6 +69,7 @@ function getContextDisplayName(context: ContextItem): string {
     case 'pull-request': return context.label;
     case 'image': return context.imageName;
     case 'media-reference': return context.mediaName;
+    case 'session-reference': return context.sessionTitle || context.sessionId;
     case 'terminal-command': return context.command;
     case 'git-ref': return context.refValue;
     case 'url': return context.title || context.url;
@@ -74,6 +91,7 @@ function getContextTagFormat(context: ContextItem): string {
     case 'pull-request': return `#pr:${context.label.replace(/\s+/g, '_')}`;
     case 'image': return `#img:${context.imageName}`;
     case 'media-reference': return `#media:${context.mediaName}`;
+    case 'session-reference': return `#session:${context.sessionTitle || context.sessionId}`;
     case 'terminal-command': return `#cmd:${context.command}`;
     case 'git-ref': return `#git:${context.refValue}`;
     case 'url': return `#link:${context.title || context.url}`;
@@ -107,6 +125,12 @@ function getContextFullPath(context: ContextItem): string {
       return context.imagePath;
     case 'media-reference':
       return `${context.kind}: ${context.mediaPath}`;
+    case 'session-reference':
+      return [
+        context.sessionId,
+        context.workspacePath,
+        context.remoteSshHost,
+      ].filter(Boolean).join(' · ');
     case 'terminal-command':
       return context.workingDirectory ? `${context.command} @ ${context.workingDirectory}` : context.command;
     case 'git-ref':
@@ -242,9 +266,74 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
     return tag;
   }, [internalRef, removeInlineTokenElement]);
 
+  const createSkillReferenceElement = useCallback((token: string): HTMLSpanElement | null => {
+    const name = parseSkillPromptReferenceToken(token);
+    if (!name) return null;
+
+    const tag = document.createElement('span');
+    tag.className = 'rich-text-tag-pill rich-text-tag-pill--skill-ref';
+    tag.contentEditable = 'false';
+    tag.dataset.tagFormat = token;
+    tag.dataset.inlineTokenType = 'skill-ref';
+    tag.title = `Skill: ${name}`;
+
+    const badge = document.createElement('span');
+    badge.className = 'rich-text-tag-pill__badge';
+    badge.textContent = 'S';
+
+    const text = document.createElement('span');
+    text.className = 'rich-text-tag-pill__text';
+    text.textContent = name;
+
+    const remove = document.createElement('button');
+    remove.className = 'rich-text-tag-pill__remove';
+    remove.textContent = '×';
+    remove.title = 'Remove';
+    remove.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      removeInlineTokenElement(tag);
+      requestAnimationFrame(() => {
+        internalRef.current?.focus();
+        triggerSyncRef.current?.();
+      });
+    };
+    tag.append(badge, text, remove);
+    return tag;
+  }, [internalRef, removeInlineTokenElement]);
+
   const renderValueWithInlineTokens = useCallback((editor: HTMLElement, text: string) => {
     const fragment = document.createDocumentFragment();
-    const matches = getWidgetPromptReferenceMatches(text);
+    const inlineMatches = [
+      ...getWidgetPromptReferenceMatches(text).map(match => ({ ...match, kind: 'widget' as const })),
+      ...getSkillPromptReferenceMatches(text).map(match => ({ ...match, kind: 'skill' as const })),
+    ];
+    const occupiedRanges = inlineMatches.map(match => ({ start: match.start, end: match.end }));
+    const contextMatches = [...contexts]
+      .sort(
+        (left, right) =>
+          getContextTagFormat(right).length - getContextTagFormat(left).length,
+      )
+      .flatMap(context => {
+      const token = getContextTagFormat(context);
+      let searchFrom = 0;
+      while (searchFrom < text.length) {
+        const start = text.indexOf(token, searchFrom);
+        if (start < 0) return [];
+        const end = start + token.length;
+        const overlaps = occupiedRanges.some(
+          range => start < range.end && end > range.start,
+        );
+        if (!overlaps) {
+          occupiedRanges.push({ start, end });
+          return [{ start, end, token, kind: 'context' as const, context }];
+        }
+        searchFrom = end;
+      }
+      return [];
+      });
+    const matches = [...inlineMatches, ...contextMatches]
+      .sort((a, b) => a.start - b.start || a.end - b.end);
 
     if (matches.length === 0) {
       editor.textContent = text;
@@ -253,11 +342,18 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
 
     let cursor = 0;
     for (const match of matches) {
+      if (match.start < cursor) {
+        continue;
+      }
       if (match.start > cursor) {
         fragment.appendChild(document.createTextNode(text.slice(cursor, match.start)));
       }
 
-      const tokenElement = createWidgetReferenceElement(match.token);
+      const tokenElement = match.kind === 'context'
+        ? createTagElement(match.context)
+        : match.kind === 'skill'
+          ? createSkillReferenceElement(match.token)
+          : createWidgetReferenceElement(match.token);
       if (tokenElement) {
         fragment.appendChild(tokenElement);
       } else {
@@ -271,7 +367,34 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
     }
 
     editor.replaceChildren(fragment);
-  }, [createWidgetReferenceElement]);
+  }, [contexts, createSkillReferenceElement, createTagElement, createWidgetReferenceElement]);
+
+  const renderPresentation = useCallback((
+    editor: HTMLElement,
+    presentation: ComposerPresentation,
+  ) => {
+    const fragment = document.createDocumentFragment();
+    for (const segment of presentation.segments) {
+      if (segment.type === 'context') {
+        fragment.appendChild(createTagElement(segment.context));
+        continue;
+      }
+      if (segment.type === 'skill') {
+        const token = createSkillPromptReferenceToken(segment.name);
+        fragment.appendChild(
+          createSkillReferenceElement(token) ?? document.createTextNode(token),
+        );
+        continue;
+      }
+
+      const textContainer = document.createElement('span');
+      renderValueWithInlineTokens(textContainer, segment.text);
+      while (textContainer.firstChild) {
+        fragment.appendChild(textContainer.firstChild);
+      }
+    }
+    editor.replaceChildren(fragment);
+  }, [createSkillReferenceElement, createTagElement, renderValueWithInlineTokens]);
 
   /** Map textContent offsets to a DOM Range to replace only the @ span. */
   const getRangeByTextOffsets = useCallback((root: Node, start: number, end: number): Range | null => {
@@ -722,8 +845,26 @@ export const RichTextInput = React.forwardRef<HTMLDivElement, RichTextInputProps
       (internalRef.current as any).insertTagReplacingMention = insertTagReplacingMention;
       (internalRef.current as any).openMention = openMention;
       (internalRef.current as any).closeMention = closeMention;
+      (internalRef.current as RichTextInputElement).getPresentation = () =>
+        createComposerPresentation(extractTextContent(), contexts);
+      (internalRef.current as RichTextInputElement).restorePresentation = (presentation) => {
+        const restoredValue = composerPresentationToValue(presentation);
+        renderPresentation(internalRef.current!, presentation);
+        onChange(restoredValue, getComposerPresentationContexts(presentation));
+      };
     }
-  }, [closeMention, insertTagAtCursor, insertTagReplacingMention, openMention, internalRef]);
+  }, [
+    closeMention,
+    contexts,
+    extractTextContent,
+    insertTagAtCursor,
+    insertTagReplacingMention,
+    onChange,
+    openMention,
+    internalRef,
+    renderPresentation,
+    renderValueWithInlineTokens,
+  ]);
 
   // Initialize and sync value changes from external sources.
   // This editor is effectively controlled by comparing the parent's value

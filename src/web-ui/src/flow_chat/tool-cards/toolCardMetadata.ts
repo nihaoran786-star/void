@@ -344,6 +344,16 @@ export const TOOL_CARD_CONFIGS: Record<string, ToolCardConfig> = {
     displayMode: 'detailed',
     primaryColor: '#64748b'
   },
+  'ViewImage': {
+    toolName: 'ViewImage',
+    displayName: 'View Image',
+    icon: 'IMG',
+    requiresConfirmation: false,
+    resultDisplayType: 'detailed',
+    description: 'Preview a workspace image',
+    displayMode: 'detailed',
+    primaryColor: '#2563eb'
+  },
 };
 
 /**

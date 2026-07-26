@@ -133,8 +133,6 @@
     justify-self: stretch;
   }
 }
-
-
 .void-config-page-row__meta {
   min-width: 0;
 }
@@ -243,7 +241,6 @@
     justify-self: stretch;
   }
 }
-
 @container config-panel (max-width: 280px) {
   .void-ui--minimal :is(
     .void-config-page-header,

@@ -112,6 +112,33 @@
   transition: all 0.2s ease;
 }
 
+.user-message-item__reference-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  margin: 0 0.12em;
+  padding: 0.08em 0.42em;
+  border: 1px solid color-mix(in srgb, var(--border-muted, currentColor) 55%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--element-bg-hover, currentColor) 9%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.88em;
+  font-weight: 500;
+  vertical-align: baseline;
+  white-space: nowrap;
+
+  > span[aria-hidden] {
+    color: var(--color-text-muted);
+    font-size: 0.78em;
+    text-transform: capitalize;
+  }
+}
+
+.user-message-item__reference-pill--skill,
+.user-message-item__reference-pill--session-reference {
+  color: var(--color-text-primary);
+}
+
 // Expanded state (outer scroll area).
 .user-message-item--expanded {
   max-height: 60vh;

@@ -109,6 +109,13 @@ impl TransportAdapter for WebSocketTransportAdapter {
                     "agentType": agent_type,
                 })
             }
+            AgenticEvent::SubagentTaskChanged { session_id, task } => {
+                json!({
+                    "type": "subagent-task-changed",
+                    "sessionId": session_id,
+                    "task": task,
+                })
+            }
             AgenticEvent::ModelRoundStarted {
                 session_id,
                 turn_id,

@@ -156,6 +156,11 @@ describeWithJsdom('TaskToolDisplay', () => {
     vi.stubGlobal('navigator', window.navigator);
     vi.stubGlobal('HTMLElement', window.HTMLElement);
     vi.stubGlobal('CustomEvent', window.CustomEvent);
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 
     taskCollapseStateManager.clearAll();
@@ -288,5 +293,48 @@ describeWithJsdom('TaskToolDisplay', () => {
       remoteSshHost: 'host-1',
       includeInternal: true,
     });
+  });
+
+  it('shows the typed recovery block reason on a hydrated task card', async () => {
+    taskCollapseStateManager.setCollapsed('task-tool-1', false);
+    const toolItem: FlowToolItem = {
+      ...reviewTaskItem('completed', 'Explore', 'Resume interrupted task'),
+      subagentTask: {
+        schemaVersion: 3,
+        taskId: 'bg-1',
+        parentSessionId: 'parent-session',
+        childSessionId: 'subagent-session-1',
+        objective: 'Resume interrupted task',
+        executionMode: 'background',
+        contextMode: 'fresh',
+        status: 'interrupted',
+        owner: 'worker-1',
+        deliveryState: 'blocked',
+        deliveryReplaySafety: 'idempotent',
+        deliveryIdempotencyKey: 'delivery-1',
+        deliveryAttempts: 1,
+        recoveryState: 'blocked',
+        recoveryBlock: {
+          code: 'missing_launch_spec',
+          detail: 'The legacy task has no durable launch inputs.',
+        },
+        createdAt: 10,
+        updatedAt: 20,
+      },
+    };
+
+    await act(async () => {
+      root.render(
+        <TaskToolDisplay
+          toolItem={toolItem}
+          config={config}
+          sessionId="parent-session"
+        />,
+      );
+    });
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      'missing_launch_spec: The legacy task has no durable launch inputs.',
+    );
   });
 });

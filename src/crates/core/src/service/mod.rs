@@ -5,14 +5,21 @@
 //! contracts and equivalence tests are explicit.
 
 #[cfg(feature = "product-full")]
-pub(crate) mod agent_memory; // Agent memory prompt helpers
+pub mod agent_memory; // Agent memory prompt helpers and consent-gated repository interface
+#[cfg(feature = "product-full")]
+mod atomic_file;
 #[cfg(feature = "service-integrations")]
 pub mod announcement; // Announcement / feature-demo / tips system
 pub(crate) mod bootstrap; // Workspace persona bootstrap helpers
+#[cfg(feature = "product-full")]
+pub mod btw_relationship; // Durable BTW lineage without transient runtime duplication
 pub mod config; // Config management
 #[cfg(feature = "product-full")]
 pub mod cron; // Scheduled jobs
 pub mod filesystem; // FileSystem management
+pub use void_services_integrations::external_config_sources;
+#[cfg(feature = "service-integrations")]
+pub use void_services_integrations::local_asr;
 #[cfg(feature = "service-integrations")]
 pub mod git; // Git service
 pub mod i18n; // I18n service
@@ -29,6 +36,7 @@ pub mod review_platform; // Pull request review platform adapters
 pub mod runtime; // Managed runtime and capability management
 pub mod search; // Workspace search via managed flashgrep daemon
 pub mod session; // Session persistence
+pub use void_services_core::session_reference;
 #[cfg(feature = "product-full")]
 pub mod session_usage; // Session runtime usage reports
 #[cfg(feature = "product-full")]

@@ -1,5 +1,6 @@
 use crate::agentic::core::{
     CompressedMessage, CompressedTodoSnapshot, CompressionContract, CompressionPayload,
+    RecoveryCheckpoint,
 };
 
 #[derive(Debug, Clone)]
@@ -22,6 +23,9 @@ pub struct CompressionSummaryArtifact {
 pub(super) enum CompressionUnit {
     Contract {
         contract: CompressionContract,
+    },
+    RecoveryCheckpoint {
+        checkpoint: RecoveryCheckpoint,
     },
     ModelSummary {
         text: String,

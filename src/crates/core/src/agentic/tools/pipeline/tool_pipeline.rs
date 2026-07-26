@@ -13,6 +13,8 @@ use crate::agentic::tools::registry::ToolRegistry;
 use crate::agentic::tools::tool_context_runtime;
 use crate::agentic::tools::tool_context_runtime::ToolUseContext;
 use crate::agentic::tools::tool_result_storage;
+#[cfg(feature = "product-full")]
+use crate::service::config::types::ToolPermissionDecision;
 use crate::util::elapsed_ms_u64;
 use crate::util::errors::{VoidError, VoidResult};
 use dashmap::DashMap;
@@ -26,9 +28,11 @@ use tokio::time::{timeout, Duration};
 use tokio_util::sync::CancellationToken;
 use void_agent_tools::{
     build_invalid_tool_call_error_message, build_tool_execution_error_presentation,
-    build_user_steering_interrupted_presentation, render_tool_result_for_assistant,
-    truncate_raw_tool_arguments_preview, truncate_tool_arguments_preview,
-    validate_collapsed_tool_usage, validate_tool_allowed_by_list, GET_TOOL_SPEC_TOOL_NAME,
+    build_user_steering_interrupted_presentation, parse_deferred_tool_call,
+    render_tool_result_for_assistant, truncate_raw_tool_arguments_preview,
+    truncate_tool_arguments_preview,
+    validate_collapsed_tool_usage as validate_collapsed_tool_usage_contract,
+    validate_tool_allowed_by_list, CALL_DEFERRED_TOOL_NAME, GET_TOOL_SPEC_TOOL_NAME,
     USER_STEERING_INTERRUPTED_MESSAGE,
 };
 
@@ -36,6 +40,58 @@ use void_agent_tools::{
 struct ToolBatch {
     task_ids: Vec<String>,
     is_concurrent: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedToolInvocation {
+    wire_tool_name: String,
+    effective_tool_name: String,
+    effective_arguments: serde_json::Value,
+    catalog_generation: Option<u64>,
+}
+
+impl ResolvedToolInvocation {
+    fn from_task(task: &ToolTask) -> VoidResult<Self> {
+        if task.tool_call.tool_name != CALL_DEFERRED_TOOL_NAME {
+            return Ok(Self {
+                wire_tool_name: task.tool_call.tool_name.clone(),
+                effective_tool_name: task.tool_call.tool_name.clone(),
+                effective_arguments: task.tool_call.arguments.clone(),
+                catalog_generation: None,
+            });
+        }
+
+        let deferred =
+            parse_deferred_tool_call(&task.tool_call.arguments).map_err(VoidError::Validation)?;
+        if matches!(
+            deferred.tool_name.as_str(),
+            GET_TOOL_SPEC_TOOL_NAME | CALL_DEFERRED_TOOL_NAME
+        ) {
+            return Err(VoidError::Validation(format!(
+                "Tool '{}' cannot be called through CallDeferredTool",
+                deferred.tool_name
+            )));
+        }
+
+        Ok(Self {
+            wire_tool_name: task.tool_call.tool_name.clone(),
+            effective_tool_name: deferred.tool_name,
+            effective_arguments: deferred.arguments,
+            catalog_generation: Some(deferred.catalog_generation),
+        })
+    }
+
+    fn is_deferred(&self) -> bool {
+        self.wire_tool_name == CALL_DEFERRED_TOOL_NAME
+    }
+
+    fn effective_task(&self, task: &ToolTask) -> ToolTask {
+        let mut effective = task.clone();
+        effective.tool_call.tool_name = self.effective_tool_name.clone();
+        effective.tool_call.arguments = self.effective_arguments.clone();
+        effective.tool_call.raw_arguments = None;
+        effective
+    }
 }
 
 /// Number of *consecutive* identical tool calls (same name + deep-equal
@@ -47,6 +103,17 @@ const TOOL_CALL_LOOP_THRESHOLD: usize = 3;
 /// session does not accumulate unbounded memory; only the tail of the window
 /// participates in loop detection anyway.
 const TOOL_CALL_HISTORY_WINDOW: usize = 10;
+
+#[cfg(feature = "product-full")]
+fn resolve_configured_tool_permission(
+    options: &ToolExecutionOptions,
+    tool_name: &str,
+) -> Option<crate::service::config::types::ToolPermissionResolution> {
+    options
+        .permission_config
+        .as_ref()
+        .map(|config| config.resolve_without_intent(tool_name))
+}
 
 /// Snapshot of a recently attempted tool call, used to detect agent loops.
 #[derive(Debug, Clone)]
@@ -269,12 +336,17 @@ pub struct ToolPipeline {
 }
 
 impl ToolPipeline {
-    fn validate_collapsed_tool_usage(task: &ToolTask) -> VoidResult<()> {
-        validate_collapsed_tool_usage(
-            task.tool_call.tool_name.as_str(),
+    fn validate_collapsed_tool_usage(
+        task: &ToolTask,
+        invocation: &ResolvedToolInvocation,
+    ) -> VoidResult<()> {
+        validate_collapsed_tool_usage_contract(
+            &invocation.effective_tool_name,
+            invocation.is_deferred(),
             &task.context.collapsed_tools,
             &task.context.unlocked_collapsed_tools,
-            GET_TOOL_SPEC_TOOL_NAME,
+            invocation.catalog_generation,
+            task.context.catalog_generation,
         )
         .map_err(|error| VoidError::Validation(error.to_string()))
     }
@@ -404,9 +476,17 @@ impl ToolPipeline {
             tool_calls
                 .iter()
                 .map(|tc| {
+                    let (tool_name, arguments) = if tc.tool_name == CALL_DEFERRED_TOOL_NAME {
+                        match parse_deferred_tool_call(&tc.arguments) {
+                            Ok(call) => (call.tool_name, call.arguments),
+                            Err(_) => return false,
+                        }
+                    } else {
+                        (tc.tool_name.clone(), tc.arguments.clone())
+                    };
                     registry
-                        .get_tool(&tc.tool_name)
-                        .map(|tool| tool.is_concurrency_safe(Some(&tc.arguments)))
+                        .get_tool(&tool_name)
+                        .map(|tool| tool.is_concurrency_safe(Some(&arguments)))
                         .unwrap_or(false)
                 })
                 .collect()
@@ -597,8 +677,11 @@ impl ToolPipeline {
             .get_task(&tool_id)
             .ok_or_else(|| VoidError::NotFound(format!("Tool task not found: {}", tool_id)))?;
 
-        let tool_name = task.tool_call.tool_name.clone();
-        let tool_args = task.tool_call.arguments.clone();
+        let invocation = ResolvedToolInvocation::from_task(&task)?;
+        let wire_tool_name = invocation.wire_tool_name.clone();
+        let tool_name = invocation.effective_tool_name.clone();
+        let tool_args = invocation.effective_arguments.clone();
+        let effective_task = invocation.effective_task(&task);
         let tool_is_error = task.tool_call.is_error;
         let recovered_from_truncation = task.tool_call.recovered_from_truncation;
         let queue_wait_ms = elapsed_ms_since(task.created_at);
@@ -616,14 +699,14 @@ impl ToolPipeline {
             );
         }
 
-        if tool_name.is_empty() || tool_is_error {
+        if wire_tool_name.is_empty() || tool_is_error {
             let raw_arguments_preview = task
                 .tool_call
                 .raw_arguments
                 .as_deref()
                 .map(truncate_raw_tool_arguments_preview);
             let error_msg = build_invalid_tool_call_error_message(
-                &tool_name,
+                &wire_tool_name,
                 tool_is_error,
                 recovered_from_truncation,
                 raw_arguments_preview,
@@ -680,6 +763,28 @@ impl ToolPipeline {
             return Err(VoidError::Validation(error_msg));
         }
 
+        if let Err(err) =
+            validate_tool_allowed_by_list(&wire_tool_name, &task.context.allowed_tools)
+        {
+            let error_msg = err.to_string();
+            warn!("Wire tool not allowed: {}", error_msg);
+            self.state_manager
+                .update_state(
+                    &tool_id,
+                    ToolExecutionState::Failed {
+                        error: error_msg.clone(),
+                        is_retryable: false,
+                        duration_ms: None,
+                        queue_wait_ms: None,
+                        preflight_ms: None,
+                        confirmation_wait_ms: None,
+                        execution_ms: None,
+                    },
+                )
+                .await;
+            return Err(VoidError::Validation(error_msg));
+        }
+
         if let Err(err) = validate_tool_allowed_by_list(&tool_name, &task.context.allowed_tools) {
             let error_msg = err.to_string();
             warn!("Tool not allowed: {}", error_msg);
@@ -729,7 +834,7 @@ impl ToolPipeline {
             return Err(err.into());
         }
 
-        if let Err(err) = Self::validate_collapsed_tool_usage(&task) {
+        if let Err(err) = Self::validate_collapsed_tool_usage(&task, &invocation) {
             let error_msg = err.to_string();
             warn!("Collapsed tool usage validation failed: {}", error_msg);
 
@@ -753,20 +858,15 @@ impl ToolPipeline {
 
         let tool = {
             let registry = self.tool_registry.read().await;
-            registry
-                .get_tool(&task.tool_call.tool_name)
-                .ok_or_else(|| {
-                    let error_msg = format!(
-                        "Tool '{}' is not registered or enabled.",
-                        task.tool_call.tool_name,
-                    );
-                    error!("{}", error_msg);
-                    VoidError::tool(error_msg)
-                })?
+            registry.get_tool(&tool_name).ok_or_else(|| {
+                let error_msg = format!("Tool '{}' is not registered or enabled.", tool_name,);
+                error!("{}", error_msg);
+                VoidError::tool(error_msg)
+            })?
         };
 
         let cancellation_token = CancellationToken::new();
-        let tool_context = self.build_tool_use_context(&task, cancellation_token.clone());
+        let tool_context = self.build_tool_use_context(&effective_task, cancellation_token.clone());
         let validation = tool.validate_input(&tool_args, Some(&tool_context)).await;
         if !validation.result {
             let error_msg = validation
@@ -798,15 +898,51 @@ impl ToolPipeline {
             );
         }
 
-        // Register cancellation only after deterministic validation and registry lookup succeed.
-        self.cancellation_tokens
-            .insert(tool_id.clone(), cancellation_token.clone());
-
         debug!("Executing tool: tool_name={}", tool_name);
 
         let is_streaming = tool.supports_streaming();
         let preflight_ms = elapsed_ms_u64(start_time);
 
+        #[cfg(feature = "product-full")]
+        let permission_resolution = resolve_configured_tool_permission(&task.options, &tool_name);
+
+        #[cfg(feature = "product-full")]
+        if permission_resolution
+            .as_ref()
+            .is_some_and(|resolution| resolution.decision == ToolPermissionDecision::Deny)
+        {
+            let error_msg = format!(
+                "Tool denied by runtime restrictions: '{}' is denied by the configured tool permission policy",
+                tool_name
+            );
+            self.state_manager
+                .update_state(
+                    &tool_id,
+                    ToolExecutionState::Failed {
+                        error: error_msg.clone(),
+                        is_retryable: false,
+                        duration_ms: Some(elapsed_ms_u64(start_time)),
+                        queue_wait_ms: Some(queue_wait_ms),
+                        preflight_ms: Some(preflight_ms),
+                        confirmation_wait_ms: None,
+                        execution_ms: None,
+                    },
+                )
+                .await;
+            return Err(VoidError::Tool(error_msg));
+        }
+
+        // Register cancellation only after deterministic validation and
+        // permission denial checks succeed.
+        self.cancellation_tokens
+            .insert(tool_id.clone(), cancellation_token.clone());
+
+        #[cfg(feature = "product-full")]
+        let needs_confirmation = permission_resolution
+            .map(|resolution| resolution.decision == ToolPermissionDecision::Ask)
+            .unwrap_or(task.options.confirm_before_run)
+            && tool.needs_permissions(Some(&tool_args));
+        #[cfg(not(feature = "product-full"))]
         let needs_confirmation =
             task.options.confirm_before_run && tool.needs_permissions(Some(&tool_args));
 
@@ -974,9 +1110,9 @@ impl ToolPipeline {
         }
 
         let execution_started_at = Instant::now();
-        let tool_context = self.build_tool_use_context(&task, cancellation_token.clone());
+        let tool_context = self.build_tool_use_context(&effective_task, cancellation_token.clone());
         let result = self
-            .execute_with_retry(&task, cancellation_token.clone(), tool)
+            .execute_with_retry(&effective_task, cancellation_token.clone(), tool)
             .await;
         let execution_ms = elapsed_ms_u64(execution_started_at);
 
@@ -990,6 +1126,10 @@ impl ToolPipeline {
                     &tool_context,
                 )
                 .await;
+                // The provider must receive a result for its model-visible
+                // CallDeferredTool invocation. Runtime hooks and execution used
+                // the effective target identity above.
+                tool_result.tool_name = wire_tool_name.clone();
                 tool_result.duration_ms = Some(duration_ms);
 
                 // The tool call succeeded with arguments that we patched
@@ -1033,7 +1173,7 @@ impl ToolPipeline {
 
                 Ok(ToolExecutionResult {
                     tool_id,
-                    tool_name,
+                    tool_name: wire_tool_name,
                     result: tool_result,
                     execution_time_ms: duration_ms,
                 })
@@ -1454,8 +1594,16 @@ mod tests {
     use crate::agentic::tools::framework::Tool;
     use crate::agentic::tools::implementations::task_tool::TaskTool;
     use crate::agentic::tools::ToolRuntimeRestrictions;
+    #[cfg(feature = "product-full")]
+    use crate::service::config::types::{
+        ToolPermissionConfig, ToolPermissionDecision, ToolPermissionMode, ToolPermissionRule,
+    };
+    use async_trait::async_trait;
     use serde_json::json;
+    use serde_json::Value;
     use std::collections::HashMap;
+    #[cfg(feature = "product-full")]
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn test_tool_pipeline() -> ToolPipeline {
         let registry = Arc::new(TokioRwLock::new(ToolRegistry::new()));
@@ -1485,6 +1633,7 @@ mod tests {
                 delegation_policy: void_runtime_ports::DelegationPolicy::top_level(),
                 collapsed_tools: Vec::new(),
                 unlocked_collapsed_tools: Vec::new(),
+                catalog_generation: 0,
                 allowed_tools: Vec::new(),
                 runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
                 steering_interrupt: None,
@@ -1492,6 +1641,462 @@ mod tests {
             },
             ToolExecutionOptions::default(),
         )
+    }
+
+    struct DeferredTargetTestTool {
+        name: &'static str,
+        readonly: bool,
+        default_exposure: crate::agentic::tools::framework::ToolExposure,
+    }
+
+    #[async_trait]
+    impl Tool for DeferredTargetTestTool {
+        fn name(&self) -> &str {
+            self.name
+        }
+
+        async fn description(&self) -> VoidResult<String> {
+            Ok("deferred target test tool".to_string())
+        }
+
+        fn short_description(&self) -> String {
+            "deferred target".to_string()
+        }
+
+        fn default_exposure(&self) -> crate::agentic::tools::framework::ToolExposure {
+            self.default_exposure
+        }
+
+        fn input_schema(&self) -> Value {
+            json!({
+                "type": "object",
+                "required": ["value"],
+                "properties": { "value": { "type": "string" } }
+            })
+        }
+
+        fn is_readonly(&self) -> bool {
+            self.readonly
+        }
+
+        async fn validate_input(
+            &self,
+            input: &Value,
+            _context: Option<&ToolUseContext>,
+        ) -> crate::agentic::tools::framework::ValidationResult {
+            if input.get("value").and_then(Value::as_str).is_some() {
+                crate::agentic::tools::framework::ValidationResult::default()
+            } else {
+                crate::agentic::tools::framework::ValidationResult {
+                    result: false,
+                    message: Some("value is required".to_string()),
+                    error_code: Some(400),
+                    meta: None,
+                }
+            }
+        }
+
+        async fn call_impl(
+            &self,
+            input: &Value,
+            _context: &ToolUseContext,
+        ) -> VoidResult<Vec<FrameworkToolResult>> {
+            Ok(vec![FrameworkToolResult::Result {
+                data: json!({ "effective_tool": self.name, "value": input["value"] }),
+                result_for_assistant: None,
+                image_attachments: None,
+            }])
+        }
+    }
+
+    async fn register_deferred_test_tool(
+        pipeline: &ToolPipeline,
+        name: &'static str,
+        readonly: bool,
+        default_exposure: crate::agentic::tools::framework::ToolExposure,
+    ) {
+        pipeline
+            .tool_registry
+            .write()
+            .await
+            .register_tool(Arc::new(DeferredTargetTestTool {
+                name,
+                readonly,
+                default_exposure,
+            }));
+    }
+
+    fn deferred_execution_context(target: &str, generation: u64) -> ToolExecutionContext {
+        let mut context = test_tool_task("context", "Read").context;
+        context.allowed_tools = vec![CALL_DEFERRED_TOOL_NAME.to_string(), target.to_string()];
+        context.collapsed_tools = vec![target.to_string()];
+        context.unlocked_collapsed_tools = vec![target.to_string()];
+        context.catalog_generation = generation;
+        context
+    }
+
+    #[tokio::test]
+    async fn deferred_gateway_executes_effective_target_but_preserves_wire_result_identity() {
+        let pipeline = test_tool_pipeline();
+        register_deferred_test_tool(
+            &pipeline,
+            "DeferredReadTest",
+            true,
+            crate::agentic::tools::framework::ToolExposure::Collapsed,
+        )
+        .await;
+        let call = ToolCall {
+            tool_id: "gateway-1".to_string(),
+            tool_name: CALL_DEFERRED_TOOL_NAME.to_string(),
+            arguments: json!({
+                "tool_name": "DeferredReadTest",
+                "arguments": { "value": "ok" },
+                "catalog_generation": 9
+            }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+
+        let results = pipeline
+            .execute_tools(
+                vec![call],
+                deferred_execution_context("DeferredReadTest", 9),
+                ToolExecutionOptions::default(),
+            )
+            .await
+            .expect("gateway execution result");
+
+        assert_eq!(results[0].tool_name, CALL_DEFERRED_TOOL_NAME);
+        assert_eq!(results[0].result.tool_name, CALL_DEFERRED_TOOL_NAME);
+        assert_eq!(
+            results[0].result.result["effective_tool"],
+            "DeferredReadTest"
+        );
+        assert_eq!(results[0].result.result["value"], "ok");
+    }
+
+    #[tokio::test]
+    async fn deferred_gateway_uses_effective_target_permission_and_generation_gates() {
+        let pipeline = test_tool_pipeline();
+        register_deferred_test_tool(
+            &pipeline,
+            "DeferredWriteTest",
+            false,
+            crate::agentic::tools::framework::ToolExposure::Collapsed,
+        )
+        .await;
+        let make_call = |generation| ToolCall {
+            tool_id: format!("gateway-{generation}"),
+            tool_name: CALL_DEFERRED_TOOL_NAME.to_string(),
+            arguments: json!({
+                "tool_name": "DeferredWriteTest",
+                "arguments": { "value": "mutate" },
+                "catalog_generation": generation
+            }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+
+        let stale = pipeline
+            .execute_tools(
+                vec![make_call(8)],
+                deferred_execution_context("DeferredWriteTest", 9),
+                ToolExecutionOptions::default(),
+            )
+            .await
+            .expect("stale generation result");
+        assert!(stale[0].result.is_error);
+        assert!(stale[0]
+            .result
+            .result_for_assistant
+            .as_deref()
+            .unwrap_or_default()
+            .contains("stale"));
+
+        let confirmation = pipeline
+            .execute_tools(
+                vec![make_call(9)],
+                deferred_execution_context("DeferredWriteTest", 9),
+                ToolExecutionOptions {
+                    confirm_before_run: true,
+                    confirmation_timeout_secs: Some(0),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("permission timeout result");
+        assert!(confirmation[0].result.is_error);
+        assert!(matches!(
+            pipeline
+                .state_manager
+                .get_task("gateway-9")
+                .expect("gateway task")
+                .state,
+            ToolExecutionState::Cancelled { .. }
+        ));
+    }
+
+    #[cfg(feature = "product-full")]
+    #[tokio::test]
+    async fn deferred_gateway_applies_explicit_deny_to_effective_target() {
+        let pipeline = test_tool_pipeline();
+        register_deferred_test_tool(
+            &pipeline,
+            "DeferredDeniedTest",
+            false,
+            crate::agentic::tools::framework::ToolExposure::Collapsed,
+        )
+        .await;
+        let call = ToolCall {
+            tool_id: "gateway-denied".to_string(),
+            tool_name: CALL_DEFERRED_TOOL_NAME.to_string(),
+            arguments: json!({
+                "tool_name": "DeferredDeniedTest",
+                "arguments": { "value": "must-not-run" },
+                "catalog_generation": 11
+            }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+        let options = ToolExecutionOptions {
+            permission_config: Some(ToolPermissionConfig {
+                mode: ToolPermissionMode::Auto,
+                rules: vec![ToolPermissionRule {
+                    id: Some("deny-deferred-target".to_string()),
+                    tool: "DeferredDeniedTest".to_string(),
+                    intent: None,
+                    decision: ToolPermissionDecision::Deny,
+                }],
+            }),
+            ..Default::default()
+        };
+
+        let results = pipeline
+            .execute_tools(
+                vec![call],
+                deferred_execution_context("DeferredDeniedTest", 11),
+                options,
+            )
+            .await
+            .expect("deferred denial result");
+
+        assert!(results[0].result.is_error);
+        assert_eq!(results[0].result.result["category"], "runtime_denied");
+    }
+
+    #[tokio::test]
+    async fn manifest_expanded_override_allows_direct_call_for_default_collapsed_tool() {
+        let pipeline = test_tool_pipeline();
+        register_deferred_test_tool(
+            &pipeline,
+            "OverrideExpandedTest",
+            true,
+            crate::agentic::tools::framework::ToolExposure::Collapsed,
+        )
+        .await;
+        let call = ToolCall {
+            tool_id: "override-expanded-direct".to_string(),
+            tool_name: "OverrideExpandedTest".to_string(),
+            arguments: json!({ "value": "direct" }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+        let mut context = test_tool_task("context", "Read").context;
+        context.allowed_tools = vec!["OverrideExpandedTest".to_string()];
+
+        let results = pipeline
+            .execute_tools(vec![call], context, ToolExecutionOptions::default())
+            .await
+            .expect("direct execution result");
+
+        assert!(!results[0].result.is_error);
+        assert_eq!(
+            results[0].result.result["effective_tool"],
+            "OverrideExpandedTest"
+        );
+        assert_eq!(results[0].result.result["value"], "direct");
+    }
+
+    #[tokio::test]
+    async fn manifest_collapsed_override_requires_gateway_for_default_expanded_tool() {
+        let pipeline = test_tool_pipeline();
+        register_deferred_test_tool(
+            &pipeline,
+            "OverrideCollapsedTest",
+            true,
+            crate::agentic::tools::framework::ToolExposure::Expanded,
+        )
+        .await;
+        let context = deferred_execution_context("OverrideCollapsedTest", 13);
+        let direct = ToolCall {
+            tool_id: "override-collapsed-direct".to_string(),
+            tool_name: "OverrideCollapsedTest".to_string(),
+            arguments: json!({ "value": "direct" }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+
+        let direct_results = pipeline
+            .execute_tools(
+                vec![direct],
+                context.clone(),
+                ToolExecutionOptions::default(),
+            )
+            .await
+            .expect("direct rejection result");
+        assert!(direct_results[0].result.is_error);
+        assert!(direct_results[0]
+            .result
+            .result_for_assistant
+            .as_deref()
+            .unwrap_or_default()
+            .contains("cannot be called directly"));
+
+        let gateway = ToolCall {
+            tool_id: "override-collapsed-gateway".to_string(),
+            tool_name: CALL_DEFERRED_TOOL_NAME.to_string(),
+            arguments: json!({
+                "tool_name": "OverrideCollapsedTest",
+                "arguments": { "value": "gateway" },
+                "catalog_generation": 13
+            }),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+        let gateway_results = pipeline
+            .execute_tools(vec![gateway], context, ToolExecutionOptions::default())
+            .await
+            .expect("gateway execution result");
+
+        assert!(!gateway_results[0].result.is_error);
+        assert_eq!(
+            gateway_results[0].result.result["effective_tool"],
+            "OverrideCollapsedTest"
+        );
+        assert_eq!(gateway_results[0].result.result["value"], "gateway");
+    }
+
+    #[cfg(feature = "product-full")]
+    struct CountingPermissionTool {
+        calls: Arc<AtomicUsize>,
+    }
+
+    #[cfg(feature = "product-full")]
+    #[async_trait]
+    impl Tool for CountingPermissionTool {
+        fn name(&self) -> &str {
+            "PermissionProbe"
+        }
+
+        async fn description(&self) -> VoidResult<String> {
+            Ok("permission test tool".to_string())
+        }
+
+        fn short_description(&self) -> String {
+            "permission test tool".to_string()
+        }
+
+        fn input_schema(&self) -> Value {
+            json!({ "type": "object" })
+        }
+
+        async fn call_impl(
+            &self,
+            _input: &Value,
+            _context: &ToolUseContext,
+        ) -> VoidResult<Vec<FrameworkToolResult>> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![FrameworkToolResult::Result {
+                data: json!({ "ok": true }),
+                result_for_assistant: None,
+                image_attachments: None,
+            }])
+        }
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn configured_auto_mode_preserves_explicit_deny() {
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Auto,
+            rules: vec![ToolPermissionRule {
+                id: Some("deny-bash".to_string()),
+                tool: "Bash".to_string(),
+                intent: None,
+                decision: ToolPermissionDecision::Deny,
+            }],
+        });
+
+        let resolution =
+            resolve_configured_tool_permission(&options, "Bash").expect("typed resolution");
+        assert_eq!(resolution.decision, ToolPermissionDecision::Deny);
+    }
+
+    #[cfg(feature = "product-full")]
+    #[test]
+    fn configured_ask_and_full_access_modes_drive_unmatched_tool_decisions() {
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Ask,
+            rules: Vec::new(),
+        });
+        assert_eq!(
+            resolve_configured_tool_permission(&options, "Write")
+                .expect("ask resolution")
+                .decision,
+            ToolPermissionDecision::Ask
+        );
+
+        options.permission_config.as_mut().expect("config").mode = ToolPermissionMode::FullAccess;
+        assert_eq!(
+            resolve_configured_tool_permission(&options, "Write")
+                .expect("full access resolution")
+                .decision,
+            ToolPermissionDecision::Allow
+        );
+    }
+
+    #[cfg(feature = "product-full")]
+    #[tokio::test]
+    async fn configured_deny_returns_runtime_error_without_calling_tool() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut registry = ToolRegistry::new();
+        registry.register_tool(Arc::new(CountingPermissionTool {
+            calls: calls.clone(),
+        }));
+        let event_queue = Arc::new(EventQueue::new(EventQueueConfig::default()));
+        let state_manager = Arc::new(ToolStateManager::new(event_queue));
+        let pipeline = ToolPipeline::new(Arc::new(TokioRwLock::new(registry)), state_manager, None);
+        let task = test_tool_task("permission-probe-1", "PermissionProbe");
+        let mut context = task.context;
+        context.allowed_tools = vec!["PermissionProbe".to_string()];
+        let mut options = ToolExecutionOptions::default();
+        options.permission_config = Some(ToolPermissionConfig {
+            mode: ToolPermissionMode::Auto,
+            rules: vec![ToolPermissionRule {
+                id: Some("deny-probe".to_string()),
+                tool: "PermissionProbe".to_string(),
+                intent: None,
+                decision: ToolPermissionDecision::Deny,
+            }],
+        });
+
+        let results = pipeline
+            .execute_tools(vec![task.tool_call], context, options)
+            .await
+            .expect("pipeline should return a per-tool denial result");
+
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].result.is_error);
+        assert_eq!(results[0].result.result["category"], "runtime_denied");
     }
 
     #[test]
@@ -1645,16 +2250,15 @@ mod tests {
     }
 
     #[test]
-    fn collapsed_tool_requires_tool_catalog_unlock() {
+    fn resolved_manifest_collapsed_tool_is_never_directly_callable() {
         let mut task = test_tool_task("tool_1", "WebFetch");
         task.context.collapsed_tools = vec!["WebFetch".to_string()];
+        let invocation = ResolvedToolInvocation::from_task(&task).expect("direct invocation");
 
-        let err = ToolPipeline::validate_collapsed_tool_usage(&task)
-            .expect_err("collapsed tool should require GetToolSpec unlock");
+        let err = ToolPipeline::validate_collapsed_tool_usage(&task, &invocation)
+            .expect_err("deferred tool must reject direct invocation");
 
-        assert!(err
-            .to_string()
-            .contains("Call GetToolSpec first with {\"tool_name\":\"WebFetch\"}"));
+        assert!(err.to_string().contains("cannot be called directly"));
     }
 
     #[test]
@@ -1662,8 +2266,9 @@ mod tests {
         let mut task = test_tool_task("tool_1", "GetToolSpec");
         task.tool_call.arguments = json!({ "tool_name": "WebFetch" });
         task.context.unlocked_collapsed_tools = vec!["WebFetch".to_string()];
+        let invocation = ResolvedToolInvocation::from_task(&task).expect("GetToolSpec invocation");
 
-        let result = ToolPipeline::validate_collapsed_tool_usage(&task);
+        let result = ToolPipeline::validate_collapsed_tool_usage(&task, &invocation);
 
         assert!(
             result.is_ok(),

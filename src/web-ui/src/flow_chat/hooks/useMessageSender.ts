@@ -10,12 +10,26 @@
 
 import { useCallback } from 'react';
 import { FlowChatManager } from '../services/FlowChatManager';
-import type { ContextItem, ImageContext } from '@/shared/types/context';
+import type {
+  ContextItem,
+  ImageContext,
+  SessionReferenceContext,
+} from '@/shared/types/context';
 import type { AIModelConfig, DefaultModelsConfig } from '@/infrastructure/config/types';
 import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
 import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
 import type { SessionConfig } from '../types/flow-chat';
+import {
+  createComposerPresentation,
+  type ComposerPresentation,
+} from '../utils/composerPresentation';
+import { expandSkillPromptReferences } from '../utils/skillPromptReference';
+import type { SessionReferenceAccessScope } from '@/infrastructure/api/service-api/SessionAPI';
+import {
+  resolveSessionReferenceTranscriptInjection,
+  sessionReferenceResolutionMetadata,
+} from '../services/sessionReferenceTranscript';
 
 const log = createLogger('FlowChat');
 
@@ -44,10 +58,8 @@ interface UseMessageSenderProps {
   currentSessionId?: string;
   /** Context items */
   contexts: ContextItem[];
-  /** Clear contexts callback */
-  onClearContexts: () => void;
   /** Success callback */
-  onSuccess?: (message: string) => void;
+  onSuccess?: (message: string, receipt: MessageSendReceipt) => void;
   /** Exit template mode callback */
   onExitTemplateMode?: () => void;
   /** Selected agent type (mode) */
@@ -56,6 +68,14 @@ interface UseMessageSenderProps {
   newSessionConfig?: SessionConfig;
   /** Called once after a deferred session is created successfully. */
   onSessionCreated?: (sessionId: string) => void;
+  /** Authorized scope used by the session-reference Module Interface. */
+  sessionReferenceScope?: Omit<SessionReferenceAccessScope, 'currentSessionId'>;
+}
+
+export interface MessageSendReceipt {
+  requestedSessionId: string | null;
+  sentSessionId: string;
+  submittedContextIds: readonly string[];
 }
 
 interface UseMessageSenderReturn {
@@ -64,8 +84,9 @@ interface UseMessageSenderReturn {
     message: string,
     options?: {
       displayMessage?: string;
+      composerPresentation?: ComposerPresentation;
     }
-  ) => Promise<void>;
+  ) => Promise<MessageSendReceipt | undefined>;
   /** Whether a send is in progress */
   isSending: boolean;
 }
@@ -74,18 +95,19 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
   const {
     currentSessionId,
     contexts,
-    onClearContexts,
     onSuccess,
     onExitTemplateMode,
     currentAgentType,
     newSessionConfig,
     onSessionCreated,
+    sessionReferenceScope,
   } = props;
 
   const sendMessage = useCallback(async (
     message: string,
     options?: {
       displayMessage?: string;
+      composerPresentation?: ComposerPresentation;
     }
   ) => {
     if (!message.trim()) {
@@ -93,6 +115,9 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     }
 
     const trimmedMessage = message.trim();
+    const requestedSessionId = currentSessionId ?? null;
+    const submittedContexts = contexts.map(context => ({ ...context }));
+    const submittedContextIds = contexts.map(context => context.id);
     // Strip inline `#img:<name>` tags from the AI-bound text. The rich text
     // editor inserts these when an image is pasted, but the named file does
     // not exist on disk; image bytes are sent out-of-band via `imageContexts`
@@ -105,11 +130,11 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         .replace(/[ \t]+\n/g, '\n')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    const aiTrimmedMessage = stripImageTags(trimmedMessage);
-    let sessionId = currentSessionId;
+    const aiTrimmedMessage = expandSkillPromptReferences(stripImageTags(trimmedMessage));
+    let sessionId = requestedSessionId;
     log.debug('Send message initiated', {
       textLength: trimmedMessage.length,
-      contextCount: contexts.length,
+      contextCount: submittedContexts.length,
       hasSession: !!sessionId,
       agentType: currentAgentType || 'agentic',
     });
@@ -137,15 +162,35 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         log.debug('Reusing existing session', { sessionId });
       }
 
-      const imageContexts = contexts.filter(ctx => ctx.type === 'image') as ImageContext[];
+      const imageContexts = submittedContexts.filter(ctx => ctx.type === 'image') as ImageContext[];
+      const sessionReferences = submittedContexts.filter(
+        (context): context is SessionReferenceContext => context.type === 'session-reference',
+      );
+      const sessionReferenceInjection = await resolveSessionReferenceTranscriptInjection(
+        sessionReferences,
+        sessionReferenceScope?.workspacePath
+          ? {
+              currentSessionId: sessionId,
+              ...sessionReferenceScope,
+            }
+          : undefined,
+      );
 
       let fullMessage = aiTrimmedMessage;
       const displayMessage = options?.displayMessage?.trim() || trimmedMessage;
+      const composerPresentation = options?.composerPresentation
+        ?? createComposerPresentation(displayMessage, submittedContexts);
 
-      if (contexts.length > 0) {
-        const fullContextSection = contexts.map(formatContextForPrompt).filter(Boolean).join('\n');
+      if (submittedContexts.length > 0) {
+        const fullContextSection = submittedContexts
+          .map(formatContextForPrompt)
+          .filter(Boolean)
+          .join('\n');
 
         fullMessage = `${fullContextSection}\n\n${aiTrimmedMessage}`;
+      }
+      if (sessionReferenceInjection.prompt) {
+        fullMessage = `${sessionReferenceInjection.prompt}\n\n${fullMessage}`;
       }
 
       // Always pass imageContexts to the backend; the coordinator decides
@@ -160,25 +205,39 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         displayMessage,
         currentAgentType || 'agentic',
         undefined,
-        imageContextsForBackend
+        {
+          imageContexts: imageContextsForBackend?.imageContexts,
+          imageDisplayData: imageContextsForBackend?.imageDisplayData,
+          userMessageMetadata: {
+            composerPresentation,
+            sessionReferences,
+            sessionReferenceResolutions: sessionReferenceResolutionMetadata(
+              sessionReferenceInjection.results,
+            ),
+          },
+        },
       );
-
-      onClearContexts();
 
       onExitTemplateMode?.();
 
-      onSuccess?.(trimmedMessage);
+      const receipt: MessageSendReceipt = {
+        requestedSessionId,
+        sentSessionId: sessionId,
+        submittedContextIds,
+      };
+      onSuccess?.(trimmedMessage, receipt);
       log.info('Message sent successfully', {
         sessionId,
         agentType: currentAgentType || 'agentic',
-        contextCount: contexts.length,
+        contextCount: submittedContexts.length,
         imageCount: imageContexts.length,
       });
+      return receipt;
     } catch (error) {
       log.error('Failed to send message', {
         sessionId,
         agentType: currentAgentType || 'agentic',
-        contextCount: contexts.length,
+        contextCount: submittedContexts.length,
         error: (error as Error)?.message ?? 'unknown',
       });
       throw error;
@@ -186,12 +245,12 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
   }, [
     currentSessionId,
     contexts,
-    onClearContexts,
     onSuccess,
     onExitTemplateMode,
     currentAgentType,
     newSessionConfig,
     onSessionCreated,
+    sessionReferenceScope,
   ]);
 
   return {

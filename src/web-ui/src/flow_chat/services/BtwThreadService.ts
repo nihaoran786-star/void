@@ -7,6 +7,7 @@ import type { Session } from '../types/flow-chat';
 import type { SessionKind, SessionRelationship } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
 import type { BackendImageContextPayload } from '../utils/imageContextForBackend';
+import type { BtwSessionRecord } from '@/infrastructure/api/service-api/BtwAPI';
 
 function safeUuid(prefix = 'btw'): string {
   try {
@@ -225,7 +226,8 @@ export async function sendMessageToTransientBtwSession(params: {
   childSessionName?: string;
   modelId?: string;
   imagePayload?: BackendImageContextPayload;
-}): Promise<{ requestId: string }> {
+  memoryEnabled?: boolean;
+}): Promise<{ requestId: string; relationship: BtwSessionRecord }> {
   const question = params.question.trim();
   if (!question) {
     notificationService.warning('Please provide a question after /btw');
@@ -236,6 +238,12 @@ export async function sendMessageToTransientBtwSession(params: {
   if (!isTransientBtwSession(childSession)) {
     throw new Error(`Session is not a transient /btw session: ${params.childSessionId}`);
   }
+  const workspacePath =
+    childSession.workspacePath?.trim() ||
+    requireSession(params.parentSessionId).workspacePath?.trim();
+  if (!workspacePath) {
+    throw new Error(`Workspace path is required for BTW child session: ${params.childSessionId}`);
+  }
 
   await flowChatManager.ensureBackendSession(params.parentSessionId);
 
@@ -244,20 +252,27 @@ export async function sendMessageToTransientBtwSession(params: {
     requestId,
     parentSessionId: params.parentSessionId,
   }, 'btw');
-  await btwAPI.askStream({
+  const response = await btwAPI.askStream({
     requestId,
     sessionId: params.parentSessionId,
+    workspacePath,
     childSessionId: params.childSessionId,
     childSessionName: params.childSessionName || childSession.title || 'Side thread',
     question,
     modelId: params.modelId ?? childSession.config.modelName ?? 'fast',
     imageContexts: params.imagePayload?.imageContexts,
+    memoryEnabled: params.memoryEnabled,
   });
   if (params.modelId?.trim()) {
     flowChatStore.updateSessionModelName(params.childSessionId, params.modelId.trim());
   }
+  flowChatStore.updateSessionBtwOrigin(params.childSessionId, {
+    requestId,
+    parentSessionId: params.parentSessionId,
+    memoryEnabled: response.relationship.memoryEnabled,
+  }, 'btw');
 
-  return { requestId };
+  return { requestId, relationship: response.relationship };
 }
 
 export async function startBtwThread(params: {
@@ -266,7 +281,12 @@ export async function startBtwThread(params: {
   question: string;
   modelId?: string;
   imagePayload?: BackendImageContextPayload;
-}): Promise<{ requestId: string; childSessionId: string }> {
+  memoryEnabled?: boolean;
+}): Promise<{
+  requestId: string;
+  childSessionId: string;
+  relationship: BtwSessionRecord;
+}> {
   const question = params.question.trim();
   if (!question) {
     notificationService.warning('Please provide a question after /btw');
@@ -281,15 +301,16 @@ export async function startBtwThread(params: {
   });
 
   try {
-    const { requestId } = await sendMessageToTransientBtwSession({
+    const { requestId, relationship } = await sendMessageToTransientBtwSession({
       parentSessionId: params.parentSessionId,
       childSessionId,
       question,
       childSessionName,
       modelId: params.modelId,
       imagePayload: params.imagePayload,
+      memoryEnabled: params.memoryEnabled ?? false,
     });
-    return { requestId, childSessionId };
+    return { requestId, childSessionId, relationship };
   } catch (error) {
     flowChatManager.discardLocalSession(childSessionId);
     throw error;

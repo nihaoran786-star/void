@@ -13,6 +13,7 @@ import {
   ConfigPageLoading,
   Modal,
   Select,
+  confirmWarning,
   type SelectOption,
 } from '@/component-library';
 import { ConfigPageHeader, ConfigPageLayout, ConfigPageContent, ConfigPageSection, ConfigPageRow } from './common';
@@ -28,7 +29,13 @@ import {
 import { configManager } from '../services/ConfigManager';
 import { systemAPI } from '@/infrastructure/api/service-api/SystemAPI';
 import { useNotification, notificationService } from '@/shared/notification-system';
-import type { AIModelConfig, DebugModeConfig, LanguageDebugTemplate } from '../types';
+import type {
+  AIModelConfig,
+  DebugModeConfig,
+  LanguageDebugTemplate,
+  ToolPermissionConfig,
+  ToolPermissionMode,
+} from '../types';
 import {
   LANGUAGE_TEMPLATE_LABELS,
   DEFAULT_DEBUG_MODE_CONFIG,
@@ -36,7 +43,12 @@ import {
   DEFAULT_LANGUAGE_TEMPLATES,
 } from '../types';
 import { ModelSelectionRadio } from './ModelSelectionRadio';
+import { AgentMemorySettings } from './AgentMemorySettings';
 import { ChatInputPixelPet } from '@/flow_chat/components/ChatInputPixelPet';
+import {
+  DEFAULT_TOOL_PERMISSION_CONFIG,
+  toolPermissionConfigService,
+} from '../services/ToolPermissionConfigService';
 import { ask, open } from '@tauri-apps/plugin-dialog';
 import { createLogger } from '@/shared/utils/logger';
 import './AIFeaturesConfig.scss';
@@ -93,7 +105,9 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
   const [companionPetListExpanded, setCompanionPetListExpanded] = useState(false);
   const [models, setModels] = useState<AIModelConfig[]>([]);
   const [funcAgentModels, setFuncAgentModels] = useState<Record<string, string>>({});
-  const [skipToolConfirmation, setSkipToolConfirmation] = useState(true);
+  const [toolPermissionConfig, setToolPermissionConfig] = useState<ToolPermissionConfig>(
+    DEFAULT_TOOL_PERMISSION_CONFIG,
+  );
   const [executionTimeout, setExecutionTimeout] = useState('');
   const [confirmationTimeout, setConfirmationTimeout] = useState('');
   const [toolExecConfigLoading, setToolExecConfigLoading] = useState(false);
@@ -192,7 +206,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
         loadedSettings,
         allModels,
         funcAgentModelsData,
-        skipConfirm,
+        loadedToolPermissionConfig,
         execTimeout,
         confirmTimeout,
         debugConfigData,
@@ -203,7 +217,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
         aiExperienceConfigService.getSettingsAsync(),
         configManager.getConfig<AIModelConfig[]>('ai.models') || [],
         configManager.getConfig<Record<string, string>>('ai.func_agent_models') || {},
-        configManager.getConfig<boolean>('ai.skip_tool_confirmation'),
+        toolPermissionConfigService.loadConfig(),
         configManager.getConfig<number | null>('ai.tool_execution_timeout_secs'),
         configManager.getConfig<number | null>('ai.tool_confirmation_timeout_secs'),
         configManager.getConfig<DebugModeConfig>('ai.debug_mode_config'),
@@ -216,7 +230,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
       setCompanionPets(loadedCompanionPets);
       setModels(allModels as AIModelConfig[]);
       setFuncAgentModels(funcAgentModelsData as Record<string, string>);
-      setSkipToolConfirmation(skipConfirm ?? true);
+      setToolPermissionConfig(loadedToolPermissionConfig);
       setExecutionTimeout(execTimeout != null ? String(execTimeout) : '');
       setConfirmationTimeout(confirmTimeout != null ? String(confirmTimeout) : '');
       if (debugConfigData) setDebugConfig(debugConfigData);
@@ -400,23 +414,35 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
     }
   };
 
-  const handleSkipToolConfirmationChange = async (checked: boolean) => {
-    setSkipToolConfirmation(checked);
+  const handleToolPermissionModeChange = async (mode: ToolPermissionMode) => {
+    const previous = toolPermissionConfig;
+    if (mode === 'full_access' && previous.mode !== 'full_access') {
+      const confirmed = await confirmWarning(
+        t('toolExecution.fullAccessWarningTitle'),
+        t('toolExecution.fullAccessWarningMessage'),
+        {
+          confirmText: t('toolExecution.fullAccessConfirm'),
+          cancelText: t('toolExecution.fullAccessCancel'),
+        },
+      );
+      if (!confirmed) return;
+    }
+    setToolPermissionConfig({ ...previous, mode });
     setToolExecConfigLoading(true);
     try {
-      await configManager.setConfig('ai.skip_tool_confirmation', checked);
+      setToolPermissionConfig(
+        await toolPermissionConfigService.saveMode(mode, previous),
+      );
       notificationService.success(
-        checked ? tTools('messages.autoExecuteEnabled') : tTools('messages.autoExecuteDisabled'),
+        t('toolExecution.permissionModeSaved'),
         { duration: 2000 }
       );
-      const { globalEventBus } = await import('@/infrastructure/event-bus');
-      globalEventBus.emit('mode:config:updated');
     } catch (error) {
-      log.error('Failed to save skip_tool_confirmation', error);
+      log.error('Failed to save tool permission mode', error);
       notificationService.error(
         `${tTools('messages.saveFailed')}: ` + (error instanceof Error ? error.message : String(error))
       );
-      setSkipToolConfirmation(!checked);
+      setToolPermissionConfig(previous);
     } finally {
       setToolExecConfigLoading(false);
     }
@@ -987,13 +1013,35 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
           title={t('toolExecution.sectionTitle')}
           description={t('toolExecution.sectionDescription')}
         >
-          <ConfigPageRow label={tTools('config.autoExecute')} description={tTools('config.autoExecuteDesc')} align="center">
+          <ConfigPageRow
+            label={t('toolExecution.permissionMode')}
+            description={t('toolExecution.permissionModeDesc')}
+            align="center"
+          >
             <div className="void-func-agent-config__row-control">
-              <Switch
-                checked={skipToolConfirmation}
-                onChange={(e) => handleSkipToolConfirmationChange(e.target.checked)}
+              <Select
+                value={toolPermissionConfig.mode}
+                options={[
+                  {
+                    value: 'ask',
+                    label: t('toolExecution.permissionModes.ask'),
+                  },
+                  {
+                    value: 'auto',
+                    label: t('toolExecution.permissionModes.auto'),
+                  },
+                  {
+                    value: 'full_access',
+                    label: t('toolExecution.permissionModes.fullAccess'),
+                  },
+                ]}
+                onChange={(value) => {
+                  if (!Array.isArray(value)) {
+                    void handleToolPermissionModeChange(String(value) as ToolPermissionMode);
+                  }
+                }}
                 disabled={toolExecConfigLoading}
-                aria-label={tTools('config.autoExecute')}
+                ariaLabel={t('toolExecution.permissionMode')}
                 size="small"
               />
             </div>
@@ -1528,7 +1576,12 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 };
 
 export function SessionPersonalizationConfig(): React.ReactElement {
-  return <SessionSettingsPanels variant="personalization" />;
+  return (
+    <>
+      <SessionSettingsPanels variant="personalization" />
+      <AgentMemorySettings />
+    </>
+  );
 }
 
 export function SessionPermissionsConfig(): React.ReactElement {

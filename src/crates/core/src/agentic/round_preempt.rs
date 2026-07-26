@@ -126,6 +126,15 @@ impl SessionRoundInjectionBuffer {
             .push(message);
     }
 
+    pub fn push_if_absent(&self, session_id: &str, message: RoundInjection) -> bool {
+        let mut entry = self.inner.entry(session_id.to_string()).or_default();
+        if entry.iter().any(|existing| existing.id == message.id) {
+            return false;
+        }
+        entry.push(message);
+        true
+    }
+
     /// Drain all messages eligible for the currently running turn. Exact-turn
     /// injections that target a different turn are retained until the targeted
     /// turn consumes them or the session is cleared.
@@ -259,5 +268,16 @@ mod steering_tests {
         assert_eq!(drained.len(), 1);
         assert_eq!(drained[0].content, "background result");
         assert_eq!(buf.pending_count("s1"), 0);
+    }
+
+    #[test]
+    fn duplicate_injection_id_is_accepted_once() {
+        let buf = SessionRoundInjectionBuffer::default();
+        let mut message = current_turn_msg("background result");
+        message.id = "stable-delivery-key".to_string();
+
+        assert!(buf.push_if_absent("s1", message.clone()));
+        assert!(!buf.push_if_absent("s1", message));
+        assert_eq!(buf.pending_count("s1"), 1);
     }
 }

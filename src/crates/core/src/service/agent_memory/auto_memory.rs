@@ -1,14 +1,20 @@
 use crate::infrastructure::get_path_manager_arc;
+use crate::service::agent_memory::repository::{
+    list_stored_agent_memories_in_dir, StoredAgentMemory,
+};
 use crate::util::errors::*;
 use log::debug;
+use serde_json::json;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
 const MEMORY_DIR_NAME: &str = "memory";
 const MEMORY_INDEX_FILE: &str = "memory.md";
-const MEMORY_INDEX_TEMPLATE: &str = "# Memory Index\n";
 const MEMORY_INDEX_MAX_LINES: usize = 200;
 const TOPIC_MEMORY_MAX_FILES: usize = 30;
+const APPROVED_MEMORY_MAX_ITEMS: usize = 24;
+const APPROVED_MEMORY_MAX_BYTES: usize = 12_000;
+const APPROVED_MEMORY_MAX_CONTENT_BYTES: usize = 2_000;
 
 fn memory_dir_path(workspace_root: &Path) -> PathBuf {
     let path_manager = get_path_manager_arc();
@@ -24,18 +30,6 @@ fn memory_dir_path(workspace_root: &Path) -> PathBuf {
 
 fn format_path_for_prompt(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
-}
-
-async fn ensure_markdown_placeholder(path: &Path, content: &str) -> VoidResult<bool> {
-    if path.exists() {
-        return Ok(false);
-    }
-
-    fs::write(path, content)
-        .await
-        .map_err(|e| VoidError::service(format!("Failed to create {}: {}", path.display(), e)))?;
-
-    Ok(true)
 }
 
 async fn list_memory_files(memory_dir: &Path) -> VoidResult<Vec<String>> {
@@ -77,48 +71,20 @@ async fn list_memory_files(memory_dir: &Path) -> VoidResult<Vec<String>> {
     Ok(memory_files)
 }
 
-pub(crate) async fn ensure_workspace_memory_files_for_prompt(
-    workspace_root: &Path,
-) -> VoidResult<()> {
-    let memory_dir = memory_dir_path(workspace_root);
-    if !memory_dir.exists() {
-        fs::create_dir_all(&memory_dir).await.map_err(|e| {
-            VoidError::service(format!(
-                "Failed to create memory directory {}: {}",
-                memory_dir.display(),
-                e
-            ))
-        })?;
-    }
-    let created_memory_index =
-        ensure_markdown_placeholder(&memory_dir.join(MEMORY_INDEX_FILE), MEMORY_INDEX_TEMPLATE)
-            .await?;
-
-    debug!(
-        "Ensured workspace agent memory files: path={}, created_memory_index={}",
-        workspace_root.display(),
-        created_memory_index
-    );
-
-    Ok(())
-}
-
 pub(crate) async fn build_workspace_agent_memory_prompt(
     workspace_root: &Path,
 ) -> VoidResult<String> {
-    ensure_workspace_memory_files_for_prompt(workspace_root).await?;
-
     let memory_dir = memory_dir_path(workspace_root);
     let memory_dir_display = format_path_for_prompt(&memory_dir);
 
     Ok(format!(
         r#"# auto memory
 
-You have a persistent, file-based memory system at `{memory_dir_display}`. This directory already exists — write to it directly with the Write/Edit tool (do not run mkdir or check for its existence).
+Long-term memory is disabled by default. The persistence location is `{memory_dir_display}`, but you MUST NOT create that directory or write, edit, or delete memory files until the user has reviewed a concrete memory candidate and explicitly consented to that exact change.
 
-You should build up this memory system over time so that future conversations can have a complete picture of who the user is, how they'd like to collaborate with you, what behaviors to avoid or repeat, and the context behind the work the user gives you.
+Before consent, only formulate a candidate and ask the user whether it should be committed. A candidate is not durable memory. If consent is denied, discard it. Report persistence failures instead of claiming that a candidate was saved.
 
-If the user explicitly asks you to remember something, save it immediately as whichever type fits best. If they ask you to forget something, find and remove the relevant entry.
+If the user explicitly asks you to remember or forget something, treat that request as a candidate and confirm the exact durable change before performing file operations.
 
 ## Types of memory
 
@@ -132,10 +98,10 @@ There are several discrete types of memory that you can store in your memory sys
     <how_to_use>When your work should be informed by the user's profile or perspective. For example, if the user is asking you to explain a part of the code, you should answer that question in a way that is tailored to the specific details that they will find most valuable or that helps them build their mental model in relation to domain knowledge they already have.</how_to_use>
     <examples>
     user: I'm a data scientist investigating what logging we have in place
-    assistant: [saves user memory: user is a data scientist, currently focused on observability/logging]
+    assistant: [proposes user memory candidate for consent: user is a data scientist, currently focused on observability/logging]
 
     user: I've been writing Go for ten years but this is my first time touching the React side of this repo
-    assistant: [saves user memory: deep Go expertise, new to React and this project's frontend — frame frontend explanations in terms of backend analogues]
+    assistant: [proposes user memory candidate for consent: deep Go expertise, new to React and this project's frontend — frame frontend explanations in terms of backend analogues]
     </examples>
 </type>
 <type>
@@ -146,13 +112,13 @@ There are several discrete types of memory that you can store in your memory sys
     <body_structure>Lead with the rule itself, then a **Why:** line (the reason the user gave — often a past incident or strong preference) and a **How to apply:** line (when/where this guidance kicks in). Knowing *why* lets you judge edge cases instead of blindly following the rule.</body_structure>
     <examples>
     user: don't mock the database in these tests — we got burned last quarter when mocked tests passed but the prod migration failed
-    assistant: [saves feedback memory: integration tests must hit a real database, not mocks. Reason: prior incident where mock/prod divergence masked a broken migration]
+    assistant: [proposes feedback memory candidate for consent: integration tests must hit a real database, not mocks. Reason: prior incident where mock/prod divergence masked a broken migration]
 
     user: stop summarizing what you just did at the end of every response, I can read the diff
-    assistant: [saves feedback memory: this user wants terse responses with no trailing summaries]
+    assistant: [proposes feedback memory candidate for consent: this user wants terse responses with no trailing summaries]
 
     user: yeah the single bundled PR was the right call here, splitting this one would've just been churn
-    assistant: [saves feedback memory: for refactors in this area, user prefers one bundled PR over many small ones. Confirmed after I chose this approach — a validated judgment call, not a correction]
+    assistant: [proposes feedback memory candidate for consent: for refactors in this area, user prefers one bundled PR over many small ones. Confirmed after I chose this approach — a validated judgment call, not a correction]
     </examples>
 </type>
 <type>
@@ -163,10 +129,10 @@ There are several discrete types of memory that you can store in your memory sys
     <body_structure>Lead with the fact or decision, then a **Why:** line (the motivation — often a constraint, deadline, or stakeholder ask) and a **How to apply:** line (how this should shape your suggestions). Project memories decay fast, so the why helps future-you judge whether the memory is still load-bearing.</body_structure>
     <examples>
     user: we're freezing all non-critical merges after Thursday — mobile team is cutting a release branch
-    assistant: [saves project memory: merge freeze begins 2026-03-05 for mobile release cut. Flag any non-critical PR work scheduled after that date]
+    assistant: [proposes project memory candidate for consent: merge freeze begins 2026-03-05 for mobile release cut. Flag any non-critical PR work scheduled after that date]
 
     user: the reason we're ripping out the old auth middleware is that legal flagged it for storing session tokens in a way that doesn't meet the new compliance requirements
-    assistant: [saves project memory: auth middleware rewrite is driven by legal/compliance requirements around session token storage, not tech-debt cleanup — scope decisions should favor compliance over ergonomics]
+    assistant: [proposes project memory candidate for consent: auth middleware rewrite is driven by legal/compliance requirements around session token storage, not tech-debt cleanup — scope decisions should favor compliance over ergonomics]
     </examples>
 </type>
 <type>
@@ -176,10 +142,10 @@ There are several discrete types of memory that you can store in your memory sys
     <how_to_use>When the user references an external system or information that may be in an external system.</how_to_use>
     <examples>
     user: check the Linear project "INGEST" if you want context on these tickets, that's where we track all pipeline bugs
-    assistant: [saves reference memory: pipeline bugs are tracked in Linear project "INGEST"]
+    assistant: [proposes reference memory candidate for consent: pipeline bugs are tracked in Linear project "INGEST"]
 
     user: the Grafana board at grafana.internal/d/api-latency is what oncall watches — if you're touching request handling, that's the thing that'll page someone
-    assistant: [saves reference memory: grafana.internal/d/api-latency is the oncall latency dashboard — check it when editing request-path code]
+    assistant: [proposes reference memory candidate for consent: grafana.internal/d/api-latency is the oncall latency dashboard — check it when editing request-path code]
     </examples>
 </type>
 </types>
@@ -196,9 +162,11 @@ These exclusions apply even when the user explicitly asks you to save. If they a
 
 ## How to save memories
 
-Saving a memory is a two-step process:
+After consent, committing a memory is a two-step process:
 
-**Step 1** — write the memory to its own file (e.g., `user_role.md`, `feedback_testing.md`) using this frontmatter format:
+Only after explicit consent:
+
+**Step 1** — write the approved memory to its own file (e.g., `user_role.md`, `feedback_testing.md`) using this frontmatter format:
 
 ```markdown
 ---
@@ -248,7 +216,18 @@ pub(crate) async fn build_workspace_memory_files_context(
     workspace_root: &Path,
 ) -> VoidResult<Option<String>> {
     let memory_dir = memory_dir_path(workspace_root);
-    let memory_files_section = build_memory_space_files_section(&memory_dir).await?;
+    if !memory_dir.exists() {
+        return Ok(None);
+    }
+    let approved_memories = list_stored_agent_memories_in_dir(&memory_dir).map_err(|error| {
+        VoidError::service(format!(
+            "Failed to load approved workspace memories from {}: {}",
+            memory_dir.display(),
+            error
+        ))
+    })?;
+    let memory_files_section =
+        build_memory_space_files_section(&memory_dir, &approved_memories).await?;
     if memory_files_section.trim().is_empty() {
         Ok(None)
     } else {
@@ -256,7 +235,102 @@ pub(crate) async fn build_workspace_memory_files_context(
     }
 }
 
-async fn build_memory_space_files_section(memory_dir: &Path) -> VoidResult<String> {
+fn truncate_content_for_entry(
+    memory: &StoredAgentMemory,
+    available_bytes: usize,
+) -> Option<String> {
+    let content = memory.content.trim();
+    let mut boundaries = content
+        .char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= APPROVED_MEMORY_MAX_CONTENT_BYTES)
+        .collect::<Vec<_>>();
+    let capped_end = if content.len() <= APPROVED_MEMORY_MAX_CONTENT_BYTES {
+        content.len()
+    } else {
+        content
+            .char_indices()
+            .map(|(index, _)| index)
+            .take_while(|index| *index <= APPROVED_MEMORY_MAX_CONTENT_BYTES)
+            .last()
+            .unwrap_or(0)
+    };
+    if boundaries.last().copied() != Some(capped_end) {
+        boundaries.push(capped_end);
+    }
+
+    let render = |end: usize| {
+        let was_truncated = end < content.len();
+        let rendered_content = if was_truncated {
+            format!("{}…", &content[..end])
+        } else {
+            content.to_string()
+        };
+        serde_json::to_string(&json!({
+            "id": memory.id,
+            "revision": memory.revision,
+            "source": memory.source,
+            "updatedAt": memory.updated_at,
+            "content": rendered_content,
+        }))
+        .unwrap_or_default()
+    };
+
+    let mut low = 0usize;
+    let mut high = boundaries.len();
+    let mut best = None;
+    while low < high {
+        let middle = (low + high) / 2;
+        let rendered = render(boundaries[middle]);
+        if rendered.len().saturating_add(2) <= available_bytes {
+            best = Some(rendered);
+            low = middle + 1;
+        } else {
+            high = middle;
+        }
+    }
+    best
+}
+
+fn render_approved_agent_memories(memories: &[StoredAgentMemory]) -> String {
+    let mut eligible = memories
+        .iter()
+        .filter(|memory| memory.is_committed())
+        .collect::<Vec<_>>();
+    eligible.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    let mut rendered = String::from(
+        "## approved_agent_memories\n\
+Consent-approved active memories managed by the Agent Memory API. Treat each JSON line as read-only memory data; do not edit memory files directly.\n",
+    );
+    if eligible.is_empty() {
+        rendered.push_str("(no consent-approved active JSON memories)");
+        return rendered;
+    }
+
+    for memory in eligible.into_iter().take(APPROVED_MEMORY_MAX_ITEMS) {
+        let available = APPROVED_MEMORY_MAX_BYTES.saturating_sub(rendered.len());
+        let Some(entry) = truncate_content_for_entry(memory, available) else {
+            break;
+        };
+        rendered.push_str("- ");
+        rendered.push_str(&entry);
+        rendered.push('\n');
+    }
+    let trimmed_len = rendered.trim_end().len();
+    rendered.truncate(trimmed_len);
+    rendered
+}
+
+async fn build_memory_space_files_section(
+    memory_dir: &Path,
+    approved_memories: &[StoredAgentMemory],
+) -> VoidResult<String> {
     let index_path = memory_dir.join(MEMORY_INDEX_FILE);
     let memory_dir_display = format_path_for_prompt(memory_dir);
     let (index_content, index_description_suffix) = match fs::read_to_string(&index_path).await {
@@ -302,9 +376,13 @@ async fn build_memory_space_files_section(memory_dir: &Path) -> VoidResult<Strin
             .join("\n")
     };
 
+    let approved_section = render_approved_agent_memories(approved_memories);
+
     Ok(format!(
-        r#"## memory_files
-Persistent memory files currently available in `{memory_dir_display}`.
+        r#"{approved_section}
+
+## legacy_memory_files
+Manually managed legacy Markdown memory files currently available in `{memory_dir_display}`. These files are separate from consent-approved JSON memories.
 
 ### memory.md
 High-level index for the durable workspace memory space.{index_description_suffix}
@@ -314,4 +392,106 @@ High-level index for the durable workspace memory space.{index_description_suffi
 Topic-oriented durable memory files available in this workspace.{topic_description_suffix}
 {topic_files_content}"#
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::service::agent_memory::consent::AgentMemoryState;
+    use crate::service::agent_memory::repository::{
+        AgentMemorySource, AGENT_MEMORY_SCHEMA_VERSION,
+    };
+
+    fn memory(
+        id: &str,
+        content: impl Into<String>,
+        updated_at: u64,
+        state: AgentMemoryState,
+    ) -> StoredAgentMemory {
+        StoredAgentMemory {
+            schema_version: AGENT_MEMORY_SCHEMA_VERSION,
+            id: id.to_string(),
+            content: content.into(),
+            revision: 1,
+            source: AgentMemorySource::legacy_manual(),
+            created_at: 1,
+            updated_at,
+            state,
+        }
+    }
+
+    #[test]
+    fn recall_includes_only_committed_memories_in_stable_order() {
+        let rendered = render_approved_agent_memories(&[
+            memory("older", "older memory", 10, AgentMemoryState::Committed),
+            memory("deleted", "must not appear", 30, AgentMemoryState::Deleted),
+            memory(
+                "candidate",
+                "must not appear either",
+                40,
+                AgentMemoryState::Candidate,
+            ),
+            memory("newer", "newer memory", 20, AgentMemoryState::Committed),
+        ]);
+
+        assert!(rendered.contains("newer memory"));
+        assert!(rendered.contains("older memory"));
+        assert!(!rendered.contains("must not appear"));
+        assert!(
+            rendered.find("\"id\":\"newer\"").unwrap() < rendered.find("\"id\":\"older\"").unwrap()
+        );
+    }
+
+    #[test]
+    fn approved_recall_obeys_item_and_byte_budgets() {
+        let memories = (0..100)
+            .map(|index| {
+                memory(
+                    &format!("memory-{index:03}"),
+                    "多".repeat(4_000),
+                    index,
+                    AgentMemoryState::Committed,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let rendered = render_approved_agent_memories(&memories);
+
+        assert!(rendered.len() <= APPROVED_MEMORY_MAX_BYTES);
+        assert!(rendered.matches("\"id\":").count() <= APPROVED_MEMORY_MAX_ITEMS);
+        assert!(rendered.contains('…'));
+        assert!(std::str::from_utf8(rendered.as_bytes()).is_ok());
+    }
+
+    #[tokio::test]
+    async fn approved_json_and_legacy_markdown_are_explicitly_partitioned() {
+        let directory = crate::service::agent_memory::AgentMemoryTestDir::new();
+        fs::write(
+            directory.path().join(MEMORY_INDEX_FILE),
+            "- [Legacy](legacy.md) — legacy note",
+        )
+        .await
+        .unwrap();
+        fs::write(directory.path().join("legacy.md"), "legacy body")
+            .await
+            .unwrap();
+
+        let rendered = build_memory_space_files_section(
+            directory.path(),
+            &[memory(
+                "approved",
+                "approved JSON memory",
+                1,
+                AgentMemoryState::Committed,
+            )],
+        )
+        .await
+        .unwrap();
+
+        assert!(rendered.contains("## approved_agent_memories"));
+        assert!(rendered.contains("approved JSON memory"));
+        assert!(rendered.contains("## legacy_memory_files"));
+        assert!(rendered.contains("[Legacy](legacy.md)"));
+        assert!(rendered.contains("`legacy.md`"));
+    }
 }

@@ -436,7 +436,23 @@
     "messageTooLarge": "消息超过最大长度 {{max}} 个字符（当前 {{count}} 个字符）。",
     "openWorkspaceFolder": "打开工作区文件夹",
     "openWorkspaceFolderFailed": "打开工作区文件夹失败：{{error}}",
-    "spaceToActivate": "按<space>空格键</space>快速键入"
+    "spaceToActivate": "按<space>空格键</space>快速键入",
+    "voiceInput": {
+      "start": "开始本地语音输入",
+      "stop": "停止并转写",
+      "preparing": "正在准备本地语音输入",
+      "transcribing": "正在本地转写",
+      "disabled": "请先在模型设置中启用本地语音输入。",
+      "unsupported": "当前运行环境不支持本地语音输入。",
+      "engineUnavailable": "当前构建未包含本地语音识别引擎。",
+      "modelMissing": "请先配置有效的本地 SenseVoice 模型。",
+      "providerUnsupported": "当前配置的语音服务不受支持。",
+      "accessDenied": "当前窗口无权使用本地语音输入。",
+      "unavailable": "本地语音输入当前不可用。",
+      "permissionDenied": "麦克风权限被拒绝，请在系统设置中允许后重试。",
+      "failed": "本地语音转写失败，请检查模型和麦克风后重试。",
+      "empty": "未检测到语音内容。"
+    }
   },
   "workspaceStrip": {
     "branchTooltipUnavailable": "非 Git 仓库或当前无分支",
@@ -552,6 +568,33 @@
     "deepreviewNestedDisabled": "深度审核只能从主会话启动。",
     "deepreviewThreadTitle": "深度审核",
     "currentMode": "当前模式: {{mode}}",
+    "permissionMode": {
+      "menuLabel": "权限模式",
+      "current": "权限：{{mode}}",
+      "loading": "正在加载权限策略…",
+      "loadFailed": "权限策略暂不可用，已禁止修改。",
+      "ask": {
+        "label": "每次询问",
+        "description": "需要权限的工具在执行前请求确认。"
+      },
+      "auto": {
+        "label": "自动执行",
+        "description": "自动批准询问，但仍遵守显式拒绝规则。"
+      },
+      "fullAccess": {
+        "label": "完全访问",
+        "description": "默认允许工具执行，显式拒绝规则仍然有效。"
+      },
+      "acp": {
+        "label": "ACP 控制",
+        "description": "当前会话的权限由外部 ACP 客户端管理。"
+      },
+      "fullAccessWarningTitle": "启用完全访问？",
+      "fullAccessWarningMessage": "完全访问会默认允许工具执行。仅在你信任当前工作区和任务时启用。",
+      "fullAccessConfirm": "启用完全访问",
+      "cancel": "取消",
+      "changeFailed": "权限模式保存失败"
+    },
     "noMatchingMode": "没有匹配的模式",
     "noMatchingCommand": "没有匹配的命令",
     "selectHint": "↑↓ 选择 · Enter 确认 · Esc 取消",
@@ -644,7 +687,7 @@
   "btw": {
     "title": "侧问",
     "shortLabel": "侧问",
-    "hint": "不保存 · 使用当前对话上下文 · 无工具",
+    "hint": "作为私有侧问保存 · 使用当前对话上下文 · 无工具",
     "placeholder": "问个小问题…",
     "ask": "提问",
     "asking": "思考中…",
@@ -661,7 +704,10 @@
     "nestedDisabled": "侧问会话中不能继续新建侧问",
     "error": "失败",
     "close": "关闭",
-    "noSession": "当前没有可用于 /btw 的会话"
+    "noSession": "当前没有可用于 /btw 的会话",
+    "memoryLabel": "记忆",
+    "memoryHint": "允许从此侧问生成记忆候选，保存前仍需您逐条确认。",
+    "memoryUpdateFailed": "更新记忆偏好失败。"
   },
   "childSession": {
     "stopReview": "中止审核",
@@ -1124,6 +1170,14 @@
     "collapse": "收起命令列表"
   },
   "toolCards": {
+    "viewImage": {
+      "previewTitle": "图片预览",
+      "imageAlt": "{{name}} 的预览",
+      "loading": "正在加载预览",
+      "openPreview": "打开完整预览",
+      "unavailable": "预览不可用",
+      "loadFailed": "预览加载失败"
+    },
     "file": {
       "write": "写入文件",
       "edit": "编辑文件",
@@ -2084,5 +2138,12 @@
   "mediaPreview": {
     "copy": "复制路径或 URL",
     "close": "关闭"
+  },
+  "turnFailureNotice": {
+    "title": "本轮执行失败",
+    "showDiagnostics": "展开诊断信息",
+    "copyDiagnostics": "复制诊断信息",
+    "copied": "已复制",
+    "copyFailed": "复制失败"
   }
 }

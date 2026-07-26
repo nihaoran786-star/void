@@ -41,6 +41,7 @@ const TerminalCard = lazyCard(() => import('./TerminalToolCard').then(({ Termina
 const MiniAppCard = lazyCard(() => import('./MiniAppToolDisplay').then(({ InitMiniAppDisplay }) => ({ default: InitMiniAppDisplay })));
 const GenerativeWidgetCard = lazyCard(() => import('./GenerativeWidgetToolCard').then(({ GenerativeWidgetToolCard }) => ({ default: GenerativeWidgetToolCard })));
 const MediaGenerationCard = lazyCard(() => import('./MediaGenerationToolCard').then(({ MediaGenerationToolCard }) => ({ default: MediaGenerationToolCard })));
+const ViewImageCard = lazyCard(() => import('./ViewImageToolCard').then(({ ViewImageToolCard }) => ({ default: ViewImageToolCard })));
 const McpCard = lazyCard(() => import('./MCPToolDisplay').then(({ MCPToolDisplay }) => ({ default: MCPToolDisplay })));
 const DefaultCard = lazyCard(() => import('./DefaultToolCard').then(({ DefaultToolCard }) => ({ default: DefaultToolCard })));
 
@@ -75,6 +76,7 @@ export const TOOL_CARD_COMPONENTS: Readonly<Record<string, LazyToolCardComponent
   GenerateSpeech: MediaGenerationCard,
   TranscribeAudio: MediaGenerationCard,
   GetMediaTaskStatus: MediaGenerationCard,
+  ViewImage: ViewImageCard,
 });
 
 export function getToolCardComponent(toolName: string): LazyToolCardComponent {

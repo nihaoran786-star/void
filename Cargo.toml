@@ -64,6 +64,10 @@ alloc-no-stdlib = "=2.0.4"
 alloc-stdlib = "=0.2.2"
 regex = "1"
 base64 = "0.22"
+keyring-core = "1.0.0"
+apple-native-keyring-store = { version = "1.0.1", features = ["keychain"] }
+windows-native-keyring-store = "1.1.0"
+zbus-secret-service-keyring-store = { version = "1.0.0", features = ["crypto-rust"] }
 bitflags = "=2.11.1"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
 md5 = "0.7"
@@ -75,7 +79,7 @@ hex = "0.4"
 chardetng = "0.1.17"
 encoding_rs = "0.8.35"
 
-reqwest = { version = "0.12", default-features = false, features = ["native-tls", "rustls-tls", "json", "stream", "multipart"] }
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "rustls-tls", "http2", "json", "stream", "multipart"] }
 
 axum = { version = "0.7", features = ["json", "ws"] }
 tower-http = { version = "0.6.11", features = ["cors", "fs"] }
@@ -170,6 +174,9 @@ hostname = "0.4"
 qrcode = "0.14"
 
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+
+# Local speech recognition
+sherpa-onnx = "1.13.4"
 
 rmcp = { version = "1.7", default-features = false, features = [
     "auth",

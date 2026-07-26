@@ -18,6 +18,7 @@ const mockGetModeSkillConfigs = vi.fn();
 const mockLoadSessionHistory = vi.fn();
 const mockCreateImageContextFromFile = vi.fn();
 const mockBuildImageContextsForBackend = vi.fn();
+const mockResolveSessionReferences = vi.fn();
 let mockExecutionState = 'idle';
 const translate = (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => (
   options?.defaultValue ?? _key
@@ -33,9 +34,56 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-vi.mock('../modern/VirtualItemRenderer', () => ({
-  VirtualItemRenderer: () => <div />,
-}));
+vi.mock('../modern/VirtualItemRenderer', async () => {
+  const { useFlowChatContext } = await vi.importActual<
+    typeof import('../modern/FlowChatContext')
+  >('../modern/FlowChatContext');
+  return {
+    VirtualItemRenderer: () => {
+      const { onFillUserMessageInput } = useFlowChatContext();
+      return (
+        <button
+          type="button"
+          data-testid="restore-structured-composer"
+          onClick={() => onFillUserMessageInput?.({
+            content: 'legacy display text',
+            composerPresentation: {
+              version: 1,
+              segments: [
+                { type: 'text', text: 'Compare ' },
+                { type: 'skill', name: 'audit' },
+                {
+                  type: 'context',
+                  context: {
+                    id: 'session-reference-1',
+                    type: 'session-reference',
+                    sessionId: 'research-session',
+                    sessionTitle: 'Research',
+                    workspaceId: 'workspace-1',
+                    timestamp: 1,
+                  },
+                },
+                {
+                  type: 'context',
+                  context: {
+                    id: 'media-reference-1',
+                    type: 'media-reference',
+                    kind: 'video',
+                    mediaPath: 'D:/workspace/project/preview.mp4',
+                    mediaName: 'preview.mp4',
+                    timestamp: 2,
+                  },
+                },
+              ],
+            },
+          })}
+        >
+          restore
+        </button>
+      );
+    },
+  };
+});
 
 vi.mock('../modern/ProcessingIndicator', () => ({
   ProcessingIndicator: () => <div />,
@@ -97,6 +145,9 @@ vi.mock('@/infrastructure/api', () => ({
   },
   configAPI: {
     getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args),
+  },
+  sessionAPI: {
+    resolveSessionReferences: (...args: unknown[]) => mockResolveSessionReferences(...args),
   },
 }));
 
@@ -172,7 +223,10 @@ vi.mock('../../store/FlowChatStore', () => ({
 }));
 
 vi.mock('../../store/modernFlowChatStore', () => ({
-  sessionToVirtualItems: () => [],
+  sessionToVirtualItems: () => [{
+    turnId: 'turn-1',
+    type: 'user',
+  }],
 }));
 
 vi.mock('../../utils/reviewSessionStop', () => ({
@@ -502,6 +556,17 @@ describe('BtwSessionPanel review action bar integration', () => {
     vi.clearAllMocks();
     flowChatListeners.clear();
     mockGetModeSkillConfigs.mockResolvedValue([]);
+    mockResolveSessionReferences.mockResolvedValue([{
+      source: {
+        kind: 'session_reference',
+        sessionId: 'research-session',
+        sessionTitle: 'Research',
+      },
+      status: 'ready',
+      transcript: '<referenced_session id="research-session">Research transcript</referenced_session>',
+      messageCount: 2,
+      estimatedTokens: 12,
+    }]);
     mockExecutionState = 'idle';
     mockCreateImageContextFromFile.mockResolvedValue({
       id: 'image-context-1',
@@ -664,6 +729,12 @@ describe('BtwSessionPanel review action bar integration', () => {
       'btw-child',
       undefined,
       'agentic',
+      undefined,
+      expect.objectContaining({
+        userMessageMetadata: expect.objectContaining({
+          composerPresentation: expect.objectContaining({ version: 1 }),
+        }),
+      }),
     );
     expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
   });
@@ -710,8 +781,103 @@ describe('BtwSessionPanel review action bar integration', () => {
       'subagent-child',
       undefined,
       'Researcher',
+      undefined,
+      expect.objectContaining({
+        userMessageMetadata: expect.objectContaining({
+          composerPresentation: expect.objectContaining({ version: 1 }),
+        }),
+      }),
     );
     expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
+  });
+
+  it('restores and resubmits the versioned composer presentation without parsing display text', async () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    const parentSession = createParentSessionWithId('parent-session');
+    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
+    flowChatState = {
+      ...flowChatState,
+      sessions: new Map([
+        [parentSession.sessionId, parentSession],
+        [subagentSession.sessionId, subagentSession],
+      ]),
+      activeSessionId: parentSession.sessionId,
+    } as FlowChatState;
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={subagentSession.sessionId}
+          parentSessionId={parentSession.sessionId}
+          workspacePath="D:/workspace/project"
+        />,
+      );
+    });
+
+    const restoreButton = container.querySelector<HTMLButtonElement>(
+      '[data-testid="restore-structured-composer"]',
+    );
+    await act(async () => {
+      restoreButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const input = container.querySelector<HTMLTextAreaElement>(
+      '.btw-session-panel__composer-input',
+    );
+    expect(input?.value).toContain('[[void-skill:audit]]');
+    expect(input?.value).toContain('#session:Research');
+    expect(input?.value).toContain('#media:preview.mp4');
+    expect(container.textContent).toContain('Research');
+    expect(container.textContent).toContain('preview.mp4');
+    expect(container.textContent).not.toContain('legacy display text');
+
+    const sendButton = container.querySelector<HTMLButtonElement>(
+      '.btw-session-panel__composer-button',
+    );
+    await act(async () => {
+      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(1);
+    const [message, sessionId, , agentType, , options] = mockSendMessage.mock.calls[0];
+    expect(sessionId).toBe('subagent-child');
+    expect(agentType).toBe('Researcher');
+    expect(String(message)).toContain('Please use the Skill tool with command "audit".');
+    expect(String(message)).toContain('Research transcript');
+    expect(String(message)).toContain('[Session Reference: Research; session=research-session; workspace=workspace-1]');
+    expect(String(message)).toContain('[Media Reference: preview.mp4]');
+    expect(options.userMessageMetadata).toEqual({
+      composerPresentation: expect.objectContaining({
+        version: 1,
+        segments: expect.arrayContaining([
+          expect.objectContaining({ type: 'skill', name: 'audit' }),
+          expect.objectContaining({
+            type: 'context',
+            context: expect.objectContaining({ type: 'session-reference' }),
+          }),
+          expect.objectContaining({
+            type: 'context',
+            context: expect.objectContaining({ type: 'media-reference' }),
+          }),
+        ]),
+      }),
+      sessionReferences: [
+        expect.objectContaining({
+          type: 'session-reference',
+          sessionId: 'research-session',
+        }),
+      ],
+      sessionReferenceResolutions: [{
+        source: {
+          kind: 'session_reference',
+          sessionId: 'research-session',
+          sessionTitle: 'Research',
+        },
+        status: 'ready',
+        error: undefined,
+      }],
+    });
   });
 
   it('converts subagent /skill commands into normal child session messages', async () => {
@@ -765,6 +931,12 @@ describe('BtwSessionPanel review action bar integration', () => {
       'subagent-child',
       undefined,
       'Researcher',
+      undefined,
+      expect.objectContaining({
+        userMessageMetadata: expect.objectContaining({
+          composerPresentation: expect.objectContaining({ version: 1 }),
+        }),
+      }),
     );
   });
 
@@ -939,6 +1111,11 @@ describe('BtwSessionPanel review action bar integration', () => {
           mimeType: 'image/png',
           name: 'reference.png',
         }],
+        userMessageMetadata: {
+          composerPresentation: expect.objectContaining({ version: 1 }),
+          sessionReferences: [],
+          sessionReferenceResolutions: [],
+        },
       },
     );
     expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);

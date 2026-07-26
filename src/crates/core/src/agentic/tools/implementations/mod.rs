@@ -3,6 +3,7 @@
 pub mod analyze_image_tool;
 pub mod ask_user_question_tool;
 pub mod bash_tool;
+pub mod call_deferred_tool;
 pub mod code_review_tool;
 pub mod computer_use_actions;
 pub mod computer_use_input;
@@ -49,6 +50,7 @@ pub mod web_tools;
 pub use analyze_image_tool::AnalyzeImageTool;
 pub use ask_user_question_tool::AskUserQuestionTool;
 pub use bash_tool::BashTool;
+pub use call_deferred_tool::CallDeferredTool;
 pub use code_review_tool::CodeReviewTool;
 pub use computer_use_mouse_click_tool::ComputerUseMouseClickTool;
 pub use computer_use_mouse_precise_tool::ComputerUseMousePreciseTool;

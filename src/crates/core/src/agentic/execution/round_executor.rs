@@ -7,7 +7,9 @@ use super::types::{FinishReason, RoundContext, RoundResult};
 use super::write_content_sanitizer::{
     contains_tool_invocation_artifacts, strip_tool_invocation_artifacts,
 };
-use crate::agentic::core::{Message, ToolCall};
+use crate::agentic::core::{
+    invocation_signature, Message, RecoveryCheckpoint, ToolCall, ToolResult,
+};
 use crate::agentic::events::{AgenticEvent, EventPriority, EventQueue, ToolEventData};
 use crate::agentic::tools::computer_use_host::ComputerUseHostRef;
 use crate::agentic::tools::framework::ToolUseContext;
@@ -59,6 +61,43 @@ impl RoundExecutor {
                 .get(WRITE_TOOL_MODE_CONTEXT_KEY)
                 .map(String::as_str),
         )
+    }
+
+    fn partition_recovery_tool_calls(
+        tool_calls: Vec<ToolCall>,
+        checkpoint: Option<&RecoveryCheckpoint>,
+        catalog_generation: u64,
+    ) -> (Vec<ToolCall>, Vec<ToolResult>) {
+        let Some(checkpoint) = checkpoint else {
+            return (tool_calls, Vec::new());
+        };
+        let finished_signatures = checkpoint.finished_execution_signatures();
+        let mut executable = Vec::new();
+        let mut blocked = Vec::new();
+        for tool_call in tool_calls {
+            let signature = invocation_signature(&tool_call, catalog_generation);
+            if finished_signatures.contains(&signature) {
+                blocked.push(ToolResult {
+                    tool_id: tool_call.tool_id.clone(),
+                    tool_name: tool_call.tool_name.clone(),
+                    result: serde_json::json!({
+                        "recovery_duplicate_blocked": true,
+                        "checkpoint_id": checkpoint.checkpoint_id,
+                        "message": "This invocation already finished before context recovery and was not executed again."
+                    }),
+                    result_for_assistant: Some(
+                        "Recovery blocked a duplicate invocation that already finished before context compression."
+                            .to_string(),
+                    ),
+                    is_error: true,
+                    duration_ms: Some(0),
+                    image_attachments: None,
+                });
+            } else {
+                executable.push(tool_call);
+            }
+        }
+        (executable, blocked)
     }
 
     pub fn new(
@@ -597,13 +636,20 @@ impl RoundExecutor {
         // plain text wrapped in <void_contents> tags. This avoids having the
         // model emit large file contents inside JSON tool-call arguments, which
         // is a major source of JSON parse failures.
-        let mut tool_calls = stream_result.tool_calls.clone();
+        let mut proposed_tool_calls = stream_result.tool_calls.clone();
         if matches!(
             Self::write_tool_mode(&context),
             WriteToolMode::PlaintextFollowup
         ) {
-            FileWriteTool::strip_plaintext_followup_inline_content_from_tool_calls(&mut tool_calls);
+            FileWriteTool::strip_plaintext_followup_inline_content_from_tool_calls(
+                &mut proposed_tool_calls,
+            );
         }
+        let (tool_calls, recovery_blocked_results) = Self::partition_recovery_tool_calls(
+            proposed_tool_calls.clone(),
+            context.recovery_checkpoint.as_ref(),
+            context.catalog_generation,
+        );
         let tool_calls = if matches!(
             Self::write_tool_mode(&context),
             WriteToolMode::PlaintextFollowup
@@ -620,6 +666,20 @@ impl RoundExecutor {
         } else {
             tool_calls
         };
+        let generated_tool_calls = tool_calls
+            .iter()
+            .cloned()
+            .map(|tool_call| (tool_call.tool_id.clone(), tool_call))
+            .collect::<std::collections::HashMap<_, _>>();
+        let assistant_tool_calls = proposed_tool_calls
+            .into_iter()
+            .map(|tool_call| {
+                generated_tool_calls
+                    .get(&tool_call.tool_id)
+                    .cloned()
+                    .unwrap_or(tool_call)
+            })
+            .collect::<Vec<_>>();
 
         // Execute tool calls
         debug!(
@@ -628,7 +688,7 @@ impl RoundExecutor {
         );
 
         let tool_phase_started_at = Instant::now();
-        let tool_results = if let Some(tool_pipeline) = &self.tool_pipeline {
+        let mut tool_results = if let Some(tool_pipeline) = &self.tool_pipeline {
             // Create tool execution context
             let tool_context = ToolExecutionContext {
                 session_id: context.session_id.clone(),
@@ -641,6 +701,7 @@ impl RoundExecutor {
                 delegation_policy: context.delegation_policy,
                 collapsed_tools: context.collapsed_tools.clone(),
                 unlocked_collapsed_tools: context.unlocked_collapsed_tools.clone(),
+                catalog_generation: context.catalog_generation,
                 allowed_tools: context.available_tools.clone(),
                 runtime_tool_restrictions: context.runtime_tool_restrictions.clone(),
                 steering_interrupt: context.steering_interrupt.clone(),
@@ -648,6 +709,8 @@ impl RoundExecutor {
             };
 
             // Read tool execution related configuration from global config
+            #[cfg(feature = "product-full")]
+            let mut permission_config = None;
             let (needs_confirmation, tool_execution_timeout, tool_confirmation_timeout) = {
                 let config_service = GlobalConfigManager::get_service().await.ok();
 
@@ -656,6 +719,11 @@ impl RoundExecutor {
                     if let Some(ref service) = config_service {
                         let ai_config: crate::service::config::types::AIConfig =
                             service.get_config(Some("ai")).await.unwrap_or_default();
+
+                        #[cfg(feature = "product-full")]
+                        {
+                            permission_config = Some(ai_config.tool_permissions.clone());
+                        }
 
                         if ai_config.skip_tool_confirmation {
                             debug!("Global config skips tool confirmation");
@@ -676,6 +744,13 @@ impl RoundExecutor {
                     .map(|v| v == "true")
                     .unwrap_or(false);
 
+                #[cfg(feature = "product-full")]
+                if skip_from_context {
+                    if let Some(config) = permission_config.as_mut() {
+                        config.mode = crate::service::config::types::ToolPermissionMode::Auto;
+                    }
+                }
+
                 let needs_confirm = if skip_confirmation || skip_from_context {
                     false
                 } else {
@@ -684,9 +759,24 @@ impl RoundExecutor {
                     let tool_registry = registry.read().await;
                     let mut requires_permission = false;
 
-                    for tool_call in &stream_result.tool_calls {
-                        if let Some(tool) = tool_registry.get_tool(&tool_call.tool_name) {
-                            if tool.needs_permissions(Some(&tool_call.arguments)) {
+                    for tool_call in &tool_calls {
+                        let (effective_name, effective_arguments) = if tool_call.tool_name
+                            == void_agent_tools::CALL_DEFERRED_TOOL_NAME
+                        {
+                            match void_agent_tools::parse_deferred_tool_call(&tool_call.arguments) {
+                                Ok(call) => (call.tool_name, call.arguments),
+                                Err(_) => {
+                                    // Invalid gateway input is rejected by
+                                    // pipeline validation without asking
+                                    // for a misleading confirmation.
+                                    continue;
+                                }
+                            }
+                        } else {
+                            (tool_call.tool_name.clone(), tool_call.arguments.clone())
+                        };
+                        if let Some(tool) = tool_registry.get_tool(&effective_name) {
+                            if tool.needs_permissions(Some(&effective_arguments)) {
                                 requires_permission = true;
                                 break;
                             }
@@ -704,6 +794,8 @@ impl RoundExecutor {
                 confirm_before_run: needs_confirmation,
                 timeout_secs: tool_execution_timeout,
                 confirmation_timeout_secs: tool_confirmation_timeout,
+                #[cfg(feature = "product-full")]
+                permission_config,
                 ..ToolExecutionOptions::default()
             };
 
@@ -717,37 +809,44 @@ impl RoundExecutor {
 
             // Execute tools — convert pipeline-level Err into per-tool error results
             // so the model always receives a tool_result for every tool_call.
-            let execution_results = match tool_pipeline
-                .execute_tools(tool_calls.clone(), tool_context, tool_options)
-                .await
-            {
-                Ok(results) => results,
-                Err(e) => {
-                    error!(
-                        "Tool pipeline execution failed, generating error results for all {} tool calls: {}",
-                        tool_calls.len(),
-                        e
-                    );
-                    tool_calls
-                        .iter()
-                        .map(|tc| crate::agentic::tools::pipeline::ToolExecutionResult {
-                            tool_id: tc.tool_id.clone(),
-                            tool_name: tc.tool_name.clone(),
-                            result: crate::agentic::core::ToolResult {
+            let execution_results = if tool_calls.is_empty() {
+                Vec::new()
+            } else {
+                match tool_pipeline
+                    .execute_tools(tool_calls.clone(), tool_context, tool_options)
+                    .await
+                {
+                    Ok(results) => results,
+                    Err(e) => {
+                        error!(
+                            "Tool pipeline execution failed, generating error results for all {} tool calls: {}",
+                            tool_calls.len(),
+                            e
+                        );
+                        tool_calls
+                            .iter()
+                            .map(|tc| crate::agentic::tools::pipeline::ToolExecutionResult {
                                 tool_id: tc.tool_id.clone(),
                                 tool_name: tc.tool_name.clone(),
-                                result: serde_json::json!({
-                                    "error": e.to_string(),
-                                    "message": format!("Tool pipeline execution failed: {}", e)
-                                }),
-                                result_for_assistant: Some(format!("Tool execution failed: {}", e)),
-                                is_error: true,
-                                duration_ms: None,
-                                image_attachments: None,
-                            },
-                            execution_time_ms: 0,
-                        })
-                        .collect()
+                                result: crate::agentic::core::ToolResult {
+                                    tool_id: tc.tool_id.clone(),
+                                    tool_name: tc.tool_name.clone(),
+                                    result: serde_json::json!({
+                                        "error": e.to_string(),
+                                        "message": format!("Tool pipeline execution failed: {}", e)
+                                    }),
+                                    result_for_assistant: Some(format!(
+                                        "Tool execution failed: {}",
+                                        e
+                                    )),
+                                    is_error: true,
+                                    duration_ms: None,
+                                    image_attachments: None,
+                                },
+                                execution_time_ms: 0,
+                            })
+                            .collect()
+                    }
                 }
             };
 
@@ -758,6 +857,15 @@ impl RoundExecutor {
         } else {
             vec![]
         };
+        tool_results.extend(recovery_blocked_results);
+        let mut tool_results_by_id = tool_results
+            .into_iter()
+            .map(|result| (result.tool_id.clone(), result))
+            .collect::<std::collections::HashMap<_, _>>();
+        let tool_results = assistant_tool_calls
+            .iter()
+            .filter_map(|tool_call| tool_results_by_id.remove(&tool_call.tool_id))
+            .collect::<Vec<_>>();
         let tool_phase_ms = elapsed_ms_u64(tool_phase_started_at);
 
         // Create assistant message (includes tool calls and thinking content, supports interleaved thinking mode)
@@ -773,7 +881,7 @@ impl RoundExecutor {
         let assistant_message = Message::assistant_with_reasoning(
             reasoning,
             stream_result.full_text.clone(),
-            tool_calls.clone(),
+            assistant_tool_calls.clone(),
         )
         .with_turn_id(context.dialog_turn_id.clone())
         .with_round_id(round_id.clone())
@@ -829,7 +937,7 @@ impl RoundExecutor {
 
         Ok(RoundResult {
             assistant_message,
-            tool_calls: tool_calls.clone(),
+            tool_calls: assistant_tool_calls,
             tool_result_messages,
             has_more_rounds,
             finish_reason: if has_more_rounds {
@@ -1835,11 +1943,15 @@ mod tests {
     use super::{
         extract_void_contents, extract_void_contents_with_options, RoundExecutor, StreamProcessor,
     };
+    use crate::agentic::core::{
+        Message, RecoveryBoundary, RecoveryCheckpoint, ToolCall, ToolResult,
+    };
     use crate::agentic::events::{EventQueue, EventQueueConfig};
     use crate::agentic::execution::types::RoundContext;
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use crate::agentic::WorkspaceBinding;
     use dashmap::DashMap;
+    use serde_json::json;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;
@@ -1867,6 +1979,8 @@ mod tests {
             available_tools: Vec::new(),
             collapsed_tools: Vec::new(),
             unlocked_collapsed_tools: Vec::new(),
+            catalog_generation: 0,
+            recovery_checkpoint: None,
             model_name: "test-model".to_string(),
             agent_type: "test-agent".to_string(),
             context_vars: HashMap::new(),
@@ -1877,6 +1991,70 @@ mod tests {
             workspace_services: None,
             recover_partial_on_cancel: false,
         }
+    }
+
+    #[test]
+    fn recovery_guard_blocks_finished_invocation_without_blocking_new_work() {
+        let history = vec![
+            Message::user("Continue recovery".to_string()),
+            Message::assistant_with_tools(
+                String::new(),
+                vec![ToolCall {
+                    tool_id: "finished".to_string(),
+                    tool_name: "Read".to_string(),
+                    arguments: json!({"path": "src/lib.rs"}),
+                    raw_arguments: None,
+                    is_error: false,
+                    recovered_from_truncation: false,
+                }],
+            ),
+            Message::tool_result(ToolResult {
+                tool_id: "finished".to_string(),
+                tool_name: "Read".to_string(),
+                result: json!({"content": "done"}),
+                result_for_assistant: None,
+                is_error: false,
+                duration_ms: Some(1),
+                image_attachments: None,
+            }),
+        ];
+        let checkpoint = RecoveryCheckpoint::from_messages(
+            "checkpoint-1".to_string(),
+            "session-1".to_string(),
+            "turn-1".to_string(),
+            RecoveryBoundary::AutomaticContinue,
+            42,
+            &history,
+            10,
+        );
+        let repeated = ToolCall {
+            tool_id: "retry-after-503".to_string(),
+            tool_name: "Read".to_string(),
+            arguments: json!({"path": "src/lib.rs"}),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+        let new_work = ToolCall {
+            tool_id: "new-work".to_string(),
+            tool_name: "Read".to_string(),
+            arguments: json!({"path": "src/main.rs"}),
+            raw_arguments: None,
+            is_error: false,
+            recovered_from_truncation: false,
+        };
+
+        let (executable, blocked) = RoundExecutor::partition_recovery_tool_calls(
+            vec![repeated, new_work],
+            Some(&checkpoint),
+            42,
+        );
+
+        assert_eq!(executable.len(), 1);
+        assert_eq!(executable[0].tool_id, "new-work");
+        assert_eq!(blocked.len(), 1);
+        assert_eq!(blocked[0].tool_id, "retry-after-503");
+        assert_eq!(blocked[0].result["recovery_duplicate_blocked"], json!(true));
     }
 
     #[tokio::test]

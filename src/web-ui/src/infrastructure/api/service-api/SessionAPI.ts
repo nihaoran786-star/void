@@ -2,6 +2,40 @@
 import { api } from './ApiClient';
 import { createTauriCommandError } from '../errors/TauriCommandError';
 import type { SessionMetadata, DialogTurnData } from '@/shared/types/session-history';
+import type { SessionReferenceContext } from '@/shared/types/context';
+
+export type SessionReferenceTranscriptStatus =
+  | 'ready'
+  | 'missing'
+  | 'denied'
+  | 'too_large'
+  | 'unsupported'
+  | 'failed';
+
+export interface SessionReferenceAccessScope {
+  currentSessionId: string;
+  currentUserId?: string;
+  workspaceId?: string;
+  workspacePath: string;
+  remoteConnectionId?: string;
+  remoteSshHost?: string;
+}
+
+export interface SessionReferenceTranscriptResult {
+  source: {
+    kind: 'session_reference';
+    sessionId: string;
+    sessionTitle: string;
+  };
+  status: SessionReferenceTranscriptStatus;
+  transcript?: string;
+  messageCount: number;
+  estimatedTokens: number;
+  error?: {
+    code: SessionReferenceTranscriptStatus;
+    message: string;
+  };
+}
 
 export interface SessionMetadataPageRequest {
   workspacePath: string;
@@ -172,6 +206,32 @@ function remoteSessionFields(
 }
 
 export class SessionAPI {
+  async resolveSessionReferences(
+    scope: SessionReferenceAccessScope,
+    references: readonly SessionReferenceContext[],
+  ): Promise<SessionReferenceTranscriptResult[]> {
+    try {
+      return await api.invoke('resolve_session_references', {
+        request: {
+          scope,
+          references: references.map(reference => ({
+            sessionId: reference.sessionId,
+            sessionTitle: reference.sessionTitle,
+            workspaceId: reference.workspaceId,
+            workspacePath: reference.workspacePath,
+            remoteConnectionId: reference.remoteConnectionId,
+            remoteSshHost: reference.remoteSshHost,
+          })),
+        },
+      });
+    } catch (error) {
+      throw createTauriCommandError('resolve_session_references', error, {
+        currentSessionId: scope.currentSessionId,
+        referenceCount: references.length,
+      });
+    }
+  }
+
   async forkSession(
     sourceSessionId: string,
     sourceTurnId: string,

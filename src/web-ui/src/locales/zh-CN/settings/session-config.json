@@ -48,7 +48,19 @@
   },
   "toolExecution": {
     "sectionTitle": "工具执行行为",
-    "sectionDescription": "本会话中 AI 调用工具时的确认与超时策略。"
+    "sectionDescription": "本会话中 AI 调用工具时的确认与超时策略。",
+    "permissionMode": "默认权限模式",
+    "permissionModeDesc": "输入框中也可快速切换；显式拒绝规则始终优先。",
+    "permissionModeSaved": "权限模式已保存",
+    "fullAccessWarningTitle": "启用完全访问？",
+    "fullAccessWarningMessage": "完全访问会默认允许工具执行。仅在你信任当前工作区和任务时启用。",
+    "fullAccessConfirm": "启用完全访问",
+    "fullAccessCancel": "取消",
+    "permissionModes": {
+      "ask": "每次询问",
+      "auto": "自动执行",
+      "fullAccess": "完全访问"
+    }
   },
   "computerUse": {
     "sectionTitle": "Computer use（桌面自动化）",

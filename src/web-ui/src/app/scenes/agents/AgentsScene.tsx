@@ -46,6 +46,10 @@ import type { SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI'
 import { useNotification } from '@/shared/notification-system';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
 import { loadDefaultReviewTeam, type ReviewTeam } from '@/shared/services/reviewTeamService';
+import {
+  buildAgentToolGroups,
+  setCapabilityGroupEnabled,
+} from './agentCapabilityGroups';
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
 
@@ -353,6 +357,24 @@ const AgentsHomeView: React.FC = () => {
     () => getConfiguredEnabledSkillKeys(selectedAgentModeSkills),
     [selectedAgentModeSkills],
   );
+  const toolGroupLabels = useMemo(() => ({
+    core: t('agentsOverview.toolGroups.core'),
+    on_demand: t('agentsOverview.toolGroups.onDemand'),
+    mcp: t('agentsOverview.toolGroups.mcp'),
+    integration: t('agentsOverview.toolGroups.integration'),
+  }), [t]);
+  const selectedAgentToolGroups = useMemo(
+    () => buildAgentToolGroups(availableTools, selectedAgentTools, toolGroupLabels),
+    [availableTools, selectedAgentTools, toolGroupLabels],
+  );
+  const editableToolGroups = useMemo(
+    () => buildAgentToolGroups(
+      availableTools,
+      pendingTools ?? selectedAgentTools,
+      toolGroupLabels,
+    ),
+    [availableTools, pendingTools, selectedAgentTools, toolGroupLabels],
+  );
   const selectedAgentSkillItems = useMemo(
     () => selectedAgentModeSkills.filter((skill) => skill.effectiveEnabled),
     [selectedAgentModeSkills],
@@ -487,23 +509,20 @@ const AgentsHomeView: React.FC = () => {
     });
   }, [selectedAgentSkills]);
 
+  const setPendingToolGroupEnabled = useCallback((toolNames: string[], enabled: boolean) => {
+    setPendingTools((prev) => setCapabilityGroupEnabled(
+      prev ?? selectedAgentTools,
+      toolNames,
+      enabled,
+    ));
+  }, [selectedAgentTools]);
+
   const setPendingSkillGroupEnabled = useCallback((skills: ModeSkillInfo[], enabled: boolean) => {
-    setPendingSkills((prev) => {
-      const current = prev ?? selectedAgentSkills;
-      const groupKeys = new Set(skills.map((skill) => skill.key));
-
-      if (!enabled) {
-        return current.filter((key) => !groupKeys.has(key));
-      }
-
-      const next = [...current];
-      for (const skill of skills) {
-        if (!next.includes(skill.key)) {
-          next.push(skill.key);
-        }
-      }
-      return next;
-    });
+    setPendingSkills((prev) => setCapabilityGroupEnabled(
+      prev ?? selectedAgentSkills,
+      skills.map((skill) => skill.key),
+      enabled,
+    ));
   }, [selectedAgentSkills]);
 
   const openAgentDetails = useCallback((agent: AgentWithCapabilities) => {
@@ -1078,46 +1097,131 @@ const AgentsHomeView: React.FC = () => {
 
                 {currentCapabilityTab === 'tools' ? (
                   selectedAgent.agentKind === 'mode' && toolsEditing ? (
-                    <div className="agent-card__token-grid">
-                      {[...availableTools]
-                        .sort((a, b) => {
-                          const draft = pendingTools ?? selectedAgentTools;
-                          const aOn = draft.includes(a.name);
-                          const bOn = draft.includes(b.name);
-                          if (aOn && !bOn) return -1;
-                          if (!aOn && bOn) return 1;
-                          return 0;
-                        })
-                        .map((tool) => {
-                          const draft = pendingTools ?? selectedAgentTools;
-                          const isOn = draft.includes(tool.name);
-                          return (
-                            <button
-                              key={tool.name}
-                              type="button"
-                              className={`agent-card__token${isOn ? ' is-on' : ''}`}
-                              title={tool.description || tool.name}
-                              onClick={() => {
-                                setPendingTools((prev) => {
-                                  const current = prev ?? selectedAgentTools;
-                                  return isOn
-                                    ? current.filter((n) => n !== tool.name)
-                                    : [...current, tool.name];
-                                });
-                              }}
-                            >
-                              <span className="agent-card__token-name">{tool.name}</span>
-                            </button>
-                          );
-                        })}
+                    <div className="agent-card__skill-groups">
+                      {editableToolGroups.map((group) => {
+                        const allEnabled = group.enabledCount === group.totalCount;
+                        const someEnabled = group.enabledCount > 0;
+                        return (
+                          <div key={group.key} className="agent-card__skill-group">
+                            <div className="agent-card__skill-group-head">
+                              <div className="agent-card__skill-group-title-wrap">
+                                <span className="agent-card__skill-group-title">{group.label}</span>
+                                <span className="agent-card__skill-group-count">
+                                  {`${group.enabledCount}/${group.totalCount}`}
+                                </span>
+                                {group.onDemandCount > 0 ? (
+                                  <span
+                                    className="agent-card__skill-group-count"
+                                    title={t('agentsOverview.onDemandDescription')}
+                                  >
+                                    {t('agentsOverview.onDemandCount', {
+                                      count: group.onDemandCount,
+                                    })}
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="agent-card__skill-group-actions">
+                                <Switch
+                                  size="small"
+                                  checked={allEnabled}
+                                  onChange={(event) => setPendingToolGroupEnabled(
+                                    group.tools.map((tool) => tool.name),
+                                    event.target.checked,
+                                  )}
+                                  aria-label={
+                                    allEnabled
+                                      ? t('agentsOverview.disableGroup')
+                                      : t('agentsOverview.enableGroup')
+                                  }
+                                />
+                                {someEnabled && !allEnabled ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="small"
+                                    onClick={() => setPendingToolGroupEnabled(
+                                      group.tools.map((tool) => tool.name),
+                                      false,
+                                    )}
+                                  >
+                                    {t('agentsOverview.clearGroup')}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="agent-card__token-grid">
+                              {group.tools.map((tool) => {
+                                const isOn = (pendingTools ?? selectedAgentTools).includes(tool.name);
+                                const loadMode = tool.load_mode === 'on_demand'
+                                  ? t('agentsOverview.onDemandDescription')
+                                  : t('agentsOverview.expandedDescription');
+                                return (
+                                  <button
+                                    key={tool.name}
+                                    type="button"
+                                    className={`agent-card__token${isOn ? ' is-on' : ''}`}
+                                    title={[tool.description || tool.name, loadMode].join('\n')}
+                                    onClick={() => {
+                                      setPendingTools((prev) => {
+                                        const current = prev ?? selectedAgentTools;
+                                        return isOn
+                                          ? current.filter((name) => name !== tool.name)
+                                          : [...current, tool.name];
+                                      });
+                                    }}
+                                  >
+                                    <span className="agent-card__token-name">{tool.name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <div className="agent-card__chip-grid">
-                      {selectedAgentTools.map((tool) => (
-                        <span key={tool} className="agent-card__chip" title={tool}>
-                          {tool.replace(/_/g, ' ')}
-                        </span>
-                      ))}
+                    <div className="agent-card__skill-groups">
+                      {selectedAgentToolGroups
+                        .filter((group) => group.enabledCount > 0)
+                        .map((group) => (
+                          <div key={group.key} className="agent-card__skill-group">
+                            <div className="agent-card__skill-group-head">
+                              <div className="agent-card__skill-group-title-wrap">
+                                <span className="agent-card__skill-group-title">{group.label}</span>
+                                <span className="agent-card__skill-group-count">
+                                  {group.enabledCount}
+                                </span>
+                                {group.onDemandCount > 0 ? (
+                                  <span
+                                    className="agent-card__skill-group-count"
+                                    title={t('agentsOverview.onDemandDescription')}
+                                  >
+                                    {t('agentsOverview.onDemandCount', {
+                                      count: group.onDemandCount,
+                                    })}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <div className="agent-card__chip-grid">
+                              {group.tools
+                                .filter((tool) => selectedAgentTools.includes(tool.name))
+                                .map((tool) => (
+                                  <span
+                                    key={tool.name}
+                                    className="agent-card__chip"
+                                    title={[
+                                      tool.description || tool.name,
+                                      tool.load_mode === 'on_demand'
+                                        ? t('agentsOverview.onDemandDescription')
+                                        : t('agentsOverview.expandedDescription'),
+                                    ].join('\n')}
+                                  >
+                                    {tool.name.replace(/_/g, ' ')}
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   )
                 ) : null}

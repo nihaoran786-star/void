@@ -16,6 +16,7 @@ import { configAPI } from './service-api/ConfigAPI';
 import { aiApi } from './service-api/AIApi';
 import { toolAPI } from './service-api/ToolAPI';
 import { agentAPI } from './service-api/AgentAPI';
+import { agentMemoryAPI } from './service-api/AgentMemoryAPI';
 import { systemAPI } from './service-api/SystemAPI';
 import { projectAPI } from './service-api/ProjectAPI';
 import { diffAPI } from './service-api/DiffAPI';
@@ -35,7 +36,19 @@ import { reviewPlatformAPI } from './service-api/ReviewPlatformAPI';
 import { insightsApi } from './insightsApi';
 
 // Export API modules
-export { workspaceAPI, configAPI, aiApi, toolAPI, agentAPI, systemAPI, projectAPI, diffAPI, snapshotAPI, globalAPI, contextAPI, cronAPI, gitAPI, gitAgentAPI, gitRepoHistoryAPI, startchatAgentAPI, sessionAPI, i18nAPI, btwAPI, editorAiAPI, reviewPlatformAPI, insightsApi };
+export { workspaceAPI, configAPI, aiApi, toolAPI, agentAPI, agentMemoryAPI, systemAPI, projectAPI, diffAPI, snapshotAPI, globalAPI, contextAPI, cronAPI, gitAPI, gitAgentAPI, gitRepoHistoryAPI, startchatAgentAPI, sessionAPI, i18nAPI, btwAPI, editorAiAPI, reviewPlatformAPI, insightsApi };
+export type {
+  AgentMemoryCandidate,
+  AgentMemoryConsent,
+  AgentMemoryProposal,
+  AgentMemoryState,
+  MemoryCandidateBatch,
+  MemoryApprovalOutcome,
+  MemoryCompletionOutcome,
+  MemoryWorkflowError,
+  MemoryWorkflowErrorCode,
+  StoredAgentMemory,
+} from './service-api/AgentMemoryAPI';
 export * from './service-api/ReviewPlatformAPI';
 
 // Export types
@@ -49,6 +62,7 @@ export const voidAPI = {
   ai: aiApi,
   tool: toolAPI,
   agent: agentAPI,
+  agentMemory: agentMemoryAPI,
   system: systemAPI,
   project: projectAPI,
   diff: diffAPI,

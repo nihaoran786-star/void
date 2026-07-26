@@ -10,6 +10,7 @@ use crate::infrastructure::ai::{build_stream_options_for_model, AIClient};
 use crate::infrastructure::cli_credentials::{
     self, codex::CodexResolver, gemini::GeminiResolver, CredentialResolver,
 };
+use crate::infrastructure::subscription_auth::resolve_native_subscription_auth;
 use crate::service::config::types::AuthConfig;
 use crate::service::config::{get_global_config_service, ConfigService};
 use crate::util::errors::{VoidError, VoidResult};
@@ -144,21 +145,6 @@ impl AIClientFactory {
                 .unwrap_or_else(|| model_id.to_string()),
         };
 
-        {
-            let cache = match self.client_cache.read() {
-                Ok(cache) => cache,
-                Err(poisoned) => {
-                    warn!(
-                        "AI client cache read lock poisoned during get_or_create_client, recovering"
-                    );
-                    poisoned.into_inner()
-                }
-            };
-            if let Some(client) = cache.get(&normalized_model_id) {
-                return Ok(client.clone());
-            }
-        }
-
         debug!("Creating new AI client: model_id={}", normalized_model_id);
         let model_config = global_config
             .ai
@@ -179,9 +165,24 @@ impl AIClientFactory {
             ));
         }
 
+        if should_cache_auth(&model_config.auth) {
+            let cache = match self.client_cache.read() {
+                Ok(cache) => cache,
+                Err(poisoned) => {
+                    warn!(
+                        "AI client cache read lock poisoned during get_or_create_client, recovering"
+                    );
+                    poisoned.into_inner()
+                }
+            };
+            if let Some(client) = cache.get(&normalized_model_id) {
+                return Ok(client.clone());
+            }
+        }
+
         let mut ai_config = AIConfig::try_from(model_config.clone())
             .map_err(|e| anyhow!("AI configuration conversion failed: {}", e))?;
-        apply_cli_credential(&model_config.auth, &mut ai_config).await?;
+        apply_model_auth(&model_config.auth, &mut ai_config).await?;
 
         let proxy_config = if global_config.ai.proxy.enabled {
             Some(global_config.ai.proxy.clone())
@@ -196,7 +197,7 @@ impl AIClientFactory {
             stream_options,
         ));
 
-        {
+        if should_cache_auth(&model_config.auth) {
             let mut cache = match self.client_cache.write() {
                 Ok(cache) => cache,
                 Err(poisoned) => {
@@ -289,34 +290,87 @@ pub async fn initialize_global_ai_client_factory() -> VoidResult<()> {
     AIClientFactory::initialize_global().await
 }
 
-/// Resolve a CLI-credential `AuthConfig` and overlay it onto the runtime
-/// `AIConfig`. No-op when `auth == AuthConfig::ApiKey`.
-pub async fn apply_cli_credential(auth: &AuthConfig, ai_config: &mut AIConfig) -> Result<()> {
-    let resolved = match auth {
-        AuthConfig::ApiKey => return Ok(()),
-        AuthConfig::CodexCli => CodexResolver.resolve().await?,
-        AuthConfig::GeminiCli => GeminiResolver.resolve().await?,
-    };
+fn should_cache_auth(auth: &AuthConfig) -> bool {
+    !matches!(auth, AuthConfig::Subscription { .. })
+}
 
-    ai_config.api_key = resolved.api_key;
-    if let Some(base) = resolved.base_url {
+/// Resolve model authentication and overlay secret material onto the ephemeral
+/// runtime `AIConfig`. Subscription tokens never enter persisted model config.
+pub async fn apply_model_auth(auth: &AuthConfig, ai_config: &mut AIConfig) -> Result<()> {
+    match auth {
+        AuthConfig::ApiKey => return Ok(()),
+        AuthConfig::CodexCli => {
+            let resolved = CodexResolver.resolve().await?;
+            overlay_runtime_auth(
+                ai_config,
+                resolved.api_key,
+                resolved.base_url,
+                resolved.request_url,
+                resolved.format,
+                resolved.extra_headers,
+            );
+        }
+        AuthConfig::GeminiCli => {
+            let resolved = GeminiResolver.resolve().await?;
+            overlay_runtime_auth(
+                ai_config,
+                resolved.api_key,
+                resolved.base_url,
+                resolved.request_url,
+                resolved.format,
+                resolved.extra_headers,
+            );
+        }
+        AuthConfig::Subscription { provider } => {
+            let resolved = resolve_native_subscription_auth(*provider)
+                .await
+                .map_err(|error| anyhow!(error))?;
+            overlay_runtime_auth(
+                ai_config,
+                resolved.api_key,
+                Some(resolved.base_url),
+                Some(resolved.request_url),
+                Some(resolved.format),
+                resolved.extra_headers,
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Backward-compatible entry point retained for desktop commands that also
+/// need to resolve model auth before testing or listing remote models.
+pub async fn apply_cli_credential(auth: &AuthConfig, ai_config: &mut AIConfig) -> Result<()> {
+    apply_model_auth(auth, ai_config).await
+}
+
+fn overlay_runtime_auth(
+    ai_config: &mut AIConfig,
+    api_key: String,
+    base_url: Option<String>,
+    request_url: Option<String>,
+    format: Option<String>,
+    extra_headers: HashMap<String, String>,
+) {
+    ai_config.api_key = api_key;
+    if let Some(base) = base_url {
         ai_config.base_url = base;
     }
-    if let Some(req) = resolved.request_url {
-        ai_config.request_url = req;
+    if let Some(request) = request_url {
+        ai_config.request_url = request;
     }
-    if let Some(format) = resolved.format {
+    if let Some(format) = format {
         ai_config.format = format;
     }
-    if !resolved.extra_headers.is_empty() {
+    if !extra_headers.is_empty() {
         let merged = match ai_config.custom_headers.take() {
             Some(mut existing) => {
-                for (k, v) in resolved.extra_headers {
+                for (k, v) in extra_headers {
                     existing.insert(k, v);
                 }
                 existing
             }
-            None => resolved.extra_headers,
+            None => extra_headers,
         };
         ai_config.custom_headers = Some(merged);
         // Default to merge so adapter-specific headers (Authorization etc.) are
@@ -325,7 +379,6 @@ pub async fn apply_cli_credential(auth: &AuthConfig, ai_config: &mut AIConfig) -
             ai_config.custom_headers_mode = Some("merge".to_string());
         }
     }
-    Ok(())
 }
 
 /// Discover all locally-available CLI credentials (Codex, Gemini, ...).
@@ -335,8 +388,11 @@ pub async fn discover_cli_credentials() -> Vec<cli_credentials::DiscoveredCreden
 
 #[cfg(test)]
 mod tests {
-    use super::AIClientFactory;
-    use crate::service::config::types::{AIModelConfig, GlobalConfig};
+    use super::{overlay_runtime_auth, should_cache_auth, AIClientFactory};
+    use crate::service::config::types::{AIModelConfig, AuthConfig, GlobalConfig};
+    use crate::util::types::AIConfig;
+    use std::collections::HashMap;
+    use void_core_types::SubscriptionProvider;
 
     fn build_model(id: &str, name: &str, model_name: &str) -> AIModelConfig {
         AIModelConfig {
@@ -403,5 +459,45 @@ mod tests {
             AIClientFactory::resolve_model_selection_in_config(&config, "fast"),
             Some("model-primary".to_string())
         );
+    }
+
+    #[test]
+    fn subscription_auth_is_not_cached_past_native_token_lifetime() {
+        assert!(!should_cache_auth(&AuthConfig::Subscription {
+            provider: SubscriptionProvider::Codex,
+        }));
+        assert!(should_cache_auth(&AuthConfig::ApiKey));
+        assert!(should_cache_auth(&AuthConfig::CodexCli));
+    }
+
+    #[test]
+    fn runtime_overlay_replaces_endpoint_and_merges_provider_headers() {
+        let mut config =
+            AIConfig::try_from(AIModelConfig::default()).expect("default model should convert");
+        config.api_key = "persisted-placeholder".to_string();
+        config.base_url = "https://placeholder.invalid".to_string();
+        config.request_url = "https://placeholder.invalid/request".to_string();
+        config.format = "openai".to_string();
+        config.custom_headers = Some(HashMap::from([(
+            "X-Void".to_string(),
+            "preserved".to_string(),
+        )]));
+        overlay_runtime_auth(
+            &mut config,
+            "runtime-secret".to_string(),
+            Some("https://runtime.example".to_string()),
+            Some("https://runtime.example/responses".to_string()),
+            Some("responses".to_string()),
+            HashMap::from([("originator".to_string(), "codex_cli_rs".to_string())]),
+        );
+
+        assert_eq!(config.api_key, "runtime-secret");
+        assert_eq!(config.base_url, "https://runtime.example");
+        assert_eq!(config.request_url, "https://runtime.example/responses");
+        assert_eq!(config.format, "responses");
+        let headers = config.custom_headers.unwrap();
+        assert_eq!(headers["X-Void"], "preserved");
+        assert_eq!(headers["originator"], "codex_cli_rs");
+        assert_eq!(config.custom_headers_mode.as_deref(), Some("merge"));
     }
 }
