@@ -78,6 +78,29 @@ describe('SubscriptionAccountsPanelView', () => {
     expect(html).toContain('account.subscriptions.actions.retry');
   });
 
+  it('renders an update-required capability state without an ineffective retry', () => {
+    const unsupported = model();
+    unsupported.loadStatus = 'failed';
+    unsupported.error = {
+      code: 'desktop_update_required',
+      message: 'raw adapter fallback',
+      retryable: false,
+    };
+    unsupported.accounts = unsupported.accounts.map(account => ({
+      ...account,
+      status: 'failed',
+      error: unsupported.error,
+    }));
+
+    const html = renderToStaticMarkup(
+      <SubscriptionAccountsPanelView model={unsupported} t={t} />,
+    );
+
+    expect(html).toContain('account.subscriptions.errors.desktop_update_required');
+    expect(html).not.toContain('raw adapter fallback');
+    expect(html).not.toContain('account.subscriptions.actions.retry');
+  });
+
   it('keeps the manual authorization action and exposes opener failures', () => {
     const failedOpen = model();
     failedOpen.session = {

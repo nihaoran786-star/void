@@ -145,6 +145,9 @@
         "refresh": "重新整理",
         "logout": "登出",
         "retry": "重試"
+      },
+      "errors": {
+        "desktop_update_required": "目前執行中的桌面端版本不支援訂閱登入。請重新啟動 Void 以完成更新。"
       }
     },
     "states": {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SUBSCRIPTION_PROVIDERS,
+  isSubscriptionAuthCapabilityError,
   type SubscriptionAccount,
   type SubscriptionAuthError,
   type SubscriptionAuthSession,
@@ -17,6 +18,13 @@ import type {
 const SNAPSHOT_POLL_INTERVAL_MS = 1_000;
 
 function errorFrom(error: unknown): SubscriptionAuthError {
+  if (isSubscriptionAuthCapabilityError(error)) {
+    return {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+    };
+  }
   return {
     code: 'web_operation_failed',
     message: error instanceof Error ? error.message : String(error),

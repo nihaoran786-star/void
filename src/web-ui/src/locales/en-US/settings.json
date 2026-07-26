@@ -124,6 +124,9 @@
         "refresh": "Refresh",
         "logout": "Sign out",
         "retry": "Retry"
+      },
+      "errors": {
+        "desktop_update_required": "Subscription login is not available in the running desktop host. Restart Void to finish the update."
       }
     },
     "states": {

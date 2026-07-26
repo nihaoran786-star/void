@@ -1,10 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { api } from './ApiClient';
 import {
+  SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED,
+  SubscriptionAuthAPI,
   mapSubscriptionAccountsResponse,
   mapSubscriptionSessionResponse,
 } from './SubscriptionAuthAPI';
 
 describe('SubscriptionAuthAPI DTO mapping', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('normalizes field naming only when every typed provider is present', () => {
     const accounts = mapSubscriptionAccountsResponse([
       {
@@ -92,5 +99,16 @@ describe('SubscriptionAuthAPI DTO mapping', () => {
       { provider: 'codex' },
       { provider: 'opencode', status: 'disconnected' },
     ])).toThrow('status is invalid');
+  });
+
+  it('classifies an older desktop host without subscription commands as non-retryable', async () => {
+    vi.spyOn(api, 'invoke').mockRejectedValueOnce(
+      new Error('Command subscription_auth_list_accounts not found'),
+    );
+
+    await expect(new SubscriptionAuthAPI().listAccounts()).rejects.toMatchObject({
+      code: SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED,
+      retryable: false,
+    });
   });
 });

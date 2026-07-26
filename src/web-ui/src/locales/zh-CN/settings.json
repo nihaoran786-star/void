@@ -145,6 +145,9 @@
         "refresh": "刷新",
         "logout": "退出登录",
         "retry": "重试"
+      },
+      "errors": {
+        "desktop_update_required": "当前运行的桌面端版本不支持订阅登录。请重启 Void 以完成更新。"
       }
     },
     "states": {

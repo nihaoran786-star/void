@@ -11,8 +11,10 @@ import { Button } from '@/component-library/components/Button';
 import { useI18n } from '@/infrastructure/i18n';
 import type {
   SubscriptionAccount,
+  SubscriptionAuthError,
   SubscriptionProvider,
 } from '@/infrastructure/api/service-api/SubscriptionAuthAPI';
+import { SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED } from '@/infrastructure/api/service-api/SubscriptionAuthAPI';
 import { useSubscriptionAuth } from './useSubscriptionAuth';
 import type { SubscriptionAuthViewModel } from './subscriptionAuthTypes';
 import './SubscriptionAccountsPanel.scss';
@@ -39,6 +41,12 @@ function formatExpiry(expiresAt: number | null): string | null {
       }).format(date);
 }
 
+function errorMessage(error: SubscriptionAuthError, t: Translate): string {
+  return error.code === SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED
+    ? t('account.subscriptions.errors.desktop_update_required')
+    : error.message;
+}
+
 function AccountDescription({
   account,
   t,
@@ -61,7 +69,9 @@ function AccountDescription({
   if (account.status === 'failed') {
     return (
       <span>
-        {account.error?.message || t('account.subscriptions.states.failedHint')}
+        {account.error
+          ? errorMessage(account.error, t)
+          : t('account.subscriptions.states.failedHint')}
       </span>
     );
   }
@@ -91,10 +101,12 @@ export function SubscriptionAccountsPanelView({
       {model.error && (
         <div className="subscription-accounts__global-error" role="alert">
           <ShieldAlert size={15} aria-hidden="true" />
-          <span>{model.error.message}</span>
-          <Button variant="secondary" size="small" onClick={() => void model.reload()}>
-            {t('account.subscriptions.actions.retry')}
-          </Button>
+          <span>{errorMessage(model.error, t)}</span>
+          {model.error.retryable && (
+            <Button variant="secondary" size="small" onClick={() => void model.reload()}>
+              {t('account.subscriptions.actions.retry')}
+            </Button>
+          )}
         </div>
       )}
 
@@ -219,7 +231,8 @@ export function SubscriptionAccountsPanelView({
                       {t('account.subscriptions.actions.logout')}
                     </Button>
                   </>
-                ) : account.status === 'vault_unavailable' || account.status === 'failed' ? (
+                ) : account.status === 'vault_unavailable'
+                  || (account.status === 'failed' && account.error?.retryable !== false) ? (
                   <Button
                     variant="secondary"
                     size="small"
@@ -229,7 +242,7 @@ export function SubscriptionAccountsPanelView({
                     <RotateCcw size={13} aria-hidden="true" />
                     {t('account.subscriptions.actions.retry')}
                   </Button>
-                ) : (
+                ) : account.status !== 'failed' ? (
                   <Button
                     variant="primary"
                     size="small"
@@ -239,7 +252,7 @@ export function SubscriptionAccountsPanelView({
                     <ExternalLink size={13} aria-hidden="true" />
                     {t('account.subscriptions.actions.login')}
                   </Button>
-                )}
+                ) : null}
               </div>
             </li>
           );

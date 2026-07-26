@@ -24,6 +24,24 @@ export interface SubscriptionAuthError {
   retryable: boolean;
 }
 
+export const SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED = 'desktop_update_required';
+
+export class SubscriptionAuthCapabilityError extends Error {
+  readonly code = SUBSCRIPTION_AUTH_DESKTOP_UPDATE_REQUIRED;
+  readonly retryable = false;
+
+  constructor() {
+    super('Subscription login requires a current desktop host. Restart Void to finish the update.');
+    this.name = 'SubscriptionAuthCapabilityError';
+  }
+}
+
+export function isSubscriptionAuthCapabilityError(
+  error: unknown,
+): error is SubscriptionAuthCapabilityError {
+  return error instanceof SubscriptionAuthCapabilityError;
+}
+
 export interface SubscriptionAccount {
   provider: SubscriptionProvider;
   status: SubscriptionAccountStatus;
@@ -61,6 +79,24 @@ function readNullableNumber(value: unknown): number | null {
 
 function isProvider(value: unknown): value is SubscriptionProvider {
   return SUBSCRIPTION_PROVIDERS.some(provider => provider === value);
+}
+
+function isMissingSubscriptionAuthCommand(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  return normalized.includes('unknown command')
+    || normalized.includes('command not found')
+    || (normalized.includes('command') && normalized.includes('not found'));
+}
+
+function subscriptionAuthCommandError(
+  command: string,
+  error: unknown,
+  request?: unknown,
+): Error {
+  return isMissingSubscriptionAuthCommand(error)
+    ? new SubscriptionAuthCapabilityError()
+    : createTauriCommandError(command, error, request);
 }
 
 function mapError(value: unknown): SubscriptionAuthError | null {
@@ -158,7 +194,7 @@ export class SubscriptionAuthAPI {
       const response = await api.invoke<unknown>('subscription_auth_list_accounts', {});
       return mapSubscriptionAccountsResponse(response);
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_list_accounts', error);
+      throw subscriptionAuthCommandError('subscription_auth_list_accounts', error);
     }
   }
 
@@ -172,7 +208,11 @@ export class SubscriptionAuthAPI {
       });
       return mapSubscriptionSessionResponse(response);
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_start', error, { provider, sessionId });
+      throw subscriptionAuthCommandError(
+        'subscription_auth_start',
+        error,
+        { provider, sessionId },
+      );
     }
   }
 
@@ -183,7 +223,7 @@ export class SubscriptionAuthAPI {
       });
       return mapSubscriptionSessionResponse(response);
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_status', error, { sessionId });
+      throw subscriptionAuthCommandError('subscription_auth_status', error, { sessionId });
     }
   }
 
@@ -194,7 +234,7 @@ export class SubscriptionAuthAPI {
       });
       return mapSubscriptionSessionResponse(response);
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_cancel', error, { sessionId });
+      throw subscriptionAuthCommandError('subscription_auth_cancel', error, { sessionId });
     }
   }
 
@@ -202,7 +242,7 @@ export class SubscriptionAuthAPI {
     try {
       await api.invoke('subscription_auth_logout', { request: { provider } });
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_logout', error, { provider });
+      throw subscriptionAuthCommandError('subscription_auth_logout', error, { provider });
     }
   }
 
@@ -217,7 +257,7 @@ export class SubscriptionAuthAPI {
       }
       return account;
     } catch (error) {
-      throw createTauriCommandError('subscription_auth_refresh', error, { provider });
+      throw subscriptionAuthCommandError('subscription_auth_refresh', error, { provider });
     }
   }
 }
