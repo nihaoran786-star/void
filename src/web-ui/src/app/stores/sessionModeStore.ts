@@ -22,6 +22,7 @@ export interface NewSessionDraftWorkspace {
 
 interface SessionModeState {
   mode: SessionMode;
+  draftId: string | null;
   draftStatus: NewSessionDraftStatus;
   draftWorkspace: NewSessionDraftWorkspace | null;
   setMode: (mode: SessionMode) => void;
@@ -31,19 +32,29 @@ interface SessionModeState {
   clearDraft: () => void;
 }
 
+let nextNewSessionDraftId = 0;
+
+function createNewSessionDraftId(): string {
+  nextNewSessionDraftId += 1;
+  return `new-session-${nextNewSessionDraftId}`;
+}
+
 export const useSessionModeStore = create<SessionModeState>((set) => ({
   mode: 'code',
+  draftId: null,
   draftStatus: 'idle',
   draftWorkspace: null,
   setMode: (mode) => set({ mode }),
   beginDraft: (mode, workspace = null) => set({
     mode,
+    draftId: createNewSessionDraftId(),
     draftStatus: 'draft',
     draftWorkspace: workspace,
   }),
   setDraftWorkspace: (draftWorkspace) => set({ draftWorkspace }),
   setDraftStatus: (draftStatus) => set({ draftStatus }),
   clearDraft: () => set({
+    draftId: null,
     draftStatus: 'idle',
     draftWorkspace: null,
   }),

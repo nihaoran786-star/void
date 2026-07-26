@@ -97,6 +97,7 @@ import {
   selectNewSessionDraftWorkspace,
 } from '../services/NewSessionDraftService';
 import {
+  canUseSessionlessComposer,
   clearSessionComposerDraftIfRevision,
   consumeEmptyPasteClearGuard,
   countEmptyPasteClearGuards,
@@ -106,6 +107,7 @@ import {
   observeSessionComposerQueue,
   resolveSessionComposerHydration,
   resolveSessionComposerDraftGuard,
+  resolveSessionComposerScopeId,
   saveSessionComposerDraft,
   saveSessionComposerDraftIfRevision,
   shouldApplyGuardedComposerResult,
@@ -328,16 +330,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
   const previousComposerSessionIdRef = useRef<string | null>(null);
+  const previousComposerScopeIdRef = useRef<string | null>(null);
   const deferredCreatedSessionIdRef = useRef<string | null>(null);
   const lastAppliedQueuedInputRef = useRef<{
     sessionId: string | null;
     value: string | null;
   }>({ sessionId: null, value: null });
   const draftMode = useSessionModeStore(state => state.mode);
+  const draftId = useSessionModeStore(state => state.draftId);
   const draftStatus = useSessionModeStore(state => state.draftStatus);
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
   const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
   const isNewSessionDraft = !currentSessionId && draftStatus !== 'idle';
+  const composerScopeId = resolveSessionComposerScopeId(
+    currentSessionId,
+    isNewSessionDraft ? draftId : null,
+  );
   const effectiveTargetSessionId = currentSessionId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
@@ -369,7 +377,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     const previousSessionId = previousComposerSessionIdRef.current;
-    const sessionChanged = previousSessionId !== currentSessionId;
+    const previousScopeId = previousComposerScopeIdRef.current;
+    const sessionChanged = previousScopeId !== composerScopeId;
     const queueDecision = observeSessionComposerQueue(
       lastAppliedQueuedInputRef.current,
       currentSessionId,
@@ -386,20 +395,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    if (sessionChanged && previousSessionId) {
-      saveSessionComposerDraft(previousSessionId, {
+    if (sessionChanged && previousSessionId && previousScopeId) {
+      saveSessionComposerDraft(previousScopeId, {
         value: inputValueRef.current,
         contexts: contextsRef.current,
         pendingLargePastes: pendingLargePastesRef.current,
       });
     }
 
-    const restoredDraft = currentSessionId
-      ? getSessionComposerDraft(currentSessionId)
+    const restoredDraft = composerScopeId
+      ? getSessionComposerDraft(composerScopeId)
       : undefined;
     const hydration = resolveSessionComposerHydration(queuedInput, restoredDraft);
 
     previousComposerSessionIdRef.current = currentSessionId;
+    previousComposerScopeIdRef.current = composerScopeId;
     emptyPasteClearGuardCountRef.current = countEmptyPasteClearGuards(
       Object.keys(hydration.pendingLargePastes).length > 0,
       inputValueRef.current,
@@ -419,6 +429,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [
     currentSessionId,
+    composerScopeId,
     derivedState?.queuedInput,
     replaceContexts,
     sessionSnapshot?.sessionId,
@@ -2322,9 +2333,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
   
   const handleSendOrCancel = useCallback(async () => {
-    if (!derivedState) return;
+    if (!canUseSessionlessComposer(Boolean(derivedState), isNewSessionDraft)) {
+      return;
+    }
     
-    const { sendButtonMode } = derivedState;
+    const sendButtonMode = derivedState?.sendButtonMode ?? 'send';
     const draftTrimmed = inputState.value.trim();
 
     if (isNewSessionDraft && draftStatus === 'creating') {
@@ -3148,7 +3161,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const renderActionButton = () => {
-    if (!derivedState) {
+    if (!canUseSessionlessComposer(Boolean(derivedState), isNewSessionDraft)) {
       return (
         <IconButton
           className="void-chat-input__send-button"
@@ -3161,7 +3174,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       );
     }
 
-    const { sendButtonMode, hasQueuedInput } = derivedState;
+    const sendButtonMode = derivedState?.sendButtonMode ?? 'send';
+    const hasQueuedInput = derivedState?.hasQueuedInput ?? false;
     
     if (sendButtonMode === 'cancel') {
       return (

@@ -23,6 +23,7 @@ describe('NewSessionDraftService', () => {
       mode: 'code',
       draftStatus: 'idle',
       draftWorkspace: null,
+      draftId: null,
     });
   });
 
@@ -36,6 +37,7 @@ describe('NewSessionDraftService', () => {
     expect(useSessionModeStore.getState()).toMatchObject({
       mode: 'media',
       draftStatus: 'draft',
+      draftId: expect.any(String),
       draftWorkspace: {
         id: 'workspace-1',
         rootPath: 'D:/workspace',
@@ -51,6 +53,18 @@ describe('NewSessionDraftService', () => {
     });
   });
 
+  it('creates a fresh composer identity for every new-task draft', () => {
+    beginNewSessionDraft('code', null);
+    const firstDraftId = useSessionModeStore.getState().draftId;
+
+    beginNewSessionDraft('code', null);
+    const secondDraftId = useSessionModeStore.getState().draftId;
+
+    expect(firstDraftId).toEqual(expect.any(String));
+    expect(secondDraftId).toEqual(expect.any(String));
+    expect(secondDraftId).not.toBe(firstDraftId);
+  });
+
   it('clears only the draft projection after the real session is created', () => {
     useSessionModeStore.getState().beginDraft('cowork', null);
     completeNewSessionDraft();
@@ -58,6 +72,7 @@ describe('NewSessionDraftService', () => {
     expect(useSessionModeStore.getState()).toMatchObject({
       mode: 'cowork',
       draftStatus: 'idle',
+      draftId: null,
       draftWorkspace: null,
     });
   });
