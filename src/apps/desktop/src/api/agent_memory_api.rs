@@ -325,10 +325,30 @@ fn same_workspace_path(recorded: &std::path::Path, registered: &std::path::Path)
 }
 
 fn is_safe_session_id(session_id: &str) -> bool {
+    const MAX_SESSION_ID_BYTES: usize = 128;
+
     !session_id.is_empty()
+        && session_id.len() <= MAX_SESSION_ID_BYTES
         && session_id
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_safe_session_id;
+
+    #[test]
+    fn safe_session_id_rejects_path_tokens_and_unbounded_values() {
+        assert!(is_safe_session_id("session_01-abcdef"));
+        assert!(is_safe_session_id(&"a".repeat(128)));
+
+        assert!(!is_safe_session_id(""));
+        assert!(!is_safe_session_id("../session"));
+        assert!(!is_safe_session_id("session/child"));
+        assert!(!is_safe_session_id("会话"));
+        assert!(!is_safe_session_id(&"a".repeat(129)));
+    }
 }
 
 #[tauri::command]
