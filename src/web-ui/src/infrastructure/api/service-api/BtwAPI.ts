@@ -39,6 +39,11 @@ export interface BtwAskStreamResponse {
   relationship: BtwSessionRecord;
 }
 
+interface LegacyCompatibleBtwAskStreamResponse {
+  ok: boolean;
+  relationship?: BtwSessionRecord;
+}
+
 export interface BtwCancelRequest {
   requestId: string;
 }
@@ -58,14 +63,41 @@ export interface BtwUpdateMemoryRequest {
 export class BtwAPI {
   async askStream(request: BtwAskStreamRequest): Promise<BtwAskStreamResponse> {
     try {
-      const response = await api.invoke<BtwAskStreamResponse>('btw_ask_stream', { request });
+      const response = await api.invoke<LegacyCompatibleBtwAskStreamResponse>(
+        'btw_ask_stream',
+        { request },
+      );
       if (!response.ok) {
         throw new Error(
-          response.relationship.hydrationDetail ||
+          response.relationship?.hydrationDetail ||
             'BTW relationship persistence failed',
         );
       }
-      return response;
+      if (response.relationship) {
+        return {
+          ok: true,
+          relationship: response.relationship,
+        };
+      }
+
+      // Desktop builds predating durable BTW relationships returned only
+      // `{ ok: true }`. The stream is already running at this point, so
+      // rejecting would discard the live child session and misreport success
+      // as a launch failure.
+      return {
+        ok: true,
+        relationship: {
+          schemaVersion: 1,
+          parentSessionId: request.sessionId,
+          childSessionId: request.childSessionId,
+          requestId: request.requestId,
+          childSessionName: request.childSessionName,
+          hydrationState: 'runtime_unavailable',
+          hydrationDetail:
+            'The desktop backend does not expose persisted BTW relationship metadata.',
+          memoryEnabled: request.memoryEnabled ?? false,
+        },
+      };
     } catch (error) {
       throw createTauriCommandError('btw_ask_stream', error, request);
     }

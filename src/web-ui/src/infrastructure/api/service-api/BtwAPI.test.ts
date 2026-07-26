@@ -37,6 +37,32 @@ describe('BtwAPI', () => {
     })).rejects.toThrow('disk full');
   });
 
+  it('normalizes a successful legacy response without relationship metadata', async () => {
+    invoke.mockResolvedValue({ ok: true });
+
+    await expect(new BtwAPI().askStream({
+      requestId: 'request',
+      sessionId: 'parent',
+      workspacePath: 'D:/workspace',
+      question: 'Question',
+      childSessionId: 'child',
+      childSessionName: 'Side question',
+      memoryEnabled: false,
+    })).resolves.toEqual({
+      ok: true,
+      relationship: {
+        schemaVersion: 1,
+        parentSessionId: 'parent',
+        childSessionId: 'child',
+        requestId: 'request',
+        childSessionName: 'Side question',
+        hydrationState: 'runtime_unavailable',
+        hydrationDetail: 'The desktop backend does not expose persisted BTW relationship metadata.',
+        memoryEnabled: false,
+      },
+    });
+  });
+
   it('updates the persisted BTW memory preference through the typed adapter', async () => {
     const relationship = {
       schemaVersion: 1,
