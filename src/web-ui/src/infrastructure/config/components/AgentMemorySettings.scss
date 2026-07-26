@@ -1,14 +1,25 @@
 .agent-memory-settings {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-top: 20px;
-  padding-top: 20px;
+  gap: var(--size-gap-3, 12px);
+  margin-top: var(--size-gap-5, 20px);
+  padding-top: var(--size-gap-5, 20px);
   border-top: 1px solid var(--border-color);
 
+  > h3,
+  > p {
+    margin: 0;
+  }
+
+  > .btn {
+    align-self: flex-start;
+  }
+
   textarea {
+    box-sizing: border-box;
+    width: 100%;
     min-height: 72px;
-    padding: 10px 12px;
+    padding: 10px var(--size-gap-3, 12px);
     color: var(--text-primary);
     background: var(--color-bg-secondary);
     border: 1px solid var(--border-color);

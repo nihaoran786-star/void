@@ -983,6 +983,8 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
           </ConfigPageRow>
         </ConfigPageSection>
 
+        <AgentMemorySettings />
+
           </>
         ) : null}
 
@@ -1576,12 +1578,7 @@ const SessionSettingsPanels: React.FC<SessionSettingsPanelsProps> = ({ variant }
 };
 
 export function SessionPersonalizationConfig(): React.ReactElement {
-  return (
-    <>
-      <SessionSettingsPanels variant="personalization" />
-      <AgentMemorySettings />
-    </>
-  );
+  return <SessionSettingsPanels variant="personalization" />;
 }
 
 export function SessionPermissionsConfig(): React.ReactElement {
