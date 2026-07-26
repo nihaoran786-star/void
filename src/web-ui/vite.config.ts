@@ -86,6 +86,9 @@ export default defineConfig(({ mode, command }) => {
   build: {
     // Enable CSS code splitting
     cssCodeSplit: true,
+    // The production performance gate resolves static and dynamic assets from
+    // Vite's manifest instead of guessing chunk names.
+    manifest: true,
     // release version disable sourcemap, dev/debug version enable
     sourcemap: !isProduction,
     // Output to the project root directory dist/

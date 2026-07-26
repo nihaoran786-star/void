@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
 	checkWebPerformanceBudget,
@@ -501,5 +502,25 @@ test('budget configuration rejects unknown top-level fields', () => {
 	assert.throws(
 		() => validateBudgetConfig(budget),
 		/unknown top-level field "unexpected"/i,
+	);
+});
+
+test('the production web build emits a manifest and enforces the budget', async () => {
+	const repositoryRoot = path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		'..',
+	);
+	const packageJson = JSON.parse(
+		await readFile(path.join(repositoryRoot, 'package.json'), 'utf8'),
+	);
+	const viteConfig = await readFile(
+		path.join(repositoryRoot, 'src/web-ui/vite.config.ts'),
+		'utf8',
+	);
+
+	assert.match(viteConfig, /manifest:\s*true/);
+	assert.match(
+		packageJson.scripts['build:web'],
+		/check-web-performance-budget\.mjs --dist dist/,
 	);
 });

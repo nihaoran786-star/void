@@ -4,15 +4,15 @@
 		"manifestKey": "index.html"
 	},
 	"javascript": {
-		"maxRawBytes": 2337259,
-		"referenceGzipBytes": 680042,
+		"maxRawBytes": 2399568,
+		"referenceGzipBytes": 700654,
 		"forbiddenMarkers": [
 			"MonacoEnvironment"
 		]
 	},
 	"css": {
-		"maxRawBytes": 633915,
-		"referenceGzipBytes": 88518,
+		"maxRawBytes": 650806,
+		"referenceGzipBytes": 91620,
 		"forbiddenMarkers": [
 			".monaco-editor",
 			".xterm-helper-textarea",
@@ -56,7 +56,6 @@
 		"src/infrastructure/update/UpdateInstallProgressModal.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopBridge.tsx",
 		"src/app/components/CompactChatDesktopWindow/CompactChatDesktopWindow.tsx",
-		"src/app/scenes/settings/SettingsScene.tsx",
 		"src/locales/zh-TW/common.json",
 		"src/locales/zh-TW/components.json",
 		"src/locales/zh-TW/errors.json",

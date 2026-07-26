@@ -35,7 +35,7 @@
     "prebuild": "pnpm run prebuild:web",
     "prebuild:web": "pnpm run copy-assets --silent && pnpm run generate-all --silent",
     "build": "pnpm run build:web",
-    "build:web": "pnpm run type-check:web && pnpm --dir src/web-ui build && pnpm run verify:monaco-assets",
+    "build:web": "pnpm run type-check:web && pnpm --dir src/web-ui build && pnpm run verify:monaco-assets && node scripts/check-web-performance-budget.mjs --dist dist",
     "verify:monaco-assets": "node scripts/verify-monaco-assets.cjs",
     "build:mobile-web": "pnpm --dir src/mobile-web build",
     "prepare:mobile-web": "node scripts/mobile-web-build.cjs",
