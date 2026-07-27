@@ -638,7 +638,7 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
       Array.from(pendingMessageCleanups).forEach((cleanup) => cleanup());
       pendingMessageCleanups.clear();
     };
-  }, [isPresentationActive, mcpAppState?.html, mcpAppState?.resourceKey, resourceKey, serverId, resolvedMcpToolName]);
+  }, [isPresentationActive, mcpAppState?.html, mcpAppState?.resourceKey, resourceKey, serverId, resolvedMcpToolName, sessionId]);
 
   const handleIframeLoad = useCallback(() => {
     /* iframe loaded, ref is ready for postMessage bridge */

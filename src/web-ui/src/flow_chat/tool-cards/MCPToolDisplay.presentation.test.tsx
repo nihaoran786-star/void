@@ -119,7 +119,11 @@ vi.mock('./AcpPermissionActions', () => ({
 
 let resourceSequence = 0;
 
-function createProps(resourceUri: string, suffix = '1'): ToolCardProps {
+function createProps(
+  resourceUri: string,
+  suffix = '1',
+  sessionId?: string,
+): ToolCardProps {
   return {
     toolItem: {
       id: `tool-item-${suffix}`,
@@ -134,6 +138,7 @@ function createProps(resourceUri: string, suffix = '1'): ToolCardProps {
       },
     },
     config: { toolName: 'mcp__server__tool' },
+    sessionId,
   } as unknown as ToolCardProps;
 }
 
@@ -213,6 +218,43 @@ describe('MCPToolDisplay presentation lifecycle', () => {
 
     expect(container.querySelector('iframe')?.style.minHeight).toBe('320px');
     expect(apiMock.fetchResource).toHaveBeenCalledTimes(1);
+  });
+
+  it('rebinds iframe messages to the current session after a session switch', async () => {
+    const resourceUri = `ui://session-switch-${++resourceSequence}`;
+    apiMock.fetchResource.mockResolvedValue({
+      contents: [{ uri: resourceUri, content: '<main>Session app</main>' }],
+    });
+
+    act(() => root.render(
+      <Harness
+        isActive
+        props={createProps(resourceUri, 'stable-card', 'session-a')}
+      />,
+    ));
+    await flushAsyncWork();
+
+    act(() => root.render(
+      <Harness
+        isActive
+        props={createProps(resourceUri, 'stable-card', 'session-b')}
+      />,
+    ));
+    await flushAsyncWork();
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe).not.toBeNull();
+    dispatchIframeMessage(iframe!, {
+      jsonrpc: '2.0',
+      id: 17,
+      method: 'ui/message',
+      params: { role: 'user', content: [{ type: 'text', text: 'Continue' }] },
+    });
+
+    const messagePayload = eventBusMock.bus.emit.mock.calls
+      .filter(([eventName]) => eventName === 'mcp-app:message')
+      .at(-1)?.[1] as { targetSessionId?: string } | undefined;
+    expect(messagePayload?.targetSessionId).toBe('session-b');
   });
 
   it('refreshes a same-key resource for a newly mounted card after the shared cache expires', async () => {
