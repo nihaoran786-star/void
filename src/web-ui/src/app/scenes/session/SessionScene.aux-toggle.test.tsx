@@ -182,6 +182,27 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(true);
   });
 
+  it('collapses the auxiliary preview again for a consecutive new-task draft', async () => {
+    await act(async () => {
+      root.render(<SessionScene />);
+      useSessionModeStore.getState().beginDraft('media', null);
+    });
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+
+    mocks.layout.rightPanelCollapsed = true;
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+
+    mocks.layout.rightPanelCollapsed = false;
+    await act(async () => {
+      root.render(<SessionScene />);
+      useSessionModeStore.getState().beginDraft('code', null);
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
+  });
+
   it('restores the preferred canvas width after a temporary narrow-window clamp', async () => {
     localStorage.setItem('void:rightPanelLastWidth', '900');
     mocks.layout.rightPanelWidth = 900;
