@@ -2,6 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const source = readFileSync(new URL('./ChatPane.scss', import.meta.url), 'utf8');
+const welcomeSource = readFileSync(
+  new URL('../../../flow_chat/components/WelcomePanel.css', import.meta.url),
+  'utf8',
+);
+const examplesSource = readFileSync(
+  new URL('../../../flow_chat/components/SessionModeExampleCards.scss', import.meta.url),
+  'utf8',
+);
 
 describe('new-task draft examples presentation', () => {
   it('keeps readable mode examples between the mode switch and composer', () => {
@@ -48,6 +56,18 @@ describe('new-task draft examples presentation', () => {
     );
     expect(source).not.toMatch(
       /\.rich-text-input\s*\{[\s\S]*?min-height:\s*56px !important;[\s\S]*?max-height:\s*56px !important;/,
+    );
+  });
+
+  it('uses a clear accent highlight for the active mode and example interactions', () => {
+    expect(welcomeSource).toMatch(
+      /\.welcome-panel__creation-mode\.is-active\s*\{[\s\S]*?background:\s*color-mix\([\s\S]*?var\(--color-accent-500\)\s*12%,[\s\S]*?var\(--color-bg-elevated\)\s*\);[\s\S]*?0 3px 10px/,
+    );
+    expect(examplesSource).toMatch(
+      /&__option\s*\{[\s\S]*?&:hover\s*\{[\s\S]*?border-color:\s*var\(--color-accent-500\);[\s\S]*?background:\s*color-mix\([\s\S]*?var\(--color-accent-500\)\s*8%,[\s\S]*?var\(--color-bg-elevated\)\s*\);[\s\S]*?transform:\s*translateY\(-1px\);/,
+    );
+    expect(examplesSource).toMatch(
+      /&:focus-visible\s*\{[\s\S]*?outline:\s*2px solid var\(--workspace-focus-ring, var\(--color-accent-500\)\);/,
     );
   });
 });
