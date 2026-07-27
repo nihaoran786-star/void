@@ -28,14 +28,19 @@ const AUDIO_MIME_TYPES: Record<string, string> = {
 };
 
 const MAX_RESOLVED_URL_CACHE_ENTRIES = 240;
+const MAX_IMAGE_DATA_URL_CACHE_ENTRIES = 12;
+const MAX_IMAGE_DATA_URL_CACHE_CHARS = 32 * 1024 * 1024;
+const MAX_SINGLE_IMAGE_DATA_URL_CHARS = 8 * 1024 * 1024;
 
 interface WorkspaceMediaPreviewResolution {
   url: string;
-  cacheable: boolean;
+  cache: 'none' | 'stream' | 'image-data';
 }
 
 const resolvedUrlCache = new Map<string, string>();
+const resolvedImageDataUrlCache = new Map<string, string>();
 const inFlightResolutions = new Map<string, Promise<WorkspaceMediaPreviewResolution>>();
+let resolvedImageDataUrlCacheChars = 0;
 let cacheEpoch = 0;
 
 export interface WorkspaceMediaPreviewRequest {
@@ -92,9 +97,38 @@ function touchResolvedUrlCacheEntry(key: string, url: string) {
   }
 }
 
+function touchResolvedImageDataUrlCacheEntry(key: string, url: string) {
+  const current = resolvedImageDataUrlCache.get(key);
+  if (current) {
+    resolvedImageDataUrlCacheChars -= current.length;
+    resolvedImageDataUrlCache.delete(key);
+  }
+  if (url.length > MAX_SINGLE_IMAGE_DATA_URL_CHARS) {
+    return;
+  }
+  resolvedImageDataUrlCache.set(key, url);
+  resolvedImageDataUrlCacheChars += url.length;
+  while (
+    resolvedImageDataUrlCache.size > MAX_IMAGE_DATA_URL_CACHE_ENTRIES
+    || resolvedImageDataUrlCacheChars > MAX_IMAGE_DATA_URL_CACHE_CHARS
+  ) {
+    const oldestKey = resolvedImageDataUrlCache.keys().next().value;
+    if (oldestKey === undefined) {
+      break;
+    }
+    const oldestUrl = resolvedImageDataUrlCache.get(oldestKey);
+    if (oldestUrl) {
+      resolvedImageDataUrlCacheChars -= oldestUrl.length;
+    }
+    resolvedImageDataUrlCache.delete(oldestKey);
+  }
+}
+
 export function clearWorkspaceMediaPreviewUrlCache() {
   cacheEpoch += 1;
   resolvedUrlCache.clear();
+  resolvedImageDataUrlCache.clear();
+  resolvedImageDataUrlCacheChars = 0;
   inFlightResolutions.clear();
 }
 
@@ -111,6 +145,11 @@ export async function resolveWorkspaceMediaPreviewUrl(
   if (cached) {
     touchResolvedUrlCacheEntry(cacheKey, cached);
     return cached;
+  }
+  const cachedImageDataUrl = resolvedImageDataUrlCache.get(cacheKey);
+  if (cachedImageDataUrl) {
+    touchResolvedImageDataUrlCacheEntry(cacheKey, cachedImageDataUrl);
+    return cachedImageDataUrl;
   }
 
   const inFlight = inFlightResolutions.get(cacheKey);
@@ -131,7 +170,7 @@ export async function resolveWorkspaceMediaPreviewUrl(
           streamingUrl += `${streamingUrl.includes('?') ? '&' : '?'}v=${request.modifiedAt}`;
         }
         if (streamingUrl) {
-          return { url: streamingUrl, cacheable: true };
+          return { url: streamingUrl, cache: 'stream' };
         }
       } catch {
         // Fall back to the base64 reader below.
@@ -140,18 +179,24 @@ export async function resolveWorkspaceMediaPreviewUrl(
     const base64 = await workspaceAPI.readFileContent(filePath);
     return {
       url: `data:${mimeTypeForMediaRequest(request)};base64,${base64}`,
-      // Completed data URLs may represent multi-megabyte videos. Keeping up
-      // to 240 of them in a module-level LRU retained media after its UI was
-      // unmounted. Only compact Tauri streaming URLs belong in this cache.
-      cacheable: false,
+      // Video and audio data URLs remain uncached. Image thumbnails opt into
+      // a much smaller byte- and entry-bounded cache so gallery navigation
+      // does not repeatedly read and decode the same workspace file.
+      cache: request.kind === 'image' && request.forceDataUrl
+        ? 'image-data'
+        : 'none',
     };
   })();
 
   inFlightResolutions.set(cacheKey, resolution);
   try {
     const result = await resolution;
-    if (result.cacheable && resolutionEpoch === cacheEpoch) {
-      touchResolvedUrlCacheEntry(cacheKey, result.url);
+    if (resolutionEpoch === cacheEpoch) {
+      if (result.cache === 'stream') {
+        touchResolvedUrlCacheEntry(cacheKey, result.url);
+      } else if (result.cache === 'image-data') {
+        touchResolvedImageDataUrlCacheEntry(cacheKey, result.url);
+      }
     }
     return result.url;
   } catch {
@@ -166,5 +211,9 @@ export async function resolveWorkspaceMediaPreviewUrl(
 export async function resolveWorkspaceMediaImagePreviewUrl(
   request: WorkspaceMediaImagePreviewRequest,
 ): Promise<string | undefined> {
-  return resolveWorkspaceMediaPreviewUrl({ ...request, kind: 'image' });
+  return resolveWorkspaceMediaPreviewUrl({
+    ...request,
+    kind: 'image',
+    forceDataUrl: true,
+  });
 }

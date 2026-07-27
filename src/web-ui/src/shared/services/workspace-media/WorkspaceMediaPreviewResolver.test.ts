@@ -4,6 +4,7 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { workspaceAPI } from '@/infrastructure/api/service-api/WorkspaceAPI';
 import {
   clearWorkspaceMediaPreviewUrlCache,
+  resolveWorkspaceMediaImagePreviewUrl,
   resolveWorkspaceMediaPreviewUrl,
 } from './WorkspaceMediaPreviewResolver';
 
@@ -128,6 +129,44 @@ describe('WorkspaceMediaPreviewResolver', () => {
     expect(recovered).toBe('data:image/png;base64,QUJD');
     expect(convertFileSrcMock).toHaveBeenCalledTimes(1);
     expect(readFileContent).toHaveBeenCalledTimes(1);
+  });
 
+  it('uses a reusable data URL for image thumbnails instead of a fragile Tauri asset URL', async () => {
+    vi.stubGlobal('window', { __TAURI__: {} });
+    convertFileSrcMock.mockReturnValue('asset://localhost/image.png');
+    readFileContent.mockResolvedValue('QUJD');
+
+    const first = await resolveWorkspaceMediaImagePreviewUrl({
+      filePath: 'C:/work/generated.png',
+      extension: 'png',
+      modifiedAt: 42,
+    });
+    const second = await resolveWorkspaceMediaImagePreviewUrl({
+      filePath: 'C:/work/generated.png',
+      extension: 'png',
+      modifiedAt: 42,
+    });
+
+    expect(first).toBe('data:image/png;base64,QUJD');
+    expect(second).toBe(first);
+    expect(convertFileSrcMock).not.toHaveBeenCalled();
+    expect(readFileContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds the reusable image thumbnail cache by entry count', async () => {
+    readFileContent.mockImplementation(async filePath => `base64:${filePath}`);
+
+    for (let index = 0; index < 13; index += 1) {
+      await resolveWorkspaceMediaImagePreviewUrl({
+        filePath: `C:/work/generated-${index}.png`,
+        extension: 'png',
+      });
+    }
+    await resolveWorkspaceMediaImagePreviewUrl({
+      filePath: 'C:/work/generated-0.png',
+      extension: 'png',
+    });
+
+    expect(readFileContent).toHaveBeenCalledTimes(14);
   });
 });
