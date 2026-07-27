@@ -84,7 +84,7 @@ describe('new session home visual governance', () => {
       'sessionChanged && previousSessionId && previousScopeId',
     );
     expect(chatInputSource).toContain(
-      'const composerScopeId = currentSessionId || draftId',
+      'const composerScopeId = effectiveTargetSessionId || draftId',
     );
     expect(chatInputSource).toContain(
       'if (!derivedState && !isNewSessionDraft)',
