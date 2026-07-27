@@ -7,20 +7,17 @@ import React, { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffe
 import { PanelRightClose } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
-import { readWorkspacePresentation } from '@/app/presentation/workspacePresentation';
 import { Tab } from './Tab';
 import { TabOverflowMenu } from './TabOverflowMenu';
 import {
   canShowAllCompactPanelTabs,
   resolveVisibleTabsCount,
   selectDisplayedTabs,
-  selectTabStripTabs,
 } from './tabBarLayout';
 import {
   getCanvasTabDisplayTitle,
   orderCanvasTabsForPresentation,
 } from './canvasTabPresentation';
-import { WorkspaceMediaEntry } from '../workspace-media/WorkspaceMediaEntry';
 import type { CanvasTab, EditorGroupId, TabDragPayload } from '../types';
 import { createLogger } from '@/shared/utils/logger';
 import './TabBar.scss';
@@ -62,11 +59,6 @@ export interface TabBarProps {
   groupActionKind?: 'close-all' | 'collapse-panel';
   /** Pop out tab as independent scene */
   onTabPopOut?: (tabId: string) => void;
-  workspacePath?: string;
-  /** Open workspace media gallery tab */
-  onOpenWorkspaceMedia?: () => void;
-  /** Open short drama center tab */
-  onOpenShortDramaCenter?: () => void;
 }
 
 /**
@@ -126,9 +118,6 @@ export const TabBar: React.FC<TabBarProps> = ({
   closeAllTabsLabel,
   groupActionKind = 'close-all',
   onTabPopOut,
-  workspacePath,
-  onOpenWorkspaceMedia,
-  onOpenShortDramaCenter,
 }) => {
   const { t } = useTranslation('components');
   const [visibleTabsCount, setVisibleTabsCount] = useState(tabs.length);
@@ -148,23 +137,7 @@ export const TabBar: React.FC<TabBarProps> = ({
     () => orderCanvasTabsForPresentation(visibleTabs),
     [visibleTabs],
   );
-  const activeSurface = useMemo(() => {
-    const activeTab = visibleTabs.find(tab => tab.id === activeTabId);
-    if (activeTab?.content.type === 'workspace-media-gallery') {
-      return 'media' as const;
-    }
-    if (activeTab?.content.type === 'short-drama-center') {
-      return 'short-drama' as const;
-    }
-    return null;
-  }, [activeTabId, visibleTabs]);
-  const workspacePresentation = useMemo(readWorkspacePresentation, []);
-  const collapseWorkspaceSurfaceTabs = workspacePresentation === 'minimal'
-    && Boolean(onOpenShortDramaCenter);
-  const stripTabs = useMemo(
-    () => selectTabStripTabs(presentedVisibleTabs, collapseWorkspaceSurfaceTabs),
-    [collapseWorkspaceSurfaceTabs, presentedVisibleTabs],
-  );
+  const stripTabs = presentedVisibleTabs;
   
   // Build cache key (id + title because title changes affect width)
   const getTabCacheKey = useCallback(
@@ -227,15 +200,12 @@ export const TabBar: React.FC<TabBarProps> = ({
     const allTabWidths = stripTabs.map(tab => getTabWidth(tab));
     const totalTabsWidth = allTabWidths.reduce((sum, w) => sum + w, 0);
     
-    // Base actions width (excluding the overflow menu). Media sessions use one
-    // text switcher; presentation collapse remains a visible direct action.
-    const mediaEntryWidth = onOpenWorkspaceMedia
-      ? (onOpenShortDramaCenter ? 132 : 52)
-      : 0;
+    // Base actions width (excluding the overflow menu). Presentation collapse
+    // remains a visible direct action.
     const collapseActionWidth = onCloseAllTabs && groupActionKind === 'collapse-panel'
       ? 28
       : 0;
-    const baseActionsWidth = mediaEntryWidth + collapseActionWidth + 4;
+    const baseActionsWidth = collapseActionWidth + 4;
     // Overflow button width (~50px with badge, 28px with only mission control)
     const overflowBtnWidth = 50;
     // Gap before actions area
@@ -280,13 +250,10 @@ export const TabBar: React.FC<TabBarProps> = ({
       }
     }
 
-    // A media-session surface has its own explicit Media / Drama switcher.
-    // When no complete tab fits, move every real tab into the accessible
-    // overflow menu instead of leaving one clipped keyboard target behind.
     const finalCount = resolveVisibleTabsCount(
       count,
       stripTabs.length,
-      activeSurface !== null,
+      false,
     );
     setVisibleTabsCount(finalCount);
     setLayoutReady(true);
@@ -297,9 +264,6 @@ export const TabBar: React.FC<TabBarProps> = ({
     onCloseAllTabs,
     groupActionKind,
     hasPersistentMenuAction,
-    onOpenWorkspaceMedia,
-    onOpenShortDramaCenter,
-    activeSurface,
   ]);
 
   // Reset to render all tabs when list changes (re-measure)
@@ -338,9 +302,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   }, [calculateVisibleTabs]);
 
   // Split visible and overflow tabs
-  const renderedVisibleTabsCount = layoutReady || activeSurface === null
-    ? visibleTabsCount
-    : 0;
+  const renderedVisibleTabsCount = visibleTabsCount;
   const displayedTabs = selectDisplayedTabs(
     stripTabs,
     renderedVisibleTabsCount,
@@ -491,15 +453,6 @@ export const TabBar: React.FC<TabBarProps> = ({
 
       {/* Actions area */}
       <div ref={actionsRef} className="canvas-tab-bar__actions">
-        {onOpenWorkspaceMedia && (
-          <WorkspaceMediaEntry
-            workspacePath={workspacePath}
-            onOpen={onOpenWorkspaceMedia}
-            onOpenShortDrama={onOpenShortDramaCenter}
-            activeSurface={activeSurface}
-          />
-        )}
-
         {/* Overflow menu (all groups; mission control only in primary) */}
         {visibleTabs.length > 0 && layoutReady && (
           <TabOverflowMenu

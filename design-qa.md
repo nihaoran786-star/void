@@ -102,3 +102,62 @@ The matched capture is 1479 by 1049 physical pixels. Its browser viewport is
 - Web TypeScript, repository hygiene, and i18n contract gates passed.
 
 final result: passed
+
+---
+
+# Design QA: Session capability rail
+
+## Scope
+
+- Source visual truth: user-selected
+  `codex-clipboard-5dbb43d8-8dc6-4127-8626-d6fe117fa4b0.png`.
+- Production surfaces:
+  - `src/web-ui/src/app/scenes/session/SessionCapabilityRail.tsx`
+  - `src/web-ui/src/app/scenes/session/SessionCapabilityRail.scss`
+  - `src/web-ui/src/app/scenes/session/SessionScene.tsx`
+  - `src/web-ui/src/app/components/panels/content-canvas/tab-bar/TabBar.tsx`
+- Capability projection:
+  - `src/web-ui/src/flow_chat/services/sessionCapabilities.ts`
+  - `src/web-ui/src/flow_chat/hooks/useActiveSessionCapabilities.ts`
+
+The reference establishes a small, highlighted capability capsule beside the
+conversation. The implementation keeps that hierarchy while using persisted
+tool activity as the source of truth. Terminal and browser tabs remain ordinary
+canvas tabs and never become session capabilities.
+
+## Capture evidence
+
+- Full desktop capture, compact state:
+  `.codex-artifacts/visual/session-capability-rail-03-short-drama.png`.
+- Full desktop capture, focused capsule:
+  `.codex-artifacts/visual/session-capability-rail-05-focus-expanded.png`.
+- Final full desktop verification:
+  `.codex-artifacts/visual/session-capability-rail-final.png`.
+- Combined source and implementation review:
+  `.codex-artifacts/visual/session-capability-reference-comparison.png`.
+
+## Fidelity and interaction review
+
+| Requirement | Result |
+| --- | --- |
+| Small by default | Passed: 42 px compact rail on the current chat width |
+| Clear selected highlight | Passed: focus expands to a 150 px blue-accent capsule |
+| Per-session capability state | Passed: derived only from the active persisted transcript |
+| Open or focus an existing capability | Passed through the existing short-drama and media canvas events |
+| Collapse while AI output is active | Passed: toggle is outside the streamed message surface |
+| No duplicate top-level media or short-drama entry | Passed: capabilities use real canvas tabs only |
+| Draft new-task page remains clean | Passed: the rail is hidden before a session exists |
+| Canvas state is preserved | Passed: collapse hides the pane without closing its tabs |
+
+## Verification
+
+- Capability projection, scene, header, tab bar, and import-boundary tests:
+  49 passed across 5 files.
+- Web TypeScript: passed.
+- Core module boundaries: passed.
+- i18n contract: 15 passed.
+- Theme visual contract: passed.
+- Desktop interaction: collapse, reopen, and capability-focus transitions passed.
+- Combined visual review found no clipping or persistent content obstruction.
+
+final result: passed

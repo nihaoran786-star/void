@@ -5,7 +5,6 @@ import {
   canShowAllCompactPanelTabs,
   selectDisplayedTabs,
   resolveVisibleTabsCount,
-  selectTabStripTabs,
 } from './tabBarLayout';
 
 const createTab = (
@@ -50,17 +49,6 @@ describe('TabBar media surface layout', () => {
       actionsWidth: 32,
       actionsGap: 8,
     })).toBe(false);
-  });
-
-  it('lets the Minimal media switcher own media surfaces without deleting tabs', () => {
-    const tabs = [
-      createTab('script', 'markdown-editor'),
-      createTab('media', 'workspace-media-gallery'),
-      createTab('drama', 'short-drama-center'),
-    ];
-
-    expect(selectTabStripTabs(tabs, true).map(tab => tab.id)).toEqual(['script']);
-    expect(selectTabStripTabs(tabs, false)).toEqual(tabs);
   });
 
   it('keeps an active overflow tab visible without mutating tab order', () => {

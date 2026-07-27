@@ -48,8 +48,6 @@ export interface EditorGroupProps {
   groupActionKind?: 'close-all' | 'collapse-panel';
   onInteraction?: (itemId: string, userInput: string) => Promise<void>;
   disablePopOut?: boolean;
-  onOpenWorkspaceMedia?: () => void;
-  onOpenShortDramaCenter?: () => void;
 }
 
 export const EditorGroup: React.FC<EditorGroupProps> = ({
@@ -79,8 +77,6 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
   groupActionKind,
   onInteraction,
   disablePopOut = false,
-  onOpenWorkspaceMedia,
-  onOpenShortDramaCenter,
 }) => {
   const { t } = useTranslation('components');
   const visibleTabs = useMemo(() => group.tabs.filter(t => !t.isHidden), [group.tabs]);
@@ -144,9 +140,6 @@ export const EditorGroup: React.FC<EditorGroupProps> = ({
         closeAllTabsLabel={closeAllTabsLabel}
         groupActionKind={groupActionKind}
         onTabPopOut={disablePopOut ? undefined : handleTabPopOut}
-        workspacePath={workspacePath}
-        onOpenWorkspaceMedia={onOpenWorkspaceMedia}
-        onOpenShortDramaCenter={onOpenShortDramaCenter}
       />
 
       <DropZone

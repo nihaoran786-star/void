@@ -30,8 +30,6 @@ export interface EditorAreaProps {
   onTabCloseWithDirtyCheck?: (tabId: string, groupId: EditorGroupId) => Promise<boolean>;
   onTabCloseAllWithDirtyCheck?: (groupId: EditorGroupId) => Promise<boolean>;
   disablePopOut?: boolean;
-  onOpenWorkspaceMedia?: () => void;
-  onOpenShortDramaCenter?: () => void;
 }
 
 export const EditorArea: React.FC<EditorAreaProps> = ({
@@ -42,8 +40,6 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
   onTabCloseWithDirtyCheck,
   onTabCloseAllWithDirtyCheck,
   disablePopOut = false,
-  onOpenWorkspaceMedia,
-  onOpenShortDramaCenter,
 }) => {
   const { t } = useTranslation('components');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -298,8 +294,6 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
       groupActionKind={closesShortDramaTeam ? 'collapse-panel' : 'close-all'}
       onInteraction={onInteraction}
       disablePopOut={disablePopOut}
-      onOpenWorkspaceMedia={groupId === 'primary' ? onOpenWorkspaceMedia : undefined}
-      onOpenShortDramaCenter={groupId === 'primary' ? onOpenShortDramaCenter : undefined}
     />
     );
   };

@@ -83,16 +83,6 @@
     }
   }
 
-  &__canvas-button {
-    flex: 0 0 auto;
-
-    &:not(:disabled):hover,
-    &--active {
-      color: var(--color-text-primary);
-      background: color-mix(in srgb, var(--element-bg-soft) 82%, transparent);
-    }
-  }
-
   &__more-menu {
     position: absolute;
     top: calc(100% + 8px);

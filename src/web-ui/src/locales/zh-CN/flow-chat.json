@@ -25,6 +25,21 @@
     "panelCollapseHintRight": "松开收起 ->",
     "collapseCanvas": "隐藏万能画布",
     "expandCanvas": "显示万能画布",
+    "sessionCapabilities": {
+      "ariaLabel": "当前会话专属能力",
+      "shortDrama": "AI 短剧",
+      "workspaceMedia": "媒体",
+      "open": "打开{{name}}",
+      "expand": "展开画布",
+      "collapse": "收起画布",
+      "usageCount": "{{count}} 项",
+      "status": {
+        "running": "运行中",
+        "attention": "待处理",
+        "ready": "已就绪",
+        "failed": "失败"
+      }
+    },
     "panelMode": {
       "collapsed": "收起",
       "compact": "紧凑",

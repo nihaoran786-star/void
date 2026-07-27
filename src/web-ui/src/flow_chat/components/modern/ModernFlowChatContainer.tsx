@@ -54,10 +54,6 @@ interface ModernFlowChatContainerProps {
   showPreviewFirstToggle?: boolean;
   isPreviewFirstActive?: boolean;
   onPreviewFirstToggle?: () => void;
-  onOpenWorkspaceMedia?: () => void;
-  showCanvasToggle?: boolean;
-  isCanvasExpanded?: boolean;
-  onCanvasToggle?: () => void;
 }
 
 type BackgroundSubagentSummary = {
@@ -207,10 +203,6 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   showPreviewFirstToggle = false,
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
-  onOpenWorkspaceMedia,
-  showCanvasToggle = false,
-  isCanvasExpanded = false,
-  onCanvasToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
   const virtualItems = usePresentationVirtualItems(isPresentationActive);
@@ -691,10 +683,6 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
           showPreviewFirstToggle={showPreviewFirstToggle}
           isPreviewFirstActive={isPreviewFirstActive}
           onPreviewFirstToggle={onPreviewFirstToggle}
-          onOpenWorkspaceMedia={onOpenWorkspaceMedia}
-          showCanvasToggle={showCanvasToggle}
-          isCanvasExpanded={isCanvasExpanded}
-          onCanvasToggle={onCanvasToggle}
         />
 
         <div className="modern-flowchat-container__messages">

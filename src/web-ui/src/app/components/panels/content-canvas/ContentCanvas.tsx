@@ -375,8 +375,6 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
             onTabCloseWithDirtyCheck={handleCloseWithDirtyCheck}
             onTabCloseAllWithDirtyCheck={handleCloseAllWithDirtyCheck}
             disablePopOut={disablePopOut}
-            onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
-            onOpenShortDramaCenter={canOpenShortDramaCenter ? handleOpenShortDramaCenter : undefined}
           />
         </div>
 

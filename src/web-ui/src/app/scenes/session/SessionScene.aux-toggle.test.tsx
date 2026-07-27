@@ -16,11 +16,14 @@ const mocks = vi.hoisted(() => ({
     chatCollapsed: false,
     centerPanelCollapsed: false,
   },
-  chatPaneProps: null as null | {
-    showCanvasToggle?: boolean;
-    isCanvasExpanded?: boolean;
-    onCanvasToggle?: () => void;
-  },
+  chatPaneProps: null as null | Record<string, unknown>,
+  activeSessionId: 'session-1' as string | null,
+  capabilities: [] as Array<{
+    id: 'short-drama' | 'workspace-media';
+    status: 'running' | 'attention' | 'ready' | 'failed';
+    usageCount: number;
+    latestActivityAt: number;
+  }>,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -35,6 +38,13 @@ vi.mock('@/component-library', () => ({
 
 vi.mock('@/infrastructure/runtime', () => ({
   isTauriRuntime: () => false,
+}));
+
+vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
+  useActiveSessionCapabilities: () => ({
+    sessionId: mocks.activeSessionId,
+    capabilities: mocks.capabilities,
+  }),
 }));
 
 vi.mock('../../hooks/useApp', () => ({
@@ -77,6 +87,8 @@ describe('SessionScene universal canvas toggle control', () => {
     mocks.layout.rightPanelCollapsed = false;
     mocks.layout.chatCollapsed = false;
     mocks.layout.centerPanelCollapsed = false;
+    mocks.activeSessionId = 'session-1';
+    mocks.capabilities = [];
     useSessionModeStore.setState({
       mode: 'code',
       draftStatus: 'idle',
@@ -101,33 +113,40 @@ describe('SessionScene universal canvas toggle control', () => {
     container.remove();
   });
 
-  it('routes the outer canvas control through the reserved chat header action', async () => {
+  it('renders the outer canvas control outside the streaming chat surface', async () => {
     await act(async () => {
       root.render(<SessionScene workspacePath="D:\\workspace" />);
     });
 
-    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
-    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(true);
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-aux-pane-toggle"]',
+    );
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(mocks.chatPaneProps).not.toHaveProperty('showCanvasToggle');
 
     await act(async () => {
-      mocks.chatPaneProps?.onCanvasToggle?.();
+      toggle?.click();
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the same header action available after the outer canvas is collapsed', async () => {
+  it('keeps the same edge control available after the outer canvas is collapsed', async () => {
     mocks.layout.rightPanelCollapsed = true;
 
     await act(async () => {
       root.render(<SessionScene />);
     });
 
-    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
-    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(false);
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-aux-pane-toggle"]',
+    );
+    expect(toggle).not.toBeNull();
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
 
     await act(async () => {
-      mocks.chatPaneProps?.onCanvasToggle?.();
+      toggle?.click();
     });
 
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
@@ -167,7 +186,9 @@ describe('SessionScene universal canvas toggle control', () => {
     await act(async () => {
       root.render(<SessionScene />);
     });
-    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(false);
+    expect(
+      container.querySelector('[data-testid="session-aux-pane-toggle"]'),
+    ).toBeNull();
 
     // A background event must not make the canvas visible before the first
     // message has created a real session.
@@ -183,7 +204,38 @@ describe('SessionScene universal canvas toggle control', () => {
       root.render(<SessionScene />);
     });
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
-    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
+    expect(
+      container.querySelector('[data-testid="session-aux-pane-toggle"]'),
+    ).not.toBeNull();
+  });
+
+  it('opens a persisted session capability and expands a collapsed canvas', async () => {
+    mocks.layout.rightPanelCollapsed = true;
+    mocks.capabilities = [{
+      id: 'short-drama',
+      status: 'running',
+      usageCount: 2,
+      latestActivityAt: 10,
+    }];
+    const openShortDrama = vi.fn();
+    window.addEventListener('void:open-short-drama-center', openShortDrama);
+
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+    });
+
+    const capability = container.querySelector<HTMLButtonElement>(
+      '[data-capability-id="short-drama"]',
+    );
+    expect(capability).not.toBeNull();
+
+    await act(async () => {
+      capability?.click();
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    expect(openShortDrama).toHaveBeenCalledTimes(1);
+    window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
   it('collapses the auxiliary preview again for a consecutive new-task draft', async () => {

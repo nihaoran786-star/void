@@ -14,8 +14,12 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
 import AuxPane, { type AuxPaneRef } from './AuxPane';
+import SessionCapabilityRail from './SessionCapabilityRail';
 import { isTauriRuntime } from '@/infrastructure/runtime';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
+import { useCanvasStore } from '@/app/components/panels/content-canvas/stores';
+import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
+import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 
 import {
   RIGHT_PANEL_CONFIG,
@@ -47,6 +51,22 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   const { t } = useTranslation('flow-chat');
   const { state, updateRightPanelWidth, toggleRightPanel } = useApp();
   const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
+  const {
+    sessionId: activeSessionId,
+    capabilities: activeSessionCapabilities,
+  } = useActiveSessionCapabilities();
+  const activeCanvasCapabilityId = useCanvasStore(canvasState => {
+    const activeTab = canvasState.primaryGroup.tabs.find(
+      tab => tab.id === canvasState.primaryGroup.activeTabId,
+    );
+    if (activeTab?.content.type === 'short-drama-center') {
+      return 'short-drama' as const;
+    }
+    if (activeTab?.content.type === 'workspace-media-gallery') {
+      return 'workspace-media' as const;
+    }
+    return undefined;
+  });
   const auxPaneRef = useRef<AuxPaneRef>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -230,9 +250,18 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent('void:toggle-preview-first'));
   }, []);
 
-  const handleOpenWorkspaceMedia = useCallback(() => {
-    window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
-  }, []);
+  const handleOpenSessionCapability = useCallback((
+    capabilityId: SessionCapabilityId,
+  ) => {
+    if (state.layout.rightPanelCollapsed) {
+      toggleRightPanel();
+    }
+
+    const eventName = capabilityId === 'short-drama'
+      ? 'void:open-short-drama-center'
+      : 'void:open-workspace-media';
+    window.dispatchEvent(new CustomEvent(eventName));
+  }, [state.layout.rightPanelCollapsed, toggleRightPanel]);
 
   const canToggleAuxPane = newSessionDraftStatus === 'idle'
     && !isRightAsMain
@@ -263,11 +292,18 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             showPreviewFirstToggle={canUsePreviewFirstFloatingChat}
             isPreviewFirstActive={isRightAsMain}
             onPreviewFirstToggle={handlePreviewFirstToggle}
-            onOpenWorkspaceMedia={handleOpenWorkspaceMedia}
-            showCanvasToggle={canToggleAuxPane}
-            isCanvasExpanded={isAuxPaneExpanded}
-            onCanvasToggle={toggleRightPanel}
           />
+          {canToggleAuxPane && activeSessionId && (
+            <SessionCapabilityRail
+              capabilities={activeSessionCapabilities}
+              activeCapabilityId={
+                isAuxPaneExpanded ? activeCanvasCapabilityId : undefined
+              }
+              isCanvasExpanded={isAuxPaneExpanded}
+              onOpenCapability={handleOpenSessionCapability}
+              onCanvasToggle={toggleRightPanel}
+            />
+          )}
         </div>
       )}
 

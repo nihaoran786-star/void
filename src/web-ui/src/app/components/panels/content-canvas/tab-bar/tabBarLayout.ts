@@ -1,16 +1,5 @@
 import type { CanvasTab } from '../types';
 
-export const isWorkspaceSurfaceTab = (tab: CanvasTab): boolean =>
-  tab.content.type === 'workspace-media-gallery'
-  || tab.content.type === 'short-drama-center';
-
-export const selectTabStripTabs = (
-  tabs: CanvasTab[],
-  collapseWorkspaceSurfaces: boolean,
-): CanvasTab[] => collapseWorkspaceSurfaces
-  ? tabs.filter(tab => !isWorkspaceSurfaceTab(tab))
-  : tabs;
-
 export const selectDisplayedTabs = (
   tabs: CanvasTab[],
   visibleCount: number,

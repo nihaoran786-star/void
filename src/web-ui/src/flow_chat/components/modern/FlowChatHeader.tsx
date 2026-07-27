@@ -10,11 +10,8 @@ import {
   ChevronDown,
   ChevronUp,
   GitPullRequest,
-  Image,
   List,
   MoreHorizontal,
-  PanelRightClose,
-  PanelRightOpen,
   PictureInPicture2,
   Search,
   X,
@@ -87,14 +84,6 @@ export interface FlowChatHeaderProps {
   isPreviewFirstActive?: boolean;
   /** Toggle preview-first / compact floating chat presentation. */
   onPreviewFirstToggle?: () => void;
-  /** Open the workspace media gallery in the right-side panel. */
-  onOpenWorkspaceMedia?: () => void;
-  /** Show the universal canvas control in the reserved header action row. */
-  showCanvasToggle?: boolean;
-  /** Whether the universal canvas is currently expanded. */
-  isCanvasExpanded?: boolean;
-  /** Expand or collapse the universal canvas. */
-  onCanvasToggle?: () => void;
 }
 export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   currentTurn,
@@ -120,13 +109,8 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   showPreviewFirstToggle = false,
   isPreviewFirstActive = false,
   onPreviewFirstToggle,
-  onOpenWorkspaceMedia,
-  showCanvasToggle = false,
-  isCanvasExpanded = false,
-  onCanvasToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
-  const { t: tComponents } = useTranslation('components');
   const { currentWorkspace } = useWorkspaceContext();
   const isPresentationActive = useFlowChatPresentationActive();
   const [isTurnListOpen, setIsTurnListOpen] = useState(false);
@@ -156,9 +140,6 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
   const turnBadgeLabel = t('flowChatHeader.turnBadge', {
     current: currentTurn,
     defaultValue: `Turn ${currentTurn}`,
-  });
-  const workspaceMediaLabel = tComponents('workspaceMedia.entry', {
-    defaultValue: 'Open media gallery',
   });
   const moreActionsLabel = t('flowChatHeader.moreActions', {
     defaultValue: 'More actions',
@@ -414,7 +395,7 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
     setIsSubagentListOpen(false);
   };
 
-  if (!hasConversationHeader && !showCanvasToggle) {
+  if (!hasConversationHeader) {
     return null;
   }
 
@@ -631,26 +612,6 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
           )}
         </div>
 
-        {showCanvasToggle && onCanvasToggle && (
-          <IconButton
-            className={`flowchat-header__canvas-button${isCanvasExpanded ? ' flowchat-header__canvas-button--active' : ''}`}
-            variant="ghost"
-            size="xs"
-            onClick={onCanvasToggle}
-            tooltip={t(isCanvasExpanded ? 'layout.collapseCanvas' : 'layout.expandCanvas')}
-            aria-label={t(isCanvasExpanded ? 'layout.collapseCanvas' : 'layout.expandCanvas')}
-            aria-controls="void-session-aux-pane"
-            aria-expanded={isCanvasExpanded}
-            data-testid="session-aux-pane-toggle"
-          >
-            {isCanvasExpanded ? (
-              <PanelRightClose size={14} aria-hidden="true" />
-            ) : (
-              <PanelRightOpen size={14} aria-hidden="true" />
-            )}
-          </IconButton>
-        )}
-
         {hasConversationHeader && (
           <div className="flowchat-header__more-actions" ref={moreActionsRef}>
             <IconButton
@@ -729,18 +690,6 @@ export const FlowChatHeader: React.FC<FlowChatHeaderProps> = ({
                 <ChevronDown size={14} aria-hidden="true" />
                 <span>{t('flowChatHeader.nextTurn', { defaultValue: 'Next turn' })}</span>
               </button>
-              {showPreviewFirstToggle && onOpenWorkspaceMedia && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flowchat-header__more-menu-item"
-                  onClick={() => runMoreMenuAction(onOpenWorkspaceMedia)}
-                  data-testid="flowchat-header-workspace-media"
-                >
-                  <Image size={14} aria-hidden="true" />
-                  <span>{workspaceMediaLabel}</span>
-                </button>
-              )}
               {showPreviewFirstToggle && (
                 <button
                   type="button"

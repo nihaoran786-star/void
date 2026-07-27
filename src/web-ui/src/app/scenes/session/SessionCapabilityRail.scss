@@ -1,0 +1,203 @@
+@use '../../../component-library/styles/tokens.scss' as *;
+
+.session-capability-rail {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  z-index: $z-floating;
+  display: flex;
+  width: 150px;
+  padding: 6px;
+  flex-direction: column;
+  gap: 5px;
+  transform: translateY(-50%);
+  border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: 14px;
+  background: var(--workspace-surface-raised, var(--color-bg-elevated));
+  box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
+}
+
+.session-capability-rail__capability,
+.session-capability-rail__toggle {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  border: 1px solid transparent;
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+  background: transparent;
+  cursor: pointer;
+  transition:
+    border-color $motion-fast $easing-standard,
+    background-color $motion-fast $easing-standard,
+    color $motion-fast $easing-standard,
+    box-shadow $motion-fast $easing-standard;
+
+  &:hover {
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: var(--workspace-surface-hover, var(--color-bg-hover));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--workspace-accent, var(--color-accent-500));
+    outline-offset: 1px;
+  }
+}
+
+.session-capability-rail__capability {
+  position: relative;
+  min-height: 48px;
+  padding: 7px 9px;
+  gap: 8px;
+  border-radius: 10px;
+  text-align: left;
+
+  &--active {
+    border-color: var(--workspace-accent, var(--color-accent-500));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: var(--workspace-surface-active);
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--workspace-accent, var(--color-accent-500)) 18%, transparent);
+  }
+}
+
+.session-capability-rail__icon {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+  background: var(--workspace-surface-panel, var(--color-bg-secondary));
+}
+
+.session-capability-rail__copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.session-capability-rail__label {
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-capability-rail__status {
+  overflow: hidden;
+  color: var(--workspace-text-muted, var(--color-text-muted));
+  font-size: 10px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-capability-rail__status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--workspace-status-success-text, var(--status-success-text));
+}
+
+.session-capability-rail__capability--running {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-accent, var(--color-accent-500));
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--workspace-accent, var(--color-accent-500)) 14%, transparent);
+  }
+}
+
+.session-capability-rail__capability--attention {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-status-warning-text, var(--status-warning-text));
+  }
+}
+
+.session-capability-rail__capability--failed {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-status-error-text, var(--status-error-text));
+  }
+}
+
+.session-capability-rail__toggle {
+  justify-content: center;
+  min-height: 30px;
+  padding: 5px 8px;
+  gap: 6px;
+  border-top-color: var(--workspace-border-subtle, var(--border-subtle));
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+@container session-chat-pane (max-width: 720px) {
+  .session-capability-rail {
+    width: 42px;
+    padding: 5px;
+    border-radius: 12px;
+
+    &:hover,
+    &:focus-within {
+      width: 150px;
+      padding: 6px;
+      border-radius: 14px;
+    }
+  }
+
+  .session-capability-rail__capability {
+    position: relative;
+    min-height: 34px;
+    padding: 3px;
+    justify-content: center;
+  }
+
+  .session-capability-rail__copy,
+  .session-capability-rail__toggle span {
+    display: none;
+  }
+
+  .session-capability-rail__status-dot {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+  }
+
+  .session-capability-rail__toggle {
+    min-height: 32px;
+    padding: 4px;
+    border-top-color: var(--workspace-border-subtle, var(--border-subtle));
+  }
+
+  .session-capability-rail:hover,
+  .session-capability-rail:focus-within {
+    .session-capability-rail__capability {
+      min-height: 48px;
+      padding: 7px 9px;
+      justify-content: flex-start;
+    }
+
+    .session-capability-rail__copy {
+      display: flex;
+    }
+
+    .session-capability-rail__status-dot {
+      position: static;
+    }
+
+    .session-capability-rail__toggle {
+      min-height: 30px;
+      padding: 5px 8px;
+    }
+
+    .session-capability-rail__toggle span {
+      display: inline;
+    }
+  }
+}

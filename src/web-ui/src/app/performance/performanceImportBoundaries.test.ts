@@ -235,7 +235,7 @@ describe('Web UI startup import boundaries', () => {
     );
   });
 
-  it('keeps the unified media-session switcher independent of feature barrels', () => {
+  it('keeps the empty-canvas media entry independent of feature barrels', () => {
     const emptyState = readSource(
       '../components/panels/content-canvas/empty-state/EmptyState.tsx',
     );
@@ -244,8 +244,8 @@ describe('Web UI startup import boundaries', () => {
     );
 
     expect(emptyState).toContain("from '../workspace-media/WorkspaceMediaEntry'");
-    expect(tabBar).toContain("from '../workspace-media/WorkspaceMediaEntry'");
     expect(emptyState).not.toContain('ShortDramaEntry');
+    expect(tabBar).not.toContain('WorkspaceMediaEntry');
     expect(tabBar).not.toContain('ShortDramaEntry');
   });
 
@@ -259,7 +259,6 @@ describe('Web UI startup import boundaries', () => {
       readSource(
         '../components/panels/content-canvas/empty-state/EmptyState.tsx',
       ),
-      readSource('../components/panels/content-canvas/tab-bar/TabBar.tsx'),
     ];
     const flexiblePanel = readSource(
       '../components/panels/base/FlexiblePanel.tsx',
