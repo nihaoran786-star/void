@@ -14,6 +14,7 @@ import {
 import { createShortDramaStaticProject } from './ShortDramaStaticProject';
 import { createShortDramaToolPolicy } from './ShortDramaToolPolicy';
 import { createShortDramaProjectAuditLog } from './ShortDramaAuditLog';
+import recoveredMediaLexicon from './ShortDramaRecoveredMediaLexicon.json';
 import type { WorkspaceMediaItem, WorkspaceMediaPendingGeneration } from '@/shared/services/workspace-media';
 import {
   collectShortDramaArtifactAssetReferenceIds,
@@ -81,6 +82,9 @@ const SHORT_DRAMA_VALID_PROJECT_STATUSES: readonly ShortDramaProjectStatus[] = [
 const CHINESE_EPISODE_PREFIX = '\u7b2c';
 const CHINESE_EPISODE_SUFFIX = '\u96c6';
 const CHINESE_HEADING_SEPARATOR = '\uff1a';
+const RECOVERED_MEDIA_TYPE_CUES = recoveredMediaLexicon as Partial<
+  Record<ShortDramaArtifact['type'], readonly string[]>
+>;
 const STATUSES: ShortDramaArtifactStatus[] = [
   'pending',
   'generating',
@@ -1145,20 +1149,10 @@ function recoveredMediaMatchesArtifactType(
   return recoveredMediaTypeCues(artifact.type).some(cue => prompt.includes(cue));
 }
 
-function recoveredMediaTypeCues(type: ShortDramaArtifact['type']): string[] {
-  if (type === 'character') {
-    return ['角色资产', '角色图', '角色设定', '角色板', '人物资产', '人物设定', '人物肖像', 'character', 'portrait'];
-  }
-  if (type === 'location') {
-    return ['场景资产', '场景图', '场景设定', '环境资产', '环境概念', '空间设定', 'location', 'environment'];
-  }
-  if (type === 'prop') {
-    return ['道具资产', '道具图', '道具设定', '物件资产', '器物设定', 'prop', 'object'];
-  }
-  if (type === 'storyboard') return ['分镜', 'storyboard'];
-  if (type === 'video') return ['视频', 'video'];
-  if (type === 'final') return ['成片', 'final'];
-  return [];
+function recoveredMediaTypeCues(
+  type: ShortDramaArtifact['type'],
+): readonly string[] {
+  return RECOVERED_MEDIA_TYPE_CUES[type] ?? [];
 }
 
 function recoveredMediaMinimumScore(artifact: ShortDramaArtifact): number {
