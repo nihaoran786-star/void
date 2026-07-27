@@ -5,7 +5,7 @@
 export { ModernFlowChatContainer as FlowChatContainer } from './components/modern/ModernFlowChatContainer';
 
 // Other components
-export { ChatInput } from './components/ChatInput';
+export { LazyChatInput as ChatInput } from './components/LazyChatInput';
 export { CurrentSessionTitle } from './components/CurrentSessionTitle';
 export { ScrollToBottomButton } from './components/ScrollToBottomButton';
 export { ScrollToLatestBar } from './components/ScrollToLatestBar';

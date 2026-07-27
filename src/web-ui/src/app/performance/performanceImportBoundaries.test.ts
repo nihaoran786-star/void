@@ -37,6 +37,29 @@ describe('Web UI startup import boundaries', () => {
     expect(source).not.toContain("import SettingsScene from './settings/SettingsScene'");
   });
 
+  it('loads the complete chat composer behind the session pane boundary', () => {
+    const source = readSource('../scenes/session/ChatPane.tsx');
+    const lazyChatInput = readSource(
+      '../../flow_chat/components/LazyChatInput.tsx',
+    );
+    const flowChatBarrel = readSource('../../flow_chat/index.ts');
+
+    expect(source).toContain(
+      "from '../../../flow_chat/components/LazyChatInput'",
+    );
+    expect(source).not.toContain(
+      "import { FlowChatContainer, ChatInput } from '../../../flow_chat'",
+    );
+    expect(lazyChatInput).toContain("await import('./ChatInput')");
+    expect(lazyChatInput).toContain('<React.Suspense fallback={null}>');
+    expect(flowChatBarrel).toContain(
+      "export { LazyChatInput as ChatInput } from './components/LazyChatInput'",
+    );
+    expect(flowChatBarrel).not.toContain(
+      "export { ChatInput } from './components/ChatInput'",
+    );
+  });
+
   it('loads the account settings and auth-session module only inside settings', () => {
     const settingsScene = readSource('../scenes/settings/SettingsScene.tsx');
     const accountSettings = readSource(
