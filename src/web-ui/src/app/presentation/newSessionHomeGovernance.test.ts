@@ -11,6 +11,7 @@ function read(relativePath: string): string {
 describe('new session home visual governance', () => {
   it('keeps the welcome surface graphic-free and driven by the shared composer', () => {
     const panelSource = read('flow_chat/components/WelcomePanel.tsx');
+    const examplesSource = read('flow_chat/components/SessionModeExampleCards.tsx');
     const paneStyles = read('app/scenes/session/ChatPane.scss');
     const sceneStyles = read('app/scenes/session/SessionScene.scss');
 
@@ -20,6 +21,11 @@ describe('new session home visual governance', () => {
     expect(panelSource).not.toContain('/Void-Logo.png');
     expect(panelSource).toContain('welcome-panel__creation-modes');
     expect(panelSource).toContain('welcome.creationModeCowork');
+    expect(panelSource).toContain('<SessionModeExampleCards');
+    expect(panelSource).toContain('mode={draftMode}');
+    expect(examplesSource).toContain('code:');
+    expect(examplesSource).toContain('cowork:');
+    expect(examplesSource).toContain('media:');
     expect(panelSource).not.toContain('welcome.creationModeShortDrama');
     expect(paneStyles).toContain(':has(.welcome-panel__creation-modes)');
     expect(paneStyles).toContain('.void-chat-input-drop-zone');
@@ -27,7 +33,7 @@ describe('new session home visual governance', () => {
       'min-height: var(--workspace-composer-min-height)',
     );
     expect(paneStyles).toMatch(
-      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 172px\);/,
+      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 640px\);/,
     );
     expect(sceneStyles).toMatch(
       /\.void-ui--minimal \.void-session-scene__chat-pane\s*\{[\s\S]*?min-width:\s*min\(400px, 100%\);[\s\S]*?container-name:\s*session-chat-pane;/,

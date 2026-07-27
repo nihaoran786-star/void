@@ -2016,6 +2016,95 @@
       "openFailed": "Failed to open Cowork workspace"
     }
   },
+  "newSessionExamples": {
+    "label": "New session examples",
+    "refresh": "Show another set",
+    "modeHint": {
+      "code": "Start with a clear development outcome",
+      "cowork": "Start with a concrete office task",
+      "media": "Start with a visual deliverable"
+    },
+    "items": {
+      "code": {
+        "explain_code": {
+          "title": "Understand this code",
+          "prompt": "Read the current workspace and explain its core modules, data flow, and main risks without changing code."
+        },
+        "fix_bug": {
+          "title": "Find and fix a bug",
+          "prompt": "Reproduce the issue, explain the root cause and impact, then apply the smallest fix with a regression test."
+        },
+        "build_feature": {
+          "title": "Build a new feature",
+          "prompt": "Confirm the existing module boundaries first, then implement this feature:"
+        },
+        "review_changes": {
+          "title": "Review current changes",
+          "prompt": "Review the uncommitted changes for regressions, boundary errors, performance, and maintainability."
+        },
+        "improve_performance": {
+          "title": "Improve a bottleneck",
+          "prompt": "Measure and locate the current performance bottleneck, then implement the smallest verifiable improvement."
+        },
+        "inspect_project": {
+          "title": "Check project health",
+          "prompt": "Check types, tests, dependency boundaries, and build health, then prioritize the findings."
+        }
+      },
+      "cowork": {
+        "organize_tasks": {
+          "title": "Organize priorities",
+          "prompt": "Turn my goal into phased tasks with priorities, dependencies, owners, and acceptance criteria."
+        },
+        "summarize_documents": {
+          "title": "Summarize documents",
+          "prompt": "Read the documents I select and extract decisions, disagreements, risks, and next actions."
+        },
+        "prepare_presentation": {
+          "title": "Prepare a presentation",
+          "prompt": "Design a clear presentation from my material, starting with an outline and the key point for each slide."
+        },
+        "analyze_data": {
+          "title": "Analyze data",
+          "prompt": "Analyze the data I provide and explain trends, anomalies, limitations, and actionable recommendations."
+        },
+        "plan_week": {
+          "title": "Plan my week",
+          "prompt": "Create a realistic weekly plan from my goals, meetings, and available time."
+        },
+        "draft_email": {
+          "title": "Draft an email",
+          "prompt": "Draft a clear, professional, concise email from my context and suggest a subject line."
+        }
+      },
+      "media": {
+        "create_storyboard": {
+          "title": "Design a storyboard",
+          "prompt": "Turn my story into producible shots with framing, action, camera movement, duration, and visual focus."
+        },
+        "design_character": {
+          "title": "Design a character",
+          "prompt": "Define stable appearance, clothing, personality, and reusable generation prompts from my character brief."
+        },
+        "generate_keyframe": {
+          "title": "Generate a key visual",
+          "prompt": "Design a key visual from my description, confirming composition, subject, lighting, and aspect ratio first."
+        },
+        "review_assets": {
+          "title": "Review media assets",
+          "prompt": "Review the current project assets for consistency, clarity, missing items, and usability, then prioritize fixes."
+        },
+        "plan_shots": {
+          "title": "Plan a shot list",
+          "prompt": "Turn the current script into an executable shot list with scene, character, action, asset, and status."
+        },
+        "polish_prompt": {
+          "title": "Polish a media prompt",
+          "prompt": "Improve my image or video prompt while preserving intent and strengthening subject, composition, style, and consistency."
+        }
+      }
+    }
+  },
   "coworkExamples": {
     "title": "Examples",
     "addPlugin": "Add plugin",

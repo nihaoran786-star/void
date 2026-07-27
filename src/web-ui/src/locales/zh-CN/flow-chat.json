@@ -2016,6 +2016,95 @@
       "openFailed": "打开 Cowork 工作区失败"
     }
   },
+  "newSessionExamples": {
+    "label": "新会话示例",
+    "refresh": "换一组示例",
+    "modeHint": {
+      "code": "从一个清晰的开发目标开始",
+      "cowork": "从一个具体的办公任务开始",
+      "media": "从一个可交付的画面目标开始"
+    },
+    "items": {
+      "code": {
+        "explain_code": {
+          "title": "理解这份代码",
+          "prompt": "请先阅读当前工作区，解释核心模块、数据流和主要风险，不要修改代码。"
+        },
+        "fix_bug": {
+          "title": "定位并修复 Bug",
+          "prompt": "请复现当前问题，先说明根因和影响范围，再用最小改动修复并补充回归测试。"
+        },
+        "build_feature": {
+          "title": "实现一个新功能",
+          "prompt": "请先确认现有模块边界，再实现这个功能："
+        },
+        "review_changes": {
+          "title": "审查当前改动",
+          "prompt": "请审查当前未提交改动，重点检查回归风险、边界错误、性能和可维护性。"
+        },
+        "improve_performance": {
+          "title": "优化性能瓶颈",
+          "prompt": "请先测量并定位当前性能瓶颈，再提出和实施可验证的最小优化。"
+        },
+        "inspect_project": {
+          "title": "检查项目健康度",
+          "prompt": "请检查当前项目的类型、测试、依赖边界和构建状态，按优先级列出问题。"
+        }
+      },
+      "cowork": {
+        "organize_tasks": {
+          "title": "整理任务与优先级",
+          "prompt": "请把我的目标整理成分阶段任务，标注优先级、依赖、负责人和验收标准。"
+        },
+        "summarize_documents": {
+          "title": "总结一组文档",
+          "prompt": "请阅读我选择的文档，提取关键结论、分歧、风险和下一步行动。"
+        },
+        "prepare_presentation": {
+          "title": "准备汇报材料",
+          "prompt": "请根据我的资料设计一份结构清晰的汇报，先给大纲和每页核心信息。"
+        },
+        "analyze_data": {
+          "title": "分析数据并给建议",
+          "prompt": "请分析我提供的数据，说明趋势、异常、限制和可执行建议。"
+        },
+        "plan_week": {
+          "title": "制定本周计划",
+          "prompt": "请根据目标、会议和可用时间制定一份现实可执行的本周计划。"
+        },
+        "draft_email": {
+          "title": "起草一封邮件",
+          "prompt": "请根据我提供的背景起草一封清晰、专业、简洁的邮件，并给出主题建议。"
+        }
+      },
+      "media": {
+        "create_storyboard": {
+          "title": "设计分镜脚本",
+          "prompt": "请把我的故事拆成可制作的分镜，包含景别、动作、镜头运动、时长和画面重点。"
+        },
+        "design_character": {
+          "title": "设计角色形象",
+          "prompt": "请根据角色设定整理稳定的外观特征、服装、气质和可复用的生成提示词。"
+        },
+        "generate_keyframe": {
+          "title": "生成关键画面",
+          "prompt": "请根据我的描述设计一张关键画面，先确认构图、主体、光线和画幅。"
+        },
+        "review_assets": {
+          "title": "审查现有素材",
+          "prompt": "请检查当前项目素材的一致性、清晰度、缺失项和可用性，并给出修正顺序。"
+        },
+        "plan_shots": {
+          "title": "规划镜头清单",
+          "prompt": "请把当前脚本整理成可执行的镜头清单，标注场景、角色、动作、素材和状态。"
+        },
+        "polish_prompt": {
+          "title": "优化生成提示词",
+          "prompt": "请优化我的图片或视频提示词，保留原意并增强主体、构图、风格和一致性约束。"
+        }
+      }
+    }
+  },
   "coworkExamples": {
     "title": "示例",
     "addPlugin": "添加插件",

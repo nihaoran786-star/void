@@ -21,7 +21,7 @@ import { useApp } from '../../app/hooks/useApp';
 import { createLogger } from '@/shared/utils/logger';
 import { useWorkspaceContext } from '@/infrastructure/contexts/WorkspaceContext';
 import type { WorkspaceInfo } from '@/shared/types';
-import CoworkExampleCards from './CoworkExampleCards';
+import SessionModeExampleCards from './SessionModeExampleCards';
 import { useAgentIdentityDocument } from '@/app/scenes/my-agent/useAgentIdentityDocument';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import './WelcomePanel.css';
@@ -346,10 +346,12 @@ export const WelcomePanel: React.FC<WelcomePanelProps> = ({
           </p>
         </div>
 
-        {/* Cowork examples */}
-        {isCoworkSession && (
-          <div className="welcome-panel__cowork">
-            <CoworkExampleCards resetKey={0} onSelectPrompt={p => handleQuickActionClick(p)} />
+        {showCreationModes && (
+          <div className="welcome-panel__examples">
+            <SessionModeExampleCards
+              mode={draftMode}
+              onSelectPrompt={handleQuickActionClick}
+            />
           </div>
         )}
       </div>

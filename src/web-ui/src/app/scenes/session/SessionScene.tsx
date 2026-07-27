@@ -46,10 +46,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 }) => {
   const { t } = useTranslation('flow-chat');
   const { state, updateRightPanelWidth, toggleRightPanel } = useApp();
-  const newSessionDraftId = useSessionModeStore(store => store.draftId);
   const newSessionDraftStatus = useSessionModeStore(store => store.draftStatus);
   const auxPaneRef = useRef<AuxPaneRef>(null);
-  const collapsedDraftIdRef = useRef<string | null>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -77,12 +75,9 @@ const SessionScene: React.FC<SessionSceneProps> = ({
   }, [state.layout.rightPanelCollapsed, currentRightWidth]);
 
   useEffect(() => {
-    if (newSessionDraftStatus !== 'draft' || !newSessionDraftId) {
-      collapsedDraftIdRef.current = null;
+    if (newSessionDraftStatus === 'idle') {
       return;
     }
-    if (collapsedDraftIdRef.current === newSessionDraftId) return;
-    collapsedDraftIdRef.current = newSessionDraftId;
 
     if (state.layout.chatCollapsed) {
       window.dispatchEvent(new CustomEvent('void:compact-chat-close-requested'));
@@ -91,7 +86,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
       toggleRightPanel();
     }
   }, [
-    newSessionDraftId,
     newSessionDraftStatus,
     state.layout.chatCollapsed,
     state.layout.rightPanelCollapsed,
@@ -240,7 +234,9 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent('void:open-workspace-media'));
   }, []);
 
-  const canToggleAuxPane = !isRightAsMain && !state.layout.centerPanelCollapsed;
+  const canToggleAuxPane = newSessionDraftStatus === 'idle'
+    && !isRightAsMain
+    && !state.layout.centerPanelCollapsed;
   const isAuxPaneExpanded = !state.layout.rightPanelCollapsed;
   return (
     <div

@@ -4,18 +4,20 @@ import { describe, expect, it } from 'vitest';
 const source = readFileSync(new URL('./ChatPane.scss', import.meta.url), 'utf8');
 
 describe('new-task draft examples presentation', () => {
-  it('keeps compact office examples outside the greeting layout', () => {
+  it('keeps readable mode examples between the mode switch and composer', () => {
     expect(source).toMatch(
-      /\.welcome-panel__cowork\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 172px\);/,
+      /\.welcome-panel__examples\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?width:\s*min\(100%, 640px\);/,
     );
     expect(source).toMatch(
-      /\.void-cowork-example-cards__card\s*\{[\s\S]*?min-height:\s*14px;/,
+      /\.void-session-example-cards__option\s*\{[\s\S]*?min-height:\s*36px;/,
     );
     expect(source).toMatch(
-      /\.void-cowork-example-cards__grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/,
+      /\.void-session-example-cards__grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/,
     );
+    expect(source).not.toContain('width: min(100%, 172px);');
+    expect(source).not.toContain('min-height: 14px;');
     expect(source).toMatch(
-      /@media \(max-height: 619px\)[\s\S]*?\.welcome-panel__cowork\s*\{[\s\S]*?top:\s*calc\(100% \+ 50px\);/,
+      /@media \(max-height: 619px\)[\s\S]*?\.welcome-panel__examples\s*\{[\s\S]*?top:\s*calc\(100% \+ 48px\);/,
     );
   });
 

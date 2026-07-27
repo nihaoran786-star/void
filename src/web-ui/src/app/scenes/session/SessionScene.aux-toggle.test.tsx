@@ -156,10 +156,10 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
   });
 
-  it('allows the auxiliary preview to be reopened after the draft initially collapses it', async () => {
+  it('keeps the auxiliary preview unavailable until the draft becomes a session', async () => {
     await act(async () => {
       root.render(<SessionScene />);
-      useSessionModeStore.getState().beginDraft('office', null);
+      useSessionModeStore.getState().beginDraft('cowork', null);
     });
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
 
@@ -167,19 +167,23 @@ describe('SessionScene universal canvas toggle control', () => {
     await act(async () => {
       root.render(<SessionScene />);
     });
+    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(false);
 
-    await act(async () => {
-      mocks.chatPaneProps?.onCanvasToggle?.();
-    });
-    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
-
+    // A background event must not make the canvas visible before the first
+    // message has created a real session.
     mocks.layout.rightPanelCollapsed = false;
     await act(async () => {
       root.render(<SessionScene />);
     });
-
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
-    expect(mocks.chatPaneProps?.isCanvasExpanded).toBe(true);
+
+    mocks.layout.rightPanelCollapsed = true;
+    await act(async () => {
+      useSessionModeStore.getState().clearDraft();
+      root.render(<SessionScene />);
+    });
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(2);
+    expect(mocks.chatPaneProps?.showCanvasToggle).toBe(true);
   });
 
   it('collapses the auxiliary preview again for a consecutive new-task draft', async () => {

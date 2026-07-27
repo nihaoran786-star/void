@@ -2016,6 +2016,95 @@
       "openFailed": "打開 Cowork 工作區失敗"
     }
   },
+  "newSessionExamples": {
+    "label": "新會話示例",
+    "refresh": "換一組示例",
+    "modeHint": {
+      "code": "從一個清晰的開發目標開始",
+      "cowork": "從一個具體的辦公任務開始",
+      "media": "從一個可交付的畫面目標開始"
+    },
+    "items": {
+      "code": {
+        "explain_code": {
+          "title": "理解這份程式碼",
+          "prompt": "請先閱讀目前工作區，解釋核心模組、資料流和主要風險，不要修改程式碼。"
+        },
+        "fix_bug": {
+          "title": "定位並修復 Bug",
+          "prompt": "請重現目前問題，先說明根因和影響範圍，再用最小改動修復並補充回歸測試。"
+        },
+        "build_feature": {
+          "title": "實作一個新功能",
+          "prompt": "請先確認現有模組邊界，再實作這個功能："
+        },
+        "review_changes": {
+          "title": "審查目前改動",
+          "prompt": "請審查目前未提交改動，重點檢查回歸風險、邊界錯誤、效能和可維護性。"
+        },
+        "improve_performance": {
+          "title": "優化效能瓶頸",
+          "prompt": "請先測量並定位目前效能瓶頸，再提出和實作可驗證的最小優化。"
+        },
+        "inspect_project": {
+          "title": "檢查專案健康度",
+          "prompt": "請檢查目前專案的型別、測試、依賴邊界和建置狀態，按優先級列出問題。"
+        }
+      },
+      "cowork": {
+        "organize_tasks": {
+          "title": "整理任務與優先級",
+          "prompt": "請把我的目標整理成分階段任務，標註優先級、依賴、負責人和驗收標準。"
+        },
+        "summarize_documents": {
+          "title": "總結一組文件",
+          "prompt": "請閱讀我選擇的文件，提取關鍵結論、分歧、風險和下一步行動。"
+        },
+        "prepare_presentation": {
+          "title": "準備彙報材料",
+          "prompt": "請根據我的資料設計一份結構清晰的彙報，先給大綱和每頁核心資訊。"
+        },
+        "analyze_data": {
+          "title": "分析資料並給建議",
+          "prompt": "請分析我提供的資料，說明趨勢、異常、限制和可執行建議。"
+        },
+        "plan_week": {
+          "title": "制定本週計畫",
+          "prompt": "請根據目標、會議和可用時間制定一份現實可執行的本週計畫。"
+        },
+        "draft_email": {
+          "title": "起草一封郵件",
+          "prompt": "請根據我提供的背景起草一封清晰、專業、簡潔的郵件，並給出主旨建議。"
+        }
+      },
+      "media": {
+        "create_storyboard": {
+          "title": "設計分鏡腳本",
+          "prompt": "請把我的故事拆成可製作的分鏡，包含景別、動作、鏡頭運動、時長和畫面重點。"
+        },
+        "design_character": {
+          "title": "設計角色形象",
+          "prompt": "請根據角色設定整理穩定的外觀特徵、服裝、氣質和可重用的生成提示詞。"
+        },
+        "generate_keyframe": {
+          "title": "生成關鍵畫面",
+          "prompt": "請根據我的描述設計一張關鍵畫面，先確認構圖、主體、光線和畫幅。"
+        },
+        "review_assets": {
+          "title": "審查現有素材",
+          "prompt": "請檢查目前專案素材的一致性、清晰度、缺失項和可用性，並給出修正順序。"
+        },
+        "plan_shots": {
+          "title": "規劃鏡頭清單",
+          "prompt": "請把目前腳本整理成可執行的鏡頭清單，標註場景、角色、動作、素材和狀態。"
+        },
+        "polish_prompt": {
+          "title": "優化生成提示詞",
+          "prompt": "請優化我的圖片或影片提示詞，保留原意並增強主體、構圖、風格和一致性約束。"
+        }
+      }
+    }
+  },
   "coworkExamples": {
     "title": "示例",
     "addPlugin": "添加插件",
