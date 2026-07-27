@@ -10,6 +10,7 @@ const flowChatListeners = new Set<(state: FlowChatState) => void>();
 const mockCancelSession = vi.fn();
 const mockLoadSessionHistory = vi.fn();
 const reviewActionBarRenderMock = vi.hoisted(() => vi.fn());
+const childComposerRenderMock = vi.hoisted(() => vi.fn());
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -62,6 +63,17 @@ vi.mock('../modern/ProcessingIndicator', () => ({
 vi.mock('../modern/processingIndicatorVisibility', () => ({
   shouldReserveProcessingIndicatorSpace: () => false,
   shouldShowProcessingIndicator: () => false,
+}));
+
+vi.mock('../LazyChatInput', () => ({
+  LazyChatInput: (props: {
+    sessionId?: string;
+    parentSessionId?: string;
+    className?: string;
+  }) => {
+    childComposerRenderMock(props);
+    return <div data-testid="mock-child-composer" />;
+  },
 }));
 
 vi.mock('../modern/useExploreGroupState', () => ({
@@ -187,6 +199,21 @@ function createParentSession(): Session {
   } as Session;
 }
 
+function createComposableChildSession(
+  sessionKind: 'btw' | 'subagent',
+): Session {
+  return {
+    ...createDeepReviewSession(),
+    sessionId: `${sessionKind}-child`,
+    title: `${sessionKind} child`,
+    dialogTurns: [],
+    sessionKind,
+    parentSessionId: 'parent',
+    parentToolCallId: sessionKind === 'subagent' ? 'task-1' : undefined,
+    subagentType: sessionKind === 'subagent' ? 'Researcher' : undefined,
+  } as Session;
+}
+
 describe('BtwSessionPanel presentation lifecycle', () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -258,6 +285,55 @@ describe('BtwSessionPanel presentation lifecycle', () => {
       .toBe('剧本 AI');
     expect(container.querySelector('.btw-session-panel__badge')).toBeNull();
     expect(flowChatState.sessions.get('review-child')?.title).toBe('Review child');
+  });
+
+  it.each(['btw', 'subagent'] as const)(
+    'mounts a full independent composer for a %s child session',
+    async (sessionKind) => {
+      const childSession = createComposableChildSession(sessionKind);
+      flowChatState = {
+        sessions: new Map([
+          [childSession.sessionId, childSession],
+          ['parent', createParentSession()],
+        ]),
+        activeSessionId: 'parent',
+      };
+
+      await act(async () => {
+        root.render(
+          <BtwSessionPanel
+            childSessionId={childSession.sessionId}
+            parentSessionId="parent"
+            workspacePath="D:/workspace/project"
+            isActive
+          />,
+        );
+      });
+
+      expect(container.querySelector('[data-testid="mock-child-composer"]'))
+        .not.toBeNull();
+      expect(childComposerRenderMock).toHaveBeenCalledWith(expect.objectContaining({
+        sessionId: childSession.sessionId,
+        parentSessionId: 'parent',
+        className: 'void-chat-input--embedded',
+      }));
+    },
+  );
+
+  it('does not mount a composer for review-only child sessions', async () => {
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="review-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="mock-child-composer"]')).toBeNull();
+    expect(childComposerRenderMock).not.toHaveBeenCalled();
   });
 
   it('pauses the message presentation subtree while ReviewActionBar stays live', async () => {

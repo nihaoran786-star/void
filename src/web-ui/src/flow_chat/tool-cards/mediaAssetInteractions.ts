@@ -65,7 +65,10 @@ export function buildMediaReferencePromptText(_asset: MediaAssetViewModel): stri
   return '';
 }
 
-export function dispatchMediaReference(asset: MediaAssetViewModel): void {
+export function dispatchMediaReference(
+  asset: MediaAssetViewModel,
+  targetSessionId?: string,
+): void {
   dispatchSharedMediaReference({
     id: asset.taskId || referencePath(asset),
     kind: referenceKind(asset.kind),
@@ -77,7 +80,7 @@ export function dispatchMediaReference(asset: MediaAssetViewModel): void {
     thumbnailUrl: referenceThumbnailUrl(asset),
     source: 'generated',
     extension: extensionForKind(asset.kind),
-  });
+  }, targetSessionId);
 }
 
 export function openMediaPreview(asset: MediaAssetViewModel): void {

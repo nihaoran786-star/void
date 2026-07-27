@@ -243,6 +243,7 @@ const loadMcpAppResource = (
 export const MCPToolDisplay: React.FC<ToolCardProps> = ({
   toolItem,
   config,
+  sessionId,
   onConfirm,
   onReject
 }) => {
@@ -577,7 +578,8 @@ export const MCPToolDisplay: React.FC<ToolCardProps> = ({
             // Emit event for ChatInput to handle
             const eventPayload: McpAppMessageEvent = {
               requestId,
-              params: messageParams
+              params: messageParams,
+              targetSessionId: sessionId,
             };
             if (!disposed) globalEventBus.emit('mcp-app:message', eventPayload);
 

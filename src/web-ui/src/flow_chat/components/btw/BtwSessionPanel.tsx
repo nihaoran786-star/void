@@ -47,6 +47,7 @@ import {
 import {loadPersistedReviewState} from '../../services/ReviewActionBarPersistenceService';
 import type {ReviewActionPersistedState} from '@/shared/types/session-history';
 import {useBtwSessionSnapshots} from './useBtwSessionSnapshots';
+import {LazyChatInput} from '../LazyChatInput';
 import './BtwSessionPanel.scss';
 
 export interface BtwSessionPanelProps {
@@ -148,6 +149,12 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     defaultValue: t('btw.origin'),
   });
   const showOriginMeta = childKind !== 'miniapp' && childKind !== 'subagent';
+  const canComposeInChild =
+    childKind === 'btw' || childKind === 'subagent';
+  const resolvedParentSessionId =
+    childRelationship.parentSessionId
+    || childSession?.btwOrigin?.parentSessionId
+    || parentSessionId;
   const virtualItems = useMemo(() => sessionToVirtualItems(childSession ?? null), [childSession]);
   const {
     exploreGroupStates,
@@ -965,7 +972,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   return (
     <FlowChatContext.Provider value={contextValue}>
       <div
-        className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}`}
+        className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}${canComposeInChild ? ' btw-session-panel--has-composer' : ''}`}
       >
         <div className="btw-session-panel__header">
           <div className="btw-session-panel__header-left">
@@ -1040,35 +1047,49 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
         </div>
 
         <FlowChatPresentationActivityProvider isActive={isActive}>
-          <div
-            ref={scrollContainerRef}
-            className="btw-session-panel__body"
-            style={reviewActionBottomPadding > 0 ? { paddingBottom: `${reviewActionBottomPadding}px` } : undefined}
-          >
-            {virtualItems.length === 0 ? (
-              <div className="btw-session-panel__empty-state">{t('session.empty')}</div>
-            ) : (
-              <>
-                {virtualItems.map((item, index) => (
-                  <VirtualItemRenderer
-                    key={`${item.turnId}-${item.type}-${index}`}
-                    item={item}
-                    index={index}
+          <div className="btw-session-panel__conversation">
+            <div
+              ref={scrollContainerRef}
+              className="btw-session-panel__body"
+              style={reviewActionBottomPadding > 0 ? { paddingBottom: `${reviewActionBottomPadding}px` } : undefined}
+            >
+              {virtualItems.length === 0 ? (
+                <div className="btw-session-panel__empty-state">{t('session.empty')}</div>
+              ) : (
+                <>
+                  {virtualItems.map((item, index) => (
+                    <VirtualItemRenderer
+                      key={`${item.turnId}-${item.type}-${index}`}
+                      item={item}
+                      index={index}
+                    />
+                  ))}
+                  <ProcessingIndicator
+                    visible={showProcessingIndicator}
+                    reserveSpace={reserveProcessingIndicatorSpace}
                   />
-                ))}
-                <ProcessingIndicator
-                  visible={showProcessingIndicator}
-                  reserveSpace={reserveProcessingIndicatorSpace}
-                />
-              </>
-            )}
+                </>
+              )}
+            </div>
+            <ScrollToBottomButton
+              visible={showScrollToBottom}
+              onClick={handleScrollToBottom}
+              className="btw-session-panel__scroll-to-bottom"
+            />
           </div>
-          <ScrollToBottomButton
-            visible={showScrollToBottom}
-            onClick={handleScrollToBottom}
-            className="btw-session-panel__scroll-to-bottom"
-          />
         </FlowChatPresentationActivityProvider>
+        {canComposeInChild && resolvedParentSessionId && (
+          <div
+            className="btw-session-panel__composer"
+            data-testid="btw-session-panel-composer"
+          >
+            <LazyChatInput
+              sessionId={childSessionId}
+              parentSessionId={resolvedParentSessionId}
+              className="void-chat-input--embedded"
+            />
+          </div>
+        )}
         {showMinimizedIndicator && (
           <div className="btw-session-panel__minimized-indicator">
             <button

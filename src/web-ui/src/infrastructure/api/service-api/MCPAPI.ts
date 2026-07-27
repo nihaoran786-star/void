@@ -184,6 +184,8 @@ export interface McpAppMessageEvent {
   requestId: string;
   /** Message params from MCP App. */
   params: McpUiMessageParams;
+  /** Exact composer that owns the tool card, when rendered inside a child session. */
+  targetSessionId?: string;
 }
 
 /** Event payload for mcp-app:message-response event. */

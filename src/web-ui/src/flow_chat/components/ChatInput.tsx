@@ -7,7 +7,7 @@ import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } 
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
 import { ArrowUp, Image, RotateCcw, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
-import { ContextDropZone, useContextStore } from '../../shared/context-system';
+import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
   RichTextInput,
@@ -63,6 +63,7 @@ import {
 } from '../services/openBtwSession';
 import { resolveSessionRelationship } from '../utils/sessionMetadata';
 import { useComposerTarget } from '../hooks/useComposerTarget';
+import { useComposerContexts } from '../hooks/useComposerContexts';
 import { isAcpFlowSession } from '../utils/acpSession';
 import { resolveWorkspaceChatInputMode } from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
@@ -124,6 +125,7 @@ import {
   parseComposerPresentation,
 } from '../utils/composerPresentation';
 import { createSkillPromptReferenceToken } from '../utils/skillPromptReference';
+import { shouldRouteComposerEvent } from '../utils/composerEventRouting';
 import { ComposerVoiceInputButton } from './voice/ComposerVoiceInputButton';
 import { useComposerVoiceInput } from './voice/useComposerVoiceInput';
 import './ChatInput.scss';
@@ -134,6 +136,10 @@ const BoostSkillsSubmenu = React.lazy(() => import('./BoostSkillsSubmenu'));
 export interface ChatInputProps {
   className?: string;
   onSendMessage?: (message: string) => void;
+  /** Exact persistent child session for an independently mounted BTW/subagent composer. */
+  sessionId?: string;
+  /** Explicit owner of sessionId; required to validate the child-session boundary. */
+  parentSessionId?: string;
 }
 
 type SlashActionItem = {
@@ -280,9 +286,12 @@ function getSessionContextUsageDisplay(session?: Session): { current: number; ma
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   className = '',
-  onSendMessage
+  onSendMessage,
+  sessionId,
+  parentSessionId,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const isIndependentChildComposer = Boolean(sessionId);
   
   const [inputState, dispatchInput] = useReducer(inputReducer, initialInputState);
   const [modeState, dispatchMode] = useReducer(modeReducer, initialModeState);
@@ -303,10 +312,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [savedDraft, setSavedDraft] = useState('');
   const { addMessage: addToHistory, getSessionHistory } = useInputHistoryStore();
   
-  const contexts = useContextStore(state => state.contexts);
-  const addContext = useContextStore(state => state.addContext);
-  const removeContext = useContextStore(state => state.removeContext);
-  const replaceContexts = useContextStore(state => state.replaceContexts);
+  const {
+    contexts,
+    addContext,
+    removeContext,
+    replaceContexts,
+  } = useComposerContexts(isIndependentChildComposer);
   const contextsRef = useRef(contexts);
 
   useEffect(() => {
@@ -330,15 +341,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionState = useActiveSessionState();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
-  const {
-    target: composerTarget,
-    activeChildTarget: activeChildCandidate,
-    selectMain: selectMainComposerTarget,
-    selectActiveChild: selectActiveChildComposerTarget,
-    canSelectSession: canSelectComposerSession,
-    selectSession: selectComposerSession,
-  } = useComposerTarget({
-    mainSessionId: currentSessionId,
+  const mainSessionId = parentSessionId || currentSessionId;
+  const composerTarget = useComposerTarget({
+    mainSessionId,
+    targetSessionId: sessionId,
+    parentSessionId,
     sessions: flowChatState.sessions,
   });
   const previousComposerSessionIdRef = useRef<string | null>(null);
@@ -353,9 +360,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const draftStatus = useSessionModeStore(state => state.draftStatus);
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
   const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
-  const isNewSessionDraft = !currentSessionId && draftStatus !== 'idle';
+  const isNewSessionDraft =
+    !isIndependentChildComposer
+    && !currentSessionId
+    && draftStatus !== 'idle';
   const effectiveTargetSessionId =
     composerTarget.status === 'ready' ? composerTarget.sessionId : null;
+  const isPrimaryComposer = !isIndependentChildComposer;
   const composerScopeId = effectiveTargetSessionId || draftId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
@@ -444,7 +455,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     sessionSnapshot?.sessionId,
   ]);
 
-  const currentReviewActivity = useSessionReviewActivity(currentSessionId);
+  useEffect(() => {
+    if (!isIndependentChildComposer) {
+      return;
+    }
+    return () => {
+      const scopeId = previousComposerScopeIdRef.current;
+      if (!scopeId) {
+        return;
+      }
+      saveSessionComposerDraft(scopeId, {
+        value: inputValueRef.current,
+        contexts: contextsRef.current,
+        pendingLargePastes: pendingLargePastesRef.current,
+      });
+    };
+  }, [isIndependentChildComposer]);
+
+  const currentReviewActivity = useSessionReviewActivity(effectiveTargetSessionId);
   const { confirmDeepReviewLaunch, deepReviewConsentDialog } = useDeepReviewConsent();
   // isMultiLine: true when content overflows a single line (scrollHeight > threshold or has newlines)
   const [isMultiLine, setIsMultiLine] = useState(false);
@@ -530,8 +558,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const { transition, setQueuedInput } = useSessionStateMachineActions(effectiveTargetSessionId);
 
-  const { workspace, workspacePath, workspaceName } = useCurrentWorkspace();
+  const {
+    workspace,
+    workspacePath: activeWorkspacePath,
+    workspaceName,
+  } = useCurrentWorkspace();
   const { openedWorkspacesList } = useWorkspaceContext();
+  const composerWorkspacePath =
+    effectiveTargetSession?.workspacePath?.trim()
+    || activeWorkspacePath?.trim()
+    || '';
 
   const draftWorkspaceOptions = useMemo(
     () => openedWorkspacesList.filter(
@@ -572,14 +608,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     if (isNewSessionDraft) {
       return draftWorkspace?.rootPath?.trim() || '';
     }
-    const fromContext = (workspacePath || '').trim();
+    const fromContext = composerWorkspacePath;
     const fromSession = (effectiveTargetSession?.workspacePath || '').trim();
-    return fromContext || fromSession;
+    return fromSession || fromContext;
   }, [
     draftWorkspace?.rootPath,
     effectiveTargetSession?.workspacePath,
     isNewSessionDraft,
-    workspacePath,
+    composerWorkspacePath,
   ]);
 
   const chatStripWorkspaceLabel = useMemo(() => {
@@ -742,18 +778,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, [permissionConfigStatus, permissionModeSaving, t, toolPermissionConfig]);
 
   useEffect(() => {
-    if (currentSessionId && draftStatus !== 'idle') {
+    if (!isIndependentChildComposer && currentSessionId && draftStatus !== 'idle') {
       completeNewSessionDraft();
     }
-  }, [currentSessionId, draftStatus]);
+  }, [currentSessionId, draftStatus, isIndependentChildComposer]);
 
   useEffect(() => {
+    if (isIndependentChildComposer) {
+      return;
+    }
     setChatInputActive(inputState.isActive);
-  }, [inputState.isActive, setChatInputActive]);
+  }, [inputState.isActive, isIndependentChildComposer, setChatInputActive]);
   
   useEffect(() => {
+    if (isIndependentChildComposer) {
+      return;
+    }
     setChatInputExpanded(inputState.isExpanded);
-  }, [inputState.isExpanded, setChatInputExpanded]);
+  }, [inputState.isExpanded, isIndependentChildComposer, setChatInputExpanded]);
 
   const newSessionConfig = useMemo(
     () =>
@@ -1031,8 +1073,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   React.useEffect(() => {
     const handleFillInput = (event: Event) => {
-      const customEvent = event as CustomEvent<{ message: string }>;
+      const customEvent = event as CustomEvent<{
+        message: string;
+        targetSessionId?: string;
+      }>;
       const message = customEvent.detail?.message;
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId: customEvent.detail?.targetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
+        return;
+      }
       
       if (message) {
         clearPendingLargePastes();
@@ -1050,7 +1102,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       window.removeEventListener('fill-chat-input', handleFillInput);
     };
-  }, [clearPendingLargePastes]);
+  }, [
+    clearPendingLargePastes,
+    effectiveTargetSessionId,
+    isPrimaryComposer,
+  ]);
 
   React.useEffect(() => {
     const handleFillChatInput = (data: {
@@ -1068,41 +1124,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         ? composerPresentationToValue(parsedPresentation)
         : data.content;
       const requestedTargetSessionId = data.targetSessionId?.trim();
-      const targetsAnotherComposer =
-        Boolean(requestedTargetSessionId)
-        && requestedTargetSessionId !== effectiveTargetSessionId;
-
-      if (targetsAnotherComposer && requestedTargetSessionId) {
-        if (!canSelectComposerSession(requestedTargetSessionId)) {
-          notificationService.warning(
-            t('chatInput.targetUnavailable', {
-              defaultValue: 'The requested conversation is not open.',
-            }),
-          );
-          return;
-        }
-
-        const existingDraft = getSessionComposerDraft(requestedTargetSessionId);
-        if (data.onlyIfEmpty && existingDraft?.value.trim()) {
-          return;
-        }
-        const nextValue =
-          data.mode === 'append' && existingDraft?.value.trim()
-            ? `${existingDraft.value.replace(/\s+$/, '')}${data.separator ?? '\n\n'}${restoredContent.replace(/^\s+/, '')}`
-            : restoredContent;
-        saveSessionComposerDraft(requestedTargetSessionId, {
-          value: nextValue,
-          contexts: parsedPresentation
-            ? getComposerPresentationContexts(parsedPresentation)
-            : data.mode === 'append'
-              ? existingDraft?.contexts ?? []
-              : [],
-          pendingLargePastes: {},
-        });
-        selectComposerSession(requestedTargetSessionId);
-        window.requestAnimationFrame(() => {
-          richTextInputRef.current?.focus();
-        });
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId: requestedTargetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
         return;
       }
 
@@ -1151,17 +1177,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       globalEventBus.off('fill-chat-input', handleFillChatInput);
     };
   }, [
-    canSelectComposerSession,
     clearPendingLargePastes,
     effectiveTargetSessionId,
+    isPrimaryComposer,
     replaceContexts,
-    selectComposerSession,
-    t,
   ]);
 
   // Expose current input value for external queries (e.g. deep review fill-back confirmation)
   React.useEffect(() => {
-    const handleGetChatInputState = (request: { getValue?: () => string }) => {
+    const handleGetChatInputState = (request: {
+      getValue?: () => string;
+      targetSessionId?: string;
+    }) => {
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId: request.targetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
+        return;
+      }
       request.getValue = () => inputValueRef.current;
     };
 
@@ -1170,7 +1204,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       globalEventBus.off('chat-input:get-state', handleGetChatInputState);
     };
-  }, []);
+  }, [effectiveTargetSessionId, isPrimaryComposer]);
 
   React.useEffect(() => {
     if (!slashCommandState.isActive || slashCommandState.kind !== 'all' || derivedState?.isProcessing) {
@@ -1191,7 +1225,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Handle MCP App ui/message requests (aligned with VSCode behavior)
   React.useEffect(() => {
     const handleMcpAppMessage = async (event: import('@/infrastructure/api/service-api/MCPAPI').McpAppMessageEvent) => {
-      const { requestId, params } = event;
+      const { requestId, params, targetSessionId } = event;
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
+        return;
+      }
 
       // Don't fill if input already has content (aligned with VSCode behavior)
       if (inputStateValueRef.current.trim()) {
@@ -1231,7 +1272,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               }
               const blob = new Blob([bytes], { type: mimeType });
               const file = new File([blob], `image.${mimeType.split('/')[1] || 'png'}`, { type: mimeType });
-              const imageContext = await createImageContextFromClipboard(file, { workspacePath });
+              const imageContext = await createImageContextFromClipboard(file, {
+                workspacePath: composerWorkspacePath,
+              });
               addContext(imageContext);
               imgCount++;
             } catch (err) {
@@ -1265,11 +1308,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       globalEventBus.off('mcp-app:message', handleMcpAppMessage);
     };
-  }, [addContext, clearPendingLargePastes, currentImageCount, workspacePath]);
+  }, [
+    addContext,
+    clearPendingLargePastes,
+    composerWorkspacePath,
+    currentImageCount,
+    effectiveTargetSessionId,
+    isPrimaryComposer,
+  ]);
 
   React.useEffect(() => {
     const handleInsertContextTag = (event: Event) => {
-      const customEvent = event as CustomEvent<{ context: any }>;
+      const customEvent = event as CustomEvent<{
+        context: any;
+        targetSessionId?: string;
+      }>;
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId: customEvent.detail?.targetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
+        return;
+      }
       const context = customEvent.detail?.context;
       
       if (context) {
@@ -1300,7 +1360,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       window.removeEventListener('insert-context-tag', handleInsertContextTag);
     };
-  }, [inputState.isActive]);
+  }, [effectiveTargetSessionId, inputState.isActive, isPrimaryComposer]);
 
   React.useEffect(() => {
     const fetchAvailableModes = async () => {
@@ -1331,13 +1391,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const customEvent = event as CustomEvent<{ sessionId: string; mode: string }>;
       const { sessionId, mode } = customEvent.detail || {};
       
-      if (sessionId && mode) {
+      if (sessionId === effectiveTargetSessionId && mode) {
         log.debug('Session switched, syncing mode', { sessionId, mode });
         dispatchMode({ type: 'SET_CURRENT_MODE', payload: mode });
-        try {
-          sessionStorage.setItem('void:flowchat:lastMode', mode);
-        } catch {
-          // ignore
+        if (isPrimaryComposer) {
+          try {
+            sessionStorage.setItem('void:flowchat:lastMode', mode);
+          } catch {
+            // ignore
+          }
         }
       }
     };
@@ -1347,7 +1409,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       window.removeEventListener('void:session-switched', handleSessionSwitched);
     };
-  }, []);
+  }, [effectiveTargetSessionId, isPrimaryComposer]);
 
   React.useEffect(() => {
     const nextMode = resolveWorkspaceChatInputMode({
@@ -1364,13 +1426,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         isAssistantWorkspace,
       });
       dispatchMode({ type: 'SET_CURRENT_MODE', payload: nextMode });
-      try {
-        sessionStorage.setItem('void:flowchat:lastMode', nextMode);
-      } catch {
-        // ignore
+      if (isPrimaryComposer) {
+        try {
+          sessionStorage.setItem('void:flowchat:lastMode', nextMode);
+        } catch {
+          // ignore
+        }
       }
     }
-  }, [activeSessionMode, currentMode, effectiveTargetSessionId, isAssistantWorkspace]);
+  }, [
+    activeSessionMode,
+    currentMode,
+    effectiveTargetSessionId,
+    isAssistantWorkspace,
+    isPrimaryComposer,
+  ]);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1398,7 +1468,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       try {
         const list = await configAPI.getModeSkillConfigs({
           modeId: composerAgentType,
-          workspacePath: workspacePath || undefined,
+          workspacePath: composerWorkspacePath || undefined,
         });
         if (!cancelled) {
           setBoostPanelSkills(list);
@@ -1407,7 +1477,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         log.error('Failed to load mode-resolved skills for boost panel', {
           err,
           modeId: composerAgentType,
-          workspacePath: workspacePath || undefined,
+          workspacePath: composerWorkspacePath || undefined,
         });
         if (!cancelled) setBoostPanelSkills([]);
       } finally {
@@ -1417,12 +1487,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [composerAgentType, isModeDropdownOpen, workspacePath]);
+  }, [composerAgentType, composerWorkspacePath, isModeDropdownOpen]);
 
   useEffect(() => {
     const handleMediaReference = (event: Event) => {
       const detail = (event as CustomEvent<MediaReferenceEventDetail>).detail;
       if (!detail) {
+        return;
+      }
+      if (!shouldRouteComposerEvent({
+        composerSessionId: effectiveTargetSessionId,
+        targetSessionId: detail.targetSessionId,
+        isPrimary: isPrimaryComposer,
+      })) {
         return;
       }
 
@@ -1458,7 +1535,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       window.removeEventListener(MEDIA_REFERENCE_EVENT, handleMediaReference);
     };
-  }, [addContext, contexts, derivedState?.isProcessing, prunePendingLargePastes, setQueuedInput]);
+  }, [
+    addContext,
+    contexts,
+    derivedState?.isProcessing,
+    effectiveTargetSessionId,
+    isPrimaryComposer,
+    prunePendingLargePastes,
+    setQueuedInput,
+  ]);
 
   useEffect(() => {
     const handleImagePaste = async (event: Event) => {
@@ -1473,7 +1558,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       }
       
       try {
-        const imageContext = await createImageContextFromClipboard(file, { workspacePath });
+        const imageContext = await createImageContextFromClipboard(file, {
+          workspacePath: composerWorkspacePath,
+        });
 
         addContext(imageContext);
         undoImageStackRef.current.push(imageContext.id);
@@ -1500,10 +1587,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         inputElement.removeEventListener('imagePaste', handleImagePaste);
       }
     };
-  }, [addContext, currentImageCount, inputState.isActive, t, workspacePath]);
+  }, [addContext, composerWorkspacePath, currentImageCount, inputState.isActive, t]);
 
   React.useEffect(() => {
-    if (!effectiveTargetSessionId || !workspacePath) {
+    if (!effectiveTargetSessionId || !composerWorkspacePath) {
       return;
     }
 
@@ -1541,14 +1628,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (modifiedFiles.length > 0) {
         log.debug('File modifications detected, updating recommendation context', { modifiedFiles });
         setRecommendationContext({
-          workspacePath,
+          workspacePath: composerWorkspacePath,
           sessionId: effectiveTargetSessionId,
           turnIndex: session.dialogTurns.length - 1,
           modifiedFiles: [...new Set(modifiedFiles)]
         });
       }
     }
-  }, [effectiveTargetSessionId, workspacePath, derivedState?.isProcessing]);
+  }, [composerWorkspacePath, derivedState?.isProcessing, effectiveTargetSessionId]);
 
   const getFilteredActions = useCallback(() => {
     const items: SlashActionItem[] = [
@@ -2309,7 +2396,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             receipt.sentSessionId,
           )
         ) {
-          const currentContexts = useContextStore.getState().contexts;
+          const currentContexts = contextsRef.current;
           contextsRef.current = currentContexts;
           receipt.submittedContextIds.forEach(removeContext);
           if (shouldDeactivateComposerAfterSend(
@@ -2358,7 +2445,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           dispatchInput({ type: 'ACTIVATE' });
           dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
         }
-        const currentContexts = useContextStore.getState().contexts;
+        const currentContexts = contextsRef.current;
         const currentContextIds = new Set(currentContexts.map(context => context.id));
         const missingOriginalContexts = originalContexts.filter(
           context => !currentContextIds.has(context.id),
@@ -2581,7 +2668,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             receipt.sentSessionId,
           )
         ) {
-          const currentContexts = useContextStore.getState().contexts;
+          const currentContexts = contextsRef.current;
           contextsRef.current = currentContexts;
           receipt.submittedContextIds.forEach(removeContext);
           if (shouldDeactivateComposerAfterSend(
@@ -2633,7 +2720,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           dispatchInput({ type: 'ACTIVATE' });
           dispatchInput({ type: 'SET_VALUE', payload: originalMessage });
         }
-        const currentContexts = useContextStore.getState().contexts;
+        const currentContexts = contextsRef.current;
         const currentContextIds = new Set(currentContexts.map(context => context.id));
         const missingOriginalContexts = originalContexts.filter(
           context => !currentContextIds.has(context.id),
@@ -3127,7 +3214,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       
       for (const file of fileArray) {
         try {
-          const imageContext = await createImageContextFromFile(file, { workspacePath });
+          const imageContext = await createImageContextFromFile(file, {
+            workspacePath: composerWorkspacePath,
+          });
           addContext(imageContext);
         } catch (error) {
           log.error('Failed to process image', { fileName: file.name, error });
@@ -3140,7 +3229,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
     
     input.click();
-  }, [addContext, currentImageCount, t, workspacePath]);
+  }, [addContext, composerWorkspacePath, currentImageCount, t]);
   
 
   const focusRichTextInputSoon = useCallback(() => {
@@ -3167,6 +3256,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Space-to-focus: when no editable element is focused, Space key focuses the input.
   useEffect(() => {
+    if (!isPrimaryComposer) {
+      return;
+    }
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key !== ' ') return;
       const target = e.target as HTMLElement;
@@ -3181,7 +3273,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     };
     document.addEventListener('keydown', handleGlobalKeyDown, true);
     return () => document.removeEventListener('keydown', handleGlobalKeyDown, true);
-  }, [focusRichTextInputSoon]);
+  }, [focusRichTextInputSoon, isPrimaryComposer]);
 
   const insertSkillIntoInput = useCallback(
     (skillName: string) => {
@@ -3224,6 +3316,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     openScene('skills' as SceneTabId);
   }, [openScene]);
   useEffect(() => {
+    if (!isPrimaryComposer) {
+      return;
+    }
     const dropZone = containerRef.current?.closest('.void-chat-input-drop-zone') as HTMLElement | null;
     const el = dropZone ?? containerRef.current;
     if (!el) return;
@@ -3233,8 +3328,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     observer.observe(el);
     setChatInputHeight(el.offsetHeight);
     return () => observer.disconnect();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isPrimaryComposer, setChatInputHeight]);
 
 
   const renderActionButton = () => {
@@ -3331,20 +3425,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
-  const mainComposerSession = currentSessionId
-    ? flowChatState.sessions.get(currentSessionId)
-    : undefined;
-  const activeChildComposerSession =
-    activeChildCandidate?.status === 'ready' && activeChildCandidate.kind === 'child'
-      ? flowChatState.sessions.get(activeChildCandidate.sessionId)
-      : undefined;
-
   return (
     <>
       {deepReviewConsentDialog}
       <ContextDropZone
         acceptedTypes={['file', 'directory', 'image', 'code-snippet', 'mermaid-diagram']}
         className="void-chat-input-drop-zone"
+        onContextCommit={isIndependentChildComposer ? addContext : undefined}
         onContextAdded={(context) => {
           if (context.type === 'image' && currentImageCount >= CHAT_INPUT_CONFIG.image.maxCount) {
             notificationService.warning(t('input.maxImagesWarning', { count: CHAT_INPUT_CONFIG.image.maxCount }), { duration: 3000 });
@@ -3368,6 +3455,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           ref={containerRef}
           className={`void-chat-input ${isMultiLine ? 'void-chat-input--multi-line' : 'void-chat-input--capsule'} ${derivedState?.isProcessing ? 'void-chat-input--processing' : ''} ${className}`}
           data-testid="chat-input-container"
+          data-composer-session-id={effectiveTargetSessionId || undefined}
+          data-composer-kind={isIndependentChildComposer ? 'child' : 'main'}
         >
         {recommendationContext && (
           <SmartRecommendations
@@ -3379,46 +3468,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <PendingQueuePanel sessionId={effectiveTargetSessionId || undefined} />
 
         <div className="void-chat-input__container">
-          {activeChildCandidate?.status === 'ready' && activeChildCandidate.kind === 'child' && (
-            <div
-              className="void-chat-input__target-switcher"
-              role="group"
-              aria-label={t('chatInput.conversationTarget')}
-              data-testid="chat-input-target-switcher"
-            >
-              <span className="void-chat-input__target-switcher-label">
-                {t('chatInput.sendTarget')}
-              </span>
-              <button
-                type="button"
-                className={`void-chat-input__target-tab ${!isChildComposerTarget ? 'void-chat-input__target-tab--active' : ''}`}
-                aria-pressed={!isChildComposerTarget}
-                onClick={selectMainComposerTarget}
-              >
-                {t('chatInput.targetMain')}
-                {mainComposerSession?.title && (
-                  <span className="void-chat-input__target-tab-name">
-                    {mainComposerSession.title}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`void-chat-input__target-tab ${isChildComposerTarget ? 'void-chat-input__target-tab--active' : ''}`}
-                aria-pressed={isChildComposerTarget}
-                onClick={selectActiveChildComposerTarget}
-              >
-                {activeChildCandidate.sessionKind === 'subagent'
-                  ? t('chatInput.targetSubagent')
-                  : t('chatInput.targetBtw')}
-                {activeChildComposerSession?.title && (
-                  <span className="void-chat-input__target-tab-name">
-                    {activeChildComposerSession.title}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
           <div className={`void-chat-input__box ${isMultiLine ? 'void-chat-input__box--multi-line' : 'void-chat-input__box--capsule'}`}>
             <div className="void-chat-input__input-area">
               {showImageStrip && (
@@ -3487,7 +3536,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <FileMentionPicker
                 isOpen={mentionState.isActive}
                 searchQuery={mentionState.query}
-                workspacePath={workspacePath}
+                workspacePath={composerWorkspacePath}
                 onSelect={(context: FileContext | DirectoryContext) => {
                   addContext(context);
                   

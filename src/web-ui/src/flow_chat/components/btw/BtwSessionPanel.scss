@@ -205,6 +205,34 @@
     bottom: 140px;
   }
 
+  &__conversation {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  &__composer {
+    position: relative;
+    z-index: 12;
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 8px 10px 10px;
+    border-top: 1px solid var(--border-base);
+    background: var(--color-bg-flowchat);
+
+    .void-chat-input-drop-zone {
+      position: static;
+      inset: auto;
+      width: 100%;
+      max-width: none;
+      padding: 0;
+      transform: none;
+      z-index: auto;
+    }
+  }
+
   /* Minimized review action bar indicator */
   &__minimized-indicator {
     position: absolute;

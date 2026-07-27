@@ -45,14 +45,17 @@ describe('BtwSessionPanel layout styles', () => {
     expect(headerRight).toContain('justify-content: flex-end;');
   });
 
-  it('keeps child panels presentation-only and delegates composing to ChatInput', () => {
+  it('mounts the shared complete composer only for BTW and subagent child sessions', () => {
     const source = readBtwSessionPanelSource();
     const stylesheet = readBtwSessionPanelStylesheet();
 
     expect(source).not.toContain('<textarea');
-    expect(source).not.toContain('btw-session-panel__composer');
-    expect(source).toContain("globalEventBus.emit('fill-chat-input'");
-    expect(source).toContain('targetSessionId: childSessionId');
-    expect(stylesheet).not.toContain('&__composer');
+    expect(source).toContain('<LazyChatInput');
+    expect(source).toContain('sessionId={childSessionId}');
+    expect(source).toContain('parentSessionId={resolvedParentSessionId}');
+    expect(source).toContain("childKind === 'btw' || childKind === 'subagent'");
+    expect(source).toContain('data-testid="btw-session-panel-composer"');
+    expect(stylesheet).toContain('&__composer');
+    expect(stylesheet).toContain('.void-chat-input-drop-zone');
   });
 });

@@ -32,41 +32,53 @@ function createSession(overrides: Partial<Session> = {}): Session {
 }
 
 describe('resolveComposerTarget', () => {
-  it('routes an explicitly selected child panel to its persistent child session', () => {
+  it.each([
+    ['subagent', 'video-agent'],
+    ['btw', 'agentic'],
+  ] as const)(
+    'binds an independent %s composer to its persistent child session',
+    (sessionKind, expectedAgentType) => {
+      const mainSession = createSession();
+      const childSession = createSession({
+        sessionId: `${sessionKind}-session`,
+        parentSessionId: mainSession.sessionId,
+        sessionKind,
+        subagentType: sessionKind === 'subagent' ? 'video-agent' : undefined,
+      });
+
+      expect(resolveComposerTarget({
+        mainSessionId: mainSession.sessionId,
+        targetSessionId: childSession.sessionId,
+        parentSessionId: mainSession.sessionId,
+        sessions: new Map([
+          [mainSession.sessionId, mainSession],
+          [childSession.sessionId, childSession],
+        ]),
+      })).toEqual({
+        status: 'ready',
+        kind: 'child',
+        sessionId: childSession.sessionId,
+        parentSessionId: mainSession.sessionId,
+        sessionKind,
+        agentType: expectedAgentType,
+      });
+    },
+  );
+
+  it('keeps the primary composer bound to the active main session', () => {
     const mainSession = createSession();
-    const childSession = createSession({
-      sessionId: 'subagent-session',
-      title: 'Video agent',
-      parentSessionId: mainSession.sessionId,
-      sessionKind: 'subagent',
-      subagentType: 'video-agent',
-    });
 
     expect(resolveComposerTarget({
       mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: childSession.sessionId,
-      },
-      activeChildPanel: {
-        childSessionId: childSession.sessionId,
-        parentSessionId: mainSession.sessionId,
-      },
-      sessions: new Map([
-        [mainSession.sessionId, mainSession],
-        [childSession.sessionId, childSession],
-      ]),
+      sessions: new Map([[mainSession.sessionId, mainSession]]),
     })).toEqual({
       status: 'ready',
-      kind: 'child',
-      sessionId: childSession.sessionId,
-      parentSessionId: mainSession.sessionId,
-      sessionKind: 'subagent',
-      agentType: 'video-agent',
+      kind: 'main',
+      sessionId: mainSession.sessionId,
     });
   });
 
-  it('rejects a selected child when the active panel belongs to another parent', () => {
+  it('rejects a child binding whose explicit parent differs from the active main session', () => {
     const mainSession = createSession();
     const childSession = createSession({
       sessionId: 'subagent-session',
@@ -76,14 +88,8 @@ describe('resolveComposerTarget', () => {
 
     expect(resolveComposerTarget({
       mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: childSession.sessionId,
-      },
-      activeChildPanel: {
-        childSessionId: childSession.sessionId,
-        parentSessionId: 'different-main-session',
-      },
+      targetSessionId: childSession.sessionId,
+      parentSessionId: 'different-main-session',
       sessions: new Map([
         [mainSession.sessionId, mainSession],
         [childSession.sessionId, childSession],
@@ -96,46 +102,13 @@ describe('resolveComposerTarget', () => {
     });
   });
 
-  it('does not fall back to the main session when the selected child panel is closed', () => {
+  it('reports a missing explicit child without falling back to the main session', () => {
     const mainSession = createSession();
-    const childSession = createSession({
-      sessionId: 'btw-session',
+
+    expect(resolveComposerTarget({
+      mainSessionId: mainSession.sessionId,
+      targetSessionId: 'missing-child',
       parentSessionId: mainSession.sessionId,
-      sessionKind: 'btw',
-    });
-
-    expect(resolveComposerTarget({
-      mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: childSession.sessionId,
-      },
-      activeChildPanel: null,
-      sessions: new Map([
-        [mainSession.sessionId, mainSession],
-        [childSession.sessionId, childSession],
-      ]),
-    })).toEqual({
-      status: 'unavailable',
-      kind: 'child',
-      reason: 'panel_closed',
-      requestedSessionId: childSession.sessionId,
-    });
-  });
-
-  it('reports a missing selected child session without rerouting the message', () => {
-    const mainSession = createSession();
-
-    expect(resolveComposerTarget({
-      mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: 'missing-child',
-      },
-      activeChildPanel: {
-        childSessionId: 'missing-child',
-        parentSessionId: mainSession.sessionId,
-      },
       sessions: new Map([[mainSession.sessionId, mainSession]]),
     })).toEqual({
       status: 'unavailable',
@@ -155,14 +128,8 @@ describe('resolveComposerTarget', () => {
 
     expect(resolveComposerTarget({
       mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: reviewSession.sessionId,
-      },
-      activeChildPanel: {
-        childSessionId: reviewSession.sessionId,
-        parentSessionId: mainSession.sessionId,
-      },
+      targetSessionId: reviewSession.sessionId,
+      parentSessionId: mainSession.sessionId,
       sessions: new Map([
         [mainSession.sessionId, mainSession],
         [reviewSession.sessionId, reviewSession],
@@ -175,7 +142,7 @@ describe('resolveComposerTarget', () => {
     });
   });
 
-  it('rejects a selected child from another workspace even when paths match', () => {
+  it('rejects a child from another workspace even when paths match', () => {
     const mainSession = createSession();
     const childSession = createSession({
       sessionId: 'foreign-child',
@@ -186,14 +153,8 @@ describe('resolveComposerTarget', () => {
 
     expect(resolveComposerTarget({
       mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: childSession.sessionId,
-      },
-      activeChildPanel: {
-        childSessionId: childSession.sessionId,
-        parentSessionId: mainSession.sessionId,
-      },
+      targetSessionId: childSession.sessionId,
+      parentSessionId: mainSession.sessionId,
       sessions: new Map([
         [mainSession.sessionId, mainSession],
         [childSession.sessionId, childSession],
@@ -225,14 +186,8 @@ describe('resolveComposerTarget', () => {
 
     expect(resolveComposerTarget({
       mainSessionId: mainSession.sessionId,
-      selectedTarget: {
-        kind: 'child',
-        sessionId: childSession.sessionId,
-      },
-      activeChildPanel: {
-        childSessionId: childSession.sessionId,
-        parentSessionId: mainSession.sessionId,
-      },
+      targetSessionId: childSession.sessionId,
+      parentSessionId: mainSession.sessionId,
       sessions: new Map([
         [mainSession.sessionId, mainSession],
         [childSession.sessionId, childSession],
@@ -245,29 +200,26 @@ describe('resolveComposerTarget', () => {
     });
   });
 
-  it('keeps an explicit main target while a valid child panel remains open', () => {
-    const mainSession = createSession();
-    const childSession = createSession({
-      sessionId: 'child-session',
-      parentSessionId: mainSession.sessionId,
-      sessionKind: 'btw',
+  it('reports a missing main session for either composer kind', () => {
+    expect(resolveComposerTarget({
+      mainSessionId: null,
+      sessions: new Map(),
+    })).toEqual({
+      status: 'unavailable',
+      kind: 'main',
+      reason: 'missing_main_session',
     });
 
     expect(resolveComposerTarget({
-      mainSessionId: mainSession.sessionId,
-      selectedTarget: { kind: 'main' },
-      activeChildPanel: {
-        childSessionId: childSession.sessionId,
-        parentSessionId: mainSession.sessionId,
-      },
-      sessions: new Map([
-        [mainSession.sessionId, mainSession],
-        [childSession.sessionId, childSession],
-      ]),
+      mainSessionId: null,
+      targetSessionId: 'child',
+      parentSessionId: 'parent',
+      sessions: new Map(),
     })).toEqual({
-      status: 'ready',
-      kind: 'main',
-      sessionId: mainSession.sessionId,
+      status: 'unavailable',
+      kind: 'child',
+      reason: 'missing_main_session',
+      requestedSessionId: 'child',
     });
   });
 });

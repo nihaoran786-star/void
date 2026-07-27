@@ -12,6 +12,7 @@ export interface ContextDropZoneProps {
   acceptedTypes?: ContextType[];
   children?: React.ReactNode;
   className?: string;
+  onContextCommit?: (context: ContextItem) => void;
   onContextAdded?: (context: ContextItem) => void;
 }
 
@@ -19,12 +20,14 @@ export const ContextDropZone: React.FC<ContextDropZoneProps> = ({
   acceptedTypes,
   children,
   className = '',
+  onContextCommit,
   onContextAdded
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [canAccept, setCanAccept] = useState(false);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const dragCounterRef = useRef(0); 
+  const dropTargetId = React.useId();
   const addContext = useContextStore(state => state.addContext);
   const updateValidation = useContextStore(state => state.updateValidation);
   
@@ -36,7 +39,7 @@ export const ContextDropZone: React.FC<ContextDropZoneProps> = ({
   
   
   const dropTarget = React.useMemo<IDropTarget>(() => ({
-    targetId: 'context-drop-zone',
+    targetId: `context-drop-zone-${dropTargetId}`,
     acceptedTypes: acceptedTypesArray,
     
     canAccept: (payload: DragPayload<ContextItem>) => {
@@ -47,11 +50,12 @@ export const ContextDropZone: React.FC<ContextDropZoneProps> = ({
       const context = payload.data;
       
       
-      addContext(context);
-      
-      
-      
-      updateValidation(context.id, { valid: true });
+      if (onContextCommit) {
+        onContextCommit(context);
+      } else {
+        addContext(context);
+        updateValidation(context.id, { valid: true });
+      }
       
       
       onContextAdded?.(context);
@@ -75,7 +79,14 @@ export const ContextDropZone: React.FC<ContextDropZoneProps> = ({
     onDragOver: () => {
       
     }
-  }), [acceptedTypesArray, addContext, updateValidation, onContextAdded]);
+  }), [
+    acceptedTypesArray,
+    addContext,
+    dropTargetId,
+    onContextAdded,
+    onContextCommit,
+    updateValidation,
+  ]);
   
   
   const dropTargetRef = useRef(dropTarget);

@@ -18,6 +18,7 @@ export interface MediaReferenceEventDetail {
   source: MediaReferenceSource;
   context?: ContextItem;
   promptText: string;
+  targetSessionId?: string;
 }
 
 function stableIdFromPath(path: string): string {
@@ -82,12 +83,16 @@ export function createMediaReferenceContext(source: MediaReferenceSource): Conte
   return context;
 }
 
-export function dispatchMediaReference(source: MediaReferenceSource): void {
+export function dispatchMediaReference(
+  source: MediaReferenceSource,
+  targetSessionId?: string,
+): void {
   window.dispatchEvent(new CustomEvent<MediaReferenceEventDetail>(MEDIA_REFERENCE_EVENT, {
     detail: {
       source,
       context: createMediaReferenceContext(source),
       promptText: '',
+      targetSessionId,
     },
   }));
 }

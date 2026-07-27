@@ -143,11 +143,6 @@
       line-height: var(--workspace-line-height-control);
     }
 
-    &__target-switcher {
-      border-bottom-color: var(--workspace-border-subtle);
-    }
-
-    &__target-switcher-label,
     &__mode-divider-text,
     &__slash-command-header {
       color: var(--workspace-text-muted);
@@ -156,7 +151,6 @@
       line-height: var(--workspace-line-height-meta);
     }
 
-    &__target-tab,
     &__action-button,
     &__agent-boost-add,
     &__mode-submenu-trigger,
@@ -171,7 +165,6 @@
       font-weight: var(--workspace-font-weight-regular);
     }
 
-    &__target-tab:hover,
     &__action-button:hover,
     &__agent-boost-add:hover,
     &__mode-submenu-trigger:hover,
@@ -183,7 +176,6 @@
       transform: none;
     }
 
-    &__target-tab--active,
     &__mode-option--active,
     &__slash-command-item--selected {
       color: var(--workspace-text-primary);

@@ -58,15 +58,18 @@ describe('ChatInput accessibility contract', () => {
     expect(source).toContain('closeImmediately(true)');
   });
 
-  it('routes the single composer through an explicit session target', () => {
+  it('supports independent main and child composers through explicit session bindings', () => {
     const source = readSource();
 
-    expect(source).toContain('data-testid="chat-input-target-switcher"');
-    expect(source).toContain('onClick={selectMainComposerTarget}');
-    expect(source).toContain('onClick={selectActiveChildComposerTarget}');
+    expect(source).toContain('sessionId?: string;');
+    expect(source).toContain('parentSessionId?: string;');
+    expect(source).toContain('targetSessionId: sessionId');
+    expect(source).toContain('data-composer-session-id={effectiveTargetSessionId || undefined}');
     expect(source).toContain(
       "composerTarget.status === 'ready' ? composerTarget.sessionId : null",
     );
-    expect(source).not.toContain('const effectiveTargetSessionId = currentSessionId;');
+    expect(source).not.toContain('data-testid="chat-input-target-switcher"');
+    expect(source).not.toContain('selectMainComposerTarget');
+    expect(source).not.toContain('selectActiveChildComposerTarget');
   });
 });

@@ -209,7 +209,7 @@ export const MediaGenerationToolCard: React.FC<ToolCardProps> = ({ toolItem, con
                             className="media-generation-card__asset-action"
                             onClick={(event) => {
                               event.stopPropagation();
-                              dispatchMediaReference(asset);
+                              dispatchMediaReference(asset, sessionId);
                             }}
                           >
                             <CornerUpLeft size={12} />

@@ -111,6 +111,19 @@ describe('mediaAssetInteractions', () => {
     }));
   });
 
+  it('preserves the owning session when a child composer requests a media reference', () => {
+    const dispatchEvent = vi.fn();
+    vi.stubGlobal('window', { dispatchEvent });
+
+    dispatchMediaReference(imageAsset, 'child-session');
+
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      detail: expect.objectContaining({
+        targetSessionId: 'child-session',
+      }),
+    }));
+  });
+
   it('drops legacy prompt text for media reference contexts', () => {
     const context = createMediaReferenceContext(imageAsset);
 

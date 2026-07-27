@@ -7,10 +7,10 @@
   ],
   "budgets": {
     "uniqueColors": {
-      "max": 1548
+      "max": 1546
     },
     "domainMetrics.app-ui.uniqueColors": {
-      "max": 1449
+      "max": 1447
     },
     "domainMetrics.generated-runtime.uniqueColors": {
       "max": 24

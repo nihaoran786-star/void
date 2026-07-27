@@ -144,7 +144,6 @@
       // Hide things that belong to multi-line only
       .void-chat-input__cowork-examples,
       .void-chat-input__recommendations,
-      .void-chat-input__target-switcher,
       .void-chat-input__image-strip {
         display: none !important;
       }
@@ -423,71 +422,6 @@
     }
   }
 
-  &__target-switcher {
-    display: flex;
-    align-items: center;
-    gap: 0.125rem;
-    padding-bottom: 7px;
-    margin-bottom: 0.06rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    animation: void-chat-input-fade-in 0.1s ease-out;
-  }
-
-  &__target-switcher-label {
-    font-size: var(--flowchat-font-size-xxs);
-    color: var(--color-text-muted);
-    font-weight: 400;
-    padding: 0.12rem var(--flowchat-card-expanded-pad-y, 0.5rem) 0.12rem 0;
-    margin-right: var(--flowchat-inline-gap, 0.35rem);
-    flex-shrink: 0;
-    letter-spacing: 0.02em;
-    opacity: 0.72;
-  }
-
-  &__target-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--flowchat-inline-gap, 0.35rem);
-    padding: 0.12rem var(--flowchat-card-expanded-pad-y, 0.5rem);
-    border: none;
-    background: transparent;
-    color: var(--color-text-muted);
-    font-size: var(--flowchat-font-size-2xs);
-    font-weight: 400;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: color 0.15s ease, background 0.15s ease;
-    white-space: nowrap;
-    outline: none;
-
-    &:hover:not(#{&}--active) {
-      color: var(--color-text-secondary);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    &--active {
-      color: rgba(155, 190, 255, 0.95);
-      font-weight: 500;
-      background: rgba(80, 130, 255, 0.09);
-    }
-  }
-
-  &__target-tab-name {
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--flowchat-font-size-xxs);
-    font-weight: 400;
-    opacity: 0.65;
-
-    &::before {
-      content: '·';
-      margin-right: 2px;
-    }
-  }
-  
-  
   &__input-area {
     position: relative;
     display: flex;
