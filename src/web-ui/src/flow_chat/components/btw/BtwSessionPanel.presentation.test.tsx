@@ -7,13 +7,9 @@ import type { FlowChatState, Session } from '../../types/flow-chat';
 
 let flowChatState: FlowChatState;
 const flowChatListeners = new Set<(state: FlowChatState) => void>();
-const machineListeners = new Set<(sessionId: string, machine: { currentState: string }) => void>();
 const mockCancelSession = vi.fn();
-const mockBtwCancel = vi.fn();
-const mockGetModeSkillConfigs = vi.fn();
 const mockLoadSessionHistory = vi.fn();
 const reviewActionBarRenderMock = vi.hoisted(() => vi.fn());
-let mockExecutionState = 'processing';
 
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: vi.fn() },
@@ -94,11 +90,10 @@ vi.mock('@/shared/utils/tabUtils', () => ({ createTab: vi.fn() }));
 
 vi.mock('@/infrastructure/api', () => ({
   agentAPI: { cancelSession: (...args: unknown[]) => mockCancelSession(...args) },
-  configAPI: { getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args) },
 }));
 
 vi.mock('@/infrastructure/api/service-api/BtwAPI', () => ({
-  btwAPI: { cancel: (...args: unknown[]) => mockBtwCancel(...args) },
+  btwAPI: { updateMemoryEnabled: vi.fn() },
 }));
 
 vi.mock('@/infrastructure/event-bus', () => ({
@@ -116,29 +111,6 @@ vi.mock('@/shared/utils/logger', () => ({
     info: vi.fn(),
     warn: vi.fn(),
   }),
-}));
-
-vi.mock('../../services/FlowChatManager', () => ({
-  FlowChatManager: { getInstance: () => ({ sendMessage: vi.fn() }) },
-}));
-
-vi.mock('../../utils/imageUtils', () => ({ createImageContextFromFile: vi.fn() }));
-vi.mock('../../utils/imageContextForBackend', () => ({ buildImageContextsForBackend: vi.fn() }));
-
-vi.mock('../../state-machine', () => ({
-  SessionExecutionState: {
-    IDLE: 'idle',
-    PROCESSING: 'processing',
-    FINISHING: 'finishing',
-    ERROR: 'error',
-  },
-  stateMachineManager: {
-    getCurrentState: () => mockExecutionState,
-    subscribeGlobal: (listener: (sessionId: string, machine: { currentState: string }) => void) => {
-      machineListeners.add(listener);
-      return () => machineListeners.delete(listener);
-    },
-  },
 }));
 
 vi.mock('../../store/FlowChatStore', () => ({
@@ -226,10 +198,7 @@ describe('BtwSessionPanel presentation lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     flowChatListeners.clear();
-    machineListeners.clear();
     useReviewActionBarStore.getState().reset();
-    mockExecutionState = 'processing';
-    mockGetModeSkillConfigs.mockResolvedValue([]);
     mockLoadSessionHistory.mockResolvedValue(undefined);
     flowChatState = {
       sessions: new Map([
@@ -267,7 +236,6 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     act(() => root.unmount());
     container.remove();
     flowChatListeners.clear();
-    machineListeners.clear();
     useReviewActionBarStore.getState().reset();
     vi.unstubAllGlobals();
   });
@@ -313,11 +281,9 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     });
 
     expect(flowChatListeners.size).toBe(1);
-    expect(machineListeners.size).toBe(0);
     expect(requestFrame).not.toHaveBeenCalled();
     expect(scheduleTimeout).not.toHaveBeenCalled();
     expect(resizeObserverCount).toBe(0);
-    expect(mockGetModeSkillConfigs).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="virtual-presentation-activity"]')?.getAttribute('data-active'))
       .toBe('false');
     expect(container.querySelector('[data-testid="review-action-presentation-activity"]')?.getAttribute('data-active'))
@@ -335,7 +301,6 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     });
 
     expect(flowChatListeners.size).toBe(2);
-    expect(machineListeners.size).toBe(1);
     expect(requestFrame).toHaveBeenCalledTimes(1);
     expect(scheduleTimeout).toHaveBeenCalledWith(expect.any(Function), 500);
     expect(resizeObserverCount).toBe(1);
@@ -354,14 +319,12 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     });
 
     expect(flowChatListeners.size).toBe(1);
-    expect(machineListeners.size).toBe(0);
     expect(cancelFrame).toHaveBeenCalledWith(41);
     expect(resizeObserverDisconnect).toHaveBeenCalled();
 
     act(() => root.unmount());
     root = createRoot(container);
     expect(mockCancelSession).not.toHaveBeenCalled();
-    expect(mockBtwCancel).not.toHaveBeenCalled();
   });
 
   it('starts history hydration when a hidden child session appears without cancelling it', async () => {
@@ -415,7 +378,6 @@ describe('BtwSessionPanel presentation lifecycle', () => {
       { includeInternal: true },
     );
     expect(mockCancelSession).not.toHaveBeenCalled();
-    expect(mockBtwCancel).not.toHaveBeenCalled();
   });
 
   it('keeps hidden queue updates shallow and restores the latest presentation session', async () => {

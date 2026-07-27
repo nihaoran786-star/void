@@ -275,6 +275,7 @@ describe('UserMessageItem steering tag', () => {
     expect(fillPanelInput).toHaveBeenCalledWith({
       content: 'btw rollback question',
       composerPresentation: undefined,
+      targetSessionId: 'btw-session',
     });
     expect(globalEventBus.emit).not.toHaveBeenCalledWith(
       'fill-chat-input',
@@ -410,6 +411,7 @@ describe('UserMessageItem steering tag', () => {
     expect(globalEventBus.emit).toHaveBeenCalledWith('fill-chat-input', {
       content: 'failed',
       composerPresentation: expect.objectContaining({ version: 1 }),
+      targetSessionId: 'main-session',
     });
   });
 });

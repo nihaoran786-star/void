@@ -10,6 +10,13 @@ function readBtwSessionPanelStylesheet(): string {
   return stylesheet.replace(/\r\n/g, '\n');
 }
 
+function readBtwSessionPanelSource(): string {
+  return readFileSync(
+    fileURLToPath(new URL('./BtwSessionPanel.tsx', import.meta.url)),
+    'utf8',
+  ).replace(/\r\n/g, '\n');
+}
+
 function extractBlock(stylesheet: string, selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const match = stylesheet.match(new RegExp(`${escapedSelector}\\s*\\{(?<body>[\\s\\S]*?)\\n\\s*\\}`));
@@ -36,5 +43,16 @@ describe('BtwSessionPanel layout styles', () => {
     expect(headerRight).toContain('display: flex;');
     expect(headerRight).toContain('align-items: center;');
     expect(headerRight).toContain('justify-content: flex-end;');
+  });
+
+  it('keeps child panels presentation-only and delegates composing to ChatInput', () => {
+    const source = readBtwSessionPanelSource();
+    const stylesheet = readBtwSessionPanelStylesheet();
+
+    expect(source).not.toContain('<textarea');
+    expect(source).not.toContain('btw-session-panel__composer');
+    expect(source).toContain("globalEventBus.emit('fill-chat-input'");
+    expect(source).toContain('targetSessionId: childSessionId');
+    expect(stylesheet).not.toContain('&__composer');
   });
 });

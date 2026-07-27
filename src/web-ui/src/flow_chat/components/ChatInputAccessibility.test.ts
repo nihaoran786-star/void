@@ -57,4 +57,16 @@ describe('ChatInput accessibility contract', () => {
     expect(source).toContain('data-skills-flyout-item');
     expect(source).toContain('closeImmediately(true)');
   });
+
+  it('routes the single composer through an explicit session target', () => {
+    const source = readSource();
+
+    expect(source).toContain('data-testid="chat-input-target-switcher"');
+    expect(source).toContain('onClick={selectMainComposerTarget}');
+    expect(source).toContain('onClick={selectActiveChildComposerTarget}');
+    expect(source).toContain(
+      "composerTarget.status === 'ready' ? composerTarget.sessionId : null",
+    );
+    expect(source).not.toContain('const effectiveTargetSessionId = currentSessionId;');
+  });
 });

@@ -606,6 +606,8 @@
     "conversationTarget": "对话目标",
     "targetMain": "主会话",
     "targetBtw": "当前侧问",
+    "targetSubagent": "当前子代理",
+    "targetUnavailable": "目标会话未打开，无法恢复输入。",
     "sendingToMain": "主会话：{{title}}",
     "sendingToBtw": "侧问会话：{{title}}",
     "modeDescriptions": {

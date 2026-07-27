@@ -39,6 +39,7 @@ import { useMessageSender } from '../hooks/useMessageSender';
 import { useChatInputState } from '../store/chatInputStateStore';
 import { useInputHistoryStore } from '../store/inputHistoryStore';
 import { startBtwThread } from '../services/BtwThreadService';
+import { cancelComposerTarget } from '../services/cancelComposerTarget';
 import { runUsageReportCommand } from '../services/usageReportService';
 import {
   isGoalSlashCommand,
@@ -46,7 +47,6 @@ import {
   runGoalCommandSafely,
   runGoalManagementCommandSafely,
 } from '../services/goalService';
-import { FlowChatManager } from '@/flow_chat';
 import {
   DEEP_REVIEW_SLASH_COMMAND,
   getDeepReviewLaunchErrorMessage,
@@ -58,8 +58,11 @@ import {
 import { createLogger } from '@/shared/utils/logger';
 import { Tooltip, IconButton, confirmWarning } from '@/component-library';
 import { PendingQueuePanel } from './PendingQueuePanel';
-import { openBtwSessionInAuxPane } from '../services/openBtwSession';
+import {
+  openBtwSessionInAuxPane,
+} from '../services/openBtwSession';
 import { resolveSessionRelationship } from '../utils/sessionMetadata';
+import { useComposerTarget } from '../hooks/useComposerTarget';
 import { isAcpFlowSession } from '../utils/acpSession';
 import { resolveWorkspaceChatInputMode } from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
@@ -327,6 +330,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionState = useActiveSessionState();
   const [flowChatState, setFlowChatState] = useState<FlowChatState>(() => FlowChatStore.getInstance().getState());
   const currentSessionId = activeSessionState.sessionId;
+  const {
+    target: composerTarget,
+    activeChildTarget: activeChildCandidate,
+    selectMain: selectMainComposerTarget,
+    selectActiveChild: selectActiveChildComposerTarget,
+    canSelectSession: canSelectComposerSession,
+    selectSession: selectComposerSession,
+  } = useComposerTarget({
+    mainSessionId: currentSessionId,
+    sessions: flowChatState.sessions,
+  });
   const previousComposerSessionIdRef = useRef<string | null>(null);
   const previousComposerScopeIdRef = useRef<string | null>(null);
   const deferredCreatedSessionIdRef = useRef<string | null>(null);
@@ -340,8 +354,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const draftWorkspace = useSessionModeStore(state => state.draftWorkspace);
   const setDraftStatus = useSessionModeStore(state => state.setDraftStatus);
   const isNewSessionDraft = !currentSessionId && draftStatus !== 'idle';
-  const composerScopeId = currentSessionId || draftId;
-  const effectiveTargetSessionId = currentSessionId;
+  const effectiveTargetSessionId =
+    composerTarget.status === 'ready' ? composerTarget.sessionId : null;
+  const composerScopeId = effectiveTargetSessionId || draftId;
   const effectiveTargetSession = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)
     : undefined;
@@ -365,7 +380,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   useEffect(() => {
     if (!isSessionComposerSnapshotCurrent(
-      currentSessionId,
+      effectiveTargetSessionId,
       sessionSnapshot?.sessionId,
     )) {
       return;
@@ -375,7 +390,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     const sessionChanged = previousScopeId !== composerScopeId;
     const queueDecision = observeSessionComposerQueue(
       lastAppliedQueuedInputRef.current,
-      currentSessionId,
+      effectiveTargetSessionId,
       derivedState?.queuedInput,
     );
     const queuedInput = queueDecision.observation.value;
@@ -402,7 +417,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       : undefined;
     const hydration = resolveSessionComposerHydration(queuedInput, restoredDraft);
 
-    previousComposerSessionIdRef.current = currentSessionId;
+    previousComposerSessionIdRef.current = effectiveTargetSessionId;
     previousComposerScopeIdRef.current = composerScopeId;
     emptyPasteClearGuardCountRef.current = countEmptyPasteClearGuards(
       Object.keys(hydration.pendingLargePastes).length > 0,
@@ -422,9 +437,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       richTextInputRef.current?.focus();
     }
   }, [
-    currentSessionId,
     composerScopeId,
     derivedState?.queuedInput,
+    effectiveTargetSessionId,
     replaceContexts,
     sessionSnapshot?.sessionId,
   ]);
@@ -604,7 +619,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const activeSessionMode = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)?.mode
     : undefined;
-  const canSwitchModes = !isAssistantWorkspace && currentMode !== 'Cowork' && currentMode !== 'Media';
+  const isChildComposerTarget =
+    composerTarget.status === 'ready' && composerTarget.kind === 'child';
+  const composerAgentType =
+    isChildComposerTarget ? composerTarget.agentType : currentMode;
+  const canSwitchModes =
+    !isChildComposerTarget
+    && !isAssistantWorkspace
+    && currentMode !== 'Cowork'
+    && currentMode !== 'Media';
 
   // Session-level mode policy: Cowork/Media sessions are fixed; code sessions should not switch into those top-level modes.
   const switchableModes = useMemo(
@@ -765,7 +788,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // Composer mode is authoritative (synced from session on switch, updated in
     // applyModeChange). Prefer it over session.mode so a stale store cannot force
     // agentic when the user selected Team or another mode.
-    currentAgentType: currentMode,
+    currentAgentType: composerAgentType,
     newSessionConfig,
     onSessionCreated: isNewSessionDraft ? handleDeferredSessionCreated : undefined,
     sessionReferenceScope: isNewSessionDraft
@@ -1036,17 +1059,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       mode?: 'replace' | 'append';
       separator?: string;
       composerPresentation?: unknown;
+      targetSessionId?: string;
     }) => {
-      if (data.onlyIfEmpty && inputValueRef.current.trim().length > 0) {
-        return;
-      }
-
       const parsedPresentation = data.mode === 'append'
         ? null
         : parseComposerPresentation(data.composerPresentation);
       const restoredContent = parsedPresentation
         ? composerPresentationToValue(parsedPresentation)
         : data.content;
+      const requestedTargetSessionId = data.targetSessionId?.trim();
+      const targetsAnotherComposer =
+        Boolean(requestedTargetSessionId)
+        && requestedTargetSessionId !== effectiveTargetSessionId;
+
+      if (targetsAnotherComposer && requestedTargetSessionId) {
+        if (!canSelectComposerSession(requestedTargetSessionId)) {
+          notificationService.warning(
+            t('chatInput.targetUnavailable', {
+              defaultValue: 'The requested conversation is not open.',
+            }),
+          );
+          return;
+        }
+
+        const existingDraft = getSessionComposerDraft(requestedTargetSessionId);
+        if (data.onlyIfEmpty && existingDraft?.value.trim()) {
+          return;
+        }
+        const nextValue =
+          data.mode === 'append' && existingDraft?.value.trim()
+            ? `${existingDraft.value.replace(/\s+$/, '')}${data.separator ?? '\n\n'}${restoredContent.replace(/^\s+/, '')}`
+            : restoredContent;
+        saveSessionComposerDraft(requestedTargetSessionId, {
+          value: nextValue,
+          contexts: parsedPresentation
+            ? getComposerPresentationContexts(parsedPresentation)
+            : data.mode === 'append'
+              ? existingDraft?.contexts ?? []
+              : [],
+          pendingLargePastes: {},
+        });
+        selectComposerSession(requestedTargetSessionId);
+        window.requestAnimationFrame(() => {
+          richTextInputRef.current?.focus();
+        });
+        return;
+      }
+
+      if (data.onlyIfEmpty && inputValueRef.current.trim().length > 0) {
+        return;
+      }
+
       const nextValue =
         data.mode === 'append'
           ? (() => {
@@ -1087,7 +1150,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       globalEventBus.off('fill-chat-input', handleFillChatInput);
     };
-  }, [clearPendingLargePastes, replaceContexts]);
+  }, [
+    canSelectComposerSession,
+    clearPendingLargePastes,
+    effectiveTargetSessionId,
+    replaceContexts,
+    selectComposerSession,
+    t,
+  ]);
 
   // Expose current input value for external queries (e.g. deep review fill-back confirmation)
   React.useEffect(() => {
@@ -1327,7 +1397,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     (async () => {
       try {
         const list = await configAPI.getModeSkillConfigs({
-          modeId: currentMode,
+          modeId: composerAgentType,
           workspacePath: workspacePath || undefined,
         });
         if (!cancelled) {
@@ -1336,7 +1406,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       } catch (err) {
         log.error('Failed to load mode-resolved skills for boost panel', {
           err,
-          modeId: currentMode,
+          modeId: composerAgentType,
           workspacePath: workspacePath || undefined,
         });
         if (!cancelled) setBoostPanelSkills([]);
@@ -1347,7 +1417,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [currentMode, isModeDropdownOpen, workspacePath]);
+  }, [composerAgentType, isModeDropdownOpen, workspacePath]);
 
   useEffect(() => {
     const handleMediaReference = (event: Event) => {
@@ -2323,8 +2393,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   ]);
 
   const handleCancelCurrentTask = useCallback(async () => {
-    await FlowChatManager.getInstance().cancelCurrentTask();
-  }, []);
+    if (!effectiveTargetSession) return;
+    try {
+      await cancelComposerTarget(effectiveTargetSession);
+    } catch (error) {
+      log.error('Failed to stop composer target', {
+        sessionId: effectiveTargetSession.sessionId,
+        error,
+      });
+      notificationService.error(
+        t('childSession.stopFailed', {
+          defaultValue: 'Failed to stop this session.',
+        }),
+      );
+    }
+  }, [effectiveTargetSession, t]);
   
   const handleSendOrCancel = useCallback(async () => {
     if (!derivedState && !isNewSessionDraft) {
@@ -3077,7 +3160,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }, []);
 
   const voiceInput = useComposerVoiceInput({
-    composerSessionId: currentSessionId,
+    composerSessionId: effectiveTargetSessionId,
     insertText: insertVoiceTranscript,
     focusInputSoon: focusRichTextInputSoon,
   });
@@ -3248,6 +3331,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     );
   };
 
+  const mainComposerSession = currentSessionId
+    ? flowChatState.sessions.get(currentSessionId)
+    : undefined;
+  const activeChildComposerSession =
+    activeChildCandidate?.status === 'ready' && activeChildCandidate.kind === 'child'
+      ? flowChatState.sessions.get(activeChildCandidate.sessionId)
+      : undefined;
+
   return (
     <>
       {deepReviewConsentDialog}
@@ -3288,6 +3379,46 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         <PendingQueuePanel sessionId={effectiveTargetSessionId || undefined} />
 
         <div className="void-chat-input__container">
+          {activeChildCandidate?.status === 'ready' && activeChildCandidate.kind === 'child' && (
+            <div
+              className="void-chat-input__target-switcher"
+              role="group"
+              aria-label={t('chatInput.conversationTarget')}
+              data-testid="chat-input-target-switcher"
+            >
+              <span className="void-chat-input__target-switcher-label">
+                {t('chatInput.sendTarget')}
+              </span>
+              <button
+                type="button"
+                className={`void-chat-input__target-tab ${!isChildComposerTarget ? 'void-chat-input__target-tab--active' : ''}`}
+                aria-pressed={!isChildComposerTarget}
+                onClick={selectMainComposerTarget}
+              >
+                {t('chatInput.targetMain')}
+                {mainComposerSession?.title && (
+                  <span className="void-chat-input__target-tab-name">
+                    {mainComposerSession.title}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                className={`void-chat-input__target-tab ${isChildComposerTarget ? 'void-chat-input__target-tab--active' : ''}`}
+                aria-pressed={isChildComposerTarget}
+                onClick={selectActiveChildComposerTarget}
+              >
+                {activeChildCandidate.sessionKind === 'subagent'
+                  ? t('chatInput.targetSubagent')
+                  : t('chatInput.targetBtw')}
+                {activeChildComposerSession?.title && (
+                  <span className="void-chat-input__target-tab-name">
+                    {activeChildComposerSession.title}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
           <div className={`void-chat-input__box ${isMultiLine ? 'void-chat-input__box--multi-line' : 'void-chat-input__box--capsule'}`}>
             <div className="void-chat-input__input-area">
               {showImageStrip && (
@@ -3631,7 +3762,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               <div className="void-chat-input__actions-right">
                 <div className="void-chat-input__model-usage-group">
                   <ModelSelector
-                    currentMode={modeState.current}
+                    currentMode={composerAgentType}
                     sessionId={effectiveTargetSessionId || undefined}
                     currentTokens={tokenUsage.current}
                     maxTokens={tokenUsage.max}

@@ -234,11 +234,13 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
             onFillUserMessageInput({
               content: messageContent,
               composerPresentation: composerPresentation ?? undefined,
+              targetSessionId: resolvedSessionId,
             });
           } else {
             globalEventBus.emit('fill-chat-input', {
               content: messageContent,
               composerPresentation,
+              targetSessionId: resolvedSessionId,
             });
           }
         }
@@ -340,13 +342,14 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       const fillRequest = {
         content: messageContent,
         composerPresentation: composerPresentation ?? undefined,
+        targetSessionId: resolvedSessionId,
       };
       if (onFillUserMessageInput) {
         onFillUserMessageInput(fillRequest);
       } else {
         globalEventBus.emit('fill-chat-input', fillRequest);
       }
-    }, [composerPresentation, messageContent, onFillUserMessageInput]);
+    }, [composerPresentation, messageContent, onFillUserMessageInput, resolvedSessionId]);
 
     const usageContextUsage = currentSession
       ? currentSession.currentAcpContextUsage

@@ -12,6 +12,8 @@ import type { ComposerPresentation } from '../../utils/composerPresentation';
 export interface FlowChatComposerFillRequest {
   content: string;
   composerPresentation?: ComposerPresentation;
+  /** Exact session whose composer should be restored. Never infer this from visible text. */
+  targetSessionId?: string;
 }
 
 export interface FlowChatContextValue {

@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useTranslation} from 'react-i18next';
 import {useShallow} from 'zustand/react/shallow';
 import path from 'path-browserify';
-import {CornerUpLeft, Image as ImageIcon, Link2, Loader2, Send, Square, Sparkles, X} from 'lucide-react';
+import {CornerUpLeft, Link2, Square, Sparkles} from 'lucide-react';
 import {
   FlowChatContext,
   type FlowChatComposerFillRequest,
@@ -24,35 +24,11 @@ import {fileTabManager} from '@/shared/services/FileTabManager';
 import {createTab} from '@/shared/utils/tabUtils';
 import {IconButton, type LineRange} from '@/component-library';
 import {resolveSessionRelationship} from '../../utils/sessionMetadata';
-import { agentAPI, configAPI } from '@/infrastructure/api';
+import { agentAPI } from '@/infrastructure/api';
 import { btwAPI } from '@/infrastructure/api/service-api/BtwAPI';
 import {globalEventBus} from '@/infrastructure/event-bus';
 import {notificationService} from '@/shared/notification-system';
 import {createLogger} from '@/shared/utils/logger';
-import {FlowChatManager} from '../../services/FlowChatManager';
-import {createImageContextFromFile} from '../../utils/imageUtils';
-import {buildImageContextsForBackend} from '../../utils/imageContextForBackend';
-import type {ModeSkillInfo} from '@/infrastructure/config/types';
-import type {
-  CodeSnippetContext,
-  ContextItem,
-  ImageContext,
-  SessionReferenceContext,
-} from '@/shared/types/context';
-import {formatContextForPrompt} from '@/shared/utils/contextPrompt';
-import {
-  composerPresentationToValue,
-  createComposerPresentation,
-  getComposerPresentationContexts,
-  getContextPresentationLabel,
-  type ComposerPresentation,
-} from '../../utils/composerPresentation';
-import {expandSkillPromptReferences} from '../../utils/skillPromptReference';
-import {
-  resolveSessionReferenceTranscriptInjection,
-  sessionReferenceResolutionMetadata,
-} from '../../services/sessionReferenceTranscript';
-import {stateMachineManager, SessionExecutionState} from '../../state-machine';
 import {settleStoppedReviewSessionState} from '../../utils/reviewSessionStop';
 import {findLatestCodeReviewResult, findLatestCodeReviewResultState} from '../../utils/reviewSessionSummary';
 import {
@@ -62,10 +38,6 @@ import {
 } from '../../utils/deepReviewContinuation';
 import {buildReviewRemediationItems, type CodeReviewRemediationData} from '../../utils/codeReviewRemediation';
 import {ReviewActionBar} from './DeepReviewActionBar';
-import {
-  buildChildSkillCommandMessage,
-  filterRuntimeSkillsForChildComposer,
-} from './BtwSessionComposerSkill';
 import {
   getReviewActionBarStateForSession,
   type ReviewActionMode,
@@ -101,46 +73,11 @@ const log = createLogger('BtwSessionPanel');
 const REVIEW_ACTION_BOTTOM_BLANK_SPACE_PX = 96;
 const MemoizedReviewActionBar = React.memo(ReviewActionBar);
 
-const removeComposerPresentationContext = (
-  presentation: ComposerPresentation,
-  contextId: string,
-): ComposerPresentation => ({
-  ...presentation,
-  segments: presentation.segments.filter(
-    segment => segment.type !== 'context' || segment.context.id !== contextId,
-  ),
-});
-
 const isActiveReviewTurnStatus = (status?: DialogTurn['status']) =>
   status === 'pending' ||
   status === 'image_analyzing' ||
   status === 'processing' ||
   status === 'finishing';
-
-const isProcessingState = (state: SessionExecutionState | null | undefined) =>
-  state === SessionExecutionState.PROCESSING ||
-  state === SessionExecutionState.FINISHING;
-
-const resolveActiveBtwRequestId = (session?: Session | null): string | undefined => {
-  const turns = session?.dialogTurns ?? [];
-  for (let index = turns.length - 1; index >= 0; index -= 1) {
-    const turn = turns[index];
-    if (!isActiveReviewTurnStatus(turn.status)) {
-      continue;
-    }
-    const match = turn.id.match(/^btw-turn-(.+)$/);
-    if (match?.[1]?.trim()) {
-      return match[1].trim();
-    }
-  }
-
-  const requestId = session?.btwOrigin?.requestId?.trim();
-  if (requestId) {
-    return requestId;
-  }
-
-  return undefined;
-};
 
 type DeepReviewActionData = CodeReviewRemediationData & {
   review_mode?: 'standard' | 'deep';
@@ -176,52 +113,14 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     isActive,
   });
   const [stoppingReview, setStoppingReview] = useState(false);
-  const [composerValue, setComposerValue] = useState('');
-  const [composerImageContexts, setComposerImageContexts] = useState<ImageContext[]>([]);
-  const [composerTextContexts, setComposerTextContexts] = useState<CodeSnippetContext[]>([]);
-  const [composerReferenceContexts, setComposerReferenceContexts] = useState<ContextItem[]>([]);
-  const [restoredComposerPresentation, setRestoredComposerPresentation] =
-    useState<ComposerPresentation | null>(null);
-  const [isAddingComposerImage, setIsAddingComposerImage] = useState(false);
-  const [isAddingComposerTextFile, setIsAddingComposerTextFile] = useState(false);
-  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
   const [isUpdatingBtwMemory, setIsUpdatingBtwMemory] = useState(false);
-  const [composerSkills, setComposerSkills] = useState<ModeSkillInfo[]>([]);
-  const [isLoadingComposerSkills, setIsLoadingComposerSkills] = useState(false);
-  const [isSkillPickerOpen, setIsSkillPickerOpen] = useState(false);
-  const [stoppingChildSession, setStoppingChildSession] = useState(false);
-  const [childExecutionState, setChildExecutionState] = useState<SessionExecutionState>(() =>
-    childSessionId
-      ? stateMachineManager.getCurrentState(childSessionId)
-      : SessionExecutionState.IDLE
-  );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRef<HTMLDivElement>(null);
-  const composerInputRef = useRef<HTMLTextAreaElement>(null);
-  const composerImageInputRef = useRef<HTMLInputElement>(null);
-  const composerFileInputRef = useRef<HTMLInputElement>(null);
   const [actionBarHeight, setActionBarHeight] = useState(0);
   const shouldAutoScrollRef = useRef(true);
   const autoScrollFrameRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!isActive || !childSessionId) {
-      if (isActive) {
-        setChildExecutionState(SessionExecutionState.IDLE);
-      }
-      return;
-    }
-
-    setChildExecutionState(stateMachineManager.getCurrentState(childSessionId));
-    return stateMachineManager.subscribeGlobal((sessionId, machine) => {
-      if (sessionId === childSessionId) {
-        setChildExecutionState(machine.currentState);
-      }
-    });
-  }, [childSessionId, isActive]);
-
-  const childAgentType = childSession?.mode || childSession?.config?.agentType || 'agentic';
   const childRelationship = resolveSessionRelationship(childSession);
   const childKind = childRelationship.kind === 'review' ||
     childRelationship.kind === 'deep_review' ||
@@ -389,32 +288,11 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   }, []);
 
   const handleFillUserMessageInput = useCallback((request: FlowChatComposerFillRequest) => {
-    const presentation = request.composerPresentation;
-    if (presentation) {
-      const contexts = getComposerPresentationContexts(presentation);
-      setComposerValue(composerPresentationToValue(presentation));
-      setComposerImageContexts(
-        contexts.filter((context): context is ImageContext => context.type === 'image'),
-      );
-      setComposerTextContexts(
-        contexts.filter((context): context is CodeSnippetContext => context.type === 'code-snippet'),
-      );
-      setComposerReferenceContexts(
-        contexts.filter(context => context.type !== 'image' && context.type !== 'code-snippet'),
-      );
-      setRestoredComposerPresentation(presentation);
-    } else {
-      // Backward compatibility for turns persisted before ComposerPresentation v1.
-      setComposerValue(request.content);
-      setComposerImageContexts([]);
-      setComposerTextContexts([]);
-      setComposerReferenceContexts([]);
-      setRestoredComposerPresentation(null);
-    }
-    window.requestAnimationFrame(() => {
-      composerInputRef.current?.focus();
+    globalEventBus.emit('fill-chat-input', {
+      ...request,
+      targetSessionId: childSessionId,
     });
-  }, []);
+  }, [childSessionId]);
 
   const contextValue = useMemo(() => ({
     onFileViewRequest: handleFileViewRequest,
@@ -447,11 +325,6 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   const lastItem = lastModelRound?.items[lastModelRound.items.length - 1];
   const lastItemContent = lastItem && 'content' in lastItem ? String((lastItem as any).content || '') : '';
   const isTurnProcessing = isActiveReviewTurnStatus(lastDialogTurn?.status);
-  const effectiveChildExecutionState = isActive && childSessionId
-    ? stateMachineManager.getCurrentState(childSessionId)
-    : childExecutionState;
-  const isChildSessionProcessing =
-    isTurnProcessing || isProcessingState(effectiveChildExecutionState);
   const [isContentGrowing, setIsContentGrowing] = useState(true);
   const contentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -504,97 +377,6 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     (childKind === 'review' || childKind === 'deep_review') &&
     isTurnProcessing &&
     !stoppingReview;
-  const canUseComposer = childKind === 'btw' || childKind === 'subagent';
-  const trimmedComposerValue = composerValue.trim();
-  const runtimeComposerSkills = useMemo(
-    () => filterRuntimeSkillsForChildComposer(composerSkills),
-    [composerSkills],
-  );
-  const composerCommandText = composerValue.trimStart();
-  const lowerComposerCommandText = composerCommandText.toLowerCase();
-  const isSkillCommandInput =
-    lowerComposerCommandText === '/skill' ||
-    lowerComposerCommandText.startsWith('/skill ');
-  const slashCommandQuery = useMemo(() => {
-    const text = composerValue.trimStart();
-    const lowerText = text.toLowerCase();
-    if (!lowerText.startsWith('/') || lowerText === '/skill' || lowerText.startsWith('/skill ')) {
-      return '';
-    }
-    return lowerText.slice(1).trimStart();
-  }, [composerValue]);
-  const skillCommandQuery = useMemo(() => {
-    const text = composerValue.trimStart();
-    if (!text.toLowerCase().startsWith('/skill')) {
-      return '';
-    }
-    return text.slice('/skill'.length).trimStart();
-  }, [composerValue]);
-  const visibleSkillItems = useMemo(
-    () => filterRuntimeSkillsForChildComposer(composerSkills, skillCommandQuery),
-    [composerSkills, skillCommandQuery],
-  );
-  const showSkillCommandItem =
-    childKind === 'subagent' &&
-    isSkillPickerOpen &&
-    composerCommandText.startsWith('/') &&
-    !isSkillCommandInput &&
-    'skill'.startsWith(slashCommandQuery);
-  const showSkillPicker =
-    childKind === 'subagent' &&
-    isSkillPickerOpen &&
-    composerCommandText.startsWith('/') &&
-    (showSkillCommandItem || isSkillCommandInput);
-  const canSubmitComposer =
-    canUseComposer &&
-    Boolean(childSessionId) &&
-    Boolean(trimmedComposerValue) &&
-    !isSubmittingMessage &&
-    !isAddingComposerImage &&
-    !isAddingComposerTextFile &&
-    !isChildSessionProcessing;
-
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    if (childKind !== 'subagent') {
-      setComposerSkills([]);
-      setIsLoadingComposerSkills(false);
-      setIsSkillPickerOpen(false);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingComposerSkills(true);
-    configAPI.getModeSkillConfigs({
-      modeId: childAgentType,
-      workspacePath: workspacePath || childSession?.workspacePath || undefined,
-    }).then((skills) => {
-      if (!cancelled) {
-        setComposerSkills(skills);
-      }
-    }).catch((error) => {
-      log.error('Failed to load child session skills', {
-        childSessionId,
-        childAgentType,
-        workspacePath: workspacePath || childSession?.workspacePath || undefined,
-        error,
-      });
-      if (!cancelled) {
-        setComposerSkills([]);
-      }
-    }).finally(() => {
-      if (!cancelled) {
-        setIsLoadingComposerSkills(false);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [childAgentType, childKind, childSession?.workspacePath, childSessionId, isActive, workspacePath]);
 
   // ---- Review action bar integration ----
   const {
@@ -1076,303 +858,6 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     }
   }, [childSessionId, stoppingReview, isTurnProcessing, t]);
 
-  const handleSubmitComposer = useCallback(async () => {
-    if (!canSubmitComposer || !childSessionId || !childSession) {
-      return;
-    }
-
-    const message = trimmedComposerValue;
-    const childSkillCommand = childKind === 'subagent'
-      ? buildChildSkillCommandMessage(message, runtimeComposerSkills)
-      : { kind: 'plain' as const, message };
-    const messageForAgent = childSkillCommand.message;
-    const imageContexts = composerImageContexts;
-    const textContexts = composerTextContexts;
-    const referenceContexts = composerReferenceContexts;
-    const submittedContexts: ContextItem[] = [
-      ...textContexts,
-      ...referenceContexts,
-      ...imageContexts,
-    ];
-    const composerPresentation = restoredComposerPresentation
-      ?? createComposerPresentation(message, submittedContexts);
-    setComposerValue('');
-    setComposerImageContexts([]);
-    setComposerTextContexts([]);
-    setComposerReferenceContexts([]);
-    setRestoredComposerPresentation(null);
-    setIsSkillPickerOpen(false);
-    setIsSubmittingMessage(true);
-    try {
-      const imageContextOptions = imageContexts.length > 0
-        ? buildImageContextsForBackend(imageContexts)
-        : undefined;
-      const agentType = childAgentType;
-      const nonImageContexts: ContextItem[] = [...textContexts, ...referenceContexts];
-      const sessionReferences = referenceContexts.filter(
-        (context): context is SessionReferenceContext => context.type === 'session-reference',
-      );
-      const sessionReferenceInjection = await resolveSessionReferenceTranscriptInjection(
-        sessionReferences,
-        workspacePath
-          ? {
-              currentSessionId: childSessionId,
-              workspaceId: childSession.workspaceId,
-              workspacePath,
-              remoteConnectionId: childSession.remoteConnectionId,
-              remoteSshHost: childSession.remoteSshHost,
-            }
-          : undefined,
-      );
-      const contextPrompt = nonImageContexts
-        .map(context => context.type === 'code-snippet'
-          ? formatComposerTextFileContextForPrompt(context)
-          : formatContextForPrompt(context))
-        .filter(Boolean)
-        .join('\n');
-      const expandedMessage = expandSkillPromptReferences(messageForAgent);
-      const messageWithContext = contextPrompt
-        ? `${contextPrompt}\n\n${expandedMessage}`
-        : expandedMessage;
-      const aiMessage = sessionReferenceInjection.prompt
-        ? `${sessionReferenceInjection.prompt}\n\n${messageWithContext}`
-        : messageWithContext;
-      const displayMessage = contextPrompt ? message : undefined;
-      await FlowChatManager.getInstance().sendMessage(
-        aiMessage,
-        childSessionId,
-        displayMessage,
-        agentType,
-        undefined,
-        {
-          ...imageContextOptions,
-          userMessageMetadata: {
-            composerPresentation,
-            sessionReferences,
-            sessionReferenceResolutions: sessionReferenceResolutionMetadata(
-              sessionReferenceInjection.results,
-            ),
-          },
-        },
-      );
-    } catch (error) {
-      setComposerValue(message);
-      setComposerImageContexts(imageContexts);
-      setComposerTextContexts(textContexts);
-      setComposerReferenceContexts(referenceContexts);
-      setRestoredComposerPresentation(composerPresentation);
-      log.error('Failed to send child session message', {
-        childSessionId,
-        childKind,
-        error,
-      });
-      notificationService.error(
-        t('childSession.sendFailed', {
-          defaultValue: 'Failed to send the message.',
-        }),
-      );
-    } finally {
-      setIsSubmittingMessage(false);
-    }
-  }, [
-    canSubmitComposer,
-    childKind,
-    childSession,
-    childSessionId,
-    composerImageContexts,
-    composerReferenceContexts,
-    composerTextContexts,
-    childAgentType,
-    runtimeComposerSkills,
-    restoredComposerPresentation,
-    t,
-    trimmedComposerValue,
-    workspacePath,
-  ]);
-
-  const handleComposerValueChange = useCallback((event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const nextValue = event.target.value;
-    setComposerValue(nextValue);
-    setRestoredComposerPresentation(null);
-    setIsSkillPickerOpen(
-      childKind === 'subagent' && nextValue.trimStart().startsWith('/'),
-    );
-  }, [childKind]);
-
-  const handleSelectComposerSkillCommand = useCallback(() => {
-    setComposerValue('/skill ');
-    setIsSkillPickerOpen(true);
-    window.requestAnimationFrame(() => {
-      composerInputRef.current?.focus();
-    });
-  }, []);
-
-  const handleSelectComposerSkill = useCallback((skill: ModeSkillInfo) => {
-    setComposerValue(`/skill ${skill.name} `);
-    setIsSkillPickerOpen(false);
-    window.requestAnimationFrame(() => {
-      composerInputRef.current?.focus();
-    });
-  }, []);
-
-  const handleComposerImageInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = '';
-    if (files.length === 0) {
-      return;
-    }
-
-    setIsAddingComposerImage(true);
-    try {
-      const contexts = await Promise.all(
-        files
-          .filter(file => file.type.startsWith('image/'))
-          .map(file => createImageContextFromFile(file, { workspacePath })),
-      );
-      if (contexts.length > 0) {
-        setComposerImageContexts(previous => [...previous, ...contexts]);
-        setRestoredComposerPresentation(null);
-      }
-    } catch (error) {
-      log.error('Failed to add child session image attachment', {
-        childSessionId,
-        childKind,
-        error,
-      });
-      notificationService.error(
-        t('childSession.attachmentFailed', {
-          defaultValue: 'Failed to attach the image.',
-        }),
-      );
-    } finally {
-      setIsAddingComposerImage(false);
-    }
-  }, [childKind, childSessionId, t, workspacePath]);
-
-  const handleRemoveComposerImage = useCallback((imageId: string) => {
-    setComposerImageContexts(previous => previous.filter(image => image.id !== imageId));
-    setRestoredComposerPresentation(previous => {
-      if (!previous) return null;
-      const next = removeComposerPresentationContext(previous, imageId);
-      setComposerValue(composerPresentationToValue(next));
-      return next;
-    });
-  }, []);
-
-  const handleComposerFileInputChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = '';
-    const textFiles = files.filter(isSupportedComposerTextFile);
-    if (textFiles.length === 0) {
-      return;
-    }
-
-    setIsAddingComposerTextFile(true);
-    try {
-      const contexts = await Promise.all(textFiles.map(readComposerTextFileContext));
-      setComposerTextContexts(previous => [...previous, ...contexts]);
-      setRestoredComposerPresentation(null);
-    } catch (error) {
-      log.error('Failed to add child session text attachment', {
-        childSessionId,
-        childKind,
-        error,
-      });
-      notificationService.error(
-        t('childSession.attachmentFailed', {
-          defaultValue: 'Failed to attach the file.',
-        }),
-      );
-    } finally {
-      setIsAddingComposerTextFile(false);
-    }
-  }, [childKind, childSessionId, t]);
-
-  const handleRemoveComposerTextFile = useCallback((contextId: string) => {
-    setComposerTextContexts(previous => previous.filter(context => context.id !== contextId));
-    setRestoredComposerPresentation(previous => {
-      if (!previous) return null;
-      const next = removeComposerPresentationContext(previous, contextId);
-      setComposerValue(composerPresentationToValue(next));
-      return next;
-    });
-  }, []);
-
-  const handleRemoveComposerReference = useCallback((contextId: string) => {
-    setComposerReferenceContexts(previous => previous.filter(context => context.id !== contextId));
-    setRestoredComposerPresentation(previous => {
-      if (!previous) return null;
-      const next = removeComposerPresentationContext(previous, contextId);
-      setComposerValue(composerPresentationToValue(next));
-      return next;
-    });
-  }, []);
-
-  const handleComposerKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Escape' && isSkillPickerOpen) {
-      event.preventDefault();
-      setIsSkillPickerOpen(false);
-      return;
-    }
-
-    if (
-      (event.key === 'Enter' || event.key === 'Tab') &&
-      !event.shiftKey &&
-      !event.nativeEvent.isComposing &&
-      showSkillCommandItem
-    ) {
-      event.preventDefault();
-      handleSelectComposerSkillCommand();
-      return;
-    }
-
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) {
-      return;
-    }
-
-    event.preventDefault();
-    void handleSubmitComposer();
-  }, [handleSelectComposerSkillCommand, handleSubmitComposer, isSkillPickerOpen, showSkillCommandItem]);
-
-  const handleStopChildSession = useCallback(async () => {
-    if (!childSessionId || stoppingChildSession || !isChildSessionProcessing) {
-      return;
-    }
-
-    setStoppingChildSession(true);
-    try {
-      if (childKind === 'btw') {
-        const requestId = resolveActiveBtwRequestId(childSession);
-        if (!requestId) {
-          throw new Error(`Active /btw request not found for session: ${childSessionId}`);
-        }
-        await btwAPI.cancel({ requestId });
-      } else {
-        await agentAPI.cancelSession(childSessionId);
-      }
-    } catch (error) {
-      log.error('Failed to stop child session', {
-        childSessionId,
-        childKind,
-        error,
-      });
-      notificationService.error(
-        t('childSession.stopFailed', {
-          defaultValue: 'Failed to stop this session.',
-        }),
-      );
-    } finally {
-      setStoppingChildSession(false);
-    }
-  }, [
-    childKind,
-    childSession,
-    childSessionId,
-    isChildSessionProcessing,
-    stoppingChildSession,
-    t,
-  ]);
-
   const handleReturnToParentSession = useCallback(() => {
     const resolvedParentSessionId = btwOrigin?.parentSessionId || parentSessionId;
     if (!resolvedParentSessionId) {
@@ -1480,7 +965,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   return (
     <FlowChatContext.Provider value={contextValue}>
       <div
-        className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}${canUseComposer ? ' btw-session-panel--has-composer' : ''}`}
+        className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}`}
       >
         <div className="btw-session-panel__header">
           <div className="btw-session-panel__header-left">
@@ -1504,9 +989,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
                   type="checkbox"
                   checked={btwOrigin?.memoryEnabled === true}
                   disabled={
-                    isUpdatingBtwMemory ||
-                    isSubmittingMessage ||
-                    isChildSessionProcessing
+                    isUpdatingBtwMemory || isTurnProcessing
                   }
                   onChange={event => void handleBtwMemoryEnabledChange(event)}
                 />
@@ -1625,270 +1108,9 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
           </div>
         )}
 
-        {canUseComposer && (
-          <div className="btw-session-panel__composer" data-testid="btw-session-panel-composer">
-            <input
-              ref={composerImageInputRef}
-              data-testid="btw-session-panel-image-input"
-              className="btw-session-panel__composer-file-input"
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleComposerImageInputChange}
-              tabIndex={-1}
-            />
-            <input
-              ref={composerFileInputRef}
-              data-testid="btw-session-panel-file-input"
-              className="btw-session-panel__composer-file-input"
-              type="file"
-              accept=".md,.txt,text/markdown,text/plain"
-              multiple
-              onChange={handleComposerFileInputChange}
-              tabIndex={-1}
-            />
-            {showSkillPicker && (
-              <div
-                className="btw-session-panel__composer-skill-picker"
-                role="listbox"
-                aria-label={t('childSession.skillPickerLabel', {
-                  defaultValue: 'Available skills',
-                })}
-              >
-                {isLoadingComposerSkills ? (
-                  <div className="btw-session-panel__composer-skill-empty">
-                    {t('childSession.skillPickerLoading', { defaultValue: 'Loading skills...' })}
-                  </div>
-                ) : showSkillCommandItem ? (
-                  <button
-                    type="button"
-                    className="btw-session-panel__composer-skill-item"
-                    data-testid="btw-session-panel-skill-command"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={handleSelectComposerSkillCommand}
-                    role="option"
-                  >
-                    <span className="btw-session-panel__composer-skill-name">
-                      /skill
-                    </span>
-                    <span className="btw-session-panel__composer-skill-description">
-                      {t('childSession.skillCommandDescription', {
-                        defaultValue: 'Use an enabled skill',
-                      })}
-                    </span>
-                  </button>
-                ) : visibleSkillItems.length > 0 ? (
-                  visibleSkillItems.slice(0, 6).map(skill => (
-                    <button
-                      key={skill.key}
-                      type="button"
-                      className="btw-session-panel__composer-skill-item"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => handleSelectComposerSkill(skill)}
-                      role="option"
-                    >
-                      <span className="btw-session-panel__composer-skill-name">
-                        {skill.name}
-                      </span>
-                      {skill.description && (
-                        <span className="btw-session-panel__composer-skill-description">
-                          {skill.description}
-                        </span>
-                      )}
-                    </button>
-                  ))
-                ) : (
-                  <div className="btw-session-panel__composer-skill-empty">
-                    {t('childSession.skillPickerEmpty', { defaultValue: 'No enabled skills for this agent.' })}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="btw-session-panel__composer-box">
-              {(composerImageContexts.length > 0
-                || composerTextContexts.length > 0
-                || composerReferenceContexts.length > 0) && (
-                <div className="btw-session-panel__composer-attachments">
-                  {composerImageContexts.map(image => (
-                    <button
-                      key={image.id}
-                      type="button"
-                      className="btw-session-panel__composer-attachment"
-                      onClick={() => handleRemoveComposerImage(image.id)}
-                      title={t('childSession.removeAttachment', {
-                        defaultValue: 'Remove attachment',
-                      })}
-                      aria-label={t('childSession.removeAttachmentNamed', {
-                        name: image.imageName,
-                        defaultValue: `Remove ${image.imageName}`,
-                      })}
-                    >
-                      <span>{image.imageName}</span>
-                      <X size={10} />
-                    </button>
-                  ))}
-                  {composerTextContexts.map(context => (
-                    <button
-                      key={context.id}
-                      type="button"
-                      className="btw-session-panel__composer-attachment"
-                      onClick={() => handleRemoveComposerTextFile(context.id)}
-                      title={t('childSession.removeAttachment', {
-                        defaultValue: 'Remove attachment',
-                      })}
-                      aria-label={t('childSession.removeAttachmentNamed', {
-                        name: context.fileName,
-                        defaultValue: `Remove ${context.fileName}`,
-                      })}
-                    >
-                      <span>{context.fileName}</span>
-                      <X size={10} />
-                    </button>
-                  ))}
-                  {composerReferenceContexts.map(context => {
-                    const label = getContextPresentationLabel(context);
-                    return (
-                      <button
-                        key={context.id}
-                        type="button"
-                        className="btw-session-panel__composer-attachment"
-                        onClick={() => handleRemoveComposerReference(context.id)}
-                        title={t('childSession.removeAttachment', {
-                          defaultValue: 'Remove attachment',
-                        })}
-                        aria-label={t('childSession.removeAttachmentNamed', {
-                          name: label,
-                          defaultValue: `Remove ${label}`,
-                        })}
-                      >
-                        <span>{label}</span>
-                        <X size={10} />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="btw-session-panel__composer-row">
-                <button
-                  type="button"
-                  className="btw-session-panel__composer-attach-button btw-session-panel__composer-attach-button--image"
-                  onClick={() => composerImageInputRef.current?.click()}
-                  disabled={isSubmittingMessage || isChildSessionProcessing || isAddingComposerImage}
-                  aria-label={t('childSession.attachImage', { defaultValue: 'Attach image' })}
-                  title={t('childSession.attachImage', { defaultValue: 'Attach image' })}
-                >
-                  {isAddingComposerImage ? (
-                    <Loader2 className="btw-session-panel__composer-loading-icon" size={14} />
-                  ) : (
-                    <ImageIcon size={14} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="btw-session-panel__composer-attach-button btw-session-panel__composer-attach-button--file"
-                  onClick={() => composerFileInputRef.current?.click()}
-                  disabled={isSubmittingMessage || isChildSessionProcessing || isAddingComposerTextFile}
-                  aria-label={t('childSession.attachFile', { defaultValue: 'Attach text file' })}
-                  title={t('childSession.attachFile', { defaultValue: 'Attach text file' })}
-                >
-                  {isAddingComposerTextFile ? (
-                    <Loader2 className="btw-session-panel__composer-loading-icon" size={14} />
-                  ) : (
-                    <Link2 size={14} />
-                  )}
-                </button>
-                <textarea
-                  ref={composerInputRef}
-                  className="btw-session-panel__composer-input"
-                  value={composerValue}
-                  onChange={handleComposerValueChange}
-                  onKeyDown={handleComposerKeyDown}
-                  disabled={isSubmittingMessage || isChildSessionProcessing}
-                  rows={1}
-                  placeholder={childKind === 'subagent'
-                    ? t('childSession.composerPlaceholderAgent', {
-                      defaultValue: 'Message this agent...',
-                    })
-                    : t('childSession.composerPlaceholderFollowup', {
-                      defaultValue: 'Ask a follow-up...',
-                    })}
-                  aria-label={t('childSession.composerAriaLabel', {
-                    defaultValue: 'Message child session',
-                  })}
-                />
-                {isChildSessionProcessing ? (
-                  <button
-                    type="button"
-                    className="btw-session-panel__composer-button btw-session-panel__composer-button--stop"
-                    onClick={() => void handleStopChildSession()}
-                    disabled={stoppingChildSession}
-                    aria-label={stoppingChildSession
-                      ? t('childSession.stopping', { defaultValue: 'Stopping...' })
-                      : t('childSession.stop', { defaultValue: 'Stop' })}
-                    title={stoppingChildSession
-                      ? t('childSession.stopping', { defaultValue: 'Stopping...' })
-                      : t('childSession.stop', { defaultValue: 'Stop' })}
-                  >
-                    <Square size={14} />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="btw-session-panel__composer-button"
-                    onClick={() => void handleSubmitComposer()}
-                    disabled={!canSubmitComposer}
-                    aria-label={t('childSession.send', { defaultValue: 'Send' })}
-                    title={t('childSession.send', { defaultValue: 'Send' })}
-                  >
-                    <Send size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </FlowChatContext.Provider>
   );
 };
 
 BtwSessionPanel.displayName = 'BtwSessionPanel';
-
-function isSupportedComposerTextFile(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return name.endsWith('.md')
-    || name.endsWith('.txt')
-    || file.type === 'text/markdown'
-    || file.type === 'text/plain';
-}
-
-async function readComposerTextFileContext(file: File): Promise<CodeSnippetContext> {
-  const text = await file.text();
-  return {
-    id: `btw-text-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    type: 'code-snippet',
-    filePath: file.name,
-    fileName: file.name,
-    startLine: 1,
-    endLine: Math.max(1, text.split(/\r?\n/).length),
-    selectedText: text,
-    language: file.name.toLowerCase().endsWith('.md') ? 'markdown' : 'text',
-    timestamp: Date.now(),
-    metadata: {
-      source: 'btw-session-panel-file-input',
-      fileSize: file.size,
-      mimeType: file.type,
-    },
-  };
-}
-
-function formatComposerTextFileContextForPrompt(context: CodeSnippetContext): string {
-  return [
-    `[Text Attachment: ${context.fileName}]`,
-    `Lines: ${context.startLine}-${context.endLine}`,
-    '',
-    '```' + (context.language ?? 'text'),
-    context.selectedText,
-    '```',
-  ].join('\n');
-}

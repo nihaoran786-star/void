@@ -612,6 +612,8 @@
     "conversationTarget": "Conversation target",
     "targetMain": "Main",
     "targetBtw": "Side",
+    "targetSubagent": "Subagent",
+    "targetUnavailable": "The requested conversation is not open.",
     "sendingToMain": "Main session: {{title}}",
     "sendingToBtw": "Side session: {{title}}",
     "modeDescriptions": {

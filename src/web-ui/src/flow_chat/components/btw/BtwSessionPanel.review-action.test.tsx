@@ -7,19 +7,12 @@ import { BtwSessionPanel } from './BtwSessionPanel';
 import { useReviewActionBarStore } from '../../store/deepReviewActionBarStore';
 import { loadPersistedReviewState } from '../../services/ReviewActionBarPersistenceService';
 import type { FlowChatState, Session } from '../../types/flow-chat';
-import type { ModeSkillInfo } from '@/infrastructure/config/types';
+import { globalEventBus } from '@/infrastructure/event-bus';
 
 let flowChatState: FlowChatState;
 const flowChatListeners = new Set<(state: FlowChatState) => void>();
-const mockSendMessage = vi.fn();
 const mockCancelSession = vi.fn();
-const mockBtwCancel = vi.fn();
-const mockGetModeSkillConfigs = vi.fn();
 const mockLoadSessionHistory = vi.fn();
-const mockCreateImageContextFromFile = vi.fn();
-const mockBuildImageContextsForBackend = vi.fn();
-const mockResolveSessionReferences = vi.fn();
-let mockExecutionState = 'idle';
 const translate = (_key: string, options?: Record<string, unknown> & { defaultValue?: string }) => (
   options?.defaultValue ?? _key
 );
@@ -140,46 +133,11 @@ vi.mock('@/infrastructure/api', () => ({
   agentAPI: {
     cancelSession: (...args: unknown[]) => mockCancelSession(...args),
   },
-  configAPI: {
-    getModeSkillConfigs: (...args: unknown[]) => mockGetModeSkillConfigs(...args),
-  },
-  sessionAPI: {
-    resolveSessionReferences: (...args: unknown[]) => mockResolveSessionReferences(...args),
-  },
 }));
 
 vi.mock('@/infrastructure/api/service-api/BtwAPI', () => ({
   btwAPI: {
-    cancel: (...args: unknown[]) => mockBtwCancel(...args),
-  },
-}));
-
-vi.mock('../../services/FlowChatManager', () => ({
-  FlowChatManager: {
-    getInstance: () => ({
-      sendMessage: (...args: unknown[]) => mockSendMessage(...args),
-    }),
-  },
-}));
-
-vi.mock('../../utils/imageUtils', () => ({
-  createImageContextFromFile: (...args: unknown[]) => mockCreateImageContextFromFile(...args),
-}));
-
-vi.mock('../../utils/imageContextForBackend', () => ({
-  buildImageContextsForBackend: (...args: unknown[]) => mockBuildImageContextsForBackend(...args),
-}));
-
-vi.mock('../../state-machine', () => ({
-  SessionExecutionState: {
-    IDLE: 'idle',
-    PROCESSING: 'processing',
-    FINISHING: 'finishing',
-    ERROR: 'error',
-  },
-  stateMachineManager: {
-    getCurrentState: () => mockExecutionState,
-    subscribeGlobal: () => () => {},
+    updateMemoryEnabled: vi.fn(),
   },
 }));
 
@@ -417,28 +375,6 @@ function createSubagentSessionWithId(sessionId: string, parentSessionId: string)
   } as Session;
 }
 
-function createModeSkill(
-  name: string,
-  overrides: Partial<ModeSkillInfo> = {},
-): ModeSkillInfo {
-  return {
-    key: `user:${name}`,
-    name,
-    description: `${name} description`,
-    path: `D:/skills/${name}`,
-    level: 'user',
-    sourceSlot: 'user',
-    dirName: name,
-    isBuiltin: false,
-    defaultEnabled: true,
-    effectiveEnabled: true,
-    disabledByMode: false,
-    selectedForRuntime: true,
-    stateReason: 'custom_user_default_enabled',
-    ...overrides,
-  };
-}
-
 function cloneReviewSessionWithId(
   session: Session,
   sessionId: string,
@@ -542,15 +478,6 @@ function createCancelledFixDeepReview(): Session {
   } as Session;
 }
 
-function setTextareaValue(input: HTMLTextAreaElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLTextAreaElement.prototype,
-    'value',
-  )?.set;
-  setter?.call(input, value);
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-}
-
 describe('BtwSessionPanel review action bar integration', () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -558,39 +485,6 @@ describe('BtwSessionPanel review action bar integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     flowChatListeners.clear();
-    mockGetModeSkillConfigs.mockResolvedValue([]);
-    mockResolveSessionReferences.mockResolvedValue([{
-      source: {
-        kind: 'session_reference',
-        sessionId: 'research-session',
-        sessionTitle: 'Research',
-      },
-      status: 'ready',
-      transcript: '<referenced_session id="research-session">Research transcript</referenced_session>',
-      messageCount: 2,
-      estimatedTokens: 12,
-    }]);
-    mockExecutionState = 'idle';
-    mockCreateImageContextFromFile.mockResolvedValue({
-      id: 'image-context-1',
-      type: 'image',
-      imageName: 'reference.png',
-      imagePath: 'D:/workspace/project/reference.png',
-      dataUrl: 'data:image/png;base64,abc',
-      fileSize: 10,
-      mimeType: 'image/png',
-      source: 'file',
-      isLocal: true,
-    });
-    mockBuildImageContextsForBackend.mockReturnValue({
-      imageContexts: [{
-        id: 'image-context-1',
-        source: 'data_url',
-        dataUrl: 'data:image/png;base64,abc',
-        mimeType: 'image/png',
-        name: 'reference.png',
-      }],
-    });
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     useReviewActionBarStore.getState().reset();
     container = document.createElement('div');
@@ -668,7 +562,6 @@ describe('BtwSessionPanel review action bar integration', () => {
       phase: 'review_completed',
     });
     expect(mockCancelSession).not.toHaveBeenCalled();
-    expect(mockBtwCancel).not.toHaveBeenCalled();
   });
 
   it('shows the completed Deep Review action bar even when the report has no remediation items', async () => {
@@ -689,113 +582,7 @@ describe('BtwSessionPanel review action bar integration', () => {
     expect(useReviewActionBarStore.getState().remediationItems).toEqual([]);
   });
 
-  it('sends follow-up messages to the active BTW child session only', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    const parentSession = createParentSessionWithId('parent-session');
-    const btwSession = createBtwSessionWithId('btw-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [btwSession.sessionId, btwSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={btwSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-
-    await act(async () => {
-      setTextareaValue(input!, 'Can you explain the current result?');
-    });
-
-    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-    expect(sendButton?.disabled).toBe(false);
-
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'Can you explain the current result?',
-      'btw-child',
-      undefined,
-      'agentic',
-      undefined,
-      expect.objectContaining({
-        userMessageMetadata: expect.objectContaining({
-          composerPresentation: expect.objectContaining({ version: 1 }),
-        }),
-      }),
-    );
-    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
-  });
-
-  it('sends follow-up messages to the active subagent child session only', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-
-    await act(async () => {
-      setTextareaValue(input!, 'Continue from your last finding.');
-    });
-
-    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'Continue from your last finding.',
-      'subagent-child',
-      undefined,
-      'Researcher',
-      undefined,
-      expect.objectContaining({
-        userMessageMetadata: expect.objectContaining({
-          composerPresentation: expect.objectContaining({ version: 1 }),
-        }),
-      }),
-    );
-    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
-  });
-
-  it('restores and resubmits the versioned composer presentation without parsing display text', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
+  it('routes a versioned composer presentation to the shared child-session composer', async () => {
     const parentSession = createParentSessionWithId('parent-session');
     const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
     flowChatState = {
@@ -824,363 +611,27 @@ describe('BtwSessionPanel review action bar integration', () => {
       restoreButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
 
-    const input = container.querySelector<HTMLTextAreaElement>(
-      '.btw-session-panel__composer-input',
-    );
-    expect(input?.value).toContain('[[void-skill:audit]]');
-    expect(input?.value).toContain('#session:Research');
-    expect(input?.value).toContain('#media:preview.mp4');
-    expect(container.textContent).toContain('Research');
-    expect(container.textContent).toContain('preview.mp4');
-    expect(container.textContent).not.toContain('legacy display text');
-
-    const sendButton = container.querySelector<HTMLButtonElement>(
-      '.btw-session-panel__composer-button',
-    );
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    const [message, sessionId, , agentType, , options] = mockSendMessage.mock.calls[0];
-    expect(sessionId).toBe('subagent-child');
-    expect(agentType).toBe('Researcher');
-    expect(String(message)).toContain('Please use the Skill tool with command "audit".');
-    expect(String(message)).toContain('Research transcript');
-    expect(String(message)).toContain('[Session Reference: Research; session=research-session; workspace=workspace-1]');
-    expect(String(message)).toContain('[Media Reference: preview.mp4]');
-    expect(options.userMessageMetadata).toEqual({
-      composerPresentation: expect.objectContaining({
-        version: 1,
-        segments: expect.arrayContaining([
-          expect.objectContaining({ type: 'skill', name: 'audit' }),
-          expect.objectContaining({
-            type: 'context',
-            context: expect.objectContaining({ type: 'session-reference' }),
-          }),
-          expect.objectContaining({
-            type: 'context',
-            context: expect.objectContaining({ type: 'media-reference' }),
-          }),
-        ]),
-      }),
-      sessionReferences: [
-        expect.objectContaining({
-          type: 'session-reference',
-          sessionId: 'research-session',
-        }),
-      ],
-      sessionReferenceResolutions: [{
-        source: {
-          kind: 'session_reference',
-          sessionId: 'research-session',
-          sessionTitle: 'Research',
-        },
-        status: 'ready',
-        error: undefined,
-      }],
-    });
-  });
-
-  it('converts subagent /skill commands into normal child session messages', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    mockGetModeSkillConfigs.mockResolvedValue([
-      createModeSkill('剧本猫咪拯救法'),
-      createModeSkill('禁用技能', { effectiveEnabled: false }),
-    ]);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-      await Promise.resolve();
-    });
-
-    expect(mockGetModeSkillConfigs).toHaveBeenCalledWith({
-      modeId: 'Researcher',
-      workspacePath: 'D:/workspace/project',
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-
-    await act(async () => {
-      setTextareaValue(input!, '/skill 剧本猫咪拯救法 帮我重写第一场对白');
-    });
-
-    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'Use the "剧本猫咪拯救法" skill. 帮我重写第一场对白',
-      'subagent-child',
-      undefined,
-      'Researcher',
-      undefined,
+    expect(globalEventBus.emit).toHaveBeenCalledWith(
+      'fill-chat-input',
       expect.objectContaining({
-        userMessageMetadata: expect.objectContaining({
-          composerPresentation: expect.objectContaining({ version: 1 }),
+        content: 'legacy display text',
+        targetSessionId: 'subagent-child',
+        composerPresentation: expect.objectContaining({
+          version: 1,
+          segments: expect.arrayContaining([
+            expect.objectContaining({ type: 'skill', name: 'audit' }),
+            expect.objectContaining({
+              type: 'context',
+              context: expect.objectContaining({ type: 'session-reference' }),
+            }),
+            expect.objectContaining({
+              type: 'context',
+              context: expect.objectContaining({ type: 'media-reference' }),
+            }),
+          ]),
         }),
       }),
     );
-  });
-
-  it('shows only runtime-enabled subagent skills in the child composer picker', async () => {
-    mockGetModeSkillConfigs.mockResolvedValue([
-      createModeSkill('剧本猫咪拯救法'),
-      createModeSkill('禁用技能', { effectiveEnabled: false }),
-      createModeSkill('覆盖技能', { selectedForRuntime: false }),
-    ]);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-      await Promise.resolve();
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-
-    await act(async () => {
-      setTextareaValue(input!, '/skill 剧');
-      await Promise.resolve();
-    });
-
-    expect(container.textContent).toContain('剧本猫咪拯救法');
-    expect(container.textContent).not.toContain('禁用技能');
-    expect(container.textContent).not.toContain('覆盖技能');
-
-    const skillButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-skill-item');
-    await act(async () => {
-      skillButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    });
-
-    expect(input!.value).toBe('/skill 剧本猫咪拯救法 ');
-  });
-
-  it('renders the child composer as a single input box with slash skill discovery', async () => {
-    mockGetModeSkillConfigs.mockResolvedValue([
-      createModeSkill('剧本猫咪拯救法'),
-    ]);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-      await Promise.resolve();
-    });
-
-    expect(container.querySelector('.btw-session-panel__composer-box')).toBeTruthy();
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-
-    await act(async () => {
-      setTextareaValue(input!, '/');
-      await Promise.resolve();
-    });
-
-    const skillCommand = container.querySelector<HTMLButtonElement>('[data-testid="btw-session-panel-skill-command"]');
-    expect(skillCommand).toBeTruthy();
-    expect(skillCommand?.textContent).toContain('/skill');
-
-    await act(async () => {
-      input!.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Enter',
-        bubbles: true,
-      }));
-    });
-
-    expect(input!.value).toBe('/skill ');
-    expect(mockSendMessage).not.toHaveBeenCalled();
-  });
-
-  it('sends selected image attachments to the active subagent child session', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-    });
-
-    const attachInput = container.querySelector<HTMLInputElement>('[data-testid="btw-session-panel-image-input"]');
-    expect(attachInput).toBeTruthy();
-
-    const file = new File(['fake image'], 'reference.png', { type: 'image/png' });
-    await act(async () => {
-      Object.defineProperty(attachInput!, 'files', {
-        configurable: true,
-        value: [file],
-      });
-      attachInput!.dispatchEvent(new Event('change', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-    await act(async () => {
-      setTextareaValue(input!, 'Use this as the character reference.');
-    });
-
-    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockCreateImageContextFromFile).toHaveBeenCalledWith(
-      file,
-      { workspacePath: 'D:/workspace/project' },
-    );
-    expect(mockBuildImageContextsForBackend).toHaveBeenCalledWith([
-      expect.objectContaining({
-        id: 'image-context-1',
-        type: 'image',
-      }),
-    ]);
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'Use this as the character reference.',
-      'subagent-child',
-      undefined,
-      'Researcher',
-      undefined,
-      {
-        imageContexts: [{
-          id: 'image-context-1',
-          source: 'data_url',
-          dataUrl: 'data:image/png;base64,abc',
-          mimeType: 'image/png',
-          name: 'reference.png',
-        }],
-        userMessageMetadata: {
-          composerPresentation: expect.objectContaining({ version: 1 }),
-          sessionReferences: [],
-          sessionReferenceResolutions: [],
-        },
-      },
-    );
-    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
-  });
-
-  it('sends selected text attachments as child session context without changing the active parent session', async () => {
-    mockSendMessage.mockResolvedValue(undefined);
-    const parentSession = createParentSessionWithId('parent-session');
-    const subagentSession = createSubagentSessionWithId('subagent-child', parentSession.sessionId);
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [subagentSession.sessionId, subagentSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={subagentSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-    });
-
-    const attachInput = container.querySelector<HTMLInputElement>('[data-testid="btw-session-panel-file-input"]');
-    expect(attachInput).toBeTruthy();
-
-    const file = new File(['# 第一集\n雨夜重逢'], 'script.md', { type: 'text/markdown' });
-    await act(async () => {
-      Object.defineProperty(attachInput!, 'files', {
-        configurable: true,
-        value: [file],
-      });
-      attachInput!.dispatchEvent(new Event('change', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    const input = container.querySelector<HTMLTextAreaElement>('.btw-session-panel__composer-input');
-    expect(input).toBeTruthy();
-    await act(async () => {
-      setTextareaValue(input!, '请根据这个剧本继续扩写。');
-    });
-
-    const sendButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-    await act(async () => {
-      sendButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    const [message, sessionId, displayMessage, agentType] = mockSendMessage.mock.calls[0];
-    expect(sessionId).toBe('subagent-child');
-    expect(displayMessage).toBe('请根据这个剧本继续扩写。');
-    expect(agentType).toBe('Researcher');
-    expect(String(message)).toContain('script.md');
-    expect(String(message)).toContain('# 第一集');
-    expect(String(message)).toContain('请根据这个剧本继续扩写。');
-    expect(flowChatState.activeSessionId).toBe(parentSession.sessionId);
   });
 
   it('hydrates historical subagent sessions with internal turns included', async () => {
@@ -1219,55 +670,6 @@ describe('BtwSessionPanel review action bar integration', () => {
       undefined,
       { includeInternal: true },
     );
-  });
-
-  it('stops the active BTW turn instead of a stale origin request', async () => {
-    mockBtwCancel.mockResolvedValue(undefined);
-    const parentSession = createParentSessionWithId('parent-session');
-    const btwSession = {
-      ...createBtwSessionWithId('btw-child', parentSession.sessionId),
-      btwOrigin: {
-        requestId: 'old-request',
-        parentSessionId: parentSession.sessionId,
-      },
-      dialogTurns: [{
-        id: 'btw-turn-new-request',
-        sessionId: 'btw-child',
-        userMessage: { id: 'user-1', content: 'follow up', timestamp: 1 },
-        modelRounds: [],
-        status: 'processing',
-        startTime: 1,
-      }],
-    } as Session;
-    flowChatState = {
-      ...flowChatState,
-      sessions: new Map([
-        [parentSession.sessionId, parentSession],
-        [btwSession.sessionId, btwSession],
-      ]),
-      activeSessionId: parentSession.sessionId,
-    } as FlowChatState;
-
-    await act(async () => {
-      root.render(
-        <BtwSessionPanel
-          childSessionId={btwSession.sessionId}
-          parentSessionId={parentSession.sessionId}
-          workspacePath="D:/workspace/project"
-        />,
-      );
-    });
-
-    const stopButton = container.querySelector<HTMLButtonElement>('.btw-session-panel__composer-button');
-    expect(stopButton?.disabled).toBe(false);
-
-    await act(async () => {
-      stopButton!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(mockBtwCancel).toHaveBeenCalledWith({ requestId: 'new-request' });
-    expect(mockCancelSession).not.toHaveBeenCalled();
   });
 
   it('shows the running review action as minimized while Deep Review is still processing', async () => {
