@@ -122,8 +122,8 @@ final result: passed
 
 The reference establishes a small, highlighted capability capsule beside the
 conversation. The implementation keeps that hierarchy while using persisted
-tool activity as the source of truth. Terminal and browser tabs remain ordinary
-canvas tabs and never become session capabilities.
+session mode and tool activity as the source of truth. Terminal and browser
+tabs remain ordinary canvas tabs and never become session capabilities.
 
 ## Capture evidence
 
@@ -133,16 +133,18 @@ canvas tabs and never become session capabilities.
   `.codex-artifacts/visual/session-capability-rail-tight-expanded.png`.
 - Full desktop media-session default:
   `.codex-artifacts/visual/media-session-default-gallery-tight-rail.png`.
+- Full desktop media close-and-reopen result:
+  `.codex-artifacts/visual/media-capability-rail-reopen.png`.
 - Combined source and implementation review:
-  `.codex-artifacts/visual/session-capability-tight-reference-comparison.png`.
+  `.codex-artifacts/visual/media-capability-rail-reference-comparison.png`.
 
-The source is 1701 by 957 pixels. Desktop captures are 2560 by 1380 pixels
-from a 1707 by 912 CSS-pixel WebView at device pixel ratio 1.5. The combined
-comparison normalizes both captures to 1280 pixels wide per side. The source
-represents the expanded capability state; the compact state is an intentional
-additional product requirement. A separate focused crop was unnecessary
-because the rail labels, status dot, border, and icon remain legible in the
-full-width combined evidence.
+The source is 1701 by 925 pixels. The current desktop capture is 2561 by 1368
+pixels from a 1707 by 912 CSS-pixel WebView at device pixel ratio 1.5. The
+combined comparison is 2560 by 696 pixels and normalizes both sides to 1280
+pixels wide. The source represents the expanded capability state; the compact
+state is an intentional additional product requirement. A separate focused
+crop was unnecessary because both capability labels, their status dots, and
+the selected media state remain legible in the full-width comparison.
 
 ## Fidelity and interaction review
 
@@ -158,6 +160,8 @@ full-width combined evidence.
 | Draft new-task page remains clean | Passed: the rail is hidden before a session exists |
 | Canvas state is preserved | Passed: collapse hides the pane without closing its tabs |
 | Media-session default | Passed: activating a media session opens and expands the existing Media tab without waiting for library discovery |
+| Persistent media reopen entry | Passed: every normal Media session projects a ready Media capability even before generating an asset |
+| Close and reopen media | Passed: middle-close removes the Media tab while the capability remains; clicking it recreates and activates the existing Media surface |
 
 ## Comparison history
 
@@ -167,13 +171,18 @@ full-width combined evidence.
   an empty canvas. The media-session activation path now opens the existing
   workspace Media surface on the next animation frame, after workspace canvas
   restoration has completed.
+- Earlier P1: the Media capsule was derived only from media tool history, so a
+  new Media session—or a session whose Media tab had been closed—could lose its
+  visible reopen path. Normal Media sessions now receive a zero-asset ready
+  capability from their persisted session mode; real tool activity still owns
+  its later status and asset count.
 - Post-fix evidence shows no persistent chat obstruction, clipped labels,
   duplicate media tabs, broken thumbnails, or missing close/reopen control.
 
 ## Verification
 
-- Content Canvas media lifecycle tests: 10 passed.
-- Capability projection and session rail tests: 12 passed across 2 files.
+- Media lifecycle, capability projection, and session rail tests: 24 passed
+  across 3 files.
 - Web TypeScript: passed.
 - Theme color contract: passed with zero undefined variables.
 - Desktop interaction: compact, expanded, media-session activation, image

@@ -55,6 +55,21 @@ function createSession(tools: FlowToolItem[]): Pick<Session, 'dialogTurns'> {
 }
 
 describe('deriveSessionCapabilities', () => {
+  it('keeps the media capability available for an empty media session', () => {
+    expect(deriveSessionCapabilities({
+      dialogTurns: [],
+      mode: 'Media',
+      sessionKind: 'normal',
+    })).toEqual([
+      {
+        id: 'workspace-media',
+        status: 'ready',
+        usageCount: 0,
+        latestActivityAt: 0,
+      },
+    ]);
+  });
+
   it('projects short drama and media from the persisted tool transcript', () => {
     const session = createSession([
       createTool('drama-1', 'ShortDramaProject', 'completed', 10),

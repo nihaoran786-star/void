@@ -15,6 +15,9 @@ export interface SessionCapabilityPresentation {
   latestActivityAt: number;
 }
 
+type SessionCapabilitySource = Pick<Session, 'dialogTurns'>
+  & Partial<Pick<Session, 'mode' | 'sessionKind'>>;
+
 const MEDIA_TOOL_NAMES = new Set([
   'GenerateImage',
   'GenerateVideo',
@@ -87,11 +90,11 @@ function activityTimeForTool(tool: FlowToolItem): number {
 
 /**
  * Projects durable, session-specific capabilities from the existing persisted
- * tool transcript. This keeps capability discovery isolated per session and
- * avoids introducing a second persistence model.
+ * session mode and tool transcript. This keeps capability discovery isolated
+ * per session and avoids introducing a second persistence model.
  */
 export function deriveSessionCapabilities(
-  session: Pick<Session, 'dialogTurns'> | undefined,
+  session: SessionCapabilitySource | undefined,
 ): SessionCapabilityPresentation[] {
   if (!session) {
     return [];
@@ -102,6 +105,18 @@ export function deriveSessionCapabilities(
     SessionCapabilityPresentation
   >();
   const countedToolIds = new Map<SessionCapabilityId, Set<string>>();
+
+  if (
+    session.mode?.trim().toLowerCase() === 'media'
+    && session.sessionKind !== 'subagent'
+  ) {
+    presentations.set('workspace-media', {
+      id: 'workspace-media',
+      status: 'ready',
+      usageCount: 0,
+      latestActivityAt: 0,
+    });
+  }
 
   for (const turn of session.dialogTurns) {
     for (const round of turn.modelRounds) {

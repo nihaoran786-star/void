@@ -24,11 +24,16 @@ interface SessionCapabilityProjectionCache {
 
 function aggregateTurnCapabilities(
   entries: Iterable<TurnCapabilityCacheEntry>,
+  baseline: SessionCapabilityPresentation[] = [],
 ): SessionCapabilityPresentation[] {
   const aggregated = new Map<
     SessionCapabilityPresentation['id'],
     SessionCapabilityPresentation
   >();
+
+  for (const capability of baseline) {
+    aggregated.set(capability.id, { ...capability });
+  }
 
   for (const entry of entries) {
     for (const capability of entry.capabilities) {
@@ -94,7 +99,14 @@ function selectSnapshot(
 
   return {
     sessionId,
-    capabilities: aggregateTurnCapabilities(cache.turns.values()),
+    capabilities: aggregateTurnCapabilities(
+      cache.turns.values(),
+      deriveSessionCapabilities({
+        dialogTurns: [],
+        mode: session.mode,
+        sessionKind: session.sessionKind,
+      }),
+    ),
   };
 }
 

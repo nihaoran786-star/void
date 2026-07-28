@@ -76,7 +76,7 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
             <span className="session-capability-rail__copy">
               <span className="session-capability-rail__label">{label}</span>
               <span className="session-capability-rail__status">
-                {capability.status === 'ready'
+                {capability.status === 'ready' && capability.usageCount > 0
                   ? t('layout.sessionCapabilities.usageCount', {
                       count: capability.usageCount,
                     })

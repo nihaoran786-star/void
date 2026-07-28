@@ -238,6 +238,38 @@ describe('SessionScene universal canvas toggle control', () => {
     window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
+  it('keeps an empty media-session capability available to reopen the media canvas', async () => {
+    mocks.layout.rightPanelCollapsed = true;
+    mocks.capabilities = [{
+      id: 'workspace-media',
+      status: 'ready',
+      usageCount: 0,
+      latestActivityAt: 0,
+    }];
+    const openWorkspaceMedia = vi.fn();
+    window.addEventListener('void:open-workspace-media', openWorkspaceMedia);
+
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+    });
+
+    const capability = container.querySelector<HTMLButtonElement>(
+      '[data-capability-id="workspace-media"]',
+    );
+    expect(capability).not.toBeNull();
+    expect(capability?.textContent).toContain(
+      'layout.sessionCapabilities.status.ready',
+    );
+
+    await act(async () => {
+      capability?.click();
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    expect(openWorkspaceMedia).toHaveBeenCalledTimes(1);
+    window.removeEventListener('void:open-workspace-media', openWorkspaceMedia);
+  });
+
   it('collapses the auxiliary preview again for a consecutive new-task draft', async () => {
     await act(async () => {
       root.render(<SessionScene />);
