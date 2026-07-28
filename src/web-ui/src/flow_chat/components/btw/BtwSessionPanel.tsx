@@ -165,17 +165,17 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   } = useExploreGroupState(virtualItems);
 
   // Load history for historical sessions that have not yet had their turns loaded.
-  const isLoadingRef = useRef(false);
+  const loadingSessionIdsRef = useRef(new Set<string>());
   const historySession = childSession ?? reviewSession;
   useEffect(() => {
     if (!childSessionId || !historySession) return;
     if (!historySession.isHistorical) return;
-    if (isLoadingRef.current) return;
+    if (loadingSessionIdsRef.current.has(childSessionId)) return;
 
     const path = workspacePath ?? historySession.workspacePath;
     if (!path) return;
 
-    isLoadingRef.current = true;
+    loadingSessionIdsRef.current.add(childSessionId);
     flowChatStore.loadSessionHistory(
       childSessionId,
       path,
@@ -188,7 +188,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
           historySession.sessionKind === 'btw',
       },
     ).finally(() => {
-      isLoadingRef.current = false;
+      loadingSessionIdsRef.current.delete(childSessionId);
     });
   }, [childSessionId, historySession, workspacePath]);
 

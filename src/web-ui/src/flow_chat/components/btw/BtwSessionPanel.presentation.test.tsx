@@ -456,6 +456,73 @@ describe('BtwSessionPanel presentation lifecycle', () => {
     expect(mockCancelSession).not.toHaveBeenCalled();
   });
 
+  it('hydrates a newly selected historical child while another hydration remains in flight', async () => {
+    const historicalChildA = {
+      ...createComposableChildSession('subagent'),
+      sessionId: 'historical-child-a',
+      isHistorical: true,
+    } as Session;
+    const historicalChildB = {
+      ...createComposableChildSession('subagent'),
+      sessionId: 'historical-child-b',
+      isHistorical: true,
+    } as Session;
+    flowChatState = {
+      sessions: new Map([
+        ['parent', createParentSession()],
+        [historicalChildA.sessionId, historicalChildA],
+        [historicalChildB.sessionId, historicalChildB],
+      ]),
+      activeSessionId: 'parent',
+    };
+
+    let resolveFirstHydration!: () => void;
+    const firstHydration = new Promise<void>((resolve) => {
+      resolveFirstHydration = resolve;
+    });
+    mockLoadSessionHistory
+      .mockImplementationOnce(() => firstHydration)
+      .mockResolvedValue(undefined);
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={historicalChildA.sessionId}
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+    expect(mockLoadSessionHistory).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId={historicalChildB.sessionId}
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          isActive
+        />,
+      );
+    });
+
+    expect(mockLoadSessionHistory).toHaveBeenCalledTimes(2);
+    expect(mockLoadSessionHistory).toHaveBeenLastCalledWith(
+      historicalChildB.sessionId,
+      'D:/workspace/project',
+      undefined,
+      undefined,
+      undefined,
+      { includeInternal: true },
+    );
+
+    await act(async () => {
+      resolveFirstHydration();
+      await firstHydration;
+    });
+  });
+
   it('keeps hidden queue updates shallow and restores the latest presentation session', async () => {
     useReviewActionBarStore.getState().showActionBar({
       childSessionId: 'review-child',
