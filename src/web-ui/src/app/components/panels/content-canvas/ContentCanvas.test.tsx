@@ -141,6 +141,34 @@ describe('ContentCanvas workspace media opening', () => {
     flowChatStore.setState(() => ({ sessions: new Map(), activeSessionId: null }));
   });
 
+  it('opens the media tab immediately when a media session becomes active', async () => {
+    const service: WorkspaceMediaLibraryService = {
+      checkAvailability: vi.fn(async () => ({ status: 'unavailable', checkedAt: 100 })),
+      scanLibrary: vi.fn(),
+    };
+    flowChatStore.addExternalSession('media-session', 'Media session', 'Media', 'C:/work');
+    flowChatStore.switchSession('media-session');
+
+    await act(async () => {
+      root.render(<ContentCanvas workspacePath="C:/work" workspaceMediaService={service} />);
+    });
+    await act(async () => {
+      await new Promise<void>(resolve => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    });
+
+    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toEqual([
+      expect.objectContaining({
+        content: expect.objectContaining({
+          type: 'workspace-media-gallery',
+          data: { workspacePath: 'C:/work' },
+        }),
+      }),
+    ]);
+    expect(service.checkAvailability).not.toHaveBeenCalled();
+  });
+
   it('auto-opens the workspace media tab once when the primary group is empty and media is available', async () => {
     const service: WorkspaceMediaLibraryService = {
       checkAvailability: vi.fn(async () => ({ status: 'available', firstDetectedAt: 100 })),
@@ -267,11 +295,25 @@ describe('ContentCanvas workspace media opening', () => {
         />
       );
     });
+    await act(async () => {
+      await new Promise<void>(resolve => {
+        window.requestAnimationFrame(() => resolve());
+      });
+    });
 
     expect(flowChatStoreMock.getListenerCount()).toBe(1);
     expect(vi.mocked(useKeyboardShortcuts)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: true }));
     act(() => window.dispatchEvent(new CustomEvent('void:open-short-drama-center')));
-    expect(useAgentCanvasStore.getState().primaryGroup.tabs).toHaveLength(1);
+    const resumedTabTypes = useAgentCanvasStore
+      .getState()
+      .primaryGroup
+      .tabs
+      .map(tab => tab.content.type);
+    expect(resumedTabTypes).toHaveLength(2);
+    expect(resumedTabTypes).toEqual(expect.arrayContaining([
+      'workspace-media-gallery',
+      'short-drama-center',
+    ]));
 
     await act(async () => {
       root.render(

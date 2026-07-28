@@ -128,36 +128,58 @@ canvas tabs and never become session capabilities.
 ## Capture evidence
 
 - Full desktop capture, compact state:
-  `.codex-artifacts/visual/session-capability-rail-03-short-drama.png`.
+  `.codex-artifacts/visual/session-capability-rail-tight-compact.png`.
 - Full desktop capture, focused capsule:
-  `.codex-artifacts/visual/session-capability-rail-05-focus-expanded.png`.
-- Final full desktop verification:
-  `.codex-artifacts/visual/session-capability-rail-final.png`.
+  `.codex-artifacts/visual/session-capability-rail-tight-expanded.png`.
+- Full desktop media-session default:
+  `.codex-artifacts/visual/media-session-default-gallery-tight-rail.png`.
 - Combined source and implementation review:
-  `.codex-artifacts/visual/session-capability-reference-comparison.png`.
+  `.codex-artifacts/visual/session-capability-tight-reference-comparison.png`.
+
+The source is 1701 by 957 pixels. Desktop captures are 2560 by 1380 pixels
+from a 1707 by 912 CSS-pixel WebView at device pixel ratio 1.5. The combined
+comparison normalizes both captures to 1280 pixels wide per side. The source
+represents the expanded capability state; the compact state is an intentional
+additional product requirement. A separate focused crop was unnecessary
+because the rail labels, status dot, border, and icon remain legible in the
+full-width combined evidence.
 
 ## Fidelity and interaction review
 
 | Requirement | Result |
 | --- | --- |
-| Small by default | Passed: 42 px compact rail on the current chat width |
-| Clear selected highlight | Passed: focus expands to a 150 px blue-accent capsule |
+| Small by default | Passed: 36 px rail with 22 px icon cells on every chat width |
+| Hover/focus expansion | Passed: pointer hover or keyboard focus expands to 136 px |
+| Clear selected highlight | Passed: expanded state retains the blue-accent capsule |
 | Per-session capability state | Passed: derived only from the active persisted transcript |
 | Open or focus an existing capability | Passed through the existing short-drama and media canvas events |
 | Collapse while AI output is active | Passed: toggle is outside the streamed message surface |
 | No duplicate top-level media or short-drama entry | Passed: capabilities use real canvas tabs only |
 | Draft new-task page remains clean | Passed: the rail is hidden before a session exists |
 | Canvas state is preserved | Passed: collapse hides the pane without closing its tabs |
+| Media-session default | Passed: activating a media session opens and expands the existing Media tab without waiting for library discovery |
+
+## Comparison history
+
+- Earlier P2: the compact state remained 42 px and the expanded state occupied
+  150 px. The rail is now 36 px by default and 136 px while interacting.
+- Earlier P1: an empty media session waited for media discovery and could show
+  an empty canvas. The media-session activation path now opens the existing
+  workspace Media surface on the next animation frame, after workspace canvas
+  restoration has completed.
+- Post-fix evidence shows no persistent chat obstruction, clipped labels,
+  duplicate media tabs, broken thumbnails, or missing close/reopen control.
 
 ## Verification
 
-- Capability projection, scene, header, tab bar, and import-boundary tests:
-  49 passed across 5 files.
+- Content Canvas media lifecycle tests: 10 passed.
+- Capability projection and session rail tests: 12 passed across 2 files.
 - Web TypeScript: passed.
-- Core module boundaries: passed.
-- i18n contract: 15 passed.
-- Theme visual contract: passed.
-- Desktop interaction: collapse, reopen, and capability-focus transitions passed.
-- Combined visual review found no clipping or persistent content obstruction.
+- Theme color contract: passed with zero undefined variables.
+- Desktop interaction: compact, expanded, media-session activation, image
+  loading, panel expansion, collapse, and reopen transitions passed.
+- Browser-rendered console/alert check found no visible runtime error.
+- Fonts, spacing, colors, existing Lucide icons, loaded media image quality,
+  and localized copy passed the visible fidelity review.
 
 final result: passed

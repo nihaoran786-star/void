@@ -3,18 +3,29 @@
 .session-capability-rail {
   position: absolute;
   top: 50%;
-  right: 10px;
+  right: 8px;
   z-index: $z-floating;
   display: flex;
-  width: 150px;
-  padding: 6px;
+  width: 36px;
+  padding: 4px;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   transform: translateY(-50%);
   border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
-  border-radius: 14px;
+  border-radius: 11px;
   background: var(--workspace-surface-raised, var(--color-bg-elevated));
   box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
+  transition:
+    width $motion-fast $easing-standard,
+    padding $motion-fast $easing-standard,
+    border-radius $motion-fast $easing-standard;
+
+  &:hover,
+  &:focus-within {
+    width: 136px;
+    padding: 5px;
+    border-radius: 13px;
+  }
 }
 
 .session-capability-rail__capability,
@@ -45,10 +56,11 @@
 
 .session-capability-rail__capability {
   position: relative;
-  min-height: 48px;
-  padding: 7px 9px;
-  gap: 8px;
-  border-radius: 10px;
+  min-height: 28px;
+  padding: 2px;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 8px;
   text-align: left;
 
   &--active {
@@ -62,17 +74,22 @@
 
 .session-capability-rail__icon {
   display: grid;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 7px;
   color: var(--workspace-text-secondary, var(--color-text-secondary));
   background: var(--workspace-surface-panel, var(--color-bg-secondary));
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .session-capability-rail__copy {
-  display: flex;
+  display: none;
   min-width: 0;
   flex: 1;
   flex-direction: column;
@@ -82,9 +99,9 @@
 .session-capability-rail__label {
   overflow: hidden;
   color: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -92,16 +109,19 @@
 .session-capability-rail__status {
   overflow: hidden;
   color: var(--workspace-text-muted, var(--color-text-muted));
-  font-size: 10px;
-  line-height: 14px;
+  font-size: 9px;
+  line-height: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .session-capability-rail__status-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
   border-radius: 50%;
   background: var(--workspace-status-success-text, var(--status-success-text));
 }
@@ -128,75 +148,40 @@
 
 .session-capability-rail__toggle {
   justify-content: center;
-  min-height: 30px;
-  padding: 5px 8px;
-  gap: 6px;
+  min-height: 26px;
+  padding: 3px;
+  gap: 5px;
   border-top-color: var(--workspace-border-subtle, var(--border-subtle));
-  border-radius: 8px;
-  font-size: 11px;
+  border-radius: 7px;
+  font-size: 10px;
   font-weight: 500;
+
+  span {
+    display: none;
+  }
 }
 
-@container session-chat-pane (max-width: 720px) {
-  .session-capability-rail {
-    width: 42px;
-    padding: 5px;
-    border-radius: 12px;
-
-    &:hover,
-    &:focus-within {
-      width: 150px;
-      padding: 6px;
-      border-radius: 14px;
-    }
-  }
-
+.session-capability-rail:hover,
+.session-capability-rail:focus-within {
   .session-capability-rail__capability {
-    position: relative;
-    min-height: 34px;
-    padding: 3px;
-    justify-content: center;
+    min-height: 40px;
+    padding: 6px 7px;
+    justify-content: flex-start;
   }
 
-  .session-capability-rail__copy,
-  .session-capability-rail__toggle span {
-    display: none;
+  .session-capability-rail__copy {
+    display: flex;
   }
 
   .session-capability-rail__status-dot {
-    position: absolute;
-    top: 3px;
-    right: 3px;
+    position: static;
   }
 
   .session-capability-rail__toggle {
-    min-height: 32px;
-    padding: 4px;
-    border-top-color: var(--workspace-border-subtle, var(--border-subtle));
-  }
+    min-height: 28px;
+    padding: 4px 6px;
 
-  .session-capability-rail:hover,
-  .session-capability-rail:focus-within {
-    .session-capability-rail__capability {
-      min-height: 48px;
-      padding: 7px 9px;
-      justify-content: flex-start;
-    }
-
-    .session-capability-rail__copy {
-      display: flex;
-    }
-
-    .session-capability-rail__status-dot {
-      position: static;
-    }
-
-    .session-capability-rail__toggle {
-      min-height: 30px;
-      padding: 5px 8px;
-    }
-
-    .session-capability-rail__toggle span {
+    span {
       display: inline;
     }
   }

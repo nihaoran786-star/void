@@ -74,6 +74,7 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     | undefined;
   const activeBtwSessionShortDramaStage = activeBtwSessionTab?.content.metadata?.shortDramaStage;
   const lastSyncedBtwTabIdRef = useRef<string | null>(null);
+  const defaultMediaOpenedSessionIdsRef = useRef<Set<string>>(new Set());
   const autoOpenedMediaWorkspacePathsRef = useRef<Set<string>>(new Set());
   const autoRestoredShortDramaWorkspacePathsRef = useRef<Set<string>>(new Set());
   const [activeSession, setActiveSession] = useState(() => {
@@ -231,6 +232,35 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   }, [addTab, findTabByMetadata, switchToTab, t, workspacePath]);
 
   useEffect(() => {
+    const sessionId = activeSession?.sessionId;
+    if (
+      !sessionId
+      || !workspacePath
+      || !isSceneActive
+      || !canOpenShortDramaCenter
+      || defaultMediaOpenedSessionIdsRef.current.has(sessionId)
+    ) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      if (defaultMediaOpenedSessionIdsRef.current.has(sessionId)) {
+        return;
+      }
+      defaultMediaOpenedSessionIdsRef.current.add(sessionId);
+      handleOpenWorkspaceMedia();
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [
+    activeSession,
+    canOpenShortDramaCenter,
+    handleOpenWorkspaceMedia,
+    isSceneActive,
+    workspacePath,
+  ]);
+
+  useEffect(() => {
     if (!isSceneActive) {
       return;
     }
@@ -304,7 +334,16 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
   ]);
 
   useEffect(() => {
-    if (!workspacePath || hasPrimaryVisibleTabs || !canOpenShortDramaCenter || !isSceneActive) {
+    if (
+      !workspacePath
+      || hasPrimaryVisibleTabs
+      || !canOpenShortDramaCenter
+      || !isSceneActive
+      || (
+        activeSession?.sessionId
+        && defaultMediaOpenedSessionIdsRef.current.has(activeSession.sessionId)
+      )
+    ) {
       return;
     }
 
@@ -347,7 +386,14 @@ export const ContentCanvas: React.FC<ContentCanvasProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [canOpenShortDramaCenter, handleOpenShortDramaCenter, hasPrimaryVisibleTabs, isSceneActive, workspacePath]);
+  }, [
+    activeSession?.sessionId,
+    canOpenShortDramaCenter,
+    handleOpenShortDramaCenter,
+    hasPrimaryVisibleTabs,
+    isSceneActive,
+    workspacePath,
+  ]);
 
   // Render content
   const renderContent = () => {
