@@ -1,5 +1,10 @@
 import { globalEventBus } from '@/infrastructure/event-bus';
-import { areShortDramaWorkspacePathsEqual } from './ShortDramaWorkspaceBinding';
+import {
+  areShortDramaWorkspacePathsEqual,
+  createShortDramaProjectPath,
+  resolveShortDramaWorkspaceBinding,
+  type ShortDramaWorkspaceBinding,
+} from './ShortDramaWorkspaceBinding';
 
 export const SHORT_DRAMA_PROJECT_CHANGED_EVENT = 'short-drama:project-changed';
 
@@ -31,6 +36,23 @@ export interface ShortDramaProjectChangedEventBus {
   on(eventName: typeof SHORT_DRAMA_PROJECT_CHANGED_EVENT | 'agent:tool-run-event', handler: (event: unknown) => void): () => void;
   emit?(eventName: typeof SHORT_DRAMA_PROJECT_CHANGED_EVENT, event: ShortDramaProjectChangedEvent): void;
 }
+
+export type ShortDramaProjectChangedWorkspaceResolution =
+  | {
+      status: 'match';
+      source: 'project-changed-event';
+      event: ShortDramaProjectChangedEvent;
+    }
+  | {
+      status: 'ignore';
+      source: 'project-changed-event';
+      reason: 'no_active_workspace' | 'different_workspace';
+    }
+  | {
+      status: 'mismatch';
+      source: 'project-changed-event';
+      binding: ShortDramaWorkspaceBinding;
+    };
 
 export function emitShortDramaProjectChanged(
   event: ShortDramaProjectChangedEvent,
@@ -84,6 +106,62 @@ export function isShortDramaProjectChangedForWorkspace(
   workspacePath?: string,
 ) {
   return areShortDramaWorkspacePathsEqual(event.workspaceRoot, workspacePath);
+}
+
+export function resolveShortDramaProjectChangedForWorkspace(
+  event: ShortDramaProjectChangedEvent,
+  workspacePath?: string,
+): ShortDramaProjectChangedWorkspaceResolution {
+  if (!workspacePath?.trim()) {
+    return {
+      status: 'ignore',
+      source: 'project-changed-event',
+      reason: 'no_active_workspace',
+    };
+  }
+  if (!areShortDramaWorkspacePathsEqual(event.workspaceRoot, workspacePath)) {
+    return {
+      status: 'ignore',
+      source: 'project-changed-event',
+      reason: 'different_workspace',
+    };
+  }
+
+  const binding = resolveShortDramaWorkspaceBinding({
+    uiWorkspacePath: workspacePath,
+    toolWorkspaceRoot: event.workspaceRoot,
+    projectPath: event.projectPath,
+    source: 'active_session',
+    hasProject:
+      event.projectState !== 'no_project' && event.projectState !== 'empty',
+  });
+  const expectedProjectPath = createShortDramaProjectPath(workspacePath);
+  if (
+    binding.status === 'mismatch'
+    || !areShortDramaWorkspacePathsEqual(event.projectPath, expectedProjectPath)
+  ) {
+    return {
+      status: 'mismatch',
+      source: 'project-changed-event',
+      binding: binding.status === 'mismatch'
+        ? binding
+        : {
+            ...binding,
+            status: 'mismatch',
+            error: {
+              code: 'workspace_mismatch',
+              message:
+                'AI short drama project event does not belong to the active workspace project.',
+            },
+          },
+    };
+  }
+
+  return {
+    status: 'match',
+    source: 'project-changed-event',
+    event,
+  };
 }
 
 export function connectShortDramaProjectChangedEventsToToolRunBus(

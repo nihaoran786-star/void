@@ -5,6 +5,7 @@ import {
   connectShortDramaProjectChangedEventsToToolRunBus,
   isShortDramaProjectChangedForWorkspace,
   parseToolRunShortDramaProjectChangedEvent,
+  resolveShortDramaProjectChangedForWorkspace,
   type ShortDramaProjectChangedEvent,
 } from './ShortDramaProjectChangedEvent';
 
@@ -36,6 +37,37 @@ describe('ShortDramaProjectChangedEvent', () => {
       projectState: 'ready',
       source: 'ShortDramaProject',
     }, 'C:\\workspace\\')).toBe(true);
+  });
+
+  it('ignores project events emitted for another active workspace', () => {
+    expect(resolveShortDramaProjectChangedForWorkspace({
+      workspaceRoot: 'C:/workspace-b',
+      projectPath: 'C:/workspace-b/.void/short-drama',
+      action: 'update_artifact',
+      projectState: 'ready',
+      source: 'ShortDramaProject',
+    }, 'C:/workspace-a')).toEqual({
+      status: 'ignore',
+      source: 'project-changed-event',
+      reason: 'different_workspace',
+    });
+  });
+
+  it('reports a typed mismatch when the event project path escapes the active workspace project', () => {
+    expect(resolveShortDramaProjectChangedForWorkspace({
+      workspaceRoot: 'C:/workspace',
+      projectPath: 'C:/other/.void/short-drama',
+      action: 'update_artifact',
+      projectState: 'ready',
+      source: 'ShortDramaProject',
+    }, 'C:/workspace')).toEqual(expect.objectContaining({
+      status: 'mismatch',
+      source: 'project-changed-event',
+      binding: expect.objectContaining({
+        status: 'mismatch',
+        error: expect.objectContaining({ code: 'workspace_mismatch' }),
+      }),
+    }));
   });
 
   it('bridges tool-run events into the typed short drama project changed event', () => {

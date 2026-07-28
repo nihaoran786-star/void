@@ -6,6 +6,10 @@ import type {
 } from './ShortDramaTypes';
 
 const SHORT_DRAMA_RUNTIME_FOCUS_KEY = '.void/short-drama/focus.json';
+const runtimeFocusWriteQueues = new WeakMap<
+  ShortDramaManifestAdapter,
+  Promise<void>
+>();
 
 export type ShortDramaRuntimeFocusInput = ShortDramaFocusContext & {
   workspaceRoot?: string;
@@ -31,15 +35,49 @@ export async function writeShortDramaRuntimeFocus(
   }
 
   const normalizedFocus = normalizeShortDramaRuntimeFocus(project, focus);
+  const precedingWrite = runtimeFocusWriteQueues.get(adapter)
+    ?? Promise.resolve();
+  const resultPromise = precedingWrite
+    .catch(() => undefined)
+    .then(() => persistShortDramaRuntimeFocus(adapter, normalizedFocus));
+  const queueTail = resultPromise.then(
+    () => undefined,
+    () => undefined,
+  );
+  runtimeFocusWriteQueues.set(adapter, queueTail);
 
   try {
-    await adapter.write(SHORT_DRAMA_RUNTIME_FOCUS_KEY, JSON.stringify(normalizedFocus, null, 2));
-    return { status: 'ready', source: 'runtime-focus', focus: normalizedFocus };
+    return await resultPromise;
+  } finally {
+    if (runtimeFocusWriteQueues.get(adapter) === queueTail) {
+      runtimeFocusWriteQueues.delete(adapter);
+    }
+  }
+}
+
+async function persistShortDramaRuntimeFocus(
+  adapter: ShortDramaManifestAdapter,
+  normalizedFocus: ShortDramaRuntimeFocusInput,
+): Promise<ShortDramaRuntimeFocusResult> {
+  try {
+    await adapter.write(
+      SHORT_DRAMA_RUNTIME_FOCUS_KEY,
+      JSON.stringify(normalizedFocus, null, 2),
+    );
+    return {
+      status: 'ready',
+      source: 'runtime-focus',
+      focus: normalizedFocus,
+    };
   } catch (error) {
     return {
       status: 'error',
       source: 'runtime-focus',
-      error: { code: 'save_failed', message: 'Short drama runtime focus could not be saved.', cause: error },
+      error: {
+        code: 'save_failed',
+        message: 'Short drama runtime focus could not be saved.',
+        cause: error,
+      },
     };
   }
 }

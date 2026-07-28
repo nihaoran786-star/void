@@ -19,6 +19,7 @@ import {
   createShortDramaMediaPreviewViewModel,
   createShortDramaProjectViewModel,
   createShortDramaProjectWithRecoveredMediaReferences,
+  createShortDramaProjectLoadCoordinator,
   createShortDramaRecoveryGuidance,
   createShortDramaRuntimeBridge,
   createShortDramaStageWorkspaces,
@@ -34,9 +35,8 @@ import {
   syncShortDramaMainAIContextExport,
   writeShortDramaRuntimeFocus,
   createShortDramaWorkspaceManifestAdapter,
-  isShortDramaProjectChangedForWorkspace,
   onShortDramaProjectChanged,
-  resolveShortDramaWorkspaceBinding,
+  resolveShortDramaProjectChangedForWorkspace,
   getShortDramaArtifactDomId,
   getShortDramaStaticProjectFixtureVersion,
   selectShortDramaPostFinalPreviewArtifact,
@@ -140,6 +140,10 @@ export function ShortDramaCenterPanel({
   const workspaceManifestAdapter = useMemo(() => (
     workspacePath ? createShortDramaWorkspaceManifestAdapter(workspacePath) : undefined
   ), [workspacePath]);
+  const projectLoadCoordinator = useMemo(
+    () => createShortDramaProjectLoadCoordinator(),
+    [],
+  );
   const shortDramaAgentTaskSessionSender = useMemo(() => createShortDramaAgentTaskSessionSender(), []);
   const libraryService = useMemo<ShortDramaPanelLibraryService>(() => (
     service
@@ -328,52 +332,73 @@ export function ShortDramaCenterPanel({
   }, [isStageAgentBootstrapping, sourceSessionId, stageAgentBindings, stageAgentBindingsLoaded, workspaceManifestAdapter, workspacePath]);
 
   useEffect(() => {
-    let cancelled = false;
-
     setState({ status: 'scanning', source: 'static' });
-    libraryService.loadProject(workspacePath)
-      .then(nextState => {
-        if (!cancelled) {
-          setState(nextState);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
+    void projectLoadCoordinator
+      .load(() => libraryService.loadProject(workspacePath))
+      .then(result => {
+        if (result.status === 'ready') {
+          setState(result.state);
+        } else if (result.status === 'failed') {
           setState({
             status: 'error',
             source: 'static',
-            error: { code: 'load_failed', message: t('shortDrama.states.loadFailed') },
+            error: {
+              code: 'load_failed',
+              message: t('shortDrama.states.loadFailed'),
+              cause: result.error,
+            },
           });
         }
       });
 
     return () => {
-      cancelled = true;
+      projectLoadCoordinator.invalidate();
     };
-  }, [libraryService, t, workspacePath, staticFixtureVersion]);
+  }, [
+    libraryService,
+    projectLoadCoordinator,
+    t,
+    workspacePath,
+    staticFixtureVersion,
+  ]);
 
   useEffect(() => {
     if (!workspacePath) {
       return undefined;
     }
 
-    return onShortDramaProjectChanged(event => {
-      if (!isShortDramaProjectChangedForWorkspace(event, workspacePath)) {
-        const binding = resolveShortDramaWorkspaceBinding({
-          uiWorkspacePath: workspacePath,
-          toolWorkspaceRoot: event.workspaceRoot,
-          projectPath: event.projectPath,
-          source: 'active_session',
-          hasProject: event.projectState !== 'no_project' && event.projectState !== 'empty',
-        });
-        if (binding.status === 'mismatch') {
-          setState(createShortDramaWorkspaceMismatchState(binding));
-        }
+    const unsubscribe = onShortDramaProjectChanged(event => {
+      const resolution = resolveShortDramaProjectChangedForWorkspace(
+        event,
+        workspacePath,
+      );
+      if (resolution.status === 'ignore') {
+        return;
+      }
+      if (resolution.status === 'mismatch') {
+        setState(createShortDramaWorkspaceMismatchState(resolution.binding));
         return;
       }
 
-      libraryService.loadProject(workspacePath)
-        .then(nextState => {
+      void projectLoadCoordinator
+        .load(() => libraryService.loadProject(workspacePath))
+        .then(result => {
+          if (result.status === 'failed') {
+            setState({
+              status: 'error',
+              source: 'manifest',
+              error: {
+                code: 'load_failed',
+                message: t('shortDrama.states.loadFailed'),
+                cause: result.error,
+              },
+            });
+            return;
+          }
+          if (result.status !== 'ready') {
+            return;
+          }
+          const nextState = result.state;
           if (nextState.status === 'ready' && event.action === 'initialize_from_script') {
             const firstEpisodeId = nextState.project.episodes[0]?.id;
             activeEpisodeIdRef.current = firstEpisodeId;
@@ -382,16 +407,14 @@ export function ShortDramaCenterPanel({
             setSelectedStage('script');
           }
           setState(nextState);
-        })
-        .catch(() => {
-          setState({
-            status: 'error',
-            source: 'manifest',
-            error: { code: 'load_failed', message: t('shortDrama.states.loadFailed') },
-          });
         });
     });
-  }, [libraryService, t, workspacePath]);
+
+    return () => {
+      unsubscribe();
+      projectLoadCoordinator.invalidate();
+    };
+  }, [libraryService, projectLoadCoordinator, t, workspacePath]);
 
   useEffect(() => {
     if (!isActive || state.status !== 'empty' || !workspacePath) {

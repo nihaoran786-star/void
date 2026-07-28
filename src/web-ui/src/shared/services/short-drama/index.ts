@@ -14,6 +14,7 @@ export * from './ShortDramaMainAIContextSync';
 export * from './ShortDramaOrchestratorScaffold';
 export * from './ShortDramaProjectViewModel';
 export * from './ShortDramaProjectChangedEvent';
+export * from './ShortDramaProjectLoadCoordinator';
 export * from './ShortDramaRemoteSupport';
 export * from './ShortDramaRuntimeBridge';
 export * from './ShortDramaRuntimeFocus';
