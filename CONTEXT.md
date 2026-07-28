@@ -61,9 +61,10 @@ stronger evidence than their apparent convenience.
 
 ## Current quality state
 
-Repository graph and automated review on 2026-07-19 covered 2,934 files,
-52,762 structural nodes, repository governance checks, Web UI type/lint/tests,
-core/CLI checks, theme contracts, i18n contracts, and documentation links.
+Repository graph and automated review on 2026-07-28 covered 3,034 files,
+54,239 structural nodes, repository governance checks, Web UI type/lint/tests,
+core checks, theme contracts, i18n contracts, production build budgets, and
+full-window desktop evidence.
 
 High-confidence defects fixed in the current audit:
 
@@ -73,6 +74,12 @@ High-confidence defects fixed in the current audit:
   editor group;
 - tertiary canvas operations incorrectly aliased the group to secondary, so a
   short-drama stage-agent open could report success without moving the real tab.
+- BTW history hydration was globally serialized and could skip the newly
+  selected child session while another child was still loading;
+- background short-drama events could contaminate the active workspace;
+- stale short-drama project loads could overwrite a newer workspace state;
+- overlapping runtime-focus writes could persist an older stage or artifact;
+- the team-rail E2E no longer adds errors to the strict TypeScript baseline.
 
 Open baseline debt:
 
@@ -83,13 +90,11 @@ Open baseline debt:
 - test files are excluded from Web UI ESLint and TypeScript project checks;
 - `ChatInput` remains a high-coupling orchestration hotspot;
 - Browser UI still contains registered direct-Tauri lifecycle exceptions.
-- short-drama project events, reloads, and runtime-focus persistence need
-  workspace-scoped latest-wins coordination;
-- BTW history hydration and stage-agent binding retry have confirmed async
-  state gaps.
+- stage-agent binding persistence and bounded retry still have a confirmed
+  async state gap.
 
 Evidence and exact commands are in
-[docs/qa/repository-audit-2026-07-19.md](docs/qa/repository-audit-2026-07-19.md).
+[docs/qa/repository-stability-audit-2026-07-28.md](docs/qa/repository-stability-audit-2026-07-28.md).
 
 ## Documentation policy
 
