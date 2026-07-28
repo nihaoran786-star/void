@@ -10,6 +10,21 @@ runtime, persistence, sessions, media, short-drama, desktop, or build systems.
 Use [docs/README.md](docs/README.md) to distinguish current specifications from
 historical evidence.
 
+## Documentation governance
+
+- Keep current collaboration state in `CONTEXT.md` and the document map in
+  `docs/README.md`.
+- Treat current specifications as authoritative Interfaces. Dated plans,
+  audits, results, decisions, and migration ledgers are checkpoint evidence,
+  not current status.
+- When implementation supersedes a plan, update its status and link the merge
+  or result evidence instead of silently leaving contradictory claims.
+- Delete a document or prototype only after confirming it has no runtime
+  consumer or inbound link, extracting any unique contract into a current
+  specification, and recording the deletion decision in `docs/README.md`.
+- Do not create a new dated plan or audit when an existing current document can
+  be updated without losing checkpoint evidence.
+
 ## Change discipline
 
 - Preserve user-owned and unrelated working-tree changes.
@@ -64,5 +79,5 @@ cargo test --locked -p void-core
 
 E2E, desktop packaging, Rust formatting, and Clippy are scope-dependent gates.
 Known baseline failures and coverage gaps are tracked in
-[the current repository audit](docs/qa/repository-audit-2026-07-19.md); do not
-silently describe those gates as passing.
+[the current repository audit](docs/qa/repository-stability-audit-2026-07-28.md);
+do not silently describe those gates as passing.

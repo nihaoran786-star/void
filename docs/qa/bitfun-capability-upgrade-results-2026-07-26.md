@@ -8,8 +8,9 @@ Reference: read-only `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 ## Result
 
 The three capability batches are implemented on the isolated Void upgrade
-branch. Nothing in this result claims that the branch has been merged into
-`void-source`.
+branch. They were subsequently merged into `codex/minimal-workspace-ui` by
+`6c3e651a3` on 2026-07-26; the detailed results below describe the isolated
+implementation checkpoint before that integration.
 
 | Capability | Delivered state |
 | --- | --- |

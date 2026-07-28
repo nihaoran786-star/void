@@ -4,6 +4,9 @@
 分支：`codex/agent-runtime-upgrades`
 基线：`18f8f1d4f15f353116496414330ae2dc805299e1`
 
+集成状态：本切片及后续运行时能力已随 `6c3e651a3` 合并至
+`codex/minimal-workspace-ui`。以下内容保留为隔离分支实施证据。
+
 ## 结果
 
 按需工具加载已形成完整运行时闭环：

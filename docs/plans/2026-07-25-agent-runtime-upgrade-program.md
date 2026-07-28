@@ -1,9 +1,13 @@
 # 多代理运行时能力升级计划
 
 日期：2026-07-25
-状态：执行中（切片 A 已实现并完成聚焦验证，等待独立提交）
+状态：已完成；相关运行时切片随 `6c3e651a3` 合并至
+`codex/minimal-workspace-ui`
 负责人分支：`codex/agent-runtime-upgrades`
 隔离工作树：Void 主仓库旁的独立 agent-runtime worktree
+
+本文件保留为实施计划证据，不再作为当前工作队列。最终能力和合并状态见
+[BitFun capability upgrade results](../qa/bitfun-capability-upgrade-results-2026-07-26.md)。
 
 ## 1. 基线、目标与本轮边界
 

@@ -105,5 +105,11 @@ Evidence and exact commands are in
 - The 2026-07 upstream migration consensus files are retained as a frozen
   historical program ledger because they contain unique decisions and
   verification evidence.
+- The BitFun-inspired capability branches were integrated by `6c3e651a3`;
+  their plans, decisions, and results are completed evidence rather than active
+  queues.
+- The disposable aggressive-Minimal A/B/C prototype was removed on 2026-07-28
+  after its accepted constraints were incorporated into the current Minimal
+  workspace and Team Workspace specifications.
 - `docs/obsidian/` is a tracked historical snapshot, not a live external source.
 - Untracked prototypes are user-owned until explicitly accepted or discarded.

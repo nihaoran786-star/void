@@ -3,6 +3,9 @@
 日期：2026-07-25
 适用分支：`codex/agent-runtime-upgrades`
 
+集成状态：台账对应能力已随 `6c3e651a3` 合并至
+`codex/minimal-workspace-ui`；本文件继续作为迁移取舍和来源追踪证据。
+
 ## 切片 A：按需工具加载
 
 | BitFun 参考 | 决策 | Void 落地 |

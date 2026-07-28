@@ -20,6 +20,27 @@ Baseline checkpoint:
 - Verified checkpoint commit: `0db5e70a4`
 - UI migration branch: `codex/minimal-workspace-ui`
 
+## Archived prototype decision
+
+The disposable A/B/C prototype formerly stored under
+`docs/prototypes/aggressive-minimal-workspace/` was removed on 2026-07-28 after
+the production direction was established and the prototype had no inbound
+links or runtime consumers.
+
+The accepted constraints remain authoritative here:
+
+- one workspace presentation rather than permanent user-selectable A/B/C
+  variants;
+- conversation remains the stable primary surface;
+- media focus is a temporary presentation state, not a separate session model;
+- tool, media, and stage results use progressive disclosure while preserving
+  every existing action and keyboard path;
+- session capabilities reopen existing Canvas/Team Workspace surfaces without
+  owning their runtime or persistence.
+
+Team definitions and coordination semantics remain owned by
+[the Team Workspace specification](../features/team-workspace-prd.md).
+
 ## Goal
 
 Turn the Void desktop Web UI into a compact, media-first workspace inspired by

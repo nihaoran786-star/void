@@ -5,6 +5,10 @@ Workspace: isolated Void capability-upgrade worktree
 Branch: `codex/bitfun-capability-upgrades`
 Reference: `GCWing/BitFun@21c0382d418424514f9a4db7ad3d232da6956886`
 
+Integration note: this result records the isolated Batch 1 checkpoint. The
+batch and subsequent capability slices were later merged into
+`codex/minimal-workspace-ui` by `6c3e651a3` on 2026-07-26.
+
 ## Result
 
 The first visible-reliability Web UI batch is complete on this isolated branch.

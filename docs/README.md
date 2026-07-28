@@ -11,10 +11,6 @@ automatically the current source of truth.
 - [Current repository stability audit](qa/repository-stability-audit-2026-07-28.md)
 - [Repository architecture and coupling audit](qa/repository-audit-2026-07-19.md)
 - [New-session and workspace-media stability review](qa/new-session-media-stability-2026-07-27.md)
-- [BitFun capability upgrade program](plans/2026-07-25-bitfun-capability-upgrade-program.md)
-- [BitFun capability baseline](qa/bitfun-capability-baseline-2026-07-25.md)
-- [BitFun Batch 1 Web UI results](qa/bitfun-web-ui-batch1-results-2026-07-25.md)
-- [BitFun capability upgrade results](qa/bitfun-capability-upgrade-results-2026-07-26.md)
 
 ## Current architecture and product specifications
 
@@ -41,6 +37,20 @@ these ledgers.
 - [Migration test plan](TEST_PLAN.md)
 - [Migration progress](PROGRESS.md)
 
+## Completed capability upgrade evidence
+
+The BitFun-inspired capability work was implemented on isolated branches and
+merged into this branch by `6c3e651a3` on 2026-07-26. These files remain as
+dated implementation and decision evidence; they are not active work queues.
+
+- [BitFun capability upgrade program](plans/2026-07-25-bitfun-capability-upgrade-program.md)
+- [BitFun capability baseline](qa/bitfun-capability-baseline-2026-07-25.md)
+- [BitFun Batch 1 Web UI results](qa/bitfun-web-ui-batch1-results-2026-07-25.md)
+- [BitFun capability upgrade results](qa/bitfun-capability-upgrade-results-2026-07-26.md)
+- [Agent runtime upgrade program](plans/2026-07-25-agent-runtime-upgrade-program.md)
+- [Agent runtime migration decisions](decisions/2026-07-25-bitfun-runtime-migration-ledger.md)
+- [Agent runtime Slice A result](results/2026-07-25-agent-runtime-upgrade-result.md)
+
 ## Dated evidence and implementation records
 
 - `docs/qa/*audit*.md` and `docs/architecture/*results.md` are checkpoint
@@ -52,7 +62,15 @@ these ledgers.
 - `docs/plans/` records longer-lived engineering plans.
 - `docs/obsidian/` is a historical 2026-06 collaboration snapshot.
 
-No tracked Markdown files were exact duplicates in the 2026-07-19 audit.
-Nothing was deleted solely because of age. Archive or deletion requires proof
-that all unique contracts and evidence have been extracted and all inbound
-links have been updated.
+## Cleanup record
+
+The 2026-07-28 documentation review found no exact duplicate among 357 tracked
+Markdown files. Dated plans, audits, results, decisions, completed issue
+contracts, and migration ledgers were retained because they contain unique
+acceptance criteria or evidence.
+
+The disposable `docs/prototypes/aggressive-minimal-workspace/` prototype was
+deleted after confirming it had no inbound link or runtime consumer. Its
+accepted layout, progressive-disclosure, media-focus, and accessibility
+constraints are preserved in the current Minimal workspace migration and Team
+Workspace specifications. Nothing was deleted solely because of age.
