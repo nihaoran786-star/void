@@ -22,6 +22,13 @@ uses existing child sessions and subagent runtime contracts; the Team Workspace
 adds a reusable definition, typed projection, and presentation container around
 those contracts.
 
+When a user selects a team in a compatible scenario, the team lead becomes the
+parent conversation's active persona. The scenario workspace, execution policy,
+permissions, Canvas, workspace context, and top-level history remain stable.
+Specialist members run as isolated child conversations and return role-owned
+results to the lead. This activation contract is defined by
+[Customization Center and active persona](customization-center-prd.md).
+
 The primary desktop composition remains:
 
 ```text
@@ -127,7 +134,9 @@ session. It owns:
 - `teamDefinitionId` and revision;
 - `workspaceId` and canonical workspace context;
 - `parentSessionId`;
-- lead and member child-session bindings;
+- an explicit lead runtime binding whose kind is `parent_persona` or a
+  compatibility `child_orchestrator`;
+- specialist member child-session bindings;
 - active workflow and phase facts;
 - explicit lifecycle status and error facts;
 - creation source and timestamps.
@@ -154,7 +163,8 @@ missing messages, color, or prose.
 
 The safe default is `lead_mediated`:
 
-1. the lead creates or activates the team instance;
+1. the lead is activated as the parent conversation's active persona and
+   creates or activates the team instance;
 2. the lead starts members according to the selected workflow;
 3. members own their specialist output;
 4. member results return through the lead;
@@ -173,6 +183,8 @@ simulate it.
 
 Team Center is the global management surface for reusable definitions. It will
 replace the current assumption that every custom Agent is a single role.
+Its discovery, localization, and creation entry live in the unified
+Customization Center rather than a separate top-level product silo.
 
 It supports:
 
@@ -290,6 +302,10 @@ Expected Interface families:
 - `TeamRuntimeAdapter`: the only bridge to existing subagent spawning,
   delivery, and recovery contracts.
 
+Team selection and lead activation use the `PersonaActivation` boundary from
+the Customization Center specification. Team presentation code must not compose
+prompts or mutate the parent conversation's persona directly.
+
 The exact names may change during implementation, but the ownership boundaries
 must not.
 
@@ -327,6 +343,13 @@ files. Team definitions must be adapted to Void's Module Interfaces, workspace
 isolation, permission system, Skill catalog, session persistence, and existing
 subagent runtime.
 
+The reference also clarifies that a selected team's lead is the user-facing
+top-level persona while specialist members remain real subagents. Void adopts
+that product contract. Existing Deep Review and AI Short Drama runtimes may use
+their current child-orchestrator launch shape during migration, but adapters
+must project the binding explicitly and must not make presentation code depend
+on that compatibility detail.
+
 ## Non-goals for the first implementation slice
 
 - no public team marketplace;
@@ -344,12 +367,13 @@ subagent runtime.
 1. Freeze the DTOs, validation rules, and typed projection contract.
 2. Build Team Center definition management around existing Agent, Skill, tool,
    model, and permission references.
-3. Adapt one existing fixed team, preferably Review Team or Short Drama, into a
+3. Integrate Team selection with the shared persona-activation contract.
+4. Adapt one existing fixed team, preferably Review Team or Short Drama, into a
    `TeamDefinition` without changing its runtime behavior.
-4. Add the session capability entry and Team Workspace projection.
-5. Reuse the complete BTW composer inside the selected-member area.
-6. Add restart hydration, recovery, and responsive presentation tests.
-7. Add import/export only after validation, trust, and permission policy are
+5. Add the session capability entry and Team Workspace projection.
+6. Reuse the complete BTW composer inside the selected-member area.
+7. Add restart hydration, recovery, and responsive presentation tests.
+8. Add import/export only after validation, trust, and permission policy are
    accepted.
 
 ## Acceptance gates
@@ -361,6 +385,8 @@ subagent runtime.
 - Team Center and Team Workspace consume typed interfaces and never access
   persistence or runtime directly.
 - Lead, member, workflow, permission, and failure states are explicit.
+- Selecting a team makes its lead the active top-level persona without changing
+  the scenario workspace or execution policy.
 - Keyboard focus, reduced motion, narrow layouts, long names, many members,
   offline restore, denied access, and failed recovery have designed states.
 - Existing Flow Chat, BTW, Review Team, Media, Short Drama, Terminal, Browser,

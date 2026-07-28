@@ -19,6 +19,15 @@ Updated: 2026-07-28
   Teams are not ordinary Canvas tabs, and an individual member conversation
   remains an existing `/btw` child session. The active contract is
   [docs/features/team-workspace-prd.md](docs/features/team-workspace-prd.md).
+- Code, Cowork, and Media are stable **scenario workspaces**, not professional
+  personas. A parent conversation separately owns one **active persona**:
+  its scenario default, a selected single Agent, or a selected team lead.
+  Switching persona preserves the scenario, execution policy, workspace,
+  permissions, Canvas, and top-level history. The active contract is
+  [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
+- An **execution policy** controls how the active persona may act; a **Skill**
+  is reusable operating guidance. Neither term is a synonym for scenario or
+  persona.
 - The session owns one stable outer canvas toggle on the chat/canvas divider.
   It hides the universal preview and any nested stage-agent presentation
   together without closing tabs or deleting child sessions, then remains at
@@ -43,6 +52,10 @@ UI / route -> Module Interface -> Adapter / service -> external system
   instances, workflow/member projections, and coordination presentation state.
   **Interface:** team catalog, orchestration, and workspace projection
   contracts; adapters alone may access persistence or the subagent runtime.
+- **Module:** Customization Center owns localized Agent, Team, Skill, and
+  connector discovery plus parent-conversation persona selection.
+  **Interface:** capability catalog and persona activation contracts; adapters
+  alone may compose runtime prompts, resolve permissions, or activate Agents.
 - **Module:** Short Drama owns project facts and stage workflow.
   **Interface:** short-drama services, runtime bridge, workspace manifest, and
   explicit view models.
