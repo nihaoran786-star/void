@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-07-23
+Updated: 2026-07-28
 
 ## Product state
 
@@ -12,6 +12,13 @@ Updated: 2026-07-23
   zero-reserved-width entry and open the existing group in a bounded overlay.
 - Closing the short-drama team presentation must not delete child sessions or
   remove the only reopen control.
+- Future Review, Finance, Short Drama, Customer Service, and other expert teams
+  share one durable Team Workspace domain: reusable team definitions contain a
+  lead, specialist members, workflow phases, and policy; session-bound team
+  instances project into a dedicated coordination container beside Canvas.
+  Teams are not ordinary Canvas tabs, and an individual member conversation
+  remains an existing `/btw` child session. The active contract is
+  [docs/features/team-workspace-prd.md](docs/features/team-workspace-prd.md).
 - The session owns one stable outer canvas toggle on the chat/canvas divider.
   It hides the universal preview and any nested stage-agent presentation
   together without closing tabs or deleting child sessions, then remains at
@@ -32,6 +39,10 @@ UI / route -> Module Interface -> Adapter / service -> external system
   **Interface:** typed Flow Chat services, selectors, and view state.
 - **Module:** Content Canvas owns tabs and layout state.
   **Interface:** canvas store actions and presentation selectors.
+- **Module:** Team Workspace owns reusable team definitions, session-bound team
+  instances, workflow/member projections, and coordination presentation state.
+  **Interface:** team catalog, orchestration, and workspace projection
+  contracts; adapters alone may access persistence or the subagent runtime.
 - **Module:** Short Drama owns project facts and stage workflow.
   **Interface:** short-drama services, runtime bridge, workspace manifest, and
   explicit view models.

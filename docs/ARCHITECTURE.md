@@ -304,6 +304,40 @@ Forbidden:
 - Moving BTW parent-child, fork, background-result, or review-readonly semantics into UI components.
 - Copying upstream `FlowChatStore.ts`, `BtwThreadService.ts`, or Flow Chat container files wholesale.
 
+### Team Workspace
+
+`docs/features/team-workspace-prd.md` defines the active product and
+architecture contract for reusable expert teams.
+
+- A team definition owns one explicit lead reference, a member collection,
+  workflow definitions, collaboration policy, and references to existing
+  Agent, Skill, tool, model, and permission policies.
+- A team instance binds one definition revision to `workspaceId`,
+  `parentSessionId`, member child sessions, workflow phase state, and explicit
+  lifecycle/error facts.
+- Team Workspace is a coordination container beside Canvas. It is not a sibling
+  Canvas tab and closing its presentation must not cancel the team or delete
+  child sessions.
+- An individual member conversation remains an existing `/btw` child session.
+  Team presentation may select and render it, but must not duplicate BTW
+  storage, restore, composer, or parent-child semantics.
+- Team Center, the compact capability rail, and Team Workspace consume typed
+  Team Module Interfaces. They must not access persistence, filesystem,
+  database, process APIs, or subagent runtime directly.
+- Team definition persistence, runtime instance persistence, child-session
+  history, and presentation preferences are separate sources of truth.
+
+Forbidden:
+
+- treating a team as an array of decorative agents without a validated lead and
+  workflow contract;
+- persisting UI width, selected member, or rail expansion inside the team
+  definition or runtime lifecycle state;
+- inferring team, member, workflow, retry, or recovery state from empty arrays,
+  transcript prose, raw errors, or missing tabs;
+- copying an external expert package format, directory convention, marketplace
+  registry, or whole runtime file into Void.
+
 Long-session performance migration boundary:
 
 - Upstream Flow Chat long-session fixes are accepted only as sliced, test-first changes. Pure render helpers such as model-round progressive rendering and virtual message height estimates may be introduced before store or history-hydration changes.

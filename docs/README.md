@@ -20,6 +20,7 @@ automatically the current source of truth.
 - [Architecture](ARCHITECTURE.md) — long-lived contracts retained from the
   upstream migration program
 - [Minimal workspace migration](architecture/frontend-minimal-workspace-migration.md)
+- [Team Workspace product and architecture specification](features/team-workspace-prd.md)
 - [Web UI performance boundaries](architecture/web-ui-performance-boundaries.md)
 - [Core decomposition](architecture/core-decomposition.md)
 - [i18n architecture](architecture/i18n.md)
