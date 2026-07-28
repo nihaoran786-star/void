@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Tooltip } from '@/component-library';
 import type { CanvasTab } from '../types';
@@ -12,6 +12,7 @@ import { getShortDramaTeamTabDisplayTitle } from './shortDramaTeamPanelPresentat
 export interface ShortDramaTeamPanelControlsProps {
   tabs: readonly CanvasTab[];
   statuses: readonly ShortDramaTeamAgentStatusProjection[];
+  isExpanded?: boolean;
   onToggle: () => void;
 }
 
@@ -29,6 +30,7 @@ export const ShortDramaTeamPanelControls: React.FC<
 > = ({
   tabs,
   statuses,
+  isExpanded = false,
   onToggle,
 }) => {
   const { t } = useTranslation('components');
@@ -56,6 +58,18 @@ export const ShortDramaTeamPanelControls: React.FC<
   const summaryStatus = statusPriority.find(status => statusCounts[status] > 0)
     ?? 'waiting';
   const compactLabel = t('canvas.shortDramaTeamCompact');
+  const actionLabel = t(
+    isExpanded
+      ? 'canvas.collapseShortDramaTeam'
+      : 'canvas.expandShortDramaTeam',
+  );
+  const conciseStatus = statusPriority
+    .filter(status => statusCounts[status] > 0)
+    .slice(0, 2)
+    .map(status => (
+      `${statusCounts[status]} ${t(`canvas.shortDramaTeamStatus.${status}`)}`
+    ))
+    .join(' · ');
   const statusSummary = statusPriority
     .map(status => `${t(`canvas.shortDramaTeamStatus.${status}`)} ${statusCounts[status]}`)
     .join(' · ');
@@ -66,7 +80,7 @@ export const ShortDramaTeamPanelControls: React.FC<
     ].join(' · '))
     .join('；');
   const accessibleLabel = [
-    t('canvas.expandShortDramaTeam'),
+    actionLabel,
     `${compactLabel} ${tabs.length}`,
     statusSummary,
     agentSummary,
@@ -87,29 +101,42 @@ export const ShortDramaTeamPanelControls: React.FC<
           <span aria-hidden="true">…</span>
         </span>
       ) : (
-        <Tooltip content={t('canvas.expandShortDramaTeam')} placement="bottom">
+        <Tooltip content={actionLabel} placement="bottom">
           <button
             type="button"
             className={[
               'short-drama-team-panel-controls__toggle',
               'short-drama-team-panel-controls__summary',
               `is-status-${summaryStatus}`,
+              isExpanded && 'is-expanded',
             ].join(' ')}
             data-testid="short-drama-team-panel-toggle"
             data-short-drama-team-summary-status={summaryStatus}
             aria-label={accessibleLabel}
-            aria-expanded={false}
+            aria-expanded={isExpanded}
             onClick={onToggle}
           >
             <span
               className="short-drama-team-panel-controls__summary-icon"
               aria-hidden="true"
             >
-              <Bot size={14} strokeWidth={1.8} />
+              <UsersRound size={14} strokeWidth={1.8} />
+              <span className="short-drama-team-panel-controls__summary-count">
+                {tabs.length}
+              </span>
             </span>
-            <span className="short-drama-team-panel-controls__summary-count">
-              {tabs.length}
+            <span className="short-drama-team-panel-controls__copy">
+              <span className="short-drama-team-panel-controls__label">
+                {t('canvas.shortDramaTeam')}
+              </span>
+              <span className="short-drama-team-panel-controls__status">
+                {conciseStatus}
+              </span>
             </span>
+            <span
+              className="short-drama-team-panel-controls__status-dot"
+              aria-hidden="true"
+            />
           </button>
         </Tooltip>
       )}

@@ -20,16 +20,17 @@
     padding $motion-fast $easing-standard,
     border-radius $motion-fast $easing-standard;
 
-  &:hover,
-  &:focus-within {
-    width: 136px;
+  &:hover {
+    width: 148px;
     padding: 5px;
     border-radius: 13px;
   }
 }
 
 .session-capability-rail__capability,
-.session-capability-rail__toggle {
+.session-capability-rail__toggle,
+.session-capability-rail
+  .short-drama-team-panel-controls__summary {
   display: flex;
   min-width: 0;
   align-items: center;
@@ -55,14 +56,6 @@
 }
 
 .session-capability-rail__capability {
-  position: relative;
-  min-height: 28px;
-  padding: 2px;
-  justify-content: center;
-  gap: 7px;
-  border-radius: 8px;
-  text-align: left;
-
   &--active {
     border-color: var(--workspace-accent, var(--color-accent-500));
     color: var(--workspace-text-primary, var(--color-text-primary));
@@ -72,7 +65,22 @@
   }
 }
 
-.session-capability-rail__icon {
+.session-capability-rail__capability,
+.session-capability-rail
+  .short-drama-team-panel-controls__summary {
+  position: relative;
+  min-height: 28px;
+  padding: 2px;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.session-capability-rail__icon,
+.session-capability-rail
+  .short-drama-team-panel-controls__summary-icon {
+  position: relative;
   display: grid;
   width: 22px;
   height: 22px;
@@ -126,6 +134,148 @@
   background: var(--workspace-status-success-text, var(--status-success-text));
 }
 
+.session-capability-rail__team-outlet {
+  display: none;
+  width: 100%;
+
+  &:not(:empty) {
+    display: flex;
+    padding-top: 4px;
+    margin-top: 1px;
+    flex-direction: column;
+    border-top: 1px solid
+      var(--workspace-border-subtle, var(--border-subtle));
+  }
+}
+
+.session-capability-rail .short-drama-team-panel-controls {
+  display: flex;
+  width: 100%;
+  color: var(--workspace-text-secondary, var(--color-text-secondary));
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary {
+  width: 100%;
+  box-sizing: border-box;
+
+  &.is-expanded {
+    border-color: var(--workspace-accent, var(--color-accent-500));
+    color: var(--workspace-text-primary, var(--color-text-primary));
+    background: var(--workspace-surface-active);
+    box-shadow: 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--workspace-accent, var(--color-accent-500)) 18%,
+        transparent
+      );
+  }
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary-count {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  display: grid;
+  min-width: 13px;
+  height: 13px;
+  padding-inline: 2px;
+  place-items: center;
+  border: 1px solid
+    var(--workspace-surface-raised, var(--color-bg-elevated));
+  border-radius: 999px;
+  color: var(--workspace-text-primary, var(--color-text-primary));
+  background: var(--workspace-surface-active);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__copy {
+  display: none;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__label {
+  overflow: hidden;
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__status {
+  overflow: hidden;
+  color: var(--workspace-text-muted, var(--color-text-muted));
+  font-size: 9px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__status-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--workspace-status-neutral-text, var(--color-text-muted));
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary.is-status-live
+  .short-drama-team-panel-controls__status-dot {
+  background: var(--workspace-accent, var(--color-accent-500));
+  box-shadow: 0 0 0 3px
+    color-mix(
+      in srgb,
+      var(--workspace-accent, var(--color-accent-500)) 14%,
+      transparent
+    );
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary.is-status-attention
+  .short-drama-team-panel-controls__status-dot {
+  background: var(--workspace-status-warning-text, var(--status-warning-text));
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary.is-status-completed
+  .short-drama-team-panel-controls__status-dot {
+  background: var(--workspace-status-success-text, var(--status-success-text));
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__summary.is-status-failed
+  .short-drama-team-panel-controls__status-dot {
+  background: var(--workspace-status-error-text, var(--status-error-text));
+}
+
+.session-capability-rail
+  .short-drama-team-panel-controls__preparing {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--workspace-text-muted, var(--color-text-muted));
+  font-size: 11px;
+  line-height: 1;
+}
+
 .session-capability-rail__capability--running {
   .session-capability-rail__status-dot {
     background: var(--workspace-accent, var(--color-accent-500));
@@ -161,9 +311,9 @@
   }
 }
 
-.session-capability-rail:hover,
-.session-capability-rail:focus-within {
-  .session-capability-rail__capability {
+.session-capability-rail:hover {
+  .session-capability-rail__capability,
+  .short-drama-team-panel-controls__summary {
     min-height: 40px;
     padding: 6px 7px;
     justify-content: flex-start;
@@ -173,8 +323,13 @@
     display: flex;
   }
 
-  .session-capability-rail__status-dot {
+  .session-capability-rail__status-dot,
+  .short-drama-team-panel-controls__status-dot {
     position: static;
+  }
+
+  .short-drama-team-panel-controls__copy {
+    display: flex;
   }
 
   .session-capability-rail__toggle {
@@ -184,5 +339,15 @@
     span {
       display: inline;
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-capability-rail,
+  .session-capability-rail__capability,
+  .session-capability-rail__toggle,
+  .session-capability-rail
+    .short-drama-team-panel-controls__summary {
+    transition: none;
   }
 }

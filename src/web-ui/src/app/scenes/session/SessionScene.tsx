@@ -15,6 +15,7 @@ import { useApp } from '../../hooks/useApp';
 import ChatPane from './ChatPane';
 import AuxPane, { type AuxPaneRef } from './AuxPane';
 import SessionCapabilityRail from './SessionCapabilityRail';
+import { SessionCapabilityRailOutletProvider } from '@/app/presentation/sessionCapabilityRailOutlet';
 import { isTauriRuntime } from '@/infrastructure/runtime';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import { useCanvasStore } from '@/app/components/panels/content-canvas/stores';
@@ -267,16 +268,25 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     && !isRightAsMain
     && !state.layout.centerPanelCollapsed;
   const isAuxPaneExpanded = !state.layout.rightPanelCollapsed;
+  const ensureAuxPaneExpanded = useCallback(() => {
+    if (state.layout.rightPanelCollapsed) {
+      toggleRightPanel();
+    }
+  }, [state.layout.rightPanelCollapsed, toggleRightPanel]);
   return (
-    <div
-      ref={containerRef}
-      className={[
-        'void-session-scene',
-        isDragging && 'void-session-scene--dragging',
-        isEntering && 'layout-entering',
-      ].filter(Boolean).join(' ')}
-      style={panelCollapseHintStyles}
+    <SessionCapabilityRailOutletProvider
+      isCanvasExpanded={isAuxPaneExpanded}
+      ensureCanvasExpanded={ensureAuxPaneExpanded}
     >
+      <div
+        ref={containerRef}
+        className={[
+          'void-session-scene',
+          isDragging && 'void-session-scene--dragging',
+          isEntering && 'layout-entering',
+        ].filter(Boolean).join(' ')}
+        style={panelCollapseHintStyles}
+      >
       {/* ChatPane — FlowChat conversation */}
       {!isChatHidden && (
         <div
@@ -368,7 +378,8 @@ const SessionScene: React.FC<SessionSceneProps> = ({
           isSceneActive={isActive}
         />
       </div>
-    </div>
+      </div>
+    </SessionCapabilityRailOutletProvider>
   );
 };
 

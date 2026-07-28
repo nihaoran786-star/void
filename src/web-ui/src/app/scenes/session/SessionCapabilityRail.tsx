@@ -11,6 +11,7 @@ import type {
   SessionCapabilityId,
   SessionCapabilityPresentation,
 } from '@/flow_chat/services/sessionCapabilities';
+import { SessionCapabilityRailOutlet } from '@/app/presentation/sessionCapabilityRailOutlet';
 import './SessionCapabilityRail.scss';
 
 interface SessionCapabilityRailProps {
@@ -90,6 +91,8 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
           </button>
         );
       })}
+
+      <SessionCapabilityRailOutlet />
 
       <button
         type="button"

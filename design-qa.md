@@ -105,6 +105,82 @@ final result: passed
 
 ---
 
+# Design QA: Team entry in the session capability rail
+
+## Scope
+
+- Source visual truth: the user-selected generated three-pane team workspace
+  reference preserved in the combined comparison artifact below.
+- Production surfaces:
+  - `src/web-ui/src/app/scenes/session/SessionCapabilityRail.tsx`
+  - `src/web-ui/src/app/scenes/session/SessionCapabilityRail.scss`
+  - `src/web-ui/src/app/presentation/sessionCapabilityRailOutlet.tsx`
+  - `src/web-ui/src/app/components/panels/content-canvas/editor-area/EditorArea.tsx`
+  - `src/web-ui/src/app/components/panels/content-canvas/editor-area/ShortDramaTeamPanelControls.tsx`
+
+This slice moves the existing Short Drama team projection into the persistent
+session capability rail. It deliberately does not add a universal team
+registry, mode eligibility, team lifecycle, or another subagent runtime.
+
+## Capture evidence
+
+- Compact full-window state:
+  `.codex-artifacts/team-capability-rail/slice-team-team-rail-compact-full.png`.
+- Pointer-hover expanded state:
+  `.codex-artifacts/team-capability-rail/slice-team-team-rail-expanded-full.png`.
+- Team coordination open beside Canvas:
+  `.codex-artifacts/team-capability-rail/slice-team-team-coordination-open-full.png`.
+- Combined source and implementation comparison:
+  `.codex-artifacts/team-capability-rail/design-qa-comparison.png`.
+
+The source is 1672 by 941 pixels. The implementation is captured from a
+2582-by-1390 physical desktop window; the resulting image is 2561 by 1377
+pixels from a 1707-by-918 CSS-pixel WebView at device pixel ratio 1.5. The
+source contains richer illustrative task data, while the implementation uses
+the isolated Short Drama fixture so the entry and three-pane composition can
+be reviewed independently.
+
+## Fidelity and interaction review
+
+| Requirement | Result |
+| --- | --- |
+| Tiny idle footprint | Passed: the rail remains 36 px at rest |
+| Expand only when the pointer asks for context | Passed: hover expands to 148 px; click/focus does not leave it enlarged |
+| Distinguish teams from tool capabilities | Passed: a divider precedes the team entry |
+| Expose team identity and state | Passed: team icon, member count, semantic dot, name, and concise status |
+| Preserve the active Canvas | Passed: opening the team adds the coordination partition without replacing the Short Drama surface |
+| Keep the entry available while open | Passed: the active entry remains visible and receives one restrained selected treatment |
+| Preserve current runtime semantics | Passed: the entry consumes the existing Short Drama status projection and toggle path |
+| Full-window stability | Passed: no document or scene horizontal overflow at the verified desktop size |
+| Reduced motion and keyboard visibility | Passed: transitions are disabled under reduced motion and controls retain a visible focus outline |
+
+## Findings and corrections
+
+1. **P2 — Early WebDriver captures were false half-width evidence.** Windows
+   display scaling caused a nominal 1280-by-800 outer size to represent only a
+   partial desktop surface. The focused regression now sets a physical
+   2582-by-1390 window and records the CSS viewport and device-pixel ratio.
+2. **P2 — Click focus could leave the rail permanently enlarged.** Expansion
+   is now pointer-hover-only; the clicked team entry retains a visible selected
+   state without reserving 148 px.
+3. **P2 — One fallback referenced an undefined theme token.** The count badge
+   now uses the defined Minimal workspace active-surface token directly.
+4. **No remaining actionable P0, P1, or P2 visual finding** was observed in the
+   final compact, expanded, and three-pane captures.
+
+## Verification
+
+- Focused rail, team projection, recovery, scene toggle, and minimal layout
+  tests: 29 passed across 7 files.
+- Focused physical full-window E2E: 1 passed.
+- Web TypeScript, core-boundary, theme-color, and theme visual-contract checks:
+  passed.
+- Production Web UI ESLint: passed.
+
+final result: passed
+
+---
+
 # Design QA: Session capability rail
 
 ## Scope

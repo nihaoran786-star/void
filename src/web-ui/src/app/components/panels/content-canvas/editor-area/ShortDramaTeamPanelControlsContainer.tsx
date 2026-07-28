@@ -6,6 +6,7 @@ import { useShortDramaTeamStatusProjection } from './useShortDramaTeamStatusProj
 
 export interface ShortDramaTeamPanelControlsContainerProps {
   tabs: readonly CanvasTab[];
+  isExpanded?: boolean;
   onToggle: () => void;
 }
 

@@ -1,6 +1,10 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { readWorkspacePresentation, type WorkspacePresentation } from '@/app/presentation/workspacePresentation';
+import {
+  SessionCapabilityRailPortal,
+  useSessionCapabilityRailPresentation,
+} from '@/app/presentation/sessionCapabilityRailOutlet';
 import { EditorGroup } from './EditorGroup';
 import { SplitHandle } from './SplitHandle';
 import {
@@ -58,6 +62,10 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     expandedShortDramaPrimarySurfaceKey,
     setExpandedShortDramaPrimarySurfaceKey,
   ] = useState<string | null>(null);
+  const {
+    isCanvasExpanded,
+    ensureCanvasExpanded,
+  } = useSessionCapabilityRailPresentation();
 
   const {
     primaryGroup,
@@ -209,12 +217,22 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
     ) {
       return;
     }
+    if (!isCanvasExpanded) {
+      ensureCanvasExpanded();
+      if (shortDramaTeamPresentation.mode === 'open') {
+        return;
+      }
+    }
     setExpandedShortDramaPrimarySurfaceKey(current => (
       current === shortDramaTeamPresentation.primarySurfaceKey
         ? null
         : shortDramaTeamPresentation.primarySurfaceKey
     ));
-  }, [shortDramaTeamPresentation]);
+  }, [
+    ensureCanvasExpanded,
+    isCanvasExpanded,
+    shortDramaTeamPresentation,
+  ]);
 
   const handleShortDramaTeamCollapse = useCallback(() => {
     setExpandedShortDramaPrimarySurfaceKey(null);
@@ -337,14 +355,19 @@ export const EditorArea: React.FC<EditorAreaProps> = ({
         />
         <div className="canvas-editor-area__secondary" style={{ width: `${(1 - splitRatio) * 100}%` }}>
           {renderEditorGroup('secondary', presentedSecondaryGroup, isSecondarySceneActive)}
-          {shortDramaTeamPresentation.status === 'ready'
-            && shortDramaTeamPresentation.mode === 'rail' && (
-            <React.Suspense fallback={null}>
-              <ShortDramaTeamPanelControls
-                tabs={shortDramaTeamPresentation.tabs}
-                onToggle={handleShortDramaTeamToggle}
-              />
-            </React.Suspense>
+          {shortDramaTeamPresentation.status === 'ready' && (
+            <SessionCapabilityRailPortal>
+              <React.Suspense fallback={null}>
+                <ShortDramaTeamPanelControls
+                  tabs={shortDramaTeamPresentation.tabs}
+                  isExpanded={
+                    isCanvasExpanded
+                    && shortDramaTeamPresentation.mode === 'open'
+                  }
+                  onToggle={handleShortDramaTeamToggle}
+                />
+              </React.Suspense>
+            </SessionCapabilityRailPortal>
           )}
         </div>
       </div>

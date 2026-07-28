@@ -112,6 +112,7 @@ describe('ShortDramaTeamPanelControls', () => {
         <ShortDramaTeamPanelControls
           tabs={[makeStageTab('script-agent', 'ScriptAI', 'script')]}
           statuses={[]}
+          isExpanded
           onToggle={onToggle}
         />,
       );
@@ -120,6 +121,10 @@ describe('ShortDramaTeamPanelControls', () => {
     const toggle = container.querySelector(
       '[data-testid="short-drama-team-panel-toggle"]',
     ) as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-label')).toContain(
+      'canvas.collapseShortDramaTeam',
+    );
     act(() => toggle.click());
     expect(onToggle).toHaveBeenCalledOnce();
   });

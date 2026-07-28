@@ -46,10 +46,6 @@
     &.is-short-drama-team-rail {
       > .canvas-editor-area__primary {
         width: 100% !important;
-
-        > .canvas-editor-group > .canvas-tab-bar {
-          padding-right: 84px;
-        }
       }
 
       > .canvas-split-handle {
@@ -215,123 +211,6 @@
         justify-self: end;
         border: 0;
       }
-    }
-
-    .short-drama-team-panel-controls {
-      z-index: 8;
-      color: var(--workspace-text-secondary);
-
-      button {
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 28px;
-        height: 28px;
-        padding: 0;
-        border: 0;
-        border-radius: var(--workspace-radius-control);
-        background: transparent;
-        color: inherit;
-        cursor: pointer;
-
-        &:hover {
-          background: var(--workspace-surface-hover);
-          color: var(--workspace-text-primary);
-        }
-
-        &:focus-visible {
-          outline: 2px solid var(--workspace-focus-ring);
-          outline-offset: 1px;
-        }
-      }
-
-      &.is-rail {
-        position: absolute;
-        top: 4px;
-        right: 8px;
-        display: flex;
-        align-items: center;
-        pointer-events: auto;
-
-        &::before {
-          content: '';
-          width: 1px;
-          height: 16px;
-          margin-right: 6px;
-          background: var(--workspace-border-subtle);
-        }
-      }
-
-    }
-
-    .short-drama-team-panel-controls__summary {
-      gap: 5px;
-      width: auto;
-      padding-inline: 7px;
-      border: 0;
-      border-radius: var(--workspace-radius-control);
-      background: transparent;
-      box-shadow: none;
-      font-size: var(--workspace-font-size-label);
-      line-height: 1;
-      white-space: nowrap;
-    }
-
-    .short-drama-team-panel-controls__summary-icon {
-      display: inline-grid;
-      width: 15px;
-      height: 15px;
-      flex: 0 0 15px;
-      place-items: center;
-    }
-
-    .short-drama-team-panel-controls__summary-count {
-      min-width: 1ch;
-      color: var(--workspace-text-primary);
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-    }
-
-    .short-drama-team-panel-controls__preparing {
-      display: inline-grid;
-      width: 28px;
-      height: 28px;
-      place-items: center;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-title);
-      line-height: 1;
-    }
-
-    .short-drama-team-panel-controls__summary.is-status-waiting,
-    .short-drama-team-panel-controls__summary.is-status-cancelled {
-      color: var(--workspace-status-neutral-text);
-    }
-
-    .short-drama-team-panel-controls__summary.is-status-live {
-      color: var(--workspace-status-info-text);
-    }
-
-    .short-drama-team-panel-controls__summary.is-status-attention {
-      color: var(--workspace-status-warning-text);
-    }
-
-    .short-drama-team-panel-controls__summary.is-status-completed {
-      color: var(--workspace-status-success-text);
-    }
-
-    .short-drama-team-panel-controls__summary.is-status-failed {
-      color: var(--workspace-status-error-text);
-    }
-
-    @container short-drama-editor-area (max-width: 560px) {
-      &.is-short-drama-team-rail
-        > .canvas-editor-area__primary
-        > .canvas-editor-group
-        > .canvas-tab-bar {
-        padding-right: 52px;
-      }
-
     }
 
     @container short-drama-editor-area (max-width: 720px) {

@@ -51,25 +51,16 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     expect(source).not.toContain('--short-drama-team-secondary-ratio');
   });
 
-  it('anchors one compact rail control without reserving a permanent side rail', () => {
+  it('keeps the closed team presentation at zero width for the outer capability rail', () => {
     expect(source).toMatch(
       /&\.is-short-drama-team-rail[\s\S]*?> \.canvas-editor-area__primary \{[\s\S]*?width: 100% !important;/,
     );
     expect(source).toMatch(
       /&\.is-short-drama-team-rail[\s\S]*?> \.canvas-editor-area__secondary \{[\s\S]*?position: absolute;[\s\S]*?right: 0;[\s\S]*?width: 0 !important;[\s\S]*?max-width: 0;[\s\S]*?overflow: visible;/,
     );
-    expect(source).toMatch(
-      /\.short-drama-team-panel-controls__summary \{[\s\S]*?width: auto;[\s\S]*?border: 0;/,
-    );
-    expect(source).toMatch(
-      /\.short-drama-team-panel-controls__summary-icon \{[\s\S]*?place-items: center;/,
-    );
-    expect(source).not.toContain(
-      '.short-drama-team-panel-controls__summary-label',
-    );
-    expect(source).toMatch(
-      /\.short-drama-team-panel-controls__summary \{[\s\S]*?border-radius: var\(--workspace-radius-control\);[\s\S]*?background: transparent;[\s\S]*?box-shadow: none;/,
-    );
+    expect(source).not.toContain('.short-drama-team-panel-controls');
+    expect(source).not.toContain('padding-right: 84px');
+    expect(source).not.toContain('padding-right: 52px');
     expect(source).not.toContain('44px');
   });
 
@@ -89,12 +80,6 @@ describe('EditorArea minimal short-drama team layout contract', () => {
     );
     expect(source).toMatch(
       /\.void-ui--minimal \.thinking-collapsed-header \{[\s\S]*?\.thinking-label,[\s\S]*?\.thinking-chevron \{[\s\S]*?color: var\(--workspace-text-muted\);[\s\S]*?opacity: 1;/,
-    );
-    expect(source).toContain(
-      'font-size: var(--workspace-font-size-label);',
-    );
-    expect(source).toContain(
-      'font-size: var(--workspace-font-size-title);',
     );
     expect(source).not.toMatch(/font-size:\s*\d+(?:\.\d+)?px/);
   });

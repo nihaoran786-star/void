@@ -3,6 +3,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SessionCapabilityRailOutletProvider } from '@/app/presentation/sessionCapabilityRailOutlet';
 import type { CanvasTab, EditorGroupState } from '../types';
 
 const canvasState = vi.hoisted(() => ({
@@ -90,11 +91,16 @@ vi.mock('./SplitHandle', () => ({
 
 vi.mock('./ShortDramaTeamPanelControlsContainer', () => ({
   default: ({
+    isExpanded,
     onToggle,
   }: {
+    isExpanded?: boolean;
     onToggle: () => void;
   }) => (
-    <div data-testid="team-controls">
+    <div
+      data-testid="team-controls"
+      data-expanded={isExpanded ? 'true' : 'false'}
+    >
       <button data-testid="team-toggle" type="button" onClick={onToggle}>
         toggle
       </button>
@@ -188,7 +194,8 @@ describe('EditorArea short-drama team presentation', () => {
       '[data-testid="team-toggle"]',
     ) as HTMLButtonElement;
     act(() => toggle.click());
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
     expect(container.querySelector(
       '[data-testid="editor-group-secondary"]',
     )?.getAttribute('data-tab-titles')).toBe(
@@ -197,13 +204,52 @@ describe('EditorArea short-drama team presentation', () => {
     expect(canvasState.setSplitRatio).not.toHaveBeenCalled();
   });
 
+  it('reopens the outer canvas without collapsing an already open team', async () => {
+    const ensureCanvasExpanded = vi.fn();
+    const renderWithCanvasState = async (isCanvasExpanded: boolean) => {
+      await act(async () => {
+        root.render(
+          <SessionCapabilityRailOutletProvider
+            isCanvasExpanded={isCanvasExpanded}
+            ensureCanvasExpanded={ensureCanvasExpanded}
+          >
+            <EditorArea workspacePath="C:/work" />
+          </SessionCapabilityRailOutletProvider>,
+        );
+        await Promise.resolve();
+      });
+    };
+
+    await renderWithCanvasState(true);
+    act(() => {
+      (container.querySelector(
+        '[data-testid="team-toggle"]',
+      ) as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
+
+    await renderWithCanvasState(false);
+    act(() => {
+      (container.querySelector(
+        '[data-testid="team-toggle"]',
+      ) as HTMLButtonElement).click();
+    });
+    expect(ensureCanvasExpanded).toHaveBeenCalledOnce();
+
+    await renderWithCanvasState(true);
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
+  });
+
   it('treats the short-drama team close action as a reversible collapse', async () => {
     await renderArea();
 
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
     });
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     act(() => {
       (container.querySelector(
@@ -221,7 +267,8 @@ describe('EditorArea short-drama team presentation', () => {
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
     });
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
   });
 
   it('turns closing the final team tab into a reversible collapse', async () => {
@@ -260,15 +307,18 @@ describe('EditorArea short-drama team presentation', () => {
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
     });
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     canvasState.primaryGroup = mediaGroup;
     await renderArea();
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     canvasState.primaryGroup = centerGroup;
     await renderArea();
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
   });
 
   it('keeps the team open when switching from the browser to the media wall', async () => {
@@ -283,21 +333,24 @@ describe('EditorArea short-drama team presentation', () => {
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
     });
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     canvasState.primaryGroup = createGroup(
       [browserTab, centerTab, mediaTab],
       browserTab.id,
     );
     await renderArea();
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     canvasState.primaryGroup = createGroup(
       [browserTab, centerTab, mediaTab],
       mediaTab.id,
     );
     await renderArea();
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
   });
 
   it('does not collapse an open team when real stage tabs are only reordered', async () => {
@@ -305,11 +358,13 @@ describe('EditorArea short-drama team presentation', () => {
     act(() => {
       (container.querySelector('[data-testid="team-toggle"]') as HTMLButtonElement).click();
     });
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
 
     canvasState.secondaryGroup = createGroup([...teamGroup.tabs].reverse());
     await renderArea();
-    expect(container.querySelector('[data-testid="team-controls"]')).toBeNull();
+    expect(container.querySelector('[data-testid="team-controls"]')
+      ?.getAttribute('data-expanded')).toBe('true');
     expect(container.querySelector(
       '[data-testid="editor-group-secondary"]',
     )?.getAttribute('data-tab-titles')).toBe(
