@@ -53,11 +53,13 @@ describe('FlowChat minimal presentation contract', () => {
       'flowchat-header-turn-list',
       'flowchat-header-turn-prev',
       'flowchat-header-turn-next',
-      'flowchat-header-workspace-media',
       'flowchat-header-preview-first-toggle',
     ].forEach(testId => {
       expect(headerSource).toContain(`data-testid="${testId}"`);
     });
+    expect(headerSource).not.toContain(
+      'data-testid="flowchat-header-workspace-media"',
+    );
   });
 
   it('keeps the minimal header flat, compact, focusable, and viewport-safe', () => {

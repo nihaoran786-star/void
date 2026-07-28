@@ -34,9 +34,15 @@ const openShortDramaFixture = async () => {
     timeout: 15_000,
   });
   await browser.execute(async () => {
-    const { useAgentCanvasStore } = await import(
-      '/src/app/components/panels/content-canvas/stores/index.ts'
-    );
+    // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+    const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
+    type CanvasTab = {
+      id: string;
+      content: {
+        type: string;
+        data?: Record<string, unknown>;
+      };
+    };
     const state = useAgentCanvasStore.getState();
     const centerEntry = (['primary', 'secondary', 'tertiary'] as const)
       .map((groupId) => {
@@ -47,7 +53,9 @@ const openShortDramaFixture = async () => {
             : state.tertiaryGroup;
         return {
           groupId,
-          tab: group.tabs.find(tab => tab.content.type === 'short-drama-center'),
+          tab: group.tabs.find(
+            (tab: CanvasTab) => tab.content.type === 'short-drama-center',
+          ),
         };
       })
       .find(entry => entry.tab);
@@ -79,18 +87,14 @@ describe('L0 session team capability rail visual contract', () => {
     await browser.setWindowSize(2582, 1390);
 
     createdMediaSessionId = await browser.execute(async () => {
-      const { useAgentCanvasStore } = await import(
-        '/src/app/components/panels/content-canvas/stores/index.ts'
-      );
-      const { globalStateAPI } = await import(
-        '/src/shared/types/global-state.ts'
-      );
-      const { flowChatManager } = await import(
-        '/src/flow_chat/services/FlowChatManager.ts'
-      );
-      const { openMainSession } = await import(
-        '/src/flow_chat/services/openBtwSession.ts'
-      );
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { useAgentCanvasStore } = await import('/src/app/components/panels/content-canvas/stores/index.ts');
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
+      // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+      const { openMainSession } = await import('/src/flow_chat/services/openBtwSession.ts');
       useAgentCanvasStore.getState().reset();
       const workspace = await globalStateAPI.getCurrentWorkspace();
       if (!workspace?.rootPath) {
@@ -176,9 +180,8 @@ describe('L0 session team capability rail visual contract', () => {
   after(async () => {
     if (createdMediaSessionId) {
       await browser.execute(async (sessionId) => {
-        const { flowChatManager } = await import(
-          '/src/flow_chat/services/FlowChatManager.ts'
-        );
+        // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+        const { flowChatManager } = await import('/src/flow_chat/services/FlowChatManager.ts');
         await flowChatManager.deleteChatSession(sessionId);
       }, createdMediaSessionId);
     }
