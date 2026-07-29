@@ -20,6 +20,8 @@ import { createLogger } from '@/shared/utils/logger';
 import { formatContextForPrompt } from '@/shared/utils/contextPrompt';
 import { buildImageContextsForBackend } from '../utils/imageContextForBackend';
 import type { SessionConfig } from '../types/flow-chat';
+import type { PersonaTurnSnapshotDescriptor } from '@/shared/services/customization';
+import { createPersonaTurnSnapshot } from '@/shared/services/customization';
 import {
   createComposerPresentation,
   type ComposerPresentation,
@@ -70,6 +72,11 @@ interface UseMessageSenderProps {
   onSessionCreated?: (sessionId: string) => void;
   /** Authorized scope used by the session-reference Module Interface. */
   sessionReferenceScope?: Omit<SessionReferenceAccessScope, 'currentSessionId'>;
+  /**
+   * Optional explicit parent-session persona state. Omission preserves the
+   * legacy send path exactly and emits no persona metadata.
+   */
+  personaSessionState?: PersonaTurnSnapshotDescriptor;
 }
 
 export interface MessageSendReceipt {
@@ -101,6 +108,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     newSessionConfig,
     onSessionCreated,
     sessionReferenceScope,
+    personaSessionState,
   } = props;
 
   const sendMessage = useCallback(async (
@@ -115,6 +123,9 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     }
 
     const trimmedMessage = message.trim();
+    const personaTurnSnapshot = personaSessionState
+      ? structuredClone(createPersonaTurnSnapshot(personaSessionState))
+      : undefined;
     const requestedSessionId = currentSessionId ?? null;
     const submittedContexts = contexts.map(context => ({ ...context }));
     const submittedContextIds = contexts.map(context => context.id);
@@ -214,6 +225,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
             sessionReferenceResolutions: sessionReferenceResolutionMetadata(
               sessionReferenceInjection.results,
             ),
+            ...(personaTurnSnapshot ? { personaTurnSnapshot } : {}),
           },
         },
       );
@@ -251,6 +263,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     newSessionConfig,
     onSessionCreated,
     sessionReferenceScope,
+    personaSessionState,
   ]);
 
   return {

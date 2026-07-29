@@ -1,21 +1,13 @@
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
-const source = fs.readFileSync(
-  new URL('./AIModelConfig.tsx', import.meta.url),
-  'utf8',
-);
-const defaultSource = fs.readFileSync(
+const source = readSourceText(new URL('./AIModelConfig.tsx', import.meta.url));
+const defaultSource = readSourceText(
   new URL('./DefaultModelConfig.tsx', import.meta.url),
-  'utf8',
 );
-const styles = fs.readFileSync(
-  new URL('./AIModelConfig.scss', import.meta.url),
-  'utf8',
-);
-const defaultStyles = fs.readFileSync(
+const styles = readSourceText(new URL('./AIModelConfig.scss', import.meta.url));
+const defaultStyles = readSourceText(
   new URL('./DefaultModelConfig.scss', import.meta.url),
-  'utf8',
 );
 
 describe('AIModelConfig presentation contract', () => {

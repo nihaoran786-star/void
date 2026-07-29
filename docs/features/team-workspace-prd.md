@@ -1,9 +1,9 @@
 # Team Workspace Product And Architecture Specification
 
-Status: accepted product direction; the first presentation-only entry slice is
-implemented, while the reusable Team Module remains future work.
+Status: reusable Team definition management is implemented for Desktop/Tauri;
+general Team instance/orchestration runtime remains future work.
 
-Updated: 2026-07-28
+Updated: 2026-07-30
 
 ## Product decision
 
@@ -54,10 +54,10 @@ Examples of future reusable teams include:
 - customer-service operations team;
 - software delivery team.
 
-### Deferred mode eligibility
+### Scenario eligibility
 
-Team availability will eventually be explicit by conversation mode rather than
-universal:
+Team definitions declare explicit conversation-scenario eligibility rather
+than relying on labels:
 
 - Code owns software-development teams such as frontend, backend, review, and
   delivery;
@@ -65,14 +65,14 @@ universal:
   teams;
 - Media owns image, video, short-drama, and creator-production teams.
 
-That eligibility model is intentionally outside the first presentation slice.
-The current implementation only relocates the existing Short Drama team
-projection into the session capability rail. It does not add a cross-mode team
-registry, infer eligibility from labels, or expose teams in unsupported modes.
+The catalog stores and validates this eligibility. Existing fixed Deep Review
+and AI Short Drama adapters expose only their supported scenarios. User-authored
+teams remain definition-only until the general runtime exists, so eligibility
+does not yet make them activatable.
 
-Teams may be created by a user, assembled with AI assistance, or installed from
-a future trusted package source. Those creation routes must produce the same
-validated `TeamDefinition`.
+Teams may be created manually, assembled from a description or supplied
+material, edited, or installed from a bounded local package. All routes produce
+the same validated `TeamDefinition`.
 
 ## Domain model
 
@@ -362,12 +362,34 @@ on that compatibility detail.
 - no team lifecycle inferred from transcript text;
 - no automatic cancellation when the Team Workspace is closed.
 
+## Current implementation status
+
+The Desktop/Tauri definition-management slice implements:
+
+- one canonical `TeamDefinition` with stable Team, member, workflow, and phase
+  IDs plus required member Agent IDs;
+- typed list/get/create/update/install/delete Interfaces for user and project
+  scope;
+- optimistic revision checks, serialized writes, atomic replacement and
+  recovery, bounded package reads, read-only installed definitions, and
+  per-record diagnostics instead of clearing a catalog when one file is bad;
+- Team Center cards, detail, three creation routes, edit, package selection,
+  installation, and deletion through Web Module Interfaces;
+- fixed Deep Review and AI Short Drama catalog adapters without changing their
+  runtime behavior.
+
+The slice intentionally does not implement `TeamInstance`,
+`TeamOrchestrator`, arbitrary team-lead activation, live Team Workspace
+projection, or browser/server persistence. User-authored teams therefore remain
+visible and manageable but fail closed as `definition_only` in the composer.
+
 ## Implementation sequence
 
 1. Freeze the DTOs, validation rules, and typed projection contract.
 2. Build Team Center definition management around existing Agent, Skill, tool,
-   model, and permission references.
-3. Integrate Team selection with the shared persona-activation contract.
+   model, and permission references. **Implemented for Desktop/Tauri.**
+3. Integrate fixed-team selection with the shared persona-activation contract;
+   keep reusable definitions unavailable until the general runtime exists.
 4. Adapt one existing fixed team, preferably Review Team or Short Drama, into a
    `TeamDefinition` without changing its runtime behavior.
 5. Add the session capability entry and Team Workspace projection.

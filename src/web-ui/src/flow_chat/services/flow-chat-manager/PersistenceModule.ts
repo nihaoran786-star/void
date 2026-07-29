@@ -482,39 +482,46 @@ export function convertDialogTurnToBackendFormat(dialogTurn: DialogTurn, turnInd
  * when the in-memory dialogTurns only has a partial view (e.g. remote-triggered turns
  * on a persisted session whose full turn history hasn't been loaded yet).
  */
+export async function persistSessionMetadata(
+  context: FlowChatContext,
+  sessionId: string
+): Promise<void> {
+  const { sessionAPI } = await import('@/infrastructure/api');
+
+  const session = context.flowChatStore.getState().sessions.get(sessionId);
+  if (!session) return;
+  if (isTransientSession(session)) return;
+
+  const workspacePath = requireWorkspacePath(sessionId, session.workspacePath);
+
+  let existingMetadata: any = null;
+  try {
+    existingMetadata = await sessionAPI.loadSessionMetadata(
+      sessionId,
+      workspacePath,
+      session.remoteConnectionId,
+      session.remoteSshHost
+    );
+  } catch {
+    // Existing metadata is optional; saving the new authoritative projection is not.
+  }
+
+  const metadata = buildSessionMetadata(session, existingMetadata);
+
+  await sessionAPI.saveSessionMetadata(
+    metadata,
+    workspacePath,
+    session.remoteConnectionId,
+    session.remoteSshHost
+  );
+}
+
 export async function updateSessionMetadata(
   context: FlowChatContext,
   sessionId: string
 ): Promise<void> {
   try {
-    const { sessionAPI } = await import('@/infrastructure/api');
-
-    const session = context.flowChatStore.getState().sessions.get(sessionId);
-    if (!session) return;
-    if (isTransientSession(session)) return;
-
-    const workspacePath = requireWorkspacePath(sessionId, session.workspacePath);
-
-    let existingMetadata: any = null;
-    try {
-      existingMetadata = await sessionAPI.loadSessionMetadata(
-        sessionId,
-        workspacePath,
-        session.remoteConnectionId,
-        session.remoteSshHost
-      );
-    } catch {
-      // ignore
-    }
-
-    const metadata = buildSessionMetadata(session, existingMetadata);
-
-    await sessionAPI.saveSessionMetadata(
-      metadata,
-      workspacePath,
-      session.remoteConnectionId,
-      session.remoteSshHost
-    );
+    await persistSessionMetadata(context, sessionId);
   } catch (error) {
     log.warn('Failed to update session metadata', { sessionId, error });
   }

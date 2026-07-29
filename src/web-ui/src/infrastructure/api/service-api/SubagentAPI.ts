@@ -13,6 +13,7 @@ export type SubagentStateReason =
   | 'builtin_default_visible'
   | 'builtin_default_hidden'
   | 'custom_default_enabled'
+  | 'blocked_by_visibility_policy'
   | 'enabled_by_project_override'
   | 'disabled_by_project_override'
   | 'enabled_by_user_override'
@@ -69,9 +70,18 @@ export interface ReloadSubagentsOptions {
 
 export type SubagentLevel = 'user' | 'project';
 
+export interface SubagentManagementTarget {
+  subagentKey?: string;
+  subagentId: string;
+  workspacePath?: string;
+}
+
 export interface CreateSubagentPayload {
   level: SubagentLevel;
-  name: string;
+  /** Legacy runtime ID. New authoring flows leave this unset. */
+  name?: string;
+  displayName?: string;
+  allowedParentAgentIds?: string[];
   description: string;
   prompt: string;
   tools?: string[];
@@ -81,12 +91,10 @@ export interface CreateSubagentPayload {
   workspacePath?: string;
 }
 
-export interface UpdateSubagentConfigPayload {
-  subagentId: string;
+export interface UpdateSubagentConfigPayload extends SubagentManagementTarget {
   parentAgentType?: string;
   enabled?: boolean;
   model?: string;
-  workspacePath?: string;
 }
 
 export interface UpdateSubagentConfigResponse {
@@ -96,8 +104,12 @@ export interface UpdateSubagentConfigResponse {
 
 /** Full definition for create/edit form (custom user/project sub-agents) */
 export interface SubagentDetail {
+  subagentKey: string;
   subagentId: string;
+  /** Immutable runtime ID retained for diagnostics and legacy callers. */
   name: string;
+  displayName: string;
+  allowedParentAgentIds: string[];
   description: string;
   prompt: string;
   tools: string[];
@@ -109,20 +121,19 @@ export interface SubagentDetail {
   level: SubagentLevel;
 }
 
-export interface GetSubagentDetailPayload {
-  subagentId: string;
-  workspacePath?: string;
-}
+export type GetSubagentDetailPayload = SubagentManagementTarget;
 
-export interface UpdateSubagentPayload {
-  subagentId: string;
+export interface UpdateSubagentPayload extends SubagentManagementTarget {
+  displayName?: string;
+  allowedParentAgentIds?: string[];
   description: string;
   prompt: string;
   tools?: string[];
   readonly?: boolean;
   review?: boolean;
-  workspacePath?: string;
 }
+
+export type DeleteSubagentPayload = SubagentManagementTarget;
 
 // ==================== API ====================
 
@@ -154,8 +165,8 @@ export const SubagentAPI = {
   },
 
    
-  async createSubagent(payload: CreateSubagentPayload): Promise<void> {
-    return api.invoke('create_subagent', {
+  async createSubagent(payload: CreateSubagentPayload): Promise<string> {
+    return api.invoke<string>('create_subagent', {
       request: payload,
     });
   },
@@ -177,12 +188,15 @@ export const SubagentAPI = {
   async getSubagentDetail(payload: GetSubagentDetailPayload): Promise<SubagentDetail> {
     const raw = await api.invoke<SubagentDetail & { level: string }>('get_subagent_detail', {
       request: {
+        subagentKey: payload.subagentKey,
         subagentId: payload.subagentId,
         workspacePath: payload.workspacePath,
       },
     });
     return {
       ...raw,
+      displayName: raw.displayName || raw.name,
+      allowedParentAgentIds: raw.allowedParentAgentIds ?? [],
       level: raw.level === 'project' ? 'project' : 'user',
     };
   },
@@ -190,7 +204,10 @@ export const SubagentAPI = {
   async updateSubagent(payload: UpdateSubagentPayload): Promise<void> {
     return api.invoke('update_subagent', {
       request: {
+        subagentKey: payload.subagentKey,
         subagentId: payload.subagentId,
+        displayName: payload.displayName,
+        allowedParentAgentIds: payload.allowedParentAgentIds,
         description: payload.description,
         prompt: payload.prompt,
         tools: payload.tools,
@@ -201,9 +218,9 @@ export const SubagentAPI = {
     });
   },
 
-  async deleteSubagent(subagentId: string): Promise<void> {
+  async deleteSubagent(payload: DeleteSubagentPayload): Promise<void> {
     return api.invoke('delete_subagent', {
-      request: { subagentId },
+      request: payload,
     });
   },
 };

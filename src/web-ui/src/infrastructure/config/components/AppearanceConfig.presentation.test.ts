@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import fs from 'node:fs';
+import { readSourceText } from '@/test-utils/sourceText';
 
 const readSource = (file: string) =>
-  fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  readSourceText(new URL(file, import.meta.url));
 
 describe('AppearanceConfig presentation hierarchy', () => {
   it('uses a distinct interface section without repeating the page copy', () => {

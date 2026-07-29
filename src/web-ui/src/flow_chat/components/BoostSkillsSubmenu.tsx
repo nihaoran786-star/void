@@ -23,7 +23,7 @@ export const BoostSkillsSubmenu: React.FC<BoostSkillsSubmenuProps> = ({
   onSelectSkill,
   onOpenLibrary,
 }) => {
-  const { t } = useTranslation('components');
+  const { t } = useTranslation('flow-chat');
   const menuId = useId();
   const hostRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);

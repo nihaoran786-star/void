@@ -1,5 +1,9 @@
 {
   "title": "Agents",
+  "runtimeUnsupported": {
+    "title": "Void desktop app required",
+    "description": "Agent and team management is not available in the browser yet. Open the Void desktop app to browse, create, edit, and use agents."
+  },
   "desc": "Sub-agents collaborating on specialized tasks — {{total}} total, {{enabled}} enabled",
   "manage": "Manage",
   "builtin": "Built-in",
@@ -7,6 +11,326 @@
   "empty": "No sub-agents available",
   "goManage": "Go to Manage",
   "loading": "Loading…",
+  "catalog": {
+    "tabs": { "ariaLabel": "Agent catalog", "agents": "Agents", "teams": "Teams" },
+    "page": { "title": "Agent Teams", "subtitle": "Browse professional teams, their leads, and real collaborating members." },
+    "zone": { "title": "Recommended Teams", "subtitle": "Teams keep their existing runtime behavior; this page presents them consistently and opens their existing flows." },
+    "states": {
+      "partial": "Some teams could not be loaded. Available teams are still shown.",
+      "error": "The team catalog failed to load. Try again.",
+      "empty": "No agent teams are currently available."
+    },
+    "actions": { "retry": "Retry", "reload": "Reload" },
+    "detail": {
+      "memberCount": "{{count}} members",
+      "openReviewTeam": "Open Code Review Team",
+      "useInMedia": "Use in a Media session",
+      "editDefinition": "Edit team",
+      "deleteDefinition": "Delete team",
+      "removeInstalled": "Remove installed team",
+      "lead": "Lead",
+      "members": "Team Members",
+      "qualityGate": "Quality Gate",
+      "definitionReady": "Team definition ready",
+      "definitionRuntimeDeferred": "You can manage this definition, but the general team runtime is not connected yet.",
+      "runtimeReady": "Existing team runtime available",
+      "fixedRuntimeHint": "This team continues to use its existing stable workflow.",
+      "workflows": "Workflows",
+      "workflowCount": "{{count}} workflows"
+    },
+    "management": {
+      "title": "Create and install teams",
+      "description": "New teams are saved as manageable definitions without changing active sessions.",
+      "unsupported": "Team management is available in the Void desktop app.",
+      "installScope": "Install location",
+      "userScope": "My teams",
+      "projectScope": "Current project",
+      "install": "Install team",
+      "create": "New team",
+      "installSuccess": "Installed “{{name}}”",
+      "deleteTitle": "Delete team",
+      "deleteConfirm": "Delete “{{name}}” from this device?",
+      "deleteSuccess": "Deleted “{{name}}”"
+    },
+    "scenarios": { "code": "Code", "cowork": "Cowork", "media": "Media" },
+    "tags": {
+      "code_review": "Code Review",
+      "parallel_review": "Parallel Review",
+      "quality_gate": "Quality Gate",
+      "ai_short_drama": "AI Short Drama",
+      "video_production": "Video Production",
+      "five_stage_workflow": "Five-stage Workflow",
+      "definition_only": "Team definition"
+    },
+    "presentations": {
+      "modes": {
+        "agentic": { "name": "Code Execution", "description": "Analyze code, edit files, and complete verification directly." },
+        "plan": { "name": "Planning", "description": "Clarify goals, boundaries, and implementation steps before development." },
+        "debug": { "name": "Debugging", "description": "Locate the cause of failures and validate a repair path." },
+        "multitask": { "name": "Parallel Tasks", "description": "Run independent work in parallel, then consolidate the results." },
+        "team": { "name": "Development Teamwork", "description": "Coordinate code work through the existing development team mode." },
+        "cowork": { "name": "Office Work", "description": "Handle documents, research, analysis, and everyday office tasks." },
+        "deepResearch": { "name": "Deep Research", "description": "Collect evidence and reach conclusions for complex questions." },
+        "claw": { "name": "Autonomous Assistant", "description": "Keep advancing a clear objective in the office scenario." },
+        "media": { "name": "Design & Creative", "description": "Work on images, video, and AI media creation." },
+        "computerUse": { "name": "Computer Use", "description": "Operate local apps and the system through desktop interaction." }
+      },
+      "subagents": {
+        "explore": { "name": "Code Explorer", "description": "Trace code structure, call relationships, and architectural clues across modules." },
+        "fileFinder": { "name": "File Finder", "description": "Quickly locate files, symbols, and configuration relevant to a task." },
+        "codeReview": { "name": "Code Reviewer", "description": "Check code changes for correctness, risk, and regressions." },
+        "generateDoc": { "name": "Documentation Agent", "description": "Create structured documentation from project facts." },
+        "generalPurpose": { "name": "General-purpose Agent", "description": "Complete bounded general tasks and return the result." },
+        "researchSpecialist": { "name": "Research Specialist", "description": "Research one focused question and return structured evidence from reliable sources." },
+        "deepReview": { "name": "Code Review Lead", "description": "Coordinate multiple reviewers and consolidate quality findings." },
+        "reviewBusinessLogic": { "name": "Business Logic Reviewer", "description": "Check business rules, state transitions, and recovery paths." },
+        "reviewPerformance": { "name": "Performance Reviewer", "description": "Check hot paths, blocking work, and scaling risks." },
+        "reviewSecurity": { "name": "Security Reviewer", "description": "Check permissions, trust boundaries, injection, and sensitive data risks." },
+        "reviewArchitecture": { "name": "Architecture Reviewer", "description": "Check module boundaries, dependency direction, and interface contracts." },
+        "reviewFrontend": { "name": "Frontend Reviewer", "description": "Check interaction, accessibility, internationalization, and frontend contracts." },
+        "reviewJudge": { "name": "Review Quality Gate", "description": "Independently validate review findings and remove false positives." },
+        "reviewFixer": { "name": "Review Fixer", "description": "Implement approved fixes only after user confirmation." },
+        "scriptAI": { "name": "Script Agent", "description": "Own story structure, character relationships, and episode content." },
+        "assetAI": { "name": "Asset Agent", "description": "Own consistency across characters, scenes, and visual assets." },
+        "splitAI": { "name": "Storyboard Agent", "description": "Own shot breakdowns, visual staging, and storyboard planning." },
+        "videoAI": { "name": "Video Agent", "description": "Own shot generation and result checks." },
+        "editorAI": { "name": "Post-production Agent", "description": "Own editing, subtitles, sound, and final preview." }
+      },
+      "teams": {
+        "deepReview": { "name": "Code Review Team", "description": "Independent reviewers inspect code in parallel before a quality gate validates the result." },
+        "shortDrama": { "name": "AI Short Drama Team", "description": "Script, asset, storyboard, video, and post-production agents collaborate on a short drama." }
+      },
+      "teamMembers": {
+        "deepReview": { "name": "Code Review Lead", "description": "Create review tasks, assign work packages, and consolidate validated findings." },
+        "reviewBusinessLogic": { "name": "Business Logic Reviewer", "description": "Check business rules, state transitions, edge cases, and recovery paths." },
+        "reviewPerformance": { "name": "Performance Reviewer", "description": "Check hot paths, blocking work, and scaling risks." },
+        "reviewSecurity": { "name": "Security Reviewer", "description": "Check trust boundaries, permissions, injection, and sensitive data risks." },
+        "reviewArchitecture": { "name": "Architecture Reviewer", "description": "Check module boundaries, dependency direction, and interface contracts." },
+        "reviewFrontend": { "name": "Frontend Reviewer", "description": "Check accessibility, internationalization, performance, and frontend contracts." },
+        "reviewJudge": { "name": "Review Quality Gate", "description": "Validate findings independently, remove false positives, and confirm delivery quality." },
+        "media": { "name": "Short Drama Lead", "description": "Keep the existing Media parent session and coordinate the five short-drama stages." },
+        "scriptAI": { "name": "Script Agent", "description": "Own story structure, character relationships, and episode content." },
+        "assetAI": { "name": "Asset Agent", "description": "Own consistency across characters, scenes, and visual assets." },
+        "splitAI": { "name": "Storyboard Agent", "description": "Own shot breakdowns, visual staging, and storyboard planning." },
+        "videoAI": { "name": "Video Agent", "description": "Own shot generation and result checks." },
+        "editorAI": { "name": "Post-production Agent", "description": "Own editing, subtitles, sound, and final preview." }
+      }
+    }
+  },
+  "teamAuthoring": {
+    "back": "Back to teams",
+    "titleCreate": "Create an AI team",
+    "subtitleCreate": "Describe the team in plain language; stable IDs are generated automatically.",
+    "titleEdit": "Edit AI team",
+    "subtitleEdit": "Update the team, member responsibilities, and workflow without changing stable IDs.",
+    "routeLabel": "Team creation method",
+    "routes": {
+      "describe": "Describe a need",
+      "material": "Import material",
+      "manual": "Manual setup"
+    },
+    "runtimeUnsupported": "Team creation, editing, and installation require the Void desktop app.",
+    "loading": "Loading team definition…",
+    "organizeHint": "Builds a lead, specialist, and two-stage workflow locally without calling AI.",
+    "organize": "Prepare team draft",
+    "source": {
+      "describe": {
+        "label": "What should this team solve?",
+        "placeholder": "For example: create a software delivery team with a lead, an implementation specialist, and final review."
+      },
+      "material": {
+        "label": "Paste existing material",
+        "placeholder": "Paste team prompts, SOPs, role descriptions, workflow documents, or an existing expert package."
+      }
+    },
+    "basics": {
+      "title": "Team basics",
+      "hint": "The name is for display only; runtime IDs never come from the display name.",
+      "displayName": "Team name",
+      "displayNamePlaceholder": "For example: Software delivery team",
+      "category": "Category",
+      "categoryPlaceholder": "For example: Engineering",
+      "description": "Team description",
+      "descriptionPlaceholder": "Describe what the team solves in one sentence.",
+      "tags": "Capability tags",
+      "tagsPlaceholder": "For example: planning, development, quality review",
+      "scenarios": "Available scenarios"
+    },
+    "scenarios": {
+      "code": "Code development",
+      "cowork": "Office work",
+      "media": "Creative design"
+    },
+    "scope": {
+      "title": "Save location",
+      "user": "My teams",
+      "project": "Current project"
+    },
+    "members": {
+      "title": "Team members",
+      "hint": "The lead routes and assembles work; every member keeps a stable agent reference.",
+      "add": "Add member",
+      "lead": "Lead",
+      "member": "Member {{number}}",
+      "makeLead": "Make lead",
+      "remove": "Remove member",
+      "name": "Member name",
+      "profession": "Professional role",
+      "agent": "Agent",
+      "selectAgent": "Select an agent",
+      "instructions": "Work instructions",
+      "output": "Output responsibility",
+      "role": "Member type"
+    },
+    "memberRoles": {
+      "specialist": "Specialist",
+      "quality_gate": "Quality gate"
+    },
+    "workflows": {
+      "title": "Collaboration workflows",
+      "hint": "Make sequence, parallel work, and dependencies explicit.",
+      "add": "Add workflow",
+      "remove": "Delete workflow",
+      "workflow": "Workflow {{number}}",
+      "name": "Workflow name",
+      "trigger": "When to use",
+      "phase": "Phase {{number}}",
+      "phaseName": "Phase name",
+      "phaseKind": "Execution type",
+      "assignees": "Assigned members",
+      "dependencies": "Prerequisite phases",
+      "outputs": "Expected outputs",
+      "completion": "Completion rule",
+      "addPhase": "Add phase",
+      "removePhase": "Delete phase"
+    },
+    "phaseKinds": {
+      "serial": "Serial",
+      "parallel": "Parallel",
+      "decision": "Decision",
+      "review": "Review"
+    },
+    "policy": {
+      "title": "Stable permission policy",
+      "description": "Members receive only the intersection of scenario, team, and user permissions. Messages route through the lead by default."
+    },
+    "preview": {
+      "title": "Review before saving",
+      "unnamed": "Unnamed team",
+      "empty": "The team description will appear here.",
+      "summary": "{{members}} members · {{workflows}} workflows",
+      "editStructureLocked": "Existing teams keep their current member and phase IDs while editing."
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "create": "Create team",
+      "save": "Save changes"
+    },
+    "messages": {
+      "prepared": "Team draft prepared",
+      "prepareFirst": "Prepare the description or material first",
+      "noWorkspace": "Open a local project first",
+      "createSuccess": "Created “{{name}}”",
+      "updateSuccess": "Saved “{{name}}”",
+      "failedWithRecovery": "{{error}} Recovery file: {{path}}"
+    },
+    "agentFallbacks": {
+      "code": "Code execution",
+      "cowork": "Office work",
+      "media": "Creative design"
+    },
+    "defaults": {
+      "memberName": "New member",
+      "memberRole": "Domain specialist",
+      "memberInstructions": "Complete the assigned professional work and return it to the lead.",
+      "memberOutput": "Provide a clear, verifiable professional result.",
+      "phaseName": "New phase",
+      "phaseOutput": "Phase result",
+      "phaseCompletion": "The owner submits a complete and verifiable result.",
+      "workflowName": "New workflow",
+      "workflowTrigger": "Use when a task matches this team’s responsibilities."
+    },
+    "template": {
+      "defaultCategory": "General team",
+      "describeDescriptionPrefix": "A collaboration team created for this goal:",
+      "materialDescriptionPrefix": "A collaboration team organized from the supplied material:",
+      "leadDisplayName": "Team lead",
+      "leadProfessionalRole": "Coordination and delivery lead",
+      "specialistDisplayName": "Domain specialist",
+      "specialistProfessionalRole": "Professional execution and analysis",
+      "describeLeadInstructions": "Break down the described goal, coordinate members, and assemble the result.",
+      "materialLeadInstructions": "Treat the supplied material as authoritative, coordinate the workflow, and assemble the result.",
+      "leadOutputResponsibility": "Verify dependencies, integrate member conclusions, and deliver the final result.",
+      "describeSpecialistInstructions": "Independently perform the professional analysis and execution required by the goal.",
+      "materialSpecialistInstructions": "Independently perform the assigned professional work using the supplied material.",
+      "specialistOutputResponsibility": "Provide professional output the lead can verify and assemble.",
+      "workflowDisplayName": "Standard collaboration workflow",
+      "describeWorkflowTrigger": "Use when a task matches the described team goal.",
+      "materialWorkflowTrigger": "Use when a task must follow the supplied material.",
+      "specialistPhaseDisplayName": "Professional execution",
+      "specialistExpectedOutput": "Professional execution result",
+      "specialistCompletionRule": "The specialist submits a complete, verifiable result.",
+      "leadPhaseDisplayName": "Lead review and assembly",
+      "leadExpectedOutput": "Final team result",
+      "leadCompletionRule": "The lead confirms dependencies are complete and delivers the final result."
+    },
+    "diagnostics": {
+      "display_name_required": "Enter a team name",
+      "source_text_required": "Describe the need or paste material",
+      "description_required": "Enter a team description",
+      "category_required": "Enter a category",
+      "scenario_required": "Select at least one scenario",
+      "member_count_out_of_range": "A team needs 2 to 12 members",
+      "member_key_required": "A member is missing its internal key",
+      "duplicate_member_key": "Member internal keys must be unique",
+      "member_display_name_required": "Enter every member name",
+      "member_professional_role_required": "Enter every professional role",
+      "member_instructions_required": "Enter every member’s instructions",
+      "member_output_required": "Enter every member’s output responsibility",
+      "member_agent_reference_required": "Select an agent for every member",
+      "lead_member_required": "Select a team lead",
+      "lead_member_not_found": "The selected lead is not in the member list",
+      "lead_member_must_have_lead_role": "The selected lead must have the lead role",
+      "lead_member_must_appear_once": "A team must contain exactly one lead",
+      "workflow_count_out_of_range": "A team needs 1 to 8 workflows",
+      "workflow_key_required": "A workflow is missing its internal key",
+      "duplicate_workflow_key": "Workflow internal keys must be unique",
+      "workflow_display_name_required": "Enter every workflow name",
+      "workflow_trigger_required": "Enter when each workflow should be used",
+      "phase_count_out_of_range": "Each workflow needs 1 to 20 phases",
+      "phase_key_required": "A phase is missing its internal key",
+      "duplicate_phase_key": "Phase internal keys must be unique",
+      "phase_display_name_required": "Enter every phase name",
+      "invalid_phase_kind": "The phase execution type is invalid",
+      "phase_member_required": "Assign at least one member",
+      "phase_member_not_found": "A phase references a missing member",
+      "phase_dependency_not_found": "A phase references a missing prerequisite",
+      "phase_self_dependency": "A phase cannot depend on itself",
+      "workflow_cycle": "Workflow dependencies contain a cycle",
+      "phase_completion_rule_required": "Enter every phase completion rule"
+    },
+    "errors": {
+      "unsupported_transport": "Team management is not supported here",
+      "unsupported_remote_project": "Project teams are not supported in remote workspaces yet",
+      "not_found": "The team definition no longer exists",
+      "not_authorable": "This team definition is read-only",
+      "fixed_team_immutable": "A fixed runtime team cannot be overwritten",
+      "revision_conflict": "The team changed elsewhere; reload before saving",
+      "definition_already_exists": "A team with the same ID already exists",
+      "invalid_schema": "This team file version is not supported",
+      "validation_failed": "The team definition did not pass validation",
+      "reference_not_found": "The team references a missing agent, member, or phase",
+      "permission_expansion": "Team permissions cannot exceed parent permissions",
+      "package_too_large": "The team file exceeds the 1 MiB limit",
+      "untrusted_package": "The team file contains unsupported content",
+      "package_changed_after_preview": "The team file changed; select it again",
+      "read_failed": "Could not read the team",
+      "write_failed": "Could not save the team",
+      "install_failed": "Could not install the team",
+      "delete_failed": "Could not delete the team",
+      "rollback_failed": "Saving failed and automatic recovery did not complete"
+    }
+  },
   "page": {
     "title": "Agents",
     "subtitle": "Review and manage core modes, agents, and sub-agents, including tools and skills.",
@@ -142,10 +466,10 @@
     "deleteSuccess": "Deleted \"{{name}}\"",
     "deleteFailed": "Delete failed: ",
     "form": {
-      "title": "Create Sub-Agent",
-      "subtitle": "Create a custom user-level or project-level sub-agent.",
-      "titleEdit": "Edit Sub-Agent",
-      "subtitleEdit": "Change description, system prompt, tools, and readonly. Name and level cannot be changed.",
+      "title": "Create Agent",
+      "subtitle": "Enter a friendly name and purpose. The runtime ID is generated automatically.",
+      "titleEdit": "Edit Agent",
+      "subtitleEdit": "Change the friendly name, scenarios, prompt, and tools. The runtime ID stays unchanged.",
       "loadingDetail": "Loading…",
       "save": "Save",
       "updateSuccess": "Saved \"{{name}}\"",
@@ -170,7 +494,66 @@
       "cancel": "Cancel",
       "submit": "Create",
       "createSuccess": "Created agent \"{{name}}\"",
-      "createFailed": "Create failed: "
+      "createFailed": "Create failed: ",
+      "displayName": "Agent name",
+      "displayNamePlaceholder": "For example: Frontend development expert",
+      "runtimeId": "Runtime ID",
+      "runtimeIdAuto": "A runtime ID is generated when you save. No English identifier is required.",
+      "routeLabel": "Creation method",
+      "routes": {
+        "describe": "Describe need",
+        "material": "Import material",
+        "manual": "Manual setup"
+      },
+      "source": {
+        "describe": {
+          "label": "What should this agent do?",
+          "placeholder": "Describe its responsibilities, working method, and expected result in plain language."
+        },
+        "material": {
+          "label": "Paste existing material",
+          "placeholder": "Paste a prompt, handbook, workflow, or role description."
+        }
+      },
+      "localOrganizeHint": "This organizes a draft locally with a fixed template. It does not call AI or add cost.",
+      "organizeDraft": "Organize draft",
+      "draftPrepared": "Draft organized. Review and edit it before saving.",
+      "prepareFirst": "Organize the description or material into a draft first.",
+      "scenarioLabel": "Available scenarios",
+      "scenarioHint": "Choose at least one. The agent appears only in these scenario pickers.",
+      "scenarios": {
+        "code": "Code",
+        "cowork": "Cowork",
+        "media": "Design & Creative"
+      },
+      "configurationTitle": "Agent configuration",
+      "configurationHint": "All three methods save the same configuration",
+      "previewTitle": "Preview before saving",
+      "previewUnnamed": "Unnamed agent",
+      "previewEmpty": "The description preview appears here.",
+      "previewNoScenario": "No scenario selected",
+      "diagnostics": {
+        "display_name_required": "Enter an agent name",
+        "source_text_required": "Describe the need or paste material",
+        "description_required": "Enter an agent description",
+        "prompt_required": "Enter a system prompt",
+        "scenario_required": "Choose at least one available scenario"
+      },
+      "template": {
+        "describeRole": "You are \"__NAME__\".",
+        "describeResponsibilities": "Your responsibilities:",
+        "describeRequirements": "Working requirements:",
+        "describeStep1": "1. Confirm the goal, available material, and delivery standard first.",
+        "describeStep2": "2. Work within the defined responsibility and identify missing information explicitly.",
+        "describeStep3": "3. Return actionable conclusions, steps, or artifacts without fabricating execution results.",
+        "materialDescriptionPrefix": "Execute from imported material:",
+        "materialRole": "You are \"__NAME__\". Use the following material as your working basis.",
+        "materialRules": "Working rules:",
+        "materialStep1": "1. Follow the roles, process, constraints, and output rules in the material.",
+        "materialStep2": "2. Identify conflicts or gaps before giving the smallest viable recommendation.",
+        "materialStep3": "3. Never claim that an unperformed tool, file, or external operation was completed.",
+        "materialHeading": "Imported material:"
+      }
     }
   },
   "reviewTeams": {

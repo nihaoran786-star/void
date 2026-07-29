@@ -199,6 +199,89 @@ describe('FlowChatStore composer draft cleanup', () => {
   });
 });
 
+describe('FlowChatStore parent customization projection', () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it('atomically updates mode, scenario, execution policy and active binding on a parent', () => {
+    const parent = createSession({
+      sessionKind: 'normal',
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      activePersonaBinding: null,
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([[parent.sessionId, parent]]),
+      activeSessionId: parent.sessionId,
+    }));
+
+    expect(flowChatStore.updateParentSessionCustomization(parent.sessionId, {
+      mode: 'Plan',
+      scenario: 'code',
+      executionPolicy: 'Plan',
+      activePersonaBinding: {
+        kind: 'agent',
+        personaId: 'project::void::reviewer',
+        personaRevision: { status: 'known', value: 'reviewer-v1' },
+      },
+    })).toBe(true);
+    expect(flowChatStore.getState().sessions.get(parent.sessionId)).toMatchObject({
+      mode: 'Plan',
+      scenario: 'code',
+      executionPolicy: 'Plan',
+      activePersonaBinding: {
+        kind: 'agent',
+        personaId: 'project::void::reviewer',
+      },
+      workspacePath: 'D:/workspace/void',
+    });
+  });
+
+  it('refuses to attach a parent persona to BTW or subagent sessions', () => {
+    const child = createSession({
+      sessionId: 'child',
+      sessionKind: 'btw',
+      parentSessionId: 'parent',
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([[child.sessionId, child]]),
+      activeSessionId: child.sessionId,
+    }));
+
+    expect(flowChatStore.updateParentSessionCustomization(child.sessionId, {
+      mode: 'agentic',
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      activePersonaBinding: {
+        kind: 'agent',
+        personaId: 'user::void::writer',
+        personaRevision: { status: 'known', value: 'writer-v1' },
+      },
+    })).toBe(false);
+    expect(flowChatStore.getState().sessions.get(child.sessionId)?.activePersonaBinding)
+      .toBeUndefined();
+  });
+
+  it('legacy mode updates keep a normal parent execution policy in sync', () => {
+    const parent = createSession({
+      sessionKind: 'normal',
+      mode: 'agentic',
+      executionPolicy: 'agentic',
+    });
+    flowChatStore.setState(() => ({
+      sessions: new Map([[parent.sessionId, parent]]),
+      activeSessionId: parent.sessionId,
+    }));
+
+    expect(flowChatStore.updateSessionMode(parent.sessionId, 'debug')).toBe(true);
+    expect(flowChatStore.getState().sessions.get(parent.sessionId)).toMatchObject({
+      mode: 'debug',
+      executionPolicy: 'debug',
+    });
+  });
+});
+
 describe('FlowChatStore metadata persistence callbacks', () => {
   afterEach(() => {
     resetStore();

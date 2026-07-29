@@ -4,6 +4,7 @@ import {
   calculateTurnHash,
   convertDialogTurnToBackendFormat,
   immediateSaveDialogTurn,
+  persistSessionMetadata,
   saveDialogTurnToDisk,
 } from './PersistenceModule';
 
@@ -316,5 +317,46 @@ describe('PersistenceModule', () => {
     await vi.advanceTimersByTimeAsync(500);
     await flushMicrotasks();
     expect(saveSessionTurn).toHaveBeenCalledTimes(1);
+  });
+
+  it('strict persona persistence writes customization metadata and propagates save failure', async () => {
+    const context = createContext(createDialogTurn('completed'));
+    const session = context.flowChatStore.getState().sessions.get(SESSION_ID);
+    Object.assign(session, {
+      config: { agentType: 'agentic' },
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      activePersonaBinding: {
+        kind: 'agent',
+        personaId: 'user::void::writer',
+        personaRevision: { status: 'known', value: 'writer-v1' },
+      },
+    });
+
+    await persistSessionMetadata(context, SESSION_ID);
+    expect(saveSessionMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customMetadata: expect.objectContaining({
+          customization: {
+            schemaVersion: 1,
+            scenario: 'code',
+            executionPolicy: 'agentic',
+            activePersonaBinding: {
+              kind: 'agent',
+              personaId: 'user::void::writer',
+              personaRevision: { status: 'known', value: 'writer-v1' },
+            },
+          },
+        }),
+      }),
+      'D:/workspace/void',
+      undefined,
+      undefined,
+    );
+
+    saveSessionMetadata.mockRejectedValueOnce(new Error('disk unavailable'));
+    await expect(persistSessionMetadata(context, SESSION_ID)).rejects.toThrow(
+      'disk unavailable',
+    );
   });
 });

@@ -8,7 +8,6 @@ use super::types::AgentEntry;
 use super::{AgentRegistry, CustomSubagentDetail};
 use crate::agentic::agents::definitions::custom::{CustomSubagent, CustomSubagentKind};
 use crate::agentic::agents::registry::types::subagent_key_for;
-use crate::agentic::agents::registry::visibility::SubagentVisibilityPolicy;
 use crate::agentic::agents::{Agent, AgentCategory, CustomSubagentConfig, SubAgentSource};
 use crate::agentic::tools::{get_all_registered_tool_names, get_readonly_registered_tool_names};
 use crate::service::config::global::GlobalConfigManager;
@@ -32,7 +31,10 @@ impl AgentRegistry {
         let mut map = self.write_agents();
         map.retain(|_, entry| {
             !(entry.category == AgentCategory::SubAgent
-                && entry.subagent_source == Some(SubAgentSource::User))
+                && matches!(
+                    entry.subagent_source,
+                    Some(SubAgentSource::User | SubAgentSource::Project)
+                ))
         });
         let mut project_entries = HashMap::new();
         for mut sub in custom {
@@ -44,11 +46,12 @@ impl AgentRegistry {
             let custom_config = CustomSubagentConfig {
                 model: sub.model.clone(),
             };
+            let visibility_policy = sub.visibility_policy();
             let entry = AgentEntry {
                 category: AgentCategory::SubAgent,
                 subagent_source: Some(source),
                 agent: Arc::new(sub),
-                visibility_policy: SubagentVisibilityPolicy::public(),
+                visibility_policy,
                 custom_config: Some(custom_config),
             };
 
@@ -64,13 +67,6 @@ impl AgentRegistry {
                     map.insert(id, entry);
                 }
                 SubAgentSource::Project => {
-                    if map.contains_key(&id) {
-                        warn!(
-                            "Custom subagent {} (source {:?}) conflicts with existing, skip",
-                            id, source
-                        );
-                        continue;
-                    }
                     project_entries.insert(id, entry);
                 }
                 SubAgentSource::Builtin => {}
@@ -190,20 +186,21 @@ impl AgentRegistry {
         agent_id: &str,
         workspace_root: Option<&Path>,
     ) -> Option<CustomSubagentConfig> {
-        if let Some(entry) = self.read_agents().get(agent_id) {
-            if entry.category == AgentCategory::SubAgent {
-                return entry.custom_config.clone();
-            }
-        }
+        self.get_custom_subagent_config_keyed(None, agent_id, workspace_root)
+            .ok()
+            .flatten()
+    }
 
-        workspace_root
-            .and_then(|root| self.read_project_subagents().get(root).cloned())
-            .and_then(|entries| entries.get(agent_id).cloned())
-            .and_then(|entry| {
-                (entry.category == AgentCategory::SubAgent)
-                    .then(|| entry.custom_config)
-                    .flatten()
-            })
+    pub fn get_custom_subagent_config_keyed(
+        &self,
+        subagent_key: Option<&str>,
+        agent_id: &str,
+        workspace_root: Option<&Path>,
+    ) -> VoidResult<Option<CustomSubagentConfig>> {
+        Ok(self
+            .resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?
+            .entry
+            .custom_config)
     }
 
     pub fn has_project_custom_subagent(&self, agent_id: &str) -> bool {
@@ -224,30 +221,50 @@ impl AgentRegistry {
         model: Option<String>,
         workspace_root: Option<&Path>,
     ) -> VoidResult<()> {
-        let mut map = self.write_agents();
-        if let Some(entry) = map.get_mut(agent_id) {
-            return Self::update_custom_entry_config(agent_id, entry, model);
-        }
-        drop(map);
+        self.update_and_save_custom_subagent_config_keyed(None, agent_id, model, workspace_root)
+    }
 
-        let workspace_root = workspace_root.ok_or_else(|| {
-            VoidError::agent(format!(
-                "workspace_path is required to update project subagent '{}'",
+    pub fn update_and_save_custom_subagent_config_keyed(
+        &self,
+        subagent_key: Option<&str>,
+        agent_id: &str,
+        model: Option<String>,
+        workspace_root: Option<&Path>,
+    ) -> VoidResult<()> {
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        match resolved.source {
+            SubAgentSource::Builtin => Err(VoidError::agent(format!(
+                "Subagent '{}' is not a custom subagent",
                 agent_id
-            ))
-        })?;
-        let mut project_maps = self.write_project_subagents();
-        let entries = project_maps.get_mut(workspace_root).ok_or_else(|| {
-            VoidError::agent(format!(
-                "Project subagents are not loaded for workspace: {}",
-                workspace_root.display()
-            ))
-        })?;
-        let entry = entries
-            .get_mut(agent_id)
-            .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-
-        Self::update_custom_entry_config(agent_id, entry, model)
+            ))),
+            SubAgentSource::User => {
+                let mut map = self.write_agents();
+                let entry = map
+                    .get_mut(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                Self::update_custom_entry_config(agent_id, entry, model)
+            }
+            SubAgentSource::Project => {
+                let workspace_root = workspace_root.ok_or_else(|| {
+                    VoidError::agent(format!(
+                        "workspace_path is required to update project subagent '{}'",
+                        agent_id
+                    ))
+                })?;
+                let mut project_maps = self.write_project_subagents();
+                let entries = project_maps.get_mut(workspace_root).ok_or_else(|| {
+                    VoidError::agent(format!(
+                        "Project subagents are not loaded for workspace: {}",
+                        workspace_root.display()
+                    ))
+                })?;
+                let entry = entries
+                    .get_mut(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                Self::update_custom_entry_config(agent_id, entry, model)
+            }
+        }
     }
 
     fn update_custom_entry_config(
@@ -296,26 +313,31 @@ impl AgentRegistry {
         agent_id: &str,
         workspace_root: Option<&Path>,
     ) -> VoidResult<CustomSubagentDetail> {
+        self.get_custom_subagent_detail_keyed(None, agent_id, workspace_root)
+            .await
+    }
+
+    pub async fn get_custom_subagent_detail_keyed(
+        &self,
+        subagent_key: Option<&str>,
+        agent_id: &str,
+        workspace_root: Option<&Path>,
+    ) -> VoidResult<CustomSubagentDetail> {
         if let Some(root) = workspace_root {
             self.load_custom_subagents(root).await;
         }
-        self.get_custom_subagent_detail_inner(agent_id, workspace_root)
+        self.get_custom_subagent_detail_inner(subagent_key, agent_id, workspace_root)
     }
 
     fn get_custom_subagent_detail_inner(
         &self,
+        subagent_key: Option<&str>,
         agent_id: &str,
         workspace_root: Option<&Path>,
     ) -> VoidResult<CustomSubagentDetail> {
-        let entry = self
-            .find_agent_entry(agent_id, workspace_root)
-            .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-        if entry.category != AgentCategory::SubAgent {
-            return Err(VoidError::agent(format!(
-                "Agent '{}' is not a subagent",
-                agent_id
-            )));
-        }
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        let entry = resolved.entry;
         if entry.subagent_source == Some(SubAgentSource::Builtin) {
             return Err(VoidError::agent(
                 "Built-in subagents cannot be edited here".to_string(),
@@ -341,8 +363,16 @@ impl AgentRegistry {
             CustomSubagentKind::Project => "project",
         };
         Ok(CustomSubagentDetail {
+            subagent_key: resolved.canonical_key.ok_or_else(|| {
+                VoidError::validation(format!(
+                    "Custom subagent '{}' has inconsistent source/kind identity",
+                    agent_id
+                ))
+            })?,
             subagent_id: agent_id.to_string(),
             name: custom.name.clone(),
+            display_name: custom.presentation_name().to_string(),
+            allowed_parent_agent_ids: custom.allowed_parent_agent_ids.clone(),
             description: custom.description.clone(),
             prompt: custom.prompt.clone(),
             tools: custom.tools.clone(),
@@ -360,6 +390,37 @@ impl AgentRegistry {
         &self,
         agent_id: &str,
         workspace_root: Option<&Path>,
+        display_name: Option<String>,
+        allowed_parent_agent_ids: Option<Vec<String>>,
+        description: String,
+        prompt: String,
+        tools: Option<Vec<String>>,
+        readonly: Option<bool>,
+        review: Option<bool>,
+    ) -> VoidResult<()> {
+        self.update_custom_subagent_definition_keyed(
+            None,
+            agent_id,
+            workspace_root,
+            display_name,
+            allowed_parent_agent_ids,
+            description,
+            prompt,
+            tools,
+            readonly,
+            review,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn update_custom_subagent_definition_keyed(
+        &self,
+        subagent_key: Option<&str>,
+        agent_id: &str,
+        workspace_root: Option<&Path>,
+        display_name: Option<String>,
+        allowed_parent_agent_ids: Option<Vec<String>>,
         description: String,
         prompt: String,
         tools: Option<Vec<String>>,
@@ -369,15 +430,9 @@ impl AgentRegistry {
         if let Some(root) = workspace_root {
             self.load_custom_subagents(root).await;
         }
-        let entry = self
-            .find_agent_entry(agent_id, workspace_root)
-            .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-        if entry.category != AgentCategory::SubAgent {
-            return Err(VoidError::agent(format!(
-                "Agent '{}' is not a subagent",
-                agent_id
-            )));
-        }
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        let entry = resolved.entry;
         if entry.subagent_source == Some(SubAgentSource::Builtin) {
             return Err(VoidError::agent(
                 "Built-in subagents cannot be edited".to_string(),
@@ -420,6 +475,11 @@ impl AgentRegistry {
             old.path.clone(),
             old.kind,
         );
+        new_subagent = new_subagent
+            .with_display_name(display_name.or_else(|| old.display_name.clone()))
+            .with_allowed_parent_agent_ids(
+                allowed_parent_agent_ids.unwrap_or_else(|| old.allowed_parent_agent_ids.clone()),
+            );
         new_subagent.review = review;
         new_subagent.model = old.model.clone();
 
@@ -433,120 +493,125 @@ impl AgentRegistry {
 
         new_subagent.save_to_file(None)?;
 
-        self.replace_custom_subagent_entry(agent_id, workspace_root, new_subagent)
+        self.replace_custom_subagent_entry(subagent_key, agent_id, workspace_root, new_subagent)
     }
 
     fn replace_custom_subagent_entry(
         &self,
+        subagent_key: Option<&str>,
         agent_id: &str,
         workspace_root: Option<&Path>,
         new_subagent: CustomSubagent,
     ) -> VoidResult<()> {
-        let mut map = self.write_agents();
-        if map.contains_key(agent_id) {
-            let old_entry = map
-                .get(agent_id)
-                .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-            if old_entry.category != AgentCategory::SubAgent {
-                return Err(VoidError::agent(format!(
-                    "Agent '{}' is not a subagent",
-                    agent_id
-                )));
-            }
-            if old_entry.subagent_source == Some(SubAgentSource::Builtin) {
-                return Err(VoidError::agent(
-                    "Cannot replace built-in subagent".to_string(),
-                ));
-            }
-            let subagent_source = old_entry.subagent_source;
-            let cfg = CustomSubagentConfig {
-                model: new_subagent.model.clone(),
-            };
-            map.insert(
-                agent_id.to_string(),
-                AgentEntry {
-                    category: AgentCategory::SubAgent,
-                    subagent_source,
-                    agent: Arc::new(new_subagent),
-                    visibility_policy: SubagentVisibilityPolicy::public(),
-                    custom_config: Some(cfg),
-                },
-            );
-            return Ok(());
-        }
-        drop(map);
-
-        let root = workspace_root.ok_or_else(|| {
-            VoidError::agent("Workspace path is required to update project subagent".to_string())
-        })?;
-        let mut pm = self.write_project_subagents();
-        let entries = pm.get_mut(root).ok_or_else(|| {
-            VoidError::agent("Project subagent cache not loaded for this workspace".to_string())
-        })?;
-        let old_entry = entries
-            .get(agent_id)
-            .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-        if old_entry.category != AgentCategory::SubAgent {
-            return Err(VoidError::agent(format!(
-                "Agent '{}' is not a subagent",
-                agent_id
-            )));
-        }
-        if old_entry.subagent_source == Some(SubAgentSource::Builtin) {
-            return Err(VoidError::agent(
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        match resolved.source {
+            SubAgentSource::Builtin => Err(VoidError::agent(
                 "Cannot replace built-in subagent".to_string(),
-            ));
+            )),
+            SubAgentSource::User => {
+                let mut map = self.write_agents();
+                let old_entry = map
+                    .get(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                if old_entry.category != AgentCategory::SubAgent {
+                    return Err(VoidError::agent(format!(
+                        "Agent '{}' is not a subagent",
+                        agent_id
+                    )));
+                }
+                if old_entry.subagent_source == Some(SubAgentSource::Builtin) {
+                    return Err(VoidError::agent(
+                        "Cannot replace built-in subagent".to_string(),
+                    ));
+                }
+                let subagent_source = old_entry.subagent_source;
+                let cfg = CustomSubagentConfig {
+                    model: new_subagent.model.clone(),
+                };
+                let visibility_policy = new_subagent.visibility_policy();
+                map.insert(
+                    agent_id.to_string(),
+                    AgentEntry {
+                        category: AgentCategory::SubAgent,
+                        subagent_source,
+                        agent: Arc::new(new_subagent),
+                        visibility_policy,
+                        custom_config: Some(cfg),
+                    },
+                );
+                Ok(())
+            }
+            SubAgentSource::Project => {
+                let root = workspace_root.ok_or_else(|| {
+                    VoidError::agent(
+                        "Workspace path is required to update project subagent".to_string(),
+                    )
+                })?;
+                let mut pm = self.write_project_subagents();
+                let entries = pm.get_mut(root).ok_or_else(|| {
+                    VoidError::agent(
+                        "Project subagent cache not loaded for this workspace".to_string(),
+                    )
+                })?;
+                let old_entry = entries
+                    .get(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                if old_entry.category != AgentCategory::SubAgent
+                    || old_entry.subagent_source != Some(SubAgentSource::Project)
+                {
+                    return Err(VoidError::agent(format!(
+                        "Agent '{}' is not a project subagent",
+                        agent_id
+                    )));
+                }
+                let cfg = CustomSubagentConfig {
+                    model: new_subagent.model.clone(),
+                };
+                let visibility_policy = new_subagent.visibility_policy();
+                entries.insert(
+                    agent_id.to_string(),
+                    AgentEntry {
+                        category: AgentCategory::SubAgent,
+                        subagent_source: Some(SubAgentSource::Project),
+                        agent: Arc::new(new_subagent),
+                        visibility_policy,
+                        custom_config: Some(cfg),
+                    },
+                );
+                Ok(())
+            }
         }
-        let subagent_source = old_entry.subagent_source;
-        let cfg = CustomSubagentConfig {
-            model: new_subagent.model.clone(),
-        };
-        entries.insert(
-            agent_id.to_string(),
-            AgentEntry {
-                category: AgentCategory::SubAgent,
-                subagent_source,
-                agent: Arc::new(new_subagent),
-                visibility_policy: SubagentVisibilityPolicy::public(),
-                custom_config: Some(cfg),
-            },
-        );
-        Ok(())
     }
 
     /// remove single non-built-in subagent, return its file path (used for caller to delete file)
     /// only allow removing entries that are SubAgent and not Builtin
     pub fn remove_subagent(&self, agent_id: &str) -> VoidResult<Option<String>> {
-        let mut map = self.write_agents();
-        if let Some(entry) = map.get(agent_id) {
-            if entry.category != AgentCategory::SubAgent {
-                return Err(VoidError::agent(format!(
-                    "Agent '{}' is not a subagent",
-                    agent_id
-                )));
-            }
-            if entry.subagent_source == Some(SubAgentSource::Builtin) {
-                return Err(VoidError::agent(format!(
-                    "Cannot remove built-in subagent: {}",
-                    agent_id
-                )));
-            }
-            let path = entry
-                .agent
-                .as_any()
-                .downcast_ref::<CustomSubagent>()
-                .map(|c| c.path.clone());
-            map.remove(agent_id);
-            return Ok(path);
-        }
-        drop(map);
+        self.remove_subagent_keyed(None, agent_id, None)
+            .map(|(path, _)| path)
+    }
 
-        let mut project_maps = self.write_project_subagents();
-        for entries in project_maps.values_mut() {
-            if let Some(entry) = entries.get(agent_id) {
-                if entry.category != AgentCategory::SubAgent {
-                    return Err(VoidError::agent(format!(
-                        "Agent '{}' is not a subagent",
+    pub fn remove_subagent_keyed(
+        &self,
+        subagent_key: Option<&str>,
+        agent_id: &str,
+        workspace_root: Option<&Path>,
+    ) -> VoidResult<(Option<String>, SubAgentSource)> {
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        match resolved.source {
+            SubAgentSource::Builtin => Err(VoidError::agent(format!(
+                "Cannot remove built-in subagent: {}",
+                agent_id
+            ))),
+            SubAgentSource::User => {
+                let mut map = self.write_agents();
+                let entry = map
+                    .get(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                if entry.subagent_source != Some(SubAgentSource::User) {
+                    return Err(VoidError::validation(format!(
+                        "Subagent source changed while removing: {}",
                         agent_id
                     )));
                 }
@@ -554,20 +619,64 @@ impl AgentRegistry {
                     .agent
                     .as_any()
                     .downcast_ref::<CustomSubagent>()
-                    .map(|c| c.path.clone());
+                    .map(|custom| custom.path.clone());
+                map.remove(agent_id);
+                Ok((path, SubAgentSource::User))
+            }
+            SubAgentSource::Project => {
+                let workspace_root = workspace_root.ok_or_else(|| {
+                    VoidError::validation(format!(
+                        "workspace_path is required to remove project subagent '{}'",
+                        agent_id
+                    ))
+                })?;
+                let mut project_maps = self.write_project_subagents();
+                let entries = project_maps.get_mut(workspace_root).ok_or_else(|| {
+                    VoidError::agent(format!(
+                        "Project subagents are not loaded for workspace: {}",
+                        workspace_root.display()
+                    ))
+                })?;
+                let entry = entries
+                    .get(agent_id)
+                    .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
+                if entry.subagent_source != Some(SubAgentSource::Project) {
+                    return Err(VoidError::validation(format!(
+                        "Subagent source changed while removing: {}",
+                        agent_id
+                    )));
+                }
+                let path = entry
+                    .agent
+                    .as_any()
+                    .downcast_ref::<CustomSubagent>()
+                    .map(|custom| custom.path.clone());
                 entries.remove(agent_id);
-                return Ok(path);
+                Ok((path, SubAgentSource::Project))
             }
         }
-
-        Err(VoidError::agent(format!(
-            "Subagent not found: {}",
-            agent_id
-        )))
     }
 
     pub async fn update_subagent_override(
         &self,
+        parent_agent_type: &str,
+        agent_id: &str,
+        enabled: bool,
+        workspace_root: Option<&Path>,
+    ) -> VoidResult<()> {
+        self.update_subagent_override_keyed(
+            None,
+            parent_agent_type,
+            agent_id,
+            enabled,
+            workspace_root,
+        )
+        .await
+    }
+
+    pub async fn update_subagent_override_keyed(
+        &self,
+        subagent_key: Option<&str>,
         parent_agent_type: &str,
         agent_id: &str,
         enabled: bool,
@@ -580,17 +689,12 @@ impl AgentRegistry {
             ));
         }
 
-        let entry = self
-            .find_agent_entry(agent_id, workspace_root)
-            .ok_or_else(|| VoidError::agent(format!("Subagent not found: {}", agent_id)))?;
-        if entry.category != AgentCategory::SubAgent {
-            return Err(VoidError::agent(format!(
-                "Agent '{}' is not a subagent",
-                agent_id
-            )));
-        }
-
-        let subagent_key = subagent_key_for(entry.subagent_source, entry.agent.as_ref())
+        let resolved =
+            self.resolve_subagent_management_entry(subagent_key, agent_id, workspace_root)?;
+        let entry = resolved.entry;
+        let subagent_key = resolved
+            .canonical_key
+            .or_else(|| subagent_key_for(entry.subagent_source, entry.agent.as_ref()))
             .ok_or_else(|| {
                 VoidError::agent(format!("Failed to resolve subagent key for '{}'", agent_id))
             })?;

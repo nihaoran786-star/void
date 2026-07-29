@@ -42,6 +42,7 @@ pub mod side_question;
 pub mod goal_mode;
 pub(crate) mod init_agents_md;
 pub mod system;
+pub mod team_definitions;
 
 // Agents module
 pub mod agents;

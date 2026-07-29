@@ -1,9 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
-const appLayoutSource = readFileSync(
+const appLayoutSource = readSourceText(
   new URL('../layout/AppLayout.tsx', import.meta.url),
-  'utf8',
 );
 
 describe('workspace presentation portal root contract', () => {

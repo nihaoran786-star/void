@@ -60,14 +60,14 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={agent.name}
+      aria-label={agent.displayName}
     >
       <div className="core-agent-card__top">
         <div className="core-agent-card__icon-wrap">
           <Icon size={28} strokeWidth={1.6} />
         </div>
         <div className="core-agent-card__top-info">
-          <span className="core-agent-card__name">{agent.name}</span>
+          <span className="core-agent-card__name">{agent.displayName}</span>
           <span className="core-agent-card__role">
             <Sparkles size={10} strokeWidth={2} />
             {meta.role}

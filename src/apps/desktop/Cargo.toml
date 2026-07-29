@@ -41,6 +41,7 @@ tauri-plugin-global-shortcut = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 anyhow = { workspace = true }
 log = { workspace = true }
 chrono = { workspace = true }
@@ -90,6 +91,7 @@ windows = { version = "0.61.3", features = [
   "Win32_Graphics_Dxgi",
   "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_Storage_Xps",
   "Win32_System_Com",
   "Win32_System_Ole",

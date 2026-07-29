@@ -5,6 +5,10 @@ import type {
   SessionKind,
   SessionMetadata,
 } from '@/shared/types/session-history';
+import {
+  restorePersonaSessionState,
+  writePersonaSessionMetadata,
+} from '@/shared/services/customization/adapters/SessionPersonaMetadataAdapter';
 import type { Session } from '../types/flow-chat';
 import { resolveSessionTitle } from './sessionTitle';
 
@@ -27,6 +31,7 @@ const AUTOMATION_METADATA_KEYS = new Set([
   'isAutomationSession',
   'automation',
 ]);
+const CUSTOMIZATION_METADATA_KEYS = new Set(['customization']);
 
 type SessionRelationshipInput = Pick<
   Session,
@@ -228,6 +233,39 @@ export function deriveIsAutomationSessionFromMetadata(
   );
 }
 
+export function deriveSessionPersonaStateFromMetadata(
+  metadata: Pick<
+    SessionMetadata,
+    'sessionId' | 'agentType' | 'customMetadata'
+  >,
+  sessionKind: SessionKind
+): Pick<
+  Session,
+  'scenario' | 'executionPolicy' | 'activePersonaBinding'
+> {
+  const restored = restorePersonaSessionState({
+    sessionId: metadata.sessionId,
+    sessionKind,
+    agentType: metadata.agentType,
+    mode: metadata.agentType,
+    customMetadata: metadata.customMetadata,
+  });
+
+  if (restored.status === 'child_session_ignored') {
+    return {
+      scenario: undefined,
+      executionPolicy: undefined,
+      activePersonaBinding: undefined,
+    };
+  }
+
+  return {
+    scenario: restored.scenario,
+    executionPolicy: restored.executionPolicy,
+    activePersonaBinding: restored.activePersonaBinding,
+  };
+}
+
 export function calculateSessionStats(
   session: Pick<Session, 'dialogTurns'>
 ): Pick<SessionMetadata, 'turnCount' | 'messageCount' | 'toolCallCount'> {
@@ -253,6 +291,13 @@ export function calculateSessionStats(
 function buildSessionCustomMetadata(
   session: Pick<
     Session,
+    | 'sessionId'
+    | 'sessionKind'
+    | 'mode'
+    | 'config'
+    | 'scenario'
+    | 'executionPolicy'
+    | 'activePersonaBinding'
     | 'lastFinishedAt'
     | 'titleSource'
     | 'titleI18nKey'
@@ -267,7 +312,8 @@ function buildSessionCustomMetadata(
     if (
       !RELATIONSHIP_METADATA_KEYS.has(key) &&
       !TITLE_METADATA_KEYS.has(key) &&
-      !AUTOMATION_METADATA_KEYS.has(key)
+      !AUTOMATION_METADATA_KEYS.has(key) &&
+      !CUSTOMIZATION_METADATA_KEYS.has(key)
     ) {
       nextCustomMetadata[key] = value;
     }
@@ -288,7 +334,15 @@ function buildSessionCustomMetadata(
     nextCustomMetadata.automation = { kind: 'cron_job' };
   }
 
-  return nextCustomMetadata;
+  return writePersonaSessionMetadata(nextCustomMetadata, {
+    sessionId: session.sessionId,
+    sessionKind: session.sessionKind,
+    mode: session.mode,
+    agentType: session.config.agentType,
+    scenario: session.scenario,
+    executionPolicy: session.executionPolicy,
+    activePersonaBinding: session.activePersonaBinding,
+  });
 }
 
 function buildSessionRelationshipMetadata(
@@ -386,6 +440,9 @@ export function buildSessionMetadata(
     | 'parentToolCallId'
     | 'subagentType'
     | 'lastFinishedAt'
+    | 'scenario'
+    | 'executionPolicy'
+    | 'activePersonaBinding'
     | 'titleSource'
     | 'titleI18nKey'
     | 'titleI18nParams'
@@ -428,6 +485,13 @@ export function buildSessionMetadata(
     tags: buildSessionTags(sessionKind, existingMetadata?.tags),
     customMetadata: buildSessionCustomMetadata(
       {
+        sessionId: session.sessionId,
+        sessionKind,
+        mode: session.mode,
+        config: session.config,
+        scenario: session.scenario,
+        executionPolicy: session.executionPolicy,
+        activePersonaBinding: session.activePersonaBinding,
         lastFinishedAt: session.lastFinishedAt,
         titleSource: session.titleSource,
         titleI18nKey: session.titleI18nKey,

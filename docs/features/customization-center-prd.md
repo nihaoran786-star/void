@@ -1,8 +1,9 @@
 # Customization Center And Active Persona Specification
 
-Status: accepted product direction; implementation pending.
+Status: Desktop/Tauri first implementation complete; general Team runtime and
+browser/server parity deferred.
 
-Updated: 2026-07-28
+Updated: 2026-07-30
 
 ## Product decision
 
@@ -60,6 +61,169 @@ That shape does not support the intended product behavior:
 Void therefore treats the existing scenario Agent prompt as a compatibility
 composition that must be decomposed behind Module Interfaces. Presentation
 code must not parse, rewrite, concatenate, or replace system prompts directly.
+
+## Current source baseline
+
+The following statements describe the repository as it exists before this
+specification is implemented. They are compatibility facts, not completion
+claims.
+
+- The Web UI session currently stores one `mode` value in
+  `src/web-ui/src/flow_chat/types/flow-chat.ts`, and
+  `src/web-ui/src/flow_chat/services/flow-chat-manager/MessageModule.ts`
+  derives the submitted `agentType` from the explicit argument or that mode.
+  The desktop request and persisted backend session continue to use
+  `agent_type` in `src/apps/desktop/src/api/agentic_api.rs`. Scenario and
+  execution-policy identity are therefore still projected through one field.
+- The accepted turn path is currently:
+
+  ```text
+  ChatInput / useMessageSender
+    -> MessageModule.sendMessage
+    -> AgentAPI.startDialogTurn
+    -> desktop start_dialog_turn / DialogScheduler
+    -> ConversationCoordinator
+    -> AgentRegistry
+    -> ExecutionEngine
+    -> resolve_tool_manifest
+    -> provider adapter
+  ```
+
+  The relevant implementation landmarks are
+  `src/web-ui/src/flow_chat/hooks/useMessageSender.ts`,
+  `src/web-ui/src/flow_chat/services/flow-chat-manager/MessageModule.ts`,
+  `src/web-ui/src/infrastructure/api/service-api/AgentAPI.ts`,
+  `src/apps/desktop/src/api/agentic_api.rs`,
+  `src/crates/core/src/agentic/coordination/coordinator.rs`,
+  `src/crates/core/src/agentic/agents/registry/mod.rs`,
+  `src/crates/core/src/agentic/execution/execution_engine.rs`, and
+  `src/crates/core/src/agentic/tools/manifest_resolver.rs`.
+- The platform and transport contract for the first implementation is
+  Desktop/Tauri Module Interface support for Customization Center authoring and
+  active-persona turn execution. The shared Web UI has a WebSocket adapter, but
+  the currently reachable `void-server` WebSocket command surface supports only
+  `ping`; `bootstrap` does not route commands through `rpc_dispatcher`. Browser
+  or server authoring and runtime mutation are therefore explicitly
+  unsupported and deferred for this Goal. This scope does not mean that the
+  entire Web UI is unsupported; it applies only to this Goal's authoring,
+  persona mutation, and active-persona runtime path.
+- Future server parity is a separate, complete delivery. It must reuse the
+  canonical Agent key and cover the server Module/dependency boundary plus
+  workspace, session, permission, provider, and event isolation with tests
+  against the actually reachable runtime path.
+- `MessageModule` already forwards arbitrary `userMessageMetadata` through
+  `AgentAPI.startDialogTurn`. This is the transport seam for a typed persona
+  snapshot, but the runtime does not yet treat such a snapshot as an active
+  persona contract.
+- Code modes `agentic`, `Plan`, `debug`, and `Multitask` already share
+  `SHARED_CODING_MODE_PROMPT_TEMPLATE`, `shared_coding_mode_tools`, and one
+  context policy in `src/crates/core/src/agentic/agents/mod.rs`; their
+  differences are added by the mode implementations in
+  `src/crates/core/src/agentic/agents/definitions/modes/` through reminders.
+  Cowork and Media retain separate prompt and tool definitions in
+  `cowork.rs` and `media.rs`.
+- The existing Agent and Skill scenes still render runtime-facing names in
+  `src/web-ui/src/app/scenes/agents/AgentsScene.tsx` and
+  `src/web-ui/src/app/scenes/skills/SkillsScene.tsx`. The Connectors entry
+  currently routes to the existing MCP surface in
+  `src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx`.
+- No reusable `TeamCatalog`, `TeamOrchestrator`, or general team persistence
+  implementation exists yet. The Team Interface in
+  [Team Workspace](team-workspace-prd.md) remains a specification dependency.
+
+## Target module boundaries
+
+All names in this section are proposed Interfaces until their source files are
+introduced. Implementations may refine the names without changing ownership or
+dependency direction.
+
+| Owner | Small Interface | Implementation / Adapter responsibility | Forbidden responsibility |
+| --- | --- | --- | --- |
+| Customization Catalog | `CapabilityCatalogService` | Merge existing Agent, Skill, connector, Deep Review, and Short Drama sources into localized, scenario-aware projections | Prompt composition, child-session launch, filesystem access from scene components |
+| Parent session persona | `ActivePersonaSessionService` | Resolve, select, clear, restore, and report typed activation state per parent session | Rendering controls, modifying scenario or execution policy, cancelling active work |
+| Composer presentation | `PersonaSelectorViewModel` | Render compatible choices and one active localized capsule | Looking up raw IDs by display name, editing prompts, computing permissions |
+| Runtime composition | `PersonaRuntimeAdapter` and a runtime-owned composition service | Validate the persona snapshot, compose scenario/policy/persona/Skills, resolve the effective manifest, and create cache identity | UI imports, presentation state, direct marketplace behavior |
+| Existing team compatibility | Deep Review and Short Drama adapters | Project fixed teams into the catalog and delegate launch/open behavior to their existing services | Reimplementing review orchestration, short-drama lifecycle, or specialized Canvas |
+| Reusable teams | `TeamCatalog` and `TeamOrchestrator` from Team Workspace | Definition persistence, validation, instance launch, workflow and member projections | A second team schema owned by Customization Center |
+
+The first catalog DTO is:
+
+```text
+CatalogIdentity {
+  id                 // immutable runtime identity
+  version            // definition revision used for activation and cache safety
+  displayName        // localized primary name
+  description        // localized concise purpose
+  aliases[]          // searchable legacy/runtime aliases
+}
+```
+
+Agent, Team, and Skill catalog records extend this identity with typed origin,
+scenario eligibility, tags, availability, validation, and permission facts.
+Presentation code never falls back from an unknown runtime ID to a guessed
+persona or Skill.
+
+The runtime target is:
+
+```text
+RuntimeComposition {
+  scenario
+  executionPolicy
+  persona
+  skills
+}
+```
+
+The parent session persists `scenario`, `executionPolicy`, and
+`activePersonaBinding` separately. During migration, existing `mode` and
+`agent_type` remain a compatibility projection so restore, rollback, ACP,
+subagents, and older stored sessions keep working. New code must not add
+another meaning to those legacy fields.
+
+`StartDialogTurn` gains one structured, immutable-for-the-turn persona
+snapshot:
+
+```text
+PersonaTurnSnapshot {
+  personaId
+  personaRevision
+  kind                 // default | agent | team_lead
+  teamDefinitionId?
+  teamInstanceId?
+  resolvedSkillRefs[]
+}
+```
+
+The composer writes the snapshot through the existing
+`userMessageMetadata` transport. The runtime validates it against the parent
+session binding and catalog before prompt composition; it never trusts a
+localized label or arbitrary client prompt text as identity.
+
+### Required data flow
+
+```text
+Agents / Teams / Skills / Connectors scenes
+  -> CapabilityCatalogService
+  -> source adapters
+  -> existing Agent registry, Skill services, MCP config, fixed-team services
+
+Composer selector
+  -> PersonaSelectorViewModel
+  -> ActivePersonaSessionService
+  -> parent-session binding persistence
+
+Message submission
+  -> useMessageSender adds PersonaTurnSnapshot
+  -> MessageModule forwards structured metadata
+  -> StartDialogTurn validates snapshot
+  -> runtime composition resolves scenario + policy + persona + Skills
+  -> resolve_tool_manifest applies the bounded effective tool policy
+  -> ExecutionEngine submits the final request
+```
+
+`ChatInput.tsx` only renders the selector ViewModel and invokes its commands.
+It does not own catalog queries, activation lifecycle, prompt construction,
+cache keys, Skill resolution, team launch, or persistence.
 
 ## Canonical runtime composition
 
@@ -129,6 +293,99 @@ explicit Skill selected by the user for the current task.
 Runtime Skill identity remains stable. The UI projects a localized display
 name, concise purpose, category, and compatibility without renaming the runtime
 key.
+
+## Prompt and KV-cache safety
+
+Persona switching changes model-visible instructions. Reusing a complete
+prompt/KV cache entry across two persona revisions would risk role leakage, so
+cache correctness takes priority over hit rate.
+
+### Current cache facts
+
+- `SessionPromptCache`, `SystemPromptCacheIdentity`, and their persistence are
+  implemented in
+  `src/crates/core/src/agentic/session/prompt_cache.rs`,
+  `src/crates/core/src/agentic/session/session_manager.rs`, and
+  `src/crates/core/src/agentic/persistence/manager.rs`.
+- `PromptPrefixIdentity` exists in
+  `src/crates/runtime-ports/src/lib.rs`, and Agent implementations construct it
+  in `src/crates/core/src/agentic/agents/mod.rs` from a stable scope, base
+  prompt hash, toolset hash, and user-context hash.
+- This specification does not assume that `PromptPrefixIdentity` is already
+  supplied to every provider request; that end-to-end provider integration has
+  not been proven by the current source audit.
+- Provider-side KV/prompt caching remains controlled by the upstream provider.
+  Void owns safe prompt ordering and cache identity, not a promise that a
+  provider will return a cache hit.
+
+### Target prompt regions
+
+```text
+stable cache region
+  global runtime and safety contract
+  + scenario contract
+  + execution-policy base
+  + scenario tool definitions and permission envelope
+
+dynamic role region
+  active persona definition
+  + resolved Skills
+  + turn/workspace context and conversation messages
+```
+
+Code Agentic, Plan, Debug, and Multitask continue to share the existing stable
+Code prefix. Their policy-specific reminder remains explicit and versioned.
+Cowork and Media keep their own stable scenario prefixes. A persona may narrow
+the effective manifest, so a final effective-tool hash is still part of the
+complete identity even when the scenario tool envelope is cached.
+
+The minimum signatures are:
+
+```text
+stableSignature =
+  scenarioVersion
+  + executionBaseVersion
+  + toolConfigVersion
+  + permissionConfigVersion
+
+dynamicSignature =
+  personaId
+  + personaRevision
+  + resolvedSkillSetHash
+
+completeRuntimeIdentity =
+  stableSignature
+  + dynamicSignature
+  + effectiveToolManifestHash
+  + workspaceInstructionHash
+  + model/provider prompt-format version
+```
+
+`resolvedSkillSetHash` is order-stable and includes each Skill's immutable ID
+and revision. `permissionConfigVersion` and `effectiveToolManifestHash` reflect
+the resolved runtime/user/workspace permission envelope, not UI assumptions.
+
+Until provider-prefix segmentation is proven end to end, every full prompt
+cache identity must include the complete runtime identity. The first request
+after a persona, Skill, tool, or permission change may miss the cache; it must
+never reuse a stale complete entry. Cache optimization may later reuse the
+stable prefix only after tests prove that the provider receives the same safe
+prefix boundary.
+
+Required cache tests cover:
+
+- same scenario, policy, persona revision, Skill set, tools, and permissions:
+  identity matches;
+- persona switch or persona revision: dynamic identity changes;
+- Skill add, remove, reorder, or revision: semantic set changes invalidate
+  correctly while pure ordering does not;
+- scenario, execution base, tool config, or permission change: stable identity
+  changes;
+- two persona IDs with identical display text never share a complete identity;
+- restore and branch operations preserve only cache entries whose identities
+  still match;
+- a cache miss affects latency/token usage only and does not remove tools,
+  history, workspace context, or Canvas state.
 
 ## Tool and permission resolution
 
@@ -205,6 +462,46 @@ generic team view.
 The reusable Team Module and its persistence remain governed by
 [Team Workspace](team-workspace-prd.md).
 
+## Existing capability reuse and stability rules
+
+The implementation adapts existing capabilities; it does not rebuild them.
+
+| Capability | Existing authority to reuse | Compatibility projection | Must remain unchanged |
+| --- | --- | --- | --- |
+| Code | `SHARED_CODING_MODE_*` and mode definitions in `src/crates/core/src/agentic/agents/` | Code scenario plus Agentic / Plan / Debug / Multitask execution policy | Repository context, tools, reminders, AGENTS/workspace instructions, Git and terminal behavior |
+| Cowork | `src/crates/core/src/agentic/agents/definitions/modes/cowork.rs` | Cowork scenario default persona and capability envelope | Office/document capability and current permission behavior |
+| Media | `src/crates/core/src/agentic/agents/definitions/modes/media.rs` | Media scenario default persona and capability envelope | Media tools, task polling, workspace media save/preview/gallery behavior |
+| Deep Review | `launchDeepReviewSession` in `src/web-ui/src/flow_chat/deep-review/launch/DeepReviewService.ts`, manifest services under `src/web-ui/src/shared/services/review-team/`, Deep Review prompt and reviewer definitions under `src/crates/core/src/agentic/agents/` | Catalog team with `leadBinding = child_orchestrator` | Existing BTW child launch, run Manifest, parallel specialist packets, concurrency handling and recovery/report behavior. Analysis reviewers and `ReviewJudge` remain read-only; the Deep Review orchestrator and `ReviewFixer` after explicit user approval retain their existing controlled write paths. |
+| AI Short Drama | services under `src/web-ui/src/shared/services/short-drama/`, including `ShortDramaRuntimeBridge.ts`, `ShortDramaStageAgentSessionBinding.ts`, `ShortDramaToolPolicy.ts`, and the existing `ShortDramaCenterPanel.tsx` | Catalog team with `leadBinding = parent_persona_compatibility` | Media parent session, five real stage sessions (`ScriptAI`, `AssetAI`, `SplitAI`, `VideoAI`, `EditorAI`), bindings, fixed Skill/tool policies, attempts/revisions/change requests, runtime bridge, media routing, dedicated Canvas |
+| BTW | existing Flow Chat child-session services and projections | Team member conversation link | Restore, isolation, navigation, history, child identity and parent linkage |
+| Skills | existing Skill listing, validation, install, resolution, and `Skill` runtime tool | Localized `SkillCatalog` projection | Stable runtime key, resolution precedence, validation, policy, install/remove behavior |
+| Permissions and tools | Agent tool policy plus `resolve_tool_manifest` in `src/crates/core/src/agentic/tools/manifest_resolver.rs` | Scenario/persona/runtime permission intersection | Role cannot enlarge access; UI cannot calculate or bypass effective policy |
+
+The effective tool rule is:
+
+```text
+effective tools
+= scenario-allowed tools
+∩ persona-allowed tools
+∩ runtime, user, and workspace permissions
+```
+
+The existing `resolve_tool_manifest` path remains the authoritative manifest
+resolver. The persona layer supplies an additional narrowing policy; it does
+not replace the resolver or grant tools directly.
+
+Switching persona or team must not:
+
+- cancel a running task or queued reviewer;
+- delete, detach, or silently recreate BTW or specialist child sessions;
+- clear top-level or child history;
+- close or reset the universal Canvas, short-drama Canvas, media gallery, or
+  workspace artifacts;
+- overwrite the parent scenario, execution policy, model, workspace, or
+  permission mode;
+- widen any write scope or bypass a confirmation;
+- register a second Deep Review or short-drama runtime.
+
 ## Product surfaces
 
 ### Customization Center
@@ -220,8 +517,8 @@ The global navigation entry is **定制**. Its information architecture is:
 └─ 连接器
 ```
 
-The first implementation may reuse the existing Agents and Skills scenes, but
-the user-facing structure must converge on this model.
+The implementation reuses the existing Agents, Skills, and MCP surfaces through
+catalog adapters, but the user-facing structure must converge on this model.
 
 Agent and team discovery supports:
 
@@ -281,6 +578,12 @@ Submitting a message records:
 The composer consumes a small persona-selection Interface. Persona activation,
 team launch, prompt composition, permission resolution, and child-session
 lifecycle remain outside `ChatInput.tsx`.
+
+The existing `[[void-skill:...]]` token parser in
+`src/web-ui/src/flow_chat/utils/skillPromptReference.ts` remains a legacy
+compatibility input. New persona and Skill selections are submitted as
+structured metadata. No new feature serializes a persona as
+`[[void-skill:...]]`, prompt prose, or another hidden text token.
 
 ### Team detail and Team Workspace
 
@@ -388,21 +691,176 @@ Exact names may change, but the dependency direction remains:
 UI / route -> Module Interface -> Adapter / service -> external system
 ```
 
-## Migration sequence
+## File-level implementation and verification sequence
 
-1. Freeze scenario, persona, localized catalog, compatibility, activation, and
-   error DTOs.
-2. Add a read-only localized capability catalog over existing Agent, Skill,
-   Deep Review, and Short Drama sources.
-3. Reorganize the Customization Center into 智能体 / 团队 / 技能 / 连接器.
-4. Add the structured persona selector and capsule to the shared composer.
-5. Add compatibility adapters for existing Deep Review and AI Short Drama
-   without changing their runtime behavior.
-6. Separate current scenario prompt composition from default-persona
-   composition behind a runtime Interface.
-7. Add natural-language and material-assisted Agent and Skill creation.
-8. Add team creation, editing, installation, and packaging after Team
-   Interface stabilization.
+Each phase is independently reviewable and keeps legacy projection available
+until the replacement path is verified. Proposed new paths below are planning
+targets, not existing implementation.
+
+### Phase 0 — characterization and rollback baseline
+
+Read and characterize without changing behavior:
+
+- Web UI session/send contracts:
+  `src/web-ui/src/flow_chat/types/flow-chat.ts`,
+  `src/web-ui/src/flow_chat/store/FlowChatStore.ts`,
+  `src/web-ui/src/flow_chat/hooks/useMessageSender.ts`, and
+  `src/web-ui/src/flow_chat/services/flow-chat-manager/MessageModule.ts`;
+- desktop/core path:
+  `src/apps/desktop/src/api/agentic_api.rs`,
+  `src/crates/core/src/agentic/coordination/`,
+  `src/crates/core/src/agentic/agents/`, and
+  `src/crates/core/src/agentic/execution/execution_engine.rs`;
+- protected integrations: Deep Review launch/manifest tests, BTW restore tests,
+  short-drama binding/runtime/tool-policy tests, media tests, and Canvas tests.
+
+Verification: record the focused test commands and current baseline failures;
+do not use unrelated baseline debt as evidence that the feature passes.
+
+### Phase 1 — DTOs and read-only localized catalog
+
+Add a UI Module Interface under a new
+`src/web-ui/src/shared/services/customization/` boundary for
+`CatalogIdentity`, scenario compatibility, availability, origin, persona
+summary, and catalog query results. Add adapters over existing Agent, Skill,
+MCP, Deep Review, and Short Drama sources. Add Chinese presentation metadata
+without changing runtime IDs.
+
+Then migrate:
+
+- `src/web-ui/src/app/scenes/agents/AgentsScene.tsx`;
+- `src/web-ui/src/app/scenes/skills/SkillsScene.tsx`;
+- the Connectors projection that routes to
+  `src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx`.
+
+Verification: catalog contract/unit tests, alias and locale completeness tests,
+unknown-ID/error-state tests, existing Agent/Skill/MCP tests, Web UI type check,
+i18n contract, and accessibility assertions. No activation behavior changes in
+this phase.
+
+### Phase 2 — parent-session active persona state
+
+Add `ActivePersonaSessionService` and its typed persistence adapter outside
+`FlowChatStore.ts`. Extend the parent-session DTOs and persistence schema with
+separate scenario, execution policy, and active persona binding. Keep
+`mode`/`agent_type` serialization and restore as a backward-compatible
+projection for old sessions.
+
+Likely touch points are:
+
+- shared session DTOs in
+  `src/web-ui/src/shared/types/session-history.ts` and
+  `src/web-ui/src/infrastructure/api/service-api/AgentAPI.ts`;
+- desktop request/response DTOs in
+  `src/apps/desktop/src/api/agentic_api.rs`;
+- core session and persistence Modules under
+  `src/crates/core/src/agentic/session/` and
+  `src/crates/core/src/agentic/persistence/`.
+
+Verification: create/list/restore/rollback/branch tests for legacy and new
+sessions; per-parent selection isolation; clearing restores the scenario
+default; no Canvas, model, workspace, permission, or child-session mutation.
+
+### Phase 3 — selector and structured turn snapshot
+
+Add a small selector/capsule component and hook that consume only catalog and
+activation Interfaces. Integrate it into `ChatInput.tsx` as presentation.
+Extend `useMessageSender` and `MessageModule` to submit
+`PersonaTurnSnapshot` through `userMessageMetadata`; extend `StartDialogTurn`
+DTOs and coordinator validation to accept the typed snapshot.
+
+Verification: selection, removal, incompatible/blocked/error states, pending
+queue metadata preservation, retry preservation, ACP support decision, session
+restore, and proof that display-name changes cannot change runtime identity.
+Existing `[[void-skill:...]]` tests remain green as compatibility coverage.
+
+### Phase 4 — runtime composition, permissions, and cache identity
+
+Introduce the runtime-owned composition seam near
+`src/crates/core/src/agentic/agents/` and
+`src/crates/core/src/agentic/execution/`; do not compose prompts in Web UI or
+desktop route code. Separate scenario base, execution reminder, persona
+definition, and resolved Skills while retaining the legacy Agent implementation
+as a rollback adapter.
+
+Extend:
+
+- Agent registration/lookup without renaming existing IDs;
+- `resolve_tool_manifest` inputs with a persona narrowing policy;
+- `SystemPromptCacheIdentity`, persisted `SessionPromptCache`, and the
+  end-to-end provider prefix identity with the signatures in this
+  specification.
+
+Verification: prompt ordering snapshots; effective-tool intersection tests;
+write/confirmation denial tests; cache match/invalidation matrix; provider
+request inspection proving persona A never reuses persona B's complete
+identity; Code shared-prefix tests; Cowork/Media scenario tests; restore and
+branch cache tests.
+
+### Phase 5 — fixed-team adapters
+
+Register catalog projections and activation adapters only:
+
+- Deep Review delegates to `launchDeepReviewSession` and the existing Manifest
+  pipeline with `leadBinding = child_orchestrator`;
+- AI Short Drama delegates to the existing Media parent, stage-session
+  bindings, runtime bridge, policy, and dedicated Canvas with
+  `leadBinding = parent_persona_compatibility`.
+
+Verification: existing Deep Review and short-drama suites plus integration
+tests proving selection/opening does not change Manifest content, concurrency,
+judge order, readonly policy, stage bindings, five-stage sessions, fixed
+Skills, media routing, running-task state, or Canvas contents.
+
+### Phase 6 — Agent and Skill creation
+
+Add natural-language, supplied-material, and manual authoring flows over one
+validated draft Interface. Reuse current Agent/Skill validation and installation
+services through adapters; do not write files from pages. Generate immutable
+runtime IDs internally while keeping the Chinese display name editable.
+
+Verification: all three routes produce the same canonical definition; invalid
+permissions/scenarios fail with typed diagnostics; install/remove rollback is
+recoverable; existing custom Agent and Skill precedence remains unchanged.
+
+### Phase 7 — reusable team definition authoring
+
+After the `TeamDefinition` schema, validation rules, and `TeamCatalog`
+persistence Interface are stable, add team create, edit, validate, install,
+delete, and bounded package UI. The UI writes that canonical definition and
+does not introduce a second package format. This definition-management slice
+does not imply a general `TeamInstance` or `TeamOrchestrator` runtime.
+
+Verification: lead/member/workflow identity, serial/parallel dependencies,
+scenario compatibility, permission narrowing, optimistic revision conflicts,
+user/project isolation, read-only installed definitions, installation rollback,
+partial-load diagnostics, and fixed-team compatibility adapters. General team
+activation, real child-session orchestration, and runtime restore remain gated
+until `TeamInstance` and `TeamOrchestrator` are implemented and tested.
+
+### Phase 8 — full regression and visual acceptance
+
+Run the smallest focused suites after every phase, then widen to the applicable
+repository gates:
+
+```powershell
+pnpm run check:repo-hygiene
+pnpm run check:core-boundaries
+pnpm run i18n:contract:test
+pnpm run i18n:audit
+pnpm run type-check:web
+pnpm run lint:web
+pnpm --dir src/web-ui run test:run
+pnpm run build:web
+cargo check --workspace
+cargo test --locked -p void-core
+```
+
+Add scenario/persona/team switch E2E coverage and capture Code, Cowork, Media,
+Customization Center, Agent detail, Team detail, and composer-selector
+screenshots in both normal and constrained window sizes. Compare against the
+accepted visual target while treating the protected-capability regression
+tests, not visual similarity alone, as the release gate.
 
 ## Non-goals for the first implementation
 
@@ -450,3 +908,201 @@ The reference application confirms a useful separation:
 Void adopts the separation and user experience, not the reference
 application's package format, fixed directories, registration scripts, or
 validation quirks.
+
+## Source-grounded implementation contract
+
+This section is the implementation handoff derived from current source
+behavior. It does not state that the proposed Interfaces or product behavior
+already exist.
+
+### 1. Runtime data flow
+
+Current compatible path:
+
+```text
+ChatInput
+  -> useMessageSender(userMessageMetadata)
+  -> MessageModule
+  -> AgentAPI.startDialogTurn
+  -> desktop start_dialog_turn
+  -> DialogScheduler / ConversationCoordinator
+  -> AgentRegistry
+  -> ExecutionEngine
+  -> resolve_tool_manifest
+  -> provider
+```
+
+Target addition:
+
+```text
+CapabilityCatalogService
+  -> PersonaSelectorViewModel
+  -> ActivePersonaSessionService
+  -> PersonaTurnSnapshot in userMessageMetadata
+  -> runtime-owned composition validation
+  -> scenario + executionPolicy + persona + resolved Skills
+  -> effective tool intersection
+  -> existing ExecutionEngine
+```
+
+The runtime, not the UI, validates the persona ID/revision, resolves Skills,
+builds prompts, computes cache identity, and narrows tools. Existing
+`mode`/`agent_type` remains a compatibility projection until separate
+`scenario`, `executionPolicy`, and `activePersonaBinding` persistence is proven
+for create, send, restore, rollback, and branch flows.
+
+### 2. Module boundary and suggested file tree
+
+```text
+src/web-ui/src/shared/services/customization/        # proposed
+  CapabilityCatalogService.ts                       # Interface
+  ActivePersonaSessionService.ts                    # Interface
+  PersonaSelectorViewModel.ts                       # presentation DTO
+  adapters/
+    ExistingAgentCatalogAdapter.ts
+    ExistingSkillCatalogAdapter.ts
+    ExistingConnectorCatalogAdapter.ts
+    DeepReviewTeamAdapter.ts
+    ShortDramaTeamAdapter.ts
+
+src/web-ui/src/app/scenes/agents/
+src/web-ui/src/app/scenes/skills/
+src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx
+                                                    # existing presentation
+
+src/crates/core/src/agentic/                         # existing runtime owner
+  agents/                                            # registry and composition
+  execution/                                         # execution boundary
+  tools/manifest_resolver.rs                         # final tool resolver
+  session/                                           # session/cache state
+  persistence/                                       # durable state
+```
+
+Dependency direction is always:
+
+```text
+scene / ChatInput
+  -> catalog or activation Interface
+  -> adapter / runtime service
+  -> existing Agent, Skill, Team, persistence, or provider boundary
+```
+
+`ChatInput.tsx`, `FlowChatStore.ts`, `ContentCanvas.tsx`, and
+`ShortDramaCenterPanel.tsx` remain orchestration hotspots. They may render or
+delegate but must not own catalog merging, prompt composition, cache keys,
+permission resolution, team lifecycle, filesystem, or provider calls.
+
+### 3. Stable and dynamic prompt-cache identity
+
+Safe prompt order:
+
+```text
+stable region
+  global contract
+  + scenarioVersion
+  + executionBaseVersion
+  + scenario tool configuration
+  + permission envelope
+
+dynamic region
+  personaId + personaRevision
+  + resolved Skill IDs and revisions
+  + current workspace/turn context
+```
+
+Minimum identities:
+
+```text
+stableSignature =
+  scenarioVersion
+  + executionBaseVersion
+  + toolConfigVersion
+  + permissionConfigVersion
+
+dynamicSignature =
+  personaId
+  + personaRevision
+  + resolvedSkillSetHash
+
+completeRuntimeIdentity =
+  stableSignature
+  + dynamicSignature
+  + effectiveToolManifestHash
+  + workspaceInstructionHash
+  + model/provider prompt-format version
+```
+
+The existing `SessionPromptCache` and `SystemPromptCacheIdentity` are preserved
+and extended safely. `PromptPrefixIdentity` is not treated as provider cache
+proof until its complete path into provider requests is verified. Before that
+proof, every complete cache identity includes persona, Skills, effective tools,
+permissions, and workspace instructions. A switch may cause one correct cache
+miss; it must never reuse the prior persona's complete entry. Code
+Agentic/Plan/Debug/Multitask continues to reuse the shared Code base prefix,
+while Cowork and Media retain separate scenario prefixes.
+
+### 4. Fixed-team adapters
+
+| Team projection | Existing implementation reused | Lead binding | Invariants |
+| --- | --- | --- | --- |
+| 代码审查团队 | `launchDeepReviewSession`, Review Team Manifest services, Deep Review prompt, read-only reviewer definitions, `ReviewJudge` | `child_orchestrator` | Preserve Manifest, independent/parallel reviewer packets, concurrency and recovery, quality gate and BTW child session. Analysis reviewers and `ReviewJudge` remain read-only; the orchestrator and user-approved `ReviewFixer` retain their existing controlled writes. |
+| AI 短剧团队 | Media parent, `ShortDramaRuntimeBridge`, `ShortDramaStageAgentSessionBinding`, `ShortDramaToolPolicy`, `ShortDramaCenterPanel` | `parent_persona_compatibility` | Preserve five real stage sessions, fixed Skill/tool policy, project facts, attempts/revisions/change requests, media routing and dedicated Canvas |
+
+Both are catalog and activation adapters over existing runtime behavior. Persona
+switching cannot cancel work, delete or recreate child sessions, clear history
+or Canvas, reset project/media state, or widen permissions.
+
+### 5. Canonical implementation sequence
+
+The only implementation order and gate definition is
+[Phase 0 through Phase 8](#file-level-implementation-and-verification-sequence).
+The source-grounded contracts in this section refine those phases without
+creating a second delivery sequence. Each phase keeps the previous working path
+as a rollback route until its focused tests and applicable repository gates
+pass; stability failures block visual or authoring expansion.
+
+### 6. Implementation status
+
+As of this specification update:
+
+- the current turn transport, Agent registry/execution path, tool resolver,
+  local prompt cache, fixed Deep Review runtime, fixed short-drama runtime,
+  BTW, Skill services, permission system, and Canvas behavior exist;
+- localized catalog Interfaces, separate parent-session persona persistence,
+  the composer persona selector, and structured single-Agent runtime persona
+  composition are implemented for the Desktop/Tauri path;
+- local cache identity now includes the selected persona key and revision plus
+  effective tools and the resolved Skill-set revision. Persona or Skill changes
+  therefore miss the complete local system-prompt cache entry safely. The
+  rendered request still keeps the scenario/model base before the persona
+  overlay, so a provider may reuse an identical byte prefix, but Void neither
+  controls nor promises that provider-side KV cache hit.
+  Runtime tool exposure remains the intersection of scenario and persona
+  policies, then every call is checked again against runtime restrictions and
+  the current user permission policy. Skills provide instructions and cannot
+  grant tools; neither a persona nor a Skill can widen authority. Permission
+  configuration intentionally stays out of the local system-prompt text cache
+  key because it does not change that text and is re-read for each execution
+  round. Provider KV cache behavior remains provider-owned, so the release
+  contract promises identity isolation and correctness rather than a hit rate;
+- browser customization runtime support is explicitly gated as unsupported:
+  the Agents scene, Agent authoring page, and composer persona selector do not
+  call the WebSocket transport while the reachable Server runtime remains
+  deferred. This is a capability state, not an implementation of Server
+  parity;
+- Agent and Skill authoring are implemented behind typed services, including
+  validation, immutable runtime IDs, installation/removal rollback, scenario
+  eligibility, and structured errors;
+- Team definition management is implemented for Desktop/Tauri behind the Team
+  Interface: user/project isolation, validated create/edit/install/delete,
+  optimistic revision checks, atomic replacement/recovery, bounded packages,
+  read-only installed records, and partial diagnostics for corrupt records;
+- fixed Deep Review and AI Short Drama teams are catalog/launch adapters over
+  their existing runtimes; their manifests, child sessions, Skills, permissions,
+  media routing, project state, and Canvas behavior are not reimplemented;
+- general user-authored Team activation, `TeamInstance`,
+  `TeamOrchestrator`, Team Workspace live-run projection, and Server parity are
+  not implemented. Such definitions are explicitly `definition_only` and
+  cannot be selected in the composer;
+- no provider KV-cache hit rate is promised; correctness and role isolation are
+  the release gate.

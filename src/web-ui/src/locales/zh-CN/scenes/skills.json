@@ -26,6 +26,142 @@
     "subtitle": "统一管理已安装技能，并从外部技能市场发现更多可复用能力。",
     "searchPlaceholder": "搜索已安装技能和市场技能..."
   },
+  "runtimeUnsupported": {
+    "title": "当前浏览器暂不支持技能中心",
+    "description": "技能目录、创建、安装和编辑目前需要在 Void 桌面端使用。浏览器端不会发起无效请求。"
+  },
+  "runtimeReadOnly": "当前运行环境只能查看技能，创建、安装、编辑和删除已停用。",
+  "authoring": {
+    "titleCreate": "创建技能",
+    "subtitleCreate": "用中文描述、导入资料或手动填写，最后生成同一份可校验的技能定义。",
+    "titleEdit": "编辑技能",
+    "subtitleEdit": "中文名称可以修改，运行时 ID 和安装位置保持不变。",
+    "back": "返回技能中心",
+    "routeLabel": "技能创建方式",
+    "routes": {
+      "describe": "描述需求",
+      "material": "导入资料",
+      "manual": "手动填写"
+    },
+    "displayName": "技能中文名称",
+    "displayNamePlaceholder": "例如：财务报告分析",
+    "runtimeIdAuto": "保存时会自动生成不可变的英文运行时 ID，中文名称以后仍可修改。",
+    "runtimeIdValue": "运行时 ID：{{id}}",
+    "source": {
+      "describe": {
+        "label": "这个技能要帮你做什么",
+        "placeholder": "例如：分析财务报告，核对关键指标，并用中文给出风险提示和下一步建议。"
+      },
+      "material": {
+        "label": "粘贴已有提示词、流程或操作手册",
+        "placeholder": "粘贴资料后，Void 会整理角色、步骤、约束和交付要求。"
+      }
+    },
+    "localOrganizeHint": "整理在本地完成，不会扩大当前会话的工具或写入权限。",
+    "organizeDraft": "整理为技能",
+    "draftPrepared": "技能草稿已整理，可以继续检查和保存。",
+    "prepareFirst": "请先把描述或资料整理为技能草稿。",
+    "scenarioLabel": "适用场景",
+    "scenarioHint": "只在所选会话场景中显示；该设置只能缩小技能范围。",
+    "scenarios": {
+      "code": "代码开发",
+      "cowork": "日常办公",
+      "media": "设计创作"
+    },
+    "configurationTitle": "技能内容",
+    "configurationHint": "运行时身份与中文展示分离",
+    "description": "用途说明",
+    "descriptionPlaceholder": "用一句话说明什么时候应该使用这个技能",
+    "instructions": "执行说明",
+    "instructionsPlaceholder": "写清步骤、约束、输入和输出要求",
+    "suggestedPrompts": "推荐提问",
+    "suggestedPromptPlaceholder": "推荐提问 {{number}}",
+    "previewTitle": "保存前预览",
+    "previewUnnamed": "未命名技能",
+    "previewNoDescription": "尚未填写用途说明",
+    "previewScenarios": "适用场景：{{scenarios}}",
+    "previewNone": "未选择",
+    "permissionInherited": "权限：继承“场景、当前智能体、用户权限”的交集，技能不会新增权限。",
+    "installScope": "安装范围：{{scope}}",
+    "cancel": "取消",
+    "saving": "保存中...",
+    "createAction": "创建并安装",
+    "saveUpdate": "保存修改",
+    "createSuccess": "技能“{{name}}”已创建并安装",
+    "updateSuccess": "技能“{{name}}”已更新",
+    "createFailed": "创建失败：{{error}}",
+    "updateFailed": "更新失败：{{error}}",
+    "recoveryPath": "恢复文件位置：{{path}}",
+    "loadingDetail": "正在读取技能定义...",
+    "remoteProjectUnsupported": "远程工作区暂不支持创建或编辑项目级技能。",
+    "runtimeUnsupported": "当前运行环境不支持创建或编辑技能。",
+    "diagnostics": {
+      "display_name_required": "请填写技能中文名称。",
+      "source_text_required": "请描述需求或粘贴资料。",
+      "description_required": "请填写用途说明。",
+      "instructions_required": "请填写执行说明。",
+      "scenario_required": "至少选择一个适用场景。",
+      "suggested_prompt_required": "至少填写一个推荐提问。",
+      "too_many_suggested_prompts": "推荐提问最多填写 3 个。"
+    },
+    "errors": {
+      "unsupported_transport": "当前运行环境不支持技能创作。",
+      "unsupported_remote_project": "远程工作区暂不支持项目级技能创作。",
+      "not_found": "找不到这个技能，它可能已被移动或删除。",
+      "not_authorable": "该技能不是由 Void 创建的可编辑技能，可继续查看或重新导入。",
+      "revision_conflict": "技能已被其他操作修改，请重新打开后再保存。",
+      "validation_failed": "技能内容未通过校验，请检查必填项和长度。",
+      "read_failed": "技能文件读取失败，请检查文件是否存在和访问权限。",
+      "write_failed": "技能文件保存失败，原有技能不会被覆盖。",
+      "rollback_failed": "保存失败且自动恢复未完成，请按日志中的恢复路径处理备份。"
+    },
+    "template": {
+      "describeDescriptionPrefix": "可复用工作流：",
+      "describeRole": "当任务符合“__NAME__”时使用此技能。",
+      "describeRulesHeading": "执行规则：",
+      "describeRule1": "1. 先确认目标、输入材料和交付格式。",
+      "describeRule2": "2. 按描述的流程执行，并明确指出缺失信息。",
+      "describeRule3": "3. 只返回真实完成的结果，不声称执行过未运行的操作。",
+      "materialDescriptionPrefix": "根据提供资料整理的可复用工作流：",
+      "materialRole": "使用“__NAME__”技能，并把下面资料作为工作依据。",
+      "materialRulesHeading": "执行规则：",
+      "materialRule1": "1. 保留资料中的角色、顺序、约束和输出要求。",
+      "materialRule2": "2. 遇到冲突或缺口时，先说明再给出最小可行方案。",
+      "materialRule3": "3. 不得扩大当前会话已有的工具、权限或写入范围。",
+      "materialHeading": "提供的资料：",
+      "suggestedPrompt1": "请用__NAME__处理这个任务。",
+      "suggestedPrompt2": "请检查我的材料并告诉我下一步怎么做。",
+      "suggestedPrompt3": "请按要求输出可以直接使用的结果。"
+    }
+  },
+  "catalog": {
+    "builtin": {
+      "agent-browser": { "name": "浏览器自动化", "description": "打开网页、填写表单、截图并自动执行浏览器任务。" },
+      "cinematic-style-repair": { "name": "电影感画面修复", "description": "修复并强化电影感图片的构图、光影和动作。" },
+      "docx": { "name": "Word 文档", "description": "创建、读取和编辑 Word 文档。" },
+      "find-skills": { "name": "查找技能", "description": "发现并安装适合当前任务的可复用技能。" },
+      "gstack-autoplan": { "name": "自动规划", "description": "把目标整理为可执行、可审查的交付计划。" },
+      "gstack-cso": { "name": "战略顾问", "description": "从产品方向、定位和战略取舍角度提供评审。" },
+      "gstack-design-consultation": { "name": "设计咨询", "description": "澄清设计问题并给出可落地的产品方向。" },
+      "gstack-design-review": { "name": "设计评审", "description": "评审界面质量、易用性和视觉一致性。" },
+      "gstack-document-release": { "name": "文档发布", "description": "整理专业的发布说明和交付文档。" },
+      "gstack-investigate": { "name": "问题调查", "description": "调查模糊问题并在提出修复前收集证据。" },
+      "gstack-office-hours": { "name": "专家答疑", "description": "针对困难的产品和工程问题提供集中指导。" },
+      "gstack-plan-ceo-review": { "name": "CEO 方案评审", "description": "从商业价值、优先级和产品战略角度评审方案。" },
+      "gstack-plan-design-review": { "name": "设计方案评审", "description": "评审用户体验、交互和视觉交付风险。" },
+      "gstack-plan-eng-review": { "name": "工程方案评审", "description": "评审架构、实现、测试和运维风险。" },
+      "gstack-qa": { "name": "质量保障", "description": "为变更规划并执行系统化质量检查。" },
+      "gstack-qa-only": { "name": "专项质量检查", "description": "在不修改实现的前提下执行质量验证。" },
+      "gstack-retro": { "name": "项目复盘", "description": "交付后总结结果、经验和改进方向。" },
+      "gstack-review": { "name": "综合评审", "description": "从多个角度评审实现质量和交付准备度。" },
+      "gstack-ship": { "name": "发布交付", "description": "完成最终检查并为安全发布做好准备。" },
+      "pdf": { "name": "PDF 工具", "description": "读取、创建、拆分、合并和处理 PDF 文件。" },
+      "pptx": { "name": "演示文稿", "description": "创建、读取和编辑演示文稿。" },
+      "short-drama-character-board": { "name": "短剧角色设定板", "description": "为 AI 短剧创建保持人物一致性的角色设定板。" },
+      "writing-skills": { "name": "创建技能", "description": "创建、修改并验证可复用技能。" },
+      "xlsx": { "name": "电子表格", "description": "创建、读取、分析和编辑电子表格。" }
+    }
+  },
   "installed": {
     "titleAll": "已安装技能",
     "subtitleAll": "管理所有已安装的用户级和项目级技能",
@@ -37,6 +173,8 @@
   "toolbar": {
     "searchPlaceholder": "搜索技能...",
     "addTooltip": "添加技能",
+    "createTooltip": "创建技能",
+    "importTooltip": "导入本地技能",
     "hideDuplicates": "重复项"
   },
   "filters": {
@@ -195,6 +333,8 @@
       "builtin": "内置",
       "userInstalled": "已安装",
       "detail": "详情",
+      "edit": "编辑",
+      "editTooltip": "编辑此技能",
       "deleteTooltip": "删除",
       "pathLabel": "路径:",
       "openPathInExplorer": "在资源管理器中打开此文件夹",

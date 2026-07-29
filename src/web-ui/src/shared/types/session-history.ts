@@ -11,6 +11,25 @@ export type SessionKind = 'normal' | 'btw' | 'review' | 'deep_review' | 'miniapp
 export type PersistedSessionKind = 'standard' | 'subagent';
 export type SessionTitleSource = 'text' | 'i18n';
 export type SessionRelationshipKind = 'btw' | 'review' | 'deep_review' | 'miniapp' | 'subagent';
+export type SessionCustomizationScenario = 'code' | 'cowork' | 'media';
+export type SessionPersonaRevision =
+  | { status: 'known'; value: string }
+  | { status: 'legacy_unversioned' };
+
+export interface SessionActivePersonaBinding {
+  kind: 'agent' | 'team_lead';
+  personaId: string;
+  personaRevision: SessionPersonaRevision;
+  teamDefinitionId?: string;
+  teamInstanceId?: string;
+}
+
+export interface SessionCustomizationMetadata {
+  schemaVersion: 1;
+  scenario: SessionCustomizationScenario;
+  executionPolicy: string;
+  activePersonaBinding: SessionActivePersonaBinding | null;
+}
 
 export interface SessionRelationship {
   kind?: SessionRelationshipKind;
@@ -43,6 +62,7 @@ export interface SessionCustomMetadata extends Record<string, unknown> {
   automation?: {
     kind?: 'cron_job' | string;
   } | null;
+  customization?: SessionCustomizationMetadata;
 }
 
 export interface SessionMetadata {

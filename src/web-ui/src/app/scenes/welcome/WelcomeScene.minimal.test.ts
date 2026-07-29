@@ -1,16 +1,17 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  readSourceText,
+  sha256SourceText,
+} from '@/test-utils/sourceText';
 
-const pathFor = (relativePath: string): string =>
-  fileURLToPath(new URL(relativePath, import.meta.url));
+const pathFor = (relativePath: string): URL =>
+  new URL(relativePath, import.meta.url);
 
 const readSource = (relativePath: string): string =>
-  readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
+  readSourceText(pathFor(relativePath));
 
 const sha256 = (relativePath: string): string =>
-  createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
+  sha256SourceText(pathFor(relativePath));
 
 describe('WelcomeScene Minimal presentation', () => {
   const stylesheet = readSource('./WelcomeScene.minimal.scss');
@@ -27,10 +28,10 @@ describe('WelcomeScene Minimal presentation', () => {
 
   it('keeps the existing Classic component and stylesheet byte-identical', () => {
     expect(sha256('./WelcomeScene.tsx')).toBe(
-      '648c6885ac63a54676fd76f8ec41a3335452b6440d8cc739e34de949be771a82',
+      '8673a8651598aa8ce6095075caf4d85001f59c66401cabbe6df4f4d15e659aee',
     );
     expect(sha256('./WelcomeScene.scss')).toBe(
-      'bee8b1057dec81b2acc933ca02e0e1618129e7cc3bdeea12588fc9e5c0d506f0',
+      '1e1ff3807fee00eeee89551a58c1a3c2bbd3ea633d24f63cae5448601f48912a',
     );
   });
 

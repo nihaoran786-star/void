@@ -72,13 +72,9 @@ pub fn subagent_override_for_parent(
 }
 
 pub fn resolve_default_enabled(entry: &AgentEntry, parent_agent_type: Option<&str>) -> bool {
-    match entry.subagent_source {
-        Some(SubAgentSource::Builtin) => entry
-            .visibility_policy
-            .can_access_from_parent(parent_agent_type),
-        Some(SubAgentSource::Project) | Some(SubAgentSource::User) => true,
-        None => true,
-    }
+    entry
+        .visibility_policy
+        .can_access_from_parent(parent_agent_type)
 }
 
 pub fn resolve_override_layers(
@@ -116,9 +112,23 @@ pub fn resolve_availability(
     project_overrides: Option<&AgentSubagentOverrideConfig>,
     user_overrides: &AgentSubagentOverrideConfig,
 ) -> ResolvedSubagentAvailability {
-    let default_enabled = resolve_default_enabled(entry, parent_agent_type);
     let layers =
         resolve_override_layers(entry, parent_agent_type, project_overrides, user_overrides);
+    let override_state = layers.project_override.or(layers.user_override);
+    let policy_allows = entry
+        .visibility_policy
+        .can_access_from_parent(parent_agent_type);
+
+    if !policy_allows {
+        return ResolvedSubagentAvailability {
+            default_enabled: false,
+            effective_enabled: false,
+            override_state,
+            state_reason: Some(SubagentStateReason::BlockedByVisibilityPolicy),
+        };
+    }
+
+    let default_enabled = resolve_default_enabled(entry, parent_agent_type);
 
     if let Some(project_override) = layers.project_override {
         return ResolvedSubagentAvailability {
@@ -287,5 +297,62 @@ mod tests {
             Some(AgentSubagentOverrideState::Disabled)
         );
         assert_eq!(layers.user_override, None);
+    }
+
+    #[test]
+    fn visibility_policy_is_a_hard_limit_even_when_an_override_enables_the_subagent() {
+        let mut entry = make_entry(SubAgentSource::User, "MediaOnly");
+        entry.visibility_policy = SubagentVisibilityPolicy::restricted(["Media"]);
+        let key = subagent_key_for(entry.subagent_source, entry.agent.as_ref()).expect("user key");
+        let availability = resolve_availability(
+            &entry,
+            Some("agentic"),
+            None,
+            &overrides("agentic", &key, AgentSubagentOverrideState::Enabled),
+        );
+
+        assert!(!availability.default_enabled);
+        assert!(!availability.effective_enabled);
+        assert_eq!(
+            availability.override_state,
+            Some(AgentSubagentOverrideState::Enabled)
+        );
+        assert_eq!(
+            availability.state_reason,
+            Some(SubagentStateReason::BlockedByVisibilityPolicy)
+        );
+    }
+
+    #[test]
+    fn allowed_parent_still_respects_a_disabling_override() {
+        let mut entry = make_entry(SubAgentSource::User, "MediaOptional");
+        entry.visibility_policy = SubagentVisibilityPolicy::restricted(["Media"]);
+        let key = subagent_key_for(entry.subagent_source, entry.agent.as_ref()).expect("user key");
+        let availability = resolve_availability(
+            &entry,
+            Some("Media"),
+            None,
+            &overrides("Media", &key, AgentSubagentOverrideState::Disabled),
+        );
+
+        assert!(availability.default_enabled);
+        assert!(!availability.effective_enabled);
+        assert_eq!(
+            availability.state_reason,
+            Some(SubagentStateReason::DisabledByUserOverride)
+        );
+    }
+
+    #[test]
+    fn public_legacy_custom_subagents_remain_enabled() {
+        let entry = make_entry(SubAgentSource::User, "LegacyPublic");
+        let availability = resolve_availability(&entry, Some("agentic"), None, &HashMap::new());
+
+        assert!(availability.default_enabled);
+        assert!(availability.effective_enabled);
+        assert_eq!(
+            availability.state_reason,
+            Some(SubagentStateReason::CustomDefaultEnabled)
+        );
     }
 }

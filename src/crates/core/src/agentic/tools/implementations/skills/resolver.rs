@@ -15,9 +15,22 @@ pub struct ModeSkillState {
     pub reason: ModeSkillStateReason,
 }
 
+fn skill_definition_allows_mode(skill: &SkillInfo, mode_id: &str) -> bool {
+    skill.allowed_parent_agent_ids.is_empty()
+        || skill
+            .allowed_parent_agent_ids
+            .iter()
+            .any(|allowed| allowed == mode_id)
+}
+
 pub fn resolve_skill_default_enabled_for_mode(skill: &SkillInfo, mode_id: &str) -> bool {
     if let Some(allowlist) = fixed_skill_allowlist_for_agent(mode_id) {
-        return skill.is_builtin && allowlist.contains(&skill.dir_name.as_str());
+        return skill.is_builtin
+            && allowlist.contains(&skill.dir_name.as_str())
+            && skill_definition_allows_mode(skill, mode_id);
+    }
+    if !skill_definition_allows_mode(skill, mode_id) {
+        return false;
     }
 
     match skill.level {
@@ -60,15 +73,25 @@ pub fn resolve_skill_state_for_mode(
     disabled_project_skills: &HashSet<String>,
 ) -> ModeSkillState {
     if let Some(allowlist) = fixed_skill_allowlist_for_agent(mode_id) {
-        let enabled = skill.is_builtin && allowlist.contains(&skill.dir_name.as_str());
+        let enabled_by_agent = skill.is_builtin && allowlist.contains(&skill.dir_name.as_str());
+        let enabled = enabled_by_agent && skill_definition_allows_mode(skill, mode_id);
         return ModeSkillState {
             default_enabled: enabled,
             effective_enabled: enabled,
-            reason: if enabled {
-                ModeSkillStateReason::EnabledByAgentAllowlist
-            } else {
+            reason: if !enabled_by_agent {
                 ModeSkillStateReason::DisabledByAgentAllowlist
+            } else if !enabled {
+                ModeSkillStateReason::DisabledBySkillAllowlist
+            } else {
+                ModeSkillStateReason::EnabledByAgentAllowlist
             },
+        };
+    }
+    if !skill_definition_allows_mode(skill, mode_id) {
+        return ModeSkillState {
+            default_enabled: false,
+            effective_enabled: false,
+            reason: ModeSkillStateReason::DisabledBySkillAllowlist,
         };
     }
 
@@ -80,13 +103,18 @@ pub fn resolve_skill_state_for_mode(
                 effective_enabled: !disabled,
                 reason: if disabled {
                     ModeSkillStateReason::DisabledByProjectOverride
+                } else if !skill.allowed_parent_agent_ids.is_empty() {
+                    ModeSkillStateReason::EnabledBySkillAllowlist
                 } else {
                     ModeSkillStateReason::ProjectDefaultEnabled
                 },
             }
         }
         SkillLocation::User => {
-            let default_state = resolve_default_state_for_user_skill(skill, mode_id);
+            let mut default_state = resolve_default_state_for_user_skill(skill, mode_id);
+            if default_state.default_enabled && !skill.allowed_parent_agent_ids.is_empty() {
+                default_state.reason = ModeSkillStateReason::EnabledBySkillAllowlist;
+            }
 
             if default_state.default_enabled {
                 if user_overrides.disabled_skills.contains(&skill.key) {
@@ -122,12 +150,17 @@ mod tests {
         SkillInfo {
             key: format!("user::void-system::{}", dir_name),
             name: dir_name.to_string(),
+            display_name: None,
             description: String::new(),
+            allowed_parent_agent_ids: Vec::new(),
+            suggested_prompts: Vec::new(),
+            revision: "test-revision".to_string(),
             path: format!("/tmp/{}", dir_name),
             level: SkillLocation::User,
             source_slot: "void-system".to_string(),
             dir_name: dir_name.to_string(),
             is_builtin: true,
+            is_authorable: false,
             group_key: None,
             is_shadowed: false,
             shadowed_by_key: None,
@@ -138,12 +171,17 @@ mod tests {
         SkillInfo {
             key: format!("user::void::{}", dir_name),
             name: dir_name.to_string(),
+            display_name: None,
             description: String::new(),
+            allowed_parent_agent_ids: Vec::new(),
+            suggested_prompts: Vec::new(),
+            revision: "test-revision".to_string(),
             path: format!("/tmp/{}", dir_name),
             level: SkillLocation::User,
             source_slot: "void".to_string(),
             dir_name: dir_name.to_string(),
             is_builtin: false,
+            is_authorable: false,
             group_key: None,
             is_shadowed: false,
             shadowed_by_key: None,
@@ -174,6 +212,29 @@ mod tests {
         assert!(state.default_enabled);
         assert!(state.effective_enabled);
         assert_eq!(state.reason, ModeSkillStateReason::CustomUserDefaultEnabled);
+    }
+
+    #[test]
+    fn authored_skill_allowlist_only_narrows_mode_access() {
+        let mut custom = custom_user_skill("finance-workflow");
+        custom.allowed_parent_agent_ids = vec!["Cowork".to_string()];
+        let mut overrides = UserModeSkillOverrides::default();
+        overrides.enabled_skills.push(custom.key.clone());
+
+        let code = resolve_skill_state_for_mode(&custom, "agentic", &overrides, &HashSet::new());
+        let cowork = resolve_skill_state_for_mode(
+            &custom,
+            "Cowork",
+            &UserModeSkillOverrides::default(),
+            &HashSet::new(),
+        );
+
+        assert!(!code.default_enabled);
+        assert!(!code.effective_enabled);
+        assert_eq!(code.reason, ModeSkillStateReason::DisabledBySkillAllowlist);
+        assert!(cowork.default_enabled);
+        assert!(cowork.effective_enabled);
+        assert_eq!(cowork.reason, ModeSkillStateReason::EnabledBySkillAllowlist);
     }
 
     #[test]
@@ -229,6 +290,48 @@ mod tests {
             assert!(!state.effective_enabled);
             assert_eq!(state.reason, ModeSkillStateReason::DisabledByAgentAllowlist);
         }
+    }
+
+    #[test]
+    fn skill_definition_can_narrow_but_never_expand_fixed_short_drama_allowlist() {
+        let mut cinematic = builtin_skill("cinematic-style-repair");
+        cinematic.allowed_parent_agent_ids = vec!["SplitAI".to_string()];
+        let narrowed = resolve_skill_state_for_mode(
+            &cinematic,
+            "AssetAI",
+            &UserModeSkillOverrides::default(),
+            &HashSet::new(),
+        );
+        let allowed = resolve_skill_state_for_mode(
+            &cinematic,
+            "SplitAI",
+            &UserModeSkillOverrides::default(),
+            &HashSet::new(),
+        );
+        let mut custom = custom_user_skill("using-superpowers");
+        custom.allowed_parent_agent_ids = vec!["AssetAI".to_string()];
+        let cannot_expand = resolve_skill_state_for_mode(
+            &custom,
+            "AssetAI",
+            &UserModeSkillOverrides::default(),
+            &HashSet::new(),
+        );
+
+        assert!(!narrowed.effective_enabled);
+        assert_eq!(
+            narrowed.reason,
+            ModeSkillStateReason::DisabledBySkillAllowlist
+        );
+        assert!(allowed.effective_enabled);
+        assert_eq!(
+            allowed.reason,
+            ModeSkillStateReason::EnabledByAgentAllowlist
+        );
+        assert!(!cannot_expand.effective_enabled);
+        assert_eq!(
+            cannot_expand.reason,
+            ModeSkillStateReason::DisabledByAgentAllowlist
+        );
     }
 
     #[test]

@@ -1,0 +1,55 @@
+@use '../../../component-library/styles/tokens' as *;
+
+.customization-top-nav {
+  display: flex;
+  align-items: center;
+  gap: $size-gap-1;
+  flex: 0 0 auto;
+  min-height: 54px;
+  padding: $size-gap-2 $size-gap-4;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--color-bg-primary);
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 0 $size-gap-3;
+    border: 0;
+    border-radius: $size-radius-base;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+
+    &:hover {
+      background: var(--color-bg-hover);
+      color: var(--color-text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+
+    &.is-active {
+      background: var(--color-text-primary);
+      color: var(--color-bg-primary);
+    }
+  }
+}
+
+@media (max-width: 560px) {
+  .customization-top-nav {
+    padding-inline: $size-gap-2;
+
+    &__item {
+      flex: 1;
+      justify-content: center;
+      padding-inline: $size-gap-2;
+    }
+  }
+}

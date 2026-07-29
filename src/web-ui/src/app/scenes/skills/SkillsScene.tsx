@@ -8,6 +8,7 @@ import {
   Filter,
   FolderOpen,
   Layers,
+  Pencil,
   Package,
   Plus,
   Puzzle,
@@ -31,10 +32,22 @@ import { getCardGradient } from '@/shared/utils/cardGradients';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
 import { useSkillMarket } from './hooks/useSkillMarket';
 import SkillCard from './components/SkillCard';
+import SkillAuthoringPage from './components/SkillAuthoringPage';
 import SkillsSuiteView from './components/SkillsSuiteView';
 import './SkillsScene.scss';
 import { useSkillsSceneStore, type InstalledFilter } from './skillsSceneStore';
 import { useGallerySceneAutoRefresh } from '@/app/hooks/useGallerySceneAutoRefresh';
+import CustomizationTopNav from '@/app/scenes/customization/CustomizationTopNav';
+import {
+  isMarketSkillInstalled,
+  localizeCatalogPresentation,
+  presentationForInstalledSkill,
+  presentationForMarketSkill,
+} from '@/shared/services/customization';
+import {
+  customizationRuntimeCapabilityService,
+  type CustomizationRuntimeCapabilityReader,
+} from '@/shared/services/customization/CustomizationRuntimeCapabilityService';
 
 const log = createLogger('SkillsScene');
 
@@ -57,7 +70,15 @@ const CATEGORIES: CategoryInfo[] = [
   { id: 'suite', icon: <Zap size={15} strokeWidth={1.6} />, labelKey: 'filters.suite', descKey: 'categories.suite' },
 ];
 
-const SkillsScene: React.FC = () => {
+interface SupportedSkillsSceneProps {
+  canManage: boolean;
+  capabilityService: CustomizationRuntimeCapabilityReader;
+}
+
+const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
+  canManage,
+  capabilityService,
+}) => {
   const { t } = useTranslation('scenes/skills');
   const notification = useNotification();
   const {
@@ -78,6 +99,11 @@ const SkillsScene: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<SkillInfo | null>(null);
   const [installedListPage, setInstalledListPage] = useState(0);
   const [installedSearch, setInstalledSearch] = useState('');
+  const [authoringTarget, setAuthoringTarget] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; skillKey: string }
+    | null
+  >(null);
   const [selectedDetail, setSelectedDetail] = useState<
     | { type: 'installed'; skill: SkillInfo }
     | { type: 'market'; skill: SkillMarketItem }
@@ -139,6 +165,18 @@ const SkillsScene: React.FC = () => {
 
   const selectedInstalledSkill = selectedDetail?.type === 'installed' ? selectedDetail.skill : null;
   const selectedMarketSkill = selectedDetail?.type === 'market' ? selectedDetail.skill : null;
+  const selectedInstalledPresentation = selectedInstalledSkill
+    ? localizeCatalogPresentation(
+        presentationForInstalledSkill(selectedInstalledSkill),
+        key => t(key),
+      )
+    : null;
+  const selectedMarketPresentation = selectedMarketSkill
+    ? localizeCatalogPresentation(
+        presentationForMarketSkill(selectedMarketSkill),
+        key => t(key),
+      )
+    : null;
 
   const installedFiltered = useMemo(() => {
     const list = hideDuplicates
@@ -165,8 +203,39 @@ const SkillsScene: React.FC = () => {
     setInstalledListPage((p) => Math.min(p, Math.max(0, installedTotalPages - 1)));
   }, [installedTotalPages]);
 
+  useEffect(() => {
+    if (canManage) return;
+    setAddFormOpen(false);
+    setDeleteTarget(null);
+    if (installedFilter === 'suite') {
+      setInstalledFilter('all');
+    }
+  }, [canManage, installedFilter, setAddFormOpen, setInstalledFilter]);
+
+  if (authoringTarget) {
+    return (
+      <div className="void-skills-scene">
+        <CustomizationTopNav active="skills" />
+        <SkillAuthoringPage
+          mode={authoringTarget.mode}
+          skillKey={authoringTarget.mode === 'edit' ? authoringTarget.skillKey : undefined}
+          onBack={() => setAuthoringTarget(null)}
+          onSaved={() => {
+            setAuthoringTarget(null);
+            void Promise.all([
+              installed.loadSkills(true),
+              market.refresh(),
+            ]);
+          }}
+          capabilityService={capabilityService}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="void-skills-scene">
+      <CustomizationTopNav active="skills" />
       <div className="skills-tabs-bar">
         <div
           className="skills-tabs-bar__tabs"
@@ -188,6 +257,11 @@ const SkillsScene: React.FC = () => {
           ><span>{t('market.title')}</span></button>
         </div>
       </div>
+      {!canManage && (
+        <div className="skills-runtime-readonly" role="status">
+          {t('runtimeReadOnly')}
+        </div>
+      )}
 
       <div className="skills-page">
 
@@ -201,7 +275,7 @@ const SkillsScene: React.FC = () => {
                 className="skills-sidebar__nav"
                 aria-label={t('installed.titleAll')}
               >
-                {CATEGORIES.map((cat) => {
+                {CATEGORIES.filter((cat) => canManage || cat.id !== 'suite').map((cat) => {
                   const count = installed.counts[cat.id];
                   const isEmpty = count === 0;
                   return (
@@ -253,12 +327,22 @@ const SkillsScene: React.FC = () => {
                     <button
                       type="button"
                       className="skills-main__add-btn"
+                      onClick={() => setAuthoringTarget({ mode: 'create' })}
+                      disabled={!canManage}
+                    >
+                      <Plus size={13} />
+                      <span>{t('toolbar.createTooltip')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="skills-main__chip-btn"
                       onClick={toggleAddForm}
+                      disabled={!canManage}
                       aria-expanded={isAddFormOpen}
                       aria-haspopup="dialog"
                     >
-                      <Plus size={13} />
-                      <span>{t('toolbar.addTooltip')}</span>
+                      <FolderOpen size={13} />
+                      <span>{t('toolbar.importTooltip')}</span>
                     </button>
                   </div>
 
@@ -296,6 +380,12 @@ const SkillsScene: React.FC = () => {
                     <>
                       <div className="skills-main__grid">
                         {pagedInstalledSkills.map((skill, index) => (
+                          (() => {
+                            const presentation = localizeCatalogPresentation(
+                              presentationForInstalledSkill(skill),
+                              key => t(key),
+                            );
+                            return (
                           <div
                             key={skill.key}
                             className={[
@@ -312,16 +402,16 @@ const SkillsScene: React.FC = () => {
                                 setSelectedDetail({ type: 'installed', skill });
                               }
                             }}
-                            aria-label={skill.name}
+                            aria-label={presentation.displayName}
                           >
                             <div className="skills-card__top">
                               <div className="skills-card__icon">
                                 <Puzzle size={18} strokeWidth={1.6} />
                               </div>
                               <div className="skills-card__info">
-                                <span className="skills-card__name">{skill.name}</span>
-                                {skill.description?.trim() && (
-                                  <span className="skills-card__desc">{skill.description}</span>
+                                <span className="skills-card__name">{presentation.displayName}</span>
+                                {presentation.description.trim() && (
+                                  <span className="skills-card__desc">{presentation.description}</span>
                                 )}
                               </div>
                               {skill.isBuiltin && (
@@ -377,7 +467,23 @@ const SkillsScene: React.FC = () => {
                                 <span>{t('list.item.detail')}</span>
                                 <ArrowRight size={12} />
                               </Button>
-                              {!skill.isBuiltin && (
+                              {canManage
+                                && skill.isAuthorable
+                                && (skill.level !== 'project' || !installed.isRemoteWorkspace) && (
+                                <button
+                                  type="button"
+                                  className="skills-card__edit"
+                                  onClick={() => setAuthoringTarget({
+                                    mode: 'edit',
+                                    skillKey: skill.key,
+                                  })}
+                                  aria-label={t('list.item.editTooltip')}
+                                  title={t('list.item.editTooltip')}
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                              )}
+                              {canManage && !skill.isBuiltin && (
                                 <button
                                   type="button"
                                   className="skills-card__delete"
@@ -390,6 +496,8 @@ const SkillsScene: React.FC = () => {
                               )}
                             </div>
                           </div>
+                            );
+                          })()
                         ))}
                       </div>
 
@@ -504,13 +612,17 @@ const SkillsScene: React.FC = () => {
 
                   <div className="skills-discover__grid">
                     {market.marketSkills.map((skill, index) => {
-                      const isInstalled = installedSkillNames.has(skill.name);
+                      const isInstalled = isMarketSkillInstalled(installedSkillNames, skill);
                       const isDownloading = market.downloadingPackage === skill.installId;
+                      const presentation = localizeCatalogPresentation(
+                        presentationForMarketSkill(skill),
+                        key => t(key),
+                      );
                       return (
                         <SkillCard
                           key={skill.installId}
-                          name={skill.name}
-                          description={skill.description}
+                          name={presentation.displayName}
+                          description={presentation.description}
                           index={index}
                           accentSeed={skill.installId}
                           iconKind="market"
@@ -535,7 +647,8 @@ const SkillsScene: React.FC = () => {
                                 ? t('market.item.downloading')
                                 : (isInstalled ? t('market.item.installedTooltip') : t('market.item.downloadProject')),
                               disabled:
-                                isDownloading
+                                !canManage
+                                || isDownloading
                                 || !market.hasWorkspace
                                 || market.isRemoteWorkspace
                                 || isInstalled,
@@ -593,7 +706,7 @@ const SkillsScene: React.FC = () => {
           ?? selectedMarketSkill?.name
           ?? 'skill'
         )}
-        title={selectedInstalledSkill?.name ?? selectedMarketSkill?.name ?? ''}
+        title={selectedInstalledPresentation?.displayName ?? selectedMarketPresentation?.displayName ?? ''}
         badges={selectedInstalledSkill ? (
           <>
             {selectedInstalledSkill.isShadowed && (
@@ -611,34 +724,53 @@ const SkillsScene: React.FC = () => {
               {selectedInstalledSkill.level === 'user' ? t('list.item.user') : t('list.item.project')}
             </Badge>
           </>
-        ) : selectedMarketSkill && installedSkillNames.has(selectedMarketSkill.name) ? (
+        ) : selectedMarketSkill && isMarketSkillInstalled(installedSkillNames, selectedMarketSkill) ? (
           <Badge variant="success">
             <CheckCircle2 size={11} />
             {t('market.item.installed')}
           </Badge>
         ) : null}
-        description={selectedInstalledSkill?.description ?? selectedMarketSkill?.description}
+        description={selectedInstalledPresentation?.description ?? selectedMarketPresentation?.description}
         meta={selectedMarketSkill ? (
           <span className="void-skills-scene__market-meta">
             <TrendingUp size={12} />
             {selectedMarketSkill.installs ?? 0}
           </span>
         ) : null}
-        actions={selectedInstalledSkill && !selectedInstalledSkill.isBuiltin ? (
-          <Button
-            variant="danger"
-            size="small"
-            onClick={() => {
-              setDeleteTarget(selectedInstalledSkill);
-              setSelectedDetail(null);
-            }}
-          >
-            <Trash2 size={14} />
-            {t('deleteModal.delete')}
-          </Button>
-        ) : selectedMarketSkill ? (
+        actions={canManage && selectedInstalledSkill && !selectedInstalledSkill.isBuiltin ? (
           <>
-            {installedSkillNames.has(selectedMarketSkill.name) ? (
+            {selectedInstalledSkill.isAuthorable
+              && (selectedInstalledSkill.level !== 'project' || !installed.isRemoteWorkspace) && (
+              <Button
+                variant="primary"
+                size="small"
+                onClick={() => {
+                  setAuthoringTarget({
+                    mode: 'edit',
+                    skillKey: selectedInstalledSkill.key,
+                  });
+                  setSelectedDetail(null);
+                }}
+              >
+                <Pencil size={14} />
+                {t('list.item.edit')}
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              size="small"
+              onClick={() => {
+                setDeleteTarget(selectedInstalledSkill);
+                setSelectedDetail(null);
+              }}
+            >
+              <Trash2 size={14} />
+              {t('deleteModal.delete')}
+            </Button>
+          </>
+        ) : canManage && selectedMarketSkill ? (
+          <>
+            {isMarketSkillInstalled(installedSkillNames, selectedMarketSkill) ? (
               <Button variant="secondary" size="small" disabled>
                 {t('market.item.installed')}
               </Button>
@@ -725,7 +857,7 @@ const SkillsScene: React.FC = () => {
       </GalleryDetailModal>
 
       <Modal
-        isOpen={isAddFormOpen}
+        isOpen={canManage && isAddFormOpen}
         onClose={() => {
           installed.resetForm();
           setAddFormOpen(false);
@@ -847,6 +979,41 @@ const SkillsScene: React.FC = () => {
         cancelText={t('deleteModal.cancel')}
       />
     </div>
+  );
+};
+
+export interface SkillsSceneProps {
+  capabilityService?: CustomizationRuntimeCapabilityReader;
+}
+
+const SkillsScene: React.FC<SkillsSceneProps> = ({
+  capabilityService = customizationRuntimeCapabilityService,
+}) => {
+  const { t } = useTranslation('scenes/skills');
+  const catalogCapability = capabilityService.getCapability('catalog_read');
+  const managementCapability = capabilityService.getCapability('skill_management');
+
+  if (catalogCapability.status === 'unsupported') {
+    return (
+      <div className="void-skills-scene">
+        <CustomizationTopNav active="skills" />
+        <main
+          className="void-skills-runtime-unsupported"
+          data-testid="skills-runtime-unsupported"
+        >
+          <Puzzle size={28} aria-hidden />
+          <h1>{t('runtimeUnsupported.title')}</h1>
+          <p>{t('runtimeUnsupported.description')}</p>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <SupportedSkillsScene
+      canManage={managementCapability.status === 'supported'}
+      capabilityService={capabilityService}
+    />
   );
 };
 

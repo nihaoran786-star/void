@@ -1,19 +1,18 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  readSourceText,
+  sha256SourceText,
+  sha256Text,
+} from '@/test-utils/sourceText';
 
-const pathFor = (relativePath: string): string =>
-  fileURLToPath(new URL(relativePath, import.meta.url));
+const pathFor = (relativePath: string): URL =>
+  new URL(relativePath, import.meta.url);
 
 const readSource = (relativePath: string): string =>
-  readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
+  readSourceText(pathFor(relativePath));
 
 const sha256 = (relativePath: string): string =>
-  sha256Text(readSource(relativePath));
-
-const sha256Text = (source: string): string =>
-  createHash('sha256').update(source).digest('hex');
+  sha256SourceText(pathFor(relativePath));
 
 describe('Agents scene Minimal presentation contract', () => {
   const source = readSource('./AgentsScene.minimal.scss');
@@ -33,16 +32,16 @@ describe('Agents scene Minimal presentation contract', () => {
       .replace('\n\n@include minimal.styles;\n', '\n');
 
     expect(sha256Text(projectionFreeClassic)).toBe(
-      'aa24794f9fae4914f35829e5bdd442b95f00c822ca779d530ad56c003fdac1bd',
+      '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      '4cb9bd8a3bf1d2d41c96151f3676bd0e186516eb1c6b50905ca3a13437aa4ab3',
+      'ab2af1862655384b78ad65bb1dc041607e05e96255ccbd6e8d4d45899f3bb28c',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      '6c91afe416d6807ffb0ad6e0fa6b53cacbfb300e377f15fb31a1472b8c675586',
+      '27ee90246a98a8902d7553d8823469f0cbfd4c3d551c7d68ee1f00a60a0cd48d',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      '90fb45e966bb8985dc3b53575f67dea166fee12d94e080a63c3d394f28fc9dac',
+      'c77123bc2b8f9df0d5c4b03b18deebbe02fcb7a401290ff090cd4e5606a88da6',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
       '270b4ba8a2043c28ae885356a0ca66a77c3bc9c6adab50488e19645dbce3b2d7',

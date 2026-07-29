@@ -1,12 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  FileText,
+  SlidersHorizontal,
+  WandSparkles,
+  type LucideIcon,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Input, Textarea, Switch, Button } from '@/component-library';
-import { SubagentAPI } from '@/infrastructure/api/service-api/SubagentAPI';
-import type { SubagentLevel } from '@/infrastructure/api/service-api/SubagentAPI';
+import { Button, Input, Switch, Textarea } from '@/component-library';
+import {
+  SubagentAPI,
+  type SubagentLevel,
+} from '@/infrastructure/api/service-api/SubagentAPI';
 import { toolAPI } from '@/infrastructure/api/service-api/ToolAPI';
-import { useNotification } from '@/shared/notification-system';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
+import {
+  organizeAgentDraft,
+  scenariosFromAllowedParentAgentIds,
+  type AgentAuthoringDiagnostic,
+  type AgentAuthoringRoute,
+  type AgentAuthoringTemplate,
+  type AgentScenarioId,
+} from '@/shared/services/customization';
+import {
+  customizationRuntimeCapabilityService,
+  type CustomizationRuntimeCapabilityReader,
+} from '@/shared/services/customization/CustomizationRuntimeCapabilityService';
+import { useNotification } from '@/shared/notification-system';
 import { useAgentsStore } from '../agentsStore';
 import {
   filterToolsForReviewMode,
@@ -16,21 +36,52 @@ import {
 import '../AgentsView.scss';
 import './CreateAgentPage.scss';
 
-const NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const AUTHORING_ROUTES: Array<{
+  id: AgentAuthoringRoute;
+  icon: LucideIcon;
+}> = [
+  { id: 'describe', icon: WandSparkles },
+  { id: 'material', icon: FileText },
+  { id: 'manual', icon: SlidersHorizontal },
+];
+const SCENARIOS: AgentScenarioId[] = ['code', 'cowork', 'media'];
 
-const CreateAgentPage: React.FC = () => {
+const EditorBackButton: React.FC<{
+  onBack: () => void;
+  label: string;
+}> = ({ onBack, label }) => (
+  <div className="tv__editor-bar">
+    <button className="tv__back-btn" onClick={onBack} type="button">
+      <ArrowLeft size={14} />
+      <span>{label}</span>
+    </button>
+  </div>
+);
+
+const SupportedCreateAgentPage: React.FC = () => {
   const { t } = useTranslation('scenes/agents');
-  const { openHome, agentEditorMode, editingAgentId } = useAgentsStore();
+  const {
+    openHome,
+    agentEditorMode,
+    editingAgentKey,
+    editingAgentId,
+    requestCatalogRefresh,
+  } = useAgentsStore();
   const notification = useNotification();
   const { hasWorkspace, workspacePath } = useCurrentWorkspace();
-
   const isEdit = agentEditorMode === 'edit' && Boolean(editingAgentId);
 
+  const [route, setRoute] = useState<AgentAuthoringRoute>('describe');
   const [level, setLevel] = useState<SubagentLevel>('user');
-  const [name, setName] = useState('');
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [runtimeKey, setRuntimeKey] = useState<string | null>(editingAgentKey);
+  const [runtimeId, setRuntimeId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [sourceText, setSourceText] = useState('');
   const [description, setDescription] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [scenarios, setScenarios] = useState<AgentScenarioId[]>(['code']);
+  const [diagnostics, setDiagnostics] = useState<AgentAuthoringDiagnostic[]>([]);
+  const [draftPrepared, setDraftPrepared] = useState(false);
   const [readonly, setReadonly] = useState(true);
   const [review, setReview] = useState(false);
   const [toolInfos, setToolInfos] = useState<SubagentEditorToolInfo[]>([]);
@@ -38,6 +89,25 @@ const CreateAgentPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const authoringTemplate = useMemo<AgentAuthoringTemplate>(() => ({
+    describeRole: t('agentsOverview.form.template.describeRole'),
+    describeResponsibilities: t('agentsOverview.form.template.describeResponsibilities'),
+    describeRequirements: t('agentsOverview.form.template.describeRequirements'),
+    describeSteps: [
+      t('agentsOverview.form.template.describeStep1'),
+      t('agentsOverview.form.template.describeStep2'),
+      t('agentsOverview.form.template.describeStep3'),
+    ],
+    materialDescriptionPrefix: t('agentsOverview.form.template.materialDescriptionPrefix'),
+    materialRole: t('agentsOverview.form.template.materialRole'),
+    materialRules: t('agentsOverview.form.template.materialRules'),
+    materialSteps: [
+      t('agentsOverview.form.template.materialStep1'),
+      t('agentsOverview.form.template.materialStep2'),
+      t('agentsOverview.form.template.materialStep3'),
+    ],
+    materialHeading: t('agentsOverview.form.template.materialHeading'),
+  }), [t]);
 
   useEffect(() => {
     toolAPI.getAllToolsInfo()
@@ -45,11 +115,7 @@ const CreateAgentPage: React.FC = () => {
         const normalizedTools = tools
           .map((tool): SubagentEditorToolInfo | null => {
             const name = typeof tool?.name === 'string' ? tool.name : '';
-            if (!name) return null;
-            return {
-              name,
-              isReadonly: Boolean(tool?.is_readonly),
-            };
+            return name ? { name, isReadonly: Boolean(tool?.is_readonly) } : null;
           })
           .filter((tool): tool is SubagentEditorToolInfo => Boolean(tool));
         setToolInfos(normalizedTools);
@@ -73,49 +139,93 @@ const CreateAgentPage: React.FC = () => {
     let cancelled = false;
     setDetailLoading(true);
     setDetailError(null);
-
-    (async () => {
-      try {
-        const d = await SubagentAPI.getSubagentDetail({
-          subagentId: editingAgentId,
-          workspacePath: workspacePath || undefined,
-        });
+    void SubagentAPI.getSubagentDetail({
+      subagentKey: editingAgentKey || undefined,
+      subagentId: editingAgentId,
+      workspacePath: workspacePath || undefined,
+    })
+      .then((detail) => {
         if (cancelled) return;
-        setName(d.name);
-        setDescription(d.description);
-        setPrompt(d.prompt);
-        setReadonly(d.readonly);
-        setReview(d.review);
-        setLevel(d.level);
-        setSelectedTools(new Set(d.tools ?? []));
-        setNameError(null);
-      } catch (e) {
-        if (cancelled) return;
-        setDetailError(e instanceof Error ? e.message : String(e));
-      } finally {
+        setRuntimeKey(detail.subagentKey);
+        setRuntimeId(detail.subagentId);
+        setDisplayName(detail.displayName || detail.name);
+        setDescription(detail.description);
+        setPrompt(detail.prompt);
+        setReadonly(detail.readonly);
+        setReview(detail.review);
+        setLevel(detail.level);
+        setSelectedTools(new Set(detail.tools ?? []));
+        setScenarios(scenariosFromAllowedParentAgentIds(detail.allowedParentAgentIds ?? []));
+        setRoute('manual');
+        setDraftPrepared(true);
+        setDiagnostics([]);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setDetailError(error instanceof Error ? error.message : String(error));
+        }
+      })
+      .finally(() => {
         if (!cancelled) setDetailLoading(false);
-      }
-    })();
+      });
 
     return () => {
       cancelled = true;
     };
-  }, [isEdit, editingAgentId, workspacePath]);
+  }, [editingAgentId, editingAgentKey, isEdit, workspacePath]);
 
-  const validateName = useCallback((v: string) => {
-    if (!v.trim()) return t('agentsOverview.form.nameRequired');
-    if (!NAME_REGEX.test(v.trim())) return t('agentsOverview.form.nameFormat');
-    return null;
-  }, [t]);
+  const diagnosticMessage = useCallback((diagnostic: AgentAuthoringDiagnostic) => (
+    t(`agentsOverview.form.diagnostics.${diagnostic.code}`)
+  ), [t]);
+
+  const firstDiagnosticFor = useCallback((field: AgentAuthoringDiagnostic['field']) => (
+    diagnostics.find((diagnostic) => diagnostic.field === field)
+  ), [diagnostics]);
+
+  const handleRouteChange = (nextRoute: AgentAuthoringRoute) => {
+    setRoute(nextRoute);
+    setDiagnostics([]);
+    setDraftPrepared(nextRoute === 'manual');
+  };
+
+  const handleOrganizeDraft = () => {
+    const result = organizeAgentDraft({
+      route,
+      displayName,
+      sourceText,
+      description,
+      prompt,
+      scenarios,
+      template: authoringTemplate,
+    });
+    setDiagnostics(result.diagnostics);
+    if (!result.isValid) {
+      const first = result.diagnostics[0];
+      if (first) notification.error(diagnosticMessage(first));
+      return;
+    }
+    setDisplayName(result.draft.displayName);
+    setDescription(result.draft.description);
+    setPrompt(result.draft.prompt);
+    setScenarios(result.draft.scenarios);
+    setDraftPrepared(true);
+    notification.success(t('agentsOverview.form.draftPrepared'));
+  };
+
+  const toggleScenario = (scenario: AgentScenarioId) => {
+    setScenarios((current) => (
+      current.includes(scenario)
+        ? current.filter((value) => value !== scenario)
+        : SCENARIOS.filter((value) => value === scenario || current.includes(value))
+    ));
+    setDiagnostics((current) => current.filter((item) => item.field !== 'scenarios'));
+  };
 
   const toggleTool = (tool: string) => {
-    setSelectedTools((prev) => {
-      const next = new Set(prev);
-      if (next.has(tool)) {
-        next.delete(tool);
-      } else {
-        next.add(tool);
-      }
+    setSelectedTools((previous) => {
+      const next = new Set(previous);
+      if (next.has(tool)) next.delete(tool);
+      else next.add(tool);
       return next;
     });
   };
@@ -132,91 +242,93 @@ const CreateAgentPage: React.FC = () => {
     setSelectedTools(next.selectedTools);
   };
 
-  const handleReadonlyChange = (nextReadonly: boolean) => {
-    if (review) {
-      setReadonly(true);
+  const handleSubmit = async () => {
+    if (!isEdit && route !== 'manual' && !draftPrepared) {
+      notification.error(t('agentsOverview.form.prepareFirst'));
       return;
     }
-    setReadonly(nextReadonly);
-  };
-
-  const handleSubmit = async () => {
-    if (!isEdit) {
-      const err = validateName(name);
-      if (err) { setNameError(err); return; }
+    const result = organizeAgentDraft({
+      route: 'manual',
+      displayName,
+      description,
+      prompt,
+      scenarios,
+      template: authoringTemplate,
+    });
+    setDiagnostics(result.diagnostics);
+    if (!result.isValid) {
+      const first = result.diagnostics[0];
+      if (first) notification.error(diagnosticMessage(first));
+      return;
     }
-    if (!description.trim()) { notification.error(t('agentsOverview.form.descRequired')); return; }
-    if (!prompt.trim()) { notification.error(t('agentsOverview.form.promptRequired')); return; }
     if (level === 'project' && !workspacePath) {
       notification.error(t('agentsOverview.form.noWorkspace'));
       return;
     }
-    if (isEdit && !editingAgentId) {
-      return;
-    }
+    if (isEdit && !editingAgentId) return;
 
     setSubmitting(true);
     try {
       if (isEdit && editingAgentId) {
         await SubagentAPI.updateSubagent({
+          subagentKey: runtimeKey || editingAgentKey || undefined,
           subagentId: editingAgentId,
-          description: description.trim(),
-          prompt: prompt.trim(),
+          displayName: result.draft.displayName,
+          allowedParentAgentIds: result.draft.allowedParentAgentIds,
+          description: result.draft.description,
+          prompt: result.draft.prompt,
           readonly,
           review,
           tools: selectedTools.size > 0 ? Array.from(selectedTools) : undefined,
-          workspacePath: level === 'project' ? workspacePath : undefined,
+          workspacePath: workspacePath || undefined,
         });
-        notification.success(t('agentsOverview.form.updateSuccess', { name: name.trim() }));
+        notification.success(
+          t('agentsOverview.form.updateSuccess', { name: result.draft.displayName }),
+        );
       } else {
         await SubagentAPI.createSubagent({
           level,
-          name: name.trim(),
-          description: description.trim(),
-          prompt: prompt.trim(),
+          displayName: result.draft.displayName,
+          allowedParentAgentIds: result.draft.allowedParentAgentIds,
+          description: result.draft.description,
+          prompt: result.draft.prompt,
           readonly,
           review,
           tools: selectedTools.size > 0 ? Array.from(selectedTools) : undefined,
           workspacePath: level === 'project' ? workspacePath : undefined,
         });
-        notification.success(t('agentsOverview.form.createSuccess', { name: name.trim() }));
+        notification.success(
+          t('agentsOverview.form.createSuccess', { name: result.draft.displayName }),
+        );
       }
+      requestCatalogRefresh();
       openHome();
-    } catch (err) {
+    } catch (error) {
       notification.error(
-        (isEdit ? t('agentsOverview.form.updateFailed') : t('agentsOverview.form.createFailed')) +
-        (err instanceof Error ? err.message : String(err))
+        `${isEdit
+          ? t('agentsOverview.form.updateFailed')
+          : t('agentsOverview.form.createFailed')}${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formTitle = isEdit
-    ? t('agentsOverview.form.titleEdit')
-    : t('agentsOverview.form.title');
-  const formSubtitle = isEdit
-    ? t('agentsOverview.form.subtitleEdit')
-    : t('agentsOverview.form.subtitle');
-  const submitLabel = isEdit
-    ? t('agentsOverview.form.save')
-    : t('agentsOverview.form.submit');
   const selectableTools = filterToolsForReviewMode(toolInfos, review);
+  const previewScenarios = useMemo(
+    () => scenarios.map((scenario) => t(`agentsOverview.form.scenarios.${scenario}`)),
+    [scenarios, t],
+  );
 
   if (isEdit && detailLoading) {
     return (
       <div className="tv">
-        <div className="tv__editor-bar">
-          <button className="tv__back-btn" onClick={openHome} type="button">
-            <ArrowLeft size={14} />
-            <span>{t('agentsOverview.backToOverview')}</span>
-          </button>
-        </div>
-        <div className="th__list-body">
-          <div className="th__list-inner">
-            <p className="th__title-sub">{t('agentsOverview.form.loadingDetail')}</p>
-          </div>
-        </div>
+        <EditorBackButton onBack={openHome} label={t('agentsOverview.backToOverview')} />
+        <div className="th__list-body"><div className="th__list-inner">
+          <p className="th__title-sub">{t('agentsOverview.form.loadingDetail')}</p>
+        </div></div>
       </div>
     );
   }
@@ -224,77 +336,200 @@ const CreateAgentPage: React.FC = () => {
   if (isEdit && detailError) {
     return (
       <div className="tv">
-        <div className="tv__editor-bar">
-          <button className="tv__back-btn" onClick={openHome} type="button">
-            <ArrowLeft size={14} />
-            <span>{t('agentsOverview.backToOverview')}</span>
-          </button>
-        </div>
-        <div className="th__list-body">
-          <div className="th__list-inner">
-            <p className="th-create-panel__error">{detailError}</p>
-            <Button variant="secondary" size="small" onClick={openHome}>{t('agentsOverview.form.cancel')}</Button>
-          </div>
-        </div>
+        <EditorBackButton onBack={openHome} label={t('agentsOverview.backToOverview')} />
+        <div className="th__list-body"><div className="th__list-inner">
+          <p className="th-create-panel__error">{detailError}</p>
+          <Button variant="secondary" size="small" onClick={openHome}>
+            {t('agentsOverview.form.cancel')}
+          </Button>
+        </div></div>
       </div>
     );
   }
 
   return (
     <div className="tv">
-      <div className="tv__editor-bar">
-        <button className="tv__back-btn" onClick={openHome} type="button">
-          <ArrowLeft size={14} />
-          <span>{t('agentsOverview.backToOverview')}</span>
-        </button>
-      </div>
-
+      <EditorBackButton onBack={openHome} label={t('agentsOverview.backToOverview')} />
       <div className="th__list-body">
         <div className="th__list-inner">
-          <div className="th-create-page__head">
-            <h2 className="th__title">{formTitle}</h2>
-            <p className="th__title-sub">{formSubtitle}</p>
-          </div>
+          <header className="th-create-page__head">
+            <h2 className="th__title">
+              {t(isEdit ? 'agentsOverview.form.titleEdit' : 'agentsOverview.form.title')}
+            </h2>
+            <p className="th__title-sub">
+              {t(isEdit ? 'agentsOverview.form.subtitleEdit' : 'agentsOverview.form.subtitle')}
+            </p>
+          </header>
 
           <div className="th-create-page__form">
-            <div className="th-create-panel__field">
-              <label className="th-create-panel__label">{t('agentsOverview.form.name')}</label>
-              <Input
-                value={name}
-                onChange={(e) => { setName(e.target.value); setNameError(validateName(e.target.value)); }}
-                onBlur={() => setNameError(validateName(name))}
-                placeholder={t('agentsOverview.form.namePlaceholder')}
-                inputSize="small"
-                error={!!nameError}
-                disabled={isEdit}
-              />
-              {nameError && <span className="th-create-panel__error">{nameError}</span>}
-            </div>
+            {!isEdit && (
+              <div className="th-authoring-routes" role="tablist" aria-label={t('agentsOverview.form.routeLabel')}>
+                {AUTHORING_ROUTES.map(({ id, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={route === id}
+                    className={`th-authoring-route${route === id ? ' is-active' : ''}`}
+                    onClick={() => handleRouteChange(id)}
+                    data-testid={`agent-route-${id}`}
+                  >
+                    <Icon size={16} />
+                    <span>{t(`agentsOverview.form.routes.${id}`)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="th-create-panel__field">
-              <label className="th-create-panel__label">{t('agentsOverview.form.description')}</label>
+              <label className="th-create-panel__label" htmlFor="agent-display-name">
+                {t('agentsOverview.form.displayName')}
+              </label>
               <Input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t('agentsOverview.form.descPlaceholder')}
+                id="agent-display-name"
+                value={displayName}
+                onChange={(event) => {
+                  setDisplayName(event.target.value);
+                  setDiagnostics((current) => current.filter((item) => item.field !== 'displayName'));
+                  if (route !== 'manual') setDraftPrepared(false);
+                }}
+                placeholder={t('agentsOverview.form.displayNamePlaceholder')}
                 inputSize="small"
+                error={Boolean(firstDiagnosticFor('displayName'))}
               />
+              {firstDiagnosticFor('displayName') && (
+                <span className="th-create-panel__error">
+                  {diagnosticMessage(firstDiagnosticFor('displayName')!)}
+                </span>
+              )}
+              {isEdit ? (
+                <div className="th-create-panel__runtime-id">
+                  <span>{t('agentsOverview.form.runtimeId')}</span>
+                  <code>{runtimeId ?? editingAgentId}</code>
+                </div>
+              ) : (
+                <p className="th-create-panel__help">{t('agentsOverview.form.runtimeIdAuto')}</p>
+              )}
             </div>
+
+            {!isEdit && route !== 'manual' && (
+              <div className="th-create-panel__field">
+                <label className="th-create-panel__label" htmlFor="agent-source-text">
+                  {t(`agentsOverview.form.source.${route}.label`)}
+                </label>
+                <Textarea
+                  id="agent-source-text"
+                  value={sourceText}
+                  onChange={(event) => {
+                    setSourceText(event.target.value);
+                    setDraftPrepared(false);
+                    setDiagnostics((current) => current.filter((item) => item.field !== 'sourceText'));
+                  }}
+                  placeholder={t(`agentsOverview.form.source.${route}.placeholder`)}
+                  rows={6}
+                />
+                {firstDiagnosticFor('sourceText') && (
+                  <span className="th-create-panel__error">
+                    {diagnosticMessage(firstDiagnosticFor('sourceText')!)}
+                  </span>
+                )}
+                <div className="th-create-panel__organize">
+                  <p>{t('agentsOverview.form.localOrganizeHint')}</p>
+                  <Button variant="secondary" size="small" onClick={handleOrganizeDraft}>
+                    {t('agentsOverview.form.organizeDraft')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <fieldset className="th-create-panel__scenario-field">
+              <legend>{t('agentsOverview.form.scenarioLabel')}</legend>
+              <p>{t('agentsOverview.form.scenarioHint')}</p>
+              <div className="th-create-panel__scenarios">
+                {SCENARIOS.map((scenario) => (
+                  <button
+                    key={scenario}
+                    type="button"
+                    aria-pressed={scenarios.includes(scenario)}
+                    className={`th-create-panel__scenario${scenarios.includes(scenario) ? ' is-on' : ''}`}
+                    onClick={() => toggleScenario(scenario)}
+                  >
+                    {t(`agentsOverview.form.scenarios.${scenario}`)}
+                  </button>
+                ))}
+              </div>
+              {firstDiagnosticFor('scenarios') && (
+                <span className="th-create-panel__error">
+                  {diagnosticMessage(firstDiagnosticFor('scenarios')!)}
+                </span>
+              )}
+            </fieldset>
+
+            <section className="th-create-panel__configuration">
+              <div className="th-create-panel__section-head">
+                <h3>{t('agentsOverview.form.configurationTitle')}</h3>
+                <span>{t('agentsOverview.form.configurationHint')}</span>
+              </div>
+              <div className="th-create-panel__field">
+                <label className="th-create-panel__label" htmlFor="agent-description">
+                  {t('agentsOverview.form.description')}
+                </label>
+                <Input
+                  id="agent-description"
+                  value={description}
+                  onChange={(event) => {
+                    setDescription(event.target.value);
+                    setDiagnostics((current) => current.filter((item) => item.field !== 'description'));
+                  }}
+                  placeholder={t('agentsOverview.form.descPlaceholder')}
+                  inputSize="small"
+                  error={Boolean(firstDiagnosticFor('description'))}
+                />
+                {firstDiagnosticFor('description') && (
+                  <span className="th-create-panel__error">
+                    {diagnosticMessage(firstDiagnosticFor('description')!)}
+                  </span>
+                )}
+              </div>
+
+              <div className="th-create-panel__field">
+                <label className="th-create-panel__label" htmlFor="agent-prompt">
+                  {t('agentsOverview.form.prompt')}
+                </label>
+                <Textarea
+                  id="agent-prompt"
+                  value={prompt}
+                  onChange={(event) => {
+                    setPrompt(event.target.value);
+                    setDiagnostics((current) => current.filter((item) => item.field !== 'prompt'));
+                  }}
+                  placeholder={t('agentsOverview.form.promptPlaceholder')}
+                  rows={9}
+                />
+                {firstDiagnosticFor('prompt') && (
+                  <span className="th-create-panel__error">
+                    {diagnosticMessage(firstDiagnosticFor('prompt')!)}
+                  </span>
+                )}
+              </div>
+            </section>
 
             <div className="th-create-panel__field th-create-panel__field--row">
               <div className="th-create-panel__level-group">
-                {(['user', 'project'] as SubagentLevel[]).map((lv) => {
-                  const disabled = (lv === 'project' && !hasWorkspace) || isEdit;
+                {(['user', 'project'] as SubagentLevel[]).map((nextLevel) => {
+                  const disabled = (nextLevel === 'project' && !hasWorkspace) || isEdit;
                   return (
                     <button
-                      key={lv}
+                      key={nextLevel}
                       type="button"
                       disabled={disabled}
-                      className={`th-create-panel__level-btn${level === lv ? ' is-active' : ''}`}
-                      onClick={() => setLevel(lv)}
+                      className={`th-create-panel__level-btn${level === nextLevel ? ' is-active' : ''}`}
+                      onClick={() => setLevel(nextLevel)}
                       title={disabled && !isEdit ? t('agentsOverview.form.noWorkspace') : undefined}
                     >
-                      {lv === 'user' ? t('agentsOverview.filterUser') : t('agentsOverview.filterProject')}
+                      {nextLevel === 'user'
+                        ? t('agentsOverview.filterUser')
+                        : t('agentsOverview.filterProject')}
                     </button>
                   );
                 })}
@@ -304,17 +539,17 @@ const CreateAgentPage: React.FC = () => {
                 <Switch
                   checked={readonly}
                   disabled={review}
-                  onChange={(e) => handleReadonlyChange(e.target.checked)}
+                  onChange={(event) => setReadonly(review ? true : event.target.checked)}
                   size="small"
                 />
               </div>
               <div className="th-create-panel__readonly-row">
-                <label className="th-create-panel__label">
-                  {t('agentsOverview.form.review', {
-                    defaultValue: 'Review',
-                  })}
-                </label>
-                <Switch checked={review} onChange={(e) => handleReviewChange(e.target.checked)} size="small" />
+                <label className="th-create-panel__label">{t('agentsOverview.form.review')}</label>
+                <Switch
+                  checked={review}
+                  onChange={(event) => handleReviewChange(event.target.checked)}
+                  size="small"
+                />
               </div>
             </div>
 
@@ -324,9 +559,7 @@ const CreateAgentPage: React.FC = () => {
                   {t('agentsOverview.form.tools')}
                   <span className="th-create-panel__label-hint">
                     {review
-                      ? t('agentsOverview.form.reviewToolsHint', {
-                        defaultValue: 'Review Sub-Agents can only use read-only tools.',
-                      })
+                      ? t('agentsOverview.form.reviewToolsHint')
                       : t('agentsOverview.form.toolsHint', {
                         optionalLabel: t('agentsOverview.form.toolsOptional'),
                       })}
@@ -347,22 +580,21 @@ const CreateAgentPage: React.FC = () => {
               </div>
             )}
 
-            <div className="th-create-panel__field">
-              <label className="th-create-panel__label">{t('agentsOverview.form.prompt')}</label>
-              <Textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={t('agentsOverview.form.promptPlaceholder')}
-                rows={8}
-              />
-            </div>
+            <aside className="th-create-panel__preview" data-testid="agent-draft-preview">
+              <span>{t('agentsOverview.form.previewTitle')}</span>
+              <strong>{displayName || t('agentsOverview.form.previewUnnamed')}</strong>
+              <p>{description || t('agentsOverview.form.previewEmpty')}</p>
+              <div>{previewScenarios.join(' · ') || t('agentsOverview.form.previewNoScenario')}</div>
+            </aside>
 
             <div className="th-create-page__actions">
               <Button variant="secondary" size="small" onClick={openHome} disabled={submitting}>
                 {t('agentsOverview.form.cancel')}
               </Button>
               <Button variant="primary" size="small" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? '…' : submitLabel}
+                {submitting
+                  ? '…'
+                  : t(isEdit ? 'agentsOverview.form.save' : 'agentsOverview.form.submit')}
               </Button>
             </div>
           </div>
@@ -370,6 +602,39 @@ const CreateAgentPage: React.FC = () => {
       </div>
     </div>
   );
+};
+
+export interface CreateAgentPageProps {
+  capabilityService?: CustomizationRuntimeCapabilityReader;
+}
+
+const CreateAgentPage: React.FC<CreateAgentPageProps> = ({
+  capabilityService = customizationRuntimeCapabilityService,
+}) => {
+  const { t } = useTranslation('scenes/agents');
+  const { openHome } = useAgentsStore();
+  const runtimeCapability = capabilityService.getCapability('agent_management');
+
+  if (runtimeCapability.status === 'unsupported') {
+    return (
+      <div className="tv" data-testid="create-agent-runtime-unsupported">
+        <EditorBackButton
+          onBack={openHome}
+          label={t('agentsOverview.backToOverview')}
+        />
+        <main className="th__list-body">
+          <div className="th__list-inner">
+            <section className="th-create-panel__runtime-unsupported">
+              <h2>{t('runtimeUnsupported.title')}</h2>
+              <p>{t('runtimeUnsupported.description')}</p>
+            </section>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  return <SupportedCreateAgentPage />;
 };
 
 export default CreateAgentPage;

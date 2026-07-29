@@ -10,12 +10,18 @@ use crate::util::errors::{VoidError, VoidResult};
 use async_trait::async_trait;
 use log::debug;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 
 // Use skills module
-use super::skills::{get_skill_registry, SkillLocation};
+use super::skills::{get_skill_registry, SkillInfo, SkillLocation};
 
 /// Skill tool
 pub struct SkillTool;
+
+pub(crate) struct AvailableSkillsContext {
+    pub section: Option<String>,
+    pub revision: String,
+}
 
 impl SkillTool {
     pub fn new() -> Self {
@@ -43,11 +49,20 @@ Important:
             .to_string()
     }
 
-    pub(crate) async fn resolved_skills_xml_for_context(
+    fn skill_set_revision(skills: &[SkillInfo]) -> String {
+        let mut identities: Vec<String> = skills
+            .iter()
+            .map(|skill| format!("{}@{}", skill.key, skill.revision))
+            .collect();
+        identities.sort();
+        hex::encode(Sha256::digest(identities.join("\n").as_bytes()))
+    }
+
+    pub(crate) async fn resolved_skills_for_context(
         context: Option<&ToolUseContext>,
-    ) -> String {
+    ) -> Vec<SkillInfo> {
         let registry = get_skill_registry();
-        let available_skills = match context {
+        match context {
             Some(ctx) if ctx.is_remote() => {
                 if let Some(fs) = ctx.ws_fs() {
                     let root = ctx
@@ -56,7 +71,7 @@ Important:
                         .map(|w| w.root_path_string())
                         .unwrap_or_default();
                     registry
-                        .get_resolved_skills_xml_for_remote_workspace(
+                        .get_resolved_skills_for_remote_workspace(
                             fs,
                             &root,
                             ctx.agent_type.as_deref(),
@@ -64,35 +79,38 @@ Important:
                         .await
                 } else {
                     registry
-                        .get_resolved_skills_xml_for_workspace(None, ctx.agent_type.as_deref())
+                        .get_resolved_skills_for_workspace(None, ctx.agent_type.as_deref())
                         .await
                 }
             }
             Some(ctx) => {
                 registry
-                    .get_resolved_skills_xml_for_workspace(
+                    .get_resolved_skills_for_workspace(
                         ctx.workspace_root(),
                         ctx.agent_type.as_deref(),
                     )
                     .await
             }
-            None => {
-                registry
-                    .get_resolved_skills_xml_for_workspace(None, None)
-                    .await
-            }
-        };
-
-        available_skills.join("\n")
+            None => registry.get_resolved_skills_for_workspace(None, None).await,
+        }
     }
 
-    pub(crate) async fn build_available_skills_context_section(
+    pub(crate) async fn build_available_skills_context(
         context: Option<&ToolUseContext>,
-    ) -> Option<String> {
-        let skills_list = Self::resolved_skills_xml_for_context(context).await;
+    ) -> AvailableSkillsContext {
+        let skills = Self::resolved_skills_for_context(context).await;
+        let revision = Self::skill_set_revision(&skills);
+        let skills_list = skills
+            .iter()
+            .map(SkillInfo::to_xml_desc)
+            .collect::<Vec<_>>()
+            .join("\n");
         let skills_list = skills_list.trim();
         if skills_list.is_empty() {
-            return None;
+            return AvailableSkillsContext {
+                section: None,
+                revision,
+            };
         }
 
         let mut section = format!("<available_skills>\n{}\n</available_skills>", skills_list);
@@ -103,7 +121,10 @@ Important:
                 "\n\nRemote workspace note: Project-level skills on the server could not be indexed because workspace I/O is unavailable. Only user-level skills are shown; Void will not fall back to scanning the remote path on the local filesystem.",
             );
         }
-        Some(section)
+        AvailableSkillsContext {
+            section: Some(section),
+            revision,
+        }
     }
 }
 
@@ -272,7 +293,9 @@ impl Default for SkillTool {
 mod tests {
     use super::SkillTool;
     use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
-    use crate::agentic::tools::implementations::skills::{registry::SkillRegistry, SkillLocation};
+    use crate::agentic::tools::implementations::skills::{
+        registry::SkillRegistry, SkillInfo, SkillLocation,
+    };
     use crate::agentic::workspace::{
         WorkspaceCommandOptions, WorkspaceCommandResult, WorkspaceDirEntry, WorkspaceFileSystem,
         WorkspaceServices, WorkspaceShell,
@@ -408,6 +431,40 @@ Use the remote project skill.
         }
     }
 
+    fn revision_test_skill(key: &str, revision: &str) -> SkillInfo {
+        SkillInfo {
+            key: format!("void:{}", key),
+            name: key.to_string(),
+            display_name: None,
+            description: format!("{} description", key),
+            allowed_parent_agent_ids: Vec::new(),
+            suggested_prompts: Vec::new(),
+            revision: revision.to_string(),
+            path: format!("/skills/{}", key),
+            level: SkillLocation::User,
+            source_slot: "void".to_string(),
+            dir_name: key.to_string(),
+            is_builtin: false,
+            is_authorable: false,
+            group_key: None,
+            is_shadowed: false,
+            shadowed_by_key: None,
+        }
+    }
+
+    #[test]
+    fn skill_set_revision_is_order_independent_and_tracks_content_revision() {
+        let first = revision_test_skill("first", "r1");
+        let second = revision_test_skill("second", "r1");
+
+        let forward = SkillTool::skill_set_revision(&[first.clone(), second.clone()]);
+        let reversed = SkillTool::skill_set_revision(&[second.clone(), first.clone()]);
+        let changed = SkillTool::skill_set_revision(&[revision_test_skill("first", "r2"), second]);
+
+        assert_eq!(forward, reversed);
+        assert_ne!(forward, changed);
+    }
+
     async fn assert_explicit_skill_denied(context: &ToolUseContext, skill_name: &str) {
         let error = match SkillTool::new()
             .call_impl(&json!({ "command": skill_name }), context)
@@ -522,8 +579,9 @@ Use the remote project skill.
             }),
         };
 
-        let description = SkillTool::build_available_skills_context_section(Some(&context))
+        let description = SkillTool::build_available_skills_context(Some(&context))
             .await
+            .section
             .expect("available skills section");
 
         assert!(description.contains("remote-only-skill-for-test"));

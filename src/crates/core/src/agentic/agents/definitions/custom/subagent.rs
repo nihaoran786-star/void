@@ -18,6 +18,9 @@ pub enum CustomSubagentKind {
 
 pub struct CustomSubagent {
     pub name: String,
+    /// Localized name shown in the catalog. `name` remains the immutable
+    /// runtime identity used by registry keys, cache keys, and file names.
+    pub display_name: Option<String>,
     pub description: String,
     pub tools: Vec<String>,
     pub prompt: String,
@@ -27,6 +30,9 @@ pub struct CustomSubagent {
     pub kind: CustomSubagentKind,
     /// Model ID to use, default "fast"
     pub model: String,
+    /// Parent modes that may activate this custom persona. An empty list keeps
+    /// legacy custom agents public in every scenario.
+    pub allowed_parent_agent_ids: Vec<String>,
 }
 
 #[async_trait]
@@ -94,6 +100,7 @@ impl CustomSubagent {
     ) -> Self {
         Self {
             name,
+            display_name: None,
             description,
             tools,
             prompt,
@@ -102,7 +109,59 @@ impl CustomSubagent {
             path,
             kind,
             model: "fast".to_string(),
+            allowed_parent_agent_ids: Vec::new(),
         }
+    }
+
+    pub fn with_display_name(mut self, display_name: Option<String>) -> Self {
+        self.display_name = Self::normalize_display_name(display_name);
+        self
+    }
+
+    pub fn with_allowed_parent_agent_ids<I, S>(mut self, parent_agent_ids: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.allowed_parent_agent_ids =
+            Self::normalize_parent_agent_ids(parent_agent_ids.into_iter().map(Into::into));
+        self
+    }
+
+    pub fn presentation_name(&self) -> &str {
+        self.display_name.as_deref().unwrap_or(&self.name)
+    }
+
+    pub fn visibility_policy(
+        &self,
+    ) -> crate::agentic::agents::registry::visibility::SubagentVisibilityPolicy {
+        if self.allowed_parent_agent_ids.is_empty() {
+            crate::agentic::agents::registry::visibility::SubagentVisibilityPolicy::public()
+        } else {
+            crate::agentic::agents::registry::visibility::SubagentVisibilityPolicy::restricted(
+                self.allowed_parent_agent_ids.clone(),
+            )
+        }
+    }
+
+    fn normalize_display_name(display_name: Option<String>) -> Option<String> {
+        display_name
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    }
+
+    fn normalize_parent_agent_ids<I>(parent_agent_ids: I) -> Vec<String>
+    where
+        I: IntoIterator<Item = String>,
+    {
+        let mut normalized: Vec<String> = parent_agent_ids
+            .into_iter()
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+            .collect();
+        normalized.sort();
+        normalized.dedup();
+        normalized
     }
 
     pub fn from_file(path: &str, kind: CustomSubagentKind) -> VoidResult<Self> {
@@ -112,6 +171,12 @@ impl CustomSubagent {
             .and_then(|v| v.as_str())
             .ok_or_else(|| VoidError::Agent("Missing name field".to_string()))?
             .to_string();
+        let display_name = Self::normalize_display_name(
+            metadata
+                .get("displayName")
+                .and_then(|v| v.as_str())
+                .map(str::to_string),
+        );
         let description = metadata
             .get("description")
             .and_then(|v| v.as_str())
@@ -138,9 +203,18 @@ impl CustomSubagent {
             .and_then(|v| v.as_str())
             .unwrap_or(Self::DEFAULT_MODEL)
             .to_string();
+        let allowed_parent_agent_ids = Self::normalize_parent_agent_ids(
+            metadata
+                .get("allowedParentAgentIds")
+                .and_then(|value| value.as_sequence())
+                .into_iter()
+                .flatten()
+                .filter_map(|value| value.as_str().map(str::to_string)),
+        );
 
         Ok(Self {
             name,
+            display_name,
             description,
             tools,
             prompt: content,
@@ -149,6 +223,7 @@ impl CustomSubagent {
             path: path.to_string(),
             kind,
             model,
+            allowed_parent_agent_ids,
         })
     }
 
@@ -227,6 +302,13 @@ impl CustomSubagent {
         self.append_runtime_policy(self.prompt.clone())
     }
 
+    /// Prompt fragment used when this custom subagent overlays an existing
+    /// parent mode. The parent mode remains responsible for user context,
+    /// model selection, tools, and execution policy.
+    pub fn runtime_prompt_overlay(&self) -> String {
+        self.prompt_with_runtime_policy()
+    }
+
     /// Check if tools match default values
     fn is_default_tools(tools: &[String]) -> bool {
         if tools.len() != Self::DEFAULT_TOOLS.len() {
@@ -256,6 +338,25 @@ impl CustomSubagent {
             Value::String("description".into()),
             Value::String(self.description.clone()),
         );
+        if let Some(display_name) = Self::normalize_display_name(self.display_name.clone()) {
+            metadata.insert(
+                Value::String("displayName".into()),
+                Value::String(display_name),
+            );
+        }
+        let allowed_parent_agent_ids =
+            Self::normalize_parent_agent_ids(self.allowed_parent_agent_ids.clone());
+        if !allowed_parent_agent_ids.is_empty() {
+            metadata.insert(
+                Value::String("allowedParentAgentIds".into()),
+                Value::Sequence(
+                    allowed_parent_agent_ids
+                        .into_iter()
+                        .map(Value::String)
+                        .collect(),
+                ),
+            );
+        }
         if !Self::is_default_tools(&self.tools) {
             metadata.insert(
                 Value::String("tools".into()),
@@ -382,6 +483,84 @@ mod tests {
             .expect("review subagent should load");
         assert!(loaded.review);
         assert!(loaded.readonly);
+    }
+
+    #[test]
+    fn localized_identity_and_scenario_visibility_round_trip_without_changing_runtime_identity() {
+        let dir = TestTempDir::new("void-subagent-localized-identity-test");
+        let path = dir.join("generated-agent.md");
+        let subagent = CustomSubagent::new(
+            "custom-0123456789abcdef".to_string(),
+            "分析产品资料并给出结论".to_string(),
+            vec!["Read".to_string()],
+            "你是一名产品分析智能体。".to_string(),
+            true,
+            path.clone(),
+            CustomSubagentKind::User,
+        )
+        .with_display_name(Some("  产品分析师  ".to_string()))
+        .with_allowed_parent_agent_ids([
+            "Media".to_string(),
+            "agentic".to_string(),
+            "agentic".to_string(),
+            " ".to_string(),
+        ]);
+
+        subagent
+            .save_to_file(None)
+            .expect("localized subagent should save");
+
+        let saved = fs::read_to_string(&path).expect("saved subagent should be readable");
+        assert!(saved.contains("name: custom-0123456789abcdef"));
+        assert!(saved.contains("displayName: 产品分析师"));
+        let agentic_index = saved
+            .find("- agentic")
+            .expect("agentic visibility should be saved");
+        let media_index = saved
+            .find("- Media")
+            .expect("media visibility should be saved");
+        assert!(media_index < agentic_index);
+
+        let loaded = CustomSubagent::from_file(&path, CustomSubagentKind::User)
+            .expect("localized subagent should load");
+        assert_eq!(loaded.name, "custom-0123456789abcdef");
+        assert_eq!(loaded.presentation_name(), "产品分析师");
+        assert_eq!(
+            loaded.allowed_parent_agent_ids,
+            vec!["Media".to_string(), "agentic".to_string()]
+        );
+        assert_eq!(
+            loaded
+                .visibility_policy()
+                .summary()
+                .allowed_parent_agent_ids,
+            vec!["Media".to_string(), "agentic".to_string()]
+        );
+    }
+
+    #[test]
+    fn display_name_is_presentation_only_and_does_not_change_prompt_cache_identity() {
+        let dir = TestTempDir::new("void-subagent-cache-identity-test");
+        let build = |display_name: &str| {
+            CustomSubagent::new(
+                "custom-stable-runtime-id".to_string(),
+                "Stable description".to_string(),
+                vec!["Read".to_string()],
+                "Stable prompt".to_string(),
+                true,
+                dir.join(display_name),
+                CustomSubagentKind::User,
+            )
+            .with_display_name(Some(display_name.to_string()))
+        };
+
+        let first = build("中文展示名");
+        let second = build("另一个展示名");
+
+        assert_eq!(
+            first.system_prompt_cache_identity(None).scope_key,
+            second.system_prompt_cache_identity(None).scope_key
+        );
     }
 
     #[tokio::test]

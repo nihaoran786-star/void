@@ -3,18 +3,118 @@ use super::support::{
     get_mode_configs, get_subagent_overrides, load_project_subagent_overrides_local,
     merge_dynamic_mcp_tools,
 };
-use super::AgentRegistry;
+use super::{AgentRegistry, ResolvedPersonaDefinition};
+use crate::agentic::agents::definitions::custom::CustomSubagent;
 use crate::agentic::agents::registry::types::{is_review_agent_entry, AgentEntry};
 use crate::agentic::agents::{
-    resolve_mode_config_profile_id, AgentCategory, AgentInfo, AgentToolPolicy, SubagentListScope,
-    SubagentQueryContext,
+    resolve_mode_config_profile_id, AgentCategory, AgentInfo, AgentToolPolicy, SubAgentSource,
+    SubagentListScope, SubagentQueryContext,
 };
 use crate::agentic::tools::get_all_registered_tool_names;
 use crate::service::config::mode_config_canonicalizer::resolve_effective_tools;
+use crate::util::errors::{VoidError, VoidResult};
 use std::collections::HashSet;
 use std::path::Path;
 
 impl AgentRegistry {
+    /// Resolve a custom persona by its complete source-qualified registry key.
+    ///
+    /// This intentionally does not accept a bare subagent id: same-id user and
+    /// project definitions must never alias each other.
+    pub async fn resolve_persona_definition(
+        &self,
+        persona_key: &str,
+        workspace_root: Option<&Path>,
+        parent_agent_type: &str,
+    ) -> VoidResult<ResolvedPersonaDefinition> {
+        let parts: Vec<&str> = persona_key.split("::").collect();
+        let (source, id) = match parts.as_slice() {
+            ["user", "void", id] if !id.trim().is_empty() => (SubAgentSource::User, *id),
+            ["project", "void", id] if !id.trim().is_empty() => (SubAgentSource::Project, *id),
+            _ => {
+                return Err(VoidError::validation(
+                    "Persona key must be a source-qualified user/project subagent key".to_string(),
+                ))
+            }
+        };
+
+        if source == SubAgentSource::Project && workspace_root.is_none() {
+            return Err(VoidError::validation(
+                "Project persona requires a workspace".to_string(),
+            ));
+        }
+        if let Some(root) = workspace_root {
+            self.load_custom_subagents(root).await;
+        }
+
+        let entry = match source {
+            SubAgentSource::User => self.read_agents().get(id).cloned(),
+            SubAgentSource::Project => workspace_root.and_then(|root| {
+                self.read_project_subagents()
+                    .get(root)
+                    .and_then(|entries| entries.get(id))
+                    .cloned()
+            }),
+            SubAgentSource::Builtin => None,
+        }
+        .ok_or_else(|| {
+            VoidError::validation(format!(
+                "Unknown persona for this source/workspace: {persona_key}"
+            ))
+        })?;
+
+        if entry.category != AgentCategory::SubAgent
+            || entry.subagent_source != Some(source)
+            || entry.custom_config.is_none()
+        {
+            return Err(VoidError::validation(format!(
+                "Persona is not a user/project custom subagent: {persona_key}"
+            )));
+        }
+
+        let user_overrides = get_subagent_overrides().await;
+        let project_overrides = match (source, workspace_root) {
+            (SubAgentSource::Project, Some(root)) => {
+                load_project_subagent_overrides_local(root).await.ok()
+            }
+            _ => None,
+        };
+        let availability = resolve_availability(
+            &entry,
+            Some(parent_agent_type),
+            project_overrides.as_ref(),
+            &user_overrides,
+        );
+        if !availability.effective_enabled {
+            return Err(VoidError::validation(format!(
+                "Persona is not available for execution policy {parent_agent_type}: {persona_key}"
+            )));
+        }
+
+        let custom = entry
+            .agent
+            .as_any()
+            .downcast_ref::<CustomSubagent>()
+            .ok_or_else(|| {
+                VoidError::validation(format!(
+                    "Persona is not backed by a custom subagent: {persona_key}"
+                ))
+            })?;
+        let revision = format!(
+            "{}||{}",
+            entry.agent.system_prompt_cache_identity(None).scope_key,
+            entry.agent.user_context_cache_identity().scope_key
+        );
+
+        Ok(ResolvedPersonaDefinition {
+            key: persona_key.to_string(),
+            revision,
+            prompt_overlay: custom.runtime_prompt_overlay(),
+            tools: entry.agent.default_tools(),
+            readonly: entry.agent.is_readonly(),
+        })
+    }
+
     fn subagent_source_rank(source: Option<crate::agentic::agents::SubAgentSource>) -> u8 {
         match source {
             Some(crate::agentic::agents::SubAgentSource::Builtin) => 0,
@@ -192,12 +292,9 @@ impl AgentRegistry {
             SubagentListScope::RegistryManagement => {
                 entry.visibility_policy.show_in_global_registry
             }
-            SubagentListScope::TaskVisible => {
-                entry.visibility_policy.show_in_global_registry
-                    || entry
-                        .visibility_policy
-                        .can_access_from_parent(query.parent_agent_type)
-            }
+            SubagentListScope::TaskVisible => entry
+                .visibility_policy
+                .can_access_from_parent(query.parent_agent_type),
         }
     }
 
