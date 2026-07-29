@@ -26,12 +26,19 @@ import {
 } from '@/shared/utils/startupTrace';
 import { elapsedMs, nowMs } from '@/shared/utils/timing';
 import { i18nService } from '@/infrastructure/i18n/core/I18nService';
-import type { DialogTurnData, LocalCommandMetadata, SessionKind } from '@/shared/types/session-history';
+import type {
+  DialogTurnData,
+  LocalCommandMetadata,
+  SessionActivePersonaBinding,
+  SessionCustomizationScenario,
+  SessionKind,
+} from '@/shared/types/session-history';
 import type { SessionInfo as AgentSessionInfo } from '@/infrastructure/api/service-api/AgentAPI';
 import type { SessionMetadataPage } from '@/infrastructure/api/service-api/SessionAPI';
 import {
   deriveIsAutomationSessionFromMetadata,
   deriveLastFinishedAtFromMetadata,
+  deriveSessionPersonaStateFromMetadata,
   deriveSessionRelationshipFromMetadata,
   isLegacyPersistedBtwSession,
   normalizeSessionRelationship,
@@ -69,6 +76,13 @@ const VALID_AGENT_TYPES = new Set([
   'DeepResearch',
 ]);
 const METADATA_LIST_RECENT_DEDUPE_TTL_MS = 1000;
+
+export interface ParentSessionCustomizationProjection {
+  mode: string;
+  scenario: SessionCustomizationScenario | undefined;
+  executionPolicy: string | undefined;
+  activePersonaBinding: SessionActivePersonaBinding | null | undefined;
+}
 
 interface MetadataListRequest {
   promise: Promise<void>;
@@ -570,26 +584,86 @@ export class FlowChatStore {
    * @param sessionId Session ID
    * @param mode Mode ID (e.g., 'agentic', 'Plan')
    */
-  public updateSessionMode(sessionId: string, mode: string): void {
+  public updateSessionMode(sessionId: string, mode: string): boolean {
+    let updated = false;
     this.setState(prev => {
       const session = prev.sessions.get(sessionId);
       if (!session) return prev;
 
-      if (session.mode === mode) return prev;
+      if (
+        session.mode === mode
+        && (session.sessionKind !== 'normal' || session.executionPolicy === mode)
+      ) {
+        return prev;
+      }
 
       const updatedSession = {
         ...session,
         mode,
+        ...(session.sessionKind === 'normal' ? { executionPolicy: mode } : {}),
         lastActiveAt: Date.now()
       };
 
       const newSessions = new Map(prev.sessions);
       newSessions.set(sessionId, updatedSession);
+      updated = true;
 
       return {
         ...prev,
         sessions: newSessions
       };
+    });
+    return updated;
+  }
+
+  /**
+   * Atomically updates the complete parent-session customization projection.
+   * Validation, catalog lookup, persistence and rollback remain service-owned.
+   */
+  public updateParentSessionCustomization(
+    sessionId: string,
+    state: ParentSessionCustomizationProjection,
+  ): boolean {
+    let updated = false;
+    this.setState(prev => {
+      const session = prev.sessions.get(sessionId);
+      if (!session || session.sessionKind !== 'normal') {
+        return prev;
+      }
+
+      const newSessions = new Map(prev.sessions);
+      newSessions.set(sessionId, {
+        ...session,
+        mode: state.mode,
+        scenario: state.scenario,
+        executionPolicy: state.executionPolicy,
+        activePersonaBinding: state.activePersonaBinding,
+        lastActiveAt: Date.now(),
+      });
+      updated = true;
+      return {
+        ...prev,
+        sessions: newSessions,
+      };
+    });
+    return updated;
+  }
+
+  /**
+   * Compatibility adapter for callers that only change the persona fields.
+   * New parent-session transactions should use updateParentSessionCustomization.
+   */
+  public updateSessionPersonaState(
+    sessionId: string,
+    state: Omit<ParentSessionCustomizationProjection, 'mode'>,
+  ): boolean {
+    const session = this.state.sessions.get(sessionId);
+    if (!session) {
+      return false;
+    }
+    return this.updateParentSessionCustomization(sessionId, {
+      mode: session.mode ?? session.config.agentType ?? 'agentic',
+      ...state,
     });
   }
 
@@ -2342,6 +2416,10 @@ export class FlowChatStore {
         }
 
         const relationship = deriveSessionRelationshipFromMetadata(metadata);
+        const personaState = deriveSessionPersonaStateFromMetadata(
+          metadata,
+          relationship.sessionKind
+        );
         const lastFinishedAt = deriveLastFinishedAtFromMetadata(metadata);
         const titleState = deriveSessionTitleStateFromMetadata(metadata);
         const hasDynamicDefaultTitle = titleState.titleSource === 'i18n';
@@ -2384,6 +2462,7 @@ export class FlowChatStore {
             mode: validatedAgentType,
             lastUserDialogMode: metadata.lastUserDialogAgentType,
             lastSubmittedMode: metadata.lastSubmittedAgentType,
+            ...personaState,
             workspacePath: (metadata as any).workspacePath || workspacePath,
             remoteConnectionId: metadata.remoteConnectionId || remoteConnectionId,
             remoteSshHost:
@@ -2655,6 +2734,10 @@ export class FlowChatStore {
           }
 
           const relationship = deriveSessionRelationshipFromMetadata(metadata);
+          const personaState = deriveSessionPersonaStateFromMetadata(
+            metadata,
+            relationship.sessionKind
+          );
           const lastFinishedAt = deriveLastFinishedAtFromMetadata(metadata);
           const isAutomationSession = deriveIsAutomationSessionFromMetadata(metadata);
           const titleState = deriveSessionTitleStateFromMetadata(metadata);
@@ -2698,6 +2781,7 @@ export class FlowChatStore {
               mode: validatedAgentType,
               lastUserDialogMode: metadata.lastUserDialogAgentType,
               lastSubmittedMode: metadata.lastSubmittedAgentType,
+              ...personaState,
               workspacePath: (metadata as any).workspacePath || workspacePath,
               remoteConnectionId: metadata.remoteConnectionId || remoteConnectionId,
               remoteSshHost:

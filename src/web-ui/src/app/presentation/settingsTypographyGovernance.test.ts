@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
 type SettingsTypographyFixture = {
   name: string;
@@ -19,7 +19,7 @@ const fixturePaths = [
 const fixtures: readonly SettingsTypographyFixture[] = fixturePaths.map(path => ({
   name: path.split('/').at(-1) ?? path,
   path,
-  source: readFileSync(new URL(path, import.meta.url), 'utf8'),
+  source: readSourceText(new URL(path, import.meta.url)),
 }));
 
 const fixture = (name: string) => {

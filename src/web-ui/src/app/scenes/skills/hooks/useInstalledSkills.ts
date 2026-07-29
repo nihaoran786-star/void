@@ -5,6 +5,10 @@ import { configAPI } from '@/infrastructure/api';
 import type { SkillInfo, SkillLevel, SkillValidationResult } from '@/infrastructure/config/types';
 import { useWorkspaceManagerSync } from '@/infrastructure/hooks/useWorkspaceManagerSync';
 import { useNotification } from '@/shared/notification-system';
+import {
+  localizeCatalogPresentation,
+  presentationForInstalledSkill,
+} from '@/shared/services/customization';
 import { createLogger } from '@/shared/utils/logger';
 import type { InstalledFilter } from '../skillsSceneStore';
 
@@ -119,7 +123,7 @@ export function useInstalledSkills({ searchQuery, activeFilter }: UseInstalledSk
       return false;
     }
     if (formLevel === 'project' && isRemoteWorkspace) {
-      notification.warning('Remote workspaces do not support project skill installation yet.');
+      notification.warning(t('messages.remoteProjectUnsupported'));
       return false;
     }
     try {
@@ -146,12 +150,16 @@ export function useInstalledSkills({ searchQuery, activeFilter }: UseInstalledSk
   }, [formLevel, formPath, hasWorkspace, isRemoteWorkspace, loadSkills, notification, resetForm, t, validationResult, workspacePath]);
 
   const handleDelete = useCallback(async (skill: SkillInfo) => {
+    const presentation = localizeCatalogPresentation(
+      presentationForInstalledSkill(skill),
+      key => t(key),
+    );
     try {
       await configAPI.deleteSkill({
         skillKey: skill.key,
         workspacePath: workspacePath || undefined,
       });
-      notification.success(t('messages.deleteSuccess', { name: skill.name }));
+      notification.success(t('messages.deleteSuccess', { name: presentation.displayName }));
       await loadSkills(true);
       return true;
     } catch (err) {
@@ -179,14 +187,23 @@ export function useInstalledSkills({ searchQuery, activeFilter }: UseInstalledSk
         matchesFilter = skill.isBuiltin;
       }
 
+      const presentation = localizeCatalogPresentation(
+        presentationForInstalledSkill(skill),
+        key => t(key),
+      );
       const matchesQuery = !normalizedQuery || [
         skill.name,
         skill.description,
         skill.path,
+        skill.key,
+        skill.sourceSlot,
+        presentation.displayName,
+        presentation.description,
+        ...presentation.aliases,
       ].some((field) => field?.toLowerCase().includes(normalizedQuery));
       return matchesFilter && matchesQuery;
     });
-  }, [activeFilter, normalizedQuery, skills]);
+  }, [activeFilter, normalizedQuery, skills, t]);
 
   const counts = useMemo(() => ({
     all: skills.length,

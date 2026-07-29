@@ -13,6 +13,7 @@
 use super::coordinator::{ConversationCoordinator, DialogTriggerSource};
 use super::turn_outcome::{TurnOutcome, TurnOutcomeQueueAction, TurnOutcomeStatus};
 use crate::agentic::core::{PromptEnvelope, SessionState};
+use crate::agentic::execution::is_persona_runtime_validation_error_message;
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::init_agents_md::build_init_agents_md_user_input;
 use crate::agentic::round_preempt::{
@@ -32,15 +33,29 @@ use uuid::Uuid;
 
 const MAX_QUEUE_DEPTH: usize = 20;
 
-pub use void_runtime_ports::{
-    AgentSessionReplyRoute, DialogQueuePriority, DialogSteerOutcome, DialogSubmissionPolicy,
-    DialogSubmitOutcome,
-};
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum QueuedStartErrorAction {
+    DiscardAndContinue,
+    RequeueAndStop,
+}
+
+fn queued_start_error_action(error: &str) -> QueuedStartErrorAction {
+    if is_persona_runtime_validation_error_message(error) {
+        QueuedStartErrorAction::DiscardAndContinue
+    } else {
+        QueuedStartErrorAction::RequeueAndStop
+    }
+}
+
 use void_runtime_ports::{
-    DialogSessionStateFact, DialogSubmitQueueAction, DialogSubmitQueueFacts, DialogTurnOutcomeKind,
     resolve_dialog_submit_queue_action,
     should_skip_agent_session_reply as should_skip_agent_session_reply_contract,
     should_suppress_agent_session_cancelled_reply as should_suppress_agent_session_cancelled_reply_contract,
+    DialogSessionStateFact, DialogSubmitQueueAction, DialogSubmitQueueFacts, DialogTurnOutcomeKind,
+};
+pub use void_runtime_ports::{
+    AgentSessionReplyRoute, DialogQueuePriority, DialogSteerOutcome, DialogSubmissionPolicy,
+    DialogSubmitOutcome,
 };
 
 #[derive(Debug, Clone)]
@@ -697,21 +712,39 @@ impl DialogScheduler {
             return Ok(None);
         }
 
-        let Some(next_turn) = self.dequeue_next(session_id) else {
-            return Ok(None);
-        };
+        loop {
+            let Some(next_turn) = self.dequeue_next(session_id) else {
+                return Ok(None);
+            };
 
-        let remaining = self.queues.get(session_id).map(|q| q.len()).unwrap_or(0);
-        info!(
-            "Dispatching queued message: session_id={}, priority={:?}, remaining_queue_depth={}",
-            session_id, next_turn.policy.queue_priority, remaining
-        );
+            let remaining = self.queues.get(session_id).map(|q| q.len()).unwrap_or(0);
+            info!(
+                "Dispatching queued message: session_id={}, priority={:?}, remaining_queue_depth={}",
+                session_id, next_turn.policy.queue_priority, remaining
+            );
 
-        match self.start_turn(session_id, &next_turn).await {
-            Ok(tid) => Ok(Some(tid)),
-            Err(err) => {
-                self.requeue_front(session_id, next_turn);
+            match self.start_turn(session_id, &next_turn).await {
+                Ok(tid) => return Ok(Some(tid)),
                 Err(err)
+                    if queued_start_error_action(&err)
+                        == QueuedStartErrorAction::DiscardAndContinue =>
+                {
+                    warn!(
+                        "Discarding non-retryable queued persona turn: session_id={}, turn_id={:?}, error={}",
+                        session_id, next_turn.turn_id, err
+                    );
+                    if let Some(turn_id) = next_turn.turn_id.as_deref() {
+                        self.coordinator
+                            .emit_queued_turn_validation_failed(session_id, turn_id, &err)
+                            .await;
+                    }
+                    // Continue within the same dispatch pass so one stale
+                    // persona snapshot cannot block a later valid queue item.
+                }
+                Err(err) => {
+                    self.requeue_front(session_id, next_turn);
+                    return Err(err);
+                }
             }
         }
     }
@@ -1001,6 +1034,8 @@ pub fn set_global_scheduler(scheduler: Arc<DialogScheduler>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::agentic::execution::wrap_persona_runtime_validation_error;
+    use crate::util::errors::VoidError;
 
     fn agent_session_active_turn(source_session_id: &str) -> ActiveTurn {
         ActiveTurn {
@@ -1066,10 +1101,8 @@ mod tests {
         assert!(
             DialogScheduler::goal_verification_observation_text(&cancelled).contains("cancelled")
         );
-        assert!(
-            DialogScheduler::goal_verification_observation_text(&failed)
-                .contains("network offline")
-        );
+        assert!(DialogScheduler::goal_verification_observation_text(&failed)
+            .contains("network offline"));
     }
 
     #[test]
@@ -1090,5 +1123,29 @@ mod tests {
         assert!(!void_runtime_ports::dialog_policy_may_preempt(
             &agent_session
         ));
+    }
+
+    #[test]
+    fn persona_validation_failure_is_non_retryable_without_reclassifying_other_errors() {
+        let persona_error = wrap_persona_runtime_validation_error(VoidError::validation(
+            "Persona revision mismatch".to_string(),
+        ))
+        .to_string();
+        assert_eq!(
+            queued_start_error_action(&persona_error),
+            QueuedStartErrorAction::DiscardAndContinue
+        );
+        assert_eq!(
+            queued_start_error_action("AI provider temporarily unavailable"),
+            QueuedStartErrorAction::RequeueAndStop
+        );
+
+        // Mirrors the production loop: discarding the failed head exposes the
+        // next item, while a normal error would be restored to the front.
+        let mut remaining = VecDeque::from(["later-valid-turn"]);
+        if queued_start_error_action(&persona_error) == QueuedStartErrorAction::RequeueAndStop {
+            remaining.push_front("stale-persona-turn");
+        }
+        assert_eq!(remaining.pop_front(), Some("later-valid-turn"));
     }
 }

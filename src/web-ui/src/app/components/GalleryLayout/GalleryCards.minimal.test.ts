@@ -1,19 +1,18 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  readSourceText,
+  sha256SourceText,
+  sha256Text,
+} from '@/test-utils/sourceText';
 
-const pathFor = (relativePath: string): string =>
-  fileURLToPath(new URL(relativePath, import.meta.url));
+const pathFor = (relativePath: string): URL =>
+  new URL(relativePath, import.meta.url);
 
 const readSource = (relativePath: string): string =>
-  readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
+  readSourceText(pathFor(relativePath));
 
 const sha256 = (relativePath: string): string =>
-  createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
-
-const sha256Text = (source: string): string =>
-  createHash('sha256').update(source).digest('hex');
+  sha256SourceText(pathFor(relativePath));
 
 describe('Gallery card Minimal presentation contract', () => {
   const source = readSource('./GalleryCards.minimal.scss');
@@ -27,16 +26,16 @@ describe('Gallery card Minimal presentation contract', () => {
 
   it('keeps feature-owned Classic card styles byte-identical', () => {
     expect(sha256('../../scenes/agents/components/AgentCard.scss')).toBe(
-      '224bbbc3005ec84161cc0d2a0928313a99c7da40336eee2db244be9fedd36679',
+      'f999d7003e36ccdb3ae24c53c78618759016d2eee53f3674c834e989bfc379a4',
     );
     expect(sha256('../../scenes/agents/components/CoreAgentCard.scss')).toBe(
-      '3c077fed46606795751c10111a17d15561bc24b09e559c521f828e9b8529b69d',
+      'e75debd28de2d71e2732038e53cf340e95207fde950c923a7b14b187f68b994b',
     );
     expect(sha256('../../scenes/agents/components/AgentTeamCard.scss')).toBe(
-      '137eec4b014faa465573b07ad39f3a8007f5770f4f1c4d99447fb31e558ab472',
+      '8cdda2f8624f651b88aec2940f1c09fcd616227e1118740cdb20753ae9c55794',
     );
     expect(sha256('../../scenes/miniapps/components/MiniAppCard.scss')).toBe(
-      'b38ab1c077424f4ffb82aea34ec353a303580e2477ffa7766a4523a42e2a6655',
+      '83981cdb46cef7e718a52b740e972ef74881037b514189494b6afb910929768e',
     );
     const projectionFreeNursery = readSource('../../scenes/profile/views/NurseryView.scss')
       .replace("@use './NurseryView.minimal' as minimal;\n", '')

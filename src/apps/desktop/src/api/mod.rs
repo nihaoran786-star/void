@@ -1,9 +1,9 @@
 //! API layer module
 
-pub mod acp_client_api;
 pub mod account_usage_api;
-pub mod agentic_api;
+pub mod acp_client_api;
 pub mod agent_memory_api;
+pub mod agentic_api;
 pub mod announcement_api;
 pub mod app_state;
 pub mod browser_api;
@@ -24,9 +24,9 @@ pub mod git_agent_api;
 pub mod git_api;
 pub mod i18n_api;
 pub mod insights_api;
+pub mod local_asr_api;
 pub mod lsp_api;
 pub mod lsp_workspace_api;
-pub mod local_asr_api;
 pub mod mcp_api;
 pub mod miniapp_api;
 pub mod path_target;
@@ -45,6 +45,7 @@ pub mod storage_commands;
 pub mod subagent_api;
 pub mod subscription_auth_api;
 pub mod system_api;
+pub mod team_definition_api;
 pub mod terminal_api;
 pub mod tool_api;
 pub mod workspace_activation;

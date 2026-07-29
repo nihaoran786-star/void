@@ -7,11 +7,18 @@ import type {
   DiagnosticsBundleInfo,
   ModeSkillInfo,
   RuntimeLoggingInfo,
+  SkillAuthoringDetail,
   SkillInfo,
   SkillLevel,
   SkillMarketDownloadResult,
   SkillMarketItem,
   SkillValidationResult,
+  TeamDefinition,
+  TeamDefinitionDiagnostic,
+  TeamDefinitionDraft,
+  TeamDefinitionLevel,
+  TeamDefinitionListSnapshot,
+  TeamDefinitionRecord,
 } from '../../config/types';
 
 export interface GetSkillConfigsParams {
@@ -47,6 +54,232 @@ export interface AddSkillParams {
   sourcePath: string;
   level: SkillLevel;
   workspacePath?: string;
+}
+
+export interface CreateSkillParams {
+  level: SkillLevel;
+  displayName: string;
+  description: string;
+  instructions: string;
+  allowedParentAgentIds: string[];
+  suggestedPrompts: string[];
+  workspacePath?: string;
+}
+
+export interface GetSkillDetailParams {
+  skillKey: string;
+  workspacePath?: string;
+}
+
+export interface UpdateSkillParams {
+  skillKey: string;
+  expectedRevision: string;
+  displayName: string;
+  description: string;
+  instructions: string;
+  allowedParentAgentIds: string[];
+  suggestedPrompts: string[];
+  workspacePath?: string;
+}
+
+export interface ListTeamDefinitionsParams {
+  workspacePath?: string;
+}
+
+export interface GetTeamDefinitionParams {
+  teamDefinitionId: string;
+  level: TeamDefinitionLevel;
+  workspacePath?: string;
+}
+
+export interface CreateTeamDefinitionParams {
+  level: TeamDefinitionLevel;
+  draft: TeamDefinitionDraft;
+  workspacePath?: string;
+}
+
+export interface UpdateTeamDefinitionParams {
+  teamDefinitionId: string;
+  level: TeamDefinitionLevel;
+  expectedRevision: string;
+  definition: TeamDefinition;
+  workspacePath?: string;
+}
+
+export interface InstallTeamDefinitionParams {
+  sourcePath: string;
+  level: TeamDefinitionLevel;
+  workspacePath?: string;
+}
+
+export interface DeleteTeamDefinitionParams {
+  teamDefinitionId: string;
+  level: TeamDefinitionLevel;
+  workspacePath?: string;
+}
+
+export type SkillAuthoringCommandErrorCode =
+  | 'unsupported_remote_project'
+  | 'not_found'
+  | 'not_authorable'
+  | 'revision_conflict'
+  | 'validation_failed'
+  | 'read_failed'
+  | 'write_failed'
+  | 'rollback_failed';
+
+export interface SkillAuthoringCommandErrorPayload {
+  code: SkillAuthoringCommandErrorCode;
+  message: string;
+  recoveryPath?: string;
+}
+
+export type TeamDefinitionCommandErrorCode =
+  | 'unsupported_remote_project'
+  | 'not_found'
+  | 'not_authorable'
+  | 'fixed_team_immutable'
+  | 'revision_conflict'
+  | 'definition_already_exists'
+  | 'invalid_schema'
+  | 'validation_failed'
+  | 'reference_not_found'
+  | 'permission_expansion'
+  | 'package_too_large'
+  | 'untrusted_package'
+  | 'package_changed_after_preview'
+  | 'read_failed'
+  | 'write_failed'
+  | 'install_failed'
+  | 'delete_failed'
+  | 'rollback_failed';
+
+export interface TeamDefinitionCommandErrorPayload {
+  code: TeamDefinitionCommandErrorCode;
+  message: string;
+  source?: string;
+  retryable?: boolean;
+  diagnostics?: TeamDefinitionDiagnostic[];
+  recoveryPath?: string;
+}
+
+const SKILL_AUTHORING_ERROR_CODES = new Set<SkillAuthoringCommandErrorCode>([
+  'unsupported_remote_project',
+  'not_found',
+  'not_authorable',
+  'revision_conflict',
+  'validation_failed',
+  'read_failed',
+  'write_failed',
+  'rollback_failed',
+]);
+
+const TEAM_DEFINITION_ERROR_CODES = new Set<TeamDefinitionCommandErrorCode>([
+  'unsupported_remote_project',
+  'not_found',
+  'not_authorable',
+  'fixed_team_immutable',
+  'revision_conflict',
+  'definition_already_exists',
+  'invalid_schema',
+  'validation_failed',
+  'reference_not_found',
+  'permission_expansion',
+  'package_too_large',
+  'untrusted_package',
+  'package_changed_after_preview',
+  'read_failed',
+  'write_failed',
+  'install_failed',
+  'delete_failed',
+  'rollback_failed',
+]);
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object'
+    ? value as Record<string, unknown>
+    : null;
+}
+
+export function extractSkillAuthoringCommandError(
+  error: unknown,
+): SkillAuthoringCommandErrorPayload | null {
+  const root = asRecord(error);
+  const details = asRecord(root?.details);
+  const context = asRecord(root?.context);
+  const contextOriginal = asRecord(context?.originalError);
+  const contextDetails = asRecord(contextOriginal?.details);
+  const candidates: unknown[] = [
+    error,
+    details?.originalError,
+    context?.originalError,
+    contextDetails?.originalError,
+  ];
+
+  for (const candidate of candidates) {
+    const record = asRecord(candidate);
+    if (!record) continue;
+    const code = record.code;
+    const message = record.message;
+    if (
+      typeof code === 'string'
+      && SKILL_AUTHORING_ERROR_CODES.has(code as SkillAuthoringCommandErrorCode)
+      && typeof message === 'string'
+    ) {
+      return {
+        code: code as SkillAuthoringCommandErrorCode,
+        message,
+        recoveryPath: typeof record.recoveryPath === 'string'
+          ? record.recoveryPath
+          : undefined,
+      };
+    }
+  }
+  return null;
+}
+
+export function extractTeamDefinitionCommandError(
+  error: unknown,
+): TeamDefinitionCommandErrorPayload | null {
+  const root = asRecord(error);
+  const details = asRecord(root?.details);
+  const context = asRecord(root?.context);
+  const contextOriginal = asRecord(context?.originalError);
+  const contextDetails = asRecord(contextOriginal?.details);
+  const candidates: unknown[] = [
+    error,
+    details?.originalError,
+    context?.originalError,
+    contextDetails?.originalError,
+  ];
+
+  for (const candidate of candidates) {
+    const record = asRecord(candidate);
+    if (!record) continue;
+    const code = record.code;
+    const message = record.message;
+    if (
+      typeof code === 'string'
+      && TEAM_DEFINITION_ERROR_CODES.has(code as TeamDefinitionCommandErrorCode)
+      && typeof message === 'string'
+    ) {
+      return {
+        code: code as TeamDefinitionCommandErrorCode,
+        message,
+        source: typeof record.source === 'string' ? record.source : undefined,
+        retryable: typeof record.retryable === 'boolean'
+          ? record.retryable
+          : undefined,
+        diagnostics: Array.isArray(record.diagnostics)
+          ? record.diagnostics as TeamDefinitionDiagnostic[]
+          : undefined,
+        recoveryPath: typeof record.recoveryPath === 'string'
+          ? record.recoveryPath
+          : undefined,
+      };
+    }
+  }
+  return null;
 }
 
 export interface DeleteSkillParams {
@@ -353,6 +586,121 @@ export class ConfigAPI {
       return await api.invoke('validate_skill_path', { path });
     } catch (error) {
       throw createTauriCommandError('validate_skill_path', error, { path });
+    }
+  }
+
+  async getSkillDetail({
+    skillKey,
+    workspacePath,
+  }: GetSkillDetailParams): Promise<SkillAuthoringDetail> {
+    try {
+      return await api.invoke('get_skill_detail', {
+        request: { skillKey, workspacePath },
+      });
+    } catch (error) {
+      const commandError = extractSkillAuthoringCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('get_skill_detail', error, { skillKey, workspacePath });
+    }
+  }
+
+  async createSkill(params: CreateSkillParams): Promise<SkillAuthoringDetail> {
+    try {
+      return await api.invoke('create_skill', { request: params });
+    } catch (error) {
+      const commandError = extractSkillAuthoringCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('create_skill', error, params);
+    }
+  }
+
+  async updateSkill(params: UpdateSkillParams): Promise<SkillAuthoringDetail> {
+    try {
+      return await api.invoke('update_skill', { request: params });
+    } catch (error) {
+      const commandError = extractSkillAuthoringCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('update_skill', error, {
+        skillKey: params.skillKey,
+        workspacePath: params.workspacePath,
+      });
+    }
+  }
+
+  async listTeamDefinitions(
+    params: ListTeamDefinitionsParams = {},
+  ): Promise<TeamDefinitionListSnapshot> {
+    try {
+      return await api.invoke('list_team_definitions', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('list_team_definitions', error, params);
+    }
+  }
+
+  async getTeamDefinition(
+    params: GetTeamDefinitionParams,
+  ): Promise<TeamDefinitionRecord> {
+    try {
+      return await api.invoke('get_team_definition', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('get_team_definition', error, params);
+    }
+  }
+
+  async createTeamDefinition(
+    params: CreateTeamDefinitionParams,
+  ): Promise<TeamDefinitionRecord> {
+    try {
+      return await api.invoke('create_team_definition', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('create_team_definition', error, params);
+    }
+  }
+
+  async updateTeamDefinition(
+    params: UpdateTeamDefinitionParams,
+  ): Promise<TeamDefinitionRecord> {
+    try {
+      return await api.invoke('update_team_definition', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('update_team_definition', error, {
+        teamDefinitionId: params.teamDefinitionId,
+        level: params.level,
+        expectedRevision: params.expectedRevision,
+        workspacePath: params.workspacePath,
+      });
+    }
+  }
+
+  async installTeamDefinition(
+    params: InstallTeamDefinitionParams,
+  ): Promise<TeamDefinitionRecord> {
+    try {
+      return await api.invoke('install_team_definition', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('install_team_definition', error, params);
+    }
+  }
+
+  async deleteTeamDefinition(
+    params: DeleteTeamDefinitionParams,
+  ): Promise<void> {
+    try {
+      await api.invoke('delete_team_definition', { request: params });
+    } catch (error) {
+      const commandError = extractTeamDefinitionCommandError(error);
+      if (commandError) throw commandError;
+      throw createTauriCommandError('delete_team_definition', error, params);
     }
   }
 

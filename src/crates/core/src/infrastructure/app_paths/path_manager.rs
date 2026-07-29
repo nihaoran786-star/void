@@ -227,6 +227,11 @@ impl PathManager {
         self.user_root.join("data")
     }
 
+    /// Get user-level Team definitions directory: ~/.config/void/data/teams/
+    pub fn user_team_definitions_dir(&self) -> PathBuf {
+        self.user_data_dir().join("teams")
+    }
+
     /// Root for per-host, per-remote-path workspace mirrors: `~/.void/remote_ssh/`.
     ///
     /// Session/chat persistence for SSH workspaces lives under
@@ -280,6 +285,11 @@ impl PathManager {
     /// Get project config root directory: {project}/.void/
     pub fn project_root(&self, workspace_path: &Path) -> PathBuf {
         workspace_path.join(".void")
+    }
+
+    /// Get project-level Team definitions directory: {project}/.void/teams/
+    pub fn project_team_definitions_dir(&self, workspace_path: &Path) -> PathBuf {
+        self.project_root(workspace_path).join("teams")
     }
 
     /// Get the shared runtime projects root directory: ~/.void/projects/
@@ -433,6 +443,7 @@ impl PathManager {
             self.user_agents_dir(),
             self.cache_root(),
             self.user_data_dir(),
+            self.user_team_definitions_dir(),
             self.user_cron_dir(),
             self.user_rules_dir(),
             self.miniapps_dir(),
@@ -596,5 +607,20 @@ mod tests {
 
         assert!(slug.starts_with("e--projects-openvoid-void"));
         assert_eq!(runtime_root.parent(), Some(pm.projects_root().as_path()));
+    }
+
+    #[test]
+    fn team_definition_roots_are_isolated_by_storage_level() {
+        let pm = PathManager::default();
+        let workspace = Path::new(r"E:\Projects\Example");
+
+        assert_eq!(
+            pm.user_team_definitions_dir(),
+            pm.user_data_dir().join("teams")
+        );
+        assert_eq!(
+            pm.project_team_definitions_dir(workspace),
+            workspace.join(".void").join("teams")
+        );
     }
 }

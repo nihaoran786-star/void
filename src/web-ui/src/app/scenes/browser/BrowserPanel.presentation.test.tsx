@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import BrowserPanel from './BrowserPanel';
+import { readSourceText } from '@/test-utils/sourceText';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -22,9 +22,8 @@ vi.mock('@/shared/context-system', () => ({
     selector({ addContext: vi.fn() }),
 }));
 
-const browserPanelSource = readFileSync(
+const browserPanelSource = readSourceText(
   resolve(process.cwd(), 'src/app/scenes/browser/BrowserPanel.tsx'),
-  'utf8',
 );
 
 describe('BrowserPanel presentation boundary', () => {

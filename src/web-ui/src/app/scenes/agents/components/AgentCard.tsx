@@ -52,7 +52,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={agent.name}
+      aria-label={agent.displayName}
     >
       {/* Header: icon + name */}
       <div className="agent-card__header">
@@ -63,7 +63,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </div>
         <div className="agent-card__header-info">
           <div className="agent-card__title-row">
-            <span className="agent-card__name">{agent.name}</span>
+            <span className="agent-card__name">{agent.displayName}</span>
             <div className="agent-card__badges">
               <Badge variant={badge.variant}>
                 {agent.agentKind === 'mode' ? <Cpu size={10} /> : <Bot size={10} />}

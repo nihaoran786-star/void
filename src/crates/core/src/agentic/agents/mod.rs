@@ -42,7 +42,9 @@ pub use registry::types::{
 pub use registry::visibility::{
     BuiltinSubagentExposure, SubagentVisibilityPolicy, SubagentVisibilitySummary,
 };
-pub use registry::{get_agent_registry, AgentRegistry, CustomSubagentDetail};
+pub use registry::{
+    get_agent_registry, AgentRegistry, CustomSubagentDetail, ResolvedPersonaDefinition,
+};
 use sha2::{Digest, Sha256};
 use std::any::Any;
 use std::borrow::Cow;

@@ -1,22 +1,23 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
-const readSource = () => readFileSync(
-  fileURLToPath(new URL('./ChatInput.tsx', import.meta.url)),
-  'utf8',
-).replace(/\r\n/g, '\n');
+const readSource = () => readSourceText(
+  new URL('./ChatInput.tsx', import.meta.url),
+);
 
-const readSkillsSubmenuSource = () => readFileSync(
-  fileURLToPath(new URL('./BoostSkillsSubmenu.tsx', import.meta.url)),
-  'utf8',
-).replace(/\r\n/g, '\n');
+const readSkillsSubmenuSource = () => readSourceText(
+  new URL('./BoostSkillsSubmenu.tsx', import.meta.url),
+);
+
+const readActionButtonSource = () => readSourceText(
+  new URL('./ComposerActionButton.tsx', import.meta.url),
+);
 
 describe('ChatInput accessibility contract', () => {
   it('exposes every stop-generation action as a named native button', () => {
-    const source = readSource();
+    const source = readActionButtonSource();
     const cancelButtons = source.match(
-      /<button[\s\S]*?aria-label=\{t\('input\.stopGeneration'\)\}[\s\S]*?data-testid="chat-input-cancel-btn"[\s\S]*?<\/button>/g,
+      /<button[\s\S]*?aria-label=\{cancelLabel\}[\s\S]*?data-testid="chat-input-cancel-btn"[\s\S]*?<\/button>/g,
     );
 
     expect(cancelButtons).toHaveLength(2);
@@ -42,9 +43,10 @@ describe('ChatInput accessibility contract', () => {
 
   it('names every icon-only send, retry, and boost action', () => {
     const source = readSource();
+    const actionSource = readActionButtonSource();
 
-    expect(source.match(/aria-label=\{t\('input\.sendShortcut'\)\}/g)).toHaveLength(3);
-    expect(source.match(/aria-label=\{t\('input\.retry'\)\}/g)).toHaveLength(1);
+    expect(actionSource.match(/aria-label=\{sendLabel\}/g)).toHaveLength(3);
+    expect(actionSource.match(/aria-label=\{retryLabel\}/g)).toHaveLength(1);
     expect(source.match(/aria-label=\{t\('chatInput\.addBoostTooltip'\)\}/g)).toHaveLength(1);
   });
 
@@ -71,5 +73,15 @@ describe('ChatInput accessibility contract', () => {
     expect(source).not.toContain('data-testid="chat-input-target-switcher"');
     expect(source).not.toContain('selectMainComposerTarget');
     expect(source).not.toContain('selectActiveChildComposerTarget');
+  });
+
+  it('routes action rendering and all new submissions through the shared customization guard', () => {
+    const source = readSource();
+    expect(source).toContain('<ComposerActionButton');
+    expect(source).toContain(
+      'customizationPersistencePending={customizationPersistencePending}',
+    );
+    expect(source).toContain('isCustomizationPersistencePending()');
+    expect(source).toContain("isComposerActionAllowed(");
   });
 });

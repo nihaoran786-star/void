@@ -5,12 +5,34 @@
 
 import type {
   DialogTurnKind,
+  SessionActivePersonaBinding,
+  SessionCustomizationScenario,
   SessionKind,
   SessionTitleSource,
 } from '@/shared/types/session-history';
 import type { ReviewTeamRunManifest } from '@/shared/services/reviewTeamService';
 import type { AiErrorDetail } from '@/shared/ai-errors/aiErrorPresenter';
 import type { SubagentTaskRecordDTO } from '@/infrastructure/api/service-api/AgentAPI';
+
+/**
+ * Immutable parent-conversation persona selection captured for one submitted
+ * turn. Runtime identity is the source-qualified SubagentInfo.key; localized
+ * names and legacy/unversioned revisions are deliberately not representable.
+ */
+export interface PersonaTurnSnapshot {
+  schemaVersion: 1;
+  kind: 'agent';
+  personaKey: string;
+  personaRevision: string;
+  scenario: SessionCustomizationScenario;
+  executionPolicy: string;
+  /** Skill injection is not supported by the v1 persona runtime. */
+  resolvedSkillRefs: [];
+}
+
+export interface UserMessageMetadata extends Record<string, unknown> {
+  personaTurnSnapshot?: PersonaTurnSnapshot;
+}
 
 // Base type for streaming items.
 export interface FlowItem {
@@ -356,6 +378,21 @@ export interface Session {
    */
   lastSubmittedMode?: string;
 
+  /**
+   * Stable task environment for this parent conversation. This is independent
+   * from the legacy mode / agentType execution-policy projection.
+   */
+  scenario?: SessionCustomizationScenario;
+
+  /** Execution behavior retained independently from the selected persona. */
+  executionPolicy?: string;
+
+  /**
+   * Explicit parent-conversation persona selection. Null restores the scenario
+   * default. Child sessions never inherit this binding.
+   */
+  activePersonaBinding?: SessionActivePersonaBinding | null;
+
   // Workspace this session belongs to. Used for sidebar display filtering.
   // Sessions are always kept in store for event processing; only display is filtered.
   workspacePath?: string;
@@ -493,7 +530,7 @@ export interface QueuedMessage {
   imageContexts?: unknown[];
   imageDisplayData?: unknown[];
   /** User-message presentation metadata forwarded unchanged when drained. */
-  userMessageMetadata?: Record<string, unknown>;
+  userMessageMetadata?: UserMessageMetadata;
   localDialogTurnId?: string;
 }
 

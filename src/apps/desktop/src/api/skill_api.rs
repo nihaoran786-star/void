@@ -6,14 +6,16 @@ use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use serde_yaml::{Mapping as YamlMapping, Value as YamlValue};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
 use tauri::State;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinSet;
 use tokio::time::{timeout, Duration};
+use uuid::Uuid;
 
 use crate::api::app_state::AppState;
 use void_core::agentic::tools::implementations::skills::mode_overrides::{
@@ -34,6 +36,7 @@ use void_core::service::config::agent_profile_project_store::{
 use void_core::service::remote_ssh::workspace_state::is_remote_path;
 use void_core::service::remote_ssh::{get_remote_workspace_manager, RemoteWorkspaceEntry};
 use void_core::service::runtime::RuntimeManager;
+use void_core::util::front_matter_markdown::FrontMatterMarkdown;
 use void_core::util::process_manager;
 
 const SKILLS_SEARCH_API_BASE: &str = "https://skills.sh";
@@ -44,8 +47,30 @@ const MAX_OUTPUT_PREVIEW_CHARS: usize = 2000;
 const MARKET_DESC_FETCH_TIMEOUT_SECS: u64 = 4;
 const MARKET_DESC_FETCH_CONCURRENCY: usize = 6;
 const MARKET_DESC_MAX_LEN: usize = 220;
+const AUTHORABLE_SKILL_SOURCE_SLOT: &str = "void";
+const MAX_SKILL_DISPLAY_NAME_CHARS: usize = 80;
+const MAX_SKILL_DESCRIPTION_CHARS: usize = 280;
+const MAX_SKILL_INSTRUCTIONS_CHARS: usize = 50_000;
+const MAX_SKILL_SUGGESTED_PROMPTS: usize = 3;
+const MAX_SKILL_SUGGESTED_PROMPT_CHARS: usize = 180;
+const CUSTOM_SKILL_PARENT_IDS: &[&str] = &[
+    "agentic",
+    "Plan",
+    "debug",
+    "Multitask",
+    "Team",
+    "Cowork",
+    "DeepResearch",
+    "Claw",
+    "Media",
+];
 
 static MARKET_DESCRIPTION_CACHE: OnceLock<RwLock<HashMap<String, String>>> = OnceLock::new();
+static SKILL_AUTHORING_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn skill_authoring_lock() -> &'static Mutex<()> {
+    SKILL_AUTHORING_LOCK.get_or_init(|| Mutex::new(()))
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SkillValidationResult {
@@ -53,6 +78,118 @@ pub struct SkillValidationResult {
     pub name: Option<String>,
     pub description: Option<String>,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateSkillRequest {
+    pub level: SkillLocation,
+    pub display_name: String,
+    pub description: String,
+    pub instructions: String,
+    pub allowed_parent_agent_ids: Vec<String>,
+    pub suggested_prompts: Vec<String>,
+    pub workspace_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetSkillDetailRequest {
+    pub skill_key: String,
+    pub workspace_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSkillRequest {
+    pub skill_key: String,
+    pub expected_revision: String,
+    pub display_name: String,
+    pub description: String,
+    pub instructions: String,
+    pub allowed_parent_agent_ids: Vec<String>,
+    pub suggested_prompts: Vec<String>,
+    pub workspace_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillAuthoringDetail {
+    pub skill_key: String,
+    pub runtime_id: String,
+    pub display_name: String,
+    pub description: String,
+    pub instructions: String,
+    pub allowed_parent_agent_ids: Vec<String>,
+    pub suggested_prompts: Vec<String>,
+    pub level: SkillLocation,
+    pub revision: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillAuthoringErrorCode {
+    UnsupportedRemoteProject,
+    NotFound,
+    NotAuthorable,
+    RevisionConflict,
+    ValidationFailed,
+    ReadFailed,
+    WriteFailed,
+    RollbackFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillAuthoringCommandError {
+    pub code: SkillAuthoringErrorCode,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery_path: Option<String>,
+}
+
+impl SkillAuthoringCommandError {
+    fn new(code: SkillAuthoringErrorCode, message: impl Into<String>) -> Self {
+        Self {
+            code,
+            message: message.into(),
+            recovery_path: None,
+        }
+    }
+
+    fn validation(message: impl Into<String>) -> Self {
+        Self::new(SkillAuthoringErrorCode::ValidationFailed, message)
+    }
+
+    fn read(message: impl Into<String>) -> Self {
+        Self::new(SkillAuthoringErrorCode::ReadFailed, message)
+    }
+
+    fn write(message: impl Into<String>) -> Self {
+        Self::new(SkillAuthoringErrorCode::WriteFailed, message)
+    }
+
+    fn rollback(message: impl Into<String>, recovery_path: &Path) -> Self {
+        Self {
+            code: SkillAuthoringErrorCode::RollbackFailed,
+            message: message.into(),
+            recovery_path: Some(recovery_path.to_string_lossy().to_string()),
+        }
+    }
+
+    fn with_original(mut self, original: impl std::fmt::Display) -> Self {
+        self.message = format!("{}; original_error={original}", self.message);
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+struct NormalizedSkillAuthoring {
+    display_name: String,
+    description: String,
+    instructions: String,
+    allowed_parent_agent_ids: Vec<String>,
+    suggested_prompts: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -135,6 +272,422 @@ fn workspace_root_from_input(workspace_path: Option<&str>) -> Option<PathBuf> {
     workspace_path
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
+}
+
+fn validate_required_skill_text(
+    label: &str,
+    value: &str,
+    max_chars: usize,
+) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(format!("{label} cannot be empty"));
+    }
+    if value.chars().count() > max_chars {
+        return Err(format!("{label} cannot exceed {max_chars} characters"));
+    }
+    Ok(value.to_string())
+}
+
+fn normalize_skill_authoring(
+    display_name: String,
+    description: String,
+    instructions: String,
+    allowed_parent_agent_ids: Vec<String>,
+    suggested_prompts: Vec<String>,
+) -> Result<NormalizedSkillAuthoring, String> {
+    let display_name =
+        validate_required_skill_text("Display name", &display_name, MAX_SKILL_DISPLAY_NAME_CHARS)?;
+    if display_name.chars().any(char::is_control) {
+        return Err("Display name cannot contain control characters".to_string());
+    }
+    let description =
+        validate_required_skill_text("Description", &description, MAX_SKILL_DESCRIPTION_CHARS)?;
+    let instructions =
+        validate_required_skill_text("Instructions", &instructions, MAX_SKILL_INSTRUCTIONS_CHARS)?;
+
+    let valid_parent_ids: HashSet<&str> = CUSTOM_SKILL_PARENT_IDS.iter().copied().collect();
+    let mut allowed_parent_agent_ids: Vec<String> = allowed_parent_agent_ids
+        .into_iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .collect();
+    for parent_id in &allowed_parent_agent_ids {
+        if !valid_parent_ids.contains(parent_id.as_str()) {
+            return Err(format!("Unknown parent Agent ID: {parent_id}"));
+        }
+    }
+    allowed_parent_agent_ids.sort();
+    allowed_parent_agent_ids.dedup();
+    if allowed_parent_agent_ids.is_empty() {
+        return Err("At least one scenario is required".to_string());
+    }
+
+    let mut seen_prompts = HashSet::new();
+    let mut normalized_prompts = Vec::new();
+    for prompt in suggested_prompts {
+        let prompt = prompt.trim();
+        if prompt.is_empty() {
+            continue;
+        }
+        if prompt.chars().count() > MAX_SKILL_SUGGESTED_PROMPT_CHARS {
+            return Err(format!(
+                "Suggested prompt cannot exceed {MAX_SKILL_SUGGESTED_PROMPT_CHARS} characters"
+            ));
+        }
+        if seen_prompts.insert(prompt.to_string()) {
+            normalized_prompts.push(prompt.to_string());
+        }
+    }
+    if normalized_prompts.is_empty() {
+        return Err("At least one suggested prompt is required".to_string());
+    }
+    if normalized_prompts.len() > MAX_SKILL_SUGGESTED_PROMPTS {
+        return Err(format!(
+            "Suggested prompts cannot exceed {MAX_SKILL_SUGGESTED_PROMPTS} items"
+        ));
+    }
+
+    Ok(NormalizedSkillAuthoring {
+        display_name,
+        description,
+        instructions,
+        allowed_parent_agent_ids,
+        suggested_prompts: normalized_prompts,
+    })
+}
+
+fn insert_yaml_value(mapping: &mut YamlMapping, key: &str, value: YamlValue) {
+    mapping.insert(YamlValue::String(key.to_string()), value);
+}
+
+fn serialize_skill_document(
+    existing_metadata: Option<YamlValue>,
+    runtime_id: &str,
+    authoring: &NormalizedSkillAuthoring,
+) -> Result<String, String> {
+    let mut mapping = match existing_metadata {
+        Some(YamlValue::Mapping(mapping)) => mapping,
+        Some(_) => return Err("SKILL.md front matter must be a mapping".to_string()),
+        None => YamlMapping::new(),
+    };
+
+    insert_yaml_value(
+        &mut mapping,
+        "name",
+        YamlValue::String(runtime_id.to_string()),
+    );
+    insert_yaml_value(
+        &mut mapping,
+        "displayName",
+        YamlValue::String(authoring.display_name.clone()),
+    );
+    insert_yaml_value(
+        &mut mapping,
+        "description",
+        YamlValue::String(authoring.description.clone()),
+    );
+    insert_yaml_value(
+        &mut mapping,
+        "allowedParentAgentIds",
+        YamlValue::Sequence(
+            authoring
+                .allowed_parent_agent_ids
+                .iter()
+                .cloned()
+                .map(YamlValue::String)
+                .collect(),
+        ),
+    );
+    insert_yaml_value(
+        &mut mapping,
+        "suggestedPrompts",
+        YamlValue::Sequence(
+            authoring
+                .suggested_prompts
+                .iter()
+                .cloned()
+                .map(YamlValue::String)
+                .collect(),
+        ),
+    );
+    insert_yaml_value(
+        &mut mapping,
+        "authoringVersion",
+        YamlValue::Number(1.into()),
+    );
+
+    let yaml = serde_yaml::to_string(&YamlValue::Mapping(mapping))
+        .map_err(|error| format!("Failed to serialize SKILL.md metadata: {error}"))?;
+    Ok(format!(
+        "---\n{}\n---\n\n{}",
+        yaml.trim_end(),
+        authoring.instructions.trim()
+    ))
+}
+
+fn skill_authoring_detail(info: &SkillInfo, content: &str) -> Result<SkillAuthoringDetail, String> {
+    let data = SkillData::from_markdown(info.path.clone(), content, info.level, true)
+        .map_err(|error| error.to_string())?;
+    Ok(SkillAuthoringDetail {
+        skill_key: info.key.clone(),
+        runtime_id: data.name.clone(),
+        display_name: data.display_name.unwrap_or(data.name),
+        description: data.description,
+        instructions: data.content,
+        allowed_parent_agent_ids: data.allowed_parent_agent_ids,
+        suggested_prompts: data.suggested_prompts,
+        level: info.level,
+        revision: data.revision,
+    })
+}
+
+fn authoring_root_for_level(
+    level: SkillLocation,
+    workspace_root: Option<&Path>,
+) -> Result<PathBuf, String> {
+    match level {
+        SkillLocation::User => Ok(get_path_manager_arc().user_skills_dir()),
+        SkillLocation::Project => workspace_root
+            .map(|root| root.join(".void").join("skills"))
+            .ok_or_else(|| "Project-level Skill requires opening a workspace first".to_string()),
+    }
+}
+
+async fn ensure_void_owned_skill_path(
+    info: &SkillInfo,
+    workspace_root: Option<&Path>,
+) -> Result<(), SkillAuthoringCommandError> {
+    if info.is_builtin
+        || !info.is_authorable
+        || info.source_slot != AUTHORABLE_SKILL_SOURCE_SLOT
+        || info.name != info.dir_name
+    {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::NotAuthorable,
+            "Only user-created Void skills can be edited from the customization center",
+        ));
+    }
+    let expected_key = format!(
+        "{}::{}::{}",
+        info.level.as_str(),
+        AUTHORABLE_SKILL_SOURCE_SLOT,
+        info.dir_name
+    );
+    if info.key != expected_key {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::NotAuthorable,
+            "Skill identity does not match its managed source",
+        ));
+    }
+
+    let root = authoring_root_for_level(info.level, workspace_root)
+        .map_err(SkillAuthoringCommandError::validation)?;
+    let canonical_root = tokio::fs::canonicalize(&root).await.map_err(|error| {
+        SkillAuthoringCommandError::read(format!("Failed to resolve managed skill root: {error}"))
+    })?;
+    let canonical_path = tokio::fs::canonicalize(&info.path).await.map_err(|error| {
+        SkillAuthoringCommandError::read(format!("Failed to resolve skill path: {error}"))
+    })?;
+    if canonical_path.parent() != Some(canonical_root.as_path()) {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::NotAuthorable,
+            "Skill path is outside the managed Void skill root",
+        ));
+    }
+    Ok(())
+}
+
+async fn replace_skill_document_with_backup(
+    target: &Path,
+    content: &str,
+) -> Result<PathBuf, SkillAuthoringCommandError> {
+    let parent = target.parent().ok_or_else(|| {
+        SkillAuthoringCommandError::write("Skill document has no parent directory")
+    })?;
+    let nonce = Uuid::new_v4().simple();
+    let temporary = parent.join(format!(".SKILL.{nonce}.tmp"));
+    let backup = parent.join(format!(".SKILL.{nonce}.bak"));
+
+    if let Err(error) = tokio::fs::write(&temporary, content).await {
+        if let Err(cleanup_error) = tokio::fs::remove_file(&temporary).await {
+            if cleanup_error.kind() != std::io::ErrorKind::NotFound {
+                return Err(SkillAuthoringCommandError::rollback(
+                    format!(
+                        "Staged skill document write failed and cleanup also failed: original_error={error}; cleanup_error={cleanup_error}"
+                    ),
+                    &temporary,
+                ));
+            }
+        }
+        return Err(SkillAuthoringCommandError::write(format!(
+            "Failed to write staged skill document: {error}"
+        )));
+    }
+    if let Err(error) = atomic_replace_skill_document(target, &temporary, &backup).await {
+        if let Err(cleanup_error) = tokio::fs::remove_file(&temporary).await {
+            if cleanup_error.kind() != std::io::ErrorKind::NotFound {
+                return Err(SkillAuthoringCommandError::rollback(
+                    format!(
+                        "Atomic Skill replacement failed and staged file cleanup also failed: original_error={error}; cleanup_error={cleanup_error}"
+                    ),
+                    &temporary,
+                ));
+            }
+        }
+        return Err(SkillAuthoringCommandError::write(format!(
+            "Failed to atomically replace skill document: {error}"
+        )));
+    }
+    Ok(backup)
+}
+
+#[cfg(windows)]
+async fn atomic_replace_skill_document(
+    target: &Path,
+    replacement: &Path,
+    backup: &Path,
+) -> Result<(), String> {
+    use std::iter::once;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::{ReplaceFileW, REPLACEFILE_WRITE_THROUGH};
+
+    let target = target.to_path_buf();
+    let replacement = replacement.to_path_buf();
+    let backup = backup.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let target_wide = target
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect::<Vec<_>>();
+        let replacement_wide = replacement
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect::<Vec<_>>();
+        let backup_wide = backup
+            .as_os_str()
+            .encode_wide()
+            .chain(once(0))
+            .collect::<Vec<_>>();
+        unsafe {
+            ReplaceFileW(
+                PCWSTR::from_raw(target_wide.as_ptr()),
+                PCWSTR::from_raw(replacement_wide.as_ptr()),
+                PCWSTR::from_raw(backup_wide.as_ptr()),
+                REPLACEFILE_WRITE_THROUGH,
+                None,
+                None,
+            )
+        }
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| format!("Atomic replacement task failed: {error}"))?
+}
+
+#[cfg(not(windows))]
+async fn atomic_replace_skill_document(
+    target: &Path,
+    replacement: &Path,
+    backup: &Path,
+) -> Result<(), String> {
+    tokio::fs::copy(target, backup)
+        .await
+        .map_err(|error| format!("Failed to create pre-replacement backup: {error}"))?;
+    tokio::fs::rename(replacement, target)
+        .await
+        .map_err(|error| format!("Failed to activate atomic replacement: {error}"))?;
+    Ok(())
+}
+
+async fn restore_skill_document(
+    target: &Path,
+    backup: &Path,
+    expected_revision: &str,
+) -> Result<(), SkillAuthoringCommandError> {
+    match tokio::fs::remove_file(target).await {
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(SkillAuthoringCommandError::rollback(
+                format!(
+                    "Could not remove failed update '{}': {error}",
+                    target.display()
+                ),
+                backup,
+            ));
+        }
+    }
+    tokio::fs::rename(backup, target).await.map_err(|error| {
+        SkillAuthoringCommandError::rollback(
+            format!("Could not restore '{}': {error}", target.display()),
+            backup,
+        )
+    })?;
+    let restored = tokio::fs::read_to_string(target).await.map_err(|error| {
+        SkillAuthoringCommandError::rollback(
+            format!(
+                "Restored file could not be read '{}': {error}",
+                target.display()
+            ),
+            target,
+        )
+    })?;
+    let restored = SkillData::from_markdown(
+        target
+            .parent()
+            .unwrap_or(target)
+            .to_string_lossy()
+            .to_string(),
+        &restored,
+        SkillLocation::User,
+        false,
+    )
+    .map_err(|error| {
+        SkillAuthoringCommandError::rollback(
+            format!("Restored SKILL.md is invalid: {error}"),
+            target,
+        )
+    })?;
+    if restored.revision != expected_revision {
+        return Err(SkillAuthoringCommandError::rollback(
+            format!("Restored revision mismatch for '{}'", target.display()),
+            target,
+        ));
+    }
+    Ok(())
+}
+
+async fn rollback_created_skill(path: &Path) -> Result<(), SkillAuthoringCommandError> {
+    match tokio::fs::remove_dir_all(path).await {
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(SkillAuthoringCommandError::rollback(
+                format!(
+                    "Could not remove created Skill '{}': {error}",
+                    path.display()
+                ),
+                path,
+            ));
+        }
+    }
+    let still_exists = tokio::fs::try_exists(path).await.map_err(|error| {
+        SkillAuthoringCommandError::rollback(
+            format!("Could not verify removal of '{}': {error}", path.display()),
+            path,
+        )
+    })?;
+    if still_exists {
+        return Err(SkillAuthoringCommandError::rollback(
+            format!("Created Skill still exists at '{}'", path.display()),
+            path,
+        ));
+    }
+    Ok(())
 }
 
 fn trim_workspace_path(workspace_path: Option<&str>) -> Option<String> {
@@ -735,6 +1288,313 @@ pub async fn reset_mode_skill_selection(
 }
 
 #[tauri::command]
+pub async fn get_skill_detail(
+    state: State<'_, AppState>,
+    request: GetSkillDetailRequest,
+) -> Result<SkillAuthoringDetail, SkillAuthoringCommandError> {
+    let _authoring_guard = skill_authoring_lock().lock().await;
+    if resolve_remote_workspace(&state, request.workspace_path.as_deref())
+        .await
+        .map_err(SkillAuthoringCommandError::read)?
+        .is_some()
+    {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::UnsupportedRemoteProject,
+            "Remote project skill authoring is not supported yet",
+        ));
+    }
+
+    let workspace_root = workspace_root_from_input(request.workspace_path.as_deref());
+    let info = SkillRegistry::global()
+        .find_skill_by_key_for_workspace(&request.skill_key, workspace_root.as_deref())
+        .await
+        .ok_or_else(|| {
+            SkillAuthoringCommandError::new(
+                SkillAuthoringErrorCode::NotFound,
+                format!("Skill '{}' not found", request.skill_key),
+            )
+        })?;
+    ensure_void_owned_skill_path(&info, workspace_root.as_deref()).await?;
+    let skill_md_path = PathBuf::from(&info.path).join("SKILL.md");
+    let content = tokio::fs::read_to_string(&skill_md_path)
+        .await
+        .map_err(|error| {
+            SkillAuthoringCommandError::read(format!("Failed to read SKILL.md: {error}"))
+        })?;
+    skill_authoring_detail(&info, &content).map_err(SkillAuthoringCommandError::validation)
+}
+
+#[tauri::command]
+pub async fn create_skill(
+    state: State<'_, AppState>,
+    request: CreateSkillRequest,
+) -> Result<SkillAuthoringDetail, SkillAuthoringCommandError> {
+    let _authoring_guard = skill_authoring_lock().lock().await;
+    if request.level == SkillLocation::Project
+        && resolve_remote_workspace(&state, request.workspace_path.as_deref())
+            .await
+            .map_err(SkillAuthoringCommandError::read)?
+            .is_some()
+    {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::UnsupportedRemoteProject,
+            "Remote project skill authoring is not supported yet",
+        ));
+    }
+
+    let authoring = normalize_skill_authoring(
+        request.display_name,
+        request.description,
+        request.instructions,
+        request.allowed_parent_agent_ids,
+        request.suggested_prompts,
+    )
+    .map_err(SkillAuthoringCommandError::validation)?;
+    let workspace_root = workspace_root_from_input(request.workspace_path.as_deref());
+    let target_root = authoring_root_for_level(request.level, workspace_root.as_deref())
+        .map_err(SkillAuthoringCommandError::validation)?;
+    tokio::fs::create_dir_all(&target_root)
+        .await
+        .map_err(|error| {
+            SkillAuthoringCommandError::write(format!(
+                "Failed to create managed skill root: {error}"
+            ))
+        })?;
+
+    let runtime_id = format!("custom-{}", Uuid::new_v4().simple());
+    let final_path = target_root.join(&runtime_id);
+    if tokio::fs::try_exists(&final_path).await.map_err(|error| {
+        SkillAuthoringCommandError::read(format!("Failed to inspect target skill path: {error}"))
+    })? {
+        return Err(SkillAuthoringCommandError::write(
+            "Generated Skill identity already exists; retry creation",
+        ));
+    }
+    let staging_path = target_root.join(format!(".{runtime_id}.{}.tmp", Uuid::new_v4().simple()));
+    let document = serialize_skill_document(None, &runtime_id, &authoring)
+        .map_err(SkillAuthoringCommandError::validation)?;
+
+    let create_result = async {
+        tokio::fs::create_dir(&staging_path)
+            .await
+            .map_err(|error| {
+                SkillAuthoringCommandError::write(format!(
+                    "Failed to create staged skill directory: {error}"
+                ))
+            })?;
+        let staged_document = staging_path.join("SKILL.md");
+        tokio::fs::write(&staged_document, &document)
+            .await
+            .map_err(|error| {
+                SkillAuthoringCommandError::write(format!(
+                    "Failed to write staged SKILL.md: {error}"
+                ))
+            })?;
+        SkillData::from_markdown(
+            staging_path.to_string_lossy().to_string(),
+            &document,
+            request.level,
+            true,
+        )
+        .map_err(|error| {
+            SkillAuthoringCommandError::validation(format!(
+                "Generated SKILL.md failed validation: {error}"
+            ))
+        })?;
+        tokio::fs::rename(&staging_path, &final_path)
+            .await
+            .map_err(|error| {
+                SkillAuthoringCommandError::write(format!(
+                    "Failed to activate generated Skill: {error}"
+                ))
+            })
+    }
+    .await;
+
+    if let Err(error) = create_result {
+        if let Err(rollback_error) = rollback_created_skill(&staging_path).await {
+            return Err(rollback_error.with_original(&error.message));
+        }
+        return Err(error);
+    }
+
+    let registry = SkillRegistry::global();
+    registry
+        .refresh_for_workspace(workspace_root.as_deref())
+        .await;
+    let skill_key = format!(
+        "{}::{}::{}",
+        request.level.as_str(),
+        AUTHORABLE_SKILL_SOURCE_SLOT,
+        runtime_id
+    );
+    let Some(info) = registry
+        .find_skill_by_key_for_workspace(&skill_key, workspace_root.as_deref())
+        .await
+    else {
+        if let Err(rollback_error) = rollback_created_skill(&final_path).await {
+            return Err(rollback_error.with_original("Generated Skill registration failed"));
+        }
+        registry
+            .refresh_for_workspace(workspace_root.as_deref())
+            .await;
+        return Err(SkillAuthoringCommandError::write(
+            "Generated Skill could not be registered; creation was rolled back",
+        ));
+    };
+    if let Err(error) = ensure_void_owned_skill_path(&info, workspace_root.as_deref()).await {
+        if let Err(rollback_error) = rollback_created_skill(&final_path).await {
+            return Err(rollback_error.with_original(&error.message));
+        }
+        registry
+            .refresh_for_workspace(workspace_root.as_deref())
+            .await;
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::NotAuthorable,
+            format!(
+                "Generated Skill failed ownership validation and was rolled back: {}",
+                error.message
+            ),
+        ));
+    }
+    skill_authoring_detail(&info, &document).map_err(SkillAuthoringCommandError::validation)
+}
+
+#[tauri::command]
+pub async fn update_skill(
+    state: State<'_, AppState>,
+    request: UpdateSkillRequest,
+) -> Result<SkillAuthoringDetail, SkillAuthoringCommandError> {
+    let _authoring_guard = skill_authoring_lock().lock().await;
+    if resolve_remote_workspace(&state, request.workspace_path.as_deref())
+        .await
+        .map_err(SkillAuthoringCommandError::read)?
+        .is_some()
+    {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::UnsupportedRemoteProject,
+            "Remote project skill authoring is not supported yet",
+        ));
+    }
+
+    let authoring = normalize_skill_authoring(
+        request.display_name,
+        request.description,
+        request.instructions,
+        request.allowed_parent_agent_ids,
+        request.suggested_prompts,
+    )
+    .map_err(SkillAuthoringCommandError::validation)?;
+    let workspace_root = workspace_root_from_input(request.workspace_path.as_deref());
+    let registry = SkillRegistry::global();
+    let info = registry
+        .find_skill_by_key_for_workspace(&request.skill_key, workspace_root.as_deref())
+        .await
+        .ok_or_else(|| {
+            SkillAuthoringCommandError::new(
+                SkillAuthoringErrorCode::NotFound,
+                format!("Skill '{}' not found", request.skill_key),
+            )
+        })?;
+    ensure_void_owned_skill_path(&info, workspace_root.as_deref()).await?;
+
+    let skill_md_path = PathBuf::from(&info.path).join("SKILL.md");
+    let current_content = tokio::fs::read_to_string(&skill_md_path)
+        .await
+        .map_err(|error| {
+            SkillAuthoringCommandError::read(format!("Failed to read SKILL.md: {error}"))
+        })?;
+    let current_detail = skill_authoring_detail(&info, &current_content)
+        .map_err(SkillAuthoringCommandError::validation)?;
+    if current_detail.revision != request.expected_revision {
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::RevisionConflict,
+            "Skill changed after it was opened. Reload the latest version before saving.",
+        ));
+    }
+    let (existing_metadata, _) =
+        FrontMatterMarkdown::load_str(&current_content).map_err(|error| {
+            SkillAuthoringCommandError::validation(format!(
+                "Failed to parse existing SKILL.md: {error}"
+            ))
+        })?;
+    let document = serialize_skill_document(
+        Some(existing_metadata),
+        &current_detail.runtime_id,
+        &authoring,
+    )
+    .map_err(SkillAuthoringCommandError::validation)?;
+    SkillData::from_markdown(info.path.clone(), &document, info.level, true).map_err(|error| {
+        SkillAuthoringCommandError::validation(format!(
+            "Updated SKILL.md failed validation: {error}"
+        ))
+    })?;
+
+    let backup = replace_skill_document_with_backup(&skill_md_path, &document).await?;
+    registry
+        .refresh_for_workspace(workspace_root.as_deref())
+        .await;
+    let updated_info = registry
+        .find_skill_by_key_for_workspace(&request.skill_key, workspace_root.as_deref())
+        .await;
+    let Some(updated_info) = updated_info else {
+        if let Err(rollback_error) =
+            restore_skill_document(&skill_md_path, &backup, &current_detail.revision).await
+        {
+            return Err(rollback_error);
+        }
+        registry
+            .refresh_for_workspace(workspace_root.as_deref())
+            .await;
+        return Err(SkillAuthoringCommandError::write(
+            "Updated Skill could not be registered; the previous version was restored",
+        ));
+    };
+    if let Err(error) = ensure_void_owned_skill_path(&updated_info, workspace_root.as_deref()).await
+    {
+        if let Err(rollback_error) =
+            restore_skill_document(&skill_md_path, &backup, &current_detail.revision).await
+        {
+            return Err(rollback_error);
+        }
+        registry
+            .refresh_for_workspace(workspace_root.as_deref())
+            .await;
+        return Err(SkillAuthoringCommandError::new(
+            SkillAuthoringErrorCode::NotAuthorable,
+            format!(
+                "Updated Skill failed ownership validation and was restored: {}",
+                error.message
+            ),
+        ));
+    }
+    let detail = match skill_authoring_detail(&updated_info, &document) {
+        Ok(detail) => detail,
+        Err(error) => {
+            if let Err(rollback_error) =
+                restore_skill_document(&skill_md_path, &backup, &current_detail.revision).await
+            {
+                return Err(rollback_error);
+            }
+            registry
+                .refresh_for_workspace(workspace_root.as_deref())
+                .await;
+            return Err(SkillAuthoringCommandError::validation(format!(
+                "Updated Skill failed validation and was restored: {error}"
+            )));
+        }
+    };
+    if let Err(error) = tokio::fs::remove_file(&backup).await {
+        log::warn!(
+            "Updated Skill was saved but backup cleanup failed: path={}, error={}",
+            backup.display(),
+            error
+        );
+    }
+    Ok(detail)
+}
+
+#[tauri::command]
 pub async fn validate_skill_path(path: String) -> Result<SkillValidationResult, String> {
     use std::path::Path;
 
@@ -801,6 +1661,7 @@ pub async fn add_skill(
     level: String,
     workspace_path: Option<String>,
 ) -> Result<String, String> {
+    let _authoring_guard = skill_authoring_lock().lock().await;
     let validation = validate_skill_path(source_path.clone()).await?;
     if !validation.valid {
         return Err(validation.error.unwrap_or("Invalid skill path".to_string()));
@@ -893,6 +1754,7 @@ pub async fn delete_skill(
     skill_key: String,
     workspace_path: Option<String>,
 ) -> Result<String, String> {
+    let _authoring_guard = skill_authoring_lock().lock().await;
     let registry = SkillRegistry::global();
     if let Some((remote_root, entry)) =
         resolve_remote_workspace(&state, workspace_path.as_deref()).await?
@@ -948,6 +1810,143 @@ pub async fn delete_skill(
     Ok(format!("Skill '{}' deleted successfully", skill_info.name))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn valid_authoring() -> NormalizedSkillAuthoring {
+        normalize_skill_authoring(
+            "财务报告分析".to_string(),
+            "分析财务报告并提示主要风险。".to_string(),
+            "先核对数据来源，再分析关键指标。".to_string(),
+            vec![
+                "Cowork".to_string(),
+                "DeepResearch".to_string(),
+                "Cowork".to_string(),
+            ],
+            vec!["分析这份财务报告".to_string(), "找出主要风险".to_string()],
+        )
+        .expect("valid authoring payload")
+    }
+
+    #[test]
+    fn skill_authoring_normalizes_scenarios_and_preserves_prompt_order() {
+        let normalized = valid_authoring();
+
+        assert_eq!(
+            normalized.allowed_parent_agent_ids,
+            vec!["Cowork".to_string(), "DeepResearch".to_string()]
+        );
+        assert_eq!(
+            normalized.suggested_prompts,
+            vec!["分析这份财务报告".to_string(), "找出主要风险".to_string()]
+        );
+    }
+
+    #[test]
+    fn skill_authoring_rejects_unknown_scenarios_and_empty_prompts() {
+        assert!(normalize_skill_authoring(
+            "测试".to_string(),
+            "测试描述".to_string(),
+            "测试说明".to_string(),
+            vec!["Unknown".to_string()],
+            vec!["试试".to_string()],
+        )
+        .is_err());
+        assert!(normalize_skill_authoring(
+            "测试".to_string(),
+            "测试描述".to_string(),
+            "测试说明".to_string(),
+            vec!["agentic".to_string()],
+            Vec::new(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn updating_skill_document_preserves_unknown_metadata_and_runtime_identity() {
+        let existing: YamlValue =
+            serde_yaml::from_str("name: legacy-runtime\ncustomVendorField: keep-me\n")
+                .expect("existing metadata");
+        let document =
+            serialize_skill_document(Some(existing), "legacy-runtime", &valid_authoring())
+                .expect("document should serialize");
+        let (metadata, _) =
+            FrontMatterMarkdown::load_str(&document).expect("document should parse");
+
+        assert_eq!(
+            metadata.get("name").and_then(YamlValue::as_str),
+            Some("legacy-runtime")
+        );
+        assert_eq!(
+            metadata
+                .get("customVendorField")
+                .and_then(YamlValue::as_str),
+            Some("keep-me")
+        );
+        assert!(document.contains("displayName: 财务报告分析"));
+    }
+
+    #[tokio::test]
+    async fn skill_document_replace_can_restore_the_exact_previous_revision() {
+        let root = std::env::temp_dir().join(format!(
+            "void-skill-authoring-restore-{}",
+            Uuid::new_v4().simple()
+        ));
+        tokio::fs::create_dir_all(&root)
+            .await
+            .expect("create test directory");
+        let target = root.join("SKILL.md");
+        let original = serialize_skill_document(None, "custom-original", &valid_authoring())
+            .expect("serialize original document");
+        tokio::fs::write(&target, &original)
+            .await
+            .expect("write original document");
+        let original_revision = SkillData::from_markdown(
+            root.to_string_lossy().to_string(),
+            &original,
+            SkillLocation::User,
+            true,
+        )
+        .expect("parse original document")
+        .revision;
+        let updated_authoring = normalize_skill_authoring(
+            "更新后的技能".to_string(),
+            "更新后的描述。".to_string(),
+            "更新后的完整操作说明。".to_string(),
+            vec!["agentic".to_string()],
+            vec!["执行更新后的技能".to_string()],
+        )
+        .expect("updated payload");
+        let updated = serialize_skill_document(None, "custom-original", &updated_authoring)
+            .expect("serialize updated document");
+
+        let backup = replace_skill_document_with_backup(&target, &updated)
+            .await
+            .expect("replace document");
+        assert_eq!(
+            tokio::fs::read_to_string(&target)
+                .await
+                .expect("read updated document"),
+            updated
+        );
+
+        restore_skill_document(&target, &backup, &original_revision)
+            .await
+            .expect("restore original document");
+        assert_eq!(
+            tokio::fs::read_to_string(&target)
+                .await
+                .expect("read restored document"),
+            original
+        );
+
+        tokio::fs::remove_dir_all(&root)
+            .await
+            .expect("remove test directory");
+    }
+}
+
 #[tauri::command]
 pub async fn list_skill_market(
     _state: State<'_, AppState>,
@@ -985,6 +1984,7 @@ pub async fn download_skill_market(
     if package.is_empty() {
         return Err("Skill package cannot be empty".to_string());
     }
+    let _authoring_guard = skill_authoring_lock().lock().await;
 
     let level = request.level.unwrap_or(SkillLocation::Project);
     let workspace_path = if level == SkillLocation::Project {

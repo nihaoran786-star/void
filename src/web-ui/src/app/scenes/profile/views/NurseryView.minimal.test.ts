@@ -1,19 +1,18 @@
-import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import {
+  readSourceText,
+  sha256SourceText,
+  sha256Text,
+} from '@/test-utils/sourceText';
 
-const pathFor = (relativePath: string): string =>
-  fileURLToPath(new URL(relativePath, import.meta.url));
+const pathFor = (relativePath: string): URL =>
+  new URL(relativePath, import.meta.url);
 
 const readSource = (relativePath: string): string =>
-  readFileSync(pathFor(relativePath), 'utf8').replace(/\r\n/g, '\n');
+  readSourceText(pathFor(relativePath));
 
 const sha256 = (relativePath: string): string =>
-  createHash('sha256').update(readFileSync(pathFor(relativePath))).digest('hex');
-
-const sha256Text = (source: string): string =>
-  createHash('sha256').update(source).digest('hex');
+  sha256SourceText(pathFor(relativePath));
 
 describe('Nursery Minimal presentation contract', () => {
   const source = readSource('./NurseryView.minimal.scss');
@@ -36,13 +35,13 @@ describe('Nursery Minimal presentation contract', () => {
       '0a4ff738e71becc5f98d32504fb79015376e203c95f87c14b9330e0cf4e5e777',
     );
     expect(sha256('./NurseryView.tsx')).toBe(
-      '16732b9a3c98db38eb1b0d7e5f76921003b2df25cf645d081c5fcd9f5710c044',
+      '7cd9cb424d61df8deb2dace3318df6fbad665d27eb0bcf8add019dbb9962a2ca',
     );
     expect(sha256('./NurseryGallery.tsx')).toBe(
-      '6bf9344cb71f68f61dfbebdd89f79f59ad203a6ff7735e9a92cb630410588573',
+      'b78865ed906eb78307712e59a9c2f6d4dd24d50590d08e134ba69b57cb0cc7df',
     );
     expect(sha256('./AssistantQuickInput.tsx')).toBe(
-      'cc5ee4a14460bdea0e7b582634b8fba729364d6c18b24fba0e4829257568c54d',
+      'd2bbf2fbf7d3e29e111e4235302589b3f9a993982ffc285eb7ec4a95dc802ae6',
     );
   });
 

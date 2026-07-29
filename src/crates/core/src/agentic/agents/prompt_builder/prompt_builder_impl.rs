@@ -38,6 +38,9 @@ If a tool spec is already available in the current conversation, do not call `Ge
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ToolListingSections {
     pub skill_listing: Option<String>,
+    /// Stable hash of sorted `(skill key, content revision)` pairs.
+    /// This participates in cache identity but is not rendered into the prompt.
+    pub skill_set_revision: Option<String>,
     pub agent_listing: Option<String>,
     pub collapsed_tool_listing: Option<String>,
 }
@@ -596,6 +599,7 @@ mod tests {
     async fn builds_ordered_prepended_reminders_from_tool_listings_and_user_context() {
         let tool_sections = ToolListingSections {
             skill_listing: Some("<available_skills>\n- pdf\n</available_skills>".to_string()),
+            skill_set_revision: Some("skill-set-r1".to_string()),
             agent_listing: Some("<available_agents>\n- Explore\n</available_agents>".to_string()),
             collapsed_tool_listing: Some(
                 "<collapsed_tools>\n- WebFetch: Fetch readable web content.\n</collapsed_tools>"

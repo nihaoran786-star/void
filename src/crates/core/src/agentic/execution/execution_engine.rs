@@ -21,7 +21,9 @@ use crate::agentic::image_analysis::{
     render_attached_image_references, ImageContextData, ImageLimits,
 };
 use crate::agentic::round_preempt::RoundInjectionKind;
-use crate::agentic::session::{CompressionMode, ContextCompressor, SessionManager};
+use crate::agentic::session::{
+    CompressionMode, ContextCompressor, SessionManager, SystemPromptCacheIdentity,
+};
 use crate::agentic::tools::implementations::{GetToolSpecTool, SkillTool, TaskTool};
 use crate::agentic::tools::{resolve_tool_manifest, tool_context_runtime, ResolvedToolManifest};
 use crate::agentic::util::build_remote_workspace_layout_preview;
@@ -245,6 +247,18 @@ pub struct ExecutionEngine {
     session_manager: Arc<SessionManager>,
     context_compressor: Arc<ContextCompressor>,
     config: ExecutionEngineConfig,
+}
+
+fn cache_identity_with_skill_set(
+    base: SystemPromptCacheIdentity,
+    skill_set_revision: Option<&str>,
+) -> SystemPromptCacheIdentity {
+    match skill_set_revision {
+        Some(revision) => {
+            SystemPromptCacheIdentity::new(format!("{}||skills:{}", base.scope_key, revision))
+        }
+        None => base,
+    }
 }
 
 impl ExecutionEngine {
@@ -594,12 +608,17 @@ impl ExecutionEngine {
                 .any(|definition| definition.name == tool_name)
         };
 
+        let skill_context = if has_tool_definition("Skill") {
+            Some(SkillTool::build_available_skills_context(Some(tool_context)).await)
+        } else {
+            None
+        };
+
         ToolListingSections {
-            skill_listing: if has_tool_definition("Skill") {
-                SkillTool::build_available_skills_context_section(Some(tool_context)).await
-            } else {
-                None
-            },
+            skill_listing: skill_context
+                .as_ref()
+                .and_then(|context| context.section.clone()),
+            skill_set_revision: skill_context.map(|context| context.revision),
             agent_listing: if has_tool_definition("Task") {
                 TaskTool::build_available_agents_context_section(Some(tool_context)).await
             } else {
@@ -772,6 +791,11 @@ impl ExecutionEngine {
                 current_agent.system_prompt_cache_identity(context.model_name.as_deref())
             })
             .unwrap_or_else(|| current_agent.system_prompt_cache_identity(None));
+        let identity = cache_identity_with_skill_set(
+            identity,
+            prompt_context
+                .and_then(|context| context.tool_listing_sections.skill_set_revision.as_deref()),
+        );
 
         if let Some(cached_system_prompt) = self
             .session_manager
@@ -1295,17 +1319,21 @@ impl ExecutionEngine {
                 .await;
         }
 
-        let current_agent = agent_registry
-            .get_agent(
-                &context.agent_type,
-                context
-                    .workspace
-                    .as_ref()
-                    .map(|workspace| workspace.root_path()),
-            )
-            .ok_or_else(|| {
-                VoidError::NotFound(format!("Agent not found: {}", context.agent_type))
-            })?;
+        let current_agent = if let Some(persona) = context.persona_runtime.as_ref() {
+            persona.agent()
+        } else {
+            agent_registry
+                .get_agent(
+                    &context.agent_type,
+                    context
+                        .workspace
+                        .as_ref()
+                        .map(|workspace| workspace.root_path()),
+                )
+                .ok_or_else(|| {
+                    VoidError::NotFound(format!("Agent not found: {}", context.agent_type))
+                })?
+        };
 
         let original_user_input = context
             .context
@@ -1389,15 +1417,19 @@ impl ExecutionEngine {
             model_capability_profile,
         );
 
-        let tool_policy = agent_registry
-            .get_agent_tool_policy(
-                &context.agent_type,
-                context
-                    .workspace
-                    .as_ref()
-                    .map(|workspace| workspace.root_path()),
-            )
-            .await;
+        let tool_policy = if let Some(persona) = context.persona_runtime.as_ref() {
+            persona.tool_policy()
+        } else {
+            agent_registry
+                .get_agent_tool_policy(
+                    &context.agent_type,
+                    context
+                        .workspace
+                        .as_ref()
+                        .map(|workspace| workspace.root_path()),
+                )
+                .await
+        };
         let allowed_tools = tool_policy.allowed_tools.clone();
         let enable_tools = context
             .context
@@ -2095,15 +2127,19 @@ impl ExecutionEngine {
                 .load_custom_subagents(workspace.root_path())
                 .await;
         }
-        let current_agent = agent_registry
-            .get_agent(
-                &agent_type,
-                context
-                    .workspace
-                    .as_ref()
-                    .map(|workspace| workspace.root_path()),
-            )
-            .ok_or_else(|| VoidError::NotFound(format!("Agent not found: {}", agent_type)))?;
+        let current_agent = if let Some(persona) = context.persona_runtime.as_ref() {
+            persona.agent()
+        } else {
+            agent_registry
+                .get_agent(
+                    &agent_type,
+                    context
+                        .workspace
+                        .as_ref()
+                        .map(|workspace| workspace.root_path()),
+                )
+                .ok_or_else(|| VoidError::NotFound(format!("Agent not found: {}", agent_type)))?
+        };
         info!(
             "Current Agent: {} ({})",
             current_agent.name(),
@@ -2235,15 +2271,19 @@ impl ExecutionEngine {
         );
 
         // 3. Get available tools list (read tool configuration for current mode from global config)
-        let tool_policy = agent_registry
-            .get_agent_tool_policy(
-                &agent_type,
-                context
-                    .workspace
-                    .as_ref()
-                    .map(|workspace| workspace.root_path()),
-            )
-            .await;
+        let tool_policy = if let Some(persona) = context.persona_runtime.as_ref() {
+            persona.tool_policy()
+        } else {
+            agent_registry
+                .get_agent_tool_policy(
+                    &agent_type,
+                    context
+                        .workspace
+                        .as_ref()
+                        .map(|workspace| workspace.root_path()),
+                )
+                .await
+        };
         let allowed_tools = tool_policy.allowed_tools.clone();
         let enable_tools = context
             .context
@@ -2367,49 +2407,47 @@ impl ExecutionEngine {
         // Add System Prompt to the beginning of message list (only for this execution, not persisted)
         let mut messages = vec![system_prompt_message.clone()];
         messages.extend(initial_messages);
-        let mut active_recovery_checkpoint =
-            if let Some(embedded) = RecoveryCheckpoint::latest_embedded(&messages) {
-                if embedded.matches_latest_user_goal(&messages) {
-                    let checkpoint = self
-                        .session_manager
-                        .validate_recovery_checkpoint(
-                            &context.session_id,
-                            catalog_generation,
-                            &messages,
-                        )
-                        .await?;
-                    let Some(checkpoint) = checkpoint else {
-                        let reason =
-                            "Context has a recovery boundary without a persisted checkpoint"
-                                .to_string();
-                        let mut failed = embedded;
-                        failed.mark_failed(
-                            reason.clone(),
-                            SystemTime::now()
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap_or_default()
-                                .as_millis() as u64,
-                        );
-                        let _ = self
-                            .session_manager
-                            .save_recovery_checkpoint(&failed)
-                            .await;
-                        return Err(VoidError::Session(reason));
-                    };
-                    if checkpoint.status != RecoveryCheckpointStatus::Ready {
-                        return Err(VoidError::Session(
-                            checkpoint.blocking_reason.clone().unwrap_or_else(|| {
-                                "Recovery checkpoint is not ready".to_string()
-                            }),
-                        ));
-                    }
-                    Some(checkpoint)
-                } else {
-                    None
+        let mut active_recovery_checkpoint = if let Some(embedded) =
+            RecoveryCheckpoint::latest_embedded(&messages)
+        {
+            if embedded.matches_latest_user_goal(&messages) {
+                let checkpoint = self
+                    .session_manager
+                    .validate_recovery_checkpoint(
+                        &context.session_id,
+                        catalog_generation,
+                        &messages,
+                    )
+                    .await?;
+                let Some(checkpoint) = checkpoint else {
+                    let reason = "Context has a recovery boundary without a persisted checkpoint"
+                        .to_string();
+                    let mut failed = embedded;
+                    failed.mark_failed(
+                        reason.clone(),
+                        SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64,
+                    );
+                    let _ = self.session_manager.save_recovery_checkpoint(&failed).await;
+                    return Err(VoidError::Session(reason));
+                };
+                if checkpoint.status != RecoveryCheckpointStatus::Ready {
+                    return Err(VoidError::Session(
+                        checkpoint
+                            .blocking_reason
+                            .clone()
+                            .unwrap_or_else(|| "Recovery checkpoint is not ready".to_string()),
+                    ));
                 }
+                Some(checkpoint)
             } else {
                 None
-            };
+            }
+        } else {
+            None
+        };
 
         let mut round_index = 0;
         let mut completed_rounds = 0usize;
@@ -2601,8 +2639,7 @@ impl ExecutionEngine {
                         );
 
                         messages = compressed_messages;
-                        active_recovery_checkpoint =
-                            RecoveryCheckpoint::latest_embedded(&messages);
+                        active_recovery_checkpoint = RecoveryCheckpoint::latest_embedded(&messages);
                         full_compression_count += 1;
                         consecutive_compression_failures = 0;
                     }
@@ -3376,9 +3413,10 @@ impl ExecutionEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::{ContextHealthSnapshot, ExecutionEngine};
+    use super::{cache_identity_with_skill_set, ContextHealthSnapshot, ExecutionEngine};
     use crate::agentic::core::{Message, MessageRole, ToolCall, ToolResult};
     use crate::agentic::image_analysis::ImageContextData;
+    use crate::agentic::session::SystemPromptCacheIdentity;
     use crate::service::config::types::AIConfig;
     use crate::service::config::types::AIModelConfig;
     use crate::util::types::ToolDefinition;
@@ -3400,6 +3438,21 @@ mod tests {
     fn auto_model_uses_fast_for_short_first_message() {
         assert!(ExecutionEngine::should_use_fast_auto_model(0, "你好"));
         assert!(ExecutionEngine::should_use_fast_auto_model(0, "1234567890"));
+    }
+
+    #[test]
+    fn system_prompt_cache_identity_tracks_skill_set_revision() {
+        let base = SystemPromptCacheIdentity::new(
+            "template:agentic||persona:user::void::writer@r1||tools:a",
+        );
+        let first = cache_identity_with_skill_set(base.clone(), Some("skills-r1"));
+        let same = cache_identity_with_skill_set(base.clone(), Some("skills-r1"));
+        let changed = cache_identity_with_skill_set(base.clone(), Some("skills-r2"));
+        let without_skills = cache_identity_with_skill_set(base.clone(), None);
+
+        assert_eq!(first, same);
+        assert_ne!(first, changed);
+        assert_eq!(without_skills, base);
     }
 
     #[test]

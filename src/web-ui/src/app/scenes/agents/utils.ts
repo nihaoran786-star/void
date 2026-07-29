@@ -58,9 +58,9 @@ function getAgentBadge(
 
 function getAgentDescription(
   t: TFunction<'scenes/agents'>,
-  agent: Pick<AgentWithCapabilities, 'id' | 'name' | 'description'>,
+  agent: Pick<AgentWithCapabilities, 'id' | 'name' | 'description' | 'displayDescription'>,
 ): string {
-  const fallback = agent.description?.trim() || '—';
+  const fallback = agent.displayDescription?.trim() || agent.description?.trim() || '—';
   const canonicalModeKey = MODE_DESCRIPTION_KEY_BY_ID[agent.id.toLowerCase()];
   const candidates = Array.from(new Set([
     agent.id,

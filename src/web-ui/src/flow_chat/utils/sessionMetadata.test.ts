@@ -12,6 +12,7 @@ import {
   buildSessionMetadata,
   deriveIsAutomationSessionFromMetadata,
   deriveLastFinishedAtFromMetadata,
+  deriveSessionPersonaStateFromMetadata,
   deriveSessionRelationshipFromMetadata,
   normalizeSessionRelationship,
   resolveSessionRelationship,
@@ -169,6 +170,12 @@ describe('sessionMetadata', () => {
     expect(metadata.customMetadata).toEqual({
       unrelated: 'preserved',
       lastFinishedAt: null,
+      customization: {
+        schemaVersion: 1,
+        scenario: 'code',
+        executionPolicy: 'agentic',
+        activePersonaBinding: null,
+      },
     });
   });
 
@@ -199,6 +206,12 @@ describe('sessionMetadata', () => {
     expect(metadata.customMetadata).toEqual({
       unrelated: 'preserved',
       lastFinishedAt: 4321,
+      customization: {
+        schemaVersion: 1,
+        scenario: 'code',
+        executionPolicy: 'agentic',
+        activePersonaBinding: null,
+      },
     });
     expect(deriveLastFinishedAtFromMetadata(metadata)).toBe(4321);
   });
@@ -254,6 +267,12 @@ describe('sessionMetadata', () => {
       titleSource: 'i18n',
       titleKey: 'flow-chat:session.newCodeWithIndex',
       titleParams: { count: 2 },
+      customization: {
+        schemaVersion: 1,
+        scenario: 'code',
+        executionPolicy: 'agentic',
+        activePersonaBinding: null,
+      },
     });
   });
 
@@ -655,6 +674,193 @@ describe('sessionMetadata', () => {
       const metadata = buildSessionMetadata(session, existingMetadata);
 
       expect(metadata.needsUserAttention).toBeUndefined();
+    });
+  });
+
+  describe('parent persona persistence', () => {
+    it('persists scenario, execution policy, and selected persona separately from mode', () => {
+      const session = createSession({
+        mode: 'Plan',
+        config: {
+          modelName: 'gpt-test',
+          agentType: 'Plan',
+        },
+        scenario: 'code',
+        executionPolicy: 'Plan',
+        activePersonaBinding: {
+          kind: 'agent',
+          personaId: 'frontend-engineer',
+          personaRevision: { status: 'known', value: '3' },
+        },
+      });
+
+      const metadata = buildSessionMetadata(session);
+
+      expect(metadata.agentType).toBe('Plan');
+      expect(metadata.customMetadata?.customization).toEqual({
+        schemaVersion: 1,
+        scenario: 'code',
+        executionPolicy: 'Plan',
+        activePersonaBinding: {
+          kind: 'agent',
+          personaId: 'frontend-engineer',
+          personaRevision: { status: 'known', value: '3' },
+        },
+      });
+    });
+
+    it('persists explicit null when the persona selection is cleared', () => {
+      const metadata = buildSessionMetadata(
+        createSession({
+          scenario: 'media',
+          executionPolicy: 'Media',
+          activePersonaBinding: null,
+          mode: 'Media',
+        }),
+        {
+          sessionId: 'session-1',
+          sessionName: 'Session Title',
+          agentType: 'Media',
+          modelName: 'gpt-test',
+          createdAt: 1000,
+          lastActiveAt: 1000,
+          turnCount: 0,
+          messageCount: 0,
+          toolCallCount: 0,
+          status: 'active',
+          tags: [],
+          customMetadata: {
+            customization: {
+              schemaVersion: 1,
+              scenario: 'media',
+              executionPolicy: 'Media',
+              activePersonaBinding: {
+                kind: 'agent',
+                personaId: 'old-agent',
+                personaRevision: { status: 'legacy_unversioned' },
+              },
+            },
+          },
+        }
+      );
+
+      expect(
+        metadata.customMetadata?.customization?.activePersonaBinding
+      ).toBeNull();
+    });
+
+    it('restores valid metadata and safely falls back for old or malformed sessions', () => {
+      expect(
+        deriveSessionPersonaStateFromMetadata(
+          {
+            sessionId: 'persisted',
+            agentType: 'agentic',
+            customMetadata: {
+              customization: {
+                schemaVersion: 1,
+                scenario: 'cowork',
+                executionPolicy: 'Claw',
+                activePersonaBinding: {
+                  kind: 'agent',
+                  personaId: 'office-agent',
+                  personaRevision: { status: 'legacy_unversioned' },
+                },
+              },
+            },
+          },
+          'normal'
+        )
+      ).toEqual({
+        scenario: 'cowork',
+        executionPolicy: 'Claw',
+        activePersonaBinding: {
+          kind: 'agent',
+          personaId: 'office-agent',
+          personaRevision: { status: 'legacy_unversioned' },
+        },
+      });
+
+      expect(
+        deriveSessionPersonaStateFromMetadata(
+          {
+            sessionId: 'old',
+            agentType: 'DeepResearch',
+          },
+          'normal'
+        )
+      ).toEqual({
+        scenario: 'cowork',
+        executionPolicy: 'DeepResearch',
+        activePersonaBinding: null,
+      });
+
+      expect(
+        deriveSessionPersonaStateFromMetadata(
+          {
+            sessionId: 'broken',
+            agentType: 'Media',
+            customMetadata: {
+              customization: {
+                schemaVersion: 1,
+                scenario: 'media',
+                executionPolicy: '',
+                activePersonaBinding: null,
+              },
+            },
+          },
+          'normal'
+        )
+      ).toEqual({
+        scenario: 'media',
+        executionPolicy: 'Media',
+        activePersonaBinding: null,
+      });
+    });
+
+    it('does not persist or restore a parent persona on child sessions', () => {
+      const metadata = buildSessionMetadata(
+        createSession({
+          sessionId: 'child',
+          sessionKind: 'subagent',
+          parentSessionId: 'parent',
+          parentToolCallId: 'tool-1',
+          subagentType: 'reviewer',
+          scenario: 'code',
+          executionPolicy: 'agentic',
+          activePersonaBinding: {
+            kind: 'agent',
+            personaId: 'forbidden',
+            personaRevision: { status: 'legacy_unversioned' },
+          },
+        })
+      );
+
+      expect(metadata.customMetadata?.customization).toBeUndefined();
+      expect(
+        deriveSessionPersonaStateFromMetadata(
+          {
+            sessionId: 'child',
+            agentType: 'agentic',
+            customMetadata: {
+              customization: {
+                schemaVersion: 1,
+                scenario: 'media',
+                executionPolicy: 'Media',
+                activePersonaBinding: {
+                  kind: 'agent',
+                  personaId: 'forbidden',
+                  personaRevision: { status: 'legacy_unversioned' },
+                },
+              },
+            },
+          },
+          'subagent'
+        )
+      ).toEqual({
+        scenario: undefined,
+        executionPolicy: undefined,
+        activePersonaBinding: undefined,
+      });
     });
   });
 });

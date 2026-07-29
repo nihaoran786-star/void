@@ -13,7 +13,8 @@ use crate::agentic::events::{
     AgenticEvent, DeepReviewQueueState, EventPriority, EventQueue, EventRouter, EventSubscriber,
 };
 use crate::agentic::execution::{
-    ContextCompactionOutcome, ExecutionContext, ExecutionEngine, ExecutionResult,
+    resolve_persona_turn_runtime, wrap_persona_runtime_validation_error, ContextCompactionOutcome,
+    ExecutionContext, ExecutionEngine, ExecutionResult,
 };
 use crate::agentic::fork_agent::ForkAgentContextSnapshot;
 use crate::agentic::goal_mode::{
@@ -56,9 +57,8 @@ use tokio::sync::{mpsc, watch, OwnedSemaphorePermit, RwLock, Semaphore};
 use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
 use void_core_types::{
-    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec,
-    SubagentTaskRecord, SubagentTaskRecoveryBlockCode, SubagentTaskReplaySafety,
-    SubagentTaskStatus,
+    SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
+    SubagentTaskRecoveryBlockCode, SubagentTaskReplaySafety, SubagentTaskStatus,
 };
 use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
@@ -82,15 +82,13 @@ const DURABLE_SUBAGENT_CONTEXT_ALLOWLIST: &[&str] = &[
 fn contains_explicit_sensitive_context_value(value: &str) -> bool {
     let lowered = value.to_ascii_lowercase();
     let trimmed = lowered.trim_start();
-    let basic_credential = trimmed
-        .strip_prefix("basic ")
-        .is_some_and(|credential| {
-            credential.len() >= 12
-                && !credential.chars().any(char::is_whitespace)
-                && credential
-                    .chars()
-                    .all(|character| character.is_ascii_alphanumeric() || "+/=_-".contains(character))
-        });
+    let basic_credential = trimmed.strip_prefix("basic ").is_some_and(|credential| {
+        credential.len() >= 12
+            && !credential.chars().any(char::is_whitespace)
+            && credential
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || "+/=_-".contains(character))
+    });
     if trimmed
         .strip_prefix("bearer ")
         .is_some_and(|credential| credential.trim().len() >= 8)
@@ -333,10 +331,7 @@ fn build_btw_session_relationship(
     }
 }
 
-fn validate_btw_child_session(
-    parent_session: &Session,
-    child_session: &Session,
-) -> VoidResult<()> {
+fn validate_btw_child_session(parent_session: &Session, child_session: &Session) -> VoidResult<()> {
     if child_session.kind != SessionKind::EphemeralChild {
         return Err(VoidError::Validation(format!(
             "Session {} is not a BTW child session",
@@ -2394,6 +2389,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             round_preempt: None,
             round_injection: None,
             recover_partial_on_cancel: false,
+            persona_runtime: None,
         };
         let session_max_tokens = session.config.max_context_tokens;
 
@@ -2789,6 +2785,18 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
         let session_workspace = Self::build_workspace_binding(&session.config).await;
 
+        // Parse and resolve the immutable persona snapshot before the turn is
+        // persisted or emitted. Any explicit unsupported/mismatched persona
+        // fails closed instead of silently falling back to the base mode.
+        let persona_runtime = resolve_persona_turn_runtime(
+            user_message_metadata.as_ref(),
+            &effective_agent_type,
+            session.kind,
+            session_workspace.as_ref(),
+        )
+        .await
+        .map_err(wrap_persona_runtime_validation_error)?;
+
         // Build WorkspaceServices based on the workspace type
         let workspace_services = Self::build_workspace_services(&session_workspace).await;
 
@@ -2984,6 +2992,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             round_preempt: self.round_preempt_source.get().cloned(),
             round_injection: self.round_injection_source.get().cloned(),
             recover_partial_on_cancel: false,
+            persona_runtime,
         };
 
         // Auto-generate session title on first message
@@ -4035,11 +4044,11 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         let session_id = session.session_id.clone();
         if !is_resume {
             if let Some(source_session_id) = prompt_cache_source_session_id.as_deref() {
-            let copied = self
-                .session_manager
-                .clone_prompt_cache(source_session_id, &session_id)
-                .await;
-            debug!(
+                let copied = self
+                    .session_manager
+                    .clone_prompt_cache(source_session_id, &session_id)
+                    .await;
+                debug!(
                 "Forked prompt cache into subagent session: source_session_id={}, session_id={}, copied={}",
                 source_session_id, session_id, copied
             );
@@ -4057,31 +4066,31 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
         if !is_resume {
             if let Some(task) = persistent_task.as_ref() {
-            self.session_manager
-                .transition_subagent_task(
-                    &task.parent_session_id,
-                    &task.task_id,
-                    SubagentTaskStatus::Running,
-                    Some(session_id.clone()),
-                    None,
-                    None,
-                    None,
-                    now_ms(),
-                )
-                .await?;
+                self.session_manager
+                    .transition_subagent_task(
+                        &task.parent_session_id,
+                        &task.task_id,
+                        SubagentTaskStatus::Running,
+                        Some(session_id.clone()),
+                        None,
+                        None,
+                        None,
+                        now_ms(),
+                    )
+                    .await?;
             }
         }
 
         if !is_resume {
             if let Some(parent_info) = subagent_parent_info.as_ref() {
-            self.emit_event(AgenticEvent::SubagentSessionLinked {
-                session_id: session_id.clone(),
-                parent_session_id: parent_info.session_id.clone(),
-                parent_dialog_turn_id: parent_info.dialog_turn_id.clone(),
-                parent_tool_call_id: parent_info.tool_call_id.clone(),
-                agent_type: Some(agent_type.clone()),
-            })
-            .await;
+                self.emit_event(AgenticEvent::SubagentSessionLinked {
+                    session_id: session_id.clone(),
+                    parent_session_id: parent_info.session_id.clone(),
+                    parent_dialog_turn_id: parent_info.dialog_turn_id.clone(),
+                    parent_tool_call_id: parent_info.tool_call_id.clone(),
+                    agent_type: Some(agent_type.clone()),
+                })
+                .await;
             }
         }
 
@@ -4206,6 +4215,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             // that belong to a different (parent) session/turn.
             round_injection: None,
             recover_partial_on_cancel: true,
+            persona_runtime: None,
         };
 
         let execution_engine = self.execution_engine.clone();
@@ -5101,8 +5111,8 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     result,
                     failure,
                     now_ms(),
-        )
-        .await
+                )
+                .await
             {
                 warn!(
                     "Failed to persist synchronous subagent terminal state; execution result is unchanged: parent_session_id={}, task_id={}, error={}",
@@ -5492,11 +5502,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     resume_session_id: Some(child_session_id),
                 };
                 let outcome = coordinator
-                    .execute_hidden_subagent_internal(
-                        request,
-                        None,
-                        launch_spec.timeout_seconds,
-                    )
+                    .execute_hidden_subagent_internal(request, None, launch_spec.timeout_seconds)
                     .await;
                 let (status, result, failure) =
                     background_subagent_terminal_facts(outcome.as_ref());
@@ -5583,12 +5589,10 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .get_session(&subagent_parent_info.session_id)
             .is_none()
         {
-            return Err(
-                VoidError::NotFound(format!(
-                    "Parent session not found: {}",
-                    subagent_parent_info.session_id
-                )),
-            );
+            return Err(VoidError::NotFound(format!(
+                "Parent session not found: {}",
+                subagent_parent_info.session_id
+            )));
         }
         let background_task_id = format!("bg-subagent-{}", uuid::Uuid::new_v4());
         let background_execution_owner = format!("background-execution-{}", uuid::Uuid::new_v4());
@@ -5596,19 +5600,19 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         let task_description = request.user_input_text.clone();
         let request_context = request.context.clone();
         let mut task_record = SubagentTaskRecord::new_typed(
-                background_task_id.clone(),
-                subagent_parent_info.session_id.clone(),
-                task_description.clone(),
-                background_execution_owner,
-                SubagentTaskExecutionMode::Background,
-                if request.prompt_cache_source_session_id.is_some() {
-                    SubagentTaskContextMode::Fork
-                } else {
-                    SubagentTaskContextMode::Fresh
-                },
-                SubagentTaskReplaySafety::Idempotent,
-                now_ms(),
-            );
+            background_task_id.clone(),
+            subagent_parent_info.session_id.clone(),
+            task_description.clone(),
+            background_execution_owner,
+            SubagentTaskExecutionMode::Background,
+            if request.prompt_cache_source_session_id.is_some() {
+                SubagentTaskContextMode::Fork
+            } else {
+                SubagentTaskContextMode::Fresh
+            },
+            SubagentTaskReplaySafety::Idempotent,
+            now_ms(),
+        );
         task_record.launch_spec = Some(SubagentTaskLaunchSpec {
             agent_type: agent_type.clone(),
             parent_dialog_turn_id: subagent_parent_info.dialog_turn_id.clone(),
@@ -5618,7 +5622,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             nesting_depth: request.delegation_policy.nesting_depth,
             timeout_seconds,
         });
-        self.session_manager.create_subagent_task(task_record).await?;
+        self.session_manager
+            .create_subagent_task(task_record)
+            .await?;
         request.persistent_task = Some(PersistentSubagentTaskContext {
             task_id: background_task_id.clone(),
             parent_session_id: subagent_parent_info.session_id.clone(),
@@ -5837,6 +5843,23 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .event_queue
             .enqueue(event, Some(EventPriority::Normal))
             .await;
+    }
+
+    pub(crate) async fn emit_queued_turn_validation_failed(
+        &self,
+        session_id: &str,
+        turn_id: &str,
+        error: &str,
+    ) {
+        let validation_error = VoidError::validation(error.to_string());
+        self.emit_event(AgenticEvent::DialogTurnFailed {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            error: error.to_string(),
+            error_category: Some(validation_error.error_category()),
+            error_detail: Some(validation_error.error_detail()),
+        })
+        .await;
     }
 
     /// Emit a `SessionModelAutoMigrated` event with `High` priority so the

@@ -26,6 +26,7 @@ import {
   sendMessageToTransientBtwSession,
 } from '../BtwThreadService';
 import { pendingQueueManager } from './PendingQueueModule';
+import type { UserMessageMetadata } from '../../types/flow-chat';
 
 const log = createLogger('MessageModule');
 
@@ -129,7 +130,7 @@ export async function sendMessage(
      * Callers should not set this directly.
      */
     bypassPendingQueue?: boolean;
-    userMessageMetadata?: Record<string, unknown>;
+    userMessageMetadata?: UserMessageMetadata;
   }
 ): Promise<void> {
   const session = context.flowChatStore.getState().sessions.get(sessionId);
@@ -188,6 +189,11 @@ export async function sendMessage(
     const refreshedSession = context.flowChatStore.getState().sessions.get(sessionId) ?? session;
     const currentAgentType = (agentType?.trim() || refreshedSession.mode || 'agentic').trim();
     const acpClientId = acpClientIdFromMode(currentAgentType);
+    if (acpClientId && options?.userMessageMetadata?.personaTurnSnapshot) {
+      throw new Error(
+        'ACP sessions do not support a custom persona. Clear the active persona before sending.',
+      );
+    }
 
     if (
       !acpClientId &&

@@ -1,5 +1,9 @@
 {
   "title": "智能体",
+  "runtimeUnsupported": {
+    "title": "请使用 Void 桌面版",
+    "description": "浏览器版暂不支持智能体与团队管理。请在 Void 桌面版中查看、创建、编辑和使用智能体。"
+  },
   "desc": "协作执行专项任务的子智能体 — 共 {{total}} 个，{{enabled}} 个启用",
   "manage": "管理",
   "builtin": "内置",
@@ -7,6 +11,326 @@
   "empty": "暂无子智能体",
   "goManage": "前往管理",
   "loading": "加载中…",
+  "catalog": {
+    "tabs": { "ariaLabel": "智能体目录", "agents": "智能体", "teams": "团队" },
+    "page": { "title": "智能体团队", "subtitle": "查看现有专业团队、主理人和真实协作成员。" },
+    "zone": { "title": "推荐团队", "subtitle": "团队沿用现有运行能力；本页只负责统一展示和进入原有流程。" },
+    "states": {
+      "partial": "部分团队暂时无法加载，已显示可用团队。",
+      "error": "团队目录加载失败，请重试。",
+      "empty": "当前没有可用的智能体团队。"
+    },
+    "actions": { "retry": "重试", "reload": "重新加载" },
+    "detail": {
+      "memberCount": "{{count}} 位成员",
+      "openReviewTeam": "打开代码审查团队",
+      "useInMedia": "在设计创意会话中使用",
+      "editDefinition": "编辑团队",
+      "deleteDefinition": "删除团队",
+      "removeInstalled": "移除已安装团队",
+      "lead": "主理人",
+      "members": "团队成员",
+      "qualityGate": "质检",
+      "definitionReady": "团队定义已就绪",
+      "definitionRuntimeDeferred": "可以继续编辑和管理；通用团队运行时尚未接入，因此暂不能召唤。",
+      "runtimeReady": "现有团队运行时可用",
+      "fixedRuntimeHint": "该团队继续使用原有稳定运行流程。",
+      "workflows": "协作流程",
+      "workflowCount": "{{count}} 套流程"
+    },
+    "management": {
+      "title": "创建和安装团队",
+      "description": "新团队会先保存为可管理定义，不会影响正在运行的会话。",
+      "unsupported": "团队管理仅在 Void 桌面版可用。",
+      "installScope": "安装位置",
+      "userScope": "我的团队",
+      "projectScope": "当前项目",
+      "install": "安装团队",
+      "create": "新建团队",
+      "installSuccess": "已安装团队「{{name}}」",
+      "deleteTitle": "删除团队",
+      "deleteConfirm": "确定删除「{{name}}」？该团队定义会从本机移除。",
+      "deleteSuccess": "已删除团队「{{name}}」"
+    },
+    "scenarios": { "code": "代码开发", "cowork": "日常办公", "media": "设计创意" },
+    "tags": {
+      "code_review": "代码审查",
+      "parallel_review": "并行审查",
+      "quality_gate": "质量门禁",
+      "ai_short_drama": "AI 短剧",
+      "video_production": "视频制作",
+      "five_stage_workflow": "五阶段协作",
+      "definition_only": "团队定义"
+    },
+    "presentations": {
+      "modes": {
+        "agentic": { "name": "代码执行", "description": "直接分析代码、修改文件并完成验证。" },
+        "plan": { "name": "方案规划", "description": "先梳理目标、边界和实施步骤，再进入开发。" },
+        "debug": { "name": "调试诊断", "description": "定位异常原因并验证修复方向。" },
+        "multitask": { "name": "并行任务", "description": "把独立工作拆开并行推进，再统一汇总。" },
+        "team": { "name": "开发协作", "description": "使用现有开发协作模式组织代码任务。" },
+        "cowork": { "name": "日常办公", "description": "处理文档、资料、分析和通用办公任务。" },
+        "deepResearch": { "name": "深度研究", "description": "围绕复杂问题收集证据并形成研究结论。" },
+        "claw": { "name": "自主助理", "description": "在办公场景中持续推进明确目标。" },
+        "media": { "name": "设计创意", "description": "处理图片、视频和 AI 媒体创作任务。" },
+        "computerUse": { "name": "电脑操作", "description": "通过桌面交互完成本机应用与系统操作。" }
+      },
+      "subagents": {
+        "explore": { "name": "代码探索智能体", "description": "跨模块追踪代码结构、调用关系和架构线索。" },
+        "fileFinder": { "name": "文件查找智能体", "description": "快速定位与任务相关的文件、符号和配置。" },
+        "codeReview": { "name": "代码审查智能体", "description": "检查代码变更中的正确性、风险和回归问题。" },
+        "generateDoc": { "name": "文档生成智能体", "description": "根据项目事实整理并生成结构化文档。" },
+        "generalPurpose": { "name": "通用任务智能体", "description": "执行边界清晰的通用子任务并返回结果。" },
+        "researchSpecialist": { "name": "研究专家智能体", "description": "围绕一个研究方向检索可靠来源并整理结构化证据。" },
+        "deepReview": { "name": "代码审查主理人", "description": "组织多位审查智能体并汇总质检结果。" },
+        "reviewBusinessLogic": { "name": "业务逻辑审查员", "description": "检查业务规则、状态流转和异常恢复。" },
+        "reviewPerformance": { "name": "性能审查员", "description": "检查热点路径、阻塞工作和规模化风险。" },
+        "reviewSecurity": { "name": "安全审查员", "description": "检查权限、信任边界、注入和敏感数据风险。" },
+        "reviewArchitecture": { "name": "架构审查员", "description": "检查模块边界、依赖方向和接口契约。" },
+        "reviewFrontend": { "name": "前端审查员", "description": "检查交互、可访问性、国际化和前端契约。" },
+        "reviewJudge": { "name": "审查质检员", "description": "独立核验审查发现并过滤误报。" },
+        "reviewFixer": { "name": "审查修复智能体", "description": "仅在用户批准后按已确认问题实施修复。" },
+        "scriptAI": { "name": "剧本智能体", "description": "负责剧本结构、人物关系和分集内容。" },
+        "assetAI": { "name": "资产智能体", "description": "负责角色、场景和视觉资产的一致性。" },
+        "splitAI": { "name": "分镜智能体", "description": "负责镜头拆分、画面调度和分镜规划。" },
+        "videoAI": { "name": "视频智能体", "description": "负责镜头视频生成和结果检查。" },
+        "editorAI": { "name": "后期智能体", "description": "负责剪辑、字幕、声音和最终预览。" }
+      },
+      "teams": {
+        "deepReview": { "name": "代码审查团队", "description": "多位独立审查员并行检查代码，再由质检员统一复核。" },
+        "shortDrama": { "name": "AI 短剧团队", "description": "由剧本、资产、分镜、视频和后期智能体协作完成短剧。" }
+      },
+      "teamMembers": {
+        "deepReview": { "name": "代码审查主理人", "description": "负责建立审查任务、分派工作包并汇总质检结论。" },
+        "reviewBusinessLogic": { "name": "业务逻辑审查员", "description": "检查业务规则、状态流转、边界情况和恢复路径。" },
+        "reviewPerformance": { "name": "性能审查员", "description": "检查热点路径、阻塞工作和规模化性能风险。" },
+        "reviewSecurity": { "name": "安全审查员", "description": "检查信任边界、权限、注入和敏感数据风险。" },
+        "reviewArchitecture": { "name": "架构审查员", "description": "检查模块边界、依赖方向和接口契约。" },
+        "reviewFrontend": { "name": "前端审查员", "description": "检查可访问性、国际化、性能和前后端契约。" },
+        "reviewJudge": { "name": "审查质检员", "description": "独立验证审查结论，过滤误报并确认交付质量。" },
+        "media": { "name": "短剧主理人", "description": "保留现有媒体父会话并协调短剧五个阶段。" },
+        "scriptAI": { "name": "剧本智能体", "description": "负责剧本结构、人物关系和分集内容。" },
+        "assetAI": { "name": "资产智能体", "description": "负责角色、场景和视觉资产的一致性。" },
+        "splitAI": { "name": "分镜智能体", "description": "负责镜头拆分、画面调度和分镜规划。" },
+        "videoAI": { "name": "视频智能体", "description": "负责镜头视频生成和结果检查。" },
+        "editorAI": { "name": "后期智能体", "description": "负责剪辑、字幕、声音和最终预览。" }
+      }
+    }
+  },
+  "teamAuthoring": {
+    "back": "返回团队目录",
+    "titleCreate": "创建智能体团队",
+    "subtitleCreate": "用中文说明目标、成员和流程；稳定 ID 会自动生成。",
+    "titleEdit": "编辑智能体团队",
+    "subtitleEdit": "修改团队说明、成员职责和流程，不改变原有稳定 ID。",
+    "routeLabel": "团队创建方式",
+    "routes": {
+      "describe": "描述需求",
+      "material": "导入资料",
+      "manual": "手动设置"
+    },
+    "runtimeUnsupported": "团队创建、编辑和安装仅在 Void 桌面版可用。",
+    "loading": "正在加载团队定义…",
+    "organizeHint": "按固定模板在本机整理主理人、专业成员和两阶段流程，不调用 AI。",
+    "organize": "整理团队草稿",
+    "source": {
+      "describe": {
+        "label": "这个团队要解决什么问题？",
+        "placeholder": "例如：帮我做一个软件交付团队，主理人拆任务，开发专家实现，最后统一复核。"
+      },
+      "material": {
+        "label": "粘贴现有资料",
+        "placeholder": "可粘贴团队提示词、SOP、岗位说明、流程文档或已有专家包内容。"
+      }
+    },
+    "basics": {
+      "title": "团队基本信息",
+      "hint": "名称只用于展示，运行 ID 不会从中文名称推导。",
+      "displayName": "团队名称",
+      "displayNamePlaceholder": "例如：软件交付团队",
+      "category": "分类",
+      "categoryPlaceholder": "例如：技术工程",
+      "description": "团队介绍",
+      "descriptionPlaceholder": "一句话说明团队能解决什么问题。",
+      "tags": "能力标签",
+      "tagsPlaceholder": "例如：需求拆解、软件开发、质量复核",
+      "scenarios": "可使用场景"
+    },
+    "scenarios": {
+      "code": "代码开发",
+      "cowork": "日常办公",
+      "media": "设计创意"
+    },
+    "scope": {
+      "title": "保存位置",
+      "user": "我的团队",
+      "project": "当前项目"
+    },
+    "members": {
+      "title": "团队成员",
+      "hint": "主理人负责中转和汇总；每个成员绑定一个稳定智能体 ID。",
+      "add": "添加成员",
+      "lead": "主理人",
+      "member": "成员 {{number}}",
+      "makeLead": "设为主理人",
+      "remove": "移除成员",
+      "name": "成员名称",
+      "profession": "专业职位",
+      "agent": "使用的智能体",
+      "selectAgent": "请选择智能体",
+      "instructions": "工作说明",
+      "output": "负责交付",
+      "role": "成员类型"
+    },
+    "memberRoles": {
+      "specialist": "专业成员",
+      "quality_gate": "质检成员"
+    },
+    "workflows": {
+      "title": "协作流程",
+      "hint": "明确谁先做、谁后做，以及哪些阶段可以并行。",
+      "add": "添加流程",
+      "remove": "删除流程",
+      "workflow": "流程 {{number}}",
+      "name": "流程名称",
+      "trigger": "什么时候使用",
+      "phase": "阶段 {{number}}",
+      "phaseName": "阶段名称",
+      "phaseKind": "执行方式",
+      "assignees": "负责成员",
+      "dependencies": "依赖的前置阶段",
+      "outputs": "预期产物",
+      "completion": "完成标准",
+      "addPhase": "添加阶段",
+      "removePhase": "删除阶段"
+    },
+    "phaseKinds": {
+      "serial": "串行",
+      "parallel": "并行",
+      "decision": "决策",
+      "review": "复核"
+    },
+    "policy": {
+      "title": "稳定权限规则",
+      "description": "成员只能使用“场景允许、团队请求、用户授权”的交集；消息默认由主理人中转，团队不能扩大父会话权限。"
+    },
+    "preview": {
+      "title": "保存前预览",
+      "unnamed": "未命名团队",
+      "empty": "填写团队介绍后会在这里预览。",
+      "summary": "{{members}} 位成员 · {{workflows}} 套流程",
+      "editStructureLocked": "编辑现有团队时暂不新增或删除成员与阶段，避免在前端生成运行 ID。"
+    },
+    "actions": {
+      "cancel": "取消",
+      "create": "创建团队",
+      "save": "保存修改"
+    },
+    "messages": {
+      "prepared": "团队草稿已整理，可继续检查和修改",
+      "prepareFirst": "请先把需求或资料整理成团队草稿",
+      "noWorkspace": "需要先打开本地项目",
+      "createSuccess": "已创建团队「{{name}}」",
+      "updateSuccess": "已保存团队「{{name}}」",
+      "failedWithRecovery": "{{error}} 可恢复文件：{{path}}"
+    },
+    "agentFallbacks": {
+      "code": "代码执行",
+      "cowork": "日常办公",
+      "media": "设计创意"
+    },
+    "defaults": {
+      "memberName": "新成员",
+      "memberRole": "领域专家",
+      "memberInstructions": "独立完成分配给自己的专业任务，并把结果交给主理人。",
+      "memberOutput": "提交结构清晰、可核验的专业结果。",
+      "phaseName": "新阶段",
+      "phaseOutput": "阶段结果",
+      "phaseCompletion": "负责人提交完整且可核验的结果。",
+      "workflowName": "新流程",
+      "workflowTrigger": "当任务符合该团队职责时使用。"
+    },
+    "template": {
+      "defaultCategory": "通用团队",
+      "describeDescriptionPrefix": "根据目标创建的协作团队：",
+      "materialDescriptionPrefix": "根据提供资料整理的协作团队：",
+      "leadDisplayName": "团队主理人",
+      "leadProfessionalRole": "统筹与交付负责人",
+      "specialistDisplayName": "领域执行专家",
+      "specialistProfessionalRole": "专业执行与分析人员",
+      "describeLeadInstructions": "围绕用户描述的目标拆解任务、调度成员并汇总结果。",
+      "materialLeadInstructions": "以用户提供的资料为权威依据，拆解流程、调度成员并汇总结果。",
+      "leadOutputResponsibility": "核对阶段依赖、整合成员结论并交付最终结果。",
+      "describeSpecialistInstructions": "根据用户描述的目标独立完成专业分析与执行。",
+      "materialSpecialistInstructions": "根据用户提供的资料独立完成对应阶段的专业工作。",
+      "specialistOutputResponsibility": "提交可供主理人核验和汇总的专业产出。",
+      "workflowDisplayName": "标准协作流程",
+      "describeWorkflowTrigger": "当任务符合用户描述的团队目标时使用。",
+      "materialWorkflowTrigger": "当任务需要按照用户提供的资料执行时使用。",
+      "specialistPhaseDisplayName": "专业执行",
+      "specialistExpectedOutput": "专业执行结果",
+      "specialistCompletionRule": "执行专家提交完整、可核验的专业结果。",
+      "leadPhaseDisplayName": "主理人复核与汇总",
+      "leadExpectedOutput": "团队最终结果",
+      "leadCompletionRule": "主理人确认依赖阶段完成并交付最终结果。"
+    },
+    "diagnostics": {
+      "display_name_required": "请输入团队名称",
+      "source_text_required": "请输入需求描述或粘贴资料",
+      "description_required": "请输入团队介绍",
+      "category_required": "请输入团队分类",
+      "scenario_required": "请至少选择一个可使用场景",
+      "member_count_out_of_range": "团队需要 2 到 12 位成员",
+      "member_key_required": "成员缺少内部标识",
+      "duplicate_member_key": "成员内部标识重复",
+      "member_display_name_required": "请填写成员名称",
+      "member_professional_role_required": "请填写成员专业职位",
+      "member_instructions_required": "请填写成员工作说明",
+      "member_output_required": "请填写成员负责交付的内容",
+      "member_agent_reference_required": "请为每位成员选择一个智能体",
+      "lead_member_required": "请选择主理人",
+      "lead_member_not_found": "主理人不在成员列表中",
+      "lead_member_must_have_lead_role": "主理人必须使用主理人角色",
+      "lead_member_must_appear_once": "团队必须且只能有一位主理人",
+      "workflow_count_out_of_range": "团队需要 1 到 8 套流程",
+      "workflow_key_required": "流程缺少内部标识",
+      "duplicate_workflow_key": "流程内部标识重复",
+      "workflow_display_name_required": "请填写流程名称",
+      "workflow_trigger_required": "请填写流程使用条件",
+      "phase_count_out_of_range": "每套流程需要 1 到 20 个阶段",
+      "phase_key_required": "阶段缺少内部标识",
+      "duplicate_phase_key": "阶段内部标识重复",
+      "phase_display_name_required": "请填写阶段名称",
+      "invalid_phase_kind": "阶段执行方式无效",
+      "phase_member_required": "请至少选择一位负责成员",
+      "phase_member_not_found": "阶段引用了不存在的成员",
+      "phase_dependency_not_found": "阶段引用了不存在的前置阶段",
+      "phase_self_dependency": "阶段不能依赖自己",
+      "workflow_cycle": "流程依赖形成循环，请调整前后关系",
+      "phase_completion_rule_required": "请填写阶段完成标准"
+    },
+    "errors": {
+      "unsupported_transport": "当前环境不支持团队管理",
+      "unsupported_remote_project": "远程项目暂不支持项目级团队管理",
+      "not_found": "团队定义不存在或已被移除",
+      "not_authorable": "该团队为只读定义，不能直接编辑",
+      "fixed_team_immutable": "固定运行团队不能被覆盖",
+      "revision_conflict": "团队已在其他位置更新，请重新加载后再保存",
+      "definition_already_exists": "相同 ID 的团队已经存在",
+      "invalid_schema": "团队文件版本不受支持",
+      "validation_failed": "团队内容未通过校验",
+      "reference_not_found": "团队引用的智能体、成员或阶段不存在",
+      "permission_expansion": "团队权限不能超过父会话权限",
+      "package_too_large": "团队文件超过 1 MiB 上限",
+      "untrusted_package": "团队文件包含不受支持的内容",
+      "package_changed_after_preview": "团队文件已变化，请重新选择",
+      "read_failed": "读取团队失败",
+      "write_failed": "保存团队失败",
+      "install_failed": "安装团队失败",
+      "delete_failed": "删除团队失败",
+      "rollback_failed": "保存失败且自动恢复未完成，请按恢复路径处理"
+    }
+  },
   "page": {
     "title": "专业智能体",
     "subtitle": "管理智能体、工具与技能。",
@@ -142,10 +466,10 @@
     "deleteSuccess": "已删除「{{name}}」",
     "deleteFailed": "删除失败：",
     "form": {
-      "title": "新建子智能体",
-      "subtitle": "创建一个用户级或项目级自定义子智能体",
-      "titleEdit": "编辑子智能体",
-      "subtitleEdit": "可修改描述、系统提示词、工具与只读模式。名称与级别不可更改。",
+      "title": "创建智能体",
+      "subtitle": "只需填写中文名称和用途；运行 ID 会自动生成。",
+      "titleEdit": "编辑智能体",
+      "subtitleEdit": "可修改中文名称、适用场景、提示词和工具；运行 ID 保持不变。",
       "loadingDetail": "加载中…",
       "save": "保存",
       "updateSuccess": "已保存「{{name}}」",
@@ -170,7 +494,66 @@
       "cancel": "取消",
       "submit": "创建",
       "createSuccess": "已创建 Agent「{{name}}」",
-      "createFailed": "创建失败："
+      "createFailed": "创建失败：",
+      "displayName": "智能体名称",
+      "displayNamePlaceholder": "例如：前端开发专家",
+      "runtimeId": "运行 ID",
+      "runtimeIdAuto": "运行 ID 会在保存时自动生成，无需填写英文名称。",
+      "routeLabel": "创建方式",
+      "routes": {
+        "describe": "描述需求",
+        "material": "导入资料",
+        "manual": "手动设置"
+      },
+      "source": {
+        "describe": {
+          "label": "这个智能体要做什么？",
+          "placeholder": "用大白话描述职责、工作方法和希望得到的结果。"
+        },
+        "material": {
+          "label": "粘贴现有资料",
+          "placeholder": "可粘贴提示词、操作手册、工作流程或角色说明。"
+        }
+      },
+      "localOrganizeHint": "这里只按固定模板在本机整理草稿，不会调用 AI，也不会产生额外费用。",
+      "organizeDraft": "整理成草稿",
+      "draftPrepared": "草稿已整理，可继续检查和修改",
+      "prepareFirst": "请先把需求或资料整理成草稿",
+      "scenarioLabel": "可使用的场景",
+      "scenarioHint": "至少选择一个；智能体只会出现在这些场景的选择器中。",
+      "scenarios": {
+        "code": "代码开发",
+        "cowork": "日常办公",
+        "media": "设计创意"
+      },
+      "configurationTitle": "智能体配置",
+      "configurationHint": "三种创建方式最终都会保存为同一份配置",
+      "previewTitle": "保存前预览",
+      "previewUnnamed": "未命名智能体",
+      "previewEmpty": "填写描述后会在这里预览。",
+      "previewNoScenario": "尚未选择场景",
+      "diagnostics": {
+        "display_name_required": "请输入智能体名称",
+        "source_text_required": "请输入需求描述或粘贴资料",
+        "description_required": "请输入智能体描述",
+        "prompt_required": "请输入系统提示词",
+        "scenario_required": "请至少选择一个可使用场景"
+      },
+      "template": {
+        "describeRole": "你是“__NAME__”。",
+        "describeResponsibilities": "你的职责：",
+        "describeRequirements": "工作要求：",
+        "describeStep1": "1. 先确认目标、现有资料和交付标准。",
+        "describeStep2": "2. 按职责范围完成任务；信息不足时明确指出缺口。",
+        "describeStep3": "3. 输出可直接执行的结论、步骤或产物，不虚构执行结果。",
+        "materialDescriptionPrefix": "根据导入资料执行：",
+        "materialRole": "你是“__NAME__”。请把以下资料作为工作依据。",
+        "materialRules": "工作规则：",
+        "materialStep1": "1. 忠实遵循资料中的角色、流程、约束和输出规范。",
+        "materialStep2": "2. 资料存在冲突或缺口时先说明，再给出最小可行处理建议。",
+        "materialStep3": "3. 不得声称已执行未实际执行的工具、文件或外部操作。",
+        "materialHeading": "导入资料："
+      }
     }
   },
   "reviewTeams": {

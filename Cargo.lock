@@ -9402,6 +9402,7 @@ dependencies = [
  "screenshots",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha1",
  "similar",
  "tauri",

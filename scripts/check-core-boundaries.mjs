@@ -3077,7 +3077,7 @@ const requiredContentRules = [
       },
       {
         regex:
-          /use void_runtime_ports::\{[\s\S]*DialogSessionStateFact[\s\S]*DialogSubmitQueueAction[\s\S]*DialogSubmitQueueFacts[\s\S]*DialogTurnOutcomeKind[\s\S]*resolve_dialog_submit_queue_action[\s\S]*should_skip_agent_session_reply_contract[\s\S]*should_suppress_agent_session_cancelled_reply_contract[\s\S]*\};/,
+          /use void_runtime_ports::\{(?=[^}]*\bDialogSessionStateFact\b)(?=[^}]*\bDialogSubmitQueueAction\b)(?=[^}]*\bDialogSubmitQueueFacts\b)(?=[^}]*\bDialogTurnOutcomeKind\b)(?=[^}]*\bresolve_dialog_submit_queue_action\b)(?=[^}]*\bshould_skip_agent_session_reply_contract\b)(?=[^}]*\bshould_suppress_agent_session_cancelled_reply_contract\b)[^}]*\};/,
         message: 'missing dialog scheduler decision contract import',
       },
       {

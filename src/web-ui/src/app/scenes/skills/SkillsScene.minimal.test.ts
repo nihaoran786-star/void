@@ -27,16 +27,16 @@ describe('Skills scene Minimal presentation contract', () => {
       .not.toContain('SkillsScene.minimal.scss');
   });
 
-  it('keeps Skills behavior and the pre-existing Classic rules unchanged', () => {
+  it('locks Skills behavior and Classic rules after authoring integration', () => {
     const projectionFreeClassic = readSource('./SkillsScene.scss')
       .replace("@use './SkillsScene.minimal' as minimal;\n", '')
       .replace('\n\n@include minimal.styles;\n', '\n');
 
     expect(sha256Text(projectionFreeClassic)).toBe(
-      '0b8d55bd8384540d792392e939d728f7a9e89107294dea07122ea1295d3b9298',
+      'c51d07eb44408dcc57fa2cf6bb0c2c5c575c1dfce5be205b4ced1443a5d39419',
     );
     expect(sha256('./SkillsScene.tsx')).toBe(
-      '0fcbefa3c14035b51ae1672a807643a952dc9c78be0c34e6525b08508b6fc77d',
+      'a973cf2b21592fa11d9686dcb1e3dc86c4e21aabbd7aff9c54f16a97582f3b7b',
     );
     expect(sha256('./components/SkillCard.scss')).toBe(
       '25fb225b1eb44e976633027a12369c676717b545f760fc51b94b835de6e73c49',

@@ -7,11 +7,15 @@ import type { AgentProfileConfigItem, ModeSkillInfo } from '@/infrastructure/con
 import { useNotification } from '@/shared/notification-system';
 import { toolAPI } from '@/infrastructure/api/service-api/ToolAPI';
 import type { ToolInfo } from '@/shared/types/agent-api';
-import type { AgentWithCapabilities } from '../agentsStore';
+import { useAgentsStore, type AgentWithCapabilities } from '../agentsStore';
 import { enrichCapabilities } from '../utils';
 import { STATIC_HIDDEN_AGENT_IDS, isAgentInOverviewZone } from '../agentVisibility';
 import { useCurrentWorkspace } from '@/infrastructure/contexts/WorkspaceContext';
 import { loadDefaultReviewTeamDefinition } from '@/shared/services/reviewTeamService';
+import {
+  localizeCatalogPresentation,
+  resolveDefaultCatalogPresentation,
+} from '@/shared/services/customization';
 
 export type FilterLevel = 'all' | 'builtin' | 'user' | 'project';
 export type FilterType = 'all' | 'mode' | 'subagent';
@@ -85,6 +89,7 @@ export function useAgentsList({
 }: UseAgentsListOptions) {
   const notification = useNotification();
   const { workspacePath } = useCurrentWorkspace();
+  const catalogRefreshRevision = useAgentsStore((state) => state.catalogRefreshRevision);
   const [allAgents, setAllAgents] = useState<AgentWithCapabilities[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableTools, setAvailableTools] = useState<ToolInfo[]>([]);
@@ -138,8 +143,17 @@ export function useAgentsList({
 
       const manageableSubagentsByProfile = Object.fromEntries(manageableSubagentEntries);
 
-      const modeAgents: AgentWithCapabilities[] = modes.map((mode) =>
-        enrichCapabilities({
+      const modeAgents: AgentWithCapabilities[] = modes.map((mode) => {
+        const presentation = localizeCatalogPresentation(
+          resolveDefaultCatalogPresentation({
+            kind: 'mode',
+            id: mode.id,
+            runtimeName: mode.name,
+            runtimeDescription: mode.description,
+          }),
+          key => t(key),
+        );
+        return enrichCapabilities({
           key: `mode::${mode.id}`,
           id: mode.id,
           name: mode.name,
@@ -157,16 +171,31 @@ export function useAgentsList({
             ?.filter((subagent) => subagent.effectiveEnabled).length ?? 0,
           capabilities: [],
           agentKind: 'mode',
-        }),
-      );
+          displayName: presentation.displayName,
+          displayDescription: presentation.description,
+          aliases: presentation.aliases,
+        });
+      });
 
-      const subAgents: AgentWithCapabilities[] = subagents.map((subagent) =>
-        enrichCapabilities({
+      const subAgents: AgentWithCapabilities[] = subagents.map((subagent) => {
+        const presentation = localizeCatalogPresentation(
+          resolveDefaultCatalogPresentation({
+            kind: 'subagent',
+            id: subagent.id,
+            runtimeName: subagent.name,
+            runtimeDescription: subagent.description,
+          }),
+          key => t(key),
+        );
+        return enrichCapabilities({
           ...subagent,
           capabilities: [],
           agentKind: 'subagent',
-        }),
-      );
+          displayName: presentation.displayName,
+          displayDescription: presentation.description,
+          aliases: Array.from(new Set([...presentation.aliases, subagent.key])),
+        });
+      });
 
       setAllAgents([...modeAgents, ...subAgents]);
       setAvailableTools(tools);
@@ -183,11 +212,11 @@ export function useAgentsList({
         setLoading(false);
       }
     }
-  }, [workspacePath]);
+  }, [t, workspacePath]);
 
   useEffect(() => {
     void loadAgents();
-  }, [loadAgents]);
+  }, [catalogRefreshRevision, loadAgents]);
 
   const getModeProfile = useCallback((agentId: string): ModeProfileEntry | null => {
     const agent = allAgents.find((item) => item.id === agentId && item.agentKind === 'mode');
@@ -347,7 +376,7 @@ export function useAgentsList({
 
   const handleSetSubagentEnabled = useCallback(async (
     agentId: string,
-    subagentId: string,
+    subagent: Pick<SubagentInfo, 'key' | 'id'>,
     enabled: boolean,
   ) => {
     const profile = getModeProfile(agentId);
@@ -355,7 +384,8 @@ export function useAgentsList({
 
     try {
       await SubagentAPI.updateSubagentConfig({
-        subagentId,
+        subagentKey: subagent.key,
+        subagentId: subagent.id,
         parentAgentType: agentId,
         enabled,
         workspacePath: workspacePath || undefined,
@@ -393,7 +423,15 @@ export function useAgentsList({
   const filteredAgents = useMemo(() => allAgents.filter((agent) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      if (!agent.name.toLowerCase().includes(query) && !agent.description.toLowerCase().includes(query)) {
+      if (![
+        agent.displayName,
+        agent.displayDescription,
+        agent.name,
+        agent.description,
+        agent.id,
+        agent.key,
+        ...agent.aliases,
+      ].some(value => value.toLowerCase().includes(query))) {
         return false;
       }
     }

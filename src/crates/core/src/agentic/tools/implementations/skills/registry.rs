@@ -63,6 +63,93 @@ struct SkillRootEntry {
     is_builtin: bool,
 }
 
+#[cfg(test)]
+mod authorability_tests {
+    use super::{SkillCandidate, SkillData, SkillLocation, VOID_USER_SLOT};
+
+    const VALID_ID: &str = "custom-0123456789abcdef0123456789abcdef";
+
+    fn skill_data(name: &str, dir_name: &str, authoring_version: Option<u32>) -> SkillData {
+        SkillData {
+            key: String::new(),
+            name: name.to_string(),
+            display_name: Some("测试技能".to_string()),
+            description: "测试描述".to_string(),
+            allowed_parent_agent_ids: Vec::new(),
+            suggested_prompts: vec!["试试这个技能".to_string()],
+            revision: "revision".to_string(),
+            authoring_version,
+            content: "测试说明".to_string(),
+            location: SkillLocation::User,
+            path: format!("/skills/{dir_name}"),
+            source_slot: String::new(),
+            dir_name: dir_name.to_string(),
+        }
+    }
+
+    #[test]
+    fn void_authored_runtime_id_requires_exact_lowercase_uuid_shape() {
+        assert!(SkillCandidate::is_void_authored_runtime_id(VALID_ID));
+        assert!(!SkillCandidate::is_void_authored_runtime_id(
+            "custom-0123456789ABCDEF0123456789ABCDEF"
+        ));
+        assert!(!SkillCandidate::is_void_authored_runtime_id(
+            "custom-0123456789abcdef"
+        ));
+        assert!(!SkillCandidate::is_void_authored_runtime_id(
+            "custom-0123456789abcdef0123456789abcdeg"
+        ));
+        assert!(!SkillCandidate::is_void_authored_runtime_id(
+            "writer-0123456789abcdef0123456789abcdef"
+        ));
+    }
+
+    #[test]
+    fn only_versioned_void_slot_skills_with_matching_identity_are_authorable() {
+        let authorable = SkillCandidate::from_data(
+            skill_data(VALID_ID, VALID_ID, Some(1)),
+            VOID_USER_SLOT,
+            "user",
+            0,
+            false,
+        );
+        assert!(authorable.info.is_authorable);
+
+        for candidate in [
+            SkillCandidate::from_data(
+                skill_data(VALID_ID, VALID_ID, None),
+                VOID_USER_SLOT,
+                "user",
+                0,
+                false,
+            ),
+            SkillCandidate::from_data(
+                skill_data(VALID_ID, "different-directory", Some(1)),
+                VOID_USER_SLOT,
+                "user",
+                0,
+                false,
+            ),
+            SkillCandidate::from_data(
+                skill_data(VALID_ID, VALID_ID, Some(1)),
+                "home.codex",
+                "user",
+                0,
+                false,
+            ),
+            SkillCandidate::from_data(
+                skill_data(VALID_ID, VALID_ID, Some(1)),
+                VOID_USER_SLOT,
+                "user",
+                0,
+                true,
+            ),
+        ] {
+            assert!(!candidate.info.is_authorable);
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct RemoteSkillRootEntry {
     path: String,
@@ -77,6 +164,15 @@ struct SkillCandidate {
 }
 
 impl SkillCandidate {
+    fn is_void_authored_runtime_id(value: &str) -> bool {
+        value.strip_prefix("custom-").is_some_and(|suffix| {
+            suffix.len() == 32
+                && suffix.chars().all(|character| {
+                    character.is_ascii_hexdigit() && !character.is_ascii_uppercase()
+                })
+        })
+    }
+
     fn from_data(
         mut data: SkillData,
         slot: &str,
@@ -91,17 +187,27 @@ impl SkillCandidate {
         } else {
             None
         };
+        let is_authorable = !is_builtin
+            && slot == VOID_USER_SLOT
+            && data.authoring_version == Some(1)
+            && data.name == data.dir_name
+            && Self::is_void_authored_runtime_id(&data.name);
 
         Self {
             info: SkillInfo {
                 key: data.key,
                 name: data.name,
+                display_name: data.display_name,
                 description: data.description,
+                allowed_parent_agent_ids: data.allowed_parent_agent_ids,
+                suggested_prompts: data.suggested_prompts,
+                revision: data.revision,
                 path: data.path,
                 level: data.location,
                 source_slot: data.source_slot,
                 dir_name: data.dir_name,
                 is_builtin,
+                is_authorable,
                 group_key,
                 is_shadowed: false,
                 shadowed_by_key: None,

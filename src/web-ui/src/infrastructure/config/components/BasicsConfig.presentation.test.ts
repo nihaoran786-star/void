@@ -1,14 +1,8 @@
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
-const source = fs.readFileSync(
-  new URL('./BasicsConfig.tsx', import.meta.url),
-  'utf8',
-);
-const styles = fs.readFileSync(
-  new URL('./BasicsConfig.scss', import.meta.url),
-  'utf8',
-);
+const source = readSourceText(new URL('./BasicsConfig.tsx', import.meta.url));
+const styles = readSourceText(new URL('./BasicsConfig.scss', import.meta.url));
 
 describe('BasicsConfig control accessibility', () => {
   it('names every compact switch from its visible setting label', () => {

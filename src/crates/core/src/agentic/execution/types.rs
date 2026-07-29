@@ -1,5 +1,6 @@
 //! Execution Engine Type Definitions
 
+use super::persona_runtime::ResolvedPersonaRuntime;
 use crate::agentic::core::{Message, RecoveryCheckpoint};
 use crate::agentic::round_preempt::{
     DialogRoundInjectionInterrupt, DialogRoundInjectionSource, DialogRoundPreemptSource,
@@ -37,6 +38,8 @@ pub struct ExecutionContext {
     /// When true, stream cancellation may be converted into a partial assistant
     /// result if text/tool output has already been produced.
     pub recover_partial_on_cancel: bool,
+    /// Validated immutable persona overlay captured for this accepted turn.
+    pub persona_runtime: Option<ResolvedPersonaRuntime>,
 }
 
 /// Round context

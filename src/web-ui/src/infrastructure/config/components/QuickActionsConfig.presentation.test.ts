@@ -1,8 +1,8 @@
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { readSourceText } from '@/test-utils/sourceText';
 
 const readSource = (file: string) =>
-  fs.readFileSync(new URL(file, import.meta.url), 'utf8');
+  readSourceText(new URL(file, import.meta.url));
 
 describe('QuickActionsConfig presentation', () => {
   it('keeps the action state visible while progressively disclosing secondary actions', () => {

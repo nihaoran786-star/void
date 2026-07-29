@@ -9,6 +9,7 @@ export {
   saveDialogTurnToDisk,
   saveAllInProgressTurns,
   convertDialogTurnToBackendFormat,
+  persistSessionMetadata,
   updateSessionMetadata,
   touchSessionActivity
 } from './PersistenceModule';

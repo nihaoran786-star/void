@@ -8,19 +8,27 @@
  */
 
 import { processingStatusManager } from './ProcessingStatusManager';
-import { FlowChatStore } from '../store/FlowChatStore';
+import {
+  FlowChatStore,
+  type ParentSessionCustomizationProjection,
+} from '../store/FlowChatStore';
 import { AgentService } from '../../shared/services/agent-service';
 import { ACPClientAPI } from '@/infrastructure/api/service-api/ACPClientAPI';
 import { stateMachineManager } from '../state-machine';
 import { EventBatcher } from './EventBatcher';
 import { createLogger } from '@/shared/utils/logger';
 import type { WorkspaceInfo } from '@/shared/types';
+import type {
+  SessionActivePersonaBinding,
+  SessionCustomizationScenario,
+} from '@/shared/types/session-history';
 import {
   compareSessionsForDisplay,
   sessionBelongsToWorkspaceNavRow,
 } from '../utils/sessionOrdering';
 import { hydrateBtwRelationships } from './BtwRelationshipHydrationService';
 import { hydrateSubagentTaskProjections } from './SubagentTaskProjectionService';
+import { scenarioFromLegacyAgentType } from '@/shared/services/customization/adapters/SessionPersonaMetadataAdapter';
 
 import type { FlowChatContext, SessionConfig, DialogTurn } from './flow-chat-manager/types';
 import {
@@ -45,6 +53,7 @@ import {
   updateImageAnalysisResults as updateImageAnalysisResultsModule,
   updateImageAnalysisItem as updateImageAnalysisItemModule,
   updateSessionMetadata,
+  persistSessionMetadata,
 } from './flow-chat-manager';
 
 const log = createLogger('FlowChatManager');
@@ -55,6 +64,7 @@ export class FlowChatManager {
   private agentService: AgentService;
   private eventListenerInitialized = false;
   private eventListenerCleanup: (() => void) | null = null;
+  private sessionCustomizationTransactions = new Map<string, Promise<void>>();
 
   private constructor() {
     this.context = {
@@ -369,6 +379,106 @@ export class FlowChatManager {
   async markChatSessionAutomation(sessionId: string): Promise<void> {
     this.context.flowChatStore.updateSessionAutomationMarker(sessionId, true);
     await updateSessionMetadata(this.context, sessionId);
+  }
+
+  private enqueueSessionCustomizationTransaction(
+    sessionId: string,
+    transaction: () => Promise<void>,
+  ): Promise<void> {
+    const previous = this.sessionCustomizationTransactions.get(sessionId);
+    const operation = previous
+      ? previous.catch(() => undefined).then(transaction)
+      : transaction();
+    const tracked = operation.finally(() => {
+      if (this.sessionCustomizationTransactions.get(sessionId) === tracked) {
+        this.sessionCustomizationTransactions.delete(sessionId);
+      }
+    });
+    this.sessionCustomizationTransactions.set(sessionId, tracked);
+    return tracked;
+  }
+
+  private async persistParentSessionCustomization(
+    sessionId: string,
+    resolveNext: (
+      current: ParentSessionCustomizationProjection,
+    ) => ParentSessionCustomizationProjection,
+  ): Promise<void> {
+    return this.enqueueSessionCustomizationTransaction(sessionId, async () => {
+      const session = this.context.flowChatStore.getState().sessions.get(sessionId);
+      if (!session || session.sessionKind !== 'normal') {
+        throw new TypeError('Customization can only be changed on a parent session');
+      }
+
+      const mode =
+        session.mode?.trim()
+        || session.config.agentType?.trim()
+        || 'agentic';
+      const previous: ParentSessionCustomizationProjection = {
+        mode,
+        scenario: session.scenario ?? scenarioFromLegacyAgentType(mode),
+        executionPolicy: session.executionPolicy ?? mode,
+        activePersonaBinding: session.activePersonaBinding,
+      };
+      const next = resolveNext(previous);
+      if (
+        !this.context.flowChatStore.updateParentSessionCustomization(
+          sessionId,
+          next,
+        )
+      ) {
+        throw new Error('Parent session is no longer available');
+      }
+
+      try {
+        await persistSessionMetadata(this.context, sessionId);
+      } catch (error) {
+        this.context.flowChatStore.updateParentSessionCustomization(
+          sessionId,
+          previous,
+        );
+        throw error;
+      }
+    });
+  }
+
+  async updateChatSessionCustomization(
+    sessionId: string,
+    next: ParentSessionCustomizationProjection,
+  ): Promise<void> {
+    return this.persistParentSessionCustomization(sessionId, () => next);
+  }
+
+  async updateChatSessionMode(sessionId: string, mode: string): Promise<void> {
+    const normalizedMode = mode.trim();
+    if (!normalizedMode) {
+      throw new TypeError('Session mode is required');
+    }
+    return this.persistParentSessionCustomization(sessionId, current => ({
+      ...current,
+      mode: normalizedMode,
+      executionPolicy: normalizedMode,
+    }));
+  }
+
+  async updateChatSessionPersona(
+    sessionId: string,
+    next: {
+      scenario: SessionCustomizationScenario;
+      executionPolicy: string;
+      activePersonaBinding: SessionActivePersonaBinding | null;
+    },
+  ): Promise<void> {
+    const currentMode = next.executionPolicy.trim();
+    if (!currentMode) {
+      throw new TypeError('Persona execution policy is required');
+    }
+    return this.persistParentSessionCustomization(sessionId, () => ({
+      mode: currentMode,
+      scenario: next.scenario,
+      executionPolicy: currentMode,
+      activePersonaBinding: next.activePersonaBinding,
+    }));
   }
 
   async forkChatSession(sourceSessionId: string, sourceTurnId: string): Promise<string> {

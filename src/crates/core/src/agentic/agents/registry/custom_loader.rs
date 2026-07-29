@@ -73,7 +73,9 @@ impl CustomSubagentLoader {
     }
 
     /// Load custom subagents from all possible paths (only .md files).
-    /// Agents with the same name are prioritized by path order: earlier paths have higher priority, later ones won't override already loaded agents with the same name.
+    /// Agents with the same source kind and ID are prioritized by path order:
+    /// earlier roots have higher priority. User and project definitions with
+    /// the same ID remain independent candidates.
     pub fn load_custom_subagents(workspace_root: &Path) -> Vec<CustomSubagent> {
         let mut candidates = Vec::new();
         for (root_priority, entry) in Self::get_possible_paths(workspace_root)
@@ -99,6 +101,10 @@ impl CustomSubagentLoader {
             }
         }
 
+        Self::select_candidates(candidates)
+    }
+
+    fn select_candidates(mut candidates: Vec<CustomSubagentCandidate>) -> Vec<CustomSubagent> {
         candidates.sort_by(|a, b| {
             a.root_priority
                 .cmp(&b.root_priority)
@@ -116,7 +122,8 @@ impl CustomSubagentLoader {
         let mut seen_ids = std::collections::HashSet::new();
         for candidate in candidates {
             let id = candidate.agent.id().to_string();
-            if seen_ids.insert(id) {
+            let is_project = matches!(candidate.agent.kind, CustomSubagentKind::Project);
+            if seen_ids.insert((is_project, id)) {
                 ordered.push(candidate.agent);
             }
         }
@@ -138,5 +145,68 @@ impl CustomSubagentLoader {
         }
         out.sort();
         out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn candidate(
+        id: &str,
+        prompt: &str,
+        kind: CustomSubagentKind,
+        root_priority: usize,
+        path: &str,
+    ) -> CustomSubagentCandidate {
+        CustomSubagentCandidate {
+            agent: CustomSubagent::new(
+                id.to_string(),
+                format!("{id} description"),
+                vec!["Read".to_string()],
+                prompt.to_string(),
+                true,
+                path.to_string(),
+                kind,
+            ),
+            root_priority,
+            path: PathBuf::from(path),
+        }
+    }
+
+    #[test]
+    fn deduplicates_by_kind_and_id_while_preserving_root_priority() {
+        let selected = CustomSubagentLoader::select_candidates(vec![
+            candidate(
+                "shared",
+                "lower project priority",
+                CustomSubagentKind::Project,
+                2,
+                "project-low.md",
+            ),
+            candidate(
+                "shared",
+                "user definition",
+                CustomSubagentKind::User,
+                3,
+                "user.md",
+            ),
+            candidate(
+                "shared",
+                "higher project priority",
+                CustomSubagentKind::Project,
+                0,
+                "project-high.md",
+            ),
+        ]);
+
+        assert_eq!(selected.len(), 2);
+        assert!(selected.iter().any(|agent| {
+            matches!(agent.kind, CustomSubagentKind::Project)
+                && agent.prompt == "higher project priority"
+        }));
+        assert!(selected.iter().any(|agent| {
+            matches!(agent.kind, CustomSubagentKind::User) && agent.prompt == "user definition"
+        }));
     }
 }

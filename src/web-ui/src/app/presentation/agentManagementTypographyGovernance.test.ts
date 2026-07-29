@@ -67,16 +67,16 @@ const migratedDistribution = {
   '5xl': 2,
 } as const;
 
-// These consumers already used canonical tokens before this migration. Keeping
-// the offset explicit lets this test lock the 73 migrated declarations without
-// claiming ownership of pre-existing theme work.
+// These offsets exclude canonical-token consumers outside the original
+// 73-declaration migration, including both pre-existing consumers and later
+// feature additions, while preserving the historical migration baseline.
 const preExistingDistribution = {
   xxs: 0,
   '2xs': 33,
-  xs: 44,
-  sm: 39,
+  xs: 53,
+  sm: 46,
   base: 6,
-  xl: 3,
+  xl: 7,
   '2xl': 0,
   '3xl': 0,
   '4xl': 0,

@@ -1,16 +1,32 @@
 //! Subagent API
 
 use crate::api::app_state::AppState;
-use void_core::agentic::agents::{
-    AgentCategory, AgentInfo, CustomSubagent, CustomSubagentConfig, CustomSubagentDetail,
-    CustomSubagentKind, SubAgentSource, SubagentListScope, SubagentQueryContext,
-};
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::State;
+use uuid::Uuid;
+use void_core::agentic::agents::{
+    AgentCategory, AgentInfo, CustomSubagent, CustomSubagentConfig, CustomSubagentDetail,
+    CustomSubagentKind, SubAgentSource, SubagentListScope, SubagentQueryContext,
+};
+
+const CUSTOM_AGENT_PARENT_IDS: &[&str] = &[
+    "agentic",
+    "Plan",
+    "debug",
+    "Multitask",
+    "Team",
+    "Cowork",
+    "DeepResearch",
+    "Claw",
+    "Media",
+];
+const MAX_DISPLAY_NAME_CHARS: usize = 80;
+const MAX_DESCRIPTION_CHARS: usize = 500;
+const MAX_PROMPT_CHARS: usize = 100_000;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,6 +53,10 @@ fn workspace_root_from_request(workspace_path: Option<&str>) -> Option<PathBuf> 
     workspace_path
         .filter(|path| !path.is_empty())
         .map(PathBuf::from)
+}
+
+fn should_cleanup_global_agent_model(source: SubAgentSource) -> bool {
+    source == SubAgentSource::User
 }
 
 #[tauri::command]
@@ -103,6 +123,7 @@ pub async fn list_manageable_subagents(
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSubagentDetailRequest {
+    pub subagent_key: Option<String>,
     pub subagent_id: String,
     pub workspace_path: Option<String>,
 }
@@ -115,7 +136,11 @@ pub async fn get_subagent_detail(
     let workspace = workspace_root_from_request(request.workspace_path.as_deref());
     state
         .agent_registry
-        .get_custom_subagent_detail(&request.subagent_id, workspace.as_deref())
+        .get_custom_subagent_detail_keyed(
+            request.subagent_key.as_deref(),
+            &request.subagent_id,
+            workspace.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())
 }
@@ -123,7 +148,9 @@ pub async fn get_subagent_detail(
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteSubagentRequest {
+    pub subagent_key: Option<String>,
     pub subagent_id: String,
+    pub workspace_path: Option<String>,
 }
 
 #[tauri::command]
@@ -132,10 +159,15 @@ pub async fn delete_subagent(
     request: DeleteSubagentRequest,
 ) -> Result<(), String> {
     let subagent_id = request.subagent_id;
+    let workspace = workspace_root_from_request(request.workspace_path.as_deref());
 
-    let file_path = state
+    let (file_path, removed_source) = state
         .agent_registry
-        .remove_subagent(&subagent_id)
+        .remove_subagent_keyed(
+            request.subagent_key.as_deref(),
+            &subagent_id,
+            workspace.as_deref(),
+        )
         .map_err(|e| e.to_string())?;
 
     if let Some(ref path) = file_path {
@@ -144,27 +176,29 @@ pub async fn delete_subagent(
         }
     }
 
-    let config_service = &state.config_service;
-    let mut agent_models: HashMap<String, String> = config_service
-        .get_config(Some("ai.agent_models"))
-        .await
-        .unwrap_or_default();
-    agent_models.remove(&subagent_id);
-    if let Err(e) = config_service
-        .set_config("ai.agent_models", &agent_models)
-        .await
-    {
-        warn!(
-            "Failed to clean up ai.agent_models: subagent_id={}, error={}",
-            subagent_id, e
-        );
-    }
+    if should_cleanup_global_agent_model(removed_source) {
+        let config_service = &state.config_service;
+        let mut agent_models: HashMap<String, String> = config_service
+            .get_config(Some("ai.agent_models"))
+            .await
+            .unwrap_or_default();
+        agent_models.remove(&subagent_id);
+        if let Err(e) = config_service
+            .set_config("ai.agent_models", &agent_models)
+            .await
+        {
+            warn!(
+                "Failed to clean up ai.agent_models: subagent_id={}, error={}",
+                subagent_id, e
+            );
+        }
 
-    if let Err(e) = void_core::service::config::reload_global_config().await {
-        warn!(
-            "Failed to reload global config after subagent deletion: subagent_id={}, error={}",
-            subagent_id, e
-        );
+        if let Err(e) = void_core::service::config::reload_global_config().await {
+            warn!(
+                "Failed to reload global config after subagent deletion: subagent_id={}, error={}",
+                subagent_id, e
+            );
+        }
     }
 
     Ok(())
@@ -173,7 +207,10 @@ pub async fn delete_subagent(
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSubagentRequest {
+    pub subagent_key: Option<String>,
     pub subagent_id: String,
+    pub display_name: Option<String>,
+    pub allowed_parent_agent_ids: Option<Vec<String>>,
     pub description: String,
     pub prompt: String,
     pub tools: Option<Vec<String>>,
@@ -187,20 +224,28 @@ pub async fn update_subagent(
     state: State<'_, AppState>,
     request: UpdateSubagentRequest,
 ) -> Result<(), String> {
-    if request.description.trim().is_empty() {
-        return Err("Description cannot be empty".to_string());
-    }
-    if request.prompt.trim().is_empty() {
-        return Err("Prompt cannot be empty".to_string());
-    }
+    let display_name = request
+        .display_name
+        .map(|value| validate_display_name(&value))
+        .transpose()?;
+    let allowed_parent_agent_ids = request
+        .allowed_parent_agent_ids
+        .map(|values| normalize_allowed_parent_agent_ids(values, true))
+        .transpose()?;
+    let description =
+        validate_required_text("Description", &request.description, MAX_DESCRIPTION_CHARS)?;
+    let prompt = validate_required_text("Prompt", &request.prompt, MAX_PROMPT_CHARS)?;
     let workspace = workspace_root_from_request(request.workspace_path.as_deref());
     state
         .agent_registry
-        .update_custom_subagent_definition(
+        .update_custom_subagent_definition_keyed(
+            request.subagent_key.as_deref(),
             &request.subagent_id,
             workspace.as_deref(),
-            request.description.trim().to_string(),
-            request.prompt.trim().to_string(),
+            display_name,
+            allowed_parent_agent_ids,
+            description,
+            prompt,
             request.tools,
             request.readonly,
             request.review,
@@ -220,7 +265,11 @@ pub enum SubagentLevel {
 #[serde(rename_all = "camelCase")]
 pub struct CreateSubagentRequest {
     pub level: SubagentLevel,
-    pub name: String,
+    /// Legacy callers may still provide the runtime ID. New clients omit this
+    /// field and let the desktop host generate an immutable ID.
+    pub name: Option<String>,
+    pub display_name: Option<String>,
+    pub allowed_parent_agent_ids: Option<Vec<String>>,
     pub description: String,
     pub prompt: String,
     pub tools: Option<Vec<String>>,
@@ -277,13 +326,84 @@ fn validate_agent_name(name: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_required_text(label: &str, value: &str, max_chars: usize) -> Result<String, String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(format!("{label} cannot be empty"));
+    }
+    if value.chars().count() > max_chars {
+        return Err(format!("{label} cannot exceed {max_chars} characters"));
+    }
+    Ok(value.to_string())
+}
+
+fn validate_display_name(value: &str) -> Result<String, String> {
+    let value = validate_required_text("Display name", value, MAX_DISPLAY_NAME_CHARS)?;
+    if value.chars().any(char::is_control) {
+        return Err("Display name cannot contain control characters".to_string());
+    }
+    Ok(value)
+}
+
+fn normalize_allowed_parent_agent_ids(
+    values: Vec<String>,
+    require_non_empty: bool,
+) -> Result<Vec<String>, String> {
+    let valid: HashSet<&str> = CUSTOM_AGENT_PARENT_IDS.iter().copied().collect();
+    let mut normalized = Vec::new();
+    for value in values {
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+        if !valid.contains(value) {
+            return Err(format!("Unknown parent Agent ID: {value}"));
+        }
+        normalized.push(value.to_string());
+    }
+    normalized.sort();
+    normalized.dedup();
+    if require_non_empty && normalized.is_empty() {
+        return Err("At least one scenario is required".to_string());
+    }
+    Ok(normalized)
+}
+
+fn resolve_create_identity(
+    legacy_name: Option<String>,
+    display_name: Option<String>,
+) -> Result<(String, String), String> {
+    match legacy_name {
+        Some(name) => {
+            let name = name.trim().to_string();
+            validate_agent_name(&name)?;
+            let display_name = match display_name {
+                Some(value) => validate_display_name(&value)?,
+                None => name.clone(),
+            };
+            Ok((name, display_name))
+        }
+        None => {
+            let display_name = validate_display_name(display_name.as_deref().unwrap_or_default())?;
+            Ok((format!("custom-{}", Uuid::new_v4().simple()), display_name))
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn create_subagent(
     state: State<'_, AppState>,
     request: CreateSubagentRequest,
-) -> Result<(), String> {
-    let name = request.name.trim();
-    validate_agent_name(name)?;
+) -> Result<String, String> {
+    let generated_runtime_id = request.name.is_none();
+    let (name, display_name) = resolve_create_identity(request.name, request.display_name)?;
+    let description =
+        validate_required_text("Description", &request.description, MAX_DESCRIPTION_CHARS)?;
+    let prompt = validate_required_text("Prompt", &request.prompt, MAX_PROMPT_CHARS)?;
+    let allowed_parent_agent_ids = normalize_allowed_parent_agent_ids(
+        request.allowed_parent_agent_ids.unwrap_or_default(),
+        generated_runtime_id,
+    )?;
     let workspace = workspace_root_from_request(request.workspace_path.as_deref());
 
     if request.level == SubagentLevel::Project && workspace.is_none() {
@@ -339,7 +459,7 @@ pub async fn create_subagent(
 
     let review = request.review.unwrap_or(false);
     if review {
-        ensure_review_tools_are_readonly(&state, name, &tools)?;
+        ensure_review_tools_are_readonly(&state, &name, &tools)?;
     }
 
     let readonly = if review {
@@ -348,14 +468,16 @@ pub async fn create_subagent(
         request.readonly.unwrap_or(true)
     };
     let mut subagent = CustomSubagent::new(
-        name.to_string(),
-        request.description.trim().to_string(),
+        name.clone(),
+        description,
         tools,
-        request.prompt.trim().to_string(),
+        prompt,
         readonly,
         path_str.clone(),
         kind,
-    );
+    )
+    .with_display_name(Some(display_name))
+    .with_allowed_parent_agent_ids(allowed_parent_agent_ids);
     subagent.review = review;
     subagent.save_to_file(None).map_err(|e| e.to_string())?;
 
@@ -363,14 +485,30 @@ pub async fn create_subagent(
         model: subagent.model.clone(),
     };
 
-    state.agent_registry.register_agent(
-        Arc::new(subagent),
-        AgentCategory::SubAgent,
-        Some(SubAgentSource::from_custom_kind(kind)),
-        Some(custom_config),
-    );
+    let visibility_policy = subagent.visibility_policy();
+    match request.level {
+        SubagentLevel::User => state.agent_registry.register_agent_with_visibility(
+            Arc::new(subagent),
+            AgentCategory::SubAgent,
+            Some(SubAgentSource::User),
+            visibility_policy,
+            Some(custom_config),
+        ),
+        SubagentLevel::Project => {
+            let workspace = workspace.as_deref().ok_or("Workspace path not available")?;
+            state
+                .agent_registry
+                .register_project_subagent_with_visibility(
+                    workspace,
+                    Arc::new(subagent),
+                    visibility_policy,
+                    Some(custom_config),
+                )
+                .map_err(|error| error.to_string())?;
+        }
+    }
 
-    Ok(())
+    Ok(name)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -406,6 +544,7 @@ pub async fn list_agent_tool_names(state: State<'_, AppState>) -> Result<Vec<Str
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateSubagentConfigRequest {
+    pub subagent_key: Option<String>,
     pub subagent_id: String,
     pub parent_agent_type: Option<String>,
     pub enabled: Option<bool>,
@@ -440,7 +579,8 @@ pub async fn update_subagent_config(
         })?;
         state
             .agent_registry
-            .update_subagent_override(
+            .update_subagent_override_keyed(
+                request.subagent_key.as_deref(),
                 parent_agent_type,
                 subagent_id,
                 enabled,
@@ -451,15 +591,20 @@ pub async fn update_subagent_config(
         availability_updated = true;
     }
 
-    if state
+    let custom_config = state
         .agent_registry
-        .get_custom_subagent_config(subagent_id, workspace.as_deref())
-        .is_some()
-    {
+        .get_custom_subagent_config_keyed(
+            request.subagent_key.as_deref(),
+            subagent_id,
+            workspace.as_deref(),
+        )
+        .map_err(|e| format!("Failed to resolve subagent configuration identity: {}", e))?;
+    if custom_config.is_some() {
         if request.model.is_some() {
             state
                 .agent_registry
-                .update_and_save_custom_subagent_config(
+                .update_and_save_custom_subagent_config_keyed(
+                    request.subagent_key.as_deref(),
                     subagent_id,
                     request.model,
                     workspace.as_deref(),
@@ -518,5 +663,61 @@ pub async fn update_subagent_config(
             availability_updated,
             model_updated,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_clients_receive_generated_runtime_identity_and_keep_localized_display_name() {
+        let (runtime_id, display_name) =
+            resolve_create_identity(None, Some("  产品分析师  ".to_string()))
+                .expect("localized identity should be accepted");
+
+        assert!(runtime_id.starts_with("custom-"));
+        assert_eq!(runtime_id.len(), "custom-".len() + 32);
+        assert_eq!(display_name, "产品分析师");
+        validate_agent_name(&runtime_id).expect("generated ID should remain runtime-compatible");
+    }
+
+    #[test]
+    fn legacy_name_only_creation_remains_compatible() {
+        let (runtime_id, display_name) =
+            resolve_create_identity(Some("LegacyAgent_2".to_string()), None)
+                .expect("legacy identity should remain accepted");
+
+        assert_eq!(runtime_id, "LegacyAgent_2");
+        assert_eq!(display_name, "LegacyAgent_2");
+    }
+
+    #[test]
+    fn scenario_ids_are_validated_sorted_and_deduplicated() {
+        let values = normalize_allowed_parent_agent_ids(
+            vec![
+                "agentic".to_string(),
+                "Media".to_string(),
+                "agentic".to_string(),
+            ],
+            true,
+        )
+        .expect("known scenarios should be accepted");
+
+        assert_eq!(values, vec!["Media".to_string(), "agentic".to_string()]);
+        assert!(normalize_allowed_parent_agent_ids(vec!["Unknown".to_string()], true).is_err());
+        assert!(normalize_allowed_parent_agent_ids(Vec::new(), true).is_err());
+        assert_eq!(
+            normalize_allowed_parent_agent_ids(Vec::new(), false)
+                .expect("legacy public visibility should be preserved"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn only_user_deletion_cleans_global_model_configuration() {
+        assert!(should_cleanup_global_agent_model(SubAgentSource::User));
+        assert!(!should_cleanup_global_agent_model(SubAgentSource::Project));
+        assert!(!should_cleanup_global_agent_model(SubAgentSource::Builtin));
     }
 }

@@ -1,6 +1,46 @@
 @use '../../../component-library/styles/tokens' as *;
 @use './AgentsScene.minimal' as minimal;
 
+.void-agents-shell {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agents-catalog-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: $size-gap-3;
+  padding: $size-gap-2 $size-gap-4 0;
+  background: var(--color-bg-primary);
+
+  button {
+    padding: $size-gap-2 2px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: var(--font-size-xl);
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+
+    &.is-active {
+      border-bottom-color: var(--color-text-primary);
+      color: var(--color-text-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+  }
+}
+
 .void-agents-scene {
   flex: 1 1 auto;
   width: 100%;
@@ -38,6 +78,35 @@
     font-weight: $font-weight-medium;
     color: var(--color-text-muted);
     white-space: nowrap;
+  }
+}
+
+.void-agents-runtime-unsupported {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: $size-gap-3;
+  padding: $size-gap-8;
+  text-align: center;
+  color: var(--color-text-secondary);
+
+  h1,
+  p {
+    margin: 0;
+  }
+
+  h1 {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-xl);
+  }
+
+  p {
+    max-width: 34rem;
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
   }
 }
 

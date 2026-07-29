@@ -183,6 +183,54 @@ describe('useMessageSender deferred session creation', () => {
     expect(mocks.sendMessage.mock.calls[0]?.[0]).not.toContain('b.ts');
   });
 
+  it('captures one immutable persona snapshot in user message metadata', async () => {
+    const personaSessionState = {
+      sessionId: 'session-1',
+      sessionKind: 'normal' as const,
+      status: 'selected' as const,
+      scenario: 'code' as const,
+      executionPolicy: 'agentic',
+      activePersonaBinding: {
+        kind: 'agent' as const,
+        personaId: 'project::void::reviewer',
+        personaRevision: { status: 'known' as const, value: 'prompt-v1' },
+      },
+    };
+
+    function Harness() {
+      const value = useMessageSender({
+        currentSessionId: 'session-1',
+        contexts: [],
+        personaSessionState,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    const send = sender?.sendMessage('review');
+    personaSessionState.activePersonaBinding.personaRevision.value = 'prompt-v2';
+    await act(async () => {
+      await send;
+    });
+
+    expect(
+      mocks.sendMessage.mock.calls[0]?.[5].userMessageMetadata.personaTurnSnapshot,
+    ).toEqual({
+      schemaVersion: 1,
+      kind: 'agent',
+      personaKey: 'project::void::reviewer',
+      personaRevision: 'prompt-v1',
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      resolvedSkillRefs: [],
+    });
+  });
+
   it('does not report a receipt when sending fails', async () => {
     mocks.sendMessage.mockRejectedValueOnce(new Error('send failed'));
     const onSuccess = vi.fn();

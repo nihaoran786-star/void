@@ -258,12 +258,17 @@ export type SkillLevel = 'user' | 'project';
 export interface SkillInfo {
   key: string;
   name: string;
+  displayName?: string | null;
   description: string;
+  allowedParentAgentIds?: string[];
+  suggestedPrompts?: string[];
+  revision?: string;
   path: string;
   level: SkillLevel;
   sourceSlot: string;
   dirName: string;
   isBuiltin: boolean;
+  isAuthorable?: boolean;
   groupKey?: string | null;
   /** True when this skill is shadowed by a higher-priority skill with the same name. */
   isShadowed?: boolean;
@@ -288,7 +293,157 @@ export interface ModeSkillInfo extends SkillInfo {
     | 'builtin_policy_enabled'
     | 'builtin_policy_disabled'
     | 'enabled_by_user_override'
-    | 'disabled_by_user_override';
+    | 'disabled_by_user_override'
+    | 'enabled_by_agent_allowlist'
+    | 'disabled_by_agent_allowlist'
+    | 'enabled_by_skill_allowlist'
+    | 'disabled_by_skill_allowlist';
+}
+
+export interface SkillAuthoringDetail {
+  skillKey: string;
+  runtimeId: string;
+  displayName: string;
+  description: string;
+  instructions: string;
+  allowedParentAgentIds: string[];
+  suggestedPrompts: string[];
+  level: SkillLevel;
+  revision: string;
+}
+
+export type TeamDefinitionLevel = 'user' | 'project';
+export type TeamDefinitionScenario = 'code' | 'cowork' | 'media';
+export type TeamDefinitionOrigin =
+  | 'user'
+  | 'project'
+  | 'installed';
+export type TeamMemberRole = 'lead' | 'specialist' | 'quality_gate';
+export type TeamWorkflowPhaseKind =
+  | 'serial'
+  | 'parallel'
+  | 'decision'
+  | 'review';
+
+export interface TeamDefinitionCommandError {
+  code: string;
+  message: string;
+  recoveryPath?: string;
+}
+
+export interface TeamDefinitionDiagnostic {
+  level?: TeamDefinitionLevel;
+  path?: string;
+  error: TeamDefinitionCommandError;
+}
+
+export interface TeamMemberDefinition {
+  memberId: string;
+  displayName: string;
+  professionalRole: string;
+  role: TeamMemberRole;
+  instructions: string;
+  outputResponsibility: string;
+  /** Stable raw persona key. Display names must never be persisted here. */
+  agentId?: string;
+  allowedSkillKeys: string[];
+  allowedToolNames: string[];
+  permissionPolicy: 'inherit_parent_intersection';
+  isReadonly: boolean;
+}
+
+export interface TeamWorkflowPhaseDefinition {
+  phaseId: string;
+  displayName: string;
+  kind: TeamWorkflowPhaseKind;
+  dependsOnPhaseIds: string[];
+  assignedMemberIds: string[];
+  expectedOutputs: string[];
+  completionRule: string;
+}
+
+export interface TeamWorkflowDefinition {
+  workflowId: string;
+  displayName: string;
+  triggerDescription: string;
+  phases: TeamWorkflowPhaseDefinition[];
+}
+
+export interface TeamMemberDraft {
+  clientKey: string;
+  displayName: string;
+  professionalRole: string;
+  role: TeamMemberRole;
+  instructions: string;
+  outputResponsibility: string;
+  agentId?: string;
+  allowedSkillKeys: string[];
+  allowedToolNames: string[];
+  isReadonly: boolean;
+}
+
+export interface TeamWorkflowPhaseDraft {
+  clientKey: string;
+  displayName: string;
+  kind: TeamWorkflowPhaseKind;
+  dependsOnPhaseKeys: string[];
+  assignedMemberKeys: string[];
+  expectedOutputs: string[];
+  completionRule: string;
+}
+
+export interface TeamWorkflowDraft {
+  clientKey: string;
+  displayName: string;
+  triggerDescription: string;
+  phases: TeamWorkflowPhaseDraft[];
+}
+
+export interface TeamDefinitionDraft {
+  displayName: string;
+  description: string;
+  emblem?: string;
+  accent?: string;
+  category: string;
+  capabilityTags: string[];
+  scenarioEligibility: TeamDefinitionScenario[];
+  leadMemberKey: string;
+  members: TeamMemberDraft[];
+  workflows: TeamWorkflowDraft[];
+}
+
+export interface TeamDefinition {
+  schemaVersion: 1;
+  /** Immutable runtime identity generated independently from displayName. */
+  teamDefinitionId: string;
+  displayName: string;
+  description: string;
+  emblem?: string;
+  accent?: string;
+  category: string;
+  capabilityTags: string[];
+  scenarioEligibility: TeamDefinitionScenario[];
+  leadMemberId: string;
+  /** Includes the lead exactly once. */
+  members: TeamMemberDefinition[];
+  workflows: TeamWorkflowDefinition[];
+  collaborationPolicy: 'lead_mediated';
+  permissionPolicy: 'inherit_parent_intersection';
+  origin: TeamDefinitionOrigin;
+}
+
+export interface TeamDefinitionRecord {
+  definition: TeamDefinition;
+  revision: string;
+  level: TeamDefinitionLevel;
+  path: string;
+  isAuthorable: boolean;
+}
+
+export interface TeamDefinitionListSnapshot {
+  status: 'ready' | 'partial';
+  records: TeamDefinitionRecord[];
+  diagnostics: TeamDefinitionDiagnostic[];
 }
 
 export interface SkillMarketItem {

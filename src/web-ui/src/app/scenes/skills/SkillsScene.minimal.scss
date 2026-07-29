@@ -374,22 +374,28 @@
       }
     }
 
-    .skills-card__delete {
+    .skills-card__delete,
+    .skills-card__edit {
       width: var(--workspace-icon-target);
       height: var(--workspace-icon-target);
       border-radius: var(--workspace-radius-control);
       color: var(--workspace-text-muted);
-
-      &:hover {
-        color: var(--workspace-status-error-text);
-        background: var(--workspace-status-error-bg);
-      }
 
       &:focus-visible {
         outline: 2px solid var(--workspace-focus-ring);
         outline-offset: -2px;
         box-shadow: none;
       }
+    }
+
+    .skills-card__edit:hover {
+      color: var(--workspace-text-primary);
+      background: var(--workspace-surface-hover);
+    }
+
+    .skills-card__delete:hover {
+      color: var(--workspace-status-error-text);
+      background: var(--workspace-status-error-bg);
     }
 
     .skills-main__loading {

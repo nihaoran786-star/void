@@ -4,6 +4,7 @@ const mockSendMessageToTransientBtwSession = vi.fn();
 const mockStateMachineGetCurrentState = vi.fn();
 const mockPendingQueueList = vi.fn();
 const mockPendingQueueEnqueue = vi.fn();
+const mockAcpStartDialogTurn = vi.fn();
 
 vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({
   agentAPI: {
@@ -14,7 +15,7 @@ vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({
 
 vi.mock('@/infrastructure/api/service-api/ACPClientAPI', () => ({
   ACPClientAPI: {
-    startDialogTurn: vi.fn(),
+    startDialogTurn: (...args: any[]) => mockAcpStartDialogTurn(...args),
   },
 }));
 
@@ -249,6 +250,15 @@ describe('MessageModule transient BTW image follow-up', () => {
         version: 1,
         segments: [{ type: 'skill', name: 'audit' }],
       },
+      personaTurnSnapshot: {
+        schemaVersion: 1,
+        kind: 'agent',
+        personaKey: 'user::void::reviewer',
+        personaRevision: 'prompt-v1',
+        scenario: 'code',
+        executionPolicy: 'agentic',
+        resolvedSkillRefs: [],
+      },
     };
 
     await sendMessage(
@@ -266,5 +276,41 @@ describe('MessageModule transient BTW image follow-up', () => {
       userMessageMetadata,
     }));
     expect(context.flowChatStore.addDialogTurn).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before creating a local turn when an ACP client receives a persona snapshot', async () => {
+    sessions.set('acp-session', {
+      sessionId: 'acp-session',
+      title: 'ACP',
+      mode: 'acp:codex',
+      sessionKind: 'normal',
+      config: { modelName: 'fast' },
+    });
+
+    await expect(sendMessage(
+      context,
+      'Do the task',
+      'acp-session',
+      undefined,
+      'acp:codex',
+      undefined,
+      {
+        userMessageMetadata: {
+          personaTurnSnapshot: {
+            schemaVersion: 1,
+            kind: 'agent',
+            personaKey: 'user::void::reviewer',
+            personaRevision: 'prompt-v1',
+            scenario: 'code',
+            executionPolicy: 'acp:codex',
+            resolvedSkillRefs: [],
+          },
+        },
+      },
+    )).rejects.toThrow('ACP sessions do not support a custom persona');
+
+    expect(mockAcpStartDialogTurn).not.toHaveBeenCalled();
+    expect(context.flowChatStore.addDialogTurn).not.toHaveBeenCalled();
+    expect(context.flowChatStore.deleteDialogTurn).not.toHaveBeenCalled();
   });
 });

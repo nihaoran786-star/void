@@ -1,10 +1,10 @@
 # Current collaboration context
 
-Updated: 2026-07-28
+Updated: 2026-07-30
 
 ## Product state
 
-- Branch line: `codex/minimal-workspace-ui`.
+- Active customization integration branch: `codex/customization-unification`.
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
 - The short-drama workspace uses one real secondary `EditorGroup` for the fixed
@@ -25,6 +25,13 @@ Updated: 2026-07-28
   Switching persona preserves the scenario, execution policy, workspace,
   permissions, Canvas, and top-level history. The active contract is
   [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
+- The Desktop/Tauri customization slice now provides one localized
+  Agent/Team/Skill catalog, per-parent single-Agent selection in the composer,
+  Agent and Skill authoring, and validated user/project Team definition
+  create/edit/install/delete flows. Deep Review and AI Short Drama remain
+  adapters over their existing fixed runtimes. General user-authored Team
+  activation/orchestration and browser/server parity remain explicit deferred
+  capabilities rather than simulated behavior.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.
@@ -78,6 +85,13 @@ Repository graph and automated review on 2026-07-28 covered 3,034 files,
 54,239 structural nodes, repository governance checks, Web UI type/lint/tests,
 core checks, theme contracts, i18n contracts, production build budgets, and
 full-window desktop evidence.
+
+The 2026-07-30 customization integration additionally passed the complete Web
+UI test suite, type and lint checks, repository/theme/i18n contracts, production
+Web build and bundle budgets, focused persona/Skill/Team contract tests, and the
+full `void-core` test suite. Desktop Team API and workspace checks are recorded
+in the current customization specification. The known baseline debt below is
+not reclassified as passing.
 
 High-confidence defects fixed in the current audit:
 

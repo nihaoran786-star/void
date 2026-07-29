@@ -5,6 +5,32 @@
     "loading": "加載中...",
     "welcome": "歡迎使用 void"
   },
+  "customization": {
+    "nav": {
+      "ariaLabel": "定制中心",
+      "agents": "智能體",
+      "skills": "技能",
+      "connectors": "連接器"
+    },
+    "composerPersona": {
+      "trigger": "智能體與團隊",
+      "agents": "智能體",
+      "teams": "團隊",
+      "loading": "正在載入可用智能體…",
+      "empty": "目前場景還沒有可用的智能體或團隊",
+      "loadFailed": "載入失敗，請稍後重試",
+      "unsupportedWeb": "瀏覽器版暫不支援選擇智能體與團隊，請使用 Void 桌面版。",
+      "summon": "召喚",
+      "open": "開啟",
+      "manage": "管理智能體與團隊",
+      "selectedAgent": "已選智能體",
+      "activationFailed": "切換智能體失敗，已保留原來的選擇",
+      "modeChangeFailed": "切換模式失敗，已保留原來的模式",
+      "clearFailed": "恢復預設智能體失敗，請重試",
+      "teamActionFailed": "目前會話無法開啟這個團隊",
+      "clearPersona": "恢復預設智能體"
+    }
+  },
   "agents": {
     "general": {
       "name": "通用助手",

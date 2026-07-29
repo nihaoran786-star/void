@@ -5,6 +5,32 @@
     "loading": "Loading...",
     "welcome": "Welcome to void"
   },
+  "customization": {
+    "nav": {
+      "ariaLabel": "Customization Center",
+      "agents": "Agents",
+      "skills": "Skills",
+      "connectors": "Connectors"
+    },
+    "composerPersona": {
+      "trigger": "Agents and teams",
+      "agents": "Agents",
+      "teams": "Teams",
+      "loading": "Loading available agents…",
+      "empty": "No agents or teams are available in this scenario yet",
+      "loadFailed": "Could not load agents and teams. Try again later.",
+      "unsupportedWeb": "Agent and team selection is not available in the browser yet. Use the Void desktop app.",
+      "summon": "Summon",
+      "open": "Open",
+      "manage": "Manage agents and teams",
+      "selectedAgent": "Selected agent",
+      "activationFailed": "Unable to switch the current agent. Your previous selection was kept.",
+      "modeChangeFailed": "Unable to switch modes. Your previous mode was kept.",
+      "clearFailed": "Unable to restore the default agent. Please try again.",
+      "teamActionFailed": "Unable to open this team from the current conversation.",
+      "clearPersona": "Restore the default agent"
+    }
+  },
   "agents": {
     "general": {
       "name": "General Assistant",

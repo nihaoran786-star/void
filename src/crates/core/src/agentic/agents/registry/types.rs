@@ -132,6 +132,7 @@ pub enum SubagentStateReason {
     BuiltinDefaultVisible,
     BuiltinDefaultHidden,
     CustomDefaultEnabled,
+    BlockedByVisibilityPolicy,
     EnabledByProjectOverride,
     DisabledByProjectOverride,
     EnabledByUserOverride,
@@ -144,29 +145,18 @@ fn default_true() -> bool {
 
 pub fn subagent_key_for(source: Option<SubAgentSource>, agent: &dyn Agent) -> Option<String> {
     let source = source?;
-    let slot = match source {
-        SubAgentSource::Builtin => "builtin",
+    let prefix = match source {
+        SubAgentSource::Builtin => "builtin::builtin",
         SubAgentSource::Project => {
             let custom = agent.as_any().downcast_ref::<CustomSubagent>()?;
-            match custom.kind {
-                CustomSubagentKind::Project => "void",
-                CustomSubagentKind::User => "void",
-            }
+            matches!(custom.kind, CustomSubagentKind::Project).then_some("project::void")?
         }
         SubAgentSource::User => {
             let custom = agent.as_any().downcast_ref::<CustomSubagent>()?;
-            match custom.kind {
-                CustomSubagentKind::Project => "void",
-                CustomSubagentKind::User => "void",
-            }
+            matches!(custom.kind, CustomSubagentKind::User).then_some("user::void")?
         }
     };
-    let prefix = match source {
-        SubAgentSource::Builtin => "builtin",
-        SubAgentSource::Project => "project",
-        SubAgentSource::User => "user",
-    };
-    Some(format!("{prefix}::{slot}::{}", agent.id()))
+    Some(format!("{prefix}::{}", agent.id()))
 }
 
 impl AgentInfo {
@@ -205,12 +195,17 @@ impl AgentInfo {
             .as_any()
             .downcast_ref::<CustomSubagent>()
             .map(|c| c.path.clone());
+        let presentation_name = agent
+            .as_any()
+            .downcast_ref::<CustomSubagent>()
+            .map(CustomSubagent::presentation_name)
+            .unwrap_or_else(|| agent.name());
 
         AgentInfo {
             key: subagent_key_for(entry.subagent_source, agent)
                 .unwrap_or_else(|| agent.id().to_string()),
             id: agent.id().to_string(),
-            name: agent.name().to_string(),
+            name: presentation_name.to_string(),
             description: agent.description().to_string(),
             is_readonly: agent.is_readonly(),
             is_review: is_review_agent_entry(entry),

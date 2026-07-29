@@ -6,7 +6,7 @@
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { ArrowUp, Image, RotateCcw, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
+import { Image, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
 import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
@@ -36,6 +36,15 @@ import { inputReducer, initialInputState } from '../reducers/inputReducer';
 import { modeReducer, initialModeState } from '../reducers/modeReducer';
 import { CHAT_INPUT_CONFIG } from '../constants/chatInputConfig';
 import { useMessageSender } from '../hooks/useMessageSender';
+import { useComposerModePersistence } from '../hooks/useComposerModePersistence';
+import { useComposerPersonaSelection } from '../hooks/useComposerPersonaSelection';
+import { ComposerPersonaPicker } from './ComposerPersonaPicker';
+import { ComposerActionButton } from './ComposerActionButton';
+import {
+  localizeCatalogPresentation,
+  type AgentCatalogEntry,
+  type TeamCatalogEntry,
+} from '@/shared/services/customization';
 import { useChatInputState } from '../store/chatInputStateStore';
 import { useInputHistoryStore } from '../store/inputHistoryStore';
 import { startBtwThread } from '../services/BtwThreadService';
@@ -95,6 +104,7 @@ import {
   type MediaReferenceEventDetail,
 } from '@/shared/services/media-reference';
 import { setChatPopupActive } from './chatPopupState';
+import { isComposerActionAllowed } from '../utils/composerSubmissionGuard';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import {
   completeNewSessionDraft,
@@ -291,6 +301,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   parentSessionId,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tAgents } = useTranslation('scenes/agents');
   const isIndependentChildComposer = Boolean(sessionId);
   
   const [inputState, dispatchInput] = useReducer(inputReducer, initialInputState);
@@ -366,6 +378,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     && draftStatus !== 'idle';
   const effectiveTargetSessionId =
     composerTarget.status === 'ready' ? composerTarget.sessionId : null;
+  const effectiveTargetSessionIdRef = useRef<string | null>(
+    effectiveTargetSessionId,
+  );
+  effectiveTargetSessionIdRef.current = effectiveTargetSessionId;
   const isPrimaryComposer = !isIndependentChildComposer;
   const composerScopeId = effectiveTargetSessionId || draftId;
   const effectiveTargetSession = effectiveTargetSessionId
@@ -659,6 +675,66 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     composerTarget.status === 'ready' && composerTarget.kind === 'child';
   const composerAgentType =
     isChildComposerTarget ? composerTarget.agentType : currentMode;
+  const {
+    modePersistencePending,
+    isModePersistencePending,
+    persistModeChange,
+  } = useComposerModePersistence({
+    sessionId: effectiveTargetSessionId,
+    enabled:
+      Boolean(effectiveTargetSessionId)
+      && !isNewSessionDraft
+      && !isChildComposerTarget
+      && !isAcpTargetSession
+      && effectiveTargetSession?.sessionKind === 'normal',
+  });
+  const {
+    activeAgent: composerActiveAgent,
+    activePersonaBinding: composerActivePersonaBinding,
+    agents: composerPersonaAgents,
+    teams: composerPersonaTeams,
+    loading: composerPersonaLoading,
+    status: composerPersonaStatus,
+    enabled: composerPersonaEnabled,
+    busyId: composerPersonaBusyId,
+    personaPersistencePending,
+    isPersonaPersistencePending,
+    personaSessionState,
+    selectAgent: selectComposerAgent,
+    clearAgent: clearComposerAgent,
+    runTeamAction: runComposerTeamAction,
+  } = useComposerPersonaSelection({
+    session: effectiveTargetSession,
+    workspacePath: composerWorkspacePath,
+    currentAgentType: composerAgentType,
+    enabled:
+      Boolean(effectiveTargetSessionId)
+      && !isNewSessionDraft
+      && !isChildComposerTarget
+      && !isAcpTargetSession
+      && effectiveTargetSession?.sessionKind === 'normal',
+  });
+  const customizationPersistencePending =
+    modePersistencePending || personaPersistencePending;
+  const isCustomizationPersistencePending = useCallback(
+    () =>
+      isModePersistencePending(effectiveTargetSessionId)
+      || isPersonaPersistencePending(),
+    [
+      effectiveTargetSessionId,
+      isModePersistencePending,
+      isPersonaPersistencePending,
+    ],
+  );
+  const activePersonaDisplayName = useMemo(() => {
+    if (!composerActiveAgent) {
+      return tCommon('customization.composerPersona.selectedAgent');
+    }
+    return localizeCatalogPresentation(
+      composerActiveAgent.identity,
+      key => tAgents(key),
+    ).displayName;
+  }, [composerActiveAgent, tAgents, tCommon]);
   const canSwitchModes =
     !isChildComposerTarget
     && !isAssistantWorkspace
@@ -681,7 +757,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   switchableModesRef.current = switchableModes;
   const currentModeRef = useRef(currentMode);
   currentModeRef.current = currentMode;
-  const applyModeChangeRef = useRef<((modeId: string) => void) | null>(null);
+  const applyModeChangeRef = useRef<
+    ((modeId: string) => Promise<void>) | null
+  >(null);
 
   /** Code session: modes switchable on top of default agentic */
   const incrementalCodeModes = useMemo(
@@ -831,6 +909,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     // applyModeChange). Prefer it over session.mode so a stale store cannot force
     // agentic when the user selected Team or another mode.
     currentAgentType: composerAgentType,
+    personaSessionState,
     newSessionConfig,
     onSessionCreated: isNewSessionDraft ? handleDeferredSessionCreated : undefined,
     sessionReferenceScope: isNewSessionDraft
@@ -1392,6 +1471,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const { sessionId, mode } = customEvent.detail || {};
       
       if (sessionId === effectiveTargetSessionId && mode) {
+        if (isModePersistencePending(sessionId)) {
+          return;
+        }
         log.debug('Session switched, syncing mode', { sessionId, mode });
         dispatchMode({ type: 'SET_CURRENT_MODE', payload: mode });
         if (isPrimaryComposer) {
@@ -1409,9 +1491,16 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     return () => {
       window.removeEventListener('void:session-switched', handleSessionSwitched);
     };
-  }, [effectiveTargetSessionId, isPrimaryComposer]);
+  }, [
+    effectiveTargetSessionId,
+    isModePersistencePending,
+    isPrimaryComposer,
+  ]);
 
   React.useEffect(() => {
+    if (isModePersistencePending(effectiveTargetSessionId)) {
+      return;
+    }
     const nextMode = resolveWorkspaceChatInputMode({
       currentMode,
       isAssistantWorkspace,
@@ -1439,6 +1528,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     currentMode,
     effectiveTargetSessionId,
     isAssistantWorkspace,
+    isModePersistencePending,
     isPrimaryComposer,
   ]);
 
@@ -2187,7 +2277,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     t,
   ]);
 
-  const submitDeepreviewFromInput = useCallback(async () => {
+  const submitDeepreviewFromInput = useCallback(async (messageOverride?: string) => {
     if (!effectiveTargetSessionId || !effectiveTargetSession) {
       notificationService.error(
         t('chatInput.deepreviewNoSession', { defaultValue: 'No active session for /DeepReview' })
@@ -2195,7 +2285,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    const message = inputState.value.trim();
+    const message = (messageOverride ?? inputState.value).trim();
     if (!isDeepReviewSlashCommand(message)) {
       notificationService.warning(
         t('chatInput.deepreviewUsage', {
@@ -2522,6 +2612,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       await handleCancelCurrentTask();
       return;
     }
+
+    const submissionIntent = sendButtonMode === 'retry'
+      ? 'retry'
+      : sendButtonMode === 'split'
+        ? 'split_submit'
+        : 'submit';
+    if (!isComposerActionAllowed(
+      isCustomizationPersistencePending(),
+      submissionIntent,
+    )) {
+      return;
+    }
     
     if (sendButtonMode === 'retry') {
       await transition(SessionExecutionEvent.RESET);
@@ -2760,6 +2862,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     resolveTypedMcpPromptCommand,
     draftStatus,
     draftWorkspace,
+    isCustomizationPersistencePending,
     isNewSessionDraft,
     setDraftStatus,
   ]);
@@ -2774,26 +2877,51 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     );
   }, [canSwitchModes, incrementalCodeModes, slashCommandState.query]);
 
-  const applyModeChange = useCallback((modeId: string) => {
+  const applyModeChange = useCallback(async (modeId: string) => {
+    if (isCustomizationPersistencePending()) {
+      return;
+    }
+
+    const targetSessionId = effectiveTargetSessionId;
+    if (targetSessionId) {
+      try {
+        await persistModeChange(modeId);
+      } catch {
+        notificationService.error(
+          tCommon('customization.composerPersona.modeChangeFailed'),
+        );
+        return;
+      }
+      if (effectiveTargetSessionIdRef.current !== targetSessionId) {
+        return;
+      }
+    }
+
     dispatchMode({
       type: 'SET_CURRENT_MODE',
       payload: modeId,
     });
-
-    try {
-      sessionStorage.setItem('void:flowchat:lastMode', modeId);
-    } catch {
-      // ignore
+    if (isPrimaryComposer) {
+      try {
+        sessionStorage.setItem('void:flowchat:lastMode', modeId);
+      } catch {
+        // ignore
+      }
     }
-
-    if (effectiveTargetSessionId) {
-      FlowChatStore.getInstance().updateSessionMode(effectiveTargetSessionId, modeId);
-    }
-  }, [effectiveTargetSessionId]);
+  }, [
+    effectiveTargetSessionId,
+    isCustomizationPersistencePending,
+    isPrimaryComposer,
+    persistModeChange,
+    tCommon,
+  ]);
 
   applyModeChangeRef.current = applyModeChange;
 
   const requestModeChange = useCallback((modeId: string) => {
+    if (isCustomizationPersistencePending()) {
+      return;
+    }
     if (!canSwitchModes) {
       dispatchMode({ type: 'CLOSE_DROPDOWN' });
       return;
@@ -2809,9 +2937,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    applyModeChange(modeId);
+    void applyModeChange(modeId);
     dispatchMode({ type: 'CLOSE_DROPDOWN' });
-  }, [applyModeChange, canSwitchModes, currentMode, switchableModes]);
+  }, [
+    applyModeChange,
+    canSwitchModes,
+    currentMode,
+    isCustomizationPersistencePending,
+    switchableModes,
+  ]);
   
   const selectSlashCommandMode = useCallback((modeId: string) => {
     requestModeChange(modeId);
@@ -2960,6 +3094,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
 
     if (e.key === 'Tab' && e.shiftKey) {
+      if (isCustomizationPersistencePending()) {
+        e.preventDefault();
+        return;
+      }
       const modes = switchableModesRef.current;
       const modeNow = currentModeRef.current;
       const apply = applyModeChangeRef.current;
@@ -2975,11 +3113,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
       const currentIdx = modes.findIndex(m => m.id === modeNow);
       if (currentIdx === -1) {
-        apply(modes[0].id);
+        void apply(modes[0].id);
         return;
       }
       const nextIdx = (currentIdx + 1) % modes.length;
-      apply(modes[nextIdx].id);
+      void apply(modes[nextIdx].id);
       return;
     }
 
@@ -3156,6 +3294,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       
       e.preventDefault();
 
+      if (!isComposerActionAllowed(
+        isCustomizationPersistencePending(),
+        'submit',
+      )) {
+        return;
+      }
+
       const isBtwCommand = inputState.value.trim().toLowerCase().startsWith('/btw');
       if (isBtwCommand) {
         // Allow /btw submission even while the main session is generating.
@@ -3181,7 +3326,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       e.preventDefault();
       void handleCancelCurrentTask();
     }
-  }, [handleSendOrCancel, submitBtwFromInput, submitGoalFromInput, derivedState, handleCancelCurrentTask, slashCommandState, getFilteredIncrementalModes, getFilteredActions, getSlashPickerItems, selectSlashCommandMode, selectSlashCommandAction, selectSlashPromptCommand, canSwitchModes, historyIndex, inputHistory, savedDraft, inputState.value, currentSessionId, isBtwSession, t, removeContext]);
+  }, [handleSendOrCancel, submitBtwFromInput, submitGoalFromInput, derivedState, handleCancelCurrentTask, slashCommandState, getFilteredIncrementalModes, getFilteredActions, getSlashPickerItems, selectSlashCommandMode, selectSlashCommandAction, selectSlashPromptCommand, canSwitchModes, historyIndex, inputHistory, savedDraft, inputState.value, currentSessionId, isBtwSession, t, removeContext, isCustomizationPersistencePending]);
 
   const handleImeCompositionStart = useCallback(() => {
     isImeComposingRef.current = true;
@@ -3315,6 +3460,71 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     dispatchMode({ type: 'CLOSE_DROPDOWN' });
     openScene('skills' as SceneTabId);
   }, [openScene]);
+
+  const handleOpenAgentsLibrary = useCallback(() => {
+    dispatchMode({ type: 'CLOSE_DROPDOWN' });
+    openScene('agents' as SceneTabId);
+  }, [openScene]);
+
+  const handleSelectComposerAgent = useCallback((entry: AgentCatalogEntry) => {
+    if (isCustomizationPersistencePending()) {
+      return;
+    }
+    dispatchMode({ type: 'CLOSE_DROPDOWN' });
+    void selectComposerAgent(entry).catch(() => {
+      notificationService.error(
+        tCommon('customization.composerPersona.activationFailed'),
+      );
+    });
+  }, [
+    isCustomizationPersistencePending,
+    selectComposerAgent,
+    tCommon,
+  ]);
+
+  const handleClearComposerAgent = useCallback(() => {
+    if (isCustomizationPersistencePending()) {
+      return;
+    }
+    void clearComposerAgent().catch(() => {
+      notificationService.error(
+        tCommon('customization.composerPersona.clearFailed'),
+      );
+    });
+  }, [
+    clearComposerAgent,
+    isCustomizationPersistencePending,
+    tCommon,
+  ]);
+
+  const handleSelectComposerTeam = useCallback((entry: TeamCatalogEntry) => {
+    dispatchMode({ type: 'CLOSE_DROPDOWN' });
+    if (isCustomizationPersistencePending()) {
+      return;
+    }
+    void runComposerTeamAction(entry, {
+      launchDeepReview: async () => {
+        const currentDraft = inputState.value.trim();
+        const command = isDeepReviewSlashCommand(currentDraft)
+          ? currentDraft
+          : `${DEEP_REVIEW_SLASH_COMMAND}${currentDraft ? ` ${currentDraft}` : ''}`;
+        await submitDeepreviewFromInput(command);
+      },
+      openShortDrama: () => {
+        window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
+      },
+    }).catch(() => {
+      notificationService.error(
+        tCommon('customization.composerPersona.teamActionFailed'),
+      );
+    });
+  }, [
+    inputState.value,
+    isCustomizationPersistencePending,
+    runComposerTeamAction,
+    submitDeepreviewFromInput,
+    tCommon,
+  ]);
   useEffect(() => {
     if (!isPrimaryComposer) {
       return;
@@ -3332,96 +3542,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const renderActionButton = () => {
-    if (!derivedState && !isNewSessionDraft) {
-      return (
-        <IconButton
-          className="void-chat-input__send-button"
-          aria-label={t('input.sendShortcut')}
-          disabled
-          size="small"
-        >
-          <ArrowUp size={11} />
-        </IconButton>
-      );
-    }
-
-    const sendButtonMode = derivedState?.sendButtonMode ?? 'send';
-    const hasQueuedInput = derivedState?.hasQueuedInput ?? false;
-    
-    if (sendButtonMode === 'cancel') {
-      return (
-        <Tooltip content={t('input.stopGeneration')}>
-          <button
-            type="button"
-            aria-label={t('input.stopGeneration')}
-            className="void-chat-input__send-button void-chat-input__send-button--breathing"
-            onClick={handleSendOrCancel}
-            data-testid="chat-input-cancel-btn"
-          >
-            <div className="void-chat-input__breathing-circle" />
-            {hasQueuedInput && <span className="void-chat-input__queued-badge">1</span>}
-          </button>
-        </Tooltip>
-      );
-    }
-    
-    if (sendButtonMode === 'retry') {
-      return (
-        <IconButton
-          className="void-chat-input__send-button void-chat-input__send-button--retry"
-          aria-label={t('input.retry')}
-          onClick={handleSendOrCancel}
-          tooltip={t('input.retry')}
-          size="small"
-        >
-          <RotateCcw size={11} />
-        </IconButton>
-      );
-    }
-
-    if (sendButtonMode === 'split') {
-      return (
-        <div className="void-chat-input__split-actions">
-          <Tooltip content={t('input.stopGeneration')}>
-            <button
-              type="button"
-              aria-label={t('input.stopGeneration')}
-              className="void-chat-input__send-button void-chat-input__send-button--breathing"
-              onClick={() => {
-                void handleCancelCurrentTask();
-              }}
-              data-testid="chat-input-cancel-btn"
-            >
-              <div className="void-chat-input__breathing-circle" />
-            </button>
-          </Tooltip>
-          <IconButton
-            className="void-chat-input__send-button"
-            aria-label={t('input.sendShortcut')}
-            onClick={handleSendOrCancel}
-            disabled={!inputState.value.trim()}
-            data-testid="chat-input-send-btn"
-            tooltip={t('input.sendShortcut')}
-            size="small"
-          >
-            <ArrowUp size={11} />
-          </IconButton>
-        </div>
-      );
-    }
-    
     return (
-      <IconButton
-        className="void-chat-input__send-button"
-        aria-label={t('input.sendShortcut')}
-        onClick={handleSendOrCancel}
-        disabled={!inputState.value.trim()}
-        data-testid="chat-input-send-btn"
-        tooltip={t('input.sendShortcut')}
-        size="small"
-      >
-        <ArrowUp size={11} />
-      </IconButton>
+      <ComposerActionButton
+        available={Boolean(derivedState) || isNewSessionDraft}
+        mode={derivedState?.sendButtonMode ?? 'send'}
+        hasDraft={Boolean(inputState.value.trim())}
+        hasQueuedInput={derivedState?.hasQueuedInput ?? false}
+        customizationPersistencePending={customizationPersistencePending}
+        sendLabel={t('input.sendShortcut')}
+        retryLabel={t('input.retry')}
+        cancelLabel={t('input.stopGeneration')}
+        onPrimaryAction={() => {
+          void handleSendOrCancel();
+        }}
+        onCancel={() => {
+          void handleCancelCurrentTask();
+        }}
+      />
     );
   };
 
@@ -3703,10 +3840,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         type="button"
                         className="void-chat-input__agent-capsule-close"
                         aria-label={t('chatInput.resetToAgentic')}
+                        disabled={customizationPersistencePending}
                         onClick={e => {
                           e.stopPropagation();
-                          applyModeChange('agentic');
+                          void applyModeChange('agentic');
                           dispatchMode({ type: 'CLOSE_DROPDOWN' });
+                        }}
+                      >
+                        <X size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  )}
+
+                  {composerActivePersonaBinding?.kind === 'agent' && (
+                    <div className="void-chat-input__agent-capsule void-chat-input__persona-capsule">
+                      <span className="void-chat-input__agent-capsule-label">
+                        {activePersonaDisplayName}
+                      </span>
+                      <button
+                        type="button"
+                        className="void-chat-input__agent-capsule-close"
+                        aria-label={tCommon('customization.composerPersona.clearPersona')}
+                        disabled={customizationPersistencePending}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleClearComposerAgent();
                         }}
                       >
                         <X size={12} strokeWidth={2.5} />
@@ -3756,6 +3914,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       )}
 
                       <div className="void-chat-input__boost-section">
+                        {composerPersonaEnabled ? (
+                          <ComposerPersonaPicker
+                            agents={composerPersonaAgents}
+                            teams={composerPersonaTeams}
+                            loading={composerPersonaLoading}
+                            status={composerPersonaStatus}
+                            activePersonaId={
+                              composerActivePersonaBinding?.kind === 'agent'
+                                ? composerActivePersonaBinding.personaId
+                                : undefined
+                            }
+                            busyId={
+                              composerPersonaBusyId
+                              ?? (modePersistencePending ? '__mode_pending__' : undefined)
+                            }
+                            onSelectAgent={handleSelectComposerAgent}
+                            onSelectTeam={handleSelectComposerTeam}
+                            onOpenLibrary={handleOpenAgentsLibrary}
+                          />
+                        ) : null}
+
                         <div
                           role="button"
                           tabIndex={0}

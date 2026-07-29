@@ -5,6 +5,7 @@ import type { SkillLevel, SkillMarketItem } from '@/infrastructure/config/types'
 import { useWorkspaceManagerSync } from '@/infrastructure/hooks/useWorkspaceManagerSync';
 import { useNotification } from '@/shared/notification-system';
 import { createLogger } from '@/shared/utils/logger';
+import { isMarketSkillInstalled } from '@/shared/services/customization';
 
 const log = createLogger('SkillsScene:useSkillMarket');
 
@@ -71,7 +72,7 @@ export function useSkillMarket({
     const entries = marketSkills.map((skill, index) => ({
       skill,
       index,
-      installed: installedSkillNames.has(skill.name),
+      installed: isMarketSkillInstalled(installedSkillNames, skill),
     }));
 
     entries.sort((a, b) => {
