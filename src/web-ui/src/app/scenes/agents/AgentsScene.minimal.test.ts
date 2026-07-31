@@ -35,7 +35,7 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      '57faa56ab53cb6f8f30b76780d6e864ee13126f86cd893c57f42f16b1937f303',
+      'ee252c7055f95f4c0b544f599044a290b9a2bb7b578befcc09cfb47d5544d68e',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
       '4c9fe890d32913cecd56a3aa55701a9bccdc770493af73db1e15c673ea60888b',
@@ -69,7 +69,7 @@ describe('Agents scene Minimal presentation contract', () => {
   it('uses one bounded content axis with a flat graphic-free header', () => {
     expect(source).toContain('--agents-content-max: 1280px;');
     expect(source).toMatch(
-      /\.gallery-page-header \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 96px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background: transparent;/,
+      /\.gallery-page-header \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 72px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background: transparent;/,
     );
     expect(source).toMatch(
       /\.gallery-zones \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?margin-inline: auto;/,
@@ -85,25 +85,62 @@ describe('Agents scene Minimal presentation contract', () => {
       /\.gallery-page-header__actions \.search__input \{[\s\S]*?opacity: 1;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 80px;/,
+      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 72px;/,
+    );
+  });
+
+  it('matches the workspace tab, header, and control typography contract', () => {
+    expect(source).toMatch(
+      /\.agents-catalog-tabs \{[\s\S]*?min-height: 48px;[\s\S]*?button \{[\s\S]*?min-height: 48px;[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-regular\);/,
+    );
+    expect(source).toMatch(
+      /&\.is-active \{[\s\S]*?border-bottom-color: var\(--workspace-accent\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-page-header__title \{[\s\S]*?font-size: var\(--workspace-font-size-lead\);[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-page-header__subtitle \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?line-height: var\(--workspace-line-height-control\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-cat-chip \{[\s\S]*?height: var\(--workspace-control-height\);[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
+    );
+    expect(source).toMatch(
+      /\.gallery-filter-count \{[\s\S]*?font-size: var\(--workspace-font-size-meta\);[\s\S]*?font-variant-numeric: tabular-nums;/,
     );
   });
 
   it('compresses list cards without removing their details behavior', () => {
     expect(source).toMatch(
-      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 174px;[\s\S]*?min-height: 174px;/,
+      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 160px;[\s\S]*?min-height: 160px;/,
     );
-    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));');
+    expect(source).toContain('--gallery-grid-min: 280px;');
+    expect(source).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    expect(source).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));');
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(
       /\.agent-card__desc,[\s\S]*?white-space: normal;[\s\S]*?-webkit-line-clamp: 2;/,
     );
+    expect(source).toMatch(
+      /\.agent-card__name,[\s\S]*?font-size: var\(--workspace-font-size-control\);[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
+    );
+    expect(source).toMatch(
+      /\.core-agent-card__role,[\s\S]*?font-size: var\(--workspace-font-size-meta\);[\s\S]*?font-weight: var\(--workspace-font-weight-regular\);/,
+    );
+    expect(source).toMatch(
+      /\.agent-card__desc,[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?line-height: 1\.5;/,
+    );
+    expect(readSource('./AgentsScene.tsx')).toContain('<GalleryGrid minCardWidth={280}>');
+    expect(readSource('./AgentsScene.tsx')).not.toContain(
+      '<span className="gallery-zone-count">{visibleAgents.length}</span>',
+    );
   });
 
   it('uses one real portrait slot for both core and specialist employees', () => {
     expect(source).toMatch(
-      /\.agent-avatar--card,[\s\S]*?\.agent-avatar--detail \{[\s\S]*?width: 52px;[\s\S]*?height: 52px;/,
+      /\.agent-avatar--card \{[\s\S]*?width: 44px;[\s\S]*?height: 44px;/,
     );
     expect(readSource('./components/AgentAvatar.tsx')).toContain('<img');
     expect(readSource('./components/AgentAvatar.tsx')).toContain('onError={() => setImageFailed(true)}');
@@ -138,7 +175,7 @@ describe('Agents scene Minimal presentation contract', () => {
 
   it('wraps narrow filter groups instead of clipping the second group', () => {
     expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.void-agents-scene__agent-filters \{[\s\S]*?flex-wrap: wrap;[\s\S]*?overflow-x: visible;/,
+      /\.void-agents-scene__agent-filters \{[\s\S]*?flex-wrap: wrap;[\s\S]*?overflow: visible;/,
     );
   });
 

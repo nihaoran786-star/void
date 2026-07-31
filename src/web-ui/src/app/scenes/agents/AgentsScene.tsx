@@ -728,7 +728,6 @@ const AgentsHomeView: React.FC = () => {
                 <Plus size={15} />
                 <span>{t('page.newAgent')}</span>
               </button>
-              <span className="gallery-zone-count">{visibleAgents.length}</span>
             </>
           )}
         >
@@ -742,7 +741,7 @@ const AgentsHomeView: React.FC = () => {
           ) : null}
 
           {!loading && visibleAgents.length > 0 ? (
-            <GalleryGrid minCardWidth={360}>
+            <GalleryGrid minCardWidth={280}>
               {visibleAgents.map((agent, index) => (
                 <AgentCard
                   key={agent.key}
