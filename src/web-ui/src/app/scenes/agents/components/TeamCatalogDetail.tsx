@@ -2,11 +2,12 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge, Button } from '@/component-library';
 import { GalleryDetailModal } from '@/app/components';
-import { ShieldCheck, Users } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import {
   localizeCatalogPresentation,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
+import AgentAvatar from './AgentAvatar';
 
 interface TeamCatalogDetailProps {
   team: TeamCatalogEntry | null;
@@ -38,7 +39,13 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
     <GalleryDetailModal
       isOpen={Boolean(team)}
       onClose={onClose}
-      icon={<Users size={24} strokeWidth={1.7} />}
+      icon={team && presentation ? (
+        <AgentAvatar
+          identity={`team:${team.source.adapterId}:${team.identity.id}`}
+          name={presentation.displayName}
+          size="detail"
+        />
+      ) : null}
       title={presentation?.displayName ?? ''}
       description={presentation?.description}
       badges={team ? (
@@ -118,7 +125,11 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
           <div className="team-catalog-detail__section">
             <span className="team-catalog-detail__label">{t('catalog.detail.lead')}</span>
             <div className="team-catalog-detail__member team-catalog-detail__member--lead">
-              <div>
+              <AgentAvatar
+                identity={`team:${team.identity.id}:lead:${team.lead.identity.id}`}
+                name={lead?.displayName ?? team.lead.identity.displayName}
+              />
+              <div className="team-catalog-detail__member-copy">
                 <strong>{lead?.displayName}</strong>
                 <span>{lead?.description}</span>
               </div>
@@ -135,7 +146,11 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
                 );
                 return (
                   <div key={member.identity.id} className="team-catalog-detail__member">
-                    <div>
+                    <AgentAvatar
+                      identity={`team:${team.identity.id}:member:${member.identity.id}`}
+                      name={memberPresentation.displayName}
+                    />
+                    <div className="team-catalog-detail__member-copy">
                       <strong>{memberPresentation.displayName}</strong>
                       <span>{memberPresentation.description}</span>
                     </div>

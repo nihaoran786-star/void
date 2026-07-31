@@ -35,7 +35,7 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      'ee252c7055f95f4c0b544f599044a290b9a2bb7b578befcc09cfb47d5544d68e',
+      '69a4731b358c06160a0cb92c743e93f88672dd0a2e225a059110847b0fd63545',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
       '4c9fe890d32913cecd56a3aa55701a9bccdc770493af73db1e15c673ea60888b',
@@ -44,7 +44,7 @@ describe('Agents scene Minimal presentation contract', () => {
       'a2d7e98cadf23aae10c40504d4c1157edb9c05c3576508bbbeec4208e837ee2e',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
-      '270b4ba8a2043c28ae885356a0ca66a77c3bc9c6adab50488e19645dbce3b2d7',
+      'eec1f6756a7d654b0163938ba5aaff0903bbfc9263440ef2f40852cefecbca3b',
     );
   });
 
@@ -66,30 +66,25 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(source).not.toMatch(/\n {2}\.(?:agent-card|core-agent-card|gallery-page-header)/);
   });
 
-  it('uses one bounded content axis with a flat graphic-free header', () => {
+  it('uses one bounded content axis with a title-free compact toolbar', () => {
     expect(source).toContain('--agents-content-max: 1280px;');
     expect(source).toMatch(
-      /\.gallery-page-header \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 72px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background: transparent;/,
+      /\.agent-market-toolbar \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 52px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);/,
     );
     expect(source).toMatch(
       /\.gallery-zones \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?margin-inline: auto;/,
     );
     expect(source).not.toContain('/visuals/void-agents-hero.webp');
     expect(source).toMatch(
-      /\.gallery-page-header__subtitle \{[\s\S]*?display: block;/,
+      /\.agent-market-toolbar \.search \{[\s\S]*?width: min\(280px, 34vw\);/,
     );
     expect(source).toMatch(
-      /\.gallery-page-header__actions \.search \{[\s\S]*?width: 100%;/,
+      /@media \(max-width: 560px\)[\s\S]*?\.agent-market-toolbar \{[\s\S]*?flex-direction: column;/,
     );
-    expect(source).toMatch(
-      /\.gallery-page-header__actions \.search__input \{[\s\S]*?opacity: 1;/,
-    );
-    expect(source).toMatch(
-      /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 72px;/,
-    );
+    expect(readSource('./AgentsScene.tsx')).not.toContain('<GalleryPageHeader');
   });
 
-  it('matches the workspace tab, header, and control typography contract', () => {
+  it('matches the workspace tab, toolbar, and control typography contract', () => {
     expect(source).toMatch(
       /\.agents-catalog-tabs \{[\s\S]*?min-height: 48px;[\s\S]*?button \{[\s\S]*?min-height: 48px;[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-regular\);/,
     );
@@ -97,10 +92,7 @@ describe('Agents scene Minimal presentation contract', () => {
       /&\.is-active \{[\s\S]*?border-bottom-color: var\(--workspace-accent\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
     );
     expect(source).toMatch(
-      /\.gallery-page-header__title \{[\s\S]*?font-size: var\(--workspace-font-size-lead\);[\s\S]*?font-weight: var\(--workspace-font-weight-strong\);/,
-    );
-    expect(source).toMatch(
-      /\.gallery-page-header__subtitle \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?line-height: var\(--workspace-line-height-control\);/,
+      /\.agent-market-toolbar \.search__input \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
     );
     expect(source).toMatch(
       /\.gallery-cat-chip \{[\s\S]*?height: var\(--workspace-control-height\);[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
@@ -136,6 +128,8 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(readSource('./AgentsScene.tsx')).not.toContain(
       '<span className="gallery-zone-count">{visibleAgents.length}</span>',
     );
+    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 6;');
+    expect(readSource('./AgentsScene.tsx')).toContain('visibleAgents.slice(');
   });
 
   it('uses one real portrait slot for both core and specialist employees', () => {

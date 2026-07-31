@@ -18,7 +18,6 @@ import {
   GalleryEmpty,
   GalleryGrid,
   GalleryLayout,
-  GalleryPageHeader,
   GallerySkeleton,
   GalleryZone,
 } from '@/app/components';
@@ -29,6 +28,7 @@ import CreateAgentPage from './components/CreateAgentPage';
 import ReviewTeamPage, { ReviewTeamErrorBoundary } from './components/ReviewTeamPage';
 import TeamAuthoringPage from './components/TeamAuthoringPage';
 import TeamsCatalogView from './components/TeamsCatalogView';
+import CatalogPagination from './components/CatalogPagination';
 import {
   type AgentWithCapabilities,
   useAgentsStore,
@@ -62,6 +62,7 @@ import {
 } from './agentCapabilityGroups';
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
+const AGENT_PAGE_SIZE = 6;
 
 const SKILL_GROUP_ORDER: Record<string, number> = {
   office: 0,
@@ -237,6 +238,7 @@ const AgentsHomeView: React.FC = () => {
     openEditAgent,
   } = useAgentsStore();
   const [selectedAgentKey, setSelectedAgentKey] = React.useState<string | null>(null);
+  const [agentPage, setAgentPage] = React.useState(0);
   const [activeCapabilityTab, setActiveCapabilityTab] = React.useState<CapabilityTab>('tools');
   const [toolsEditing, setToolsEditing] = React.useState(false);
   const [skillsEditing, setSkillsEditing] = React.useState(false);
@@ -301,9 +303,31 @@ const AgentsHomeView: React.FC = () => {
     [filteredAgents, hiddenAgentIds],
   );
 
+  const totalAgentPages = Math.max(1, Math.ceil(visibleAgents.length / AGENT_PAGE_SIZE));
+  const pagedAgents = useMemo(
+    () => visibleAgents.slice(
+      agentPage * AGENT_PAGE_SIZE,
+      (agentPage + 1) * AGENT_PAGE_SIZE,
+    ),
+    [agentPage, visibleAgents],
+  );
+
+  useEffect(() => {
+    setAgentPage(0);
+  }, [agentFilterLevel, agentFilterType, searchQuery]);
+
+  useEffect(() => {
+    setAgentPage((page) => Math.min(page, totalAgentPages - 1));
+  }, [totalAgentPages]);
+
   const scrollToZone = useCallback((targetId: string) => {
-    document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById(targetId)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }, []);
+
+  const changeAgentPage = useCallback((page: number) => {
+    setAgentPage(Math.max(0, Math.min(page, totalAgentPages - 1)));
+    scrollToZone('agents-zone');
+  }, [scrollToZone, totalAgentPages]);
 
   const levelFilters = [
     { key: 'builtin', label: t('filters.builtin'), count: counts.builtin },
@@ -599,49 +623,32 @@ const AgentsHomeView: React.FC = () => {
 
   return (
     <GalleryLayout className="void-agents-scene">
-      <GalleryPageHeader
-        title={t('page.title')}
-        subtitle={t('page.subtitle')}
-        extraContent={(
-          <div className="gallery-anchor-bar">
-            <button
-              type="button"
-              className="gallery-anchor-btn"
-              onClick={() => scrollToZone('core-agents-zone')}
-            >
-              {t('nav.coreAgents')}
-            </button>
-            <button
-              type="button"
-              className="gallery-anchor-btn"
-              onClick={() => scrollToZone('agents-zone')}
-            >
-              {t('nav.agents')}
-            </button>
-          </div>
-        )}
-        actions={(
-          <>
-            <Search
-              value={searchQuery}
-              onChange={setSearchQuery}
-              placeholder={t('page.searchPlaceholder')}
-              size="small"
-              clearable
-              prefixIcon={<></>}
-              suffixContent={(
-                <button
-                  type="button"
-                  className="gallery-search-btn"
-                  aria-label={t('page.searchPlaceholder')}
-                >
-                  <SearchIcon size={14} />
-                </button>
-              )}
-            />
-          </>
-        )}
-      />
+      <div className="agent-market-toolbar">
+        <div className="gallery-anchor-bar">
+          <button
+            type="button"
+            className="gallery-anchor-btn"
+            onClick={() => scrollToZone('core-agents-zone')}
+          >
+            {t('nav.coreAgents')}
+          </button>
+          <button
+            type="button"
+            className="gallery-anchor-btn"
+            onClick={() => scrollToZone('agents-zone')}
+          >
+            {t('nav.agents')}
+          </button>
+        </div>
+        <Search
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder={t('page.searchPlaceholder')}
+          size="small"
+          clearable
+          prefixIcon={<SearchIcon size={14} />}
+        />
+      </div>
 
       <div className="gallery-zones">
         <GalleryZone
@@ -741,16 +748,23 @@ const AgentsHomeView: React.FC = () => {
           ) : null}
 
           {!loading && visibleAgents.length > 0 ? (
-            <GalleryGrid minCardWidth={280}>
-              {visibleAgents.map((agent, index) => (
-                <AgentCard
-                  key={agent.key}
-                  agent={agent}
-                  index={index}
-                  onOpenDetails={openAgentDetails}
-                />
-              ))}
-            </GalleryGrid>
+            <>
+              <GalleryGrid minCardWidth={280}>
+                {pagedAgents.map((agent, index) => (
+                  <AgentCard
+                    key={agent.key}
+                    agent={agent}
+                    index={agentPage * AGENT_PAGE_SIZE + index}
+                    onOpenDetails={openAgentDetails}
+                  />
+                ))}
+              </GalleryGrid>
+              <CatalogPagination
+                currentPage={agentPage}
+                totalPages={totalAgentPages}
+                onPageChange={changeAgentPage}
+              />
+            </>
           ) : null}
         </GalleryZone>
       </div>

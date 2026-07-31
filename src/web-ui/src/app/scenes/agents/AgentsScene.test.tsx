@@ -84,7 +84,21 @@ vi.mock('@/component-library', () => ({
   IconButton: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>{children}</button>
   ),
-  Search: () => <input readOnly />,
+  Search: ({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+  }) => (
+    <input
+      aria-label={placeholder}
+      value={value}
+      onChange={event => onChange(event.target.value)}
+    />
+  ),
   Switch: () => <input type="checkbox" readOnly />,
   confirmDanger: vi.fn(async () => false),
 }));
@@ -104,7 +118,13 @@ vi.mock('@/app/components', () => ({
   ),
   GalleryPageHeader: () => <header />,
   GallerySkeleton: () => <div />,
-  GalleryZone: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  GalleryZone: ({
+    children,
+    id,
+  }: {
+    children: React.ReactNode;
+    id?: string;
+  }) => <section id={id}>{children}</section>,
 }));
 
 vi.mock('./hooks/useAgentsList', () => ({
@@ -203,6 +223,7 @@ describeWithJsdom('AgentsScene', () => {
 
     useAgentsStore.getState().openHome();
     useAgentsStore.getState().setCatalogView('agents');
+    useAgentsStore.getState().setSearchQuery('');
     sceneFixture.agents = [];
     sceneFixture.runtimeSupported = true;
     sceneFixture.listHookCalls = 0;
@@ -220,6 +241,7 @@ describeWithJsdom('AgentsScene', () => {
     vi.unstubAllGlobals();
     useAgentsStore.getState().openHome();
     useAgentsStore.getState().setCatalogView('agents');
+    useAgentsStore.getState().setSearchQuery('');
   });
 
   it('keeps the review team detail page inside a full-height scene page wrapper', async () => {
@@ -328,6 +350,84 @@ describeWithJsdom('AgentsScene', () => {
 
     expect(container.querySelector('[data-testid="agent-detail-title"]')?.textContent)
       .toBe('Project Shared');
+  });
+
+  it('移除可见页面标题并让全部智能体固定每页六张', async () => {
+    sceneFixture.agents = Array.from({ length: 7 }, (_, index) => ({
+      key: `user::void::agent-${index}`,
+      id: `agent-${index}`,
+      name: `Agent ${index}`,
+      displayName: `智能体 ${index}`,
+      description: `智能体 ${index} description`,
+      displayDescription: `智能体 ${index} description`,
+      aliases: [],
+      isReadonly: true,
+      isReview: false,
+      toolCount: 0,
+      defaultTools: [],
+      defaultEnabled: true,
+      effectiveEnabled: true,
+      subagentSource: 'user',
+      capabilities: [],
+      agentKind: 'subagent',
+    }));
+    const { default: AgentsScene } = await import('./AgentsScene');
+
+    await act(async () => {
+      root.render(<AgentsScene />);
+    });
+
+    expect(container.querySelector('header')).toBeNull();
+    expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(6);
+    expect(container.textContent).toContain('nav.coreAgents');
+    expect(container.textContent).toContain('nav.agents');
+    expect(container.querySelector('[aria-label="page.searchPlaceholder"]')).toBeTruthy();
+
+    const next = container.querySelector<HTMLButtonElement>('[aria-label="pagination.next"]');
+    expect(next).toBeTruthy();
+    await act(async () => {
+      next!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+
+    expect(container.querySelectorAll('[data-testid^="agent-card-"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="agent-card-user::void::agent-6"]')).toBeTruthy();
+  });
+
+  it('搜索条件变化后回到智能体第一页', async () => {
+    sceneFixture.agents = Array.from({ length: 7 }, (_, index) => ({
+      key: `user::void::agent-${index}`,
+      id: `agent-${index}`,
+      name: `Agent ${index}`,
+      displayName: `智能体 ${index}`,
+      description: `智能体 ${index} description`,
+      displayDescription: `智能体 ${index} description`,
+      aliases: [],
+      isReadonly: true,
+      isReview: false,
+      toolCount: 0,
+      defaultTools: [],
+      defaultEnabled: true,
+      effectiveEnabled: true,
+      subagentSource: 'user',
+      capabilities: [],
+      agentKind: 'subagent',
+    }));
+    const { default: AgentsScene } = await import('./AgentsScene');
+
+    await act(async () => {
+      root.render(<AgentsScene />);
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[aria-label="pagination.next"]')!
+        .dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    });
+    expect(container.querySelector('[data-testid="agent-card-user::void::agent-6"]')).toBeTruthy();
+
+    await act(async () => {
+      useAgentsStore.getState().setSearchQuery('审查');
+    });
+
+    expect(container.querySelector('[data-testid="agent-card-user::void::agent-0"]')).toBeTruthy();
   });
 
   it('浏览器只渲染明确不支持状态且不挂载目录或子页面', async () => {

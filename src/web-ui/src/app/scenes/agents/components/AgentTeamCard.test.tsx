@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import AgentTeamCard from './AgentTeamCard';
+import { resolveEmployeeAvatarUrl } from './employeeAvatar';
 
 function readAgentTeamCardStylesheet(): string {
   const stylesheet = readFileSync(
@@ -26,6 +27,8 @@ describe('AgentTeamCard', () => {
         title="Code Review Team"
         subtitle="Reviewers inspect the change from multiple angles."
         roleName="Code review"
+        avatarIdentity="team:fixed-team:default-review-team"
+        avatarName="Code Review Team"
         tagNames={[
           'Business logic',
           'Performance',
@@ -46,6 +49,45 @@ describe('AgentTeamCard', () => {
     expect(markup).not.toContain('Architecture');
     expect(markup).not.toContain('Frontend');
     expect(markup).not.toContain('Judge');
+  });
+
+  it('uses the stable team identity to render a reusable employee portrait', () => {
+    const avatarIdentity = 'team:fixed-team:default-review-team';
+    const markup = renderToStaticMarkup(
+      <AgentTeamCard
+        title="代码审查团队"
+        subtitle="从多个专业角度检查代码变更。"
+        roleName="审查主理人"
+        avatarIdentity={avatarIdentity}
+        avatarName="代码审查团队"
+        tagNames={['代码审查']}
+        onOpen={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain(`src="${resolveEmployeeAvatarUrl(avatarIdentity)}"`);
+    expect(markup).toContain('agent-team-card__avatar');
+  });
+
+  it('keeps card, lead, and member portrait identities deterministic', () => {
+    const cardSource = readFileSync(
+      fileURLToPath(new URL('./TeamCatalogCard.tsx', import.meta.url)),
+      'utf8',
+    );
+    const detailSource = readFileSync(
+      fileURLToPath(new URL('./TeamCatalogDetail.tsx', import.meta.url)),
+      'utf8',
+    );
+
+    expect(cardSource).toContain(
+      'avatarIdentity={`team:${team.source.adapterId}:${team.identity.id}`}',
+    );
+    expect(detailSource).toContain(
+      'identity={`team:${team.identity.id}:lead:${team.lead.identity.id}`}',
+    );
+    expect(detailSource).toContain(
+      'identity={`team:${team.identity.id}:member:${member.identity.id}`}',
+    );
   });
 
   it('keeps role summary tags shrinkable and wrapping instead of clipping chips', () => {

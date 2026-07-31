@@ -1,5 +1,6 @@
 import React from 'react';
-import { ShieldCheck, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import AgentAvatar from './AgentAvatar';
 import './AgentTeamCard.scss';
 
 interface AgentTeamCardProps {
@@ -8,6 +9,8 @@ interface AgentTeamCardProps {
   subtitle: string;
   roleName: string;
   tagNames: string[];
+  avatarIdentity: string;
+  avatarName: string;
   onOpen: () => void;
 }
 
@@ -23,6 +26,8 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   subtitle,
   roleName,
   tagNames,
+  avatarIdentity,
+  avatarName,
   onOpen,
 }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -42,9 +47,11 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
       aria-label={title}
     >
       <div className="agent-team-card__header">
-        <div className="agent-team-card__icon">
-          <ShieldCheck size={20} strokeWidth={1.8} />
-        </div>
+        <AgentAvatar
+          identity={avatarIdentity}
+          name={avatarName}
+          className="agent-team-card__avatar"
+        />
         <div className="agent-team-card__header-copy">
           <div className="agent-team-card__title-row">
             <span className="agent-team-card__title">{title}</span>

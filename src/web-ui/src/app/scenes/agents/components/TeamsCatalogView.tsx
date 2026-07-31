@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -12,7 +12,6 @@ import {
   GalleryEmpty,
   GalleryGrid,
   GalleryLayout,
-  GalleryPageHeader,
   GallerySkeleton,
   GalleryZone,
 } from '@/app/components';
@@ -34,7 +33,10 @@ import { useAgentsStore } from '../agentsStore';
 import { useTeamCatalog, type UseTeamCatalogResult } from '../hooks/useTeamCatalog';
 import TeamCatalogCard from './TeamCatalogCard';
 import TeamCatalogDetail from './TeamCatalogDetail';
+import CatalogPagination from './CatalogPagination';
 import './TeamsCatalogView.scss';
+
+const TEAM_PAGE_SIZE = 6;
 
 interface TeamsCatalogViewContentProps {
   catalog: UseTeamCatalogResult;
@@ -65,23 +67,30 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
   const [selectedTeam, setSelectedTeam] = useState<TeamCatalogEntry | null>(null);
   const [installLevel, setInstallLevel] =
     useState<TeamDefinitionLevel>('user');
+  const [teamPage, setTeamPage] = useState(0);
   const hasEntries = catalog.entries.length > 0;
+  const totalTeamPages = Math.max(1, Math.ceil(catalog.entries.length / TEAM_PAGE_SIZE));
+  const pagedTeams = useMemo(
+    () => catalog.entries.slice(
+      teamPage * TEAM_PAGE_SIZE,
+      (teamPage + 1) * TEAM_PAGE_SIZE,
+    ),
+    [catalog.entries, teamPage],
+  );
+
+  useEffect(() => {
+    setTeamPage((page) => Math.min(page, totalTeamPages - 1));
+  }, [totalTeamPages]);
+
+  const changeTeamPage = useCallback((page: number) => {
+    setTeamPage(Math.max(0, Math.min(page, totalTeamPages - 1)));
+    document.getElementById('teams-catalog-zone')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [totalTeamPages]);
 
   return (
-    <GalleryLayout className="teams-catalog-view">
-      <GalleryPageHeader
-        title={t('catalog.page.title')}
-        subtitle={t('catalog.page.subtitle')}
-      />
+    <GalleryLayout className="void-agents-scene teams-catalog-view">
       <div className="team-catalog-toolbar">
-        <div>
-          <strong>{t('catalog.management.title')}</strong>
-          <span>
-            {managementSupported
-              ? t('catalog.management.description')
-              : t('catalog.management.unsupported')}
-          </span>
-        </div>
         <div className="team-catalog-toolbar__actions">
           <select
             aria-label={t('catalog.management.installScope')}
@@ -159,16 +168,23 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
           ) : null}
 
           {catalog.status !== 'loading' && catalog.status !== 'error' && hasEntries ? (
-            <GalleryGrid minCardWidth={360}>
-              {catalog.entries.map((team, index) => (
-                <TeamCatalogCard
-                  key={`${team.source.adapterId}:${team.identity.id}`}
-                  team={team}
-                  index={index}
-                  onOpen={setSelectedTeam}
-                />
-              ))}
-            </GalleryGrid>
+            <>
+              <GalleryGrid minCardWidth={280}>
+                {pagedTeams.map((team, index) => (
+                  <TeamCatalogCard
+                    key={`${team.source.adapterId}:${team.identity.id}`}
+                    team={team}
+                    index={teamPage * TEAM_PAGE_SIZE + index}
+                    onOpen={setSelectedTeam}
+                  />
+                ))}
+              </GalleryGrid>
+              <CatalogPagination
+                currentPage={teamPage}
+                totalPages={totalTeamPages}
+                onPageChange={changeTeamPage}
+              />
+            </>
           ) : null}
         </GalleryZone>
       </div>

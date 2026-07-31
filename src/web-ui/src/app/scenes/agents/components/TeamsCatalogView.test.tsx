@@ -57,15 +57,10 @@ vi.mock('@/app/components', () => ({
   GalleryEmpty: ({ message }: { message: string }) => <div>{message}</div>,
   GalleryGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   GalleryLayout: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
-  GalleryPageHeader: ({
-    title,
-    subtitle,
-  }: {
-    title: string;
-    subtitle: string;
-  }) => <header><h1>{title}</h1><p>{subtitle}</p></header>,
   GallerySkeleton: () => <div>loading</div>,
-  GalleryZone: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  GalleryZone: ({ children, id }: { children: React.ReactNode; id?: string }) => (
+    <section id={id}>{children}</section>
+  ),
 }));
 
 vi.mock('@/infrastructure/hooks/useWorkspaceManagerSync', () => ({
@@ -122,11 +117,11 @@ try {
 
 const describeWithJsdom = JSDOMCtor ? describe : describe.skip;
 
-function teamFixture(): TeamCatalogEntry {
+function teamFixture(id = 'custom-team-id'): TeamCatalogEntry {
   return {
     kind: 'team',
     identity: {
-      id: 'custom-team-id',
+      id,
       revision: { status: 'known', value: 'revision-3' },
       displayName: '自定义团队',
       description: '用于验证管理动作。',
@@ -135,7 +130,7 @@ function teamFixture(): TeamCatalogEntry {
     source: {
       adapterId: 'existing-team-definitions',
       recordType: 'team_definition',
-      recordId: 'user:custom-team-id',
+      recordId: `user:${id}`,
     },
     origin: 'user',
     scenarioEligibility: ['code'],
@@ -266,6 +261,49 @@ describeWithJsdom('TeamsCatalogView', () => {
       await Promise.resolve();
     });
   }
+
+  async function clickButtonByLabel(label: string) {
+    const button = container.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+    expect(button).toBeTruthy();
+    await act(async () => {
+      button!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      await Promise.resolve();
+    });
+  }
+
+  it('团队市场无页面标题且固定每页六张', async () => {
+    catalogFixture.entries = Array.from({ length: 7 }, (_, index) => teamFixture(`team-${index}`));
+    const gateway = gatewayFixture();
+    const packagePicker = { pickPackage: vi.fn(async () => null) };
+
+    await renderView(gateway, packagePicker, capabilityFixture(true));
+
+    expect(container.querySelector('header')).toBeNull();
+    expect(container.textContent).not.toContain('catalog.page.title');
+    expect(container.querySelectorAll('#teams-catalog-zone > div button')).toHaveLength(6);
+    expect(findButton('catalog.management.install')).toBeTruthy();
+    expect(findButton('catalog.management.create')).toBeTruthy();
+
+    await clickButtonByLabel('pagination.next');
+    expect(container.textContent).toContain('team-6');
+    expect(container.textContent).not.toContain('team-0');
+  });
+
+  it('团队数据缩减时把当前页收敛到有效页', async () => {
+    catalogFixture.entries = Array.from({ length: 7 }, (_, index) => teamFixture(`team-${index}`));
+    const gateway = gatewayFixture();
+    const packagePicker = { pickPackage: vi.fn(async () => null) };
+
+    await renderView(gateway, packagePicker, capabilityFixture(true));
+    await clickButtonByLabel('pagination.next');
+    expect(container.textContent).toContain('team-6');
+
+    catalogFixture.entries = [teamFixture('team-0')];
+    await renderView(gateway, packagePicker, capabilityFixture(true));
+
+    expect(container.textContent).toContain('team-0');
+    expect(container.querySelector('[aria-label="pagination.next"]')).toBeNull();
+  });
 
   it('浏览器能力不支持时禁用创建和安装且不会打开桌面文件选择器', async () => {
     const gateway = gatewayFixture();

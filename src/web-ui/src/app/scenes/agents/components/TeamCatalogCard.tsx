@@ -40,6 +40,8 @@ const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({ team, index, onOpen }
       subtitle={presentation.description}
       roleName={lead.displayName}
       tagNames={tagNames}
+      avatarIdentity={`team:${team.source.adapterId}:${team.identity.id}`}
+      avatarName={presentation.displayName}
       onOpen={() => onOpen(team)}
     />
   );
