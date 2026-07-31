@@ -24,7 +24,6 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--agent-card-gradient);
     opacity: 0;
     transition: opacity 0.35s ease;
     pointer-events: none;
@@ -184,7 +183,6 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: var(--agent-card-gradient);
       opacity: 0.5;
       transition: opacity 0.35s ease;
       pointer-events: none;
@@ -527,6 +525,84 @@
   }
 }
 
+// Employee-market presentation. Technical configuration remains available in
+// the detail modal; the catalog card only presents the employee at a glance.
+.agent-card {
+  width: 100%;
+  min-width: 0;
+  height: 184px;
+  border: 1px solid var(--border-subtle);
+  background: var(--element-bg-soft);
+
+  &::before {
+    content: none;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  }
+
+  &__header {
+    align-items: center;
+    padding: $size-gap-4 $size-gap-4 0;
+  }
+
+  &__header-info {
+    gap: 3px;
+  }
+
+  &__name {
+    font-size: var(--font-size-base);
+    font-weight: $font-weight-semibold;
+  }
+
+  &__role {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    line-height: $line-height-base;
+  }
+
+  &__body {
+    padding: $size-gap-3 $size-gap-4 $size-gap-2;
+  }
+
+  &__desc {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    font-weight: $font-weight-normal;
+    line-height: 1.55;
+  }
+
+  &__footer {
+    min-height: 38px;
+    padding: $size-gap-2 $size-gap-4 $size-gap-3;
+    border-radius: 0;
+
+    &::after {
+      content: none;
+    }
+  }
+
+  &__cap-chip {
+    border-color: var(--border-subtle);
+    background: var(--element-bg-subtle);
+    color: var(--color-text-secondary);
+  }
+
+  &__view {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+}
+
 // ── Animations ──
 @keyframes agent-card-in {
   from {
@@ -544,5 +620,16 @@
   .agent-card {
     animation: none;
     transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .agent-card {
+    height: auto;
+    min-height: 168px;
+
+    &__header {
+      flex-direction: row;
+    }
   }
 }

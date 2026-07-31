@@ -333,47 +333,47 @@
   },
   "page": {
     "title": "專業智能體",
-    "subtitle": "管理智能體、工具與技能。",
+    "subtitle": "選擇適合目前任務的 AI 員工。",
     "searchPlaceholder": "搜尋智能體…",
     "newAgent": "新建"
   },
   "nav": {
-    "coreAgents": "核心",
-    "agents": "智能體",
+    "coreAgents": "推薦",
+    "agents": "全部",
     "teams": "團隊"
   },
   "filters": {
     "source": "來源",
     "kind": "類型",
-    "builtin": "內置",
+    "builtin": "官方",
     "user": "用戶",
     "project": "項目",
     "mode": "智能體",
     "subagent": "子智能體"
   },
   "coreAgentsZone": {
-    "title": "核心智能體",
-    "subtitle": "內置工作模式。",
+    "title": "推薦智能體",
+    "subtitle": "常用的 AI 員工，開啟即可開始工作。",
     "empty": "暫未檢測到核心智能體",
     "roleLabel": "主要應用 · ",
     "modes": {
       "agentic": {
-        "role": "編碼專業智能體"
+        "role": "程式開發專家"
       },
       "cowork": {
-        "role": "辦公智能體"
+        "role": "辦公助理"
       },
       "media": {
-        "role": "媒體創作智能體"
+        "role": "創意製作人"
       },
       "computerUse": {
-        "role": "電腦操作智能體"
+        "role": "電腦操作助理"
       }
     }
   },
   "agentsZone": {
-    "title": "智能體",
-    "subtitle": "管理智能體及其能力。",
+    "title": "全部智能體",
+    "subtitle": "依任務選擇專業員工，詳細設定仍可在詳情中調整。",
     "empty": {
       "noAgents": "暫無智能體",
       "noMatch": "沒有匹配項"
@@ -388,7 +388,14 @@
       "disabled": "已禁用"
     },
     "actions": {
-      "expand": "展開詳情"
+      "expand": "展開詳情",
+      "view": "查看",
+      "viewNamed": "查看{{name}}",
+      "viewDetails": "查看員工詳情"
+    },
+    "roles": {
+      "core": "核心員工",
+      "specialist": "專業員工"
     },
     "meta": {
       "tools": "{{count}} 個工具",

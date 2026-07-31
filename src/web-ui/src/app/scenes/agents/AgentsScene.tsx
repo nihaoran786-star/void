@@ -23,19 +23,18 @@ import {
   GalleryZone,
 } from '@/app/components';
 import AgentCard from './components/AgentCard';
+import AgentAvatar from './components/AgentAvatar';
 import CoreAgentCard, { type CoreAgentMeta } from './components/CoreAgentCard';
 import CreateAgentPage from './components/CreateAgentPage';
 import ReviewTeamPage, { ReviewTeamErrorBoundary } from './components/ReviewTeamPage';
 import TeamAuthoringPage from './components/TeamAuthoringPage';
 import TeamsCatalogView from './components/TeamsCatalogView';
-import CustomizationTopNav from '@/app/scenes/customization/CustomizationTopNav';
 import {
   type AgentWithCapabilities,
   useAgentsStore,
 } from './agentsStore';
 import { useAgentsList } from './hooks/useAgentsList';
-import { AGENT_ICON_MAP, CAPABILITY_ACCENT } from './agentsIcons';
-import { getCardGradient } from '@/shared/utils/cardGradients';
+import { CAPABILITY_ACCENT } from './agentsIcons';
 import { getAgentBadge, getAgentDescription, getCapabilityLabel } from './utils';
 import './AgentsView.scss';
 import './AgentsScene.scss';
@@ -283,23 +282,15 @@ const AgentsHomeView: React.FC = () => {
   const coreAgentMeta = useMemo((): Record<string, CoreAgentMeta> => ({
     agentic: {
       role: t('coreAgentsZone.modes.agentic.role'),
-      accentColor: '#6366f1',
-      accentBg: 'rgba(99,102,241,0.10)',
     },
     Cowork: {
       role: t('coreAgentsZone.modes.cowork.role'),
-      accentColor: '#14b8a6',
-      accentBg: 'rgba(20,184,166,0.10)',
     },
     Media: {
       role: t('coreAgentsZone.modes.media.role'),
-      accentColor: '#ec4899',
-      accentBg: 'rgba(236,72,153,0.10)',
     },
     ComputerUse: {
       role: t('coreAgentsZone.modes.computerUse.role'),
-      accentColor: '#f59e0b',
-      accentBg: 'rgba(245,158,11,0.10)',
     },
   }), [t]);
 
@@ -675,14 +666,7 @@ const AgentsHomeView: React.FC = () => {
                   key={agent.key}
                   agent={agent}
                   index={index}
-                  meta={coreAgentMeta[agent.id] ?? { role: agent.displayName, accentColor: '#6366f1', accentBg: 'rgba(99,102,241,0.10)' }}
-                  toolCount={getDisplayedToolCount(agent)}
-                  skillCount={agent.agentKind === 'mode' && modeHasSkillTool(getModeConfig(agent.id)?.enabled_tools ?? agent.defaultTools ?? [])
-                    ? getConfiguredEnabledSkillKeys(getModeSkills(agent.id)).length
-                    : 0}
-                  subagentCount={agent.agentKind === 'mode' && modeHasTaskTool(getModeConfig(agent.id)?.enabled_tools ?? agent.defaultTools ?? [])
-                    ? (agent.visibleSubagentCount ?? 0)
-                    : 0}
+                  meta={coreAgentMeta[agent.id] ?? { role: agent.displayName }}
                   onOpenDetails={openAgentDetails}
                 />
               ))}
@@ -764,13 +748,6 @@ const AgentsHomeView: React.FC = () => {
                   key={agent.key}
                   agent={agent}
                   index={index}
-                  toolCount={getDisplayedToolCount(agent)}
-                  skillCount={agent.agentKind === 'mode' && modeHasSkillTool(getModeConfig(agent.id)?.enabled_tools ?? agent.defaultTools ?? [])
-                    ? getConfiguredEnabledSkillKeys(getModeSkills(agent.id)).length
-                    : 0}
-                  subagentCount={agent.agentKind === 'mode' && modeHasTaskTool(getModeConfig(agent.id)?.enabled_tools ?? agent.defaultTools ?? [])
-                    ? (agent.visibleSubagentCount ?? 0)
-                    : 0}
                   onOpenDetails={openAgentDetails}
                 />
               ))}
@@ -782,11 +759,13 @@ const AgentsHomeView: React.FC = () => {
       <GalleryDetailModal
         isOpen={Boolean(selectedAgent)}
         onClose={closeAgentDetails}
-        icon={selectedAgent ? React.createElement(
-          AGENT_ICON_MAP[(selectedAgent.iconKey ?? 'bot') as keyof typeof AGENT_ICON_MAP] ?? Bot,
-          { size: 24, strokeWidth: 1.7 },
+        icon={selectedAgent ? (
+          <AgentAvatar
+            identity={selectedAgent.key || selectedAgent.id || selectedAgent.name}
+            name={selectedAgent.displayName}
+            size="detail"
+          />
         ) : <Bot size={24} />}
-        iconGradient={selectedAgent ? getCardGradient(selectedAgent.id || selectedAgent.name) : undefined}
         title={selectedAgent?.displayName ?? ''}
         badges={selectedAgent ? (
           <>
@@ -1423,7 +1402,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
   if (runtimeCapability.status === 'unsupported') {
     return (
       <div className="void-agents-shell">
-        <CustomizationTopNav active="agents" />
         <main
           className="void-agents-runtime-unsupported"
           data-testid="agents-runtime-unsupported"
@@ -1439,7 +1417,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
   if (page === 'createAgent') {
     return (
       <div className="void-agents-shell">
-        <CustomizationTopNav active="agents" />
         <div className="void-agents-scene void-agents-scene--page">
           <CreateAgentPage capabilityService={capabilityService} />
         </div>
@@ -1450,7 +1427,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
   if (page === 'reviewTeam') {
     return (
       <div className="void-agents-shell">
-        <CustomizationTopNav active="agents" />
         <div className="void-agents-scene void-agents-scene--page">
           <ReviewTeamErrorBoundary>
             <ReviewTeamPage />
@@ -1463,7 +1439,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
   if (page === 'teamAuthoring') {
     return (
       <div className="void-agents-shell">
-        <CustomizationTopNav active="agents" />
         <div className="void-agents-scene void-agents-scene--page">
           <TeamAuthoringPage capabilityService={capabilityService} />
         </div>
@@ -1473,7 +1448,6 @@ const AgentsScene: React.FC<AgentsSceneProps> = ({
 
   return (
     <div className="void-agents-shell">
-      <CustomizationTopNav active="agents" />
       <div
         className="agents-catalog-tabs"
         role="tablist"

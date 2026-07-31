@@ -1,30 +1,21 @@
 import React from 'react';
 import {
-  Bot,
-  Wrench,
-  Puzzle,
-  Cpu,
-  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AgentWithCapabilities } from '../agentsStore';
-import { AGENT_ICON_MAP } from '../agentsIcons';
-import { getAgentDescription } from '../utils';
+import { getAgentDescription, getCapabilityLabel } from '../utils';
+import AgentAvatar from './AgentAvatar';
 import './CoreAgentCard.scss';
 
 export interface CoreAgentMeta {
   role: string;
-  accentColor: string;
-  accentBg: string;
 }
 
 interface CoreAgentCardProps {
   agent: AgentWithCapabilities;
   index?: number;
   meta: CoreAgentMeta;
-  toolCount?: number;
-  skillCount?: number;
-  subagentCount?: number;
   onOpenDetails: (agent: AgentWithCapabilities) => void;
 }
 
@@ -32,14 +23,9 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
   agent,
   index = 0,
   meta,
-  toolCount,
-  skillCount = 0,
-  subagentCount = 0,
   onOpenDetails,
 }) => {
   const { t } = useTranslation('scenes/agents');
-  const Icon = AGENT_ICON_MAP[(agent.iconKey ?? 'bot') as keyof typeof AGENT_ICON_MAP] ?? Bot;
-  const totalTools = toolCount ?? agent.toolCount ?? agent.defaultTools?.length ?? 0;
   const openDetails = () => onOpenDetails(agent);
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -52,25 +38,24 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
       className="core-agent-card"
       style={{
         '--card-index': index,
-        '--core-accent': meta.accentColor,
-        '--core-accent-bg': meta.accentBg,
-        '--core-card-gradient': `linear-gradient(135deg, ${meta.accentColor}40 0%, ${meta.accentColor}15 100%)`,
       } as React.CSSProperties}
       onClick={openDetails}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={agent.displayName}
+      aria-label={t('agentCard.actions.viewNamed', { name: agent.displayName })}
     >
       <div className="core-agent-card__top">
-        <div className="core-agent-card__icon-wrap">
-          <Icon size={28} strokeWidth={1.6} />
-        </div>
+        <AgentAvatar
+          identity={agent.key || agent.id || agent.name}
+          name={agent.displayName}
+        />
         <div className="core-agent-card__top-info">
           <span className="core-agent-card__name">{agent.displayName}</span>
           <span className="core-agent-card__role">
-            <Sparkles size={10} strokeWidth={2} />
             {meta.role}
+            <span aria-hidden="true">·</span>
+            {t('filters.builtin')}
           </span>
         </div>
       </div>
@@ -82,32 +67,17 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
       </div>
 
       <div className="core-agent-card__footer">
-        <span className="core-agent-card__tag">
-          {t('coreAgentsZone.roleLabel')}
-          <strong>{meta.role}</strong>
-        </span>
-        <div className="core-agent-card__meta">
-          <span className="core-agent-card__meta-item">
-            <Wrench size={11} />
-            {totalTools}
-          </span>
-          {agent.agentKind === 'mode' && skillCount > 0 ? (
-            <span className="core-agent-card__meta-item">
-              <Puzzle size={11} />
-              {skillCount}
+        <div className="core-agent-card__cap-chips">
+          {agent.capabilities.slice(0, 3).map((capability) => (
+            <span key={capability.category} className="core-agent-card__cap-chip">
+              {getCapabilityLabel(t, capability.category)}
             </span>
-          ) : null}
-          {agent.agentKind === 'mode' && subagentCount > 0 ? (
-            <span className="core-agent-card__meta-item">
-              <Bot size={11} />
-              {subagentCount}
-            </span>
-          ) : null}
-          <span className="core-agent-card__meta-item">
-            <Cpu size={11} />
-            {agent.model ?? 'primary'}
-          </span>
+          ))}
         </div>
+        <span className="core-agent-card__view">
+          {t('agentCard.actions.view')}
+          <ChevronRight size={14} aria-hidden="true" />
+        </span>
       </div>
     </div>
   );

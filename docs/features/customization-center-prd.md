@@ -3,7 +3,7 @@
 Status: Desktop/Tauri first implementation complete; general Team runtime and
 browser/server parity deferred.
 
-Updated: 2026-07-30
+Updated: 2026-07-31
 
 ## Product decision
 
@@ -1071,6 +1071,15 @@ As of this specification update:
 - localized catalog Interfaces, separate parent-session persona persistence,
   the composer persona selector, and structured single-Agent runtime persona
   composition are implemented for the Desktop/Tauri path;
+- the Desktop Agent catalog now uses one simplified AI employee-market
+  presentation: it preserves the existing left Customization navigation,
+  removes the duplicate in-page Agent/Skill/Connector navigation, and renders
+  localized employee cards with deterministic reusable portrait assets,
+  professional roles, concise descriptions, capability tags, keyboard
+  activation, and a detail action. This presentation consumes the existing
+  catalog projection and does not own or alter runtime identity, persona
+  composition, cache policy, permissions, Team orchestration, or session
+  lifecycle;
 - local cache identity now includes the selected persona key and revision plus
   effective tools and the resolved Skill-set revision. Persona or Skill changes
   therefore miss the complete local system-prompt cache entry safely. The

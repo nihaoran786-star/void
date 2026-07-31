@@ -1,39 +1,31 @@
 import React from 'react';
 import {
-  Bot,
-  Wrench,
-  Puzzle,
-  Cpu,
+  ChevronRight,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Badge } from '@/component-library';
 import type { AgentWithCapabilities } from '../agentsStore';
-import { AGENT_ICON_MAP, CAPABILITY_ACCENT } from '../agentsIcons';
-import { getCardGradient } from '@/shared/utils/cardGradients';
-import { getAgentBadge, getAgentDescription, getCapabilityLabel } from '../utils';
+import { getAgentDescription, getCapabilityLabel } from '../utils';
+import AgentAvatar from './AgentAvatar';
 import './AgentCard.scss';
 
 interface AgentCardProps {
   agent: AgentWithCapabilities;
   index?: number;
-  toolCount?: number;
-  skillCount?: number;
-  subagentCount?: number;
   onOpenDetails: (agent: AgentWithCapabilities) => void;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   index = 0,
-  toolCount,
-  skillCount = 0,
-  subagentCount = 0,
   onOpenDetails,
 }) => {
   const { t } = useTranslation('scenes/agents');
-  const badge = getAgentBadge(t, agent.agentKind, agent.subagentSource);
-  const Icon = AGENT_ICON_MAP[(agent.iconKey ?? 'bot') as keyof typeof AGENT_ICON_MAP] ?? Bot;
-  const totalTools = toolCount ?? agent.toolCount ?? agent.defaultTools?.length ?? 0;
+  const sourceLabel = agent.subagentSource === 'user'
+    ? t('filters.user')
+    : agent.subagentSource === 'project'
+      ? t('filters.project')
+      : t('filters.builtin');
+  const roleLabel = t('agentCard.roles.specialist');
   const openDetails = () => onOpenDetails(agent);
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -46,38 +38,28 @@ const AgentCard: React.FC<AgentCardProps> = ({
       className="agent-card"
       style={{
         '--card-index': index,
-        '--agent-card-gradient': getCardGradient(agent.id || agent.name),
       } as React.CSSProperties}
       onClick={openDetails}
       role="button"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      aria-label={agent.displayName}
+      aria-label={t('agentCard.actions.viewNamed', { name: agent.displayName })}
     >
-      {/* Header: icon + name */}
       <div className="agent-card__header">
-        <div className="agent-card__icon-area">
-          <div className="agent-card__icon">
-            <Icon size={20} strokeWidth={1.6} />
-          </div>
-        </div>
+        <AgentAvatar
+          identity={agent.key || agent.id || agent.name}
+          name={agent.displayName}
+        />
         <div className="agent-card__header-info">
-          <div className="agent-card__title-row">
-            <span className="agent-card__name">{agent.displayName}</span>
-            <div className="agent-card__badges">
-              <Badge variant={badge.variant}>
-                {agent.agentKind === 'mode' ? <Cpu size={10} /> : <Bot size={10} />}
-                {badge.label}
-              </Badge>
-              {agent.model ? (
-                <Badge variant="neutral">{agent.model}</Badge>
-              ) : null}
-            </div>
-          </div>
+          <span className="agent-card__name">{agent.displayName}</span>
+          <span className="agent-card__role">
+            {roleLabel}
+            <span aria-hidden="true">·</span>
+            {sourceLabel}
+          </span>
         </div>
       </div>
 
-      {/* Body: description + meta */}
       <div className="agent-card__body">
         <p className="agent-card__desc">
           {getAgentDescription(t, agent)}
@@ -90,33 +72,15 @@ const AgentCard: React.FC<AgentCardProps> = ({
             <span
               key={cap.category}
               className="agent-card__cap-chip"
-              style={{
-                color: CAPABILITY_ACCENT[cap.category],
-                borderColor: `${CAPABILITY_ACCENT[cap.category]}44`,
-              }}
             >
               {getCapabilityLabel(t, cap.category)}
             </span>
           ))}
         </div>
-        <div className="agent-card__meta">
-          <span className="agent-card__meta-item">
-            <Wrench size={12} />
-            {totalTools}
-          </span>
-          {agent.agentKind === 'mode' && skillCount > 0 ? (
-            <span className="agent-card__meta-item">
-              <Puzzle size={12} />
-              {skillCount}
-            </span>
-          ) : null}
-          {agent.agentKind === 'mode' && subagentCount > 0 ? (
-            <span className="agent-card__meta-item">
-              <Bot size={12} />
-              {subagentCount}
-            </span>
-          ) : null}
-        </div>
+        <span className="agent-card__view">
+          {t('agentCard.actions.view')}
+          <ChevronRight size={14} aria-hidden="true" />
+        </span>
       </div>
     </div>
   );

@@ -333,13 +333,13 @@
   },
   "page": {
     "title": "专业智能体",
-    "subtitle": "管理智能体、工具与技能。",
+    "subtitle": "选择适合当前任务的 AI 员工。",
     "searchPlaceholder": "搜索智能体…",
     "newAgent": "新建"
   },
   "nav": {
-    "coreAgents": "核心",
-    "agents": "智能体",
+    "coreAgents": "推荐",
+    "agents": "全部",
     "teams": "团队"
   },
   "teamsZone": {
@@ -350,35 +350,35 @@
   "filters": {
     "source": "来源",
     "kind": "类型",
-    "builtin": "内置",
+    "builtin": "官方",
     "user": "用户",
     "project": "项目",
     "mode": "智能体",
     "subagent": "子智能体"
   },
   "coreAgentsZone": {
-    "title": "核心智能体",
-    "subtitle": "内置工作模式。",
+    "title": "推荐智能体",
+    "subtitle": "常用的 AI 员工，打开即可开始工作。",
     "empty": "暂未检测到核心智能体",
     "roleLabel": "主要应用 · ",
     "modes": {
       "agentic": {
-        "role": "编码专业智能体"
+        "role": "编程专家"
       },
       "cowork": {
-        "role": "办公智能体"
+        "role": "办公助理"
       },
       "media": {
-        "role": "媒体创作智能体"
+        "role": "创意制作人"
       },
       "computerUse": {
-        "role": "电脑操作智能体"
+        "role": "电脑操作助理"
       }
     }
   },
   "agentsZone": {
-    "title": "智能体",
-    "subtitle": "管理智能体及其能力。",
+    "title": "全部智能体",
+    "subtitle": "按任务选择专业员工，详细配置仍可在详情中调整。",
     "empty": {
       "noAgents": "暂无智能体",
       "noMatch": "没有匹配项"
@@ -393,7 +393,14 @@
       "disabled": "已禁用"
     },
     "actions": {
-      "expand": "展开详情"
+      "expand": "展开详情",
+      "view": "查看",
+      "viewNamed": "查看{{name}}",
+      "viewDetails": "查看员工详情"
+    },
+    "roles": {
+      "core": "核心员工",
+      "specialist": "专业员工"
     },
     "meta": {
       "tools": "{{count}} 个工具",

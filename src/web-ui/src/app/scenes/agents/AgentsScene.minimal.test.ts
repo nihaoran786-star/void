@@ -26,7 +26,7 @@ describe('Agents scene Minimal presentation contract', () => {
       .not.toContain('AgentsScene.minimal.scss');
   });
 
-  it('keeps Agents behavior and pre-existing Classic presentation unchanged', () => {
+  it('keeps the classic shell and team-card presentation stable while locking the employee market projection', () => {
     const projectionFreeClassic = readSource('./AgentsScene.scss')
       .replace("@use './AgentsScene.minimal' as minimal;\n", '')
       .replace('\n\n@include minimal.styles;\n', '\n');
@@ -35,13 +35,13 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      'ab2af1862655384b78ad65bb1dc041607e05e96255ccbd6e8d4d45899f3bb28c',
+      '57faa56ab53cb6f8f30b76780d6e864ee13126f86cd893c57f42f16b1937f303',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      '27ee90246a98a8902d7553d8823469f0cbfd4c3d551c7d68ee1f00a60a0cd48d',
+      '4c9fe890d32913cecd56a3aa55701a9bccdc770493af73db1e15c673ea60888b',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      'c77123bc2b8f9df0d5c4b03b18deebbe02fcb7a401290ff090cd4e5606a88da6',
+      'a2d7e98cadf23aae10c40504d4c1157edb9c05c3576508bbbeec4208e837ee2e',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
       '270b4ba8a2043c28ae885356a0ca66a77c3bc9c6adab50488e19645dbce3b2d7',
@@ -67,7 +67,7 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('uses one bounded content axis with a flat graphic-free header', () => {
-    expect(source).toContain('--agents-content-max: 1120px;');
+    expect(source).toContain('--agents-content-max: 1280px;');
     expect(source).toMatch(
       /\.gallery-page-header \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 96px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);[\s\S]*?background: transparent;/,
     );
@@ -79,10 +79,10 @@ describe('Agents scene Minimal presentation contract', () => {
       /\.gallery-page-header__subtitle \{[\s\S]*?display: block;/,
     );
     expect(source).toMatch(
-      /\.gallery-page-header__actions \.search \{[\s\S]*?width: var\(--workspace-icon-target\);/,
+      /\.gallery-page-header__actions \.search \{[\s\S]*?width: 100%;/,
     );
     expect(source).toMatch(
-      /&:focus-within \{[\s\S]*?width: 240px;/,
+      /\.gallery-page-header__actions \.search__input \{[\s\S]*?opacity: 1;/,
     );
     expect(source).toMatch(
       /@media \(max-width: 560px\)[\s\S]*?\.gallery-page-header \{[\s\S]*?min-height: 80px;/,
@@ -91,21 +91,22 @@ describe('Agents scene Minimal presentation contract', () => {
 
   it('compresses list cards without removing their details behavior', () => {
     expect(source).toMatch(
-      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 112px;[\s\S]*?min-height: 112px;/,
+      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 174px;[\s\S]*?min-height: 174px;/,
     );
-    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 264px), 1fr));');
+    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));');
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(
-      /\.agent-card__desc,[\s\S]*?white-space: nowrap;[\s\S]*?-webkit-line-clamp: 1;/,
+      /\.agent-card__desc,[\s\S]*?white-space: normal;[\s\S]*?-webkit-line-clamp: 2;/,
     );
   });
 
-  it('keeps core identity color on small icons without decorative imagery', () => {
+  it('uses one real portrait slot for both core and specialist employees', () => {
     expect(source).toMatch(
-      /\.core-agent-card__icon-wrap \{[\s\S]*?color: var\(--core-accent, var\(--workspace-accent\)\);[\s\S]*?background: var\(/,
+      /\.agent-avatar--card,[\s\S]*?\.agent-avatar--detail \{[\s\S]*?width: 52px;[\s\S]*?height: 52px;/,
     );
-    expect(source).toContain('color-mix(in srgb, var(--workspace-accent) 9%, transparent)');
+    expect(readSource('./components/AgentAvatar.tsx')).toContain('<img');
+    expect(readSource('./components/AgentAvatar.tsx')).toContain('onError={() => setImageFailed(true)}');
   });
 
   it('uses tokenized feedback without gradients, shadows, lift, or stagger', () => {
@@ -141,12 +142,12 @@ describe('Agents scene Minimal presentation contract', () => {
     );
   });
 
-  it('progressively discloses secondary card details on narrow views', () => {
+  it('keeps employee identity and descriptions readable on narrow views', () => {
     expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 76px;[\s\S]*?min-height: 76px;/,
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: auto;[\s\S]*?min-height: 150px;/,
     );
     expect(source).toMatch(
-      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: none;/,
+      /@media \(max-width: 720px\)[\s\S]*?\.agent-card__body,[\s\S]*?\.core-agent-card__body,[\s\S]*?\.agent-team-card__body \{[\s\S]*?display: block;/,
     );
     expect(source).toMatch(
       /@media \(max-width: 720px\)[\s\S]*?\.agent-card__meta > :nth-child\(n \+ 2\),[\s\S]*?\.core-agent-card__meta > :nth-child\(n \+ 2\) \{[\s\S]*?display: none;/,
@@ -173,7 +174,7 @@ describe('Agents scene Minimal presentation contract', () => {
       expect.objectContaining({ searchPlaceholder: '搜索智能体…', newAgent: '新建' }),
     );
     expect(simplifiedChinese.nav).toEqual(
-      expect.objectContaining({ coreAgents: '核心', agents: '智能体' }),
+      expect.objectContaining({ coreAgents: '推荐', agents: '全部' }),
     );
     expect(simplifiedChinese.filters).toEqual(
       expect.objectContaining({ mode: '智能体', subagent: '子智能体' }),

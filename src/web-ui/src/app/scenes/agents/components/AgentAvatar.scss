@@ -1,0 +1,35 @@
+@use '../../../../component-library/styles/tokens' as *;
+
+.agent-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  border-radius: $size-radius-full;
+  background: var(--element-bg-soft);
+  color: var(--color-text-secondary);
+
+  &--card {
+    width: 54px;
+    height: 54px;
+  }
+
+  &--detail {
+    width: 54px;
+    height: 54px;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__fallback-icon {
+    width: 46%;
+    height: 46%;
+  }
+}

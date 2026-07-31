@@ -72,10 +72,6 @@ vi.mock('./components/TeamsCatalogView', () => ({
   default: () => <div data-testid="teams-catalog-view">teams</div>,
 }));
 
-vi.mock('@/app/scenes/customization/CustomizationTopNav', () => ({
-  default: () => <nav data-testid="customization-top-nav" />,
-}));
-
 vi.mock('./components/CoreAgentCard', () => ({
   default: () => <div />,
 }));
@@ -264,6 +260,8 @@ describeWithJsdom('AgentsScene', () => {
     expect(source).not.toContain(
       "from '@/shared/services/customization';",
     );
+    expect(source).not.toContain('CustomizationTopNav');
+    expect(source).not.toContain('<CustomizationTopNav');
   });
 
   it('在统一目录中切换团队视图且不进入旧子页面', async () => {
@@ -274,7 +272,7 @@ describeWithJsdom('AgentsScene', () => {
       root.render(<AgentsScene />);
     });
 
-    expect(container.querySelector('[data-testid="customization-top-nav"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="customization-top-nav"]')).toBeNull();
     expect(container.querySelector('[data-testid="teams-catalog-view"]')).toBeTruthy();
     expect(useAgentsStore.getState().page).toBe('home');
   });
@@ -287,7 +285,7 @@ describeWithJsdom('AgentsScene', () => {
       root.render(<AgentsScene />);
     });
 
-    expect(container.querySelector('[data-testid="customization-top-nav"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="customization-top-nav"]')).toBeNull();
     expect(container.querySelector('[data-testid="team-authoring-page"]')).toBeTruthy();
     expect(container.querySelector('.void-agents-scene--page')).toBeTruthy();
   });

@@ -333,13 +333,13 @@
   },
   "page": {
     "title": "Agents",
-    "subtitle": "Review and manage core modes, agents, and sub-agents, including tools and skills.",
+    "subtitle": "Choose the right AI employee for the task.",
     "searchPlaceholder": "Search agents by name or description…",
     "newAgent": "New Agent"
   },
   "nav": {
-    "coreAgents": "Core Agents",
-    "agents": "Agent",
+    "coreAgents": "Recommended",
+    "agents": "All",
     "teams": "Teams"
   },
   "teamsZone": {
@@ -350,35 +350,35 @@
   "filters": {
     "source": "Source",
     "kind": "Type",
-    "builtin": "Built-in",
+    "builtin": "Official",
     "user": "User",
     "project": "Project",
     "mode": "Agent",
     "subagent": "Sub-Agent"
   },
   "coreAgentsZone": {
-    "title": "Core Agents",
-    "subtitle": "Built-in core agents covering mainstream AI workflows, ready to use out of the box.",
+    "title": "Recommended agents",
+    "subtitle": "Frequently used AI employees, ready to work.",
     "empty": "No core agents detected",
     "roleLabel": "Primary Use · ",
     "modes": {
       "agentic": {
-        "role": "Coding specialist agent"
+        "role": "Coding specialist"
       },
       "cowork": {
-        "role": "Office & collaboration agent"
+        "role": "Office assistant"
       },
       "media": {
-        "role": "Media creation agent"
+        "role": "Creative producer"
       },
       "computerUse": {
-        "role": "Desktop automation agent"
+        "role": "Computer-use assistant"
       }
     }
   },
   "agentsZone": {
-    "title": "Agents Overview",
-    "subtitle": "Browse all agents and sub-agents, then manage tools and skills directly.",
+    "title": "All agents",
+    "subtitle": "Choose a specialist by task; advanced settings remain available in details.",
     "empty": {
       "noAgents": "No agents are available right now",
       "noMatch": "No matching agents"
@@ -393,7 +393,14 @@
       "disabled": "Disabled"
     },
     "actions": {
-      "expand": "Expand details"
+      "expand": "Expand details",
+      "view": "View",
+      "viewNamed": "View {{name}}",
+      "viewDetails": "View employee details"
+    },
+    "roles": {
+      "core": "Core employee",
+      "specialist": "Specialist"
     },
     "meta": {
       "tools": "{{count}} tools",

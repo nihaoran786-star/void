@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-07-30
+Updated: 2026-07-31
 
 ## Product state
 
@@ -32,6 +32,14 @@ Updated: 2026-07-30
   adapters over their existing fixed runtimes. General user-authored Team
   activation/orchestration and browser/server parity remain explicit deferred
   capabilities rather than simulated behavior.
+- The Agent catalog is presented as a localized AI employee market: the
+  existing left-side Customization navigation remains the only section
+  navigation, the duplicate in-page top navigation is removed, and Agent cards
+  show a stable generated portrait, Chinese-facing name, professional role,
+  short responsibility description, capability tags, and one detail action.
+  Portrait assignment is deterministic and presentation-only; it does not
+  change runtime identity, persona composition, cache keys, permissions, Team
+  execution, or session state.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.
