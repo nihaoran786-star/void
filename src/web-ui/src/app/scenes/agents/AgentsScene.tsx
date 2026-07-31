@@ -62,7 +62,7 @@ import {
 } from './agentCapabilityGroups';
 
 const UNGROUPED_SKILL_GROUP = '__ungrouped__';
-const AGENT_PAGE_SIZE = 6;
+const AGENT_PAGE_SIZE = 8;
 
 const SKILL_GROUP_ORDER: Record<string, number> = {
   office: 0,
@@ -341,7 +341,7 @@ const AgentsHomeView: React.FC = () => {
   ] as const;
 
   const renderSkeletons = (prefix: string) => (
-    <GallerySkeleton count={6} cardHeight={138} className={`${prefix}-skeleton`} />
+    <GallerySkeleton count={8} cardHeight={138} className={`${prefix}-skeleton`} />
   );
 
   const selectedAgent = useMemo(

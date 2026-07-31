@@ -35,7 +35,7 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      '69a4731b358c06160a0cb92c743e93f88672dd0a2e225a059110847b0fd63545',
+      '8b664928d9b2cab314866ae84c9e25af89a541ebd11c4ea54349b4ec28bd29f7',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
       '4c9fe890d32913cecd56a3aa55701a9bccdc770493af73db1e15c673ea60888b',
@@ -108,7 +108,7 @@ describe('Agents scene Minimal presentation contract', () => {
     );
     expect(source).toContain('--gallery-grid-min: 280px;');
     expect(source).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
-    expect(source).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));');
+    expect(source.match(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/g)).toHaveLength(2);
     expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));');
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
@@ -128,7 +128,7 @@ describe('Agents scene Minimal presentation contract', () => {
     expect(readSource('./AgentsScene.tsx')).not.toContain(
       '<span className="gallery-zone-count">{visibleAgents.length}</span>',
     );
-    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 6;');
+    expect(readSource('./AgentsScene.tsx')).toContain('const AGENT_PAGE_SIZE = 8;');
     expect(readSource('./AgentsScene.tsx')).toContain('visibleAgents.slice(');
   });
 

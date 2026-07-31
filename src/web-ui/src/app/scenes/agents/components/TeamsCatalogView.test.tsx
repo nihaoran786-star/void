@@ -271,8 +271,8 @@ describeWithJsdom('TeamsCatalogView', () => {
     });
   }
 
-  it('团队市场无页面标题且固定每页六张', async () => {
-    catalogFixture.entries = Array.from({ length: 7 }, (_, index) => teamFixture(`team-${index}`));
+  it('团队市场无页面标题且固定每页八张', async () => {
+    catalogFixture.entries = Array.from({ length: 9 }, (_, index) => teamFixture(`team-${index}`));
     const gateway = gatewayFixture();
     const packagePicker = { pickPackage: vi.fn(async () => null) };
 
@@ -280,23 +280,23 @@ describeWithJsdom('TeamsCatalogView', () => {
 
     expect(container.querySelector('header')).toBeNull();
     expect(container.textContent).not.toContain('catalog.page.title');
-    expect(container.querySelectorAll('#teams-catalog-zone > div button')).toHaveLength(6);
+    expect(container.querySelectorAll('#teams-catalog-zone > div button')).toHaveLength(8);
     expect(findButton('catalog.management.install')).toBeTruthy();
     expect(findButton('catalog.management.create')).toBeTruthy();
 
     await clickButtonByLabel('pagination.next');
-    expect(container.textContent).toContain('team-6');
+    expect(container.textContent).toContain('team-8');
     expect(container.textContent).not.toContain('team-0');
   });
 
   it('团队数据缩减时把当前页收敛到有效页', async () => {
-    catalogFixture.entries = Array.from({ length: 7 }, (_, index) => teamFixture(`team-${index}`));
+    catalogFixture.entries = Array.from({ length: 9 }, (_, index) => teamFixture(`team-${index}`));
     const gateway = gatewayFixture();
     const packagePicker = { pickPackage: vi.fn(async () => null) };
 
     await renderView(gateway, packagePicker, capabilityFixture(true));
     await clickButtonByLabel('pagination.next');
-    expect(container.textContent).toContain('team-6');
+    expect(container.textContent).toContain('team-8');
 
     catalogFixture.entries = [teamFixture('team-0')];
     await renderView(gateway, packagePicker, capabilityFixture(true));

@@ -36,7 +36,7 @@ import TeamCatalogDetail from './TeamCatalogDetail';
 import CatalogPagination from './CatalogPagination';
 import './TeamsCatalogView.scss';
 
-const TEAM_PAGE_SIZE = 6;
+const TEAM_PAGE_SIZE = 8;
 
 interface TeamsCatalogViewContentProps {
   catalog: UseTeamCatalogResult;
@@ -134,7 +134,7 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
           tools={<span className="gallery-zone-count">{catalog.entries.length}</span>}
         >
           {catalog.status === 'loading' ? (
-            <GallerySkeleton count={2} cardHeight={190} className="team-catalog-skeleton" />
+            <GallerySkeleton count={8} cardHeight={190} className="team-catalog-skeleton" />
           ) : null}
 
           {catalog.status === 'partial' ? (
