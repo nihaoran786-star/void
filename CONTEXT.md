@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-07-31
+Updated: 2026-08-01
 
 ## Product state
 
@@ -40,6 +40,21 @@ Updated: 2026-07-31
   Portrait assignment is deterministic and presentation-only; it does not
   change runtime identity, persona composition, cache keys, permissions, Team
   execution, or session state.
+- The Skills and Connectors entries follow the same standalone catalog pattern.
+  Skills keeps authoring, import, suite visibility, local/market install and
+  detail behavior behind its existing services, while presenting eight cards
+  per page in a four/two/one-column responsive grid. The 45 standard user
+  Skills discovered from the exact `user::home.codex::{dirName}` identity have
+  localized names and purpose copy in Simplified Chinese, English, and
+  Traditional Chinese; project Skills, other sources, custom display names,
+  raw runtime keys, and marketplace install identity remain unchanged.
+  Connectors opens a
+  dedicated scene instead of redirecting into Settings; that scene selects a
+  catalog presentation on the existing MCP infrastructure component, so JSON
+  configuration, lifecycle controls, deletion, remote authentication and OAuth
+  still use the established adapter. Settings retains the original MCP
+  presentation. Connector loading failures are explicit and retryable; no
+  online connector marketplace or unsupported one-click install is simulated.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.

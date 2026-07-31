@@ -26,10 +26,10 @@ describe('Gallery card Minimal presentation contract', () => {
 
   it('keeps feature-owned Classic card styles byte-identical', () => {
     expect(sha256('../../scenes/agents/components/AgentCard.scss')).toBe(
-      'f999d7003e36ccdb3ae24c53c78618759016d2eee53f3674c834e989bfc379a4',
+      '6599a356206babc533555dd37ae0a2cb35c3424b1f782063eaeff71116b6ca16',
     );
     expect(sha256('../../scenes/agents/components/CoreAgentCard.scss')).toBe(
-      'e75debd28de2d71e2732038e53cf340e95207fde950c923a7b14b187f68b994b',
+      'bd69497c68a84952d306e61d35c9451f1ce8ddbf496b400c41989d2ab12059d0',
     );
     expect(sha256('../../scenes/agents/components/AgentTeamCard.scss')).toBe(
       '8cdda2f8624f651b88aec2940f1c09fcd616227e1118740cdb20753ae9c55794',

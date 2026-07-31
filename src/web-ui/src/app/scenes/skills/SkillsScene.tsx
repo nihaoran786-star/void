@@ -37,7 +37,6 @@ import SkillsSuiteView from './components/SkillsSuiteView';
 import './SkillsScene.scss';
 import { useSkillsSceneStore, type InstalledFilter } from './skillsSceneStore';
 import { useGallerySceneAutoRefresh } from '@/app/hooks/useGallerySceneAutoRefresh';
-import CustomizationTopNav from '@/app/scenes/customization/CustomizationTopNav';
 import {
   isMarketSkillInstalled,
   localizeCatalogPresentation,
@@ -53,7 +52,7 @@ const log = createLogger('SkillsScene');
 
 type SkillTab = 'installed' | 'discover';
 
-const INSTALLED_PAGE_SIZE = 12;
+const INSTALLED_PAGE_SIZE = 8;
 
 interface CategoryInfo {
   id: InstalledFilter;
@@ -123,7 +122,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
   const market = useSkillMarket({
     searchQuery: marketQuery,
     installedSkillNames,
-    pageSize: 15,
+    pageSize: 8,
     onInstalledChanged: async () => {
       await installed.loadSkills(true);
     },
@@ -215,7 +214,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
   if (authoringTarget) {
     return (
       <div className="void-skills-scene">
-        <CustomizationTopNav active="skills" />
         <SkillAuthoringPage
           mode={authoringTarget.mode}
           skillKey={authoringTarget.mode === 'edit' ? authoringTarget.skillKey : undefined}
@@ -235,7 +233,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
   return (
     <div className="void-skills-scene">
-      <CustomizationTopNav active="skills" />
       <div className="skills-tabs-bar">
         <div
           className="skills-tabs-bar__tabs"
@@ -267,14 +264,10 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
         {activeTab === 'installed' && (
           <div className="skills-installed">
-            <aside className="skills-sidebar">
-              <div className="skills-sidebar__header">
-                <h2 className="skills-sidebar__title">{t('installed.titleAll')}</h2>
-              </div>
-              <nav
-                className="skills-sidebar__nav"
-                aria-label={t('installed.titleAll')}
-              >
+            <nav
+              className="skills-filter-bar"
+              aria-label={t('installed.titleAll')}
+            >
                 {CATEGORIES.filter((cat) => canManage || cat.id !== 'suite').map((cat) => {
                   const count = installed.counts[cat.id];
                   const isEmpty = count === 0;
@@ -282,23 +275,17 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                     <button
                       key={cat.id}
                       type="button"
-                      className={`skills-sidebar__item ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
+                      className={`skills-filter-bar__item ${installedFilter === cat.id ? 'is-active' : ''} ${isEmpty ? 'is-empty' : ''}`}
                       onClick={() => setInstalledFilter(cat.id)}
                       aria-pressed={installedFilter === cat.id}
                     >
-                      <span className="skills-sidebar__item-icon">{cat.icon}</span>
-                      <span className="skills-sidebar__item-label">{t(cat.labelKey)}</span>
-                      <span className="skills-sidebar__item-count">{isEmpty ? '—' : count}</span>
+                      <span className="skills-filter-bar__item-icon">{cat.icon}</span>
+                      <span className="skills-filter-bar__item-label">{t(cat.labelKey)}</span>
+                      <span className="skills-filter-bar__item-count">{isEmpty ? '—' : count}</span>
                     </button>
                   );
                 })}
-              </nav>
-              <div className="skills-sidebar__footer">
-                <p className="skills-sidebar__hint">
-                  {t(CATEGORIES.find((c) => c.id === installedFilter)?.descKey ?? 'categories.all')}
-                </p>
-              </div>
-            </aside>
+            </nav>
 
             <div className="skills-main">
               {installedFilter === 'suite' ? (
@@ -439,19 +426,6 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                                   : <FolderOpen size={11} />}
                                 {skill.level === 'user' ? t('list.item.user') : t('list.item.project')}
                               </Badge>
-                              {skill.path && (
-                                <button
-                                  type="button"
-                                  className="skills-card__path"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRevealSkillPath(skill.path);
-                                  }}
-                                  title={skill.path}
-                                >
-                                  {skill.path}
-                                </button>
-                              )}
                             </div>
 
                             <div
@@ -539,32 +513,24 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
         {activeTab === 'discover' && (
           <div className="skills-discover">
-            <div className="skills-discover__hero">
-              <div className="skills-discover__hero-content">
-                <h1 className="skills-discover__title">{t('market.title')}</h1>
-                <p className="skills-discover__subtitle">
-                  {t('market.subtitle')}
-                </p>
-                <div className="skills-discover__search-wrapper">
-                  <Search
-                    className="skills-discover__search"
-                    value={searchDraft}
-                    onChange={setSearchDraft}
-                    onSearch={submitMarketQuery}
-                    onClear={submitMarketQuery}
-                    placeholder={t('market.searchPlaceholder')}
-                    size="medium"
-                    clearable
-                    enterToSearch
-                  />
-                </div>
-              </div>
+            <div className="skills-discover__toolbar">
+              <Search
+                className="skills-discover__search"
+                value={searchDraft}
+                onChange={setSearchDraft}
+                onSearch={submitMarketQuery}
+                onClear={submitMarketQuery}
+                placeholder={t('market.searchPlaceholder')}
+                size="small"
+                clearable
+                enterToSearch
+              />
             </div>
 
             <div className="skills-discover__content">
               {market.marketLoading && (
                 <div className="skills-discover__grid" aria-busy="true" aria-label={t('list.loading')}>
-                  {Array.from({ length: 12 }).map((_, i) => (
+                  {Array.from({ length: 8 }).map((_, i) => (
                     <div
                       key={`mkt-sk-${i}`}
                       className="skills-discover__skeleton-card"
@@ -583,7 +549,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
               {!market.marketLoading && !market.marketError && market.loadingMore && (
                 <div className="skills-discover__grid" aria-busy="true" aria-label={t('list.loading')}>
-                  {Array.from({ length: 12 }).map((_, i) => (
+                  {Array.from({ length: 8 }).map((_, i) => (
                     <div
                       key={`mkt-page-sk-${i}`}
                       className="skills-discover__skeleton-card"
@@ -996,7 +962,6 @@ const SkillsScene: React.FC<SkillsSceneProps> = ({
   if (catalogCapability.status === 'unsupported') {
     return (
       <div className="void-skills-scene">
-        <CustomizationTopNav active="skills" />
         <main
           className="void-skills-runtime-unsupported"
           data-testid="skills-runtime-unsupported"

@@ -104,4 +104,66 @@
 - 上一轮桌面原生 E2E 最大化窗口为 2561 × 1368 px，期间没有导致交互
   失败的前端异常；结论同样为无 P0/P1/P2 问题。
 
+## 技能与连接器统一验收（2026-08-01）
+
+### 真实来源与实现证据
+
+- 对标应用来源：
+  - `.codex-artifacts/workbuddy-skills-connectors-audit/01-current.png`
+    （WorkBuddy 连接器目录）；
+  - `.codex-artifacts/workbuddy-skills-connectors-audit/04-installed-skills.png`
+    （WorkBuddy 已安装技能）。
+- Void 原生桌面实现：
+  - `.codex-artifacts/customization-skills-connectors/12-skills-final.png`
+    （已安装技能，四列两行）；
+  - `.codex-artifacts/customization-skills-connectors/13-skills-search-chinese.png`
+    （中文“布局”搜索）；
+  - `.codex-artifacts/customization-skills-connectors/14-connectors-final.png`
+    （独立连接器页与真实空状态）；
+  - `.codex-artifacts/customization-skills-connectors/15-connectors-json-add.png`
+    （复用现有 MCP JSON 添加入口）。
+- 同图对照：
+  - `.codex-artifacts/customization-skills-connectors/16-skills-before-after.png`；
+  - `.codex-artifacts/customization-skills-connectors/17-workbuddy-vs-void-skills.png`；
+  - `.codex-artifacts/customization-skills-connectors/18-workbuddy-vs-void-connectors.png`；
+  - `.codex-artifacts/customization-skills-connectors/19-connectors-list-vs-config.png`。
+- Void 捕获窗口为 1822 × 1213 物理像素，Windows 显示缩放 150%，
+  对应约 1215 × 809 逻辑像素；对照图只做等比例缩放和留白，没有裁剪
+  或拉伸。
+
+### 结论
+
+没有可执行的 P0、P1 或 P2 差异。
+
+- 左侧“专业智能体 / 技能 / 连接器”继续作为唯一入口；技能和连接器都在
+  定制中心独立打开，不再重复渲染页面级定制导航，连接器也不再跳设置页。
+- 技能页保持“已安装 / 技能市场”两个直接页签，来源筛选、搜索、创建和
+  导入集中在同一工具区；每页固定八张，真实桌面为四列两行，容器宽度
+  不足时再降为两列和单列。
+- 45 个标准 `home.codex` 用户技能在简中显示可理解的中文名称与用途，
+  英文和繁中资源同步完整；中文“布局”和原始 `arrange` 身份都能搜索，
+  但 raw key、name、dirName、sourceSlot、path、市场安装 ID 和安装判断
+  没有改变。项目技能、其他来源和用户自定义展示名不会被误覆盖。
+- 连接器页面复用现有 MCP 列表、状态、鉴权、启停、重启、删除和 JSON
+  保存接口；搜索、状态筛选和添加入口保持市场式工具栏。当前本机没有已
+  配置 MCP，因此明确显示成功加载后的空状态，不把错误或不存在的在线
+  市场伪装成“暂无连接器”。
+- JSON 编辑器仍是当前可信的连接器添加方式；设置页的默认 MCP 呈现继续
+  保留。目录模式增加同步操作锁，过渡期间禁用重复鉴权、生命周期和删除
+  动作，避免快速重复点击造成状态竞争。
+- WorkBuddy 审查期间误装的 `wechat-cover` 已从其真实技能目录移出，并
+  保存在可恢复备份
+  `.codex-artifacts/workbuddy-skills-connectors-audit/restored-state-backup/wechat-cover`；
+  没有删除用户资料。
+
+### 视觉复核
+
+- 同图检查确认：工具栏、页签、卡片边框、字号、间距、焦点环和状态标签
+  与 Void 现有工作区令牌一致，没有新增渐变、玻璃效果、硬编码主题色或
+  装饰性资产。
+- 技能优化前的三列加零散英文名已被四列中文目录替代；八张卡在同一视口
+  完整显示，分页固定在页面底部，内容不会无限拉高。
+- 连接器空状态和 JSON 添加状态在同一左侧导航中完成切换；没有出现设置
+  页标题、侧栏跳转、文字遮挡、横向溢出或不可见的主要动作。
+
 final result: passed

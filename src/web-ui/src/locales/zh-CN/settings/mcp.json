@@ -111,6 +111,14 @@
   "search": {
     "placeholder": "搜索服务器..."
   },
+  "catalog": {
+    "filters": {
+      "all": "全部",
+      "connected": "已连接",
+      "attention": "需处理",
+      "stopped": "已停止"
+    }
+  },
   "empty": {
     "noServers": "暂无配置的 MCP 服务器",
     "noServersHint": "添加 MCP 服务器以扩展功能",

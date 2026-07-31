@@ -3,7 +3,7 @@
 Status: Desktop/Tauri first implementation complete; general Team runtime and
 browser/server parity deferred.
 
-Updated: 2026-07-31
+Updated: 2026-08-01
 
 ## Product decision
 
@@ -1080,6 +1080,27 @@ As of this specification update:
   catalog projection and does not own or alter runtime identity, persona
   composition, cache policy, permissions, Team orchestration, or session
   lifecycle;
+- the Skills scene removes the duplicate in-page Customization navigation,
+  large market hero, and installed-skill side rail. Installed and marketplace
+  Skills share a compact toolbar, localized cards, eight-item pagination, and
+  a four-column desktop grid that collapses to two and one columns. Existing
+  create, import, suite, detail, install, edit, delete, capability-gate, and
+  service boundaries remain unchanged. Presentation metadata localizes the 45
+  standard user Skills only when their full identity matches
+  `user::home.codex::{dirName}`, the raw name still equals the known directory
+  ID, they are non-builtin user Skills, and no custom display name exists.
+  Project Skills, other source slots, renamed frontmatter, unknown packages,
+  raw keys, paths, and marketplace installation matching keep their original
+  values;
+- Connectors is a registered standalone scene opened directly from the existing
+  left navigation. It selects a catalog presentation on the existing
+  `McpToolsConfig` infrastructure component instead of routing through
+  Settings. The catalog provides search, status filtering, eight-item
+  pagination, responsive four/two/one-column cards, configuration details,
+  JSON add/configure, server lifecycle actions, deletion, remote auth, OAuth,
+  explicit loading/empty/error states, and retry. The default Settings
+  presentation remains the compatibility path, and no unavailable remote
+  connector store or one-click installation behavior is claimed;
 - local cache identity now includes the selected persona key and revision plus
   effective tools and the resolved Skill-set revision. Persona or Skill changes
   therefore miss the complete local system-prompt cache entry safely. The

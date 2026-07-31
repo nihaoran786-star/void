@@ -111,6 +111,14 @@
   "search": {
     "placeholder": "搜索服務器..."
   },
+  "catalog": {
+    "filters": {
+      "all": "全部",
+      "connected": "已連接",
+      "attention": "需處理",
+      "stopped": "已停止"
+    }
+  },
   "empty": {
     "noServers": "暫無配置的 MCP 服務器",
     "noServersHint": "添加 MCP 服務器以擴展功能",

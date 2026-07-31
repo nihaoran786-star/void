@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { useSceneManager } from '@/app/hooks/useSceneManager';
-import { useSettingsStore } from '@/app/scenes/settings/settingsStore';
 import { useI18n } from '@/infrastructure/i18n';
 import {
   CUSTOMIZATION_NAV_ITEMS,
@@ -16,11 +15,10 @@ interface CustomizationTopNavProps {
 const CustomizationTopNav: React.FC<CustomizationTopNavProps> = ({ active }) => {
   const { t } = useI18n('common');
   const { openScene } = useSceneManager();
-  const setSettingsActiveTab = useSettingsStore(state => state.setActiveTab);
 
   const openItem = useCallback((item: CustomizationTopNavItem) => {
-    openCustomizationNavItem(item, openScene, setSettingsActiveTab);
-  }, [openScene, setSettingsActiveTab]);
+    openCustomizationNavItem(item, openScene);
+  }, [openScene]);
 
   return (
     <nav className="customization-top-nav" aria-label={t('customization.nav.ariaLabel')}>

@@ -111,6 +111,14 @@
   "search": {
     "placeholder": "Search servers..."
   },
+  "catalog": {
+    "filters": {
+      "all": "All",
+      "connected": "Connected",
+      "attention": "Needs attention",
+      "stopped": "Stopped"
+    }
+  },
   "empty": {
     "noServers": "No MCP servers configured",
     "noServersHint": "Add MCP servers to extend functionality",

@@ -14,19 +14,17 @@ describe('customization navigation', () => {
     ]);
   });
 
-  it('连接器沿用 MCP 设置入口，其他入口沿用原场景', () => {
+  it('三个入口都打开独立场景', () => {
     const openScene = vi.fn();
-    const setSettingsActiveTab = vi.fn();
 
-    openCustomizationNavItem('agents', openScene, setSettingsActiveTab);
-    openCustomizationNavItem('skills', openScene, setSettingsActiveTab);
-    openCustomizationNavItem('connectors', openScene, setSettingsActiveTab);
+    openCustomizationNavItem('agents', openScene);
+    openCustomizationNavItem('skills', openScene);
+    openCustomizationNavItem('connectors', openScene);
 
     expect(openScene.mock.calls.map(call => call[0])).toEqual([
       'agents',
       'skills',
-      'settings',
+      'connectors',
     ]);
-    expect(setSettingsActiveTab).toHaveBeenCalledWith('mcp-tools');
   });
 });

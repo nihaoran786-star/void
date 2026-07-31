@@ -246,7 +246,7 @@
       height: 44px;
       border-color: var(--workspace-border-subtle);
       background: var(--workspace-surface-panel);
-      box-shadow: 0 0 0 3px var(--workspace-surface-panel);
+      box-shadow: none;
     }
 
     .agent-card__name,

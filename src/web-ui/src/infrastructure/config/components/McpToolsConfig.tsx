@@ -4,7 +4,7 @@
  * Uses settings/mcp-tools for page title/subtitle, settings/mcp for the MCP section.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FileJson,
@@ -17,8 +17,12 @@ import {
   MinusCircle,
   KeyRound,
   Trash2,
+  Cable,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
-import { Button, Textarea, IconButton, Modal, ToolProcessingDots } from '@/component-library';
+import { Button, Textarea, IconButton, Modal, Search, ToolProcessingDots } from '@/component-library';
 import {
   ConfigPageHeader,
   ConfigPageLayout,
@@ -158,9 +162,69 @@ function createErrorClassifier(t: (key: string, options?: any) => any) {
   };
 }
 
-const McpToolsConfig: React.FC = () => {
+export type McpToolsPresentation = 'settings' | 'catalog';
+
+export interface McpToolsConfigProps {
+  presentation?: McpToolsPresentation;
+}
+
+type CatalogStatusFilter = 'all' | 'connected' | 'attention' | 'stopped';
+
+export type CatalogStatusGroup = Exclude<CatalogStatusFilter, 'all'> | 'transitioning';
+
+const CATALOG_PAGE_SIZE = 8;
+
+function getCatalogStatusGroup(status: string): CatalogStatusGroup {
+  switch (status.trim().toLowerCase()) {
+    case 'connected':
+    case 'healthy':
+      return 'connected';
+    case 'uninitialized':
+    case 'stopped':
+      return 'stopped';
+    case 'starting':
+    case 'reconnecting':
+    case 'stopping':
+      return 'transitioning';
+    case 'needsauth':
+    case 'failed':
+    default:
+      return 'attention';
+  }
+}
+
+function isMcpServerTransitioningStatus(status: string): boolean {
+  return getCatalogStatusGroup(status) === 'transitioning';
+}
+
+function isMcpServerStoppedStatus(status: string): boolean {
+  switch (status.trim().toLowerCase()) {
+    case 'uninitialized':
+    case 'stopped':
+    case 'failed':
+    case 'needsauth':
+      return true;
+    default:
+      return false;
+  }
+}
+
+function acquireMcpServerOperationLock(locks: Set<string>, serverId: string): boolean {
+  if (locks.has(serverId)) return false;
+  locks.add(serverId);
+  return true;
+}
+
+function releaseMcpServerOperationLock(locks: Set<string>, serverId: string): void {
+  locks.delete(serverId);
+}
+
+const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
+  presentation = 'settings',
+}) => {
   const { t: tPage } = useTranslation('settings/mcp-tools');
   const { t: tMcp } = useTranslation('settings/mcp');
+  const { t: tCommon } = useTranslation('common');
 
   const notification = useNotification();
   const classifyError = createErrorClassifier(tMcp);
@@ -169,8 +233,17 @@ const McpToolsConfig: React.FC = () => {
   const jsonEditorRef = useRef<HTMLTextAreaElement>(null);
   const jsonLintSeqRef = useRef(0);
   const oauthPollTimerRef = useRef<number | null>(null);
+  const serverOperationLocksRef = useRef(new Set<string>());
+  const [serverOperationLocks, setServerOperationLocks] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const [servers, setServers] = useState<MCPServerInfo[]>([]);
   const [mcpLoading, setMcpLoading] = useState(true);
+  const [mcpLoadError, setMcpLoadError] = useState<string | null>(null);
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogStatusFilter, setCatalogStatusFilter] = useState<CatalogStatusFilter>('all');
+  const [catalogPage, setCatalogPage] = useState(0);
+  const [expandedCatalogServerId, setExpandedCatalogServerId] = useState<string | null>(null);
   const [showJsonEditor, setShowJsonEditor] = useState(false);
   const [jsonConfig, setJsonConfig] = useState('');
   const [authDialogServer, setAuthDialogServer] = useState<MCPServerInfo | null>(null);
@@ -200,6 +273,7 @@ const McpToolsConfig: React.FC = () => {
   const loadServers = async () => {
     try {
       setMcpLoading(true);
+      setMcpLoadError(null);
       const serverList = await Promise.race([
         MCPAPI.getServers(),
         new Promise<never>((_, reject) =>
@@ -209,6 +283,7 @@ const McpToolsConfig: React.FC = () => {
       setServers(serverList);
     } catch (error) {
       log.error('Failed to load MCP servers', error);
+      setMcpLoadError(error instanceof Error ? error.message : String(error));
     } finally {
       setMcpLoading(false);
     }
@@ -541,13 +616,34 @@ const McpToolsConfig: React.FC = () => {
     );
   };
 
+  const acquireServerOperation = (serverId: string): boolean => {
+    if (!acquireMcpServerOperationLock(serverOperationLocksRef.current, serverId)) {
+      return false;
+    }
+    setServerOperationLocks(new Set(serverOperationLocksRef.current));
+    return true;
+  };
+
+  const releaseServerOperation = (serverId: string) => {
+    releaseMcpServerOperationLock(serverOperationLocksRef.current, serverId);
+    setServerOperationLocks(new Set(serverOperationLocksRef.current));
+  };
+
+  const isServerControlBusy = (server: MCPServerInfo): boolean => (
+    serverOperationLocks.has(server.id) || isMcpServerTransitioningStatus(server.status)
+  );
+
   const handleStartServer = async (server: MCPServerInfo) => {
+    if (isMcpServerTransitioningStatus(server.status)) return;
+
     if (!canStartServer(server)) {
       notifyServerStartUnavailable(server);
       return;
     }
+    if (!acquireServerOperation(server.id)) return;
 
     const serverId = server.id;
+    let shouldOpenRemoteAuth = false;
     try {
       await MCPAPI.startServer(serverId);
       notification.success(tMcp('messages.startSuccess', { serverId }), {
@@ -557,10 +653,7 @@ const McpToolsConfig: React.FC = () => {
       await loadServers();
     } catch (error) {
       if (isRemoteServer(server) && isLikelyRemoteAuthError(error)) {
-        handleOpenAuthDialog(server);
-        if (server.oauthEnabled) {
-          void startRemoteOAuthFlow(server);
-        }
+        shouldOpenRemoteAuth = true;
       }
       notification.error(
         tMcp('messages.startFailed', { serverId }) +
@@ -568,10 +661,24 @@ const McpToolsConfig: React.FC = () => {
           getErrorMessage(error),
         { title: tMcp('notifications.startFailed'), duration: 5000 }
       );
+    } finally {
+      releaseServerOperation(serverId);
+    }
+
+    if (shouldOpenRemoteAuth) {
+      handleOpenAuthDialog(server);
+      if (server.oauthEnabled) {
+        void startRemoteOAuthFlow(server);
+      }
     }
   };
 
-  const handleStopServer = async (serverId: string) => {
+  const handleStopServer = async (server: MCPServerInfo) => {
+    if (isMcpServerTransitioningStatus(server.status) || !acquireServerOperation(server.id)) {
+      return;
+    }
+
+    const serverId = server.id;
     try {
       await MCPAPI.stopServer(serverId);
       notification.success(tMcp('messages.stopSuccess', { serverId }), {
@@ -586,16 +693,22 @@ const McpToolsConfig: React.FC = () => {
           (error instanceof Error ? error.message : String(error)),
         { title: tMcp('notifications.stopFailed'), duration: 5000 }
       );
+    } finally {
+      releaseServerOperation(serverId);
     }
   };
 
   const handleRestartServer = async (server: MCPServerInfo) => {
+    if (isMcpServerTransitioningStatus(server.status)) return;
+
     if (!canStartServer(server)) {
       notifyServerStartUnavailable(server);
       return;
     }
+    if (!acquireServerOperation(server.id)) return;
 
     const serverId = server.id;
+    let shouldOpenRemoteAuth = false;
     try {
       await MCPAPI.restartServer(serverId);
       notification.success(tMcp('messages.restartSuccess', { serverId }), {
@@ -605,10 +718,7 @@ const McpToolsConfig: React.FC = () => {
       await loadServers();
     } catch (error) {
       if (isRemoteServer(server) && isLikelyRemoteAuthError(error)) {
-        handleOpenAuthDialog(server);
-        if (server.oauthEnabled) {
-          void startRemoteOAuthFlow(server);
-        }
+        shouldOpenRemoteAuth = true;
       }
       notification.error(
         tMcp('messages.restartFailed', { serverId }) +
@@ -616,10 +726,23 @@ const McpToolsConfig: React.FC = () => {
           getErrorMessage(error),
         { title: tMcp('notifications.restartFailed'), duration: 5000 }
       );
+    } finally {
+      releaseServerOperation(serverId);
+    }
+
+    if (shouldOpenRemoteAuth) {
+      handleOpenAuthDialog(server);
+      if (server.oauthEnabled) {
+        void startRemoteOAuthFlow(server);
+      }
     }
   };
 
   function handleOpenAuthDialog(server: MCPServerInfo) {
+    if (
+      serverOperationLocksRef.current.has(server.id)
+      || isMcpServerTransitioningStatus(server.status)
+    ) return;
     setAuthDialogServer(server);
     setAuthValue('');
     setOauthSession(null);
@@ -718,8 +841,15 @@ const McpToolsConfig: React.FC = () => {
   };
 
   const handleDeleteServer = async (server: MCPServerInfo) => {
+    if (
+      isMcpServerTransitioningStatus(server.status)
+      || serverOperationLocksRef.current.has(server.id)
+    ) return;
+
     const confirmed = await window.confirm(tMcp('messages.deleteConfirm'));
     if (!confirmed) return;
+
+    if (!acquireServerOperation(server.id)) return;
 
     try {
       await MCPAPI.deleteServer({ serverId: server.id });
@@ -743,6 +873,8 @@ const McpToolsConfig: React.FC = () => {
           duration: errorInfo.duration,
         }
       );
+    } finally {
+      releaseServerOperation(server.id);
     }
   };
 
@@ -779,26 +911,31 @@ const McpToolsConfig: React.FC = () => {
   };
 
   const getStatusClass = (status: string): string => {
-    const s = status.toLowerCase();
-    if (s.includes('healthy') || s.includes('connected')) return 'is-healthy';
-    if (s.includes('starting') || s.includes('reconnecting')) return 'is-pending';
-    if (s.includes('failed') || s.includes('stopped') || s.includes('auth')) return 'is-error';
-    return '';
+    switch (getCatalogStatusGroup(status)) {
+      case 'connected':
+        return 'is-healthy';
+      case 'transitioning':
+        return 'is-pending';
+      case 'attention':
+      case 'stopped':
+        return 'is-error';
+    }
   };
 
   const getStatusIcon = (status: string): React.ReactNode => {
-    const s = status.toLowerCase();
-    if (s.includes('healthy') || s.includes('connected')) return <CheckCircle size={10} />;
-    if (s.includes('starting') || s.includes('reconnecting')) return <ToolProcessingDots size={10} />;
-    if (s.includes('failed') || s.includes('stopped') || s.includes('auth'))
-      return <AlertTriangle size={10} />;
-    return <MinusCircle size={10} />;
+    switch (getCatalogStatusGroup(status)) {
+      case 'connected':
+        return <CheckCircle size={10} />;
+      case 'transitioning':
+        return <ToolProcessingDots size={10} />;
+      case 'attention':
+        return <AlertTriangle size={10} />;
+      case 'stopped':
+        return <MinusCircle size={10} />;
+    }
   };
 
-  const isStopped = (status: string) => {
-    const s = status.toLowerCase();
-    return s.includes('stopped') || s.includes('failed') || s.includes('auth');
-  };
+  const isStopped = isMcpServerStoppedStatus;
 
   const getServerStatusLabel = (status: string) => {
     const normalized = status.trim().toLowerCase();
@@ -931,7 +1068,38 @@ const McpToolsConfig: React.FC = () => {
       {showJsonEditor ? <X size={16} /> : <FileJson size={16} />}
     </IconButton>
   );
-  const isMcpEmpty = !showJsonEditor && !mcpLoading && servers.length === 0;
+  const isMcpEmpty = !showJsonEditor && !mcpLoading && !mcpLoadError && servers.length === 0;
+
+  const filteredCatalogServers = useMemo(() => {
+    const normalizedQuery = catalogQuery.trim().toLowerCase();
+    return servers.filter((server) => {
+      const matchesQuery = !normalizedQuery
+        || server.name.toLowerCase().includes(normalizedQuery)
+        || server.id.toLowerCase().includes(normalizedQuery)
+        || server.transport.toLowerCase().includes(normalizedQuery);
+      const matchesStatus = catalogStatusFilter === 'all'
+        || getCatalogStatusGroup(server.status) === catalogStatusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [catalogQuery, catalogStatusFilter, servers]);
+
+  const catalogTotalPages = Math.max(
+    1,
+    Math.ceil(filteredCatalogServers.length / CATALOG_PAGE_SIZE),
+  );
+  const currentCatalogPage = Math.min(catalogPage, catalogTotalPages - 1);
+  const pagedCatalogServers = filteredCatalogServers.slice(
+    currentCatalogPage * CATALOG_PAGE_SIZE,
+    (currentCatalogPage + 1) * CATALOG_PAGE_SIZE,
+  );
+
+  useEffect(() => {
+    setCatalogPage(0);
+  }, [catalogQuery, catalogStatusFilter]);
+
+  useEffect(() => {
+    setCatalogPage((page) => Math.min(page, Math.max(0, catalogTotalPages - 1)));
+  }, [catalogTotalPages]);
 
   const renderServerBadge = (server: MCPServerInfo) => (
     <span className={`void-mcp-tools__status-badge ${getStatusClass(server.status)}`}>
@@ -940,63 +1108,95 @@ const McpToolsConfig: React.FC = () => {
     </span>
   );
 
-  const renderServerControl = (server: MCPServerInfo) => (
-    <>
-      {isRemoteServer(server) && (
+  const renderServerControl = (server: MCPServerInfo) => {
+    const isBusy = isServerControlBusy(server);
+    const isStoppedState = isStopped(server.status);
+    const isConnectedState = getCatalogStatusGroup(server.status) === 'connected';
+    const busyTooltip = serverOperationLocks.has(server.id)
+      ? tMcp('loading')
+      : getServerStatusLabel(server.status);
+
+    return (
+      <span className="void-mcp-tools__server-controls" aria-busy={isBusy || undefined}>
+        {isRemoteServer(server) && (
+          <IconButton
+            size="small"
+            variant="ghost"
+            onClick={() => handleOpenAuthDialog(server)}
+            tooltip={isBusy ? busyTooltip : tMcp('actions.remoteAuth')}
+            disabled={isBusy}
+          >
+            <KeyRound size={14} />
+          </IconButton>
+        )}
         <IconButton
           size="small"
           variant="ghost"
-          onClick={() => handleOpenAuthDialog(server)}
-          tooltip={tMcp('actions.remoteAuth')}
+          onClick={() => handleDeleteServer(server)}
+          tooltip={isBusy ? busyTooltip : tMcp('actions.delete')}
+          disabled={isBusy}
         >
-          <KeyRound size={14} />
+          <Trash2 size={14} />
         </IconButton>
-      )}
-      <IconButton
-        size="small"
-        variant="ghost"
-        onClick={() => handleDeleteServer(server)}
-        tooltip={tMcp('actions.delete')}
-      >
-        <Trash2 size={14} />
-      </IconButton>
-      {isStopped(server.status) ? (
-        <IconButton
-          size="small"
-          variant="success"
-          onClick={() => handleStartServer(server)}
-          tooltip={
-            canStartServer(server)
-              ? tMcp('actions.start')
-              : tMcp('messages.commandUnavailable', { serverId: server.id })
-          }
-        >
-          <Play size={14} />
-        </IconButton>
-      ) : (
-        <IconButton
-          size="small"
-          variant="warning"
-          onClick={() => handleStopServer(server.id)}
-          tooltip={tMcp('actions.stop')}
-        >
-          <Square size={14} />
-        </IconButton>
-      )}
-      <IconButton
-        size="small"
-        variant="ghost"
-        onClick={() => handleRestartServer(server)}
-        tooltip={
-          canStartServer(server)
-            ? tMcp('actions.restart')
-            : tMcp('messages.commandUnavailable', { serverId: server.id })
-        }
-      >
-        <RefreshCw size={14} />
-      </IconButton>
-    </>
-  );
+        {isBusy ? (
+          <IconButton
+            size="small"
+            variant="ghost"
+            disabled
+            aria-busy="true"
+            tooltip={busyTooltip}
+          >
+            <ToolProcessingDots size={14} />
+          </IconButton>
+        ) : isStoppedState ? (
+          <IconButton
+            size="small"
+            variant="success"
+            onClick={() => handleStartServer(server)}
+            tooltip={
+              canStartServer(server)
+                ? tMcp('actions.start')
+                : tMcp('messages.commandUnavailable', { serverId: server.id })
+            }
+          >
+            <Play size={14} />
+          </IconButton>
+        ) : isConnectedState ? (
+          <IconButton
+            size="small"
+            variant="warning"
+            onClick={() => handleStopServer(server)}
+            tooltip={tMcp('actions.stop')}
+          >
+            <Square size={14} />
+          </IconButton>
+        ) : (
+          <IconButton
+            size="small"
+            variant="ghost"
+            disabled
+            tooltip={getServerStatusLabel(server.status)}
+          >
+            <AlertTriangle size={14} />
+          </IconButton>
+        )}
+        {!isBusy && (isStoppedState || isConnectedState) && (
+          <IconButton
+            size="small"
+            variant="ghost"
+            onClick={() => handleRestartServer(server)}
+            tooltip={
+              canStartServer(server)
+                ? tMcp('actions.restart')
+                : tMcp('messages.commandUnavailable', { serverId: server.id })
+            }
+          >
+            <RefreshCw size={14} />
+          </IconButton>
+        )}
+      </span>
+    );
+  };
 
   const renderServerDetails = (server: MCPServerInfo) => {
     if (!server.statusMessage && !isCommandDrivenServer(server) && !isRemoteServer(server)) return null;
@@ -1093,18 +1293,120 @@ const McpToolsConfig: React.FC = () => {
     );
   };
 
+  const renderCatalogServerCard = (server: MCPServerInfo) => {
+    const isExpanded = expandedCatalogServerId === server.id;
+    return (
+      <article
+        key={server.id}
+        className={`void-mcp-tools__catalog-card ${isExpanded ? 'is-expanded' : ''}`}
+        aria-busy={isServerControlBusy(server) || undefined}
+      >
+        <button
+          type="button"
+          className="void-mcp-tools__catalog-card-main"
+          onClick={() => setExpandedCatalogServerId(isExpanded ? null : server.id)}
+          aria-expanded={isExpanded}
+        >
+          <span className="void-mcp-tools__catalog-card-icon" aria-hidden="true">
+            <Cable size={18} strokeWidth={1.6} />
+          </span>
+          <span className="void-mcp-tools__catalog-card-copy">
+            <strong className="void-mcp-tools__catalog-card-name">{server.name}</strong>
+            <span className="void-mcp-tools__catalog-card-meta">
+              {server.transport}
+              {server.serverType ? ` · ${server.serverType}` : ''}
+            </span>
+          </span>
+          {renderServerBadge(server)}
+          <ChevronDown
+            className="void-mcp-tools__catalog-card-chevron"
+            size={15}
+            aria-hidden="true"
+          />
+        </button>
+        <div className="void-mcp-tools__catalog-card-actions">
+          {renderServerControl(server)}
+        </div>
+        {isExpanded && (
+          <div className="void-mcp-tools__catalog-card-details">
+            {renderServerDetails(server) ?? (
+              <div className="void-mcp-tools__server-detail-item">
+                <span className="void-mcp-tools__server-detail-label">
+                  {tMcp('server.transport')}:
+                </span>
+                <code className="void-mcp-tools__server-detail-value">{server.transport}</code>
+              </div>
+            )}
+          </div>
+        )}
+      </article>
+    );
+  };
+
   return (
-    <ConfigPageLayout className="void-mcp-tools">
-      <ConfigPageHeader title={tPage('title')} subtitle={tPage('subtitle')} />
+    <ConfigPageLayout
+      className={`void-mcp-tools ${presentation === 'catalog' ? 'void-mcp-tools--catalog' : 'void-mcp-tools--settings'}`}
+    >
+      {presentation === 'settings' && (
+        <ConfigPageHeader title={tPage('title')} subtitle={tPage('subtitle')} />
+      )}
 
       <ConfigPageContent>
         {/* MCP section */}
         <ConfigPageSection
-          title={tMcp('section.serverList.title')}
-          description={isMcpEmpty ? undefined : tMcp('section.serverList.description')}
-          extra={isMcpEmpty ? undefined : mcpSectionExtra}
-          className={isMcpEmpty ? 'void-mcp-tools__section--empty' : ''}
+          title={presentation === 'catalog'
+            ? tMcp('section.serverList.title')
+            : tMcp('section.serverList.title')}
+          description={presentation === 'catalog'
+            ? undefined
+            : (isMcpEmpty ? undefined : tMcp('section.serverList.description'))}
+          extra={presentation === 'settings' && !isMcpEmpty ? mcpSectionExtra : undefined}
+          className={[
+            isMcpEmpty && 'void-mcp-tools__section--empty',
+            presentation === 'catalog' && 'void-mcp-tools__section--catalog',
+          ].filter(Boolean).join(' ')}
         >
+          {presentation === 'catalog' && !showJsonEditor && (
+            <div className="void-mcp-tools__catalog-toolbar">
+              <Search
+                className="void-mcp-tools__catalog-search"
+                value={catalogQuery}
+                onChange={setCatalogQuery}
+                onClear={() => setCatalogQuery('')}
+                placeholder={tMcp('search.placeholder')}
+                size="small"
+                clearable
+              />
+              <div
+                className="void-mcp-tools__catalog-filters"
+                role="group"
+                aria-label={tMcp('section.serverList.description')}
+              >
+                {(['all', 'connected', 'attention', 'stopped'] as const).map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    className={`void-mcp-tools__catalog-filter ${catalogStatusFilter === filter ? 'is-active' : ''}`}
+                    onClick={() => setCatalogStatusFilter(filter)}
+                    aria-pressed={catalogStatusFilter === filter}
+                  >
+                    {tMcp(`catalog.filters.${filter}`)}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                size="small"
+                onClick={() => setShowJsonEditor(true)}
+                aria-expanded={showJsonEditor}
+                aria-controls="mcp-json-editor"
+              >
+                <FileJson size={14} />
+                {tMcp('actions.jsonConfig')}
+              </Button>
+            </div>
+          )}
+
           {showJsonEditor && (
             <div
               id="mcp-json-editor"
@@ -1169,13 +1471,29 @@ const McpToolsConfig: React.FC = () => {
             </div>
           )}
 
-          {!showJsonEditor && mcpLoading && (
+          {!showJsonEditor && mcpLoading && !mcpLoadError && (
             <div className="void-collection-empty">
               <p>{tMcp('loading')}</p>
             </div>
           )}
 
-          {isMcpEmpty && (
+          {!showJsonEditor && !mcpLoading && mcpLoadError && (
+            <div className="void-collection-empty void-mcp-tools__load-error" role="alert">
+              <AlertTriangle size={20} aria-hidden="true" />
+              <div className="void-mcp-tools__load-error-copy">
+                <strong>{tMcp('errors.operationFailed', {
+                  context: tMcp('section.serverList.title'),
+                })}</strong>
+                <span>{mcpLoadError}</span>
+              </div>
+              <Button variant="secondary" size="small" onClick={() => void loadServers()}>
+                <RefreshCw size={14} />
+                {tCommon('actions.retry')}
+              </Button>
+            </div>
+          )}
+
+          {presentation === 'settings' && isMcpEmpty && (
             <div className="void-collection-empty void-mcp-tools__empty">
               <div className="void-mcp-tools__empty-copy">
                 <span className="void-mcp-tools__empty-title">
@@ -1198,7 +1516,7 @@ const McpToolsConfig: React.FC = () => {
             </div>
           )}
 
-          {!showJsonEditor &&
+          {presentation === 'settings' && !showJsonEditor && !mcpLoading && !mcpLoadError &&
             servers.map((server) => (
               <ConfigCollectionItem
                 key={server.id}
@@ -1208,6 +1526,62 @@ const McpToolsConfig: React.FC = () => {
                 details={renderServerDetails(server)}
               />
             ))}
+
+          {presentation === 'catalog'
+            && !showJsonEditor
+            && !mcpLoading
+            && !mcpLoadError
+            && filteredCatalogServers.length === 0 && (
+            <div className="void-collection-empty void-mcp-tools__catalog-empty">
+              <Cable size={24} strokeWidth={1.4} aria-hidden="true" />
+              <span>
+                {servers.length === 0
+                  ? tMcp('empty.noServersHint')
+                  : tMcp('empty.noMatchingServers')}
+              </span>
+              {servers.length === 0 && (
+                <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
+                  <FileJson size={14} />
+                  {tMcp('actions.jsonConfig')}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {presentation === 'catalog'
+            && !showJsonEditor
+            && !mcpLoading
+            && !mcpLoadError
+            && pagedCatalogServers.length > 0 && (
+            <>
+              <div className="void-mcp-tools__catalog-grid">
+                {pagedCatalogServers.map(renderCatalogServerCard)}
+              </div>
+              {catalogTotalPages > 1 && (
+                <div className="void-mcp-tools__catalog-pagination">
+                  <button
+                    type="button"
+                    className="void-mcp-tools__catalog-page-button"
+                    onClick={() => setCatalogPage((page) => Math.max(0, page - 1))}
+                    disabled={currentCatalogPage === 0}
+                    aria-label={tCommon('actions.previous')}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span>{currentCatalogPage + 1} / {catalogTotalPages}</span>
+                  <button
+                    type="button"
+                    className="void-mcp-tools__catalog-page-button"
+                    onClick={() => setCatalogPage((page) => Math.min(catalogTotalPages - 1, page + 1))}
+                    disabled={currentCatalogPage >= catalogTotalPages - 1}
+                    aria-label={tCommon('actions.next')}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </ConfigPageSection>
       </ConfigPageContent>
       <Modal

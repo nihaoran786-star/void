@@ -8,7 +8,7 @@
  *   - workspace: project workspace essentials (sessions, files)
  *   - assistant: assistant persona / nursery (profile)
  *   - extensions: top strip expand row → agents / skills / connectors
- *     (connectors reuses the existing MCP settings surface)
+ *     (each item opens its own workspace scene)
  */
 
 import type { NavSection } from './types';

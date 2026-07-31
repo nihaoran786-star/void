@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { ModeInfo } from '@/infrastructure/api/service-api/AgentAPI';
 import type { SubagentInfo } from '@/infrastructure/api/service-api/SubagentAPI';
@@ -26,6 +28,7 @@ import {
   isMarketSkillInstalled,
   presentationForInstalledSkill,
   presentationForMarketSkill,
+  STANDARD_SKILL_PRESENTATION_IDS,
 } from './skillCatalogPresentation';
 import {
   localizeCatalogPresentation,
@@ -71,6 +74,20 @@ function skillEntry(overrides: Partial<SkillCatalogEntry> = {}): SkillCatalogEnt
     isAuthorable: false,
     ...overrides,
   };
+}
+
+interface SkillLocaleCatalog {
+  catalog: {
+    standard: Record<string, { name: string; description: string }>;
+  };
+}
+
+function readSkillLocale(locale: 'zh-CN' | 'en-US' | 'zh-TW'): SkillLocaleCatalog {
+  const path = fileURLToPath(new URL(
+    `../../../locales/${locale}/scenes/skills.json`,
+    import.meta.url,
+  ));
+  return JSON.parse(readFileSync(path, 'utf8')) as SkillLocaleCatalog;
 }
 
 describe('CapabilityCatalogService', () => {
@@ -356,6 +373,104 @@ describe('existing Agent and Skill catalog mappings', () => {
       expect(presentation.displayNameKey).toBe(`catalog.builtin.${dirName}.name`);
       expect(presentation.descriptionKey).toBe(`catalog.builtin.${dirName}.description`);
     }
+  });
+
+  it('45 项标准用户技能拥有唯一、稳定且完整的展示 ID', () => {
+    expect(STANDARD_SKILL_PRESENTATION_IDS).toHaveLength(45);
+    expect(new Set(STANDARD_SKILL_PRESENTATION_IDS).size).toBe(45);
+
+    for (const dirName of STANDARD_SKILL_PRESENTATION_IDS) {
+      const presentation = presentationForInstalledSkill({
+        key: `user::home.codex::${dirName}`,
+        name: dirName,
+        description: `${dirName} raw description`,
+        path: `C:/Users/test/.codex/skills/${dirName}`,
+        level: 'user',
+        sourceSlot: 'home.codex',
+        dirName,
+        isBuiltin: false,
+      });
+      expect(presentation.displayNameKey).toBe(`catalog.standard.${dirName}.name`);
+      expect(presentation.descriptionKey).toBe(`catalog.standard.${dirName}.description`);
+      expect(presentation.aliases).toEqual(expect.arrayContaining([
+        `user::home.codex::${dirName}`,
+        dirName,
+      ]));
+    }
+  });
+
+  it('标准技能中文化只命中精确 home.codex 用户身份且不修改原始对象', () => {
+    const sourceSkill: SkillInfo = {
+      key: 'user::home.codex::arrange',
+      name: 'arrange',
+      description: 'Improve layout and spacing.',
+      path: 'C:/Users/test/.codex/skills/arrange',
+      level: 'user',
+      sourceSlot: 'home.codex',
+      dirName: 'arrange',
+      isBuiltin: false,
+    };
+    const before = structuredClone(sourceSkill);
+    const presentation = presentationForInstalledSkill(sourceSkill);
+
+    expect(presentation.displayNameKey).toBe('catalog.standard.arrange.name');
+    expect(presentation.descriptionKey).toBe('catalog.standard.arrange.description');
+    expect(sourceSkill).toEqual(before);
+
+    const mismatches: SkillInfo[] = [
+      { ...sourceSkill, key: 'project::workspace::arrange', level: 'project', sourceSlot: 'workspace' },
+      { ...sourceSkill, key: 'user::void-system::arrange', sourceSlot: 'void-system' },
+      { ...sourceSkill, key: 'user::home.codex::arrange-copy' },
+      { ...sourceSkill, name: 'My Arrange Skill' },
+      { ...sourceSkill, displayName: '我的布局技能' },
+      { ...sourceSkill, isBuiltin: true },
+      { ...sourceSkill, key: 'user::home.codex::unknown-skill', name: 'unknown-skill', dirName: 'unknown-skill' },
+    ];
+
+    for (const skill of mismatches) {
+      const fallback = presentationForInstalledSkill(skill);
+      expect(fallback.displayNameKey).toBeUndefined();
+      expect(fallback.descriptionKey).toBeUndefined();
+      expect(fallback.displayName).toBe(skill.displayName?.trim() || skill.name);
+    }
+  });
+
+  it('标准技能三种语言的键集合一致且名称和用途均非空', () => {
+    const expected = [...STANDARD_SKILL_PRESENTATION_IDS].sort();
+    for (const locale of ['zh-CN', 'en-US', 'zh-TW'] as const) {
+      const standard = readSkillLocale(locale).catalog.standard;
+      expect(Object.keys(standard).sort()).toEqual(expected);
+      for (const id of expected) {
+        expect(standard[id].name.trim()).not.toBe('');
+        expect(standard[id].description.trim()).not.toBe('');
+      }
+    }
+  });
+
+  it('中文展示名和原始英文 ID 都能命中同一个标准技能展示', () => {
+    const presentation = presentationForInstalledSkill({
+      key: 'user::home.codex::arrange',
+      name: 'arrange',
+      description: 'Improve layout and spacing.',
+      path: 'C:/Users/test/.codex/skills/arrange',
+      level: 'user',
+      sourceSlot: 'home.codex',
+      dirName: 'arrange',
+      isBuiltin: false,
+    });
+    const zhCN = readSkillLocale('zh-CN').catalog.standard.arrange;
+    const localized = localizeCatalogPresentation(
+      presentation,
+      key => key.endsWith('.name') ? zhCN.name : zhCN.description,
+    );
+    const searchable = [
+      localized.displayName,
+      localized.description,
+      ...localized.aliases,
+    ].map(value => value.toLowerCase());
+
+    expect(searchable.some(value => value.includes('布局'))).toBe(true);
+    expect(searchable.some(value => value.includes('arrange'))).toBe(true);
   });
 
   it('市场项始终保留 raw name 且 React/download 身份仍是 installId', () => {

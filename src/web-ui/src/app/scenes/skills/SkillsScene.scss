@@ -1287,3 +1287,196 @@
 }
 
 @include minimal.styles;
+
+/* Unified employee-market presentation: one compact toolbar, two fixed rows. */
+.void-skills-scene,
+.void-ui--minimal .void-skills-scene {
+  container: skills-market / inline-size;
+
+  .skills-tabs-bar {
+    min-height: 52px;
+    padding: 0 var(--workspace-space-4);
+    border-bottom: 1px solid var(--workspace-border-subtle);
+    background: var(--workspace-surface-canvas);
+  }
+
+  .skills-page,
+  .skills-installed,
+  .skills-main,
+  .skills-discover {
+    min-height: 0;
+  }
+
+  .skills-installed {
+    flex-direction: column;
+  }
+
+  .skills-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-1);
+    flex: 0 0 auto;
+    padding: var(--workspace-space-2) var(--workspace-space-4) 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .skills-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .skills-filter-bar__item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--workspace-space-1);
+    min-height: var(--workspace-control-height);
+    padding: 0 var(--workspace-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--workspace-radius-control);
+    background: transparent;
+    color: var(--workspace-text-secondary);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .skills-filter-bar__item:hover {
+    background: var(--workspace-surface-hover);
+    color: var(--workspace-text-primary);
+  }
+
+  .skills-filter-bar__item:focus-visible {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: -2px;
+  }
+
+  .skills-filter-bar__item.is-active {
+    border-color: var(--workspace-border-strong);
+    background: var(--workspace-surface-active);
+    color: var(--workspace-text-primary);
+  }
+
+  .skills-filter-bar__item.is-empty {
+    opacity: 0.62;
+  }
+
+  .skills-filter-bar__item-icon {
+    display: inline-flex;
+  }
+
+  .skills-filter-bar__item-count {
+    min-width: 18px;
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    text-align: center;
+  }
+
+  .skills-main__toolbar,
+  .skills-discover__toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--workspace-space-2);
+    flex: 0 0 auto;
+    padding: var(--workspace-space-3) var(--workspace-space-4);
+    border-bottom: 1px solid var(--workspace-border-subtle);
+    background: var(--workspace-surface-canvas);
+  }
+
+  .skills-discover__search,
+  .skills-main__toolbar-search {
+    width: min(100%, 360px);
+    min-width: 220px;
+  }
+
+  .skills-main__grid,
+  .skills-main__loading,
+  .skills-discover__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--workspace-space-3);
+    align-content: start;
+    padding: var(--workspace-space-4);
+  }
+
+  .skills-discover__content {
+    padding: 0;
+  }
+
+  .skills-discover__results-info {
+    margin: 0;
+    padding: var(--workspace-space-2) var(--workspace-space-4) 0;
+  }
+
+  .skills-card,
+  .skills-card-skeleton,
+  .skill-card,
+  .skills-discover__skeleton-card {
+    box-sizing: border-box;
+    height: 150px;
+    min-height: 150px;
+  }
+
+  .skills-card__desc,
+  .skill-card__desc {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .skills-card__meta {
+    min-height: 24px;
+  }
+
+  .skills-card__path {
+    display: none;
+  }
+
+  .skills-installed__pagination,
+  .skills-discover__pagination {
+    flex: 0 0 auto;
+    margin-top: auto;
+    padding: var(--workspace-space-2) var(--workspace-space-4)
+      var(--workspace-space-3);
+  }
+}
+
+@container skills-market (max-width: 900px) {
+  .void-skills-scene,
+  .void-ui--minimal .void-skills-scene {
+    .skills-main__grid,
+    .skills-main__loading,
+    .skills-discover__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
+@container skills-market (max-width: 560px) {
+  .void-skills-scene,
+  .void-ui--minimal .void-skills-scene {
+    .skills-main__toolbar,
+    .skills-discover__toolbar {
+      flex-wrap: wrap;
+      padding-inline: var(--workspace-space-3);
+    }
+
+    .skills-discover__search,
+    .skills-main__toolbar-search {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .skills-main__grid,
+    .skills-main__loading,
+    .skills-discover__grid {
+      grid-template-columns: 1fr;
+      padding: var(--workspace-space-3);
+    }
+
+    .skills-filter-bar {
+      padding-inline: var(--workspace-space-3);
+    }
+  }
+}

@@ -21,13 +21,7 @@ export const CUSTOMIZATION_NAV_ITEMS: readonly CustomizationTopNavDefinition[] =
 
 export function openCustomizationNavItem(
   item: CustomizationTopNavItem,
-  openScene: (scene: 'agents' | 'skills' | 'settings') => void,
-  setSettingsActiveTab: (tab: 'mcp-tools') => void,
+  openScene: (scene: 'agents' | 'skills' | 'connectors') => void,
 ): void {
-  if (item === 'connectors') {
-    setSettingsActiveTab('mcp-tools');
-    openScene('settings');
-    return;
-  }
   openScene(item);
 }

@@ -39,7 +39,6 @@ import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDispl
 import { computeFixedPopoverPosition } from '@/shared/utils/fixedPopoverViewport';
 import { useSSHRemoteContext, SSHConnectionDialog, RemoteFileBrowser } from '@/features/ssh-remote';
 import { useSessionModeStore } from '../../stores/sessionModeStore';
-import { useSettingsStore } from '../../scenes/settings/settingsStore';
 import { useShortcut } from '@/infrastructure/hooks/useShortcut';
 import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
@@ -75,8 +74,6 @@ const MainNav: React.FC<MainNavProps> = ({
   const { switchLeftPanelTab } = useApp();
   const { openScene } = useSceneManager();
   const activeTabId = useSceneStore(s => s.activeTabId);
-  const settingsActiveTab = useSettingsStore(s => s.activeTab);
-  const setSettingsActiveTab = useSettingsStore(s => s.setActiveTab);
   const setSelectedAssistantWorkspaceId = useMyAgentStore((s) => s.setSelectedAssistantWorkspaceId);
   const { t } = useI18n('common');
   const {
@@ -429,9 +426,8 @@ const MainNav: React.FC<MainNavProps> = ({
   }, [openScene]);
 
   const handleOpenConnectors = useCallback(() => {
-    setSettingsActiveTab('mcp-tools');
-    openScene('settings');
-  }, [openScene, setSettingsActiveTab]);
+    openScene('connectors');
+  }, [openScene]);
 
   const handleOpenAutomation = useCallback(() => {
     openScene('automation');
@@ -439,7 +435,7 @@ const MainNav: React.FC<MainNavProps> = ({
 
   const isAgentsActive = activeTabId === 'agents';
   const isSkillsActive = activeTabId === 'skills';
-  const isConnectorsActive = activeTabId === 'settings' && settingsActiveTab === 'mcp-tools';
+  const isConnectorsActive = activeTabId === 'connectors';
   const isAutomationActive = activeTabId === 'automation';
 
   useEffect(() => {

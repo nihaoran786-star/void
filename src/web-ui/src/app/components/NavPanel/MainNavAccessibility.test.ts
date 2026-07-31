@@ -77,20 +77,18 @@ describe('MainNav workspace menu accessibility contract', () => {
     );
   });
 
-  it('routes the connector entry through the existing MCP settings state', () => {
+  it('routes the connector entry to its standalone scene', () => {
     const source = readSibling('./MainNav.tsx');
     const config = readSibling('./config.ts');
     const baseStyles = readSibling('./NavPanel.scss');
 
-    expect(source).toContain("setSettingsActiveTab('mcp-tools');");
-    expect(source).toContain("openScene('settings');");
-    expect(source).toContain(
-      "activeTabId === 'settings' && settingsActiveTab === 'mcp-tools'",
-    );
+    expect(source).toContain("openScene('connectors');");
+    expect(source).toContain("activeTabId === 'connectors'");
+    expect(source).not.toContain("setSettingsActiveTab('mcp-tools');");
     expect(source).toContain("t('nav.items.connectors')");
     expect(source).toContain('<Cable size={15} />');
     expect(config).toContain('agents / skills / connectors');
-    expect(config).toContain('reuses the existing MCP settings surface');
+    expect(config).toContain('each item opens its own workspace scene');
     expect(baseStyles).toContain('max-height: 104px;');
   });
 
