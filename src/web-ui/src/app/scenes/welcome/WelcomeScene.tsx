@@ -15,6 +15,7 @@ import { useSceneStore } from '@/app/stores/sceneStore';
 import { useI18n } from '@/infrastructure/i18n';
 import { Tooltip } from '@/component-library';
 import { createLogger } from '@/shared/utils/logger';
+import { useNotification } from '@/shared/notification-system';
 import type { SceneTabId } from '@/app/components/SceneBar/types';
 import type { WorkspaceInfo } from '@/shared/types';
 import { getRecentWorkspaceLineParts } from '@/shared/utils/recentWorkspaceDisplay';
@@ -29,6 +30,7 @@ const WelcomeScene: React.FC = () => {
     openWorkspace, switchWorkspace, removeWorkspaceFromRecent,
   } = useWorkspaceContext();
   const openScene = useSceneStore(s => s.openScene);
+  const notification = useNotification();
   const [isSelecting, setIsSelecting] = useState(false);
   const [welcomeMessageIndex] = useState(
     () => Math.floor(Math.random() * 4),
@@ -67,10 +69,11 @@ const WelcomeScene: React.FC = () => {
       }
     } catch (e) {
       log.error('Failed to open folder', e);
+      notification.error(t('welcomeScene.workspaceOpenFailed'));
     } finally {
       setIsSelecting(false);
     }
-  }, [openWorkspace, openScene, t]);
+  }, [notification, openWorkspace, openScene, t]);
 
   const handleNewProject = useCallback(() => {
     window.dispatchEvent(new Event('nav:new-project'));
@@ -82,16 +85,18 @@ const WelcomeScene: React.FC = () => {
       openScene('session' as SceneTabId);
     } catch (e) {
       log.error('Failed to switch workspace', e);
+      notification.error(t('welcomeScene.workspaceSwitchFailed'));
     }
-  }, [switchWorkspace, openScene]);
+  }, [notification, openScene, switchWorkspace, t]);
 
   const handleRemoveFromRecent = useCallback(async (workspaceId: string) => {
     try {
       await removeWorkspaceFromRecent(workspaceId);
     } catch (e) {
       log.error('Failed to remove workspace from recent', e);
+      notification.error(t('welcomeScene.workspaceRemoveFailed'));
     }
-  }, [removeWorkspaceFromRecent]);
+  }, [notification, removeWorkspaceFromRecent, t]);
 
   const formatDate = useCallback((dateString: string) => {
     try {
@@ -166,20 +171,23 @@ const WelcomeScene: React.FC = () => {
                       </span>
                     </button>
                   </Tooltip>
-                  <button
-                    type="button"
-                    className="welcome-scene__recent-time-btn"
-                    title={t('welcomeScene.removeFromRecent')}
-                    aria-label={t('welcomeScene.removeFromRecent')}
-                    onClick={() => { void handleRemoveFromRecent(ws.id); }}
-                  >
-                    <span className="welcome-scene__recent-time-btn__label">
+                  <span className="welcome-scene__recent-meta">
+                    <time
+                      className="welcome-scene__recent-time"
+                      dateTime={ws.lastAccessed}
+                    >
                       {formatDate(ws.lastAccessed)}
-                    </span>
-                    <span className="welcome-scene__recent-time-btn__icon" aria-hidden>
+                    </time>
+                    <button
+                      type="button"
+                      className="welcome-scene__recent-remove-btn"
+                      title={t('welcomeScene.removeFromRecent')}
+                      aria-label={t('welcomeScene.removeFromRecent')}
+                      onClick={() => { void handleRemoveFromRecent(ws.id); }}
+                    >
                       <Trash2 size={15} strokeWidth={2} />
-                    </span>
-                  </button>
+                    </button>
+                  </span>
                 </div>
                 );
               })}

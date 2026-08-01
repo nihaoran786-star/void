@@ -24,6 +24,7 @@ interface SkillCardProps {
   badges?: React.ReactNode;
   meta?: React.ReactNode;
   actions?: SkillCardAction[];
+  detailLabel: string;
   onOpenDetails?: () => void;
 }
 
@@ -36,26 +37,17 @@ const SkillCard: React.FC<SkillCardProps> = ({
   badges,
   meta,
   actions = [],
+  detailLabel,
   onOpenDetails,
 }) => {
-  const openDetails = () => onOpenDetails?.();
-
   return (
-    <div
+    <article
       className="skill-card"
       style={{
         '--card-index': index,
         '--skill-card-gradient': getCardGradient(accentSeed ?? name),
         '--skill-card-color-rgb': getCardColorRgb(accentSeed ?? name),
       } as React.CSSProperties}
-      onClick={openDetails}
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openDetails();
-        }
-      }}
       aria-label={name}
     >
       {/* Header: visual identity + capability summary */}
@@ -87,8 +79,17 @@ const SkillCard: React.FC<SkillCardProps> = ({
       </div>
 
       {/* Footer: action buttons */}
-      {actions.length > 0 && (
+      {(onOpenDetails || actions.length > 0) && (
         <div className="skill-card__footer">
+          {onOpenDetails && (
+            <button
+              type="button"
+              className="skill-card__detail-btn"
+              onClick={onOpenDetails}
+            >
+              {detailLabel}
+            </button>
+          )}
           <div className="skill-card__actions" onClick={(e) => e.stopPropagation()}>
             {actions.map((action) => (
               <button
@@ -109,7 +110,7 @@ const SkillCard: React.FC<SkillCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 };
 

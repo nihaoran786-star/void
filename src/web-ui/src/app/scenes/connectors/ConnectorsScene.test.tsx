@@ -21,11 +21,13 @@ describe('ConnectorsScene boundary', () => {
     const types = readSource('../../components/SceneBar/types.ts');
     const registry = readSource('../registry.ts');
     const viewport = readSource('../SceneViewport.tsx');
+    const loaders = readSource('../sceneLoaders.ts');
 
     expect(types).toContain("| 'connectors'");
     expect(registry).toContain("id: 'connectors' as SceneTabId");
     expect(registry).toContain("labelKey: 'nav.items.connectors'");
-    expect(viewport).toContain("import('./connectors/ConnectorsScene')");
+    expect(loaders).toContain("loadConnectorsScene = () => import('./connectors/ConnectorsScene')");
+    expect(viewport).toContain('const ConnectorsScene = lazy(loadConnectorsScene)');
     expect(viewport).toContain("case 'connectors':");
     expect(viewport).toContain('return <ConnectorsScene />;');
   });

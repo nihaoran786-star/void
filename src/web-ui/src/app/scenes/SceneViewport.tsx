@@ -10,33 +10,51 @@
 
 import React, { Suspense, lazy } from 'react';
 import type { SceneTabId } from '../components/SceneBar/types';
-import { useSceneManager } from '../hooks/useSceneManager';
+import { useSceneStore } from '../stores/sceneStore';
 import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import { useDialogCompletionNotify } from '../hooks/useDialogCompletionNotify';
 import { useDocumentVisibilityState } from '../hooks/useDocumentVisibilityState';
 import { ProcessingIndicator } from '@/flow_chat/components/modern/ProcessingIndicator';
 import AssistantScene from './assistant/AssistantScene';
 import SessionScene from './session/SessionScene';
+import {
+  loadAgentsScene,
+  loadAutomationScene,
+  loadBrowserScene,
+  loadConnectorsScene,
+  loadFileViewerScene,
+  loadGitScene,
+  loadInsightsScene,
+  loadMiniAppGalleryScene,
+  loadMiniAppScene,
+  loadPanelViewScene,
+  loadProfileScene,
+  loadSettingsScene,
+  loadShellScene,
+  loadSkillsScene,
+  loadTerminalScene,
+  loadWelcomeScene,
+} from './sceneLoaders';
 import './SceneViewport.scss';
 
 // Session is the primary interaction path. Keep it in the main scene bundle so
 // first open does not stall on a lazy chunk fetch/parse before FlowChat mounts.
-const SettingsScene   = lazy(() => import('./settings/SettingsScene'));
-const TerminalScene   = lazy(() => import('./terminal/TerminalScene'));
-const GitScene        = lazy(() => import('./git/GitScene'));
-const FileViewerScene = lazy(() => import('./file-viewer/FileViewerScene'));
-const ProfileScene    = lazy(() => import('./profile/ProfileScene'));
-const AgentsScene       = lazy(() => import('./agents/AgentsScene'));
-const SkillsScene     = lazy(() => import('./skills/SkillsScene'));
-const ConnectorsScene = lazy(() => import('./connectors/ConnectorsScene'));
-const MiniAppGalleryScene = lazy(() => import('./miniapps/MiniAppGalleryScene'));
-const BrowserScene    = lazy(() => import('./browser/BrowserScene'));
-const InsightsScene   = lazy(() => import('./my-agent/InsightsScene'));
-const AutomationScene = lazy(() => import('./automation/AutomationScene'));
-const ShellScene      = lazy(() => import('./shell/ShellScene'));
-const WelcomeScene    = lazy(() => import('./welcome/WelcomeScene'));
-const MiniAppScene    = lazy(() => import('./miniapps/MiniAppScene'));
-const PanelViewScene  = lazy(() => import('./panel-view/PanelViewScene'));
+const SettingsScene = lazy(loadSettingsScene);
+const TerminalScene = lazy(loadTerminalScene);
+const GitScene = lazy(loadGitScene);
+const FileViewerScene = lazy(loadFileViewerScene);
+const ProfileScene = lazy(loadProfileScene);
+const AgentsScene = lazy(loadAgentsScene);
+const SkillsScene = lazy(loadSkillsScene);
+const ConnectorsScene = lazy(loadConnectorsScene);
+const MiniAppGalleryScene = lazy(loadMiniAppGalleryScene);
+const BrowserScene = lazy(loadBrowserScene);
+const InsightsScene = lazy(loadInsightsScene);
+const AutomationScene = lazy(loadAutomationScene);
+const ShellScene = lazy(loadShellScene);
+const WelcomeScene = lazy(loadWelcomeScene);
+const MiniAppScene = lazy(loadMiniAppScene);
+const PanelViewScene = lazy(loadPanelViewScene);
 
 
 interface SceneViewportProps {
@@ -44,8 +62,65 @@ interface SceneViewportProps {
   isEntering?: boolean;
 }
 
+interface SceneSlotProps {
+  id: SceneTabId;
+  workspacePath?: string;
+  isEntering: boolean;
+  isActive: boolean;
+  isDocumentVisible: boolean;
+  loadingLabel: string;
+}
+
+const SceneSlot = React.memo(function SceneSlot({
+  id,
+  workspacePath,
+  isEntering,
+  isActive,
+  isDocumentVisible,
+  loadingLabel,
+}: SceneSlotProps) {
+  const isPresentationActive = isActive && isDocumentVisible;
+
+  return (
+    <div
+      className={[
+        'void-scene-viewport__scene',
+        isActive && 'void-scene-viewport__scene--active',
+      ].filter(Boolean).join(' ')}
+      aria-hidden={!isActive}
+    >
+      <Suspense
+        fallback={
+          isActive ? (
+            <div
+              className="void-scene-viewport__lazy-fallback"
+              role="status"
+              aria-busy="true"
+              aria-label={loadingLabel}
+            >
+              <ProcessingIndicator visible />
+            </div>
+          ) : null
+        }
+      >
+        {renderScene(id, workspacePath, isEntering, isPresentationActive)}
+      </Suspense>
+    </div>
+  );
+}, (previous, next) => (
+  previous.id === next.id
+  && previous.workspacePath === next.workspacePath
+  && previous.isEntering === next.isEntering
+  && previous.isActive === next.isActive
+  && (!next.isActive || (
+    previous.isDocumentVisible === next.isDocumentVisible
+    && previous.loadingLabel === next.loadingLabel
+  ))
+));
+
 const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering = false }) => {
-  const { openTabs, activeTabId } = useSceneManager();
+  const openTabs = useSceneStore((state) => state.openTabs);
+  const activeTabId = useSceneStore((state) => state.activeTabId);
   const { t } = useI18n('common');
   const isDocumentVisible = useDocumentVisibilityState();
   useDialogCompletionNotify();
@@ -64,37 +139,17 @@ const SceneViewport: React.FC<SceneViewportProps> = ({ workspacePath, isEntering
   return (
     <div className="void-scene-viewport">
       <div className="void-scene-viewport__clip">
-        {openTabs.map(tab => {
-          const isActive = tab.id === activeTabId;
-          const isPresentationActive = isActive && isDocumentVisible;
-          return (
-            <div
-              key={tab.id}
-              className={[
-                'void-scene-viewport__scene',
-                isActive && 'void-scene-viewport__scene--active',
-              ].filter(Boolean).join(' ')}
-              aria-hidden={!isActive}
-            >
-              <Suspense
-                fallback={
-                  isActive ? (
-                    <div
-                      className="void-scene-viewport__lazy-fallback"
-                      role="status"
-                      aria-busy="true"
-                      aria-label={t('loading.scenes')}
-                    >
-                      <ProcessingIndicator visible />
-                    </div>
-                  ) : null
-                }
-              >
-                {renderScene(tab.id, workspacePath, isEntering, isPresentationActive)}
-              </Suspense>
-            </div>
-          );
-        })}
+        {openTabs.map((tab) => (
+          <SceneSlot
+            key={tab.id}
+            id={tab.id}
+            workspacePath={workspacePath}
+            isEntering={isEntering}
+            isActive={tab.id === activeTabId}
+            isDocumentVisible={isDocumentVisible}
+            loadingLabel={t('loading.scenes')}
+          />
+        ))}
       </div>
     </div>
   );

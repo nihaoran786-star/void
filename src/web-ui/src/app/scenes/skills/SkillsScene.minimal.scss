@@ -72,11 +72,6 @@
         }
       }
 
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
     }
 
     .skills-sidebar {
@@ -224,7 +219,7 @@
     .skills-card {
       box-sizing: border-box;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--workspace-icon-target);
+      grid-template-columns: minmax(0, 1fr) auto;
       grid-template-rows: minmax(0, 1fr) auto;
       width: 100%;
       height: 160px;
@@ -251,19 +246,13 @@
         box-shadow: none;
       }
 
-      &:focus-visible {
-        outline: 2px solid var(--workspace-focus-ring);
-        outline-offset: -2px;
-        box-shadow: none;
-      }
-
       &.is-shadowed {
         background: var(--workspace-status-neutral-bg);
       }
     }
 
     .skills-card__top {
-      grid-column: 1;
+      grid-column: 1 / -1;
       grid-row: 1;
       min-height: 0;
       gap: var(--workspace-space-2);
@@ -354,18 +343,31 @@
       }
     }
 
-    @media (hover: hover) {
-      .skills-card__actions {
-        opacity: 0;
-        transition: opacity var(--workspace-motion-fast) var(--workspace-easing-standard);
+    .skills-card__detail {
+      width: auto;
+      min-width: 0;
+      height: var(--workspace-icon-target);
+      gap: var(--workspace-space-1);
+      padding-inline: var(--workspace-space-2);
+      border-radius: var(--workspace-radius-control);
+      color: var(--workspace-text-secondary);
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
       }
 
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
+      }
+    }
+
+    @media (hover: hover) {
       .skills-card__path {
         opacity: 0;
       }
 
-      .skills-card:hover .skills-card__actions,
-      .skills-card:focus-within .skills-card__actions,
       .skills-card:hover .skills-card__path,
       .skills-card:focus-within .skills-card__path {
         opacity: 1;
@@ -804,6 +806,23 @@
 
       &::after {
         content: none;
+      }
+    }
+
+    .skill-card__detail-btn {
+      min-height: var(--workspace-control-height);
+      padding-inline: var(--workspace-space-2);
+      border-right-color: var(--workspace-border-subtle);
+      color: var(--workspace-text-secondary);
+
+      &:hover {
+        color: var(--workspace-text-primary);
+        background: var(--workspace-surface-hover);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--workspace-focus-ring);
+        outline-offset: -2px;
       }
     }
 

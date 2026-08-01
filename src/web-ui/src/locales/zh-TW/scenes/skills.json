@@ -253,6 +253,7 @@
     "searchPlaceholder": "搜索市場技能...",
     "loading": "正在加載市場技能...",
     "errorPrefix": "市場加載失敗: ",
+    "retry": "重新載入",
     "empty": {
       "noMatch": "沒有找到匹配的市場技能",
       "noSkills": "暫時沒有可展示的市場技能"
@@ -368,6 +369,7 @@
   },
   "list": {
     "loading": "加載中...",
+    "retry": "重新載入",
     "errorPrefix": "加載失敗: ",
     "empty": {
       "noMatch": "沒有找到匹配的技能",

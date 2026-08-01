@@ -3,7 +3,7 @@
 Status: Desktop/Tauri first implementation complete; general Team runtime and
 browser/server parity deferred.
 
-Updated: 2026-08-01
+Updated: 2026-08-02
 
 ## Product decision
 
@@ -1136,3 +1136,32 @@ As of this specification update:
   cannot be selected in the composer;
 - no provider KV-cache hit rate is promised; correctness and role isolation are
   the release gate.
+
+### 7. Visual, stability, and scene-switch acceptance
+
+The 2026-08-02 acceptance pass keeps customization presentation behind the
+existing catalog and MCP Interfaces. It does not add runtime, persistence,
+permission, session, media, or Team orchestration behavior to a page component.
+
+- Skills, Connectors, Welcome, Agent, Team, and the session composer were
+  reviewed from authoritative full-window Desktop captures. Capture metadata
+  records HWND, DWM bounds, DPI, method, and occlusion confidence so a cropped
+  viewport cannot be accepted as a complete-page review.
+- Skill cards expose details and management/install actions as separate
+  controls. Loading failures are explicit and retryable. Four-column layout
+  keeps the card heading across the full row so localized titles are not
+  squeezed by the action column.
+- Connector empty state presents one add action and otherwise preserves the
+  established JSON, status, authentication, OAuth, lifecycle, and Settings
+  compatibility paths.
+- Welcome workspace selection supports roving keyboard navigation, Escape and
+  focus restoration. Recent workspace deletion is a separate action, and
+  notification failures are rendered as errors. The session workspace selector
+  keeps its complete localized label at the supported desktop width.
+- Scene switching narrows store subscriptions, retains mounted scene state,
+  pauses inactive refresh work, and preloads priority scenes on real navigation
+  intent. It must not cancel work, reset state, clear Canvas, or weaken error
+  handling to improve a timing metric.
+- Desktop acceptance budgets are hot-switch `p95 <= 150 ms`, cold-switch
+  `p95 <= 600 ms`, and data-ready `p95 <= 1500 ms`. The measured result was
+  `62.0 ms`, `197.1 ms`, and `513.7 ms` respectively.

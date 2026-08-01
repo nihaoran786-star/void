@@ -9,8 +9,8 @@ const sceneManagerMock = vi.hoisted(() => ({
   activeTabId: 'session',
 }));
 
-vi.mock('./useSceneManager', () => ({
-  useSceneManager: () => sceneManagerMock,
+vi.mock('../stores/sceneStore', () => ({
+  useSceneStore: (selector: (state: typeof sceneManagerMock) => unknown) => selector(sceneManagerMock),
 }));
 vi.mock('./useDialogCompletionNotify', () => ({
   useDialogCompletionNotify: () => undefined,

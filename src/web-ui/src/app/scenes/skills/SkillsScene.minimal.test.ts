@@ -10,6 +10,7 @@ const readSource = (relativePath: string): string => readFileSync(
 describe('Skills market presentation contract', () => {
   const scene = readSource('./SkillsScene.tsx');
   const styles = readSource('./SkillsScene.scss');
+  const marketCard = readSource('./components/SkillCard.tsx');
 
   it('keeps skills in one standalone scene without duplicate customization navigation', () => {
     expect(scene).not.toContain('CustomizationTopNav');
@@ -52,6 +53,23 @@ describe('Skills market presentation contract', () => {
     expect(scene).toContain("aria-pressed={activeTab === 'discover'}");
     expect(scene).toContain('aria-pressed={installedFilter === cat.id}');
     expect(scene).toContain('aria-expanded={isAddFormOpen}');
+  });
+
+  it('renders retryable skill failures as alerts', () => {
+    expect(scene).toContain('className="skills-main__empty skills-main__empty--error" role="alert"');
+    expect(scene).toContain('onClick={() => void installed.loadSkills(true)}');
+    expect(scene).toContain('className="skills-discover__empty skills-discover__empty--error" role="alert"');
+    expect(scene).toContain('onClick={() => void market.refresh()}');
+  });
+
+  it('keeps card actions as sibling native buttons inside semantic articles', () => {
+    expect(scene).toContain('<article');
+    expect(scene).toContain('className="skills-card__detail"');
+    expect(scene).not.toContain('role="button"');
+    expect(marketCard).toContain('<article');
+    expect(marketCard).toContain('className="skill-card__detail-btn"');
+    expect(marketCard).not.toContain('tabIndex={0}');
+    expect(marketCard).not.toContain('onClick={openDetails}');
   });
 
   it('honors the existing reduced-motion and token contracts', () => {

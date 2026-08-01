@@ -41,9 +41,7 @@ async function openCustomizationCenter(): Promise<void> {
   if ((await extensionToggle.getAttribute('aria-expanded')) !== 'true') {
     await extensionToggle.click();
   }
-  const agentEntry = await $(
-    '#void-nav-panel-extensions .void-nav-panel__top-action-btn--sub:first-child',
-  );
+  const agentEntry = await $('[data-testid="nav-agents"]');
   await agentEntry.waitForClickable({ timeout: 10_000 });
   await agentEntry.click();
   await $('.void-agents-shell').waitForDisplayed({ timeout: 15_000 });
@@ -66,10 +64,12 @@ describe('L0 customization center visual acceptance', () => {
     });
 
     const navLabels = await browser.execute(() => (
-      Array.from(document.querySelectorAll('.customization-top-nav__item'))
+      Array.from(document.querySelectorAll(
+        '#void-nav-panel-extensions [data-testid^="nav-"]',
+      ))
         .map(item => item.textContent?.trim() ?? '')
     ));
-    expect(navLabels).toEqual(expect.arrayContaining(['智能体', '技能', '连接器']));
+    expect(navLabels).toEqual(expect.arrayContaining(['专业智能体', '技能', '连接器']));
     const agentCatalogText = await $('.void-agents-shell').getText();
     expect(agentCatalogText).toContain('电脑操作');
     expect(agentCatalogText).not.toContain('Computer Use');
@@ -144,12 +144,10 @@ describe('L0 customization center visual acceptance', () => {
     expect(sectionLabels).toEqual(expect.arrayContaining(['智能体', '团队']));
     const boostMenuText = await $('.void-chat-input__mode-dropdown--agent-boost')
       .getText();
-    expect(boostMenuText).toContain('方案规划');
-    expect(boostMenuText).toContain('调试诊断');
-    expect(boostMenuText).toContain('并行任务');
-    expect(boostMenuText).toContain('深度研究');
-    expect(boostMenuText).toContain('开发协作');
+    expect(boostMenuText).toContain('智能体与团队');
+    expect(boostMenuText).toContain('管理智能体与团队');
     expect(boostMenuText).toContain('技能');
+    expect(boostMenuText).toContain('发起侧问');
 
     await saveScreenshot('composer-persona-picker', {
       directory: screenshotDirectory,

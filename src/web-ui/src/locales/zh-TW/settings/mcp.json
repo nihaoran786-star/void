@@ -89,6 +89,7 @@
     "edit": "編輯",
     "editServer": "編輯服務器",
     "addServer": "添加服務器",
+    "addConnector": "添加連接器",
     "delete": "刪除",
     "start": "啟動",
     "stop": "停止",

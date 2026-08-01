@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-01
+Updated: 2026-08-02
 
 ## Product state
 
@@ -115,6 +115,16 @@ Web build and bundle budgets, focused persona/Skill/Team contract tests, and the
 full `void-core` test suite. Desktop Team API and workspace checks are recorded
 in the current customization specification. The known baseline debt below is
 not reclassified as passing.
+
+The 2026-08-02 Desktop visual and performance pass added authoritative
+full-window capture metadata, keyboard/retry/error-state coverage for Welcome,
+Skills, and Connectors, and measured scene-switch gates. Priority surfaces plus
+Agent, Team, and the session composer were reviewed at the complete DWM window
+boundary. Narrow store selectors, retained memoized scene slots, inactive-scene
+refresh gating, and navigation-intent preload reduced measured hot-switch p95 to
+62.0 ms, cold-switch p95 to 197.1 ms, and data-ready p95 to 513.7 ms without
+resetting scene state or widening permissions. Exact evidence and commands are
+recorded in [design-qa.md](design-qa.md).
 
 High-confidence defects fixed in the current audit:
 

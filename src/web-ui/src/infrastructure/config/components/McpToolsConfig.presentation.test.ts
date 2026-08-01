@@ -7,6 +7,7 @@ const readSource = (file: string) =>
 
 type PureStatusHelpers = {
   acquireMcpServerOperationLock: (locks: Set<string>, serverId: string) => boolean;
+  getCatalogStatusClass: (status: string) => string;
   getCatalogStatusGroup: (status: string) => string;
   isMcpServerStoppedStatus: (status: string) => boolean;
   isMcpServerTransitioningStatus: (status: string) => boolean;
@@ -20,6 +21,7 @@ const loadPureStatusHelpers = () => {
   const helperSource = `${source.slice(start, end)}
 export {
   acquireMcpServerOperationLock,
+  getCatalogStatusClass,
   getCatalogStatusGroup,
   isMcpServerStoppedStatus,
   isMcpServerTransitioningStatus,
@@ -38,6 +40,7 @@ export {
 
 const {
   acquireMcpServerOperationLock,
+  getCatalogStatusClass,
   getCatalogStatusGroup,
   isMcpServerStoppedStatus,
   isMcpServerTransitioningStatus,
@@ -68,6 +71,12 @@ describe('McpToolsConfig empty presentation', () => {
       .toEqual([false, false, false, false, false]);
     expect(['Starting', 'Reconnecting', 'Stopping'].map(isMcpServerTransitioningStatus))
       .toEqual([true, true, true]);
+  });
+
+  it('presents stopped and uninitialized as neutral rather than failures', () => {
+    expect(getCatalogStatusClass('Stopped')).toBe('is-neutral');
+    expect(getCatalogStatusClass('Uninitialized')).toBe('is-neutral');
+    expect(getCatalogStatusClass('Failed')).toBe('is-error');
   });
 
   it('acquires and releases a synchronous server operation lock', () => {
@@ -127,6 +136,14 @@ describe('McpToolsConfig empty presentation', () => {
     expect(styles).toContain('@container config-panel (max-width: 360px)');
   });
 
+  it('hides catalog tools for a successful empty result and keeps one add entry', () => {
+    const source = readSource('./McpToolsConfig.tsx');
+
+    expect(source).toContain("&& servers.length > 0 && (");
+    expect(source).toContain("tMcp('actions.addConnector')");
+    expect(source).toContain('onClick={() => setShowJsonEditor(true)}');
+  });
+
   it('provides a standalone catalog without changing the default settings presentation', () => {
     const source = readSource('./McpToolsConfig.tsx');
     const styles = readSource('./McpToolsConfig.scss');
@@ -134,7 +151,7 @@ describe('McpToolsConfig empty presentation', () => {
     expect(source).toContain("presentation?: McpToolsPresentation;");
     expect(source).toContain("presentation = 'settings'");
     expect(source).toContain("presentation === 'settings' && (");
-    expect(source).toContain("{presentation === 'catalog' && !showJsonEditor && (");
+    expect(source).toContain("{presentation === 'catalog'\n            && !showJsonEditor");
     expect(source).not.toContain("{presentation === 'settings' && !showJsonEditor && (\n            <div className=\"void-mcp-tools__catalog-toolbar\"");
     expect(source).toContain('CATALOG_PAGE_SIZE = 8');
     expect(source).toContain('filteredCatalogServers.slice(');

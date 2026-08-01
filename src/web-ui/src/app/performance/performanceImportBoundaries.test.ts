@@ -30,10 +30,31 @@ describe('Web UI startup import boundaries', () => {
 
   it('keeps settings outside the primary session scene bundle', () => {
     const source = readSource('../scenes/SceneViewport.tsx');
+    const loaders = readSource('../scenes/sceneLoaders.ts');
 
     expect(source).toContain("import SessionScene from './session/SessionScene'");
-    expect(source).toContain("lazy(() => import('./settings/SettingsScene'))");
+    expect(source).toContain('lazy(loadSettingsScene)');
     expect(source).not.toContain("import SettingsScene from './settings/SettingsScene'");
+    expect(loaders).toContain("import('./settings/SettingsScene')");
+    expect(loaders).not.toContain("import SettingsScene from './settings/SettingsScene'");
+  });
+
+  it('preloads customization catalogs only from direct navigation intent', () => {
+    const loaders = readSource('../scenes/sceneLoaders.ts');
+    const mainNav = readSource('../components/NavPanel/MainNav.tsx');
+
+    for (const scene of ['Agents', 'Skills', 'Connectors']) {
+      expect(loaders).toContain(`export const preload${scene}Scene`);
+      expect(mainNav).toContain(`onPointerEnter={preload${scene}Scene}`);
+      expect(mainNav).toContain(`onFocus={preload${scene}Scene}`);
+    }
+
+    expect(mainNav).not.toContain("from '../../scenes/agents/AgentsScene'");
+    expect(mainNav).not.toContain("from '../../scenes/skills/SkillsScene'");
+    expect(mainNav).not.toContain("from '../../scenes/connectors/ConnectorsScene'");
+    expect(loaders).toContain("import('./agents/AgentsScene')");
+    expect(loaders).toContain("import('./skills/SkillsScene')");
+    expect(loaders).toContain("import('./connectors/ConnectorsScene')");
   });
 
   it('loads the complete chat composer behind the session pane boundary', () => {

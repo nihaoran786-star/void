@@ -193,6 +193,19 @@ function getCatalogStatusGroup(status: string): CatalogStatusGroup {
   }
 }
 
+function getCatalogStatusClass(status: string): string {
+  switch (getCatalogStatusGroup(status)) {
+    case 'connected':
+      return 'is-healthy';
+    case 'transitioning':
+      return 'is-pending';
+    case 'attention':
+      return 'is-error';
+    case 'stopped':
+      return 'is-neutral';
+  }
+}
+
 function isMcpServerTransitioningStatus(status: string): boolean {
   return getCatalogStatusGroup(status) === 'transitioning';
 }
@@ -910,18 +923,6 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     await startRemoteOAuthFlow(authDialogServer);
   };
 
-  const getStatusClass = (status: string): string => {
-    switch (getCatalogStatusGroup(status)) {
-      case 'connected':
-        return 'is-healthy';
-      case 'transitioning':
-        return 'is-pending';
-      case 'attention':
-      case 'stopped':
-        return 'is-error';
-    }
-  };
-
   const getStatusIcon = (status: string): React.ReactNode => {
     switch (getCatalogStatusGroup(status)) {
       case 'connected':
@@ -1102,7 +1103,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
   }, [catalogTotalPages]);
 
   const renderServerBadge = (server: MCPServerInfo) => (
-    <span className={`void-mcp-tools__status-badge ${getStatusClass(server.status)}`}>
+    <span className={`void-mcp-tools__status-badge ${getCatalogStatusClass(server.status)}`}>
       {getStatusIcon(server.status)}
       {getServerStatusLabel(server.status)}
     </span>
@@ -1369,7 +1370,11 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             presentation === 'catalog' && 'void-mcp-tools__section--catalog',
           ].filter(Boolean).join(' ')}
         >
-          {presentation === 'catalog' && !showJsonEditor && (
+          {presentation === 'catalog'
+            && !showJsonEditor
+            && !mcpLoading
+            && !mcpLoadError
+            && servers.length > 0 && (
             <div className="void-mcp-tools__catalog-toolbar">
               <Search
                 className="void-mcp-tools__catalog-search"
@@ -1405,7 +1410,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
                 aria-controls="mcp-json-editor"
               >
                 <FileJson size={14} />
-                {tMcp('actions.jsonConfig')}
+                {tMcp('actions.addConnector')}
               </Button>
             </div>
           )}
@@ -1550,7 +1555,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
               {servers.length === 0 && (
                 <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
                   <FileJson size={14} />
-                  {tMcp('actions.jsonConfig')}
+                  {tMcp('actions.addConnector')}
                 </Button>
               )}
             </div>

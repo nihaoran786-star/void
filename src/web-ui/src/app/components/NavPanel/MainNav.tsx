@@ -44,6 +44,11 @@ import { ALL_SHORTCUTS } from '@/shared/constants/shortcuts';
 import {
   readWorkspacePresentation,
 } from '@/app/presentation/workspacePresentation';
+import {
+  preloadAgentsScene,
+  preloadConnectorsScene,
+  preloadSkillsScene,
+} from '../../scenes/sceneLoaders';
 
 import './NavPanel.scss';
 
@@ -669,7 +674,10 @@ const MainNav: React.FC<MainNavProps> = ({
                   isAgentsActive ? 'is-active' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenAgents}
+                onPointerEnter={preloadAgentsScene}
+                onFocus={preloadAgentsScene}
                 aria-label={agentsTooltip}
+                data-testid="nav-agents"
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
@@ -688,7 +696,10 @@ const MainNav: React.FC<MainNavProps> = ({
                   isSkillsActive ? 'is-active' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenSkills}
+                onPointerEnter={preloadSkillsScene}
+                onFocus={preloadSkillsScene}
                 aria-label={skillsTooltip}
+                data-testid="nav-skills"
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">
@@ -707,7 +718,10 @@ const MainNav: React.FC<MainNavProps> = ({
                   isConnectorsActive ? 'is-active' : '',
                 ].filter(Boolean).join(' ')}
                 onClick={handleOpenConnectors}
+                onPointerEnter={preloadConnectorsScene}
+                onFocus={preloadConnectorsScene}
                 aria-label={connectorsTooltip}
+                data-testid="nav-connectors"
                 tabIndex={isExtensionsOpen ? 0 : -1}
               >
                 <span className="void-nav-panel__top-action-icon-slot" aria-hidden="true">

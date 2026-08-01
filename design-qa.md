@@ -191,4 +191,67 @@
   也不需要把本地命令权限扩大给外部页面。技能读取、中文目录和英文搜索
   已在重新启动后的真实桌面进程中验证。
 
+## 全页面视觉与切换性能审查（2026-08-02）
+
+### 最终全窗口证据与可信度
+
+- 最终截图均通过显式 HWND、Per-Monitor V2 DPI 感知、DWM 扩展窗口边界和
+  `PrintWindow(PW_RENDERFULLCONTENT)` 获得；每张图都附带 JSON sidecar，记录
+  捕获方法、窗口边界、DPI 和 `potentially_occluded=false`。截图为
+  `1804 × 1204` 物理像素，完整包含左侧导航、顶部场景栏、内容边界、底部分页
+  或输入区以及系统窗口控制。
+- 权威证据位于 `.codex-artifacts/visual-performance-audit-20260802/`：
+  `current-live-full-window.png`（欢迎页）、
+  `07-skills-final-full-window-v2.png`（技能）、
+  `08-connectors-final-full-window.png`（连接器）、
+  `11-session-composer-workspace-full-window-v2.png`（会话输入区）、
+  `12-agents-final-full-window.png`（智能体）和
+  `13-teams-final-full-window.png`（团队）。早期 `01` 至 `05` 的
+  `CopyFromScreen` 截图仅保留为过程证据，不作为最终视觉结论。
+
+### 覆盖矩阵
+
+- 场景清单覆盖 17 个固定场景、动态 `miniapp:*` 路由和设置中的 13 个子页；
+  全部仍由既有场景注册、懒加载边界、主题/i18n 合同和 Web 回归测试保护。
+- 本轮逐像素人工复核优先覆盖用户点名的技能、连接器和欢迎页，并扩展到智能体、
+  团队及会话输入区。没有把未逐页截图的设置子页描述成已完成视觉重设计；它们
+  通过全局合同和构建门禁验证无回归。
+
+### 优先问题
+
+- P1 技能已修复：加载失败与市场失败均可原地重试；卡片改成非交互容器，详情和
+  安装/管理动作独立，避免嵌套点击语义；截图复核发现并修复了四列布局中操作区
+  挤压名称的问题。
+- P2 连接器已修复：空状态隐藏无意义的搜索和状态筛选，只保留一个“添加连接器”
+  主入口；继续复用现有 MCP JSON、状态、鉴权和生命周期接口。
+- P2 欢迎页已修复：工作区菜单具备完整 ARIA、方向键循环、Escape 和焦点恢复；
+  最近工作区删除操作与打开操作分离；通知失败显式反馈。会话截图还发现并修复了
+  “选择工作区”被截断成“选择工...”的问题。
+
+### 切换性能基线与验收门槛
+
+- 页面层改为窄 Zustand selector；已挂载场景由 memoized slot 保留状态且仅激活
+  当前页刷新；主导航在真实指针/键盘意图时预加载技能、连接器和智能体代码块。
+  这些调整不卸载场景、不清空画布、不取消后台任务。
+- Playwright 使用渲染器 performance mark、MutationObserver 与双 `requestAnimationFrame`
+  计时，热切换取 20 个样本。最终结果：冷切换 `p95=197.1 ms`，热切换
+  `p95=62.0 ms`，数据就绪 `p95=513.7 ms`。
+- 稳定门槛为热切换 `p95 ≤ 150 ms`、冷切换 `p95 ≤ 600 ms`、数据就绪
+  `p95 ≤ 1500 ms`。日志为
+  `.codex-artifacts/visual-performance-audit-20260802/scene-switch-performance-final.log`。
+
+### 稳定性与保护边界
+
+- 新增窗口捕获合同、错误重试、键盘操作和场景切换计时回归。最终定向验证包括
+  42 项技能/连接器/欢迎页测试、98 项场景与性能相关测试、4 项窗口捕获合同、
+  2 项定制中心视觉 E2E，以及类型、Lint、主题、i18n、边界与构建门禁。
+- 仓库卫生在只包含本轮 44 个内容文件的临时工作树中通过。主工作树直接运行时
+  会被用户已有、未跟踪的 `media/generated/**/manifest.json` 本地绝对路径拦截；
+  本轮未修改、删除或提交这些素材，也没有把该外部状态误报为源码失败。
+- 视觉与性能优化只经现有场景、Module Interface 和适配器接入；不得在页面中新增
+  Tauri、文件系统、进程、数据库或 provider 直连。
+- 必须保护 Flow Chat 恢复、BTW 子会话、子代理/Review Team、Goal、多任务、自动化、
+  AI 媒体、短剧五阶段、桌面窗口、WebDriver、权限和会话生命周期；不得用卸载隐藏
+  场景、取消后台任务或清空画布的方式优化切换。
+
 final result: passed

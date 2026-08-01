@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { SceneTabId } from '@/app/components/SceneBar/types';
-import { useSceneManager } from './useSceneManager';
+import { useSceneStore } from '@/app/stores/sceneStore';
 
 export interface UseGallerySceneAutoRefreshOptions {
   /** Tab id from SceneBar (e.g. skills, agents, miniapps). */
@@ -23,7 +23,7 @@ export function useGallerySceneAutoRefresh({
   refetch,
   enabled = true,
 }: UseGallerySceneAutoRefreshOptions): void {
-  const { activeTabId } = useSceneManager();
+  const activeTabId = useSceneStore((state) => state.activeTabId);
   const isActive = activeTabId === sceneId;
   const refetchRef = useRef(refetch);
   refetchRef.current = refetch;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   readSourceText,
-  sha256SourceText,
 } from '@/test-utils/sourceText';
 
 const pathFor = (relativePath: string): URL =>
@@ -9,9 +8,6 @@ const pathFor = (relativePath: string): URL =>
 
 const readSource = (relativePath: string): string =>
   readSourceText(pathFor(relativePath));
-
-const sha256 = (relativePath: string): string =>
-  sha256SourceText(pathFor(relativePath));
 
 describe('WelcomeScene Minimal presentation', () => {
   const stylesheet = readSource('./WelcomeScene.minimal.scss');
@@ -26,13 +22,14 @@ describe('WelcomeScene Minimal presentation', () => {
     expect(classicComponent).not.toContain('WelcomeScene.minimal.scss');
   });
 
-  it('keeps the existing Classic component and stylesheet byte-identical', () => {
-    expect(sha256('./WelcomeScene.tsx')).toBe(
-      '8673a8651598aa8ce6095075caf4d85001f59c66401cabbe6df4f4d15e659aee',
-    );
-    expect(sha256('./WelcomeScene.scss')).toBe(
-      '1e1ff3807fee00eeee89551a58c1a3c2bbd3ea633d24f63cae5448601f48912a',
-    );
+  it('keeps workspace actions on the existing context and notification interfaces', () => {
+    const component = readSource('./WelcomeScene.tsx');
+
+    expect(component).toContain('useWorkspaceContext()');
+    expect(component).toContain('useNotification()');
+    expect(component).toContain("openScene('session' as SceneTabId)");
+    expect(component).not.toContain('@tauri-apps/api');
+    expect(component).not.toContain('@tauri-apps/plugin-fs');
   });
 
   it('uses the compact 16/13/11 typography hierarchy and flat recent rows', () => {
@@ -49,7 +46,7 @@ describe('WelcomeScene Minimal presentation', () => {
     }
   });
 
-  it('removes decorative section/action glyphs while preserving date-to-delete disclosure', () => {
+  it('removes decorative action glyphs while separating read-only time from deletion', () => {
     const classicComponent = readSource('./WelcomeScene.tsx');
     const recentItemStyles = stylesheet.slice(
       stylesheet.indexOf('&__recent-item {'),
@@ -60,20 +57,17 @@ describe('WelcomeScene Minimal presentation', () => {
       '&__section-label {',
       '&__link-btn {',
       '> svg {\n        display: none;',
-      '&__label {',
-      '&__icon {',
+      '&__recent-time {',
+      '&__recent-remove-btn {',
       '&:focus-visible {',
       'outline: 2px solid var(--workspace-focus-ring);',
     ]) {
       expect(stylesheet).toContain(contract);
     }
 
-    expect(classicComponent).toContain(
-      'className="welcome-scene__recent-time-btn__label"',
-    );
-    expect(classicComponent).toContain(
-      'className="welcome-scene__recent-time-btn__icon"',
-    );
+    expect(classicComponent).toContain('<time');
+    expect(classicComponent).toContain('className="welcome-scene__recent-time"');
+    expect(classicComponent).toContain('className="welcome-scene__recent-remove-btn"');
     expect(recentItemStyles).not.toContain('display: none;');
   });
 
@@ -125,9 +119,7 @@ describe('WelcomeScene Minimal presentation', () => {
       'min-height: var(--workspace-touch-target);',
     );
     expect(coarsePointerStyles).toContain('touch-action: manipulation;');
-    expect(coarsePointerStyles).toContain('&__recent-time-btn__label {');
-    expect(coarsePointerStyles).toContain('justify-content: flex-start;');
-    expect(coarsePointerStyles).toContain('&__recent-time-btn__icon {');
+    expect(coarsePointerStyles).toContain('&__recent-remove-btn {');
     expect(coarsePointerStyles).toContain('opacity: 1;');
     expect(desktopStyles).not.toContain(
       'min-height: var(--workspace-touch-target);',

@@ -120,6 +120,36 @@
         .void-chat-input-workspace-strip {
           grid-area: meta;
           align-self: stretch;
+          min-width: 0;
+          overflow: visible;
+        }
+
+        .void-chat-input-workspace-strip__main,
+        .void-chat-input-workspace-strip__picker {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .void-chat-input-workspace-strip__picker {
+          flex: 0 1 18rem;
+          width: max-content;
+          min-width: min(8rem, 100%);
+        }
+
+        .void-chat-input-workspace-strip__picker-trigger {
+          width: 100%;
+          max-width: min(100%, 18rem);
+        }
+
+        .void-chat-input-workspace-strip__picker-trigger.void-chat-input-workspace-strip__chip--workspace {
+          max-width: min(100%, 18rem);
+        }
+
+        .void-chat-input-workspace-strip__workspace {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .void-chat-input__agent-boost-add {

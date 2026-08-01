@@ -89,6 +89,7 @@
     "edit": "Edit",
     "editServer": "Edit Server",
     "addServer": "Add Server",
+    "addConnector": "Add Connector",
     "delete": "Delete",
     "start": "Start",
     "stop": "Stop",

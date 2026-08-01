@@ -253,6 +253,7 @@
     "searchPlaceholder": "Search marketplace skills...",
     "loading": "Loading marketplace skills...",
     "errorPrefix": "Failed to load marketplace: ",
+    "retry": "Try again",
     "empty": {
       "noMatch": "No matching marketplace skills found",
       "noSkills": "No marketplace skills available"
@@ -368,6 +369,7 @@
   },
   "list": {
     "loading": "Loading...",
+    "retry": "Try again",
     "errorPrefix": "Failed to load: ",
     "empty": {
       "noMatch": "No matching skills found",

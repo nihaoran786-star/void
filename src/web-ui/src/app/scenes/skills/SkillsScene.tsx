@@ -360,9 +360,16 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                   )}
 
                   {!installed.loading && installed.error && (
-                    <div className="skills-main__empty skills-main__empty--error">
+                    <div className="skills-main__empty skills-main__empty--error" role="alert">
                       <Package size={28} strokeWidth={1.2} />
                       <span>{installed.error}</span>
+                      <button
+                        type="button"
+                        className="skills-main__retry"
+                        onClick={() => void installed.loadSkills(true)}
+                      >
+                        {t('list.retry')}
+                      </button>
                     </div>
                   )}
 
@@ -387,22 +394,13 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                               key => t(key),
                             );
                             return (
-                          <div
+                          <article
                             key={skill.key}
                             className={[
                               'skills-card',
                               skill.isShadowed && 'is-shadowed',
                             ].filter(Boolean).join(' ')}
                             style={{ '--card-index': index } as React.CSSProperties}
-                            onClick={() => setSelectedDetail({ type: 'installed', skill })}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                setSelectedDetail({ type: 'installed', skill });
-                              }
-                            }}
                             aria-label={presentation.displayName}
                           >
                             <div className="skills-card__top">
@@ -449,14 +447,14 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                               onClick={(e) => e.stopPropagation()}
                               onKeyDown={(e) => e.stopPropagation()}
                             >
-                              <Button
-                                variant="ghost"
-                                size="small"
+                              <button
+                                type="button"
+                                className="skills-card__detail"
                                 onClick={() => setSelectedDetail({ type: 'installed', skill })}
                               >
                                 <span>{t('list.item.detail')}</span>
                                 <ArrowRight size={12} />
-                              </Button>
+                              </button>
                               {canManage
                                 && skill.isAuthorable
                                 && (skill.level !== 'project' || !installed.isRemoteWorkspace) && (
@@ -485,7 +483,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                                 </button>
                               )}
                             </div>
-                          </div>
+                          </article>
                             );
                           })()
                         ))}
@@ -557,9 +555,16 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
               )}
 
               {!market.marketLoading && market.marketError && (
-                <div className="skills-discover__empty skills-discover__empty--error">
+                <div className="skills-discover__empty skills-discover__empty--error" role="alert">
                   <Package size={28} strokeWidth={1.5} />
                   <span>{market.marketError}</span>
+                  <button
+                    type="button"
+                    className="skills-main__retry"
+                    onClick={() => void market.refresh()}
+                  >
+                    {t('market.retry')}
+                  </button>
                 </div>
               )}
 
@@ -638,6 +643,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                               onClick: () => void market.handleDownload(skill, 'project'),
                             },
                           ]}
+                          detailLabel={t('list.item.detail')}
                           onOpenDetails={() => setSelectedDetail({ type: 'market', skill })}
                         />
                       );
