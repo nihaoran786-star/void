@@ -199,6 +199,13 @@
       "typeset": { "name": "Typography Improvement", "description": "Improve font choice, sizing, weight, and hierarchy for readability." },
       "write-voice-driven-script": { "name": "Voice-Driven Video Script", "description": "Turn source material into natural Chinese short-video scripts with emotional flow." },
       "zoom-out": { "name": "System-Level Explanation", "description": "Explain code or design in the context of the wider system." }
+    },
+    "external": {
+      "officecli": { "name": "Office Document Tools", "description": "Create, analyze, proofread, and edit Word, Excel, and PowerPoint documents." },
+      "paperclip": { "name": "Work Coordination", "description": "Manage Paperclip tasks, agent coordination, status, and governance workflows." },
+      "paperclip-create-agent": { "name": "Create Paperclip Agent", "description": "Inspect configuration and create Paperclip agents under governance rules." },
+      "paperclip-create-plugin": { "name": "Create Paperclip Plugin", "description": "Build, document, and verify Paperclip plugins with the current SDK." },
+      "para-memory-files": { "name": "PARA Memory Management", "description": "Store, retrieve, and organize cross-session knowledge with PARA files." }
     }
   },
   "installed": {

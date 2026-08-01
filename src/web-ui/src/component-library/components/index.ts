@@ -28,6 +28,7 @@ export * from './Tabs';
 export * from './Tag';
 export * from './Badge';
 export * from './Avatar';
+export * from './CatalogIconAvatar';
 export * from './Empty';
 export * from './Markdown';
 export * from './Card';

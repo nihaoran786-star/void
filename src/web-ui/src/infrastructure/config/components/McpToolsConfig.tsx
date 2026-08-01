@@ -17,7 +17,6 @@ import {
   MinusCircle,
   KeyRound,
   Trash2,
-  Cable,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -38,6 +37,7 @@ import {
   MCPServerInfo,
 } from '../../api/service-api/MCPAPI';
 import { systemAPI } from '../../api/service-api/SystemAPI';
+import ConnectorCatalogAvatar from './ConnectorCatalogAvatar';
 import './McpToolsConfig.scss';
 
 const log = createLogger('McpToolsConfig');
@@ -1307,9 +1307,12 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
           onClick={() => setExpandedCatalogServerId(isExpanded ? null : server.id)}
           aria-expanded={isExpanded}
         >
-          <span className="void-mcp-tools__catalog-card-icon" aria-hidden="true">
-            <Cable size={18} strokeWidth={1.6} />
-          </span>
+          <ConnectorCatalogAvatar
+            identity={server.id}
+            name={server.name}
+            transport={server.transport}
+            className="void-mcp-tools__catalog-card-avatar"
+          />
           <span className="void-mcp-tools__catalog-card-copy">
             <strong className="void-mcp-tools__catalog-card-name">{server.name}</strong>
             <span className="void-mcp-tools__catalog-card-meta">
@@ -1533,7 +1536,12 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             && !mcpLoadError
             && filteredCatalogServers.length === 0 && (
             <div className="void-collection-empty void-mcp-tools__catalog-empty">
-              <Cable size={24} strokeWidth={1.4} aria-hidden="true" />
+              <ConnectorCatalogAvatar
+                identity="connector-empty"
+                name={tMcp('empty.noServersHint')}
+                size="detail"
+                className="void-mcp-tools__catalog-empty-avatar"
+              />
               <span>
                 {servers.length === 0
                   ? tMcp('empty.noServersHint')

@@ -1,0 +1,56 @@
+.catalog-icon-avatar {
+  --catalog-icon-color: var(--workspace-accent);
+
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--catalog-icon-color) 28%,
+    var(--workspace-border-subtle)
+  );
+  border-radius: 50%;
+  background: color-mix(
+    in srgb,
+    var(--catalog-icon-color) 12%,
+    var(--workspace-surface-panel)
+  );
+  color: var(--catalog-icon-color);
+
+  &--card {
+    width: 44px;
+    height: 44px;
+  }
+
+  &--detail {
+    width: 54px;
+    height: 54px;
+  }
+
+  svg {
+    width: 48%;
+    height: 48%;
+  }
+
+  &--tone-1 {
+    --catalog-icon-color: var(--workspace-status-info-text);
+  }
+
+  &--tone-2 {
+    --catalog-icon-color: var(--workspace-status-success-text);
+  }
+
+  &--tone-3 {
+    --catalog-icon-color: var(--workspace-status-warning-text);
+  }
+
+  &--tone-4 {
+    --catalog-icon-color: var(--color-purple-500);
+  }
+
+  &--tone-5 {
+    --catalog-icon-color: var(--workspace-status-error-text);
+  }
+}

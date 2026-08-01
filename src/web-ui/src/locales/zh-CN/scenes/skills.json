@@ -207,6 +207,13 @@
       "typeset": { "name": "排版优化", "description": "调整字体、字号、字重和层级，提升可读性。" },
       "write-voice-driven-script": { "name": "口语化视频脚本", "description": "把资料整理为自然可说、有情绪推进的中文短视频逐字稿。" },
       "zoom-out": { "name": "全局代码讲解", "description": "从系统整体解释代码或设计在项目中的作用。" }
+    },
+    "external": {
+      "officecli": { "name": "Office 文档工具", "description": "创建、分析、校对和修改 Word、Excel 与 PowerPoint 文档。" },
+      "paperclip": { "name": "工作协作调度", "description": "管理 Paperclip 任务、智能体协作、状态和治理流程。" },
+      "paperclip-create-agent": { "name": "Paperclip 智能体创建", "description": "按治理规则检查配置并创建 Paperclip 智能体。" },
+      "paperclip-create-plugin": { "name": "Paperclip 插件创建", "description": "使用当前 SDK 构建、记录并验证 Paperclip 插件。" },
+      "para-memory-files": { "name": "PARA 记忆管理", "description": "用 PARA 文件体系保存、检索和整理跨会话知识。" }
     }
   },
   "installed": {
@@ -218,7 +225,7 @@
     "subtitleProject": "当前工作区的项目级技能"
   },
   "toolbar": {
-    "searchPlaceholder": "搜索技能...",
+    "searchPlaceholder": "搜索技能或英文 ID...",
     "addTooltip": "添加技能",
     "createTooltip": "创建技能",
     "importTooltip": "导入本地技能",

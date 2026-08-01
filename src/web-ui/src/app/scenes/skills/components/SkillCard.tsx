@@ -1,6 +1,6 @@
 import React from 'react';
-import { Package, Puzzle } from 'lucide-react';
 import { getCardGradient, getCardColorRgb } from '@/shared/utils/cardGradients';
+import SkillCatalogAvatar from './SkillCatalogAvatar';
 import './SkillCard.scss';
 
 type SkillCardActionTone = 'primary' | 'danger' | 'success' | 'muted';
@@ -38,7 +38,6 @@ const SkillCard: React.FC<SkillCardProps> = ({
   actions = [],
   onOpenDetails,
 }) => {
-  const Icon = iconKind === 'market' ? Package : Puzzle;
   const openDetails = () => onOpenDetails?.();
 
   return (
@@ -59,33 +58,32 @@ const SkillCard: React.FC<SkillCardProps> = ({
       }}
       aria-label={name}
     >
-      {/* Header: icon + badges */}
+      {/* Header: visual identity + capability summary */}
       <div className="skill-card__header">
-        <div className="skill-card__icon-area">
-          <div className="skill-card__icon">
-            <Icon size={20} strokeWidth={1.6} />
+        <SkillCatalogAvatar
+          identity={accentSeed ?? name}
+          name={name}
+          kind={iconKind}
+          className="skill-card__avatar"
+        />
+        <div className="skill-card__body">
+          <div className="skill-card__title-row">
+            <span className="skill-card__name">{name}</span>
+            {meta ? (
+              <div
+                className="skill-card__meta"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                {meta}
+              </div>
+            ) : null}
           </div>
+          {description?.trim() && (
+            <p className="skill-card__desc">{description.trim()}</p>
+          )}
         </div>
         {badges && <div className="skill-card__badges">{badges}</div>}
-      </div>
-
-      {/* Body: name + trend (meta) on one row, then description */}
-      <div className="skill-card__body">
-        <div className="skill-card__title-row">
-          <span className="skill-card__name">{name}</span>
-          {meta ? (
-            <div
-              className="skill-card__meta"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => e.stopPropagation()}
-            >
-              {meta}
-            </div>
-          ) : null}
-        </div>
-        {description?.trim() && (
-          <p className="skill-card__desc">{description.trim()}</p>
-        )}
       </div>
 
       {/* Footer: action buttons */}

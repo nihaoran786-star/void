@@ -27,6 +27,7 @@ import {
   BUILTIN_SKILL_PRESENTATION_IDS,
   isMarketSkillInstalled,
   presentationForInstalledSkill,
+  EXTERNAL_SKILL_PRESENTATION_IDS,
   presentationForMarketSkill,
   STANDARD_SKILL_PRESENTATION_IDS,
 } from './skillCatalogPresentation';
@@ -399,6 +400,30 @@ describe('existing Agent and Skill catalog mappings', () => {
     }
   });
 
+  it('当前环境额外 5 项用户技能全部使用中文展示并保留英文检索别名', () => {
+    expect(EXTERNAL_SKILL_PRESENTATION_IDS).toHaveLength(5);
+    expect(new Set(EXTERNAL_SKILL_PRESENTATION_IDS).size).toBe(5);
+
+    for (const dirName of EXTERNAL_SKILL_PRESENTATION_IDS) {
+      const presentation = presentationForInstalledSkill({
+        key: `user::home.claude::${dirName}`,
+        name: dirName,
+        description: `${dirName} raw description`,
+        path: `C:/Users/test/.claude/skills/${dirName}`,
+        level: 'user',
+        sourceSlot: 'home.claude',
+        dirName,
+        isBuiltin: false,
+      });
+      expect(presentation.displayNameKey).toBe(`catalog.external.${dirName}.name`);
+      expect(presentation.descriptionKey).toBe(`catalog.external.${dirName}.description`);
+      expect(presentation.aliases).toEqual(expect.arrayContaining([
+        `user::home.claude::${dirName}`,
+        dirName,
+      ]));
+    }
+  });
+
   it('标准技能中文化只命中精确 home.codex 用户身份且不修改原始对象', () => {
     const sourceSkill: SkillInfo = {
       key: 'user::home.codex::arrange',
@@ -445,6 +470,42 @@ describe('existing Agent and Skill catalog mappings', () => {
         expect(standard[id].description.trim()).not.toBe('');
       }
     }
+  });
+
+  it('额外用户技能三种语言的键集合一致且名称和用途均非空', () => {
+    const expected = [...EXTERNAL_SKILL_PRESENTATION_IDS].sort();
+    for (const locale of ['zh-CN', 'en-US', 'zh-TW'] as const) {
+      const external = readSkillLocale(locale).catalog.external;
+      expect(Object.keys(external).sort()).toEqual(expected);
+      for (const id of expected) {
+        expect(external[id].name.trim()).not.toBe('');
+        expect(external[id].description.trim()).not.toBe('');
+      }
+    }
+  });
+
+  it('额外技能显示中文时仍保留英文名称、目录 ID 和复合 key 作为搜索别名', () => {
+    const presentation = presentationForInstalledSkill({
+      key: 'user::home.claude::paperclip-create-agent',
+      name: 'paperclip-create-agent',
+      description: 'Create governed agents in Paperclip.',
+      path: 'C:/Users/test/.claude/skills/paperclip-create-agent',
+      level: 'user',
+      sourceSlot: 'home.claude',
+      dirName: 'paperclip-create-agent',
+      isBuiltin: false,
+    });
+    const zhCN = readSkillLocale('zh-CN').catalog.external['paperclip-create-agent'];
+    const localized = localizeCatalogPresentation(
+      presentation,
+      key => key.endsWith('.name') ? zhCN.name : zhCN.description,
+    );
+
+    expect(localized.displayName).toBe('Paperclip 智能体创建');
+    expect(localized.aliases).toEqual(expect.arrayContaining([
+      'paperclip-create-agent',
+      'user::home.claude::paperclip-create-agent',
+    ]));
   });
 
   it('中文展示名和原始英文 ID 都能命中同一个标准技能展示', () => {

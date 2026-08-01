@@ -84,12 +84,26 @@ export const STANDARD_SKILL_PRESENTATION_IDS = [
   'zoom-out',
 ] as const;
 
+/** Stable presentation IDs for the additional user skills discovered from
+ * the user's Claude skill directory on the reference desktop environment. */
+export const EXTERNAL_SKILL_PRESENTATION_IDS = [
+  'officecli',
+  'paperclip',
+  'paperclip-create-agent',
+  'paperclip-create-plugin',
+  'para-memory-files',
+] as const;
+
 const BUILTIN_SKILL_PRESENTATION_ID_SET = new Set<string>(
   BUILTIN_SKILL_PRESENTATION_IDS,
 );
 
 const STANDARD_SKILL_PRESENTATION_ID_SET = new Set<string>(
   STANDARD_SKILL_PRESENTATION_IDS,
+);
+
+const EXTERNAL_SKILL_PRESENTATION_ID_SET = new Set<string>(
+  EXTERNAL_SKILL_PRESENTATION_IDS,
 );
 
 export interface SkillPresentationInput {
@@ -129,12 +143,32 @@ function resolveKnownStandardUserId(
     : null;
 }
 
+function resolveKnownExternalUserId(
+  skill: SkillPresentationInput,
+): string | null {
+  if (
+    skill.level !== 'user'
+    || skill.isBuiltin !== false
+    || skill.sourceSlot !== 'home.claude'
+    || skill.displayName != null
+    || !skill.dirName
+    || skill.name !== skill.dirName
+    || skill.id !== `user::home.claude::${skill.dirName}`
+  ) {
+    return null;
+  }
+  return EXTERNAL_SKILL_PRESENTATION_ID_SET.has(skill.dirName)
+    ? skill.dirName
+    : null;
+}
+
 export function resolveSkillCatalogPresentation(
   skill: SkillPresentationInput,
 ): CatalogPresentation {
   const builtinId = resolveKnownBuiltinId(skill);
   const standardUserId = resolveKnownStandardUserId(skill);
-  if (!builtinId && !standardUserId) {
+  const externalUserId = resolveKnownExternalUserId(skill);
+  if (!builtinId && !standardUserId && !externalUserId) {
     return {
       displayName: skill.displayName?.trim() || skill.name,
       description: skill.description?.trim() ?? '',
@@ -143,8 +177,12 @@ export function resolveSkillCatalogPresentation(
       )),
     };
   }
-  const presentationId = builtinId ?? standardUserId!;
-  const catalogGroup = builtinId ? 'builtin' : 'standard';
+  const presentationId = builtinId ?? standardUserId ?? externalUserId!;
+  const catalogGroup = builtinId
+    ? 'builtin'
+    : standardUserId
+      ? 'standard'
+      : 'external';
   const knownPresentation = resolveDefaultCatalogPresentation({
     kind: 'skill',
     id: presentationId,

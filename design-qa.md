@@ -166,4 +166,29 @@
 - 连接器空状态和 JSON 添加状态在同一左侧导航中完成切换；没有出现设置
   页标题、侧栏跳转、文字遮挡、横向溢出或不可见的主要动作。
 
+### 图标与全量中文增量验收（2026-08-01）
+
+- 最新 Void 原生桌面证据：
+  - `.codex-artifacts/customization-icon-pass/17-skills-four-columns.png`
+    （74 个已安装技能的中文目录、圆形能力图标与固定两行视口）；
+  - `.codex-artifacts/customization-icon-pass/21-english-search-clean.png`
+    （输入英文 `arrange` 后只显示中文“布局优化”）；
+  - `.codex-artifacts/customization-icon-pass/22-connectors.png`
+    （连接器独立目录、搜索筛选与统一圆形空状态图标）；
+  - `.codex-artifacts/customization-icon-pass/23-agent-skills-comparison.png`
+    （同一窗口状态下的智能体参考与技能实现上下对照）。
+- 当前桌面扫描到的 74 个技能均有中文展示：24 个 Void 内置技能、45 个
+  `home.codex` 标准用户技能，以及 5 个 `home.claude` 外部技能
+  （Office CLI、Paperclip、Paperclip 智能体创建、Paperclip 插件创建、
+  PARA 记忆管理）。运行时英文名称、目录名、安装键和调用身份没有修改。
+- 搜索同时覆盖中文名称、中文说明、原始英文名称、目录名、技能键、来源槽、
+  路径和别名；搜索框明确提示“搜索技能或英文 ID”，降低用户发现成本。
+- 技能与连接器复用同一个 `CatalogIconAvatar` 视觉组件，并按布局、架构、
+  文档、浏览器、代码检查、数据库、邮件、日历、云服务等稳定语义选择
+  Lucide 图标。没有使用 emoji、手绘 SVG 或无意义字母占位。
+- 主窗口改为 Tauri 标准 `WebviewUrl::App`，开发环境由 `devUrl` 解析到
+  Void 独立的 `127.0.0.1:1432`；因此既不会再命中 BitFun 的开发服务，
+  也不需要把本地命令权限扩大给外部页面。技能读取、中文目录和英文搜索
+  已在重新启动后的真实桌面进程中验证。
+
 final result: passed

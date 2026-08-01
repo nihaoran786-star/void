@@ -32,6 +32,8 @@ import { getCardGradient } from '@/shared/utils/cardGradients';
 import { useInstalledSkills } from './hooks/useInstalledSkills';
 import { useSkillMarket } from './hooks/useSkillMarket';
 import SkillCard from './components/SkillCard';
+import SkillCatalogAvatar from './components/SkillCatalogAvatar';
+import { resolveSkillCatalogIcon } from './components/skillCatalogIcons';
 import SkillAuthoringPage from './components/SkillAuthoringPage';
 import SkillsSuiteView from './components/SkillsSuiteView';
 import './SkillsScene.scss';
@@ -176,6 +178,18 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
         key => t(key),
       )
     : null;
+  const selectedSkillIdentity = selectedInstalledSkill?.key
+    ?? selectedMarketSkill?.installId
+    ?? selectedMarketSkill?.name
+    ?? 'skill';
+  const selectedSkillName = selectedInstalledPresentation?.displayName
+    ?? selectedMarketPresentation?.displayName
+    ?? '';
+  const SelectedSkillIcon = resolveSkillCatalogIcon(
+    selectedSkillIdentity,
+    selectedSkillName,
+    selectedMarketSkill ? 'market' : 'skill',
+  );
 
   const installedFiltered = useMemo(() => {
     const list = hideDuplicates
@@ -392,9 +406,11 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                             aria-label={presentation.displayName}
                           >
                             <div className="skills-card__top">
-                              <div className="skills-card__icon">
-                                <Puzzle size={18} strokeWidth={1.6} />
-                              </div>
+                              <SkillCatalogAvatar
+                                identity={skill.key}
+                                name={presentation.displayName}
+                                className="skills-card__avatar"
+                              />
                               <div className="skills-card__info">
                                 <span className="skills-card__name">{presentation.displayName}</span>
                                 {presentation.description.trim() && (
@@ -665,7 +681,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
       <GalleryDetailModal
         isOpen={Boolean(selectedDetail)}
         onClose={() => setSelectedDetail(null)}
-        icon={selectedMarketSkill ? <Package size={24} strokeWidth={1.6} /> : <Puzzle size={24} strokeWidth={1.6} />}
+        icon={<SelectedSkillIcon size={24} strokeWidth={1.6} />}
         iconGradient={getCardGradient(
           selectedInstalledSkill?.name
           ?? selectedMarketSkill?.installId
