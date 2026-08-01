@@ -106,7 +106,7 @@ Slice 2 additive-presentation evidence on 2026-07-17:
   the lock only after cleanup. Parallel test commands fail before application
   startup instead of opening overlapping windows.
 - [x] Development-origin zoom permission is limited to the `main` window,
-  fixed local port 1422, and `core:webview:allow-set-webview-zoom`; no file,
+  fixed local port 1432, and `core:webview:allow-set-webview-zoom`; no file,
   configuration, process, or general default capability is exposed remotely.
 - [x] Zoom controller tests passed 5/5; Web TypeScript, ESLint, desktop Rust
   build, and the production performance Gate passed. Entry JS remained within

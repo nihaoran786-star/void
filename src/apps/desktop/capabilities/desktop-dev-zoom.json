@@ -5,8 +5,8 @@
   "windows": ["main"],
   "remote": {
     "urls": [
-      "http://localhost:1422/*",
-      "http://127.0.0.1:1422/*"
+      "http://localhost:1432/*",
+      "http://127.0.0.1:1432/*"
     ]
   },
   "permissions": [

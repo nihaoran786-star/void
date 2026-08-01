@@ -23,7 +23,7 @@ const { buildMobileWeb } = require('./mobile-web-build.cjs');
 const { createLocalDevEnvironment } = require('./local-dev-environment.cjs');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const DEV_SERVER_PORT = 1422;
+const DEV_SERVER_PORT = 1432;
 const DEV_SERVER_HOSTS = ['localhost', '127.0.0.1', '::1'];
 const DESKTOP_PREVIEW_REBUILD_INPUTS = [
   path.join(ROOT_DIR, 'Cargo.toml'),

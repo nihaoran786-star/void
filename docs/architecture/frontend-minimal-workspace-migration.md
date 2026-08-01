@@ -177,7 +177,7 @@ zoom preference so accessibility verification never changes user data.
 Debug desktop builds load the Web UI from the fixed Vite origin instead of a
 bundled local URL. The dedicated `desktop-dev-zoom` capability grants only
 `core:webview:allow-set-webview-zoom` to the `main` window at
-`localhost:1422` / `127.0.0.1:1422`; the default capability is not exposed to
+`localhost:1432` / `127.0.0.1:1432`; the default capability is not exposed to
 remote content.
 
 ### Desktop E2E lifecycle boundary

@@ -47,15 +47,16 @@ export default defineConfig(({ mode, command }) => {
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 1422,
-    // Tauri devUrl is fixed to http://localhost:1422.
+    port: 1432,
+    // Void owns a dedicated desktop-development port pair. Keeping it distinct
+    // from sibling worktrees prevents localhost from resolving to another app.
     // If Vite silently falls back to another port, the desktop webview stays blank.
     strictPort: true,
-    host: host || "localhost",
+    host: host || "127.0.0.1",
     hmr: {
       protocol: "ws",
-      host: host || "localhost",
-      port: 1421,
+      host: host || "127.0.0.1",
+      port: 1431,
     },
     // Allow access to workspace root for dependencies like monaco-editor
     fs: {

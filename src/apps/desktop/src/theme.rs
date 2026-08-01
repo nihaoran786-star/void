@@ -25,7 +25,6 @@ const COMPACT_CHAT_WINDOW_MAX_WIDTH: f64 = 560.0;
 const COMPACT_CHAT_WINDOW_MAX_HEIGHT: f64 = 760.0;
 const COMPACT_CHAT_WINDOW_MARGIN: i32 = 64;
 const COMPACT_CHAT_WINDOW_EDGE_MARGIN: f64 = 8.0;
-
 static AGENT_COMPANION_WINDOW_OPS: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 static AGENT_COMPANION_WINDOW_LAST_POSITION: OnceLock<RwLock<Option<tauri::LogicalPosition<f64>>>> =
     OnceLock::new();
@@ -411,17 +410,10 @@ pub fn create_main_window(app_handle: &tauri::AppHandle, startup_trace_id: &str)
         total_started_at.elapsed().as_millis()
     );
 
-    let main_url = if cfg!(debug_assertions) {
-        match "http://localhost:1422".parse() {
-            Ok(url) => WebviewUrl::External(url),
-            Err(e) => {
-                error!("Invalid dev URL, fallback to app URL: {}", e);
-                WebviewUrl::App("index.html".into())
-            }
-        }
-    } else {
-        WebviewUrl::App("index.html".into())
-    };
+    // Keep the main page an app URL in both development and production. Tauri
+    // resolves app URLs against build.devUrl during development, while still
+    // classifying the webview as local for command capability checks.
+    let main_url = WebviewUrl::App("index.html".into());
     let main_url_kind = match &main_url {
         WebviewUrl::External(_) => "external",
         WebviewUrl::App(_) => "app",
@@ -544,22 +536,12 @@ fn show_main_window_for_startup(window: &tauri::WebviewWindow, total_started_at:
 }
 
 fn app_url(path: &str) -> WebviewUrl {
-    if cfg!(debug_assertions) {
-        match format!("http://localhost:1422/{}", path).parse() {
-            Ok(url) => WebviewUrl::External(url),
-            Err(e) => {
-                error!("Invalid dev URL, fallback to app URL: {}", e);
-                WebviewUrl::App(path.into())
-            }
-        }
+    let app_path = if path.starts_with('?') {
+        format!("index.html{}", path)
     } else {
-        let app_path = if path.starts_with('?') {
-            format!("index.html{}", path)
-        } else {
-            path.to_string()
-        };
-        WebviewUrl::App(app_path.into())
-    }
+        path.to_string()
+    };
+    WebviewUrl::App(app_path.into())
 }
 
 fn agent_companion_default_position(

@@ -152,7 +152,7 @@ The test framework runs in debug/dev mode:
 
 #### Debug Mode (Default)
 - **Application Path**: `target/debug/void-desktop.exe`
-- **Characteristics**: Includes debug symbols, requires dev server (port 1422)
+- **Characteristics**: Includes debug symbols, requires dev server (port 1432)
 - **Use Case**: Local development, rapid iteration
 
 **How to Identify Current Mode**:

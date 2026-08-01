@@ -152,7 +152,7 @@ pnpm test -- --spec ./specs/l0-smoke.spec.ts
 
 #### Debug 模式（默认）
 - **应用路径**: `target/debug/void-desktop.exe`
-- **特点**: 包含调试符号、需要 dev server（端口 1422）
+- **特点**: 包含调试符号、需要 dev server（端口 1432）
 - **使用场景**: 本地开发、快速迭代
 
 **如何识别当前使用的模式**：
