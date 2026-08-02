@@ -72,6 +72,18 @@ describe('Skills market presentation contract', () => {
     expect(marketCard).not.toContain('onClick={openDetails}');
   });
 
+  it('uses compact icon-forward cards without a heavy market footer rail', () => {
+    expect(styles).toContain('height: 140px;');
+    expect(styles).toContain('min-height: 140px;');
+    expect(styles).toContain('.skills-card__avatar,\n  .skill-card__avatar');
+    expect(styles).toContain('width: 40px;');
+    expect(styles).toContain('-webkit-line-clamp: 2;');
+    expect(styles).toContain('.skill-card__footer');
+    expect(styles).toContain('border-top: 0;');
+    expect(styles).toContain('.skill-card__action-btn');
+    expect(styles).toContain('flex: 0 0 32px;');
+  });
+
   it('honors the existing reduced-motion and token contracts', () => {
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)');
     expect(styles).not.toMatch(/(?<![\w-])#[0-9a-f]{3,8}\b/i);

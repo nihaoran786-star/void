@@ -339,16 +339,17 @@
 
   .void-mcp-tools__catalog-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--workspace-space-3);
     align-content: start;
   }
 
   .void-mcp-tools__catalog-card {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
     min-width: 0;
-    min-height: 160px;
+    min-height: 118px;
     border: 1px solid var(--workspace-border-subtle);
     border-radius: var(--workspace-radius-panel);
     background: var(--workspace-surface-panel);
@@ -365,11 +366,12 @@
 
   .void-mcp-tools__catalog-card-main {
     display: grid;
-    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+    grid-template-columns: 48px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: var(--workspace-space-2);
     width: 100%;
-    padding: var(--workspace-space-3);
+    min-width: 0;
+    padding: var(--workspace-space-3) var(--workspace-space-2) var(--workspace-space-3) var(--workspace-space-3);
     border: 0;
     background: transparent;
     color: inherit;
@@ -383,8 +385,8 @@
   }
 
   .void-mcp-tools__catalog-card-avatar {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
   }
 
   .void-mcp-tools__catalog-card-copy {
@@ -425,14 +427,14 @@
   .void-mcp-tools__catalog-card-actions {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    min-height: 42px;
-    margin-top: auto;
-    padding: var(--workspace-space-1) var(--workspace-space-2);
-    border-top: 1px solid var(--workspace-border-subtle);
+    justify-content: center;
+    min-width: 56px;
+    padding: var(--workspace-space-2);
+    border-left: 1px solid var(--workspace-border-subtle);
   }
 
   .void-mcp-tools__catalog-card-details {
+    grid-column: 1 / -1;
     padding: var(--workspace-space-3);
     border-top: 1px solid var(--workspace-border-subtle);
     background: var(--workspace-surface-active);
@@ -490,14 +492,102 @@
   }
 
   .void-mcp-tools__catalog-empty-avatar {
-    margin-bottom: var(--workspace-space-1);
+    flex: 0 0 auto;
+  }
+
+  .void-mcp-tools__catalog-starter {
+    display: flex;
+    flex-direction: column;
+    gap: var(--workspace-space-3);
+    width: min(100%, 1180px);
+    margin: clamp(12px, 4vh, 52px) auto 0;
+  }
+
+  .void-mcp-tools__catalog-starter-intro {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--workspace-space-3);
+    padding: var(--workspace-space-3);
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-panel);
+  }
+
+  .void-mcp-tools__catalog-starter-copy,
+  .void-mcp-tools__catalog-starter-card-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .void-mcp-tools__catalog-starter-copy {
+    gap: 3px;
+  }
+
+  .void-mcp-tools__catalog-starter-copy strong,
+  .void-mcp-tools__catalog-starter-card-copy strong {
+    color: var(--workspace-text-primary);
+    font-size: var(--workspace-font-size-control);
+    font-weight: var(--workspace-font-weight-strong);
+    line-height: var(--workspace-line-height-control);
+  }
+
+  .void-mcp-tools__catalog-starter-copy span,
+  .void-mcp-tools__catalog-starter-card-copy span {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    line-height: var(--workspace-line-height-body);
+  }
+
+  .void-mcp-tools__catalog-starter-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--workspace-space-3);
+  }
+
+  .void-mcp-tools__catalog-starter-card {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--workspace-space-3);
+    min-height: 104px;
+    padding: var(--workspace-space-3);
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-panel);
+    background: var(--workspace-surface-panel);
+  }
+
+  .void-mcp-tools__catalog-starter-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--workspace-radius-panel);
+    color: var(--workspace-text-secondary);
+    background: var(--workspace-status-neutral-bg);
+  }
+
+  .void-mcp-tools__catalog-starter-icon.is-local {
+    color: var(--workspace-status-info-text);
+    background: var(--workspace-status-info-bg);
+  }
+
+  .void-mcp-tools__catalog-starter-icon.is-remote {
+    color: var(--workspace-status-success-text);
+    background: var(--workspace-status-success-bg);
   }
 }
 
 @container connector-catalog (max-width: 1040px) {
   .void-mcp-tools--catalog {
     .void-mcp-tools__catalog-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr;
+    }
+
+    .void-mcp-tools__catalog-card.is-expanded {
+      grid-column: auto;
     }
   }
 }
@@ -521,6 +611,19 @@
     }
 
     .void-mcp-tools__catalog-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .void-mcp-tools__catalog-starter-intro {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .void-mcp-tools__catalog-starter-intro > .btn {
+      grid-column: 1 / -1;
+      justify-self: stretch;
+    }
+
+    .void-mcp-tools__catalog-starter-grid {
       grid-template-columns: 1fr;
     }
 

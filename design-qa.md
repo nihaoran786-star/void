@@ -228,6 +228,29 @@
   最近工作区删除操作与打开操作分离；通知失败显式反馈。会话截图还发现并修复了
   “选择工作区”被截断成“选择工...”的问题。
 
+### 技能与连接器市场化复核（同视口）
+
+- 本轮重新采集 WorkBuddy 的技能市场与连接器目录作为对标证据：
+  `.codex-artifacts/workbuddy-comparison-20260802/05-workbuddy-skills-market-clean-full-window.png`
+  和 `07-workbuddy-connectors-market-full-window.png`。Void 最终证据为同目录的
+  `15-void-skills-refined-full-window.png` 与
+  `16-void-connectors-refined-full-window.png`；四张截图均为 `2560 × 1368`
+  物理像素，并完整包含左侧栏、顶部、最右内容、底部与窗口控制键。
+- 同屏对照图为 `17-skills-workbuddy-void-comparison.png` 和
+  `18-connectors-workbuddy-void-comparison.png`。技能页保留用户指定的四列与
+  八张分页，同时收敛到小图标、强标题、两行用途和轻量操作。连接器在有配置时
+  使用两列宽横卡；当前真实空配置状态只解释本地命令与远程 URL 两条已支持路径，
+  并保留唯一 JSON 添加入口，没有伪装成可安装的在线连接器市场。
+- Void 两张最终截图的 sidecar 均记录 `PerMonitorV2`、DPI 144、DWM 物理边界
+  `0,0–2560,1368`、`PrintWindow(PW_RENDERFULLCONTENT)` 和
+  `potentially_occluded=false`。上一批次 `1804 × 1204` 证据继续保留为历史验收，
+  不与本轮同视口复核互相替代。
+- 本轮新增的技能/连接器呈现合同 29/29 通过；限制为 4 个 worker 的全量前端
+  回归为 503 个测试文件、2801/2801 项通过，生产构建与性能预算通过。第一次
+  默认高并发全量运行中两项既有智能体创建测试发生 5 秒超时，单文件重跑 4/4
+  通过，随后限并发全量重跑全部通过；该并发抖动没有通过延长业务等待或弱化
+  断言来掩盖。
+
 ### 切换性能基线与验收门槛
 
 - 页面层改为窄 Zustand selector；已挂载场景由 memoized slot 保留状态且仅激活

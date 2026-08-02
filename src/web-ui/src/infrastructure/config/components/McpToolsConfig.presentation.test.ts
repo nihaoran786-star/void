@@ -91,7 +91,7 @@ describe('McpToolsConfig empty presentation', () => {
     expect(acquireMcpServerOperationLock(locks, 'github')).toBe(true);
   });
 
-  it('keeps catalog filter copy aligned in all supported languages', () => {
+  it('keeps catalog filter and starter copy aligned in all supported languages', () => {
     const expected = {
       '../../../locales/zh-CN/settings/mcp.json': ['全部', '已连接', '需处理', '已停止'],
       '../../../locales/en-US/settings/mcp.json': ['All', 'Connected', 'Needs attention', 'Stopped'],
@@ -107,6 +107,15 @@ describe('McpToolsConfig empty presentation', () => {
         'stopped',
       ]);
       expect(Object.values(locale.catalog.filters)).toEqual(labels);
+      expect(Object.keys(locale.catalog.starter)).toEqual([
+        'localTitle',
+        'localDescription',
+        'remoteTitle',
+        'remoteDescription',
+      ]);
+      expect(Object.values(locale.catalog.starter).every((value) => (
+        typeof value === 'string' && value.trim().length > 0
+      ))).toBe(true);
     }
   });
 
@@ -136,12 +145,20 @@ describe('McpToolsConfig empty presentation', () => {
     expect(styles).toContain('@container config-panel (max-width: 360px)');
   });
 
-  it('hides catalog tools for a successful empty result and keeps one add entry', () => {
+  it('separates the real empty starter from a no-match result and keeps one add entry', () => {
     const source = readSource('./McpToolsConfig.tsx');
 
     expect(source).toContain("&& servers.length > 0 && (");
+    expect(source).toContain('servers.length === 0 ? (');
+    expect(source).toContain('className="void-mcp-tools__catalog-starter"');
+    expect(source).toContain('className="void-mcp-tools__catalog-starter-card"');
+    expect(source).toContain("tMcp('catalog.starter.localTitle')");
+    expect(source).toContain("tMcp('catalog.starter.remoteTitle')");
+    expect(source).toContain('identity="connector-search-empty"');
+    expect(source).toContain("tMcp('empty.noMatchingServers')");
     expect(source).toContain("tMcp('actions.addConnector')");
     expect(source).toContain('onClick={() => setShowJsonEditor(true)}');
+    expect(source).toContain('aria-controls="mcp-json-editor"');
   });
 
   it('provides a standalone catalog without changing the default settings presentation', () => {
@@ -157,10 +174,12 @@ describe('McpToolsConfig empty presentation', () => {
     expect(source).toContain('filteredCatalogServers.slice(');
     expect(source).toContain('setCatalogPage(0);');
     expect(source).toContain('Math.min(page, Math.max(0, catalogTotalPages - 1))');
-    expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
-    expect(styles).toContain('@container connector-catalog (max-width: 1040px)');
     expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(styles).toContain('@container connector-catalog (max-width: 1040px)');
+    expect(styles).toContain('grid-template-columns: 1fr;');
     expect(styles).toContain('@container connector-catalog (max-width: 620px)');
+    expect(styles).toContain('grid-column: 1 / -1;');
+    expect(styles).toContain('grid-column: span 2;');
   });
 
   it('locks server lifecycle operations synchronously and exposes busy controls', () => {

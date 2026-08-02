@@ -20,6 +20,8 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Globe2,
+  TerminalSquare,
 } from 'lucide-react';
 import { Button, Textarea, IconButton, Modal, Search, ToolProcessingDots } from '@/component-library';
 import {
@@ -1540,25 +1542,61 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             && !mcpLoading
             && !mcpLoadError
             && filteredCatalogServers.length === 0 && (
-            <div className="void-collection-empty void-mcp-tools__catalog-empty">
-              <ConnectorCatalogAvatar
-                identity="connector-empty"
-                name={tMcp('empty.noServersHint')}
-                size="detail"
-                className="void-mcp-tools__catalog-empty-avatar"
-              />
-              <span>
-                {servers.length === 0
-                  ? tMcp('empty.noServersHint')
-                  : tMcp('empty.noMatchingServers')}
-              </span>
-              {servers.length === 0 && (
-                <Button variant="secondary" size="small" onClick={() => setShowJsonEditor(true)}>
-                  <FileJson size={14} />
-                  {tMcp('actions.addConnector')}
-                </Button>
-              )}
-            </div>
+            servers.length === 0 ? (
+              <div className="void-mcp-tools__catalog-starter">
+                <div className="void-mcp-tools__catalog-starter-intro">
+                  <ConnectorCatalogAvatar
+                    identity="connector-empty"
+                    name={tMcp('empty.noServersHint')}
+                    size="detail"
+                    className="void-mcp-tools__catalog-empty-avatar"
+                  />
+                  <div className="void-mcp-tools__catalog-starter-copy">
+                    <strong>{tMcp('empty.noServers')}</strong>
+                    <span>{tMcp('empty.noServersHint')}</span>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    onClick={() => setShowJsonEditor(true)}
+                    aria-controls="mcp-json-editor"
+                  >
+                    <FileJson size={14} />
+                    {tMcp('actions.addConnector')}
+                  </Button>
+                </div>
+                <div className="void-mcp-tools__catalog-starter-grid">
+                  <article className="void-mcp-tools__catalog-starter-card">
+                    <span className="void-mcp-tools__catalog-starter-icon is-local">
+                      <TerminalSquare size={20} aria-hidden="true" />
+                    </span>
+                    <span className="void-mcp-tools__catalog-starter-card-copy">
+                      <strong>{tMcp('catalog.starter.localTitle')}</strong>
+                      <span>{tMcp('catalog.starter.localDescription')}</span>
+                    </span>
+                  </article>
+                  <article className="void-mcp-tools__catalog-starter-card">
+                    <span className="void-mcp-tools__catalog-starter-icon is-remote">
+                      <Globe2 size={20} aria-hidden="true" />
+                    </span>
+                    <span className="void-mcp-tools__catalog-starter-card-copy">
+                      <strong>{tMcp('catalog.starter.remoteTitle')}</strong>
+                      <span>{tMcp('catalog.starter.remoteDescription')}</span>
+                    </span>
+                  </article>
+                </div>
+              </div>
+            ) : (
+              <div className="void-collection-empty void-mcp-tools__catalog-empty">
+                <ConnectorCatalogAvatar
+                  identity="connector-search-empty"
+                  name={tMcp('empty.noMatchingServers')}
+                  size="detail"
+                  className="void-mcp-tools__catalog-empty-avatar"
+                />
+                <span>{tMcp('empty.noMatchingServers')}</span>
+              </div>
+            )
           )}
 
           {presentation === 'catalog'

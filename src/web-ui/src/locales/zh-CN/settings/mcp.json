@@ -118,6 +118,12 @@
       "connected": "已连接",
       "attention": "需处理",
       "stopped": "已停止"
+    },
+    "starter": {
+      "localTitle": "本地工具",
+      "localDescription": "连接通过命令启动的 MCP 服务，例如本地脚本与开发工具。",
+      "remoteTitle": "远程服务",
+      "remoteDescription": "连接提供 URL 的 MCP 服务，并按需完成远程认证。"
     }
   },
   "empty": {

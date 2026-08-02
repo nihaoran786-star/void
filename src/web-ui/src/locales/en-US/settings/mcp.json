@@ -118,6 +118,12 @@
       "connected": "Connected",
       "attention": "Needs attention",
       "stopped": "Stopped"
+    },
+    "starter": {
+      "localTitle": "Local tools",
+      "localDescription": "Connect command-based MCP services such as local scripts and developer tools.",
+      "remoteTitle": "Remote services",
+      "remoteDescription": "Connect MCP services by URL and complete remote authentication when needed."
     }
   },
   "empty": {

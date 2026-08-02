@@ -4,7 +4,7 @@ Updated: 2026-08-02
 
 ## Product state
 
-- Active customization integration branch: `codex/customization-unification`.
+- Active customization integration branch: `codex/minimal-workspace-ui`.
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
 - The short-drama workspace uses one real secondary `EditorGroup` for the fixed
@@ -43,7 +43,9 @@ Updated: 2026-08-02
 - The Skills and Connectors entries follow the same standalone catalog pattern.
   Skills keeps authoring, import, suite visibility, local/market install and
   detail behavior behind its existing services, while presenting eight cards
-  per page in a four/two/one-column responsive grid. The 45 standard user
+  per page in a compact four/two/one-column responsive grid with 40 px
+  icon-forward cards, two-line purpose copy, and lightweight management
+  actions. The 45 standard user
   Skills discovered from the exact `user::home.codex::{dirName}` identity have
   localized names and purpose copy in Simplified Chinese, English, and
   Traditional Chinese; project Skills, other sources, custom display names,
@@ -53,8 +55,12 @@ Updated: 2026-08-02
   catalog presentation on the existing MCP infrastructure component, so JSON
   configuration, lifecycle controls, deletion, remote authentication and OAuth
   still use the established adapter. Settings retains the original MCP
-  presentation. Connector loading failures are explicit and retryable; no
-  online connector marketplace or unsupported one-click install is simulated.
+  presentation. Configured Connectors use a two-column desktop gallery of
+  wide horizontal cards and collapse to one column on narrow containers. The
+  true empty state explains the supported local-command and remote-URL paths
+  with one JSON add action; the explanatory cards are not install targets.
+  Connector loading failures are explicit and retryable; no online connector
+  marketplace or unsupported one-click install is simulated.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.

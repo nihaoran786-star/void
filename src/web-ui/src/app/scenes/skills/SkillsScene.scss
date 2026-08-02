@@ -1312,7 +1312,7 @@
     align-items: center;
     gap: var(--workspace-space-1);
     flex: 0 0 auto;
-    padding: var(--workspace-space-2) var(--workspace-space-4) 0;
+    padding: var(--workspace-space-2) var(--workspace-space-4);
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -1374,7 +1374,8 @@
     align-items: center;
     gap: var(--workspace-space-2);
     flex: 0 0 auto;
-    padding: var(--workspace-space-3) var(--workspace-space-4);
+    min-height: 48px;
+    padding: var(--workspace-space-2) var(--workspace-space-4);
     border-bottom: 1px solid var(--workspace-border-subtle);
     background: var(--workspace-surface-canvas);
   }
@@ -1389,9 +1390,9 @@
   .skills-main__loading,
   .skills-discover__grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--workspace-space-3);
+    gap: var(--workspace-space-2);
     align-content: start;
-    padding: var(--workspace-space-4);
+    padding: var(--workspace-space-3) var(--workspace-space-4);
   }
 
   .skills-discover__content {
@@ -1408,8 +1409,121 @@
   .skill-card,
   .skills-discover__skeleton-card {
     box-sizing: border-box;
-    height: 150px;
-    min-height: 150px;
+    height: 140px;
+    min-height: 140px;
+    contain-intrinsic-block-size: 140px;
+  }
+
+  .skills-card,
+  .skill-card {
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-panel);
+  }
+
+  .skills-card:hover,
+  .skill-card:hover {
+    border-color: var(--workspace-border-strong);
+    background: var(--workspace-surface-hover);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .skills-card {
+    padding: var(--workspace-space-3);
+  }
+
+  .skills-card__top,
+  .skill-card__header {
+    align-items: flex-start;
+    gap: var(--workspace-space-2);
+  }
+
+  .skills-card__avatar,
+  .skill-card__avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .skills-card__name,
+  .skill-card__name {
+    font-size: var(--workspace-font-size-control);
+    font-weight: var(--workspace-font-weight-strong);
+    line-height: var(--workspace-line-height-control);
+  }
+
+  .skills-card__desc,
+  .skill-card__desc,
+  .skill-card__meta {
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+    line-height: var(--workspace-line-height-meta);
+    opacity: 1;
+  }
+
+  .skills-card__meta {
+    min-height: 20px;
+  }
+
+  .skills-card__actions {
+    gap: var(--workspace-space-1);
+  }
+
+  .skills-card__detail,
+  .skills-card__edit,
+  .skills-card__delete {
+    min-height: 30px;
+    border: 1px solid transparent;
+    border-radius: var(--workspace-radius-control);
+  }
+
+  .skills-card__detail:hover,
+  .skills-card__edit:hover {
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-active);
+  }
+
+  .skill-card__header {
+    padding: var(--workspace-space-3);
+  }
+
+  .skill-card__footer {
+    align-items: center;
+    gap: var(--workspace-space-1);
+    min-height: 38px;
+    padding: 0 var(--workspace-space-3) var(--workspace-space-2);
+    border-top: 0;
+    background: transparent;
+    overflow: visible;
+  }
+
+  .skill-card__detail-btn {
+    min-height: 30px;
+    padding: 0 var(--workspace-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--workspace-radius-control);
+  }
+
+  .skill-card__detail-btn:hover {
+    border-color: var(--workspace-border-subtle);
+    background: var(--workspace-surface-active);
+  }
+
+  .skill-card__actions {
+    flex: 0 0 auto;
+    gap: var(--workspace-space-1);
+  }
+
+  .skill-card__action-btn {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 30px;
+    border: 1px solid var(--workspace-border-subtle);
+    border-radius: var(--workspace-radius-control);
+    background: var(--workspace-surface-panel);
+  }
+
+  .skill-card__action-btn:not(:last-child) {
+    border-right: 1px solid var(--workspace-border-subtle);
   }
 
   .skills-card__desc,
@@ -1422,7 +1536,7 @@
   }
 
   .skills-card__meta {
-    min-height: 24px;
+    min-height: 20px;
   }
 
   .skills-card__path {

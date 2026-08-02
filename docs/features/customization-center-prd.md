@@ -1083,7 +1083,10 @@ As of this specification update:
 - the Skills scene removes the duplicate in-page Customization navigation,
   large market hero, and installed-skill side rail. Installed and marketplace
   Skills share a compact toolbar, localized cards, eight-item pagination, and
-  a four-column desktop grid that collapses to two and one columns. Existing
+  a four-column desktop grid that collapses to two and one columns. Cards use
+  a 40 px icon, a strong localized title, at most two lines of purpose copy,
+  and lightweight detail/install/management actions instead of a heavy footer
+  rail. Existing
   create, import, suite, detail, install, edit, delete, capability-gate, and
   service boundaries remain unchanged. Presentation metadata localizes the 45
   standard user Skills only when their full identity matches
@@ -1096,11 +1099,14 @@ As of this specification update:
   left navigation. It selects a catalog presentation on the existing
   `McpToolsConfig` infrastructure component instead of routing through
   Settings. The catalog provides search, status filtering, eight-item
-  pagination, responsive four/two/one-column cards, configuration details,
-  JSON add/configure, server lifecycle actions, deletion, remote auth, OAuth,
-  explicit loading/empty/error states, and retry. The default Settings
-  presentation remains the compatibility path, and no unavailable remote
-  connector store or one-click installation behavior is claimed;
+  pagination, two-column desktop cards that collapse to one column,
+  configuration details, JSON add/configure, server lifecycle actions,
+  deletion, remote auth, OAuth, explicit loading/empty/error states, and retry.
+  Its true empty state presents supported local-command and remote-URL paths as
+  non-interactive explanatory cards with exactly one JSON add action. The
+  default Settings presentation remains the compatibility path, and no
+  unavailable remote connector store or one-click installation behavior is
+  claimed;
 - local cache identity now includes the selected persona key and revision plus
   effective tools and the resolved Skill-set revision. Persona or Skill changes
   therefore miss the complete local system-prompt cache entry safely. The
@@ -1149,11 +1155,15 @@ permission, session, media, or Team orchestration behavior to a page component.
   viewport cannot be accepted as a complete-page review.
 - Skill cards expose details and management/install actions as separate
   controls. Loading failures are explicit and retryable. Four-column layout
-  keeps the card heading across the full row so localized titles are not
+  uses a 40 px icon, two-line purpose copy, and lightweight actions while
+  keeping the card heading across the full row so localized titles are not
   squeezed by the action column.
-- Connector empty state presents one add action and otherwise preserves the
-  established JSON, status, authentication, OAuth, lifecycle, and Settings
-  compatibility paths.
+- Configured Connector cards use a two-column wide horizontal layout and
+  collapse to one column. The true empty state presents local-command and
+  remote-URL capability explanations plus exactly one add action; those
+  explanations are not fake connectors. The established JSON, status,
+  authentication, OAuth, lifecycle, and Settings compatibility paths remain
+  unchanged.
 - Welcome workspace selection supports roving keyboard navigation, Escape and
   focus restoration. Recent workspace deletion is a separate action, and
   notification failures are rendered as errors. The session workspace selector

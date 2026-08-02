@@ -118,6 +118,12 @@
       "connected": "已連接",
       "attention": "需處理",
       "stopped": "已停止"
+    },
+    "starter": {
+      "localTitle": "本機工具",
+      "localDescription": "連接透過命令啟動的 MCP 服務，例如本機腳本與開發工具。",
+      "remoteTitle": "遠端服務",
+      "remoteDescription": "連接提供 URL 的 MCP 服務，並依需要完成遠端驗證。"
     }
   },
   "empty": {
