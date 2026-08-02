@@ -54,7 +54,7 @@ const log = createLogger('SkillsScene');
 
 type SkillTab = 'installed' | 'discover';
 
-const INSTALLED_PAGE_SIZE = 8;
+const SKILLS_PAGE_SIZE = 20;
 
 interface CategoryInfo {
   id: InstalledFilter;
@@ -124,7 +124,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
   const market = useSkillMarket({
     searchQuery: marketQuery,
     installedSkillNames,
-    pageSize: 8,
+    pageSize: SKILLS_PAGE_SIZE,
     onInstalledChanged: async () => {
       await installed.loadSkills(true);
     },
@@ -200,12 +200,12 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
   const installedTotalPages = Math.max(
     1,
-    Math.ceil(installedFiltered.length / INSTALLED_PAGE_SIZE),
+    Math.ceil(installedFiltered.length / SKILLS_PAGE_SIZE),
   );
   const currentInstalledPage = Math.min(installedListPage, installedTotalPages - 1);
   const pagedInstalledSkills = installedFiltered.slice(
-    currentInstalledPage * INSTALLED_PAGE_SIZE,
-    (currentInstalledPage + 1) * INSTALLED_PAGE_SIZE,
+    currentInstalledPage * SKILLS_PAGE_SIZE,
+    (currentInstalledPage + 1) * SKILLS_PAGE_SIZE,
   );
 
   useEffect(() => {
@@ -349,7 +349,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
                   {installed.loading && (
                     <div className="skills-main__loading" aria-busy="true" aria-label={t('list.loading')}>
-                      {Array.from({ length: 8 }).map((_, i) => (
+                      {Array.from({ length: SKILLS_PAGE_SIZE }).map((_, i) => (
                         <div
                           key={`ins-sk-${i}`}
                           className="skills-card-skeleton"
@@ -423,24 +423,24 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                               )}
                             </div>
 
-                            <div className="skills-card__meta">
-                              {skill.isShadowed && (
-                                <span title={t('list.item.shadowedTooltip')}>
-                                  <Badge variant="warning">
-                                    <ShieldAlert size={11} />
-                                    {t('list.item.shadowed')}
+                            {(skill.isShadowed || skill.level === 'project') && (
+                              <div className="skills-card__meta">
+                                {skill.isShadowed && (
+                                  <span title={t('list.item.shadowedTooltip')}>
+                                    <Badge variant="warning">
+                                      <ShieldAlert size={11} />
+                                      {t('list.item.shadowed')}
+                                    </Badge>
+                                  </span>
+                                )}
+                                {skill.level === 'project' && (
+                                  <Badge variant="purple">
+                                    <FolderOpen size={11} />
+                                    {t('list.item.project')}
                                   </Badge>
-                                </span>
-                              )}
-                              <Badge
-                                variant={skill.level === 'user' ? 'info' : 'purple'}
-                              >
-                                {skill.level === 'user'
-                                  ? <User size={11} />
-                                  : <FolderOpen size={11} />}
-                                {skill.level === 'user' ? t('list.item.user') : t('list.item.project')}
-                              </Badge>
-                            </div>
+                                )}
+                              </div>
+                            )}
 
                             <div
                               className="skills-card__actions"
@@ -544,7 +544,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
             <div className="skills-discover__content">
               {market.marketLoading && (
                 <div className="skills-discover__grid" aria-busy="true" aria-label={t('list.loading')}>
-                  {Array.from({ length: 8 }).map((_, i) => (
+                  {Array.from({ length: SKILLS_PAGE_SIZE }).map((_, i) => (
                     <div
                       key={`mkt-sk-${i}`}
                       className="skills-discover__skeleton-card"
@@ -570,7 +570,7 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
 
               {!market.marketLoading && !market.marketError && market.loadingMore && (
                 <div className="skills-discover__grid" aria-busy="true" aria-label={t('list.loading')}>
-                  {Array.from({ length: 8 }).map((_, i) => (
+                  {Array.from({ length: SKILLS_PAGE_SIZE }).map((_, i) => (
                     <div
                       key={`mkt-page-sk-${i}`}
                       className="skills-discover__skeleton-card"

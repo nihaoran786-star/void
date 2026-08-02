@@ -42,8 +42,8 @@ Updated: 2026-08-02
   execution, or session state.
 - The Skills and Connectors entries follow the same standalone catalog pattern.
   Skills keeps authoring, import, suite visibility, local/market install and
-  detail behavior behind its existing services, while presenting eight cards
-  per page in a compact four/two/one-column responsive grid with 40 px
+  detail behavior behind its existing services, while presenting twenty cards
+  per page in a compact four/two/one-column responsive grid with 36 px
   icon-forward cards, two-line purpose copy, and lightweight management
   actions. The 45 standard user
   Skills discovered from the exact `user::home.codex::{dirName}` identity have

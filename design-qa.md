@@ -251,6 +251,24 @@
   通过，随后限并发全量重跑全部通过；该并发抖动没有通过延长业务等待或弱化
   断言来掩盖。
 
+### 技能目录密度复核（2026-08-02）
+
+- 用户指出上一版四列但仅两行，首屏只有 8 张卡并留下大面积空白。重新在同一
+  `2560 × 1368`、DPI 144 物理窗口捕获 WorkBuddy 与 Void，证据位于
+  `.codex-artifacts/skills-density-audit-20260802/`：
+  `03-workbuddy-skills-full-window.png`、
+  `08-void-skills-density-final-clean-full-window.png`，最终并排对照为
+  `09-workbuddy-void-skills-final-comparison.png`。两张原始窗口截图的 sidecar 均为
+  `PerMonitorV2`、DWM `0,0–2560,1368`、
+  `PrintWindow(PW_RENDERFULLCONTENT)` 和 `potentially_occluded=false`。
+- 审查评分从 5.5/10 提升到 8.2/10：四列要求不变，每页由 8 张增至 20 张，
+  首屏由两行增至五行；卡高从 140px 收到 116px，头像从 40px 收到 36px，
+  默认用户级徽标不再在每张卡上重复。项目级、覆盖冲突、内置状态和全部操作仍
+  明确保留；分页仍固定在底部，目录不会无限拉高页面。
+- 技能场景定向回归 4 个测试文件、13/13 项通过，定向 ESLint、类型检查、生产
+  构建和 Web 性能预算通过；翻到第 2/4 页的真实桌面交互证据为
+  `07-void-skills-page-2-full-window.png`。
+
 ### 切换性能基线与验收门槛
 
 - 页面层改为窄 Zustand selector；已挂载场景由 memoized slot 保留状态且仅激活

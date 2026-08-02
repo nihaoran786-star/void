@@ -1409,9 +1409,9 @@
   .skill-card,
   .skills-discover__skeleton-card {
     box-sizing: border-box;
-    height: 140px;
-    min-height: 140px;
-    contain-intrinsic-block-size: 140px;
+    height: 116px;
+    min-height: 116px;
+    contain-intrinsic-block-size: 116px;
   }
 
   .skills-card,
@@ -1429,7 +1429,8 @@
   }
 
   .skills-card {
-    padding: var(--workspace-space-3);
+    gap: var(--workspace-space-1) var(--workspace-space-2);
+    padding: var(--workspace-space-2) var(--workspace-space-3);
   }
 
   .skills-card__top,
@@ -1440,8 +1441,8 @@
 
   .skills-card__avatar,
   .skill-card__avatar {
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
   }
 
   .skills-card__name,
@@ -1461,7 +1462,7 @@
   }
 
   .skills-card__meta {
-    min-height: 20px;
+    min-height: 18px;
   }
 
   .skills-card__actions {
@@ -1471,9 +1472,19 @@
   .skills-card__detail,
   .skills-card__edit,
   .skills-card__delete {
-    min-height: 30px;
+    min-height: 26px;
     border: 1px solid transparent;
     border-radius: var(--workspace-radius-control);
+  }
+
+  .skills-card__detail {
+    height: 26px;
+  }
+
+  .skills-card__edit,
+  .skills-card__delete {
+    width: 28px;
+    height: 26px;
   }
 
   .skills-card__detail:hover,
@@ -1483,13 +1494,14 @@
   }
 
   .skill-card__header {
-    padding: var(--workspace-space-3);
+    padding: var(--workspace-space-2) var(--workspace-space-3)
+      var(--workspace-space-1);
   }
 
   .skill-card__footer {
     align-items: center;
     gap: var(--workspace-space-1);
-    min-height: 38px;
+    min-height: 32px;
     padding: 0 var(--workspace-space-3) var(--workspace-space-2);
     border-top: 0;
     background: transparent;
@@ -1497,7 +1509,7 @@
   }
 
   .skill-card__detail-btn {
-    min-height: 30px;
+    min-height: 26px;
     padding: 0 var(--workspace-space-2);
     border: 1px solid transparent;
     border-radius: var(--workspace-radius-control);
@@ -1514,9 +1526,9 @@
   }
 
   .skill-card__action-btn {
-    flex: 0 0 32px;
-    width: 32px;
-    height: 30px;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 26px;
     border: 1px solid var(--workspace-border-subtle);
     border-radius: var(--workspace-radius-control);
     background: var(--workspace-surface-panel);
@@ -1536,7 +1548,7 @@
   }
 
   .skills-card__meta {
-    min-height: 20px;
+    min-height: 18px;
   }
 
   .skills-card__path {

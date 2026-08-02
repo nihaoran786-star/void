@@ -1082,9 +1082,9 @@ As of this specification update:
   lifecycle;
 - the Skills scene removes the duplicate in-page Customization navigation,
   large market hero, and installed-skill side rail. Installed and marketplace
-  Skills share a compact toolbar, localized cards, eight-item pagination, and
+  Skills share a compact toolbar, localized cards, twenty-item pagination, and
   a four-column desktop grid that collapses to two and one columns. Cards use
-  a 40 px icon, a strong localized title, at most two lines of purpose copy,
+  a 36 px icon, a strong localized title, at most two lines of purpose copy,
   and lightweight detail/install/management actions instead of a heavy footer
   rail. Existing
   create, import, suite, detail, install, edit, delete, capability-gate, and
@@ -1155,7 +1155,7 @@ permission, session, media, or Team orchestration behavior to a page component.
   viewport cannot be accepted as a complete-page review.
 - Skill cards expose details and management/install actions as separate
   controls. Loading failures are explicit and retryable. Four-column layout
-  uses a 40 px icon, two-line purpose copy, and lightweight actions while
+  uses a 36 px icon, two-line purpose copy, and lightweight actions while
   keeping the card heading across the full row so localized titles are not
   squeezed by the action column.
 - Configured Connector cards use a two-column wide horizontal layout and

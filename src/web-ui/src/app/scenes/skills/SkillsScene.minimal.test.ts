@@ -20,10 +20,10 @@ describe('Skills market presentation contract', () => {
     expect(scene).toContain("className=\"skills-discover__toolbar\"");
   });
 
-  it('uses eight items per page for installed and market skills', () => {
-    expect(scene).toContain('const INSTALLED_PAGE_SIZE = 8;');
-    expect(scene).toContain('pageSize: 8,');
-    expect(scene.match(/Array\.from\(\{ length: 8 \}\)/g)).toHaveLength(3);
+  it('uses twenty items per page for a dense five-row desktop catalog', () => {
+    expect(scene).toContain('const SKILLS_PAGE_SIZE = 20;');
+    expect(scene).toContain('pageSize: SKILLS_PAGE_SIZE,');
+    expect(scene.match(/Array\.from\(\{ length: SKILLS_PAGE_SIZE \}\)/g)).toHaveLength(3);
     expect(scene).toContain('setInstalledListPage(0);');
     expect(scene).toContain('Math.min(p, Math.max(0, installedTotalPages - 1))');
   });
@@ -53,6 +53,8 @@ describe('Skills market presentation contract', () => {
     expect(scene).toContain("aria-pressed={activeTab === 'discover'}");
     expect(scene).toContain('aria-pressed={installedFilter === cat.id}');
     expect(scene).toContain('aria-expanded={isAddFormOpen}');
+    expect(scene).toContain("(skill.isShadowed || skill.level === 'project')");
+    expect(scene).toContain("skill.level === 'project' && (");
   });
 
   it('renders retryable skill failures as alerts', () => {
@@ -73,15 +75,15 @@ describe('Skills market presentation contract', () => {
   });
 
   it('uses compact icon-forward cards without a heavy market footer rail', () => {
-    expect(styles).toContain('height: 140px;');
-    expect(styles).toContain('min-height: 140px;');
+    expect(styles).toContain('height: 116px;');
+    expect(styles).toContain('min-height: 116px;');
     expect(styles).toContain('.skills-card__avatar,\n  .skill-card__avatar');
-    expect(styles).toContain('width: 40px;');
+    expect(styles).toContain('width: 36px;');
     expect(styles).toContain('-webkit-line-clamp: 2;');
     expect(styles).toContain('.skill-card__footer');
     expect(styles).toContain('border-top: 0;');
     expect(styles).toContain('.skill-card__action-btn');
-    expect(styles).toContain('flex: 0 0 32px;');
+    expect(styles).toContain('flex: 0 0 28px;');
   });
 
   it('honors the existing reduced-motion and token contracts', () => {
