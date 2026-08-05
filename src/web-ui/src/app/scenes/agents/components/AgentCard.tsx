@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   ChevronRight,
+  Loader2,
+  Send,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AgentWithCapabilities } from '../agentsStore';
@@ -12,12 +14,16 @@ interface AgentCardProps {
   agent: AgentWithCapabilities;
   index?: number;
   onOpenDetails: (agent: AgentWithCapabilities) => void;
+  onDispatch?: (agent: AgentWithCapabilities) => void;
+  dispatching?: boolean;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   index = 0,
   onOpenDetails,
+  onDispatch,
+  dispatching = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const sourceLabel = agent.subagentSource === 'user'
@@ -35,7 +41,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
 
   return (
     <div
-      className="agent-card"
+      className={`agent-card ${onDispatch ? 'agent-card--dispatchable' : ''}`.trim()}
       style={{
         '--card-index': index,
       } as React.CSSProperties}
@@ -45,6 +51,26 @@ const AgentCard: React.FC<AgentCardProps> = ({
       onKeyDown={handleKeyDown}
       aria-label={t('agentCard.actions.viewNamed', { name: agent.displayName })}
     >
+      {onDispatch ? (
+        <button
+          type="button"
+          className="agent-card__dispatch"
+          aria-label={t('agentCard.actions.dispatchNamed', { name: agent.displayName })}
+          disabled={dispatching}
+          onClick={event => {
+            event.stopPropagation();
+            onDispatch(agent);
+          }}
+          onKeyDown={event => event.stopPropagation()}
+        >
+          {dispatching ? (
+            <Loader2 size={13} className="agent-card__dispatch-spinner" aria-hidden="true" />
+          ) : (
+            <Send size={13} aria-hidden="true" />
+          )}
+          <span>{t('agentCard.actions.dispatchTask')}</span>
+        </button>
+      ) : null}
       <div className="agent-card__header">
         <AgentAvatar
           identity={agent.key || agent.id || agent.name}

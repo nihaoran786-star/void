@@ -489,7 +489,8 @@
     "branchTooltipUnavailable": "非 Git 存放庫或目前無分支",
     "selectWorkspace": "選擇工作區",
     "createWorkspace": "新建工作區",
-    "selectWorkspaceBeforeSend": "請先在輸入框底部選擇工作區"
+    "selectWorkspaceBeforeSend": "請先在輸入框底部選擇工作區",
+    "selectedWorkspaceUnavailable": "原工作區已關閉或失效，請重新選擇"
   },
   "context": {
     "title": "上下文",
@@ -549,6 +550,8 @@
     "unknown": "未知錯誤"
   },
   "chatInput": {
+    "creatingDraftSession": "正在建立會話並啟用角色…",
+    "createDraftFailedRetry": "建立失敗，內容與角色已保留，可直接重試",
     "addBoostTooltip": "智能體、團隊、模式、圖片或技能",
     "addModeTooltip": "附加方案規劃或調試診斷",
     "boostSectionAgent": "智能體",

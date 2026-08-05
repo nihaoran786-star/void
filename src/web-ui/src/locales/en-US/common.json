@@ -1024,7 +1024,8 @@
   },
   "sceneTabs": {
     "label": "Scene tabs",
-    "close": "Close {{label}}"
+    "close": "Close {{label}}",
+    "personaDraftTitle": "{{name}} · New session"
   },
   "loading": {
     "scenes": "Loading scene"

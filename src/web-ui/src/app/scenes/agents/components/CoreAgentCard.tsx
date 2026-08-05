@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   ChevronRight,
+  Loader2,
+  Send,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { AgentWithCapabilities } from '../agentsStore';
@@ -17,6 +19,8 @@ interface CoreAgentCardProps {
   index?: number;
   meta: CoreAgentMeta;
   onOpenDetails: (agent: AgentWithCapabilities) => void;
+  onDispatch?: (agent: AgentWithCapabilities) => void;
+  dispatching?: boolean;
 }
 
 const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
@@ -24,6 +28,8 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
   index = 0,
   meta,
   onOpenDetails,
+  onDispatch,
+  dispatching = false,
 }) => {
   const { t } = useTranslation('scenes/agents');
   const openDetails = () => onOpenDetails(agent);
@@ -35,7 +41,7 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
 
   return (
     <div
-      className="core-agent-card"
+      className={`core-agent-card ${onDispatch ? 'core-agent-card--dispatchable' : ''}`.trim()}
       style={{
         '--card-index': index,
       } as React.CSSProperties}
@@ -45,6 +51,26 @@ const CoreAgentCard: React.FC<CoreAgentCardProps> = ({
       onKeyDown={handleKeyDown}
       aria-label={t('agentCard.actions.viewNamed', { name: agent.displayName })}
     >
+      {onDispatch ? (
+        <button
+          type="button"
+          className="core-agent-card__dispatch"
+          aria-label={t('agentCard.actions.dispatchNamed', { name: agent.displayName })}
+          disabled={dispatching}
+          onClick={event => {
+            event.stopPropagation();
+            onDispatch(agent);
+          }}
+          onKeyDown={event => event.stopPropagation()}
+        >
+          {dispatching ? (
+            <Loader2 size={13} className="core-agent-card__dispatch-spinner" aria-hidden="true" />
+          ) : (
+            <Send size={13} aria-hidden="true" />
+          )}
+          <span>{t('agentCard.actions.dispatchTask')}</span>
+        </button>
+      ) : null}
       <div className="core-agent-card__top">
         <AgentAvatar
           identity={agent.key || agent.id || agent.name}

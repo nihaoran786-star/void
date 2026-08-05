@@ -999,6 +999,14 @@
     color: var(--color-text-primary);
   }
 
+  &__persona-item-avatar {
+    display: block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+
   &__persona-avatar,
   &__persona-avatar-fallback {
     width: 16px;
@@ -1018,6 +1026,29 @@
     justify-content: center;
     background: var(--element-bg-medium);
     color: var(--color-text-secondary);
+  }
+
+  &__draft-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--flowchat-font-size-2xs);
+    line-height: 1.2;
+
+    svg {
+      flex: 0 0 auto;
+      animation: spin 0.8s linear infinite;
+    }
+
+    &--error {
+      color: var(--color-warning);
+    }
+  }
+
+  &__send-button-spinner {
+    animation: spin 0.8s linear infinite;
   }
 
   &__boost-submenu-trigger:focus-visible,

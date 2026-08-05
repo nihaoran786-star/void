@@ -67,6 +67,7 @@ describe('useMessageSender deferred session creation', () => {
   let sender: {
     ensureSession: () => Promise<EnsuredMessageSession>;
     sendMessage: (message: string) => Promise<MessageSendReceipt | undefined>;
+    isSending: boolean;
   } | null;
 
   beforeEach(() => {
@@ -220,7 +221,11 @@ describe('useMessageSender deferred session creation', () => {
     await act(async () => {
       root.render(<Harness />);
     });
-    const send = sender?.sendMessage('review');
+    let send: Promise<MessageSendReceipt | undefined> | undefined;
+    await act(async () => {
+      send = sender?.sendMessage('review');
+      await Promise.resolve();
+    });
     personaSessionState.activePersonaBinding.personaRevision.value = 'prompt-v2';
     await act(async () => {
       await send;
@@ -344,6 +349,91 @@ describe('useMessageSender deferred session creation', () => {
     );
   });
 
+  it('会话创建失败时不激活、不发送、不删除并允许原地重试', async () => {
+    mocks.createChatSession
+      .mockRejectedValueOnce(new Error('workspace unavailable'))
+      .mockResolvedValueOnce('session-retry');
+    const onSessionCreated = vi.fn().mockResolvedValue(undefined);
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'Cowork',
+        onSessionCreated,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    await expect(act(async () => {
+      await sender?.sendMessage('第一次');
+    })).rejects.toThrow('workspace unavailable');
+    expect(onSessionCreated).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(mocks.deleteChatSession).not.toHaveBeenCalled();
+    expect(sender?.isSending).toBe(false);
+
+    await act(async () => {
+      await sender?.sendMessage('重试');
+    });
+    expect(mocks.createChatSession).toHaveBeenCalledTimes(2);
+    expect(onSessionCreated).toHaveBeenCalledWith('session-retry');
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+  });
+
+  it('团队已附着后保存失败时保留同一父会话并重新执行激活', async () => {
+    const preserveSessionError = Object.assign(
+      new Error('team persona persistence failed'),
+      { preserveSession: true as const },
+    );
+    const onSessionCreated = vi.fn()
+      .mockRejectedValueOnce(preserveSessionError)
+      .mockResolvedValueOnce(undefined);
+
+    function Harness({ restoredSessionId }: { restoredSessionId?: string }) {
+      const value = useMessageSender({
+        currentSessionId: restoredSessionId,
+        contexts: [],
+        currentAgentType: 'agentic',
+        onSessionCreated: restoredSessionId ? undefined : onSessionCreated,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    await expect(act(async () => {
+      await sender?.sendMessage('团队首发');
+    })).rejects.toThrow('team persona persistence failed');
+    expect(mocks.createChatSession).toHaveBeenCalledOnce();
+    expect(mocks.deleteChatSession).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.render(<Harness restoredSessionId="session-created" />);
+    });
+    await act(async () => {
+      await sender?.sendMessage('团队首发');
+    });
+    expect(mocks.createChatSession).toHaveBeenCalledOnce();
+    expect(onSessionCreated).toHaveBeenCalledTimes(2);
+    expect(onSessionCreated).toHaveBeenNthCalledWith(1, 'session-created');
+    expect(onSessionCreated).toHaveBeenNthCalledWith(2, 'session-created');
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    expect(mocks.sendMessage.mock.calls[0]?.[1]).toBe('session-created');
+  });
+
   it('连续两份未持久化草稿会分别创建新会话', async () => {
     mocks.createChatSession
       .mockResolvedValueOnce('session-A')
@@ -407,6 +497,48 @@ describe('useMessageSender deferred session creation', () => {
     expect(mocks.createChatSession).toHaveBeenCalledOnce();
   });
 
+  it('并发首发共用同一个发送任务并暴露真实发送状态', async () => {
+    let finishSend: (() => void) | undefined;
+    mocks.sendMessage.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishSend = resolve;
+    }));
+
+    function Harness() {
+      const value = useMessageSender({
+        contexts: [],
+        currentAgentType: 'Cowork',
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+
+    let first: Promise<MessageSendReceipt | undefined> | undefined;
+    let second: Promise<MessageSendReceipt | undefined> | undefined;
+    await act(async () => {
+      first = sender?.sendMessage('只发一次');
+      second = sender?.sendMessage('只发一次');
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(first).toBe(second);
+    expect(sender?.isSending).toBe(true);
+    expect(mocks.createChatSession).toHaveBeenCalledOnce();
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+
+    await act(async () => {
+      finishSend?.();
+      await first;
+    });
+    expect(sender?.isSending).toBe(false);
+  });
+
   it('captures the reusable Team instance and lead identity in one immutable snapshot', async () => {
     const personaSessionState = {
       sessionId: 'session-team',
@@ -441,7 +573,11 @@ describe('useMessageSender deferred session creation', () => {
     await act(async () => {
       root.render(<Harness />);
     });
-    const send = sender?.sendMessage('请团队开始分析');
+    let send: Promise<MessageSendReceipt | undefined> | undefined;
+    await act(async () => {
+      send = sender?.sendMessage('请团队开始分析');
+      await Promise.resolve();
+    });
     personaSessionState.activePersonaBinding.teamInstanceId = 'tampered-instance';
     await act(async () => {
       await send;

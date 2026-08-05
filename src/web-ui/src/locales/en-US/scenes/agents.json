@@ -21,6 +21,17 @@
       "empty": "No agent teams are currently available."
     },
     "actions": { "retry": "Retry", "reload": "Reload" },
+    "availability": {
+      "unavailable": "This configuration cannot be dispatched safely yet. Check its role definition, tools, and permissions.",
+      "disabled": "This Agent is disabled. Enable it from management first.",
+      "parent_persona_contract_pending": "This Agent has not completed parent-session persona integration.",
+      "parent_persona_custom_only": "Built-in subagents cannot become session personas directly. Create a customizable version first.",
+      "persona_revision_unavailable": "This Agent has no verifiable revision. Save or install it again.",
+      "team_lead_readonly_unsupported": "The lead must be able to coordinate and consolidate work, so it cannot be read-only.",
+      "team_lead_task_tool_required": "The lead needs the Task tool to create and coordinate real members.",
+      "team_member_tool_narrowing_unsupported": "The runtime cannot reliably enforce this member's narrowed tool policy yet.",
+      "team_member_readonly_unsupported": "The runtime cannot reliably enforce this member's read-only policy yet."
+    },
     "dispatch": {
       "errors": {
         "target_not_dispatchable": "This Agent or Team cannot enter a session yet.",
@@ -32,6 +43,7 @@
     "detail": {
       "memberCount": "{{count}} members",
       "dispatchTask": "Dispatch task",
+      "dispatchUnavailable": "Dispatch unavailable",
       "openReviewTeam": "Open Code Review Team",
       "useInMedia": "Use in a Media session",
       "editDefinition": "Edit team",
@@ -406,7 +418,8 @@
       "view": "View",
       "viewNamed": "View {{name}}",
       "viewDetails": "View employee details",
-      "dispatchTask": "Dispatch task"
+      "dispatchTask": "Dispatch task",
+      "dispatchNamed": "Dispatch a task to {{name}}"
     },
     "roles": {
       "core": "Core employee",

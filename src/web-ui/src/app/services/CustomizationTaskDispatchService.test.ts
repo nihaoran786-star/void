@@ -3,6 +3,7 @@ import type {
   AgentCatalogEntry,
   TeamCatalogEntry,
 } from '@/shared/services/customization';
+import { ReusableTeamActivationError } from '@/shared/services/customization';
 
 import {
   CustomizationTaskDispatchError,
@@ -220,6 +221,28 @@ describe('CustomizationTaskDispatchService', () => {
     expect(result?.activePersonaBinding).toMatchObject({
       kind: 'team_lead',
       teamDefinitionId: 'delivery-team',
+    });
+  });
+
+  it('团队已附着但主理人保存失败时返回保留父会话信号', async () => {
+    vi.mocked(dependencies.activateReusableTeam).mockRejectedValueOnce(
+      new ReusableTeamActivationError(
+        'team_persona_persistence_failed',
+        'persona persistence failed',
+        true,
+        'retry_team_activation',
+      ),
+    );
+
+    await expect(service.activateCreatedSession({
+      target: reusableTeam(),
+      sessionId: 'session-created',
+      scenario: 'code',
+      executionPolicy: 'agentic',
+    })).rejects.toMatchObject({
+      code: 'team_activation_failed',
+      sessionId: 'session-created',
+      preserveSession: true,
     });
   });
 

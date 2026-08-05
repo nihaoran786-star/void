@@ -19,6 +19,34 @@ import {
   type AgentCatalogEntry,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
+import { resolveEmployeeAvatarUrl } from '@/app/scenes/agents/components/employeeAvatar';
+
+interface PersonaAvatarProps {
+  identity: string;
+  kind: 'agent' | 'team';
+}
+
+const PersonaAvatar: React.FC<PersonaAvatarProps> = ({ identity, kind }) => {
+  const [failed, setFailed] = useState(false);
+  const src = resolveEmployeeAvatarUrl(identity);
+
+  if (failed || !src) {
+    return kind === 'team'
+      ? <Users size={14} aria-hidden />
+      : <Bot size={14} aria-hidden />;
+  }
+
+  return (
+    <img
+      className="void-chat-input__persona-item-avatar"
+      src={src}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
+  );
+};
 
 export interface ComposerPersonaPickerProps {
   agents: readonly AgentCatalogEntry[];
@@ -153,7 +181,7 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
         <span className="void-chat-input__persona-item-icon">
           {busy
             ? <Loader2 size={14} className="void-chat-input__boost-submenu-spinner" aria-hidden />
-            : <Bot size={14} aria-hidden />}
+            : <PersonaAvatar identity={entry.identity.id} kind="agent" />}
         </span>
         <span className="void-chat-input__persona-item-copy">
           <span className="void-chat-input__persona-item-name">{presentation.displayName}</span>
@@ -191,7 +219,7 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
         <span className="void-chat-input__persona-item-icon void-chat-input__persona-item-icon--team">
           {busy
             ? <Loader2 size={14} className="void-chat-input__boost-submenu-spinner" aria-hidden />
-            : <Users size={14} aria-hidden />}
+            : <PersonaAvatar identity={entry.identity.id} kind="team" />}
         </span>
         <span className="void-chat-input__persona-item-copy">
           <span className="void-chat-input__persona-item-name">{presentation.displayName}</span>

@@ -50,17 +50,33 @@ vi.mock('./components/AgentCard', () => ({
   default: ({
     agent,
     onOpenDetails,
+    onDispatch,
+    dispatching,
   }: {
     agent: { key: string; displayName: string };
     onOpenDetails: (agent: unknown) => void;
+    onDispatch?: (agent: unknown) => void;
+    dispatching?: boolean;
   }) => (
-    <button
-      type="button"
-      data-testid={`agent-card-${agent.key}`}
-      onClick={() => onOpenDetails(agent)}
-    >
-      {agent.displayName}
-    </button>
+    <div>
+      <button
+        type="button"
+        data-testid={`agent-card-${agent.key}`}
+        onClick={() => onOpenDetails(agent)}
+      >
+        {agent.displayName}
+      </button>
+      {onDispatch ? (
+        <button
+          type="button"
+          data-testid={`agent-card-dispatch-${agent.key}`}
+          disabled={dispatching}
+          onClick={() => onDispatch(agent)}
+        >
+          quick-dispatch
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -361,7 +377,7 @@ describeWithJsdom('AgentsScene', () => {
       .toBe('Project Shared');
   });
 
-  it('从智能体详情派发到带 Persona 的新会话', async () => {
+  it('支持从卡片快捷派发且不会先打开详情，并保留详情派发入口', async () => {
     const agent = {
       key: 'user::void::designer',
       id: 'designer',
@@ -415,6 +431,20 @@ describeWithJsdom('AgentsScene', () => {
     await act(async () => {
       root.render(<AgentsScene taskDispatcher={taskDispatcher} />);
     });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="agent-card-dispatch-user::void::designer"]',
+      )!.click();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="agent-detail-title"]')?.textContent)
+      .not.toBe('视觉设计智能体');
+    expect(taskDispatcher.dispatch).toHaveBeenCalledWith({
+      target: agent.catalogEntry,
+      preferredScenario: 'code',
+    });
+
+    taskDispatcher.dispatch.mockClear();
     await act(async () => {
       container.querySelector<HTMLButtonElement>(
         '[data-testid="agent-card-user::void::designer"]',

@@ -587,35 +587,40 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
     resetEditState();
   }, [resetEditState]);
 
-  const handleDispatchSelectedAgent = useCallback(async () => {
-    const target = selectedAgent?.catalogEntry;
-    if (!selectedAgent || !target) {
+  const dispatchAgent = useCallback(async (agent: AgentWithCapabilities) => {
+    const target = agent.catalogEntry;
+    if (!target || !canDispatchCustomizationTarget(target)) {
       notification.error(t('catalog.dispatch.errors.target_not_dispatchable'));
-      return;
+      return false;
     }
-    setDispatchingAgentKey(selectedAgent.key);
+    setDispatchingAgentKey(agent.key);
     try {
       await taskDispatcher.dispatch({
         target,
         preferredScenario,
       });
-      closeAgentDetails();
+      return true;
     } catch (error) {
       const code = error instanceof CustomizationTaskDispatchError
         ? error.code
         : 'draft_open_failed';
       notification.error(t(`catalog.dispatch.errors.${code}`));
+      return false;
     } finally {
       setDispatchingAgentKey(null);
     }
   }, [
-    closeAgentDetails,
     notification,
     preferredScenario,
-    selectedAgent,
     t,
     taskDispatcher,
   ]);
+
+  const handleDispatchSelectedAgent = useCallback(async () => {
+    if (selectedAgent && await dispatchAgent(selectedAgent)) {
+      closeAgentDetails();
+    }
+  }, [closeAgentDetails, dispatchAgent, selectedAgent]);
 
   useEffect(() => {
     if (!selectedAgentCapabilityTabs.some((tab) => tab.key === activeCapabilityTab)) {
@@ -719,6 +724,12 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
                   index={index}
                   meta={coreAgentMeta[agent.id] ?? { role: agent.displayName }}
                   onOpenDetails={openAgentDetails}
+                  onDispatch={
+                    agent.catalogEntry && canDispatchCustomizationTarget(agent.catalogEntry)
+                      ? dispatchAgent
+                      : undefined
+                  }
+                  dispatching={dispatchingAgentKey === agent.key}
                 />
               ))}
             </div>
@@ -800,6 +811,12 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
                     agent={agent}
                     index={agentPage * AGENT_PAGE_SIZE + index}
                     onOpenDetails={openAgentDetails}
+                    onDispatch={
+                      agent.catalogEntry && canDispatchCustomizationTarget(agent.catalogEntry)
+                        ? dispatchAgent
+                        : undefined
+                    }
+                    dispatching={dispatchingAgentKey === agent.key}
                   />
                 ))}
               </GalleryGrid>
@@ -865,6 +882,19 @@ const AgentsHomeView: React.FC<AgentsHomeViewProps> = ({ taskDispatcher }) => {
       >
         {selectedAgent ? (
           <>
+            {selectedAgent.catalogEntry
+              && !canDispatchCustomizationTarget(selectedAgent.catalogEntry) ? (
+                <div className="agent-card__dispatch-state" role="status">
+                  <strong>{t('catalog.detail.dispatchUnavailable')}</strong>
+                  <span>
+                    {t(
+                      selectedAgent.catalogEntry.availability.message
+                        || `catalog.availability.${selectedAgent.catalogEntry.availability.reasonCode || 'unavailable'}`,
+                      { defaultValue: t('catalog.availability.unavailable') },
+                    )}
+                  </span>
+                </div>
+              ) : null}
             <div className="agent-card__cap-grid">
               {selectedAgent.capabilities.map((cap) => (
                 <div key={cap.category} className="agent-card__cap-row">

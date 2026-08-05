@@ -69,6 +69,31 @@ describe('AgentTeamCard', () => {
     expect(markup).toContain('agent-team-card__avatar');
   });
 
+  it('renders the optional quick-dispatch action without changing the card entry action', () => {
+    const markup = renderToStaticMarkup(
+      <AgentTeamCard
+        title="软件交付团队"
+        subtitle="协作完成软件交付。"
+        roleName="交付主理人"
+        avatarIdentity="team:custom:delivery"
+        avatarName="软件交付团队"
+        tagNames={['软件交付']}
+        onOpen={() => undefined}
+        onDispatch={() => undefined}
+        dispatchLabel="派发任务"
+      />,
+    );
+    const source = readFileSync(
+      fileURLToPath(new URL('./AgentTeamCard.tsx', import.meta.url)),
+      'utf8',
+    );
+
+    expect(markup).toContain('agent-team-card__dispatch');
+    expect(markup).toContain('派发任务');
+    expect(source).toContain('event.stopPropagation();');
+    expect(source).toContain('onKeyDown={event => event.stopPropagation()}');
+  });
+
   it('keeps card, lead, and member portrait identities deterministic', () => {
     const cardSource = readFileSync(
       fileURLToPath(new URL('./TeamCatalogCard.tsx', import.meta.url)),

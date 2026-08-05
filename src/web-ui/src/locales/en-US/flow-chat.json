@@ -489,7 +489,8 @@
     "branchTooltipUnavailable": "Not a git repository or no current branch",
     "selectWorkspace": "Choose workspace",
     "createWorkspace": "Create workspace",
-    "selectWorkspaceBeforeSend": "Choose a workspace from the bottom of the composer first"
+    "selectWorkspaceBeforeSend": "Choose a workspace from the bottom of the composer first",
+    "selectedWorkspaceUnavailable": "The previous workspace is no longer open. Choose another workspace."
   },
   "context": {
     "title": "Context",
@@ -549,6 +550,8 @@
     "unknown": "Unknown error"
   },
   "chatInput": {
+    "creatingDraftSession": "Creating the session and activating the role…",
+    "createDraftFailedRetry": "Creation failed. Your message and role were kept; retry when ready.",
     "addBoostTooltip": "Agent modes, image, or skills",
     "addModeTooltip": "Add Plan or Debug",
     "boostSectionAgent": "Agent",

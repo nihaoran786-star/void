@@ -36,16 +36,16 @@ describe('Agents scene Minimal presentation contract', () => {
       '5f73fbe73f9a6dc38c85177b37685f592c34056f316fc42a951e525b4a91f576',
     );
     expect(sha256('./AgentsScene.tsx')).toBe(
-      '98279157f4ac2a56216278dcb742974d28668cc50be645d41b8cbcec21f32d8e',
+      '108df3626b2a17eaf851f8d93867dfb04d8cfe13b456058bc4079753c2398b3f',
     );
     expect(sha256('./components/CoreAgentCard.tsx')).toBe(
-      '4c9fe890d32913cecd56a3aa55701a9bccdc770493af73db1e15c673ea60888b',
+      '026b2577a8e54593b0450e64e905488a2b12ec5d06021f4fe158c0ec811d1299',
     );
     expect(sha256('./components/AgentCard.tsx')).toBe(
-      'a2d7e98cadf23aae10c40504d4c1157edb9c05c3576508bbbeec4208e837ee2e',
+      '14e1dfbcff4f3a9ffa11843aa7862608839cb488549be1b13d97c03272888165',
     );
     expect(sha256('./components/AgentTeamCard.tsx')).toBe(
-      'eec1f6756a7d654b0163938ba5aaff0903bbfc9263440ef2f40852cefecbca3b',
+      '394e7bb949918797a01e0ee8708f954e2439ee84a837a8436d21d4cf6b8d3167',
     );
   });
 
@@ -79,6 +79,18 @@ describe('Agents scene Minimal presentation contract', () => {
       /@media \(max-width: 560px\)[\s\S]*?\.agent-market-toolbar \{[\s\S]*?flex-direction: column;/,
     );
     expect(readSource('./AgentsScene.tsx')).not.toContain('<GalleryPageHeader');
+  });
+
+  it('keeps quick task dispatch separate from the card details action', () => {
+    for (const cardSource of [
+      readSource('./components/CoreAgentCard.tsx'),
+      readSource('./components/AgentCard.tsx'),
+      readSource('./components/AgentTeamCard.tsx'),
+    ]) {
+      expect(cardSource).toContain('event.stopPropagation();');
+      expect(cardSource).toContain('onKeyDown={event => event.stopPropagation()}');
+      expect(cardSource).toContain('dispatching');
+    }
   });
 
   it('matches the workspace tab, toolbar, and control typography contract', () => {

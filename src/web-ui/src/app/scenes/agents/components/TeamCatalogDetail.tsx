@@ -39,6 +39,14 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
   const lead = team
     ? localizeCatalogPresentation(team.lead.identity, key => t(key))
     : null;
+  const dispatchAvailable = team ? canDispatchCustomizationTarget(team) : false;
+  const unavailableReason = team && !dispatchAvailable
+    ? t(
+        team.availability.message
+          || `catalog.availability.${team.availability.reasonCode || 'unavailable'}`,
+        { defaultValue: t('catalog.availability.unavailable') },
+      )
+    : null;
 
   return (
     <GalleryDetailModal
@@ -68,7 +76,7 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
           <Button
             variant="primary"
             size="small"
-            disabled={!canDispatchCustomizationTarget(team)}
+            disabled={!dispatchAvailable}
             isLoading={dispatching}
             onClick={() => onDispatch(team)}
           >
@@ -113,14 +121,17 @@ const TeamCatalogDetail: React.FC<TeamCatalogDetailProps> = ({
           <div className="team-catalog-detail__section">
             <div className="team-catalog-detail__runtime-state">
               <strong>
-                {team.activationSupport === 'definition_only'
+                {!dispatchAvailable
+                  ? t('catalog.detail.dispatchUnavailable')
+                  : team.activationSupport === 'definition_only'
                   ? t('catalog.detail.definitionReady')
                   : t('catalog.detail.runtimeReady')}
               </strong>
               <span>
-                {team.activationSupport === 'definition_only'
+                {unavailableReason
+                  || (team.activationSupport === 'definition_only'
                   ? t('catalog.detail.definitionRuntimeDeferred')
-                  : t('catalog.detail.fixedRuntimeHint')}
+                  : t('catalog.detail.fixedRuntimeHint'))}
               </span>
             </div>
           </div>

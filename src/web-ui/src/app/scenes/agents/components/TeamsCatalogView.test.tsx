@@ -84,13 +84,29 @@ vi.mock('./TeamCatalogCard', () => ({
   default: ({
     team,
     onOpen,
+    onDispatch,
+    dispatching,
   }: {
     team: TeamCatalogEntry;
     onOpen: (team: TeamCatalogEntry) => void;
+    onDispatch?: (team: TeamCatalogEntry) => void;
+    dispatching?: boolean;
   }) => (
-    <button type="button" onClick={() => onOpen(team)}>
-      {team.identity.id}
-    </button>
+    <div>
+      <button type="button" onClick={() => onOpen(team)}>
+        {team.identity.id}
+      </button>
+      {onDispatch ? (
+        <button
+          type="button"
+          data-testid={`team-card-dispatch-${team.identity.id}`}
+          disabled={dispatching}
+          onClick={() => onDispatch(team)}
+        >
+          quick-dispatch
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 
@@ -320,7 +336,7 @@ describeWithJsdom('TeamsCatalogView', () => {
     expect(container.querySelector('[aria-label="pagination.next"]')).toBeNull();
   });
 
-  it('从团队详情派发到匹配场景的新会话', async () => {
+  it('支持从团队卡片快捷派发且不会先打开详情，并保留详情派发入口', async () => {
     const team = teamFixture('delivery-team');
     team.availability = { status: 'available' };
     team.activationSupport = 'parent_persona';
@@ -340,6 +356,19 @@ describeWithJsdom('TeamsCatalogView', () => {
       capabilityFixture(true),
       taskDispatcher,
     );
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="team-card-dispatch-delivery-team"]',
+      )!.click();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="team-detail"]')).toBeNull();
+    expect(taskDispatcher.dispatch).toHaveBeenCalledWith({
+      target: team,
+      preferredScenario: 'code',
+    });
+
+    taskDispatcher.dispatch.mockClear();
     await clickButton('delivery-team');
     await clickButton('dispatch-team');
 

@@ -57,8 +57,8 @@ const canonicalTokens = new Set([
 const migratedDistribution = {
   xxs: 19,
   '2xs': 25,
-  xs: 6,
-  sm: 8,
+  xs: 10,
+  sm: 9,
   base: 3,
   xl: 4,
   '2xl': 6,
@@ -68,7 +68,7 @@ const migratedDistribution = {
 } as const;
 
 // These offsets exclude canonical-token consumers outside the original
-// 77-declaration migration, including both pre-existing consumers and later
+// 82-declaration migration, including both pre-existing consumers and later
 // feature additions, while preserving the historical migration baseline.
 const preExistingDistribution = {
   xxs: 0,
@@ -119,7 +119,7 @@ describe('agent management typography governance', () => {
     ).toEqual([]);
   });
 
-  it('locks the exact distribution of the 77 migrated declarations', () => {
+  it('locks the exact distribution of the 82 migrated declarations', () => {
     expect(
       Object.fromEntries(
         Object.entries(migratedDistribution).map(([token, expected]) => [

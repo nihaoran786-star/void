@@ -10,9 +10,17 @@ interface TeamCatalogCardProps {
   team: TeamCatalogEntry;
   index: number;
   onOpen: (team: TeamCatalogEntry) => void;
+  onDispatch?: (team: TeamCatalogEntry) => void;
+  dispatching?: boolean;
 }
 
-const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({ team, index, onOpen }) => {
+const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({
+  team,
+  index,
+  onOpen,
+  onDispatch,
+  dispatching = false,
+}) => {
   const { t } = useTranslation('scenes/agents');
   const presentation = localizeCatalogPresentation(team.identity, key => t(key));
   const lead = localizeCatalogPresentation(team.lead.identity, key => t(key));
@@ -43,6 +51,12 @@ const TeamCatalogCard: React.FC<TeamCatalogCardProps> = ({ team, index, onOpen }
       avatarIdentity={`team:${team.source.adapterId}:${team.identity.id}`}
       avatarName={presentation.displayName}
       onOpen={() => onOpen(team)}
+      onDispatch={onDispatch ? () => onDispatch(team) : undefined}
+      dispatchLabel={t('catalog.detail.dispatchTask')}
+      dispatchAriaLabel={t('agentCard.actions.dispatchNamed', {
+        name: presentation.displayName,
+      })}
+      dispatching={dispatching}
     />
   );
 };

@@ -24,15 +24,15 @@ describe('Gallery card Minimal presentation contract', () => {
     expect(aggregator.match(/@include gallery-cards\.styles;/g)).toHaveLength(1);
   });
 
-  it('keeps feature-owned Classic card styles byte-identical', () => {
+  it('locks feature-owned Classic card styles', () => {
     expect(sha256('../../scenes/agents/components/AgentCard.scss')).toBe(
-      '6599a356206babc533555dd37ae0a2cb35c3424b1f782063eaeff71116b6ca16',
+      '3f6f10bc20d89f69e1b8d6eb505b100fe6c9a2f05ae30a1e8f23ff3932c5d580',
     );
     expect(sha256('../../scenes/agents/components/CoreAgentCard.scss')).toBe(
-      'bd69497c68a84952d306e61d35c9451f1ce8ddbf496b400c41989d2ab12059d0',
+      'add2a5a577cb330e6314e5f9c6635b9c0dcc898effd56ece21d2ee59ff6bd2f1',
     );
     expect(sha256('../../scenes/agents/components/AgentTeamCard.scss')).toBe(
-      '8cdda2f8624f651b88aec2940f1c09fcd616227e1118740cdb20753ae9c55794',
+      '67ec40a828087622153cc198bf153185072431e1c4ea2c9b7e0b49d17454dff3',
     );
     expect(sha256('../../scenes/miniapps/components/MiniAppCard.scss')).toBe(
       '83981cdb46cef7e718a52b740e972ef74881037b514189494b6afb910929768e',

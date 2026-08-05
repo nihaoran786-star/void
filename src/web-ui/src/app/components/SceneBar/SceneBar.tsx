@@ -9,7 +9,7 @@ import React, { useCallback, useRef } from 'react';
 import SceneTab from './SceneTab';
 import { WindowControls } from '@/component-library';
 import { useSceneManager } from '../../hooks/useSceneManager';
-import { useCurrentSessionTitle } from '../../hooks/useCurrentSessionTitle';
+import { useSessionTabSubtitle } from '../../hooks/useSessionTabSubtitle';
 import { useCurrentSettingsTabTitle } from '../../hooks/useCurrentSettingsTabTitle';
 import { useI18n } from '@/infrastructure/i18n/hooks/useI18n';
 import { createLogger } from '@/shared/utils/logger';
@@ -37,7 +37,7 @@ const SceneBar: React.FC<SceneBarProps> = ({
   isMaximized = false,
 }) => {
   const { openTabs, activeTabId, tabDefs, activateScene, closeScene } = useSceneManager();
-  const sessionTitle = useCurrentSessionTitle();
+  const sessionTitle = useSessionTabSubtitle();
   const settingsTabTitle = useCurrentSettingsTabTitle();
   const { t } = useI18n('common');
   const hasWindowControls = !!(onMinimize && onMaximize && onClose);

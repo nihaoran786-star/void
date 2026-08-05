@@ -8,7 +8,7 @@
  * ImageContextData[] through to the backend.
  */
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FlowChatManager } from '../services/FlowChatManager';
 import type {
   ContextItem,
@@ -53,6 +53,13 @@ function normalizeModelSelection(
     model.id === value || model.name === value || model.model_name === value,
   );
   return matchedModel ? value : 'auto';
+}
+
+function shouldPreserveCreatedSession(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'preserveSession' in error
+    && (error as { preserveSession?: unknown }).preserveSession === true;
 }
 
 interface UseMessageSenderProps {
@@ -122,8 +129,16 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
 
   const pendingSessionRef = useRef<Promise<EnsuredMessageSession> | null>(null);
   const preparedSessionRef = useRef<EnsuredMessageSession | null>(null);
+  const retryableSessionIdRef = useRef<string | null>(null);
+  const retryPreparationRef = useRef<UseMessageSenderProps['onSessionCreated']>();
+  const pendingSendRef = useRef<Promise<MessageSendReceipt | undefined> | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   const ensureSession = useCallback(async (): Promise<EnsuredMessageSession> => {
+    if (pendingSessionRef.current) {
+      return pendingSessionRef.current;
+    }
+
     if (
       preparedSessionRef.current
       && preparedSessionRef.current.sessionId === currentSessionId
@@ -131,7 +146,8 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       return preparedSessionRef.current;
     }
 
-    if (currentSessionId) {
+    const retryableSessionId = retryableSessionIdRef.current;
+    if (currentSessionId && !retryableSessionId) {
       const prepared = {
         sessionId: currentSessionId,
       };
@@ -139,27 +155,36 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       return prepared;
     }
 
-    if (pendingSessionRef.current) {
-      return pendingSessionRef.current;
-    }
-
     const creation = (async (): Promise<EnsuredMessageSession> => {
-      const { configManager } = await import('@/infrastructure/config/services/ConfigManager');
-      const [agentModels, allModels, defaultModels] = await Promise.all([
-        configManager.getConfig<Record<string, string>>('ai.agent_models') || {},
-        configManager.getConfig<AIModelConfig[]>('ai.models') || [],
-        configManager.getConfig<DefaultModelsConfig>('ai.default_models') || {},
-      ]);
+      let sessionId = retryableSessionId;
+      let modelId: string | undefined;
       const agentType = currentAgentType || 'agentic';
-      const modelId = normalizeModelSelection(agentModels[agentType], allModels, defaultModels);
-      const sessionId = await FlowChatManager.getInstance().createChatSession({
-        ...newSessionConfig,
-        modelName: modelId || undefined,
-      }, agentType);
+      if (!sessionId) {
+        const { configManager } = await import('@/infrastructure/config/services/ConfigManager');
+        const [agentModels, allModels, defaultModels] = await Promise.all([
+          configManager.getConfig<Record<string, string>>('ai.agent_models') || {},
+          configManager.getConfig<AIModelConfig[]>('ai.models') || [],
+          configManager.getConfig<DefaultModelsConfig>('ai.default_models') || {},
+        ]);
+        modelId = normalizeModelSelection(agentModels[agentType], allModels, defaultModels);
+        sessionId = await FlowChatManager.getInstance().createChatSession({
+          ...newSessionConfig,
+          modelName: modelId || undefined,
+        }, agentType);
+      }
+
+      const prepareSession = retryPreparationRef.current ?? onSessionCreated;
       let preparedPersona: void | PersonaTurnSnapshotDescriptor;
       try {
-        preparedPersona = await onSessionCreated?.(sessionId);
+        preparedPersona = await prepareSession?.(sessionId);
       } catch (activationError) {
+        if (shouldPreserveCreatedSession(activationError) && prepareSession) {
+          retryableSessionIdRef.current = sessionId;
+          retryPreparationRef.current = prepareSession;
+          throw activationError;
+        }
+        retryableSessionIdRef.current = null;
+        retryPreparationRef.current = undefined;
         const flowChatManager = FlowChatManager.getInstance();
         try {
           await flowChatManager.deleteChatSession(sessionId);
@@ -174,12 +199,18 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
         }
         throw activationError;
       }
+      retryableSessionIdRef.current = null;
+      retryPreparationRef.current = undefined;
       const prepared = {
         sessionId,
         ...(preparedPersona ? { personaSessionState: preparedPersona } : {}),
       };
       preparedSessionRef.current = prepared;
-      log.debug('Session created', { sessionId, modelId, agentType });
+      log.debug(retryableSessionId ? 'Session preparation retried' : 'Session created', {
+        sessionId,
+        modelId,
+        agentType,
+      });
       return prepared;
     })();
     pendingSessionRef.current = creation;
@@ -192,7 +223,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     }
   }, [currentAgentType, currentSessionId, newSessionConfig, onSessionCreated]);
 
-  const sendMessage = useCallback(async (
+  const performSend = useCallback(async (
     message: string,
     options?: {
       displayMessage?: string;
@@ -235,7 +266,7 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
       const flowChatManager = FlowChatManager.getInstance();
       let effectivePersonaSessionState = capturedPersonaSessionState;
 
-      if (!sessionId || onSessionCreated) {
+      if (!sessionId || onSessionCreated || retryableSessionIdRef.current) {
         const prepared = await ensureSession();
         sessionId = prepared.sessionId;
         effectivePersonaSessionState = prepared.personaSessionState
@@ -341,9 +372,36 @@ export function useMessageSender(props: UseMessageSenderProps): UseMessageSender
     personaSessionState,
   ]);
 
+  const sendMessage = useCallback((
+    message: string,
+    options?: {
+      displayMessage?: string;
+      composerPresentation?: ComposerPresentation;
+    },
+  ): Promise<MessageSendReceipt | undefined> => {
+    if (pendingSendRef.current) {
+      return pendingSendRef.current;
+    }
+    if (!message.trim()) {
+      return Promise.resolve(undefined);
+    }
+
+    setIsSending(true);
+    const operation = performSend(message, options);
+    pendingSendRef.current = operation;
+    const clearPending = () => {
+      if (pendingSendRef.current === operation) {
+        pendingSendRef.current = null;
+        setIsSending(false);
+      }
+    };
+    void operation.then(clearPending, clearPending);
+    return operation;
+  }, [performSend]);
+
   return {
     ensureSession,
     sendMessage,
-    isSending: false,
+    isSending,
   };
 }

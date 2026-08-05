@@ -92,4 +92,30 @@ describe('ComposerActionButton', () => {
     act(() => cancel.click());
     expect(onPrimaryAction).toHaveBeenCalledTimes(1);
   });
+
+  it('创建新会话时显示不可重复点击的进度按钮', () => {
+    act(() => {
+      root.render(
+        <ComposerActionButton
+          available
+          mode="send"
+          hasDraft
+          hasQueuedInput={false}
+          customizationPersistencePending={false}
+          sessionCreationPending
+          sendLabel="发送"
+          creatingLabel="正在创建会话"
+          onPrimaryAction={onPrimaryAction}
+          onCancel={onCancel}
+        />,
+      );
+    });
+
+    const button = container.querySelector('button')!;
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-label')).toBe('正在创建会话');
+    expect(button.querySelector('.void-chat-input__send-button-spinner')).not.toBeNull();
+    act(() => button.click());
+    expect(onPrimaryAction).not.toHaveBeenCalled();
+  });
 });

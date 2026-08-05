@@ -538,14 +538,87 @@
     content: none;
   }
 
+  &__dispatch-state {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: var(--workspace-space-2, 8px) var(--workspace-space-3, 12px);
+    border: 1px solid color-mix(in srgb, var(--color-warning) 26%, var(--border-subtle));
+    border-radius: var(--workspace-radius-control);
+    background: color-mix(in srgb, var(--color-warning) 7%, transparent);
+
+    strong {
+      color: var(--color-text-primary);
+      font-size: var(--font-size-sm);
+    }
+
+    span {
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-xs);
+      line-height: 1.5;
+    }
+  }
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
   }
 
+  &:hover &__dispatch,
+  &:focus-within &__dispatch,
+  &__dispatch:focus-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  &__dispatch {
+    position: absolute;
+    z-index: 3;
+    top: $size-gap-3;
+    right: $size-gap-3;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: $size-radius-full;
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-3px);
+    pointer-events: none;
+    transition:
+      opacity $motion-fast $easing-standard,
+      transform $motion-fast $easing-standard;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+  }
+
+  &__dispatch-spinner {
+    animation: agent-card-dispatch-spin 0.85s linear infinite;
+  }
+
   &__header {
     align-items: center;
     padding: $size-gap-4 $size-gap-4 0;
+  }
+
+  &--dispatchable &__header {
+    padding-right: 104px;
   }
 
   &__header-info {
@@ -616,10 +689,22 @@
   }
 }
 
+@keyframes agent-card-dispatch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .agent-card {
     animation: none;
     transition: none;
+
+    &__dispatch,
+    &__dispatch-spinner {
+      animation: none;
+      transition: none;
+    }
   }
 }
 

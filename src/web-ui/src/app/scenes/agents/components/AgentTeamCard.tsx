@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Loader2, Send, Sparkles } from 'lucide-react';
 import AgentAvatar from './AgentAvatar';
 import './AgentTeamCard.scss';
 
@@ -12,6 +12,10 @@ interface AgentTeamCardProps {
   avatarIdentity: string;
   avatarName: string;
   onOpen: () => void;
+  onDispatch?: () => void;
+  dispatchLabel?: string;
+  dispatchAriaLabel?: string;
+  dispatching?: boolean;
 }
 
 const TAG_COLORS = [
@@ -29,6 +33,10 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
   avatarIdentity,
   avatarName,
   onOpen,
+  onDispatch,
+  dispatchLabel,
+  dispatchAriaLabel,
+  dispatching = false,
 }) => {
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.repeat || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -38,7 +46,7 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
 
   return (
     <div
-      className="agent-team-card"
+      className={`agent-team-card ${onDispatch ? 'agent-team-card--dispatchable' : ''}`.trim()}
       style={{ '--card-index': index } as React.CSSProperties}
       role="button"
       tabIndex={0}
@@ -46,6 +54,26 @@ const AgentTeamCard: React.FC<AgentTeamCardProps> = ({
       onKeyDown={handleKeyDown}
       aria-label={title}
     >
+      {onDispatch && dispatchLabel ? (
+        <button
+          type="button"
+          className="agent-team-card__dispatch"
+          aria-label={dispatchAriaLabel ?? dispatchLabel}
+          disabled={dispatching}
+          onClick={event => {
+            event.stopPropagation();
+            onDispatch();
+          }}
+          onKeyDown={event => event.stopPropagation()}
+        >
+          {dispatching ? (
+            <Loader2 size={13} className="agent-team-card__dispatch-spinner" aria-hidden="true" />
+          ) : (
+            <Send size={13} aria-hidden="true" />
+          )}
+          <span>{dispatchLabel}</span>
+        </button>
+      ) : null}
       <div className="agent-team-card__header">
         <AgentAvatar
           identity={avatarIdentity}

@@ -13,6 +13,54 @@
     color-mix(in srgb, var(--team-card-accent) 70%, var(--color-accent-500))
   );
 
+  &:hover &__dispatch,
+  &:focus-within &__dispatch,
+  &__dispatch:focus-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  &__dispatch {
+    position: absolute;
+    z-index: 3;
+    top: $size-gap-3;
+    right: $size-gap-3;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: $size-radius-full;
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-3px);
+    pointer-events: none;
+    transition:
+      opacity $motion-fast $easing-standard,
+      transform $motion-fast $easing-standard;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+  }
+
+  &__dispatch-spinner {
+    animation: agent-team-dispatch-spin 0.85s linear infinite;
+  }
+
   &__header {
     display: flex;
     align-items: center;
@@ -21,6 +69,10 @@
     padding-bottom: 0;
     position: relative;
     z-index: 1;
+  }
+
+  &--dispatchable &__header {
+    padding-right: 104px;
   }
 
   &__icon {
@@ -148,5 +200,21 @@
   .agent-team-card {
     width: 100%;
     min-height: 190px;
+  }
+}
+
+@keyframes agent-team-dispatch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-team-card {
+    &__dispatch,
+    &__dispatch-spinner {
+      animation: none;
+      transition: none;
+    }
   }
 }

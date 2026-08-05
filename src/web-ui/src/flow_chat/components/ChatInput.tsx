@@ -6,7 +6,7 @@
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { Bot, Image, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
+import { Bot, Image, Loader2, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
 import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
@@ -109,6 +109,7 @@ import { isComposerActionAllowed } from '../utils/composerSubmissionGuard';
 import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import {
   completeNewSessionDraft,
+  isNewSessionDraftWorkspaceAvailable,
   selectNewSessionDraftPersona,
   selectNewSessionDraftWorkspace,
 } from '../services/NewSessionDraftService';
@@ -731,11 +732,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   });
   const customizationPersistencePending =
     modePersistencePending || personaPersistencePending;
+  const draftCreationPending = isNewSessionDraft && draftStatus === 'creating';
+  const customizationInteractionPending =
+    customizationPersistencePending || draftCreationPending;
+  useEffect(() => {
+    if (draftCreationPending && modeState.dropdownOpen) {
+      dispatchMode({ type: 'CLOSE_DROPDOWN' });
+    }
+  }, [draftCreationPending, modeState.dropdownOpen]);
   const isCustomizationPersistencePending = useCallback(
     () =>
-      isModePersistencePending(effectiveTargetSessionId)
+      draftCreationPending
+      || isModePersistencePending(effectiveTargetSessionId)
       || isPersonaPersistencePending(),
     [
+      draftCreationPending,
       effectiveTargetSessionId,
       isModePersistencePending,
       isPersonaPersistencePending,
@@ -2677,9 +2688,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return;
     }
 
-    if (isNewSessionDraft && !draftWorkspace) {
+    const selectedDraftWorkspaceIsOpen = isNewSessionDraftWorkspaceAvailable(
+      draftWorkspace,
+      draftWorkspaceOptions,
+    );
+
+    if (isNewSessionDraft && (!draftWorkspace || !selectedDraftWorkspaceIsOpen)) {
+      if (draftWorkspace && !selectedDraftWorkspaceIsOpen) {
+        selectNewSessionDraftWorkspace(null);
+        setDraftStatus('draft');
+      }
       notificationService.warning(
-        t('workspaceStrip.selectWorkspaceBeforeSend'),
+        t(
+          draftWorkspace && !selectedDraftWorkspaceIsOpen
+            ? 'workspaceStrip.selectedWorkspaceUnavailable'
+            : 'workspaceStrip.selectWorkspaceBeforeSend',
+        ),
         { duration: 3500 },
       );
       return;
@@ -2950,6 +2974,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     resolveTypedMcpPromptCommand,
     draftStatus,
     draftWorkspace,
+    draftWorkspaceOptions,
     draftPersonaTarget,
     isCustomizationPersistencePending,
     isNewSessionDraft,
@@ -3638,7 +3663,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         hasDraft={Boolean(inputState.value.trim())}
         hasQueuedInput={derivedState?.hasQueuedInput ?? false}
         customizationPersistencePending={customizationPersistencePending}
+        sessionCreationPending={draftCreationPending}
         sendLabel={t('input.sendShortcut')}
+        creatingLabel={t('chatInput.creatingDraftSession')}
         retryLabel={t('input.retry')}
         cancelLabel={t('input.stopGeneration')}
         onPrimaryAction={() => {
@@ -3907,6 +3934,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       aria-label={t('chatInput.addBoostTooltip')}
                       aria-haspopup="menu"
                       aria-expanded={modeState.dropdownOpen}
+                      disabled={customizationInteractionPending}
                       onClick={e => {
                         e.stopPropagation();
                         dispatchMode({ type: 'TOGGLE_DROPDOWN' });
@@ -3929,7 +3957,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         type="button"
                         className="void-chat-input__agent-capsule-close"
                         aria-label={t('chatInput.resetToAgentic')}
-                        disabled={customizationPersistencePending}
+                        disabled={customizationInteractionPending}
                         onClick={e => {
                           e.stopPropagation();
                           void applyModeChange('agentic');
@@ -3968,7 +3996,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         type="button"
                         className="void-chat-input__agent-capsule-close"
                         aria-label={tCommon('customization.composerPersona.clearPersona')}
-                        disabled={customizationPersistencePending}
+                        disabled={customizationInteractionPending}
                         onClick={e => {
                           e.stopPropagation();
                           handleClearComposerAgent();
@@ -3978,6 +4006,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       </button>
                     </div>
                   )}
+
+                  {isNewSessionDraft && draftStatus !== 'draft' ? (
+                    <span
+                      className={`void-chat-input__draft-status void-chat-input__draft-status--${draftStatus}`}
+                      role="status"
+                      aria-live="polite"
+                      data-testid="new-session-draft-status"
+                    >
+                      {draftStatus === 'creating' ? (
+                        <Loader2 size={12} aria-hidden />
+                      ) : null}
+                      {draftStatus === 'creating'
+                        ? t('chatInput.creatingDraftSession')
+                        : t('chatInput.createDraftFailedRetry')}
+                    </span>
+                  ) : null}
 
                   {modeState.dropdownOpen && (
                     <div className="void-chat-input__mode-dropdown void-chat-input__mode-dropdown--agent-boost">

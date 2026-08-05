@@ -14,6 +14,7 @@ vi.mock('@/flow_chat/store/FlowChatStore', () => ({
 import {
   beginNewSessionDraft,
   completeNewSessionDraft,
+  isNewSessionDraftWorkspaceAvailable,
 } from './NewSessionDraftService';
 
 describe('NewSessionDraftService', () => {
@@ -48,10 +49,33 @@ describe('NewSessionDraftService', () => {
     expect(mocks.setState).toHaveBeenCalledOnce();
 
     const projectDraft = mocks.setState.mock.calls[0]?.[0];
-    const sessions = new Map([['session-1', { sessionId: 'session-1' }]]);
+    const sessions = new Map([
+      ['session-1', {
+        sessionId: 'session-1',
+        state: 'processing',
+        queuedInput: '继续运行',
+        contentCanvasOpen: true,
+      }],
+      ['btw-1', {
+        sessionId: 'btw-1',
+        state: 'idle',
+        relationship: {
+          displayAsChild: true,
+          parentSessionId: 'session-1',
+        },
+      }],
+    ]);
     expect(projectDraft({ sessions, activeSessionId: 'session-1' })).toEqual({
       sessions,
       activeSessionId: null,
+    });
+    expect(sessions.get('session-1')).toMatchObject({
+      state: 'processing',
+      queuedInput: '继续运行',
+      contentCanvasOpen: true,
+    });
+    expect(sessions.get('btw-1')).toMatchObject({
+      relationship: { parentSessionId: 'session-1' },
     });
   });
 
@@ -98,5 +122,29 @@ describe('NewSessionDraftService', () => {
       draftExecutionPolicy: null,
       draftPersonaTarget: null,
     });
+  });
+
+  it('rejects a draft workspace after it is closed or its connection changes', () => {
+    const draft = {
+      id: 'workspace-1',
+      name: 'Workspace',
+      rootPath: 'D:/workspace',
+      remoteConnectionId: 'connection-1',
+      remoteSshHost: 'host-1',
+    };
+    const matching = {
+      id: 'workspace-1',
+      name: 'Workspace',
+      rootPath: 'D:/workspace',
+      connectionId: 'connection-1',
+      sshHost: 'host-1',
+    } as any;
+
+    expect(isNewSessionDraftWorkspaceAvailable(draft, [matching])).toBe(true);
+    expect(isNewSessionDraftWorkspaceAvailable(draft, [])).toBe(false);
+    expect(isNewSessionDraftWorkspaceAvailable(draft, [{
+      ...matching,
+      connectionId: 'connection-2',
+    }])).toBe(false);
   });
 });

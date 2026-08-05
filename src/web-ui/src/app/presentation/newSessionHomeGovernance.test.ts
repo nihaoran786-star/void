@@ -98,6 +98,12 @@ describe('new session home visual governance', () => {
     expect(mainNavSource).not.toContain('pickWorkspaceForProjectChatSession');
     expect(draftServiceSource).toContain('activeSessionId: null');
     expect(senderSource).toContain('...newSessionConfig');
-    expect(senderSource).toContain('onSessionCreated?.(sessionId)');
+    expect(senderSource).toContain(
+      'const prepareSession = retryPreparationRef.current ?? onSessionCreated',
+    );
+    expect(senderSource).toContain(
+      'preparedPersona = await prepareSession?.(sessionId)',
+    );
+    expect(senderSource).toContain('if (pendingSendRef.current)');
   });
 });

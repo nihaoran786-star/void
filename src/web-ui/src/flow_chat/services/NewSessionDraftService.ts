@@ -24,6 +24,19 @@ function toDraftWorkspace(
   };
 }
 
+export function isNewSessionDraftWorkspaceAvailable(
+  draftWorkspace: NewSessionDraftWorkspace | null,
+  openedWorkspaces: readonly WorkspaceInfo[],
+): boolean {
+  if (!draftWorkspace) return false;
+  return openedWorkspaces.some(workspace =>
+    workspace.id === draftWorkspace.id
+    && workspace.rootPath === draftWorkspace.rootPath
+    && (workspace.connectionId || undefined) === draftWorkspace.remoteConnectionId
+    && (workspace.sshHost || undefined) === draftWorkspace.remoteSshHost
+  );
+}
+
 /**
  * Opens an unpersisted new-session draft.
  *

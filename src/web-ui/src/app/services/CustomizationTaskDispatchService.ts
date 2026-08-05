@@ -1,8 +1,9 @@
 import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/adapters/ShortDramaTeamAdapter';
 import { scenarioFromLegacyAgentType } from '@/shared/services/customization/adapters/SessionPersonaMetadataAdapter';
-import type {
-  ActivateReusableTeamInput,
-  ReusableTeamPersonaState,
+import {
+  ReusableTeamActivationError,
+  type ActivateReusableTeamInput,
+  type ReusableTeamPersonaState,
 } from '@/shared/services/customization/ReusableTeamActivationService';
 import type {
   AgentCatalogEntry,
@@ -77,6 +78,7 @@ export class CustomizationTaskDispatchError extends Error {
       | 'team_activation_failed',
     message: string,
     readonly sessionId?: string,
+    readonly preserveSession = false,
   ) {
     super(message);
     this.name = 'CustomizationTaskDispatchError';
@@ -335,10 +337,13 @@ export class CustomizationTaskDispatchService
           activePersonaBinding: binding,
         };
       } catch (error) {
+        const preserveSession = error instanceof ReusableTeamActivationError
+          && error.code === 'team_persona_persistence_failed';
         throw new CustomizationTaskDispatchError(
           'team_activation_failed',
           error instanceof Error ? error.message : 'Team activation failed.',
           input.sessionId,
+          preserveSession,
         );
       }
     }

@@ -37,6 +37,54 @@
     outline-offset: 2px;
   }
 
+  &:hover &__dispatch,
+  &:focus-within &__dispatch,
+  &__dispatch:focus-visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  &__dispatch {
+    position: absolute;
+    z-index: 3;
+    top: $size-gap-3;
+    right: $size-gap-3;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: $size-radius-full;
+    background: var(--color-text-primary);
+    color: var(--color-bg-primary);
+    font: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: $font-weight-semibold;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(-3px);
+    pointer-events: none;
+    transition:
+      opacity $motion-fast $easing-standard,
+      transform $motion-fast $easing-standard;
+
+    &:focus-visible {
+      outline: 2px solid var(--color-accent-500);
+      outline-offset: 2px;
+    }
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+  }
+
+  &__dispatch-spinner {
+    animation: core-agent-dispatch-spin 0.85s linear infinite;
+  }
+
   &__top {
     position: relative;
     z-index: 1;
@@ -44,6 +92,10 @@
     align-items: center;
     gap: $size-gap-3;
     padding: $size-gap-4 $size-gap-4 0;
+  }
+
+  &--dispatchable &__top {
+    padding-right: 104px;
   }
 
   &__top-info {
@@ -154,10 +206,22 @@
 
 // ── Animation ─────────────────────────────────────────────────────
 
+@keyframes core-agent-dispatch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .core-agent-card {
     animation: none;
     transition: none;
+
+    &__dispatch,
+    &__dispatch-spinner {
+      animation: none;
+      transition: none;
+    }
   }
 }
 

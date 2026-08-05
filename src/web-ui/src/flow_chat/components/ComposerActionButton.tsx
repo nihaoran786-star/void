@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, RotateCcw } from 'lucide-react';
+import { ArrowUp, Loader2, RotateCcw } from 'lucide-react';
 
 import { IconButton, Tooltip } from '@/component-library';
 import { isComposerActionAllowed } from '../utils/composerSubmissionGuard';
@@ -17,7 +17,9 @@ export interface ComposerActionButtonProps {
   hasDraft: boolean;
   hasQueuedInput: boolean;
   customizationPersistencePending: boolean;
+  sessionCreationPending?: boolean;
   sendLabel: string;
+  creatingLabel?: string;
   retryLabel: string;
   cancelLabel: string;
   onPrimaryAction: () => void;
@@ -30,12 +32,27 @@ export const ComposerActionButton: React.FC<ComposerActionButtonProps> = ({
   hasDraft,
   hasQueuedInput,
   customizationPersistencePending,
+  sessionCreationPending = false,
   sendLabel,
+  creatingLabel = sendLabel,
   retryLabel,
   cancelLabel,
   onPrimaryAction,
   onCancel,
 }) => {
+  if (sessionCreationPending) {
+    return (
+      <IconButton
+        className="void-chat-input__send-button void-chat-input__send-button--creating"
+        aria-label={creatingLabel}
+        disabled
+        size="small"
+      >
+        <Loader2 size={11} className="void-chat-input__send-button-spinner" aria-hidden />
+      </IconButton>
+    );
+  }
+
   if (!available) {
     return (
       <IconButton

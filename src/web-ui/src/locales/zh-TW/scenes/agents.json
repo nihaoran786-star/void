@@ -21,6 +21,17 @@
       "empty": "當前沒有可用的智能體團隊。"
     },
     "actions": { "retry": "重試", "reload": "重新加載" },
+    "availability": {
+      "unavailable": "目前設定還不能安全派發，請檢查角色定義、工具和權限。",
+      "disabled": "這個智能體目前已停用，請先在管理頁啟用。",
+      "parent_persona_contract_pending": "這個智能體尚未完成主會話角色接入。",
+      "parent_persona_custom_only": "內置子智能體不能直接作為會話角色，請先建立可自定義版本。",
+      "persona_revision_unavailable": "這個智能體缺少可驗證的版本資訊，請重新儲存或安裝。",
+      "team_lead_readonly_unsupported": "主理人必須能夠編排和彙整，不能設為唯讀成員。",
+      "team_lead_task_tool_required": "主理人需要啟用 Task 工具，才能建立並調度真實成員。",
+      "team_member_tool_narrowing_unsupported": "成員的工具限制目前無法由執行環境可靠執行。",
+      "team_member_readonly_unsupported": "成員的唯讀限制目前無法由執行環境可靠執行。"
+    },
     "dispatch": {
       "errors": {
         "target_not_dispatchable": "這個智能體或團隊目前還不能進入會話。",
@@ -32,6 +43,7 @@
     "detail": {
       "memberCount": "{{count}} 位成員",
       "dispatchTask": "派發任務",
+      "dispatchUnavailable": "暫不能派發",
       "openReviewTeam": "打開代碼審查團隊",
       "useInMedia": "在設計創意會話中使用",
       "editDefinition": "編輯團隊",
@@ -401,7 +413,8 @@
       "view": "查看",
       "viewNamed": "查看{{name}}",
       "viewDetails": "查看員工詳情",
-      "dispatchTask": "派發任務"
+      "dispatchTask": "派發任務",
+      "dispatchNamed": "派發任務給{{name}}"
     },
     "roles": {
       "core": "核心員工",

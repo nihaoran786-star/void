@@ -1024,7 +1024,8 @@
   },
   "sceneTabs": {
     "label": "場景標籤頁",
-    "close": "關閉{{label}}"
+    "close": "關閉{{label}}",
+    "personaDraftTitle": "{{name}} · 新建會話"
   },
   "loading": {
     "scenes": "正在加載場景"

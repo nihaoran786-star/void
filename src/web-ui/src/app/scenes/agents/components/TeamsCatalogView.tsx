@@ -36,6 +36,7 @@ import TeamCatalogDetail from './TeamCatalogDetail';
 import CatalogPagination from './CatalogPagination';
 import './TeamsCatalogView.scss';
 import {
+  canDispatchCustomizationTarget,
   CustomizationTaskDispatchError,
   customizationTaskDispatchService,
   type CustomizationTaskDispatcher,
@@ -186,6 +187,12 @@ export const TeamsCatalogViewContent: React.FC<TeamsCatalogViewContentProps> = (
                     team={team}
                     index={teamPage * TEAM_PAGE_SIZE + index}
                     onOpen={setSelectedTeam}
+                    onDispatch={
+                      canDispatchCustomizationTarget(team)
+                        ? currentTeam => { void onDispatchTeam(currentTeam); }
+                        : undefined
+                    }
+                    dispatching={team.identity.id === dispatchingTeamId}
                   />
                 ))}
               </GalleryGrid>

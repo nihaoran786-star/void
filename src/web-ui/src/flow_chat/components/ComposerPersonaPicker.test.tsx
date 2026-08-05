@@ -182,6 +182,8 @@ describe('composer persona presentation contract', () => {
     ).toBe('false');
     expect(container.querySelectorAll('.void-chat-input__persona-item-check'))
       .toHaveLength(1);
+    expect(container.querySelectorAll('.void-chat-input__persona-item-avatar'))
+      .toHaveLength(3);
     expect(
       radioItems.find(item => item.textContent?.includes('AI 短剧团队'))?.textContent,
     ).toContain('customization.composerPersona.open');
