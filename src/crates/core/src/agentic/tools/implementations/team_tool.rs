@@ -50,7 +50,7 @@ impl Tool for TeamTool {
     }
 
     async fn description(&self) -> VoidResult<String> {
-        Ok("Coordinate the active reusable AI Team. Start a declared workflow, inspect or recover its durable run, message a member through the lead, or pause, resume, and stop the run. Team identity and session authority are supplied by the host; never include them in the input.".to_string())
+        Ok("Coordinate the active reusable AI Team. Start a declared workflow with a direct execution assignment for its specialist, inspect or recover its durable run, message a member through the lead, or pause, resume, and stop the run. A start objective must ask the assigned specialist to perform and return the actual deliverable, never to delegate or enqueue the work again. Team identity and session authority are supplied by the host; never include them in the input.".to_string())
     }
 
     fn short_description(&self) -> String {
@@ -72,7 +72,11 @@ impl Tool for TeamTool {
                     "enum": ["start", "observe", "message", "pause", "resume", "stop", "recover"]
                 },
                 "workflowId": { "type": "string", "minLength": 1 },
-                "objective": { "type": "string", "minLength": 1 },
+                "objective": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Direct execution assignment for the workflow specialist. Require that specialist to perform and return the actual deliverable. Do not ask them to delegate, enqueue, summon another member, wait, or merely acknowledge the task."
+                },
                 "teamRunId": { "type": "string", "minLength": 1 },
                 "memberId": { "type": "string", "minLength": 1 },
                 "message": { "type": "string", "minLength": 1 }
@@ -224,6 +228,17 @@ mod tests {
     async fn schema_and_validation_are_action_specific() {
         let tool = TeamTool::new();
         assert_eq!(tool.input_schema()["additionalProperties"], json!(false));
+        assert!(
+            tool.input_schema()["properties"]["objective"]["description"]
+                .as_str()
+                .expect("objective description")
+                .contains("actual deliverable")
+        );
+        assert!(tool
+            .description()
+            .await
+            .expect("Team description")
+            .contains("never to delegate or enqueue"));
         assert!(
             tool.validate_input(
                 &json!({"action":"start","workflowId":"delivery","objective":"ship"}),

@@ -39,6 +39,7 @@ import {
   resolveShortDramaProjectChangedForWorkspace,
   getShortDramaArtifactDomId,
   getShortDramaStaticProjectFixtureVersion,
+  getShortDramaNativeStageAgentName,
   selectShortDramaPostFinalPreviewArtifact,
   shortDramaEpisodeIdMatches,
   staticShortDramaLibraryService,
@@ -80,6 +81,11 @@ import { createShortDramaStageAgentHistoricalSessionRestores } from './ShortDram
 import { createShortDramaAgentTaskSessionSender } from './ShortDramaAgentTaskSessionSender';
 import { ShortDramaTopBar } from './ShortDramaTopBar';
 import { useRecoverableWorkspaceMediaUrl } from './useRecoverableWorkspaceMediaUrl';
+import {
+  isUnifiedShortDramaTeamSession,
+  shouldBootstrapLegacyShortDramaStageAgents,
+} from './ShortDramaTeamSessionPolicy';
+import { openTeamMemberByAgentId } from '@/team_workspace';
 
 import './ShortDramaCenterPanel.scss';
 
@@ -204,8 +210,17 @@ export function ShortDramaCenterPanel({
         if (bindingState.status === 'error') {
           return [];
         }
+        const flowState = flowChatStore.getState();
+        const sourceSession = sourceSessionId
+          ? flowState.sessions.get(sourceSessionId)
+          : flowState.activeSessionId
+            ? flowState.sessions.get(flowState.activeSessionId)
+            : undefined;
+        const persistedBindings = isUnifiedShortDramaTeamSession(sourceSession)
+          ? []
+          : bindingState.bindings;
         const restores = createShortDramaStageAgentHistoricalSessionRestores({
-          bindings: bindingState.bindings,
+          bindings: persistedBindings,
           sessions,
           workspaceRoot: workspacePath,
         });
@@ -233,10 +248,10 @@ export function ShortDramaCenterPanel({
           workspaceManifestAdapter,
           workspacePath,
           sessions,
-          bindingState.bindings,
+          persistedBindings,
         );
         return registered.status === 'error'
-          ? validateShortDramaStageAgentBindingsAgainstSessions(bindingState.bindings, sessions, workspacePath)
+          ? validateShortDramaStageAgentBindingsAgainstSessions(persistedBindings, sessions, workspacePath)
           : registered.bindings;
       })
       .then(nextBindings => {
@@ -255,7 +270,7 @@ export function ShortDramaCenterPanel({
     return () => {
       cancelled = true;
     };
-  }, [flowSessionRevision, workspaceManifestAdapter, workspacePath]);
+  }, [flowSessionRevision, sourceSessionId, workspaceManifestAdapter, workspacePath]);
 
   useEffect(() => {
     if (!workspacePath || !workspaceManifestAdapter || !stageAgentBindingsLoaded || isStageAgentBootstrapping) {
@@ -269,6 +284,9 @@ export function ShortDramaCenterPanel({
         ? flowState.sessions.get(flowState.activeSessionId)
         : undefined;
     if (!sourceSession || sourceSession.mode?.toLowerCase() !== 'media' || sourceSession.sessionKind === 'subagent') {
+      return undefined;
+    }
+    if (!shouldBootstrapLegacyShortDramaStageAgents(sourceSession)) {
       return undefined;
     }
 
@@ -609,6 +627,16 @@ export function ShortDramaCenterPanel({
       expandRightPanel: () => window.dispatchEvent(new CustomEvent(TAB_EVENTS.EXPAND_RIGHT_PANEL)),
     });
   }, [workspacePath]);
+  const sourceSession = useMemo(() => {
+    void flowSessionRevision;
+    const flowState = flowChatStore.getState();
+    return sourceSessionId
+      ? flowState.sessions.get(sourceSessionId)
+      : flowState.activeSessionId
+        ? flowState.sessions.get(flowState.activeSessionId)
+        : undefined;
+  }, [flowSessionRevision, sourceSessionId]);
+  const usesUnifiedTeamWorkspace = isUnifiedShortDramaTeamSession(sourceSession);
   useEffect(() => {
     if (state.status !== 'ready') {
       return;
@@ -676,14 +704,25 @@ export function ShortDramaCenterPanel({
       return;
     }
 
+    if (usesUnifiedTeamWorkspace && sourceSession) {
+      openTeamMemberByAgentId(
+        sourceSession.sessionId,
+        getShortDramaNativeStageAgentName(activeStageWorkspace.stage),
+      );
+      return;
+    }
+
     const result = openNativeStageAgentTab(activeStageWorkspace);
     if (result.status === 'ready') {
       openedStageAgentTabsRef.current.add(`${activeStageWorkspace.stage}:${result.childSessionId}`);
     }
-  }, [activeStageWorkspace, openNativeStageAgentTab]);
+  }, [activeStageWorkspace, openNativeStageAgentTab, sourceSession, usesUnifiedTeamWorkspace]);
 
   useEffect(() => {
     if (state.status !== 'ready') {
+      return;
+    }
+    if (usesUnifiedTeamWorkspace) {
       return;
     }
 
@@ -708,7 +747,7 @@ export function ShortDramaCenterPanel({
     if (selectedWorkspace) {
       openNativeStageAgentTab(selectedWorkspace);
     }
-  }, [openNativeStageAgentTab, selectedStage, stageWorkspaces, state.status]);
+  }, [openNativeStageAgentTab, selectedStage, stageWorkspaces, state.status, usesUnifiedTeamWorkspace]);
 
   useEffect(() => {
     setScriptContent(baseScriptDocument?.content);
@@ -1291,6 +1330,10 @@ function createShortDramaFlowSessionSignature(sessions: Map<string, Session>) {
       String(session.lastActiveAt ?? ''),
       session.isTransient ? 'transient' : '',
       session.agentBackedTransient ? 'agent-backed' : '',
+      session.activePersonaBinding?.kind ?? '',
+      session.activePersonaBinding?.kind === 'team_lead'
+        ? session.activePersonaBinding.teamDefinitionId ?? ''
+        : '',
     ].join(':'))
     .join('|');
 }

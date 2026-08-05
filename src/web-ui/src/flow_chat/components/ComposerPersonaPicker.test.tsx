@@ -83,17 +83,30 @@ const fixedTeamEntry: TeamCatalogEntry = {
   ...teamEntry,
   identity: {
     ...teamEntry.identity,
-    id: 'ai-short-drama-team',
+    id: 'custom-00000000000000000000000000000001',
+    revision: { status: 'known', value: 'short-drama-v1' },
     displayName: 'AI 短剧团队',
   },
   source: {
     adapterId: 'short-drama',
     recordType: 'fixed_team',
-    recordId: 'ai-short-drama-team',
+    recordId: 'custom-00000000000000000000000000000001',
   },
   origin: 'fixed_runtime',
-  leadBinding: 'child_orchestrator',
-  activationSupport: 'existing_flow_only',
+  leadBinding: 'parent_persona',
+  lead: {
+    ...teamEntry.lead,
+    identity: {
+      ...teamEntry.lead.identity,
+      id: 'member-00000000000000000000000000000001',
+      revision: {
+        status: 'known',
+        value: 'short-drama-v1:member-00000000000000000000000000000001',
+      },
+      displayName: '短剧制片人',
+    },
+  },
+  activationSupport: 'parent_persona',
   managementSupport: 'readonly_fixed',
 };
 
@@ -186,7 +199,7 @@ describe('composer persona presentation contract', () => {
       .toHaveLength(3);
     expect(
       radioItems.find(item => item.textContent?.includes('AI 短剧团队'))?.textContent,
-    ).toContain('customization.composerPersona.open');
+    ).toContain('customization.composerPersona.summon');
   });
 
   it('uses common three-locale keys for action feedback and the clear button', () => {

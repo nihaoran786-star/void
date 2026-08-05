@@ -5,6 +5,7 @@
  *   ChatPane (flex:1, FlowChat conversation)
  *   PaneResizer (draggable divider)
  *   AuxPane (variable width, ContentCanvas tabs)
+ *   TeamWorkspace (fixed member workspace when a Team is bound)
  *
  * Resizer logic moved here from WorkspaceShell.
  */
@@ -23,6 +24,8 @@ import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSession
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
 import {
   TeamWorkspacePanel,
+  resolveTeamCanvasCapability,
+  useTeamWorkspacePresentationStore,
   useActiveSessionTeamWorkspace,
 } from '@/team_workspace';
 
@@ -77,17 +80,74 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [isTeamWorkspaceOpen, setIsTeamWorkspaceOpen] = useState(false);
   const teamWorkspaceToggleRef = useRef<HTMLButtonElement>(null);
+  const teamWorkspacePresentation = useTeamWorkspacePresentationStore(
+    store => activeTeamWorkspace.sessionId
+      ? store.sessions[activeTeamWorkspace.sessionId]
+      : undefined,
+  );
+  const activateTeamWorkspaceBinding = useTeamWorkspacePresentationStore(
+    store => store.activateBinding,
+  );
+  const registerTeamWorkspaceSnapshot = useTeamWorkspacePresentationStore(
+    store => store.registerSnapshot,
+  );
+  const openTeamWorkspace = useTeamWorkspacePresentationStore(
+    store => store.open,
+  );
+  const closeTeamWorkspacePresentation = useTeamWorkspacePresentationStore(
+    store => store.close,
+  );
+  const selectTeamWorkspaceMember = useTeamWorkspacePresentationStore(
+    store => store.selectMember,
+  );
+  const isTeamWorkspaceOpen = Boolean(
+    activeTeamWorkspace.hasTeamBinding
+      && teamWorkspacePresentation?.isOpen,
+  );
 
   useEffect(() => {
-    setIsTeamWorkspaceOpen(false);
-  }, [activeTeamWorkspace.sessionId, activeTeamWorkspace.teamBindingKey]);
+    if (
+      !activeTeamWorkspace.sessionId
+      || !activeTeamWorkspace.teamBindingKey
+    ) return;
+    activateTeamWorkspaceBinding(
+      activeTeamWorkspace.sessionId,
+      activeTeamWorkspace.teamBindingKey,
+      activeTeamWorkspace.snapshot,
+    );
+  }, [
+    activateTeamWorkspaceBinding,
+    activeTeamWorkspace.sessionId,
+    activeTeamWorkspace.snapshot,
+    activeTeamWorkspace.teamBindingKey,
+  ]);
+
+  useEffect(() => {
+    if (activeTeamWorkspace.snapshot) {
+      registerTeamWorkspaceSnapshot(activeTeamWorkspace.snapshot);
+    }
+  }, [activeTeamWorkspace.snapshot, registerTeamWorkspaceSnapshot]);
 
   const closeTeamWorkspace = useCallback(() => {
-    setIsTeamWorkspaceOpen(false);
+    if (!activeTeamWorkspace.sessionId) return;
+    closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
     queueMicrotask(() => teamWorkspaceToggleRef.current?.focus());
-  }, []);
+  }, [activeTeamWorkspace.sessionId, closeTeamWorkspacePresentation]);
+
+  const toggleTeamWorkspace = useCallback(() => {
+    if (!activeTeamWorkspace.sessionId) return;
+    if (isTeamWorkspaceOpen) {
+      closeTeamWorkspacePresentation(activeTeamWorkspace.sessionId);
+    } else {
+      openTeamWorkspace(activeTeamWorkspace.sessionId);
+    }
+  }, [
+    activeTeamWorkspace.sessionId,
+    closeTeamWorkspacePresentation,
+    isTeamWorkspaceOpen,
+    openTeamWorkspace,
+  ]);
 
   const preferredRightWidthRef = useRef(
     loadPanelWidth(
@@ -140,11 +200,17 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     if (!containerRef.current) return newWidth;
     const containerWidth = containerRef.current.offsetWidth;
     // NavPanel (240px) is outside SessionScene — only account for resizer + min chat width
-    const reserved = PANEL_COMMON_CONFIG.RESIZER_WIDTH + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH;
+    const teamWorkspaceWidth = isTeamWorkspaceOpen
+      && window.matchMedia('(min-width: 1280px)').matches
+      ? 368
+      : 0;
+    const reserved = PANEL_COMMON_CONFIG.RESIZER_WIDTH
+      + PANEL_COMMON_CONFIG.MIN_CENTER_WIDTH
+      + teamWorkspaceWidth;
     const dynamicMax = containerWidth - reserved;
     const maxWidth = Math.min(RIGHT_PANEL_CONFIG.MAX_WIDTH, dynamicMax);
     return Math.min(maxWidth, Math.max(RIGHT_PANEL_CONFIG.COMPACT_WIDTH, newWidth));
-  }, []);
+  }, [isTeamWorkspaceOpen]);
 
   const saveAndUpdateRightWidth = useCallback((width: number) => {
     preferredRightWidthRef.current = width;
@@ -280,6 +346,23 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     window.dispatchEvent(new CustomEvent(eventName));
   }, [state.layout.rightPanelCollapsed, toggleRightPanel]);
 
+  const teamCanvasCapability = resolveTeamCanvasCapability(
+    activeTeamWorkspace.snapshot?.activeTeam?.teamDefinitionId,
+  );
+  useEffect(() => {
+    if (!activeTeamWorkspace.teamBindingKey || !teamCanvasCapability) return;
+    if (state.layout.rightPanelCollapsed) toggleRightPanel();
+    const eventName = teamCanvasCapability === 'short-drama'
+      ? 'void:open-short-drama-center'
+      : 'void:open-workspace-media';
+    window.dispatchEvent(new CustomEvent(eventName));
+  }, [
+    activeTeamWorkspace.teamBindingKey,
+    state.layout.rightPanelCollapsed,
+    teamCanvasCapability,
+    toggleRightPanel,
+  ]);
+
   const canToggleAuxPane = newSessionDraftStatus === 'idle'
     && !isRightAsMain
     && !state.layout.centerPanelCollapsed;
@@ -299,6 +382,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
         className={[
           'void-session-scene',
           isDragging && 'void-session-scene--dragging',
+          isTeamWorkspaceOpen && 'void-session-scene--has-team-workspace',
           isEntering && 'layout-entering',
         ].filter(Boolean).join(' ')}
         style={panelCollapseHintStyles}
@@ -319,20 +403,6 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             isPreviewFirstActive={isRightAsMain}
             onPreviewFirstToggle={handlePreviewFirstToggle}
           />
-          {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
-            <div
-              className="void-session-scene__team-workspace"
-              id="void-team-workspace-panel"
-              data-testid="session-team-workspace-panel"
-            >
-              <TeamWorkspacePanel
-                state={activeTeamWorkspace}
-                isActive={isActive}
-                workspacePath={workspacePath}
-                onClose={closeTeamWorkspace}
-              />
-            </div>
-          )}
           {canToggleAuxPane && activeSessionId && (
             <SessionCapabilityRail
               capabilities={activeSessionCapabilities}
@@ -340,7 +410,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
                 label: activeTeamWorkspace.displayName,
                 status: activeTeamWorkspace.presentationStatus,
                 isOpen: isTeamWorkspaceOpen,
-                onToggle: () => setIsTeamWorkspaceOpen(open => !open),
+                onToggle: toggleTeamWorkspace,
                 buttonRef: teamWorkspaceToggleRef,
               } : undefined}
               activeCapabilityId={
@@ -415,6 +485,31 @@ const SessionScene: React.FC<SessionSceneProps> = ({
           isSceneActive={isActive}
         />
       </div>
+      {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
+        <div
+          className="void-session-scene__team-workspace"
+          id="void-team-workspace-panel"
+          data-testid="session-team-workspace-panel"
+        >
+          <TeamWorkspacePanel
+            state={activeTeamWorkspace}
+            isActive={isActive}
+            workspacePath={workspacePath}
+            onClose={closeTeamWorkspace}
+            selectedMemberId={
+              teamWorkspacePresentation?.selectedMemberId ?? null
+            }
+            onSelectedMemberChange={memberId => {
+              if (activeTeamWorkspace.sessionId) {
+                selectTeamWorkspaceMember(
+                  activeTeamWorkspace.sessionId,
+                  memberId,
+                );
+              }
+            }}
+          />
+        </div>
+      )}
       </div>
     </SessionCapabilityRailOutletProvider>
   );

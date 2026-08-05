@@ -386,6 +386,7 @@
     "system": "系統",
     "thinking": "思考中...",
     "generating": "生成中...",
+    "backgroundSubagentResult": "團隊成員已返回背景任務結果",
     "copy": "複製消息",
     "copied": "已複製",
     "copyFailed": "已複製!",

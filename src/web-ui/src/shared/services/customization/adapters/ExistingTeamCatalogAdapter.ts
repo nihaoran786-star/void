@@ -13,6 +13,7 @@ import {
   type TeamCatalogMember,
 } from '../types';
 import { existingTeamDefinitionAdapter } from './ExistingTeamDefinitionAdapter';
+import { SHORT_DRAMA_TEAM_CATALOG_ID } from '../fixedTeamIds';
 
 function memberCatalogProjection(
   member: TeamMemberDefinition,
@@ -20,7 +21,7 @@ function memberCatalogProjection(
 ): TeamCatalogMember {
   const presentation = resolveDefaultCatalogPresentation({
     kind: 'team_member',
-    id: member.memberId,
+    id: member.agentId?.trim() || member.memberId,
     runtimeName: member.displayName,
     runtimeDescription: member.professionalRole,
   });
@@ -32,6 +33,10 @@ function memberCatalogProjection(
         value: `${teamRevision}:${member.memberId}`,
       },
       ...presentation,
+      aliases: Array.from(new Set([
+        member.memberId,
+        ...presentation.aliases,
+      ])),
     },
     role: member.role,
     isReadonly: member.isReadonly,
@@ -168,7 +173,8 @@ export class ExistingTeamCatalogAdapter implements CapabilityCatalogSource {
     );
     const entries: TeamCatalogEntry[] = [];
     const reusableRecords = snapshot.records.filter(
-      record => (record.definition.origin as string) !== 'fixed_runtime',
+      record => (record.definition.origin as string) !== 'fixed_runtime'
+        && record.definition.teamDefinitionId !== SHORT_DRAMA_TEAM_CATALOG_ID,
     );
     const recordsByDefinitionId = new Map<string, TeamDefinitionRecord[]>();
 

@@ -73,6 +73,10 @@ const PRESENTATION: Record<string, PresentationDescriptor> = {
     'catalog.presentations.teams.shortDrama',
     ['AI Short Drama Team'],
   ),
+  'team:custom-00000000000000000000000000000001': descriptor(
+    'catalog.presentations.teams.shortDrama',
+    ['AI Short Drama Team', 'ai-short-drama-team'],
+  ),
 
   'team_member:DeepReview': descriptor('catalog.presentations.teamMembers.deepReview'),
   'team_member:ReviewBusinessLogic': descriptor('catalog.presentations.teamMembers.reviewBusinessLogic'),

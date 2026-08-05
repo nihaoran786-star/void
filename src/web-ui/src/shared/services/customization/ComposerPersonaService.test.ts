@@ -147,7 +147,7 @@ describe('ComposerPersonaService', () => {
     ]);
   });
 
-  it('生成 source-qualified 已知版本绑定，且固定团队只解析为原入口动作', () => {
+  it('生成 source-qualified 已知版本绑定，固定审查团队保留原入口，短剧团队使用通用主理人运行时', () => {
     expect(service.createAgentBinding(customAgent, 'code')).toEqual({
       kind: 'agent',
       personaId: 'project::void::frontend-lead',
@@ -157,10 +157,10 @@ describe('ComposerPersonaService', () => {
       mapDeepReviewDefinitionToCatalogEntry(FALLBACK_REVIEW_TEAM_DEFINITION),
       'code',
     )).toBe('launch_deep_review');
-    expect(service.resolveTeamAction(
+    expect(service.isReusableTeam(
       createShortDramaTeamCatalogEntry(),
       'media',
-    )).toBe('open_short_drama');
+    )).toBe(true);
   });
 
   it('拒绝把 builtin 智能体或跨场景团队伪装成父会话人格', () => {

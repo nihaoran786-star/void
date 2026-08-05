@@ -7,10 +7,7 @@ import {
 import {
   ExistingTeamCatalogAdapter,
 } from './adapters/ExistingTeamCatalogAdapter';
-import {
-  SHORT_DRAMA_TEAM_CATALOG_ID,
-  ShortDramaTeamAdapter,
-} from './adapters/ShortDramaTeamAdapter';
+import { ShortDramaTeamAdapter } from './adapters/ShortDramaTeamAdapter';
 import { CapabilityCatalogService } from './CapabilityCatalogService';
 import type {
   ActivePersonaBinding,
@@ -23,8 +20,7 @@ import type {
 export const DEEP_REVIEW_TEAM_CATALOG_ID = 'default-review-team';
 
 export type ComposerFixedTeamAction =
-  | 'launch_deep_review'
-  | 'open_short_drama';
+  | 'launch_deep_review';
 
 export interface ComposerPersonaCatalog {
   status: CapabilityCatalogResult['status'];
@@ -123,9 +119,6 @@ export class ComposerPersonaService {
     }
     if (entry.identity.id === DEEP_REVIEW_TEAM_CATALOG_ID) {
       return 'launch_deep_review';
-    }
-    if (entry.identity.id === SHORT_DRAMA_TEAM_CATALOG_ID) {
-      return 'open_short_drama';
     }
     throw new TypeError('Unsupported fixed team action');
   }

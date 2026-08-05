@@ -2431,6 +2431,13 @@ impl SessionManager {
             session.dialog_turn_ids = persisted_turn_ids;
         }
 
+        // View restore deliberately keeps the runtime session and context out
+        // of memory, but the successful authoritative read is enough to retain
+        // its storage locator. Typed runtimes (Team, BTW recovery, tools) can
+        // then perform one normal full restore when they are first opened.
+        self.session_workspace_index
+            .insert(session_id.to_string(), session_storage_path);
+
         debug!(
             "Session view restored: session_id={}, session_name={}, turn_count={}, total_duration_ms={}",
             session_id,
@@ -3408,16 +3415,23 @@ impl SessionManager {
             interruption_reason: None,
         };
 
-        if let Some(round) = turn
+        if let Some(round_position) = turn
             .model_rounds
-            .iter_mut()
-            .find(|round| round.id == round_id)
+            .iter()
+            .position(|round| round.id == round_id)
         {
-            if round.status != "running" || round.end_time.is_some() {
+            // A model round becomes terminal as soon as its provider stream
+            // closes, before the round's tool phase executes. Team needs an
+            // exact durable checkpoint at that boundary. The surrounding
+            // guards already require the dialog turn itself to remain the
+            // current in-progress turn; only the latest model round may be
+            // extended so an old response can never regain authority.
+            if round_position + 1 != turn.model_rounds.len() {
                 return Err(VoidError::Validation(format!(
-                    "Cannot append a tool call to a terminal persisted model round: {round_id}"
+                    "Cannot append a tool call to a stale persisted model round: {round_id}"
                 )));
             }
+            let round = &mut turn.model_rounds[round_position];
             let next_order_index = round
                 .text_items
                 .iter()
@@ -6187,6 +6201,11 @@ mod tests {
             .context_store
             .get_context_messages(&session_id)
             .is_empty());
+        assert_eq!(
+            manager.resolve_session_workspace_path(&session_id).await,
+            Some(workspace.path().to_path_buf()),
+            "view restore must retain a locator so typed runtimes can lazily restore the session"
+        );
     }
 
     #[tokio::test]
@@ -6494,6 +6513,105 @@ mod tests {
                 .expect("durable checkpoint should authorize"),
             first
         );
+    }
+
+    #[tokio::test]
+    async fn tool_call_checkpoint_accepts_latest_completed_model_round_during_active_turn() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Team streamed round".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let turn_id = manager
+            .start_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "start the team".to_string(),
+                Some("team-streamed-turn".to_string()),
+                None,
+            )
+            .await
+            .expect("turn should start");
+
+        let mut turn = persistence_manager
+            .load_dialog_turn(workspace.path(), &session.session_id, 0)
+            .await
+            .expect("turn should load")
+            .expect("turn should exist");
+        let mut completed_round = authority_round(&turn_id, vec![]);
+        completed_round.id = "round-1".to_string();
+        completed_round.status = "completed".to_string();
+        completed_round.end_time = Some(2);
+        completed_round.duration_ms = Some(1);
+        turn.model_rounds.push(completed_round);
+        persistence_manager
+            .save_dialog_turn(workspace.path(), &turn)
+            .await
+            .expect("streamed model round should persist before tool execution");
+
+        let authority = manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                json!({
+                    "action": "start",
+                    "workflowId": "script-writing",
+                    "objective": "draft the script"
+                }),
+            )
+            .await
+            .expect("the latest streamed round must remain checkpointable while its turn runs");
+
+        assert_eq!(authority.round_id, "round-1");
+        let persisted = persistence_manager
+            .load_dialog_turn(workspace.path(), &session.session_id, 0)
+            .await
+            .expect("turn should load")
+            .expect("turn should exist");
+        assert_eq!(persisted.model_rounds[0].status, "completed");
+        assert_eq!(persisted.model_rounds[0].end_time, Some(2));
+        assert_eq!(persisted.model_rounds[0].tool_items.len(), 1);
+        assert_eq!(persisted.model_rounds[0].tool_items[0].id, "team-call-1");
+
+        let mut with_newer_round = persisted;
+        let mut newer_round = authority_round(&turn_id, vec![]);
+        newer_round.id = "round-2".to_string();
+        newer_round.round_index = 1;
+        newer_round.status = "completed".to_string();
+        newer_round.end_time = Some(4);
+        with_newer_round.model_rounds.push(newer_round);
+        persistence_manager
+            .save_dialog_turn(workspace.path(), &with_newer_round)
+            .await
+            .expect("newer round should persist");
+        assert!(manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "stale-team-call",
+                json!({
+                    "action": "start",
+                    "workflowId": "script-writing",
+                    "objective": "stale replay"
+                }),
+            )
+            .await
+            .is_err());
     }
 
     #[tokio::test]

@@ -57,6 +57,9 @@ export interface BtwSessionPanelProps {
   isActive?: boolean;
   presentationTitle?: string;
   showKindBadge?: boolean;
+  showHeader?: boolean;
+  /** Recreate a missing formal Team member projection after reload. */
+  restoreMissingSessionAs?: 'subagent';
 }
 
 const PANEL_CONFIG: FlowChatConfig = {
@@ -102,6 +105,8 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
   isActive = true,
   presentationTitle,
   showKindBadge = true,
+  showHeader = true,
+  restoreMissingSessionAs,
 }) => {
   const { t } = useTranslation('flow-chat');
   const {
@@ -164,8 +169,68 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
     onCollapseGroup,
   } = useExploreGroupState(virtualItems);
 
-  // Load history for historical sessions that have not yet had their turns loaded.
   const loadingSessionIdsRef = useRef(new Set<string>());
+  // A formal Team member can outlive the in-memory FlowChat projection. Rebuild
+  // only that projection here; the durable transcript still comes from the
+  // existing session-history interface.
+  useEffect(() => {
+    if (
+      !isActive
+      || restoreMissingSessionAs !== 'subagent'
+      || !childSessionId
+      || childSession
+      || !workspacePath
+      || loadingSessionIdsRef.current.has(childSessionId)
+    ) {
+      return;
+    }
+
+    loadingSessionIdsRef.current.add(childSessionId);
+    const parent = parentSessionId
+      ? flowChatStore.getState().sessions.get(parentSessionId)
+      : undefined;
+    flowChatStore.addExternalSession(
+      childSessionId,
+      presentationTitle?.trim() || childSessionId,
+      parent?.mode || parent?.config.agentType || 'agentic',
+      workspacePath,
+      {
+        parentSessionId,
+        sessionKind: 'subagent',
+        subagentType: presentationTitle?.trim() || undefined,
+        isHistorical: true,
+        historyState: 'metadata-only',
+      },
+      parent?.remoteConnectionId,
+      parent?.remoteSshHost,
+    );
+    void flowChatStore.loadSessionHistory(
+      childSessionId,
+      workspacePath,
+      undefined,
+      parent?.remoteConnectionId,
+      parent?.remoteSshHost,
+      { includeInternal: true },
+    ).catch(error => {
+      log.error('Failed to restore Team member session history', {
+        childSessionId,
+        parentSessionId,
+        error,
+      });
+    }).finally(() => {
+      loadingSessionIdsRef.current.delete(childSessionId);
+    });
+  }, [
+    childSession,
+    childSessionId,
+    isActive,
+    parentSessionId,
+    presentationTitle,
+    restoreMissingSessionAs,
+    workspacePath,
+  ]);
+
+  // Load history for historical sessions that have not yet had their turns loaded.
   const historySession = childSession ?? reviewSession;
   useEffect(() => {
     if (!childSessionId || !historySession) return;
@@ -974,7 +1039,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
       <div
         className={`btw-session-panel${showReviewActionBar ? ' btw-session-panel--has-action-bar' : ''}${canComposeInChild ? ' btw-session-panel--has-composer' : ''}`}
       >
-        <div className="btw-session-panel__header">
+        {showHeader && <div className="btw-session-panel__header">
           <div className="btw-session-panel__header-left">
             {showKindBadge && (
               <span className="btw-session-panel__badge">{childBadgeLabel}</span>
@@ -1044,7 +1109,7 @@ export const BtwSessionPanel: React.FC<BtwSessionPanelProps> = ({
               </IconButton>
             )}
           </div>
-        </div>
+        </div>}
 
         <FlowChatPresentationActivityProvider isActive={isActive}>
           <div className="btw-session-panel__conversation">

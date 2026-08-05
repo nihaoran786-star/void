@@ -65,15 +65,50 @@
   position: absolute;
   z-index: $z-floating;
   top: 12px;
-  right: 52px;
+  right: 12px;
   bottom: 12px;
-  width: min(360px, calc(100% - 64px));
+  width: min(368px, calc(100% - 24px));
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--workspace-border-subtle, var(--border-subtle));
   border-radius: 14px;
   background: var(--workspace-surface-panel, var(--color-bg-secondary));
   box-shadow: var(--workspace-shadow-raised, var(--shadow-lg));
+}
+
+@media (min-width: 1280px) {
+  // A durable Team owns one real third column. Restored canvas widths can be
+  // wider than the space left after the Team binds, so both the chat and the
+  // canvas must participate in flex shrink instead of pushing the final child
+  // beyond the scene's clipped physical window bounds.
+  .void-session-scene--has-team-workspace {
+    .void-session-scene__chat-pane {
+      flex: 1 1 400px;
+      min-width: 400px;
+      max-width: min(520px, 36%);
+    }
+
+    .void-session-scene__aux-pane:not(.void-session-scene__aux-pane--collapsed) {
+      flex: 1 1 auto;
+      min-width: 300px;
+      max-width: calc(100% - 741px);
+    }
+  }
+
+  .void-session-scene__team-workspace {
+    position: relative;
+    z-index: auto;
+    top: auto;
+    right: auto;
+    bottom: auto;
+    width: clamp(340px, 23vw, 400px);
+    min-width: 340px;
+    height: 100%;
+    flex: 0 0 clamp(340px, 23vw, 400px);
+    border-width: 0 0 0 1px;
+    border-radius: 0;
+    box-shadow: none;
+  }
 }
 
 

@@ -75,6 +75,7 @@ export function useComposerPersonaSelection({
 }: UseComposerPersonaSelectionOptions) {
   const requestIdRef = useRef(0);
   const personaPersistencePendingRef = useRef(false);
+  const fixedTeamUpgradeAttemptsRef = useRef(new Set<string>());
   const [catalog, setCatalog] = useState<ComposerPersonaCatalog>(EMPTY_CATALOG);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string>();
@@ -391,6 +392,64 @@ export function useComposerPersonaSelection({
     sessionId,
     sessionKind,
     teamActivationService,
+  ]);
+
+  useEffect(() => {
+    if (
+      !enabled
+      || runtimeUnsupported
+      || sessionKind !== 'normal'
+      || session?.status !== 'idle'
+      || activePersonaBinding?.kind !== 'team_lead'
+      || !activePersonaBinding.teamDefinitionId
+      || activePersonaBinding.personaRevision.status !== 'known'
+      || loading
+    ) {
+      return;
+    }
+
+    const currentTeamRevision = activePersonaBinding.personaRevision.value;
+    const replacement = catalog.teams.find(entry => (
+      entry.origin === 'fixed_runtime'
+      && entry.activationSupport === 'parent_persona'
+      && entry.identity.id === activePersonaBinding.teamDefinitionId
+      && entry.lead.identity.id === activePersonaBinding.personaId
+      && entry.lead.identity.revision.status === 'known'
+      && entry.lead.identity.revision.value
+        !== currentTeamRevision
+      && service.isReusableTeam(entry, scenario)
+    ));
+    if (!replacement || replacement.identity.revision.status !== 'known') return;
+
+    const attemptKey = JSON.stringify([
+      sessionId,
+      replacement.identity.id,
+      replacement.identity.revision.value,
+    ]);
+    if (fixedTeamUpgradeAttemptsRef.current.has(attemptKey)) return;
+    fixedTeamUpgradeAttemptsRef.current.add(attemptKey);
+
+    // Trusted built-in Teams are replaced in-place by application upgrades.
+    // Reattach the latest immutable definition before the next user turn so
+    // the durable session remains usable without weakening revision checks.
+    void runTeamAction(replacement, {
+      launchDeepReview: async () => {},
+      openShortDrama: async () => {},
+    }).catch(() => {
+      // runTeamAction exposes the classified failure through actionError.
+    });
+  }, [
+    activePersonaBinding,
+    catalog.teams,
+    enabled,
+    loading,
+    runTeamAction,
+    runtimeUnsupported,
+    scenario,
+    service,
+    session?.status,
+    sessionId,
+    sessionKind,
   ]);
 
   const activeAgent = useMemo(() => {

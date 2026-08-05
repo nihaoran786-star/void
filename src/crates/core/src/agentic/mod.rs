@@ -25,6 +25,7 @@ pub mod deep_review_policy;
 pub(crate) mod subagent_runtime;
 
 // Shared-context fork-agent execution module
+pub mod fixed_team_definitions;
 pub mod fork_agent;
 
 /// Round-boundary yield when user queues a message during an active turn

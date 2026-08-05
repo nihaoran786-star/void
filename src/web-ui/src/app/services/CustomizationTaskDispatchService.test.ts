@@ -4,6 +4,7 @@ import type {
   TeamCatalogEntry,
 } from '@/shared/services/customization';
 import { ReusableTeamActivationError } from '@/shared/services/customization';
+import { createShortDramaTeamCatalogEntry } from '@/shared/services/customization';
 
 import {
   CustomizationTaskDispatchError,
@@ -137,7 +138,6 @@ describe('CustomizationTaskDispatchService', () => {
           teamInstanceId: 'team-team-v1',
         },
       })),
-      openShortDrama: vi.fn(async () => undefined),
     };
     service = new CustomizationTaskDispatchService(dependencies);
   });
@@ -260,15 +260,36 @@ describe('CustomizationTaskDispatchService', () => {
     expect(result.action).toBe('draft_opened');
   });
 
-  it('短剧团队等真实 Media 会话创建后再打开原有短剧画布', async () => {
-    await service.activateCreatedSession({
-      target: fixedTeam('ai-short-drama-team'),
+  it('短剧团队绑定真实主理人，画布由会话能力根据持久绑定自动恢复', async () => {
+    const target = createShortDramaTeamCatalogEntry();
+    vi.mocked(dependencies.activateReusableTeam).mockResolvedValueOnce({
+      binding: {
+        kind: 'team_lead',
+        personaId: target.lead.identity.id,
+        personaRevision: target.lead.identity.revision,
+        teamDefinitionId: target.identity.id,
+        teamInstanceId: 'team-short-drama',
+      },
+    });
+
+    const result = await service.activateCreatedSession({
+      target,
       sessionId: 'session-created',
       scenario: 'media',
       executionPolicy: 'Media',
     });
 
-    expect(dependencies.openShortDrama).toHaveBeenCalledOnce();
+    expect(dependencies.activateReusableTeam).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entry: target,
+        parentSessionId: 'session-created',
+        scenario: 'media',
+      }),
+    );
+    expect(result?.activePersonaBinding).toMatchObject({
+      kind: 'team_lead',
+      teamDefinitionId: target.identity.id,
+    });
   });
 
   it('定义不可运行时在打开新会话草稿前失败关闭', async () => {
@@ -303,7 +324,6 @@ describe('CustomizationTaskDispatchService', () => {
       executionPolicy: 'agentic',
     })).rejects.toMatchObject({ code: 'persona_activation_failed' });
 
-    expect(dependencies.openShortDrama).not.toHaveBeenCalled();
   });
 
   it('首发前智能体版本已变化时拒绝激活且不持久化旧角色', async () => {

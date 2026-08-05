@@ -339,6 +339,9 @@ export const ModernFlowChatContainer: React.FC<ModernFlowChatContainerProps> = (
   ]);
 
   const resolveLocalCommandHeaderTitle = useCallback((metadata: DialogTurn['userMessage']['metadata']) => {
+    if (metadata?.kind === 'background_result' && metadata.sourceKind === 'subagent') {
+      return t('message.backgroundSubagentResult');
+    }
     if (metadata?.localCommandKind === 'usage_report') {
       return t('usage.title');
     }

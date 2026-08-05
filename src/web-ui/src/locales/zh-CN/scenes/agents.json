@@ -21,6 +21,9 @@
       "empty": "当前没有可用的智能体团队。"
     },
     "actions": { "retry": "重试", "reload": "重新加载" },
+    "errors": {
+      "short_drama_team_definition_missing": "AI 短剧团队定义暂时不可用，请重启 Void 后重试。"
+    },
     "availability": {
       "unavailable": "当前配置还不能安全派发，请检查角色定义、工具和权限。",
       "disabled": "这个智能体当前已停用，请先在管理页启用。",

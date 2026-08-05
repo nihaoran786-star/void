@@ -233,11 +233,7 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
           <Check size={14} className="void-chat-input__persona-item-check" aria-hidden />
         ) : (
           <span className="void-chat-input__persona-item-action">
-            {tCommon(
-              entry.identity.id === 'ai-short-drama-team'
-                ? 'customization.composerPersona.open'
-                : 'customization.composerPersona.summon',
-            )}
+            {tCommon('customization.composerPersona.summon')}
           </span>
         )}
       </button>

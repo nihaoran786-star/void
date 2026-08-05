@@ -1,9 +1,11 @@
 # Team Workspace Product And Architecture Specification
 
-Status: reusable Team definition management and prompt-orchestrated Team-lead
-activation, including typed Team-member Skill authority, are implemented for
-Desktop/Tauri; flagship runtimes remain owned by their dedicated adapters, and
-specialist tool/readonly expansion remains staged.
+Status: reusable Team definition management, prompt-orchestrated Team-lead
+activation, typed Team-member Skill authority, and the unified right-side Team
+Workspace are implemented for Desktop/Tauri. AI Short Drama uses a trusted
+built-in definition over the shared Team runtime while retaining its dedicated
+project tools and Canvas. Deep Review remains adapter-owned, and specialist
+tool/readonly expansion remains staged.
 
 Updated: 2026-08-05
 
@@ -67,10 +69,11 @@ than relying on labels:
   teams;
 - Media owns image, video, short-drama, and creator-production teams.
 
-The catalog stores and validates this eligibility. Existing fixed Deep Review
-and AI Short Drama adapters expose only their supported scenarios. Compatible
-user-authored and installed `prompt_orchestrated` teams may activate their lead
-as the parent persona; incompatible definitions remain visible and fail closed.
+The catalog stores and validates this eligibility. Fixed Deep Review exposes
+only Code. The trusted AI Short Drama definition exposes only Media and
+activates its lead through the same durable `prompt_orchestrated` contract as a
+compatible reusable Team. Incompatible definitions remain visible and fail
+closed.
 
 Teams may be created manually, assembled from a description or supplied
 material, edited, or installed from a bounded local package. All routes produce
@@ -235,13 +238,19 @@ Wide desktop:
 main conversation | active Canvas surface | Team Workspace
 ```
 
-The Team Workspace is resizable, starts around 320 px, and has three visual
+The Team Workspace uses a stable 340–400 px desktop column and has three visual
 levels:
 
 1. a quiet team header with identity, workflow, and overall status;
 2. a compact member roster with role-owned status;
 3. the selected member conversation using the same complete composer
    presentation contract as the main chat.
+
+This surface is exclusively the formal, durable Team-member workspace.
+Ordinary Task launches and `/btw` temporary child conversations remain separate
+compatibility features; they must not create a second Team-member UI or occupy
+the right Team Workspace unless the durable Team projection proves the member
+binding.
 
 Selecting a member focuses that member's existing `/btw` child conversation
 inside the Team Workspace. It does not replace the active Media, Short Drama,
@@ -407,9 +416,11 @@ may reuse that suffix. Changing the Team definition revision, member, allowlist,
 or an effective Skill revision invalidates it, so two members cannot share a
 persona/Skill cache entry accidentally.
 
-Ordinary Task launches, ordinary `/btw` conversations, Deep Review, and AI
-Short Drama omit this Team-member authority and retain their current behavior.
-The Team-only coordinator path continues to inherit the complete parent
+Ordinary Task launches, ordinary `/btw` conversations, and Deep Review omit
+this Team-member authority and retain their current behavior. AI Short Drama
+uses the same Team-member authority as other durable Teams while its fixed
+stage personas and project tools remain unchanged. The Team-only coordinator
+path continues to inherit the complete parent
 `SessionConfig`, including `workspaceId`, local/remote backend facts,
 `remoteConnectionId`, and remote host identity; member Skill policy must never
 reconstruct a workspace from `workspacePath` alone.
@@ -433,10 +444,10 @@ subagent runtime.
 
 The reference also clarifies that a selected team's lead is the user-facing
 top-level persona while specialist members remain real subagents. Void adopts
-that product contract. Existing Deep Review and AI Short Drama runtimes may use
-their current child-orchestrator launch shape during migration, but adapters
-must project the binding explicitly and must not make presentation code depend
-on that compatibility detail.
+that product contract. Deep Review may use its current child-orchestrator launch
+shape during migration. AI Short Drama already uses a trusted reusable-Team
+binding while retaining its dedicated stage personas and project runtime.
+Presentation code must not depend on either compatibility detail.
 
 ## Non-goals for the first implementation slice
 
@@ -463,11 +474,15 @@ The Desktop/Tauri reusable-Team slice implements:
   per-record diagnostics instead of clearing a catalog when one file is bad;
 - Team Center cards, detail, three creation routes, edit, package selection,
   installation, and deletion through Web Module Interfaces;
-- fixed Deep Review and AI Short Drama catalog adapters without changing their
-  runtime behavior;
+- a fixed Deep Review catalog adapter plus a trusted, read-only AI Short Drama
+  definition that reuses the durable Team runtime, fixed stage personas, and
+  dedicated short-drama project runtime;
 - durable reusable Team instances, parent-persona lead activation, and a typed
   Team tool path that preserves the scenario, workspace, permissions, Canvas,
-  and top-level history;
+  and top-level history. The exact Team tool call is checkpointed after the
+  provider stream closes but before side effects run; only the latest model
+  round of the still-active dialog turn may receive that checkpoint, while
+  older rounds and completed turns remain fail-closed;
 - Team-lead tool narrowing and optional Skill-key narrowing. An empty lead
   Skill allowlist preserves the scenario/workspace/user effective Skill set;
   a non-empty allowlist can only intersect that set. Skill listing and direct
@@ -481,11 +496,15 @@ The Desktop/Tauri reusable-Team slice implements:
   path, strict identity/hash validation, and compare-and-swap migration of only
   eligible legacy empty-policy launches to explicit `no_policy`;
 - Web composer activation for otherwise-compatible ordinary Teams with member
-  Skill allowlists.
+  Skill allowlists;
+- one right-side Team Workspace presentation for all durable Team members,
+  fixed desktop three-column composition, Task-card routing into that workspace,
+  and automatic restoration of the short-drama Canvas from session binding.
 
 The current slice intentionally does not broaden specialist tool narrowing or
-readonly policy, replace flagship Team runtimes, expose direct pause/resume
-controls in the Team Workspace presentation, or add browser/server persistence.
+readonly policy, replace dedicated Deep Review or Short Drama business tools,
+expose direct pause/resume controls in the Team Workspace presentation, or add
+browser/server persistence.
 Typed pause/resume is implemented behind the Core runtime, trusted Team tool,
 Desktop commands, and Web runtime gateway. Definitions that request specialist tool
 narrowing, specialist readonly behavior, a readonly lead, or an explicit lead
@@ -503,11 +522,13 @@ the composer.
    and activate compatible reusable Team leads. **Implemented for
    Desktop/Tauri prompt-orchestrated Teams.**
 4. Adapt one existing fixed team, preferably Review Team or Short Drama, into a
-   `TeamDefinition` without changing its runtime behavior. **Implemented as
-   catalog adapters for Deep Review and AI Short Drama; their dedicated
-   runtimes remain unchanged.**
+   `TeamDefinition` without changing its runtime behavior. **Implemented for AI
+   Short Drama as a trusted built-in definition over the shared Team runtime;
+   its stage Agent policies, project runtime, media routing, and Canvas remain
+   unchanged. Deep Review remains adapter-owned.**
 5. Add the session capability entry and Team Workspace projection.
-   **Implemented for Desktop/Tauri.**
+   **Implemented for Desktop/Tauri, including the fixed wide-desktop third
+   column and bounded medium-layout overlay.**
 6. Reuse the complete BTW composer inside the selected-member area.
    **Implemented for persisted Team member child sessions.**
 7. Add restart hydration, recovery, and responsive presentation tests.

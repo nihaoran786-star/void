@@ -101,6 +101,37 @@ const reusableTeamEntry: TeamCatalogEntry = {
   definitionLevel: 'project',
 };
 
+const upgradedFixedRuntimeTeamEntry: TeamCatalogEntry = {
+  ...reusableTeamEntry,
+  identity: {
+    ...reusableTeamEntry.identity,
+    id: 'ai-short-drama-team',
+    revision: { status: 'known', value: 'short-drama-v2' },
+    displayName: 'AI 短剧团队',
+  },
+  source: {
+    adapterId: 'short-drama-team',
+    recordType: 'fixed_team',
+    recordId: 'ai-short-drama-team',
+  },
+  origin: 'fixed_runtime',
+  scenarioEligibility: ['media'],
+  lead: {
+    ...reusableTeamEntry.lead,
+    identity: {
+      ...reusableTeamEntry.lead.identity,
+      id: 'short-drama-lead',
+      revision: {
+        status: 'known',
+        value: 'short-drama-v2:short-drama-lead',
+      },
+    },
+    isReadonly: false,
+  },
+  managementSupport: 'readonly_fixed',
+  definitionLevel: 'user',
+};
+
 const loadCatalog = vi.fn(async () => ({
   sourceId: 'hook-test',
   status: 'ready' as const,
@@ -709,6 +740,52 @@ describe('useComposerPersonaSelection', () => {
     expect(current?.actionError).toBe('definition_revision_mismatch');
     expect(current?.isPersonaPersistencePending()).toBe(false);
     expect(current?.teams).toHaveLength(2);
+  });
+
+  it('官方固定团队升级后自动重绑最新版本且不重复激活', async () => {
+    loadCatalog.mockResolvedValueOnce({
+      sourceId: 'hook-test',
+      status: 'ready',
+      entries: [upgradedFixedRuntimeTeamEntry],
+      errors: [],
+    });
+    const staleSession = session({
+      mode: 'Media',
+      config: { agentType: 'Media' },
+      scenario: 'media',
+      executionPolicy: 'Media',
+      activePersonaBinding: {
+        kind: 'team_lead',
+        personaId: 'short-drama-lead',
+        personaRevision: {
+          status: 'known',
+          value: 'short-drama-v1:short-drama-lead',
+        },
+        teamDefinitionId: 'ai-short-drama-team',
+        teamInstanceId: 'team-short-drama-v1',
+      },
+    });
+
+    await act(async () => {
+      root.render(<Harness target={staleSession} />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activateReusableTeam).toHaveBeenCalledTimes(1);
+    expect(activateReusableTeam).toHaveBeenCalledWith(expect.objectContaining({
+      entry: upgradedFixedRuntimeTeamEntry,
+      parentSessionId: 'parent',
+      scenario: 'media',
+      executionPolicy: 'Media',
+    }));
+
+    await act(async () => {
+      root.render(<Harness target={staleSession} />);
+      await Promise.resolve();
+    });
+    expect(activateReusableTeam).toHaveBeenCalledTimes(1);
   });
 
   it('子会话不暴露选择器，也不会产生每轮 persona 快照', async () => {

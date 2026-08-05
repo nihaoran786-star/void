@@ -72,10 +72,29 @@ function toDomainError(
 }
 
 export class ExistingTeamDefinitionAdapter implements TeamAuthoringGateway {
+  private readonly listRequests = new Map<
+    string,
+    { startedAt: number; request: ReturnType<TeamAuthoringGateway['list']> }
+  >();
+
+  private clearListRequests() {
+    this.listRequests.clear();
+  }
+
   async list(input: ListTeamDefinitionsInput = {}) {
+    const key = input.workspacePath?.trim() || '<user>';
+    const cached = this.listRequests.get(key);
+    if (cached && Date.now() - cached.startedAt < 500) {
+      return cached.request;
+    }
+    const request = configAPI.listTeamDefinitions(input);
+    this.listRequests.set(key, { startedAt: Date.now(), request });
     try {
-      return await configAPI.listTeamDefinitions(input);
+      return await request;
     } catch (error) {
+      if (this.listRequests.get(key)?.request === request) {
+        this.listRequests.delete(key);
+      }
       throw toDomainError(error, 'read_failed');
     }
   }
@@ -90,7 +109,9 @@ export class ExistingTeamDefinitionAdapter implements TeamAuthoringGateway {
 
   async create(input: CreateTeamDefinitionInput) {
     try {
-      return await configAPI.createTeamDefinition(input);
+      const record = await configAPI.createTeamDefinition(input);
+      this.clearListRequests();
+      return record;
     } catch (error) {
       throw toDomainError(error, 'write_failed');
     }
@@ -98,7 +119,9 @@ export class ExistingTeamDefinitionAdapter implements TeamAuthoringGateway {
 
   async update(input: UpdateTeamDefinitionInput) {
     try {
-      return await configAPI.updateTeamDefinition(input);
+      const record = await configAPI.updateTeamDefinition(input);
+      this.clearListRequests();
+      return record;
     } catch (error) {
       throw toDomainError(error, 'write_failed');
     }
@@ -106,7 +129,9 @@ export class ExistingTeamDefinitionAdapter implements TeamAuthoringGateway {
 
   async install(input: InstallTeamDefinitionInput) {
     try {
-      return await configAPI.installTeamDefinition(input);
+      const record = await configAPI.installTeamDefinition(input);
+      this.clearListRequests();
+      return record;
     } catch (error) {
       throw toDomainError(error, 'install_failed');
     }
@@ -115,6 +140,7 @@ export class ExistingTeamDefinitionAdapter implements TeamAuthoringGateway {
   async delete(input: DeleteTeamDefinitionInput) {
     try {
       await configAPI.deleteTeamDefinition(input);
+      this.clearListRequests();
     } catch (error) {
       throw toDomainError(error, 'delete_failed');
     }

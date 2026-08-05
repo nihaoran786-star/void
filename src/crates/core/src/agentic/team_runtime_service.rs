@@ -62,6 +62,7 @@ enum ReceiptEffect {
     Start,
     Message,
     Inspect,
+    Reconcile,
     Stop,
 }
 
@@ -107,6 +108,47 @@ impl TeamRuntimeService {
             ));
         }
         Ok(list)
+    }
+
+    /// Refresh active background-member facts before projecting the Team list.
+    ///
+    /// Adapter inspection is read-only. A durable write occurs only when the
+    /// member, phase, or Team-run state actually changed, so a polling UI does
+    /// not churn the store while work is still in the same state.
+    pub async fn reconcile_and_list_records(
+        &self,
+        parent_session_id: &str,
+    ) -> Result<TeamRuntimeList, TeamOrchestratorError> {
+        let initial = self.list_records(parent_session_id).await?;
+        for record in initial.records.iter().filter(|record| {
+            record.snapshot.instance.active_run_id.is_some()
+                && matches!(
+                    record.snapshot.instance.execution_profile,
+                    TeamExecutionProfile::PromptOrchestrated
+                )
+        }) {
+            let team_run_id = record
+                .snapshot
+                .instance
+                .active_run_id
+                .clone()
+                .expect("active Team record selected above");
+            let identity = super::team_orchestrator::TeamCommandIdentity {
+                operation_id: stable_operation_id(
+                    "team-runtime-reconcile",
+                    parent_session_id,
+                    &record.snapshot.instance.team_instance_id,
+                    &[&team_run_id],
+                ),
+                parent_session_id: parent_session_id.to_string(),
+                team_instance_id: record.snapshot.instance.team_instance_id.clone(),
+            };
+            if let Err(error) = self.reconcile_active_record_with_cas(&identity).await {
+                self.fail_active_run_with_cas(&identity, &team_run_id, &error)
+                    .await?;
+            }
+        }
+        self.list_records(parent_session_id).await
     }
 
     /// Load one durable Team runtime projection without exposing the store.
@@ -342,11 +384,12 @@ impl TeamRuntimeService {
                 false,
             ));
         }
-        let strict_runtime_references = !matches!(effect, ReceiptEffect::Start);
-        if (strict_runtime_references
+        let may_hydrate_runtime_references =
+            matches!(effect, ReceiptEffect::Start | ReceiptEffect::Reconcile);
+        if (!may_hydrate_runtime_references
             && (receipt.child_session_id != request.child_session_id
                 || receipt.subagent_task_id != request.subagent_task_id))
-            || (!strict_runtime_references
+            || (may_hydrate_runtime_references
                 && ((request.child_session_id.is_some()
                     && receipt.child_session_id != request.child_session_id)
                     || (request.subagent_task_id.is_some()
@@ -374,6 +417,10 @@ impl TeamRuntimeService {
                     | super::team_orchestrator::RuntimeDisposition::Reused
             ),
             ReceiptEffect::Inspect => matches!(
+                receipt.disposition,
+                super::team_orchestrator::RuntimeDisposition::Inspected
+            ),
+            ReceiptEffect::Reconcile => matches!(
                 receipt.disposition,
                 super::team_orchestrator::RuntimeDisposition::Inspected
             ),
@@ -689,6 +736,19 @@ impl TeamRuntimeService {
     fn require_complete_member_reference(
         request: &RuntimeRequest,
     ) -> Result<(), TeamOrchestratorError> {
+        Self::require_member_reference(request, true)
+    }
+
+    fn require_reconcilable_member_reference(
+        request: &RuntimeRequest,
+    ) -> Result<(), TeamOrchestratorError> {
+        Self::require_member_reference(request, false)
+    }
+
+    fn require_member_reference(
+        request: &RuntimeRequest,
+        require_child_session: bool,
+    ) -> Result<(), TeamOrchestratorError> {
         for (name, value) in [
             (
                 "parentDialogTurnId",
@@ -697,7 +757,6 @@ impl TeamRuntimeService {
             ("parentToolCallId", request.parent_tool_call_id.as_deref()),
             ("teamRunId", request.team_run_id.as_deref()),
             ("memberId", request.member_id.as_deref()),
-            ("childSessionId", request.child_session_id.as_deref()),
             ("subagentTaskId", request.subagent_task_id.as_deref()),
             ("phaseId", request.phase_id.as_deref()),
             ("agentId", request.agent_id.as_deref()),
@@ -713,6 +772,20 @@ impl TeamRuntimeService {
                     false,
                 ));
             }
+        }
+        if require_child_session
+            && request
+                .child_session_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .is_none()
+        {
+            return Err(Self::error(
+                TeamOrchestratorErrorCode::RecoveryReferenceMissing,
+                "persisted member runtime is missing childSessionId",
+                false,
+            ));
         }
         Ok(())
     }
@@ -883,7 +956,7 @@ impl TeamRuntimeService {
         }
         {
             let member = &mut candidate.member_runs[member_index];
-            if matches!(effect, ReceiptEffect::Start) {
+            if matches!(effect, ReceiptEffect::Start | ReceiptEffect::Reconcile) {
                 member
                     .align_runtime_references(
                         receipt.child_session_id.clone(),
@@ -895,11 +968,13 @@ impl TeamRuntimeService {
             if !matches!(effect, ReceiptEffect::Stop) {
                 Self::sync_member_task_state(member, receipt.task_state, updated_at)?;
             }
-            member
-                .mark_operation_applied(request.operation_id.clone(), updated_at)
-                .map_err(Self::map_contract_error)?;
+            if !matches!(effect, ReceiptEffect::Reconcile) {
+                member
+                    .mark_operation_applied(request.operation_id.clone(), updated_at)
+                    .map_err(Self::map_contract_error)?;
+            }
         }
-        if matches!(effect, ReceiptEffect::Start) {
+        if matches!(effect, ReceiptEffect::Start | ReceiptEffect::Reconcile) {
             candidate
                 .instance
                 .align_member_binding(
@@ -977,6 +1052,195 @@ impl TeamRuntimeService {
             }
         }
         Ok(())
+    }
+
+    fn sync_completed_scopes(
+        snapshot: &mut TeamRuntimeSnapshot,
+        definition: &TeamDefinitionRecord,
+        team_run_id: &str,
+        updated_at: u64,
+    ) -> Result<(), TeamOrchestratorError> {
+        let run_index = snapshot
+            .team_runs
+            .iter()
+            .position(|run| run.team_run_id == team_run_id)
+            .ok_or_else(|| {
+                Self::error(
+                    TeamOrchestratorErrorCode::RuntimeNotFound,
+                    "Team run was not found while reconciling member progress",
+                    false,
+                )
+            })?;
+        let workflow = definition
+            .definition
+            .workflows
+            .iter()
+            .find(|workflow| workflow.workflow_id == snapshot.team_runs[run_index].workflow_id)
+            .ok_or_else(|| {
+                Self::error(
+                    TeamOrchestratorErrorCode::WorkflowNotFound,
+                    "pinned Team workflow was not found while reconciling progress",
+                    false,
+                )
+            })?;
+
+        let phase_run_ids = snapshot
+            .phase_runs
+            .iter()
+            .filter(|phase| phase.team_run_id == team_run_id)
+            .map(|phase| phase.phase_run_id.clone())
+            .collect::<Vec<_>>();
+        for phase_run_id in phase_run_ids {
+            let phase_index = snapshot
+                .phase_runs
+                .iter()
+                .position(|phase| phase.phase_run_id == phase_run_id)
+                .expect("phase run selected above");
+            if snapshot.phase_runs[phase_index].status.is_terminal() {
+                continue;
+            }
+            let phase_id = snapshot.phase_runs[phase_index].phase_id.clone();
+            let member_statuses = snapshot
+                .member_runs
+                .iter()
+                .filter(|member| {
+                    member.team_run_id == team_run_id
+                        && member.phase_id.as_deref() == Some(phase_id.as_str())
+                })
+                .map(|member| member.status)
+                .collect::<Vec<_>>();
+            if member_statuses.is_empty() {
+                continue;
+            }
+            if snapshot.phase_runs[phase_index].status == TeamPhaseRunStatus::Ready
+                && member_statuses
+                    .iter()
+                    .any(|status| *status != TeamMemberRunStatus::Idle)
+            {
+                snapshot.phase_runs[phase_index]
+                    .transition(TeamPhaseRunStatus::Running, None, updated_at)
+                    .map_err(Self::map_contract_error)?;
+            }
+            if member_statuses
+                .iter()
+                .all(|status| *status == TeamMemberRunStatus::Completed)
+                && snapshot.phase_runs[phase_index].status == TeamPhaseRunStatus::Running
+            {
+                snapshot.phase_runs[phase_index]
+                    .transition(TeamPhaseRunStatus::Completed, None, updated_at)
+                    .map_err(Self::map_contract_error)?;
+            }
+        }
+
+        let phase_runs = snapshot
+            .phase_runs
+            .iter()
+            .filter(|phase| phase.team_run_id == team_run_id)
+            .collect::<Vec<_>>();
+        let all_workflow_phases_present = workflow.phases.len() == phase_runs.len()
+            && workflow.phases.iter().all(|definition_phase| {
+                phase_runs
+                    .iter()
+                    .any(|phase| phase.phase_id == definition_phase.phase_id)
+            });
+        if all_workflow_phases_present
+            && phase_runs
+                .iter()
+                .all(|phase| phase.status == TeamPhaseRunStatus::Completed)
+            && snapshot.team_runs[run_index].status == TeamRunStatus::Running
+        {
+            snapshot.team_runs[run_index]
+                .transition(TeamRunStatus::Completed, None, updated_at)
+                .map_err(Self::map_contract_error)?;
+            let completed_run = snapshot.team_runs[run_index].clone();
+            if snapshot.instance.active_run_id.as_deref() == Some(team_run_id) {
+                snapshot
+                    .instance
+                    .clear_active_run(&completed_run, updated_at)
+                    .map_err(Self::map_contract_error)?;
+            }
+        }
+        snapshot.validate().map_err(Self::map_contract_error)
+    }
+
+    async fn reconcile_active_record_with_cas(
+        &self,
+        identity: &super::team_orchestrator::TeamCommandIdentity,
+    ) -> Result<(), TeamOrchestratorError> {
+        for _ in 0..MAX_CAS_ATTEMPTS {
+            let record = self.load_scoped(identity).await?;
+            let Some(team_run_id) = record.snapshot.instance.active_run_id.clone() else {
+                return Ok(());
+            };
+            let definition = self
+                .definition(
+                    &record.snapshot.instance.team_definition_id,
+                    &record.snapshot.instance.team_definition_revision,
+                )
+                .await?;
+            let member_run_ids = record
+                .snapshot
+                .member_runs
+                .iter()
+                .filter(|member| member.team_run_id == team_run_id && !member.status.is_terminal())
+                .map(|member| member.member_run_id.clone())
+                .collect::<Vec<_>>();
+            let adapter = self
+                .adapters
+                .resolve(&record.snapshot.instance.execution_profile)
+                .await?;
+            let mut candidate = record.snapshot.clone();
+            for member_run_id in member_run_ids {
+                let operation_id = stable_operation_id(
+                    &identity.operation_id,
+                    &identity.parent_session_id,
+                    &identity.team_instance_id,
+                    &[&team_run_id, &member_run_id, "member"],
+                );
+                let request = self
+                    .member_request(&record, &team_run_id, &member_run_id, operation_id, None)
+                    .await?;
+                Self::require_reconcilable_member_reference(&request)?;
+                let receipt = adapter.inspect_member_task(request.clone()).await?;
+                Self::validate_receipt_scope(&receipt, &request, ReceiptEffect::Reconcile)?;
+                Self::apply_receipt(
+                    &mut candidate,
+                    &member_run_id,
+                    &request,
+                    &receipt,
+                    ReceiptEffect::Reconcile,
+                    self.clock.now(),
+                )?;
+            }
+            Self::sync_completed_scopes(
+                &mut candidate,
+                &definition,
+                &team_run_id,
+                self.clock.now(),
+            )?;
+            if candidate == record.snapshot {
+                return Ok(());
+            }
+            match self
+                .store
+                .save(
+                    &identity.parent_session_id,
+                    &identity.team_instance_id,
+                    candidate,
+                    Some(record.revision),
+                )
+                .await
+            {
+                Ok(_) => return Ok(()),
+                Err(error) if error.code == TeamRuntimeStoreErrorCode::RevisionConflict => continue,
+                Err(error) => return Err(Self::map_store_error(error)),
+            }
+        }
+        Err(Self::error(
+            TeamOrchestratorErrorCode::RuntimeConflict,
+            "Team runtime reconciliation exceeded the bounded CAS retry limit",
+            true,
+        ))
     }
 
     async fn persist_receipt_with_cas(
@@ -1651,6 +1915,16 @@ impl TeamOrchestrator for TeamRuntimeService {
                                 "member-run",
                             ],
                         );
+                        if let Err(error) = snapshot.instance.begin_member_run_binding(
+                            member_id,
+                            operation_id.clone(),
+                            now,
+                        ) {
+                            return Self::rejected(
+                                &command.identity.operation_id,
+                                Self::map_contract_error(error),
+                            );
+                        }
                         let mut member_run = match TeamMemberRun::new(
                             member_run_id,
                             command.team_run_id.clone(),
@@ -2458,6 +2732,7 @@ mod tests {
         ensure_failure: Mutex<Option<TeamOrchestratorError>>,
         malformed_ensure_receipt: Mutex<bool>,
         message_disposition: Mutex<RuntimeDisposition>,
+        inspect_task_state: Mutex<RuntimeTaskState>,
     }
 
     impl TestAdapter {
@@ -2549,8 +2824,11 @@ mod tests {
             Ok(Self::receipt(
                 &request,
                 RuntimeDisposition::Inspected,
-                RuntimeTaskState::Running,
-                request.child_session_id.clone(),
+                *self.inspect_task_state.lock().unwrap(),
+                request
+                    .child_session_id
+                    .clone()
+                    .or_else(|| Some("child-session".into())),
                 request.subagent_task_id.clone(),
             ))
         }
@@ -2655,6 +2933,7 @@ mod tests {
             ensure_failure: Mutex::new(None),
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
+            inspect_task_state: Mutex::new(RuntimeTaskState::Running),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition.clone())),
@@ -2737,6 +3016,200 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn reconciled_list_projects_background_member_progress_without_idle_writes() {
+        let (service, store, adapter, definition, identity) = harness();
+        attach_ready(&service, &definition, &identity).await;
+        assert!(
+            service
+                .start(start_command(&definition, &identity))
+                .await
+                .accepted
+        );
+
+        store.events.lock().unwrap().clear();
+        let running = service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("running member should reconcile");
+        let running_snapshot = &running.records[0].snapshot;
+        assert_eq!(
+            running_snapshot.member_runs[0].status,
+            TeamMemberRunStatus::Running
+        );
+        assert_eq!(
+            running_snapshot.phase_runs[0].status,
+            TeamPhaseRunStatus::Running
+        );
+        assert_eq!(
+            store
+                .events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|event| event.as_str() == "save")
+                .count(),
+            1
+        );
+
+        store.events.lock().unwrap().clear();
+        service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("unchanged member should remain readable");
+        assert_eq!(
+            store
+                .events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|event| event.as_str() == "save")
+                .count(),
+            0,
+            "unchanged polling must not rewrite the durable Team record"
+        );
+
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Completed;
+        let completed = service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("completed member should close its phase and Team run");
+        let completed_snapshot = &completed.records[0].snapshot;
+        assert_eq!(
+            completed_snapshot.member_runs[0].status,
+            TeamMemberRunStatus::Completed
+        );
+        assert_eq!(
+            completed_snapshot.phase_runs[0].status,
+            TeamPhaseRunStatus::Completed
+        );
+        assert_eq!(
+            completed_snapshot.team_runs[0].status,
+            TeamRunStatus::Completed
+        );
+        assert_eq!(completed_snapshot.instance.active_run_id, None);
+        assert_eq!(
+            completed_snapshot.member_runs[0]
+                .child_session_id
+                .as_deref(),
+            Some("child-session")
+        );
+    }
+
+    #[tokio::test]
+    async fn reconciled_list_hydrates_a_late_member_child_session_binding() {
+        let (service, store, adapter, definition, identity) = harness();
+        attach_ready(&service, &definition, &identity).await;
+        assert!(
+            service
+                .start(start_command(&definition, &identity))
+                .await
+                .accepted
+        );
+
+        {
+            let mut guard = store.record.lock().unwrap();
+            let record = guard.as_mut().expect("Team runtime record");
+            record.snapshot.member_runs[0].child_session_id = None;
+            let specialist_id = record.snapshot.member_runs[0].member_id.clone();
+            record
+                .snapshot
+                .instance
+                .member_bindings
+                .iter_mut()
+                .find(|binding| binding.member_id == specialist_id)
+                .expect("specialist binding")
+                .child_session_id = None;
+            record
+                .snapshot
+                .validate()
+                .expect("delayed child binding is valid");
+        }
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Completed;
+
+        let reconciled = service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("the durable task should hydrate its late child session binding");
+        let snapshot = &reconciled.records[0].snapshot;
+        assert_eq!(
+            snapshot.member_runs[0].child_session_id.as_deref(),
+            Some("child-session")
+        );
+        assert_eq!(
+            snapshot.member_runs[0].status,
+            TeamMemberRunStatus::Completed
+        );
+        assert_eq!(snapshot.team_runs[0].status, TeamRunStatus::Completed);
+        assert_eq!(snapshot.instance.active_run_id, None);
+    }
+
+    #[tokio::test]
+    async fn a_completed_team_can_run_the_same_member_again_with_a_new_task_binding() {
+        let (service, store, adapter, definition, identity) = harness();
+        attach_ready(&service, &definition, &identity).await;
+        let first = service.start(start_command(&definition, &identity)).await;
+        assert!(first.accepted, "{first:?}");
+        let first_task_id = store
+            .record
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .snapshot
+            .member_runs[0]
+            .subagent_task_id
+            .clone()
+            .expect("first task binding");
+
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Completed;
+        service
+            .reconcile_and_list_records(&identity.parent_session_id)
+            .await
+            .expect("first run completes");
+
+        *adapter.inspect_task_state.lock().unwrap() = RuntimeTaskState::Running;
+        let mut second_command = start_command(&definition, &identity);
+        second_command.identity.operation_id = "start-operation-2".into();
+        second_command.team_run_id = "team-run-2".into();
+        second_command.parent_dialog_turn_id = "parent-turn-2".into();
+        second_command.parent_tool_call_id = "parent-tool-2".into();
+        let second = service.start(second_command).await;
+        assert!(second.accepted, "{second:?}");
+
+        let snapshot = store
+            .record
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .snapshot
+            .clone();
+        assert_eq!(snapshot.team_runs.len(), 2);
+        assert_eq!(snapshot.member_runs.len(), 2);
+        assert_eq!(snapshot.team_runs[0].status, TeamRunStatus::Completed);
+        assert_eq!(snapshot.team_runs[1].status, TeamRunStatus::Running);
+        let second_task_id = snapshot.member_runs[1]
+            .subagent_task_id
+            .as_deref()
+            .expect("second task binding");
+        assert_ne!(second_task_id, first_task_id);
+        let current_binding = snapshot
+            .instance
+            .member_bindings
+            .iter()
+            .find(|binding| binding.member_id == snapshot.member_runs[1].member_id)
+            .expect("current specialist binding");
+        assert_eq!(
+            current_binding.subagent_task_id.as_deref(),
+            Some(second_task_id)
+        );
+        assert_eq!(
+            current_binding.child_session_id.as_deref(),
+            Some("child-session")
+        );
+    }
+
     async fn attach_ready(
         service: &TeamRuntimeService,
         definition: &TeamDefinitionRecord,
@@ -2794,6 +3267,7 @@ mod tests {
             ensure_failure: Mutex::new(None),
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
+            inspect_task_state: Mutex::new(RuntimeTaskState::Running),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition.clone())),
@@ -3464,6 +3938,7 @@ mod tests {
             ensure_failure: Mutex::new(None),
             malformed_ensure_receipt: Mutex::new(false),
             message_disposition: Mutex::new(RuntimeDisposition::MessageAccepted),
+            inspect_task_state: Mutex::new(RuntimeTaskState::Running),
         });
         let service = TeamRuntimeService::new(
             Arc::new(TestDefinitions(definition)),

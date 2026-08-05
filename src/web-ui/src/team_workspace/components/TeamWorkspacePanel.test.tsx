@@ -63,15 +63,18 @@ vi.mock('@/flow_chat/components/btw/BtwSessionPanel', () => ({
     childSessionId,
     parentSessionId,
     presentationTitle,
+    restoreMissingSessionAs,
   }: {
     childSessionId?: string;
     parentSessionId?: string;
     presentationTitle?: string;
+    restoreMissingSessionAs?: string;
   }) => (
     <div
       data-testid="member-conversation"
       data-child-session-id={childSessionId}
       data-parent-session-id={parentSessionId}
+      data-restore-missing-session-as={restoreMissingSessionAs}
     >
       {presentationTitle}
     </div>
@@ -267,6 +270,7 @@ describe('TeamWorkspacePanel', () => {
     const conversation = container.querySelector<HTMLElement>('[data-testid="member-conversation"]');
     expect(conversation?.dataset.childSessionId).toBe('child-1');
     expect(conversation?.dataset.parentSessionId).toBe('parent-1');
+    expect(conversation?.dataset.restoreMissingSessionAs).toBe('subagent');
     expect(conversation?.textContent).toBe('开发工程师');
   });
 

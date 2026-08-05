@@ -386,6 +386,7 @@
     "system": "System",
     "thinking": "Thinking...",
     "generating": "Generating...",
+    "backgroundSubagentResult": "A team member returned a background task result",
     "copy": "Copy Message",
     "copied": "Copied",
     "copyFailed": "Copied!",

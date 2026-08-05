@@ -26,6 +26,10 @@ import { AcpPermissionActions } from './AcpPermissionActions';
 import { openBtwSessionInAuxPane } from '../services/openBtwSession';
 import { flowChatStore } from '../store/FlowChatStore';
 import { useSessionGoalModeActive } from '../hooks/useSessionGoalModeActive';
+import {
+  openTeamMemberByAgentId,
+  openTeamMemberByChildSession,
+} from '@/team_workspace';
 import './TaskToolDisplay.scss';
 import './ModelThinkingDisplay.scss';
 
@@ -333,6 +337,15 @@ export const TaskToolDisplay: React.FC<ToolCardProps> = ({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       if (toolItem.subagentSessionId && sessionId) {
+        if (openTeamMemberByChildSession(sessionId, toolItem.subagentSessionId)) {
+          return;
+        }
+        if (
+          taskInput?.agentType
+          && openTeamMemberByAgentId(sessionId, taskInput.agentType)
+        ) {
+          return;
+        }
         const parentSession = flowChatStore.getState().sessions.get(sessionId);
         openBtwSessionInAuxPane({
           childSessionId: toolItem.subagentSessionId,

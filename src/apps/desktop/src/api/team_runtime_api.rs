@@ -87,18 +87,44 @@ impl TeamRuntimeApiState {
         parent_session_id: &str,
     ) -> Result<BoundTeamRuntime, TeamRuntimeApiError> {
         let parent_session_id = required("parentSessionId", parent_session_id)?;
-        let session = self
-            .coordinator
-            .get_session_manager()
-            .get_session(parent_session_id)
-            .ok_or_else(|| {
-                TeamRuntimeApiError::new(
-                    "parent_session_not_restored",
-                    "The parent session must be restored before using Team runtime",
-                    false,
-                    Some("restore_parent_session"),
-                )
-            })?;
+        let session_manager = self.coordinator.get_session_manager();
+        let session = match session_manager.get_session(parent_session_id) {
+            Some(session) => session,
+            None => {
+                let workspace_path = session_manager
+                    .resolve_session_workspace_path(parent_session_id)
+                    .await
+                    .ok_or_else(|| {
+                        TeamRuntimeApiError::new(
+                            "parent_session_workspace_unresolved",
+                            "The parent session workspace could not be resolved for Team runtime",
+                            true,
+                            Some("restore_parent_session"),
+                        )
+                    })?;
+                self.coordinator
+                    .restore_session(&workspace_path, parent_session_id)
+                    .await
+                    .map_err(|error| {
+                        TeamRuntimeApiError::new(
+                            "parent_session_restore_failed",
+                            format!(
+                                "The parent session could not be restored for Team runtime: {error}"
+                            ),
+                            true,
+                            Some("restore_parent_session"),
+                        )
+                    })?
+            }
+        };
+        if session.session_id != parent_session_id {
+            return Err(TeamRuntimeApiError::new(
+                "parent_session_restore_mismatch",
+                "The restored parent session identity does not match the Team runtime request",
+                false,
+                None,
+            ));
+        }
         if session.kind != SessionKind::Standard {
             return Err(TeamRuntimeApiError::new(
                 "parent_session_kind_unsupported",
@@ -279,7 +305,7 @@ fn build_team_lead_prompt(record: &TeamDefinitionRecord) -> VoidResult<String> {
         .replace('<', "\\u003c")
         .replace('>', "\\u003e");
     Ok(format!(
-        "You are the active lead of the reusable Team defined below. Follow its lead-mediated collaboration policy, coordinate the listed specialists through the available Team runtime, preserve the parent session's permissions, and never invent a member result. The JSON comes from the validated durable Team definition; runtime run state is intentionally excluded.\n\n<team_definition_json>\n{payload}\n</team_definition_json>"
+        "You are the active lead of the reusable Team defined below. Follow its lead-mediated collaboration policy, coordinate the listed specialists through the available Team runtime, preserve the parent session's permissions, and never invent a member result. When starting a workflow, write `objective` as a direct execution assignment for the selected specialist: tell that specialist to perform and return the actual professional deliverable. Never phrase `objective` as a request to delegate again, enqueue work, summon another member, or merely acknowledge the task. Any instruction for the lead to return immediately or keep responding belongs in your own behavior and must not be copied into the member objective. The JSON comes from the validated durable Team definition; runtime run state is intentionally excluded.\n\n<team_definition_json>\n{payload}\n</team_definition_json>"
     ))
 }
 
@@ -1112,7 +1138,7 @@ pub async fn team_runtime_list(
     let runtime = state.bound_runtime(&request.parent_session_id).await?;
     runtime
         .service
-        .list_records(&request.parent_session_id)
+        .reconcile_and_list_records(&request.parent_session_id)
         .await
         .map_err(TeamRuntimeApiError::from_orchestrator)
 }
@@ -1525,6 +1551,12 @@ mod tests {
         assert_eq!(resolved.allowed_tool_names, vec!["Read"]);
         assert!(resolved.readonly);
         assert!(!resolved.prompt_overlay.contains("teamRunId"));
+        assert!(resolved
+            .prompt_overlay
+            .contains("direct execution assignment"));
+        assert!(resolved
+            .prompt_overlay
+            .contains("must not be copied into the member objective"));
         assert_eq!(
             resolved
                 .prompt_overlay

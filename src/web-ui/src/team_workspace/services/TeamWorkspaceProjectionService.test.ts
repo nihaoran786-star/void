@@ -464,6 +464,40 @@ describe('TeamWorkspaceProjectionService', () => {
       ?.activeRun?.status).toBe('running');
   });
 
+  it('绑定新版本团队时旧实例的定义版本问题不污染当前工作区', async () => {
+    const obsolete = runtimeRecord();
+    obsolete.snapshot.instance.teamDefinitionRevision = 'obsolete-revision';
+    const bound = retargetRuntime(runtimeRecord(), {
+      teamInstanceId: 'instance-2',
+      teamDefinitionId: 'team-2',
+      teamDefinitionRevision: 'revision-2',
+      teamRunId: 'run-2',
+    });
+    const pair = gateways(
+      { records: [obsolete, bound], diagnostics: [] },
+      {
+        status: 'ready',
+        records: [definitionRecord('revision-2', 'team-2')],
+        diagnostics: [],
+      },
+    );
+
+    const snapshot = await new TeamWorkspaceProjectionService(
+      pair.runtimeGateway,
+      pair.definitionGateway,
+    ).read({
+      parentSessionId: 'session-1',
+      teamDefinitionId: 'team-2',
+      teamInstanceId: 'instance-2',
+    });
+
+    expect(snapshot.activeTeam?.teamInstanceId).toBe('instance-2');
+    expect(snapshot.issues).not.toContainEqual(expect.objectContaining({
+      code: 'definition_revision_mismatch',
+      teamInstanceId: 'instance-1',
+    }));
+  });
+
   it.each([
     {
       title: '绑定实例缺失',

@@ -360,6 +360,42 @@ impl TeamInstance {
         *self = candidate;
         Ok(())
     }
+
+    /// Rotates the instance-level pointer to the member execution reserved for
+    /// a newly active Team run. Historical member runs keep their own durable
+    /// task and child-session bindings; this pointer only identifies the
+    /// member's current execution.
+    pub fn begin_member_run_binding(
+        &mut self,
+        member_id: &str,
+        subagent_task_id: String,
+        updated_at: u64,
+    ) -> Result<(), TeamRuntimeContractError> {
+        validate_transition_time(self.updated_at, updated_at)?;
+        validate_identifier("subagentTaskId", &subagent_task_id)?;
+        self.validate()?;
+        if self.lifecycle != TeamInstanceLifecycle::Ready || self.active_run_id.is_none() {
+            return Err(TeamRuntimeContractError::ActiveRunInconsistent {
+                message: "a member execution can only begin for an active ready Team run"
+                    .to_string(),
+            });
+        }
+
+        let mut candidate = self.clone();
+        let binding = candidate
+            .member_bindings
+            .iter_mut()
+            .find(|binding| binding.member_id == member_id)
+            .ok_or_else(|| TeamRuntimeContractError::RuntimeBindingInconsistent {
+                message: format!("Team instance has no member binding for '{member_id}'"),
+            })?;
+        binding.child_session_id = None;
+        binding.subagent_task_id = Some(subagent_task_id);
+        candidate.updated_at = updated_at;
+        candidate.validate()?;
+        *self = candidate;
+        Ok(())
+    }
 }
 
 impl TeamExecutionProfile {
@@ -2015,5 +2051,34 @@ mod tests {
             .expect("clear accepts the current maximum timestamp");
         assert_eq!(instance.active_run_id, None);
         assert_eq!(instance.updated_at, 21);
+    }
+
+    #[test]
+    fn a_new_active_run_rotates_the_current_member_execution_binding() {
+        let mut instance = instance_with_profile(
+            "instance-1",
+            "workspace-1",
+            "parent-1",
+            TeamExecutionProfile::PromptOrchestrated,
+        );
+        instance
+            .transition(TeamInstanceLifecycle::Ready, None, 11)
+            .expect("instance ready");
+        let run =
+            TeamRun::new("run-2", "instance-1", "workflow-1", 2, 12).expect("valid second run");
+
+        assert!(instance
+            .begin_member_run_binding("specialist-1", "task-2".to_string(), 12)
+            .is_err());
+        instance
+            .set_active_run(&run, 12)
+            .expect("second run becomes active");
+        instance
+            .begin_member_run_binding("specialist-1", "task-2".to_string(), 12)
+            .expect("current member binding rotates for the new run");
+
+        let binding = &instance.member_bindings[0];
+        assert_eq!(binding.subagent_task_id.as_deref(), Some("task-2"));
+        assert_eq!(binding.child_session_id, None);
     }
 }

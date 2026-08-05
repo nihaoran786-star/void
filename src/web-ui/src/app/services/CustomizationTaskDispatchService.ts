@@ -1,4 +1,3 @@
-import { SHORT_DRAMA_TEAM_CATALOG_ID } from '@/shared/services/customization/adapters/ShortDramaTeamAdapter';
 import { scenarioFromLegacyAgentType } from '@/shared/services/customization/adapters/SessionPersonaMetadataAdapter';
 import {
   ReusableTeamActivationError,
@@ -66,7 +65,6 @@ export interface CustomizationTaskDispatchDependencies {
     workspacePath?: string;
   }): Promise<AgentCatalogEntry>;
   activateReusableTeam(input: ActivateReusableTeamInput): Promise<unknown>;
-  openShortDrama(): Promise<void>;
 }
 
 export class CustomizationTaskDispatchError extends Error {
@@ -143,15 +141,6 @@ const defaultDependencies: CustomizationTaskDispatchDependencies = {
     );
     return reusableTeamActivationService.activate(input);
   },
-  openShortDrama: async () => {
-    if (typeof window === 'undefined') return;
-    await new Promise<void>((resolve) => {
-      window.requestAnimationFrame(() => {
-        window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
-        resolve();
-      });
-    });
-  },
 };
 
 function isReusableTeam(target: TeamCatalogEntry): boolean {
@@ -174,7 +163,6 @@ function isFixedTeam(target: TeamCatalogEntry): boolean {
     && target.availability.status === 'available'
     && (
       target.identity.id === DEFAULT_REVIEW_TEAM_ID
-      || target.identity.id === SHORT_DRAMA_TEAM_CATALOG_ID
     );
 }
 
@@ -348,9 +336,6 @@ export class CustomizationTaskDispatchService
       }
     }
 
-    if (input.target.identity.id === SHORT_DRAMA_TEAM_CATALOG_ID) {
-      await this.dependencies.openShortDrama();
-    }
     return undefined;
   }
 }

@@ -78,6 +78,9 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       () => parseComposerPresentation(message?.metadata?.composerPresentation),
       [message?.metadata?.composerPresentation],
     );
+    const isBackgroundSubagentResult =
+      message?.metadata?.kind === 'background_result'
+      && message.metadata.sourceKind === 'subagent';
     const hasStructuredPresentation = composerPresentation?.segments.some(
       segment => segment.type !== 'text',
     ) ?? false;
@@ -102,11 +105,13 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     const isEditing = editingTurnId === turnId;
     const resolvedSessionId = sessionId ?? currentSession?.sessionId;
     const isSystemTriggered = Boolean(
-      message?.metadata?.triggerSource && message.metadata.triggerSource !== 'desktop_ui',
+      isBackgroundSubagentResult
+      || (message?.metadata?.triggerSource && message.metadata.triggerSource !== 'desktop_ui'),
     );
     const canRollback =
       !steeringStatus &&
       canShowRollbackAction &&
+      !isSystemTriggered &&
       !!resolvedSessionId &&
       turnIndex >= 0 &&
       !isRollingBack &&
@@ -120,7 +125,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
     // The legacy edit service accepts plain text only. Disable it for structured
     // references instead of silently flattening and losing their identities.
     const canEdit = canEditBase && !hasStructuredPresentation && !isEditSubmitting && !isRollingBack;
-    const canShowEditAction = allowUserMessageEdit && !isFailed;
+    const canShowEditAction = allowUserMessageEdit && !isFailed && !isSystemTriggered;
     const editDisabledReason = isSystemTriggered
       ? t('message.cannotEdit')
       : steeringStatus
@@ -140,7 +145,9 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       const reproductionMatch = reproductionRegex.exec(messageContent);
       const reproduction = reproductionMatch ? reproductionMatch[1].trim() : null;
 
-      let cleaned = messageContent.replace(reproductionRegex, '').trim();
+      let cleaned = isBackgroundSubagentResult
+        ? t('message.backgroundSubagentResult')
+        : messageContent.replace(reproductionRegex, '').trim();
 
       // Strip [Image: ...] context lines when images are shown as thumbnails.
       if (messageImages.length > 0) {
@@ -150,7 +157,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
       }
 
       return { displayText: cleaned, reproductionSteps: reproduction };
-    }, [messageContent, messageImages]);
+    }, [isBackgroundSubagentResult, messageContent, messageImages, t]);
     
     // Check whether content overflows.
     useEffect(() => {
@@ -515,7 +522,7 @@ export const UserMessageItem = React.memo<UserMessageItemProps>(
                     <ArrowDownToLine size={14} />
                   </button>
                 </Tooltip>
-              ) : canShowRollbackAction && !steeringStatus ? (
+              ) : canShowRollbackAction && !steeringStatus && !isSystemTriggered ? (
                 <Tooltip content={canRollback ? t('message.rollbackTo', { index: turnIndex + 1 }) : t('message.cannotRollback')}>
                   <button
                     type="button"

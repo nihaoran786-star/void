@@ -606,12 +606,18 @@ implements TeamWorkspaceProjectionReader {
         teamInstanceId: boundTeamInstanceId,
       }));
     }
+    const visibleIssues = hasActiveTeamBinding
+      ? issues.filter(issue => (
+          !issue.teamInstanceId
+          || issue.teamInstanceId === boundTeamInstanceId
+        ))
+      : issues;
     return {
-      status: snapshotStatus(teams, issues),
+      status: snapshotStatus(teams, visibleIssues),
       parentSessionId: input.parentSessionId,
       teams,
       activeTeam,
-      issues,
+      issues: visibleIssues,
       shouldPoll: hasActiveTeamBinding
         ? Boolean(activeTeam && !activeTeam.isTerminal)
         : teams.some(team => !team.isTerminal),

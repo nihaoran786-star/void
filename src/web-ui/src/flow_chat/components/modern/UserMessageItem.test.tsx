@@ -28,6 +28,7 @@ vi.mock('react-i18next', () => ({
         'message.copy': '复制',
         'message.copied': '已复制',
         'message.copyFailed': '复制失败',
+        'message.backgroundSubagentResult': '团队成员已返回后台任务结果',
         'message.edit': '编辑消息',
         'message.cannotRollback': '无法回滚',
         'message.rollbackTo': '回滚到此消息前',
@@ -157,6 +158,38 @@ describe('UserMessageItem steering tag', () => {
     });
 
     expect(container.querySelector('.user-message-item__steering-tag')).toBeNull();
+  });
+
+  it('renders a Team background delivery without exposing its internal protocol', () => {
+    activeSessionRef.current = {
+      sessionId: 'main-session',
+      sessionKind: 'normal',
+      dialogTurns: [{ id: 'turn-1', status: 'completed' }],
+    };
+
+    act(() => {
+      root.render(
+        <FlowChatContext.Provider value={{ sessionId: 'main-session' }}>
+          <UserMessageItem
+            message={{
+              id: 'background-result-1',
+              content: "Background subagent 'ScriptAI' completed successfully: <result>done</result>",
+              timestamp: 1000,
+              metadata: {
+                kind: 'background_result',
+                sourceKind: 'subagent',
+              },
+            }}
+            turnId="turn-1"
+          />
+        </FlowChatContext.Provider>,
+      );
+    });
+
+    expect(container.textContent).toContain('团队成员已返回后台任务结果');
+    expect(container.textContent).not.toContain("Background subagent 'ScriptAI'");
+    expect(container.querySelector('.user-message-item__edit-btn')).toBeNull();
+    expect(container.querySelector('.user-message-item__rollback-btn')).toBeNull();
   });
 
   it('hides the rollback button for subagent sessions', () => {

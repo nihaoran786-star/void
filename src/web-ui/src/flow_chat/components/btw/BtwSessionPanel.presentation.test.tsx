@@ -9,6 +9,31 @@ let flowChatState: FlowChatState;
 const flowChatListeners = new Set<(state: FlowChatState) => void>();
 const mockCancelSession = vi.fn();
 const mockLoadSessionHistory = vi.fn();
+const mockAddExternalSession = vi.fn((
+  sessionId: string,
+  title: string,
+  mode: string,
+  workspacePath?: string,
+  meta?: Record<string, unknown>,
+) => {
+  const session = {
+    sessionId,
+    title,
+    dialogTurns: [],
+    status: 'idle',
+    config: { agentType: mode },
+    createdAt: 1,
+    lastActiveAt: 1,
+    error: null,
+    workspacePath,
+    ...meta,
+  } as Session;
+  flowChatState = {
+    ...flowChatState,
+    sessions: new Map(flowChatState.sessions).set(sessionId, session),
+  };
+  flowChatListeners.forEach(listener => listener(flowChatState));
+});
 const reviewActionBarRenderMock = vi.hoisted(() => vi.fn());
 const childComposerRenderMock = vi.hoisted(() => vi.fn());
 
@@ -132,6 +157,8 @@ vi.mock('../../store/FlowChatStore', () => ({
       flowChatListeners.add(listener);
       return () => flowChatListeners.delete(listener);
     },
+    addExternalSession: (...args: Parameters<typeof mockAddExternalSession>) =>
+      mockAddExternalSession(...args),
     loadSessionHistory: (...args: unknown[]) => mockLoadSessionHistory(...args),
   },
 }));
@@ -319,6 +346,50 @@ describe('BtwSessionPanel presentation lifecycle', () => {
       }));
     },
   );
+
+  it('restores a missing formal Team member projection without opening a legacy canvas tab', async () => {
+    flowChatState = {
+      sessions: new Map([['parent', createParentSession()]]),
+      activeSessionId: 'parent',
+    };
+
+    await act(async () => {
+      root.render(
+        <BtwSessionPanel
+          childSessionId="team-member-child"
+          parentSessionId="parent"
+          workspacePath="D:/workspace/project"
+          presentationTitle="剧本导演"
+          restoreMissingSessionAs="subagent"
+          isActive
+        />,
+      );
+      await Promise.resolve();
+    });
+
+    expect(mockAddExternalSession).toHaveBeenCalledWith(
+      'team-member-child',
+      '剧本导演',
+      expect.any(String),
+      'D:/workspace/project',
+      expect.objectContaining({
+        parentSessionId: 'parent',
+        sessionKind: 'subagent',
+        isHistorical: true,
+      }),
+      undefined,
+      undefined,
+    );
+    expect(mockLoadSessionHistory).toHaveBeenCalledWith(
+      'team-member-child',
+      'D:/workspace/project',
+      undefined,
+      undefined,
+      undefined,
+      { includeInternal: true },
+    );
+    expect(container.querySelector('[data-testid="mock-child-composer"]')).not.toBeNull();
+  });
 
   it('does not mount a composer for review-only child sessions', async () => {
     await act(async () => {

@@ -8,6 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use tokio::sync::Mutex;
 use uuid::Uuid;
+use void_core::agentic::fixed_team_definitions::{
+    ai_short_drama_team_definition, AI_SHORT_DRAMA_TEAM_DEFINITION_ID,
+};
 use void_core::agentic::team_definitions::{
     materialize_team_definition, team_definition_revision, validate_team_definition,
     TeamDefinition, TeamDefinitionDraft, TeamDefinitionError, TeamDefinitionErrorCode,
@@ -18,6 +21,7 @@ use void_core::service::remote_ssh::workspace_state::is_remote_path;
 
 const TEAM_DEFINITION_FILE: &str = "team.json";
 const MAX_TEAM_PACKAGE_BYTES: u64 = 1024 * 1024;
+const AI_SHORT_DRAMA_TEAM_BUILTIN_PATH: &str = "builtin://ai-short-drama-team";
 
 static TEAM_DEFINITION_MUTATION_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
@@ -259,6 +263,17 @@ async fn load_record(
     .await
 }
 
+fn builtin_ai_short_drama_team_record() -> TeamDefinitionRecord {
+    let definition = ai_short_drama_team_definition();
+    TeamDefinitionRecord {
+        revision: team_definition_revision(&definition),
+        definition,
+        level: TeamDefinitionLevel::User,
+        path: AI_SHORT_DRAMA_TEAM_BUILTIN_PATH.to_string(),
+        is_authorable: false,
+    }
+}
+
 /// Resolve one runtime Team definition across the trusted user/project roots.
 ///
 /// Runtime lookup has no implicit precedence: shadowing the same immutable ID
@@ -269,6 +284,9 @@ pub(crate) async fn load_unique_runtime_team_definition(
     team_definition_id: &str,
     project_workspace_root: Option<&Path>,
 ) -> Result<Option<TeamDefinitionRecord>, TeamDefinitionError> {
+    if team_definition_id == AI_SHORT_DRAMA_TEAM_DEFINITION_ID {
+        return Ok(Some(builtin_ai_short_drama_team_record()));
+    }
     let user_root = path_manager.user_team_definitions_dir();
     let project_root = project_workspace_root
         .map(|workspace_root| path_manager.project_team_definitions_dir(workspace_root));
@@ -896,6 +914,7 @@ pub async fn list_team_definitions(
             Err(project_error) => return Err(project_error),
         }
     }
+    records.push(builtin_ai_short_drama_team_record());
     records.sort_by(|left, right| {
         left.definition
             .display_name
@@ -921,6 +940,9 @@ pub async fn list_team_definitions(
 pub async fn get_team_definition(
     request: GetTeamDefinitionRequest,
 ) -> Result<TeamDefinitionRecord, TeamDefinitionError> {
+    if request.team_definition_id == AI_SHORT_DRAMA_TEAM_DEFINITION_ID {
+        return Ok(builtin_ai_short_drama_team_record());
+    }
     let path_manager = get_path_manager_arc();
     let root = root_for_level(
         &path_manager,
@@ -998,6 +1020,18 @@ mod tests {
         TeamMemberDraft, TeamMemberRole, TeamScenario, TeamWorkflowDraft, TeamWorkflowPhaseDraft,
         TeamWorkflowPhaseKind,
     };
+
+    #[test]
+    fn builtin_short_drama_team_is_readonly_and_runtime_addressable() {
+        let record = builtin_ai_short_drama_team_record();
+        assert_eq!(
+            record.definition.team_definition_id,
+            AI_SHORT_DRAMA_TEAM_DEFINITION_ID
+        );
+        assert_eq!(record.path, AI_SHORT_DRAMA_TEAM_BUILTIN_PATH);
+        assert!(!record.is_authorable);
+        assert!(!record.revision.is_empty());
+    }
 
     fn test_root(label: &str) -> PathBuf {
         std::env::temp_dir().join(format!(

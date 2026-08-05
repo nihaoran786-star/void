@@ -35,6 +35,8 @@ export interface TeamWorkspacePanelProps {
   isActive?: boolean;
   workspacePath?: string;
   onClose?: () => void;
+  selectedMemberId?: string | null;
+  onSelectedMemberChange?: (memberId: string | null) => void;
 }
 
 const SUCCESS = new Set(['ready', 'completed']);
@@ -206,9 +208,18 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   isActive = true,
   workspacePath,
   onClose,
+  selectedMemberId,
+  onSelectedMemberChange,
 }) => {
   const { t, i18n } = useTranslation('flow-chat');
-  const [memberId, setMemberId] = useState<string | null>(null);
+  const [internalMemberId, setInternalMemberId] = useState<string | null>(null);
+  const memberId = selectedMemberId === undefined
+    ? internalMemberId
+    : selectedMemberId;
+  const setMemberId = useCallback((nextMemberId: string | null) => {
+    if (selectedMemberId === undefined) setInternalMemberId(nextMemberId);
+    onSelectedMemberChange?.(nextMemberId);
+  }, [onSelectedMemberChange, selectedMemberId]);
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocusMemberId = useRef<string | null>(null);
   const team = state.snapshot?.activeTeam ?? null;
@@ -220,7 +231,7 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
 
   useEffect(() => {
     if (memberId && !selectedMember) setMemberId(null);
-  }, [memberId, selectedMember]);
+  }, [memberId, selectedMember, setMemberId]);
 
   useEffect(() => {
     if (memberId || !pendingFocusMemberId.current) return;
@@ -257,6 +268,8 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
               isActive={isActive}
               presentationTitle={selectedMember.definition.displayName}
               showKindBadge={false}
+              showHeader={false}
+              restoreMissingSessionAs="subagent"
             />
           </Suspense>
         </div>

@@ -202,4 +202,21 @@ describe('ExistingTeamDefinitionAdapter', () => {
       causeMessage: 'transport disconnected',
     });
   });
+
+  it('合并同一页面内的并发目录读取，避免固定团队和用户团队重复扫描', async () => {
+    configApiMock.listTeamDefinitions.mockResolvedValue({
+      status: 'ready',
+      records: [record],
+      diagnostics: [],
+    });
+    const adapter = new ExistingTeamDefinitionAdapter();
+
+    const [left, right] = await Promise.all([
+      adapter.list({ workspacePath: 'D:/workspace' }),
+      adapter.list({ workspacePath: 'D:/workspace' }),
+    ]);
+
+    expect(left).toEqual(right);
+    expect(configApiMock.listTeamDefinitions).toHaveBeenCalledTimes(1);
+  });
 });

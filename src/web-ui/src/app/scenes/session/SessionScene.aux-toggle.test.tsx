@@ -40,7 +40,70 @@ const mocks = vi.hoisted(() => ({
       | 'completed'
       | 'error',
     reload: vi.fn(),
+    snapshot: undefined as undefined | {
+      parentSessionId: string;
+      activeTeam: { teamDefinitionId: string; members: [] };
+    },
   },
+  teamPresentation: (() => {
+    const listeners = new Set<() => void>();
+    let sessions: Record<string, {
+      bindingKey: string;
+      isOpen: boolean;
+      selectedMemberId: string | null;
+      members: [];
+    }> = {};
+    const emit = () => listeners.forEach(listener => listener());
+    const actions = {
+      activateBinding: (sessionId: string, bindingKey: string) => {
+        const current = sessions[sessionId];
+        if (current?.bindingKey === bindingKey) return;
+        sessions = {
+          ...sessions,
+          [sessionId]: {
+            bindingKey,
+            isOpen: true,
+            selectedMemberId: null,
+            members: [],
+          },
+        };
+        emit();
+      },
+      registerSnapshot: () => {},
+      open: (sessionId: string) => {
+        const current = sessions[sessionId];
+        if (!current) return;
+        sessions = { ...sessions, [sessionId]: { ...current, isOpen: true } };
+        emit();
+      },
+      close: (sessionId: string) => {
+        const current = sessions[sessionId];
+        if (!current) return;
+        sessions = { ...sessions, [sessionId]: { ...current, isOpen: false } };
+        emit();
+      },
+      selectMember: (sessionId: string, memberId: string | null) => {
+        const current = sessions[sessionId];
+        if (!current) return;
+        sessions = {
+          ...sessions,
+          [sessionId]: { ...current, selectedMemberId: memberId },
+        };
+        emit();
+      },
+    };
+    return {
+      getState: () => ({ sessions, ...actions }),
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      reset: () => {
+        sessions = {};
+        emit();
+      },
+    };
+  })(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -64,14 +127,27 @@ vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
   }),
 }));
 
-vi.mock('@/team_workspace', () => ({
-  useActiveSessionTeamWorkspace: () => mocks.teamWorkspace,
-  TeamWorkspacePanel: ({ onClose }: { onClose?: () => void }) => (
-    <div data-testid="mock-team-workspace">
-      <button type="button" onClick={onClose}>close</button>
-    </div>
-  ),
-}));
+vi.mock('@/team_workspace', async () => {
+  const ReactModule = await import('react');
+  return {
+    useActiveSessionTeamWorkspace: () => mocks.teamWorkspace,
+    useTeamWorkspacePresentationStore: (selector: (state: ReturnType<typeof mocks.teamPresentation.getState>) => unknown) =>
+      ReactModule.useSyncExternalStore(
+        mocks.teamPresentation.subscribe,
+        () => selector(mocks.teamPresentation.getState()),
+        () => selector(mocks.teamPresentation.getState()),
+      ),
+    resolveTeamCanvasCapability: (teamDefinitionId?: string) =>
+      teamDefinitionId === 'custom-00000000000000000000000000000001'
+        ? 'short-drama'
+        : null,
+    TeamWorkspacePanel: ({ onClose }: { onClose?: () => void }) => (
+      <div data-testid="mock-team-workspace">
+        <button type="button" onClick={onClose}>close</button>
+      </div>
+    ),
+  };
+});
 
 vi.mock('../../hooks/useApp', () => ({
   useApp: () => ({
@@ -121,6 +197,8 @@ describe('SessionScene universal canvas toggle control', () => {
     mocks.teamWorkspace.teamBindingKey = null;
     mocks.teamWorkspace.displayName = undefined;
     mocks.teamWorkspace.presentationStatus = 'disabled';
+    mocks.teamWorkspace.snapshot = undefined;
+    mocks.teamPresentation.reset();
     useSessionModeStore.setState({
       mode: 'code',
       draftStatus: 'idle',
@@ -270,7 +348,7 @@ describe('SessionScene universal canvas toggle control', () => {
     window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
-  it('opens a bound general team beside chat without expanding or changing the canvas', async () => {
+  it('opens a bound general team as the dedicated third column without changing the canvas', async () => {
     mocks.teamWorkspace.status = 'ready';
     mocks.teamWorkspace.sessionId = 'session-1';
     mocks.teamWorkspace.hasTeamBinding = true;
@@ -288,8 +366,13 @@ describe('SessionScene universal canvas toggle control', () => {
     );
     expect(toggle).not.toBeNull();
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
+      .not.toBeNull();
 
+    await act(async () => {
+      toggle?.click();
+    });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .toBeNull();
     await act(async () => {
       toggle?.click();
     });
@@ -308,7 +391,7 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(document.activeElement).toBe(toggle);
   });
 
-  it('closes the team workspace when the active team binding changes', async () => {
+  it('reopens the team workspace when the active team binding changes', async () => {
     mocks.teamWorkspace.status = 'ready';
     mocks.teamWorkspace.sessionId = 'session-1';
     mocks.teamWorkspace.hasTeamBinding = true;
@@ -319,20 +402,54 @@ describe('SessionScene universal canvas toggle control', () => {
     await act(async () => {
       root.render(<SessionScene />);
     });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .not.toBeNull();
+
     await act(async () => {
       container.querySelector<HTMLButtonElement>(
-        '[data-testid="session-team-workspace-toggle"]',
+        '[data-testid="mock-team-workspace"] button',
       )?.click();
     });
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .not.toBeNull();
+      .toBeNull();
 
     mocks.teamWorkspace.teamBindingKey = 'team-2:revision-1:instance-2';
     await act(async () => {
       root.render(<SessionScene />);
     });
     expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
-      .toBeNull();
+      .not.toBeNull();
+  });
+
+  it('restores the short-drama canvas automatically from the durable Team binding', async () => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'short-drama:revision-1:instance-1';
+    mocks.teamWorkspace.displayName = 'AI 短剧制作团队';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+    mocks.teamWorkspace.snapshot = {
+      parentSessionId: 'session-1',
+      activeTeam: {
+        teamDefinitionId: 'custom-00000000000000000000000000000001',
+        members: [],
+      },
+    };
+    mocks.layout.rightPanelCollapsed = true;
+    const openShortDrama = vi.fn();
+    window.addEventListener('void:open-short-drama-center', openShortDrama);
+
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    });
+
+    expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
+    expect(openShortDrama).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .not.toBeNull();
+    window.removeEventListener('void:open-short-drama-center', openShortDrama);
   });
 
   it('keeps an empty media-session capability available to reopen the media canvas', async () => {

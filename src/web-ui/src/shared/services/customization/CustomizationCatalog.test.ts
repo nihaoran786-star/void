@@ -583,21 +583,17 @@ describe('fixed team adapters', () => {
     );
   });
 
-  it('AI 短剧团队只投影五个真实阶段智能体和 Media 兼容主理人', () => {
+  it('AI 短剧团队投影五个固定成员并使用统一主理人运行时', () => {
     const entry = createShortDramaTeamCatalogEntry();
     const entries: CapabilityCatalogEntry[] = [entry];
 
-    expect(entries[0].identity.id).toBe('ai-short-drama-team');
-    expect(entry.leadBinding).toBe('parent_persona_compatibility');
-    expect(entry.lead.identity.id).toBe('Media');
+    expect(entries[0].identity.id).toBe('custom-00000000000000000000000000000001');
+    expect(entry.leadBinding).toBe('parent_persona');
+    expect(entry.activationSupport).toBe('parent_persona');
+    expect(entry.lead.identity.displayNameKey).toBe(
+      'catalog.presentations.teamMembers.media.name',
+    );
     expect(entry.scenarioEligibility).toEqual(['media']);
-    expect(entry.members.map(member => member.identity.id)).toEqual([
-      'ScriptAI',
-      'AssetAI',
-      'SplitAI',
-      'VideoAI',
-      'EditorAI',
-    ]);
     expect(entry.members.map(member => member.identity.displayNameKey)).toEqual([
       'catalog.presentations.teamMembers.scriptAI.name',
       'catalog.presentations.teamMembers.assetAI.name',

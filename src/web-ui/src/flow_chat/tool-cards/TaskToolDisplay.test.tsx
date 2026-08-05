@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TaskToolDisplay } from './TaskToolDisplay';
 import { taskCollapseStateManager } from '../store/TaskCollapseStateManager';
 import type { FlowToolItem, ToolCardConfig } from '../types/flow-chat';
+import { useTeamWorkspacePresentationStore } from '@/team_workspace';
 
 const mocks = vi.hoisted(() => ({
   openBtwSessionInAuxPane: vi.fn(),
@@ -164,6 +165,7 @@ describeWithJsdom('TaskToolDisplay', () => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
 
     taskCollapseStateManager.clearAll();
+    useTeamWorkspacePresentationStore.setState({ sessions: {} });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -292,6 +294,89 @@ describeWithJsdom('TaskToolDisplay', () => {
       remoteConnectionId: 'remote-1',
       remoteSshHost: 'host-1',
       includeInternal: true,
+    });
+  });
+
+  it('routes a bound Team member to the dedicated right workspace instead of the canvas', async () => {
+    useTeamWorkspacePresentationStore.setState({
+      sessions: {
+        'parent-session': {
+          bindingKey: 'team-binding-1',
+          isOpen: false,
+          selectedMemberId: null,
+          members: [{
+            memberId: 'member-script',
+            childSessionId: 'subagent-session-1',
+            agentId: 'ScriptAI',
+          }],
+        },
+      },
+    });
+    const toolItem: FlowToolItem = {
+      ...reviewTaskItem('completed', 'ScriptAI', 'Write the short-drama script'),
+      subagentSessionId: 'subagent-session-1',
+    };
+
+    await act(async () => {
+      root.render(
+        <TaskToolDisplay
+          toolItem={toolItem}
+          config={config}
+          sessionId="parent-session"
+        />,
+      );
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.task-header-rail__hit')?.click();
+    });
+
+    expect(mocks.openBtwSessionInAuxPane).not.toHaveBeenCalled();
+    expect(
+      useTeamWorkspacePresentationStore.getState().sessions['parent-session'],
+    ).toMatchObject({
+      isOpen: true,
+      selectedMemberId: 'member-script',
+    });
+  });
+
+  it('routes a Team member by stable agent identity while its child binding is still hydrating', async () => {
+    useTeamWorkspacePresentationStore.setState({
+      sessions: {
+        'parent-session': {
+          bindingKey: 'team-binding-1',
+          isOpen: false,
+          selectedMemberId: null,
+          members: [{
+            memberId: 'member-script',
+            agentId: 'ScriptAI',
+          }],
+        },
+      },
+    });
+    const toolItem: FlowToolItem = {
+      ...reviewTaskItem('running', 'ScriptAI', 'Write the short-drama script'),
+      subagentSessionId: 'late-child-session',
+    };
+
+    await act(async () => {
+      root.render(
+        <TaskToolDisplay
+          toolItem={toolItem}
+          config={config}
+          sessionId="parent-session"
+        />,
+      );
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.task-header-rail__hit')?.click();
+    });
+
+    expect(mocks.openBtwSessionInAuxPane).not.toHaveBeenCalled();
+    expect(
+      useTeamWorkspacePresentationStore.getState().sessions['parent-session'],
+    ).toMatchObject({
+      isOpen: true,
+      selectedMemberId: 'member-script',
     });
   });
 

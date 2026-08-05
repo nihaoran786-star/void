@@ -7,11 +7,15 @@ Updated: 2026-08-05
 - Active customization integration branch: `codex/minimal-workspace-ui`.
 - The `minimal` workspace is the clean-profile default; `classic` remains the
   rollback presentation.
-- The short-drama workspace uses one real secondary `EditorGroup` for the fixed
-  stage-agent team. Minimal presentation may collapse it to an on-demand,
-  zero-reserved-width entry and open the existing group in a bounded overlay.
-- Closing the short-drama team presentation must not delete child sessions or
-  remove the only reopen control.
+- Bound Teams use one presentation path: wide desktop renders
+  `main conversation | working Canvas | Team Workspace`; medium layouts use a
+  bounded right overlay. Team member conversations never become sibling Canvas
+  tabs, and closing the presentation must not delete or cancel child sessions.
+  Restored Canvas widths shrink within the three-column contract rather than
+  pushing the Team Workspace outside the physical desktop window.
+- The right Team Workspace is reserved for durable Team members. Ordinary Task
+  and `/btw` temporary child conversations keep their existing compatibility
+  presentation and are not promoted into the formal Team member surface.
 - Future Review, Finance, Short Drama, Customer Service, and other expert teams
   share one durable Team Workspace domain: reusable team definitions contain a
   lead, specialist members, workflow phases, and policy; session-bound team
@@ -51,9 +55,14 @@ Updated: 2026-08-05
   and Web runtime gateway; direct Team Workspace pause/resume controls,
   browser/server runtime and persistence parity, and future flagship-adapter
   expansion remain deferred.
-- Deep Review and AI Short Drama remain adapters over their existing fixed
-  runtimes; the generic reusable-Team runtime does not replace their manifests,
-  child/stage sessions, policies, media routing, project state, or Canvas.
+- Deep Review remains an adapter over its dedicated fixed runtime. AI Short
+  Drama now ships as a trusted, read-only `prompt_orchestrated` Team definition:
+  its lead uses the shared durable Team runtime and its five member sessions
+  remain the existing `ScriptAI`, `AssetAI`, `SplitAI`, `VideoAI`, and
+  `EditorAI` personas. Their fixed policies, `ShortDramaProject` tools, media
+  routing, project state, and dedicated Canvas remain owned by Short Drama.
+  Team-bound short-drama sessions do not run the legacy five-session bootstrap
+  or open stage-agent Canvas tabs, preventing duplicate member conversations.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards
@@ -90,11 +99,11 @@ Updated: 2026-08-05
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.
-- The session owns one stable outer canvas toggle on the chat/canvas divider.
-  It hides the universal preview and any nested stage-agent presentation
-  together without closing tabs or deleting child sessions, then remains at
-  the scene edge as the one-click reopen action. The team control remains
-  scoped to the nested stage-agent presentation.
+- The session owns one stable Canvas toggle and one Team Workspace control.
+  Team binding opens the right workspace by default; a persisted AI Short Drama
+  binding also restores the short-drama Canvas automatically. Both controls are
+  presentation-only and never cancel a run, delete a child, or clear Canvas
+  state.
 - Runtime, persistence, Skill policy, media tool routing, session history, and
   desktop host behavior remain outside presentation-only changes.
 
@@ -123,9 +132,9 @@ UI / route -> Module Interface -> Adapter / service -> external system
   capsule and leaves workspace choice and task text to the user. The first send
   creates the parent, awaits canonical Agent or reusable Team-lead activation,
   freezes the persona snapshot, and only then sends. Failed activation removes
-  the empty parent and leaves the draft retryable. Fixed Deep Review and AI
-  Short Drama entries continue to delegate to their existing Code and Media
-  flows after confirmation.
+  the empty parent and leaves the draft retryable. Fixed Deep Review continues
+  to delegate to its dedicated Code flow; AI Short Drama binds its trusted Team
+  lead and restores the dedicated Media Canvas from the durable session facts.
 - **Module:** Short Drama owns project facts and stage workflow.
   **Interface:** short-drama services, runtime bridge, workspace manifest, and
   explicit view models.
@@ -190,8 +199,9 @@ Open baseline debt:
 - test files are excluded from Web UI ESLint and TypeScript project checks;
 - `ChatInput` remains a high-coupling orchestration hotspot;
 - Browser UI still contains registered direct-Tauri lifecycle exceptions.
-- stage-agent binding persistence and bounded retry still have a confirmed
-  async state gap.
+- legacy non-Team short-drama stage-agent binding persistence and bounded retry
+  still have a confirmed async state gap; Team-bound short-drama sessions no
+  longer use that bootstrap path.
 
 Evidence and exact commands are in
 [docs/qa/repository-stability-audit-2026-07-28.md](docs/qa/repository-stability-audit-2026-07-28.md).

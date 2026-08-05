@@ -21,6 +21,9 @@
       "empty": "No agent teams are currently available."
     },
     "actions": { "retry": "Retry", "reload": "Reload" },
+    "errors": {
+      "short_drama_team_definition_missing": "The AI Short Drama Team definition is unavailable. Restart Void and try again."
+    },
     "availability": {
       "unavailable": "This configuration cannot be dispatched safely yet. Check its role definition, tools, and permissions.",
       "disabled": "This Agent is disabled. Enable it from management first.",
