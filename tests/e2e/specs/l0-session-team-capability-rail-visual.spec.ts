@@ -26,10 +26,32 @@ const waitForMinimalPresentation = () => browser.waitUntil(
   },
 );
 
-const openShortDramaFixture = async () => {
-  await browser.execute(() => {
-    window.dispatchEvent(new CustomEvent('void:open-short-drama-center'));
-  });
+const openShortDramaFixture = async (sourceSessionId: string) => {
+  await $('.canvas-content-canvas').waitForExist({ timeout: 20_000 });
+  await browser.execute(async (sessionId) => {
+    // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+    const { globalStateAPI } = await import(
+      '/src/shared/types/global-state.ts'
+    );
+    // @ts-expect-error Resolved by Vite inside the embedded browser runtime.
+    const { useAgentCanvasStore } = await import(
+      '/src/app/components/panels/content-canvas/stores/index.ts'
+    );
+    const workspace = await globalStateAPI.getCurrentWorkspace();
+    if (!workspace?.rootPath) {
+      throw new Error('Expected a workspace before opening the short-drama fixture');
+    }
+    useAgentCanvasStore.getState().addTab({
+      type: 'short-drama-center',
+      title: 'AI Short Drama',
+      data: { workspacePath: workspace.rootPath, sourceSessionId: sessionId },
+      metadata: {
+        duplicateCheckKey: `short-drama:${workspace.rootPath}`,
+        sourceSessionId: sessionId,
+        contentRole: 'short-drama-center',
+      },
+    }, 'active', 'primary');
+  }, sourceSessionId);
   await $('[data-testid="short-drama-center"]').waitForDisplayed({
     timeout: 15_000,
   });
@@ -109,7 +131,10 @@ describe('L0 session team capability rail visual contract', () => {
     });
 
     await $('.void-session-scene').waitForDisplayed({ timeout: 20_000 });
-    await openShortDramaFixture();
+    if (!createdMediaSessionId) {
+      throw new Error('Expected the Media session before opening the fixture');
+    }
+    await openShortDramaFixture(createdMediaSessionId);
   });
 
   it('keeps the team entry compact and opens coordination beside the canvas', async () => {
