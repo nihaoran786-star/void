@@ -1,7 +1,7 @@
 import { $, browser, expect } from '@wdio/globals';
 import * as path from 'node:path';
 import { openWorkspace } from '../helpers/workspace-helper';
-import { saveScreenshot } from '../helpers/screenshot-utils';
+import { capturePhysicalVoidWindow } from '../helpers/screenshot-utils';
 
 const screenshotDirectory = path.resolve(
   process.cwd(),
@@ -148,10 +148,8 @@ describe('L0 session team capability rail visual contract', () => {
     expect(compactWidth).toBeGreaterThanOrEqual(35);
     expect(compactWidth).toBeLessThanOrEqual(37);
 
-    await saveScreenshot('team-rail-compact-full', {
+    await capturePhysicalVoidWindow('team-rail-compact-full', {
       directory: screenshotDirectory,
-      includeTimestamp: false,
-      prefix: 'slice-team',
     });
 
     await teamToggle.click();
@@ -195,10 +193,8 @@ describe('L0 session team capability rail visual contract', () => {
     expect(layoutEvidence.documentOverflow).toBeLessThanOrEqual(1);
     expect(layoutEvidence.sceneOverflow).toBeLessThanOrEqual(1);
 
-    await saveScreenshot('team-coordination-open-full', {
+    await capturePhysicalVoidWindow('team-coordination-open-full', {
       directory: screenshotDirectory,
-      includeTimestamp: false,
-      prefix: 'slice-team',
     });
   });
 
