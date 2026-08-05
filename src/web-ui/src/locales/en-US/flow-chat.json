@@ -2295,7 +2295,7 @@
       "bound_team_projection_missing": "The current team's full state could not be restored. Try again."
     },
     "overview": { "title": "Current work", "workflowUnavailable": "Workflow details unavailable", "waiting": "Summoned and waiting for a task" },
-    "members": { "title": "Team members", "count": "{{count}} people", "empty": "No members", "open": "Open {{name}}'s conversation", "unavailable": "{{name}} does not have a child conversation yet" },
+    "members": { "title": "Team members", "count": "{{count}} people", "empty": "No members", "open": "Open {{name}}'s conversation" },
     "phases": { "title": "Workflow phases", "count": "{{count}} phases", "empty": "No workflow phases for this task" },
     "roles": { "lead": "Lead", "specialist": "Specialist", "quality_gate": "Quality gate" },
     "lifecycle": { "provisioning": "Preparing", "ready": "Ready", "unavailable": "Unavailable", "archived": "Archived" },
@@ -2304,6 +2304,6 @@
     "phaseStatus": { "pending": "Pending", "ready": "Ready", "running": "In progress", "blocked": "Blocked", "completed": "Completed", "failed": "Failed", "skipped": "Skipped", "cancelled": "Cancelled", "not_started": "Not started", "unavailable": "Status unavailable" },
     "phaseKinds": { "serial": "Sequential", "parallel": "Parallel", "decision": "Decision", "review": "Quality review" },
     "updatedAt": "Updated at {{value}}",
-    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history." }
+    "memberConversation": { "loadingTitle": "Opening member conversation", "loadingDescription": "Restoring this member's work history.", "notStartedTitle": "Conversation not started", "notStartedDescription": "This member has no work history yet. The full conversation will appear here after the team lead dispatches a task." }
   }
 }

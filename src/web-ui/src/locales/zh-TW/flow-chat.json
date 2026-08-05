@@ -2295,7 +2295,7 @@
       "bound_team_projection_missing": "目前團隊暫時無法還原完整狀態，請重試。"
     },
     "overview": { "title": "目前工作", "workflowUnavailable": "流程資料不可用", "waiting": "已召喚，等待任務" },
-    "members": { "title": "團隊成員", "count": "{{count}} 人", "empty": "暫無成員", "open": "查看{{name}}的會話", "unavailable": "{{name}}尚無子會話" },
+    "members": { "title": "團隊成員", "count": "{{count}} 人", "empty": "暫無成員", "open": "查看{{name}}的會話" },
     "phases": { "title": "工作階段", "count": "{{count}} 個", "empty": "目前沒有階段任務" },
     "roles": { "lead": "主理人", "specialist": "專業成員", "quality_gate": "品質把關" },
     "lifecycle": { "provisioning": "準備中", "ready": "已就緒", "unavailable": "不可用", "archived": "已歸檔" },
@@ -2304,6 +2304,6 @@
     "phaseStatus": { "pending": "待開始", "ready": "可開始", "running": "進行中", "blocked": "已阻塞", "completed": "已完成", "failed": "失敗", "skipped": "已略過", "cancelled": "已取消", "not_started": "未開始", "unavailable": "狀態不可用" },
     "phaseKinds": { "serial": "依序進行", "parallel": "平行處理", "decision": "需要決策", "review": "品質審查" },
     "updatedAt": "更新於 {{value}}",
-    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。" }
+    "memberConversation": { "loadingTitle": "正在開啟成員會話", "loadingDescription": "正在還原這位成員的工作記錄。", "notStartedTitle": "尚未開始對話", "notStartedDescription": "這位成員還沒有工作記錄。團隊總管派發任務後，會在這裡顯示完整對話。" }
   }
 }

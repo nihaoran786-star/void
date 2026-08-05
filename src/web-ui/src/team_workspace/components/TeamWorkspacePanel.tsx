@@ -150,17 +150,14 @@ function MemberList({
       </div>
       {members.length === 0 ? <p className="team-workspace-panel__muted">{t('teamWorkspace.members.empty')}</p> : (
         <div className="team-workspace-panel__list">
-          {members.map(member => {
-            const canOpen = Boolean(member.childSessionId);
-            return (
+          {members.map(member => (
               <button
                 key={member.definition.memberId}
                 ref={button => registerButton(member.definition.memberId, button)}
                 type="button"
                 className="team-workspace-panel__member"
-                disabled={!canOpen}
                 onClick={() => openMember(member)}
-                aria-label={t(canOpen ? 'teamWorkspace.members.open' : 'teamWorkspace.members.unavailable', { name: member.definition.displayName })}
+                aria-label={t('teamWorkspace.members.open', { name: member.definition.displayName })}
               >
                 <span className="team-workspace-panel__role" data-role={member.definition.role}><RoleIcon role={member.definition.role} /></span>
                 <span className="team-workspace-panel__member-copy">
@@ -169,8 +166,7 @@ function MemberList({
                 </span>
                 <Status namespace="memberStatus" value={member.state.status} />
               </button>
-            );
-          })}
+          ))}
         </div>
       )}
     </section>
@@ -223,10 +219,14 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
   const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
   const pendingFocusMemberId = useRef<string | null>(null);
   const team = state.snapshot?.activeTeam ?? null;
+  const members = useMemo(() => team?.members.filter(member => (
+    member.definition.memberId !== team.definition.leadMemberId
+    && member.definition.role !== 'lead'
+  )) ?? [], [team]);
   const issue = state.error ?? state.snapshot?.issues[0] ?? team?.issues[0];
   const selectedMember = useMemo(
-    () => team?.members.find(member => member.definition.memberId === memberId && member.childSessionId) ?? null,
-    [memberId, team],
+    () => members.find(member => member.definition.memberId === memberId) ?? null,
+    [memberId, members],
   );
 
   useEffect(() => {
@@ -260,18 +260,26 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
           <span>{selectedMember.definition.displayName}</span>
         </div>
         <div className="team-workspace-panel__conversation">
-          <Suspense fallback={<EmptyState icon={<LoaderCircle className="team-workspace-panel__spinner" />} title={t('teamWorkspace.memberConversation.loadingTitle')} description={t('teamWorkspace.memberConversation.loadingDescription')} />}>
-            <BtwSessionPanel
-              childSessionId={selectedMember.childSessionId}
-              parentSessionId={state.snapshot.parentSessionId}
-              workspacePath={workspacePath}
-              isActive={isActive}
-              presentationTitle={selectedMember.definition.displayName}
-              showKindBadge={false}
-              showHeader={false}
-              restoreMissingSessionAs="subagent"
+          {selectedMember.childSessionId ? (
+            <Suspense fallback={<EmptyState icon={<LoaderCircle className="team-workspace-panel__spinner" />} title={t('teamWorkspace.memberConversation.loadingTitle')} description={t('teamWorkspace.memberConversation.loadingDescription')} />}>
+              <BtwSessionPanel
+                childSessionId={selectedMember.childSessionId}
+                parentSessionId={state.snapshot.parentSessionId}
+                workspacePath={workspacePath}
+                isActive={isActive}
+                presentationTitle={selectedMember.definition.displayName}
+                showKindBadge={false}
+                showHeader={false}
+                restoreMissingSessionAs="subagent"
+              />
+            </Suspense>
+          ) : (
+            <EmptyState
+              icon={<CircleUserRound />}
+              title={t('teamWorkspace.memberConversation.notStartedTitle')}
+              description={t('teamWorkspace.memberConversation.notStartedDescription')}
             />
-          </Suspense>
+          )}
         </div>
       </aside>
     );
@@ -314,7 +322,7 @@ export const TeamWorkspacePanel: React.FC<TeamWorkspacePanelProps> = ({
           <p>{team.activeRun?.run.objective || team.definition.description}</p>
         </section>
         <MemberList
-          members={team.members}
+          members={members}
           openMember={member => setMemberId(member.definition.memberId)}
           registerButton={registerButton}
         />

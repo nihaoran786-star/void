@@ -246,15 +246,24 @@ levels:
 3. the selected member conversation using the same complete composer
    presentation contract as the main chat.
 
+The lead is not a member-workspace entry: it is the active AI in the left
+parent conversation. The right roster contains specialists and quality-gate
+members only. Every roster member remains selectable before a runtime child
+session exists. Selecting such a member opens its explicit not-started
+conversation state; after the lead dispatches work and the durable child
+session is bound, the same route upgrades in place to the real conversation.
+
 This surface is exclusively the formal, durable Team-member workspace.
 Ordinary Task launches and `/btw` temporary child conversations remain separate
 compatibility features; they must not create a second Team-member UI or occupy
 the right Team Workspace unless the durable Team projection proves the member
 binding.
 
-Selecting a member focuses that member's existing `/btw` child conversation
-inside the Team Workspace. It does not replace the active Media, Short Drama,
-Terminal, Browser, or other Canvas surface.
+Selecting a member focuses that member's route inside the Team Workspace. If a
+durable `/btw` child conversation exists it is restored there; otherwise the
+route shows an explicit not-started state instead of disabling the member. It
+does not replace the active Media, Short Drama, Terminal, Browser, or other
+Canvas surface.
 
 Medium desktop uses a bounded overlay on the right side of Canvas while keeping
 the Canvas mounted. Narrow layouts may temporarily promote Team Workspace to a
@@ -263,9 +272,12 @@ model.
 
 ### Member conversation
 
-The selected member conversation reuses the shared composer presentation and
-versioned composer DTO. It restores text, file, image, media, Skill, permission,
-and session references through existing Flow Chat interfaces.
+Once the durable child session exists, the selected member conversation reuses
+the shared composer presentation and versioned composer DTO. It restores text,
+file, image, media, Skill, permission, and session references through existing
+Flow Chat interfaces. A pre-dispatch member route is presentation-only and does
+not manufacture an unscoped ordinary session or bypass the lead-mediated Team
+runtime.
 
 It must not copy `ChatInput.tsx`, create another message Store, parse display
 text to rebuild references, or change BTW parent-child lifecycle semantics.

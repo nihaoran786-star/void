@@ -305,9 +305,16 @@ function projectTeam(
     }
   }
 
-  const members = definitionRecord.definition.members.map(member => (
-    projectMember(member, runtimeRecord, activeRun, issues)
-  ));
+  // The Team lead is the active persona of the parent conversation. It is not
+  // a child agent and must never be projected into the right-side member
+  // workspace, even when an older definition/runtime happens to contain a lead
+  // binding alongside specialist bindings.
+  const members = definitionRecord.definition.members
+    .filter(member => (
+      member.memberId !== definitionRecord.definition.leadMemberId
+      && member.role !== 'lead'
+    ))
+    .map(member => projectMember(member, runtimeRecord, activeRun, issues));
   const phases = workflow?.phases.map(phase => (
     projectPhase(phase, runtimeRecord, activeRun as TeamRun, issues)
   )) ?? [];

@@ -47,11 +47,12 @@ vi.mock('react-i18next', () => ({
         'teamWorkspace.phaseKinds.serial': '依次进行',
         'teamWorkspace.memberConversation.loadingTitle': '正在打开成员会话',
         'teamWorkspace.memberConversation.loadingDescription': '正在恢复这位成员的工作记录。',
+        'teamWorkspace.memberConversation.notStartedTitle': '尚未开始对话',
+        'teamWorkspace.memberConversation.notStartedDescription': '这位成员还没有工作记录。团队总管派发任务后，会在这里显示完整对话。',
       };
       if (key === 'teamWorkspace.members.count') return `${values?.count ?? 0} 人`;
       if (key === 'teamWorkspace.phases.count') return `${values?.count ?? 0} 个`;
       if (key === 'teamWorkspace.members.open') return `查看${values?.name ?? ''}的会话`;
-      if (key === 'teamWorkspace.members.unavailable') return `${values?.name ?? ''}尚无子会话`;
       if (key === 'teamWorkspace.updatedAt') return `更新于 ${values?.value ?? ''}`;
       return translations[key] ?? key;
     },
@@ -248,19 +249,18 @@ describe('TeamWorkspacePanel', () => {
 
     expect(container.textContent).toContain('软件交付团队');
     expect(container.textContent).toContain('完成用户需求');
-    expect(container.textContent).toContain('研发主理人');
+    expect(container.textContent).not.toContain('研发主理人');
     expect(container.textContent).toContain('开发工程师');
     expect(container.textContent).toContain('实现');
     expect(container.querySelector('[role="status"]')?.textContent).toContain('运行中');
     expect(container.querySelectorAll('[role="status"]')).toHaveLength(1);
   });
 
-  it('只有已有子会话的成员可进入，并复用 BTW 面板展示真实会话', async () => {
+  it('总管留在左侧主会话，右侧只展示并打开专业成员', async () => {
     await render(readyState());
-    const leadButton = container.querySelector<HTMLButtonElement>('button[aria-label="研发主理人尚无子会话"]');
     const developerButton = container.querySelector<HTMLButtonElement>('button[aria-label="查看开发工程师的会话"]');
 
-    expect(leadButton?.disabled).toBe(true);
+    expect(container.querySelector('button[aria-label*="研发主理人"]')).toBeNull();
     expect(developerButton?.disabled).toBe(false);
     await act(async () => {
       developerButton?.click();
@@ -272,6 +272,26 @@ describe('TeamWorkspacePanel', () => {
     expect(conversation?.dataset.parentSessionId).toBe('parent-1');
     expect(conversation?.dataset.restoreMissingSessionAs).toBe('subagent');
     expect(conversation?.textContent).toBe('开发工程师');
+  });
+
+  it('成员尚无子会话时仍可点击打开明确的空对话', async () => {
+    const team = activeTeam();
+    team.members[1] = {
+      definition: team.definition.members[1]!,
+      state: { source: 'definition', status: 'not_started' },
+    };
+    await render(readyState(team));
+
+    const developerButton = container.querySelector<HTMLButtonElement>('button[aria-label="查看开发工程师的会话"]');
+    expect(developerButton?.disabled).toBe(false);
+    await act(async () => {
+      developerButton?.click();
+      await Promise.resolve();
+    });
+
+    expect(container.textContent).toContain('尚未开始对话');
+    expect(container.textContent).toContain('团队总管派发任务后');
+    expect(container.querySelector('[data-testid="member-conversation"]')).toBeNull();
   });
 
   it('从成员会话返回后恢复到原成员按钮焦点', async () => {

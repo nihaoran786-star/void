@@ -245,7 +245,6 @@ describe('TeamWorkspaceProjectionService', () => {
       source: member.state.source,
       status: member.state.status,
     }))).toEqual([
-      { id: 'lead', source: 'definition', status: 'not_started' },
       { id: 'developer', source: 'runtime', status: 'running' },
     ]);
     expect(snapshot.activeTeam?.phases.map(phase => ({
@@ -412,7 +411,7 @@ describe('TeamWorkspaceProjectionService', () => {
       pair.definitionGateway,
     ).read({ parentSessionId: 'session-1' });
 
-    expect(snapshot.activeTeam?.members[1]?.state).toMatchObject({
+    expect(snapshot.activeTeam?.members[0]?.state).toMatchObject({
       source: 'projection',
       status: 'unavailable',
       issueCode: 'member_run_ambiguous',

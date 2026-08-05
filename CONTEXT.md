@@ -16,6 +16,10 @@ Updated: 2026-08-05
 - The right Team Workspace is reserved for durable Team members. Ordinary Task
   and `/btw` temporary child conversations keep their existing compatibility
   presentation and are not promoted into the formal Team member surface.
+  The Team lead remains the active persona in the left parent conversation and
+  is never repeated as a right-side child. Every specialist is selectable from
+  the roster before its first runtime dispatch; an explicit not-started
+  conversation is shown until the durable child session exists.
 - Future Review, Finance, Short Drama, Customer Service, and other expert teams
   share one durable Team Workspace domain: reusable team definitions contain a
   lead, specialist members, workflow phases, and policy; session-bound team
