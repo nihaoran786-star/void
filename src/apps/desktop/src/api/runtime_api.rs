@@ -1,8 +1,8 @@
 //! Runtime capability API
 
 use crate::api::app_state::AppState;
-use void_core::service::runtime::{RuntimeCommandCapability, RuntimeManager};
 use tauri::State;
+use void_core::service::runtime::{RuntimeCommandCapability, RuntimeManager};
 
 #[tauri::command]
 pub async fn get_runtime_capabilities(

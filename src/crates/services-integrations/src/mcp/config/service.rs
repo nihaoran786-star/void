@@ -207,33 +207,62 @@ impl MCPConfigService {
     }
 
     async fn save_user_config(&self, config: &MCPServerConfig) -> MCPRuntimeResult<()> {
-        let current_value = self
+        let mut current_value = self
             .config_store
             .get_config_value("mcp_servers")
             .await?
             .unwrap_or_else(|| serde_json::json!({ "mcpServers": {} }));
 
-        let mut mcp_servers =
-            if let Some(obj) = current_value.get("mcpServers").and_then(|v| v.as_object()) {
-                obj.clone()
-            } else {
-                serde_json::Map::new()
-            };
-
+        let root = current_value
+            .as_object_mut()
+            .ok_or_else(|| MCPRuntimeError::validation("MCP config root must be an object"))?;
+        let mcp_servers = root
+            .entry("mcpServers")
+            .or_insert_with(|| serde_json::json!({}))
+            .as_object_mut()
+            .ok_or_else(|| MCPRuntimeError::validation("mcpServers must be an object"))?;
         mcp_servers.insert(config.id.clone(), config_to_cursor_format(config));
 
         self.config_store
-            .set_config_value(
-                "mcp_servers",
-                serde_json::json!({
-                    "mcpServers": mcp_servers
-                }),
-            )
+            .set_config_value("mcp_servers", current_value)
             .await?;
         info!(
             "Saved user-level MCP server config (Cursor format): {}",
             config.id
         );
+        Ok(())
+    }
+
+    /// Inserts one user-level server without replacing any existing entry.
+    /// Callers are responsible for serializing mutations through their shared service lock.
+    pub async fn insert_user_config_if_absent(
+        &self,
+        config: &MCPServerConfig,
+    ) -> MCPRuntimeResult<()> {
+        let mut current_value = self
+            .config_store
+            .get_config_value("mcp_servers")
+            .await?
+            .unwrap_or_else(|| serde_json::json!({ "mcpServers": {} }));
+        let root = current_value
+            .as_object_mut()
+            .ok_or_else(|| MCPRuntimeError::validation("MCP config root must be an object"))?;
+        let mcp_servers = root
+            .entry("mcpServers")
+            .or_insert_with(|| serde_json::json!({}))
+            .as_object_mut()
+            .ok_or_else(|| MCPRuntimeError::validation("mcpServers must be an object"))?;
+
+        if mcp_servers.contains_key(&config.id) {
+            return Err(MCPRuntimeError::validation(format!(
+                "MCP_CONNECTOR_ALREADY_INSTALLED: {}",
+                config.id
+            )));
+        }
+        mcp_servers.insert(config.id.clone(), config_to_cursor_format(config));
+        self.config_store
+            .set_config_value("mcp_servers", current_value)
+            .await?;
         Ok(())
     }
 
@@ -257,21 +286,20 @@ impl MCPConfigService {
     }
 
     pub async fn delete_server_config(&self, server_id: &str) -> MCPRuntimeResult<()> {
-        let current_value = self
+        let mut current_value = self
             .config_store
             .get_config_value("mcp_servers")
             .await?
             .unwrap_or_else(|| serde_json::json!({ "mcpServers": {} }));
-
-        let mut mcp_servers =
-            if let Some(obj) = current_value.get("mcpServers").and_then(|v| v.as_object()) {
-                obj.clone()
-            } else {
-                return Err(MCPRuntimeError::not_found(format!(
-                    "MCP server config not found: {}",
-                    server_id
-                )));
-            };
+        let root = current_value
+            .as_object_mut()
+            .ok_or_else(|| MCPRuntimeError::validation("MCP config root must be an object"))?;
+        let mcp_servers = root
+            .get_mut("mcpServers")
+            .and_then(Value::as_object_mut)
+            .ok_or_else(|| {
+                MCPRuntimeError::not_found(format!("MCP server config not found: {}", server_id))
+            })?;
 
         if mcp_servers.remove(server_id).is_none() {
             return Err(MCPRuntimeError::not_found(format!(
@@ -281,12 +309,7 @@ impl MCPConfigService {
         }
 
         self.config_store
-            .set_config_value(
-                "mcp_servers",
-                serde_json::json!({
-                    "mcpServers": mcp_servers
-                }),
-            )
+            .set_config_value("mcp_servers", current_value)
             .await?;
         info!("Deleted MCP server config: {}", server_id);
         Ok(())

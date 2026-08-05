@@ -9,26 +9,26 @@
 //! incremental updates (new messages + current active turn snapshot).
 
 use crate::service_agent_runtime::{CoreRemoteSessionTrackerHost, CoreServiceAgentRuntime};
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use log::info;
 use serde_json::Value;
 use std::sync::{Arc, OnceLock};
 
 use super::encryption;
+use void_services_integrations::remote_connect::{
+    build_remote_image_contexts, cancel_remote_task, generate_remote_initial_sync,
+    handle_remote_interaction_command, handle_remote_poll_command, handle_remote_session_command,
+    handle_remote_workspace_command, handle_remote_workspace_file_command,
+    remote_dialog_submit_response, remote_task_cancel_response,
+    resolve_remote_execution_image_contexts, submit_remote_dialog, RemoteCancelTaskRequest,
+    RemoteConnectSubmissionSource, RemoteDialogSubmissionPolicy, RemoteDialogSubmissionRequest,
+    RemoteDialogSubmitOutcome, RemoteImageContext, RemoteSessionTrackerRegistry,
+};
 pub use void_services_integrations::remote_connect::{
     ActiveTurnSnapshot, AssistantEntry, ChatImageAttachment, ChatMessage, ChatMessageItem,
     ImageAttachment, RecentWorkspaceEntry, RemoteCommand, RemoteDefaultModelsConfig,
     RemoteModelCatalog, RemoteModelConfig, RemoteResponse, RemoteSessionStateTracker,
     RemoteToolStatus, SessionInfo, TrackerEvent,
-};
-use void_services_integrations::remote_connect::{
-    RemoteCancelTaskRequest, RemoteConnectSubmissionSource, RemoteDialogSubmissionPolicy,
-    RemoteDialogSubmissionRequest, RemoteDialogSubmitOutcome, RemoteImageContext,
-    RemoteSessionTrackerRegistry, build_remote_image_contexts, cancel_remote_task,
-    generate_remote_initial_sync, handle_remote_interaction_command, handle_remote_poll_command,
-    handle_remote_session_command, handle_remote_workspace_command,
-    handle_remote_workspace_file_command, remote_dialog_submit_response,
-    remote_task_cancel_response, resolve_remote_execution_image_contexts, submit_remote_dialog,
 };
 
 pub type EncryptedPayload = (String, String);
@@ -342,7 +342,7 @@ mod tests {
     use super::*;
     use crate::service::remote_connect::encryption::KeyPair;
     use void_services_integrations::remote_connect::{
-        RemoteCancelDecision, remote_session_restore_target, resolve_remote_cancel_decision,
+        remote_session_restore_target, resolve_remote_cancel_decision, RemoteCancelDecision,
     };
 
     #[test]

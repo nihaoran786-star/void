@@ -229,12 +229,8 @@ async fn build_tool_info(tool: &Arc<dyn void_core::agentic::tools::framework::To
         is_concurrency_safe: tool.is_concurrency_safe(None),
         needs_permissions: tool.needs_permissions(None),
         load_mode: match tool.default_exposure() {
-            void_core::agentic::tools::framework::ToolExposure::Expanded => {
-                ToolLoadMode::Expanded
-            }
-            void_core::agentic::tools::framework::ToolExposure::Collapsed => {
-                ToolLoadMode::OnDemand
-            }
+            void_core::agentic::tools::framework::ToolExposure::Expanded => ToolLoadMode::Expanded,
+            void_core::agentic::tools::framework::ToolExposure::Collapsed => ToolLoadMode::OnDemand,
         },
         dynamic_info: tool.dynamic_tool_info().map(to_dynamic_tool_info),
     }

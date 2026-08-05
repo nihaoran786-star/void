@@ -1,12 +1,12 @@
 //! Startchat Agent API
 
-use void_core::function_agents::{
-    startchat_func_agent::Language, StartchatFunctionAgent, WorkStateAnalysis, WorkStateOptions,
-};
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tauri::State;
+use void_core::function_agents::{
+    startchat_func_agent::Language, StartchatFunctionAgent, WorkStateAnalysis, WorkStateOptions,
+};
 
 use super::app_state::AppState;
 

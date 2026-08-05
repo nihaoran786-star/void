@@ -3,7 +3,9 @@ use crate::agentic::agents::{
     ResolvedPersonaDefinition, UserContextPolicy,
 };
 use crate::agentic::core::SessionKind;
+use crate::agentic::persona_skill_runtime::PersonaSkillFacts;
 use crate::agentic::session::{SystemPromptCacheIdentity, UserContextCacheIdentity};
+use crate::agentic::team_tool_runtime::{TeamToolFacts, TEAM_TOOL_NAME, TEAM_TOOL_POLICY_VERSION};
 use crate::agentic::tools::get_readonly_registered_tool_names;
 use crate::agentic::WorkspaceBinding;
 use crate::util::errors::{VoidError, VoidResult};
@@ -33,22 +35,66 @@ enum PersonaScenario {
     Media,
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum PersonaSnapshotKind {
+    Agent,
+    TeamLead,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PersonaTurnSnapshot {
     schema_version: u8,
-    kind: String,
+    kind: PersonaSnapshotKind,
     persona_key: String,
     persona_revision: String,
+    #[serde(default)]
+    team_definition_id: Option<String>,
+    #[serde(default)]
+    team_instance_id: Option<String>,
     scenario: PersonaScenario,
     execution_policy: String,
     resolved_skill_refs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamLeadPersonaResolveRequest {
+    pub parent_session_id: String,
+    pub team_definition_id: String,
+    pub team_instance_id: String,
+    pub lead_persona_id: String,
+    pub persona_revision: String,
+    pub scenario: String,
+    pub execution_policy: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedTeamLeadPersona {
+    pub team_definition_id: String,
+    pub team_definition_revision: String,
+    pub team_instance_id: String,
+    pub lead_persona_id: String,
+    pub prompt_overlay: String,
+    pub allowed_tool_names: Vec<String>,
+    pub allowed_skill_keys: Vec<String>,
+    pub readonly: bool,
+}
+
+#[async_trait]
+pub trait TeamLeadPersonaResolver: Send + Sync {
+    async fn resolve_team_lead_persona(
+        &self,
+        request: TeamLeadPersonaResolveRequest,
+    ) -> VoidResult<ResolvedTeamLeadPersona>;
 }
 
 #[derive(Clone)]
 pub struct ResolvedPersonaRuntime {
     agent: Arc<dyn Agent>,
     tool_policy: AgentToolPolicy,
+    persona_skill_facts: Option<PersonaSkillFacts>,
+    team_tool_facts: Option<TeamToolFacts>,
 }
 
 impl ResolvedPersonaRuntime {
@@ -59,6 +105,14 @@ impl ResolvedPersonaRuntime {
     pub fn tool_policy(&self) -> AgentToolPolicy {
         self.tool_policy.clone()
     }
+
+    pub fn persona_skill_facts(&self) -> Option<&PersonaSkillFacts> {
+        self.persona_skill_facts.as_ref()
+    }
+
+    pub fn team_tool_facts(&self) -> Option<&TeamToolFacts> {
+        self.team_tool_facts.as_ref()
+    }
 }
 
 struct PersonaOverlayAgent {
@@ -68,7 +122,7 @@ struct PersonaOverlayAgent {
     prompt_overlay: String,
     effective_tools: Vec<String>,
     exposure_overrides: AgentToolPolicyOverrides,
-    tools_hash: String,
+    cache_identity: String,
 }
 
 impl PersonaOverlayAgent {
@@ -78,6 +132,10 @@ impl PersonaOverlayAgent {
         tool_policy: AgentToolPolicy,
     ) -> Self {
         let tools_hash = hex::encode(Sha256::digest(tool_policy.allowed_tools.join("\n")));
+        let cache_identity = format!(
+            "agent:{}@{}||tools:{}||skills:none",
+            definition.key, definition.revision, tools_hash
+        );
         Self {
             base,
             persona_key: definition.key,
@@ -85,7 +143,40 @@ impl PersonaOverlayAgent {
             prompt_overlay: definition.prompt_overlay,
             effective_tools: tool_policy.allowed_tools.clone(),
             exposure_overrides: tool_policy.exposure_overrides,
+            cache_identity,
+        }
+    }
+
+    fn new_team_lead(
+        base: Arc<dyn Agent>,
+        definition: ResolvedTeamLeadPersona,
+        persona_revision: String,
+        tool_policy: AgentToolPolicy,
+        persona_skill_facts: Option<&PersonaSkillFacts>,
+    ) -> Self {
+        let tools_hash = hex::encode(Sha256::digest(tool_policy.allowed_tools.join("\n")));
+        let skills_identity = persona_skill_facts
+            .map(PersonaSkillFacts::cache_identity)
+            .unwrap_or_else(|| "none".to_string());
+        let cache_identity = format!(
+            "team_lead:definition={}@{}||instance={}||lead={}||persona_revision={}||tools:{}||skills:{}||team_tool_policy:{}",
+            definition.team_definition_id,
+            definition.team_definition_revision,
+            definition.team_instance_id,
+            definition.lead_persona_id,
+            persona_revision,
             tools_hash,
+            skills_identity,
+            TEAM_TOOL_POLICY_VERSION,
+        );
+        Self {
+            base,
+            persona_key: definition.lead_persona_id,
+            persona_revision,
+            prompt_overlay: definition.prompt_overlay,
+            effective_tools: tool_policy.allowed_tools.clone(),
+            exposure_overrides: tool_policy.exposure_overrides,
+            cache_identity,
         }
     }
 }
@@ -115,8 +206,8 @@ impl Agent for PersonaOverlayAgent {
     fn system_prompt_cache_identity(&self, model_name: Option<&str>) -> SystemPromptCacheIdentity {
         let base_identity = self.base.system_prompt_cache_identity(model_name).scope_key;
         SystemPromptCacheIdentity::new(format!(
-            "{base_identity}||persona:{}@{}||tools:{}",
-            self.persona_key, self.persona_revision, self.tools_hash
+            "{base_identity}||persona_runtime:{}",
+            self.cache_identity
         ))
     }
 
@@ -180,9 +271,9 @@ fn parse_and_validate_snapshot(
             VoidError::validation(format!("Malformed personaTurnSnapshot: {error}"))
         })?;
 
-    if snapshot.schema_version != 1 || snapshot.kind != "agent" {
+    if snapshot.schema_version != 1 {
         return Err(VoidError::validation(
-            "Unsupported persona snapshot version or kind".to_string(),
+            "Unsupported persona snapshot version".to_string(),
         ));
     }
     if session_kind != SessionKind::Standard {
@@ -216,6 +307,30 @@ fn parse_and_validate_snapshot(
             "Persona key and revision are required".to_string(),
         ));
     }
+    match snapshot.kind {
+        PersonaSnapshotKind::Agent => {
+            if snapshot.team_definition_id.is_some() || snapshot.team_instance_id.is_some() {
+                return Err(VoidError::validation(
+                    "Agent persona snapshot cannot carry Team identity".to_string(),
+                ));
+            }
+        }
+        PersonaSnapshotKind::TeamLead => {
+            if snapshot
+                .team_definition_id
+                .as_deref()
+                .is_none_or(|value| value.trim().is_empty())
+                || snapshot
+                    .team_instance_id
+                    .as_deref()
+                    .is_none_or(|value| value.trim().is_empty())
+            {
+                return Err(VoidError::validation(
+                    "Team lead snapshot requires definition and instance identity".to_string(),
+                ));
+            }
+        }
+    }
     Ok(Some(snapshot))
 }
 
@@ -240,11 +355,61 @@ fn intersect_tool_policy(
     }
 }
 
+fn intersect_team_lead_tool_policy(
+    base: AgentToolPolicy,
+    persona: &ResolvedTeamLeadPersona,
+    readonly_tools: &HashSet<String>,
+) -> AgentToolPolicy {
+    let declared_tools: HashSet<&str> = persona
+        .allowed_tool_names
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let inherit_base = declared_tools.is_empty();
+    let allowed_tools: Vec<String> = base
+        .allowed_tools
+        .into_iter()
+        .filter(|tool| inherit_base || declared_tools.contains(tool.as_str()))
+        .filter(|tool| !persona.readonly || readonly_tools.contains(tool))
+        .collect();
+    let allowed_set: HashSet<&str> = allowed_tools.iter().map(String::as_str).collect();
+    let mut exposure_overrides = base.exposure_overrides;
+    exposure_overrides.retain(|tool, _| allowed_set.contains(tool.as_str()));
+    AgentToolPolicy {
+        allowed_tools,
+        exposure_overrides,
+    }
+}
+
+fn enable_team_tool_for_lead(
+    tool_policy: &mut AgentToolPolicy,
+    definition: &ResolvedTeamLeadPersona,
+) -> Option<TeamToolFacts> {
+    if definition.readonly || !tool_policy.allowed_tools.iter().any(|tool| tool == "Task") {
+        return None;
+    }
+    if !tool_policy
+        .allowed_tools
+        .iter()
+        .any(|tool| tool == TEAM_TOOL_NAME)
+    {
+        tool_policy.allowed_tools.push(TEAM_TOOL_NAME.to_string());
+    }
+    Some(TeamToolFacts::new(
+        definition.team_definition_id.clone(),
+        definition.team_definition_revision.clone(),
+        definition.team_instance_id.clone(),
+        definition.lead_persona_id.clone(),
+    ))
+}
+
 pub async fn resolve_persona_turn_runtime(
     metadata: Option<&Value>,
+    parent_session_id: &str,
     agent_type: &str,
     session_kind: SessionKind,
     workspace: Option<&WorkspaceBinding>,
+    team_lead_resolver: Option<&Arc<dyn TeamLeadPersonaResolver>>,
 ) -> VoidResult<Option<ResolvedPersonaRuntime>> {
     let Some(snapshot) = parse_and_validate_snapshot(metadata, agent_type, session_kind)? else {
         return Ok(None);
@@ -252,15 +417,6 @@ pub async fn resolve_persona_turn_runtime(
 
     let registry = get_agent_registry();
     let workspace_root = workspace.map(WorkspaceBinding::root_path);
-    let definition = registry
-        .resolve_persona_definition(&snapshot.persona_key, workspace_root, agent_type)
-        .await?;
-    if definition.revision != snapshot.persona_revision {
-        return Err(VoidError::validation(format!(
-            "Persona revision mismatch for {}",
-            snapshot.persona_key
-        )));
-    }
     let base = registry.get_mode_agent(agent_type).ok_or_else(|| {
         VoidError::validation(format!(
             "Persona base execution policy is not a mode: {agent_type}"
@@ -273,14 +429,87 @@ pub async fn resolve_persona_turn_runtime(
         .await
         .into_iter()
         .collect();
-    let tool_policy = intersect_tool_policy(base_policy, &definition, &readonly_tools);
-    let agent: Arc<dyn Agent> = Arc::new(PersonaOverlayAgent::new(
-        base,
-        definition,
-        tool_policy.clone(),
-    ));
+    let (agent, tool_policy, persona_skill_facts, team_tool_facts): (
+        Arc<dyn Agent>,
+        AgentToolPolicy,
+        Option<PersonaSkillFacts>,
+        Option<TeamToolFacts>,
+    ) = match snapshot.kind {
+        PersonaSnapshotKind::Agent => {
+            let definition = registry
+                .resolve_persona_definition(&snapshot.persona_key, workspace_root, agent_type)
+                .await?;
+            if definition.revision != snapshot.persona_revision {
+                return Err(VoidError::validation(format!(
+                    "Persona revision mismatch for {}",
+                    snapshot.persona_key
+                )));
+            }
+            let tool_policy = intersect_tool_policy(base_policy, &definition, &readonly_tools);
+            let agent: Arc<dyn Agent> = Arc::new(PersonaOverlayAgent::new(
+                base,
+                definition,
+                tool_policy.clone(),
+            ));
+            (agent, tool_policy, None, None)
+        }
+        PersonaSnapshotKind::TeamLead => {
+            let resolver = team_lead_resolver.ok_or_else(|| {
+                VoidError::validation("Team lead persona resolver is not installed".to_string())
+            })?;
+            let definition = resolver
+                .resolve_team_lead_persona(TeamLeadPersonaResolveRequest {
+                    parent_session_id: parent_session_id.to_string(),
+                    team_definition_id: snapshot.team_definition_id.clone().unwrap_or_default(),
+                    team_instance_id: snapshot.team_instance_id.clone().unwrap_or_default(),
+                    lead_persona_id: snapshot.persona_key.clone(),
+                    persona_revision: snapshot.persona_revision.clone(),
+                    scenario: match snapshot.scenario {
+                        PersonaScenario::Code => "code",
+                        PersonaScenario::Cowork => "cowork",
+                        PersonaScenario::Media => "media",
+                    }
+                    .to_string(),
+                    execution_policy: snapshot.execution_policy.clone(),
+                })
+                .await?;
+            let expected_revision = format!(
+                "{}:{}",
+                definition.team_definition_revision, definition.lead_persona_id
+            );
+            if definition.team_definition_id
+                != snapshot.team_definition_id.clone().unwrap_or_default()
+                || definition.team_instance_id
+                    != snapshot.team_instance_id.clone().unwrap_or_default()
+                || definition.lead_persona_id != snapshot.persona_key
+                || snapshot.persona_revision != expected_revision
+            {
+                return Err(VoidError::validation(
+                    "Resolved Team lead identity does not match the immutable snapshot".to_string(),
+                ));
+            }
+            let mut tool_policy =
+                intersect_team_lead_tool_policy(base_policy, &definition, &readonly_tools);
+            let team_tool_facts = enable_team_tool_for_lead(&mut tool_policy, &definition);
+            let persona_skill_facts =
+                PersonaSkillFacts::from_allowed_skill_keys(&definition.allowed_skill_keys)?;
+            let agent: Arc<dyn Agent> = Arc::new(PersonaOverlayAgent::new_team_lead(
+                base,
+                definition,
+                snapshot.persona_revision,
+                tool_policy.clone(),
+                persona_skill_facts.as_ref(),
+            ));
+            (agent, tool_policy, persona_skill_facts, team_tool_facts)
+        }
+    };
 
-    Ok(Some(ResolvedPersonaRuntime { agent, tool_policy }))
+    Ok(Some(ResolvedPersonaRuntime {
+        agent,
+        tool_policy,
+        persona_skill_facts,
+        team_tool_facts,
+    }))
 }
 
 #[cfg(test)]
@@ -352,6 +581,74 @@ mod tests {
     }
 
     #[test]
+    fn team_lead_empty_tools_inherit_base_and_readonly_still_narrows() {
+        let base = AgentToolPolicy {
+            allowed_tools: vec!["Write".into(), "Read".into(), "Grep".into()],
+            exposure_overrides: Default::default(),
+        };
+        let readonly = HashSet::from(["Read".to_string(), "Grep".to_string()]);
+        let persona = ResolvedTeamLeadPersona {
+            team_definition_id: "custom-team".to_string(),
+            team_definition_revision: "r1".to_string(),
+            team_instance_id: "instance-1".to_string(),
+            lead_persona_id: "member-lead".to_string(),
+            prompt_overlay: "Lead safely.".to_string(),
+            allowed_tool_names: Vec::new(),
+            allowed_skill_keys: Vec::new(),
+            readonly: true,
+        };
+
+        let policy = intersect_team_lead_tool_policy(base, &persona, &readonly);
+        assert_eq!(policy.allowed_tools, vec!["Read", "Grep"]);
+    }
+
+    #[test]
+    fn team_tool_requires_writable_lead_and_task_in_effective_intersection() {
+        let definition = |allowed_tool_names: &[&str], readonly: bool| ResolvedTeamLeadPersona {
+            team_definition_id: "custom-team".to_string(),
+            team_definition_revision: "r1".to_string(),
+            team_instance_id: "instance-1".to_string(),
+            lead_persona_id: "member-lead".to_string(),
+            prompt_overlay: "Lead safely.".to_string(),
+            allowed_tool_names: allowed_tool_names
+                .iter()
+                .map(|tool| (*tool).to_string())
+                .collect(),
+            allowed_skill_keys: Vec::new(),
+            readonly,
+        };
+        let base = || AgentToolPolicy {
+            allowed_tools: vec!["Read".into(), "Task".into()],
+            exposure_overrides: Default::default(),
+        };
+        let readonly_tools = HashSet::from(["Read".to_string()]);
+
+        let writable = definition(&["Read", "Task"], false);
+        let mut policy = intersect_team_lead_tool_policy(base(), &writable, &readonly_tools);
+        let facts = enable_team_tool_for_lead(&mut policy, &writable)
+            .expect("writable Team lead with Task should receive Team authority");
+        assert_eq!(policy.allowed_tools, vec!["Read", "Task", "Team"]);
+        assert_eq!(facts.team_instance_id, "instance-1");
+
+        for denied in [
+            definition(&["Read", "Task"], true),
+            definition(&["Read"], false),
+        ] {
+            let mut policy = intersect_team_lead_tool_policy(base(), &denied, &readonly_tools);
+            assert!(enable_team_tool_for_lead(&mut policy, &denied).is_none());
+            assert!(!policy.allowed_tools.iter().any(|tool| tool == "Team"));
+        }
+
+        let no_task_base = AgentToolPolicy {
+            allowed_tools: vec!["Read".into()],
+            exposure_overrides: Default::default(),
+        };
+        let writable = definition(&["Read", "Task"], false);
+        let mut policy = intersect_team_lead_tool_policy(no_task_base, &writable, &readonly_tools);
+        assert!(enable_team_tool_for_lead(&mut policy, &writable).is_none());
+    }
+
+    #[test]
     fn overlay_cache_identity_is_stable_and_changes_with_revision_or_tools() {
         let base: Arc<dyn Agent> = Arc::new(AgenticMode::new());
         let make = |revision: &str, tools: &[&str]| {
@@ -396,15 +693,31 @@ mod tests {
         })
     }
 
+    fn team_snapshot_metadata() -> Value {
+        json!({
+            "personaTurnSnapshot": {
+                "schemaVersion": 1,
+                "kind": "team_lead",
+                "personaKey": "member-lead",
+                "personaRevision": "r1:member-lead",
+                "teamDefinitionId": "custom-team",
+                "teamInstanceId": "instance-1",
+                "scenario": "code",
+                "executionPolicy": "agentic",
+                "resolvedSkillRefs": []
+            }
+        })
+    }
+
     #[test]
     fn explicit_persona_gates_fail_closed_before_registry_resolution() {
-        let mut team = snapshot_metadata();
-        team["personaTurnSnapshot"]["kind"] = json!("team_lead");
+        let mut team = team_snapshot_metadata();
+        team["personaTurnSnapshot"]["teamInstanceId"] = Value::Null;
         assert!(
             parse_and_validate_snapshot(Some(&team), "agentic", SessionKind::Standard)
                 .unwrap_err()
                 .to_string()
-                .contains("kind")
+                .contains("definition and instance")
         );
 
         let mut skill = snapshot_metadata();
@@ -442,6 +755,93 @@ mod tests {
                 .to_string()
                 .contains("does not match")
         );
+    }
+
+    #[test]
+    fn team_lead_cache_identity_separates_instances_and_includes_empty_skills() {
+        let base: Arc<dyn Agent> = Arc::new(AgenticMode::new());
+        let policy = AgentToolPolicy {
+            allowed_tools: vec!["Read".to_string()],
+            exposure_overrides: Default::default(),
+        };
+        let make = |instance: &str| {
+            PersonaOverlayAgent::new_team_lead(
+                base.clone(),
+                ResolvedTeamLeadPersona {
+                    team_definition_id: "custom-team".to_string(),
+                    team_definition_revision: "r1".to_string(),
+                    team_instance_id: instance.to_string(),
+                    lead_persona_id: "member-lead".to_string(),
+                    prompt_overlay: "Lead safely.".to_string(),
+                    allowed_tool_names: vec!["Read".to_string()],
+                    allowed_skill_keys: Vec::new(),
+                    readonly: false,
+                },
+                "r1:member-lead".to_string(),
+                policy.clone(),
+                None,
+            )
+            .system_prompt_cache_identity(None)
+        };
+
+        assert_ne!(make("instance-1"), make("instance-2"));
+        assert!(make("instance-1").scope_key.contains("skills:none"));
+        assert!(make("instance-1").scope_key.contains("team_tool_policy:v1"));
+    }
+
+    #[test]
+    fn team_lead_cache_identity_tracks_normalized_skill_allowlist() {
+        let base: Arc<dyn Agent> = Arc::new(AgenticMode::new());
+        let policy = AgentToolPolicy {
+            allowed_tools: vec!["Read".to_string()],
+            exposure_overrides: Default::default(),
+        };
+        let make = |skills: &[&str]| {
+            let skill_keys = skills
+                .iter()
+                .map(|skill| (*skill).to_string())
+                .collect::<Vec<_>>();
+            let facts = PersonaSkillFacts::from_allowed_skill_keys(&skill_keys)
+                .unwrap()
+                .unwrap();
+            PersonaOverlayAgent::new_team_lead(
+                base.clone(),
+                ResolvedTeamLeadPersona {
+                    team_definition_id: "custom-team".to_string(),
+                    team_definition_revision: "r1".to_string(),
+                    team_instance_id: "instance-1".to_string(),
+                    lead_persona_id: "member-lead".to_string(),
+                    prompt_overlay: "Lead safely.".to_string(),
+                    allowed_tool_names: vec!["Read".to_string()],
+                    allowed_skill_keys: skill_keys,
+                    readonly: false,
+                },
+                "r1:member-lead".to_string(),
+                policy.clone(),
+                Some(&facts),
+            )
+            .system_prompt_cache_identity(None)
+        };
+
+        assert_eq!(make(&["skill-a", "skill-b"]), make(&["skill-b", "skill-a"]));
+        assert_ne!(make(&["skill-a"]), make(&["skill-b"]));
+        assert!(!make(&["skill-a"]).scope_key.contains("skills:none"));
+    }
+
+    #[tokio::test]
+    async fn team_lead_snapshot_without_platform_resolver_fails_closed() {
+        let error = resolve_persona_turn_runtime(
+            Some(&team_snapshot_metadata()),
+            "parent",
+            "agentic",
+            SessionKind::Standard,
+            None,
+            None,
+        )
+        .await
+        .err()
+        .expect("Team snapshots cannot fall back to the scenario default");
+        assert!(error.to_string().contains("resolver is not installed"));
     }
 
     #[test]

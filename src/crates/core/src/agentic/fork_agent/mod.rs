@@ -59,7 +59,6 @@ impl ForkAgentContextSnapshot {
         }
         config
     }
-
 }
 
 #[cfg(test)]

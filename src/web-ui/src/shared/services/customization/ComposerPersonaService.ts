@@ -5,6 +5,9 @@ import {
   ExistingAgentCatalogAdapter,
 } from './adapters/ExistingAgentCatalogAdapter';
 import {
+  ExistingTeamCatalogAdapter,
+} from './adapters/ExistingTeamCatalogAdapter';
+import {
   SHORT_DRAMA_TEAM_CATALOG_ID,
   ShortDramaTeamAdapter,
 } from './adapters/ShortDramaTeamAdapter';
@@ -32,6 +35,7 @@ export interface ComposerPersonaCatalog {
 
 export const composerCapabilityCatalog = new CapabilityCatalogService([
   new ExistingAgentCatalogAdapter(),
+  new ExistingTeamCatalogAdapter(),
   new DeepReviewTeamAdapter(),
   new ShortDramaTeamAdapter(),
 ]);
@@ -74,8 +78,11 @@ export class ComposerPersonaService {
       teams: result.entries.filter(
         (entry): entry is TeamCatalogEntry =>
           entry.kind === 'team'
-          && entry.activationSupport === 'existing_flow_only'
-          && entry.availability.status === 'available',
+          && entry.availability.status === 'available'
+          && (
+            this.isReusableTeam(entry, input.scenario)
+            || entry.activationSupport === 'existing_flow_only'
+          ),
       ),
       errors: result.errors,
     };
@@ -121,5 +128,19 @@ export class ComposerPersonaService {
       return 'open_short_drama';
     }
     throw new TypeError('Unsupported fixed team action');
+  }
+
+  isReusableTeam(
+    entry: TeamCatalogEntry,
+    scenario: CustomizationScenario,
+  ): boolean {
+    return entry.activationSupport === 'parent_persona'
+      && entry.leadBinding === 'parent_persona'
+      && entry.availability.status === 'available'
+      && entry.scenarioEligibility.includes(scenario)
+      && isKnownRevision(entry.identity.revision)
+      && isKnownRevision(entry.lead.identity.revision)
+      && entry.lead.identity.revision.value
+        === `${entry.identity.revision.value}:${entry.lead.identity.id}`;
   }
 }

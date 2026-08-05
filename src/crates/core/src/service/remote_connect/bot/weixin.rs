@@ -14,7 +14,7 @@ use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -27,6 +27,7 @@ use super::command_router::{
 };
 use super::retry::{remaining_until_ms, sleep_or_stop, RetryBackoff};
 use super::{load_bot_persistence, save_bot_persistence, BotConfig, SavedBotConnection};
+use crate::infrastructure::get_path_manager_arc;
 use crate::service::remote_connect::remote_server::ImageAttachment;
 
 const DEFAULT_BASE_URL: &str = "https://ilinkai.weixin.qq.com";
@@ -234,11 +235,14 @@ fn ensure_trailing_slash(url: &str) -> String {
     }
 }
 
-fn sync_buf_path(bot_account_id: &str) -> PathBuf {
-    let base = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
-    base.join(".void")
+fn sync_buf_path_in_void_home(void_home: &Path, bot_account_id: &str) -> PathBuf {
+    void_home
         .join("weixin")
         .join(format!("{bot_account_id}_get_updates_buf.txt"))
+}
+
+fn sync_buf_path(bot_account_id: &str) -> PathBuf {
+    sync_buf_path_in_void_home(&get_path_manager_arc().void_home_dir(), bot_account_id)
 }
 
 fn load_sync_buf(bot_account_id: &str) -> String {
@@ -2086,6 +2090,18 @@ fn chunk_text_for_weixin(text: &str) -> Vec<String> {
 mod weixin_inbound_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn sync_buffer_stays_under_managed_void_home() {
+        let void_home = Path::new("managed-void-home");
+
+        assert_eq!(
+            sync_buf_path_in_void_home(void_home, "bot-account"),
+            void_home
+                .join("weixin")
+                .join("bot-account_get_updates_buf.txt")
+        );
+    }
 
     /// Sanity-check the heuristic used by `send_text` to decide whether a
     /// failed `send_message_raw` indicates the cached `context_token` has

@@ -10,7 +10,7 @@ use void_core::agentic::tools::computer_use_host::{
 use void_core::util::errors::{VoidError, VoidResult};
 use windows::Win32::Foundation::{HWND, POINT, RECT};
 use windows::Win32::System::Com::{
-    CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+    CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
 };
 use windows::Win32::UI::Accessibility::{
     CUIAutomation, IUIAutomation, IUIAutomationCacheRequest, IUIAutomationElement,
@@ -64,7 +64,11 @@ fn localized_control_type_string(elem: &IUIAutomationElement) -> String {
 }
 
 fn option_nonempty(s: String) -> Option<String> {
-    if s.trim().is_empty() { None } else { Some(s) }
+    if s.trim().is_empty() {
+        None
+    } else {
+        Some(s)
+    }
 }
 
 fn window_text(hwnd: HWND) -> String {

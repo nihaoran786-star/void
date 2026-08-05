@@ -92,8 +92,15 @@ async fn replay_anthropic_fixture(fixture_path: &str) -> Result<Vec<UnifiedRespo
     let response = fetch_fixture(&server).await?;
     let (tx_event, mut rx_event) = mpsc::unbounded_channel();
 
-    handle_anthropic_stream(response, tx_event, None, false, None, Some(Duration::from_secs(2)))
-        .await;
+    handle_anthropic_stream(
+        response,
+        tx_event,
+        None,
+        false,
+        None,
+        Some(Duration::from_secs(2)),
+    )
+    .await;
 
     let mut events = Vec::new();
     while let Some(event) = rx_event.recv().await {
@@ -142,27 +149,33 @@ fn captured_tool_calls(events: &[UnifiedResponse]) -> Vec<CapturedToolCall> {
         }
 
         if event.finish_reason.is_some() {
-            captured.extend(pending.finalize_all(ToolCallBoundary::FinishReason).into_iter().map(
-                |finalized| CapturedToolCall {
-                    id: finalized.tool_id,
-                    name: finalized.tool_name,
-                    raw_arguments: finalized.raw_arguments,
-                    arguments: finalized.arguments,
-                    is_error: finalized.is_error,
-                },
-            ));
+            captured.extend(
+                pending
+                    .finalize_all(ToolCallBoundary::FinishReason)
+                    .into_iter()
+                    .map(|finalized| CapturedToolCall {
+                        id: finalized.tool_id,
+                        name: finalized.tool_name,
+                        raw_arguments: finalized.raw_arguments,
+                        arguments: finalized.arguments,
+                        is_error: finalized.is_error,
+                    }),
+            );
         }
     }
 
-    captured.extend(pending.finalize_all(ToolCallBoundary::StreamEnd).into_iter().map(
-        |finalized| CapturedToolCall {
-            id: finalized.tool_id,
-            name: finalized.tool_name,
-            raw_arguments: finalized.raw_arguments,
-            arguments: finalized.arguments,
-            is_error: finalized.is_error,
-        },
-    ));
+    captured.extend(
+        pending
+            .finalize_all(ToolCallBoundary::StreamEnd)
+            .into_iter()
+            .map(|finalized| CapturedToolCall {
+                id: finalized.tool_id,
+                name: finalized.tool_name,
+                raw_arguments: finalized.raw_arguments,
+                arguments: finalized.arguments,
+                is_error: finalized.is_error,
+            }),
+    );
     captured
 }
 
@@ -278,14 +291,17 @@ async fn openai_handler_stops_when_event_receiver_is_dropped() -> Result<()> {
 
 #[tokio::test]
 async fn openai_fixture_accepts_tool_call_without_type_field() -> Result<()> {
-    let events = replay_openai_fixture("stream/openai/tool_call_missing_type_field.sse", false)
-        .await?;
+    let events =
+        replay_openai_fixture("stream/openai/tool_call_missing_type_field.sse", false).await?;
     let tool_calls = captured_tool_calls(&events);
 
     assert_eq!(tool_calls.len(), 1);
     assert_eq!(tool_calls[0].id, "call_abc123");
     assert_eq!(tool_calls[0].name, "test_tool");
-    assert_eq!(tool_calls[0].arguments, serde_json::json!({ "value": "hello" }));
+    assert_eq!(
+        tool_calls[0].arguments,
+        serde_json::json!({ "value": "hello" })
+    );
     assert_eq!(tool_calls[0].raw_arguments, "{\"value\":\"hello\"}");
     assert!(!tool_calls[0].is_error);
     assert_eq!(
@@ -302,9 +318,11 @@ async fn openai_fixture_accepts_tool_call_without_type_field() -> Result<()> {
 
 #[tokio::test]
 async fn openai_fixture_reattaches_id_only_prelude_to_payload_chunk() -> Result<()> {
-    let events =
-        replay_openai_fixture("stream/openai/tool_id_prelude_then_payload_without_id.sse", false)
-            .await?;
+    let events = replay_openai_fixture(
+        "stream/openai/tool_id_prelude_then_payload_without_id.sse",
+        false,
+    )
+    .await?;
     let tool_calls = captured_tool_calls(&events);
 
     assert_eq!(tool_calls.len(), 1);
@@ -321,8 +339,8 @@ async fn openai_fixture_reattaches_id_only_prelude_to_payload_chunk() -> Result<
 
 #[tokio::test]
 async fn responses_fixture_keeps_malformed_tool_arguments_invalid() -> Result<()> {
-    let events = replay_responses_fixture("stream/responses/malformed_function_call_arguments.sse")
-        .await?;
+    let events =
+        replay_responses_fixture("stream/responses/malformed_function_call_arguments.sse").await?;
     let tool_calls = captured_tool_calls(&events);
 
     assert_eq!(tool_calls.len(), 1);

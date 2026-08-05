@@ -18,12 +18,6 @@ use agent_client_protocol::schema::{
 use agent_client_protocol::{
     ActiveSession, Agent, ByteStreams, Client, ConnectionTo, Error, SessionMessage,
 };
-use void_core::agentic::tools::registry::get_global_tool_registry;
-use void_core::infrastructure::events::{emit_global_event, BackendEvent};
-use void_core::infrastructure::PathManager;
-use void_core::service::config::ConfigService;
-use void_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
-use void_core::util::errors::{VoidError, VoidResult};
 use dashmap::DashMap;
 use futures::io::{AsyncRead as FuturesAsyncRead, AsyncWrite as FuturesAsyncWrite};
 use log::{debug, info, warn};
@@ -32,6 +26,12 @@ use serde_json::json;
 use tokio::process::{Child, Command};
 use tokio::sync::{oneshot, Mutex, RwLock};
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+use void_core::agentic::tools::registry::get_global_tool_registry;
+use void_core::infrastructure::events::{emit_global_event, BackendEvent};
+use void_core::infrastructure::PathManager;
+use void_core::service::config::ConfigService;
+use void_core::service::remote_ssh::workspace_state::get_remote_workspace_manager;
+use void_core::util::errors::{VoidError, VoidResult};
 
 use super::builtin_clients::{builtin_client_ids, default_config_for_builtin_client};
 use super::config::{
@@ -1010,9 +1010,7 @@ impl AcpClientService {
         if let Some(seconds) = timeout_seconds.filter(|seconds| *seconds > 0) {
             tokio::time::timeout(Duration::from_secs(seconds), run)
                 .await
-                .map_err(|_| {
-                    VoidError::tool(format!("ACP client timed out after {}s", seconds))
-                })?
+                .map_err(|_| VoidError::tool(format!("ACP client timed out after {}s", seconds)))?
         } else {
             run.await
         }
@@ -1112,9 +1110,7 @@ impl AcpClientService {
         if let Some(seconds) = timeout_seconds.filter(|seconds| *seconds > 0) {
             tokio::time::timeout(Duration::from_secs(seconds), run)
                 .await
-                .map_err(|_| {
-                    VoidError::tool(format!("ACP client timed out after {}s", seconds))
-                })?
+                .map_err(|_| VoidError::tool(format!("ACP client timed out after {}s", seconds)))?
         } else {
             run.await
         }
@@ -1155,10 +1151,7 @@ impl AcpClientService {
         Ok(())
     }
 
-    pub async fn cancel_void_session(
-        self: &Arc<Self>,
-        void_session_id: &str,
-    ) -> VoidResult<bool> {
+    pub async fn cancel_void_session(self: &Arc<Self>, void_session_id: &str) -> VoidResult<bool> {
         let session_key_prefix = format!("{}:", void_session_id);
         for client in self.clients.iter().map(|entry| entry.value().clone()) {
             let handle = client
@@ -1720,9 +1713,7 @@ fn render_remote_client_command(
 ) -> VoidResult<String> {
     let command = config.command.trim();
     if command.is_empty() {
-        return Err(VoidError::config(
-            "ACP client command is empty".to_string(),
-        ));
+        return Err(VoidError::config("ACP client command is empty".to_string()));
     }
 
     let mut command_parts = Vec::new();
@@ -1772,9 +1763,11 @@ impl AcpClientConnection {
     }
 
     async fn connection(&self) -> VoidResult<ConnectionTo<Agent>> {
-        self.connection.read().await.clone().ok_or_else(|| {
-            VoidError::service(format!("ACP client is not connected: {}", self.id))
-        })
+        self.connection
+            .read()
+            .await
+            .clone()
+            .ok_or_else(|| VoidError::service(format!("ACP client is not connected: {}", self.id)))
     }
 }
 
@@ -1783,9 +1776,8 @@ fn parse_config_value(value: serde_json::Value) -> VoidResult<AcpClientConfigFil
         serde_json::from_value(value)
             .map_err(|error| VoidError::config(format!("Invalid ACP client config: {}", error)))
     } else if value.is_object() {
-        serde_json::from_value(json!({ "acpClients": value })).map_err(|error| {
-            VoidError::config(format!("Invalid ACP client config map: {}", error))
-        })
+        serde_json::from_value(json!({ "acpClients": value }))
+            .map_err(|error| VoidError::config(format!("Invalid ACP client config map: {}", error)))
     } else {
         Err(VoidError::config(
             "ACP client config must be an object".to_string(),

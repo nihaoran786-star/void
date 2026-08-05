@@ -4,9 +4,9 @@
 
 use crate::dto::*;
 use anyhow::Result;
-use void_transport::TransportAdapter;
 use log::{debug, info};
 use std::sync::Arc;
+use void_transport::TransportAdapter;
 
 /// Core application state
 pub struct CoreAppState {

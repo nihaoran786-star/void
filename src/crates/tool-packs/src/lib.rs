@@ -120,6 +120,7 @@ const PRODUCT_TOOL_PROVIDER_GROUP_PLAN: &[ToolProviderGroupPlan] = &[
         feature_groups: CORE_AGENT_FEATURE_GROUPS,
         tool_names: &[
             "Task",
+            "Team",
             "Skill",
             "AskUserQuestion",
             "TodoWrite",
@@ -292,6 +293,7 @@ mod tests {
                 "Delete",
                 "Bash",
                 "Task",
+                "Team",
                 "Skill",
                 "AskUserQuestion",
                 "TodoWrite",

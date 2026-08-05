@@ -26,6 +26,7 @@ export interface ComposerPersonaPickerProps {
   loading: boolean;
   status: 'ready' | 'partial' | 'empty' | 'error' | 'unsupported';
   activePersonaId?: string;
+  activeTeamId?: string;
   busyId?: string;
   onSelectAgent: (entry: AgentCatalogEntry) => void;
   onSelectTeam: (entry: TeamCatalogEntry) => void;
@@ -38,6 +39,7 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
   loading,
   status,
   activePersonaId,
+  activeTeamId,
   busyId,
   onSelectAgent,
   onSelectTeam,
@@ -130,7 +132,7 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
 
   const renderAgent = (entry: AgentCatalogEntry) => {
     const presentation = localize(entry);
-    const active = entry.identity.id === activePersonaId;
+    const active = !activeTeamId && entry.identity.id === activePersonaId;
     const busy = entry.identity.id === busyId;
     return (
       <button
@@ -168,12 +170,14 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
 
   const renderTeam = (entry: TeamCatalogEntry) => {
     const presentation = localize(entry);
+    const active = entry.identity.id === activeTeamId;
     const busy = entry.identity.id === busyId;
     return (
       <button
         key={entry.identity.id}
         type="button"
-        role="menuitem"
+        role="menuitemradio"
+        aria-checked={active}
         data-persona-flyout-item
         className="void-chat-input__persona-item"
         disabled={Boolean(busyId)}
@@ -197,13 +201,17 @@ export const ComposerPersonaPicker: React.FC<ComposerPersonaPickerProps> = ({
             </span>
           ) : null}
         </span>
-        <span className="void-chat-input__persona-item-action">
-          {tCommon(
-            entry.identity.id === 'ai-short-drama-team'
-              ? 'customization.composerPersona.open'
-              : 'customization.composerPersona.summon',
-          )}
-        </span>
+        {active ? (
+          <Check size={14} className="void-chat-input__persona-item-check" aria-hidden />
+        ) : (
+          <span className="void-chat-input__persona-item-action">
+            {tCommon(
+              entry.identity.id === 'ai-short-drama-team'
+                ? 'customization.composerPersona.open'
+                : 'customization.composerPersona.summon',
+            )}
+          </span>
+        )}
       </button>
     );
   };

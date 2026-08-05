@@ -578,9 +578,11 @@ impl WorkspaceInfo {
                 .await
                 .map_err(|e| VoidError::service(format!("Failed to read directory: {}", e)))?;
 
-            while let Some(entry) = read_dir.next_entry().await.map_err(|e| {
-                VoidError::service(format!("Failed to read directory entry: {}", e))
-            })? {
+            while let Some(entry) = read_dir
+                .next_entry()
+                .await
+                .map_err(|e| VoidError::service(format!("Failed to read directory entry: {}", e)))?
+            {
                 let path = entry.path();
                 let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 

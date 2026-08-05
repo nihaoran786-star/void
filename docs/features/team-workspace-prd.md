@@ -1,9 +1,11 @@
 # Team Workspace Product And Architecture Specification
 
-Status: reusable Team definition management is implemented for Desktop/Tauri;
-general Team instance/orchestration runtime remains future work.
+Status: reusable Team definition management and prompt-orchestrated Team-lead
+activation, including typed Team-member Skill authority, are implemented for
+Desktop/Tauri; flagship runtimes remain owned by their dedicated adapters, and
+specialist tool/readonly expansion remains staged.
 
-Updated: 2026-07-30
+Updated: 2026-08-05
 
 ## Product decision
 
@@ -66,9 +68,9 @@ than relying on labels:
 - Media owns image, video, short-drama, and creator-production teams.
 
 The catalog stores and validates this eligibility. Existing fixed Deep Review
-and AI Short Drama adapters expose only their supported scenarios. User-authored
-teams remain definition-only until the general runtime exists, so eligibility
-does not yet make them activatable.
+and AI Short Drama adapters expose only their supported scenarios. Compatible
+user-authored and installed `prompt_orchestrated` teams may activate their lead
+as the parent persona; incompatible definitions remain visible and fail closed.
 
 Teams may be created manually, assembled from a description or supplied
 material, edited, or installed from a bounded local package. All routes produce
@@ -326,6 +328,92 @@ and presentation preferences are separate records. A UI width or selected
 member ID must never be stored inside the team definition or agent runtime
 state.
 
+### Team member Skill authority contract
+
+Specialist Skill policy extends the existing Team child-session path; it does
+not create another Skill registry, subagent runtime, or persona snapshot. The
+Team service resolves the exact definition revision already pinned by the
+`TeamInstance`, finds the requested `memberId`, and creates one typed,
+discriminated member Skill policy envelope. Every new Team-member launch writes
+one of these explicit states:
+
+- `no_policy`: the pinned member has an empty allowlist, so existing child-agent
+  Skill behavior remains unchanged. This is a typed marker, not an absent field;
+- `restricted`: the pinned member has a non-empty allowlist and the child must
+  use only its intersection with the current effective Skill set.
+
+Both states contain, at minimum:
+
+- a policy schema version and source kind of `team_member`;
+- `teamDefinitionId`, its pinned definition revision, `teamInstanceId`, and
+  `memberId`;
+- normalized `allowedSkillKeys` with whitespace removed, duplicates removed,
+  and deterministic ordering (`no_policy` records an empty normalized set);
+- a deterministic policy hash over the discriminator, version,
+  definition/member identity, and normalized allowlist.
+
+The typed authority may reuse `PersonaSkillFacts` for normalization and
+filtering or use an equivalent child-session-specific value object. It must not
+be encoded as arbitrary user-controlled string context, inferred from a prompt,
+or represented by copying the parent Team-lead persona snapshot into the child.
+Only the validated Team runtime adapter may attach it to a Team member launch.
+
+The effective Skill rules are:
+
+- an empty member allowlist writes `no_policy`, preserves the existing
+  child-agent behavior, and applies no narrowing authority;
+- a non-empty allowlist only computes
+  `scenario/workspace/user effective Skills ∩ allowedSkillKeys`;
+- member policy cannot install, enable, reveal, or otherwise restore a Skill
+  that the scenario, workspace, user, permission system, or Skill catalog has
+  disabled, hidden, removed, or rejected;
+- Skill listing and direct invocation use the same resolved intersection. A
+  direct request for a key absent from that intersection fails closed even when
+  the model names it explicitly;
+- an unavailable allowlisted key remains unavailable and produces an explicit
+  diagnostic; it never widens the effective set through fallback behavior.
+
+The policy envelope and hash are persisted as typed facts in the member's
+durable subagent launch specification and covered by the same launch equality
+check. Reusing a task ID with another definition revision, member, normalized
+allowlist, discriminator, or policy hash is rejected. An absent policy field is
+not the current representation of an empty allowlist. It may be accepted as
+legacy `no_policy` only when both conditions hold: the persisted launch schema
+predates this field, and the Team service/adapter has loaded the `TeamInstance`,
+its pinned definition revision, and the exact member and proved that the pinned
+member allowlist is empty. A new-schema record with a missing field, or any
+record whose pinned member has a non-empty allowlist but whose policy is absent,
+partial, malformed, or mismatched, fails closed and is never coerced to an empty
+allowlist. An accepted legacy recovery should persist the explicit `no_policy`
+marker before or atomically with resume so the ambiguity is not repeated.
+
+Team recovery owns the cross-record validation boundary. Before a Team-tagged
+launch may enter the coordinator's generic resume path, the Team service/adapter
+loads the Team runtime record, resolves the `TeamInstance`'s pinned definition
+and member, recomputes the expected policy envelope, and compares it with the
+persisted launch. Only then may it pass a call-scoped typed authority or
+validation ticket, bound to that task and policy identity, to the coordinator.
+The coordinator validates only the launch's internal schema/hash/equality and
+the supplied ticket's exact match; it must not read the Team store, resolve the
+latest Team definition, or reconstruct Team policy. A Team-tagged launch without
+successful Team-side preflight remains blocked/recoverable instead of being
+silently resumed. Ordinary non-Team Task and `/btw` recovery omits this policy
+and keeps the existing generic coordinator path.
+
+Prompt-cache identity keeps the stable scenario/tool/permission prefix while
+the dynamic member suffix includes the policy version/hash and every resolved
+effective Skill key plus revision. Identical member policy and Skill revisions
+may reuse that suffix. Changing the Team definition revision, member, allowlist,
+or an effective Skill revision invalidates it, so two members cannot share a
+persona/Skill cache entry accidentally.
+
+Ordinary Task launches, ordinary `/btw` conversations, Deep Review, and AI
+Short Drama omit this Team-member authority and retain their current behavior.
+The Team-only coordinator path continues to inherit the complete parent
+`SessionConfig`, including `workspaceId`, local/remote backend facts,
+`remoteConnectionId`, and remote host identity; member Skill policy must never
+reconstruct a workspace from `workspacePath` alone.
+
 ## Reference application lessons
 
 The mature expert-manager model usefully demonstrates:
@@ -364,7 +452,7 @@ on that compatibility detail.
 
 ## Current implementation status
 
-The Desktop/Tauri definition-management slice implements:
+The Desktop/Tauri reusable-Team slice implements:
 
 - one canonical `TeamDefinition` with stable Team, member, workflow, and phase
   IDs plus required member Agent IDs;
@@ -376,27 +464,129 @@ The Desktop/Tauri definition-management slice implements:
 - Team Center cards, detail, three creation routes, edit, package selection,
   installation, and deletion through Web Module Interfaces;
 - fixed Deep Review and AI Short Drama catalog adapters without changing their
-  runtime behavior.
+  runtime behavior;
+- durable reusable Team instances, parent-persona lead activation, and a typed
+  Team tool path that preserves the scenario, workspace, permissions, Canvas,
+  and top-level history;
+- Team-lead tool narrowing and optional Skill-key narrowing. An empty lead
+  Skill allowlist preserves the scenario/workspace/user effective Skill set;
+  a non-empty allowlist can only intersect that set. Skill listing and direct
+  invocation share the same fail-closed policy, and cache identity includes the
+  normalized allowlist plus the resolved effective Skill revisions;
+- typed Team-member `no_policy` and `restricted` Skill authority bound to the
+  pinned definition/revision, instance, member, and Agent. Skill listing and
+  direct invocation use one effective intersection, and the dynamic cache
+  identity includes the policy hash plus every effective Skill key/revision;
+- Team-side recovery preflight before the coordinator's generic child-recovery
+  path, strict identity/hash validation, and compare-and-swap migration of only
+  eligible legacy empty-policy launches to explicit `no_policy`;
+- Web composer activation for otherwise-compatible ordinary Teams with member
+  Skill allowlists.
 
-The slice intentionally does not implement `TeamInstance`,
-`TeamOrchestrator`, arbitrary team-lead activation, live Team Workspace
-projection, or browser/server persistence. User-authored teams therefore remain
-visible and manageable but fail closed as `definition_only` in the composer.
+The current slice intentionally does not broaden specialist tool narrowing or
+readonly policy, replace flagship Team runtimes, expose direct pause/resume
+controls in the Team Workspace presentation, or add browser/server persistence.
+Typed pause/resume is implemented behind the Core runtime, trusted Team tool,
+Desktop commands, and Web runtime gateway. Definitions that request specialist tool
+narrowing, specialist readonly behavior, a readonly lead, or an explicit lead
+tool set without `Task` remain visible and fail closed as `definition_only` in
+the composer.
 
-## Implementation sequence
+## Delivery sequence and status
 
 1. Freeze the DTOs, validation rules, and typed projection contract.
+   **Implemented for the current Desktop/Tauri slice, including typed member
+   Skill authority.**
 2. Build Team Center definition management around existing Agent, Skill, tool,
    model, and permission references. **Implemented for Desktop/Tauri.**
-3. Integrate fixed-team selection with the shared persona-activation contract;
-   keep reusable definitions unavailable until the general runtime exists.
+3. Integrate fixed-team selection with the shared persona-activation contract
+   and activate compatible reusable Team leads. **Implemented for
+   Desktop/Tauri prompt-orchestrated Teams.**
 4. Adapt one existing fixed team, preferably Review Team or Short Drama, into a
-   `TeamDefinition` without changing its runtime behavior.
+   `TeamDefinition` without changing its runtime behavior. **Implemented as
+   catalog adapters for Deep Review and AI Short Drama; their dedicated
+   runtimes remain unchanged.**
 5. Add the session capability entry and Team Workspace projection.
+   **Implemented for Desktop/Tauri.**
 6. Reuse the complete BTW composer inside the selected-member area.
+   **Implemented for persisted Team member child sessions.**
 7. Add restart hydration, recovery, and responsive presentation tests.
+   **Durable Team-instance hydration, member-task recovery, projection reload,
+   and BTW relationship recovery are implemented; complete responsive visual
+   regression coverage remains staged.**
 8. Add import/export only after validation, trust, and permission policy are
-   accepted.
+   accepted. **Bounded local package installation is implemented; general
+   import/export remains staged.**
+
+## Implemented slice: Team member Skill authority
+
+This slice was delivered runtime-first. The Web adapter stopped classifying a
+member Skill allowlist as `definition_only` only after the core authority and
+recovery gates passed; that compatibility decision remains outside page and
+composer components.
+
+Implementation files and ownership:
+
+- `src/crates/core-types/src/subagent_task.rs`: add an optional discriminated
+  policy envelope to the durable launch specification. New Team launches always
+  serialize `no_policy` or `restricted`; absence is reserved for old schemas
+  and ordinary non-Team launches, not used as a permissive default;
+- `src/crates/core/src/agentic/team_orchestrator.rs` and
+  `src/crates/core/src/agentic/team_runtime_service.rs`: carry the policy in the
+  existing `RuntimeRequest`, resolve it from the pinned definition/member, and
+  perform the Team-instance cross-check for launch and recovery before invoking
+  the adapter/coordinator boundary;
+- `src/crates/core/src/agentic/team_runtime_adapter.rs`: pass only the validated
+  typed policy or call-scoped validation result into Team member launch/resume
+  while preserving the full parent session configuration;
+- `src/crates/core/src/agentic/coordination/coordinator.rs`: persist the policy
+  envelope in `SubagentTaskLaunchSpec`, include it in idempotent launch matching,
+  require Team-side validation before a Team-tagged resume, and project it into
+  the child execution context. Coordinator code validates only durable-launch
+  internal consistency and must not depend on the Team store;
+- `src/crates/core/src/agentic/persona_skill_runtime.rs`,
+  `src/crates/core/src/agentic/tools/tool_context_runtime.rs`, and
+  `src/crates/core/src/agentic/tools/implementations/skill_tool.rs`: reuse or
+  extend the trusted normalization/filtering path so Skill discovery and direct
+  invocation enforce the same member intersection;
+- `src/crates/core/src/agentic/execution/execution_engine.rs`: add the member
+  policy and resolved Skill revisions to the dynamic prompt-cache identity
+  without changing the stable scenario/tool/permission prefix;
+- after the core and recovery tests passed,
+  `src/web-ui/src/shared/services/customization/adapters/ExistingTeamCatalogAdapter.ts`
+  stopped classifying otherwise-supported member Skill allowlists as
+  `definition_only`. No page or composer component owns that decision.
+
+Accepted test matrix:
+
+1. normalize, sort, deduplicate, hash, serialize, and restore both explicit
+   `no_policy` and `restricted` states; prove every new empty-allowlist Team
+   launch persists `no_policy` rather than omitting the field;
+2. prove non-empty policy can only intersect the current effective Skill set,
+   and that disabled, hidden, missing, or unparseable Skills cannot be listed or
+   directly invoked;
+3. prove two members with different allowlists cannot reuse one launch or
+   prompt-cache identity, while identical policy and Skill revisions remain
+   cache-stable;
+4. accept a missing policy field only for an old launch schema after Team-side
+   validation proves the pinned member allowlist is empty; reject a missing
+   field for a new schema or non-empty pinned member, plus forged, partial,
+   wrong-member, wrong-definition-revision, and wrong-policy-hash facts before
+   Skill execution;
+5. round-trip the policy through the persisted launch spec, reuse an exact retry
+   idempotently, reject a mismatched retry, and recover using the pinned
+   definition rather than the latest catalog revision. Prove Team service/
+   adapter preflight occurs before coordinator resume, the coordinator never
+   reads the Team store, and ordinary non-Team recovery keeps its current path;
+6. verify local and remote Team member launches preserve the complete inherited
+   workspace/session identity and never fall back to the foreground workspace;
+7. regress ordinary Task and `/btw` launches, Team-lead Skill narrowing, Deep
+   Review, AI Short Drama, Skill listing/direct invocation, child-session
+   recovery, and existing prompt-cache revision tests;
+8. keep `cargo test --locked -p void-core-types`, focused `void-core` Team,
+   coordinator, persona-Skill, Skill-tool, and prompt-cache tests, followed by
+   `cargo check --workspace`, repository boundary checks, and the existing Web
+   adapter tests as the widening gates.
 
 ## Acceptance gates
 

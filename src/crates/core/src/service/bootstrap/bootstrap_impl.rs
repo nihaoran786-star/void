@@ -39,8 +39,7 @@ async fn ensure_markdown_placeholder(path: &Path, content: &str) -> VoidResult<b
 fn gitignore_already_ignores_void(content: &str) -> bool {
     content.lines().any(|line| {
         let entry = line.trim();
-        !entry.starts_with('#')
-            && matches!(entry, ".void" | ".void/" | "/.void" | "/.void/")
+        !entry.starts_with('#') && matches!(entry, ".void" | ".void/" | "/.void" | "/.void/")
     })
 }
 

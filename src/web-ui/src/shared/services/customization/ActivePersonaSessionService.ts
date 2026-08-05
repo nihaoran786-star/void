@@ -52,14 +52,8 @@ export function createPersonaTurnSnapshot(
   }
 
   const binding = descriptor.activePersonaBinding;
-  if (binding.kind !== 'agent') {
-    throw new TypeError('Team leads cannot execute as a v1 persona snapshot');
-  }
   if (binding.personaRevision.status !== 'known') {
     throw new TypeError('Persona snapshot requires a known revision');
-  }
-  if (!EXECUTABLE_PERSONA_KEY.test(binding.personaId)) {
-    throw new TypeError('Persona snapshot requires a source-qualified subagent key');
   }
 
   const executionPolicy = descriptor.executionPolicy.trim();
@@ -67,11 +61,48 @@ export function createPersonaTurnSnapshot(
     throw new TypeError('Persona snapshot requires an execution policy');
   }
 
+  if (binding.kind === 'agent') {
+    if (!EXECUTABLE_PERSONA_KEY.test(binding.personaId)) {
+      throw new TypeError(
+        'Persona snapshot requires a source-qualified subagent key'
+      );
+    }
+    return {
+      schemaVersion: 1,
+      kind: 'agent',
+      personaKey: binding.personaId,
+      personaRevision: binding.personaRevision.value,
+      scenario: descriptor.scenario,
+      executionPolicy,
+      resolvedSkillRefs: [],
+    };
+  }
+
+  const teamDefinitionId = binding.teamDefinitionId?.trim();
+  const teamInstanceId = binding.teamInstanceId?.trim();
+  const leadPersonaId = binding.personaId.trim();
+  if (!teamDefinitionId || !teamInstanceId || !leadPersonaId) {
+    throw new TypeError(
+      'Team lead snapshot requires definition, instance, and lead identity'
+    );
+  }
+  const revisionSeparator = binding.personaRevision.value.lastIndexOf(':');
+  if (
+    revisionSeparator <= 0
+    || binding.personaRevision.value.slice(revisionSeparator + 1) !== leadPersonaId
+  ) {
+    throw new TypeError(
+      'Team lead snapshot revision must identify its definition revision and lead'
+    );
+  }
+
   return {
     schemaVersion: 1,
-    kind: 'agent',
-    personaKey: binding.personaId,
+    kind: 'team_lead',
+    personaKey: leadPersonaId,
     personaRevision: binding.personaRevision.value,
+    teamDefinitionId,
+    teamInstanceId,
     scenario: descriptor.scenario,
     executionPolicy,
     resolvedSkillRefs: [],

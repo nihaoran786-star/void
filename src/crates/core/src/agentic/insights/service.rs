@@ -938,9 +938,8 @@ impl InsightsService {
         debug!("Wins text: {}", safe_truncate(&response.text, 300));
 
         let json_str = extract_json_from_response(&response.text)?;
-        let value: Value = serde_json::from_str(&json_str).map_err(|e| {
-            VoidError::Deserialization(format!("Failed to parse wins JSON: {}", e))
-        })?;
+        let value: Value = serde_json::from_str(&json_str)
+            .map_err(|e| VoidError::Deserialization(format!("Failed to parse wins JSON: {}", e)))?;
 
         Ok(WinsResult {
             intro: value["intro"].as_str().unwrap_or("").to_string(),
@@ -1038,9 +1037,10 @@ impl InsightsService {
         );
 
         let messages = vec![Message::user(prompt)];
-        let response = ai_client.send_message(messages, None).await.map_err(|e| {
-            VoidError::service(format!("Interaction Style AI call failed: {}", e))
-        })?;
+        let response = ai_client
+            .send_message(messages, None)
+            .await
+            .map_err(|e| VoidError::service(format!("Interaction Style AI call failed: {}", e)))?;
 
         info!(
             "Interaction Style response: len={}, finish={:?}",
@@ -1332,9 +1332,8 @@ impl InsightsService {
         report.html_report_path = Some(html_path.to_string_lossy().to_string());
 
         let json_path = usage_dir.join(format!("insights-{}.json", timestamp));
-        let json_str = serde_json::to_string_pretty(&report).map_err(|e| {
-            VoidError::serialization(format!("Failed to serialize report: {}", e))
-        })?;
+        let json_str = serde_json::to_string_pretty(&report)
+            .map_err(|e| VoidError::serialization(format!("Failed to serialize report: {}", e)))?;
         tokio::fs::write(&json_path, &json_str)
             .await
             .map_err(|e| VoidError::io(format!("Failed to write report JSON: {}", e)))?;

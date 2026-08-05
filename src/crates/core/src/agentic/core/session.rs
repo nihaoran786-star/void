@@ -1,8 +1,8 @@
 use super::state::SessionState;
-pub use void_core_types::SessionKind;
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 use uuid::Uuid;
+pub use void_core_types::SessionKind;
 
 // ============ Session ============
 

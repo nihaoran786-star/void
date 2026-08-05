@@ -681,7 +681,11 @@ fn frontmost_pid_macos() -> Option<i32> {
             return None;
         }
         let pid: i32 = msg_send![app, processIdentifier];
-        if pid <= 0 { None } else { Some(pid) }
+        if pid <= 0 {
+            None
+        } else {
+            Some(pid)
+        }
     }
 }
 

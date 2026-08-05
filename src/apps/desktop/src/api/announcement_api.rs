@@ -1,9 +1,9 @@
 //! Announcement system Tauri commands.
 
 use crate::api::app_state::AppState;
-use void_core::service::announcement::{AnnouncementCard, CardType};
 use serde::Deserialize;
 use tauri::State;
+use void_core::service::announcement::{AnnouncementCard, CardType};
 
 #[derive(Debug, Deserialize)]
 pub struct AnnouncementIdRequest {

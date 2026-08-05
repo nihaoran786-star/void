@@ -117,6 +117,7 @@ const scenes = [
     surface: '.void-scene-viewport__scene--active [data-testid="connectors-scene"]',
     ready: [
       '.void-scene-viewport__scene--active .void-mcp-tools__catalog-card',
+      '.void-scene-viewport__scene--active .void-mcp-tools__catalog-starter',
       '.void-scene-viewport__scene--active .void-mcp-tools__catalog-empty',
       '.void-scene-viewport__scene--active .void-mcp-tools__load-error',
     ].join(', '),

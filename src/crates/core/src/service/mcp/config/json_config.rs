@@ -1,7 +1,7 @@
+use log::{debug, error, info};
 use void_services_integrations::mcp::config::{
     format_mcp_json_config_value, validate_mcp_json_config,
 };
-use log::{debug, error, info};
 
 use crate::util::errors::{VoidError, VoidResult};
 
@@ -26,6 +26,7 @@ impl MCPConfigService {
 
     /// Saves MCP JSON config (Cursor format).
     pub async fn save_mcp_json_config(&self, json_config: &str) -> VoidResult<()> {
+        let _guard = self.mutation_lock.lock().await;
         debug!("Saving MCP JSON config to app.json");
 
         let config_value: serde_json::Value = serde_json::from_str(json_config).map_err(|e| {

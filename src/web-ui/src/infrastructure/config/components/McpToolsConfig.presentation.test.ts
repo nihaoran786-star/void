@@ -171,6 +171,8 @@ describe('McpToolsConfig empty presentation', () => {
     expect(source).toContain("{presentation === 'catalog'\n            && !showJsonEditor");
     expect(source).not.toContain("{presentation === 'settings' && !showJsonEditor && (\n            <div className=\"void-mcp-tools__catalog-toolbar\"");
     expect(source).toContain('CATALOG_PAGE_SIZE = 8');
+    expect(source).toContain("['ArrowLeft', 'ArrowRight', 'Home', 'End']");
+    expect(source).toContain('onKeyDown={handleCatalogViewKeyDown}');
     expect(source).toContain('filteredCatalogServers.slice(');
     expect(source).toContain('setCatalogPage(0);');
     expect(source).toContain('Math.min(page, Math.max(0, catalogTotalPages - 1))');

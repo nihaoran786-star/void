@@ -1,17 +1,17 @@
 use super::fixture_loader::load_fixture_bytes;
 use super::sse_fixture_server::{FixtureSseServer, FixtureSseServerOptions};
-use void_agent_stream::{StreamEventSink, StreamProcessError, StreamProcessor, StreamResult};
-use void_ai_adapters::stream::{
-    handle_anthropic_stream, handle_gemini_stream, handle_openai_stream, handle_responses_stream,
-    UnifiedResponse,
-};
-use void_events::{AgenticEvent, AgenticEventPriority as EventPriority};
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, Mutex};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
+use void_agent_stream::{StreamEventSink, StreamProcessError, StreamProcessor, StreamResult};
+use void_ai_adapters::stream::{
+    handle_anthropic_stream, handle_gemini_stream, handle_openai_stream, handle_responses_stream,
+    UnifiedResponse,
+};
+use void_events::{AgenticEvent, AgenticEventPriority as EventPriority};
 
 #[derive(Default)]
 struct RecordingEventSink {

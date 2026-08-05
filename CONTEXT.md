@@ -1,6 +1,6 @@
 # Current collaboration context
 
-Updated: 2026-08-02
+Updated: 2026-08-05
 
 ## Product state
 
@@ -26,12 +26,34 @@ Updated: 2026-08-02
   permissions, Canvas, and top-level history. The active contract is
   [docs/features/customization-center-prd.md](docs/features/customization-center-prd.md).
 - The Desktop/Tauri customization slice now provides one localized
-  Agent/Team/Skill catalog, per-parent single-Agent selection in the composer,
-  Agent and Skill authoring, and validated user/project Team definition
-  create/edit/install/delete flows. Deep Review and AI Short Drama remain
-  adapters over their existing fixed runtimes. General user-authored Team
-  activation/orchestration and browser/server parity remain explicit deferred
-  capabilities rather than simulated behavior.
+  Agent/Team/Skill catalog, per-parent Agent or Team-lead selection in the
+  composer, Agent and Skill authoring, and validated user/project Team
+  definition create/edit/install/delete flows. Compatible reusable
+  `prompt_orchestrated` Teams create durable `TeamInstance`s, activate their
+  lead as the parent persona through a trusted `Team` tool, expose typed
+  start/observe/recover/message/stop paths, and project live Team Workspace
+  state plus BTW member conversations.
+- Reusable-Team policy remains deliberately narrow. A lead Skill allowlist can
+  only intersect the scenario/workspace/user effective Skill set, and an
+  explicit lead tool policy is supported only when it retains `Task`.
+  Team members now persist a typed `no_policy` or `restricted` Skill policy
+  bound to the pinned definition/revision, instance, member, and Agent. Skill
+  listing and direct invocation enforce the same effective intersection, while
+  dynamic cache identity includes the policy hash and effective Skill
+  key/revision set. Team-tagged recovery performs Team-side preflight before
+  generic child recovery; eligible legacy empty-policy records migrate to an
+  explicit `no_policy` marker through compare-and-swap. The Web composer now
+  admits otherwise-compatible ordinary Teams with member Skill allowlists.
+  Definitions requesting specialist tool narrowing, specialist readonly
+  behavior, a readonly lead, or an explicit lead tool set without `Task`
+  remain visible but fail closed as `definition_only`. Typed Team pause/resume
+  is implemented across the Core runtime, trusted Team tool, Desktop commands,
+  and Web runtime gateway; direct Team Workspace pause/resume controls,
+  browser/server runtime and persistence parity, and future flagship-adapter
+  expansion remain deferred.
+- Deep Review and AI Short Drama remain adapters over their existing fixed
+  runtimes; the generic reusable-Team runtime does not replace their manifests,
+  child/stage sessions, policies, media routing, project state, or Canvas.
 - The Agent catalog is presented as a localized AI employee market: the
   existing left-side Customization navigation remains the only section
   navigation, the duplicate in-page top navigation is removed, and Agent cards
@@ -56,11 +78,15 @@ Updated: 2026-08-02
   configuration, lifecycle controls, deletion, remote authentication and OAuth
   still use the established adapter. Settings retains the original MCP
   presentation. Configured Connectors use a two-column desktop gallery of
-  wide horizontal cards and collapse to one column on narrow containers. The
-  true empty state explains the supported local-command and remote-URL paths
-  with one JSON add action; the explanatory cards are not install targets.
-  Connector loading failures are explicit and retryable; no online connector
-  marketplace or unsupported one-click install is simulated.
+  wide horizontal cards and collapse to one column on narrow containers. A
+  deliberately small audited catalog offers six fixed local-command templates
+  plus the fixed Context7 remote endpoint. Templates use argument arrays rather
+  than user-authored shell snippets; required runtime/path inputs are validated.
+  Desktop installation validates the MCP config, performs transactional
+  initialize/verification, and rolls configuration back on failure. The true
+  empty state still explains local-command and remote-URL paths and preserves
+  the JSON add action. Connector loading and installation failures are explicit
+  and retryable. This is not an online or arbitrary remote connector store.
 - An **execution policy** controls how the active persona may act; a **Skill**
   is reusable operating guidance. Neither term is a synonym for scenario or
   persona.

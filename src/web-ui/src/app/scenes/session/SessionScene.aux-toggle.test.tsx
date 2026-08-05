@@ -24,6 +24,23 @@ const mocks = vi.hoisted(() => ({
     usageCount: number;
     latestActivityAt: number;
   }>,
+  teamWorkspace: {
+    status: 'disabled' as const,
+    sessionId: null as string | null,
+    hasTeamBinding: false,
+    teamBindingKey: null as string | null,
+    displayName: undefined as string | undefined,
+    presentationStatus: 'disabled' as
+      | 'disabled'
+      | 'unsupported'
+      | 'loading'
+      | 'ready'
+      | 'running'
+      | 'attention'
+      | 'completed'
+      | 'error',
+    reload: vi.fn(),
+  },
 }));
 
 vi.mock('react-i18next', () => ({
@@ -45,6 +62,15 @@ vi.mock('@/flow_chat/hooks/useActiveSessionCapabilities', () => ({
     sessionId: mocks.activeSessionId,
     capabilities: mocks.capabilities,
   }),
+}));
+
+vi.mock('@/team_workspace', () => ({
+  useActiveSessionTeamWorkspace: () => mocks.teamWorkspace,
+  TeamWorkspacePanel: ({ onClose }: { onClose?: () => void }) => (
+    <div data-testid="mock-team-workspace">
+      <button type="button" onClick={onClose}>close</button>
+    </div>
+  ),
 }));
 
 vi.mock('../../hooks/useApp', () => ({
@@ -89,6 +115,12 @@ describe('SessionScene universal canvas toggle control', () => {
     mocks.layout.centerPanelCollapsed = false;
     mocks.activeSessionId = 'session-1';
     mocks.capabilities = [];
+    mocks.teamWorkspace.status = 'disabled';
+    mocks.teamWorkspace.sessionId = null;
+    mocks.teamWorkspace.hasTeamBinding = false;
+    mocks.teamWorkspace.teamBindingKey = null;
+    mocks.teamWorkspace.displayName = undefined;
+    mocks.teamWorkspace.presentationStatus = 'disabled';
     useSessionModeStore.setState({
       mode: 'code',
       draftStatus: 'idle',
@@ -236,6 +268,71 @@ describe('SessionScene universal canvas toggle control', () => {
     expect(mocks.toggleRightPanel).toHaveBeenCalledTimes(1);
     expect(openShortDrama).toHaveBeenCalledTimes(1);
     window.removeEventListener('void:open-short-drama-center', openShortDrama);
+  });
+
+  it('opens a bound general team beside chat without expanding or changing the canvas', async () => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
+    mocks.teamWorkspace.displayName = '软件交付团队';
+    mocks.teamWorkspace.presentationStatus = 'running';
+    mocks.layout.rightPanelCollapsed = true;
+
+    await act(async () => {
+      root.render(<SessionScene workspacePath="D:\\workspace" />);
+    });
+
+    const toggle = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-team-workspace-toggle"]',
+    );
+    expect(toggle).not.toBeNull();
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .toBeNull();
+
+    await act(async () => {
+      toggle?.click();
+    });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .not.toBeNull();
+    expect(mocks.toggleRightPanel).not.toHaveBeenCalled();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="mock-team-workspace"] button',
+      )?.click();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .toBeNull();
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it('closes the team workspace when the active team binding changes', async () => {
+    mocks.teamWorkspace.status = 'ready';
+    mocks.teamWorkspace.sessionId = 'session-1';
+    mocks.teamWorkspace.hasTeamBinding = true;
+    mocks.teamWorkspace.teamBindingKey = 'team-1:revision-1:instance-1';
+    mocks.teamWorkspace.displayName = '软件交付团队';
+    mocks.teamWorkspace.presentationStatus = 'ready';
+
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="session-team-workspace-toggle"]',
+      )?.click();
+    });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .not.toBeNull();
+
+    mocks.teamWorkspace.teamBindingKey = 'team-2:revision-1:instance-2';
+    await act(async () => {
+      root.render(<SessionScene />);
+    });
+    expect(container.querySelector('[data-testid="session-team-workspace-panel"]'))
+      .toBeNull();
   });
 
   it('keeps an empty media-session capability available to reopen the media canvas', async () => {

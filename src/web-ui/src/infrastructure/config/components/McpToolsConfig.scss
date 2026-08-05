@@ -1,4 +1,5 @@
 @use '../../../component-library/styles/tokens' as *;
+@use '../../../component-library/styles/customization-market' as market;
 
 .void-mcp-tools {
   &__section--empty {
@@ -233,14 +234,15 @@
 }
 
 .void-mcp-tools--catalog {
-  --config-page-content-max-width: none;
+  @include market.scene-surface;
+
   --config-page-content-inline-padding: var(--workspace-space-4);
   --config-page-content-bottom-padding: var(--workspace-space-4);
   container-name: connector-catalog;
   background: var(--workspace-surface-canvas);
 
   .void-config-page-content {
-    padding-top: var(--workspace-space-3);
+    padding-top: 0;
   }
 
   .void-config-page-section__header {
@@ -268,6 +270,63 @@
     background: transparent;
   }
 
+  .void-mcp-tools__catalog-views {
+    @include market.tab-strip;
+
+    display: flex;
+    align-items: center;
+    padding-inline: 0;
+  }
+
+  .void-mcp-tools__catalog-view {
+    @include market.tab;
+
+    display: inline-flex;
+    align-items: center;
+    gap: var(--workspace-space-1);
+    align-self: stretch;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .void-mcp-tools__catalog-view::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: transparent;
+    content: '';
+  }
+
+  .void-mcp-tools__catalog-view:hover,
+  .void-mcp-tools__catalog-view.is-active {
+    color: var(--workspace-text-primary);
+  }
+
+  .void-mcp-tools__catalog-view.is-active::after {
+    background: var(--workspace-accent);
+  }
+
+  .void-mcp-tools__catalog-view:focus-visible {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: -2px;
+  }
+
+  .void-mcp-tools__catalog-view-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--workspace-surface-active);
+    color: var(--workspace-text-muted);
+    font-size: var(--workspace-font-size-meta);
+  }
+
   .void-mcp-tools__json-editor {
     border: 1px solid var(--workspace-border-subtle);
     border-radius: var(--workspace-radius-panel);
@@ -275,10 +334,9 @@
   }
 
   .void-mcp-tools__catalog-toolbar {
-    display: flex;
-    align-items: center;
+    @include market.toolbar;
+
     gap: var(--workspace-space-2);
-    min-height: 40px;
   }
 
   .void-mcp-tools__catalog-search {
@@ -338,25 +396,16 @@
   }
 
   .void-mcp-tools__catalog-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--workspace-space-3);
-    align-content: start;
+    @include market.grid;
   }
 
   .void-mcp-tools__catalog-card {
+    @include market.card;
+
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
-    min-width: 0;
-    min-height: 118px;
-    border: 1px solid var(--workspace-border-subtle);
-    border-radius: var(--workspace-radius-panel);
-    background: var(--workspace-surface-panel);
     overflow: hidden;
-    transition:
-      border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
-      background-color var(--workspace-motion-fast) var(--workspace-easing-standard);
   }
 
   .void-mcp-tools__catalog-card:hover,
@@ -366,12 +415,12 @@
 
   .void-mcp-tools__catalog-card-main {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr) auto auto;
+    grid-template-columns: 52px minmax(0, 1fr) auto auto;
     align-items: center;
     gap: var(--workspace-space-2);
     width: 100%;
     min-width: 0;
-    padding: var(--workspace-space-3) var(--workspace-space-2) var(--workspace-space-3) var(--workspace-space-3);
+    padding: var(--workspace-space-3);
     border: 0;
     background: transparent;
     color: inherit;
@@ -385,8 +434,8 @@
   }
 
   .void-mcp-tools__catalog-card-avatar {
-    width: 48px;
-    height: 48px;
+    width: 52px;
+    height: 52px;
   }
 
   .void-mcp-tools__catalog-card-copy {
@@ -442,16 +491,14 @@
 
   .void-mcp-tools__catalog-card.is-expanded {
     grid-column: span 2;
+    height: auto;
+    min-height: var(--customization-market-card-height);
   }
 
   .void-mcp-tools__catalog-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--workspace-space-2);
+    @include market.pagination;
+
     padding-top: var(--workspace-space-1);
-    color: var(--workspace-text-muted);
-    font-size: var(--workspace-font-size-meta);
   }
 
   .void-mcp-tools__catalog-page-button {
@@ -580,14 +627,21 @@
   }
 }
 
+// The shared settings layout narrows Minimal pages to 840px. The connector
+// catalog is a customization market, so it deliberately follows the same
+// 1280px content axis as Agents and Skills without changing settings pages.
+.void-ui--minimal .void-config-page-layout.void-mcp-tools--catalog {
+  --config-page-content-max-width: var(--customization-market-content-max);
+}
+
 @container connector-catalog (max-width: 1040px) {
   .void-mcp-tools--catalog {
     .void-mcp-tools__catalog-grid {
-      grid-template-columns: 1fr;
+      @include market.two-column-grid;
     }
 
     .void-mcp-tools__catalog-card.is-expanded {
-      grid-column: auto;
+      grid-column: span 2;
     }
   }
 }
@@ -611,7 +665,7 @@
     }
 
     .void-mcp-tools__catalog-grid {
-      grid-template-columns: 1fr;
+      @include market.one-column-grid;
     }
 
     .void-mcp-tools__catalog-starter-intro {

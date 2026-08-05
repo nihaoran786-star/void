@@ -32,9 +32,9 @@
       "members": "團隊成員",
       "qualityGate": "質檢",
       "definitionReady": "團隊定義已就緒",
-      "definitionRuntimeDeferred": "可以繼續編輯和管理；通用團隊執行環境尚未接入，因此暫不能召喚。",
+      "definitionRuntimeDeferred": "可以繼續編輯和管理；目前團隊設定不符合會話召喚條件，請調整成員權限或能力限制。",
       "runtimeReady": "現有團隊執行環境可用",
-      "fixedRuntimeHint": "該團隊繼續使用原有穩定執行流程。",
+      "fixedRuntimeHint": "可從對應場景入口或會話輸入框使用；執行權限始終受目前會話邊界約束。",
       "workflows": "協作流程",
       "workflowCount": "{{count}} 套流程"
     },

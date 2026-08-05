@@ -5,10 +5,10 @@
 mod service;
 mod subscriber;
 
+pub use service::TokenUsageService;
+pub use subscriber::TokenUsageSubscriber;
 pub use void_services_core::token_usage::types;
 pub use void_services_core::token_usage::{
     ModelTokenStats, SessionTokenStats, TimeRange, TokenUsageQuery, TokenUsageRecord,
     TokenUsageSummary,
 };
-pub use service::TokenUsageService;
-pub use subscriber::TokenUsageSubscriber;

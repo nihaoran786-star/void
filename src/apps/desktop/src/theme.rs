@@ -3,12 +3,12 @@
 use std::sync::{OnceLock, RwLock};
 use std::time::Instant;
 
-use void_core::infrastructure::try_get_path_manager_arc;
-use void_core::service::config::types::GlobalConfig;
 use dark_light::Mode;
 use log::{debug, error, warn};
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, WebviewUrl};
+use void_core::infrastructure::try_get_path_manager_arc;
+use void_core::service::config::types::GlobalConfig;
 
 const AGENT_COMPANION_WINDOW_LABEL: &str = "agent-companion-pet";
 const AGENT_COMPANION_WINDOW_MIN_SIZE: f64 = 96.0;
@@ -725,8 +725,10 @@ fn compact_chat_window_effective_size(window: &tauri::WebviewWindow) -> tauri::L
     tauri::LogicalSize::new(
         size.width
             .clamp(COMPACT_CHAT_WINDOW_MIN_WIDTH, COMPACT_CHAT_WINDOW_MAX_WIDTH),
-        size.height
-            .clamp(COMPACT_CHAT_WINDOW_MIN_HEIGHT, COMPACT_CHAT_WINDOW_MAX_HEIGHT),
+        size.height.clamp(
+            COMPACT_CHAT_WINDOW_MIN_HEIGHT,
+            COMPACT_CHAT_WINDOW_MAX_HEIGHT,
+        ),
     )
 }
 
@@ -762,7 +764,10 @@ fn resize_compact_chat_window(
     }
 
     let width = width.clamp(COMPACT_CHAT_WINDOW_MIN_WIDTH, COMPACT_CHAT_WINDOW_MAX_WIDTH);
-    let height = height.clamp(COMPACT_CHAT_WINDOW_MIN_HEIGHT, COMPACT_CHAT_WINDOW_MAX_HEIGHT);
+    let height = height.clamp(
+        COMPACT_CHAT_WINDOW_MIN_HEIGHT,
+        COMPACT_CHAT_WINDOW_MAX_HEIGHT,
+    );
     let scale_factor = window.scale_factor().unwrap_or(1.0);
     let old_size = compact_chat_window_effective_size(window);
     if (old_size.width - width).abs() < 0.5 && (old_size.height - height).abs() < 0.5 {

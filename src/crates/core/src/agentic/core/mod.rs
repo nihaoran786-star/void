@@ -9,7 +9,6 @@ pub mod prompt_markup;
 pub mod recovery_checkpoint;
 pub mod session;
 pub mod state;
-pub use void_core_types::SessionKind;
 pub use dialog_turn::{new_turn_id, TurnStats};
 pub use message::{
     CompressedMessage, CompressedMessageRole, CompressedTodoItem, CompressedTodoSnapshot,
@@ -29,3 +28,4 @@ pub use recovery_checkpoint::{
 };
 pub use session::{CompressionState, Session, SessionConfig, SessionSummary};
 pub use state::{ProcessingPhase, SessionState, ToolExecutionState};
+pub use void_core_types::SessionKind;

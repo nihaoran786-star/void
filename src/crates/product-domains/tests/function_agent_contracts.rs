@@ -1,5 +1,9 @@
 #![cfg(feature = "function-agents")]
 
+use std::future::Future;
+use std::path::PathBuf;
+use std::pin::pin;
+use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 use void_product_domains::function_agents::{
     git_func_agent::{
         assemble_commit_message, build_changes_summary_from_paths, build_commit_prompt,
@@ -22,10 +26,6 @@ use void_product_domains::function_agents::{
     },
     AgentErrorType, Language,
 };
-use std::future::Future;
-use std::path::PathBuf;
-use std::pin::pin;
-use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 struct FunctionAgentPortStub;
 

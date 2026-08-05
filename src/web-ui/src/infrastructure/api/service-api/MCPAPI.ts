@@ -246,6 +246,11 @@ export interface DeleteMCPServerRequest {
   serverId: string;
 }
 
+export interface InstallMCPConnectorRequest {
+  connectorId: string;
+  serverConfig: Record<string, unknown>;
+}
+
 export type MCPRemoteOAuthStatus =
   | 'awaitingBrowser'
   | 'awaitingCallback'
@@ -283,6 +288,10 @@ export class MCPAPI {
    
   static async initializeServersNonDestructive(): Promise<void> {
     return api.invoke('initialize_mcp_servers_non_destructive');
+  }
+
+  static async installConnector(request: InstallMCPConnectorRequest): Promise<void> {
+    return api.invoke('install_mcp_connector', { request });
   }
 
    

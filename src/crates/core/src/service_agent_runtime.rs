@@ -5,12 +5,19 @@
 //! session restore, terminal pre-warm, remote image conversion, and runtime-port
 //! implementations until a reviewed port/provider migration proves equivalence.
 
+use log::{debug, error, info};
+use std::sync::Arc;
 use void_runtime_ports::{
     AgentSessionCreateRequest, AgentSubmissionPort, AgentSubmissionSource,
     AgentTurnCancellationPort, AgentTurnCancellationRequest, RemoteControlStatePort,
     RemoteControlStateRequest, RemoteControlStateSnapshot,
 };
 use void_services_integrations::remote_connect::{
+    build_remote_chat_messages, build_remote_model_catalog,
+    normalize_remote_model_selection as normalize_remote_model_selection_contract,
+    normalize_remote_session_model_id as normalize_remote_session_model_id_contract,
+    remote_dialog_submit_outcome_from_scheduler,
+    remote_model_selection_needs_config as remote_model_selection_needs_config_contract,
     ChatImageAttachment, ChatMessage, RemoteAssistantWorkspaceFacts, RemoteCancelRuntimeHost,
     RemoteChatHistoryRound, RemoteChatHistoryTextItem, RemoteChatHistoryThinkingItem,
     RemoteChatHistoryToolCall, RemoteChatHistoryToolItem, RemoteChatHistoryTurn,
@@ -23,19 +30,12 @@ use void_services_integrations::remote_connect::{
     RemoteSessionMetadata, RemoteSessionRuntimeHost, RemoteSessionStateTracker,
     RemoteSessionTrackerHost, RemoteTerminalPrewarmRequest, RemoteWorkspaceFacts,
     RemoteWorkspaceFileRuntimeHost, RemoteWorkspaceKind as RemoteConnectWorkspaceKind,
-    RemoteWorkspaceRuntimeHost, RemoteWorkspaceUpdate, build_remote_chat_messages,
-    build_remote_model_catalog,
-    normalize_remote_model_selection as normalize_remote_model_selection_contract,
-    normalize_remote_session_model_id as normalize_remote_session_model_id_contract,
-    remote_dialog_submit_outcome_from_scheduler,
-    remote_model_selection_needs_config as remote_model_selection_needs_config_contract,
+    RemoteWorkspaceRuntimeHost, RemoteWorkspaceUpdate,
 };
-use log::{debug, error, info};
-use std::sync::Arc;
 
 use crate::agentic::coordination::{
-    ConversationCoordinator, DialogQueuePriority, DialogScheduler, DialogSubmissionPolicy,
-    DialogSubmitOutcome, DialogTriggerSource, get_global_coordinator, get_global_scheduler,
+    get_global_coordinator, get_global_scheduler, ConversationCoordinator, DialogQueuePriority,
+    DialogScheduler, DialogSubmissionPolicy, DialogSubmitOutcome, DialogTriggerSource,
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::service::remote_connect::remote_server::RemoteExecutionDispatcher;
@@ -193,8 +193,8 @@ fn remote_reasoning_mode_fact(reasoning_mode: ReasoningMode) -> RemoteReasoningM
 /// Falls back to the original if decoding/compression fails or the image is
 /// already within `max_bytes`.
 fn compress_remote_chat_data_url_for_mobile(data_url: &str, max_bytes: usize) -> String {
-    use base64::Engine;
     use base64::engine::general_purpose::STANDARD as BASE64;
+    use base64::Engine;
     use image::imageops::FilterType;
 
     const MAX_THUMBNAIL_DIM: u32 = 400;

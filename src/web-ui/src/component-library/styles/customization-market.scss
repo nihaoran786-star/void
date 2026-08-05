@@ -1,0 +1,149 @@
+// Shared presentation contract for customization catalogs.
+// This file intentionally contains no feature state or runtime behavior.
+
+$content-max-width: 1280px;
+$tab-height: 48px;
+$card-height: 160px;
+$desktop-grid-columns: 4;
+
+@mixin scene-surface {
+  --customization-market-content-max: #{$content-max-width};
+  --customization-market-tab-height: #{$tab-height};
+  --customization-market-card-height: #{$card-height};
+
+  min-width: 0;
+  color: var(--workspace-text-secondary);
+  background: var(--workspace-surface-canvas);
+  font-family: var(--workspace-font-family);
+  font-size: var(--workspace-font-size-control);
+  line-height: var(--workspace-line-height-control);
+}
+
+@mixin content-frame($inline-space: var(--workspace-space-4)) {
+  box-sizing: border-box;
+  width: min(
+    calc(100% - (#{$inline-space} * 2)),
+    var(--customization-market-content-max, #{$content-max-width})
+  );
+  max-width: none;
+  margin-inline: auto;
+}
+
+@mixin tab-strip {
+  min-height: var(--customization-market-tab-height, #{$tab-height});
+  margin: 0;
+  padding: 0 var(--workspace-space-4);
+  gap: var(--workspace-space-3);
+  background: var(--workspace-surface-canvas);
+  border: 0;
+  border-bottom: 1px solid var(--workspace-border-subtle);
+  border-radius: 0;
+}
+
+@mixin tab {
+  position: relative;
+  min-height: var(--customization-market-tab-height, #{$tab-height});
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--workspace-text-muted);
+  font-size: var(--workspace-font-size-label);
+  font-weight: var(--workspace-font-weight-regular);
+  line-height: var(--workspace-line-height-control);
+
+  &::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: var(--workspace-accent);
+    opacity: 0;
+    content: '';
+  }
+
+  &:hover:not(.is-active) {
+    color: var(--workspace-text-primary);
+  }
+
+  &.is-active {
+    color: var(--workspace-text-primary);
+    font-weight: var(--workspace-font-weight-medium);
+  }
+
+  &.is-active::after {
+    opacity: 1;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--workspace-focus-ring);
+    outline-offset: -2px;
+  }
+}
+
+@mixin toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--workspace-space-2);
+  min-height: 52px;
+  padding-block: var(--workspace-space-2);
+  border-bottom: 1px solid var(--workspace-border-subtle);
+  background: var(--workspace-surface-canvas);
+}
+
+@mixin grid {
+  display: grid;
+  grid-template-columns: repeat($desktop-grid-columns, minmax(0, 1fr));
+  gap: var(--workspace-space-3);
+  align-content: start;
+}
+
+@mixin card {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--customization-market-card-height, #{$card-height});
+  min-height: var(--customization-market-card-height, #{$card-height});
+  border: 1px solid var(--workspace-border-subtle);
+  border-radius: var(--workspace-radius-panel);
+  background: var(--workspace-surface-panel);
+  box-shadow: none;
+  contain: layout paint style;
+  animation: none;
+  transform: none;
+  transition:
+    background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+    border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
+    color var(--workspace-motion-fast) var(--workspace-easing-standard);
+
+  &:hover {
+    background: var(--workspace-surface-hover);
+    border-color: var(--workspace-border-strong);
+    box-shadow: none;
+    transform: none;
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    outline: 2px solid var(--workspace-focus-ring-subtle);
+    outline-offset: -2px;
+  }
+}
+
+@mixin pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--workspace-space-2);
+  min-height: calc(var(--workspace-control-height) + var(--workspace-space-2));
+  color: var(--workspace-text-muted);
+  font-size: var(--workspace-font-size-meta);
+}
+
+@mixin two-column-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@mixin one-column-grid {
+  grid-template-columns: minmax(0, 1fr);
+}

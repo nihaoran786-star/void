@@ -18,6 +18,7 @@ export const config = createEmbeddedConfig(
     '../specs/l0-media-toolbar-minimal-visual.spec.ts',
     '../specs/l0-short-drama-navigation-minimal-visual.spec.ts',
     '../specs/l0-session-team-capability-rail-visual.spec.ts',
+    '../specs/l0-reusable-team-desktop-runtime.spec.ts',
     '../specs/l0-automation-minimal-visual.spec.ts',
     '../specs/l0-user-message-minimal-visual.spec.ts',
     '../specs/l0-tool-card-shell-minimal-visual.spec.ts',

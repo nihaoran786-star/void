@@ -124,6 +124,85 @@
       "localDescription": "連接透過命令啟動的 MCP 服務，例如本機腳本與開發工具。",
       "remoteTitle": "遠端服務",
       "remoteDescription": "連接提供 URL 的 MCP 服務，並依需要完成遠端驗證。"
+    },
+    "views": {
+      "label": "連接器檢視",
+      "installed": "已安裝",
+      "market": "連接器市集"
+    },
+    "market": {
+      "searchPlaceholder": "搜尋連接器或英文名稱...",
+      "categoryLabel": "連接器分類",
+      "categories": {
+        "all": "全部",
+        "knowledge": "知識記憶",
+        "reasoning": "思考規劃",
+        "files": "檔案",
+        "development": "開發",
+        "productivity": "效率",
+        "browser": "瀏覽器"
+      },
+      "items": {
+        "memory": { "name": "長期記憶", "description": "保存實體、關係與事實，讓對話能重複使用長期知識。" },
+        "sequentialThinking": { "name": "分步思考", "description": "將複雜問題拆成可檢查的步驟，適合分析與規劃。" },
+        "filesystem": { "name": "本機檔案", "description": "在你明確授權的資料夾內讀取和管理檔案。" },
+        "git": { "name": "Git 儲存庫", "description": "讀取指定程式碼儲存庫的歷史、差異與工作區狀態。" },
+        "time": { "name": "時間與時區", "description": "查詢目前時間並進行可靠的跨時區換算。" },
+        "playwright": { "name": "瀏覽器自動化", "description": "透過 Playwright 查看網頁並執行瀏覽器操作。" },
+        "context7": { "name": "最新技術文件", "description": "從 Context7 官方服務取得最新、準確的軟體庫文件與範例。" }
+      },
+      "types": {
+        "localCommand": "本機命令 · {{command}}",
+        "remoteHttps": "遠端 HTTPS"
+      },
+      "actions": {
+        "install": "安裝",
+        "installing": "安裝中",
+        "installed": "已安裝",
+        "installLabel": "安裝 {{name}}",
+        "installedLabel": "{{name}} 已安裝"
+      },
+      "status": {
+        "installed": "連接器已安裝並完成驗證。",
+        "refreshWarning": "已安裝，但清單重新整理失敗，請稍後重試重新整理頁面。"
+      },
+      "fields": {
+        "required": "請填寫此欄位。",
+        "allowedPath": {
+          "label": "允許存取的資料夾",
+          "placeholder": "例如 D:\\Workspaces\\資料",
+          "hint": "連接器只能存取這個資料夾及其下層目錄。"
+        },
+        "repositoryPath": {
+          "label": "Git 儲存庫路徑",
+          "placeholder": "例如 D:\\Projects\\void",
+          "hint": "請選擇包含 .git 目錄的本機儲存庫。"
+        }
+      },
+      "configureTitle": "安裝 {{name}}",
+      "configureDescription": "只需補充這個連接器執行所必需的資訊。",
+      "permissions": {
+        "title": "安裝後會做什麼",
+        "localCommand": "使用已審核範本，透過 {{command}} 啟動本機 MCP 服務。",
+        "scopedPath": "路徑會作為單獨參數傳遞，不會作為腳本執行。",
+        "remoteHttps": "透過加密 HTTPS 連接固定網址 {{url}}，不會執行本機命令。"
+      },
+      "errors": {
+        "unknown": "安裝失敗，請稍後再試。",
+        "invalidConfig": "目前 MCP 設定無效，請先在 JSON 設定中修正。",
+        "alreadyInstalled": "這個連接器已經存在。",
+        "runtimeUnavailable": "缺少執行命令 {{command}}，請先安裝對應執行環境。",
+        "saveFailed": "儲存設定失敗，原設定已恢復。",
+        "initializeFailed": "連接器啟動失敗，原設定已恢復。",
+        "verificationFailed": "安裝後無法驗證連接器，原設定已恢復。",
+        "rollbackFailed": "安裝失敗且自動恢復未完成，請開啟 JSON 設定檢查。詳情：{{detail}}"
+      },
+      "empty": "找不到符合條件的連接器。",
+      "pagination": {
+        "previous": "上一頁",
+        "next": "下一頁",
+        "position": "第 {{current}} / {{total}} 頁"
+      }
     }
   },
   "empty": {

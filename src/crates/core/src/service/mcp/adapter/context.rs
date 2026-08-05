@@ -6,13 +6,13 @@ use super::resource::ResourceAdapter;
 use crate::service::mcp::protocol::{MCPResource, MCPResourceContent};
 use crate::service::mcp::server::MCPServerManager;
 use crate::util::errors::{VoidError, VoidResult};
-pub use void_services_integrations::mcp::adapter::{
-    MCPContextEnhancer as ContextEnhancer, MCPContextEnhancerConfig as ContextEnhancerConfig,
-};
 use log::{debug, info, warn};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
+pub use void_services_integrations::mcp::adapter::{
+    MCPContextEnhancer as ContextEnhancer, MCPContextEnhancerConfig as ContextEnhancerConfig,
+};
 
 /// MCP context provider.
 pub struct MCPContextProvider {

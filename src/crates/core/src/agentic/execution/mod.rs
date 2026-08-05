@@ -12,7 +12,8 @@ pub mod write_content_sanitizer;
 pub use execution_engine::*;
 pub use persona_runtime::{
     is_persona_runtime_validation_error_message, resolve_persona_turn_runtime,
-    wrap_persona_runtime_validation_error, ResolvedPersonaRuntime,
+    wrap_persona_runtime_validation_error, ResolvedPersonaRuntime, ResolvedTeamLeadPersona,
+    TeamLeadPersonaResolveRequest, TeamLeadPersonaResolver,
 };
 pub use round_executor::*;
 pub use stream_processor::*;

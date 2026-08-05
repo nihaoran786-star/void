@@ -1,15 +1,15 @@
 //! Tauri commands for Remote Connect.
 
-use void_core::service::remote_connect::{
-    bot::{self, weixin, BotConfig},
-    lan, ConnectionMethod, ConnectionResult, PairingState, RemoteConnectConfig,
-    RemoteConnectService,
-};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
+use void_core::service::remote_connect::{
+    bot::{self, weixin, BotConfig},
+    lan, ConnectionMethod, ConnectionResult, PairingState, RemoteConnectConfig,
+    RemoteConnectService,
+};
 
 static REMOTE_CONNECT_SERVICE: OnceLock<Arc<RwLock<Option<RemoteConnectService>>>> =
     OnceLock::new();

@@ -2421,23 +2421,71 @@ async fn update_artifact_prompt(
 
 fn infer_asset_artifact_type(text: &str) -> Option<String> {
     const LOCATION_CJK: &[&str] = &[
-        "场景", "内景", "外景", "地点", "环境", "背景", "城市", "街道", "街景", "房间", "室内",
-        "指挥舱", "船舱", "空间站", "基地", "星球", "海面", "沙漠", "森林", "山脉", "天空", "太空", "夜景",
+        "场景",
+        "内景",
+        "外景",
+        "地点",
+        "环境",
+        "背景",
+        "城市",
+        "街道",
+        "街景",
+        "房间",
+        "室内",
+        "指挥舱",
+        "船舱",
+        "空间站",
+        "基地",
+        "星球",
+        "海面",
+        "沙漠",
+        "森林",
+        "山脉",
+        "天空",
+        "太空",
+        "夜景",
     ];
     const PROP_CJK: &[&str] = &[
-        "道具", "物件", "器物", "手持", "武器", "怀表", "手表", "箱子", "手提箱", "盒子", "信件",
-        "书信", "装置", "装备",
+        "道具",
+        "物件",
+        "器物",
+        "手持",
+        "武器",
+        "怀表",
+        "手表",
+        "箱子",
+        "手提箱",
+        "盒子",
+        "信件",
+        "书信",
+        "装置",
+        "装备",
     ];
     const CHARACTER_CJK: &[&str] = &[
         "角色", "人物", "肖像", "女主", "男主", "主角", "配角", "反派", "女孩", "男孩", "男人",
         "女人", "少女", "少年", "老人", "队长", "士兵", "警官",
     ];
     const LOCATION_LATIN: &[&str] = &[
-        "location", "scenery", "interior", "exterior", "environment", "landscape", "cityscape",
+        "location",
+        "scenery",
+        "interior",
+        "exterior",
+        "environment",
+        "landscape",
+        "cityscape",
     ];
-    const PROP_LATIN: &[&str] = &["prop", "object", "item", "device", "gadget", "weapon", "suitcase"];
+    const PROP_LATIN: &[&str] = &[
+        "prop", "object", "item", "device", "gadget", "weapon", "suitcase",
+    ];
     const CHARACTER_LATIN: &[&str] = &[
-        "character", "portrait", "girl", "boy", "man", "woman", "captain", "soldier",
+        "character",
+        "portrait",
+        "girl",
+        "boy",
+        "man",
+        "woman",
+        "captain",
+        "soldier",
     ];
 
     let lower = text.to_lowercase();

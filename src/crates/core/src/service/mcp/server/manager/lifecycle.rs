@@ -429,6 +429,112 @@ impl MCPServerManager {
         Ok(())
     }
 
+    /// Atomically persists, registers, starts, and verifies one user connector.
+    ///
+    /// The manager lock is always acquired before the config mutation lock. On
+    /// failure after persistence, rollback touches only this connector ID.
+    pub async fn install_server_transactional(&self, config: MCPServerConfig) -> VoidResult<()> {
+        let _guard = self.lifecycle_lock.lock().await;
+
+        config.validate().map_err(|error| {
+            VoidError::validation(format!("MCP_CONNECTOR_INSTALL_FAILED: {}", error))
+        })?;
+
+        if config.location != crate::service::mcp::config::ConfigLocation::User {
+            return Err(VoidError::validation(
+                "MCP_CONNECTOR_INSTALL_FAILED: connector location must be user",
+            ));
+        }
+
+        if self.registry.contains(&config.id).await {
+            return Err(VoidError::validation(format!(
+                "MCP_CONNECTOR_ALREADY_INSTALLED: {}",
+                config.id
+            )));
+        }
+
+        if let Err(error) = self
+            .config_service
+            .insert_user_config_if_absent(&config)
+            .await
+        {
+            if error
+                .to_string()
+                .contains("MCP_CONNECTOR_ALREADY_INSTALLED:")
+            {
+                return Err(error);
+            }
+            return Err(VoidError::service(format!(
+                "MCP_CONNECTOR_INSTALL_FAILED: {}",
+                error
+            )));
+        }
+
+        let install_result = async {
+            self.registry.register(&config).await?;
+            self.start_server(&config.id).await?;
+            let status = self.get_server_status(&config.id).await?;
+            if !matches!(
+                status,
+                MCPServerStatus::Connected | MCPServerStatus::Healthy
+            ) {
+                return Err(VoidError::service(format!(
+                    "connector '{}' started with non-ready status {:?}",
+                    config.id, status
+                )));
+            }
+            Ok(())
+        }
+        .await;
+
+        if let Err(install_error) = install_result {
+            return Err(self
+                .rollback_connector_install(&config.id, install_error)
+                .await);
+        }
+
+        Ok(())
+    }
+
+    /// Saves the complete user MCP JSON document without racing connector lifecycle mutations.
+    pub async fn save_mcp_json_config(&self, json_config: &str) -> VoidResult<()> {
+        let _guard = self.lifecycle_lock.lock().await;
+        self.config_service.save_mcp_json_config(json_config).await
+    }
+
+    async fn rollback_connector_install(
+        &self,
+        server_id: &str,
+        install_error: VoidError,
+    ) -> VoidError {
+        let mut rollback_errors = Vec::new();
+
+        self.stop_connection_event_listener(server_id).await;
+        if self.registry.contains(server_id).await {
+            if let Err(error) = self.registry.unregister(server_id).await {
+                rollback_errors.push(format!("runtime cleanup failed: {}", error));
+            }
+        }
+        self.connection_pool.remove_connection(server_id).await;
+        self.catalog_cache.remove_server(server_id).await;
+        Self::unregister_mcp_tools(server_id).await;
+        self.clear_reconnect_state(server_id).await;
+
+        if let Err(error) = self.config_service.delete_server_config(server_id).await {
+            rollback_errors.push(format!("config cleanup failed: {}", error));
+        }
+
+        if rollback_errors.is_empty() {
+            VoidError::service(format!("MCP_CONNECTOR_INSTALL_FAILED: {}", install_error))
+        } else {
+            VoidError::service(format!(
+                "MCP_CONNECTOR_ROLLBACK_FAILED: original=MCP_CONNECTOR_INSTALL_FAILED: {}; rollback={}",
+                install_error,
+                rollback_errors.join("; ")
+            ))
+        }
+    }
+
     /// Adds a runtime-only MCP server without saving it to user or project config.
     pub async fn add_ephemeral_server(&self, config: MCPServerConfig) -> VoidResult<()> {
         config.validate()?;
@@ -482,6 +588,7 @@ impl MCPServerManager {
 
     /// Removes a server.
     pub async fn remove_server(&self, server_id: &str) -> VoidResult<()> {
+        let _guard = self.lifecycle_lock.lock().await;
         info!("Removing MCP server: id={}", server_id);
 
         let _ = self.clear_remote_oauth_credentials(server_id).await;

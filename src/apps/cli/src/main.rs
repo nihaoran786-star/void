@@ -28,8 +28,7 @@ use modes::exec::ExecOutputFormat;
 
 // ======================== Global MCP Service ========================
 
-static MCP_SERVICE: OnceLock<std::sync::Arc<void_core::service::mcp::MCPService>> =
-    OnceLock::new();
+static MCP_SERVICE: OnceLock<std::sync::Arc<void_core::service::mcp::MCPService>> = OnceLock::new();
 
 /// MCP initialization status: 0=not started, 1=in progress, 2=completed, 3=failed
 static MCP_INIT_STATUS: OnceLock<AtomicU8> = OnceLock::new();
@@ -789,4 +788,3 @@ fn main() {
         }
     }
 }
-

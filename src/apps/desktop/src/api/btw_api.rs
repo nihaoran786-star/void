@@ -91,9 +91,7 @@ pub async fn btw_update_memory_enabled(
     state: State<'_, AppState>,
     request: BtwUpdateMemoryRequest,
 ) -> Result<BtwSessionRecord, String> {
-    if request.parent_session_id.trim().is_empty()
-        || request.child_session_id.trim().is_empty()
-    {
+    if request.parent_session_id.trim().is_empty() || request.child_session_id.trim().is_empty() {
         return Err("parentSessionId and childSessionId are required".to_string());
     }
     let workspace_path =
@@ -106,7 +104,9 @@ pub async fn btw_update_memory_enabled(
         if relationship.parent_session_id != request.parent_session_id
             || relationship.child_session_id != request.child_session_id
         {
-            return Err("BTW relationship does not match the requested parent and child".to_string());
+            return Err(
+                "BTW relationship does not match the requested parent and child".to_string(),
+            );
         }
         relationship.memory_enabled = request.enabled;
         repository.save(&workspace_path, &relationship)?;

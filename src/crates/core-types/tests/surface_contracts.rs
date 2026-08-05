@@ -1,8 +1,8 @@
+use std::collections::BTreeMap;
 use void_core_types::surface::{
     ApprovalSource, CapabilityRequest, CapabilityRequestKind, PermissionDecision, PermissionScope,
     RuntimeArtifactKind, RuntimeArtifactRef, SurfaceKind, ThreadEnvironment, ThreadEnvironmentKind,
 };
-use std::collections::BTreeMap;
 
 #[test]
 fn surface_contract_serializes_observational_runtime_facts() {

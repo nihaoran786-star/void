@@ -7,10 +7,15 @@ use log::{debug, error};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 const MAX_PROJECT_SLUG_LEN: usize = 120;
+const E2E_RUNTIME_ROOT_ENV: &str = "VOID_E2E_RUNTIME_ROOT";
+const E2E_WEBDRIVER_PORT_ENV: &str = "VOID_WEBDRIVER_PORT";
+const E2E_RUNTIME_PARENT_DIR: &str = "void-e2e";
+const E2E_RUNTIME_PREFIX: &str = "run-";
 
 /// Storage level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -35,6 +40,9 @@ pub struct PathManager {
     /// Optional override for the Void home directory, used by tests to avoid
     /// touching the real user home.
     void_home_override: Option<PathBuf>,
+    /// Optional override for installed Skills. Desktop E2E keeps this beside
+    /// the isolated config root instead of touching the real user data root.
+    skills_root_override: Option<PathBuf>,
     /// Cache of runtime slugs keyed by the original and canonical workspace paths.
     project_runtime_slug_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
 }
@@ -42,13 +50,73 @@ pub struct PathManager {
 impl PathManager {
     /// Create a new path manager
     pub fn new() -> VoidResult<Self> {
+        if let Some(runtime_root) = Self::resolve_e2e_runtime_root(
+            cfg!(debug_assertions),
+            std::env::var_os(E2E_WEBDRIVER_PORT_ENV).as_deref(),
+            std::env::var_os(E2E_RUNTIME_ROOT_ENV).as_deref(),
+            &std::env::temp_dir(),
+        )? {
+            return Ok(Self::from_e2e_runtime_root(runtime_root));
+        }
+
         let user_root = Self::get_user_config_root()?;
 
         Ok(Self {
             user_root,
             void_home_override: None,
+            skills_root_override: None,
             project_runtime_slug_cache: Arc::new(Mutex::new(HashMap::new())),
         })
+    }
+
+    fn resolve_e2e_runtime_root(
+        debug_build: bool,
+        webdriver_port: Option<&OsStr>,
+        runtime_root: Option<&OsStr>,
+        temp_dir: &Path,
+    ) -> VoidResult<Option<PathBuf>> {
+        if !debug_build || webdriver_port.is_none() {
+            return Ok(None);
+        }
+
+        let runtime_root = runtime_root
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
+            .ok_or_else(|| {
+                VoidError::config(format!(
+                    "{E2E_RUNTIME_ROOT_ENV} is required when {E2E_WEBDRIVER_PORT_ENV} is set"
+                ))
+            })?;
+        if !runtime_root.is_absolute() {
+            return Err(VoidError::config(format!(
+                "{E2E_RUNTIME_ROOT_ENV} must be an absolute path"
+            )));
+        }
+
+        let expected_parent = temp_dir.join(E2E_RUNTIME_PARENT_DIR);
+        let has_safe_parent = runtime_root.parent() == Some(expected_parent.as_path());
+        let has_safe_name = runtime_root
+            .file_name()
+            .and_then(OsStr::to_str)
+            .is_some_and(|name| name.starts_with(E2E_RUNTIME_PREFIX));
+        if !has_safe_parent || !has_safe_name {
+            return Err(VoidError::config(format!(
+                "{E2E_RUNTIME_ROOT_ENV} must be a direct {E2E_RUNTIME_PREFIX}* child of {}",
+                expected_parent.display()
+            )));
+        }
+
+        Ok(Some(runtime_root))
+    }
+
+    fn from_e2e_runtime_root(runtime_root: PathBuf) -> Self {
+        let user_root = runtime_root.join("user-root");
+        Self {
+            skills_root_override: Some(user_root.join("skills")),
+            user_root,
+            void_home_override: Some(runtime_root.join("void-home")),
+            project_runtime_slug_cache: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     /// Get user config root directory
@@ -185,6 +253,9 @@ impl PathManager {
     /// - macOS: ~/Library/Application Support/Void/skills/
     /// - Linux: ~/.local/share/Void/skills/
     pub fn user_skills_dir(&self) -> PathBuf {
+        if let Some(path) = &self.skills_root_override {
+            return path.clone();
+        }
         if cfg!(target_os = "windows") {
             dirs::data_dir()
                 .unwrap_or_else(|| PathBuf::from("C:\\ProgramData"))
@@ -465,6 +536,11 @@ impl Default for PathManager {
         match Self::new() {
             Ok(manager) => manager,
             Err(e) => {
+                if cfg!(debug_assertions) && std::env::var_os(E2E_WEBDRIVER_PORT_ENV).is_some() {
+                    panic!(
+                        "Refusing to fall back to user storage for an invalid desktop E2E runtime root: {e}"
+                    );
+                }
                 error!(
                     "Failed to create PathManager from system config directory, using temp fallback: {}",
                     e
@@ -472,6 +548,7 @@ impl Default for PathManager {
                 Self {
                     user_root: std::env::temp_dir().join("void"),
                     void_home_override: None,
+                    skills_root_override: None,
                     project_runtime_slug_cache: Arc::new(Mutex::new(HashMap::new())),
                 }
             }
@@ -489,6 +566,7 @@ impl PathManager {
         Self {
             user_root,
             void_home_override: Some(base.join("home").join(".void")),
+            skills_root_override: Some(base.join("data").join("Void").join("skills")),
             project_runtime_slug_cache: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -539,6 +617,7 @@ pub fn try_get_path_manager_arc() -> VoidResult<Arc<PathManager>> {
 #[cfg(test)]
 mod tests {
     use super::PathManager;
+    use std::ffi::OsStr;
     use std::path::Path;
 
     #[test]
@@ -622,5 +701,86 @@ mod tests {
             pm.project_team_definitions_dir(workspace),
             workspace.join(".void").join("teams")
         );
+    }
+
+    #[test]
+    fn e2e_runtime_override_requires_debug_webdriver_and_a_safe_absolute_root() {
+        let temp_dir = std::env::temp_dir();
+        let valid_root = temp_dir.join("void-e2e").join("run-123-456");
+
+        assert_eq!(
+            PathManager::resolve_e2e_runtime_root(
+                false,
+                Some(OsStr::new("4457")),
+                Some(valid_root.as_os_str()),
+                &temp_dir,
+            )
+            .expect("release-like builds should ignore E2E overrides"),
+            None
+        );
+        assert_eq!(
+            PathManager::resolve_e2e_runtime_root(
+                true,
+                None,
+                Some(valid_root.as_os_str()),
+                &temp_dir,
+            )
+            .expect("non-WebDriver debug sessions should ignore E2E overrides"),
+            None
+        );
+        assert!(PathManager::resolve_e2e_runtime_root(
+            true,
+            Some(OsStr::new("4457")),
+            None,
+            &temp_dir,
+        )
+        .is_err());
+        assert!(PathManager::resolve_e2e_runtime_root(
+            true,
+            Some(OsStr::new("4457")),
+            Some(OsStr::new("relative/run-1")),
+            &temp_dir,
+        )
+        .is_err());
+        assert!(PathManager::resolve_e2e_runtime_root(
+            true,
+            Some(OsStr::new("4457")),
+            Some(temp_dir.as_os_str()),
+            &temp_dir,
+        )
+        .is_err());
+        assert_eq!(
+            PathManager::resolve_e2e_runtime_root(
+                true,
+                Some(OsStr::new("4457")),
+                Some(valid_root.as_os_str()),
+                &temp_dir,
+            )
+            .expect("safe E2E root should resolve"),
+            Some(valid_root)
+        );
+    }
+
+    #[test]
+    fn e2e_runtime_override_isolates_config_sessions_teams_and_skills() {
+        let runtime_root = std::env::temp_dir()
+            .join("void-e2e")
+            .join("run-path-manager-test");
+        let pm = PathManager::from_e2e_runtime_root(runtime_root.clone());
+        let workspace = runtime_root.join("workspace");
+
+        assert_eq!(pm.user_config_dir(), runtime_root.join("user-root/config"));
+        assert_eq!(
+            pm.user_team_definitions_dir(),
+            runtime_root.join("user-root/data/teams")
+        );
+        assert_eq!(pm.void_home_dir(), runtime_root.join("void-home"));
+        assert_eq!(pm.user_skills_dir(), runtime_root.join("user-root/skills"));
+        assert!(pm
+            .project_sessions_dir(&workspace)
+            .starts_with(runtime_root.join("void-home")));
+        assert!(pm
+            .project_team_definitions_dir(&workspace)
+            .starts_with(&runtime_root));
     }
 }

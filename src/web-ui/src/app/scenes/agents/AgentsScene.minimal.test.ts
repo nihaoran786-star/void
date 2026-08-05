@@ -16,6 +16,7 @@ const sha256 = (relativePath: string): string =>
 
 describe('Agents scene Minimal presentation contract', () => {
   const source = readSource('./AgentsScene.minimal.scss');
+  const marketContract = readSource('../../../component-library/styles/customization-market.scss');
 
   it('loads once through the lazy Agents feature stylesheet', () => {
     const owner = readSource('./AgentsScene.scss');
@@ -67,13 +68,9 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('uses one bounded content axis with a title-free compact toolbar', () => {
-    expect(source).toContain('--agents-content-max: 1280px;');
-    expect(source).toMatch(
-      /\.agent-market-toolbar \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?min-height: 52px;[\s\S]*?border-bottom: 1px solid var\(--workspace-border-subtle\);/,
-    );
-    expect(source).toMatch(
-      /\.gallery-zones \{[\s\S]*?var\(--agents-content-max\)[\s\S]*?margin-inline: auto;/,
-    );
+    expect(marketContract).toContain('$content-max-width: 1280px;');
+    expect(source).toMatch(/\.agent-market-toolbar \{[\s\S]*?@include market\.content-frame;[\s\S]*?@include market\.toolbar;/);
+    expect(source).toMatch(/\.gallery-zones \{[\s\S]*?@include market\.content-frame;/);
     expect(source).not.toContain('/visuals/void-agents-hero.webp');
     expect(source).toMatch(
       /\.agent-market-toolbar \.search \{[\s\S]*?width: min\(280px, 34vw\);/,
@@ -85,12 +82,11 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('matches the workspace tab, toolbar, and control typography contract', () => {
-    expect(source).toMatch(
-      /\.agents-catalog-tabs \{[\s\S]*?min-height: 48px;[\s\S]*?button \{[\s\S]*?min-height: 48px;[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-regular\);/,
-    );
-    expect(source).toMatch(
-      /&\.is-active \{[\s\S]*?border-bottom-color: var\(--workspace-accent\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
-    );
+    expect(source).toMatch(/\.agents-catalog-tabs \{[\s\S]*?@include market\.tab-strip;[\s\S]*?button \{[\s\S]*?@include market\.tab;/);
+    expect(marketContract).toContain('$tab-height: 48px;');
+    expect(marketContract).toContain('font-size: var(--workspace-font-size-label);');
+    expect(marketContract).toContain('font-weight: var(--workspace-font-weight-regular);');
+    expect(marketContract).toMatch(/&\.is-active \{[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/);
     expect(source).toMatch(
       /\.agent-market-toolbar \.search__input \{[\s\S]*?font-size: var\(--workspace-font-size-label\);[\s\S]*?font-weight: var\(--workspace-font-weight-medium\);/,
     );
@@ -103,13 +99,17 @@ describe('Agents scene Minimal presentation contract', () => {
   });
 
   it('compresses list cards without removing their details behavior', () => {
-    expect(source).toMatch(
-      /\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?height: 160px;[\s\S]*?min-height: 160px;/,
-    );
+    expect(source).toMatch(/\.agent-card,[\s\S]*?\.core-agent-card,[\s\S]*?\.agent-team-card \{[\s\S]*?@include market\.card;/);
+    expect(marketContract).toContain('$card-height: 160px;');
     expect(source).toContain('--gallery-grid-min: 280px;');
-    expect(source).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
-    expect(source.match(/grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/g)).toHaveLength(2);
-    expect(source).toContain('grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));');
+    expect(source.match(/@include market\.grid;/g)).toHaveLength(2);
+    expect(marketContract).toContain('grid-template-columns: repeat($desktop-grid-columns, minmax(0, 1fr));');
+    expect(source).toMatch(
+      /@media \(max-width: 1080px\)[\s\S]*?@include market\.two-column-grid;/,
+    );
+    expect(source).toMatch(
+      /@media \(max-width: 560px\)[\s\S]*?@include market\.one-column-grid;/,
+    );
     expect(source).toContain('content-visibility: auto;');
     expect(source).toContain('contain-intrinsic-size: auto 220px;');
     expect(source).toMatch(

@@ -10,8 +10,8 @@ use agent_client_protocol::schema::{
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
 use async_trait::async_trait;
-use void_core::agentic::system::AgenticSystem;
 use dashmap::DashMap;
+use void_core::agentic::system::AgenticSystem;
 
 use crate::server::{AcpRuntime, AcpServer};
 
@@ -75,9 +75,7 @@ impl AcpRuntime for VoidAcpRuntime {
                         SessionCapabilities::new().list(SessionListCapabilities::new()),
                     ),
             )
-            .agent_info(
-                Implementation::new("void-acp", env!("CARGO_PKG_VERSION")).title("Void"),
-            ))
+            .agent_info(Implementation::new("void-acp", env!("CARGO_PKG_VERSION")).title("Void")))
     }
 
     async fn new_session(

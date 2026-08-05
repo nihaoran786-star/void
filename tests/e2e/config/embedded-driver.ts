@@ -24,6 +24,12 @@ let ownsDevServer = false;
 let runLockDescriptor: number | null = null;
 let runtimeRoot: string | null = null;
 
+function clearVoidAppPid(child?: ChildProcess): void {
+  if (!child || process.env.VOID_E2E_APP_PID === String(child.pid)) {
+    delete process.env.VOID_E2E_APP_PID;
+  }
+}
+
 type RunLockRecord = {
   createdAt: string;
   pid: number;
@@ -78,7 +84,12 @@ function acquireRunLock(): void {
         E2E_RUNTIME_PARENT,
         `run-${process.pid}-${Date.now()}`,
       );
+      assertSafeRuntimeRoot(runtimeRoot);
       fs.mkdirSync(runtimeRoot, { recursive: true });
+      fs.mkdirSync(path.join(runtimeRoot, 'user-root', 'skills'), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(runtimeRoot, 'void-home'), { recursive: true });
       const record: RunLockRecord = {
         createdAt: new Date().toISOString(),
         pid: process.pid,
@@ -296,11 +307,13 @@ async function fetchSessionLogs(
 
 async function stopvoidApp(): Promise<void> {
   if (!voidApp) {
+    clearVoidAppPid();
     return;
   }
 
   const child = voidApp;
   voidApp = null;
+  clearVoidAppPid(child);
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
@@ -448,6 +461,15 @@ async function startvoidApp(): Promise<void> {
     },
   });
 
+  const appPid = voidApp.pid;
+  if (!Number.isSafeInteger(appPid) || !appPid || appPid <= 0 || !isProcessRunning(appPid)) {
+    const invalidPid = appPid ?? 'missing';
+    await stopvoidApp();
+    throw new Error(`Void desktop spawned without a live PID (received ${invalidPid})`);
+  }
+  process.env.VOID_E2E_APP_PID = String(appPid);
+  const spawnedApp = voidApp;
+
   voidApp.stdout?.on('data', (data: Buffer) => {
     console.log(`[void-app] ${data.toString().trim()}`);
   });
@@ -457,6 +479,7 @@ async function startvoidApp(): Promise<void> {
   });
 
   voidApp.on('exit', (code, signal) => {
+    clearVoidAppPid(spawnedApp);
     console.log(`[void-app] exited (code=${code ?? 'null'}, signal=${signal ?? 'null'})`);
   });
 
@@ -585,6 +608,7 @@ export function createEmbeddedConfig(specs: string[], label: string): Options.Te
         await stopvoidApp();
         stopDevServer();
       } finally {
+        clearVoidAppPid();
         releaseRunLock();
       }
     },

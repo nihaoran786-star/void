@@ -54,8 +54,7 @@ fn line_has_read_prefix(line: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        all_lines_have_read_prefix, read_tool_output_to_file_content,
-        strip_read_line_number_prefix,
+        all_lines_have_read_prefix, read_tool_output_to_file_content, strip_read_line_number_prefix,
     };
 
     #[test]

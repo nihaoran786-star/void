@@ -1,9 +1,13 @@
 # Customization Center And Active Persona Specification
 
-Status: Desktop/Tauri first implementation complete; general Team runtime and
-browser/server parity deferred.
+Status: Desktop/Tauri persona activation and the compatible reusable
+`prompt_orchestrated` Team runtime, including typed member Skill authority, are
+implemented. Typed Team pause/resume is implemented through the Core runtime,
+trusted Team tool, Desktop commands, and Web runtime gateway; direct Team
+Workspace pause/resume controls, specialist tool/readonly expansion,
+browser/server parity, and future flagship-adapter expansion are deferred.
 
-Updated: 2026-08-02
+Updated: 2026-08-05
 
 ## Product decision
 
@@ -64,9 +68,10 @@ code must not parse, rewrite, concatenate, or replace system prompts directly.
 
 ## Current source baseline
 
-The following statements describe the repository as it exists before this
-specification is implemented. They are compatibility facts, not completion
-claims.
+The following statements describe the repository as it exists at this update.
+They distinguish implemented Desktop/Tauri behavior from compatibility and
+deferred boundaries; the later product contracts remain authoritative for
+future expansion.
 
 - The Web UI session currently stores one `mode` value in
   `src/web-ui/src/flow_chat/types/flow-chat.ts`, and
@@ -74,7 +79,9 @@ claims.
   derives the submitted `agentType` from the explicit argument or that mode.
   The desktop request and persisted backend session continue to use
   `agent_type` in `src/apps/desktop/src/api/agentic_api.rs`. Scenario and
-  execution-policy identity are therefore still projected through one field.
+  execution-policy identity are therefore still projected through one field,
+  while the active persona is stored and restored as a separate parent-session
+  binding.
 - The accepted turn path is currently:
 
   ```text
@@ -111,10 +118,10 @@ claims.
   canonical Agent key and cover the server Module/dependency boundary plus
   workspace, session, permission, provider, and event isolation with tests
   against the actually reachable runtime path.
-- `MessageModule` already forwards arbitrary `userMessageMetadata` through
-  `AgentAPI.startDialogTurn`. This is the transport seam for a typed persona
-  snapshot, but the runtime does not yet treat such a snapshot as an active
-  persona contract.
+- `MessageModule` forwards structured persona metadata through
+  `AgentAPI.startDialogTurn`. The Desktop/Tauri runtime validates the immutable
+  turn snapshot, resolves the separate parent-session persona binding, and
+  composes supported Agent or Team-lead personas behind the runtime Interface.
 - Code modes `agentic`, `Plan`, `debug`, and `Multitask` already share
   `SHARED_CODING_MODE_PROMPT_TEMPLATE`, `shared_coding_mode_tools`, and one
   context policy in `src/crates/core/src/agentic/agents/mod.rs`; their
@@ -122,20 +129,42 @@ claims.
   `src/crates/core/src/agentic/agents/definitions/modes/` through reminders.
   Cowork and Media retain separate prompt and tool definitions in
   `cowork.rs` and `media.rs`.
-- The existing Agent and Skill scenes still render runtime-facing names in
-  `src/web-ui/src/app/scenes/agents/AgentsScene.tsx` and
-  `src/web-ui/src/app/scenes/skills/SkillsScene.tsx`. The Connectors entry
-  currently routes to the existing MCP surface in
-  `src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx`.
-- No reusable `TeamCatalog`, `TeamOrchestrator`, or general team persistence
-  implementation exists yet. The Team Interface in
-  [Team Workspace](team-workspace-prd.md) remains a specification dependency.
+- The Agent, Team, and Skill scenes consume localized catalog Interfaces.
+  Connectors is a standalone scene projection over the existing MCP
+  infrastructure component in
+  `src/web-ui/src/infrastructure/config/components/McpToolsConfig.tsx`; it does
+  not introduce a second connector runtime.
+- Desktop/Tauri implements reusable Team definition persistence and a
+  compatible `prompt_orchestrated` runtime slice. A durable `TeamInstance`
+  binds the selected definition revision to the parent session; its lead is
+  activated as the parent persona, a trusted `Team` tool exposes typed
+  start/observe/recover/message/pause/resume/stop paths, and live Team Workspace
+  state plus BTW member conversations are projected through Module Interfaces.
+  Direct pause/resume controls in the Team Workspace presentation remain
+  deferred.
+- Lead Skill allowlists and lead tool policy are supported only as narrowing
+  constraints. An empty lead Skill allowlist preserves the already-effective
+  scenario/workspace/user Skill set, a non-empty list intersects it, and an
+  explicit lead tool policy must retain `Task`. Specialist Skill allowlists are
+  supported through a typed `no_policy` or `restricted` launch policy bound to
+  the pinned definition/revision, instance, member, and Agent. Skill listing
+  and direct invocation enforce one effective intersection, and the dynamic
+  cache identity includes the policy hash plus effective Skill key/revision
+  facts. Team recovery validates this authority before generic child recovery
+  and may migrate only an eligible legacy empty policy to explicit `no_policy`
+  through compare-and-swap. Specialist tool narrowing, specialist readonly
+  behavior, a readonly lead, or an explicit lead tool set without `Task`
+  remains visible but fails closed as `definition_only`.
+- Deep Review and AI Short Drama continue through their existing fixed-runtime
+  adapters rather than the generic runtime. Browser/server runtime and
+  persistence parity and future flagship-adapter expansion remain deferred.
 
 ## Target module boundaries
 
-All names in this section are proposed Interfaces until their source files are
-introduced. Implementations may refine the names without changing ownership or
-dependency direction.
+The names in this section describe the required Interface roles. Implemented
+source may refine individual names without changing ownership or dependency
+direction; [Implementation status](#6-implementation-status) distinguishes the
+current Desktop/Tauri slice from staged expansion.
 
 | Owner | Small Interface | Implementation / Adapter responsibility | Forbidden responsibility |
 | --- | --- | --- | --- |
@@ -694,8 +723,9 @@ UI / route -> Module Interface -> Adapter / service -> external system
 ## File-level implementation and verification sequence
 
 Each phase is independently reviewable and keeps legacy projection available
-until the replacement path is verified. Proposed new paths below are planning
-targets, not existing implementation.
+until the replacement path is verified. This sequence records delivery order
+and gates; [Implementation status](#6-implementation-status) identifies the
+Desktop/Tauri slices already present and the boundaries still deferred.
 
 ### Phase 0 — characterization and rollback baseline
 
@@ -823,20 +853,45 @@ Verification: all three routes produce the same canonical definition; invalid
 permissions/scenarios fail with typed diagnostics; install/remove rollback is
 recoverable; existing custom Agent and Skill precedence remains unchanged.
 
-### Phase 7 — reusable team definition authoring
+### Phase 7 — reusable Team definition and compatible runtime slice
 
 After the `TeamDefinition` schema, validation rules, and `TeamCatalog`
 persistence Interface are stable, add team create, edit, validate, install,
 delete, and bounded package UI. The UI writes that canonical definition and
-does not introduce a second package format. This definition-management slice
-does not imply a general `TeamInstance` or `TeamOrchestrator` runtime.
+does not introduce a second package format.
+
+For compatible `prompt_orchestrated` definitions on Desktop/Tauri, add durable
+`TeamInstance` persistence, parent-persona lead activation, the trusted `Team`
+tool's typed start/observe/recover/message/pause/resume/stop paths, and live
+Team Workspace plus BTW member-conversation projection. Direct pause/resume
+controls in the Team Workspace presentation remain deferred. This slice also
+does not replace the fixed Deep Review or AI Short Drama runtimes.
+
+Lead policy may only narrow existing authority. An empty lead Skill allowlist
+preserves the effective scenario/workspace/user Skill set, a non-empty list
+intersects it, and an explicit lead tool policy must retain `Task`. Member
+Skill policy uses an explicit typed `no_policy` or `restricted` state, pins the
+definition/revision, instance, member, and Agent identity, and applies the same
+effective intersection to Skill listing and direct invocation. The dynamic
+cache identity contains its policy hash and effective Skill key/revision set.
+Team-tagged recovery must pass Team-side preflight before generic child
+recovery; an eligible legacy empty policy is upgraded to explicit `no_policy`
+with compare-and-swap. Once these authority and recovery gates pass, the Web
+composer may activate otherwise-compatible ordinary Teams with member Skill
+allowlists. Keep a definition visible but fail activation closed as
+`definition_only` when it requests specialist tool narrowing, specialist
+readonly behavior, a readonly lead, or an explicit lead tool set without
+`Task`.
 
 Verification: lead/member/workflow identity, serial/parallel dependencies,
 scenario compatibility, permission narrowing, optimistic revision conflicts,
 user/project isolation, read-only installed definitions, installation rollback,
-partial-load diagnostics, and fixed-team compatibility adapters. General team
-activation, real child-session orchestration, and runtime restore remain gated
-until `TeamInstance` and `TeamOrchestrator` are implemented and tested.
+partial-load diagnostics, durable instance restore, typed Team actions, live
+workspace/BTW projections, lead and member Skill intersections, typed member
+policy persistence/cache isolation/recovery, unsupported-policy fail-closed
+behavior, and fixed-team compatibility adapters. Browser/server runtime and
+persistence parity and future flagship-adapter expansion remain separately
+gated.
 
 ### Phase 8 — full regression and visual acceptance
 
@@ -912,8 +967,9 @@ validation quirks.
 ## Source-grounded implementation contract
 
 This section is the implementation handoff derived from current source
-behavior. It does not state that the proposed Interfaces or product behavior
-already exist.
+behavior. It covers both implemented Interfaces and remaining target contracts;
+[Implementation status](#6-implementation-status) is the authoritative split
+between them.
 
 ### 1. Runtime data flow
 
@@ -932,7 +988,7 @@ ChatInput
   -> provider
 ```
 
-Target addition:
+Desktop/Tauri persona path:
 
 ```text
 CapabilityCatalogService
@@ -954,7 +1010,7 @@ for create, send, restore, rollback, and branch flows.
 ### 2. Module boundary and suggested file tree
 
 ```text
-src/web-ui/src/shared/services/customization/        # proposed
+src/web-ui/src/shared/services/customization/
   CapabilityCatalogService.ts                       # Interface
   ActivePersonaSessionService.ts                    # Interface
   PersonaSelectorViewModel.ts                       # presentation DTO
@@ -1102,11 +1158,16 @@ As of this specification update:
   pagination, two-column desktop cards that collapse to one column,
   configuration details, JSON add/configure, server lifecycle actions,
   deletion, remote auth, OAuth, explicit loading/empty/error states, and retry.
-  Its true empty state presents supported local-command and remote-URL paths as
-  non-interactive explanatory cards with exactly one JSON add action. The
-  default Settings presentation remains the compatibility path, and no
-  unavailable remote connector store or one-click installation behavior is
-  claimed;
+  A deliberately small audited marketplace exposes six fixed local-command
+  templates and the fixed Context7 Streamable HTTP endpoint. Templates are
+  argument arrays rather than user-authored shell snippets; required runtime
+  and path inputs are validated. Desktop `install_mcp_connector` validates the
+  MCP config, performs transactional initialization/verification, and rolls the
+  configuration back on failure with typed duplicate/install/rollback errors.
+  The true empty state continues to explain local-command and remote-URL paths
+  and preserves the JSON add action. The default Settings presentation remains
+  the compatibility path. This does not claim an online or arbitrary remote
+  connector store;
 - local cache identity now includes the selected persona key and revision plus
   effective tools and the resolved Skill-set revision. Persona or Skill changes
   therefore miss the complete local system-prompt cache entry safely. The
@@ -1136,10 +1197,31 @@ As of this specification update:
 - fixed Deep Review and AI Short Drama teams are catalog/launch adapters over
   their existing runtimes; their manifests, child sessions, Skills, permissions,
   media routing, project state, and Canvas behavior are not reimplemented;
-- general user-authored Team activation, `TeamInstance`,
-  `TeamOrchestrator`, Team Workspace live-run projection, and Server parity are
-  not implemented. Such definitions are explicitly `definition_only` and
-  cannot be selected in the composer;
+- compatible reusable `prompt_orchestrated` Teams are implemented for the
+  Desktop/Tauri path with durable `TeamInstance` persistence, parent-persona
+  lead activation, a trusted `Team` tool, typed
+  start/observe/recover/message/stop paths, and live Team Workspace plus BTW
+  member-conversation projection. Pause/resume remains unsupported; this is not
+  a claim that every `TeamOrchestrator` action is complete;
+- lead Skill allowlists can only narrow the effective
+  scenario/workspace/user Skill set: an empty list preserves that set and a
+  non-empty list intersects it. Lead tool policy can likewise narrow the
+  effective tool set but any explicit policy must retain `Task`;
+- member Skill policy is implemented as typed `no_policy` or `restricted`
+  launch authority bound to the pinned definition/revision, instance, member,
+  and Agent. Skill listing and direct invocation share the same effective
+  intersection; dynamic cache identity includes the policy hash and resolved
+  effective Skill keys/revisions. Team-side recovery preflight validates the
+  persisted authority before generic child recovery, and an eligible legacy
+  empty policy is upgraded atomically through compare-and-swap to explicit
+  `no_policy`;
+- the Web composer activates otherwise-compatible ordinary Teams with member
+  Skill allowlists. Definitions requesting specialist tool narrowing,
+  specialist readonly behavior, a readonly lead, or an explicit lead tool set
+  without `Task` remain visible but fail closed as `definition_only` and cannot
+  be activated in the composer;
+- browser/server runtime and persistence parity and future flagship-adapter
+  expansion remain deferred;
 - no provider KV-cache hit rate is promised; correctness and role isolation are
   the release gate.
 
@@ -1159,11 +1241,12 @@ permission, session, media, or Team orchestration behavior to a page component.
   keeping the card heading across the full row so localized titles are not
   squeezed by the action column.
 - Configured Connector cards use a two-column wide horizontal layout and
-  collapse to one column. The true empty state presents local-command and
-  remote-URL capability explanations plus exactly one add action; those
-  explanations are not fake connectors. The established JSON, status,
-  authentication, OAuth, lifecycle, and Settings compatibility paths remain
-  unchanged.
+  collapse to one column. The curated market uses the same icon-forward catalog
+  language and installs only audited local argument-array templates or the
+  fixed Context7 remote endpoint. The true empty state keeps local-command and
+  remote-URL explanations plus the JSON add action. The established JSON,
+  status, authentication, OAuth, lifecycle, and Settings compatibility paths
+  remain unchanged.
 - Welcome workspace selection supports roving keyboard navigation, Escape and
   focus restoration. Recent workspace deletion is a separate action, and
   notification failures are rendered as errors. The session workspace selector

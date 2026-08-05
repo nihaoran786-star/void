@@ -1,6 +1,5 @@
 //! Logging Configuration
 
-use void_core::infrastructure::get_path_manager_arc;
 use chrono::Local;
 use serde::Serialize;
 use std::path::PathBuf;
@@ -11,6 +10,7 @@ use std::sync::{
 use std::thread;
 use tauri::{plugin::TauriPlugin, Runtime};
 use tauri_plugin_log::{fern, RotationStrategy, Target, TargetKind, TimezoneStrategy};
+use void_core::infrastructure::get_path_manager_arc;
 
 const SESSION_DIR_PATTERN: &str = r"^\d{8}T\d{6}$";
 const MAX_LOG_SESSIONS: usize = 10;
@@ -314,10 +314,7 @@ pub fn build_log_plugin<R: Runtime>(log_targets: Vec<Target>) -> TauriPlugin<R> 
         // These targets can emit hot-path trace diagnostics during event
         // routing. Keep debug diagnostics, warnings, and errors, but avoid
         // drowning useful app traces in mechanical noise.
-        .level_for(
-            "void_core::agentic::events::queue",
-            log::LevelFilter::Debug,
-        )
+        .level_for("void_core::agentic::events::queue", log::LevelFilter::Debug)
         .level_for(
             "void_core::agentic::events::router",
             log::LevelFilter::Debug,

@@ -124,6 +124,85 @@
       "localDescription": "连接通过命令启动的 MCP 服务，例如本地脚本与开发工具。",
       "remoteTitle": "远程服务",
       "remoteDescription": "连接提供 URL 的 MCP 服务，并按需完成远程认证。"
+    },
+    "views": {
+      "label": "连接器视图",
+      "installed": "已安装",
+      "market": "连接器市场"
+    },
+    "market": {
+      "searchPlaceholder": "搜索连接器或英文名称...",
+      "categoryLabel": "连接器分类",
+      "categories": {
+        "all": "全部",
+        "knowledge": "知识记忆",
+        "reasoning": "思考规划",
+        "files": "文件",
+        "development": "开发",
+        "productivity": "效率",
+        "browser": "浏览器"
+      },
+      "items": {
+        "memory": { "name": "长期记忆", "description": "保存实体、关系与事实，让会话能够复用长期知识。" },
+        "sequentialThinking": { "name": "分步思考", "description": "把复杂问题拆成可检查的步骤，适合分析与规划。" },
+        "filesystem": { "name": "本地文件", "description": "在你明确授权的文件夹内读取和管理文件。" },
+        "git": { "name": "Git 仓库", "description": "读取指定代码仓库的历史、差异和工作区状态。" },
+        "time": { "name": "时间与时区", "description": "查询当前时间并进行可靠的跨时区换算。" },
+        "playwright": { "name": "浏览器自动化", "description": "通过 Playwright 查看网页并执行浏览器操作。" },
+        "context7": { "name": "最新技术文档", "description": "从 Context7 官方服务获取最新、准确的软件库文档与示例。" }
+      },
+      "types": {
+        "localCommand": "本地命令 · {{command}}",
+        "remoteHttps": "远程 HTTPS"
+      },
+      "actions": {
+        "install": "安装",
+        "installing": "安装中",
+        "installed": "已安装",
+        "installLabel": "安装 {{name}}",
+        "installedLabel": "{{name}} 已安装"
+      },
+      "status": {
+        "installed": "连接器已安装并完成验证。",
+        "refreshWarning": "已安装，但列表刷新失败，请稍后重试刷新页面。"
+      },
+      "fields": {
+        "required": "请填写此项。",
+        "allowedPath": {
+          "label": "允许访问的文件夹",
+          "placeholder": "例如 D:\\Workspaces\\资料",
+          "hint": "连接器只能访问这个文件夹及其下级目录。"
+        },
+        "repositoryPath": {
+          "label": "Git 仓库路径",
+          "placeholder": "例如 D:\\Projects\\void",
+          "hint": "请选择包含 .git 目录的本地仓库。"
+        }
+      },
+      "configureTitle": "安装 {{name}}",
+      "configureDescription": "只需补充这个连接器运行所必需的信息。",
+      "permissions": {
+        "title": "安装后会做什么",
+        "localCommand": "使用已审核模板，通过 {{command}} 启动本地 MCP 服务。",
+        "scopedPath": "路径会作为单独参数传递，不会作为脚本执行。",
+        "remoteHttps": "通过加密 HTTPS 连接固定地址 {{url}}，不会运行本地命令。"
+      },
+      "errors": {
+        "unknown": "安装失败，请稍后重试。",
+        "invalidConfig": "当前 MCP 配置无效，请先在 JSON 配置中修复。",
+        "alreadyInstalled": "这个连接器已经存在。",
+        "runtimeUnavailable": "缺少运行命令 {{command}}，请先安装对应运行环境。",
+        "saveFailed": "保存配置失败，原配置已恢复。",
+        "initializeFailed": "连接器启动失败，原配置已恢复。",
+        "verificationFailed": "安装后未能验证连接器，原配置已恢复。",
+        "rollbackFailed": "安装失败且自动恢复未完成，请打开 JSON 配置检查。详情：{{detail}}"
+      },
+      "empty": "没有找到匹配的连接器。",
+      "pagination": {
+        "previous": "上一页",
+        "next": "下一页",
+        "position": "第 {{current}} / {{total}} 页"
+      }
     }
   },
   "empty": {

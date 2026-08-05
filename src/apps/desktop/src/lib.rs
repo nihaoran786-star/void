@@ -289,6 +289,16 @@ pub async fn run() {
         api::subscription_auth_api::SubscriptionAuthDesktopState::default();
 
     let path_manager = get_path_manager_arc();
+    let team_runtime_state = match api::team_runtime_api::TeamRuntimeApiState::new(
+        coordinator.clone(),
+        path_manager.clone(),
+    ) {
+        Ok(state) => state,
+        Err(error) => {
+            log::error!("Failed to initialize Team runtime: {error}");
+            return;
+        }
+    };
 
     let app = tauri::Builder::default()
         .plugin(logging::build_log_plugin(log_targets))
@@ -310,6 +320,7 @@ pub async fn run() {
         .manage(scheduler)
         .manage(terminal_state)
         .manage(subscription_auth_state)
+        .manage(team_runtime_state)
         .setup(move |app| {
             let setup_started = Instant::now();
             log::debug!(
@@ -619,6 +630,15 @@ pub async fn run() {
             api::team_definition_api::update_team_definition,
             api::team_definition_api::install_team_definition,
             api::team_definition_api::delete_team_definition,
+            api::team_runtime_api::team_runtime_list,
+            api::team_runtime_api::team_runtime_get,
+            api::team_runtime_api::team_runtime_attach,
+            api::team_runtime_api::team_runtime_observe,
+            api::team_runtime_api::team_runtime_message,
+            api::team_runtime_api::team_runtime_pause,
+            api::team_runtime_api::team_runtime_resume,
+            api::team_runtime_api::team_runtime_stop,
+            api::team_runtime_api::team_runtime_recover,
             api::agent_memory_api::propose_agent_memory,
             api::agent_memory_api::commit_agent_memory,
             api::agent_memory_api::list_agent_memories,
@@ -864,6 +884,7 @@ pub async fn run() {
             api::project_context_api::delete_context_document,
             initialize_mcp_servers,
             api::mcp_api::initialize_mcp_servers_non_destructive,
+            api::mcp_api::install_mcp_connector,
             get_mcp_servers,
             api::mcp_api::list_mcp_resources,
             api::mcp_api::read_mcp_resource,

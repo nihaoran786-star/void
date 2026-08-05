@@ -1,7 +1,7 @@
 //! Pure Startchat function-agent helper utilities.
 
 use crate::function_agents::common::{
-    AgentError, AgentResult, Language, extract_json_from_ai_response,
+    extract_json_from_ai_response, AgentError, AgentResult, Language,
 };
 use crate::function_agents::startchat_func_agent::types::*;
 

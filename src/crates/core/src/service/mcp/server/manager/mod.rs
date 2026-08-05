@@ -22,7 +22,6 @@ use crate::service::mcp::protocol::{MCPError, MCPPrompt, MCPResource};
 use crate::service::runtime::{RuntimeManager, RuntimeSource};
 use crate::service::workspace::get_global_workspace_service;
 use crate::util::errors::{VoidError, VoidResult};
-use void_services_integrations::mcp::server::MCPCatalogCache;
 use log::{debug, error, info, warn};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -32,6 +31,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{oneshot, Mutex};
 use tokio::task::JoinHandle;
+use void_services_integrations::mcp::server::MCPCatalogCache;
 
 /// Reconnect policy for unhealthy MCP servers.
 #[derive(Debug, Clone, Copy)]
@@ -96,6 +96,7 @@ pub struct MCPServerManager {
     pending_interactions: Arc<tokio::sync::RwLock<HashMap<String, PendingMCPInteraction>>>,
     oauth_sessions: Arc<tokio::sync::RwLock<HashMap<String, Arc<ActiveRemoteOAuthSession>>>>,
     ephemeral_configs: Arc<tokio::sync::RwLock<HashMap<String, MCPServerConfig>>>,
+    lifecycle_lock: Arc<Mutex<()>>,
 }
 
 impl MCPServerManager {
@@ -113,6 +114,7 @@ impl MCPServerManager {
             pending_interactions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             oauth_sessions: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
             ephemeral_configs: Arc::new(tokio::sync::RwLock::new(HashMap::new())),
+            lifecycle_lock: Arc::new(Mutex::new(())),
         }
     }
 }

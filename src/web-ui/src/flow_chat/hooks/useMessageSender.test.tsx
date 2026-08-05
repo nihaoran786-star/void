@@ -231,6 +231,61 @@ describe('useMessageSender deferred session creation', () => {
     });
   });
 
+  it('captures the reusable Team instance and lead identity in one immutable snapshot', async () => {
+    const personaSessionState = {
+      sessionId: 'session-team',
+      sessionKind: 'normal' as const,
+      status: 'selected' as const,
+      scenario: 'media' as const,
+      executionPolicy: 'Media',
+      activePersonaBinding: {
+        kind: 'team_lead' as const,
+        personaId: 'member-lead',
+        personaRevision: {
+          status: 'known' as const,
+          value: 'definition-v1:member-lead',
+        },
+        teamDefinitionId: 'custom-team',
+        teamInstanceId: 'team-instance-1',
+      },
+    };
+
+    function Harness() {
+      const value = useMessageSender({
+        currentSessionId: 'session-team',
+        contexts: [],
+        personaSessionState,
+      });
+      useEffect(() => {
+        sender = value;
+      }, [value]);
+      return null;
+    }
+
+    await act(async () => {
+      root.render(<Harness />);
+    });
+    const send = sender?.sendMessage('请团队开始分析');
+    personaSessionState.activePersonaBinding.teamInstanceId = 'tampered-instance';
+    await act(async () => {
+      await send;
+    });
+
+    expect(
+      mocks.sendMessage.mock.calls[0]?.[5].userMessageMetadata.personaTurnSnapshot,
+    ).toEqual({
+      schemaVersion: 1,
+      kind: 'team_lead',
+      personaKey: 'member-lead',
+      personaRevision: 'definition-v1:member-lead',
+      teamDefinitionId: 'custom-team',
+      teamInstanceId: 'team-instance-1',
+      scenario: 'media',
+      executionPolicy: 'Media',
+      resolvedSkillRefs: [],
+    });
+  });
+
   it('does not report a receipt when sending fails', async () => {
     mocks.sendMessage.mockRejectedValueOnce(new Error('send failed'));
     const onSuccess = vi.fn();

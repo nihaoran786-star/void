@@ -3,6 +3,9 @@
 //! Supports loading and executing skills from user-level and project-level directories
 //! Manages skill enabled/disabled status through SkillRegistry
 
+use crate::agentic::persona_skill_runtime::{
+    PersonaSkillFacts, TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY,
+};
 use crate::agentic::tools::framework::{
     Tool, ToolRenderOptions, ToolResult, ToolUseContext, ValidationResult,
 };
@@ -58,11 +61,54 @@ Important:
         hex::encode(Sha256::digest(identities.join("\n").as_bytes()))
     }
 
+    fn skill_cache_revision(
+        skills: &[SkillInfo],
+        context: Option<&ToolUseContext>,
+    ) -> VoidResult<String> {
+        let effective_revision = Self::skill_set_revision(skills);
+        let Some(policy_identity) = context
+            .and_then(|context| {
+                context
+                    .custom_data
+                    .get(TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY)
+            })
+            .and_then(Value::as_str)
+        else {
+            return Ok(effective_revision);
+        };
+        if policy_identity.len() != 64
+            || !policy_identity.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(VoidError::validation(
+                "invalid Team member Skill policy cache identity".to_string(),
+            ));
+        }
+        Ok(hex::encode(Sha256::digest(
+            format!("policy:{policy_identity}\neffective:{effective_revision}").as_bytes(),
+        )))
+    }
+
+    fn apply_persona_skill_policy(
+        skills: Vec<SkillInfo>,
+        context: Option<&ToolUseContext>,
+    ) -> VoidResult<Vec<SkillInfo>> {
+        let Some(context) = context else {
+            return Ok(skills);
+        };
+        let Some(facts) = PersonaSkillFacts::from_custom_data(&context.custom_data)? else {
+            return Ok(skills);
+        };
+        Ok(skills
+            .into_iter()
+            .filter(|skill| facts.allows_key(&skill.key))
+            .collect())
+    }
+
     pub(crate) async fn resolved_skills_for_context(
         context: Option<&ToolUseContext>,
-    ) -> Vec<SkillInfo> {
+    ) -> VoidResult<Vec<SkillInfo>> {
         let registry = get_skill_registry();
-        match context {
+        let resolved = match context {
             Some(ctx) if ctx.is_remote() => {
                 if let Some(fs) = ctx.ws_fs() {
                     let root = ctx
@@ -92,14 +138,15 @@ Important:
                     .await
             }
             None => registry.get_resolved_skills_for_workspace(None, None).await,
-        }
+        };
+        Self::apply_persona_skill_policy(resolved, context)
     }
 
     pub(crate) async fn build_available_skills_context(
         context: Option<&ToolUseContext>,
-    ) -> AvailableSkillsContext {
-        let skills = Self::resolved_skills_for_context(context).await;
-        let revision = Self::skill_set_revision(&skills);
+    ) -> VoidResult<AvailableSkillsContext> {
+        let skills = Self::resolved_skills_for_context(context).await?;
+        let revision = Self::skill_cache_revision(&skills, context)?;
         let skills_list = skills
             .iter()
             .map(SkillInfo::to_xml_desc)
@@ -107,10 +154,10 @@ Important:
             .join("\n");
         let skills_list = skills_list.trim();
         if skills_list.is_empty() {
-            return AvailableSkillsContext {
+            return Ok(AvailableSkillsContext {
                 section: None,
                 revision,
-            };
+            });
         }
 
         let mut section = format!("<available_skills>\n{}\n</available_skills>", skills_list);
@@ -121,10 +168,10 @@ Important:
                 "\n\nRemote workspace note: Project-level skills on the server could not be indexed because workspace I/O is unavailable. Only user-level skills are shown; Void will not fall back to scanning the remote path on the local filesystem.",
             );
         }
-        AvailableSkillsContext {
+        Ok(AvailableSkillsContext {
             section: Some(section),
             revision,
-        }
+        })
     }
 }
 
@@ -221,6 +268,19 @@ impl Tool for SkillTool {
 
         debug!("Skill tool executing skill: {}", skill_name);
 
+        if PersonaSkillFacts::from_custom_data(&context.custom_data)?.is_some() {
+            let effective_skills = Self::resolved_skills_for_context(Some(context)).await?;
+            if !effective_skills
+                .iter()
+                .any(|skill| skill.name == skill_name)
+            {
+                return Err(VoidError::tool(format!(
+                    "Skill '{}' is outside the active persona or Team-member Skill allowlist, or is not effective in this scenario/workspace",
+                    skill_name
+                )));
+            }
+        }
+
         // Find and load skill through registry
         let registry = get_skill_registry();
         let skill_data = if context.is_remote() {
@@ -292,6 +352,10 @@ impl Default for SkillTool {
 #[cfg(test)]
 mod tests {
     use super::SkillTool;
+    use crate::agentic::persona_skill_runtime::{
+        append_persona_skill_context_data, trusted_team_member_skill_context_vars,
+        PersonaSkillFacts, TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY,
+    };
     use crate::agentic::tools::framework::{Tool, ToolResult, ToolUseContext};
     use crate::agentic::tools::implementations::skills::{
         registry::SkillRegistry, SkillInfo, SkillLocation,
@@ -306,6 +370,7 @@ mod tests {
     use serde_json::json;
     use std::path::PathBuf;
     use std::sync::Arc;
+    use void_core_types::TeamMemberSkillPolicySnapshot;
 
     struct FakeRemoteFs;
 
@@ -465,6 +530,70 @@ Use the remote project skill.
         assert_ne!(forward, changed);
     }
 
+    #[test]
+    fn member_policy_identity_partitions_effective_skill_cache_revision() {
+        let skills = vec![revision_test_skill("skill-a", "r1")];
+        let mut first = local_context("agentic");
+        first.custom_data.insert(
+            TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY.to_string(),
+            json!("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        );
+        let mut second = first.clone();
+        second.custom_data.insert(
+            TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY.to_string(),
+            json!("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+        );
+
+        assert_ne!(
+            SkillTool::skill_cache_revision(&skills, Some(&first)).unwrap(),
+            SkillTool::skill_cache_revision(&skills, Some(&second)).unwrap()
+        );
+        assert_ne!(
+            SkillTool::skill_cache_revision(&skills, Some(&first)).unwrap(),
+            SkillTool::skill_set_revision(&skills)
+        );
+    }
+
+    #[test]
+    fn persona_policy_only_narrows_effective_skills_and_keeps_revision_tracking() {
+        let facts = PersonaSkillFacts::from_allowed_skill_keys(&["void:skill-a".to_string()])
+            .unwrap()
+            .unwrap();
+        let mut context_vars = Default::default();
+        facts.write_context_vars(&mut context_vars);
+        let mut context = local_context("agentic");
+        append_persona_skill_context_data(&context_vars, &mut context.custom_data);
+
+        let first = SkillTool::apply_persona_skill_policy(
+            vec![
+                revision_test_skill("skill-a", "r1"),
+                revision_test_skill("skill-b", "r1"),
+            ],
+            Some(&context),
+        )
+        .unwrap();
+        let changed = SkillTool::apply_persona_skill_policy(
+            vec![
+                revision_test_skill("skill-a", "r2"),
+                revision_test_skill("skill-b", "r1"),
+            ],
+            Some(&context),
+        )
+        .unwrap();
+
+        assert_eq!(
+            first
+                .iter()
+                .map(|skill| skill.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["void:skill-a"]
+        );
+        assert_ne!(
+            SkillTool::skill_set_revision(&first),
+            SkillTool::skill_set_revision(&changed)
+        );
+    }
+
     async fn assert_explicit_skill_denied(context: &ToolUseContext, skill_name: &str) {
         let error = match SkillTool::new()
             .call_impl(&json!({ "command": skill_name }), context)
@@ -551,6 +680,52 @@ Use the remote project skill.
     }
 
     #[tokio::test]
+    async fn restricted_team_member_listing_and_direct_invocation_share_one_intersection() {
+        let mut context = local_context("agentic");
+        let effective = SkillTool::resolved_skills_for_context(Some(&context))
+            .await
+            .unwrap();
+        let allowed = effective
+            .first()
+            .expect("agentic must expose at least one effective Skill")
+            .clone();
+        let denied = effective
+            .iter()
+            .find(|skill| skill.key != allowed.key)
+            .expect("test requires another effective Skill")
+            .clone();
+        let policy = TeamMemberSkillPolicySnapshot::new(
+            "definition".into(),
+            "revision".into(),
+            "instance".into(),
+            "member".into(),
+            "agent".into(),
+            vec![allowed.key.clone()],
+        )
+        .unwrap();
+        let projected =
+            trusted_team_member_skill_context_vars(&Default::default(), Some(&policy)).unwrap();
+        append_persona_skill_context_data(&projected, &mut context.custom_data);
+
+        let listed = SkillTool::resolved_skills_for_context(Some(&context))
+            .await
+            .unwrap();
+        assert_eq!(
+            listed
+                .iter()
+                .map(|skill| skill.key.as_str())
+                .collect::<Vec<_>>(),
+            vec![allowed.key.as_str()]
+        );
+        assert_explicit_skill_loaded(&context, &allowed.name).await;
+        let error = SkillTool::new()
+            .call_impl(&json!({ "command": denied.name }), &context)
+            .await
+            .expect_err("Skill outside the member intersection must be denied");
+        assert!(error.to_string().contains("Team-member Skill allowlist"));
+    }
+
+    #[tokio::test]
     async fn remote_description_indexes_project_skills_through_workspace_services() {
         let identity =
             workspace_session_identity("/remote/project", Some("conn-1"), Some("remote-host"))
@@ -581,6 +756,7 @@ Use the remote project skill.
 
         let description = SkillTool::build_available_skills_context(Some(&context))
             .await
+            .expect("Skill listing should resolve")
             .section
             .expect("available skills section");
 

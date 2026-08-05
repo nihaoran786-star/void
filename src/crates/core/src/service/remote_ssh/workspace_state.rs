@@ -7,6 +7,9 @@
 
 use crate::infrastructure::{get_path_manager_arc, PathManager};
 use crate::service::remote_ssh::{RemoteFileService, RemoteTerminalManager, SSHConnectionManager};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 pub use void_services_integrations::remote_ssh::{
     local_workspace_stable_storage_id, normalize_remote_workspace_path,
     remote_root_to_mirror_subpath, remote_workspace_stable_id,
@@ -14,9 +17,6 @@ pub use void_services_integrations::remote_ssh::{
     sanitize_ssh_hostname_for_mirror, unresolved_remote_session_storage_key, workspace_logical_key,
     RemoteWorkspaceEntry, RemoteWorkspaceRegistry, RemoteWorkspaceState, LOCAL_WORKSPACE_SSH_HOST,
 };
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 /// Unified workspace identity used to resolve session persistence for both
 /// local and remote workspaces. The only semantic difference is `hostname`:
@@ -622,10 +622,8 @@ mod tests {
 
     #[test]
     fn local_workspace_session_identity_uses_workspace_root_for_storage() {
-        let workspace_root = std::env::temp_dir().join(format!(
-            "void-workspace-identity-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let workspace_root =
+            std::env::temp_dir().join(format!("void-workspace-identity-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&workspace_root).expect("workspace should exist");
 
         let identity = workspace_session_identity(&workspace_root.to_string_lossy(), None, None)

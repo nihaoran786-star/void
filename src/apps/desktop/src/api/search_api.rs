@@ -1,4 +1,7 @@
 use crate::api::app_state::AppState;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::State;
 use void_core::infrastructure::{FileSearchResult, FileSearchResultGroup, SearchMatchType};
 use void_core::service::remote_ssh::workspace_state::{is_remote_path, lookup_remote_connection};
 use void_core::service::search::{
@@ -6,9 +9,6 @@ use void_core::service::search::{
     workspace_search_feature_enabled, ContentSearchRequest, ContentSearchResult,
     RemoteWorkspaceSearchService, WorkspaceSearchBackend, WorkspaceSearchRepoPhase,
 };
-use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tauri::State;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

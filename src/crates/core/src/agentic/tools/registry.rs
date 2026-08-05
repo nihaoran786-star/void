@@ -365,6 +365,7 @@ mod tests {
             "Delete",
             "Bash",
             "Task",
+            "Team",
             "Skill",
             "AskUserQuestion",
             "TodoWrite",

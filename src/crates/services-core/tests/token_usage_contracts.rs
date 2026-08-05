@@ -1,7 +1,7 @@
+use chrono::Utc;
 use void_services_core::token_usage::{
     ModelTokenStats, SessionTokenStats, TimeRange, TokenUsageQuery, TokenUsageRecord,
 };
-use chrono::Utc;
 
 #[test]
 fn token_usage_record_preserves_cached_availability_default() {

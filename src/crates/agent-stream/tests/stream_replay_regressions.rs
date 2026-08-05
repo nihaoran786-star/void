@@ -1,15 +1,15 @@
 mod common;
 
-use void_agent_stream::StreamResult;
-use void_ai_adapters::providers::{openai::OpenAIMessageConverter, AnthropicMessageConverter};
-use void_ai_adapters::{Message as AIMessage, ToolCall as AIToolCall};
-use void_events::{AgenticEvent, ToolEventData};
 use common::sse_fixture_server::FixtureSseServerOptions;
 use common::stream_test_harness::{
     run_stream_fixture, run_stream_fixture_with_options, StreamFixtureProvider,
     StreamFixtureRunOptions,
 };
 use serde_json::json;
+use void_agent_stream::StreamResult;
+use void_ai_adapters::providers::{openai::OpenAIMessageConverter, AnthropicMessageConverter};
+use void_ai_adapters::{Message as AIMessage, ToolCall as AIToolCall};
+use void_events::{AgenticEvent, ToolEventData};
 
 fn build_replay_assistant_message(result: &StreamResult) -> AIMessage {
     let reasoning = if result.full_thinking.is_empty() {
@@ -102,7 +102,7 @@ async fn replays_structurally_empty_openai_reasoning_content_with_tool_call() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some((tool_id.as_str(), params.as_str()))
-            },
+            }
             _ => None,
         })
         .collect();

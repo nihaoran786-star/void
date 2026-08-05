@@ -1,9 +1,10 @@
 //! Shared desktop resolution and access helpers for local, runtime, and remote paths.
 
 use crate::api::app_state::AppState;
-use void_core::agentic::tools::workspace_paths::{
-    is_void_runtime_uri, parse_void_runtime_uri,
-};
+use serde::Serialize;
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+use void_core::agentic::tools::workspace_paths::{is_void_runtime_uri, parse_void_runtime_uri};
 use void_core::infrastructure::get_path_manager_arc;
 use void_core::infrastructure::FileOperationOptions;
 use void_core::service::remote_ssh::workspace_state::remote_workspace_runtime_root;
@@ -11,9 +12,6 @@ use void_core::service::remote_ssh::{
     get_remote_workspace_manager, normalize_remote_workspace_path, RemoteWorkspaceEntry,
 };
 use void_core::service::workspace::{WorkspaceInfo, WorkspaceKind};
-use serde::Serialize;
-use std::path::{Path, PathBuf};
-use std::time::SystemTime;
 
 #[derive(Debug, Clone)]
 pub enum DesktopPathTarget {

@@ -14,6 +14,14 @@ use crate::api::search_api::{
     should_use_workspace_search, SearchMetadataResponse,
 };
 use crate::api::workspace_activation::spawn_workspace_background_warmup;
+use log::{debug, error, info, warn};
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Emitter, State};
 use void_core::infrastructure::{
     BatchedFileSearchProgressSink, FileSearchOutcome, FileSearchProgressSink, FileSearchResult,
     FileSearchResultGroup, FileTreeNode, SearchMatchType,
@@ -25,14 +33,6 @@ use void_core::service::remote_ssh::{RemoteDirEntry, RemoteFileService, RemoteWo
 use void_core::service::workspace::{
     ScanOptions, WorkspaceInfo, WorkspaceKind, WorkspaceOpenOptions,
 };
-use log::{debug, error, info, warn};
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, State};
 
 fn remote_workspace_from_info(info: &WorkspaceInfo) -> Option<crate::api::RemoteWorkspace> {
     if info.workspace_kind != WorkspaceKind::Remote {
@@ -1003,11 +1003,10 @@ async fn create_transient_ai_client_for_config(
         .get_config(None)
         .await
         .map_err(|e| format!("Failed to get configuration: {}", e))?;
-    let stream_options =
-        void_core::infrastructure::ai::build_stream_options_for_model(
-            &global_config.ai,
-            Some(&model_config),
-        );
+    let stream_options = void_core::infrastructure::ai::build_stream_options_for_model(
+        &global_config.ai,
+        Some(&model_config),
+    );
 
     let mut ai_config: void_core::util::types::AIConfig = model_config
         .try_into()
@@ -1993,8 +1992,8 @@ pub async fn scan_workspace_info(
 }
 
 async fn ensure_directory_request_path(path: &str) -> Result<(), String> {
-    use void_core::service::remote_ssh::workspace_state::is_remote_path;
     use std::path::Path;
+    use void_core::service::remote_ssh::workspace_state::is_remote_path;
 
     if is_remote_path(path).await {
         return Ok(());

@@ -2,11 +2,11 @@
 //!
 //! Provide unified error types and handling for the whole application
 
+use serde::Serialize;
+use thiserror::Error;
 use void_core_types::errors::{
     ai_error_detail_from_message, classify_ai_error_message, AiErrorDetail, ErrorCategory,
 };
-use serde::Serialize;
-use thiserror::Error;
 
 /// Unified error type for the Void application
 #[derive(Debug, Error, Serialize)]

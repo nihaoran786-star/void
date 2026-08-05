@@ -70,10 +70,7 @@ impl WorkspaceSearchService {
         }
     }
 
-    pub async fn open_repo(
-        &self,
-        repo_root: impl AsRef<Path>,
-    ) -> VoidResult<WorkspaceIndexStatus> {
+    pub async fn open_repo(&self, repo_root: impl AsRef<Path>) -> VoidResult<WorkspaceIndexStatus> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         self.index_status_for_session(session).await
     }
@@ -108,10 +105,7 @@ impl WorkspaceSearchService {
         })
     }
 
-    pub async fn rebuild_index(
-        &self,
-        repo_root: impl AsRef<Path>,
-    ) -> VoidResult<IndexTaskHandle> {
+    pub async fn rebuild_index(&self, repo_root: impl AsRef<Path>) -> VoidResult<IndexTaskHandle> {
         let session = self.get_or_open_session(repo_root.as_ref()).await?;
         let task = FlashgrepRepoSession::rebuild_index(session.as_ref())
             .await
@@ -444,10 +438,7 @@ impl WorkspaceSearchService {
             .clone())
     }
 
-    async fn index_status_for_session<S>(
-        &self,
-        session: Arc<S>,
-    ) -> VoidResult<WorkspaceIndexStatus>
+    async fn index_status_for_session<S>(&self, session: Arc<S>) -> VoidResult<WorkspaceIndexStatus>
     where
         S: FlashgrepRepoSession + ?Sized,
     {

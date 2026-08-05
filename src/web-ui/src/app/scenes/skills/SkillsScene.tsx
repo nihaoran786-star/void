@@ -225,9 +225,31 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
     }
   }, [canManage, installedFilter, setAddFormOpen, setInstalledFilter]);
 
+  const handleCatalogTabKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+    const tabs = Array.from(
+      event.currentTarget.closest('[role="tablist"]')
+        ?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [],
+    );
+    if (tabs.length === 0) {
+      return;
+    }
+    event.preventDefault();
+    const currentIndex = Math.max(0, tabs.indexOf(event.currentTarget));
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    setActiveTab(nextIndex === 0 ? 'installed' : 'discover');
+    tabs[nextIndex]?.focus();
+  }, [setActiveTab]);
+
   if (authoringTarget) {
     return (
-      <div className="void-skills-scene">
+      <div className="void-skills-scene" data-customization-market="skills">
         <SkillAuthoringPage
           mode={authoringTarget.mode}
           skillKey={authoringTarget.mode === 'edit' ? authoringTarget.skillKey : undefined}
@@ -246,25 +268,31 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
   }
 
   return (
-    <div className="void-skills-scene">
+    <div className="void-skills-scene" data-customization-market="skills">
       <div className="skills-tabs-bar">
         <div
           className="skills-tabs-bar__tabs"
-          role="group"
+          role="tablist"
           aria-label={t('nav.title')}
         >
           <button
             type="button"
             className={`skills-tabs-bar__tab ${activeTab === 'installed' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('installed')}
-            aria-pressed={activeTab === 'installed'}
+            onKeyDown={handleCatalogTabKeyDown}
+            role="tab"
+            aria-selected={activeTab === 'installed'}
+            tabIndex={activeTab === 'installed' ? 0 : -1}
           ><span>{t('installed.titleAll')}</span></button>
-          <span className="skills-tabs-bar__divider" />
+          <span className="skills-tabs-bar__divider" aria-hidden="true" />
           <button
             type="button"
             className={`skills-tabs-bar__tab ${activeTab === 'discover' ? 'is-active' : ''}`}
             onClick={() => setActiveTab('discover')}
-            aria-pressed={activeTab === 'discover'}
+            onKeyDown={handleCatalogTabKeyDown}
+            role="tab"
+            aria-selected={activeTab === 'discover'}
+            tabIndex={activeTab === 'discover' ? 0 : -1}
           ><span>{t('market.title')}</span></button>
         </div>
       </div>
@@ -423,24 +451,26 @@ const SupportedSkillsScene: React.FC<SupportedSkillsSceneProps> = ({
                               )}
                             </div>
 
-                            {(skill.isShadowed || skill.level === 'project') && (
-                              <div className="skills-card__meta">
-                                {skill.isShadowed && (
-                                  <span title={t('list.item.shadowedTooltip')}>
-                                    <Badge variant="warning">
-                                      <ShieldAlert size={11} />
-                                      {t('list.item.shadowed')}
-                                    </Badge>
-                                  </span>
+                            <div className="skills-card__meta">
+                              <Badge variant={skill.level === 'project' ? 'purple' : 'info'}>
+                                {skill.level === 'project' ? (
+                                  <FolderOpen size={11} />
+                                ) : (
+                                  <User size={11} />
                                 )}
-                                {skill.level === 'project' && (
-                                  <Badge variant="purple">
-                                    <FolderOpen size={11} />
-                                    {t('list.item.project')}
+                                {skill.level === 'project'
+                                  ? t('list.item.project')
+                                  : t('list.item.user')}
+                              </Badge>
+                              {skill.isShadowed && (
+                                <span title={t('list.item.shadowedTooltip')}>
+                                  <Badge variant="warning">
+                                    <ShieldAlert size={11} />
+                                    {t('list.item.shadowed')}
                                   </Badge>
-                                )}
-                              </div>
-                            )}
+                                </span>
+                              )}
+                            </div>
 
                             <div
                               className="skills-card__actions"
@@ -983,7 +1013,7 @@ const SkillsScene: React.FC<SkillsSceneProps> = ({
 
   if (catalogCapability.status === 'unsupported') {
     return (
-      <div className="void-skills-scene">
+      <div className="void-skills-scene" data-customization-market="skills">
         <main
           className="void-skills-runtime-unsupported"
           data-testid="skills-runtime-unsupported"

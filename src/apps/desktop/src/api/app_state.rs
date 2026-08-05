@@ -140,10 +140,9 @@ impl AppState {
         };
         let path_manager = workspace_service.path_manager().clone();
         let acp_client_service = Some(
-            void_acp::AcpClientService::new(config_service.clone(), path_manager.clone())
-                .map_err(|e| {
-                    VoidError::service(format!("Failed to initialize ACP client service: {}", e))
-                })?,
+            void_acp::AcpClientService::new(config_service.clone(), path_manager.clone()).map_err(
+                |e| VoidError::service(format!("Failed to initialize ACP client service: {}", e)),
+            )?,
         );
 
         let announcement_scheduler = Arc::new(
@@ -473,8 +472,7 @@ impl AppState {
                 log::warn!("Failed to remove persisted remote workspace: {}", e);
             }
         }
-        if let Some(state_manager) =
-            void_core::service::remote_ssh::get_remote_workspace_manager()
+        if let Some(state_manager) = void_core::service::remote_ssh::get_remote_workspace_manager()
         {
             state_manager
                 .unregister_remote_workspace(connection_id, &rp)

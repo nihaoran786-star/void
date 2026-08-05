@@ -28,6 +28,7 @@
 }
 
 .session-capability-rail__capability,
+.session-capability-rail__team,
 .session-capability-rail__toggle,
 .session-capability-rail
   .short-drama-team-panel-controls__summary {
@@ -55,7 +56,8 @@
   }
 }
 
-.session-capability-rail__capability {
+.session-capability-rail__capability,
+.session-capability-rail__team {
   &--active {
     border-color: var(--workspace-accent, var(--color-accent-500));
     color: var(--workspace-text-primary, var(--color-text-primary));
@@ -66,6 +68,7 @@
 }
 
 .session-capability-rail__capability,
+.session-capability-rail__team,
 .session-capability-rail
   .short-drama-team-panel-controls__summary {
   position: relative;
@@ -284,6 +287,28 @@
   }
 }
 
+.session-capability-rail__team--loading,
+.session-capability-rail__team--running {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-accent, var(--color-accent-500));
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--workspace-accent, var(--color-accent-500)) 14%, transparent);
+  }
+}
+
+.session-capability-rail__team--attention {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-status-warning-text, var(--status-warning-text));
+  }
+}
+
+.session-capability-rail__team--error,
+.session-capability-rail__team--unsupported {
+  .session-capability-rail__status-dot {
+    background: var(--workspace-status-error-text, var(--status-error-text));
+  }
+}
+
 .session-capability-rail__capability--attention {
   .session-capability-rail__status-dot {
     background: var(--workspace-status-warning-text, var(--status-warning-text));
@@ -313,6 +338,7 @@
 
 .session-capability-rail:hover {
   .session-capability-rail__capability,
+  .session-capability-rail__team,
   .short-drama-team-panel-controls__summary {
     min-height: 40px;
     padding: 6px 7px;
@@ -345,6 +371,7 @@
 @media (prefers-reduced-motion: reduce) {
   .session-capability-rail,
   .session-capability-rail__capability,
+  .session-capability-rail__team,
   .session-capability-rail__toggle,
   .session-capability-rail
     .short-drama-team-panel-controls__summary {

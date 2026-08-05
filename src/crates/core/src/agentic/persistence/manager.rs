@@ -8,6 +8,7 @@ use crate::agentic::core::{
 };
 use crate::agentic::session::{SessionPromptCache, PROMPT_CACHE_SCHEMA_VERSION};
 use crate::infrastructure::PathManager;
+use crate::service::atomic_file::{recover_file, replace_file_with_recovery};
 use crate::service::remote_ssh::workspace_state::{
     resolve_workspace_session_identity, LOCAL_WORKSPACE_SSH_HOST,
 };
@@ -32,8 +33,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::sync::Mutex;
 use void_core_types::{
-    SubagentTaskCheckpointRef, SubagentTaskDeliveryState, SubagentTaskRecord,
-    SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskStatus,
+    SubagentTaskCheckpointRef, SubagentTaskDeliveryState, SubagentTaskLaunchSpec,
+    SubagentTaskRecord, SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState,
+    SubagentTaskStatus, TeamMemberSkillPolicyKind, SUBAGENT_TASK_SCHEMA_VERSION,
 };
 
 const TRANSCRIPT_SCHEMA_VERSION: u32 = 1;
@@ -483,11 +485,22 @@ impl PersistenceManager {
         &self,
         path: &Path,
     ) -> VoidResult<Option<SubagentTaskRecord>> {
-        let mut task = self.read_json_optional::<SubagentTaskRecord>(path).await?;
+        let mut task = self.read_subagent_task_raw_optional(path).await?;
         if let Some(task) = task.as_mut() {
             task.upgrade_legacy_fields();
         }
         Ok(task)
+    }
+
+    /// Read the exact on-disk task schema without applying the in-memory
+    /// compatibility upgrade. Only migration compare-and-set paths may use
+    /// this helper; ordinary callers must keep using
+    /// `read_subagent_task_optional`.
+    async fn read_subagent_task_raw_optional(
+        &self,
+        path: &Path,
+    ) -> VoidResult<Option<SubagentTaskRecord>> {
+        self.read_json_optional::<SubagentTaskRecord>(path).await
     }
 
     fn metadata_path(&self, workspace_path: &Path, session_id: &str) -> PathBuf {
@@ -618,10 +631,7 @@ impl PersistenceManager {
         Ok(dir)
     }
 
-    async fn read_json_optional<T: DeserializeOwned>(
-        &self,
-        path: &Path,
-    ) -> VoidResult<Option<T>> {
+    async fn read_json_optional<T: DeserializeOwned>(&self, path: &Path) -> VoidResult<Option<T>> {
         let started_at = Instant::now();
         let metadata_started_at = Instant::now();
         let metadata = match fs::metadata(path).await {
@@ -750,6 +760,128 @@ impl PersistenceManager {
             "Failed to replace JSON file {}: unknown error",
             path.display()
         )))
+    }
+
+    fn strict_recovery_path(path: &Path) -> VoidResult<PathBuf> {
+        let file_name = path.file_name().ok_or_else(|| {
+            VoidError::io(format!(
+                "Strict atomic JSON target has no file name: {}",
+                path.display()
+            ))
+        })?;
+        Ok(path.with_file_name(format!(
+            "{}.authority-recovery",
+            file_name.to_string_lossy()
+        )))
+    }
+
+    async fn recover_json_strict_atomic(&self, path: &Path) -> VoidResult<()> {
+        let recovery_path = Self::strict_recovery_path(path)?;
+        let path = path.to_path_buf();
+        let path_display = path.display().to_string();
+        tokio::task::spawn_blocking(move || recover_file(&path, &recovery_path))
+            .await
+            .map_err(|error| {
+                VoidError::io(format!(
+                    "Strict atomic JSON recovery task failed for {}: {}",
+                    path_display, error
+                ))
+            })?
+            .map_err(|error| {
+                VoidError::io(format!(
+                    "Failed to recover strict atomic JSON file {}: {}",
+                    path_display, error
+                ))
+            })
+    }
+
+    async fn recover_strict_turn_sidecars(&self, turns_dir: &Path) -> VoidResult<()> {
+        let mut entries = match fs::read_dir(turns_dir).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+            Err(error) => {
+                return Err(VoidError::io(format!(
+                    "Failed to read turns directory for strict recovery {}: {}",
+                    turns_dir.display(),
+                    error
+                )))
+            }
+        };
+        let mut targets = Vec::new();
+        while let Some(entry) = entries.next_entry().await.map_err(|error| {
+            VoidError::io(format!(
+                "Failed to scan strict turn recovery sidecars in {}: {}",
+                turns_dir.display(),
+                error
+            ))
+        })? {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            let Some(target_name) = file_name.strip_suffix(".authority-recovery") else {
+                continue;
+            };
+            let Some(index_text) = target_name
+                .strip_prefix("turn-")
+                .and_then(|name| name.strip_suffix(".json"))
+            else {
+                continue;
+            };
+            if index_text.is_empty() || !index_text.bytes().all(|byte| byte.is_ascii_digit()) {
+                continue;
+            }
+            targets.push(turns_dir.join(target_name));
+        }
+        targets.sort();
+        targets.dedup();
+        for target in targets {
+            let lock = Self::get_file_write_lock(&target).await;
+            let _lock_guard = lock.lock().await;
+            self.recover_json_strict_atomic(&target).await?;
+        }
+        Ok(())
+    }
+
+    async fn write_json_strict_atomic<T: Serialize>(
+        &self,
+        path: &Path,
+        value: &T,
+    ) -> VoidResult<()> {
+        let parent = path.parent().ok_or_else(|| {
+            VoidError::io(format!(
+                "Strict atomic JSON target has no parent directory: {}",
+                path.display()
+            ))
+        })?;
+        fs::create_dir_all(parent).await.map_err(|error| {
+            VoidError::io(format!(
+                "Failed to create strict atomic JSON parent directory {}: {}",
+                parent.display(),
+                error
+            ))
+        })?;
+        let bytes = serde_json::to_vec_pretty(value).map_err(|error| {
+            VoidError::serialization(format!("Failed to serialize strict atomic JSON: {error}"))
+        })?;
+        let recovery_path = Self::strict_recovery_path(path)?;
+        let lock = Self::get_file_write_lock(path).await;
+        let _lock_guard = lock.lock().await;
+        let path = path.to_path_buf();
+        let path_display = path.display().to_string();
+        tokio::task::spawn_blocking(move || {
+            replace_file_with_recovery(&path, &recovery_path, &bytes)
+        })
+        .await
+        .map_err(|error| {
+            VoidError::io(format!(
+                "Strict atomic JSON replacement task failed for {}: {}",
+                path_display, error
+            ))
+        })?
+        .map_err(|error| {
+            VoidError::io(format!(
+                "Failed strict atomic JSON replacement for {}: {}",
+                path_display, error
+            ))
+        })
     }
 
     async fn get_file_write_lock(path: &Path) -> Arc<Mutex<()>> {
@@ -1402,9 +1534,7 @@ impl PersistenceManager {
             .collect()
     }
 
-    fn parse_transcript_turn_selector(
-        selector: &str,
-    ) -> VoidResult<ParsedTranscriptTurnSelector> {
+    fn parse_transcript_turn_selector(selector: &str) -> VoidResult<ParsedTranscriptTurnSelector> {
         let normalized = selector.trim();
         if normalized.is_empty() {
             return Err(VoidError::Validation(
@@ -1542,9 +1672,11 @@ impl PersistenceManager {
             .await
             .map_err(|e| VoidError::io(format!("Failed to read sessions root: {}", e)))?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            VoidError::io(format!("Failed to read session directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| VoidError::io(format!("Failed to read session directory entry: {}", e)))?
+        {
             let file_type = entry
                 .file_type()
                 .await
@@ -1583,9 +1715,11 @@ impl PersistenceManager {
             .await
             .map_err(|e| VoidError::io(format!("Failed to read sessions root: {}", e)))?;
 
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            VoidError::io(format!("Failed to read session directory entry: {}", e))
-        })? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| VoidError::io(format!("Failed to read session directory entry: {}", e)))?
+        {
             let file_type = entry
                 .file_type()
                 .await
@@ -2035,6 +2169,108 @@ impl PersistenceManager {
         self.read_subagent_task_optional(&path).await
     }
 
+    /// Atomically migrates one genuine pre-v3 Team member task from an absent
+    /// Skill policy to an explicit `no_policy` snapshot.
+    ///
+    /// The complete task and launch facts are compared while holding the same
+    /// session-metadata and task-file locks used by every task mutation. This
+    /// deliberately refuses current-schema `None`, a different policy, or any
+    /// concurrent launch/status/recovery change.
+    pub async fn compare_and_set_legacy_team_member_skill_policy(
+        &self,
+        workspace_path: &Path,
+        parent_session_id: &str,
+        task_id: &str,
+        expected_task: &SubagentTaskRecord,
+        expected_launch: &SubagentTaskLaunchSpec,
+    ) -> VoidResult<SubagentTaskRecord> {
+        if expected_task.parent_session_id != parent_session_id
+            || expected_task.task_id != task_id
+            || expected_task.status != SubagentTaskStatus::Interrupted
+            || expected_task.recovery_state != SubagentTaskRecoveryState::Queued
+        {
+            return Err(VoidError::Validation(
+                "Legacy Team task migration scope is no longer recoverable".to_string(),
+            ));
+        }
+        expected_launch
+            .validate()
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        let expected_policy = expected_launch
+            .team_member_skill_policy
+            .as_ref()
+            .ok_or_else(|| {
+                VoidError::Validation(
+                    "Legacy Team task migration requires an expected Skill policy".to_string(),
+                )
+            })?;
+        if expected_policy.kind != TeamMemberSkillPolicyKind::NoPolicy {
+            return Err(VoidError::Validation(
+                "Only a no_policy Team member task may migrate an absent legacy policy".to_string(),
+            ));
+        }
+
+        let path = self.subagent_task_path(workspace_path, parent_session_id, task_id)?;
+        let lock = self
+            .get_session_metadata_update_lock(workspace_path, parent_session_id)
+            .await;
+        let _guard = lock.lock().await;
+        let _file_guard = self.acquire_subagent_task_file_lock(&path).await?;
+        let raw = self
+            .read_subagent_task_raw_optional(&path)
+            .await?
+            .ok_or_else(|| VoidError::NotFound(format!("Subagent task not found: {task_id}")))?;
+        let raw_schema_version = raw.schema_version;
+        let mut current = raw;
+        current.upgrade_legacy_fields();
+
+        let mut expected_without_policy = expected_task.clone();
+        expected_without_policy.upgrade_legacy_fields();
+        let expected_without_policy_launch = expected_without_policy
+            .launch_spec
+            .as_mut()
+            .ok_or_else(|| {
+                VoidError::Validation(
+                    "Legacy Team task migration requires a durable launch specification"
+                        .to_string(),
+                )
+            })?;
+        expected_without_policy_launch.team_member_skill_policy = None;
+
+        let mut expected_with_policy = expected_without_policy.clone();
+        expected_with_policy.launch_spec = Some(expected_launch.clone());
+
+        if current
+            .launch_spec
+            .as_ref()
+            .and_then(|launch| launch.team_member_skill_policy.as_ref())
+            .is_some()
+        {
+            if current == expected_with_policy {
+                return Ok(current);
+            }
+            return Err(VoidError::Validation(
+                "Team member Skill policy migration lost its compare-and-set race".to_string(),
+            ));
+        }
+        if raw_schema_version >= SUBAGENT_TASK_SCHEMA_VERSION {
+            return Err(VoidError::Validation(
+                "Current-schema Team task has no Skill policy and cannot be treated as legacy"
+                    .to_string(),
+            ));
+        }
+        if current != expected_without_policy {
+            return Err(VoidError::Validation(
+                "Legacy Team task changed before Skill policy migration".to_string(),
+            ));
+        }
+
+        current.launch_spec = Some(expected_launch.clone());
+        current.schema_version = SUBAGENT_TASK_SCHEMA_VERSION;
+        self.write_json_atomic(&path, &current).await?;
+        Ok(current)
+    }
+
     pub async fn list_subagent_tasks(
         &self,
         workspace_path: &Path,
@@ -2313,9 +2549,9 @@ impl PersistenceManager {
                 };
             }
             if task.mark_recovery_after_restart(updated_at) {
-            self.write_json_atomic(&path, &task).await?;
-            changed.push(task);
-        }
+                self.write_json_atomic(&path, &task).await?;
+                changed.push(task);
+            }
         }
         Ok(changed)
     }
@@ -2740,19 +2976,15 @@ impl PersistenceManager {
     }
 
     /// Delete session
-    pub async fn delete_session(
-        &self,
-        workspace_path: &Path,
-        session_id: &str,
-    ) -> VoidResult<()> {
+    pub async fn delete_session(&self, workspace_path: &Path, session_id: &str) -> VoidResult<()> {
         let lock = self.get_session_index_lock(workspace_path).await;
         let _guard = lock.lock().await;
         let dir = self.session_dir(workspace_path, session_id);
         let metadata_file_removed = self.metadata_path(workspace_path, session_id).exists();
         if dir.exists() {
-            fs::remove_dir_all(&dir).await.map_err(|e| {
-                VoidError::io(format!("Failed to delete session directory: {}", e))
-            })?;
+            fs::remove_dir_all(&dir)
+                .await
+                .map_err(|e| VoidError::io(format!("Failed to delete session directory: {}", e)))?;
         }
 
         self.remove_index_entry_locked(
@@ -2867,6 +3099,28 @@ impl PersistenceManager {
         workspace_path: &Path,
         turn: &DialogTurnData,
     ) -> VoidResult<()> {
+        self.save_dialog_turn_with_write_policy(workspace_path, turn, false)
+            .await
+    }
+
+    /// Persist a dialog turn using a strict atomic replacement. Unlike the
+    /// ordinary compatibility path, this never falls back to an in-place
+    /// overwrite when Windows temporarily denies rename access.
+    pub async fn save_dialog_turn_strict_atomic(
+        &self,
+        workspace_path: &Path,
+        turn: &DialogTurnData,
+    ) -> VoidResult<()> {
+        self.save_dialog_turn_with_write_policy(workspace_path, turn, true)
+            .await
+    }
+
+    async fn save_dialog_turn_with_write_policy(
+        &self,
+        workspace_path: &Path,
+        turn: &DialogTurnData,
+        strict_atomic: bool,
+    ) -> VoidResult<()> {
         let save_started_at = Instant::now();
         self.ensure_runtime_for_write(workspace_path).await?;
         let metadata_update_lock = self
@@ -2908,11 +3162,12 @@ impl PersistenceManager {
             turn: turn.clone(),
         };
         let write_started_at = Instant::now();
-        self.write_json_atomic(
-            &self.turn_path(workspace_path, &turn.session_id, turn.turn_index),
-            &file,
-        )
-        .await?;
+        let turn_path = self.turn_path(workspace_path, &turn.session_id, turn.turn_index);
+        if strict_atomic {
+            self.write_json_strict_atomic(&turn_path, &file).await?;
+        } else {
+            self.write_json_atomic(&turn_path, &file).await?;
+        }
         let write_duration = write_started_at.elapsed();
 
         let last_active_at = turn
@@ -2966,12 +3221,12 @@ impl PersistenceManager {
         session_id: &str,
         turn_index: usize,
     ) -> VoidResult<Option<DialogTurnData>> {
+        let turn_path = self.turn_path(workspace_path, session_id, turn_index);
+        let lock = Self::get_file_write_lock(&turn_path).await;
+        let _lock_guard = lock.lock().await;
+        self.recover_json_strict_atomic(&turn_path).await?;
         Ok(self
-            .read_json_optional::<StoredDialogTurnFile>(&self.turn_path(
-                workspace_path,
-                session_id,
-                turn_index,
-            ))
+            .read_json_optional::<StoredDialogTurnFile>(&turn_path)
             .await?
             .map(|file| file.turn))
     }
@@ -2986,6 +3241,7 @@ impl PersistenceManager {
         if !turns_dir.exists() {
             return Ok(Vec::new());
         }
+        self.recover_strict_turn_sidecars(&turns_dir).await?;
 
         let scan_started_at = Instant::now();
         let mut indexed_paths = Vec::new();
@@ -3423,8 +3679,9 @@ mod tests {
     use std::time::Instant;
     use uuid::Uuid;
     use void_core_types::{
-        SubagentTaskDeliveryState, SubagentTaskRecord, SubagentTaskRecoveryBlockCode,
-        SubagentTaskRecoveryState, SubagentTaskReplaySafety, SubagentTaskStatus,
+        SubagentTaskDeliveryState, SubagentTaskLaunchSpec, SubagentTaskRecord,
+        SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
+        SubagentTaskStatus, TeamMemberSkillPolicySnapshot,
     };
 
     struct TestWorkspace {
@@ -3478,9 +3735,9 @@ mod tests {
             std::env::var(CROSS_PROCESS_USER_ROOT_ENV).expect("worker user root should be set");
         let runtime = tokio::runtime::Runtime::new().expect("worker runtime");
         runtime.block_on(async {
-            let manager = PersistenceManager::new(Arc::new(
-                PathManager::with_user_root_for_tests(PathBuf::from(user_root)),
-            ))
+            let manager = PersistenceManager::new(Arc::new(PathManager::with_user_root_for_tests(
+                PathBuf::from(user_root),
+            )))
             .expect("worker persistence manager");
             manager
                 .claim_subagent_task_delivery(
@@ -3530,6 +3787,122 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn strict_dialog_turn_save_recovers_only_its_exact_sidecar() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let session = Session::new(
+            "Strict turn".to_string(),
+            "agentic".to_string(),
+            SessionConfig {
+                workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                ..Default::default()
+            },
+        );
+        manager
+            .save_session(workspace.path(), &session)
+            .await
+            .expect("session should persist");
+        let turn = DialogTurnData::new(
+            "turn-strict".to_string(),
+            0,
+            session.session_id.clone(),
+            UserMessageData {
+                id: "turn-strict-user".to_string(),
+                content: "start".to_string(),
+                timestamp: 1,
+                metadata: None,
+            },
+        );
+        manager
+            .save_dialog_turn_strict_atomic(workspace.path(), &turn)
+            .await
+            .expect("strict turn should persist");
+
+        let target = manager.turn_path(workspace.path(), &session.session_id, 0);
+        let recovery = PersistenceManager::strict_recovery_path(&target)
+            .expect("strict recovery path should resolve");
+        let unrelated = recovery.with_extension("keep");
+        std::fs::write(&unrelated, b"unrelated").expect("unrelated sidecar should write");
+        std::fs::rename(&target, &recovery).expect("simulate interrupted replacement");
+
+        let turns = manager
+            .load_session_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("session scan should recover strict sidecar");
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0].turn_id, "turn-strict");
+        assert!(target.exists());
+        assert!(!recovery.exists());
+        assert_eq!(std::fs::read(unrelated).unwrap(), b"unrelated");
+    }
+
+    #[tokio::test]
+    async fn strict_dialog_turn_save_fails_closed_without_changing_ordinary_save_policy() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        let session = Session::new(
+            "Strict failure".to_string(),
+            "agentic".to_string(),
+            SessionConfig {
+                workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                ..Default::default()
+            },
+        );
+        manager
+            .save_session(workspace.path(), &session)
+            .await
+            .expect("session should persist");
+        let mut turn = DialogTurnData::new(
+            "turn-strict".to_string(),
+            0,
+            session.session_id.clone(),
+            UserMessageData {
+                id: "turn-strict-user".to_string(),
+                content: "original".to_string(),
+                timestamp: 1,
+                metadata: None,
+            },
+        );
+        manager
+            .save_dialog_turn_strict_atomic(workspace.path(), &turn)
+            .await
+            .expect("initial strict save should persist");
+        let target = manager.turn_path(workspace.path(), &session.session_id, 0);
+        let recovery = PersistenceManager::strict_recovery_path(&target)
+            .expect("strict recovery path should resolve");
+        std::fs::create_dir(&recovery).expect("blocking recovery directory should create");
+        let original_bytes = std::fs::read(&target).expect("original target should read");
+        turn.user_message.content = "must not overwrite".to_string();
+
+        assert!(manager
+            .save_dialog_turn_strict_atomic(workspace.path(), &turn)
+            .await
+            .is_err());
+        assert_eq!(
+            std::fs::read(&target).expect("target should remain readable"),
+            original_bytes
+        );
+        std::fs::remove_dir(&recovery).expect("blocking directory should remove");
+
+        manager
+            .save_dialog_turn(workspace.path(), &turn)
+            .await
+            .expect("ordinary save remains usable after strict failure");
+        assert_eq!(
+            manager
+                .load_dialog_turn(workspace.path(), &session.session_id, 0)
+                .await
+                .expect("ordinary turn should load")
+                .expect("ordinary turn should exist")
+                .user_message
+                .content,
+            "must not overwrite"
+        );
+    }
+
+    #[tokio::test]
     async fn subagent_task_storage_handles_missing_directory_and_rejects_unsafe_ids() {
         let workspace = TestWorkspace::new();
         let manager =
@@ -3544,6 +3917,377 @@ mod tests {
             .get_subagent_task(workspace.path(), "parent-1", "../escape")
             .await
             .is_err());
+    }
+
+    fn legacy_team_recovery_task(task_id: &str, schema_version: u32) -> SubagentTaskRecord {
+        let mut task = subagent_task(task_id, "parent-1");
+        task.schema_version = schema_version;
+        task.status = SubagentTaskStatus::Interrupted;
+        task.recovery_state = SubagentTaskRecoveryState::Queued;
+        task.child_session_id = Some(format!("child-{task_id}"));
+        task.launch_spec = Some(SubagentTaskLaunchSpec {
+            agent_type: "agent".into(),
+            parent_dialog_turn_id: "turn".into(),
+            parent_tool_call_id: "tool".into(),
+            context: [
+                ("teamDefinitionId", "definition"),
+                ("teamDefinitionRevision", "revision"),
+                ("teamInstanceId", "instance"),
+                ("teamRunId", "run"),
+                ("teamMemberId", "member"),
+                ("teamPhaseId", "phase"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect(),
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: None,
+            team_member_skill_policy: None,
+        });
+        task
+    }
+
+    fn no_policy_launch(task: &SubagentTaskRecord) -> SubagentTaskLaunchSpec {
+        let mut launch = task.launch_spec.clone().expect("launch");
+        launch.team_member_skill_policy = Some(
+            TeamMemberSkillPolicySnapshot::new(
+                "definition".into(),
+                "revision".into(),
+                "instance".into(),
+                "member".into(),
+                "agent".into(),
+                vec![],
+            )
+            .expect("no_policy snapshot"),
+        );
+        launch
+    }
+
+    fn no_policy_launch_with_revision(
+        task: &SubagentTaskRecord,
+        revision: &str,
+    ) -> SubagentTaskLaunchSpec {
+        let mut launch = task.launch_spec.clone().expect("launch");
+        launch.team_member_skill_policy = Some(
+            TeamMemberSkillPolicySnapshot::new(
+                "definition".into(),
+                revision.into(),
+                "instance".into(),
+                "member".into(),
+                "agent".into(),
+                vec![],
+            )
+            .expect("alternate no_policy snapshot"),
+        );
+        launch
+    }
+
+    #[tokio::test]
+    async fn legacy_team_policy_compare_and_set_is_exact_idempotent_and_fail_closed() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        manager
+            .ensure_session_dir(workspace.path(), "parent-1")
+            .await
+            .expect("session directory");
+
+        let raw_legacy = legacy_team_recovery_task("legacy-team", 2);
+        let legacy_path = manager
+            .subagent_task_path(workspace.path(), "parent-1", "legacy-team")
+            .expect("task path");
+        manager
+            .write_json_atomic(&legacy_path, &raw_legacy)
+            .await
+            .expect("legacy task write");
+        let expected = manager
+            .get_subagent_task(workspace.path(), "parent-1", "legacy-team")
+            .await
+            .expect("task read")
+            .expect("task");
+        let expected_launch = no_policy_launch(&expected);
+        let migrated = manager
+            .compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-team",
+                &expected,
+                &expected_launch,
+            )
+            .await
+            .expect("legacy migration");
+        assert_eq!(migrated.launch_spec.as_ref(), Some(&expected_launch));
+        assert_eq!(
+            manager
+                .compare_and_set_legacy_team_member_skill_policy(
+                    workspace.path(),
+                    "parent-1",
+                    "legacy-team",
+                    &expected,
+                    &expected_launch,
+                )
+                .await
+                .expect("same policy is idempotent"),
+            migrated
+        );
+
+        let current_schema = legacy_team_recovery_task("current-team", 3);
+        let current_path = manager
+            .subagent_task_path(workspace.path(), "parent-1", "current-team")
+            .expect("task path");
+        manager
+            .write_json_atomic(&current_path, &current_schema)
+            .await
+            .expect("current task write");
+        let current_expected = manager
+            .get_subagent_task(workspace.path(), "parent-1", "current-team")
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(manager
+            .compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "current-team",
+                &current_expected,
+                &no_policy_launch(&current_expected),
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn legacy_team_policy_compare_and_set_rejects_every_changed_recovery_fact() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        manager
+            .ensure_session_dir(workspace.path(), "parent-1")
+            .await
+            .expect("session directory");
+
+        for variant in [
+            "status",
+            "recovery",
+            "objective",
+            "child",
+            "agent",
+            "context",
+            "turn",
+            "tool",
+        ] {
+            let task_id = format!("legacy-team-{variant}");
+            let raw_legacy = legacy_team_recovery_task(&task_id, 2);
+            let path = manager
+                .subagent_task_path(workspace.path(), "parent-1", &task_id)
+                .expect("task path");
+            manager
+                .write_json_atomic(&path, &raw_legacy)
+                .await
+                .expect("legacy task write");
+            let expected = manager
+                .get_subagent_task(workspace.path(), "parent-1", &task_id)
+                .await
+                .expect("task read")
+                .expect("task");
+            let expected_launch = no_policy_launch(&expected);
+            let mut changed = raw_legacy;
+            match variant {
+                "status" => changed.status = SubagentTaskStatus::Blocked,
+                "recovery" => changed.recovery_state = SubagentTaskRecoveryState::None,
+                "objective" => changed.objective = "changed objective".into(),
+                "child" => changed.child_session_id = Some("changed-child".into()),
+                "agent" => {
+                    changed.launch_spec.as_mut().unwrap().agent_type = "changed-agent".into()
+                }
+                "context" => {
+                    changed
+                        .launch_spec
+                        .as_mut()
+                        .unwrap()
+                        .context
+                        .insert("teamRunId".into(), "changed-run".into());
+                }
+                "turn" => {
+                    changed.launch_spec.as_mut().unwrap().parent_dialog_turn_id =
+                        "changed-turn".into();
+                }
+                "tool" => {
+                    changed.launch_spec.as_mut().unwrap().parent_tool_call_id =
+                        "changed-tool".into();
+                }
+                _ => unreachable!(),
+            }
+            manager
+                .write_json_atomic(&path, &changed)
+                .await
+                .expect("changed task write");
+
+            assert!(
+                manager
+                    .compare_and_set_legacy_team_member_skill_policy(
+                        workspace.path(),
+                        "parent-1",
+                        &task_id,
+                        &expected,
+                        &expected_launch,
+                    )
+                    .await
+                    .is_err(),
+                "changed {variant} must fail closed"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn legacy_team_policy_compare_and_set_rejects_a_different_valid_policy() {
+        let workspace = TestWorkspace::new();
+        let manager =
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager");
+        manager
+            .ensure_session_dir(workspace.path(), "parent-1")
+            .await
+            .expect("session directory");
+        let raw_legacy = legacy_team_recovery_task("legacy-policy-conflict", 2);
+        let path = manager
+            .subagent_task_path(workspace.path(), "parent-1", "legacy-policy-conflict")
+            .expect("task path");
+        manager
+            .write_json_atomic(&path, &raw_legacy)
+            .await
+            .expect("legacy task write");
+        let expected = manager
+            .get_subagent_task(workspace.path(), "parent-1", "legacy-policy-conflict")
+            .await
+            .unwrap()
+            .unwrap();
+        let first_launch = no_policy_launch(&expected);
+        manager
+            .compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-policy-conflict",
+                &expected,
+                &first_launch,
+            )
+            .await
+            .expect("first policy wins");
+
+        let conflicting_launch = no_policy_launch_with_revision(&expected, "other-revision");
+        assert!(manager
+            .compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-policy-conflict",
+                &expected,
+                &conflicting_launch,
+            )
+            .await
+            .is_err());
+        let persisted = manager
+            .get_subagent_task(workspace.path(), "parent-1", "legacy-policy-conflict")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(persisted.launch_spec.as_ref(), Some(&first_launch));
+    }
+
+    #[tokio::test]
+    async fn legacy_team_policy_compare_and_set_is_linearizable_across_managers() {
+        let workspace = TestWorkspace::new();
+        let first = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("first persistence manager"),
+        );
+        let second = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("second persistence manager"),
+        );
+        first
+            .ensure_session_dir(workspace.path(), "parent-1")
+            .await
+            .expect("session directory");
+
+        let conflicting = legacy_team_recovery_task("legacy-race-different", 2);
+        let conflicting_path = first
+            .subagent_task_path(workspace.path(), "parent-1", "legacy-race-different")
+            .expect("task path");
+        first
+            .write_json_atomic(&conflicting_path, &conflicting)
+            .await
+            .expect("legacy task write");
+        let expected = first
+            .get_subagent_task(workspace.path(), "parent-1", "legacy-race-different")
+            .await
+            .unwrap()
+            .unwrap();
+        let launch_a = no_policy_launch(&expected);
+        let launch_b = no_policy_launch_with_revision(&expected, "other-revision");
+        let (left, right) = tokio::join!(
+            first.compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-race-different",
+                &expected,
+                &launch_a,
+            ),
+            second.compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-race-different",
+                &expected,
+                &launch_b,
+            )
+        );
+        assert_eq!(
+            [left.is_ok(), right.is_ok()]
+                .into_iter()
+                .filter(|ok| *ok)
+                .count(),
+            1
+        );
+        let winning_launch = if left.is_ok() { &launch_a } else { &launch_b };
+        assert_eq!(
+            first
+                .get_subagent_task(workspace.path(), "parent-1", "legacy-race-different")
+                .await
+                .unwrap()
+                .unwrap()
+                .launch_spec
+                .as_ref(),
+            Some(winning_launch)
+        );
+
+        let same = legacy_team_recovery_task("legacy-race-same", 2);
+        let same_path = first
+            .subagent_task_path(workspace.path(), "parent-1", "legacy-race-same")
+            .expect("task path");
+        first
+            .write_json_atomic(&same_path, &same)
+            .await
+            .expect("legacy task write");
+        let same_expected = first
+            .get_subagent_task(workspace.path(), "parent-1", "legacy-race-same")
+            .await
+            .unwrap()
+            .unwrap();
+        let same_launch = no_policy_launch(&same_expected);
+        let (left, right) = tokio::join!(
+            first.compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-race-same",
+                &same_expected,
+                &same_launch,
+            ),
+            second.compare_and_set_legacy_team_member_skill_policy(
+                workspace.path(),
+                "parent-1",
+                "legacy-race-same",
+                &same_expected,
+                &same_launch,
+            )
+        );
+        assert_eq!(left.unwrap(), right.unwrap());
     }
 
     #[tokio::test]
@@ -3719,9 +4463,7 @@ mod tests {
         let spawn_worker = || {
             Command::new(&executable)
                 .arg("--exact")
-                .arg(
-                    "agentic::persistence::manager::tests::cross_process_delivery_claim_worker",
-                )
+                .arg("agentic::persistence::manager::tests::cross_process_delivery_claim_worker")
                 .env(CROSS_PROCESS_WORKSPACE_ENV, workspace.path())
                 .env(CROSS_PROCESS_USER_ROOT_ENV, &user_root)
                 .spawn()
@@ -3733,11 +4475,7 @@ mod tests {
         assert!(second.wait().expect("second worker should exit").success());
 
         let claimed = manager
-            .get_subagent_task(
-                workspace.path(),
-                "parent-1",
-                "bg-subagent-cross-process",
-            )
+            .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-cross-process")
             .await
             .unwrap()
             .unwrap();
@@ -3791,9 +4529,9 @@ mod tests {
             .filter(|task| task.status == SubagentTaskStatus::Interrupted)
             .all(|task| task.recovery_state == SubagentTaskRecoveryState::Blocked));
         let completed = manager
-                .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-completed")
-                .await
-                .expect("task should load")
+            .get_subagent_task(workspace.path(), "parent-1", "bg-subagent-completed")
+            .await
+            .expect("task should load")
             .expect("task should exist");
         assert_eq!(completed.status, SubagentTaskStatus::Completed);
         assert_eq!(completed.recovery_state, SubagentTaskRecoveryState::Queued);

@@ -4,16 +4,16 @@
 //! construction, and remote session tracker state. Network lifecycle and
 //! product assembly stay in `void-core` until their ports are explicit.
 
-use void_events::AgenticEvent;
-use void_runtime_ports::{
-    AgentInputAttachment, AgentSessionCreateRequest, AgentSubmissionRequest, AgentSubmissionSource,
-    RemoteControlStateSnapshot,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
+use void_events::AgenticEvent;
+use void_runtime_ports::{
+    AgentInputAttachment, AgentSessionCreateRequest, AgentSubmissionRequest, AgentSubmissionSource,
+    RemoteControlStateSnapshot,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -653,7 +653,7 @@ pub async fn read_remote_workspace_file_info(
 #[async_trait::async_trait]
 pub trait RemoteWorkspaceFileRuntimeHost: Send + Sync {
     async fn resolve_remote_file_workspace_root(&self, session_id: Option<&str>)
-    -> Option<PathBuf>;
+        -> Option<PathBuf>;
 }
 
 pub fn remote_file_content_response(
@@ -3027,7 +3027,11 @@ pub fn remote_persisted_poll_response(
 }
 
 fn non_empty_title(title: String) -> Option<String> {
-    if title.is_empty() { None } else { Some(title) }
+    if title.is_empty() {
+        None
+    } else {
+        Some(title)
+    }
 }
 
 #[cfg(test)]

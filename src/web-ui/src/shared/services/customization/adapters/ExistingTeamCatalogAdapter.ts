@@ -17,7 +17,6 @@ import { existingTeamDefinitionAdapter } from './ExistingTeamDefinitionAdapter';
 function memberCatalogProjection(
   member: TeamMemberDefinition,
   teamRevision: string,
-  recordIsAuthorable: boolean,
 ): TeamCatalogMember {
   const presentation = resolveDefaultCatalogPresentation({
     kind: 'team_member',
@@ -35,7 +34,61 @@ function memberCatalogProjection(
       ...presentation,
     },
     role: member.role,
-    isReadonly: member.isReadonly || !recordIsAuthorable,
+    isReadonly: member.isReadonly,
+  };
+}
+
+interface ReusableTeamCompatibility {
+  availability: TeamCatalogEntry['availability'];
+  leadBinding: TeamCatalogEntry['leadBinding'];
+  activationSupport: TeamCatalogEntry['activationSupport'];
+}
+
+function reusableTeamCompatibility(
+  members: TeamMemberDefinition[],
+  leadMemberId: string,
+): ReusableTeamCompatibility {
+  const lead = members.find(member => member.memberId === leadMemberId);
+  if (lead?.isReadonly) {
+    return unsupportedCompatibility('team_lead_readonly_unsupported');
+  }
+  if (
+    lead?.allowedToolNames.length
+    && !lead.allowedToolNames.includes('Task')
+  ) {
+    return unsupportedCompatibility('team_lead_task_tool_required');
+  }
+
+  const specialists = members.filter(member => member.memberId !== leadMemberId);
+  if (specialists.some(member => member.allowedToolNames.length > 0)) {
+    return unsupportedCompatibility('team_member_tool_narrowing_unsupported');
+  }
+  if (specialists.some(member => member.isReadonly)) {
+    return unsupportedCompatibility('team_member_readonly_unsupported');
+  }
+
+  return {
+    availability: { status: 'available' },
+    leadBinding: 'parent_persona',
+    activationSupport: 'parent_persona',
+  };
+}
+
+function unsupportedCompatibility(
+  reasonCode:
+    | 'team_lead_readonly_unsupported'
+    | 'team_lead_task_tool_required'
+    | 'team_member_tool_narrowing_unsupported'
+    | 'team_member_readonly_unsupported',
+): ReusableTeamCompatibility {
+  return {
+    availability: {
+      status: 'unsupported',
+      reasonCode,
+      message: `catalog.availability.${reasonCode}`,
+    },
+    leadBinding: 'definition_only',
+    activationSupport: 'definition_only',
   };
 }
 
@@ -55,6 +108,10 @@ export function mapTeamDefinitionRecordToCatalogEntry(
     runtimeName: definition.displayName,
     runtimeDescription: definition.description,
   });
+  const compatibility = reusableTeamCompatibility(
+    definition.members,
+    definition.leadMemberId,
+  );
   return {
     kind: 'team',
     identity: {
@@ -73,19 +130,15 @@ export function mapTeamDefinitionRecordToCatalogEntry(
       'team_definition',
       ...definition.capabilityTags,
     ])),
-    availability: {
-      status: 'unsupported',
-      reasonCode: 'team_definition_runtime_not_implemented',
-      message: 'catalog.availability.team_definition_runtime_not_implemented',
-    },
-    leadBinding: 'definition_only',
-    lead: memberCatalogProjection(lead, revision, record.isAuthorable),
+    availability: compatibility.availability,
+    leadBinding: compatibility.leadBinding,
+    lead: memberCatalogProjection(lead, revision),
     members: definition.members
       .filter(member => member.memberId !== definition.leadMemberId)
       .map(member =>
-        memberCatalogProjection(member, revision, record.isAuthorable)
+        memberCatalogProjection(member, revision)
       ),
-    activationSupport: 'definition_only',
+    activationSupport: compatibility.activationSupport,
     managementSupport: record.isAuthorable
       ? 'authorable'
       : 'installed_readonly',
@@ -114,10 +167,30 @@ export class ExistingTeamCatalogAdapter implements CapabilityCatalogSource {
       }),
     );
     const entries: TeamCatalogEntry[] = [];
+    const reusableRecords = snapshot.records.filter(
+      record => (record.definition.origin as string) !== 'fixed_runtime',
+    );
+    const recordsByDefinitionId = new Map<string, TeamDefinitionRecord[]>();
 
-    for (const record of snapshot.records) {
-      // Fixed runtime teams remain owned by their dedicated read-only adapters.
-      if ((record.definition.origin as string) === 'fixed_runtime') continue;
+    for (const record of reusableRecords) {
+      const definitionId = record.definition.teamDefinitionId;
+      const records = recordsByDefinitionId.get(definitionId) ?? [];
+      records.push(record);
+      recordsByDefinitionId.set(definitionId, records);
+    }
+
+    for (const records of recordsByDefinitionId.values()) {
+      if (records.length > 1) {
+        errors.push({
+          sourceId: this.sourceId,
+          code: 'team_definition_id_ambiguous',
+          message: 'catalog.errors.team_definition_id_ambiguous',
+        });
+        continue;
+      }
+
+      const record = records[0];
+      if (!record) continue;
       try {
         entries.push(mapTeamDefinitionRecordToCatalogEntry(record));
       } catch {

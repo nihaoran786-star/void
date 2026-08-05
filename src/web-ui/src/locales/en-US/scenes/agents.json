@@ -32,9 +32,9 @@
       "members": "Team Members",
       "qualityGate": "Quality Gate",
       "definitionReady": "Team definition ready",
-      "definitionRuntimeDeferred": "You can manage this definition, but the general team runtime is not connected yet.",
+      "definitionRuntimeDeferred": "You can keep managing this team, but its current member permissions or capability limits do not allow session activation.",
       "runtimeReady": "Existing team runtime available",
-      "fixedRuntimeHint": "This team continues to use its existing stable workflow.",
+      "fixedRuntimeHint": "Use it from its scenario entry or the chat composer. Runtime permissions stay within the active session boundary.",
       "workflows": "Workflows",
       "workflowCount": "{{count}} workflows"
     },

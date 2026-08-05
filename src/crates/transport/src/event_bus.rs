@@ -1,10 +1,10 @@
 /// Unified event bus - Manages event distribution for all platforms
 use crate::traits::TransportAdapter;
-use void_events::AgenticEvent;
 use dashmap::DashMap;
 use log::{error, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use void_events::AgenticEvent;
 
 /// Event bus - Core event dispatcher
 #[derive(Clone)]

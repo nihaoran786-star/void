@@ -10,8 +10,10 @@ import {
   CapabilityCatalogService,
   ComposerPersonaService,
   mapSubagentToCatalogEntry,
+  ReusableTeamActivationError,
   type CapabilityCatalogSource,
   type CustomizationRuntimeCapabilityReader,
+  type ReusableTeamActivator,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
 import {
@@ -69,10 +71,40 @@ const teamEntry: TeamCatalogEntry = {
   activationSupport: 'existing_flow_only',
 };
 
+const reusableTeamEntry: TeamCatalogEntry = {
+  ...teamEntry,
+  identity: {
+    ...teamEntry.identity,
+    id: 'software-team',
+    revision: { status: 'known', value: 'revision1' },
+    displayName: '软件开发团队',
+  },
+  source: {
+    adapterId: 'existing-team-definitions',
+    recordType: 'team_definition',
+    recordId: 'project:software-team',
+  },
+  origin: 'project',
+  leadBinding: 'parent_persona',
+  lead: {
+    ...teamEntry.lead,
+    identity: {
+      ...teamEntry.lead.identity,
+      id: 'software-lead',
+      revision: { status: 'known', value: 'revision1:software-lead' },
+      displayName: '研发主理人',
+    },
+    isReadonly: false,
+  },
+  activationSupport: 'parent_persona',
+  managementSupport: 'authorable',
+  definitionLevel: 'project',
+};
+
 const loadCatalog = vi.fn(async () => ({
   sourceId: 'hook-test',
   status: 'ready' as const,
-  entries: [entry, teamEntry],
+  entries: [entry, teamEntry, reusableTeamEntry],
   errors: [],
 }));
 
@@ -114,10 +146,15 @@ describe('useComposerPersonaSelection', () => {
   let root: Root;
   let current: ReturnType<typeof useComposerPersonaSelection> | undefined;
   const persistPersona = vi.fn();
+  const activateReusableTeam = vi.fn();
+  const teamActivationService: ReusableTeamActivator = {
+    activate: activateReusableTeam,
+  };
 
   beforeEach(() => {
     loadCatalog.mockClear();
     persistPersona.mockReset().mockResolvedValue(undefined);
+    activateReusableTeam.mockReset().mockResolvedValue(undefined);
     current = undefined;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -144,6 +181,7 @@ describe('useComposerPersonaSelection', () => {
       currentAgentType,
       enabled: target.sessionKind === 'normal',
       service,
+      teamActivationService,
       capabilityService,
       persistPersona,
     });
@@ -160,7 +198,7 @@ describe('useComposerPersonaSelection', () => {
       await Promise.resolve();
     });
     expect(current?.agents).toHaveLength(1);
-    expect(current?.teams).toHaveLength(1);
+    expect(current?.teams).toHaveLength(2);
 
     await act(async () => {
       await current?.selectAgent(entry);
@@ -183,6 +221,111 @@ describe('useComposerPersonaSelection', () => {
       executionPolicy: 'agentic',
       activePersonaBinding: null,
     });
+  });
+
+  it('只把身份、类型和已知版本完全匹配的目录项标记为当前智能体或团队', async () => {
+    const renderBinding = async (
+      activePersonaBinding: Session['activePersonaBinding'],
+    ) => {
+      await act(async () => {
+        root.render(<Harness target={session({ activePersonaBinding })} />);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    };
+
+    await renderBinding({
+      kind: 'agent',
+      personaId: entry.identity.id,
+      personaRevision: { status: 'known', value: 'writer-v1' },
+    });
+    expect(current?.activeAgent).toBe(entry);
+    expect(current?.activeTeam).toBeUndefined();
+
+    for (const activePersonaBinding of [
+      {
+        kind: 'team_lead' as const,
+        personaId: entry.identity.id,
+        personaRevision: { status: 'known' as const, value: 'writer-v1' },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+      },
+      {
+        kind: 'agent' as const,
+        personaId: 'different-agent',
+        personaRevision: { status: 'known' as const, value: 'writer-v1' },
+      },
+      {
+        kind: 'agent' as const,
+        personaId: entry.identity.id,
+        personaRevision: { status: 'known' as const, value: 'writer-v2' },
+      },
+      {
+        kind: 'agent' as const,
+        personaId: entry.identity.id,
+        personaRevision: { status: 'legacy_unversioned' as const },
+      },
+    ]) {
+      await renderBinding(activePersonaBinding);
+      expect(current?.activeAgent).toBeUndefined();
+    }
+
+    await renderBinding({
+      kind: 'team_lead',
+      personaId: reusableTeamEntry.lead.identity.id,
+      personaRevision: {
+        status: 'known',
+        value: 'revision1:software-lead',
+      },
+      teamDefinitionId: reusableTeamEntry.identity.id,
+      teamInstanceId: 'instance-1',
+    });
+    expect(current?.activeAgent).toBeUndefined();
+    expect(current?.activeTeam).toBe(reusableTeamEntry);
+
+    for (const activePersonaBinding of [
+      {
+        kind: 'team_lead' as const,
+        personaId: reusableTeamEntry.lead.identity.id,
+        personaRevision: {
+          status: 'known' as const,
+          value: 'revision1:software-lead',
+        },
+        teamDefinitionId: 'different-team',
+      },
+      {
+        kind: 'team_lead' as const,
+        personaId: 'different-lead',
+        personaRevision: {
+          status: 'known' as const,
+          value: 'revision1:software-lead',
+        },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+      },
+      {
+        kind: 'team_lead' as const,
+        personaId: reusableTeamEntry.lead.identity.id,
+        personaRevision: { status: 'known' as const, value: 'stale-revision' },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+      },
+      {
+        kind: 'team_lead' as const,
+        personaId: reusableTeamEntry.lead.identity.id,
+        personaRevision: { status: 'legacy_unversioned' as const },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+      },
+      {
+        kind: 'agent' as const,
+        personaId: reusableTeamEntry.lead.identity.id,
+        personaRevision: {
+          status: 'known' as const,
+          value: 'revision1:software-lead',
+        },
+        teamDefinitionId: reusableTeamEntry.identity.id,
+      },
+    ]) {
+      await renderBinding(activePersonaBinding);
+      expect(current?.activeTeam).toBeUndefined();
+    }
   });
 
   it('选择或清除失败不会隐藏目录，并可在同一会话中重试', async () => {
@@ -411,7 +554,7 @@ describe('useComposerPersonaSelection', () => {
     });
     expect(current?.status).toBe('ready');
     expect(current?.agents).toHaveLength(1);
-    expect(current?.teams).toHaveLength(1);
+    expect(current?.teams).toHaveLength(2);
     expect(current?.actionError).toBe('team_action_failed');
 
     await act(async () => {
@@ -419,6 +562,60 @@ describe('useComposerPersonaSelection', () => {
     });
     expect(launchDeepReview).toHaveBeenCalledTimes(2);
     expect(current?.actionError).toBeUndefined();
+  });
+
+  it('通用团队走持久实例与父会话主理人激活，不误入固定团队动作', async () => {
+    await act(async () => {
+      root.render(<Harness target={session()} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const actions = {
+      launchDeepReview: vi.fn(),
+      openShortDrama: vi.fn(),
+    };
+
+    await act(async () => {
+      await current?.runTeamAction(reusableTeamEntry, actions);
+    });
+
+    expect(activateReusableTeam).toHaveBeenCalledWith({
+      entry: reusableTeamEntry,
+      parentSessionId: 'parent',
+      scenario: 'code',
+      executionPolicy: 'agentic',
+      persistPersona,
+    });
+    expect(actions.launchDeepReview).not.toHaveBeenCalled();
+    expect(actions.openShortDrama).not.toHaveBeenCalled();
+    expect(current?.personaPersistencePending).toBe(false);
+    expect(current?.actionError).toBeUndefined();
+  });
+
+  it('通用团队激活失败保留精确错误并解除并发门禁', async () => {
+    activateReusableTeam.mockRejectedValueOnce(
+      new ReusableTeamActivationError(
+        'definition_revision_mismatch',
+        'revision changed',
+        false,
+      ),
+    );
+    await act(async () => {
+      root.render(<Harness target={session()} />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await expect(current?.runTeamAction(reusableTeamEntry, {
+        launchDeepReview: vi.fn(),
+        openShortDrama: vi.fn(),
+      })).rejects.toThrow('definition_revision_mismatch');
+    });
+
+    expect(current?.actionError).toBe('definition_revision_mismatch');
+    expect(current?.isPersonaPersistencePending()).toBe(false);
+    expect(current?.teams).toHaveLength(2);
   });
 
   it('子会话不暴露选择器，也不会产生每轮 persona 快照', async () => {

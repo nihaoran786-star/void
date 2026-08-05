@@ -14,7 +14,7 @@ use crate::agentic::events::{
 };
 use crate::agentic::execution::{
     resolve_persona_turn_runtime, wrap_persona_runtime_validation_error, ContextCompactionOutcome,
-    ExecutionContext, ExecutionEngine, ExecutionResult,
+    ExecutionContext, ExecutionEngine, ExecutionResult, TeamLeadPersonaResolver,
 };
 use crate::agentic::fork_agent::ForkAgentContextSnapshot;
 use crate::agentic::goal_mode::{
@@ -28,8 +28,13 @@ use crate::agentic::goal_mode::{
 };
 use crate::agentic::image_analysis::ImageContextData;
 use crate::agentic::round_preempt::{DialogRoundInjectionSource, DialogRoundPreemptSource};
-use crate::agentic::session::SessionManager;
+use crate::agentic::session::{
+    PersistedToolCallAuthority, PreparedPersistedTurn, PreparedTurnDisposition, SessionManager,
+};
 use crate::agentic::side_question::build_btw_user_input;
+use crate::agentic::team_tool_runtime::{
+    TeamToolExecutionOutcome, TeamToolExecutor, TeamToolInvocation, TEAM_TOOL_NAME,
+};
 use crate::agentic::tools::image_context::{
     store_image_contexts as store_media_image_contexts, ImageContextData as MediaToolImageContext,
 };
@@ -58,7 +63,8 @@ use tokio::time::{sleep, Duration, Instant};
 use tokio_util::sync::CancellationToken;
 use void_core_types::{
     SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec, SubagentTaskRecord,
-    SubagentTaskRecoveryBlockCode, SubagentTaskReplaySafety, SubagentTaskStatus,
+    SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
+    SubagentTaskStatus, TeamMemberSkillPolicySnapshot,
 };
 use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
@@ -77,6 +83,20 @@ const DURABLE_SUBAGENT_CONTEXT_ALLOWLIST: &[&str] = &[
     "deep_review_subagent_type",
     "multitaskBranchId",
     "multitaskBranchGoal",
+    "teamDefinitionId",
+    "teamDefinitionRevision",
+    "teamInstanceId",
+    "teamRunId",
+    "teamMemberId",
+    "teamPhaseId",
+];
+const TEAM_MEMBER_RECOVERY_CONTEXT_KEYS: &[&str] = &[
+    "teamDefinitionId",
+    "teamDefinitionRevision",
+    "teamInstanceId",
+    "teamRunId",
+    "teamMemberId",
+    "teamPhaseId",
 ];
 
 fn contains_explicit_sensitive_context_value(value: &str) -> bool {
@@ -184,6 +204,7 @@ impl SubagentResult {
 #[derive(Debug, Clone)]
 pub struct BackgroundSubagentStartResult {
     pub background_task_id: String,
+    pub reused: bool,
 }
 
 fn format_background_subagent_delivery_text(
@@ -273,6 +294,19 @@ fn durable_subagent_context(
         durable.insert(normalized_key.to_string(), value.clone());
     }
     durable
+}
+
+fn background_subagent_launch_matches(
+    existing: &SubagentTaskRecord,
+    expected: &SubagentTaskRecord,
+) -> bool {
+    existing.task_id == expected.task_id
+        && existing.parent_session_id == expected.parent_session_id
+        && existing.objective == expected.objective
+        && existing.execution_mode == expected.execution_mode
+        && existing.context_mode == expected.context_mode
+        && existing.delivery_replay_safety == expected.delivery_replay_safety
+        && existing.launch_spec == expected.launch_spec
 }
 
 fn format_persisted_background_subagent_delivery_text(
@@ -372,6 +406,98 @@ fn runtime_tool_restrictions_for_delegation_policy(
     restrictions
 }
 
+fn delegation_policy_from_launch_spec(launch_spec: &SubagentTaskLaunchSpec) -> DelegationPolicy {
+    DelegationPolicy {
+        allow_subagent_spawn: launch_spec.allow_subagent_spawn,
+        nesting_depth: launch_spec.nesting_depth,
+    }
+}
+
+fn team_follow_up_child_is_busy(
+    task_status: SubagentTaskStatus,
+    child_state: &SessionState,
+    has_active_execution: bool,
+) -> bool {
+    !task_status.is_terminal()
+        || matches!(child_state, SessionState::Processing { .. })
+        || has_active_execution
+}
+
+fn remove_active_subagent_execution_if_generation_matches(
+    active_subagent_executions: &DashMap<String, ActiveSubagentExecution>,
+    subagent_session_id: &str,
+    subagent_dialog_turn_id: &str,
+) -> bool {
+    active_subagent_executions
+        .remove_if(subagent_session_id, |_, active| {
+            active.subagent_dialog_turn_id == subagent_dialog_turn_id
+        })
+        .is_some()
+}
+
+fn team_follow_up_dialog_turn_id(operation_id: &str) -> String {
+    format!("team-message-{operation_id}")
+}
+
+fn should_spawn_team_follow_up(disposition: PreparedTurnDisposition) -> bool {
+    disposition == PreparedTurnDisposition::Created
+}
+
+fn session_config_matches_resume_authority(
+    restored: &SessionConfig,
+    authoritative: &SessionConfig,
+) -> bool {
+    restored.max_context_tokens == authoritative.max_context_tokens
+        && restored.auto_compact == authoritative.auto_compact
+        && restored.enable_tools == authoritative.enable_tools
+        && restored.safe_mode == authoritative.safe_mode
+        && restored.max_turns == authoritative.max_turns
+        && restored.enable_context_compression == authoritative.enable_context_compression
+        && restored.compression_threshold == authoritative.compression_threshold
+        && restored.workspace_path == authoritative.workspace_path
+        && restored.workspace_id == authoritative.workspace_id
+        && restored.remote_connection_id == authoritative.remote_connection_id
+        && restored.remote_ssh_host == authoritative.remote_ssh_host
+        && restored.model_id == authoritative.model_id
+}
+
+fn hidden_subagent_resume_session_matches(
+    session: &Session,
+    expected_agent_type: &str,
+    authoritative_config: &SessionConfig,
+    expected_created_by: Option<&str>,
+) -> bool {
+    session.kind == SessionKind::Subagent
+        && session.agent_type == expected_agent_type
+        && session.created_by.as_deref() == expected_created_by
+        && session_config_matches_resume_authority(&session.config, authoritative_config)
+}
+
+fn resolved_subagent_resume_storage_path(
+    session_config: &SessionConfig,
+    binding: Option<&WorkspaceBinding>,
+) -> VoidResult<PathBuf> {
+    let logical_workspace_path = session_config.workspace_path.as_deref().ok_or_else(|| {
+        VoidError::Validation(
+            "resumed subagent session has no persisted workspace path".to_string(),
+        )
+    })?;
+    let requires_remote_binding =
+        session_config.remote_connection_id.is_some() || session_config.remote_ssh_host.is_some();
+    match binding {
+        Some(binding) if requires_remote_binding && !binding.is_remote() => {
+            Err(VoidError::Validation(
+                "remote subagent resume resolved to a local workspace binding".to_string(),
+            ))
+        }
+        Some(binding) => Ok(binding.session_storage_path().to_path_buf()),
+        None if requires_remote_binding => Err(VoidError::Validation(
+            "remote subagent resume could not resolve its persisted workspace identity".to_string(),
+        )),
+        None => Ok(PathBuf::from(logical_workspace_path)),
+    }
+}
+
 struct HiddenSubagentExecutionRequest {
     session_name: String,
     agent_type: String,
@@ -386,6 +512,9 @@ struct HiddenSubagentExecutionRequest {
     prompt_cache_source_session_id: Option<String>,
     persistent_task: Option<PersistentSubagentTaskContext>,
     resume_session_id: Option<String>,
+    requested_dialog_turn_id: Option<String>,
+    prepared_turn: Option<PreparedPersistedTurn>,
+    team_member_skill_policy: Option<TeamMemberSkillPolicySnapshot>,
 }
 
 #[derive(Clone)]
@@ -472,8 +601,11 @@ struct SubagentExecutionScope {
 impl SubagentExecutionScope {
     fn disarm(&mut self) {
         self.disarmed = true;
-        self.active_subagent_executions
-            .remove(&self.subagent_session_id);
+        remove_active_subagent_execution_if_generation_matches(
+            self.active_subagent_executions.as_ref(),
+            &self.subagent_session_id,
+            &self.subagent_dialog_turn_id,
+        );
     }
 }
 
@@ -490,8 +622,11 @@ impl Drop for SubagentExecutionScope {
 
         self.subagent_cancel_token.cancel();
         self.abort_handle.abort();
-        self.active_subagent_executions
-            .remove(&self.subagent_session_id);
+        remove_active_subagent_execution_if_generation_matches(
+            self.active_subagent_executions.as_ref(),
+            &self.subagent_session_id,
+            &self.subagent_dialog_turn_id,
+        );
 
         let execution_engine = self.execution_engine.clone();
         let tool_pipeline = self.tool_pipeline.clone();
@@ -643,6 +778,139 @@ impl SubagentTimeoutHandle {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TeamMemberRecoveryPreflightErrorCode {
+    MissingLaunchSpec,
+    InvalidLaunchSpec,
+    ResumeFailed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamMemberRecoveryPreflightError {
+    pub code: TeamMemberRecoveryPreflightErrorCode,
+    pub detail: String,
+}
+
+impl TeamMemberRecoveryPreflightError {
+    pub fn missing_launch(detail: impl Into<String>) -> Self {
+        Self {
+            code: TeamMemberRecoveryPreflightErrorCode::MissingLaunchSpec,
+            detail: detail.into(),
+        }
+    }
+
+    pub fn invalid_launch(detail: impl Into<String>) -> Self {
+        Self {
+            code: TeamMemberRecoveryPreflightErrorCode::InvalidLaunchSpec,
+            detail: detail.into(),
+        }
+    }
+
+    pub fn resume_failed(detail: impl Into<String>) -> Self {
+        Self {
+            code: TeamMemberRecoveryPreflightErrorCode::ResumeFailed,
+            detail: detail.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TeamMemberRecoveryTicket {
+    pub parent_session_id: String,
+    pub task_id: String,
+    pub child_session_id: String,
+    pub objective: String,
+    pub expected_launch: SubagentTaskLaunchSpec,
+}
+
+#[async_trait::async_trait]
+pub trait TeamMemberRecoveryPreflight: Send + Sync {
+    async fn preflight(
+        &self,
+        task: SubagentTaskRecord,
+    ) -> Result<TeamMemberRecoveryTicket, TeamMemberRecoveryPreflightError>;
+}
+
+fn install_team_member_recovery_preflight(
+    slot: &OnceLock<Arc<dyn TeamMemberRecoveryPreflight>>,
+    preflight: Arc<dyn TeamMemberRecoveryPreflight>,
+) -> VoidResult<()> {
+    slot.set(preflight).map_err(|_| {
+        VoidError::Validation("Team member recovery preflight is already installed".to_string())
+    })
+}
+
+fn launch_requires_team_recovery_preflight(
+    launch: &SubagentTaskLaunchSpec,
+) -> Result<bool, &'static str> {
+    let present_marker_count = TEAM_MEMBER_RECOVERY_CONTEXT_KEYS
+        .iter()
+        .filter(|key| launch.context.contains_key(**key))
+        .count();
+    let is_team_tagged = present_marker_count > 0 || launch.team_member_skill_policy.is_some();
+    if !is_team_tagged {
+        return Ok(false);
+    }
+    if present_marker_count != TEAM_MEMBER_RECOVERY_CONTEXT_KEYS.len()
+        || TEAM_MEMBER_RECOVERY_CONTEXT_KEYS.iter().any(|key| {
+            launch
+                .context
+                .get(*key)
+                .map_or(true, |value| value.trim().is_empty())
+        })
+    {
+        return Err("Team-tagged launch has incomplete durable Team markers");
+    }
+    Ok(true)
+}
+
+fn recovery_ticket_matches_task(
+    ticket: &TeamMemberRecoveryTicket,
+    task: &SubagentTaskRecord,
+) -> bool {
+    task.status == SubagentTaskStatus::Interrupted
+        && task.recovery_state == SubagentTaskRecoveryState::Queued
+        && task.parent_session_id == ticket.parent_session_id
+        && task.task_id == ticket.task_id
+        && task.child_session_id.as_deref() == Some(ticket.child_session_id.as_str())
+        && task.objective == ticket.objective
+        && task.launch_spec.as_ref() == Some(&ticket.expected_launch)
+}
+
+fn install_team_lead_persona_resolver(
+    slot: &OnceLock<Arc<dyn TeamLeadPersonaResolver>>,
+    resolver: Arc<dyn TeamLeadPersonaResolver>,
+) -> VoidResult<()> {
+    slot.set(resolver).map_err(|_| {
+        VoidError::Validation("Team lead persona resolver is already installed".to_string())
+    })
+}
+
+fn install_team_tool_executor(
+    slot: &OnceLock<Arc<dyn TeamToolExecutor>>,
+    executor: Arc<dyn TeamToolExecutor>,
+) -> VoidResult<()> {
+    slot.set(executor)
+        .map_err(|_| VoidError::Validation("Team tool executor is already installed".to_string()))
+}
+
+async fn execute_team_tool_after_checkpoint(
+    executor: &dyn TeamToolExecutor,
+    invocation: TeamToolInvocation,
+    checkpoint: VoidResult<PersistedToolCallAuthority>,
+) -> VoidResult<TeamToolExecutionOutcome> {
+    let authority = checkpoint?;
+    if authority.tool_name != TEAM_TOOL_NAME
+        || authority.round_id != invocation.parent_round_id
+        || authority.input != invocation.exact_input
+    {
+        return Err(VoidError::Validation(
+            "Persisted Team tool authority does not match the current invocation".to_string(),
+        ));
+    }
+    executor.execute_team_tool(invocation).await
+}
+
 /// Conversation coordinator
 pub struct ConversationCoordinator {
     session_manager: Arc<SessionManager>,
@@ -662,6 +930,16 @@ pub struct ConversationCoordinator {
     round_preempt_source: OnceLock<Arc<dyn DialogRoundPreemptSource>>,
     /// Round-boundary user steering source (mid-turn user message injection); injected after construction
     round_injection_source: OnceLock<Arc<dyn DialogRoundInjectionSource>>,
+    /// Platform composition hook for resolving a durable reusable Team lead.
+    /// Installed once by the desktop composition root; absent resolvers fail
+    /// closed for Team snapshots while leaving ordinary Agent personas intact.
+    team_lead_persona_resolver: OnceLock<Arc<dyn TeamLeadPersonaResolver>>,
+    /// Platform-owned Team runtime bridge. It is installed once, and is only
+    /// called after the exact model-issued Team call is durably checkpointed.
+    team_tool_executor: OnceLock<Arc<dyn TeamToolExecutor>>,
+    /// Platform-owned validation bridge for durable Team member recovery.
+    /// The generic coordinator never reads Team definitions or runtime stores.
+    team_member_recovery_preflight: OnceLock<Arc<dyn TeamMemberRecoveryPreflight>>,
     /// In-flight dialog turn tracker per session, used to serialize cancel→start
     /// transitions so a new turn never starts touching the in-memory message
     /// list while the previous (cancelled) turn's spawn task is still draining.
@@ -1181,6 +1459,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             scheduler_notify_tx: OnceLock::new(),
             round_preempt_source: OnceLock::new(),
             round_injection_source: OnceLock::new(),
+            team_lead_persona_resolver: OnceLock::new(),
+            team_tool_executor: OnceLock::new(),
+            team_member_recovery_preflight: OnceLock::new(),
             active_turns_per_session: Arc::new(DashMap::new()),
         }
     }
@@ -1200,6 +1481,58 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     /// [`SessionRoundInjectionBuffer`](crate::agentic::round_preempt::SessionRoundInjectionBuffer)).
     pub fn set_round_injection_source(&self, source: Arc<dyn DialogRoundInjectionSource>) {
         let _ = self.round_injection_source.set(source);
+    }
+
+    /// Installs the platform Team lead resolver exactly once during startup.
+    /// Repeated composition is an explicit error so a later caller cannot
+    /// silently replace the authority used to validate immutable snapshots.
+    pub fn set_team_lead_persona_resolver(
+        &self,
+        resolver: Arc<dyn TeamLeadPersonaResolver>,
+    ) -> VoidResult<()> {
+        install_team_lead_persona_resolver(&self.team_lead_persona_resolver, resolver)
+    }
+
+    /// Installs the platform Team executor exactly once. Replacing this bridge
+    /// at runtime could change the meaning of a persisted tool call, so later
+    /// installations fail closed.
+    pub fn set_team_tool_executor(&self, executor: Arc<dyn TeamToolExecutor>) -> VoidResult<()> {
+        install_team_tool_executor(&self.team_tool_executor, executor)
+    }
+
+    /// Installs the platform Team recovery authority exactly once. Replacing
+    /// it could reinterpret persisted Team markers, so duplicate installation
+    /// is an explicit startup failure.
+    pub fn set_team_member_recovery_preflight(
+        &self,
+        preflight: Arc<dyn TeamMemberRecoveryPreflight>,
+    ) -> VoidResult<()> {
+        install_team_member_recovery_preflight(&self.team_member_recovery_preflight, preflight)
+    }
+
+    /// Execute an authoritative Team command. The strict durable checkpoint is
+    /// completed before the platform executor can observe the invocation.
+    pub async fn execute_team_tool(
+        &self,
+        invocation: TeamToolInvocation,
+    ) -> VoidResult<TeamToolExecutionOutcome> {
+        invocation.validate()?;
+        let executor =
+            self.team_tool_executor.get().cloned().ok_or_else(|| {
+                VoidError::tool("Team runtime executor is not installed".to_string())
+            })?;
+        let checkpoint = self
+            .session_manager
+            .checkpoint_current_tool_call_before_execution(
+                &invocation.parent_session_id,
+                &invocation.parent_dialog_turn_id,
+                &invocation.parent_round_id,
+                TEAM_TOOL_NAME,
+                &invocation.parent_tool_call_id,
+                invocation.exact_input.clone(),
+            )
+            .await;
+        execute_team_tool_after_checkpoint(executor.as_ref(), invocation, checkpoint).await
     }
 
     /// Dynamically adjust a running subagent's timeout.
@@ -2390,6 +2723,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             round_injection: None,
             recover_partial_on_cancel: false,
             persona_runtime: None,
+            team_member_skill_policy: None,
         };
         let session_max_tokens = session.config.max_context_tokens;
 
@@ -2790,9 +3124,11 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         // fails closed instead of silently falling back to the base mode.
         let persona_runtime = resolve_persona_turn_runtime(
             user_message_metadata.as_ref(),
+            &session_id,
             &effective_agent_type,
             session.kind,
             session_workspace.as_ref(),
+            self.team_lead_persona_resolver.get(),
         )
         .await
         .map_err(wrap_persona_runtime_validation_error)?;
@@ -2993,6 +3329,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             round_injection: self.round_injection_source.get().cloned(),
             recover_partial_on_cancel: false,
             persona_runtime,
+            team_member_skill_policy: None,
         };
 
         // Auto-generate session title on first message
@@ -3296,8 +3633,11 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             &active.subagent_dialog_turn_id,
         );
 
-        self.active_subagent_executions
-            .remove(&active.subagent_session_id);
+        remove_active_subagent_execution_if_generation_matches(
+            self.active_subagent_executions.as_ref(),
+            &active.subagent_session_id,
+            &active.subagent_dialog_turn_id,
+        );
     }
 
     /// Cancel dialog turn execution
@@ -3917,6 +4257,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             prompt_cache_source_session_id,
             persistent_task,
             resume_session_id,
+            requested_dialog_turn_id,
+            prepared_turn,
+            team_member_skill_policy,
         } = request;
 
         let requested_timeout_seconds = timeout_seconds.filter(|seconds| *seconds > 0);
@@ -4023,14 +4366,32 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
 
         let is_resume = resume_session_id.is_some();
         let session = if let Some(resume_session_id) = resume_session_id.as_deref() {
-            let workspace_path = session_config.workspace_path.as_deref().ok_or_else(|| {
-                VoidError::Validation(
-                    "resumed subagent session has no persisted workspace path".to_string(),
-                )
-            })?;
-            self.session_manager
-                .restore_internal_session(Path::new(workspace_path), resume_session_id)
-                .await?
+            let expected_created_by = created_by.as_deref();
+            let session = if let Some(session) = self.session_manager.get_session(resume_session_id)
+            {
+                session
+            } else {
+                let workspace_binding = Self::build_workspace_binding(&session_config).await;
+                let session_storage_path = resolved_subagent_resume_storage_path(
+                    &session_config,
+                    workspace_binding.as_ref(),
+                )?;
+                self.session_manager
+                    .restore_internal_session(&session_storage_path, resume_session_id)
+                    .await?
+            };
+            if !hidden_subagent_resume_session_matches(
+                &session,
+                &agent_type,
+                &session_config,
+                expected_created_by,
+            ) {
+                return Err(VoidError::Validation(
+                    "resumed subagent session does not match the authoritative launch identity"
+                        .to_string(),
+                ));
+            }
+            session
         } else {
             self.create_hidden_subagent_session(
                 None,
@@ -4129,18 +4490,29 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             return Err(VoidError::Timeout(timeout_error_message.clone()));
         }
 
-        let turn_index = self.session_manager.get_turn_count(&session_id);
-        let requested_dialog_turn_id = format!("subagent-{}", uuid::Uuid::new_v4());
-        let dialog_turn_id = self
-            .session_manager
-            .start_dialog_turn_with_existing_context(
-                &session_id,
-                agent_type.clone(),
-                user_input_text.clone(),
-                Some(requested_dialog_turn_id),
-                None,
-            )
-            .await?;
+        let (dialog_turn_id, turn_index) = if let Some(prepared_turn) = prepared_turn {
+            if prepared_turn.disposition != PreparedTurnDisposition::Created {
+                return Err(VoidError::Validation(
+                    "A reused prepared subagent turn must not be executed again".to_string(),
+                ));
+            }
+            (prepared_turn.turn_id, prepared_turn.turn_index)
+        } else {
+            let turn_index = self.session_manager.get_turn_count(&session_id);
+            let requested_dialog_turn_id = requested_dialog_turn_id
+                .unwrap_or_else(|| format!("subagent-{}", uuid::Uuid::new_v4()));
+            let dialog_turn_id = self
+                .session_manager
+                .start_dialog_turn_with_existing_context(
+                    &session_id,
+                    agent_type.clone(),
+                    user_input_text.clone(),
+                    Some(requested_dialog_turn_id),
+                    None,
+                )
+                .await?;
+            (dialog_turn_id, turn_index)
+        };
         debug!(
             "Generated unique dialog_turn_id for subagent: {}",
             dialog_turn_id
@@ -4216,6 +4588,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             round_injection: None,
             recover_partial_on_cancel: true,
             persona_runtime: None,
+            team_member_skill_policy,
         };
 
         let execution_engine = self.execution_engine.clone();
@@ -4950,6 +5323,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
     async fn resolve_hidden_subagent_execution_request(
         &self,
         request: SubagentExecutionRequest,
+        inherited_session_config: Option<SessionConfig>,
     ) -> VoidResult<HiddenSubagentExecutionRequest> {
         let task_description = request.task_description.trim().to_string();
         if task_description.is_empty() {
@@ -4982,15 +5356,25 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                             .to_string(),
                     )
                 })?;
+                let session_config = if let Some(mut inherited) = inherited_session_config {
+                    if inherited.workspace_path.as_deref() != Some(workspace_path.as_str()) {
+                        return Err(VoidError::Validation(
+                            "inherited subagent session config does not match the requested workspace"
+                                .to_string(),
+                        ));
+                    }
+                    if model_id.is_some() {
+                        inherited.model_id = model_id;
+                    }
+                    inherited
+                } else {
+                    Self::build_session_config_for_workspace(workspace_path, model_id).await
+                };
 
                 Ok(HiddenSubagentExecutionRequest {
                     session_name: format!("Subagent: {}", task_description),
                     agent_type,
-                    session_config: Self::build_session_config_for_workspace(
-                        workspace_path,
-                        model_id,
-                    )
-                    .await,
+                    session_config,
                     initial_messages: vec![Message::user(task_description.clone())],
                     user_input_text: task_description,
                     created_by,
@@ -5003,9 +5387,18 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     prompt_cache_source_session_id: None,
                     persistent_task: None,
                     resume_session_id: None,
+                    requested_dialog_turn_id: None,
+                    prepared_turn: None,
+                    team_member_skill_policy: None,
                 })
             }
             SubagentContextMode::Fork => {
+                if inherited_session_config.is_some() {
+                    return Err(VoidError::Validation(
+                        "inherited session config is only supported for fresh Team subagents"
+                            .to_string(),
+                    ));
+                }
                 if request.subagent_type.is_some() {
                     return Err(VoidError::Validation(
                         "subagent_type is not allowed when context_mode is 'fork'".to_string(),
@@ -5045,6 +5438,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                     prompt_cache_source_session_id: Some(snapshot.parent_session_id),
                     persistent_task: None,
                     resume_session_id: None,
+                    requested_dialog_turn_id: None,
+                    prepared_turn: None,
+                    team_member_skill_policy: None,
                 })
             }
         }
@@ -5065,7 +5461,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             SubagentContextMode::Fork => SubagentTaskContextMode::Fork,
         };
         let mut request = self
-            .resolve_hidden_subagent_execution_request(request)
+            .resolve_hidden_subagent_execution_request(request, None)
             .await?;
         let persistent_task =
             request
@@ -5257,7 +5653,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             .session_manager
             .list_subagent_task_recovery_queue(parent_session_id)
             .await?;
-        for task in recovery_queue {
+        for mut task in recovery_queue {
             if task.status.is_terminal() {
                 let agent_type = task
                     .launch_spec
@@ -5291,7 +5687,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             if task.status != SubagentTaskStatus::Interrupted {
                 continue;
             }
-            let Some(checkpoint_ref) = task.durable_checkpoint.as_ref() else {
+            if task.durable_checkpoint.is_none() {
                 self.block_subagent_recovery(
                     &task,
                     SubagentTaskRecoveryBlockCode::MissingCheckpoint,
@@ -5300,7 +5696,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 .await;
                 continue;
             };
-            let Some(launch_spec) = task.launch_spec.as_ref() else {
+            let Some(initial_launch_spec) = task.launch_spec.as_ref() else {
                 self.block_subagent_recovery(
                     &task,
                     SubagentTaskRecoveryBlockCode::MissingLaunchSpec,
@@ -5309,7 +5705,7 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 .await;
                 continue;
             };
-            if let Err(error) = launch_spec.validate() {
+            if let Err(error) = initial_launch_spec.validate() {
                 self.block_subagent_recovery(
                     &task,
                     SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
@@ -5318,12 +5714,12 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 .await;
                 continue;
             }
-            let persisted_context = launch_spec
+            let persisted_context = initial_launch_spec
                 .context
                 .clone()
                 .into_iter()
                 .collect::<HashMap<_, _>>();
-            if durable_subagent_context(&persisted_context) != launch_spec.context {
+            if durable_subagent_context(&persisted_context) != initial_launch_spec.context {
                 self.block_subagent_recovery(
                     &task,
                     SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
@@ -5332,6 +5728,82 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 .await;
                 continue;
             }
+
+            let requires_team_preflight =
+                match launch_requires_team_recovery_preflight(initial_launch_spec) {
+                    Ok(value) => value,
+                    Err(detail) => {
+                        self.block_subagent_recovery(
+                            &task,
+                            SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
+                            detail,
+                        )
+                        .await;
+                        continue;
+                    }
+                };
+            if requires_team_preflight {
+                let Some(preflight) = self.team_member_recovery_preflight.get().cloned() else {
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::ResumeFailed,
+                        "Team-tagged launch cannot recover before the Team preflight bridge is installed",
+                    )
+                    .await;
+                    continue;
+                };
+                let ticket = match preflight.preflight(task.clone()).await {
+                    Ok(ticket) => ticket,
+                    Err(error) => {
+                        let code = match error.code {
+                            TeamMemberRecoveryPreflightErrorCode::MissingLaunchSpec => {
+                                SubagentTaskRecoveryBlockCode::MissingLaunchSpec
+                            }
+                            TeamMemberRecoveryPreflightErrorCode::InvalidLaunchSpec => {
+                                SubagentTaskRecoveryBlockCode::InvalidLaunchSpec
+                            }
+                            TeamMemberRecoveryPreflightErrorCode::ResumeFailed => {
+                                SubagentTaskRecoveryBlockCode::ResumeFailed
+                            }
+                        };
+                        self.block_subagent_recovery(&task, code, error.detail)
+                            .await;
+                        continue;
+                    }
+                };
+                let Some(authoritative_task) = self
+                    .session_manager
+                    .get_subagent_task(parent_session_id, &task.task_id)
+                    .await?
+                else {
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::ResumeFailed,
+                        "Team recovery task disappeared after preflight",
+                    )
+                    .await;
+                    continue;
+                };
+                if !recovery_ticket_matches_task(&ticket, &authoritative_task) {
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::InvalidLaunchSpec,
+                        "authoritative Team task changed after recovery preflight",
+                    )
+                    .await;
+                    continue;
+                }
+                task = authoritative_task;
+            }
+
+            let checkpoint_ref = task
+                .durable_checkpoint
+                .as_ref()
+                .expect("validated interrupted task retains a checkpoint");
+            let launch_spec = task
+                .launch_spec
+                .as_ref()
+                .expect("validated interrupted task retains a launch spec");
             let Some(child_session_id) = task.child_session_id.as_deref() else {
                 self.block_subagent_recovery(
                     &task,
@@ -5358,18 +5830,26 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         "Parent session not restored for subagent recovery: {parent_session_id}"
                     ))
                 })?;
-            let Some(workspace_path) = parent_session.config.workspace_path.as_deref() else {
-                self.block_subagent_recovery(
-                    &task,
-                    SubagentTaskRecoveryBlockCode::MissingChildSession,
-                    "parent session has no workspace for child restore",
-                )
-                .await;
-                continue;
+            let parent_config = parent_session.config.clone();
+            let workspace_binding = Self::build_workspace_binding(&parent_config).await;
+            let session_storage_path = match resolved_subagent_resume_storage_path(
+                &parent_config,
+                workspace_binding.as_ref(),
+            ) {
+                Ok(path) => path,
+                Err(error) => {
+                    self.block_subagent_recovery(
+                        &task,
+                        SubagentTaskRecoveryBlockCode::ResumeFailed,
+                        format!("parent workspace cannot be resolved for child restore: {error}"),
+                    )
+                    .await;
+                    continue;
+                }
             };
             let child_session = match self
                 .session_manager
-                .restore_internal_session(Path::new(workspace_path), child_session_id)
+                .restore_internal_session(&session_storage_path, child_session_id)
                 .await
             {
                 Ok(session) => session,
@@ -5500,6 +5980,9 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                         parent_session_id: parent_session_id.clone(),
                     }),
                     resume_session_id: Some(child_session_id),
+                    requested_dialog_turn_id: None,
+                    prepared_turn: None,
+                    team_member_skill_policy: launch_spec.team_member_skill_policy.clone(),
                 };
                 let outcome = coordinator
                     .execute_hidden_subagent_internal(request, None, launch_spec.timeout_seconds)
@@ -5574,9 +6057,74 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
         request: SubagentExecutionRequest,
         timeout_seconds: Option<u64>,
     ) -> VoidResult<BackgroundSubagentStartResult> {
+        self.ensure_background_subagent_with_task_id(
+            format!("bg-subagent-{}", uuid::Uuid::new_v4()),
+            request,
+            timeout_seconds,
+        )
+        .await
+    }
+
+    /// Idempotently create and start one background subagent task with a caller-owned,
+    /// stable task ID. A matching persisted task is reused; a mismatched launch is
+    /// rejected so retrying another Team member can never attach to this task.
+    pub(crate) async fn ensure_background_subagent_with_task_id(
+        &self,
+        background_task_id: String,
+        request: SubagentExecutionRequest,
+        timeout_seconds: Option<u64>,
+    ) -> VoidResult<BackgroundSubagentStartResult> {
+        self.ensure_background_subagent_with_task_id_and_config(
+            background_task_id,
+            request,
+            timeout_seconds,
+            None,
+            None,
+        )
+        .await
+    }
+
+    /// Team-only entry point for initial member launch. The parent session owns
+    /// the complete workspace/runtime configuration; path-based reconstruction
+    /// would lose workspace and remote connection identity.
+    pub(crate) async fn ensure_team_background_subagent_with_task_id(
+        &self,
+        background_task_id: String,
+        request: SubagentExecutionRequest,
+        parent_session_config: SessionConfig,
+        timeout_seconds: Option<u64>,
+        team_member_skill_policy: TeamMemberSkillPolicySnapshot,
+    ) -> VoidResult<BackgroundSubagentStartResult> {
+        team_member_skill_policy
+            .validate()
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        self.ensure_background_subagent_with_task_id_and_config(
+            background_task_id,
+            request,
+            timeout_seconds,
+            Some(parent_session_config),
+            Some(team_member_skill_policy),
+        )
+        .await
+    }
+
+    async fn ensure_background_subagent_with_task_id_and_config(
+        &self,
+        background_task_id: String,
+        request: SubagentExecutionRequest,
+        timeout_seconds: Option<u64>,
+        inherited_session_config: Option<SessionConfig>,
+        team_member_skill_policy: Option<TeamMemberSkillPolicySnapshot>,
+    ) -> VoidResult<BackgroundSubagentStartResult> {
+        if background_task_id.trim().is_empty() {
+            return Err(VoidError::Validation(
+                "background subagent task ID is required".to_string(),
+            ));
+        }
         let mut request = self
-            .resolve_hidden_subagent_execution_request(request)
+            .resolve_hidden_subagent_execution_request(request, inherited_session_config)
             .await?;
+        request.team_member_skill_policy = team_member_skill_policy;
         let agent_type = request.agent_type.clone();
         let subagent_parent_info = request.subagent_parent_info.clone().ok_or_else(|| {
             VoidError::Validation(
@@ -5594,7 +6142,6 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
                 subagent_parent_info.session_id
             )));
         }
-        let background_task_id = format!("bg-subagent-{}", uuid::Uuid::new_v4());
         let background_execution_owner = format!("background-execution-{}", uuid::Uuid::new_v4());
         let background_task_id_for_delivery = background_task_id.clone();
         let task_description = request.user_input_text.clone();
@@ -5621,10 +6168,50 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             allow_subagent_spawn: request.delegation_policy.allow_subagent_spawn,
             nesting_depth: request.delegation_policy.nesting_depth,
             timeout_seconds,
+            team_member_skill_policy: request.team_member_skill_policy.clone(),
         });
-        self.session_manager
-            .create_subagent_task(task_record)
-            .await?;
+        if let Some(existing) = self
+            .session_manager
+            .get_subagent_task(&subagent_parent_info.session_id, &background_task_id)
+            .await?
+        {
+            if !background_subagent_launch_matches(&existing, &task_record) {
+                return Err(VoidError::Validation(format!(
+                    "background subagent task ID {} is already bound to different launch facts",
+                    background_task_id
+                )));
+            }
+            return Ok(BackgroundSubagentStartResult {
+                background_task_id,
+                reused: true,
+            });
+        }
+        match self
+            .session_manager
+            .create_subagent_task(task_record.clone())
+            .await
+        {
+            Ok(_) => {}
+            Err(create_error) => {
+                let Some(existing) = self
+                    .session_manager
+                    .get_subagent_task(&subagent_parent_info.session_id, &background_task_id)
+                    .await?
+                else {
+                    return Err(create_error);
+                };
+                if !background_subagent_launch_matches(&existing, &task_record) {
+                    return Err(VoidError::Validation(format!(
+                        "background subagent task ID {} is already bound to different launch facts",
+                        background_task_id
+                    )));
+                }
+                return Ok(BackgroundSubagentStartResult {
+                    background_task_id,
+                    reused: true,
+                });
+            }
+        }
         request.persistent_task = Some(PersistentSubagentTaskContext {
             task_id: background_task_id.clone(),
             parent_session_id: subagent_parent_info.session_id.clone(),
@@ -5702,7 +6289,157 @@ Update the persona files and delete BOOTSTRAP.md as soon as bootstrap is complet
             }
         });
 
-        Ok(BackgroundSubagentStartResult { background_task_id })
+        Ok(BackgroundSubagentStartResult {
+            background_task_id,
+            reused: false,
+        })
+    }
+
+    /// Starts one Team member follow-up in the existing hidden child session.
+    /// The durable launch specification remains authoritative and this path
+    /// deliberately carries no persistent task context, so a message cannot
+    /// create, replace, or transition the member's original task record.
+    pub(crate) async fn follow_up_team_subagent(
+        self: &Arc<Self>,
+        task: &SubagentTaskRecord,
+        child_session: &Session,
+        operation_id: &str,
+        message: String,
+    ) -> VoidResult<PreparedTurnDisposition> {
+        if operation_id.trim().is_empty() {
+            return Err(VoidError::Validation(
+                "Team member follow-up operation id is required".to_string(),
+            ));
+        }
+        if message.trim().is_empty() {
+            return Err(VoidError::Validation(
+                "Team member follow-up message is required".to_string(),
+            ));
+        }
+        let launch_spec = task.launch_spec.as_ref().ok_or_else(|| {
+            VoidError::Validation(
+                "Team member task has no durable launch specification".to_string(),
+            )
+        })?;
+        launch_spec
+            .validate()
+            .map_err(|error| VoidError::Validation(error.to_string()))?;
+        if launch_spec.allow_subagent_spawn {
+            return Err(VoidError::Validation(
+                "Team member launch policy cannot allow recursive subagent delegation".to_string(),
+            ));
+        }
+        if task.child_session_id.as_deref() != Some(child_session.session_id.as_str()) {
+            return Err(VoidError::Validation(
+                "Team member task is not bound to the requested child session".to_string(),
+            ));
+        }
+        if child_session.kind != SessionKind::Subagent
+            || child_session.agent_type != launch_spec.agent_type
+        {
+            return Err(VoidError::Validation(
+                "Team member child session does not match the durable launch identity".to_string(),
+            ));
+        }
+
+        let child_session_id = child_session.session_id.clone();
+        let latest_child = self
+            .session_manager
+            .get_session(&child_session_id)
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Team member child session not found: {child_session_id}"
+                ))
+            })?;
+        if team_follow_up_child_is_busy(
+            task.status,
+            &latest_child.state,
+            self.active_subagent_executions
+                .contains_key(&child_session_id),
+        ) {
+            return Err(VoidError::Validation(
+                "Team member child session is busy; wait for the active turn to finish".to_string(),
+            ));
+        }
+        let initial_messages = self.load_session_context_messages(&latest_child).await?;
+        let prepared_turn = self
+            .session_manager
+            .prepare_dialog_turn_with_existing_context(
+                &child_session_id,
+                launch_spec.agent_type.clone(),
+                message.clone(),
+                team_follow_up_dialog_turn_id(operation_id),
+                None,
+            )
+            .await?;
+        if !should_spawn_team_follow_up(prepared_turn.disposition) {
+            return Ok(PreparedTurnDisposition::Reused);
+        }
+
+        let delegation_policy = delegation_policy_from_launch_spec(launch_spec);
+        let request = HiddenSubagentExecutionRequest {
+            session_name: latest_child.session_name.clone(),
+            agent_type: launch_spec.agent_type.clone(),
+            session_config: latest_child.config.clone(),
+            initial_messages,
+            user_input_text: message,
+            created_by: latest_child.created_by.clone(),
+            subagent_parent_info: Some(SubagentParentInfo {
+                tool_call_id: launch_spec.parent_tool_call_id.clone(),
+                session_id: task.parent_session_id.clone(),
+                dialog_turn_id: launch_spec.parent_dialog_turn_id.clone(),
+            }),
+            context: launch_spec.context.clone().into_iter().collect(),
+            delegation_policy,
+            runtime_tool_restrictions: runtime_tool_restrictions_for_delegation_policy(
+                delegation_policy,
+            ),
+            prompt_cache_source_session_id: None,
+            persistent_task: None,
+            resume_session_id: Some(child_session_id.clone()),
+            requested_dialog_turn_id: None,
+            prepared_turn: Some(prepared_turn),
+            team_member_skill_policy: launch_spec.team_member_skill_policy.clone(),
+        };
+        let timeout_seconds = launch_spec.timeout_seconds;
+        let coordinator = Arc::clone(self);
+        tokio::spawn(async move {
+            if let Err(error) = coordinator
+                .execute_hidden_subagent_internal(request, None, timeout_seconds)
+                .await
+            {
+                warn!("Team member follow-up execution failed: {error}");
+            }
+        });
+        Ok(PreparedTurnDisposition::Created)
+    }
+
+    /// Stops exactly one active subagent session after its caller has validated
+    /// the durable task-to-session relationship. This deliberately does not
+    /// broaden cancellation to the parent dialog turn.
+    pub(crate) async fn stop_active_background_subagent_session(
+        &self,
+        parent_session_id: &str,
+        parent_dialog_turn_id: &str,
+        child_session_id: &str,
+    ) -> VoidResult<bool> {
+        let Some(active) = self
+            .active_subagent_executions
+            .get(child_session_id)
+            .map(|entry| entry.value().clone())
+        else {
+            return Ok(false);
+        };
+        if active.parent_session_id != parent_session_id
+            || active.parent_dialog_turn_id != parent_dialog_turn_id
+        {
+            return Err(VoidError::Validation(
+                "active subagent does not belong to the requested parent turn".to_string(),
+            ));
+        }
+        self.stop_active_subagent_execution(&active, "Team member stop requested")
+            .await;
+        Ok(true)
     }
 
     /// Clean up runtime-only subagent resources.
@@ -6251,12 +6988,709 @@ pub fn get_global_coordinator() -> Option<Arc<ConversationCoordinator>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        normalize_subagent_max_concurrency, resolve_agent_submission_turn_id,
-        ConversationCoordinator,
+        background_subagent_launch_matches, delegation_policy_from_launch_spec,
+        execute_team_tool_after_checkpoint, install_team_lead_persona_resolver,
+        install_team_member_recovery_preflight, install_team_tool_executor,
+        launch_requires_team_recovery_preflight, normalize_subagent_max_concurrency,
+        recovery_ticket_matches_task, remove_active_subagent_execution_if_generation_matches,
+        resolve_agent_submission_turn_id, resolved_subagent_resume_storage_path,
+        runtime_tool_restrictions_for_delegation_policy, should_spawn_team_follow_up,
+        team_follow_up_child_is_busy, team_follow_up_dialog_turn_id, ActiveSubagentExecution,
+        ConversationCoordinator, TeamMemberRecoveryPreflight, TeamMemberRecoveryPreflightError,
+        TeamMemberRecoveryTicket,
+    };
+    use crate::agentic::session::PersistedToolCallAuthority;
+    use crate::agentic::session::PreparedTurnDisposition;
+    use crate::agentic::team_tool_runtime::{
+        TeamAction, TeamToolExecutionOutcome, TeamToolExecutor, TeamToolInvocation, TeamToolRequest,
     };
     use crate::service::remote_ssh::workspace_state::init_remote_workspace_manager;
     use std::collections::HashMap;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, OnceLock};
+    use void_core_types::{
+        SubagentTaskCheckpointRef, SubagentTaskLaunchSpec, SubagentTaskRecord,
+        SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskStatus,
+        TeamMemberSkillPolicySnapshot,
+    };
     use void_runtime_ports::{AgentSubmissionRequest, AgentSubmissionSource};
+
+    struct TestTeamLeadPersonaResolver;
+
+    struct CountingTeamToolExecutor {
+        calls: Arc<AtomicUsize>,
+    }
+
+    struct TestTeamMemberRecoveryPreflight;
+
+    struct RecoveryQueueWorkspace {
+        root: PathBuf,
+    }
+
+    impl RecoveryQueueWorkspace {
+        fn new() -> Self {
+            let root = std::env::temp_dir().join(format!(
+                "void-team-recovery-queue-test-{}",
+                uuid::Uuid::new_v4().simple()
+            ));
+            std::fs::create_dir_all(&root).expect("recovery test workspace should exist");
+            Self { root }
+        }
+    }
+
+    impl Drop for RecoveryQueueWorkspace {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    async fn recovery_queue_coordinator() -> (
+        RecoveryQueueWorkspace,
+        Arc<crate::agentic::session::SessionManager>,
+        Arc<ConversationCoordinator>,
+        String,
+    ) {
+        use crate::agentic::events::{EventQueue, EventRouter};
+        use crate::agentic::execution::{
+            ExecutionEngine, ExecutionEngineConfig, RoundExecutor, StreamProcessor,
+        };
+        use crate::agentic::persistence::PersistenceManager;
+        use crate::agentic::session::{
+            ContextCompressor, SessionContextStore, SessionManagerConfig,
+        };
+        use crate::agentic::tools::pipeline::{ToolPipeline, ToolStateManager};
+        use crate::infrastructure::PathManager;
+
+        let workspace = RecoveryQueueWorkspace::new();
+        let path_manager = Arc::new(PathManager::with_user_root_for_tests(
+            workspace.root.join("user-root"),
+        ));
+        let persistence_manager = Arc::new(
+            PersistenceManager::new(path_manager)
+                .expect("recovery test persistence manager should initialize"),
+        );
+        let session_manager = Arc::new(crate::agentic::session::SessionManager::new(
+            Arc::new(SessionContextStore::new()),
+            persistence_manager,
+            SessionManagerConfig {
+                enable_persistence: true,
+                ..Default::default()
+            },
+        ));
+        let parent_session_id = format!("team-recovery-parent-{}", uuid::Uuid::new_v4().simple());
+        session_manager
+            .create_session_with_id(
+                Some(parent_session_id.clone()),
+                "Team recovery parent".to_string(),
+                "agentic".to_string(),
+                crate::agentic::SessionConfig {
+                    workspace_path: Some(workspace.root.to_string_lossy().to_string()),
+                    workspace_id: Some("team-recovery-workspace".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("recovery parent session should persist");
+
+        let event_queue = Arc::new(EventQueue::new(Default::default()));
+        let event_router = Arc::new(EventRouter::new());
+        let tool_state_manager = Arc::new(ToolStateManager::new(event_queue.clone()));
+        let tool_pipeline = Arc::new(ToolPipeline::new(
+            crate::agentic::tools::registry::get_global_tool_registry(),
+            tool_state_manager,
+            None,
+        ));
+        let stream_processor = Arc::new(StreamProcessor::new(event_queue.clone()));
+        let round_executor = Arc::new(RoundExecutor::new(
+            stream_processor,
+            event_queue.clone(),
+            tool_pipeline.clone(),
+        ));
+        let execution_engine = Arc::new(ExecutionEngine::new(
+            round_executor,
+            event_queue.clone(),
+            session_manager.clone(),
+            Arc::new(ContextCompressor::new(Default::default())),
+            ExecutionEngineConfig::default(),
+        ));
+        let coordinator = Arc::new(ConversationCoordinator::new(
+            session_manager.clone(),
+            execution_engine,
+            tool_pipeline,
+            event_queue,
+            event_router,
+        ));
+        (workspace, session_manager, coordinator, parent_session_id)
+    }
+
+    fn recovery_team_launch(
+        include_all_markers: bool,
+        policy: Option<TeamMemberSkillPolicySnapshot>,
+    ) -> SubagentTaskLaunchSpec {
+        let mut context = [
+            ("teamDefinitionId", "definition"),
+            ("teamDefinitionRevision", "revision"),
+            ("teamInstanceId", "instance"),
+            ("teamRunId", "run"),
+            ("teamMemberId", "member"),
+            ("teamPhaseId", "phase"),
+        ]
+        .into_iter()
+        .map(|(key, value)| (key.to_string(), value.to_string()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+        if !include_all_markers {
+            context.retain(|key, _| key == "teamInstanceId");
+        }
+        SubagentTaskLaunchSpec {
+            agent_type: "agent".to_string(),
+            parent_dialog_turn_id: "turn".to_string(),
+            parent_tool_call_id: "tool".to_string(),
+            context,
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: None,
+            team_member_skill_policy: policy,
+        }
+    }
+
+    fn interrupted_recovery_task(
+        parent_session_id: &str,
+        task_id: &str,
+        schema_version: u32,
+        launch_spec: SubagentTaskLaunchSpec,
+    ) -> SubagentTaskRecord {
+        let child_session_id = format!("{task_id}-child");
+        let mut task = SubagentTaskRecord::new(
+            task_id.to_string(),
+            parent_session_id.to_string(),
+            format!("recover {task_id}"),
+            "test-owner".to_string(),
+            1,
+        );
+        task.schema_version = schema_version;
+        task.status = SubagentTaskStatus::Interrupted;
+        task.recovery_state = SubagentTaskRecoveryState::Queued;
+        task.child_session_id = Some(child_session_id.clone());
+        task.durable_checkpoint = Some(SubagentTaskCheckpointRef {
+            checkpoint_id: format!("{task_id}-checkpoint"),
+            session_id: child_session_id,
+            checkpoint_version: 1,
+        });
+        task.launch_spec = Some(launch_spec);
+        task
+    }
+
+    struct RecoveryQueuePreflight {
+        session_manager: Arc<crate::agentic::session::SessionManager>,
+        calls: Arc<AtomicUsize>,
+    }
+
+    #[async_trait::async_trait]
+    impl TeamMemberRecoveryPreflight for RecoveryQueuePreflight {
+        async fn preflight(
+            &self,
+            task: SubagentTaskRecord,
+        ) -> Result<TeamMemberRecoveryTicket, TeamMemberRecoveryPreflightError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            let launch = task
+                .launch_spec
+                .clone()
+                .expect("Team recovery fixture always has a launch specification");
+            if task.task_id == "legacy-team-task" {
+                let mut expected_launch = launch;
+                expected_launch.team_member_skill_policy = Some(
+                    TeamMemberSkillPolicySnapshot::new(
+                        "definition".to_string(),
+                        "revision".to_string(),
+                        "instance".to_string(),
+                        "member".to_string(),
+                        "agent".to_string(),
+                        Vec::new(),
+                    )
+                    .expect("legacy fixture no_policy should be valid"),
+                );
+                self.session_manager
+                    .compare_and_set_legacy_team_member_skill_policy(&task, &expected_launch)
+                    .await
+                    .map_err(|error| {
+                        TeamMemberRecoveryPreflightError::resume_failed(error.to_string())
+                    })?;
+                return Err(TeamMemberRecoveryPreflightError::resume_failed(
+                    "fixture stops after legacy policy migration",
+                ));
+            }
+
+            self.session_manager
+                .transition_subagent_task(
+                    &task.parent_session_id,
+                    &task.task_id,
+                    SubagentTaskStatus::Failed,
+                    task.child_session_id.clone(),
+                    None,
+                    None,
+                    Some("fixture concurrent mutation".to_string()),
+                    task.updated_at.saturating_add(1),
+                )
+                .await
+                .map_err(|error| {
+                    TeamMemberRecoveryPreflightError::resume_failed(error.to_string())
+                })?;
+            Ok(TeamMemberRecoveryTicket {
+                parent_session_id: task.parent_session_id,
+                task_id: task.task_id,
+                child_session_id: task
+                    .child_session_id
+                    .expect("mutation fixture has a child session"),
+                objective: task.objective,
+                expected_launch: launch,
+            })
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl TeamMemberRecoveryPreflight for TestTeamMemberRecoveryPreflight {
+        async fn preflight(
+            &self,
+            _task: SubagentTaskRecord,
+        ) -> Result<TeamMemberRecoveryTicket, TeamMemberRecoveryPreflightError> {
+            unreachable!("installation test does not execute the hook")
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl TeamToolExecutor for CountingTeamToolExecutor {
+        async fn execute_team_tool(
+            &self,
+            invocation: TeamToolInvocation,
+        ) -> crate::util::errors::VoidResult<TeamToolExecutionOutcome> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(TeamToolExecutionOutcome {
+                data: serde_json::json!({"input": invocation.exact_input}),
+                result_for_assistant: Some("accepted".to_string()),
+            })
+        }
+    }
+
+    fn team_tool_invocation() -> TeamToolInvocation {
+        let exact_input = serde_json::json!({
+            "action": "start",
+            "workflowId": "delivery",
+            "objective": "ship safely"
+        });
+        TeamToolInvocation {
+            request: TeamToolRequest {
+                action: TeamAction::Start,
+                workflow_id: Some("delivery".to_string()),
+                objective: Some("ship safely".to_string()),
+                team_run_id: None,
+                member_id: None,
+                message: None,
+            },
+            exact_input,
+            parent_session_id: "session-1".to_string(),
+            parent_dialog_turn_id: "turn-1".to_string(),
+            parent_round_id: "round-1".to_string(),
+            parent_tool_call_id: "tool-1".to_string(),
+            team_definition_id: "definition".to_string(),
+            team_definition_revision: "r1".to_string(),
+            team_instance_id: "instance".to_string(),
+            lead_persona_id: "lead".to_string(),
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::agentic::execution::TeamLeadPersonaResolver for TestTeamLeadPersonaResolver {
+        async fn resolve_team_lead_persona(
+            &self,
+            _request: crate::agentic::execution::TeamLeadPersonaResolveRequest,
+        ) -> crate::util::errors::VoidResult<crate::agentic::execution::ResolvedTeamLeadPersona>
+        {
+            Err(crate::util::errors::VoidError::validation(
+                "unused test resolver".to_string(),
+            ))
+        }
+    }
+
+    #[test]
+    fn team_lead_persona_resolver_can_only_be_installed_once() {
+        let slot = std::sync::OnceLock::new();
+        install_team_lead_persona_resolver(&slot, std::sync::Arc::new(TestTeamLeadPersonaResolver))
+            .expect("first startup installation should succeed");
+        let error = install_team_lead_persona_resolver(
+            &slot,
+            std::sync::Arc::new(TestTeamLeadPersonaResolver),
+        )
+        .expect_err("a later resolver must not replace startup authority");
+        assert!(error.to_string().contains("already installed"));
+    }
+
+    #[test]
+    fn team_member_recovery_preflight_is_once_only_and_markers_fail_closed() {
+        let slot: OnceLock<Arc<dyn TeamMemberRecoveryPreflight>> = OnceLock::new();
+        install_team_member_recovery_preflight(&slot, Arc::new(TestTeamMemberRecoveryPreflight))
+            .expect("first recovery preflight installation should succeed");
+        assert!(install_team_member_recovery_preflight(
+            &slot,
+            Arc::new(TestTeamMemberRecoveryPreflight),
+        )
+        .is_err());
+
+        let mut launch = SubagentTaskLaunchSpec {
+            agent_type: "agent".into(),
+            parent_dialog_turn_id: "turn".into(),
+            parent_tool_call_id: "tool".into(),
+            context: Default::default(),
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: None,
+            team_member_skill_policy: None,
+        };
+        assert!(!launch_requires_team_recovery_preflight(&launch).unwrap());
+        launch
+            .context
+            .insert("teamInstanceId".into(), "instance".into());
+        assert!(launch_requires_team_recovery_preflight(&launch).is_err());
+        for (key, value) in [
+            ("teamDefinitionId", "definition"),
+            ("teamDefinitionRevision", "revision"),
+            ("teamInstanceId", "instance"),
+            ("teamRunId", "run"),
+            ("teamMemberId", "member"),
+            ("teamPhaseId", "phase"),
+        ] {
+            launch.context.insert(key.into(), value.into());
+        }
+        assert!(launch_requires_team_recovery_preflight(&launch).unwrap());
+
+        launch.context.clear();
+        launch.team_member_skill_policy = Some(
+            void_core_types::TeamMemberSkillPolicySnapshot::new(
+                "definition".into(),
+                "revision".into(),
+                "instance".into(),
+                "member".into(),
+                "agent".into(),
+                vec![],
+            )
+            .unwrap(),
+        );
+        assert!(launch_requires_team_recovery_preflight(&launch).is_err());
+    }
+
+    #[test]
+    fn team_member_recovery_ticket_requires_an_exact_authoritative_reread() {
+        let launch = SubagentTaskLaunchSpec {
+            agent_type: "agent".into(),
+            parent_dialog_turn_id: "turn".into(),
+            parent_tool_call_id: "tool".into(),
+            context: [
+                ("teamDefinitionId", "definition"),
+                ("teamDefinitionRevision", "revision"),
+                ("teamInstanceId", "instance"),
+                ("teamRunId", "run"),
+                ("teamMemberId", "member"),
+                ("teamPhaseId", "phase"),
+            ]
+            .into_iter()
+            .map(|(key, value)| (key.to_string(), value.to_string()))
+            .collect(),
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: None,
+            team_member_skill_policy: Some(
+                void_core_types::TeamMemberSkillPolicySnapshot::new(
+                    "definition".into(),
+                    "revision".into(),
+                    "instance".into(),
+                    "member".into(),
+                    "agent".into(),
+                    vec![],
+                )
+                .unwrap(),
+            ),
+        };
+        let mut task = SubagentTaskRecord::new(
+            "task".into(),
+            "parent".into(),
+            "objective".into(),
+            "owner".into(),
+            1,
+        );
+        task.status = SubagentTaskStatus::Interrupted;
+        task.recovery_state = SubagentTaskRecoveryState::Queued;
+        task.child_session_id = Some("child".into());
+        task.launch_spec = Some(launch.clone());
+        let ticket = TeamMemberRecoveryTicket {
+            parent_session_id: "parent".into(),
+            task_id: "task".into(),
+            child_session_id: "child".into(),
+            objective: "objective".into(),
+            expected_launch: launch,
+        };
+        assert!(recovery_ticket_matches_task(&ticket, &task));
+
+        for variant in [
+            "status",
+            "recovery",
+            "parent",
+            "task",
+            "child",
+            "objective",
+            "launch",
+        ] {
+            let mut changed = task.clone();
+            match variant {
+                "status" => changed.status = SubagentTaskStatus::Blocked,
+                "recovery" => changed.recovery_state = SubagentTaskRecoveryState::None,
+                "parent" => changed.parent_session_id = "other-parent".into(),
+                "task" => changed.task_id = "other-task".into(),
+                "child" => changed.child_session_id = Some("other-child".into()),
+                "objective" => changed.objective = "other objective".into(),
+                "launch" => {
+                    changed
+                        .launch_spec
+                        .as_mut()
+                        .unwrap()
+                        .context
+                        .insert("teamRunId".into(), "other-run".into());
+                }
+                _ => unreachable!(),
+            }
+            assert!(
+                !recovery_ticket_matches_task(&ticket, &changed),
+                "post-preflight {variant} mutation must fail closed"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn consume_team_recovery_queue_blocks_missing_hook_and_partial_markers() {
+        let (_workspace, session_manager, coordinator, parent_session_id) =
+            recovery_queue_coordinator().await;
+        let policy = TeamMemberSkillPolicySnapshot::new(
+            "definition".to_string(),
+            "revision".to_string(),
+            "instance".to_string(),
+            "member".to_string(),
+            "agent".to_string(),
+            Vec::new(),
+        )
+        .expect("explicit no_policy fixture should be valid");
+        session_manager
+            .create_subagent_task(interrupted_recovery_task(
+                &parent_session_id,
+                "complete-team-task",
+                void_core_types::SUBAGENT_TASK_SCHEMA_VERSION,
+                recovery_team_launch(true, Some(policy)),
+            ))
+            .await
+            .expect("complete Team task should persist");
+        session_manager
+            .create_subagent_task(interrupted_recovery_task(
+                &parent_session_id,
+                "partial-team-task",
+                void_core_types::SUBAGENT_TASK_SCHEMA_VERSION,
+                recovery_team_launch(false, None),
+            ))
+            .await
+            .expect("partial Team task should persist");
+
+        coordinator
+            .consume_subagent_task_recovery_queue(&parent_session_id)
+            .await
+            .expect("invalid Team recovery entries should be durably blocked");
+
+        let complete = session_manager
+            .get_subagent_task(&parent_session_id, "complete-team-task")
+            .await
+            .expect("complete Team task should remain readable")
+            .expect("complete Team task should remain persisted");
+        assert_eq!(complete.status, SubagentTaskStatus::Blocked);
+        let complete_block = complete
+            .recovery_block
+            .expect("missing bridge must persist a recovery block");
+        assert_eq!(
+            complete_block.code,
+            SubagentTaskRecoveryBlockCode::ResumeFailed
+        );
+        assert!(complete_block
+            .detail
+            .contains("preflight bridge is installed"));
+
+        let partial = session_manager
+            .get_subagent_task(&parent_session_id, "partial-team-task")
+            .await
+            .expect("partial Team task should remain readable")
+            .expect("partial Team task should remain persisted");
+        assert_eq!(partial.status, SubagentTaskStatus::Blocked);
+        let partial_block = partial
+            .recovery_block
+            .expect("partial Team markers must persist a recovery block");
+        assert_eq!(
+            partial_block.code,
+            SubagentTaskRecoveryBlockCode::InvalidLaunchSpec
+        );
+        assert!(partial_block
+            .detail
+            .contains("incomplete durable Team markers"));
+    }
+
+    #[tokio::test]
+    async fn consume_team_recovery_queue_persists_legacy_policy_and_blocks_postflight_mutation() {
+        let (_workspace, session_manager, coordinator, parent_session_id) =
+            recovery_queue_coordinator().await;
+        session_manager
+            .create_subagent_task(interrupted_recovery_task(
+                &parent_session_id,
+                "legacy-team-task",
+                void_core_types::SUBAGENT_TASK_SCHEMA_VERSION - 1,
+                recovery_team_launch(true, None),
+            ))
+            .await
+            .expect("legacy Team task should persist with its raw legacy schema");
+        let policy = TeamMemberSkillPolicySnapshot::new(
+            "definition".to_string(),
+            "revision".to_string(),
+            "instance".to_string(),
+            "member".to_string(),
+            "agent".to_string(),
+            Vec::new(),
+        )
+        .expect("mutation fixture no_policy should be valid");
+        session_manager
+            .create_subagent_task(interrupted_recovery_task(
+                &parent_session_id,
+                "mutated-team-task",
+                void_core_types::SUBAGENT_TASK_SCHEMA_VERSION,
+                recovery_team_launch(true, Some(policy)),
+            ))
+            .await
+            .expect("mutation Team task should persist");
+        let calls = Arc::new(AtomicUsize::new(0));
+        coordinator
+            .set_team_member_recovery_preflight(Arc::new(RecoveryQueuePreflight {
+                session_manager: session_manager.clone(),
+                calls: calls.clone(),
+            }))
+            .expect("fake Team recovery preflight should install once");
+
+        coordinator
+            .consume_subagent_task_recovery_queue(&parent_session_id)
+            .await
+            .expect("preflight failures should be converted into durable task blocks");
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+
+        let legacy = session_manager
+            .get_subagent_task(&parent_session_id, "legacy-team-task")
+            .await
+            .expect("legacy Team task should remain readable")
+            .expect("legacy Team task should remain persisted");
+        assert_eq!(
+            legacy.schema_version,
+            void_core_types::SUBAGENT_TASK_SCHEMA_VERSION
+        );
+        let migrated_policy = legacy
+            .launch_spec
+            .as_ref()
+            .and_then(|launch| launch.team_member_skill_policy.as_ref())
+            .expect("legacy Team policy must be written back before recovery continues");
+        migrated_policy
+            .validate()
+            .expect("persisted legacy no_policy hash and identity should validate");
+        assert!(!migrated_policy.policy_hash.is_empty());
+        let legacy_block = legacy
+            .recovery_block
+            .expect("legacy fixture stop should persist a recovery block");
+        assert_eq!(
+            legacy_block.code,
+            SubagentTaskRecoveryBlockCode::ResumeFailed
+        );
+        assert!(legacy_block
+            .detail
+            .contains("fixture stops after legacy policy migration"));
+
+        let mutated = session_manager
+            .get_subagent_task(&parent_session_id, "mutated-team-task")
+            .await
+            .expect("mutated Team task should remain readable")
+            .expect("mutated Team task should remain persisted");
+        assert_eq!(mutated.status, SubagentTaskStatus::Blocked);
+        let mutation_block = mutated
+            .recovery_block
+            .expect("post-preflight mutation must persist a recovery block");
+        assert_eq!(
+            mutation_block.code,
+            SubagentTaskRecoveryBlockCode::InvalidLaunchSpec
+        );
+        assert!(mutation_block
+            .detail
+            .contains("authoritative Team task changed after recovery preflight"));
+    }
+
+    #[tokio::test]
+    async fn team_tool_executor_is_once_only_and_checkpoint_gates_every_call() {
+        let slot = std::sync::OnceLock::new();
+        let calls = Arc::new(AtomicUsize::new(0));
+        install_team_tool_executor(
+            &slot,
+            Arc::new(CountingTeamToolExecutor {
+                calls: calls.clone(),
+            }),
+        )
+        .expect("first executor installation should succeed");
+        assert!(install_team_tool_executor(
+            &slot,
+            Arc::new(CountingTeamToolExecutor {
+                calls: calls.clone(),
+            }),
+        )
+        .is_err());
+
+        let invocation = team_tool_invocation();
+        let checkpoint_error = crate::util::errors::VoidError::validation(
+            "strict atomic checkpoint failed".to_string(),
+        );
+        assert!(execute_team_tool_after_checkpoint(
+            slot.get().unwrap().as_ref(),
+            invocation.clone(),
+            Err(checkpoint_error),
+        )
+        .await
+        .is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+        let mismatched = PersistedToolCallAuthority {
+            tool_name: "Task".to_string(),
+            turn_index: 0,
+            round_id: invocation.parent_round_id.clone(),
+            input: invocation.exact_input.clone(),
+        };
+        assert!(execute_team_tool_after_checkpoint(
+            slot.get().unwrap().as_ref(),
+            invocation.clone(),
+            Ok(mismatched),
+        )
+        .await
+        .is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+        let authority = PersistedToolCallAuthority {
+            tool_name: "Team".to_string(),
+            turn_index: 0,
+            round_id: invocation.parent_round_id.clone(),
+            input: invocation.exact_input.clone(),
+        };
+        let outcome = execute_team_tool_after_checkpoint(
+            slot.get().unwrap().as_ref(),
+            invocation,
+            Ok(authority),
+        )
+        .await
+        .expect("matching durable authority may reach the executor");
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(outcome.result_for_assistant.as_deref(), Some("accepted"));
+    }
 
     #[test]
     fn conversation_coordinator_exposes_remote_runtime_ports() {
@@ -6432,6 +7866,217 @@ mod tests {
         )]);
         let tampered_map = tampered.clone().into_iter().collect();
         assert_ne!(super::durable_subagent_context(&tampered_map), tampered);
+    }
+
+    #[test]
+    fn background_subagent_launch_match_requires_identical_immutable_facts() {
+        use std::collections::BTreeMap;
+        use void_core_types::{
+            SubagentTaskContextMode, SubagentTaskExecutionMode, SubagentTaskLaunchSpec,
+            SubagentTaskRecord, SubagentTaskReplaySafety,
+        };
+
+        let mut expected = SubagentTaskRecord::new_typed(
+            "team-task".to_string(),
+            "parent".to_string(),
+            "objective".to_string(),
+            "owner-a".to_string(),
+            SubagentTaskExecutionMode::Background,
+            SubagentTaskContextMode::Fresh,
+            SubagentTaskReplaySafety::Idempotent,
+            1,
+        );
+        expected.launch_spec = Some(SubagentTaskLaunchSpec {
+            agent_type: "reviewer".to_string(),
+            parent_dialog_turn_id: "turn".to_string(),
+            parent_tool_call_id: "tool".to_string(),
+            context: BTreeMap::from([("teamInstanceId".to_string(), "instance".to_string())]),
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: Some(60),
+            team_member_skill_policy: None,
+        });
+        let mut matching = expected.clone();
+        matching.owner = "different owner is not a launch fact".to_string();
+        assert!(background_subagent_launch_matches(&matching, &expected));
+
+        matching.objective = "different objective".to_string();
+        assert!(!background_subagent_launch_matches(&matching, &expected));
+    }
+
+    #[test]
+    fn team_follow_up_launch_policy_keeps_task_tool_denied() {
+        use std::collections::BTreeMap;
+        use void_core_types::SubagentTaskLaunchSpec;
+
+        let launch = SubagentTaskLaunchSpec {
+            agent_type: "reviewer".to_string(),
+            parent_dialog_turn_id: "turn".to_string(),
+            parent_tool_call_id: "tool".to_string(),
+            context: BTreeMap::new(),
+            allow_subagent_spawn: false,
+            nesting_depth: 1,
+            timeout_seconds: Some(60),
+            team_member_skill_policy: None,
+        };
+        let policy = delegation_policy_from_launch_spec(&launch);
+        let restrictions = runtime_tool_restrictions_for_delegation_policy(policy);
+
+        assert!(!policy.allow_subagent_spawn);
+        assert_eq!(policy.nesting_depth, 1);
+        assert!(restrictions.denied_tool_names.contains("Task"));
+    }
+
+    #[test]
+    fn team_follow_up_busy_guard_requires_terminal_task_and_idle_child() {
+        use crate::agentic::core::{ProcessingPhase, SessionState};
+        use void_core_types::SubagentTaskStatus;
+
+        assert!(!team_follow_up_child_is_busy(
+            SubagentTaskStatus::Completed,
+            &SessionState::Idle,
+            false,
+        ));
+        assert!(team_follow_up_child_is_busy(
+            SubagentTaskStatus::Running,
+            &SessionState::Idle,
+            false,
+        ));
+        assert!(team_follow_up_child_is_busy(
+            SubagentTaskStatus::Completed,
+            &SessionState::Processing {
+                current_turn_id: "turn".to_string(),
+                phase: ProcessingPhase::Thinking,
+            },
+            false,
+        ));
+        assert!(team_follow_up_child_is_busy(
+            SubagentTaskStatus::Completed,
+            &SessionState::Idle,
+            true,
+        ));
+    }
+
+    #[tokio::test]
+    async fn stale_execution_cleanup_does_not_remove_new_generation() {
+        use dashmap::DashMap;
+        use tokio_util::sync::CancellationToken;
+
+        let active_executions = DashMap::new();
+        let new_task = tokio::spawn(std::future::pending::<()>());
+        let session_id = "child-session";
+
+        active_executions.insert(
+            session_id.to_string(),
+            ActiveSubagentExecution {
+                parent_session_id: "parent-session".to_string(),
+                parent_dialog_turn_id: "parent-turn".to_string(),
+                subagent_session_id: session_id.to_string(),
+                subagent_dialog_turn_id: "new-turn".to_string(),
+                cancel_token: CancellationToken::new(),
+                abort_handle: new_task.abort_handle(),
+            },
+        );
+
+        assert!(!remove_active_subagent_execution_if_generation_matches(
+            &active_executions,
+            session_id,
+            "old-turn",
+        ));
+        assert_eq!(
+            active_executions
+                .get(session_id)
+                .map(|active| active.subagent_dialog_turn_id.clone()),
+            Some("new-turn".to_string())
+        );
+        assert!(remove_active_subagent_execution_if_generation_matches(
+            &active_executions,
+            session_id,
+            "new-turn",
+        ));
+        assert!(!active_executions.contains_key(session_id));
+
+        new_task.abort();
+    }
+
+    #[test]
+    fn remote_subagent_resume_without_remote_binding_never_uses_logical_path_fallback() {
+        use crate::agentic::core::SessionConfig;
+
+        let remote = SessionConfig {
+            workspace_path: Some("/remote/project".to_string()),
+            workspace_id: Some("workspace".to_string()),
+            remote_connection_id: Some("connection".to_string()),
+            remote_ssh_host: Some("host".to_string()),
+            ..Default::default()
+        };
+        assert!(resolved_subagent_resume_storage_path(&remote, None).is_err());
+        let local_binding = crate::agentic::WorkspaceBinding::new(
+            Some("workspace".to_string()),
+            std::path::PathBuf::from("/remote/project"),
+        );
+        assert!(resolved_subagent_resume_storage_path(&remote, Some(&local_binding)).is_err());
+    }
+
+    #[test]
+    fn remote_subagent_resume_uses_binding_session_storage_path() {
+        use crate::agentic::core::SessionConfig;
+        use crate::service::remote_ssh::workspace_state::workspace_session_identity;
+
+        let remote = SessionConfig {
+            workspace_path: Some("/remote/project".to_string()),
+            workspace_id: Some("workspace".to_string()),
+            remote_connection_id: Some("connection".to_string()),
+            remote_ssh_host: Some("host".to_string()),
+            ..Default::default()
+        };
+        let identity =
+            workspace_session_identity("/remote/project", Some("connection"), Some("host"))
+                .expect("remote session identity should resolve");
+        let binding = crate::agentic::WorkspaceBinding::new_remote(
+            Some("workspace".to_string()),
+            std::path::PathBuf::from("/remote/project"),
+            "connection".to_string(),
+            "host".to_string(),
+            identity,
+        );
+
+        let resolved = resolved_subagent_resume_storage_path(&remote, Some(&binding)).unwrap();
+        assert_eq!(resolved, binding.session_storage_path());
+        assert_ne!(resolved, std::path::PathBuf::from("/remote/project"));
+    }
+
+    #[test]
+    fn local_subagent_resume_keeps_logical_workspace_path() {
+        use crate::agentic::core::SessionConfig;
+
+        let local = SessionConfig {
+            workspace_path: Some("D:\\local-project".to_string()),
+            workspace_id: Some("workspace".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            resolved_subagent_resume_storage_path(&local, None).unwrap(),
+            std::path::PathBuf::from("D:\\local-project")
+        );
+    }
+
+    #[test]
+    fn team_follow_up_turn_id_preserves_operation_identity() {
+        assert_eq!(
+            team_follow_up_dialog_turn_id("operation-123"),
+            "team-message-operation-123"
+        );
+    }
+
+    #[test]
+    fn reused_prepared_team_follow_up_never_spawns_again() {
+        assert!(should_spawn_team_follow_up(
+            PreparedTurnDisposition::Created
+        ));
+        assert!(!should_spawn_team_follow_up(
+            PreparedTurnDisposition::Reused
+        ));
     }
 
     #[test]

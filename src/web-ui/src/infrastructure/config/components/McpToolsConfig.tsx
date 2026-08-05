@@ -40,6 +40,7 @@ import {
 } from '../../api/service-api/MCPAPI';
 import { systemAPI } from '../../api/service-api/SystemAPI';
 import ConnectorCatalogAvatar from './ConnectorCatalogAvatar';
+import ConnectorMarketplacePanel from './ConnectorMarketplacePanel';
 import './McpToolsConfig.scss';
 
 const log = createLogger('McpToolsConfig');
@@ -171,10 +172,12 @@ export interface McpToolsConfigProps {
 }
 
 type CatalogStatusFilter = 'all' | 'connected' | 'attention' | 'stopped';
+type ConnectorCatalogView = 'installed' | 'market';
 
 export type CatalogStatusGroup = Exclude<CatalogStatusFilter, 'all'> | 'transitioning';
 
 const CATALOG_PAGE_SIZE = 8;
+const CATALOG_VIEWS: readonly ConnectorCatalogView[] = ['installed', 'market'];
 
 function getCatalogStatusGroup(status: string): CatalogStatusGroup {
   switch (status.trim().toLowerCase()) {
@@ -256,6 +259,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
   const [mcpLoading, setMcpLoading] = useState(true);
   const [mcpLoadError, setMcpLoadError] = useState<string | null>(null);
   const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogView, setCatalogView] = useState<ConnectorCatalogView>('installed');
   const [catalogStatusFilter, setCatalogStatusFilter] = useState<CatalogStatusFilter>('all');
   const [catalogPage, setCatalogPage] = useState(0);
   const [expandedCatalogServerId, setExpandedCatalogServerId] = useState<string | null>(null);
@@ -273,6 +277,26 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     column?: number;
     position?: number;
   } | null>(null);
+
+  const handleCatalogViewKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+
+    event.preventDefault();
+    const currentIndex = Math.max(0, CATALOG_VIEWS.indexOf(catalogView));
+    const nextIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? CATALOG_VIEWS.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1)
+          + CATALOG_VIEWS.length) % CATALOG_VIEWS.length;
+    const nextView = CATALOG_VIEWS[nextIndex];
+    const tabs = event.currentTarget
+      .closest('[role="tablist"]')
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+
+    setCatalogView(nextView);
+    tabs?.[nextIndex]?.focus();
+  };
 
   const tryFormatJson = (input: string): string | null => {
     try {
@@ -1072,6 +1096,10 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
     </IconButton>
   );
   const isMcpEmpty = !showJsonEditor && !mcpLoading && !mcpLoadError && servers.length === 0;
+  const installedConnectorIds = useMemo(
+    () => new Set(servers.map(server => server.id)),
+    [servers],
+  );
 
   const filteredCatalogServers = useMemo(() => {
     const normalizedQuery = catalogQuery.trim().toLowerCase();
@@ -1373,6 +1401,34 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
           ].filter(Boolean).join(' ')}
         >
           {presentation === 'catalog'
+            && !showJsonEditor && (
+            <div
+              className="void-mcp-tools__catalog-views"
+              role="tablist"
+              aria-label={tMcp('catalog.views.label')}
+            >
+              {CATALOG_VIEWS.map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  role="tab"
+                  className={`void-mcp-tools__catalog-view ${catalogView === view ? 'is-active' : ''}`}
+                  aria-selected={catalogView === view}
+                  tabIndex={catalogView === view ? 0 : -1}
+                  onClick={() => setCatalogView(view)}
+                  onKeyDown={handleCatalogViewKeyDown}
+                >
+                  {tMcp(`catalog.views.${view}`)}
+                  {view === 'installed' && (
+                    <span className="void-mcp-tools__catalog-view-count">{servers.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {presentation === 'catalog'
+            && catalogView === 'installed'
             && !showJsonEditor
             && !mcpLoading
             && !mcpLoadError
@@ -1538,6 +1594,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
             ))}
 
           {presentation === 'catalog'
+            && catalogView === 'installed'
             && !showJsonEditor
             && !mcpLoading
             && !mcpLoadError
@@ -1600,6 +1657,7 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
           )}
 
           {presentation === 'catalog'
+            && catalogView === 'installed'
             && !showJsonEditor
             && !mcpLoading
             && !mcpLoadError
@@ -1632,6 +1690,20 @@ const McpToolsConfig: React.FC<McpToolsConfigProps> = ({
                 </div>
               )}
             </>
+          )}
+
+          {presentation === 'catalog'
+            && catalogView === 'market'
+            && !showJsonEditor
+            && !mcpLoading
+            && !mcpLoadError && (
+            <ConnectorMarketplacePanel
+              installedIds={installedConnectorIds}
+              onInstalled={async () => {
+                await loadServers();
+                await loadJsonConfig();
+              }}
+            />
           )}
         </ConfigPageSection>
       </ConfigPageContent>

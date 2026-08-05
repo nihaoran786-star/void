@@ -1,12 +1,12 @@
 mod common;
 
-use void_events::{AgenticEvent, ToolEventData};
 use common::sse_fixture_server::FixtureSseServerOptions;
 use common::stream_test_harness::{
     run_stream_fixture, run_stream_fixture_with_options, StreamFixtureProvider,
     StreamFixtureRunOptions,
 };
 use serde_json::json;
+use void_events::{AgenticEvent, ToolEventData};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn openai_fixture_keeps_collecting_tool_args_across_usage_chunks() {
@@ -52,7 +52,7 @@ async fn openai_fixture_keeps_collecting_tool_args_across_usage_chunks() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(params.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -127,7 +127,7 @@ async fn openai_fixture_keeps_malformed_tool_arguments_invalid() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(tool_id.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -236,7 +236,7 @@ async fn openai_fixture_reattaches_id_only_prelude_to_following_payload_chunk() 
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(params.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -366,7 +366,7 @@ async fn openai_fixture_filters_orphan_id_only_block_when_it_shares_chunk_with_f
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(tool_id.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -386,7 +386,7 @@ async fn openai_fixture_filters_orphan_id_only_block_when_it_shares_chunk_with_f
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some((tool_id.as_str(), params.as_str()))
-            },
+            }
             _ => None,
         })
         .collect();
@@ -439,7 +439,7 @@ async fn openai_fixture_routes_interleaved_tool_args_by_index() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(tool_id.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -459,7 +459,7 @@ async fn openai_fixture_routes_interleaved_tool_args_by_index() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some((tool_id.as_str(), params.as_str()))
-            },
+            }
             _ => None,
         })
         .collect();
@@ -541,7 +541,7 @@ async fn openai_fixture_ignores_trailing_empty_tool_args_finish_chunk() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(tool_id.as_str())
-            },
+            }
             _ => None,
         })
         .collect();
@@ -558,7 +558,7 @@ async fn openai_fixture_ignores_trailing_empty_tool_args_finish_chunk() {
             } => {
                 assert_eq!(round_id, "round_fixture");
                 Some(params.as_str())
-            },
+            }
             _ => None,
         })
         .collect();

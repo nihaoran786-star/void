@@ -32,7 +32,7 @@ describe('ActivePersonaSessionService', () => {
     });
   });
 
-  it('does not snapshot children and fails closed for legacy or team bindings', () => {
+  it('does not snapshot children and fails closed for legacy bindings', () => {
     const service = new ActivePersonaSessionService();
     service.select({
       sessionId: 'child',
@@ -68,6 +68,62 @@ describe('ActivePersonaSessionService', () => {
       sessionKind: 'normal',
       agentType: 'agentic',
     })).toThrow('known revision');
+  });
+
+  it('captures a strict reusable Team lead snapshot with durable identities', () => {
+    const service = new ActivePersonaSessionService();
+    service.select({
+      sessionId: 'parent-team',
+      sessionKind: 'normal',
+      agentType: 'Cowork',
+      binding: {
+        kind: 'team_lead',
+        personaId: 'member-lead',
+        personaRevision: {
+          status: 'known',
+          value: 'definition-revision:member-lead',
+        },
+        teamDefinitionId: 'custom-team',
+        teamInstanceId: 'team-instance-1',
+      },
+    });
+
+    expect(service.snapshot({
+      sessionId: 'parent-team',
+      sessionKind: 'normal',
+      agentType: 'Cowork',
+    })).toEqual({
+      schemaVersion: 1,
+      kind: 'team_lead',
+      personaKey: 'member-lead',
+      personaRevision: 'definition-revision:member-lead',
+      teamDefinitionId: 'custom-team',
+      teamInstanceId: 'team-instance-1',
+      scenario: 'cowork',
+      executionPolicy: 'Cowork',
+      resolvedSkillRefs: [],
+    });
+  });
+
+  it('fails closed when a Team lead binding is incomplete or uses another lead revision', () => {
+    const service = new ActivePersonaSessionService();
+    service.select({
+      sessionId: 'incomplete-team',
+      sessionKind: 'normal',
+      agentType: 'agentic',
+      binding: {
+        kind: 'team_lead',
+        personaId: 'member-lead',
+        personaRevision: { status: 'known', value: 'revision:other-lead' },
+        teamDefinitionId: 'custom-team',
+      },
+    });
+
+    expect(() => service.snapshot({
+      sessionId: 'incomplete-team',
+      sessionKind: 'normal',
+      agentType: 'agentic',
+    })).toThrow('definition, instance, and lead');
   });
 
   it('isolates selections by parent session id', () => {

@@ -124,6 +124,85 @@
       "localDescription": "Connect command-based MCP services such as local scripts and developer tools.",
       "remoteTitle": "Remote services",
       "remoteDescription": "Connect MCP services by URL and complete remote authentication when needed."
+    },
+    "views": {
+      "label": "Connector views",
+      "installed": "Installed",
+      "market": "Connector market"
+    },
+    "market": {
+      "searchPlaceholder": "Search connectors or package IDs...",
+      "categoryLabel": "Connector categories",
+      "categories": {
+        "all": "All",
+        "knowledge": "Knowledge",
+        "reasoning": "Reasoning",
+        "files": "Files",
+        "development": "Development",
+        "productivity": "Productivity",
+        "browser": "Browser"
+      },
+      "items": {
+        "memory": { "name": "Long-term memory", "description": "Store entities, relations, and facts as reusable long-term knowledge." },
+        "sequentialThinking": { "name": "Sequential thinking", "description": "Break complex problems into reviewable steps for analysis and planning." },
+        "filesystem": { "name": "Local files", "description": "Read and manage files inside a folder that you explicitly allow." },
+        "git": { "name": "Git repository", "description": "Inspect history, diffs, and working state for one local repository." },
+        "time": { "name": "Time and timezones", "description": "Read current time and make reliable timezone conversions." },
+        "playwright": { "name": "Browser automation", "description": "Inspect websites and run browser actions through Playwright." },
+        "context7": { "name": "Current library docs", "description": "Retrieve current, accurate library documentation and examples from the official Context7 service." }
+      },
+      "types": {
+        "localCommand": "Local command · {{command}}",
+        "remoteHttps": "Remote HTTPS"
+      },
+      "actions": {
+        "install": "Install",
+        "installing": "Installing",
+        "installed": "Installed",
+        "installLabel": "Install {{name}}",
+        "installedLabel": "{{name}} is installed"
+      },
+      "status": {
+        "installed": "Connector installed and verified.",
+        "refreshWarning": "Installed, but the list could not refresh. Please refresh the page again later."
+      },
+      "fields": {
+        "required": "This field is required.",
+        "allowedPath": {
+          "label": "Allowed folder",
+          "placeholder": "For example D:\\Workspaces\\files",
+          "hint": "The connector can only access this folder and its descendants."
+        },
+        "repositoryPath": {
+          "label": "Git repository path",
+          "placeholder": "For example D:\\Projects\\void",
+          "hint": "Choose a local repository containing a .git directory."
+        }
+      },
+      "configureTitle": "Install {{name}}",
+      "configureDescription": "Provide only the information required to run this connector.",
+      "permissions": {
+        "title": "What installation will do",
+        "localCommand": "Start a local MCP service with the audited {{command}} template.",
+        "scopedPath": "The path is passed as one argument and is never executed as a script.",
+        "remoteHttps": "Connect to the fixed {{url}} endpoint over encrypted HTTPS without running a local command."
+      },
+      "errors": {
+        "unknown": "Installation failed. Try again.",
+        "invalidConfig": "The current MCP config is invalid. Fix it in JSON config first.",
+        "alreadyInstalled": "This connector already exists.",
+        "runtimeUnavailable": "Runtime command {{command}} is unavailable. Install its runtime first.",
+        "saveFailed": "Saving failed and the previous config was restored.",
+        "initializeFailed": "The connector failed to start and the previous config was restored.",
+        "verificationFailed": "The connector could not be verified and the previous config was restored.",
+        "rollbackFailed": "Installation and automatic recovery both failed. Inspect JSON config. Detail: {{detail}}"
+      },
+      "empty": "No matching connectors found.",
+      "pagination": {
+        "previous": "Previous page",
+        "next": "Next page",
+        "position": "Page {{current}} of {{total}}"
+      }
     }
   },
   "empty": {

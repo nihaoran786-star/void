@@ -259,6 +259,58 @@ async fn load_record(
     .await
 }
 
+/// Resolve one runtime Team definition across the trusted user/project roots.
+///
+/// Runtime lookup has no implicit precedence: shadowing the same immutable ID
+/// at two persistence levels is ambiguous and therefore rejected. Remote
+/// callers pass no project workspace root and can only use the user catalog.
+pub(crate) async fn load_unique_runtime_team_definition(
+    path_manager: &PathManager,
+    team_definition_id: &str,
+    project_workspace_root: Option<&Path>,
+) -> Result<Option<TeamDefinitionRecord>, TeamDefinitionError> {
+    let user_root = path_manager.user_team_definitions_dir();
+    let project_root = project_workspace_root
+        .map(|workspace_root| path_manager.project_team_definitions_dir(workspace_root));
+    load_unique_runtime_team_definition_from_roots(
+        &user_root,
+        project_root.as_deref(),
+        team_definition_id,
+    )
+    .await
+}
+
+async fn load_unique_runtime_team_definition_from_roots(
+    user_root: &Path,
+    project_root: Option<&Path>,
+    team_definition_id: &str,
+) -> Result<Option<TeamDefinitionRecord>, TeamDefinitionError> {
+    let mut matches = Vec::new();
+    let candidates = [
+        Some((user_root.to_path_buf(), TeamDefinitionLevel::User)),
+        project_root.map(|root| (root.to_path_buf(), TeamDefinitionLevel::Project)),
+    ];
+
+    for candidate in candidates.into_iter().flatten() {
+        match load_record(&candidate.0, candidate.1, team_definition_id).await {
+            Ok(record) => matches.push(record),
+            Err(record_error) if record_error.code == TeamDefinitionErrorCode::NotFound => {}
+            Err(record_error) => return Err(record_error),
+        }
+    }
+
+    match matches.len() {
+        0 => Ok(None),
+        1 => Ok(matches.pop()),
+        _ => Err(error(
+            TeamDefinitionErrorCode::ValidationFailed,
+            format!(
+                "Team definition '{team_definition_id}' exists at both user and project levels"
+            ),
+        )),
+    }
+}
+
 async fn list_records_at_root(
     root: &Path,
     level: TeamDefinitionLevel,
@@ -1047,6 +1099,67 @@ mod tests {
         assert!(user_diagnostics.is_empty());
         assert!(project_diagnostics.is_empty());
 
+        remove_test_roots(&[&user_root, &project_root]).await;
+    }
+
+    #[tokio::test]
+    async fn runtime_loader_uses_user_definitions_without_a_local_project_root() {
+        let user_root = test_root("runtime-user-root");
+        let record = create_at_root(
+            &user_root,
+            TeamDefinitionLevel::User,
+            valid_draft("远程可用用户团队"),
+        )
+        .await
+        .expect("user definition should create");
+
+        let loaded = load_unique_runtime_team_definition_from_roots(
+            &user_root,
+            None,
+            &record.definition.team_definition_id,
+        )
+        .await
+        .expect("runtime lookup should succeed")
+        .expect("user definition should be found");
+
+        assert_eq!(loaded.level, TeamDefinitionLevel::User);
+        assert_eq!(loaded.revision, record.revision);
+        remove_test_roots(&[&user_root]).await;
+    }
+
+    #[tokio::test]
+    async fn runtime_loader_rejects_duplicate_user_and_project_identity() {
+        let user_root = test_root("runtime-duplicate-user");
+        let project_root = test_root("runtime-duplicate-project");
+        let user_record = create_at_root(
+            &user_root,
+            TeamDefinitionLevel::User,
+            valid_draft("重复团队"),
+        )
+        .await
+        .expect("user definition should create");
+        let mut project_definition = user_record.definition.clone();
+        project_definition.origin = TeamDefinitionOrigin::Project;
+        activate_staged_definition(
+            &project_root,
+            TeamDefinitionLevel::Project,
+            &project_definition,
+        )
+        .await
+        .expect("project duplicate should create for ambiguity test");
+
+        let duplicate_error = load_unique_runtime_team_definition_from_roots(
+            &user_root,
+            Some(&project_root),
+            &user_record.definition.team_definition_id,
+        )
+        .await
+        .expect_err("cross-level duplicate must fail closed");
+
+        assert_eq!(
+            duplicate_error.code,
+            TeamDefinitionErrorCode::ValidationFailed
+        );
         remove_test_roots(&[&user_root, &project_root]).await;
     }
 

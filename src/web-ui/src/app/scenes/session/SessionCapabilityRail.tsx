@@ -4,6 +4,7 @@ import {
   Images,
   PanelRightClose,
   PanelRightOpen,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -12,10 +13,20 @@ import type {
   SessionCapabilityPresentation,
 } from '@/flow_chat/services/sessionCapabilities';
 import { SessionCapabilityRailOutlet } from '@/app/presentation/sessionCapabilityRailOutlet';
+import type { TeamWorkspaceRailStatus } from '@/team_workspace';
 import './SessionCapabilityRail.scss';
+
+export interface TeamWorkspaceRailPresentation {
+  label?: string;
+  status: TeamWorkspaceRailStatus;
+  isOpen: boolean;
+  onToggle: () => void;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+}
 
 interface SessionCapabilityRailProps {
   capabilities: SessionCapabilityPresentation[];
+  teamWorkspace?: TeamWorkspaceRailPresentation;
   activeCapabilityId?: SessionCapabilityId;
   isCanvasExpanded: boolean;
   onOpenCapability: (capabilityId: SessionCapabilityId) => void;
@@ -34,12 +45,18 @@ const CAPABILITY_LABEL_KEYS = {
 
 export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
   capabilities,
+  teamWorkspace,
   activeCapabilityId,
   isCanvasExpanded,
   onOpenCapability,
   onCanvasToggle,
 }) => {
   const { t } = useTranslation('flow-chat');
+  const teamWorkspaceLabel = teamWorkspace?.label?.trim()
+    || t('layout.sessionCapabilities.teamWorkspace.label');
+  const teamWorkspaceStatus = teamWorkspace
+    ? t(`layout.sessionCapabilities.teamWorkspace.status.${teamWorkspace.status}`)
+    : '';
 
   return (
     <aside
@@ -91,6 +108,53 @@ export const SessionCapabilityRail: React.FC<SessionCapabilityRailProps> = ({
           </button>
         );
       })}
+
+      {teamWorkspace && (
+        <button
+          ref={teamWorkspace.buttonRef}
+          type="button"
+          className={[
+            'session-capability-rail__team',
+            teamWorkspace.isOpen && 'session-capability-rail__team--active',
+            `session-capability-rail__team--${teamWorkspace.status}`,
+          ].filter(Boolean).join(' ')}
+          onClick={teamWorkspace.onToggle}
+          title={t(
+            teamWorkspace.isOpen
+              ? 'layout.sessionCapabilities.teamWorkspace.close'
+              : 'layout.sessionCapabilities.teamWorkspace.open',
+            { name: teamWorkspaceLabel },
+          )}
+          aria-label={t('layout.sessionCapabilities.teamWorkspace.ariaLabel', {
+            action: t(
+              teamWorkspace.isOpen
+                ? 'layout.sessionCapabilities.teamWorkspace.close'
+                : 'layout.sessionCapabilities.teamWorkspace.open',
+              { name: teamWorkspaceLabel },
+            ),
+            status: teamWorkspaceStatus,
+          })}
+          aria-controls="void-team-workspace-panel"
+          aria-expanded={teamWorkspace.isOpen}
+          data-testid="session-team-workspace-toggle"
+        >
+          <span className="session-capability-rail__icon">
+            <UsersRound size={16} aria-hidden="true" />
+          </span>
+          <span className="session-capability-rail__copy">
+            <span className="session-capability-rail__label">
+              {teamWorkspaceLabel}
+            </span>
+            <span className="session-capability-rail__status">
+              {teamWorkspaceStatus}
+            </span>
+          </span>
+          <span
+            className="session-capability-rail__status-dot"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       <SessionCapabilityRailOutlet />
 

@@ -1,9 +1,9 @@
 mod common;
 
-use void_events::AgenticEvent;
 use common::sse_fixture_server::FixtureSseServerOptions;
 use common::stream_test_harness::{run_stream_fixture, StreamFixtureProvider};
 use serde_json::json;
+use void_events::AgenticEvent;
 
 fn assert_no_stream_failure_event(events: &[AgenticEvent]) {
     let failed_or_cancelled = events.iter().any(|event| {

@@ -80,4 +80,41 @@ describe('SessionCapabilityRail', () => {
         ?? Node.DOCUMENT_POSITION_PRECEDING,
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
+
+  it('renders the general team as an independent control without creating a canvas capability', async () => {
+    const onToggle = vi.fn();
+    await act(async () => {
+      root.render(
+        <SessionCapabilityRail
+          capabilities={[]}
+          teamWorkspace={{
+            label: '软件交付团队',
+            status: 'ready',
+            isOpen: false,
+            onToggle,
+          }}
+          isCanvasExpanded={false}
+          onOpenCapability={vi.fn()}
+          onCanvasToggle={vi.fn()}
+        />,
+      );
+    });
+
+    const team = container.querySelector<HTMLButtonElement>(
+      '[data-testid="session-team-workspace-toggle"]',
+    );
+    expect(team).not.toBeNull();
+    expect(team?.getAttribute('aria-controls')).toBe('void-team-workspace-panel');
+    expect(team?.getAttribute('aria-expanded')).toBe('false');
+    expect(team?.getAttribute('aria-label')).toBe(
+      'layout.sessionCapabilities.teamWorkspace.ariaLabel',
+    );
+    expect(team?.textContent).toContain('软件交付团队');
+    expect(container.querySelector('[data-capability-id]')).toBeNull();
+
+    await act(async () => {
+      team?.click();
+    });
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
 });

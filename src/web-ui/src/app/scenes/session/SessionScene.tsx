@@ -21,6 +21,10 @@ import { useSessionModeStore } from '@/app/stores/sessionModeStore';
 import { useCanvasStore } from '@/app/components/panels/content-canvas/stores';
 import { useActiveSessionCapabilities } from '@/flow_chat/hooks/useActiveSessionCapabilities';
 import type { SessionCapabilityId } from '@/flow_chat/services/sessionCapabilities';
+import {
+  TeamWorkspacePanel,
+  useActiveSessionTeamWorkspace,
+} from '@/team_workspace';
 
 import {
   RIGHT_PANEL_CONFIG,
@@ -56,6 +60,7 @@ const SessionScene: React.FC<SessionSceneProps> = ({
     sessionId: activeSessionId,
     capabilities: activeSessionCapabilities,
   } = useActiveSessionCapabilities();
+  const activeTeamWorkspace = useActiveSessionTeamWorkspace({ workspacePath });
   const activeCanvasCapabilityId = useCanvasStore(canvasState => {
     const activeTab = canvasState.primaryGroup.tabs.find(
       tab => tab.id === canvasState.primaryGroup.activeTabId,
@@ -72,6 +77,17 @@ const SessionScene: React.FC<SessionSceneProps> = ({
 
   const [isDragging, setIsDragging] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [isTeamWorkspaceOpen, setIsTeamWorkspaceOpen] = useState(false);
+  const teamWorkspaceToggleRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setIsTeamWorkspaceOpen(false);
+  }, [activeTeamWorkspace.sessionId, activeTeamWorkspace.teamBindingKey]);
+
+  const closeTeamWorkspace = useCallback(() => {
+    setIsTeamWorkspaceOpen(false);
+    queueMicrotask(() => teamWorkspaceToggleRef.current?.focus());
+  }, []);
 
   const preferredRightWidthRef = useRef(
     loadPanelWidth(
@@ -303,9 +319,30 @@ const SessionScene: React.FC<SessionSceneProps> = ({
             isPreviewFirstActive={isRightAsMain}
             onPreviewFirstToggle={handlePreviewFirstToggle}
           />
+          {activeTeamWorkspace.hasTeamBinding && isTeamWorkspaceOpen && (
+            <div
+              className="void-session-scene__team-workspace"
+              id="void-team-workspace-panel"
+              data-testid="session-team-workspace-panel"
+            >
+              <TeamWorkspacePanel
+                state={activeTeamWorkspace}
+                isActive={isActive}
+                workspacePath={workspacePath}
+                onClose={closeTeamWorkspace}
+              />
+            </div>
+          )}
           {canToggleAuxPane && activeSessionId && (
             <SessionCapabilityRail
               capabilities={activeSessionCapabilities}
+              teamWorkspace={activeTeamWorkspace.hasTeamBinding ? {
+                label: activeTeamWorkspace.displayName,
+                status: activeTeamWorkspace.presentationStatus,
+                isOpen: isTeamWorkspaceOpen,
+                onToggle: () => setIsTeamWorkspaceOpen(open => !open),
+                buttonRef: teamWorkspaceToggleRef,
+              } : undefined}
               activeCapabilityId={
                 isAuxPaneExpanded ? activeCanvasCapabilityId : undefined
               }

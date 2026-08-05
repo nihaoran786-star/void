@@ -68,7 +68,7 @@ pub trait MiniAppStoragePort: Send + Sync {
     fn load_source(&self, app_id: String) -> MiniAppPortFuture<'_, MiniAppSource>;
     fn save(&self, app: MiniApp) -> MiniAppPortFuture<'_, ()>;
     fn save_version(&self, app_id: String, version: u32, app: MiniApp)
-    -> MiniAppPortFuture<'_, ()>;
+        -> MiniAppPortFuture<'_, ()>;
     fn load_app_storage(&self, app_id: String) -> MiniAppPortFuture<'_, serde_json::Value>;
     fn save_app_storage(
         &self,

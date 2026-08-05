@@ -19,9 +19,8 @@ import type { SubagentTaskRecordDTO } from '@/infrastructure/api/service-api/Age
  * turn. Runtime identity is the source-qualified SubagentInfo.key; localized
  * names and legacy/unversioned revisions are deliberately not representable.
  */
-export interface PersonaTurnSnapshot {
+interface PersonaTurnSnapshotBase {
   schemaVersion: 1;
-  kind: 'agent';
   personaKey: string;
   personaRevision: string;
   scenario: SessionCustomizationScenario;
@@ -29,6 +28,20 @@ export interface PersonaTurnSnapshot {
   /** Skill injection is not supported by the v1 persona runtime. */
   resolvedSkillRefs: [];
 }
+
+export interface AgentPersonaTurnSnapshot extends PersonaTurnSnapshotBase {
+  kind: 'agent';
+}
+
+export interface TeamLeadPersonaTurnSnapshot extends PersonaTurnSnapshotBase {
+  kind: 'team_lead';
+  teamDefinitionId: string;
+  teamInstanceId: string;
+}
+
+export type PersonaTurnSnapshot =
+  | AgentPersonaTurnSnapshot
+  | TeamLeadPersonaTurnSnapshot;
 
 export interface UserMessageMetadata extends Record<string, unknown> {
   personaTurnSnapshot?: PersonaTurnSnapshot;

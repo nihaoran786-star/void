@@ -7,13 +7,22 @@ use super::{MCPServerConfig, MCPServerStatus, MCPServerTransport, MCPServerType}
 use crate::mcp::protocol::{InitializeResult, MCPMessage, MCPServerInfo, MCPTransport};
 use crate::mcp::server::{is_mcp_auth_error_message, merge_mcp_remote_headers};
 use crate::mcp::{MCPRuntimeError, MCPRuntimeResult};
-use void_services_core::process_manager;
 use log::{debug, error, info, warn};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::process::Child;
 use tokio::sync::{mpsc, RwLock};
+use void_services_core::process_manager;
+
+const PROCESS_TREE_GRACEFUL_TIMEOUT: Duration = Duration::from_millis(750);
+const PROCESS_TREE_TERMINATION_TIMEOUT: Duration = Duration::from_secs(5);
+
+enum ProcessTreeTerminationOutcome {
+    Terminated,
+    Failed(String),
+    TimedOut,
+}
 
 /// MCP server process.
 pub struct MCPServerProcess {
@@ -90,6 +99,7 @@ impl MCPServerProcess {
         cmd.stdin(std::process::Stdio::piped());
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
+        process_manager::configure_process_group(&mut cmd);
 
         let child = cmd.spawn().map_err(|e| {
             error!(
@@ -263,21 +273,78 @@ impl MCPServerProcess {
         info!("Stopping MCP server: name={} id={}", self.name, self.id);
         self.set_status(MCPServerStatus::Stopping).await;
 
-        if let Some(mut child) = self.child.take() {
-            if let Err(e) = child.kill().await {
-                warn!(
-                    "Failed to kill MCP server process: name={} id={} error={}",
-                    self.name, self.id, e
-                );
-            }
-        }
-
+        // Release the transport first so stdio handles cannot keep the server alive while the
+        // process tree is being terminated.
         self.connection = None;
         self.message_rx = None;
-        self.set_status(MCPServerStatus::Stopped).await;
 
-        info!("MCP server stopped: name={} id={}", self.name, self.id);
-        Ok(())
+        let termination_outcome = if let Some(mut child) = self.child.take() {
+            match tokio::time::timeout(
+                PROCESS_TREE_TERMINATION_TIMEOUT,
+                process_manager::terminate_child_process_tree(
+                    &mut child,
+                    PROCESS_TREE_GRACEFUL_TIMEOUT,
+                ),
+            )
+            .await
+            {
+                Ok(Ok(())) => ProcessTreeTerminationOutcome::Terminated,
+                Ok(Err(error)) => {
+                    warn!(
+                        "Failed to terminate MCP server process tree; scheduling cleanup: name={} id={} error={}",
+                        self.name, self.id, error
+                    );
+                    process_manager::spawn_child_process_tree_cleanup(
+                        child,
+                        PROCESS_TREE_GRACEFUL_TIMEOUT,
+                    );
+                    ProcessTreeTerminationOutcome::Failed(error.to_string())
+                }
+                Err(_) => {
+                    warn!(
+                        "Timed out terminating MCP server process tree; scheduling cleanup: name={} id={} timeout_ms={}",
+                        self.name,
+                        self.id,
+                        PROCESS_TREE_TERMINATION_TIMEOUT.as_millis()
+                    );
+                    process_manager::spawn_child_process_tree_cleanup(
+                        child,
+                        PROCESS_TREE_GRACEFUL_TIMEOUT,
+                    );
+                    ProcessTreeTerminationOutcome::TimedOut
+                }
+            }
+        } else {
+            ProcessTreeTerminationOutcome::Terminated
+        };
+
+        self.finish_stop(termination_outcome).await
+    }
+
+    async fn finish_stop(
+        &self,
+        termination_outcome: ProcessTreeTerminationOutcome,
+    ) -> MCPRuntimeResult<()> {
+        let failure_message = match termination_outcome {
+            ProcessTreeTerminationOutcome::Terminated => {
+                self.set_status(MCPServerStatus::Stopped).await;
+                info!("MCP server stopped: name={} id={}", self.name, self.id);
+                return Ok(());
+            }
+            ProcessTreeTerminationOutcome::Failed(error) => format!(
+                "Failed to terminate MCP server process tree for server '{}': {}",
+                self.id, error
+            ),
+            ProcessTreeTerminationOutcome::TimedOut => format!(
+                "Timed out terminating MCP server process tree for server '{}' after {} ms",
+                self.id,
+                PROCESS_TREE_TERMINATION_TIMEOUT.as_millis()
+            ),
+        };
+
+        self.set_status_with_error(MCPServerStatus::Failed, Some(failure_message.clone()))
+            .await;
+        Err(MCPRuntimeError::process(failure_message))
     }
 
     /// Restarts the server.
@@ -426,8 +493,236 @@ impl MCPServerProcess {
 
 impl Drop for MCPServerProcess {
     fn drop(&mut self) {
-        if let Some(mut child) = self.child.take() {
-            let _ = child.start_kill();
+        self.connection = None;
+        self.message_rx = None;
+        if let Some(child) = self.child.take() {
+            process_manager::spawn_child_process_tree_cleanup(child, PROCESS_TREE_GRACEFUL_TIMEOUT);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn test_pid_file(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should follow the Unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "void-mcp-process-tree-{label}-{}-{nonce}.pid",
+            std::process::id()
+        ))
+    }
+
+    #[cfg(windows)]
+    fn spawn_test_process_tree(pid_file: &Path) -> Child {
+        let pid_file = pid_file.to_string_lossy().replace('\'', "''");
+        let script = format!(
+            "$child = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 300') -WindowStyle Hidden -PassThru; \
+             Set-Content -LiteralPath '{pid_file}' -Value $child.Id; \
+             Wait-Process -Id $child.Id"
+        );
+        let mut command = process_manager::create_tokio_command("powershell.exe");
+        command.args(["-NoProfile", "-Command", &script]);
+        process_manager::configure_process_group(&mut command);
+        command.spawn().expect("test process tree should start")
+    }
+
+    #[cfg(unix)]
+    fn spawn_test_process_tree(pid_file: &Path) -> Child {
+        let pid_file = pid_file.to_string_lossy().replace('\'', "'\\''");
+        let script = format!("sleep 300 & echo $! > '{pid_file}'; wait");
+        let mut command = process_manager::create_tokio_command("sh");
+        command.args(["-c", &script]);
+        process_manager::configure_process_group(&mut command);
+        command.spawn().expect("test process tree should start")
+    }
+
+    async fn read_descendant_pid(pid_file: &Path) -> u32 {
+        for _ in 0..100 {
+            if let Ok(raw_pid) = tokio::fs::read_to_string(pid_file).await {
+                if let Ok(pid) = raw_pid.trim().parse() {
+                    return pid;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!(
+            "test descendant did not publish its PID at {}",
+            pid_file.display()
+        );
+    }
+
+    #[cfg(windows)]
+    async fn process_is_running(pid: u32) -> bool {
+        let mut command = process_manager::create_tokio_command("powershell.exe");
+        command.args([
+            "-NoProfile",
+            "-Command",
+            &format!(
+                "if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ exit 0 }} else {{ exit 1 }}"
+            ),
+        ]);
+        command
+            .status()
+            .await
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
+    #[cfg(unix)]
+    async fn process_is_running(pid: u32) -> bool {
+        let mut command = process_manager::create_tokio_command("kill");
+        command.args(["-0", &pid.to_string()]);
+        command
+            .status()
+            .await
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
+    async fn wait_until_process_stops(pid: u32) -> bool {
+        for _ in 0..100 {
+            if !process_is_running(pid).await {
+                return true;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        false
+    }
+
+    #[cfg(windows)]
+    async fn cleanup_test_process_tree(parent_pid: u32, descendant_pid: u32) {
+        for pid in [parent_pid, descendant_pid] {
+            let mut command = process_manager::create_tokio_command("taskkill");
+            command
+                .args(["/PID", &pid.to_string(), "/T", "/F"])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            let _ = command.status().await;
+        }
+    }
+
+    #[cfg(unix)]
+    async fn cleanup_test_process_tree(parent_pid: u32, descendant_pid: u32) {
+        for pid in [format!("-{parent_pid}"), descendant_pid.to_string()] {
+            let mut command = process_manager::create_tokio_command("kill");
+            command
+                .args(["-KILL", &pid])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            let _ = command.status().await;
+        }
+    }
+
+    async fn assert_tree_stopped_and_cleanup(
+        parent_pid: u32,
+        descendant_pid: u32,
+        pid_file: &Path,
+    ) {
+        let parent_stopped = wait_until_process_stops(parent_pid).await;
+        let descendant_stopped = wait_until_process_stops(descendant_pid).await;
+        cleanup_test_process_tree(parent_pid, descendant_pid).await;
+        let _ = tokio::fs::remove_file(pid_file).await;
+
+        assert!(
+            parent_stopped,
+            "test parent process {parent_pid} remained alive"
+        );
+        assert!(
+            descendant_stopped,
+            "test descendant process {descendant_pid} remained alive"
+        );
+    }
+
+    #[tokio::test]
+    async fn stop_terminates_the_entire_local_process_tree() {
+        let pid_file = test_pid_file("stop");
+        let child = spawn_test_process_tree(&pid_file);
+        let parent_pid = child.id().expect("test parent should expose a PID");
+        let descendant_pid = read_descendant_pid(&pid_file).await;
+
+        let mut process = MCPServerProcess::new(
+            "tree-stop".to_string(),
+            "Tree Stop".to_string(),
+            MCPServerType::Local,
+        );
+        process.child = Some(child);
+        process.stop().await.expect("stop should complete");
+
+        assert_tree_stopped_and_cleanup(parent_pid, descendant_pid, &pid_file).await;
+    }
+
+    #[tokio::test]
+    async fn drop_terminates_the_entire_local_process_tree() {
+        let pid_file = test_pid_file("drop");
+        let child = spawn_test_process_tree(&pid_file);
+        let parent_pid = child.id().expect("test parent should expose a PID");
+        let descendant_pid = read_descendant_pid(&pid_file).await;
+
+        let mut process = MCPServerProcess::new(
+            "tree-drop".to_string(),
+            "Tree Drop".to_string(),
+            MCPServerType::Local,
+        );
+        process.child = Some(child);
+        drop(process);
+
+        assert_tree_stopped_and_cleanup(parent_pid, descendant_pid, &pid_file).await;
+    }
+
+    #[tokio::test]
+    async fn stop_failure_sets_failed_status_and_returns_process_error() {
+        let process = MCPServerProcess::new(
+            "failure-server".to_string(),
+            "Failure Server".to_string(),
+            MCPServerType::Local,
+        );
+
+        let error = process
+            .finish_stop(ProcessTreeTerminationOutcome::Failed(
+                "synthetic termination failure".to_string(),
+            ))
+            .await
+            .expect_err("termination failure must be returned");
+
+        assert_eq!(process.status().await, MCPServerStatus::Failed);
+        let status_message = process
+            .status_message()
+            .await
+            .expect("failure status should include a message");
+        assert!(status_message.contains("failure-server"));
+        assert!(status_message.contains("Failed to terminate"));
+        assert!(error.to_string().contains("failure-server"));
+        assert!(error.to_string().contains("synthetic termination failure"));
+    }
+
+    #[tokio::test]
+    async fn stop_timeout_sets_failed_status_and_returns_distinct_process_error() {
+        let process = MCPServerProcess::new(
+            "timeout-server".to_string(),
+            "Timeout Server".to_string(),
+            MCPServerType::Local,
+        );
+
+        let error = process
+            .finish_stop(ProcessTreeTerminationOutcome::TimedOut)
+            .await
+            .expect_err("termination timeout must be returned");
+
+        assert_eq!(process.status().await, MCPServerStatus::Failed);
+        let status_message = process
+            .status_message()
+            .await
+            .expect("timeout status should include a message");
+        assert!(status_message.contains("timeout-server"));
+        assert!(status_message.contains("Timed out terminating"));
+        assert!(status_message.contains(&PROCESS_TREE_TERMINATION_TIMEOUT.as_millis().to_string()));
+        assert!(error.to_string().contains("timeout-server"));
+        assert!(!error.to_string().contains("synthetic termination failure"));
     }
 }

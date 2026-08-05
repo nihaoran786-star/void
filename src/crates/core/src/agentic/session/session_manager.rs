@@ -87,6 +87,31 @@ pub struct ResolvedSessionTitle {
     pub title: String,
     pub method: SessionTitleMethod,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreparedTurnDisposition {
+    Created,
+    Reused,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PreparedPersistedTurn {
+    pub turn_id: String,
+    pub turn_index: usize,
+    pub disposition: PreparedTurnDisposition,
+}
+
+/// Authoritative proof that a persisted parent turn contains exactly one
+/// concrete tool call. Team runtime startup uses this instead of trusting a
+/// client-supplied turn/tool pair or reconstructing authority from chat text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PersistedToolCallAuthority {
+    pub tool_name: String,
+    pub turn_index: usize,
+    pub round_id: String,
+    pub input: serde_json::Value,
+}
+
 /// Session manager
 pub struct SessionManager {
     /// Active sessions in memory
@@ -98,6 +123,11 @@ pub struct SessionManager {
     /// This cache is intentionally retained across memory eviction, but should
     /// be cleared when a session is explicitly deleted.
     session_workspace_index: Arc<DashMap<String, PathBuf>>,
+
+    /// Serializes caller-owned persisted turn IDs within one session. This is
+    /// deliberately separate from the ordinary turn-start path: only explicit
+    /// idempotent preparation opts into replay semantics.
+    persisted_turn_locks: Arc<DashMap<String, Arc<tokio::sync::Mutex<()>>>>,
 
     /// Sub-components
     context_store: Arc<SessionContextStore>,
@@ -421,6 +451,115 @@ impl SessionManager {
         }
     }
 
+    /// Require a unique persisted tool call in an already-restored Standard
+    /// parent session.
+    ///
+    /// This deliberately never falls back to in-memory messages: the durable
+    /// turn is the authority used to bind a Team run to its initiating tool
+    /// call, including after process restart.
+    pub async fn require_persisted_tool_call_authority(
+        &self,
+        session_id: &str,
+        parent_dialog_turn_id: &str,
+        parent_tool_call_id: &str,
+    ) -> VoidResult<PersistedToolCallAuthority> {
+        for (name, value) in [
+            ("session_id", session_id),
+            ("parent_dialog_turn_id", parent_dialog_turn_id),
+            ("parent_tool_call_id", parent_tool_call_id),
+        ] {
+            if value.trim().is_empty() {
+                return Err(VoidError::Validation(format!("{name} is required")));
+            }
+        }
+
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
+
+        let session = self.get_session(session_id).ok_or_else(|| {
+            VoidError::NotFound(format!(
+                "Session is not restored in the current process: {session_id}"
+            ))
+        })?;
+        if session.kind != SessionKind::Standard {
+            return Err(VoidError::Validation(format!(
+                "Persisted tool-call authority requires a Standard parent session: {session_id}"
+            )));
+        }
+        let mut unique_dialog_turn_ids = HashSet::new();
+        if !session
+            .dialog_turn_ids
+            .iter()
+            .all(|turn_id| unique_dialog_turn_ids.insert(turn_id.as_str()))
+        {
+            return Err(VoidError::Validation(format!(
+                "Session dialog turn bookkeeping contains duplicate IDs: {session_id}"
+            )));
+        }
+        let matching_positions = session
+            .dialog_turn_ids
+            .iter()
+            .enumerate()
+            .filter_map(|(index, turn_id)| (turn_id == parent_dialog_turn_id).then_some(index))
+            .collect::<Vec<_>>();
+        if matching_positions.len() != 1 {
+            return Err(VoidError::Validation(format!(
+                "Parent dialog turn ID must occur exactly once in session bookkeeping: {parent_dialog_turn_id}"
+            )));
+        }
+        let turn_index = matching_positions[0];
+        let workspace_path = Self::effective_workspace_path_from_config(&session.config)
+            .await
+            .ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Session workspace_path is missing or unresolved: {session_id}"
+                ))
+            })?;
+        let turn = self
+            .persistence_manager
+            .load_dialog_turn(&workspace_path, session_id, turn_index)
+            .await?
+            .ok_or_else(|| {
+                VoidError::NotFound(format!(
+                    "Persisted parent dialog turn was not found: {parent_dialog_turn_id}"
+                ))
+            })?;
+        if turn.turn_id != parent_dialog_turn_id
+            || turn.turn_index != turn_index
+            || turn.session_id != session_id
+            || turn.kind != DialogTurnKind::UserDialog
+        {
+            return Err(VoidError::Validation(format!(
+                "Persisted parent dialog turn identity does not match session authority: {parent_dialog_turn_id}"
+            )));
+        }
+        Self::validate_persisted_tool_call_structure(&turn)?;
+
+        let mut matching_tool = None;
+        let mut matching_tool_count = 0usize;
+        for round in &turn.model_rounds {
+            for tool_item in &round.tool_items {
+                if tool_item.id == parent_tool_call_id {
+                    matching_tool_count += 1;
+                    matching_tool = Some((round.id.clone(), tool_item.clone()));
+                }
+            }
+        }
+        if matching_tool_count != 1 {
+            return Err(VoidError::Validation(format!(
+                "Parent tool call ID must occur exactly once in the persisted dialog turn: {parent_tool_call_id}"
+            )));
+        }
+
+        let (round_id, tool_item) = matching_tool.expect("one matching tool item exists");
+        Ok(PersistedToolCallAuthority {
+            tool_name: tool_item.tool_name,
+            turn_index,
+            round_id,
+            input: tool_item.tool_call.input,
+        })
+    }
+
     #[allow(dead_code)]
     fn session_workspace_path(&self, session_id: &str) -> Option<PathBuf> {
         self.sessions
@@ -576,6 +715,29 @@ impl SessionManager {
         self.persistence_manager
             .get_subagent_task(&storage_path, parent_session_id, task_id)
             .await
+    }
+
+    /// Persist the one allowed Team recovery migration and publish the same
+    /// authoritative task-changed event as ordinary task mutations.
+    pub async fn compare_and_set_legacy_team_member_skill_policy(
+        &self,
+        expected_task: &SubagentTaskRecord,
+        expected_launch: &void_core_types::SubagentTaskLaunchSpec,
+    ) -> VoidResult<SubagentTaskRecord> {
+        let parent_session_id = expected_task.parent_session_id.as_str();
+        let storage_path = self.subagent_task_storage_path(parent_session_id).await?;
+        let task = self
+            .persistence_manager
+            .compare_and_set_legacy_team_member_skill_policy(
+                &storage_path,
+                parent_session_id,
+                &expected_task.task_id,
+                expected_task,
+                expected_launch,
+            )
+            .await?;
+        self.publish_subagent_task_changed(&task).await;
+        Ok(task)
     }
 
     pub async fn list_subagent_tasks(
@@ -1130,6 +1292,7 @@ impl SessionManager {
         let manager = Self {
             sessions: Arc::new(DashMap::new()),
             session_workspace_index: Arc::new(DashMap::new()),
+            persisted_turn_locks: Arc::new(DashMap::new()),
             context_store,
             prompt_cache_store: Arc::new(SessionPromptCacheStore::new()),
             file_read_state_store: Arc::new(FileReadStateStore::new()),
@@ -1317,6 +1480,7 @@ impl SessionManager {
     fn spawn_model_reconciliation_listener(&self) {
         let sessions = self.sessions.clone();
         let session_workspace_index = self.session_workspace_index.clone();
+        let persisted_turn_locks = self.persisted_turn_locks.clone();
         let context_store = self.context_store.clone();
         let prompt_cache_store = self.prompt_cache_store.clone();
         let file_read_state_store = self.file_read_state_store.clone();
@@ -1338,6 +1502,7 @@ impl SessionManager {
             let manager = Self {
                 sessions,
                 session_workspace_index,
+                persisted_turn_locks,
                 context_store,
                 prompt_cache_store,
                 file_read_state_store,
@@ -1989,11 +2154,7 @@ impl SessionManager {
     }
 
     /// Delete session (cascade delete all resources)
-    pub async fn delete_session(
-        &self,
-        workspace_path: &Path,
-        session_id: &str,
-    ) -> VoidResult<()> {
+    pub async fn delete_session(&self, workspace_path: &Path, session_id: &str) -> VoidResult<()> {
         let delete_started_at = Instant::now();
         debug!(
             "Session deletion started: session_id={}, workspace_path={}, persistence_enabled={}",
@@ -2740,10 +2901,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let mut metadata = match self
@@ -2803,10 +2961,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let mut metadata = match self
@@ -2854,10 +3009,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let mut metadata = match self
@@ -3004,10 +3156,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let mut metadata = match self
@@ -3044,6 +3193,287 @@ impl SessionManager {
 
     // ============ Dialog Turn Management ============
 
+    fn prepared_turn_payload_matches(
+        turn: &DialogTurnData,
+        session_id: &str,
+        turn_id: &str,
+        turn_index: usize,
+        agent_type: &str,
+        user_input: &str,
+        user_message_metadata: Option<&serde_json::Value>,
+    ) -> bool {
+        turn.turn_id == turn_id
+            && turn.turn_index == turn_index
+            && turn.session_id == session_id
+            && turn.kind == DialogTurnKind::UserDialog
+            && turn.agent_type.as_deref() == Some(agent_type)
+            && turn.user_message.id == format!("{turn_id}-user")
+            && turn.user_message.content == user_input
+            && turn.user_message.metadata.as_ref() == user_message_metadata
+    }
+
+    fn persisted_turn_sequence_matches(
+        turns: &[DialogTurnData],
+        dialog_turn_ids: &[String],
+    ) -> bool {
+        turns.len() == dialog_turn_ids.len()
+            && turns.iter().enumerate().all(|(index, turn)| {
+                turn.turn_index == index && dialog_turn_ids[index] == turn.turn_id
+            })
+    }
+
+    fn persisted_turn_lock(&self, session_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.persisted_turn_locks
+            .entry(session_id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    fn validate_persisted_tool_call_structure(turn: &DialogTurnData) -> VoidResult<()> {
+        let mut round_ids = HashSet::new();
+        let mut tool_ids = HashSet::new();
+        for (expected_index, round) in turn.model_rounds.iter().enumerate() {
+            if round.id.trim().is_empty()
+                || !round_ids.insert(round.id.as_str())
+                || round.turn_id != turn.turn_id
+                || round.round_index != expected_index
+            {
+                return Err(VoidError::Validation(format!(
+                    "Persisted model round structure is inconsistent for dialog turn {}",
+                    turn.turn_id
+                )));
+            }
+            for tool_item in &round.tool_items {
+                if tool_item.id.trim().is_empty()
+                    || tool_item.tool_name.trim().is_empty()
+                    || tool_item.id != tool_item.tool_call.id
+                    || !tool_ids.insert(tool_item.id.as_str())
+                {
+                    return Err(VoidError::Validation(format!(
+                        "Persisted tool-call structure is inconsistent for dialog turn {}",
+                        turn.turn_id
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Durably records the exact host-issued tool call before any privileged
+    /// Team side effect runs. The resulting record is the only authority that
+    /// a host adapter may later accept.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn checkpoint_current_tool_call_before_execution(
+        &self,
+        session_id: &str,
+        turn_id: &str,
+        round_id: &str,
+        tool_name: &str,
+        tool_call_id: &str,
+        input: serde_json::Value,
+    ) -> VoidResult<PersistedToolCallAuthority> {
+        for (name, value) in [
+            ("session_id", session_id),
+            ("turn_id", turn_id),
+            ("round_id", round_id),
+            ("tool_name", tool_name),
+            ("tool_call_id", tool_call_id),
+        ] {
+            if value.trim().is_empty() {
+                return Err(VoidError::Validation(format!("{name} is required")));
+            }
+        }
+
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
+        let session = self.get_session(session_id).ok_or_else(|| {
+            VoidError::NotFound(format!(
+                "Session is not restored in the current process: {session_id}"
+            ))
+        })?;
+        if !self.config.enable_persistence
+            || !Self::should_persist_session(&session)
+            || session.kind != SessionKind::Standard
+        {
+            return Err(VoidError::Validation(format!(
+                "Tool-call checkpoint requires a persistent Standard parent session: {session_id}"
+            )));
+        }
+        if !matches!(
+            &session.state,
+            SessionState::Processing { current_turn_id, .. } if current_turn_id == turn_id
+        ) {
+            return Err(VoidError::Validation(format!(
+                "Dialog turn is not the current in-progress turn for session {session_id}: {turn_id}"
+            )));
+        }
+        let mut unique_dialog_turn_ids = HashSet::new();
+        if !session
+            .dialog_turn_ids
+            .iter()
+            .all(|existing_id| unique_dialog_turn_ids.insert(existing_id.as_str()))
+        {
+            return Err(VoidError::Validation(format!(
+                "Session dialog turn bookkeeping contains duplicate IDs: {session_id}"
+            )));
+        }
+        let matching_positions = session
+            .dialog_turn_ids
+            .iter()
+            .enumerate()
+            .filter_map(|(index, existing_id)| (existing_id == turn_id).then_some(index))
+            .collect::<Vec<_>>();
+        if matching_positions.len() != 1 {
+            return Err(VoidError::Validation(format!(
+                "Current dialog turn ID must occur exactly once in session bookkeeping: {turn_id}"
+            )));
+        }
+        let turn_index = matching_positions[0];
+        let workspace_path = Self::effective_workspace_path_from_config(&session.config)
+            .await
+            .ok_or_else(|| {
+                VoidError::Validation(format!(
+                    "Session workspace_path is missing or unresolved: {session_id}"
+                ))
+            })?;
+        let mut turn = self
+            .persistence_manager
+            .load_dialog_turn(&workspace_path, session_id, turn_index)
+            .await?
+            .ok_or_else(|| {
+                VoidError::NotFound(format!("Persisted dialog turn was not found: {turn_id}"))
+            })?;
+        if turn.turn_id != turn_id
+            || turn.turn_index != turn_index
+            || turn.session_id != session_id
+            || turn.kind != DialogTurnKind::UserDialog
+            || turn.status != TurnStatus::InProgress
+        {
+            return Err(VoidError::Validation(format!(
+                "Persisted dialog turn is not the current in-progress UserDialog: {turn_id}"
+            )));
+        }
+        Self::validate_persisted_tool_call_structure(&turn)?;
+
+        if let Some((existing_round, existing_tool)) = turn.model_rounds.iter().find_map(|round| {
+            round
+                .tool_items
+                .iter()
+                .find(|tool_item| tool_item.id == tool_call_id)
+                .map(|tool_item| (round, tool_item))
+        }) {
+            if existing_round.id == round_id
+                && existing_tool.tool_name == tool_name
+                && existing_tool.tool_call.input == input
+            {
+                return Ok(PersistedToolCallAuthority {
+                    tool_name: existing_tool.tool_name.clone(),
+                    turn_index,
+                    round_id: existing_round.id.clone(),
+                    input: existing_tool.tool_call.input.clone(),
+                });
+            }
+            return Err(VoidError::Validation(format!(
+                "Tool call ID is already bound to different persisted authority: {tool_call_id}"
+            )));
+        }
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let new_tool_item = ToolItemData {
+            id: tool_call_id.to_string(),
+            tool_name: tool_name.to_string(),
+            tool_call: ToolCallData {
+                id: tool_call_id.to_string(),
+                input: input.clone(),
+            },
+            tool_result: None,
+            ai_intent: None,
+            start_time: timestamp,
+            end_time: None,
+            duration_ms: None,
+            queue_wait_ms: None,
+            preflight_ms: None,
+            confirmation_wait_ms: None,
+            execution_ms: None,
+            order_index: None,
+            is_subagent_item: None,
+            parent_task_tool_id: None,
+            subagent_session_id: None,
+            subagent_model_id: None,
+            subagent_model_alias: None,
+            status: Some("running".to_string()),
+            interruption_reason: None,
+        };
+
+        if let Some(round) = turn
+            .model_rounds
+            .iter_mut()
+            .find(|round| round.id == round_id)
+        {
+            if round.status != "running" || round.end_time.is_some() {
+                return Err(VoidError::Validation(format!(
+                    "Cannot append a tool call to a terminal persisted model round: {round_id}"
+                )));
+            }
+            let next_order_index = round
+                .text_items
+                .iter()
+                .filter_map(|item| item.order_index)
+                .chain(
+                    round
+                        .thinking_items
+                        .iter()
+                        .filter_map(|item| item.order_index),
+                )
+                .chain(round.tool_items.iter().filter_map(|item| item.order_index))
+                .max()
+                .map(|index| index + 1)
+                .unwrap_or(0);
+            let mut new_tool_item = new_tool_item;
+            new_tool_item.order_index = Some(next_order_index);
+            round.tool_items.push(new_tool_item);
+        } else {
+            let round_index = turn.model_rounds.len();
+            let mut new_tool_item = new_tool_item;
+            new_tool_item.order_index = Some(0);
+            turn.model_rounds.push(ModelRoundData {
+                id: round_id.to_string(),
+                turn_id: turn.turn_id.clone(),
+                round_index,
+                timestamp,
+                text_items: Vec::new(),
+                tool_items: vec![new_tool_item],
+                thinking_items: Vec::new(),
+                start_time: timestamp,
+                end_time: None,
+                duration_ms: None,
+                provider_id: None,
+                model_id: None,
+                model_alias: None,
+                first_chunk_ms: None,
+                first_visible_output_ms: None,
+                stream_duration_ms: None,
+                attempt_count: None,
+                failure_category: None,
+                token_details: None,
+                status: "running".to_string(),
+            });
+        }
+
+        self.persistence_manager
+            .save_dialog_turn_strict_atomic(&workspace_path, &turn)
+            .await?;
+        Ok(PersistedToolCallAuthority {
+            tool_name: tool_name.to_string(),
+            turn_index,
+            round_id: round_id.to_string(),
+            input,
+        })
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn start_persisted_turn(
         &self,
@@ -3062,10 +3492,7 @@ impl SessionManager {
         let workspace_path = Self::effective_workspace_path_from_config(&session.config)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let turn_index = session.dialog_turn_ids.len();
@@ -3206,6 +3633,230 @@ impl SessionManager {
         Ok(turn_id)
     }
 
+    /// Idempotently prepare a caller-owned persisted user turn whose message is
+    /// already present in runtime context.
+    ///
+    /// Unlike [`Self::start_dialog_turn_with_existing_context`], this method
+    /// gives an explicit turn ID replay semantics. A complete matching turn is
+    /// reused; the same ID with different immutable payload is rejected. The
+    /// ordinary start path intentionally remains append-only.
+    pub async fn prepare_dialog_turn_with_existing_context(
+        &self,
+        session_id: &str,
+        agent_type: String,
+        user_input: String,
+        turn_id: String,
+        user_message_metadata: Option<serde_json::Value>,
+    ) -> VoidResult<PreparedPersistedTurn> {
+        if turn_id.trim().is_empty() {
+            return Err(VoidError::Validation(
+                "An explicit dialog turn ID is required for persisted turn preparation".to_string(),
+            ));
+        }
+
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
+        let session = self
+            .get_session(session_id)
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {session_id}")))?;
+        if !self.config.enable_persistence || !Self::should_persist_session(&session) {
+            return Err(VoidError::Validation(format!(
+                "Session {session_id} does not support persisted turn preparation"
+            )));
+        }
+        let workspace_path = Self::effective_workspace_path_from_config(&session.config)
+            .await
+            .ok_or_else(|| {
+                VoidError::Validation(format!("Session workspace_path is missing: {session_id}"))
+            })?;
+        let persisted_turns = self
+            .persistence_manager
+            .load_session_turns(&workspace_path, session_id)
+            .await?;
+        let session_id_positions = session
+            .dialog_turn_ids
+            .iter()
+            .enumerate()
+            .filter_map(|(index, existing_id)| (existing_id == &turn_id).then_some(index))
+            .collect::<Vec<_>>();
+        let persisted_id_matches = persisted_turns
+            .iter()
+            .filter(|turn| turn.turn_id == turn_id)
+            .collect::<Vec<_>>();
+
+        if session_id_positions.len() > 1 || persisted_id_matches.len() > 1 {
+            return Err(VoidError::Validation(format!(
+                "Dialog turn ID {turn_id} is duplicated in session {session_id}"
+            )));
+        }
+
+        if let Some(existing_turn) = persisted_id_matches.first().copied() {
+            let Some(existing_index) = session_id_positions.first().copied() else {
+                return Err(VoidError::Validation(format!(
+                    "Persisted dialog turn {turn_id} is missing from session {session_id} bookkeeping"
+                )));
+            };
+            if existing_index != existing_turn.turn_index
+                || !Self::persisted_turn_sequence_matches(
+                    &persisted_turns,
+                    &session.dialog_turn_ids,
+                )
+            {
+                return Err(VoidError::Validation(format!(
+                    "Persisted dialog turn {turn_id} has inconsistent session ordering"
+                )));
+            }
+            if !Self::prepared_turn_payload_matches(
+                existing_turn,
+                session_id,
+                &turn_id,
+                existing_index,
+                &agent_type,
+                &user_input,
+                user_message_metadata.as_ref(),
+            ) {
+                return Err(VoidError::Validation(format!(
+                    "Dialog turn ID {turn_id} is already bound to different persisted payload"
+                )));
+            }
+
+            // Re-persist the session header before acknowledging a replay. The
+            // turn itself was read successfully from its durable record.
+            self.persistence_manager
+                .save_session(&workspace_path, &session)
+                .await?;
+            return Ok(PreparedPersistedTurn {
+                turn_id,
+                turn_index: existing_index,
+                disposition: PreparedTurnDisposition::Reused,
+            });
+        }
+
+        let mut turn_index = session.dialog_turn_ids.len();
+        if let Some(existing_index) = session_id_positions.first().copied() {
+            let is_tail = existing_index + 1 == session.dialog_turn_ids.len();
+            let turn_slot_is_empty = self
+                .persistence_manager
+                .load_dialog_turn(&workspace_path, session_id, existing_index)
+                .await?
+                .is_none();
+            if !is_tail || !turn_slot_is_empty {
+                return Err(VoidError::Validation(format!(
+                    "Dialog turn ID {turn_id} exists in incomplete non-tail session bookkeeping"
+                )));
+            }
+            if !Self::persisted_turn_sequence_matches(
+                &persisted_turns,
+                &session.dialog_turn_ids[..existing_index],
+            ) {
+                return Err(VoidError::Validation(format!(
+                    "Dialog turn ID {turn_id} cannot repair inconsistent preceding turn ordering"
+                )));
+            }
+
+            let repaired_session = {
+                let mut live_session = self.sessions.get_mut(session_id).ok_or_else(|| {
+                    VoidError::NotFound(format!("Session not found: {session_id}"))
+                })?;
+                live_session.dialog_turn_ids.pop();
+                if matches!(
+                    &live_session.state,
+                    SessionState::Processing {
+                        current_turn_id,
+                        ..
+                    } if current_turn_id == &turn_id
+                ) {
+                    live_session.state = SessionState::Idle;
+                }
+                live_session.updated_at = SystemTime::now();
+                live_session.last_activity_at = SystemTime::now();
+                live_session.clone()
+            };
+            self.persistence_manager
+                .save_session(&workspace_path, &repaired_session)
+                .await?;
+            self.persistence_manager
+                .delete_turn_context_snapshots_from(&workspace_path, session_id, existing_index)
+                .await?;
+            turn_index = existing_index;
+        } else if !Self::persisted_turn_sequence_matches(&persisted_turns, &session.dialog_turn_ids)
+        {
+            return Err(VoidError::Validation(format!(
+                "Session {session_id} has inconsistent persisted turn ordering"
+            )));
+        }
+
+        let latest_session = self
+            .get_session(session_id)
+            .ok_or_else(|| VoidError::NotFound(format!("Session not found: {session_id}")))?;
+        if !matches!(latest_session.state, SessionState::Idle) {
+            return Err(VoidError::Validation(format!(
+                "Session {session_id} is already processing another dialog turn"
+            )));
+        }
+        if self
+            .persistence_manager
+            .load_dialog_turn(&workspace_path, session_id, turn_index)
+            .await?
+            .is_some()
+        {
+            return Err(VoidError::Validation(format!(
+                "Dialog turn index {turn_index} is already occupied in session {session_id}"
+            )));
+        }
+
+        let now = SystemTime::now();
+        let timestamp = now
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        let turn_data = DialogTurnData::new_with_kind(
+            DialogTurnKind::UserDialog,
+            turn_id.clone(),
+            turn_index,
+            session_id.to_string(),
+            Some(agent_type.clone()),
+            UserMessageData {
+                id: format!("{turn_id}-user"),
+                content: user_input,
+                timestamp,
+                metadata: user_message_metadata,
+            },
+        );
+        let session_snapshot = {
+            let mut live_session = self
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| VoidError::NotFound(format!("Session not found: {session_id}")))?;
+            live_session.dialog_turn_ids.push(turn_id.clone());
+            live_session.last_user_dialog_agent_type = Some(agent_type);
+            live_session.state = SessionState::Processing {
+                current_turn_id: turn_id.clone(),
+                phase: ProcessingPhase::Starting,
+            };
+            live_session.updated_at = now;
+            live_session.last_activity_at = now;
+            live_session.clone()
+        };
+
+        // Persist the session header first. If the following turn write fails,
+        // a retry recognizes the single missing tail and safely repairs it.
+        self.persistence_manager
+            .save_session(&workspace_path, &session_snapshot)
+            .await?;
+        self.persistence_manager
+            .save_dialog_turn(&workspace_path, &turn_data)
+            .await?;
+        self.persist_context_snapshot_for_turn_best_effort(session_id, turn_index, "turn_prepared")
+            .await;
+
+        Ok(PreparedPersistedTurn {
+            turn_id,
+            turn_index,
+            disposition: PreparedTurnDisposition::Created,
+        })
+    }
+
     /// Start a persisted maintenance turn that should not enter model-visible context.
     pub async fn start_maintenance_turn(
         &self,
@@ -3248,10 +3899,7 @@ impl SessionManager {
         let workspace_path = Self::effective_workspace_path_from_config(&session.config)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
 
         let turn_id = new_turn_id(turn_id);
@@ -3584,16 +4232,15 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
         let turn_index = self
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
             .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
@@ -3696,16 +4343,15 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
         let turn_index = self
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
             .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
@@ -3758,16 +4404,15 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
         let turn_index = self
             .sessions
             .get(session_id)
             .and_then(|session| session.dialog_turn_ids.iter().position(|id| id == turn_id))
             .ok_or_else(|| VoidError::NotFound(format!("Dialog turn not found: {}", turn_id)))?;
+        let turn_lock = self.persisted_turn_lock(session_id);
+        let _turn_guard = turn_lock.lock().await;
         let mut turn = self
             .persistence_manager
             .load_dialog_turn(&workspace_path, session_id, turn_index)
@@ -3824,10 +4469,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
         let turn_index = self
             .sessions
@@ -3888,10 +4530,7 @@ impl SessionManager {
             .effective_session_workspace_path(session_id)
             .await
             .ok_or_else(|| {
-                VoidError::Validation(format!(
-                    "Session workspace_path is missing: {}",
-                    session_id
-                ))
+                VoidError::Validation(format!("Session workspace_path is missing: {}", session_id))
             })?;
         let turn_index = self
             .sessions
@@ -4257,9 +4896,9 @@ impl SessionManager {
         ];
 
         // Dynamically get Agent client to generate title
-        let ai_client_factory = get_global_ai_client_factory().await.map_err(|e| {
-            VoidError::AIClient(format!("Failed to get AI client factory: {}", e))
-        })?;
+        let ai_client_factory = get_global_ai_client_factory()
+            .await
+            .map_err(|e| VoidError::AIClient(format!("Failed to get AI client factory: {}", e)))?;
 
         let ai_client = ai_client_factory
             .get_client_by_func_agent("session-title-func-agent")
@@ -4493,7 +5132,9 @@ fn extract_subagent_relationship(
 
 #[cfg(test)]
 mod tests {
-    use super::{SessionManager, SessionManagerConfig};
+    use super::{
+        PersistedToolCallAuthority, PreparedTurnDisposition, SessionManager, SessionManagerConfig,
+    };
     use crate::agentic::core::{
         CompressionEntry, CompressionPayload, Message, MessageContent, MessageRole,
         ProcessingPhase, RecoveryBoundary, RecoveryCheckpoint, RecoveryCheckpointStatus, Session,
@@ -4528,8 +5169,8 @@ mod tests {
 
     impl TestWorkspace {
         fn new() -> Self {
-            let path = std::env::temp_dir()
-                .join(format!("void-session-restore-test-{}", Uuid::new_v4()));
+            let path =
+                std::env::temp_dir().join(format!("void-session-restore-test-{}", Uuid::new_v4()));
             std::fs::create_dir_all(&path).expect("test workspace should be created");
             Self { path }
         }
@@ -4603,6 +5244,117 @@ mod tests {
             context_window: Some(context_window),
             ..Default::default()
         }
+    }
+
+    fn authority_tool_item(outer_id: &str, inner_id: &str) -> ToolItemData {
+        ToolItemData {
+            id: outer_id.to_string(),
+            tool_name: "Agent".to_string(),
+            tool_call: ToolCallData {
+                id: inner_id.to_string(),
+                input: json!({ "task": "delegate" }),
+            },
+            tool_result: None,
+            ai_intent: None,
+            start_time: 1,
+            end_time: None,
+            duration_ms: None,
+            queue_wait_ms: None,
+            preflight_ms: None,
+            confirmation_wait_ms: None,
+            execution_ms: None,
+            order_index: None,
+            is_subagent_item: None,
+            parent_task_tool_id: None,
+            subagent_session_id: None,
+            subagent_model_id: None,
+            subagent_model_alias: None,
+            status: Some("running".to_string()),
+            interruption_reason: None,
+        }
+    }
+
+    fn authority_round(turn_id: &str, tool_items: Vec<ToolItemData>) -> ModelRoundData {
+        ModelRoundData {
+            id: format!("{turn_id}-round"),
+            turn_id: turn_id.to_string(),
+            round_index: 0,
+            timestamp: 1,
+            text_items: Vec::new(),
+            tool_items,
+            thinking_items: Vec::new(),
+            start_time: 1,
+            end_time: None,
+            duration_ms: None,
+            provider_id: None,
+            model_id: None,
+            model_alias: None,
+            first_chunk_ms: None,
+            first_visible_output_ms: None,
+            stream_duration_ms: None,
+            attempt_count: None,
+            failure_category: None,
+            token_details: None,
+            status: "running".to_string(),
+        }
+    }
+
+    async fn authority_fixture(
+        workspace: &TestWorkspace,
+        session_kind: SessionKind,
+        persist_turn: bool,
+        tool_items: Vec<ToolItemData>,
+    ) -> (SessionManager, Arc<PersistenceManager>, String) {
+        let persistence_manager = Arc::new(
+            PersistenceManager::new(workspace.path_manager()).expect("persistence manager"),
+        );
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Authority session".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    workspace_id: Some("workspace-authority".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let session_snapshot = {
+            let mut live = manager
+                .sessions
+                .get_mut(&session.session_id)
+                .expect("session should be restored");
+            live.kind = session_kind;
+            live.dialog_turn_ids = vec!["parent-turn".to_string()];
+            live.clone()
+        };
+        persistence_manager
+            .save_session(workspace.path(), &session_snapshot)
+            .await
+            .expect("session should persist");
+        if persist_turn {
+            let mut turn = DialogTurnData::new(
+                "parent-turn".to_string(),
+                0,
+                session.session_id.clone(),
+                UserMessageData {
+                    id: "parent-user".to_string(),
+                    content: "start team".to_string(),
+                    timestamp: 1,
+                    metadata: None,
+                },
+            );
+            // Authorization is independent of turn completion status.
+            turn.status = TurnStatus::Error;
+            turn.model_rounds = vec![authority_round("parent-turn", tool_items)];
+            persistence_manager
+                .save_dialog_turn(workspace.path(), &turn)
+                .await
+                .expect("turn should persist");
+        }
+        (manager, persistence_manager, session.session_id)
     }
 
     #[test]
@@ -5021,7 +5773,10 @@ mod tests {
 
         let first_round = &turn.model_rounds[0];
         assert_eq!(first_round.thinking_items.len(), 1);
-        assert_eq!(first_round.thinking_items[0].content, "need to inspect output");
+        assert_eq!(
+            first_round.thinking_items[0].content,
+            "need to inspect output"
+        );
         assert_eq!(first_round.thinking_items[0].order_index, Some(0));
         assert_eq!(first_round.text_items.len(), 1);
         assert_eq!(first_round.text_items[0].content, "I'll run it.");
@@ -5510,6 +6265,600 @@ mod tests {
             .await
             .expect("runtime context should remain readable");
         assert_eq!(runtime_context.len(), seeded_messages.len());
+    }
+
+    #[tokio::test]
+    async fn prepared_persisted_turn_replay_is_exact_and_concurrent_safe() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = Arc::new(test_manager(persistence_manager.clone()));
+        let session = manager
+            .create_session(
+                "Team child".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+
+        let first_manager = manager.clone();
+        let first_session_id = session.session_id.clone();
+        let second_manager = manager.clone();
+        let second_session_id = session.session_id.clone();
+        let (first, second) = tokio::join!(
+            first_manager.prepare_dialog_turn_with_existing_context(
+                &first_session_id,
+                "agentic".to_string(),
+                "follow up".to_string(),
+                "team-message-operation".to_string(),
+                Some(json!({ "scope": "team" })),
+            ),
+            second_manager.prepare_dialog_turn_with_existing_context(
+                &second_session_id,
+                "agentic".to_string(),
+                "follow up".to_string(),
+                "team-message-operation".to_string(),
+                Some(json!({ "scope": "team" })),
+            )
+        );
+        let dispositions = [
+            first.expect("first preparation should succeed").disposition,
+            second.expect("matching replay should succeed").disposition,
+        ];
+        assert!(dispositions.contains(&PreparedTurnDisposition::Created));
+        assert!(dispositions.contains(&PreparedTurnDisposition::Reused));
+
+        let mismatch = manager
+            .prepare_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "different follow up".to_string(),
+                "team-message-operation".to_string(),
+                Some(json!({ "scope": "team" })),
+            )
+            .await;
+        assert!(mismatch.is_err());
+        assert_eq!(
+            persistence_manager
+                .load_session_turns(workspace.path(), &session.session_id)
+                .await
+                .expect("turns should load")
+                .len(),
+            1
+        );
+    }
+
+    #[tokio::test]
+    async fn prepared_persisted_turn_repairs_only_a_missing_tail() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Team child".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let damaged = {
+            let mut live = manager.sessions.get_mut(&session.session_id).unwrap();
+            live.dialog_turn_ids
+                .push("team-message-operation".to_string());
+            live.state = SessionState::Processing {
+                current_turn_id: "team-message-operation".to_string(),
+                phase: ProcessingPhase::Starting,
+            };
+            live.clone()
+        };
+        persistence_manager
+            .save_session(workspace.path(), &damaged)
+            .await
+            .expect("damaged tail header should save");
+
+        let prepared = manager
+            .prepare_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "follow up".to_string(),
+                "team-message-operation".to_string(),
+                None,
+            )
+            .await
+            .expect("missing tail should repair and recreate");
+        assert_eq!(prepared.disposition, PreparedTurnDisposition::Created);
+        assert_eq!(prepared.turn_index, 0);
+        let turns = persistence_manager
+            .load_session_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("turns should load");
+        assert_eq!(turns.len(), 1);
+        assert_eq!(turns[0].turn_id, "team-message-operation");
+    }
+
+    #[tokio::test]
+    async fn ordinary_persisted_turn_start_does_not_silently_reuse_explicit_ids() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Ordinary session".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+
+        for content in ["first payload", "second payload"] {
+            manager
+                .start_dialog_turn_with_existing_context(
+                    &session.session_id,
+                    "agentic".to_string(),
+                    content.to_string(),
+                    Some("caller-owned-id".to_string()),
+                    None,
+                )
+                .await
+                .expect("ordinary start should preserve append behavior");
+        }
+
+        let turns = persistence_manager
+            .load_session_turns(workspace.path(), &session.session_id)
+            .await
+            .expect("turns should load");
+        assert_eq!(turns.len(), 2);
+        assert_eq!(turns[0].user_message.content, "first payload");
+        assert_eq!(turns[1].user_message.content, "second payload");
+    }
+
+    #[tokio::test]
+    async fn tool_call_checkpoint_is_durable_exact_and_idempotent() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Team authority".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let turn_id = manager
+            .start_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "start the team".to_string(),
+                Some("team-turn".to_string()),
+                None,
+            )
+            .await
+            .expect("turn should start");
+        let input = json!({ "action": "start", "objective": "ship safely" });
+
+        let first = manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                input.clone(),
+            )
+            .await
+            .expect("first checkpoint should persist");
+        let replay = manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                input.clone(),
+            )
+            .await
+            .expect("exact replay should be idempotent");
+        assert_eq!(first, replay);
+        assert_eq!(first.round_id, "round-1");
+        assert_eq!(first.input, input);
+
+        let persisted = persistence_manager
+            .load_dialog_turn(workspace.path(), &session.session_id, 0)
+            .await
+            .expect("turn should load")
+            .expect("turn should exist");
+        assert_eq!(persisted.model_rounds.len(), 1);
+        assert_eq!(persisted.model_rounds[0].tool_items.len(), 1);
+        assert_eq!(persisted.model_rounds[0].tool_items[0].tool_name, "Team");
+        assert_eq!(
+            manager
+                .require_persisted_tool_call_authority(&session.session_id, &turn_id, "team-call-1")
+                .await
+                .expect("durable checkpoint should authorize"),
+            first
+        );
+    }
+
+    #[tokio::test]
+    async fn tool_call_checkpoint_rejects_identity_and_payload_conflicts() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = test_manager(persistence_manager.clone());
+        let session = manager
+            .create_session(
+                "Team conflicts".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let turn_id = manager
+            .start_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "start".to_string(),
+                Some("team-turn".to_string()),
+                None,
+            )
+            .await
+            .expect("turn should start");
+        let input = json!({ "action": "start" });
+        manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                input.clone(),
+            )
+            .await
+            .expect("initial checkpoint should persist");
+
+        for (round_id, tool_name, conflicting_input) in [
+            ("round-2", "Team", input.clone()),
+            ("round-1", "Agent", input.clone()),
+            ("round-1", "Team", json!({ "action": "message" })),
+        ] {
+            assert!(manager
+                .checkpoint_current_tool_call_before_execution(
+                    &session.session_id,
+                    &turn_id,
+                    round_id,
+                    tool_name,
+                    "team-call-1",
+                    conflicting_input,
+                )
+                .await
+                .is_err());
+        }
+
+        let persisted = persistence_manager
+            .load_dialog_turn(workspace.path(), &session.session_id, 0)
+            .await
+            .expect("turn should load")
+            .expect("turn should exist");
+        assert_eq!(persisted.model_rounds.len(), 1);
+        assert_eq!(persisted.model_rounds[0].tool_items.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn tool_call_checkpoint_rejects_non_parent_and_non_persistent_sessions() {
+        for kind in [SessionKind::Subagent, SessionKind::EphemeralChild] {
+            let workspace = TestWorkspace::new();
+            let persistence_manager =
+                Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+            let manager = test_manager(persistence_manager.clone());
+            let session = manager
+                .create_session(
+                    "Child authority".to_string(),
+                    "agentic".to_string(),
+                    SessionConfig {
+                        workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                        ..Default::default()
+                    },
+                )
+                .await
+                .expect("session should create");
+            manager
+                .sessions
+                .get_mut(&session.session_id)
+                .expect("session should be restored")
+                .kind = kind;
+            let turn_id = manager
+                .start_dialog_turn_with_existing_context(
+                    &session.session_id,
+                    "agentic".to_string(),
+                    "start".to_string(),
+                    Some("child-turn".to_string()),
+                    None,
+                )
+                .await
+                .expect("child turn should start");
+            assert!(manager
+                .checkpoint_current_tool_call_before_execution(
+                    &session.session_id,
+                    &turn_id,
+                    "round-1",
+                    "Team",
+                    "team-call-1",
+                    json!({ "action": "start" }),
+                )
+                .await
+                .is_err());
+            let persisted = persistence_manager
+                .load_dialog_turn(workspace.path(), &session.session_id, 0)
+                .await
+                .expect("turn should load")
+                .expect("turn should exist");
+            assert!(persisted.model_rounds.is_empty());
+        }
+
+        let transient_workspace = TestWorkspace::new();
+        let manager = in_memory_test_manager();
+        let session = manager
+            .create_session(
+                "Transient authority".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(transient_workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("in-memory session should create");
+        let turn_id = manager
+            .start_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "start".to_string(),
+                Some("transient-turn".to_string()),
+                None,
+            )
+            .await
+            .expect("in-memory turn should start");
+        assert!(manager
+            .checkpoint_current_tool_call_before_execution(
+                &session.session_id,
+                &turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                json!({ "action": "start" }),
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn completion_serializes_with_tool_call_checkpoint() {
+        let workspace = TestWorkspace::new();
+        let persistence_manager =
+            Arc::new(PersistenceManager::new(workspace.path_manager()).expect("persistence"));
+        let manager = Arc::new(test_manager(persistence_manager.clone()));
+        let session = manager
+            .create_session(
+                "Team completion".to_string(),
+                "agentic".to_string(),
+                SessionConfig {
+                    workspace_path: Some(workspace.path().to_string_lossy().to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("session should create");
+        let turn_id = manager
+            .start_dialog_turn_with_existing_context(
+                &session.session_id,
+                "agentic".to_string(),
+                "start".to_string(),
+                Some("team-turn".to_string()),
+                None,
+            )
+            .await
+            .expect("turn should start");
+
+        let checkpoint_manager = manager.clone();
+        let checkpoint_session_id = session.session_id.clone();
+        let checkpoint_turn_id = turn_id.clone();
+        let complete_manager = manager.clone();
+        let complete_session_id = session.session_id.clone();
+        let complete_turn_id = turn_id.clone();
+        let (checkpoint, completion) = tokio::join!(
+            checkpoint_manager.checkpoint_current_tool_call_before_execution(
+                &checkpoint_session_id,
+                &checkpoint_turn_id,
+                "round-1",
+                "Team",
+                "team-call-1",
+                json!({ "action": "start" }),
+            ),
+            complete_manager.complete_dialog_turn(
+                &complete_session_id,
+                &complete_turn_id,
+                "finished".to_string(),
+                &[],
+                TurnStats::default(),
+            )
+        );
+        checkpoint.expect("checkpoint should run before queued completion");
+        completion.expect("completion should serialize after checkpoint");
+
+        let persisted = persistence_manager
+            .load_dialog_turn(workspace.path(), &session.session_id, 0)
+            .await
+            .expect("turn should load")
+            .expect("turn should exist");
+        assert_eq!(persisted.status, TurnStatus::Completed);
+        assert_eq!(persisted.model_rounds.len(), 2);
+        assert_eq!(persisted.model_rounds[1].text_items[0].content, "finished");
+    }
+
+    #[tokio::test]
+    async fn persisted_tool_call_authority_accepts_one_durable_standard_tool_call() {
+        let workspace = TestWorkspace::new();
+        let (manager, _persistence, session_id) = authority_fixture(
+            &workspace,
+            SessionKind::Standard,
+            true,
+            vec![authority_tool_item("tool-call", "tool-call")],
+        )
+        .await;
+
+        let authority = manager
+            .require_persisted_tool_call_authority(&session_id, "parent-turn", "tool-call")
+            .await
+            .expect("unique persisted tool call should authorize");
+
+        assert_eq!(
+            authority,
+            PersistedToolCallAuthority {
+                tool_name: "Agent".to_string(),
+                turn_index: 0,
+                round_id: "parent-turn-round".to_string(),
+                input: json!({ "task": "delegate" }),
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn persisted_tool_call_authority_rejects_missing_turn_and_missing_tool() {
+        let missing_turn_workspace = TestWorkspace::new();
+        let (missing_turn_manager, _persistence, missing_turn_session_id) = authority_fixture(
+            &missing_turn_workspace,
+            SessionKind::Standard,
+            false,
+            Vec::new(),
+        )
+        .await;
+        assert!(missing_turn_manager
+            .require_persisted_tool_call_authority(
+                &missing_turn_session_id,
+                "parent-turn",
+                "tool-call",
+            )
+            .await
+            .is_err());
+
+        let missing_tool_workspace = TestWorkspace::new();
+        let (missing_tool_manager, _persistence, missing_tool_session_id) = authority_fixture(
+            &missing_tool_workspace,
+            SessionKind::Standard,
+            true,
+            Vec::new(),
+        )
+        .await;
+        assert!(missing_tool_manager
+            .require_persisted_tool_call_authority(
+                &missing_tool_session_id,
+                "parent-turn",
+                "tool-call",
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn persisted_tool_call_authority_rejects_duplicate_and_mismatched_tool_ids() {
+        let duplicate_workspace = TestWorkspace::new();
+        let (duplicate_manager, _persistence, duplicate_session_id) = authority_fixture(
+            &duplicate_workspace,
+            SessionKind::Standard,
+            true,
+            vec![
+                authority_tool_item("tool-call", "tool-call"),
+                authority_tool_item("tool-call", "tool-call"),
+            ],
+        )
+        .await;
+        assert!(duplicate_manager
+            .require_persisted_tool_call_authority(
+                &duplicate_session_id,
+                "parent-turn",
+                "tool-call",
+            )
+            .await
+            .is_err());
+
+        let mismatch_workspace = TestWorkspace::new();
+        let (mismatch_manager, _persistence, mismatch_session_id) = authority_fixture(
+            &mismatch_workspace,
+            SessionKind::Standard,
+            true,
+            vec![authority_tool_item("tool-call", "different-inner")],
+        )
+        .await;
+        assert!(
+            mismatch_manager
+                .require_persisted_tool_call_authority(
+                    &mismatch_session_id,
+                    "parent-turn",
+                    "tool-call",
+                )
+                .await
+                .is_err()
+        );
+
+        let duplicate_turn_workspace = TestWorkspace::new();
+        let (duplicate_turn_manager, _persistence, duplicate_turn_session_id) = authority_fixture(
+            &duplicate_turn_workspace,
+            SessionKind::Standard,
+            true,
+            vec![authority_tool_item("tool-call", "tool-call")],
+        )
+        .await;
+        duplicate_turn_manager
+            .sessions
+            .get_mut(&duplicate_turn_session_id)
+            .expect("session should be restored")
+            .dialog_turn_ids
+            .push("parent-turn".to_string());
+        assert!(duplicate_turn_manager
+            .require_persisted_tool_call_authority(
+                &duplicate_turn_session_id,
+                "parent-turn",
+                "tool-call",
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn persisted_tool_call_authority_rejects_non_standard_session() {
+        let workspace = TestWorkspace::new();
+        let (manager, _persistence, session_id) = authority_fixture(
+            &workspace,
+            SessionKind::Subagent,
+            true,
+            vec![authority_tool_item("tool-call", "tool-call")],
+        )
+        .await;
+
+        assert!(manager
+            .require_persisted_tool_call_authority(&session_id, "parent-turn", "tool-call")
+            .await
+            .is_err());
     }
 
     #[tokio::test]

@@ -568,10 +568,7 @@ impl BrowserLauncher {
                     })
                 }
             }
-            Err(e) => Err(VoidError::tool(format!(
-                "Failed to launch {}: {}",
-                kind, e
-            ))),
+            Err(e) => Err(VoidError::tool(format!("Failed to launch {}: {}", kind, e))),
         }
     }
 

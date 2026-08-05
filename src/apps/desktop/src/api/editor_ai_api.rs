@@ -6,11 +6,11 @@
 //! - Supports streaming output and cancellation by request id
 
 use crate::api::app_state::AppState;
-use void_core::util::types::message::Message as AIMessage;
 use futures::StreamExt;
 use log::warn;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
+use void_core::util::types::message::Message as AIMessage;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

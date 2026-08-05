@@ -13,7 +13,7 @@ describe('CatalogIconAvatar', () => {
     expect(resolveCatalogIconTone(identity)).toBeLessThan(6);
   });
 
-  it('renders a decorative circular catalog identity', () => {
+  it('renders a decorative catalog identity with a prominent card size', () => {
     const markup = renderToStaticMarkup(
       <CatalogIconAvatar
         identity="skill:arrange"

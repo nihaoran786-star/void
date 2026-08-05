@@ -7,6 +7,9 @@
 
 use crate::miniapp::manager::MiniAppManager;
 use crate::util::errors::{VoidError, VoidResult};
+use chrono::Utc;
+use std::path::Path;
+use std::sync::Arc;
 use void_product_domains::miniapp::builtin::{
     build_builtin_package_json, build_builtin_seed_meta, builtin_source_files,
     parse_builtin_install_marker, preserved_builtin_created_at, resolve_builtin_seed_action,
@@ -14,9 +17,6 @@ use void_product_domains::miniapp::builtin::{
     BuiltinMiniAppBundle, BuiltinSeedAction, BuiltinSeedCheck, BUILTIN_INSTALL_MARKER,
     BUILTIN_PLACEHOLDER_COMPILED_HTML, LEGACY_BUILTIN_VERSION_MARKER,
 };
-use chrono::Utc;
-use std::path::Path;
-use std::sync::Arc;
 
 /// A built-in MiniApp bundled with the application binary.
 pub type BuiltinApp = BuiltinMiniAppBundle;

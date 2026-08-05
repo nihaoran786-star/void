@@ -15,6 +15,8 @@ mod retry;
 
 use serde::{Deserialize, Serialize};
 
+use crate::infrastructure::get_path_manager_arc;
+
 pub use command_router::{BotChatState, ForwardRequest, ForwardedTurnResult, HandleResult};
 pub use locale::BotLanguage;
 pub use menu::{MenuItem, MenuItemStyle, MenuView};
@@ -485,15 +487,25 @@ pub fn auto_push_failed_message(language: BotLanguage, file_name: &str, err: &st
 const REMOTE_CONNECT_PERSISTENCE_FILENAME: &str = "remote_connect_persistence.json";
 const LEGACY_BOT_PERSISTENCE_FILENAME: &str = "bot_connections.json";
 
+fn persistence_path_in_void_home(
+    void_home: &std::path::Path,
+    file_name: &str,
+) -> std::path::PathBuf {
+    void_home.join(file_name)
+}
+
 pub fn bot_persistence_path() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|home| {
-        home.join(".void")
-            .join(REMOTE_CONNECT_PERSISTENCE_FILENAME)
-    })
+    Some(persistence_path_in_void_home(
+        &get_path_manager_arc().void_home_dir(),
+        REMOTE_CONNECT_PERSISTENCE_FILENAME,
+    ))
 }
 
 fn legacy_bot_persistence_path() -> Option<std::path::PathBuf> {
-    dirs::home_dir().map(|home| home.join(".void").join(LEGACY_BOT_PERSISTENCE_FILENAME))
+    Some(persistence_path_in_void_home(
+        &get_path_manager_arc().void_home_dir(),
+        LEGACY_BOT_PERSISTENCE_FILENAME,
+    ))
 }
 
 pub fn load_bot_persistence() -> BotPersistenceData {
@@ -530,19 +542,35 @@ pub fn save_bot_persistence(data: &BotPersistenceData) {
 
 #[cfg(test)]
 mod tests {
-    use super::{collect_auto_push_files, extract_downloadable_file_paths, resolve_workspace_path};
+    use super::{
+        collect_auto_push_files, extract_downloadable_file_paths, persistence_path_in_void_home,
+        resolve_workspace_path, LEGACY_BOT_PERSISTENCE_FILENAME,
+        REMOTE_CONNECT_PERSISTENCE_FILENAME,
+    };
 
     fn make_temp_workspace() -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
-        let base = std::env::temp_dir().join(format!(
-            "void-remote-connect-test-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let base =
+            std::env::temp_dir().join(format!("void-remote-connect-test-{}", uuid::Uuid::new_v4()));
         let workspace = base.join("workspace");
         let artifacts = workspace.join("artifacts");
         let report = artifacts.join("report.pptx");
         std::fs::create_dir_all(&artifacts).unwrap();
         std::fs::write(&report, b"ppt").unwrap();
         (base, workspace, report)
+    }
+
+    #[test]
+    fn bot_persistence_files_stay_under_managed_void_home() {
+        let void_home = std::path::Path::new("managed-void-home");
+
+        assert_eq!(
+            persistence_path_in_void_home(void_home, REMOTE_CONNECT_PERSISTENCE_FILENAME),
+            void_home.join(REMOTE_CONNECT_PERSISTENCE_FILENAME)
+        );
+        assert_eq!(
+            persistence_path_in_void_home(void_home, LEGACY_BOT_PERSISTENCE_FILENAME),
+            void_home.join(LEGACY_BOT_PERSISTENCE_FILENAME)
+        );
     }
 
     #[test]

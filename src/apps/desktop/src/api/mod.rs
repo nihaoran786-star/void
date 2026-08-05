@@ -46,6 +46,7 @@ pub mod subagent_api;
 pub mod subscription_auth_api;
 pub mod system_api;
 pub mod team_definition_api;
+pub mod team_runtime_api;
 pub mod terminal_api;
 pub mod tool_api;
 pub mod workspace_activation;

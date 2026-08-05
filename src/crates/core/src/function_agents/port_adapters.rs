@@ -229,10 +229,10 @@ fn git_last_commit_timestamp(repo_path: &Path) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use void_product_domains::function_agents::ports::FunctionAgentGitPort;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::process::Command;
+    use void_product_domains::function_agents::ports::FunctionAgentGitPort;
 
     use crate::product_domain_runtime::CoreProductDomainRuntime;
 

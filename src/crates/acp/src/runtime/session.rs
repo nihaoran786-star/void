@@ -7,9 +7,9 @@ use agent_client_protocol::schema::{
     SessionMode, SessionModeState, SessionUpdate, SetSessionModeRequest, SetSessionModeResponse,
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
+use chrono::{DateTime, Utc};
 use void_core::agentic::agents::get_agent_registry;
 use void_core::agentic::core::SessionConfig;
-use chrono::{DateTime, Utc};
 
 use super::events::send_update;
 use super::model::{

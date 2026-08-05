@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fmt;
 
 pub const SUBAGENT_TASK_SCHEMA_VERSION: u32 = 3;
+pub const TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -115,6 +117,157 @@ pub struct SubagentTaskRecoveryBlock {
     pub detail: String,
 }
 
+/// Host-resolved Skill authority for one durable Team member launch.
+///
+/// `NoPolicy` deliberately preserves the effective Skill set inherited from
+/// the scenario/workspace/user runtime. `Restricted` may only narrow that set.
+/// The complete Team identity is persisted so retries and follow-up turns
+/// cannot silently adopt a newer Team definition or another member policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TeamMemberSkillPolicyKind {
+    NoPolicy,
+    Restricted,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TeamMemberSkillPolicySnapshot {
+    pub schema_version: u32,
+    pub kind: TeamMemberSkillPolicyKind,
+    pub team_definition_id: String,
+    pub team_definition_revision: String,
+    pub team_instance_id: String,
+    pub member_id: String,
+    pub agent_id: String,
+    #[serde(default)]
+    pub allowed_skill_keys: Vec<String>,
+    pub policy_hash: String,
+}
+
+impl TeamMemberSkillPolicySnapshot {
+    pub fn new(
+        team_definition_id: String,
+        team_definition_revision: String,
+        team_instance_id: String,
+        member_id: String,
+        agent_id: String,
+        allowed_skill_keys: Vec<String>,
+    ) -> Result<Self, SubagentTaskTransitionError> {
+        let mut normalized = Vec::with_capacity(allowed_skill_keys.len());
+        for key in allowed_skill_keys {
+            let key = key.trim();
+            if key.is_empty() {
+                return Err(SubagentTaskTransitionError::new(
+                    "Team member Skill policy contains an empty key",
+                ));
+            }
+            normalized.push(key.to_string());
+        }
+        normalized.sort();
+        normalized.dedup();
+        let kind = if normalized.is_empty() {
+            TeamMemberSkillPolicyKind::NoPolicy
+        } else {
+            TeamMemberSkillPolicyKind::Restricted
+        };
+        let mut snapshot = Self {
+            schema_version: TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION,
+            kind,
+            team_definition_id,
+            team_definition_revision,
+            team_instance_id,
+            member_id,
+            agent_id,
+            allowed_skill_keys: normalized,
+            policy_hash: String::new(),
+        };
+        snapshot.policy_hash = snapshot.compute_policy_hash();
+        snapshot.validate()?;
+        Ok(snapshot)
+    }
+
+    pub fn is_restricted(&self) -> bool {
+        self.kind == TeamMemberSkillPolicyKind::Restricted
+    }
+
+    fn hash_field(hasher: &mut Sha256, value: &str) {
+        hasher.update((value.len() as u64).to_be_bytes());
+        hasher.update(value.as_bytes());
+    }
+
+    fn compute_policy_hash(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(self.schema_version.to_be_bytes());
+        Self::hash_field(
+            &mut hasher,
+            match self.kind {
+                TeamMemberSkillPolicyKind::NoPolicy => "no_policy",
+                TeamMemberSkillPolicyKind::Restricted => "restricted",
+            },
+        );
+        for value in [
+            self.team_definition_id.as_str(),
+            self.team_definition_revision.as_str(),
+            self.team_instance_id.as_str(),
+            self.member_id.as_str(),
+            self.agent_id.as_str(),
+        ] {
+            Self::hash_field(&mut hasher, value);
+        }
+        hasher.update((self.allowed_skill_keys.len() as u64).to_be_bytes());
+        for key in &self.allowed_skill_keys {
+            Self::hash_field(&mut hasher, key);
+        }
+        format!("{:x}", hasher.finalize())
+    }
+
+    pub fn validate(&self) -> Result<(), SubagentTaskTransitionError> {
+        if self.schema_version != TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION {
+            return Err(SubagentTaskTransitionError::new(format!(
+                "unsupported Team member Skill policy schema version: {}",
+                self.schema_version
+            )));
+        }
+        if [
+            self.team_definition_id.as_str(),
+            self.team_definition_revision.as_str(),
+            self.team_instance_id.as_str(),
+            self.member_id.as_str(),
+            self.agent_id.as_str(),
+        ]
+        .into_iter()
+        .any(|value| value.trim().is_empty())
+        {
+            return Err(SubagentTaskTransitionError::new(
+                "Team member Skill policy is missing durable Team identity",
+            ));
+        }
+        let keys_are_normalized = self
+            .allowed_skill_keys
+            .iter()
+            .all(|key| !key.is_empty() && key.trim() == key)
+            && self
+                .allowed_skill_keys
+                .windows(2)
+                .all(|pair| pair[0] < pair[1]);
+        let kind_matches_keys = match self.kind {
+            TeamMemberSkillPolicyKind::NoPolicy => self.allowed_skill_keys.is_empty(),
+            TeamMemberSkillPolicyKind::Restricted => !self.allowed_skill_keys.is_empty(),
+        };
+        if !keys_are_normalized || !kind_matches_keys {
+            return Err(SubagentTaskTransitionError::new(
+                "Team member Skill policy keys do not match its normalized policy kind",
+            ));
+        }
+        if self.policy_hash != self.compute_policy_hash() {
+            return Err(SubagentTaskTransitionError::new(
+                "Team member Skill policy hash does not match its durable facts",
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Durable inputs required to resume an interrupted background subagent in its
 /// existing child session. Session configuration and transcript remain owned by
 /// session persistence; this record only keeps launch facts that cannot be
@@ -130,6 +283,8 @@ pub struct SubagentTaskLaunchSpec {
     pub nesting_depth: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_seconds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub team_member_skill_policy: Option<TeamMemberSkillPolicySnapshot>,
 }
 
 impl SubagentTaskLaunchSpec {
@@ -141,6 +296,9 @@ impl SubagentTaskLaunchSpec {
             return Err(SubagentTaskTransitionError::new(
                 "subagent launch spec is missing agent or parent turn identity",
             ));
+        }
+        if let Some(policy) = self.team_member_skill_policy.as_ref() {
+            policy.validate()?;
         }
         Ok(())
     }
@@ -407,9 +565,8 @@ impl SubagentTaskRecord {
                     );
                     self.recovery_block = Some(SubagentTaskRecoveryBlock {
                         code: SubagentTaskRecoveryBlockCode::UnsafeDeliveryReplay,
-                        detail:
-                            "failed delivery cannot be replayed without idempotency guarantees"
-                                .to_string(),
+                        detail: "failed delivery cannot be replayed without idempotency guarantees"
+                            .to_string(),
                     });
                     self.updated_at = now;
                     return Ok(false);
@@ -881,6 +1038,67 @@ mod tests {
     }
 
     #[test]
+    fn team_member_skill_policy_is_normalized_and_tamper_evident() {
+        let first = TeamMemberSkillPolicySnapshot::new(
+            "definition".into(),
+            "revision".into(),
+            "instance".into(),
+            "member".into(),
+            "agent".into(),
+            vec![" skill-b ".into(), "skill-a".into(), "skill-a".into()],
+        )
+        .unwrap();
+        let second = TeamMemberSkillPolicySnapshot::new(
+            "definition".into(),
+            "revision".into(),
+            "instance".into(),
+            "member".into(),
+            "agent".into(),
+            vec!["skill-a".into(), "skill-b".into()],
+        )
+        .unwrap();
+
+        assert_eq!(first.kind, TeamMemberSkillPolicyKind::Restricted);
+        assert_eq!(first.allowed_skill_keys, vec!["skill-a", "skill-b"]);
+        assert_eq!(first.policy_hash, second.policy_hash);
+
+        let mut tampered = first;
+        tampered.allowed_skill_keys.push("skill-c".into());
+        assert!(tampered.validate().is_err());
+
+        let mut agent_tampered = second;
+        agent_tampered.agent_id = "other-agent".into();
+        assert!(agent_tampered.validate().is_err());
+    }
+
+    #[test]
+    fn no_policy_is_typed_and_legacy_launch_defaults_to_none() {
+        let no_policy = TeamMemberSkillPolicySnapshot::new(
+            "definition".into(),
+            "revision".into(),
+            "instance".into(),
+            "member".into(),
+            "agent".into(),
+            vec![],
+        )
+        .unwrap();
+        assert_eq!(no_policy.kind, TeamMemberSkillPolicyKind::NoPolicy);
+        assert!(!no_policy.is_restricted());
+
+        let legacy = serde_json::json!({
+            "agent_type": "agent",
+            "parent_dialog_turn_id": "turn",
+            "parent_tool_call_id": "tool",
+            "context": {},
+            "allow_subagent_spawn": false,
+            "nesting_depth": 1
+        });
+        let restored: SubagentTaskLaunchSpec = serde_json::from_value(legacy).unwrap();
+        assert!(restored.team_member_skill_policy.is_none());
+        restored.validate().unwrap();
+    }
+
+    #[test]
     fn synchronous_fork_uses_same_record_without_delivery() {
         let task = SubagentTaskRecord::new_typed(
             "subagent-sync".into(),
@@ -893,14 +1111,8 @@ mod tests {
             1,
         );
 
-        assert_eq!(
-            task.execution_mode,
-            SubagentTaskExecutionMode::Synchronous
-        );
+        assert_eq!(task.execution_mode, SubagentTaskExecutionMode::Synchronous);
         assert_eq!(task.context_mode, SubagentTaskContextMode::Fork);
-        assert_eq!(
-            task.delivery_state,
-            SubagentTaskDeliveryState::NotRequired
-        );
+        assert_eq!(task.delivery_state, SubagentTaskDeliveryState::NotRequired);
     }
 }

@@ -90,9 +90,8 @@ impl WorkspaceIdentityWatchService {
         }
 
         let (tx, rx) = std::sync::mpsc::channel();
-        let mut watcher = RecommendedWatcher::new(tx, Config::default()).map_err(|e| {
-            VoidError::service(format!("Failed to create identity watcher: {}", e))
-        })?;
+        let mut watcher = RecommendedWatcher::new(tx, Config::default())
+            .map_err(|e| VoidError::service(format!("Failed to create identity watcher: {}", e)))?;
 
         let mut watched_count = 0usize;
         for root_path in watched_paths.keys() {

@@ -2,9 +2,6 @@ use super::types::{AICommitAnalysis, CommitMessageOptions, ProjectContext};
 use crate::function_agents::common::{AgentError, AgentResult};
 use crate::infrastructure::ai::AIClient;
 use crate::util::types::Message;
-use void_product_domains::function_agents::git_func_agent::{
-    parse_commit_ai_response, prepare_commit_ai_prompt,
-};
 /**
  * AI service layer
  *
@@ -12,6 +9,9 @@ use void_product_domains::function_agents::git_func_agent::{
  */
 use log::{debug, error, warn};
 use std::sync::Arc;
+use void_product_domains::function_agents::git_func_agent::{
+    parse_commit_ai_response, prepare_commit_ai_prompt,
+};
 
 pub struct AIAnalysisService {
     ai_client: Arc<AIClient>,

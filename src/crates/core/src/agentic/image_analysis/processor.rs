@@ -164,9 +164,7 @@ impl ImageAnalyzer {
             return Ok((data, detected_mime.or_else(|| Some(ctx.mime_type.clone()))));
         }
 
-        Err(VoidError::validation(
-            "Image context missing path or data",
-        ))
+        Err(VoidError::validation("Image context missing path or data"))
     }
 
     fn build_image_analysis_prompt(user_context: Option<&str>) -> String {

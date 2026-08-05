@@ -1,10 +1,10 @@
 use crate::TransportAdapter;
 use async_trait::async_trait;
-use void_events::EventEmitter;
 /// TransportEmitter - EventEmitter implementation based on TransportAdapter
 ///
 /// This is the bridge connecting core layer and transport layer
 use std::sync::Arc;
+use void_events::EventEmitter;
 
 /// TransportEmitter - Implements EventEmitter using TransportAdapter
 #[derive(Clone)]

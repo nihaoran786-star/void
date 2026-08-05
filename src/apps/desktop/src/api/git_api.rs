@@ -1,19 +1,17 @@
 //! Git API
 
 use crate::api::app_state::AppState;
+use log::{debug, error, info};
+use serde::{Deserialize, Serialize};
+use tauri::State;
 use void_core::infrastructure::storage::StorageOptions;
 use void_core::service::git::{
     build_git_changed_files_args, build_git_diff_args, GitAddParams, GitChangedFile,
     GitChangedFileStatus, GitChangedFilesParams, GitCommitParams, GitDiffParams, GitFileStatus,
     GitLogParams, GitPullParams, GitPushParams, GitService,
 };
-use void_core::service::git::{
-    GitBranch, GitCommit, GitOperationResult, GitRepository, GitStatus,
-};
+use void_core::service::git::{GitBranch, GitCommit, GitOperationResult, GitRepository, GitStatus};
 use void_core::service::remote_ssh::{lookup_remote_connection, normalize_remote_workspace_path};
-use log::{debug, error, info};
-use serde::{Deserialize, Serialize};
-use tauri::State;
 
 #[derive(Debug, Clone)]
 struct RemoteGitTarget {

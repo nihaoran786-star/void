@@ -1037,8 +1037,7 @@ impl WorkspaceService {
 
                     let path_buf = PathBuf::from(raw_path);
                     let (canonical_path, normalized_key) =
-                        canonicalize_local_workspace_root(&path_buf)
-                            .map_err(VoidError::service)?;
+                        canonicalize_local_workspace_root(&path_buf).map_err(VoidError::service)?;
 
                     let metadata = tokio::fs::metadata(&canonical_path)
                         .await
@@ -1801,9 +1800,7 @@ impl WorkspaceService {
         options
     }
 
-    async fn discover_assistant_workspaces(
-        &self,
-    ) -> VoidResult<Vec<AssistantWorkspaceDescriptor>> {
+    async fn discover_assistant_workspaces(&self) -> VoidResult<Vec<AssistantWorkspaceDescriptor>> {
         self.migrate_legacy_assistant_workspaces().await?;
 
         let assistant_root = self.path_manager.assistant_workspace_base_dir(None);

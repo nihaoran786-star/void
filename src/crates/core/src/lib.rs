@@ -23,9 +23,9 @@ pub mod util; // General types, errors, helper functions
 pub use infrastructure::debug_log as debug;
 
 // Export main types
-pub use void_runtime_ports as runtime_ports;
 pub use util::errors::*;
 pub use util::types::*;
+pub use void_runtime_ports as runtime_ports;
 
 // Export service layer components
 pub use service::{

@@ -21,7 +21,7 @@ const ConnectorCatalogAvatar: React.FC<ConnectorCatalogAvatarProps> = ({
   return (
     <CatalogIconAvatar
       identity={`connector:${identity}`}
-      icon={<Icon strokeWidth={1.7} />}
+      icon={<Icon strokeWidth={1.9} />}
       label={name}
       size={size}
       className={className}

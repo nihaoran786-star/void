@@ -984,6 +984,8 @@ async fn mcp_config_service_orchestration_preserves_load_save_delete_contract() 
     store.values.lock().await.insert(
         "mcp_servers".to_string(),
         serde_json::json!({
+            "schemaVersion": 7,
+            "userMetadata": { "keep": true },
             "mcpServers": {
                 "remote-docs": {
                     "type": "remote",
@@ -1027,6 +1029,8 @@ async fn mcp_config_service_orchestration_preserves_load_save_delete_contract() 
         saved_value["mcpServers"]["remote-docs"]["headers"]["X-Existing"],
         "kept"
     );
+    assert_eq!(saved_value["schemaVersion"], 7);
+    assert_eq!(saved_value["userMetadata"]["keep"], true);
 
     let cleared = service
         .clear_remote_authorization("remote-docs")
@@ -1047,6 +1051,57 @@ async fn mcp_config_service_orchestration_preserves_load_save_delete_contract() 
         .unwrap()
         .get("remote-docs")
         .is_none());
+    assert_eq!(deleted_value["schemaVersion"], 7);
+    assert_eq!(deleted_value["userMetadata"]["keep"], true);
+}
+
+#[tokio::test]
+async fn mcp_config_service_inserts_one_user_server_without_overwriting_existing_data() {
+    let store = Arc::new(InMemoryMCPConfigStore::default());
+    store.values.lock().await.insert(
+        "mcp_servers".to_string(),
+        serde_json::json!({
+            "schemaVersion": 9,
+            "mcpServers": {
+                "existing": {
+                    "command": "node",
+                    "args": ["server.js"],
+                    "custom": "keep"
+                }
+            }
+        }),
+    );
+    let service = MCPConfigService::new(store.clone());
+    let config = make_mcp_config(
+        "memory",
+        ConfigLocation::User,
+        MCPServerType::Local,
+        Some("npx"),
+        None,
+    );
+
+    service
+        .insert_user_config_if_absent(&config)
+        .await
+        .expect("new connector should be inserted");
+    let duplicate = service
+        .insert_user_config_if_absent(&config)
+        .await
+        .expect_err("stable IDs must not be overwritten");
+    assert!(duplicate
+        .to_string()
+        .contains("MCP_CONNECTOR_ALREADY_INSTALLED: memory"));
+
+    let saved_value = store
+        .values
+        .lock()
+        .await
+        .get("mcp_servers")
+        .cloned()
+        .unwrap();
+    assert_eq!(saved_value["schemaVersion"], 9);
+    assert_eq!(saved_value["mcpServers"]["existing"]["custom"], "keep");
+    assert_eq!(saved_value["mcpServers"]["memory"]["command"], "npx");
 }
 
 #[tokio::test]

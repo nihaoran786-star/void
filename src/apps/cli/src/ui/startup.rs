@@ -2153,9 +2153,7 @@ impl StartupPage {
                     }
                 }
 
-                fn model_display_name(
-                    model: &void_core::service::config::AIModelConfig,
-                ) -> String {
+                fn model_display_name(model: &void_core::service::config::AIModelConfig) -> String {
                     format!("{} / {}", model.model_name, provider_display_name(model))
                 }
 

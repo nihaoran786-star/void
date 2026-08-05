@@ -2,6 +2,10 @@
 
 use crate::miniapp::types::{MiniApp, MiniAppMeta, MiniAppSource, NpmDep};
 use crate::util::errors::{VoidError, VoidResult};
+use serde_json;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
 use void_product_domains::miniapp::customization::MiniAppCustomizationMetadata;
 use void_product_domains::miniapp::ports::{
     MiniAppPortError, MiniAppPortErrorKind, MiniAppPortFuture, MiniAppStoragePort,
@@ -11,10 +15,6 @@ use void_product_domains::miniapp::storage::{
     DRAFTS_CLEANUP_MARKER, DRAFTS_CLEANUP_PREFIX, DRAFTS_DIR, DRAFT_JSON, ESM_DEPS_JSON,
     INDEX_HTML, META_JSON, PACKAGE_JSON, STORAGE_JSON, STYLE_CSS, UI_JS, WORKER_JS,
 };
-use serde_json;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::Duration;
 
 /// MiniApp storage service (file-based under path_manager.miniapps_dir).
 pub struct MiniAppStorage {
@@ -314,13 +314,11 @@ impl MiniAppStorage {
             .await
             .map_err(|e| VoidError::io(format!("Failed to write worker.js: {}", e)))?;
 
-        let esm_json = serde_json::to_string_pretty(&app.source.esm_dependencies)
-            .map_err(VoidError::from)?;
+        let esm_json =
+            serde_json::to_string_pretty(&app.source.esm_dependencies).map_err(VoidError::from)?;
         tokio::fs::write(sd.join(ESM_DEPS_JSON), esm_json)
             .await
-            .map_err(|e| {
-                VoidError::io(format!("Failed to write esm_dependencies.json: {}", e))
-            })?;
+            .map_err(|e| VoidError::io(format!("Failed to write esm_dependencies.json: {}", e)))?;
 
         self.write_package_json_to_dir(app_dir, &app.id, &app.source.npm_dependencies)
             .await?;
@@ -567,12 +565,7 @@ impl MiniAppStorage {
     }
 
     /// Save a version snapshot (for rollback).
-    pub async fn save_version(
-        &self,
-        app_id: &str,
-        version: u32,
-        app: &MiniApp,
-    ) -> VoidResult<()> {
+    pub async fn save_version(&self, app_id: &str, version: u32, app: &MiniApp) -> VoidResult<()> {
         let versions_dir = self.layout(app_id).versions_dir();
         tokio::fs::create_dir_all(&versions_dir)
             .await
@@ -666,9 +659,9 @@ impl MiniAppStorage {
         if !path.exists() {
             return Ok(None);
         }
-        let content = tokio::fs::read_to_string(&path).await.map_err(|e| {
-            VoidError::io(format!("Failed to read customization metadata: {}", e))
-        })?;
+        let content = tokio::fs::read_to_string(&path)
+            .await
+            .map_err(|e| VoidError::io(format!("Failed to read customization metadata: {}", e)))?;
         serde_json::from_str(&content)
             .map(Some)
             .map_err(|e| VoidError::parse(format!("Invalid customization metadata: {}", e)))
@@ -683,9 +676,7 @@ impl MiniAppStorage {
         let json = serde_json::to_string_pretty(metadata).map_err(VoidError::from)?;
         tokio::fs::write(self.customization_path(app_id), json)
             .await
-            .map_err(|e| {
-                VoidError::io(format!("Failed to write customization metadata: {}", e))
-            })?;
+            .map_err(|e| VoidError::io(format!("Failed to write customization metadata: {}", e)))?;
         Ok(())
     }
 
@@ -850,12 +841,12 @@ fn map_miniapp_port_error(error: VoidError) -> MiniAppPortError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use void_product_domains::miniapp::customization::{
-        MiniAppCustomizationMetadata, MiniAppCustomizationOrigin, MiniAppCustomizationOriginKind,
-    };
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
+    use void_product_domains::miniapp::customization::{
+        MiniAppCustomizationMetadata, MiniAppCustomizationOrigin, MiniAppCustomizationOriginKind,
+    };
 
     struct TestTempDir {
         path: PathBuf,
@@ -934,10 +925,8 @@ mod tests {
 
     #[tokio::test]
     async fn storage_adapter_uses_product_domain_layout_contract() {
-        let root = std::env::temp_dir().join(format!(
-            "void-miniapp-layout-port-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("void-miniapp-layout-port-{}", uuid::Uuid::new_v4()));
         let path_manager =
             Arc::new(crate::infrastructure::PathManager::with_user_root_for_tests(root));
         let storage = MiniAppStorage::new(path_manager.clone());

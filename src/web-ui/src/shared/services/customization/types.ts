@@ -120,10 +120,14 @@ export interface TeamCatalogEntry extends CapabilityCatalogEntryBase {
   leadBinding:
     | 'child_orchestrator'
     | 'parent_persona_compatibility'
+    | 'parent_persona'
     | 'definition_only';
   lead: TeamCatalogMember;
   members: TeamCatalogMember[];
-  activationSupport: 'existing_flow_only' | 'definition_only';
+  activationSupport:
+    | 'existing_flow_only'
+    | 'parent_persona'
+    | 'definition_only';
   managementSupport:
     | 'readonly_fixed'
     | 'authorable'

@@ -1,12 +1,12 @@
 //! Configuration API
 
 use crate::api::app_state::AppState;
-use void_core::util::errors::VoidError;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use tauri::State;
+use void_core::util::errors::VoidError;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -392,7 +392,8 @@ pub async fn canonicalize_agent_profile_configs(
 ) -> Result<Value, String> {
     match void_core::service::config::mode_config_canonicalizer::canonicalize_agent_profile_configs(
     )
-    .await {
+    .await
+    {
         Ok(report) => {
             info!(
                 "Agent profile configs canonicalized: removed_profiles={}, updated_profiles={}",
@@ -406,7 +407,10 @@ pub async fn canonicalize_agent_profile_configs(
         }
         Err(e) => {
             error!("Failed to canonicalize agent profile configs: {}", e);
-            Err(format!("Failed to canonicalize agent profile configs: {}", e))
+            Err(format!(
+                "Failed to canonicalize agent profile configs: {}",
+                e
+            ))
         }
     }
 }

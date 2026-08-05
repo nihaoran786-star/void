@@ -1,6 +1,6 @@
-use void_core::agentic::insights::{InsightsReport, InsightsReportMeta, InsightsService};
 use log::{error, info};
 use serde::Deserialize;
+use void_core::agentic::insights::{InsightsReport, InsightsReportMeta, InsightsService};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]

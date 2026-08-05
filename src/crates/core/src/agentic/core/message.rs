@@ -3,12 +3,12 @@ use super::recovery_checkpoint::RecoveryCheckpoint;
 use crate::agentic::image_analysis::{render_attached_image_references, ImageContextData};
 use crate::util::types::{Message as AIMessage, ToolCall as AIToolCall, ToolImageAttachment};
 use crate::util::TokenCounter;
-pub use void_runtime_ports::{CompressionContract, CompressionContractItem};
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::time::SystemTime;
 use uuid::Uuid;
+pub use void_runtime_ports::{CompressionContract, CompressionContractItem};
 
 // ============ Message ============
 

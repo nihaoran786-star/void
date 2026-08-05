@@ -12,11 +12,11 @@ use crate::agentic::coordination::{get_global_coordinator, SubagentExecutionRequ
 use crate::agentic::tools::pipeline::SubagentParentInfo;
 use crate::service::bootstrap::ensure_workspace_gitignore_ignores_void;
 use crate::util::errors::{VoidError, VoidResult};
-use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 use log::{debug, warn};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tokio::fs;
+use void_runtime_ports::{DelegationPolicy, SubagentContextMode};
 
 /// Config file name
 const CONFIG_FILE_NAME: &str = "project-context-config.json";
@@ -307,10 +307,7 @@ impl ProjectContextService {
                     return Ok(PathBuf::from(CANCELLED_PATH_SENTINEL));
                 }
                 unregister_generation(doc_id).await;
-                return Err(VoidError::service(format!(
-                    "Generation task failed: {}",
-                    e
-                )));
+                return Err(VoidError::service(format!("Generation task failed: {}", e)));
             }
         };
 
@@ -584,10 +581,7 @@ impl ProjectContextService {
     /// Auto-cleanup:
     /// 1. Imported document records whose physical files do not exist
     /// 2. Enabled-state records referencing non-existent documents
-    async fn load_config_and_cleanup(
-        &self,
-        workspace: &Path,
-    ) -> VoidResult<ProjectContextConfig> {
+    async fn load_config_and_cleanup(&self, workspace: &Path) -> VoidResult<ProjectContextConfig> {
         let mut config = self.load_config(workspace).await.unwrap_or_default();
         let mut modified = false;
 
@@ -1062,11 +1056,7 @@ impl ProjectContextService {
     /// # Parameters
     /// - workspace: Workspace path
     /// - doc_id: Document ID
-    pub async fn delete_imported_document(
-        &self,
-        workspace: &Path,
-        doc_id: &str,
-    ) -> VoidResult<()> {
+    pub async fn delete_imported_document(&self, workspace: &Path, doc_id: &str) -> VoidResult<()> {
         let mut config = self.load_config(workspace).await?;
 
         let doc_index = config
@@ -1105,11 +1095,7 @@ impl ProjectContextService {
     /// # Parameters
     /// - workspace: Workspace path
     /// - doc_id: Document ID
-    pub async fn delete_context_document(
-        &self,
-        workspace: &Path,
-        doc_id: &str,
-    ) -> VoidResult<()> {
+    pub async fn delete_context_document(&self, workspace: &Path, doc_id: &str) -> VoidResult<()> {
         let config = self.load_config(workspace).await?;
 
         if let Some(_doc_index) = config

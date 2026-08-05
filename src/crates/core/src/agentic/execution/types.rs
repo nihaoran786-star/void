@@ -13,6 +13,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+use void_core_types::TeamMemberSkillPolicySnapshot;
 use void_runtime_ports::DelegationPolicy;
 
 /// Execution context
@@ -40,6 +41,8 @@ pub struct ExecutionContext {
     pub recover_partial_on_cancel: bool,
     /// Validated immutable persona overlay captured for this accepted turn.
     pub persona_runtime: Option<ResolvedPersonaRuntime>,
+    /// Trusted durable policy for a generic Team member child session.
+    pub team_member_skill_policy: Option<TeamMemberSkillPolicySnapshot>,
 }
 
 /// Round context

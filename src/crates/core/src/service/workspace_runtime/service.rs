@@ -257,9 +257,8 @@ impl WorkspaceRuntimeService {
                 .collect(),
         };
 
-        let bytes = serde_json::to_vec_pretty(&state).map_err(|e| {
-            VoidError::service(format!("Failed to serialize runtime state: {}", e))
-        })?;
+        let bytes = serde_json::to_vec_pretty(&state)
+            .map_err(|e| VoidError::service(format!("Failed to serialize runtime state: {}", e)))?;
         tokio::fs::write(&context.layout_state_file, bytes)
             .await
             .map_err(|e| {
@@ -315,10 +314,8 @@ impl WorkspaceRuntimeService {
                 remote_root,
             } => {
                 let runtime_root = self.remote_workspace_runtime_root(ssh_host, remote_root);
-                let legacy_sessions_root = runtime_root
-                    .join("sessions")
-                    .join(".void")
-                    .join("sessions");
+                let legacy_sessions_root =
+                    runtime_root.join("sessions").join(".void").join("sessions");
                 vec![RuntimeMigrationSpec {
                     source: legacy_sessions_root,
                     target: context.sessions_dir.clone(),
@@ -990,8 +987,7 @@ mod tests {
 
     #[tokio::test]
     async fn ensure_local_workspace_runtime_creates_complete_layout_without_project_dot_dir() {
-        let test_root =
-            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
+        let test_root = std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
         fs::create_dir_all(&workspace_root).expect("workspace should exist");
 
@@ -1024,8 +1020,7 @@ mod tests {
 
     #[tokio::test]
     async fn ensure_local_workspace_runtime_migrates_legacy_runtime_entries() {
-        let test_root =
-            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
+        let test_root = std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
         let legacy_root = workspace_root.join(".void");
         fs::create_dir_all(legacy_root.join("sessions")).expect("legacy sessions should exist");
@@ -1051,8 +1046,7 @@ mod tests {
 
     #[tokio::test]
     async fn ensure_remote_workspace_runtime_merges_legacy_sessions_only() {
-        let test_root =
-            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
+        let test_root = std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let path_manager = Arc::new(PathManager::with_user_root_for_tests(
             test_root.join("user"),
         ));
@@ -1150,8 +1144,7 @@ mod tests {
 
     #[tokio::test]
     async fn ensure_local_workspace_runtime_uses_verified_cache_on_repeat_calls() {
-        let test_root =
-            std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
+        let test_root = std::env::temp_dir().join(format!("void-runtime-test-{}", Uuid::new_v4()));
         let workspace_root = test_root.join("workspace");
         fs::create_dir_all(&workspace_root).expect("workspace should exist");
 

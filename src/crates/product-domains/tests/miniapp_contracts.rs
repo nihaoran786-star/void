@@ -1,43 +1,49 @@
 #![cfg(feature = "miniapp")]
 
+use std::collections::BTreeMap;
+use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::pin;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 use void_product_domains::miniapp::bridge_builder::{build_bridge_script, build_csp_content};
 use void_product_domains::miniapp::builtin::{
-    BUILTIN_INSTALL_MARKER, BUILTIN_PLACEHOLDER_COMPILED_HTML, BuiltinInstallMarker,
-    BuiltinMiniAppBundle, BuiltinSeedAction, BuiltinSeedCheck, LEGACY_BUILTIN_VERSION_MARKER,
     build_builtin_install_marker, build_builtin_package_json, build_builtin_seed_meta,
     builtin_content_hash, builtin_source_files, legacy_builtin_version_marker_content,
     parse_builtin_install_marker, preserved_builtin_created_at, resolve_builtin_seed_action,
     resolve_builtin_seed_check, serialize_builtin_install_marker, should_seed_builtin_app,
+    BuiltinInstallMarker, BuiltinMiniAppBundle, BuiltinSeedAction, BuiltinSeedCheck,
+    BUILTIN_INSTALL_MARKER, BUILTIN_PLACEHOLDER_COMPILED_HTML, LEGACY_BUILTIN_VERSION_MARKER,
 };
 use void_product_domains::miniapp::compiler::compile;
 use void_product_domains::miniapp::customization::{
-    MAX_DECLINED_BUILTIN_UPDATES, MiniAppCustomizationBaseline, MiniAppCustomizationLocalSnapshot,
-    MiniAppCustomizationMetadata, MiniAppCustomizationOrigin, MiniAppCustomizationOriginKind,
     apply_draft_customization_metadata, decline_builtin_update_metadata,
     declined_builtin_update_needs_local_snapshot, is_current_declined_builtin_update,
-    mark_builtin_update_available_metadata,
+    mark_builtin_update_available_metadata, MiniAppCustomizationBaseline,
+    MiniAppCustomizationLocalSnapshot, MiniAppCustomizationMetadata, MiniAppCustomizationOrigin,
+    MiniAppCustomizationOriginKind, MAX_DECLINED_BUILTIN_UPDATES,
 };
 use void_product_domains::miniapp::draft::{
-    MINIAPP_DRAFT_STATUS_APPLIED, MINIAPP_DRAFT_STATUS_DRAFT, build_draft_manifest,
-    build_draft_response,
+    build_draft_manifest, build_draft_response, MINIAPP_DRAFT_STATUS_APPLIED,
+    MINIAPP_DRAFT_STATUS_DRAFT,
 };
 use void_product_domains::miniapp::exporter::{
-    ExportCheckResult, ExportTarget, MISSING_JS_RUNTIME_MESSAGE, build_export_check_result,
-    export_runtime_label,
+    build_export_check_result, export_runtime_label, ExportCheckResult, ExportTarget,
+    MISSING_JS_RUNTIME_MESSAGE,
 };
 use void_product_domains::miniapp::host_routing::{
-    FsAccessMode, command_basename_allowed, command_basename_for_allowlist, fs_method_access_mode,
+    command_basename_allowed, command_basename_for_allowlist, fs_method_access_mode,
     fs_policy_scopes, fs_resolved_path_allowed, host_allowed_by_allowlist, is_host_primitive,
     shell_exec_cwd, shell_exec_default_env, shell_exec_first_token, shell_exec_input_is_empty,
-    shell_exec_timeout_ms, split_host_method,
+    shell_exec_timeout_ms, split_host_method, FsAccessMode,
 };
 use void_product_domains::miniapp::lifecycle::{
-    MiniAppCreateInput, MiniAppUpdatePatch, apply_draft_permission_update_result,
-    apply_draft_source_sync_result, apply_draft_to_active, apply_import_runtime_state,
-    apply_recompile_result, apply_sync_from_fs_result, apply_update_patch, build_created_app,
-    build_deps_revision, build_runtime_state, build_source_revision, build_worker_revision,
-    clear_worker_restart_required_state, ensure_runtime_state, mark_deps_installed_state,
-    prepare_draft_app, prepare_rollback_app, workspace_dir_string,
+    apply_draft_permission_update_result, apply_draft_source_sync_result, apply_draft_to_active,
+    apply_import_runtime_state, apply_recompile_result, apply_sync_from_fs_result,
+    apply_update_patch, build_created_app, build_deps_revision, build_runtime_state,
+    build_source_revision, build_worker_revision, clear_worker_restart_required_state,
+    ensure_runtime_state, mark_deps_installed_state, prepare_draft_app, prepare_rollback_app,
+    workspace_dir_string, MiniAppCreateInput, MiniAppUpdatePatch,
 };
 use void_product_domains::miniapp::permission_policy::resolve_policy;
 use void_product_domains::miniapp::ports::{
@@ -45,30 +51,24 @@ use void_product_domains::miniapp::ports::{
     MiniAppRuntimeFacade, MiniAppRuntimePort, MiniAppStoragePort,
 };
 use void_product_domains::miniapp::runtime::{
-    DetectedRuntime, RuntimeKind, candidate_dirs, candidate_executable_path, detect_runtime,
-    runtime_lookup_order, version_manager_roots, versioned_executable_candidate,
+    candidate_dirs, candidate_executable_path, detect_runtime, runtime_lookup_order,
+    version_manager_roots, versioned_executable_candidate, DetectedRuntime, RuntimeKind,
 };
 use void_product_domains::miniapp::storage::{
-    COMPILED_HTML, CUSTOMIZATION_JSON, DRAFT_JSON, DRAFTS_CLEANUP_MARKER, DRAFTS_CLEANUP_PREFIX,
-    DRAFTS_DIR, EMPTY_ESM_DEPENDENCIES_JSON, EMPTY_STORAGE_JSON, ESM_DEPS_JSON, INDEX_HTML,
-    META_JSON, MiniAppImportLayout, MiniAppStorageLayout, PACKAGE_JSON, PLACEHOLDER_COMPILED_HTML,
+    build_import_fallbacks, build_package_json, parse_npm_dependencies, MiniAppImportLayout,
+    MiniAppStorageLayout, COMPILED_HTML, CUSTOMIZATION_JSON, DRAFTS_CLEANUP_MARKER,
+    DRAFTS_CLEANUP_PREFIX, DRAFTS_DIR, DRAFT_JSON, EMPTY_ESM_DEPENDENCIES_JSON, EMPTY_STORAGE_JSON,
+    ESM_DEPS_JSON, INDEX_HTML, META_JSON, PACKAGE_JSON, PLACEHOLDER_COMPILED_HTML,
     REQUIRED_SOURCE_FILES, SOURCE_DIR, STORAGE_JSON, STYLE_CSS, UI_JS, VERSIONS_DIR, WORKER_JS,
-    build_import_fallbacks, build_package_json, parse_npm_dependencies,
 };
 use void_product_domains::miniapp::types::{
     FsPermissions, MiniApp, MiniAppAiContext, MiniAppI18n, MiniAppPermissions, MiniAppRuntimeState,
     MiniAppSource, NetPermissions, NotificationPermissions, NpmDep,
 };
 use void_product_domains::miniapp::worker::{
-    InstallDepsPlan, InstallResult, install_command_for_runtime, plan_install_deps,
-    select_lru_worker, worker_idle_timeout_ms, worker_is_idle, worker_pool_at_capacity,
+    install_command_for_runtime, plan_install_deps, select_lru_worker, worker_idle_timeout_ms,
+    worker_is_idle, worker_pool_at_capacity, InstallDepsPlan, InstallResult,
 };
-use std::collections::BTreeMap;
-use std::future::Future;
-use std::path::{Path, PathBuf};
-use std::pin::pin;
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 struct RuntimePortStub;
 
@@ -906,15 +906,13 @@ fn miniapp_lifecycle_draft_helpers_preserve_manager_contract() {
 
     assert_eq!(permissioned.version, active.version);
     assert_eq!(permissioned.updated_at, 4000);
-    assert!(
-        permissioned
-            .permissions
-            .fs
-            .as_ref()
-            .unwrap()
-            .write
-            .is_some()
-    );
+    assert!(permissioned
+        .permissions
+        .fs
+        .as_ref()
+        .unwrap()
+        .write
+        .is_some());
     assert_eq!(permissioned.runtime.source_revision, "src:3:4000");
     assert!(permissioned.runtime.worker_restart_required);
 
@@ -1536,12 +1534,10 @@ fn miniapp_customization_decline_policy_updates_existing_and_trims_old_records()
         metadata.declined_builtin_updates.len(),
         MAX_DECLINED_BUILTIN_UPDATES
     );
-    assert!(
-        !metadata
-            .declined_builtin_updates
-            .iter()
-            .any(|record| record.source_hash == "hash-v5")
-    );
+    assert!(!metadata
+        .declined_builtin_updates
+        .iter()
+        .any(|record| record.source_hash == "hash-v5"));
 }
 
 fn sample_miniapp_for_lifecycle(source: MiniAppSource) -> MiniApp {

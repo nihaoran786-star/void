@@ -1,10 +1,10 @@
 //! Project Context API
 
+use std::path::Path;
 use void_core::service::project_context::{
     CategoryInfo, ContextDocumentStatus, FileConflictAction, ImportedDocument,
     ProjectContextConfig, ProjectContextService,
 };
-use std::path::Path;
 
 #[tauri::command]
 pub async fn get_document_statuses(

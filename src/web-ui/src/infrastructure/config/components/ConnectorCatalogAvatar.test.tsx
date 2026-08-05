@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Cable, Database, FolderOpen, Github, Mail } from 'lucide-react';
+import { BookOpen, Cable, Database, FolderOpen, Github, Mail } from 'lucide-react';
 import { resolveConnectorCatalogIcon } from './connectorCatalogIcons';
 
 describe('resolveConnectorCatalogIcon', () => {
@@ -8,6 +8,7 @@ describe('resolveConnectorCatalogIcon', () => {
     expect(resolveConnectorCatalogIcon('local-filesystem')).toBe(FolderOpen);
     expect(resolveConnectorCatalogIcon('postgres-mcp')).toBe(Database);
     expect(resolveConnectorCatalogIcon('gmail')).toBe(Mail);
+    expect(resolveConnectorCatalogIcon('context7', 'Context7 docs')).toBe(BookOpen);
   });
 
   it('uses the connector glyph when no category can be inferred', () => {

@@ -5,11 +5,14 @@ import type { SessionActivePersonaBinding } from '@/shared/types/session-history
 import {
   ComposerPersonaService,
   customizationRuntimeCapabilityService,
+  reusableTeamActivationService,
+  ReusableTeamActivationError,
   scenarioFromLegacyAgentType,
   type AgentCatalogEntry,
   type ComposerPersonaCatalog,
   type CustomizationRuntimeCapabilityReader,
   type PersonaTurnSnapshotDescriptor,
+  type ReusableTeamActivator,
   type TeamCatalogEntry,
 } from '@/shared/services/customization';
 
@@ -33,6 +36,7 @@ export interface UseComposerPersonaSelectionOptions {
   currentAgentType?: string;
   enabled: boolean;
   service?: ComposerPersonaService;
+  teamActivationService?: ReusableTeamActivator;
   capabilityService?: CustomizationRuntimeCapabilityReader;
   persistPersona?: (
     sessionId: string,
@@ -57,6 +61,7 @@ export function useComposerPersonaSelection({
   currentAgentType,
   enabled,
   service = defaultComposerPersonaService,
+  teamActivationService = reusableTeamActivationService,
   capabilityService = customizationRuntimeCapabilityService,
   persistPersona = persistComposerPersona,
 }: UseComposerPersonaSelectionOptions) {
@@ -264,6 +269,40 @@ export function useComposerPersonaSelection({
       setActionError('server_runtime_deferred');
       throw new Error('server_runtime_deferred');
     }
+    if (!enabled || !sessionId || sessionKind !== 'normal') {
+      setActionError('parent_session_required');
+      throw new Error('parent_session_required');
+    }
+    if (service.isReusableTeam(entry, scenario)) {
+      if (personaPersistencePendingRef.current) {
+        setActionError('persona_persistence_pending');
+        throw new Error('persona_persistence_pending');
+      }
+      personaPersistencePendingRef.current = true;
+      setPersonaPersistencePending(true);
+      setBusyId(entry.identity.id);
+      setActionError(undefined);
+      try {
+        await teamActivationService.activate({
+          entry,
+          parentSessionId: sessionId,
+          scenario,
+          executionPolicy,
+          persistPersona,
+        });
+      } catch (error) {
+        const code = error instanceof ReusableTeamActivationError
+          ? error.code
+          : 'team_activation_failed';
+        setActionError(code);
+        throw new Error(code);
+      } finally {
+        personaPersistencePendingRef.current = false;
+        setPersonaPersistencePending(false);
+        setBusyId(undefined);
+      }
+      return;
+    }
     setBusyId(entry.identity.id);
     setActionError(undefined);
     try {
@@ -279,14 +318,49 @@ export function useComposerPersonaSelection({
     } finally {
       setBusyId(undefined);
     }
-  }, [runtimeUnsupported, scenario, service]);
+  }, [
+    enabled,
+    executionPolicy,
+    persistPersona,
+    runtimeUnsupported,
+    scenario,
+    service,
+    sessionId,
+    sessionKind,
+    teamActivationService,
+  ]);
 
-  const activeAgent = useMemo(
-    () => catalog.agents.find(
-      entry => entry.identity.id === activePersonaId,
-    ),
-    [activePersonaId, catalog.agents],
-  );
+  const activeAgent = useMemo(() => {
+    if (
+      activePersonaBinding?.kind !== 'agent'
+      || activePersonaBinding.personaRevision.status !== 'known'
+    ) {
+      return undefined;
+    }
+    const activeRevision = activePersonaBinding.personaRevision.value;
+    return catalog.agents.find(entry =>
+      entry.identity.id === activePersonaBinding.personaId
+      && entry.identity.revision.status === 'known'
+      && entry.identity.revision.value === activeRevision,
+    );
+  }, [activePersonaBinding, catalog.agents]);
+
+  const activeTeam = useMemo(() => {
+    if (
+      activePersonaBinding?.kind !== 'team_lead'
+      || !activePersonaBinding.teamDefinitionId
+      || activePersonaBinding.personaRevision.status !== 'known'
+    ) {
+      return undefined;
+    }
+    const activeRevision = activePersonaBinding.personaRevision.value;
+    return catalog.teams.find(entry =>
+      entry.identity.id === activePersonaBinding.teamDefinitionId
+      && entry.lead.identity.id === activePersonaBinding.personaId
+      && entry.lead.identity.revision.status === 'known'
+      && entry.lead.identity.revision.value === activeRevision,
+    );
+  }, [activePersonaBinding, catalog.teams]);
 
   const personaSessionState = useMemo<
     PersonaTurnSnapshotDescriptor | undefined
@@ -331,6 +405,7 @@ export function useComposerPersonaSelection({
     agents: catalog.agents,
     teams: catalog.teams,
     activeAgent,
+    activeTeam,
     activePersonaBinding,
     busyId,
     personaPersistencePending,

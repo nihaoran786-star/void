@@ -1,18 +1,17 @@
 //! MCP API
 
 use crate::api::app_state::AppState;
-use void_core::service::mcp::auth::{
-    has_stored_oauth_credentials, MCPRemoteOAuthSessionSnapshot,
-};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tauri::State;
+use void_core::service::mcp::auth::{has_stored_oauth_credentials, MCPRemoteOAuthSessionSnapshot};
 use void_core::service::mcp::config::MCPConfigService;
 use void_core::service::mcp::protocol::{
     MCPPrompt, MCPResource, PromptsGetResult, ResourcesReadResult,
 };
-use void_core::service::mcp::MCPServerType;
+use void_core::service::mcp::{MCPServerConfig, MCPServerType};
 use void_core::service::runtime::{RuntimeManager, RuntimeSource};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use tauri::State;
+use void_services_integrations::mcp::config::{parse_cursor_format, validate_mcp_json_config};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +54,13 @@ pub struct ListMCPResourcesRequest {
     pub server_id: String,
     #[serde(default)]
     pub refresh: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstallMCPConnectorRequest {
+    pub connector_id: String,
+    pub server_config: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,6 +157,51 @@ pub async fn initialize_mcp_servers_non_destructive(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn install_mcp_connector(
+    state: State<'_, AppState>,
+    request: InstallMCPConnectorRequest,
+) -> Result<(), String> {
+    let connector_id = request.connector_id.trim();
+    if connector_id.is_empty() || connector_id != request.connector_id {
+        return Err(
+            "MCP_CONNECTOR_INSTALL_FAILED: connectorId must be a non-empty trimmed string"
+                .to_string(),
+        );
+    }
+    if !request.server_config.is_object() {
+        return Err("MCP_CONNECTOR_INSTALL_FAILED: serverConfig must be an object".to_string());
+    }
+
+    let mut servers = serde_json::Map::new();
+    servers.insert(connector_id.to_string(), request.server_config);
+    let document = serde_json::json!({ "mcpServers": servers });
+    validate_mcp_json_config(&document)
+        .map_err(|error| format!("MCP_CONNECTOR_INSTALL_FAILED: {}", error))?;
+
+    let mut configs = parse_cursor_format(&document);
+    if configs.len() != 1 {
+        return Err(
+            "MCP_CONNECTOR_INSTALL_FAILED: serverConfig must describe exactly one MCP server"
+                .to_string(),
+        );
+    }
+    let config: MCPServerConfig = configs.remove(0);
+    config
+        .validate()
+        .map_err(|error| format!("MCP_CONNECTOR_INSTALL_FAILED: {}", error))?;
+
+    let mcp_service = state
+        .mcp_service
+        .as_ref()
+        .ok_or_else(|| "MCP_CONNECTOR_INSTALL_FAILED: MCP service not initialized".to_string())?;
+    mcp_service
+        .server_manager()
+        .install_server_transactional(config)
+        .await
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -457,7 +508,7 @@ pub async fn save_mcp_json_config(
         .ok_or_else(|| "MCP service not initialized".to_string())?;
 
     mcp_service
-        .config_service()
+        .server_manager()
         .save_mcp_json_config(&json_config)
         .await
         .map_err(|e| e.to_string())

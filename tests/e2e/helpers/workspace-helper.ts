@@ -3,12 +3,15 @@
  */
 
 import { browser, $, $$ } from '@wdio/globals';
-import * as path from 'path';
+import { isWorkspaceReady } from './workspace-readiness.js';
 
 export interface WorkspaceState {
   currentWorkspacePath: string | null;
   openedWorkspacePaths: string[];
   workspaceLabels: string[];
+  managerCurrentWorkspacePath: string | null;
+  managerLoading: boolean;
+  applicationShellReady: boolean;
 }
 
 /**
@@ -27,8 +30,10 @@ export async function openWorkspaceThroughFrontend(workspacePath: string): Promi
 export async function getWorkspaceState(): Promise<WorkspaceState> {
   return browser.execute(async () => {
     const { globalStateAPI } = await import('/src/shared/types/global-state.ts');
+    const { workspaceManager } = await import('/src/infrastructure/services/business/workspaceManager.ts');
     const currentWorkspace = await globalStateAPI.getCurrentWorkspace();
     const openedWorkspaces = await globalStateAPI.getOpenedWorkspaces();
+    const managerState = workspaceManager.getState();
     const workspaceLabels = Array.from(document.querySelectorAll('.void-nav-panel__workspace-item-label'))
       .map(element => element.textContent?.trim() || '')
       .filter(Boolean);
@@ -37,23 +42,31 @@ export async function getWorkspaceState(): Promise<WorkspaceState> {
       currentWorkspacePath: currentWorkspace?.rootPath || null,
       openedWorkspacePaths: openedWorkspaces.map(workspace => workspace.rootPath),
       workspaceLabels,
+      managerCurrentWorkspacePath: managerState.currentWorkspace?.rootPath ?? null,
+      managerLoading: managerState.loading,
+      applicationShellReady: Boolean(
+        document.querySelector('[data-testid="app-layout"]')
+        && document.querySelector('[data-testid="app-main-content"]')
+        && document.querySelector('.void-nav-panel')
+        && !document.querySelector('.splash-screen'),
+      ),
     };
   });
 }
 
 /**
- * Wait until both frontend state and nav DOM reflect the target workspace.
+ * Wait until both frontend state layers agree and the stable application shell
+ * is ready. Workspace labels are presentation-only and may be absent when the
+ * navigation is collapsed or filtered.
  */
 export async function waitForWorkspaceReady(
   workspacePath: string,
-  projectName: string = path.basename(workspacePath),
+  _projectName: string = '',
   timeout: number = 15000,
 ): Promise<WorkspaceState> {
   await browser.waitUntil(async () => {
     const state = await getWorkspaceState();
-    return state.currentWorkspacePath === workspacePath
-      && state.openedWorkspacePaths.includes(workspacePath)
-      && state.workspaceLabels.some(label => label.includes(projectName));
+    return isWorkspaceReady(state, workspacePath);
   }, {
     timeout,
     interval: 500,

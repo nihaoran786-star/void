@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 pub use void_core_types::errors::{AiErrorDetail, ErrorCategory};
-use void_core_types::ToolImageAttachment;
 pub use void_core_types::SubagentTaskRecord;
+use void_core_types::ToolImageAttachment;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum AgenticEventPriority {

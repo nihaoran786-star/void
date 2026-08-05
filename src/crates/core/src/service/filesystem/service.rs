@@ -4,11 +4,11 @@ use crate::infrastructure::{
 };
 use crate::util::elapsed_ms_u64;
 use crate::util::errors::*;
-use void_services_core::filesystem::FileSystemService as BaseFileSystemService;
 use log::debug;
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use void_services_core::filesystem::FileSystemService as BaseFileSystemService;
 
 use super::types::{DirectoryScanResult, DirectoryStats, FileSearchOptions, FileSystemConfig};
 
@@ -264,11 +264,7 @@ impl FileSystemService {
     }
 
     /// Writes a file.
-    pub async fn write_file(
-        &self,
-        file_path: &str,
-        content: &str,
-    ) -> VoidResult<FileWriteResult> {
+    pub async fn write_file(&self, file_path: &str, content: &str) -> VoidResult<FileWriteResult> {
         self.inner
             .write_file(file_path, content)
             .await

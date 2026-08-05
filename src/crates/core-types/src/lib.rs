@@ -6,8 +6,8 @@
 pub mod errors;
 pub mod external_config_sources;
 pub mod session;
-pub mod subscription_auth;
 pub mod subagent_task;
+pub mod subscription_auth;
 pub mod surface;
 pub mod tool_image_attachment;
 
@@ -18,14 +18,16 @@ pub use external_config_sources::{
     ExternalConfigSourceSnapshot, ExternalConfigSourceStatus, ExternalConfigSourcesSnapshot,
 };
 pub use session::SessionKind;
-pub use subscription_auth::SubscriptionProvider;
 pub use subagent_task::{
     SubagentTaskCheckpointRef, SubagentTaskContextMode, SubagentTaskDeliveryLease,
     SubagentTaskDeliveryReceipt, SubagentTaskDeliveryState, SubagentTaskExecutionMode,
     SubagentTaskLaunchSpec, SubagentTaskRecord, SubagentTaskRecoveryBlock,
     SubagentTaskRecoveryBlockCode, SubagentTaskRecoveryState, SubagentTaskReplaySafety,
-    SubagentTaskStatus, SubagentTaskTransitionError, SUBAGENT_TASK_SCHEMA_VERSION,
+    SubagentTaskStatus, SubagentTaskTransitionError, TeamMemberSkillPolicyKind,
+    TeamMemberSkillPolicySnapshot, SUBAGENT_TASK_SCHEMA_VERSION,
+    TEAM_MEMBER_SKILL_POLICY_SCHEMA_VERSION,
 };
+pub use subscription_auth::SubscriptionProvider;
 pub use surface::{
     ApprovalSource, CapabilityRequest, CapabilityRequestKind, PermissionDecision, PermissionScope,
     RuntimeArtifactKind, RuntimeArtifactRef, SurfaceKind, ThreadEnvironment, ThreadEnvironmentKind,

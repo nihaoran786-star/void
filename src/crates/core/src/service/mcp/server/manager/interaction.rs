@@ -1,6 +1,6 @@
 use super::*;
-use void_services_integrations::mcp::server::{detect_mcp_list_changed_kind, MCPListChangedKind};
 use std::collections::HashSet;
+use void_services_integrations::mcp::server::{detect_mcp_list_changed_kind, MCPListChangedKind};
 
 impl MCPServerManager {
     fn path_to_file_uri(path: &Path) -> Option<String> {

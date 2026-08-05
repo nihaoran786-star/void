@@ -21,7 +21,7 @@ const SkillCatalogAvatar: React.FC<SkillCatalogAvatarProps> = ({
   return (
     <CatalogIconAvatar
       identity={`skill:${identity}`}
-      icon={<Icon strokeWidth={1.7} />}
+      icon={<Icon strokeWidth={1.9} />}
       label={name}
       size={size}
       className={className}

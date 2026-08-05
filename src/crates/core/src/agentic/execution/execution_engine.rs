@@ -20,10 +20,14 @@ use crate::agentic::image_analysis::{
     build_multimodal_message_with_images, process_image_contexts_for_provider,
     render_attached_image_references, ImageContextData, ImageLimits,
 };
+use crate::agentic::persona_skill_runtime::{
+    trusted_persona_skill_context_vars, trusted_team_member_skill_context_vars,
+};
 use crate::agentic::round_preempt::RoundInjectionKind;
 use crate::agentic::session::{
     CompressionMode, ContextCompressor, SessionManager, SystemPromptCacheIdentity,
 };
+use crate::agentic::team_tool_runtime::trusted_team_tool_context_vars;
 use crate::agentic::tools::implementations::{GetToolSpecTool, SkillTool, TaskTool};
 use crate::agentic::tools::{resolve_tool_manifest, tool_context_runtime, ResolvedToolManifest};
 use crate::agentic::util::build_remote_workspace_layout_preview;
@@ -87,6 +91,27 @@ struct CompressionRuntimeScaffold {
     primary_supports_image_understanding: bool,
     compression_contract_limit: usize,
     catalog_generation: u64,
+}
+
+fn trusted_persona_context_vars(context: &ExecutionContext) -> VoidResult<HashMap<String, String>> {
+    let persona_skill_facts = context
+        .persona_runtime
+        .as_ref()
+        .and_then(|runtime| runtime.persona_skill_facts());
+    if persona_skill_facts.is_some() && context.team_member_skill_policy.is_some() {
+        return Err(VoidError::validation(
+            "persona and Team member Skill authorities cannot be active together".to_string(),
+        ));
+    }
+    let trusted = trusted_team_tool_context_vars(
+        &context.context,
+        context
+            .persona_runtime
+            .as_ref()
+            .and_then(|runtime| runtime.team_tool_facts()),
+    );
+    let trusted = trusted_persona_skill_context_vars(&trusted, persona_skill_facts);
+    trusted_team_member_skill_context_vars(&trusted, context.team_member_skill_policy.as_ref())
 }
 
 #[derive(Debug, Clone)]
@@ -600,7 +625,7 @@ impl ExecutionEngine {
     async fn build_tool_listing_sections(
         manifest: &ResolvedToolManifest,
         tool_context: &crate::agentic::tools::framework::ToolUseContext,
-    ) -> ToolListingSections {
+    ) -> VoidResult<ToolListingSections> {
         let has_tool_definition = |tool_name: &str| {
             manifest
                 .tool_definitions
@@ -609,12 +634,12 @@ impl ExecutionEngine {
         };
 
         let skill_context = if has_tool_definition("Skill") {
-            Some(SkillTool::build_available_skills_context(Some(tool_context)).await)
+            Some(SkillTool::build_available_skills_context(Some(tool_context)).await?)
         } else {
             None
         };
 
-        ToolListingSections {
+        Ok(ToolListingSections {
             skill_listing: skill_context
                 .as_ref()
                 .and_then(|context| context.section.clone()),
@@ -631,7 +656,7 @@ impl ExecutionEngine {
             } else {
                 None
             },
-        }
+        })
     }
 
     async fn build_prompt_context(
@@ -1446,7 +1471,7 @@ impl ExecutionEngine {
             write_tool_mode
         };
 
-        let mut tool_manifest_context_vars = context.context.clone();
+        let mut tool_manifest_context_vars = trusted_persona_context_vars(context)?;
         tool_manifest_context_vars.insert(
             "write_tool_mode".to_string(),
             write_tool_mode.as_str().to_string(),
@@ -1472,7 +1497,7 @@ impl ExecutionEngine {
             None
         };
         let tool_listing_sections = if let Some(manifest) = tool_manifest.as_ref() {
-            Self::build_tool_listing_sections(manifest, &tool_description_context).await
+            Self::build_tool_listing_sections(manifest, &tool_description_context).await?
         } else {
             ToolListingSections::default()
         };
@@ -2300,7 +2325,7 @@ impl ExecutionEngine {
             configured_write_tool_mode
         };
 
-        let mut tool_manifest_context_vars = context.context.clone();
+        let mut tool_manifest_context_vars = trusted_persona_context_vars(&context)?;
         tool_manifest_context_vars.insert(
             "write_tool_mode".to_string(),
             write_tool_mode.as_str().to_string(),
@@ -2340,7 +2365,7 @@ impl ExecutionEngine {
             .map(|manifest| manifest.catalog_generation)
             .unwrap_or_default();
         let tool_listing_sections = if let Some(manifest) = tool_manifest.as_ref() {
-            Self::build_tool_listing_sections(manifest, &tool_description_context).await
+            Self::build_tool_listing_sections(manifest, &tool_description_context).await?
         } else {
             ToolListingSections::default()
         };
@@ -2496,7 +2521,7 @@ impl ExecutionEngine {
         let enable_context_compression = session.config.enable_context_compression;
         let compression_threshold = session.config.compression_threshold;
 
-        let mut execution_context_vars = context.context.clone();
+        let mut execution_context_vars = trusted_persona_context_vars(&context)?;
         execution_context_vars.insert(
             "primary_model_id".to_string(),
             resolved_primary_model_id.clone(),
@@ -3413,15 +3438,26 @@ impl ExecutionEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::{cache_identity_with_skill_set, ContextHealthSnapshot, ExecutionEngine};
+    use super::{
+        cache_identity_with_skill_set, trusted_persona_context_vars, ContextHealthSnapshot,
+        ExecutionEngine,
+    };
     use crate::agentic::core::{Message, MessageRole, ToolCall, ToolResult};
+    use crate::agentic::execution::ExecutionContext;
     use crate::agentic::image_analysis::ImageContextData;
+    use crate::agentic::persona_skill_runtime::{
+        PERSONA_SKILL_RESERVED_CONTEXT_KEYS, TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY,
+    };
     use crate::agentic::session::SystemPromptCacheIdentity;
+    use crate::agentic::team_tool_runtime::TEAM_TOOL_RESERVED_CONTEXT_KEYS;
+    use crate::agentic::tools::ToolRuntimeRestrictions;
     use crate::service::config::types::AIConfig;
     use crate::service::config::types::AIModelConfig;
     use crate::util::types::ToolDefinition;
     use serde_json::json;
     use sha2::{Digest, Sha256};
+    use std::collections::HashMap;
+    use void_runtime_ports::DelegationPolicy;
 
     fn build_model(id: &str, name: &str, model_name: &str) -> AIModelConfig {
         AIModelConfig {
@@ -3453,6 +3489,52 @@ mod tests {
         assert_eq!(first, same);
         assert_ne!(first, changed);
         assert_eq!(without_skills, base);
+    }
+
+    #[test]
+    fn all_execution_context_projections_remove_untrusted_team_facts() {
+        let mut context_vars = HashMap::from([("ordinary".to_string(), "kept".to_string())]);
+        for key in TEAM_TOOL_RESERVED_CONTEXT_KEYS {
+            context_vars.insert((*key).to_string(), "forged".to_string());
+        }
+        for key in PERSONA_SKILL_RESERVED_CONTEXT_KEYS {
+            context_vars.insert((*key).to_string(), "forged".to_string());
+        }
+        context_vars.insert(
+            TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY.to_string(),
+            "forged".to_string(),
+        );
+        let context = ExecutionContext {
+            session_id: "session".to_string(),
+            dialog_turn_id: "turn".to_string(),
+            turn_index: 0,
+            agent_type: "agentic".to_string(),
+            workspace: None,
+            context: context_vars,
+            subagent_parent_info: None,
+            delegation_policy: DelegationPolicy::default(),
+            skip_tool_confirmation: false,
+            runtime_tool_restrictions: ToolRuntimeRestrictions::default(),
+            workspace_services: None,
+            round_preempt: None,
+            round_injection: None,
+            recover_partial_on_cancel: false,
+            persona_runtime: None,
+            team_member_skill_policy: None,
+        };
+
+        // Compression manifest, primary manifest, and actual execution all use
+        // this one projection function, so prompt-controlled Team facts cannot
+        // survive any of those paths.
+        let trusted = trusted_persona_context_vars(&context).unwrap();
+        assert_eq!(trusted.get("ordinary").map(String::as_str), Some("kept"));
+        assert!(TEAM_TOOL_RESERVED_CONTEXT_KEYS
+            .iter()
+            .all(|key| !trusted.contains_key(*key)));
+        assert!(PERSONA_SKILL_RESERVED_CONTEXT_KEYS
+            .iter()
+            .all(|key| !trusted.contains_key(*key)));
+        assert!(!trusted.contains_key(TEAM_MEMBER_SKILL_POLICY_IDENTITY_CONTEXT_KEY));
     }
 
     #[test]

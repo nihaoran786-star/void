@@ -1,3 +1,5 @@
+@use '../../../component-library/styles/customization-market' as market;
+
 @mixin styles {
   .void-ui--minimal .void-skills-scene {
     font-family: var(--workspace-font-family);
@@ -259,8 +261,8 @@
     }
 
     .skills-card__avatar {
-      width: 44px;
-      height: 44px;
+      width: 52px;
+      height: 52px;
     }
 
     .skills-card__info {
@@ -760,8 +762,8 @@
     }
 
     .skill-card__avatar {
-      width: 44px;
-      height: 44px;
+      width: 52px;
+      height: 52px;
     }
 
     .skill-card__badges {
@@ -856,6 +858,115 @@
 
       &--danger:not(:disabled):hover {
         color: var(--workspace-status-error-text);
+      }
+    }
+  }
+
+  // The base stylesheet still contains an older compact market projection
+  // after this mixin is included. The explicit presentation contract keeps
+  // Minimal deterministic without relying on !important or runtime state.
+  .void-ui--minimal .void-skills-scene[data-customization-market='skills'] {
+    @include market.scene-surface;
+
+    container: skills-market / inline-size;
+
+    .skills-tabs-bar {
+      @include market.tab-strip;
+    }
+
+    .skills-tabs-bar__tabs {
+      align-self: stretch;
+      gap: var(--workspace-space-3);
+    }
+
+    .skills-tabs-bar__tab {
+      @include market.tab;
+    }
+
+    .skills-filter-bar,
+    .skills-main__toolbar,
+    .skills-discover__toolbar,
+    .skills-main__grid,
+    .skills-main__loading,
+    .skills-discover__grid,
+    .skills-installed__pagination,
+    .skills-discover__pagination {
+      @include market.content-frame;
+    }
+
+    .skills-filter-bar {
+      padding-block: var(--workspace-space-2);
+      padding-inline: 0;
+    }
+
+    .skills-main__toolbar,
+    .skills-discover__toolbar {
+      @include market.toolbar;
+
+      padding-inline: 0;
+    }
+
+    .skills-main__grid,
+    .skills-main__loading,
+    .skills-discover__grid {
+      @include market.grid;
+
+      padding: var(--workspace-space-3) 0;
+    }
+
+    .skills-card,
+    .skills-card-skeleton,
+    .skill-card,
+    .skills-discover__skeleton-card {
+      @include market.card;
+
+      contain-intrinsic-block-size: var(--customization-market-card-height);
+    }
+
+    .skills-card__avatar,
+    .skill-card__avatar {
+      width: 52px;
+      height: 52px;
+    }
+
+    .skills-installed__pagination,
+    .skills-discover__pagination {
+      @include market.pagination;
+
+      margin-top: auto;
+      padding: var(--workspace-space-2) 0 var(--workspace-space-3);
+      background: transparent;
+      border: 0;
+    }
+  }
+
+  @container skills-market (max-width: 900px) {
+    .void-ui--minimal .void-skills-scene[data-customization-market='skills'] {
+      .skills-main__grid,
+      .skills-main__loading,
+      .skills-discover__grid {
+        @include market.two-column-grid;
+      }
+    }
+  }
+
+  @container skills-market (max-width: 560px) {
+    .void-ui--minimal .void-skills-scene[data-customization-market='skills'] {
+      .skills-filter-bar,
+      .skills-main__toolbar,
+      .skills-discover__toolbar,
+      .skills-main__grid,
+      .skills-main__loading,
+      .skills-discover__grid,
+      .skills-installed__pagination,
+      .skills-discover__pagination {
+        width: calc(100% - (var(--workspace-space-3) * 2));
+      }
+
+      .skills-main__grid,
+      .skills-main__loading,
+      .skills-discover__grid {
+        @include market.one-column-grid;
       }
     }
   }

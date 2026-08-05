@@ -10,14 +10,14 @@ use std::time::{Duration, Instant};
 
 use void_core::util::errors::{VoidError, VoidResult};
 use windows::Win32::Foundation::{FALSE, HWND, LPARAM, POINT, TRUE, WPARAM};
-use windows::Win32::Graphics::Dwm::{DWMWA_CLOAK, DwmSetWindowAttribute};
+use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_CLOAK};
 use windows::Win32::Graphics::Gdi::{ClientToScreen, ScreenToClient};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CWP_SKIPDISABLED, CWP_SKIPINVISIBLE, CWP_SKIPTRANSPARENT, ChildWindowFromPointEx,
-    GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId, IsChild, PostMessageW,
-    SB_LINEDOWN, SB_LINELEFT, SB_LINERIGHT, SB_LINEUP, SetForegroundWindow, WM_CHAR, WM_HSCROLL,
+    ChildWindowFromPointEx, GetClassNameW, GetForegroundWindow, GetWindowThreadProcessId, IsChild,
+    PostMessageW, SetForegroundWindow, WindowFromPoint, CWP_SKIPDISABLED, CWP_SKIPINVISIBLE,
+    CWP_SKIPTRANSPARENT, SB_LINEDOWN, SB_LINELEFT, SB_LINERIGHT, SB_LINEUP, WM_CHAR, WM_HSCROLL,
     WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
-    WM_RBUTTONDOWN, WM_RBUTTONUP, WM_VSCROLL, WindowFromPoint,
+    WM_RBUTTONDOWN, WM_RBUTTONUP, WM_VSCROLL,
 };
 use windows_core::BOOL;
 

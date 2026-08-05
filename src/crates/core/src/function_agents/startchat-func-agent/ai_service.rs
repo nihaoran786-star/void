@@ -2,9 +2,6 @@ use super::types::*;
 use crate::function_agents::common::{AgentError, AgentResult, Language};
 use crate::infrastructure::ai::AIClient;
 use crate::util::types::Message;
-use void_product_domains::function_agents::startchat_func_agent::{
-    build_work_state_analysis_prompt, parse_work_state_analysis_response,
-};
 /**
  * AI analysis service
  *
@@ -12,6 +9,9 @@ use void_product_domains::function_agents::startchat_func_agent::{
  */
 use log::{debug, error, warn};
 use std::sync::Arc;
+use void_product_domains::function_agents::startchat_func_agent::{
+    build_work_state_analysis_prompt, parse_work_state_analysis_response,
+};
 
 pub struct AIWorkStateService {
     ai_client: Arc<AIClient>,

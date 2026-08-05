@@ -1,10 +1,10 @@
 mod common;
 
-use void_events::AgenticEvent;
 use common::stream_test_harness::{
     run_stream_fixture_with_options, StreamFixtureProvider, StreamFixtureRunOptions,
 };
 use serde_json::json;
+use void_events::AgenticEvent;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn anthropic_fixture_parses_inline_think_tags_inside_text_delta() {

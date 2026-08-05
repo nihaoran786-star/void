@@ -2,11 +2,6 @@
 //!
 //! Processes AI streaming responses, supports tool pre-detection and parameter streaming
 
-use void_ai_adapters::tool_call_accumulator::{
-    FinalizedToolCall, PendingToolCalls, ToolCallBoundary, ToolCallStreamKey,
-};
-use void_ai_adapters::{GeminiUsage, UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
-use void_events::{AgenticEvent, AgenticEventPriority as EventPriority, ToolEventData};
 use futures::{Stream, StreamExt};
 use log::{debug, error, trace};
 use serde::{Deserialize, Serialize};
@@ -16,6 +11,11 @@ use std::fmt;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::mpsc;
+use void_ai_adapters::tool_call_accumulator::{
+    FinalizedToolCall, PendingToolCalls, ToolCallBoundary, ToolCallStreamKey,
+};
+use void_ai_adapters::{GeminiUsage, UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
+use void_events::{AgenticEvent, AgenticEventPriority as EventPriority, ToolEventData};
 
 /// Minimal tool-call value emitted by the stream processor.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1000,14 +1000,14 @@ impl StreamProcessor {
 #[cfg(test)]
 mod tests {
     use super::{StreamEventSink, StreamProcessOptions, StreamProcessor};
-    use void_ai_adapters::{UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
-    use void_events::{AgenticEvent, AgenticEventPriority as EventPriority};
     use futures::StreamExt;
     use serde_json::json;
     use std::sync::Arc;
     use std::time::Duration;
     use tokio_stream::iter;
     use tokio_util::sync::CancellationToken;
+    use void_ai_adapters::{UnifiedResponse, UnifiedTokenUsage, UnifiedToolCall};
+    use void_events::{AgenticEvent, AgenticEventPriority as EventPriority};
 
     struct NoopEventSink;
 

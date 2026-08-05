@@ -8,6 +8,12 @@ use crate::miniapp::types::{
 };
 use crate::product_domain_runtime::CoreProductDomainRuntime;
 use crate::util::errors::{VoidError, VoidResult};
+use chrono::Utc;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::RwLock;
+use uuid::Uuid;
 use void_product_domains::miniapp::customization::{
     apply_draft_customization_metadata, decline_builtin_update_metadata,
     declined_builtin_update_needs_local_snapshot, diff_permissions,
@@ -31,12 +37,6 @@ use void_product_domains::miniapp::storage::{
     build_import_fallbacks, MiniAppImportLayout, COMPILED_HTML, ESM_DEPS_JSON, META_JSON,
     PACKAGE_JSON, REQUIRED_SOURCE_FILES, SOURCE_DIR, STORAGE_JSON,
 };
-use chrono::Utc;
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
-use tokio::sync::RwLock;
-use uuid::Uuid;
 
 static GLOBAL_MINIAPP_MANAGER: OnceLock<Arc<MiniAppManager>> = OnceLock::new();
 
@@ -502,12 +502,7 @@ impl MiniAppManager {
         Ok(self.build_draft_response(app_id, app, manifest))
     }
 
-    async fn record_draft_applied(
-        &self,
-        app_id: &str,
-        draft_id: &str,
-        now: i64,
-    ) -> VoidResult<()> {
+    async fn record_draft_applied(&self, app_id: &str, draft_id: &str, now: i64) -> VoidResult<()> {
         let existing = self.storage.load_customization_metadata(app_id).await?;
         let baseline = if let Some(builtin) = crate::miniapp::BUILTIN_APPS
             .iter()

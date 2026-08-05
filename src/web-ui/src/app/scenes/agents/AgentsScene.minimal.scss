@@ -1,52 +1,34 @@
+@use '../../../component-library/styles/customization-market' as market;
+
 @mixin styles {
   .void-ui--minimal .agents-catalog-tabs {
+    @include market.tab-strip;
+
     width: 100%;
-    min-height: 48px;
-    margin: 0;
-    padding: 0 var(--workspace-space-4);
-    gap: var(--workspace-space-3);
-    background: var(--workspace-surface-canvas);
-    border-bottom: 1px solid var(--workspace-border-subtle);
 
     button {
-      min-height: 48px;
-      padding: 0 2px;
+      @include market.tab;
+
       border-bottom-width: 2px;
-      color: var(--workspace-text-muted);
-      font-size: var(--workspace-font-size-label);
-      font-weight: var(--workspace-font-weight-regular);
-      line-height: var(--workspace-line-height-control);
 
       &.is-active {
-        color: var(--workspace-text-primary);
         border-bottom-color: var(--workspace-accent);
-        font-weight: var(--workspace-font-weight-medium);
       }
     }
   }
 
   .void-ui--minimal .void-agents-scene {
-    --agents-content-max: 1280px;
+    @include market.scene-surface;
 
-    color: var(--workspace-text-secondary);
-    background: var(--workspace-surface-canvas);
-    font-family: var(--workspace-font-family);
-    font-size: var(--workspace-font-size-control);
-    line-height: var(--workspace-line-height-control);
+    --agents-content-max: var(--customization-market-content-max);
 
     .agent-market-toolbar {
-      display: flex;
-      align-items: center;
+      @include market.content-frame;
+      @include market.toolbar;
+
       justify-content: space-between;
       gap: var(--workspace-space-3);
-      width: min(
-        calc(100% - (var(--workspace-space-4) * 2)),
-        var(--agents-content-max)
-      );
-      min-height: 52px;
       margin: var(--workspace-space-2) auto 0;
-      padding: var(--workspace-space-2) 0;
-      border-bottom: 1px solid var(--workspace-border-subtle);
     }
 
     .gallery-anchor-bar {
@@ -119,13 +101,9 @@
     }
 
     .gallery-zones {
+      @include market.content-frame;
+
       gap: var(--workspace-space-4);
-      width: min(
-        calc(100% - (var(--workspace-space-4) * 2)),
-        var(--agents-content-max)
-      );
-      max-width: none;
-      margin-inline: auto;
       padding: var(--workspace-space-3) 0 var(--workspace-space-6);
     }
 
@@ -153,31 +131,19 @@
     }
 
     .core-agents-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: var(--workspace-space-3);
+      @include market.grid;
     }
 
     .gallery-grid {
+      @include market.grid;
+
       --gallery-grid-min: 280px;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: var(--workspace-space-3);
     }
 
     .agent-card,
     .core-agent-card,
     .agent-team-card {
-      height: 160px;
-      min-height: 160px;
-      border-color: var(--workspace-border-subtle);
-      border-radius: var(--workspace-radius-panel);
-      box-shadow: none;
-      animation: none;
-      transform: none;
-      contain: layout paint style;
-      transition:
-        background-color var(--workspace-motion-fast) var(--workspace-easing-standard),
-        border-color var(--workspace-motion-fast) var(--workspace-easing-standard),
-        color var(--workspace-motion-fast) var(--workspace-easing-standard);
+      @include market.card;
 
       &::before {
         content: none;
@@ -419,7 +385,7 @@
     .void-ui--minimal .void-agents-scene {
       .core-agents-grid,
       .gallery-grid {
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+        @include market.two-column-grid;
       }
     }
   }
@@ -510,7 +476,7 @@
 
       .core-agents-grid,
       .gallery-grid {
-        grid-template-columns: 1fr;
+        @include market.one-column-grid;
       }
 
       .agent-card,

@@ -1,14 +1,6 @@
 //! MiniApp API — Tauri commands for MiniApp CRUD, JS Worker, and dialog.
 
 use crate::api::app_state::AppState;
-use void_core::infrastructure::events::{emit_global_event, BackendEvent};
-use void_core::miniapp::{
-    dispatch_host, is_host_primitive, InstallResult as CoreInstallResult, MiniApp,
-    MiniAppAiContext, MiniAppCustomizationMetadata, MiniAppDraft, MiniAppMeta,
-    MiniAppPermissionDiff, MiniAppPermissions, MiniAppSource,
-};
-use void_core::service::config::types::GlobalConfig;
-use void_core::util::types::Message;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -18,6 +10,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
+use void_core::infrastructure::events::{emit_global_event, BackendEvent};
+use void_core::miniapp::{
+    dispatch_host, is_host_primitive, InstallResult as CoreInstallResult, MiniApp,
+    MiniAppAiContext, MiniAppCustomizationMetadata, MiniAppDraft, MiniAppMeta,
+    MiniAppPermissionDiff, MiniAppPermissions, MiniAppSource,
+};
+use void_core::service::config::types::GlobalConfig;
+use void_core::util::types::Message;
 
 // ============== Request/Response DTOs ==============
 

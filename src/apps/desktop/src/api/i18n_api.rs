@@ -1,11 +1,11 @@
 //! I18n API
 
 use crate::api::app_state::AppState;
-use void_core::service::i18n::{sync_global_i18n_service_locale, LocaleId, LocaleMetadata};
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::State;
+use void_core::service::i18n::{sync_global_i18n_service_locale, LocaleId, LocaleMetadata};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LocaleMetadataResponse {

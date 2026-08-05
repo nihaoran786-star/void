@@ -111,19 +111,28 @@ fn find_actual_string(file_content: &str, search_string: &str) -> Option<String>
             .map(normalize_quote_char)
             .eq(normalized_search.iter().copied());
         if window_matches {
-            return Some(file_chars[start..start + search_chars.len()].iter().collect());
+            return Some(
+                file_chars[start..start + search_chars.len()]
+                    .iter()
+                    .collect(),
+            );
         }
     }
 
     None
 }
 
-fn edit_string_candidates(content: &str, old_string: &str, new_string: &str) -> Vec<(String, String)> {
+fn edit_string_candidates(
+    content: &str,
+    old_string: &str,
+    new_string: &str,
+) -> Vec<(String, String)> {
     let mut candidates = Vec::new();
     let mut push_candidate = |old: String, new: String| {
-        if !candidates.iter().any(|(existing_old, existing_new)| {
-            existing_old == &old && existing_new == &new
-        }) {
+        if !candidates
+            .iter()
+            .any(|(existing_old, existing_new)| existing_old == &old && existing_new == &new)
+        {
             candidates.push((old, new));
         }
     };
@@ -131,8 +140,8 @@ fn edit_string_candidates(content: &str, old_string: &str, new_string: &str) -> 
     push_candidate(old_string.to_string(), new_string.to_string());
 
     if let Some(sanitized_old) = sanitize_read_tool_copied_text(old_string) {
-        let sanitized_new = sanitize_read_tool_copied_text(new_string)
-            .unwrap_or_else(|| new_string.to_string());
+        let sanitized_new =
+            sanitize_read_tool_copied_text(new_string).unwrap_or_else(|| new_string.to_string());
         push_candidate(sanitized_old, sanitized_new);
     }
 
@@ -350,9 +359,7 @@ pub fn edit_file(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        apply_edit_to_content, edit_file, sanitize_read_tool_copied_text, EditResult,
-    };
+    use super::{apply_edit_to_content, edit_file, sanitize_read_tool_copied_text, EditResult};
     use std::fs;
     use std::path::PathBuf;
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -413,8 +420,9 @@ mod tests {
     #[test]
     fn apply_edit_to_content_accepts_read_tool_line_prefixes() {
         let content = "alpha\nbeta\n";
-        let result = apply_edit_to_content(content, "     1\talpha\n     2\tbeta", "alpha\nBETA", false)
-            .expect("edit should succeed with read prefixes");
+        let result =
+            apply_edit_to_content(content, "     1\talpha\n     2\tbeta", "alpha\nBETA", false)
+                .expect("edit should succeed with read prefixes");
 
         assert_eq!(result.new_content, "alpha\nBETA\n");
     }

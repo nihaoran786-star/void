@@ -5,12 +5,12 @@ use agent_client_protocol::schema::{
     SessionUpdate, StopReason,
 };
 use agent_client_protocol::{Client, ConnectionTo, Error, Result};
-use void_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
-use void_core::agentic::events::EventEnvelope;
-use void_events::AgenticEvent as CoreEvent;
 use log::warn;
 use serde_json::json;
 use tokio::sync::broadcast;
+use void_core::agentic::coordination::{DialogSubmissionPolicy, DialogTriggerSource};
+use void_core::agentic::events::EventEnvelope;
+use void_events::AgenticEvent as CoreEvent;
 
 use super::content::parse_prompt_blocks;
 use super::events::{

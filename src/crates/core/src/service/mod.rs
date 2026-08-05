@@ -6,10 +6,10 @@
 
 #[cfg(feature = "product-full")]
 pub mod agent_memory; // Agent memory prompt helpers and consent-gated repository interface
-#[cfg(feature = "product-full")]
-mod atomic_file;
 #[cfg(feature = "service-integrations")]
 pub mod announcement; // Announcement / feature-demo / tips system
+#[cfg(feature = "product-full")]
+pub(crate) mod atomic_file;
 pub(crate) mod bootstrap; // Workspace persona bootstrap helpers
 #[cfg(feature = "product-full")]
 pub mod btw_relationship; // Durable BTW lineage without transient runtime duplication
@@ -53,9 +53,6 @@ pub use terminal_core as terminal;
 // Re-export main components.
 #[cfg(feature = "service-integrations")]
 pub use announcement::{AnnouncementCard, AnnouncementScheduler, AnnouncementSchedulerRef};
-pub use void_services_core::{diagnostics, diff, system};
-#[cfg(feature = "service-integrations")]
-pub use void_services_integrations::file_watch;
 pub use bootstrap::reset_workspace_persona_files_to_default;
 pub use config::{ConfigManager, ConfigProvider, ConfigService};
 #[cfg(feature = "product-full")]
@@ -112,6 +109,9 @@ pub use token_usage::{
     ModelTokenStats, SessionTokenStats, TimeRange, TokenUsageQuery, TokenUsageRecord,
     TokenUsageService, TokenUsageSummary,
 };
+pub use void_services_core::{diagnostics, diff, system};
+#[cfg(feature = "service-integrations")]
+pub use void_services_integrations::file_watch;
 pub use workspace::{WorkspaceManager, WorkspaceProvider, WorkspaceService};
 pub use workspace_runtime::{
     get_workspace_runtime_service_arc, try_get_workspace_runtime_service_arc,

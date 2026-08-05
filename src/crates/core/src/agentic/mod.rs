@@ -41,8 +41,15 @@ pub mod side_question;
 // Session goal mode (/goal command)
 pub mod goal_mode;
 pub(crate) mod init_agents_md;
+pub mod persona_skill_runtime;
 pub mod system;
 pub mod team_definitions;
+pub mod team_orchestrator;
+pub mod team_runtime;
+pub mod team_runtime_adapter;
+pub mod team_runtime_service;
+pub mod team_runtime_store;
+pub mod team_tool_runtime;
 
 // Agents module
 pub mod agents;

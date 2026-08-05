@@ -1,10 +1,10 @@
-use void_events::EventEmitter;
 use log::{debug, error};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex};
 use tokio::sync::{Mutex, RwLock};
+use void_events::EventEmitter;
 
 use super::types::{FileWatchEvent, FileWatchEventKind, FileWatcherConfig};
 

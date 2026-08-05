@@ -3,10 +3,10 @@
 /// Uses tokio::mpsc channel to send events to CLI TUI renderer
 use crate::traits::{TextChunk, ToolEventPayload, TransportAdapter};
 use async_trait::async_trait;
-use void_events::AgenticEvent;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use tokio::sync::mpsc;
+use void_events::AgenticEvent;
 
 /// CLI event type (for TUI rendering)
 #[derive(Debug, Clone, Serialize, Deserialize)]

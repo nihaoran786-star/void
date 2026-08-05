@@ -1118,8 +1118,8 @@ mod tests {
         assert!(!complete_state.is_active());
         assert_eq!(complete_state.token_budget, Some(500));
 
-        let blocked = update_goal_mode_state(Some(state), GoalModeUpdateAction::Block, 4)
-            .expect("block");
+        let blocked =
+            update_goal_mode_state(Some(state), GoalModeUpdateAction::Block, 4).expect("block");
         let blocked_state = blocked.state.expect("blocked state");
         assert_eq!(blocked_state.status, GoalModeStatus::Blocked);
         assert!(!blocked_state.is_active());

@@ -10,6 +10,8 @@ const readSource = (relativePath: string): string => readFileSync(
 describe('Skills market presentation contract', () => {
   const scene = readSource('./SkillsScene.tsx');
   const styles = readSource('./SkillsScene.scss');
+  const minimalStyles = readSource('./SkillsScene.minimal.scss');
+  const marketContract = readSource('../../../component-library/styles/customization-market.scss');
   const marketCard = readSource('./components/SkillCard.tsx');
 
   it('keeps skills in one standalone scene without duplicate customization navigation', () => {
@@ -29,12 +31,13 @@ describe('Skills market presentation contract', () => {
   });
 
   it('uses a four, two, one column responsive market grid', () => {
-    expect(styles).toContain('.void-ui--minimal .void-skills-scene');
-    expect(styles).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
-    expect(styles).toContain('@container skills-market (max-width: 900px)');
-    expect(styles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
-    expect(styles).toContain('@container skills-market (max-width: 560px)');
-    expect(styles).toContain('grid-template-columns: 1fr;');
+    expect(minimalStyles).toContain("[data-customization-market='skills']");
+    expect(minimalStyles).toContain('@include market.grid;');
+    expect(minimalStyles).toContain('@container skills-market (max-width: 900px)');
+    expect(minimalStyles).toContain('@include market.two-column-grid;');
+    expect(minimalStyles).toContain('@container skills-market (max-width: 560px)');
+    expect(minimalStyles).toContain('@include market.one-column-grid;');
+    expect(marketContract).toContain('$desktop-grid-columns: 4;');
   });
 
   it('searches both localized presentation and stable raw skill identity', () => {
@@ -49,12 +52,13 @@ describe('Skills market presentation contract', () => {
 
   it('keeps raw paths out of market cards and exposes selection state', () => {
     expect(scene).not.toContain('className="skills-card__path"');
-    expect(scene).toContain("aria-pressed={activeTab === 'installed'}");
-    expect(scene).toContain("aria-pressed={activeTab === 'discover'}");
+    expect(scene).toContain('role="tablist"');
+    expect(scene).toContain("aria-selected={activeTab === 'installed'}");
+    expect(scene).toContain("aria-selected={activeTab === 'discover'}");
     expect(scene).toContain('aria-pressed={installedFilter === cat.id}');
     expect(scene).toContain('aria-expanded={isAddFormOpen}');
-    expect(scene).toContain("(skill.isShadowed || skill.level === 'project')");
-    expect(scene).toContain("skill.level === 'project' && (");
+    expect(scene).toContain("variant={skill.level === 'project' ? 'purple' : 'info'}");
+    expect(scene).toContain('{skill.isShadowed && (');
   });
 
   it('renders retryable skill failures as alerts', () => {
@@ -75,10 +79,11 @@ describe('Skills market presentation contract', () => {
   });
 
   it('uses compact icon-forward cards without a heavy market footer rail', () => {
-    expect(styles).toContain('height: 116px;');
-    expect(styles).toContain('min-height: 116px;');
-    expect(styles).toContain('.skills-card__avatar,\n  .skill-card__avatar');
-    expect(styles).toContain('width: 36px;');
+    expect(minimalStyles).toContain('@include market.card;');
+    expect(marketContract).toContain('$card-height: 160px;');
+    expect(minimalStyles).toContain('.skills-card__avatar,');
+    expect(minimalStyles).toContain('.skill-card__avatar');
+    expect(minimalStyles).toContain('width: 52px;');
     expect(styles).toContain('-webkit-line-clamp: 2;');
     expect(styles).toContain('.skill-card__footer');
     expect(styles).toContain('border-top: 0;');

@@ -18,9 +18,11 @@ automatically the current source of truth.
   upstream migration program
 - [Minimal workspace migration](architecture/frontend-minimal-workspace-migration.md)
 - [Customization Center and active persona specification](features/customization-center-prd.md)
-  — current Desktop/Tauri implementation status and deferred runtime boundaries
+  — current Desktop/Tauri persona and compatible reusable-Team runtime status,
+  with deferred policy and platform boundaries
 - [Team Workspace product and architecture specification](features/team-workspace-prd.md)
-  — current Team definition-management status and future runtime contract
+  — current reusable-Team definition/runtime status and staged expansion
+  contract
 - [Web UI performance boundaries](architecture/web-ui-performance-boundaries.md)
 - [Core decomposition](architecture/core-decomposition.md)
 - [i18n architecture](architecture/i18n.md)

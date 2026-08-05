@@ -469,12 +469,12 @@ pub fn crop_shot_to_ocr_region(
 #[cfg(target_os = "macos")]
 mod macos {
     use super::{
-        OcrTextMatch, filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
-        image_content_rect_or_full, levenshtein_chars, normalize_for_match,
+        filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
+        image_content_rect_or_full, levenshtein_chars, normalize_for_match, OcrTextMatch,
     };
-    use objc2::AnyThread;
     use objc2::msg_send;
     use objc2::rc::Retained;
+    use objc2::AnyThread;
     use objc2_foundation::{NSArray, NSData, NSDictionary, NSError, NSString};
     use objc2_vision::{
         VNImageOption, VNImageRectForNormalizedRect, VNImageRequestHandler, VNRecognizeTextRequest,
@@ -666,19 +666,19 @@ mod macos {
 #[cfg(target_os = "windows")]
 mod windows_backend {
     use super::{
-        OcrTextMatch, filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
-        image_content_rect_or_full, normalize_for_match,
+        filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
+        image_content_rect_or_full, normalize_for_match, OcrTextMatch,
     };
     use void_core::agentic::tools::computer_use_host::ComputerScreenshot;
     use void_core::util::errors::{VoidError, VoidResult};
+    use windows::core::HSTRING;
     use windows::Graphics::Imaging::BitmapDecoder;
     use windows::Media::Ocr::{OcrEngine, OcrWord};
     use windows::Storage::Streams::{DataWriter, InMemoryRandomAccessStream};
     use windows::Win32::System::Com::{
-        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoIncrementMTAUsage, CoInitializeEx,
-        CoUninitialize,
+        CoIncrementMTAUsage, CoInitializeEx, CoUninitialize, COINIT_APARTMENTTHREADED,
+        COINIT_DISABLE_OLE1DDE,
     };
-    use windows::core::HSTRING;
 
     fn w<T>(r: windows::core::Result<T>) -> VoidResult<T> {
         r.map_err(|e| VoidError::tool(format!("Windows OCR: {}", e)))
@@ -820,8 +820,8 @@ mod windows_backend {
 #[cfg(target_os = "linux")]
 mod linux_backend {
     use super::{
-        OcrTextMatch, filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
-        image_content_rect_or_full, normalize_for_match,
+        filter_and_rank, fuzzy_text_matches_query, image_box_to_global_match,
+        image_content_rect_or_full, normalize_for_match, OcrTextMatch,
     };
     use leptess::capi::TessPageIteratorLevel_RIL_WORD;
     use leptess::{leptonica, tesseract::TessApi};

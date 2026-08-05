@@ -156,7 +156,7 @@ pub(crate) fn probe_runtime_availability() -> SkyLightDiagnostics {
 
 #[cfg(target_os = "macos")]
 fn macos_probe_runtime_availability() -> SkyLightDiagnostics {
-    use std::ffi::{CString, c_char, c_void};
+    use std::ffi::{c_char, c_void, CString};
 
     const RTLD_LAZY: i32 = 0x1;
     const SKYLIGHT_FRAMEWORK: &str =

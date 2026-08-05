@@ -4,6 +4,10 @@ use crate::miniapp::js_worker::JsWorker;
 use crate::miniapp::runtime_detect::{detect_runtime, DetectedRuntime};
 use crate::miniapp::types::{NodePermissions, NpmDep};
 use crate::util::errors::{VoidError, VoidResult};
+use serde_json::Value;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use void_product_domains::miniapp::ports::{
     MiniAppInstallDepsRequest, MiniAppPortError, MiniAppPortErrorKind, MiniAppPortFuture,
     MiniAppRuntimePort,
@@ -12,10 +16,6 @@ pub use void_product_domains::miniapp::worker::InstallResult;
 use void_product_domains::miniapp::worker::{
     plan_install_deps, select_lru_worker, worker_is_idle, worker_pool_at_capacity, InstallDepsPlan,
 };
-use serde_json::Value;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
 struct WorkerEntry {
     revision: String,
@@ -294,11 +294,7 @@ impl JsWorkerPool {
     }
 
     /// Install npm dependencies for the app (bun install or npm/pnpm install).
-    pub async fn install_deps(
-        &self,
-        app_id: &str,
-        _deps: &[NpmDep],
-    ) -> VoidResult<InstallResult> {
+    pub async fn install_deps(&self, app_id: &str, _deps: &[NpmDep]) -> VoidResult<InstallResult> {
         let app_dir = self.path_manager.miniapp_dir(app_id);
         self.install_deps_in_dir(&app_dir, _deps).await
     }
@@ -377,10 +373,10 @@ fn map_miniapp_runtime_port_error(error: VoidError) -> MiniAppPortError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use void_product_domains::miniapp::runtime::RuntimeKind;
     use std::collections::HashMap;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use void_product_domains::miniapp::runtime::RuntimeKind;
 
     struct TestTempDir {
         path: PathBuf,

@@ -5,9 +5,9 @@
 /// - Tauri (app.emit events)
 /// - WebSocket/SSE (web server)
 use async_trait::async_trait;
-use void_events::AgenticEvent;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use void_events::AgenticEvent;
 
 /// Transport adapter trait - All platforms must implement this interface
 #[async_trait]

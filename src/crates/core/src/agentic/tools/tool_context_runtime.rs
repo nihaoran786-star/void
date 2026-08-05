@@ -7,7 +7,9 @@
 
 use crate::agentic::coordination::get_global_coordinator;
 use crate::agentic::deep_review::tool_context;
+use crate::agentic::persona_skill_runtime::append_persona_skill_context_data;
 use crate::agentic::session::EvidenceLedgerCheckpoint;
+use crate::agentic::team_tool_runtime::append_team_tool_context_data;
 use crate::agentic::tools::computer_use_host::ComputerUseHostRef;
 use crate::agentic::tools::framework::{
     build_tool_path_policy_denial_message, build_tool_runtime_artifact_reference,
@@ -266,6 +268,7 @@ pub(crate) fn build_tool_description_context(
     for (key, value) in context_vars {
         custom_data.insert(key.clone(), Value::String(value.clone()));
     }
+    append_persona_skill_context_data(context_vars, &mut custom_data);
 
     ToolUseContext {
         tool_call_id: None,
@@ -373,6 +376,10 @@ fn build_tool_context_custom_data(context: &ToolExecutionContext) -> HashMap<Str
         deep_review_parent_context,
         &mut map,
     );
+    // Team authority is an explicit allowlist. Never forward arbitrary
+    // execution context into the concrete tool-use context.
+    append_team_tool_context_data(&context.context_vars, &mut map);
+    append_persona_skill_context_data(&context.context_vars, &mut map);
 
     map
 }
@@ -1371,6 +1378,9 @@ mod call_runtime_tests {
 #[cfg(test)]
 mod context_builder_tests {
     use super::{build_tool_description_context, build_write_preflight_context};
+    use crate::agentic::persona_skill_runtime::{
+        PERSONA_SKILL_ALLOWLIST_CONTEXT_KEY, PERSONA_SKILL_POLICY_CONTEXT_KEY,
+    };
     use crate::agentic::tools::ToolRuntimeRestrictions;
     use serde_json::json;
     use std::collections::{BTreeSet, HashMap};
@@ -1402,6 +1412,31 @@ mod context_builder_tests {
         assert_eq!(
             context.custom_data["write_tool_mode"],
             json!("inline_content")
+        );
+    }
+
+    #[test]
+    fn tool_description_context_preserves_typed_persona_skill_authority() {
+        let context_vars = HashMap::from([
+            (
+                PERSONA_SKILL_ALLOWLIST_CONTEXT_KEY.to_string(),
+                "[\"skill-a\"]".to_string(),
+            ),
+            (
+                PERSONA_SKILL_POLICY_CONTEXT_KEY.to_string(),
+                "v1".to_string(),
+            ),
+        ]);
+
+        let context = build_tool_description_context("agentic", None, None, true, &context_vars);
+
+        assert_eq!(
+            context.custom_data[PERSONA_SKILL_ALLOWLIST_CONTEXT_KEY],
+            json!(["skill-a"])
+        );
+        assert_eq!(
+            context.custom_data[PERSONA_SKILL_POLICY_CONTEXT_KEY],
+            json!("v1")
         );
     }
 
@@ -1441,6 +1476,11 @@ mod context_builder_tests {
 mod task_context_tests {
     use super::build_tool_use_context_for_task;
     use crate::agentic::core::ToolCall;
+    use crate::agentic::team_tool_runtime::{
+        TEAM_DEFINITION_ID_CONTEXT_KEY, TEAM_DEFINITION_REVISION_CONTEXT_KEY,
+        TEAM_INSTANCE_ID_CONTEXT_KEY, TEAM_LEAD_PERSONA_ID_CONTEXT_KEY,
+        TEAM_TOOL_POLICY_CONTEXT_KEY,
+    };
     use crate::agentic::tools::pipeline::{
         SubagentParentInfo, ToolExecutionContext, ToolExecutionOptions, ToolTask,
     };
@@ -1472,6 +1512,24 @@ mod task_context_tests {
             "deep_review_subagent_type".to_string(),
             "ReviewSecurity".to_string(),
         );
+        context_vars.insert(
+            TEAM_DEFINITION_ID_CONTEXT_KEY.to_string(),
+            "team-definition".to_string(),
+        );
+        context_vars.insert(
+            TEAM_DEFINITION_REVISION_CONTEXT_KEY.to_string(),
+            "r1".to_string(),
+        );
+        context_vars.insert(
+            TEAM_INSTANCE_ID_CONTEXT_KEY.to_string(),
+            "team-instance".to_string(),
+        );
+        context_vars.insert(
+            TEAM_LEAD_PERSONA_ID_CONTEXT_KEY.to_string(),
+            "lead".to_string(),
+        );
+        context_vars.insert(TEAM_TOOL_POLICY_CONTEXT_KEY.to_string(), "v1".to_string());
+        context_vars.insert("untrusted_secret".to_string(), "must-not-pass".to_string());
 
         ToolTask::new(
             ToolCall {
@@ -1558,6 +1616,15 @@ mod task_context_tests {
             context.custom_data["deep_review_parent_dialog_turn_id"],
             json!("parent_turn")
         );
+        assert_eq!(
+            context.custom_data[TEAM_INSTANCE_ID_CONTEXT_KEY],
+            json!("team-instance")
+        );
+        assert_eq!(
+            context.custom_data[TEAM_TOOL_POLICY_CONTEXT_KEY],
+            json!("v1")
+        );
+        assert!(!context.custom_data.contains_key("untrusted_secret"));
 
         let facts = context.to_tool_context_facts();
         let value = serde_json::to_value(&facts).expect("serialize context facts");

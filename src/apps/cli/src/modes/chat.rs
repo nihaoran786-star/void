@@ -2046,9 +2046,7 @@ impl ChatMode {
                     }
                 }
 
-                fn model_display_name(
-                    model: &void_core::service::config::AIModelConfig,
-                ) -> String {
+                fn model_display_name(model: &void_core::service::config::AIModelConfig) -> String {
                     format!("{} / {}", model.model_name, provider_display_name(model))
                 }
 
@@ -2276,8 +2274,7 @@ impl ChatMode {
                     }
                 };
 
-                let tool_registry =
-                    void_core::agentic::tools::registry::get_global_tool_registry();
+                let tool_registry = void_core::agentic::tools::registry::get_global_tool_registry();
                 let registry_lock = tool_registry.read().await;
                 let all_tools = registry_lock.get_all_tools();
 

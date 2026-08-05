@@ -1,12 +1,12 @@
 use anyhow::{anyhow, bail, Context, Result};
-use void_acp::client::{
-    AcpClientConfig, AcpClientInfo, AcpClientPermissionMode, AcpClientRequirementProbe,
-};
-use void_acp::AcpClientService;
 use clap::ValueEnum;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use void_acp::client::{
+    AcpClientConfig, AcpClientInfo, AcpClientPermissionMode, AcpClientRequirementProbe,
+};
+use void_acp::AcpClientService;
 
 use crate::config::CliConfig;
 
@@ -80,8 +80,7 @@ impl CliAcpPermissionMode {
 
 pub fn print_status(command: &str) -> Result<()> {
     let cwd = std::env::current_dir().context("Failed to resolve current directory")?;
-    let config_dir =
-        CliConfig::config_dir().context("Failed to resolve Void config directory")?;
+    let config_dir = CliConfig::config_dir().context("Failed to resolve Void config directory")?;
 
     println!("Void ACP");
     println!("Status: available");

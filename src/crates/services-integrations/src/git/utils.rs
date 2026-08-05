@@ -5,9 +5,9 @@ pub use super::{
  * Git utility functions
  */
 use super::{GitCommandOutput, GitError, GitFileStatus};
-use void_services_core::process_manager;
 use git2::{Repository, Status, StatusOptions};
 use std::path::Path;
+use void_services_core::process_manager;
 
 /// Returns whether the given path is a Git repository.
 pub fn is_git_repository<P: AsRef<Path>>(path: P) -> bool {

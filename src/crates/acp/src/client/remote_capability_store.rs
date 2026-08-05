@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use void_core::util::errors::{VoidError, VoidResult};
 use log::warn;
 use tokio::sync::RwLock;
+use void_core::util::errors::{VoidError, VoidResult};
 
 use super::config::RemoteAcpClientRequirementSnapshot;
 
@@ -57,10 +57,7 @@ impl RemoteAcpCapabilityStore {
         self.snapshots.read().await.get(connection_id).cloned()
     }
 
-    pub(crate) async fn set(
-        &self,
-        snapshot: RemoteAcpClientRequirementSnapshot,
-    ) -> VoidResult<()> {
+    pub(crate) async fn set(&self, snapshot: RemoteAcpClientRequirementSnapshot) -> VoidResult<()> {
         let entries = {
             let mut guard = self.snapshots.write().await;
             guard.insert(snapshot.connection_id.clone(), snapshot);
@@ -77,10 +74,7 @@ impl RemoteAcpCapabilityStore {
         self.persist(Vec::new()).await
     }
 
-    async fn persist(
-        &self,
-        snapshots: Vec<RemoteAcpClientRequirementSnapshot>,
-    ) -> VoidResult<()> {
+    async fn persist(&self, snapshots: Vec<RemoteAcpClientRequirementSnapshot>) -> VoidResult<()> {
         if let Some(parent) = self.path.parent() {
             tokio::fs::create_dir_all(parent).await.map_err(|error| {
                 VoidError::io(format!(

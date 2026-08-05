@@ -1,14 +1,14 @@
 #![cfg(feature = "git")]
 
+use std::fs;
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 use void_services_integrations::git::{
     build_git_changed_files_args, build_git_diff_args, parse_branch_line, parse_git_log_line,
     parse_name_status_output, parse_worktree_list, GitAuthor, GitChangedFile, GitChangedFileStatus,
     GitChangedFilesParams, GitCommandOutput, GitCommitParams, GitDiffParams, GitGraph, GitService,
     GitWorktreeInfo, GraphNode, GraphRef,
 };
-use std::fs;
-use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn git_changed_file_status_preserves_snake_case_contract() {

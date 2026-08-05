@@ -4,11 +4,11 @@
 
 use super::types::{AgenticEvent, EventEnvelope, EventPriority};
 use crate::util::errors::VoidResult;
-use void_agent_stream::StreamEventSink;
 use log::{debug, trace, warn};
 use std::collections::BinaryHeap;
 use std::sync::Arc;
 use tokio::sync::{broadcast, Mutex, Notify};
+use void_agent_stream::StreamEventSink;
 
 const EVENT_BROADCAST_BUFFER: usize = 1024;
 const SLOW_EVENT_QUEUE_LATENCY_MS: u128 = 250;

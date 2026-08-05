@@ -6,7 +6,7 @@
 import React, { useRef, useCallback, useEffect, useReducer, useState, useMemo } from 'react';
 import path from 'path-browserify';
 import { useTranslation } from 'react-i18next';
-import { Image, Plus, X, Files, MessageSquarePlus } from 'lucide-react';
+import { Image, Plus, X, Files, MessageSquarePlus, Users } from 'lucide-react';
 import { ContextDropZone } from '../../shared/context-system';
 import { useActiveSessionState } from '@/flow_chat/hooks';
 import {
@@ -690,6 +690,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   });
   const {
     activeAgent: composerActiveAgent,
+    activeTeam: composerActiveTeam,
     activePersonaBinding: composerActivePersonaBinding,
     agents: composerPersonaAgents,
     teams: composerPersonaTeams,
@@ -727,6 +728,15 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     ],
   );
   const activePersonaDisplayName = useMemo(() => {
+    if (composerActivePersonaBinding?.kind === 'team_lead') {
+      if (!composerActiveTeam) {
+        return tCommon('customization.composerPersona.teams');
+      }
+      return localizeCatalogPresentation(
+        composerActiveTeam.identity,
+        key => tAgents(key),
+      ).displayName;
+    }
     if (!composerActiveAgent) {
       return tCommon('customization.composerPersona.selectedAgent');
     }
@@ -734,7 +744,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       composerActiveAgent.identity,
       key => tAgents(key),
     ).displayName;
-  }, [composerActiveAgent, tAgents, tCommon]);
+  }, [
+    composerActiveAgent,
+    composerActivePersonaBinding?.kind,
+    composerActiveTeam,
+    tAgents,
+    tCommon,
+  ]);
   const canSwitchModes =
     !isChildComposerTarget
     && !isAssistantWorkspace
@@ -3852,8 +3868,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     </div>
                   )}
 
-                  {composerActivePersonaBinding?.kind === 'agent' && (
+                  {composerActivePersonaBinding && (
                     <div className="void-chat-input__agent-capsule void-chat-input__persona-capsule">
+                      {composerActivePersonaBinding.kind === 'team_lead' ? (
+                        <Users size={12} aria-hidden />
+                      ) : null}
                       <span className="void-chat-input__agent-capsule-label">
                         {activePersonaDisplayName}
                       </span>
@@ -3920,11 +3939,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                             teams={composerPersonaTeams}
                             loading={composerPersonaLoading}
                             status={composerPersonaStatus}
-                            activePersonaId={
-                              composerActivePersonaBinding?.kind === 'agent'
-                                ? composerActivePersonaBinding.personaId
-                                : undefined
-                            }
+                            activePersonaId={composerActiveAgent?.identity.id}
+                            activeTeamId={composerActiveTeam?.identity.id}
                             busyId={
                               composerPersonaBusyId
                               ?? (modePersistencePending ? '__mode_pending__' : undefined)

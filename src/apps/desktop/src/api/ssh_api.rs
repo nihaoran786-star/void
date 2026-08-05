@@ -396,8 +396,7 @@ pub async fn remote_open_workspace(
     connection_id: String,
     remote_path: String,
 ) -> Result<(), String> {
-    let remote_path =
-        void_core::service::remote_ssh::normalize_remote_workspace_path(&remote_path);
+    let remote_path = void_core::service::remote_ssh::normalize_remote_workspace_path(&remote_path);
     let manager = state.get_ssh_manager_async().await?;
 
     // Verify connection exists
