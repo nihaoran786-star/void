@@ -1,3 +1,21 @@
+export function resolveEffectiveChatInputMode(params: {
+  isNewSessionDraft: boolean;
+  isAssistantWorkspace: boolean;
+  draftMode: string;
+  reducerMode: string;
+  sessionMode?: string | null;
+}): string {
+  if (params.isNewSessionDraft) {
+    return params.draftMode;
+  }
+
+  if (params.isAssistantWorkspace) {
+    return 'Claw';
+  }
+
+  return params.sessionMode?.trim() || params.reducerMode;
+}
+
 export function resolveWorkspaceChatInputMode(params: {
   currentMode: string;
   isAssistantWorkspace: boolean;

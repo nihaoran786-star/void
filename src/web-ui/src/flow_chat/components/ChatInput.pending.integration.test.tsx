@@ -37,11 +37,14 @@ const mocks = vi.hoisted(() => ({
     workspaceId: 'workspace-1',
     workspacePath: 'D:/workspace',
     sessionKind: 'normal',
+    lastSubmittedMode: undefined as string | undefined,
   },
   modePending: false,
   personaPending: false,
   sessionSnapshot: null as SessionStateMachine | null,
   sendMessage: vi.fn(),
+  senderAgentTypes: [] as Array<string | undefined>,
+  confirmWarning: vi.fn(async () => true),
   startBtwThread: vi.fn(),
   runGoalCommandSafely: vi.fn(),
   runGoalManagementCommandSafely: vi.fn(),
@@ -146,7 +149,13 @@ vi.mock('../hooks/useComposerContexts', () => ({
 }));
 
 vi.mock('../hooks/useMessageSender', () => ({
-  useMessageSender: () => ({ sendMessage: mocks.sendMessage }),
+  useMessageSender: (options: { currentAgentType?: string }) => {
+    mocks.senderAgentTypes.push(options.currentAgentType);
+    return {
+      ensureSession: vi.fn(),
+      sendMessage: mocks.sendMessage,
+    };
+  },
 }));
 
 vi.mock('../hooks/useComposerModePersistence', () => ({
@@ -269,14 +278,24 @@ vi.mock('@/infrastructure/api', () => ({
 
 vi.mock('@/infrastructure/api/service-api/AgentAPI', () => ({
   agentAPI: {
-    getAvailableModes: vi.fn(async () => [{
-      id: 'agentic',
-      name: 'Agentic',
-      description: 'Agentic',
-      isReadonly: false,
-      toolCount: 0,
-      promptCacheScopeKey: 'code-stable',
-    }]),
+    getAvailableModes: vi.fn(async () => [
+      {
+        id: 'agentic',
+        name: 'Agentic',
+        description: 'Agentic',
+        isReadonly: false,
+        toolCount: 0,
+        promptCacheScopeKey: 'code-stable',
+      },
+      {
+        id: 'Media',
+        name: 'Media',
+        description: 'Media',
+        isReadonly: false,
+        toolCount: 0,
+        promptCacheScopeKey: 'media-stable',
+      },
+    ]),
     runInitAgentsMd: vi.fn(),
   },
 }));
@@ -312,6 +331,8 @@ vi.mock('../services/FlowChatManager', () => ({
 
 vi.mock('../services/NewSessionDraftService', () => ({
   completeNewSessionDraft: vi.fn(),
+  isNewSessionDraftWorkspaceAvailable: vi.fn(() => true),
+  selectNewSessionDraftPersona: vi.fn(),
   selectNewSessionDraftWorkspace: vi.fn(),
 }));
 
@@ -392,7 +413,7 @@ vi.mock('@/component-library', () => ({
   IconButton: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props}>{children}</button>
   ),
-  confirmWarning: vi.fn(async () => true),
+  confirmWarning: mocks.confirmWarning,
 }));
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -405,6 +426,12 @@ describe('ChatInput customization persistence keyboard contract', () => {
     vi.clearAllMocks();
     mocks.modePending = false;
     mocks.personaPending = false;
+    mocks.senderAgentTypes.length = 0;
+    session.config.agentType = 'agentic';
+    session.mode = 'agentic';
+    session.scenario = 'code';
+    session.executionPolicy = 'agentic';
+    session.lastSubmittedMode = undefined;
     mocks.sessionSnapshot = idleSnapshot();
     container = document.createElement('div');
     document.body.append(container);
@@ -504,5 +531,49 @@ describe('ChatInput customization persistence keyboard contract', () => {
     await vi.waitFor(() => {
       expect(mocks.cancelCurrentTask).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('真实 Media 房间从首次渲染起就继承 Media，不短暂回退自主助理', async () => {
+    session.config.agentType = 'Media';
+    session.mode = 'Media';
+    session.scenario = 'media';
+    session.executionPolicy = 'Media';
+    session.lastSubmittedMode = 'Media';
+
+    await renderChatInput();
+
+    expect(mocks.senderAgentTypes.length).toBeGreaterThan(0);
+    expect(mocks.senderAgentTypes).not.toContain('agentic');
+    expect(mocks.senderAgentTypes.at(-1)).toBe('Media');
+  });
+
+  it('同一 Media 团队房间连续发送时不询问缓存切换', async () => {
+    session.config.agentType = 'Media';
+    session.mode = 'Media';
+    session.scenario = 'media';
+    session.executionPolicy = 'Media';
+    session.lastSubmittedMode = 'Media';
+    const editor = await renderChatInput();
+
+    await setEditorText(editor, '继续生成第二集剧本');
+    await pressKey(editor, 'Enter');
+
+    expect(mocks.confirmWarning).not.toHaveBeenCalled();
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+  });
+
+  it('用户明确把已发送的 Media 房间切到自主助理后仍保留缓存保护', async () => {
+    session.config.agentType = 'agentic';
+    session.mode = 'agentic';
+    session.scenario = 'code';
+    session.executionPolicy = 'agentic';
+    session.lastSubmittedMode = 'Media';
+    const editor = await renderChatInput();
+
+    await setEditorText(editor, '现在改用自主助理处理');
+    await pressKey(editor, 'Enter');
+
+    expect(mocks.confirmWarning).toHaveBeenCalledOnce();
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
   });
 });

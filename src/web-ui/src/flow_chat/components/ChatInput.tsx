@@ -75,7 +75,10 @@ import { resolveSessionRelationship } from '../utils/sessionMetadata';
 import { useComposerTarget } from '../hooks/useComposerTarget';
 import { useComposerContexts } from '../hooks/useComposerContexts';
 import { isAcpFlowSession } from '../utils/acpSession';
-import { resolveWorkspaceChatInputMode } from '../utils/chatInputMode';
+import {
+  resolveEffectiveChatInputMode,
+  resolveWorkspaceChatInputMode,
+} from '../utils/chatInputMode';
 import { useSceneStore } from '@/app/stores/sceneStore';
 import type { SceneTabId } from '@/app/components/SceneBar/types';
 import { configAPI } from '@/infrastructure/api';
@@ -673,12 +676,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [draftAgentType, isNewSessionDraft]);
 
-  const currentMode = isNewSessionDraft ? draftAgentType : modeState.current;
   const isAcpTargetSession = isAcpFlowSession(effectiveTargetSession);
   const isModeDropdownOpen = modeState.dropdownOpen;
   const activeSessionMode = effectiveTargetSessionId
     ? flowChatState.sessions.get(effectiveTargetSessionId)?.mode
     : undefined;
+  const currentMode = resolveEffectiveChatInputMode({
+    isNewSessionDraft,
+    isAssistantWorkspace,
+    draftMode: draftAgentType,
+    reducerMode: modeState.current,
+    sessionMode: activeSessionMode,
+  });
   const isChildComposerTarget =
     composerTarget.status === 'ready' && composerTarget.kind === 'child';
   const composerAgentType =

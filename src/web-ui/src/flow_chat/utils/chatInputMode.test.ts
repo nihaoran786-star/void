@@ -1,6 +1,59 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveWorkspaceChatInputMode } from './chatInputMode';
+import {
+  resolveEffectiveChatInputMode,
+  resolveWorkspaceChatInputMode,
+} from './chatInputMode';
+
+describe('resolveEffectiveChatInputMode', () => {
+  it('keeps the persisted Media room authoritative after a draft becomes a session', () => {
+    expect(
+      resolveEffectiveChatInputMode({
+        isNewSessionDraft: false,
+        isAssistantWorkspace: false,
+        draftMode: 'Media',
+        reducerMode: 'agentic',
+        sessionMode: 'Media',
+      }),
+    ).toBe('Media');
+  });
+
+  it('keeps the selected draft mode authoritative before the session exists', () => {
+    expect(
+      resolveEffectiveChatInputMode({
+        isNewSessionDraft: true,
+        isAssistantWorkspace: false,
+        draftMode: 'Media',
+        reducerMode: 'agentic',
+        sessionMode: undefined,
+      }),
+    ).toBe('Media');
+  });
+
+  it('falls back to the reducer only when no real session mode exists', () => {
+    expect(
+      resolveEffectiveChatInputMode({
+        isNewSessionDraft: false,
+        isAssistantWorkspace: false,
+        draftMode: 'Media',
+        reducerMode: 'Plan',
+        sessionMode: undefined,
+      }),
+    ).toBe('Plan');
+  });
+
+  it('keeps assistant workspaces in Claw even when a project mode is persisted', () => {
+    expect(
+      resolveEffectiveChatInputMode({
+        isNewSessionDraft: false,
+        isAssistantWorkspace: true,
+        draftMode: 'agentic',
+        reducerMode: 'agentic',
+        sessionMode: 'agentic',
+      }),
+    ).toBe('Claw');
+  });
+});
 
 describe('resolveWorkspaceChatInputMode', () => {
   it('forces Claw inside assistant workspaces', () => {
